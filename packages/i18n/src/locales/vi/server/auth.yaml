@@ -12,8 +12,8 @@ electronCallback:
     syncedAndSafeToClose: Chúng tôi đã thông báo cho ứng dụng AIRI bạn đã đăng nhập từ đó.
     invalidResponse: Chúng tôi không thể dùng phản hồi đăng nhập này.
     loopbackUnreachable: Trình duyệt không thể kết nối đến AIRI thông qua cổng callback cục bộ.
-    tryOpenDirectly: We will try opening the local handoff directly. If that still fails, use the button below.
-    automaticHandoffFailed: Automatic handoff did not finish in this browser session.
+    tryOpenDirectly: Chúng tôi sẽ thử mở tính năng chuyển tiếp cục bộ trực tiếp. Nếu vẫn không thành công, hãy sử dụng nút bên dưới.
+    automaticHandoffFailed: Quá trình chuyển giao tự động chưa hoàn tất trong phiên trình duyệt này.
   label:
     signIn: Đăng nhập
     safeToClose: Bạn có thể đóng tab này rồi đó.
@@ -57,8 +57,11 @@ signIn:
     useDifferentEmail: Sử dụng email khác
   divider:
     or: hoặc
+  message:
+    redirecting: Đang chuyển hướng đến {provider}…
   error:
     fallback: Đăng nhập thất bại
+    providerTimeout: Phiên đăng nhập của nhà cung cấp đã hết hạn. Vui lòng thử lại.
     unknown: Lỗi không xác định đã xảy ra
     socialOnlyNoPassword: Email này được đăng ký bằng Google hoặc Github. Đăng nhập với nút bên dưới; bạn có thể thêm mật khẩu trong cài đật tài khoản sau khi đăng nhập.
     passwordMismatch: Mật khẩu không khớp.

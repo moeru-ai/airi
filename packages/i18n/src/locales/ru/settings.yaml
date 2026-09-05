@@ -51,14 +51,14 @@ dialogs:
     no-models-help: >-
       Вернитесь на предыдущий шаг и проверьте API-ключ или подключение к сети.
     permissions:
-      title: Управление разрешениями
-      description: Вы можете предоставить необходимые разрешения сейчас или настроить их позже.
+      title: Permission management
+      description: You can grant the required permissions now or continue and configure them later.
       notificationsTitle: Оповещения
       notificationsDescription: Разрешить напоминания и важные обновления статуса.
-      microphoneTitle: Микрофон
-      microphoneDescription: Разрешить AIRI использовать микрофон для голосового ввода и расшифровки речи.
-      requestAction: Запросить доступ
-      optionalHint: Вы можете продолжить, даже если эти разрешения не предоставлены.
+      microphoneTitle: Microphone
+      microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      requestAction: Request access
+      optionalHint: You can continue even if these permissions are not granted.
       stateGranted: Предоставлено
       stateNotGranted: Не предоставлено
   bug-report:
@@ -107,7 +107,7 @@ model-select:
   panel-callout:
     support-status-header: Мы поддерживаем 2D и 3D модели
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
+      Нажмите {select-button}, чтобы выбрать или импортировать модели. В настоящее время поддерживаются {zip} (для моделей Live2D и Spine) и {vrm} (для моделей VRM).
     model-type-example: >
       Neuro-sama использует 2D модель, основанную на фреймворк, разработанной компанией Live2D Inc, В то время как Grok Ani (в компании Grok) использует 3D-модели, основанные на открытых форматах VRM / MMD.
   select-model:
@@ -117,6 +117,38 @@ model-select:
     import: Импорт
     remove: Удалить
     confirm: Подтвердить
+  live2d-report:
+    title: Before import
+    description: Review the model data and any issues found in the archive.
+    description-short: Review the model data and issues.
+    close: Close
+    model:
+      title: Model
+      files: '{count} files'
+      types:
+        cubism: 'Cubism {version} ({format})'
+        cubism-compatible: 'Cubism 3+ ({format})'
+        unknown: Unknown
+    resources:
+      title: Resources
+      motions: Motions
+      expressions: Expressions
+      parameters: Parameters
+      textures: Textures
+      referenced-and-found: '{referenced} referenced · {found} found'
+      referenced: '{count} referenced'
+      found: '{count} found'
+    issues:
+      title: Issues
+      errors: '{count} errors'
+      warnings: '{count} warnings'
+      none: No issues found.
+      how-to-fix: How to fix
+      resolve-before-import: Resolve the errors before import.
+    actions:
+      cancel: Cancel
+      confirm: Confirm Import
+      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: Загрузить из файла
@@ -147,6 +179,33 @@ live2d:
       title: Извлечь
   animation:
     title: Анимация
+    motion-driver:
+      title: Motion driver
+      description: Select how AIRI creates idle body and eye motion.
+      options:
+        universal:
+          title: Universal
+          description: Use model motions, idle eye movement, and mouse tracking.
+        magic:
+          title: MAGIC
+          description: Generate motion from the bundled MAGIC dataset.
+      magic:
+        profile:
+          title: MAGIC profile
+          description: Select the bundled motion dataset that fits the MAGIC driver.
+          options:
+            idle-calm:
+              title: Idle / calm
+              description: Use the bundled idle and calm motion recording.
+            speaking-excited:
+              title: Speaking / excited
+              description: Use the bundled speaking and excited motion recording.
+        skip-mouth-open:
+          title: Skip generated mouth opening
+          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
+        force-view-target:
+          title: Force forward view target
+          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
       title: Включить отслеживание мыши
       description: Посмотрите на курсор во время движения. Изысканное движение глаз возобновляется после остановки курсора.
@@ -299,7 +358,7 @@ pages:
     activate: Активировать
     active: Активно
     active_badge: Текущая
-    activation_notice: Выбран персонаж {name}. Текущий разговор теперь использует его.
+    activation_notice: Переключено на {name}. Текущий разговор теперь использует этого персонажа.
     cancel: Отменить действие
     save: Сохранить изменения
     save_and_activate: Сохранить и активировать
@@ -413,7 +472,7 @@ pages:
         delete: Удалить все сеансы чата
       models:
         title: Модели
-        description: Remove imported Live2D, VRM, Spine, and MMD models.
+        description: Удалить импортированные модели Live2D/VRM.
         delete: Удалить все модели
       modules:
         title: Модули
@@ -454,7 +513,7 @@ pages:
       desktop_window_centered: Окно рабочего стола перемещено в центр экрана.
       desktop_reset: Данные рабочего стола сброшены.
   models:
-    description: Live2D, VRM, Spine, MMD, etc.
+    description: Live2D, VRM, Spine и др.
     title: Модели
     sections:
       section:
@@ -603,6 +662,10 @@ pages:
             show_more: Показать больше
             subtitle: Выберите модель у провайдера
             title: Модель
+          model-options:
+            title: Model options
+            thinking:
+              label: Thinking
       title: Сознание
     description: Мыслительный процесс, зрение, синтез речи, игры и т. д.
     gaming-factorio:
@@ -657,6 +720,19 @@ pages:
         section:
           provider-selection:
             description: Выберите подходящего провайдера синтеза речи
+          playground:
+            current: Current transcript
+            description: Listen through the active Hearing pipeline and keep each completed speech segment below.
+            empty: Start monitoring and speak into the selected microphone.
+            error-title: Transcription error
+            listening: Listening for speech…
+            no-transcription: No speech was recognized in this audio.
+            segment: 'Speech segment {number}'
+            start: Start monitoring
+            stop: Stop monitoring
+            title: Hearing playground
+            transcribing: Transcribing…
+            transcription-failed: Transcription failed.
           confidence-threshold:
             title: Порог уверенности
             description: >-
@@ -749,14 +825,14 @@ pages:
       access-token-secret-placeholder: Введите ваш секрет токена доступа X / Twitter
       configured: X / Twitter настроен правильно!
     web-search:
-      title: Web Search
-      description: Let AIRI search the web for current information
-      enable: Enable Web Search
-      enable-description: Allow AIRI to search the web during chat
-      api-key: Tavily API Key
-      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
-      api-key-placeholder: Enter your Tavily API key
-      configured: Web search is ready to use!
+      title: Веб Поиск
+      description: Позволить AIRI искать в Интернете текущую информацию
+      enable: Включить Веб Поиск
+      enable-description: Разрешить AIRI искать в Интернете во время чата
+      api-key: Tavily API Ключ 
+      api-key-description: Поисковый запрос основан на Tavily. Получите бесплатный API ключ на tavily.com.
+      api-key-placeholder: Введите ваш Tavily API ключ
+      configured: Веб поиск готов к использованию!
     mcp-server:
       title: MCP Сервера
       description: Настройка MCP серверов и перевод их инструментов в AIRI.
@@ -771,7 +847,7 @@ pages:
         empty: Здесь пока ничего нет. Добавьте одно ниже!
       add:
         title: Новый
-        description: 'Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.'
+        description: "Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше."
         pending-badge: Не сохранено
       status:
         unknown: Не загружен
@@ -884,6 +960,10 @@ pages:
               Вы можете сохранить текущую конфигурацию, если хотите продолжить.
             action: Сохранить в любом случае
         config:
+          loading: Loading provider settings...
+          load-error: Failed to load provider settings.
+          save-error: Failed to save provider settings.
+          retry: Retry
           common:
             fields:
               field:
@@ -1011,6 +1091,14 @@ pages:
         Провайдеры транскрипции (STT): Whisper.cpp, OpenAI, Azure Speech.
     description: LLM-модели, провайдеры речи и др.
     provider:
+      apple-speech-transcription:
+        title: Apple Speech
+        description: On-device speech recognition on macOS 26 or later. No API key is required.
+        fields:
+          locale:
+            label: Locale
+            description: Use an exact Apple Speech locale, such as en-US or zh-CN.
+            placeholder: en-US
       app-local-audio-transcription:
         title: Приложение (локально)
         description: https://github.com/moeru-ai/xsai-transformers
@@ -1078,6 +1166,26 @@ pages:
             volume:
               description: Регулировка громкости речи
               label: Громкость
+      voicevox:
+        description: voicevox.hiroshiba.jp
+        title: VOICEVOX
+        fields:
+          field:
+            intonation:
+              description: Adjust how much the intonation of the reading varies
+              label: Intonation
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
+      aivis-speech:
+        description: aivis-project.com
+        title: AivisSpeech
+        fields:
+          field:
+            intonation:
+              description: Adjust how strongly the speaking style is expressed
+              label: Emotion expression strength
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
       deepgram-tts:
         description: Deepgram.com
         title: Глупо грамма
@@ -1178,6 +1286,10 @@ pages:
             nano_banana: Nano Banana (Gemini 2.5 Flash Image)
       deepseek:
         description: Deepseek.com
+        fields:
+          field:
+            thinking-mode:
+              description: Controls whether DeepSeek reasoning models use thinking in chat requests.
         title: DeepSeek
       elevenlabs:
         description: Elevenlabs.io
@@ -1350,6 +1462,11 @@ pages:
         title: Volcano Engine
       volcengine-coding-plan:
         description: План кодирования Volcengine
+        models:
+          ark-code-latest:
+            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
+          legacy:
+            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
         title: План кодирования Volcengine
       byteplus:
         description: byteplus.com
@@ -1398,34 +1515,26 @@ pages:
     description: Настроить соединение сервера WebSocket
     title: Подключение
     websocket-url:
-      description: Полный адрес сервера WebSocket (например, ws://localhost:6121/ws)
-      label: Адрес сервера WebSocket
+      description: The address that this app uses to connect to the local server.
+      label: Server Address
       placeholder: Ws://localhost:6121/ws
     server-hostname:
-      label: Открыть доступ по сети
-      description: >-
-        Выберите, будет ли шлюз AIRI прослушивать только это устройство или к нему можно будет подключиться из вашей локальной сети.
-      advanced-label: Привязать имя хоста
-      advanced-description: >-
-        Использовать определенное имя хоста или IP-адрес, когда требуется ручная привязка сети.
-      options:
-        this-device: Это устройство
-        all: Все
-        advanced: Дополнительно
+      label: Expose To All
+      description: Allow other devices on the local network to connect to this server.
     server-auth-token:
-      label: Токен аутентификации
+      label: Pairing Token
       description: >-
-        Токен безопасности, требуемый удалёнными клиентами для подключения к этому шлюзу. Если оставить пустым, AIRI сгенерирует новый токен автоматически.
+        Other devices use this token to pair with this server. AIRI generates a token when this field is empty.
       placeholder: Авто-Генерация
     qr:
-      title: Подключиться из Stage Pocket
+      title: Pairing
       description: >-
-        Сканируйте этот QR-код из Stage Pocket, чтобы попробовать все доступные адреса локальной сети и сохранить первый рабочий.
+        Scan this QR code with the mobile app. The app tries each local address and saves the first working address.
       refresh: Обновить
-      image-alt: QR-код соединения с сервером AIRI
+      image-alt: AIRI pairing QR code
       candidates: Адреса кандидаты
       token-hint: >-
-        QR-код включает в себя токен авторизации, чтобы Stage Pocket мог пройти аутентификацию после подключения. Не делитесь этим публично.
+        The QR code includes the pairing token. Do not share the QR code publicly.
       errors:
         title: QR-код недоступен
         unavailable: Не удалось подготовить QR-код подключения.
@@ -1451,8 +1560,8 @@ pages:
       description: Тема, языки и др.
       title: Общие
     permissions:
-      description: Просмотр текущего состояния разрешений.
-      title: Управление разрешениями
+      description: View current permission status.
+      title: Permission Management
     description: Настройте вашу сцену!
     sections:
       section:
@@ -1470,7 +1579,7 @@ pages:
             section:
               performance-visualizer:
                 title: Визуализатор производительности
-                description: Переключить FPS/долгую задачу/оверлей памяти
+                description: Show FPS, frame time, long tasks, and supported browser memory metrics
               markdown-stress:
                 title: Нагрузочное тестирование обработки Markdown
                 description: Напряжение парсинг и рендеринга с тяжелыми чатами
@@ -1695,70 +1804,70 @@ spine:
     options:
       unlimited: Без ограничений
 mmd:
-  title: MMD Settings
+  title: Настройки MMD
   scale-and-position:
-    title: Scale And Position
-    scale: Scale
+    title: Масштаб и позиция
+    scale: Масштаб
     x: X
     'y': 'Y'
-    rotation: Rotation
+    rotation: Вращение
   theme-color-from-model:
-    title: Extract colors from model
+    title: Извлечь цвета из модели
     button-extract:
-      title: Extract
+      title: Извлечь
   physics:
     title: Physics & Rig
-    enabled: Enable physics (hair, skirt, accessories)
+    enabled: Включить физику (волосы, юбки, аксессуары)
     ik: Enable IK (inverse kinematics)
     grant: Enable append-bone propagation
-    gravity: Gravity strength
+    gravity: Сила гравитации
   gaze:
     title: Gaze
     tracking: Looking at
     options:
-      cursor: Mouse
-      camera: Camera
-      none: Disabled
+      cursor: Мышь
+      camera: Камера
+      none: Отключено
   animation:
-    title: Animation
+    title: Анимация
     idle-motion: Idle Motion
     import-motion: Import Motion (.vmd)
-    play-once: Preview Animation
+    play-once: ' Предпросмотр Анимации'
     remove: Remove motion
     description: >-
       Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
   morphs:
     title: Morphs
-    auto: (auto)
+    auto: (авто)
     revert: Revert to auto
     no-morphs: This model exposes no morphs.
     description: >-
       The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
   materials:
-    title: Materials
-    no-materials: This model exposes no materials.
+    title: Материалы
+    no-materials: Эта модель не содержит материалов.
     description: >-
-      Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
+      Регулировка непрозрачности отдельных частей модели (лицо, волосы, одежда, аксессуары). Установите значение 0, чтобы скрыть его.
 tachie:
   title: Tachie Settings
   archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
   scale-and-position:
-    title: Scale And Position
-    scale: Scale
+    title: Масштаб и позиция
+    scale: Масштаб
     x: X
     'y': 'Y'
   theme-color-from-model:
     title: Extract colors from model
     button-extract:
-      title: Extract
+      title: Извлечь
   rendering:
-    title: Rendering
-    render-scale: Render Scale
+    title: Рендеринг
+    render-scale: Масштаб рендеринга
     shadow: Theme-colored drop shadow
 websocket-secure-enabled:
-  title: Включить безопасный WebSocket (WSS)
+  title: Serve as Secure WebSocket (WSS)
   description: >-
-    Включите WSS (WebSocket Secure), чтобы разрешить HTTPS-подключения для мобильных устройств (pocket) в режиме разработки. Это автоматически сгенерирует самоподписанный сертификат.
+    Use WSS for secure mobile connections. AIRI creates a self-signed certificate.
 wip:
   title: В разработке
   description: >-

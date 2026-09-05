@@ -25,98 +25,130 @@ dialogs:
     validationPartial: 設定の一部が検証されました
     validationFailed: 設定検証に失敗
     validationError: '検証エラー: {error}'
-    testGeneration: Ping API
-    testGenerationRunning: Ping中...
-    testGenerationFailed: Pingテストに失敗
+    testGeneration: API Ping
+    testGenerationRunning: Ping 送信中...
+    testGenerationFailed: Ping テストに失敗しました
     retryPingCheck: 再試行
     skipForNow: 今はスキップ
     saveAndContinue: 保存して続行
     next: 次へ
     retry: 再試行
-    credentialsSafeLabel: APIキーと認証情報は安全に管理してください！
+    credentialsSafeLabel: API キーや認証情報を安全に保管してください！
     credentialsSafeLocal: >-
-      AIRIはあなたのPC上で完全にローカル環境で動作しており、AI/LLMプロバイダー向けの認証情報を無断で取得することはありません。ただし、APIキーは機密情報であることを十分に認識してください。これらのキーは厳重に管理し、決して第三者と共有しないようご注意ください。
+      AIRI はお使いの PC 上で完全ローカルに動作するため、AI/LLM プロバイダーの認証情報を収集することは一切ありません。ただし、API キーは機密情報ですので、安全に管理し第三者と共有しないでください。
     credentialsSafeOpenSource: >-
-      AIRIのソースコードは{github}で公開されています。認証情報の取り扱い方法を確認したい場合は、お気軽にコードをご確認ください。
+      AIRI は {github} 上のオープンソースプロジェクトです。認証情報の取り扱いを確認したい場合は、ソースコードをご覧ください。
     enableChatCheck: >-
-      Airiが最初に利用できるチャットモデルに「ping」メッセージを送信して利用可能状況を確認することを許可する
+      AIRI が利用可能な最初のチャットモデルに「ping」シグナルを送信して利用可能性をチェックすることを許可する
     start: 始めましょう！
-    loginPrompt: 最適な体験を提供するAIRI公式プロバイダーを利用するには、ログインしてください。
-    loginAction: サインイン
-    setupWithoutSigningIn: プロバイダーでセットアップ
+    loginPrompt: 最高の体験を得るためにログインして AIRI 公式プロバイダーを使用してください。
+    loginAction: ログイン
+    setupWithoutSigningIn: 独自のプロバイダーを設定
     flux: Flux
-    buyFlux: Fluxをチャージ
+    buyFlux: Flux を購入
     select-model: モデルを選択
     no-models: 利用可能なモデルがありません
     no-models-help: >-
       前のステップに戻ってAPIキーを確認するか、ネットワーク接続を確認してください。
     permissions:
-      title: 権限管理
-      description: 今すぐ必要な権限を許可するか、続行して後で設定できます。
+      title: 権限の管理
+      description: 必要な権限を今すぐ付与するか、後で設定することもできます。
       notificationsTitle: 通知
-      notificationsDescription: リマインダーと重要なステータス更新を許可する。
+      notificationsDescription: リマインダーや重要なステータス更新を許可します。
       microphoneTitle: マイク
-      microphoneDescription: AIRI が音声入力と文字起こしにマイクを使用することを許可します。
-      requestAction: アクセスをリクエスト
-      optionalHint: これらの権限を許可しない場合でも続行できます。
+      microphoneDescription: AIRI が音声入力と文字起こしのためにマイクを使用することを許可します。
+      requestAction: 権限をリクエスト
+      optionalHint: これらの権限を許可しなくても続行できます。
       stateGranted: 許可済み
-      stateNotGranted: 許可されていません
+      stateNotGranted: 未許可
   bug-report:
-    title: バク報告(´;ω;`)ヾ(･∀･`)
-    subtitle: "予期せぬエラーが発生しました\n何が起こったか報告してくれませんか？"
+    title: バグ報告 (´;ω;`)ヾ(･∀･`)
+    subtitle: 不具合が発生してしまい申し訳ありません。よろしければ、何が起きたか教えていただけますか？
     trigger-label: バグを報告
     submit-label: バグ報告を送信
-    triage-description: この問題の解決のためにページ内容とスクリーンショットを含める。
-    description-placeholder: Steps to reproduce, expected behavior, and actual behavior
-    include-current-page-screenshot: Include current page screenshot
+    triage-description: 問題の特定に役立てるため、スクリーンショットとページコンテンツを含めます。
+    description-placeholder: 再現手順、期待される結果、および実際に発生した結果
+    include-current-page-screenshot: 現在のページのスクリーンショットを含める
     manual-media:
-      label: Manually choose screenshots / recordings
-      optional: Optional.
+      label: スクリーンショット / 画面録画を選択
+      optional: 任意
     media-files:
-      label: Media files
-      description: 'Optional: manually select.'
-      placeholder: Choose screenshot or video file
-      selected-count: '{count} file(s) selected'
-    last-submitted-preview: Last Submitted Payload Preview
+      label: メディアファイル
+      description: '任意: 手動で選択します。'
+      placeholder: スクリーンショットまたは動画ファイルを選択
+      selected-count: '{count} 個のファイルを選択中'
+    last-submitted-preview: 送信されたペイロードのプレビュー
 language:
   title: 言語
   description: |
-    UI の言語。キャラクターの言語は後で設定できます。
+    UI の言語設定です。キャラクターの言語は後から変更できます。
 controls-island:
   icon-size:
-    title: アイランドアイコンのサイズを制御
-    description: アイランドアイコンのサイズを調整します
-    auto: 自動 (レスポンシブ)
-    large: 大 (デフォルト)
+    title: コントロールアイランドのアイコンサイズ
+    description: コントロールアイランド上のアイコンサイズを調整します
+    auto: 自動（適応）
+    large: 大（デフォルト）
     small: 小
 analytics:
   notice:
-    title: 使用状況の分析
+    title: 利用状況の分析
     description: >-
-      AIRIは匿名の利用分析データを収集し、アプリの使用方法の把握と安定性の向上に役立てています。個人を特定できる情報は一切収集されません。
-    privacyPrefix: 読む
+      AIRI はアプリの使用状況を理解し安定性を向上させるため、匿名で利用状況データを収集します。個人データは一切収集されません。
+    privacyPrefix: 閲覧
     privacyLink: プライバシーポリシー
-    onboardingHint: 分析機能は「設定」>「システム」>「一般」で後からオフにすることができます。
-    settingsHint: 分析はいつでもオフにできます。
+    onboardingHint: 分析機能は 設定 > システム > 一般 でいつでもオフにできます。
+    settingsHint: 分析機能はいつでもオフにできます。
   toggle:
-    title: 使用状況の分析を有効にする
-    description: この機能を無効にすると、分析データの収集をオプトアウトできます。
+    title: 利用状況分析を有効化
+    description: オフにするとデータ収集を無効にします。
   disabled:
-    title: この開発ビルドでは分析が無効になっています
+    title: この開発者用ビルドでは分析が無効化されています
 model-select:
   panel-callout:
-    support-status-header: 私たちは2Dと3Dのモデル両方をサポートしています
+    support-status-header: 2D および 3D モデルの両方をサポートしています
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
+      {select-button} をクリックしてモデルを選択またはインポートします。現在、{zip} (Live2D および Spine モデル用) と {vrm} (VRM モデル用) に対応しています。
     model-type-example: >
-      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+      Neuro-sama は Live2D Inc. が開発したフレームワークによる 2D モデルを使用しており、Grok Ani (Grok Companion 内) はオープンフォーマットである VRM / MMD の 3D モデルを使用しています。
   select-model:
-    title: Model Selector
+    title: モデルを選択
     button: モデルを選択
-    select: Pick
+    select: 選択
     import: インポート
-    remove: Remove
-    confirm: Confirm
+    remove: 削除
+    confirm: 確定
+  live2d-report:
+    title: Before import
+    description: Review the model data and any issues found in the archive.
+    description-short: Review the model data and issues.
+    close: Close
+    model:
+      title: Model
+      files: '{count} files'
+      types:
+        cubism: 'Cubism {version} ({format})'
+        cubism-compatible: 'Cubism 3+ ({format})'
+        unknown: Unknown
+    resources:
+      title: Resources
+      motions: Motions
+      expressions: Expressions
+      parameters: Parameters
+      textures: Textures
+      referenced-and-found: '{referenced} referenced · {found} found'
+      referenced: '{count} referenced'
+      found: '{count} found'
+    issues:
+      title: Issues
+      errors: '{count} errors'
+      warnings: '{count} warnings'
+      none: No issues found.
+      how-to-fix: How to fix
+      resolve-before-import: Resolve the errors before import.
+    actions:
+      cancel: Cancel
+      confirm: Confirm Import
+      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: ファイルから読み込む
@@ -142,164 +174,191 @@ live2d:
   theme-color-from-model:
     title: モデルから色を抽出
     description: >
-      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
+      現在レンダリング中のキャンバスからアクセントカラーを抽出します。色をクリックして AIRI に適用します。希望の色にならない場合は、モデルのポーズを変えて再度抽出をお試しください。
     button-extract:
       title: 抽出
   animation:
     title: アニメーション
+    motion-driver:
+      title: Motion driver
+      description: Select how AIRI creates idle body and eye motion.
+      options:
+        universal:
+          title: Universal
+          description: Use model motions, idle eye movement, and mouse tracking.
+        magic:
+          title: MAGIC
+          description: Generate motion from the bundled MAGIC dataset.
+      magic:
+        profile:
+          title: MAGIC profile
+          description: Select the bundled motion dataset that fits the MAGIC driver.
+          options:
+            idle-calm:
+              title: Idle / calm
+              description: Use the bundled idle and calm motion recording.
+            speaking-excited:
+              title: Speaking / excited
+              description: Use the bundled speaking and excited motion recording.
+        skip-mouth-open:
+          title: Skip generated mouth opening
+          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
+        force-view-target:
+          title: Force forward view target
+          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
-      title: Enable mouse tracking
-      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
-      offset: Eye offset(%)
+      title: マウス追従を有効化
+      description: マウスカーソルの動きを目で追いかけます。カーソルが止まるとアイドリング時の目の動きに戻ります。
+      offset: 目のオフセット (%)
     force-idle-eye-animation:
-      title: Idle eye movement
-      description: Randomly look around when there is no active cursor focus.
+      title: アイドル時の目の動き
+      description: カーソルが動いていないときに周囲を見回します。
     blink-enable:
-      title: Enable blink
-      description: Let the model blink.
+      title: まばたきを有効化
+      description: モデルのまばたきを許可します。
     auto-blink:
-      title: Auto
-      description: Use default blinking animation of the model
+      title: 自動
+      description: モデルデフォルトのまばたきアニメーションを使用します
     force-auto-blink:
-      title: Force
-      description: Force blinking animation with external timer
+      title: 強制
+      description: 外部タイマーを使用してまばたきアニメーションを強制します
     blink-mode:
-      title: Blink mode
-      description: Choose the model built-in blink or AIRI's forced blink timer.
+      title: まばたきモード
+      description: 既存のモデルまばたき、または AIRI の強制まばたきタイマーを選択します。
     idle-motion:
-      title: Idle animation
-      no-motion: No animation available
-      placeholder: Select animation
-      disable-motion: Disabled
-      disable-motion-description: Disable idle animation
+      title: アイドルモーション
+      no-motion: 利用可能なモーションがありません
+      placeholder: モーションを選択
+      disable-motion: 無効化
+      disable-motion-description: アイドルモーションをオフにします
   parameters:
-    title: Model Parameters
+    title: モデルパラメータ
     render-scale:
       title: レンダリングスケール
     fps:
       title: FPS
-      description: Limit rendering frame rate
+      description: レンダリングフレームレートの制限
       options:
         unlimited: '∞'
-    shadow: Drop shadow
-    reset-parameters: デフォルトのパラメータにリセット
-  clear-model-cache: Clear model cache
+    shadow: 影
+    reset-parameters: パラメータをデフォルトに戻す
+  clear-model-cache: モデルキャッシュを消去
   expressions:
-    title: Expressions
-    override-toggle: Expression system
+    title: 表情
+    override-toggle: 表情システム
     sdk-preset-preserved-notice: >
-      SDK expression manager and eye blink are preserved when disabled.
-    no-expression: No expressions available for this model.
-    llm-integration-wip: LLM tool integration is not yet wired up.
-    save-default: Save expression defaults
-    reset: Reset all expressions
-    expose-to-llm-toggle: Expose to LLM
+      無効化しても SDK の表情およびまばたきプリセットは保持されます。
+    no-expression: このモデルで利用可能な表情はありません。
+    llm-integration-wip: LLM 統合エンジンは未完了です。
+    save-default: デフォルトの表情を保存
+    reset: すべての表情をリセット
+    expose-to-llm-toggle: LLM へのアクセスを許可
     expose-to-llm-options:
-      none: 無し
+      none: なし
       all: すべて
-      custom: Custom
+      custom: カスタム
 microphone: マイク
 models: モデル
 pages:
   account:
     title: アカウント
-    description: プロフィールを表示し、アカウントを管理します
-    notLoggedIn: アカウントにログインして、全機能をご利用ください
-    login: サインイン
-    logout: サインアウト
+    description: プロフィールの閲覧とアカウントの管理
+    notLoggedIn: ログインしてアカウントを表示し、すべての機能にアクセスします
+    login: ログイン
+    logout: ログアウト
     fluxBalance: Flux 残高
     viewFluxDetails: 詳細を見る
-    signedInAs: サインイン済み
+    signedInAs: 'ログイン中:'
     profile:
-      tab: Profile
-      title: Profile
-      description: Manage your public display name.
+      tab: プロフィール
+      title: プロフィール
+      description: 公開表示名の管理。
       name:
-        label: Display name
-        placeholder: How others see you
+        label: 表示名
+        placeholder: 他のユーザーからの見え方
       avatar:
-        gravatarNotice: Avatar from Gravatar.
-        gravatarLink: Manage on gravatar.com
+        gravatarNotice: Gravatar からのアバター画像。
+        gravatarLink: gravatar.com で管理
       action:
-        save: Save changes
+        save: 変更を保存
       message:
-        saved: Profile updated.
+        saved: プロフィールを更新しました。
       error:
-        fallback: 変更を保存できませんでした
+        fallback: 変更を保存できませんでした。
     connections:
-      tab: 接続済みアカウント
-      title: 接続済みアカウント
-      description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+      tab: 連携済みアカウント
+      title: 連携済みアカウント
+      description: これらのプロバイダー経由で AIRI にログインします。連携を解除してアクセス権を取り消すか、再連携して別のアカウントに切り替えます。
       status:
-        linked: リンク済
-        notLinked: Not linked
-        linkedSince: Linked on {date}
+        linked: 連携済み
+        notLinked: 未連携
+        linkedSince: '{date} に連携'
       action:
-        link: Link
-        unlink: リンク解除
+        link: 連携
+        unlink: 連携解除
       message:
-        loading: 接続されたアカウントを読み込んでいます...
-        unlinked: '{provider} は切断されました。'
-        linked: '{provider} が接続されました。'
-        linkStarted: Redirecting to {provider}…
+        loading: 連携済みアカウントを読み込み中...
+        unlinked: '{provider} の接続を解除しました。'
+        linked: '{provider} を接続しました。'
+        linkStarted: '{provider} へリダイレクト中…'
       error:
-        listFailed: Could not load connected accounts.
-        unlinkFailed: Could not unlink this account.
-        linkFailed: Could not start the link flow.
-        accountAlreadyLinkedToDifferentUser: この OAuth アカウントは別の AIRI アカウントにすでに連携されています。別のプロバイダーアカウントを選ぶか、先に別の AIRI アカウントから連携を解除してください。
-        oauthCallbackFailed: この OAuth アカウントを連携できませんでした。もう一度試すか、別のプロバイダーアカウントを選んでください。
-        lastAccount: "これはあなたの唯一のサインイン方法です。\nリンクを解除する前にパスワードを設定してください。"
+        listFailed: 連携済みアカウントを取得できませんでした。
+        unlinkFailed: このアカウントの連携を解除できませんでした。
+        linkFailed: 連携フローを開始できませんでした。
+        accountAlreadyLinkedToDifferentUser: この OAuth アカウントは別の AIRI アカウントにすでに連携されています。別のプロバイダーを選択するか、もう一方のアカウントから連携を解除してください。
+        oauthCallbackFailed: この OAuth アカウントを接続できませんでした。再試行するか別のプロバイダーを選択してください。
+        lastAccount: これは唯一のログイン方法です。連携を解除する前にパスワードを設定してください。
     security:
       tab: セキュリティ
       title: セキュリティ
-      description: Change your password. Your other devices will be signed out.
-      setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
+      description: パスワードを変更します。他のデバイスからはログアウトされます。
+      setDescription: SNS アカウントでログインしているため、現在パスワードが設定されていません。パスワード設定用の保護リンクをメールでお送りします。
       currentPassword:
         label: 現在のパスワード
-        placeholder: 現在のパスワードを入力してください
+        placeholder: 現在のパスワードを入力
       newPassword:
         label: 新しいパスワード
-        placeholder: 8文字以上で設定してください
+        placeholder: 8文字以上
       confirmPassword:
-        label: 新しいパスワードを確認
-        placeholder: 新しいパスワードをもう一度入力してください
+        label: 新しいパスワードの確認
+        placeholder: 新しいパスワードを再入力
       action:
         changePassword: パスワードを変更
-        sendSetLink: Email me a link to set my password
+        sendSetLink: 設定リンクをメールに送信
       message:
-        changed: Password changed. Other sessions have been signed out.
-        setLinkSent: Check {email} for the link to set your password.
+        changed: パスワードを変更しました。他のセッションからログアウトしました。
+        setLinkSent: '{email} を確認してパスワード設定リンクを開いてください。'
       error:
-        fallback: We could not change your password.
-        setLinkFailed: We could not send the password setup link.
-        passwordMismatch: New password and confirmation do not match.
-        passwordSameAsCurrent: New password must differ from the current one.
+        fallback: パスワードを変更できませんでした。
+        setLinkFailed: パスワード設定リンクを送信できませんでした。
+        passwordMismatch: パスワードが一致しません。
+        passwordSameAsCurrent: 新しいパスワードは現在のパスワードと異なる必要があります。
     danger:
-      tab: Danger Zone
-      title: Danger Zone
-      description: Irreversible account actions live here.
+      tab: 危険ゾーン
+      title: 危険ゾーン
+      description: アカウントに対する取り消し不能な操作を行います。
       deleteAccount:
-        title: Delete account
-        description: Permanently delete your account and personal data.
-        action: Delete account
+        title: アカウントを削除
+        description: アカウントと個人データを永久に削除します。
+        action: アカウントを削除
         modal:
-          title: Delete account?
-          warning: This cannot be undone. Active subscription will be canceled, Flux balance cleared.
+          title: アカウントを削除しますか？
+          warning: この操作は取り消せません。有効なサブスクリプションは解約され、Flux 残高は消去されます。
           confirmEmail:
-            label: Type your email to confirm
+            label: 確認のためメールアドレスを入力してください
             placeholder: ''
-            mismatch: Email does not match.
-          confirm: Send confirmation email
-          cancel: Cancel
+            mismatch: メールアドレスが一致しません。
+          confirm: 確認メールを送信
+          cancel: キャンセル
         message:
-          emailSent: Check {email} for the deletion link.
+          emailSent: '{email} を確認して削除リンクを開いてください。'
         error:
-          fallback: Could not start deletion. Try again later.
+          fallback: 削除できませんでした。後ほど再試行してください。
   card:
     activate: 有効化
     active: 有効
     active_badge: 現在有効
-    activation_notice: '{name} に切り替えました。現在の会話ではこのキャラクターが使用されます。'
+    activation_notice: '{name} に切り替えます。このキャラクターが現在の会話に使用されます。'
     cancel: 操作の取消
     save: 変更を保存
     save_and_activate: 保存して有効化
@@ -311,8 +370,8 @@ pages:
     consciousness:
       model: 意識 / モデル
     vision:
-      provider: ビジョン / プロバイダー
-      model: ビジョン / モデル
+      provider: 視覚 / プロバイダー
+      model: 視覚 / モデル
     created_by: 作成者
     creator_notes: 作成者のメモ
     delete: 削除
@@ -340,7 +399,7 @@ pages:
         systemprompt: 受け取ったメッセージに、本物の人間のように答えてください。
         posthistoryinstructions: 人間の真似をすることを忘れないでください。
       modules_info: >-
-        このキャラクターカード用のモジュールを設定してください。設定されていない場合は、デフォルトのモジュール設定が使用されます。
+        このキャラクターカードのモジュールを設定します。未設定の場合、デフォルトの設定が使用されます。
       use_default: デフォルトを使用
       use_default_not_configured: デフォルトを使用 (未設定)
       fields_info:
@@ -359,8 +418,8 @@ pages:
         posthistoryinstructions: メッセージ履歴の後にAI LLMに読んでほしい内容をここに配置してください。
         version: >-
           カードのバージョン。以前のカードから変更を加える場合は、これを増やす必要があります。
-        consciousness_model: このキャラクターの意識モデル(AIモデル)を選択してください。
-        speech_model: このキャラクターの音声合成モデルと音声を選択してください。
+        consciousness_model: このキャラクターの意識モデル（AIモデル）を選択します。
+        speech_model: このキャラクターの音声合成・読み上げモデルを選択します。
       errors:
         name: 名前は有効であるか、空でない必要があります。
         version: 'エラー: 無効なバージョン番号です！'
@@ -369,8 +428,8 @@ pages:
         scenario: 'エラー: シナリオは必須です。'
         systemprompt: 'エラー: システムプロンプトを入力してください。'
         posthistoryinstructions: 'エラー: 履歴の後のプロンプトは必須です。'
-        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
-      none: None
+        invalid_artistry_json: 'アートプロバイダー（Artistry provider）のオプションに無効な JSON が含まれています。'
+      none: なし
     modules: モジュール
     name_asc: 名前(A-Z)
     name_desc: 名前(Z-A)
@@ -382,22 +441,22 @@ pages:
     scenario: 背景
     search: カードを検索…
     sort_by: 並び替え
-    body-model: 本体 / 表示モデル
+    body-model: 身体 / 表示モデル
     speech:
-      provider: 音声/プロバイダー
+      provider: 音声 / プロバイダー
       model: 発話/モデル
       voice: 発話/音声
     systemprompt: システムプロンプト
     title: AIRIカード
     try_different_search: 別の検索ワードを試してください
-    export: Export
-    exported: Card package exported
-    export_failed: Failed to export card package
-    imported: Card package imported
-    import_missing_file: Card package is missing required files
-    import_invalid_file: Card package file is invalid
+    export: エクスポート
+    exported: カードパックをエクスポートしました
+    export_failed: カードパックのエクスポートに失敗しました
+    imported: カードパックをインポートしました
+    import_missing_file: カードパックに必須ファイルが不足しています
+    import_invalid_file: 無効なカードパックファイルです
     upload: アップロード
-    upload_desc: Click or drag an AIRI card package to import
+    upload_desc: ここをクリックするか AIRI カードパックをドラッグ＆ドロップしてインポートします
   memory:
     description: 記憶が保存され、整理される場所
     title: 記憶
@@ -413,7 +472,7 @@ pages:
         delete: 全てのチャットセッションを削除
       models:
         title: モデル
-        description: Remove imported Live2D, VRM, Spine, and MMD models.
+        description: インポートした Live2D/VRM モデルを削除します。
         delete: すべてのモデルを削除
       modules:
         title: モジュール
@@ -432,12 +491,12 @@ pages:
         delete: すべてのデータを削除
       desktop-folder:
         title: アプリデータフォルダを開く
-        description: ファイルマネージャで AIRI のデータフォルダを開きます。
+        description: ファイルマネージャーで AIRI のデータフォルダを開きます。
         open: フォルダを開く
       desktop:
         title: デスクトップの設定と状態をリセット
         description: AIRIデスクトップの設定と実行時の状態を消去します。
-        center: Move desktop window to center
+        center: デスクトップウィンドウを画面中央に配置
         reset: デスクトップのデータをリセット
     confirmations:
       tooltip: 本当によろしいですか？
@@ -451,10 +510,10 @@ pages:
       modules_reset: モジュールの設定をリセットしました。
       providers_reset: プロバイダーの設定をリセットしました。
       all_deleted: すべてのローカルデータを削除しました。
-      desktop_window_centered: Desktop window moved to screen center.
+      desktop_window_centered: デスクトップウィンドウを画面中央に配置しました。
       desktop_reset: デスクトップのデータをリセットしました。
   models:
-    description: Live2D, VRM, Spine, MMD, etc.
+    description: Live2D, VRM, Spine など
     title: モデル
     sections:
       section:
@@ -514,66 +573,66 @@ pages:
               description: より高い精度のために、ビートを検出する前にウォームアップを行うべきかどうか。
               label: ウォームアップ
     artistry:
-      title: Artistry
-      description: Image generation, scene background and drawing.
+      title: アート (Artistry)
+      description: 画像、背景、絵画の生成。
       page:
-        title: Artistry Provider Configuration
-        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+        title: アートプロバイダーの設定
+        description: 画像生成に使用するアクティブなバックエンドプロバイダーを選択します。キャラクターはカード設定で個別に上書き可能です。
       providers:
         none:
-          name: None
-          description: Bypass and disable the image generation module globally.
+          name: なし
+          description: スキップし、グローバルで画像生成モジュールを無効化します。
         comfyui:
           name: ComfyUI (ローカル)
-          description: Use a local ComfyUI instance via WSL for image generation.
+          description: WSL 経由のローカル ComfyUI を使用して画像を生成します。
         replicate:
-          name: Replicate.ai (Cloud)
-          description: Use cloud-based models via the Replicate API.
+          name: Replicate.ai (クラウド)
+          description: Replicate API 経由でクラウドベースのモデルを使用します。
         nanobanana:
-          name: Nano Banana (Preview)
-          description: Use Google AI Studio for image preview and reactions.
+          name: Nano Banana (プレビュー)
+          description: Google AI Studio を使用して画像やリアクションをプレビューします。
       card:
-        description: Configure how AIRI generates images and visual content.
-        comfyui_empty: No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
-        exposed_fields: '{count} exposed fields'
-        open_on_replicate: Open on Replicate
+        description: AIRI が画像やグラフィックコンテンツを生成する方法を設定します。
+        comfyui_empty: ComfyUI ワークフローが設定されていません。設定 → プロバイダー → ComfyUI に移動してワークフローテンプレートを読み込んでください。
+        exposed_fields: '{count} 個のフィールドが公開されています'
+        open_on_replicate: Replicate で開く
         instruction_sync:
-          title: ComfyUI Instruction Sync
-          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
-          apply: Apply Recommended Prompt
-          keep: Keep Existing
-      provider: Artistry Provider
+          title: ComfyUI プロンプト同期
+          description: 指定されたプロンプトはワークフロー {workflowName} の準備ができています。適用すると現在のプロンプト指示が上書きされ、AI がこの特定のテンプレートの使用方法を認識できるようになります。
+          apply: 推奨プロンプトを適用
+          keep: 現状維持
+      provider: アートプロバイダー
       spawn_mode:
-        label: Manifestation Mode (Spawn Mode)
-        description: Choose how images are delivered to the interface.
+        label: 出現モード (生成モード)
+        description: 画像を UI 内に配置する方法を選択します。
         options:
-          bg: Background Environment
-          inline: Inline Chat
-          widget: Overlay Widget
-          bg_widget: Dual (Background + Widget)
+          bg: 環境背景
+          inline: インラインチャット
+          widget: オーバーレイウィジェット
+          bg_widget: デュアル (背景画像 + ウィジェット)
       autonomous:
-        title: Cinematic Autonomy (Autonomous Artist)
-        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
-        threshold: Manifestation Threshold
-        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
-        threshold_min: Always Generate (0%)
-        threshold_max: Strict (100%)
+        title: シネマティック・オートノミー (自動画家)
+        description: 有効にすると、キャラクターと並行して「プロデューサー」が実行され、画像が必要かどうかを判断します。これにより、キャラクターがシーン生成を忘れるのを防ぎます。
+        threshold: 出現しきい値
+        threshold_description: より積極的にシーンを生成するには {min} を、生成前に明確な根拠を求めるには {max} を使用します。
+        threshold_min: 常に生成 (0%)
+        threshold_max: 厳格 (100%)
       model:
-        label: Artistry Model (Optional Override)
-        description: Model identifier if needed by provider
+        label: アートモデル (オプションで上書き)
+        description: プロバイダーが要求する場合のモデル識別子
       prompt-prefix:
-        label: Artistry Prompt Default Prefix
-        description: Pre-pended to every prompt sent to the image generator.
+        label: デフォルトのアートプロンプト接頭辞
+        description: 画像生成器に送信される各プロンプトの先頭に追加されます。
       options:
-        label: Artistry Provider Options (JSON)
+        label: アートプロバイダーオプション (JSON)
       widget-instructions:
-        label: Widget System Prompt
-        description: Custom instructions for the AI on how to use the generation capabilities.
+        label: システムウィジェットプロンプト
+        description: コンテンツ生成機能の利用方法について AI への指示をカスタマイズします。
     categories:
       essential: 必須
-      messaging: Messaging
-      gaming: Gaming
-      artistry: Artistry
+      messaging: メッセージング
+      gaming: ゲーミング
+      artistry: アート
     consciousness:
       description: 性格、希望するモデルなど。
       sections:
@@ -581,7 +640,7 @@ pages:
           provider-model-selection:
             collapse: 折りたたむ
             custom_model_placeholder: カスタムモデル名を入力…
-            current_model_label: '現在のモデル：'
+            current_model_label: '現在のモデル:'
             description: 意識に適したLLMプロバイダーを選択
             error: モデルの読み込みエラー
             health_check_failed: ヘルスチェックに失敗しました
@@ -601,8 +660,12 @@ pages:
             search_results: 結果{total}個中{count}個のモデルが見つかりました
             show_less: 表示を減らす
             show_more: もっと表示
-            subtitle: プロバイダーからデフォルトモデルを選択してください
+            subtitle: プロバイダーからデフォルトモデルを選択
             title: モデル
+          model-options:
+            title: モデルオプション
+            thinking:
+              label: 思考 (Thinking)
       title: 意識
     description: 思考、視覚、音声合成、ゲームなど。
     gaming-factorio:
@@ -624,32 +687,32 @@ pages:
       title: Minecraft
       enable: Minecraft連携を有効にする
       enable-description: >-
-        ステージチャットにMinecraftの自己知識を含め、パッシブな実行時可視性を有効に維持する。
+        ステージ上での会話中に Minecraft の自己意識を含め、実行中にパッシブな表示を維持します。
       configured: Minecraftは適切に設定されています！
       read-only:
         title: 読み取り専用シェル
         description: >-
-          ステージは現在、Minecraftをパッシブなシェルとして公開しています。実行状態やトラフィックはここで確認できますが、サービスの構成設定については、引き続きMinecraftのサービスファイル側で管理されます。
+          現在のステージでは Minecraft がパッシブシェルとして表示されます。実行状態とトラフィックはここに表示されますが、サービスの設定は Minecraft サービスファイル内に残ります。
       setup:
         title: セットアップ
         description: >-
-          ボットのセットアップ手順については、以下のファイルで確認できます
+          Bot のセットアップ手順は以下のファイルで確認できます
       runtime:
-        title: 観察されたランタイム
+        title: 観測された実行状態
         connection: 接続
-        latest-context: 最新のボットのコンテキスト
-        waiting: ボット発信の新規コンテキストプッシュを待機しています。
+        latest-context: 最新の Bot コンテキスト
+        waiting: Bot からの新しいコンテキスト更新を待機中。
         unknown: 不明
       debug:
-        title: Minecraft のトラフィック
-        empty: Minecraftのトラフィックはまだ観測されていません。
-        source: 'ソース: {source}'
+        title: Minecraft トラフィック
+        empty: 記録された Minecraft トラフィックはありません。
+        source: '送信元: {source}'
       status:
-        service-online: サービスはオンラインです
-        service-offline: サービスはオフラインです
-        no-runtime-context: ボットのコンテキストがまだありません
-        last-context-seconds: '最後のボットコンテキスト: {seconds}秒前'
-        last-context-stale: '最後のボットコンテキスト: 期限切れ'
+        service-online: サービスオンライン
+        service-offline: サービスオフライン
+        no-runtime-context: Bot からコンテキストがまだ記録されていません
+        last-context-seconds: '直近の Bot コンテキスト: {seconds} 秒前'
+        last-context-stale: '直近の Bot コンテキスト: 期限切れ'
     hearing:
       description: 音声認識の動作を設定する
       title: 聴覚
@@ -657,15 +720,28 @@ pages:
         section:
           provider-selection:
             description: 適切な音声認識プロバイダーを選択
+          playground:
+            current: 現在の文字起こし
+            description: アクティブな聴覚パイプライン経由で受信し、完了した音声セグメントを以下に順次表示します。
+            empty: 監視を開始し、選択したマイクに向かって話してください。
+            error-title: 文字起こしエラー
+            listening: 音声を聴き取り中…
+            no-transcription: この音声セグメントからは音声が検出されませんでした。
+            segment: '音声セグメント {number}'
+            start: 監視を開始
+            stop: 監視を停止
+            title: 音声認識プレイグラウンド
+            transcribing: 文字起こし中…
+            transcription-failed: 文字起こしに失敗しました。
           confidence-threshold:
-            title: 信頼度の閾値
+            title: 信頼度しきい値
             description: >-
-              信頼度の低い音声認識結果を除外することで、Whisperの幻覚現象を抑制します。0に近い値ほど厳格なフィルタリングとなり、左端までドラッグすると機能が無効になります。この機能はWhisper APIをサポートするプロバイダー（例：OpenAI、Groq）でのみ有効です。
-            disabled: 無効
+              Whisper のハルシネーション（幻覚）を軽減するため、信頼度の低い認識セグメントをフィルタリングします。値が 0 に近いほど厳格になります。左へスライドすると無効になります。Whisper API プロバイダー（OpenAI、Groq など）でのみ有効です。
+            disabled: オフ
             verbose-json-note: >-
-              注意：プロバイダーが verbose_json レスポンスをサポートしていない場合、この設定は無効になります。
+              注意: プロバイダーが verbose_json レスポンスに対応していない場合、この設定は効果がありません。
             verbose-json-unsupported: >-
-              プロバイダーから verbose_json セグメントが返されませんでした。信頼度フィルタリングは最後の文字起こしに影響を及ぼしませんでした。
+              お使いのプロバイダーは verbose_json セグメントを返しません。最新の文字起こしセグメントに対する信頼度フィルターは適用されません。
     memory-long-term:
       description: 長期記憶固有の設定と管理
       title: 長期記憶
@@ -690,14 +766,14 @@ pages:
               stop:
                 label: 停止
             select-voice:
-              loading: モデルを読み込み中…
+              loading: モデルを読み込み中...
               required: 音声を選択してください
           voice-pack:
-            description: Select a curated voice for the active character
-            empty: No Voice Packs available
-            error: Error loading Voice Packs
-            loading: Loading Voice Packs...
-            title: Voice Pack
+            description: アクティブなキャラクター用に厳選されたボイスパックを選択します
+            empty: 利用可能なボイスパックがありません
+            error: ボイスパックの読み込みエラー
+            loading: ボイスパックを読み込み中...
+            title: ボイスパック
           provider-voice-selection:
             custom_model_placeholder: カスタムモデル名を入力…
             custom_voice_placeholder: カスタム音声IDを入力…
@@ -749,187 +825,191 @@ pages:
       access-token-secret-placeholder: あなたのX / Twitterアクセストークンシークレットを入力
       configured: X / Twitterは適切に設定されています！
     web-search:
-      title: Web Search
-      description: Let AIRI search the web for current information
-      enable: Enable Web Search
-      enable-description: Allow AIRI to search the web during chat
-      api-key: Tavily API Key
-      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
-      api-key-placeholder: Enter your Tavily API key
-      configured: Web search is ready to use!
+      title: Web 検索
+      description: AIRI が Web を検索して最新の情報を取得できるようにします
+      enable: Web 検索を有効化
+      enable-description: 会話中に AIRI が Web 検索を行うことを許可します
+      api-key: Tavily API キー
+      api-key-description: Web 検索機能は Tavily によって提供されています。tavily.com で無料の API キーを取得できます。
+      api-key-placeholder: Tavily API キーを入力
+      configured: Web 検索を利用する準備が整いました！
     mcp-server:
-      title: MCPサーバー
-      description: Configure MCP servers and bring their tools into AIRI.
-      config-path: Config file
-      runtime-title: ランタイムの状態
-      empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
-      error-title: Oops
-      success-title: Done!
+      title: MCP サーバー
+      description: MCP サーバーを設定し、そのツールを AIRI に導入します。
+      config-path: 設定ファイルのパス
+      runtime-title: 実行ステータス
+      empty: MCP サーバーがまだありません。下の「サーバーを追加」をクリックして作成するか、「JSON を編集」から設定を貼り付けてください。
+      error-title: おっと
+      success-title: 完了！
       existing:
-        title: Configured
-        description: Servers recorded in mcp.json. Click any row to expand and edit it.
-        empty: Nothing here yet. Add one below!
+        title: 設定済み
+        description: mcp.json に保存されているサーバーです。行をクリックして展開・編集します。
+        empty: ここにはまだ何もありません。以下から追加してください！
       add:
-        title: New
-        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
-        pending-badge: Unsaved
+        title: 新規
+        description: "新しいサーバー情報を入力し、「保存して再起動」をクリックします。サーバーは上の「設定済み」セクションに移動します。"
+        pending-badge: 未保存
       status:
-        unknown: not loaded
+        unknown: 未読み込み
       actions:
-        open-config: Reveal in file manager
-        apply-and-restart: 変更を保存して再起動
+        open-config: ファイルマネージャーで表示
+        apply-and-restart: 保存して再起動
         restart: MCP を再起動
         add-server: サーバーを追加
-        add-env: Add var
-        remove: Remove
-        test: Test
-        edit-json: Edit JSON
-        close-json: Close
-        format-json: Format
-        reset-draft: Reset
-        apply-json: Apply
-        cancel: Cancel
-        expand: Expand
-        collapse: Collapse
+        add-env: 環境変数を追加
+        remove: 削除
+        test: テスト
+        edit-json: JSON を編集
+        close-json: 閉じる
+        format-json: 整形
+        reset-draft: 下書きをリセット
+        apply-json: 適用
+        cancel: キャンセル
+        expand: 展開
+        collapse: 折りたたむ
       fields:
         identifier:
-          label: Identifier
-          description: Unique name; becomes the key in mcp.json.
-          placeholder: e.g. filesystem
+          label: 識別子
+          description: 一意の名前。mcp.json 内のキーになります。
+          placeholder: '例: filesystem'
         command:
-          label: Command
-          description: Executable spawned over stdio.
-          placeholder: e.g. npx
+          label: コマンド
+          description: stdio 経由で実行される実行ファイル。
+          placeholder: '例: npx'
         args:
-          label: Arguments
-          description: One per line, in order.
+          label: 引数
+          description: 順序通りに 1 行に 1 つずつ入力します。
           placeholder: "-y\nsome-package-name\n/tmp"
         cwd:
-          label: Working directory
-          description: Optional directory used as the process working directory.
-          placeholder: e.g. /Users/you/project
+          label: 作業ディレクトリ
+          description: プロセスの作業ディレクトリとして使用されるオプションのフォルダ。
+          placeholder: '例: /Users/you/project'
         env:
-          label: Environment
-          description: Vars passed to the child process.
-          key-placeholder: KEY
-          value-placeholder: value
+          label: 環境変数
+          description: 子プロセスに注入される変数。
+          key-placeholder: キー
+          value-placeholder: 値
         enabled:
-          label: Enabled
+          label: 有効
       json:
-        title: Edit mcp.json
-        description: 'Edit the raw JSON directly. Click "Apply" to load it into the form, then "Save and restart" to write it to disk.'
-        placeholder: Paste mcp.json here…
+        title: mcp.json を編集
+        description: '生の JSON を直接編集します。「適用」をクリックしてフォームに反映し、「保存して再起動」でディスクに書き込みます。'
+        placeholder: ここに mcp.json を貼り付け…
       test:
-        title: Test connection
-        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
-        pick-server-label: Server
-        no-servers: Nothing to test yet
-        no-server-selected: Pick a server first.
-        server-disabled: '"{name}" is disabled — enable it on the card first.'
-        disabled-suffix: disabled
-        untitled: untitled
-        running: Testing…
-        success: Connected! Found {count} tools in {ms}ms.
-        failure: Connection failed after {ms}ms
+        title: 接続テスト
+        description: コマンドが動作するか確認し、提供されるツールを検出するため、サーバーを一時的に起動します。
+        pick-server-label: サーバー
+        no-servers: テストする項目がありません
+        no-server-selected: まずサーバーを選択してください。
+        server-disabled: '"{name}" は無効化されています — 先にカード上で有効にしてください。'
+        disabled-suffix: 無効
+        untitled: 無題
+        running: テスト中…
+        success: 接続成功！{ms}ms で {count} 個のツールが見つかりました。
+        failure: '{ms}ms 後に接続失敗'
       errors:
-        empty-identifier: Server # {index} is missing an identifier.
-        duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
-        empty-command: '"{name}" is missing a command.'
-        invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
+        empty-identifier: サーバー # {index} is missing an identifier.
+        duplicate-identifier: 識別子 "{name}" が重複して使用されています — 一意の名前を指定してください。
+        empty-command: '"{name}" のコマンドが不足しています。'
+        invalid-shape: 有効な mcp.json の形式ではないようです — ルートに "mcpServers" フィールドが必要です。
       messages:
-        opened: Opened {path} in your file manager
-        json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
-        restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
+        opened: ファイルマネージャーで {path} を開きました
+        json-applied: JSON をフォームに適用しました。「保存して再起動」をクリックしてディスクに保存してください。
+        restarted: すべて再起動しました! {started} が開始しました。 {failed} が失敗しました。 {skipped} がスキップされました。
   flux:
     title: Flux
-    buy: チャージ
-    currency: Currency
-    description: 現在のFlux
-    packagesError: パッケージの読み込みに失敗しました。後でもう一度お試しください。
+    buy: 購入
+    currency: 通貨
+    description: 現在の Flux 残高
+    packagesError: パッケージを読み込めませんでした。後ほど再試行してください。
     checkout:
-      success: 支払いが完了しました！Fluxの残高が補充されました。
-      canceled: 支払いはキャンセルされました。
-      error: 何か問題が発生しました。後でもう一度お試しください。
+      success: 決済が完了しました！ Flux がチャージされました。
+      canceled: 決済がキャンセルされました。
+      error: エラーが発生しました。後ほど再試行してください。
     audit:
       title: 取引履歴
-      time: 時間
-      type: 種類
+      time: 日時
+      type: 種別
       detail: 詳細
       amount: 数量
-      typeAddition: 補充
-      typeConsumption: 利用状況
-      typeInitial: 初期付与
-      typePromo: Promo Grant
-      loading: 履歴を読み込み中…
-      empty: 取引記録はまだありません。
+      typeAddition: チャージ
+      typeConsumption: 利用
+      typeInitial: 初回付与
+      typePromo: プロモーション付与
+      loading: 履歴を読み込み中...
+      empty: 取引履歴はまだありません。
       loadMore: さらに読み込む
-      delayHint: 使用記録は最大1分まで遅延する可能性があります
-      ttsRequests: requests
+      delayHint: 利用記録の反映には最大 1 分かかる場合があります
+      ttsRequests: 回のリクエスト
     packages:
-      title: Fluxパッケージ
-      buy: チャージ
-      description: 選択可能なFluxパッケージ。
+      title: Flux パッケージ
+      buy: 購入
+      description: 選択可能な Flux パッケージ。
   providers:
     catalog:
       edit:
-        config-id-not-found: プロバイダ設定が見つかりません。
-        definition-id-not-found: プロバイダーの定義が見つかりません。
+        config-id-not-found: プロバイダー設定が見つかりません。
+        definition-id-not-found: プロバイダー定義が見つかりません。
         actions:
           more-options: その他のオプション
           delete: 削除
         validation:
           failed:
-            title: プロバイダ設定を確認してください。認証に失敗しました。
+            title: 検証に失敗しました。設定を確認してください。
             description: >-
-              続行する場合は、現在の設定を保存することができます。
-            action: このまま保存
+              このまま続行したい場合は、設定を保存することもできます。
+            action: それでも保存
         config:
+          loading: プロバイダー設定を読み込み中...
+          load-error: プロバイダー設定を読み込めませんでした。
+          save-error: プロバイダー設定を保存できませんでした。
+          retry: 再試行
           common:
             fields:
               field:
                 api-key:
-                  label: APIキー
-                  description: このプロバイダへのリクエストを承認するために使用されるAPIキー
+                  label: API キー
+                  description: このプロバイダーのリクエスト認証に使用するキー
                   placeholder: sk-…
                 base-url:
-                  label: ベースURL
+                  label: ベース URL
                   description: >-
-                    リモートサービスへの接続に使用されるベースURL。多くの場合、http://localhost:11434/v1 または https://example.com/v1 のようになります。
-                  placeholder: ベースURL…
+                    サービス接続アドレス。通常は http://localhost:11434/v1 などです。
+                  placeholder: ベース URL...
                 headers:
-                  label: カスタムHTTPヘッダー
-                  description: カスタムHTTPヘッダーを追加
+                  label: カスタム HTTP ヘッダー
+                  description: HTTP ヘッダーをカスタマイズします
                   key:
-                    placeholder: キー
+                    placeholder: キー (Key)
                   value:
-                    placeholder: 値
+                    placeholder: 値 (Value)
                 thinking-mode:
-                  label: 思考モード
+                  label: 思考モード (Thinking Mode)
                   description: >
-                    Ollamaの思考動作を制御します。GPT-OSSでは低/中/高レベルのみをサポートします。
+                    Ollama/GPT-OSS の思考動作を制御します。
                   options:
-                    auto: 自動（プロバイダのデフォルト）
-                    disable: 無効
-                    enable: 有効
+                    auto: 自動
+                    disable: オフ
+                    enable: オン
                     low: 低
                     medium: 中
                     high: 高
         validators:
           actions:
             validate: 検証
-          empty: 検証ステップは利用できません。
+          empty: 利用可能な検証ステップがありません。
           openai-compatible:
             check-config:
-              title: 構成
+              title: 設定
             check-connectivity:
-              title: 接続性
+              title: 接続
             check-supports-model-listing:
-              title: モデル一覧
+              title: モデル一覧取得
             check-supports-chat-completion:
-              title: チャット補完
+              title: 対話応答 (Chat Completion)
           status:
-            validating: 検証中…
-            valid: 検証成功
+            validating: 検証中...
+            valid: 成功
             invalid: エラー
           title: チェック
         providers:
@@ -938,9 +1018,9 @@ pages:
               troubleshooting:
                 validators:
                   openai-compatible-check-connectivity:
-                    label: Ollamaに追加設定が必要です
+                    label: Ollama の追加設定が必要です
                     content: >-
-                      残念ながら、Ollamaの接続チェックが失敗したようです。Ollamaインスタンスの場合、正常に動作させるためには追加の設定が必要です。OllamaアプリケーションまたはOllama CLIサーバーを起動する際には、<code>OLLAMA_HOST</code>環境変数を明示的に設定する必要があります。詳細な手順については、<a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama統合ガイド</a>をご参照ください。
+                      接続テストに失敗しました。Ollama の場合、接続を許可するために起動時に環境変数 <code>OLLAMA_HOST</code> を設定する必要があります。ドキュメントのガイドをご覧ください。
     common:
       continueAnyway: 続行する
       goToModelSelection: モデルを選択 →
@@ -966,40 +1046,40 @@ pages:
         voice:
           title: 音声設定
     labels:
-      recommended: Recommended
+      recommended: おすすめ
     filters:
-      pricing: Pricing
-      deployment: Deployment
-      all: All
-      free: Free
-      paid: Paid
-      internal: Internal
+      pricing: 料金体系
+      deployment: 展開形態
+      all: すべて
+      free: 無料
+      paid: 有料
+      internal: 内部
       local: ローカル
       cloud: クラウド
     categories:
       chat:
         title: チャット
-        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+        description: 'テキスト生成モデルのプロバイダー。例: OpenRouter, OpenAI, Ollama。'
       vision:
-        title: Vision
-        description: Vision model providers for image understanding.
+        title: 視覚
+        description: 画像理解のためのコンピュータビジョンモデルプロバイダー。
       speech:
-        title: Speech
-        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+        title: 音声
+        description: '音声合成 (text-to-speech) モデルのプロバイダー。例: ElevenLabs, Azure Speech。'
       transcription:
-        title: Transcription
+        title: 文字起こし
         description: >-
-          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+          音声認識 (speech-to-text) モデルのプロバイダー。例: Whisper.cpp, OpenAI, Azure Speech
       artistry:
-        title: Artistry
-        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
+        title: アート
+        description: '画像生成およびデザインモデルのプロバイダー。例: ComfyUI, Replicate。'
         items:
           comfyui:
-            description: Local image generation runner.
+            description: ローカル画像生成プログラム。
           replicate:
-            description: Cloud-based model inference service.
+            description: クラウドベースのモデル推論サービス。
           nanobanana:
-            description: Google AI Studio Image Preview.
+            description: Google AI Studio 画像プレビュー。
     helpinfo:
       title: ここを初めて利用しますか？
       description: >
@@ -1011,6 +1091,14 @@ pages:
         音声認識 (speech-to-text) モデルプロバイダー。例： Whisper.cpp, OpenAI, Azure Speech
     description: LLM、音声プロバイダーなど。
     provider:
+      apple-speech-transcription:
+        title: Apple 音声認識
+        description: macOS 26 以降のデバイス上での音声認識。API キーは不要です。
+        fields:
+          locale:
+            label: 言語地域 (Locale)
+            description: en-US や zh-CN など、正確な Apple Speech のロケールを使用します。
+            placeholder: en-US
       app-local-audio-transcription:
         title: アプリ (ローカル)
         description: https://github.com/moeru-ai/xsai-transformers
@@ -1028,15 +1116,15 @@ pages:
         title: Alibaba Cloud Model Studio
       amazon-bedrock:
         title: Amazon Bedrock
-        description: aws.amazon.com/bedrock
+        description: aws.amazon.com/bedrok
         config:
           api-key:
-            label: Bedrock API Key
-            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            label: Bedrock API キー
+            description: Amazon Bedrock API キー (AWS コンソール → Bedrock → API Keys で作成)
             placeholder: bedrock-...
           region:
-            label: AWS Region
-            description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
+            label: AWS リージョン
+            description: 'Bedrock が有効な AWS リージョン (例: us-east-1, us-west-2)'
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude
@@ -1078,106 +1166,130 @@ pages:
             volume:
               description: 音声の音量を調整
               label: 音量
+      voicevox:
+        description: voicevox.hiroshiba.jp
+        title: VOICEVOX
+        fields:
+          field:
+            intonation:
+              description: Adjust how much the intonation of the reading varies
+              label: Intonation
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
+      aivis-speech:
+        description: aivis-project.com
+        title: AivisSpeech
+        fields:
+          field:
+            intonation:
+              description: Adjust how strongly the speaking style is expressed
+              label: Emotion expression strength
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
       speech-noop:
-        title: 無し
-        description: 音声出力がありません。
+        title: なし
+        description: 音声を再生しません。
       comfyui:
         settings:
-          title: ComfyUI (Local)
-          heading: ComfyUI Native API
-          description: Connect to your local ComfyUI and bring your own workflows.
+          title: ComfyUI (ローカル)
+          heading: ComfyUI ネイティブ API
+          description: ローカルの ComfyUI に接続してワークフローを使用します。
           info:
             what_you_need:
-              label: What You Need
-              value: ComfyUI running locally or on your network.
+              label: 必要なもの
+              value: ローカルまたはネットワーク上で動作している ComfyUI。
             how_to_export:
-              label: How To Export
-              value: Enable Dev Mode → "Save (API Format)".
+              label: エクスポート方法
+              value: 開発者モードを有効化 → "保存 (API フォーマット)"。
             scope_boundary:
-              label: Scope Boundary
-              value: Model downloads & node installs are your job.
+              label: スコープ制限
+              value: モデルのロードやノードのインストールは自己責任で行ってください。
           connection:
-            title: Connection
+            title: 接続
             connected: 接続済み
-            failed: 接続に失敗しました
+            failed: 接続失敗
             error_prefix: エラー
-            test: Test
-            testing: Testing...
-            unknown_error: Unknown connection error
-            unknown_gpu: Unknown GPU
+            test: テスト
+            testing: テスト中...
+            unknown_error: 未知の接続エラー
+            unknown_gpu: 未知の GPU
             server_url:
-              label: Server URL
-              description: The address where ComfyUI is running
+              label: サーバー URL
+              description: 稼働中の ComfyUI のアドレス
               placeholder: http://localhost:8188
           cors:
-            title: CORS Block Detected
-            description: ComfyUI blocks requests from other applications by default. To allow AIRI to connect, you must start ComfyUI with the `--enable-cors-header "*"` flag.
+            title: CORS により要求がブロックされました
+            description: ComfyUI はデフォルトで他のアプリからのリクエストをブロックします。AIRI が接続できるようにするには、`--enable-cors-header "*"` フラグを付けて ComfyUI を起動する必要があります。
             command: python main.py --enable-cors-header "*"
           workflows:
-            title: Workflow Templates
-            upload: Upload Workflow
-            cancel_upload: Cancel
-            empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
-            exposed_parameters: Exposed Parameters
-            summary: '{nodes} nodes · {fields} exposed fields'
-            remove: Remove
-            config_snippet: Artistry Config Snippet
-            copy_json: Copy JSON
-            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
+            title: ワークフローテンプレート
+            upload: ワークフローをアップロード
+            cancel_upload: キャンセル
+            empty: ワークフローがまだアップロードされていません。「ワークフローをアップロード」をクリックして ComfyUI から workflow_api.json をインポートしてください。
+            exposed_parameters: 公開パラメータ
+            summary: '{nodes} ノード · {fields} フィールドが公開中'
+            remove: 削除
+            config_snippet: アート設定スニペット
+            copy_json: JSON をコピー
+            paste_hint: この内容を AIRI カードのアート設定に貼り付けることで、これらのノードを上書きできます。
           upload:
-            prompt: Drop or select a workflow_api.json file
-            invalid_json: 無効なJSON形式です
+            prompt: workflow_api.json ファイルをドラッグ＆ドロップまたは選択
+            invalid_json: 無効な JSON です
             workflow_name:
-              label: Workflow Name
-              description: Give this workflow a recognizable name
-              placeholder: e.g. Anime Text2Img
-            select_fields: 'Select fields to expose to the AI agent:'
-            fields_exposed: '{count} field(s) exposed'
-            save: Save Workflow
+              label: ワークフロー名
+              description: わかりやすいワークフロー名を付けてください
+              placeholder: '例: Anime Text2Img'
+            select_fields: 'AI エージェントに公開するフィールドを選択:'
+            fields_exposed: '{count} 個のフィールドが公開されています'
+            save: ワークフローを保存
       replicate:
         settings:
           title: Replicate.ai
-          heading: Replicate.ai Configuration
-          description: Configure your cloud image generation settings.
+          heading: Replicate.ai 設定
+          description: 画像生成器の設定を行います。
           api_key:
-            label: APIキー
-            description: Your Replicate API token (starts with r8_)
-            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+            label: API キー
+            description: Replicate API トークン (r8_ で始まります)
+            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
-            label: Default Model
-            description: Fallback owner/model string to use if the character card doesn't specify one
+            label: デフォルトモデル
+            description: キャラクターカードで指定がない場合に使用されるフォールバックの owner/model 文字列。
             placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
-            label: Aspect Ratio
-            description: Default image aspect ratio (e.g. 16:9, 1:1, 9:16)
+            label: アスペクト比
+            description: 'デフォルトの画像比率 (例: 16:9 1:1 9:16)'
             placeholder: '16:9'
           inference_steps:
-            label: Inference Steps
-            description: Number of steps for the diffusion process (lower is faster, higher is better quality)
+            label: 推論ステップ数
+            description: ノイズ除去プロセスのステップ数 (低いと高速、高いと高品質)
       nanobanana:
         settings:
           title: Nano Banana
           heading: Nano Banana (Google AIスタジオ)
-          description: Configure Google Gemini's native image generation capabilities.
+          description: Google Gemini のネイティブ画像生成機能を設定します。
           api_key:
-            label: APIキー
-            description: Your Google AI Studio API Key
+            label: API キー
+            description: Google AI Studio の API キー
             placeholder: AIpk...
           preferred_model:
-            label: Preferred Model
-            description: The specific Gemini image preview model to use
+            label: 優先モデル
+            description: 使用する特定の Gemini 画像生成プレビューモデル
           default_resolution:
-            label: Default Resolution
-            description: The target resolution for generated images
+            label: デフォルト解像度
+            description: 生成される画像の希望解像度
           model_options:
             nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
             nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
-            nano_banana: Nano Banana (Gemini 2.5 Flash Image)
+            nano_banana: ナノバナナ(Gemini 2.5フラッシュ画像)
       deepseek:
         description: deepseek.com
+        fields:
+          field:
+            thinking-mode:
+              description: DeepSeek 推論モデルがチャットリクエストで思考モードを使用するかどうかを制御します。
         title: DeepSeek
       elevenlabs:
         description: elevenlabs.io
@@ -1219,29 +1331,29 @@ pages:
             error-missing-api-key: 音声をテストするにはAPIキーを入力してください。
         title: ElevenLabs
       kokoro-local:
-        description: Kokoro-82Mを使用したローカルテキスト読み上げ機能です。
+        description: Kokoro-82M を使用したローカルテキスト読み上げ。
         fields:
           field:
             model:
-              label: モデルの選択
-              description: モデルが小さいほど読み込みは速くなりますが、品質が若干低下する可能性があります。
+              label: モデルを選択
+              description: 小さいモデルは読み込みが速いですが、品質がわずかに低下します。
         models:
           fp32-webgpu:
             description: >-
-              WebGPU を使用した単精度モデル - 対応デバイスでの使用を推奨します
+              WebGPU を使用した高精度モデル - 対応デバイスで推奨
           fp32:
-            description: 単精度モデル
+            description: フル精度 (Full precision)
           fp16:
-            description: 半精度
+            description: 半精度 (Half precision)
           q8:
             description: 8ビット量子化
           q4:
             description: 4ビット量子化
           q4f16:
-            description: 4ビット量子化（FP16）
+            description: FP16 付き 4ビット
         playground:
-          default-text: こんにちは！これは音声合成システム Kokoro のテストです。
-          title: 音声合成実験場
+          default-text: こんにちは！これは Kokoro 音声システムのテストです。
+          title: ボイスプレイグラウンド
         title: Kokoro TTS (ローカル)
       fireworks:
         description: fireworks.ai
@@ -1261,7 +1373,7 @@ pages:
         description: https://index-tts.github.io/
         title: Bilibili/IndexTTS
         callout_indextts2_unavailable_title: 限定的なサポート
-        callout_indextts2_unavailable: 現在、IndexTTS2のサポートはご利用いただけません。IndexTTSをご利用ください。
+        callout_indextts2_unavailable: IndexTTS2 は現在未対応です。IndexTTS をご利用ください。
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
@@ -1273,7 +1385,7 @@ pages:
         title: MiniMax Global
       minimax-speech:
         description: minimax.io
-        title: MiniMax Speech
+        title: MiniMax 音声
       mimo:
         description: api.xiaomimimo.com
         title: Xiaomi MiMo
@@ -1305,7 +1417,7 @@ pages:
         description: build.nvidia.com
         title: NVIDIA NIM
       n1n:
-        description: n1n.ai - 高性能なAI APIプロバイダー。
+        description: n1n.ai - 高性能 AI API を提供。
         title: n1n
       openpaths:
         description: openpaths.io
@@ -1349,14 +1461,19 @@ pages:
               label: App ID
         title: Volcano Engine
       volcengine-coding-plan:
-        description: Volcengine Coding Plan
-        title: Volcengine Coding Plan
+        description: Volcengineコーディングプラン
+        models:
+          ark-code-latest:
+            description: Auto を含め、Coding Plan コンソールで選択されたモデルを使用します。変更の反映には 3〜5 分かかります。
+          legacy:
+            description: 従来の Coding Plan モデルは非推奨となる予定です。現在サポートされているモデルに切り替えてください。
+        title: Volcengineコーディングプラン
       byteplus:
         description: byteplus.com
         title: BytePlus
       byteplus-coding-plan:
-        description: BytePlus Coding Plan
-        title: BytePlus Coding Plan
+        description: BytePlusコーディングプラン
+        title: BytePlusコーディングプラン
       xai:
         description: x.ai
         title: xAI
@@ -1376,70 +1493,62 @@ pages:
         description: Aliyun NLS
         title: Aliyun NLS
       browser-web-speech-api:
-        description: ブラウザネイティブSTT (Chrome/Edge/Safariが必要)
+        description: ブラウザ組み込み STT (Chrome/Edge/Safari が必要)
         title: Web Speech API
       official:
         title: 公式プロバイダー
-        description: AIRIが提供する公式AIプロバイダー。
+        description: AIRI 公式の AI プロバイダー。
         speech-title: 公式音声プロバイダー
-        speech-description: AIRIが提供する公式テキスト読み上げプロバイダー。
-        speech-streaming-title: Official Streaming Speech Provider
-        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
+        speech-description: AIRI 公式のテキスト読み上げプロバイダー。
+        speech-streaming-title: 公式リアルタイム (Streaming) 音声プロバイダー
+        speech-streaming-description: AIRI 公式の超低遅延テキスト読み上げプロバイダー (双方向 WebSocket)。
         transcription-title: 公式文字起こしプロバイダー
-        transcription-description: AIRIが提供する公式の音声テキスト変換プロバイダー。
+        transcription-description: AIRI 公式の音声認識プロバイダー。
       transcriptions:
         playground:
           title: 文字起こし実験場
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: https://aihubmix.com (10% オフ)
     title: プロバイダー
   connection:
-    description: WebSocketサーバー接続の設定
+    description: WebSocket サーバーの接続設定
     title: 接続
     websocket-url:
-      description: 'WebSocket サーバーの完全なアドレス (例: ws://localhost:6121/ws)'
-      label: WebSocket サーバーアドレス
+      description: このアプリがローカルサーバーに接続するために使用するアドレス。
+      label: サーバーアドレス
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: Expose On Network
-      description: >-
-        Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
-      advanced-label: Bind Hostname
-      advanced-description: >-
-        Use a specific hostname or IP address when you need manual network binding.
-      options:
-        this-device: この端末
-        all: All
-        advanced: Advanced
+      label: すべてのデバイスからのアクセスを許可
+      description: ローカルネットワーク内の他のデバイスからこのサーバーへの接続を許可します。
     server-auth-token:
-      label: 認証トークン
+      label: ペアリングコード
       description: >-
-        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
-      placeholder: Auto-generate
+        他のデバイスはこのトークンを使用してサーバーとペアリングします。空欄の場合、AIRI が自動的に生成します。
+      placeholder: 自動生成
     qr:
-      title: Connect from Stage Pocket
+      title: ペアリング
       description: >-
-        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
-      refresh: Refresh
-      image-alt: AIRI server channel connection QR code
-      candidates: Candidate addresses
+        モバイルアプリでこの QR コードをスキャンします。アプリは各ローカルアドレスを試し、最初に成功したものを保存します。
+      refresh: 更新
+      image-alt: AIRI ペアリング QR コード
+      candidates: 利用可能なアドレス
       token-hint: >-
-        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+        QR コードにはペアリング用トークンが含まれています。公開しないようご注意ください。
       errors:
-        title: QR code unavailable
-        unavailable: Failed to prepare the connection QR code.
+        title: QR コードを生成できませんでした
+        unavailable: 接続用 QR コードを準備できませんでした。
     qr-scan:
-      title: Quick Connect
-      description: Scan the QR code from Tamagotchi to quick connect
-      instructions: Point the camera at the AIRI connection QR code.
-      action: Scan
+      title: クイック接続
+      description: たまごっちから QR コードをスキャンしてすばやく接続します
+      instructions: カメラを AIRI 接続用 QR コードに向けてください。
+      action: スキャン
       success:
-        title: Connected address saved
-        description: 'URL been used: {url}'
+        title: 接続アドレスを保存しました
+        description: '使用された URL: {url}'
       errors:
-        title: QR scan failed
-        failed: Failed to scan or connect with the QR code.
+        title: QR コードのスキャンに失敗しました
+        failed: QR コードによるスキャンまたは接続ができませんでした。
   system:
     color-scheme:
       description: ステージの配色を変更します。
@@ -1451,8 +1560,8 @@ pages:
       description: ダークテーマ、言語など。
       title: 一般
     permissions:
-      description: 現在の権限状態を確認します。
-      title: 権限管理
+      description: 現在の権限ステータスを表示します。
+      title: 権限の管理
     description: ステージをカスタマイズしよう！
     sections:
       section:
@@ -1469,51 +1578,51 @@ pages:
           sections:
             section:
               performance-visualizer:
-                title: パフォーマンスビジュアライザー
-                description: FPS/ロングタスク/メモリーオーバーレイの切り替え
+                title: パフォーマンス可視化
+                description: FPS、フレームタイム、ロングタスク、およびサポートされているブラウザメモリ指標を表示します。
               markdown-stress:
-                title: Markdown ストレス
-                description: 大量のチャットデータを含むMarkdownの解析とレンダリング負荷のテスト
+                title: Markdown テスト
+                description: 大規模な会話データで Markdown パースをテストします
               use-magic-keys:
-                title: マジックキー ツールを使用
+                title: useMagicKeys ツール
                 description: ショートカットをテスト
               audio-record:
-                title: オーディオ録音
-                description: オーディオ関連のロジックをテストする
+                title: 録音
+                description: 音声関連機能をテストします
               background-gradient-blending:
-                title: 背景テーマカラーのブレンド
-                description: テストブレンドとテーマの設定
+                title: 背景グラデーションブレンディング
+                description: ブレンディングとテーマをテストします
               background-removal:
-                title: 背景削除（WebGPUが必要）
-                description: 背景削除ユーティリティ
+                title: 背景削除 (WebGPU が必要)
+                description: 背景削除補助ツール
               chat:
                 title: チャット
-                description: チャット
+                description: 会話をテストします
               gesture-circle:
-                title: ジェスチャーサークル (デスクトップのみ)
-                description: ジェスチャー認識をテスト
+                title: ジェスチャーサークル (デスクトップ専用)
+                description: ジェスチャー認識をテストします
               image:
                 title: 画像
-                description: 画像
+                description: 画像処理
               polaroid:
                 title: ポラロイド
-                description: モデルを撮影するためのユーティリティ
+                description: モデルの撮影ツール
               context-flow:
                 description: >-
-                  受信コンテキストの更新とチャットストリームの送信イベントを調査する
+                  コンテキストの更新とチャットストリームのイベントをテストします
               websocket-inspector:
-                title: WebSocketインスペクタ
-                description: 生のWebSocketトラフィックを調査する
+                title: WebSocket インスペクター
+                description: 生の WebSocket トラフィックを監視します
               vibrant:
-                title: 色の抽出
-                description: テスト色の抽出
+                title: カラー抽出
+                description: 色の抽出を試します
               providers-transcription-realtime-aliyun-nls:
                 title: Aliyun リアルタイム文字起こし
                 description: >-
-                  マイクの音声をAliyun NLSにストリーミングし、リアルタイムの文字起こしを確認する
+                  マイク音声を Aliyun NLS にストリーミングし、リアルタイムテキストをテストします
               performance-playground:
-                title: 機能実験場
-                description: VRM表情 + TTSリップシンク プレイグラウンド
+                title: パフォーマンスプレイグラウンド
+                description: VRM の表情と TTS リップシンクのテストエリア
         theme-presets:
           presets:
             default:
@@ -1592,27 +1701,27 @@ pages:
   credits:
     buy: 購入
   scene:
-    title: Scenes
-    description: Customize the virtual environment for your characters.
-    beta_label: Scenes System
-    beta_description: Each character card specifies its own preferred background from this gallery. Setting it here will set it as the default for the currently active character.
+    title: シーン
+    description: キャラクターの仮想環境をカスタマイズします。
+    beta_label: シーンシステム
+    beta_description: 各キャラクターカードはこのライブラリから好みの背景を指定します。ここでの設定は、アクティブなキャラクターのデフォルト背景として設定されます。
     background_image:
-      title: Active Character Background
-      no_background: No background active for this character. Upload a square or landscape image for best results.
-      upload: Upload to Gallery
-      change: Change Background
-      clear: Clear Default
+      title: アクティブキャラクターの背景
+      no_background: このキャラクターにはアクティブな背景がありません。正方形または横長の画像をアップロードすると最適に表示されます。
+      upload: ライブラリにアップロード
+      change: 背景を変更
+      clear: デフォルトをクリア
     gallery:
-      title: Scene Gallery
-      empty: No images in gallery yet. Upload one above!
-      set_as_global: Set as Character Default
-      delete: Delete from Gallery
-      global_badge: Character Default
-      active_badge: Current Scene
-      delete_confirm: Are you sure you want to delete this background?
+      title: シーンライブラリ
+      empty: ライブラリに画像がありません。上のボタンからアップロードしてください！
+      set_as_global: キャラクターのデフォルトに設定
+      delete: ライブラリから削除
+      global_badge: キャラクターのデフォルト
+      active_badge: 現在のシーン
+      delete_confirm: 本当にこの背景を削除しますか？
     tip:
-      label: Tip!
-      description: Using a square image will leverage <b>cover</b> cropping in portrait mode, focusing on the center of the scene.
+      label: ヒント！
+      description: 正方形の画像を使用すると、縦表示の際に <b>cover</b> クロップモードが利用され、シーンの中心に焦点を合わせることができます。
 sections:
   section:
     general:
@@ -1664,101 +1773,101 @@ vrm:
     skybox-intensity: スカイボックスの強度
     skybox-specular-mix: 鏡面反射の混合
 spine:
-  title: Spine Settings
+  title: Spine 設定
   scale-and-position:
-    title: Scale And Position
-    scale: Scale
+    title: 拡大縮小と位置
+    scale: スケール
     x: X
     'y': 'Y'
   theme-color-from-model:
-    title: Extract colors from model
+    title: モデルからテーマカラーを抽出
     button-extract:
-      title: Extract
+      title: 抽出
   animation:
-    title: Animation
-    idle-animation: Idle Animation
-    mix-duration: Mix Duration (seconds)
-    speed: Animation Speed
+    title: アニメーション
+    idle-animation: アイドルアニメーション
+    mix-duration: ミックス時間 (秒)
+    speed: アニメーション速度
   appearance:
     title: 外観
   variant:
-    title: Variant
-    current-variant: Active Variant
+    title: バリアント
+    current-variant: アクティブなバリアント
   skin:
-    title: Skin
-    current-skin: Current Skin
+    title: スキン
+    current-skin: 現在のスキン
   rendering:
-    title: Rendering
-    max-fps: Maximum FPS
-    render-scale: Render Scale
+    title: レンダリング
+    max-fps: 最大 FPS
+    render-scale: レンダリングスケール
   fps:
     options:
-      unlimited: Unlimited
+      unlimited: 無制限
 mmd:
-  title: MMD Settings
+  title: MMD 設定
   scale-and-position:
-    title: Scale And Position
-    scale: Scale
+    title: 拡大縮小と位置
+    scale: スケール
     x: X
     'y': 'Y'
-    rotation: Rotation
+    rotation: 回転
   theme-color-from-model:
-    title: Extract colors from model
+    title: モデルからテーマカラーを抽出
     button-extract:
-      title: Extract
+      title: 抽出
   physics:
-    title: Physics & Rig
-    enabled: Enable physics (hair, skirt, accessories)
-    ik: Enable IK (inverse kinematics)
-    grant: Enable append-bone propagation
-    gravity: Gravity strength
+    title: 物理演算 & リグ
+    enabled: 物理演算を有効化 (髪、スカート、アクセサリ)
+    ik: IK (インバースキネマティクス) を有効化
+    grant: 付与親 (骨連動) を有効化
+    gravity: 重力の強さ
   gaze:
-    title: Gaze
-    tracking: Looking at
+    title: 視線追従
+    tracking: 視線ターゲット
     options:
-      cursor: Mouse
-      camera: Camera
-      none: Disabled
+      cursor: マウス
+      camera: カメラ
+      none: 無効
   animation:
-    title: Animation
-    idle-motion: Idle Motion
-    import-motion: Import Motion (.vmd)
-    play-once: Preview Animation
-    remove: Remove motion
+    title: アニメーション
+    idle-motion: アイドルモーション
+    import-motion: モーションをインポート (.vmd)
+    play-once: モーションをプレビュー
+    remove: モーションを削除
     description: >-
-      Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
+      VMD モーションファイルをインポートし、ループアイドルモーションとして設定するか、単発のジェスチャーとして再生できます。感情をモーションに紐付けることで、表情と一緒にジェスチャーを再生できます。
   morphs:
-    title: Morphs
-    auto: (auto)
-    revert: Revert to auto
-    no-morphs: This model exposes no morphs.
+    title: モーフ (Morphs)
+    auto: (自動)
+    revert: 自動に戻す
+    no-morphs: このモデルで利用可能なモーフはありません。
     description: >-
-      The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
+      レンダラーは標準的な日本語モーフ名 (あいうえお, まばたき) を自動的に検出します。モデルが非標準的な名前を使用している場合は、ここでスロットを上書きしてください。
   materials:
-    title: Materials
-    no-materials: This model exposes no materials.
+    title: マテリアル
+    no-materials: このモデルで利用可能なマテリアルはありません。
     description: >-
-      Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
+      モデルの各パーツ (顔、髪、服、アクセサリ) の不透明度を調整します。パーツを 0 に設定すると非表示になります。
 tachie:
-  title: Tachie Settings
-  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
+  title: 立ち絵設定
+  archive-description: 立ち絵モデルは、感情ごとに命名された画像を含む .tachie.zip アーカイブを使用します。
   scale-and-position:
-    title: Scale And Position
-    scale: Scale
+    title: 拡大縮小と位置
+    scale: スケール
     x: X
     'y': 'Y'
   theme-color-from-model:
-    title: Extract colors from model
+    title: モデルからテーマカラーを抽出
     button-extract:
-      title: Extract
+      title: 抽出
   rendering:
-    title: Rendering
-    render-scale: Render Scale
-    shadow: Theme-colored drop shadow
+    title: レンダリング
+    render-scale: レンダリングスケール
+    shadow: テーマカラーに応じたドロップシドウ
 websocket-secure-enabled:
-  title: セキュア WebSocket (WSS) を有効にする
+  title: 安全な WebSocket (WSS) を提供
   description: >-
-    開発モードでモバイル（pocket）のHTTPS接続を許可するために、WSS（WebSocket Secure）を有効にします。これにより自己署名証明書が自動的に生成されます。
+    モバイルとの安全な接続に WSS を使用します。AIRI が自己署名証明書を自動生成します。
 wip:
   title: 開発中
   description: >-

@@ -15,11 +15,11 @@ chat:
     new-chat-fallback: Nuevo Chat
     delete: Eliminar conversación
 render-error:
-  title: '{renderer} no pudo renderizar este modelo'
-  description: El modelo está seleccionado, pero el escenario no pudo mostrarlo.
+  title: '{renderer} could not render this model'
+  description: The model is selected, but the Stage could not display it.
   report-description: |-
-    {renderer} no pudo renderizar el modelo seleccionado.
-    ID del modelo: {modelId}
+    {renderer} failed to render the selected model.
+    Model ID: {modelId}
     Error: {error}
 message: Dile algo...
 send-mode:

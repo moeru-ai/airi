@@ -16,7 +16,7 @@ chat:
     delete: Xóa đoạn hội thoại
 render-error:
   title: '{renderer} không thể hiển thị mô hình này'
-  description: Mô hình đã được chọn nhưng sân khấu không thể hiển thị mô hình đó.
+  description: Mô hình đã được chọn, nhưng Stage không hiển thị được nó.
   report-description: |-
     {renderer} không thể hiển thị mô hình đã chọn.
     ID mô hình: {modelId}
@@ -28,8 +28,8 @@ send-mode:
   ctrl-enter: Ctrl + Enter
   double-enter: Nhập hai lần
 speech-output:
-  mute: Tắt tiếng nói
-  unmute: Bật tiếng nói
+  mute: Tắt tiếng
+  unmute: Bật tiếng
 operations:
   load-models: Tải mô hình
   load-models-status:

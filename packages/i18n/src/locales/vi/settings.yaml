@@ -52,15 +52,15 @@ dialogs:
       Vui lòng quay lại bước trước và kiểm tra khóa API, hoặc kiểm tra kết nối mạng.
     permissions:
       title: Quản lý quyền
-      description: Bạn có thể cấp các quyền cần thiết ngay bây giờ hoặc tiếp tục và thiết lập sau.
+      description: Bạn có thể cấp các quyền cần thiết ngay bây giờ hoặc tiếp tục và cấu hình chúng sau.
       notificationsTitle: Thông báo
       notificationsDescription: Cho phép nhắc nhở và các cập nhật trạng thái quan trọng.
-      microphoneTitle: Micrô
-      microphoneDescription: Cho phép AIRI sử dụng micrô để nhập giọng nói và phiên âm.
+      microphoneTitle: Micro
+      microphoneDescription: Cho phép AIRI sử dụng micro để nhập giọng nói và phiên âm.
       requestAction: Yêu cầu quyền truy cập
       optionalHint: Bạn vẫn có thể tiếp tục ngay cả khi chưa cấp các quyền này.
       stateGranted: Đã cấp quyền
-      stateNotGranted: Không được cấp quyền
+      stateNotGranted: Chưa được cấp quyền
   bug-report:
     title: Báo lỗi (´;ω;`)ヾ(･∀･`)
     subtitle: Úi, xin lỗi nếu chúng tôi đã làm gì sai. Nếu không phiền thì bạn có thể kể cho chúng tôi biết chuyện gì đã xảy ra không?
@@ -93,7 +93,7 @@ analytics:
   notice:
     title: Phân tích dữ liệu sử dụng
     description: >-
-      AIRI thu thập dữ liệu sử dụng một cách ẩn danh để giúp chúng tôi hiểu cách ứng dụng được dùng và cải thiện sử ổn định. Không có dữ liệu cá nhân nào được thu thập.
+      AIRI thu thập dữ liệu sử dụng một cách ẩn danh để giúp chúng tôi hiểu cách ứng dụng được dùng và cải thiện sự ổn định. Không có dữ liệu cá nhân nào được thu thập.
     privacyPrefix: Đọc
     privacyLink: chính sách quyền riêng tư
     onboardingHint: Bạn có thể tắt phân tích ở Cài đặt > Hệ thống > Chung.
@@ -107,7 +107,7 @@ model-select:
   panel-callout:
     support-status-header: Chúng tôi hỗ trợ cả mô hình 2D và 3D
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
+      Nhấp vào {select-button} để chọn hoặc nhập các mô hình. Hiện tại, {zip} (cho Live2D và các Spine model) và {vrm} (cho các VRM model) đều được hỗ trợ.
     model-type-example: >
       Neuro-sama sử dụng mô hình 2D được vận hành bởi framework được phát triển bởi Live2D Inc, trong khi đó Grok Ani (trong Grok Companion) sử dụng mô hình 3D được vận hành bởi VRM /MMD định dạng mở.
   select-model:
@@ -117,6 +117,38 @@ model-select:
     import: Nhập
     remove: Xóa
     confirm: Xác nhận
+  live2d-report:
+    title: Before import
+    description: Review the model data and any issues found in the archive.
+    description-short: Review the model data and issues.
+    close: Close
+    model:
+      title: Model
+      files: '{count} files'
+      types:
+        cubism: 'Cubism {version} ({format})'
+        cubism-compatible: 'Cubism 3+ ({format})'
+        unknown: Unknown
+    resources:
+      title: Resources
+      motions: Motions
+      expressions: Expressions
+      parameters: Parameters
+      textures: Textures
+      referenced-and-found: '{referenced} referenced · {found} found'
+      referenced: '{count} referenced'
+      found: '{count} found'
+    issues:
+      title: Issues
+      errors: '{count} errors'
+      warnings: '{count} warnings'
+      none: No issues found.
+      how-to-fix: How to fix
+      resolve-before-import: Resolve the errors before import.
+    actions:
+      cancel: Cancel
+      confirm: Confirm Import
+      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: Tải từ tệp
@@ -147,25 +179,52 @@ live2d:
       title: Trích xuất
   animation:
     title: Hoạt ảnh
+    motion-driver:
+      title: Motion driver
+      description: Select how AIRI creates idle body and eye motion.
+      options:
+        universal:
+          title: Universal
+          description: Use model motions, idle eye movement, and mouse tracking.
+        magic:
+          title: MAGIC
+          description: Generate motion from the bundled MAGIC dataset.
+      magic:
+        profile:
+          title: MAGIC profile
+          description: Select the bundled motion dataset that fits the MAGIC driver.
+          options:
+            idle-calm:
+              title: Idle / calm
+              description: Use the bundled idle and calm motion recording.
+            speaking-excited:
+              title: Speaking / excited
+              description: Use the bundled speaking and excited motion recording.
+        skip-mouth-open:
+          title: Skip generated mouth opening
+          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
+        force-view-target:
+          title: Force forward view target
+          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
       title: Bật theo dõi chuột
       description: Nhìn vào con trỏ chuột trong khi nó di chuyển. Chuyển động mắt khi rảnh (idle) sẽ tiếp tục khi con trỏ chuột dừng lại.
       offset: Độ lệch mắt(%)
     force-idle-eye-animation:
       title: Chuyển động mắt nhàn rỗi (idle)
-      description: Randomly look around when there is no active cursor focus.
+      description: Nhìn xung quanh khi con trỏ chuột không di chuyển.
     blink-enable:
       title: Mở chớp mắt
       description: Cho phép mô hình chớp mắt.
     auto-blink:
       title: Tự động
-      description: Sử dụng hoạt ảnh chớp mắt mặc đinh cho mô hình
+      description: Sử dụng hoạt ảnh chớp mắt mặc định cho mô hình
     force-auto-blink:
       title: Ép buộc
       description: Ép hoạt ảnh chớp mắt bằng bộ hẹn giờ ngoài
     blink-mode:
       title: Chế độ chớp mắt
-      description: Chọn mô hình chớp mắc có sẵn hoặc bộ hẹn giờ chớp mắt bắt buộc của AIRI.
+      description: Chọn mô hình chớp mắt có sẵn hoặc bộ hẹn giờ chớp mắt bắt buộc của AIRI.
     idle-motion:
       title: Hoạt ảnh nhàn rỗi
       no-motion: Không có hoạt ảnh khả dụng
@@ -245,7 +304,7 @@ pages:
       error:
         listFailed: Không thể tải các tài khoản đã liên kết.
         unlinkFailed: Không thể hủy liên kết tài khoản này.
-        linkFailed: Không thể khởi động liên kết luồng (link flow).
+        linkFailed: Không thể khởi động liên kết luồng (luồng liên kết).
         accountAlreadyLinkedToDifferentUser: Tài khoản OAuth này đã được liên kết với một tài khoản AIRI khác. Hãy chọn tài khoản nhà cung cấp khác hoặc hủy liên kết tài khoản đó khỏi tài khoản AIRI kia trước.
         oauthCallbackFailed: Không thể kết nối tài khoản OAuth này. Hãy thử lại hoặc chọn tài khoản nhà cung cấp khác.
         lastAccount: Đây là phương thức đăng nhập duy nhất của bạn. Đặt mật khẩu trước khi hủy liên kết.
@@ -284,7 +343,7 @@ pages:
         action: Xóa tài khoản
         modal:
           title: Xóa tài khoản?
-          warning: Hành động này không thể đảo ngược. Các gói đăng ký đang hoạt đọng sẽ bị hủy, số dư Flux sẽ bị xóa sạch.
+          warning: Hành động này không thể đảo ngược. Các gói đăng ký đang hoạt động sẽ bị hủy, số dư Flux sẽ bị xóa sạch.
           confirmEmail:
             label: Nhập email để xác nhận
             placeholder: ''
@@ -299,7 +358,7 @@ pages:
     activate: Kích hoạt
     active: Đang hoạt động
     active_badge: Hiện đang hoạt động
-    activation_notice: Đã chuyển sang {name}. Cuộc trò chuyện hiện tại giờ sử dụng nhân vật này.
+    activation_notice: Chuyển sang {name}. Nhân vật này sẽ được sử dụng cho hội thoại hiện tại.
     cancel: Hủy thao tác
     save: Lưu thay đổi
     save_and_activate: Lưu và kích hoạt
@@ -369,7 +428,7 @@ pages:
         scenario: 'Lỗi: Phải có kịch bản.'
         systemprompt: 'Lỗi: Hãy cung cấp lời nhắc hệ thống'
         posthistoryinstructions: 'Lỗi: Cần có lịch sử đăng lời nhắc'
-        invalid_artistry_json: 'Các tùy chọn cho nhà cung cấp nghệ thuật (Artistry provider) chứa JSON không hợp lệ.'
+        invalid_artistry_json: 'Các tùy chọn cho nhà cung cấp nghệ thuật (Nghệ thuật provider) chứa JSON không hợp lệ.'
       none: Không
     modules: Mô-đun
     name_asc: Tên (A-Z)
@@ -391,13 +450,13 @@ pages:
     title: Thẻ AIRI
     try_different_search: Hãy thử từ khóa khác
     export: Xuất
-    exported: Card package exported
-    export_failed: Failed to export card package
-    imported: Card package imported
-    import_missing_file: Card package is missing required files
-    import_invalid_file: Card package file is invalid
+    exported: Đã xuất gói thẻ
+    export_failed: Không thể xuất gói thẻ
+    imported: Đã nhập gói thẻ
+    import_missing_file: Gói thẻ thiếu các tệp bắt buộc
+    import_invalid_file: Tệp gói thẻ không hợp lệ
     upload: Tải lên
-    upload_desc: Click or drag an AIRI card package to import
+    upload_desc: Nhấp hoặc kéo thả gói thẻ AIRI vào đây để nhập
   memory:
     description: Nơi lưu trữ và tổ chức ký ức
     title: Bộ nhớ
@@ -413,7 +472,7 @@ pages:
         delete: Xóa tất cả hội thoại
       models:
         title: Mô hình
-        description: Remove imported Live2D, VRM, Spine, and MMD models.
+        description: Xóa các mô hình Live2D/VRM đã nhập.
         delete: Xóa tất cả mô hình
       modules:
         title: Các Mô-Đun
@@ -437,7 +496,7 @@ pages:
       desktop:
         title: Đặt lại thiết lập máy tính
         description: Xóa các cài đặt và trạng thái thực thi của AIRI trên máy tính.
-        center: Move desktop window to center
+        center: Đưa cửa sổ desktop về giữa màn hình
         reset: Đặt lại dữ liệu desktop
     confirmations:
       tooltip: Bạn chắc chứ?
@@ -451,10 +510,10 @@ pages:
       modules_reset: Đã đặt lại cài đặt mô-đun.
       providers_reset: Đã đặt lại cài đặt nhà cung cấp.
       all_deleted: Tất cả dữ liệu cục bộ đã bị xóa.
-      desktop_window_centered: Desktop window moved to screen center.
+      desktop_window_centered: Đã đưa cửa sổ desktop về giữa màn hình.
       desktop_reset: Đã đặt lại dữ liệu ứng dụng máy tính.
   models:
-    description: Live2D, VRM, Spine, MMD, etc.
+    description: Live2D, VRM, Spine, v.v.
     title: Mô hình
     sections:
       section:
@@ -527,10 +586,10 @@ pages:
           name: ComfyUI (Cục bộ)
           description: Sử dụng bản ComfyUI cục bộ thông qua WSL cho việc tạo ảnh.
         replicate:
-          name: Replicate.ai (Cloud)
+          name: Replicate.ai (Đám mây)
           description: Sử dụng các mô hình dựa trên đám mây thông qua API của Replicate.
         nanobanana:
-          name: Nano Banana (Preview)
+          name: Nano Banana (Bản xem trước)
           description: Sử dụng Google AI Studio để xem trước ảnh và các phản ứng.
       card:
         description: Cấu hình cách AIRI tạo ảnh và các nội dung đồ họa.
@@ -538,29 +597,29 @@ pages:
         exposed_fields: '{count} trường được cung cấp'
         open_on_replicate: Mở bằng Replicate
         instruction_sync:
-          title: ComfyUI Instruction Sync
+          title: Đồng bộ hướng dẫn ComfyUI
           description: Prompt được chỉ định đã sẵn sàng cho workflow {workflowName} của bạn. Việc áp dụng sẽ ghi đè hướng dẫn tiện ích hiện tại nên AI sẽ biết cách dùng mẫu cụ thể này.
           apply: Áp Dụng Prompt Được Khuyến Nghị
-          keep: Keep Existing
+          keep: Giữ nguyên
       provider: Nhà Cung Cấp Nghệ Thuật
       spawn_mode:
-        label: Manifestation Mode (Spawn Mode)
+        label: Chế độ xuất hiện (Chế độ tạo)
         description: Chọn cách ảnh được đưa vào giao diện.
         options:
           bg: Nền Môi Trường
-          inline: Inline Chat
-          widget: Overlay Widget
+          inline: Trò chuyện nội tuyến
+          widget: Widget lớp phủ
           bg_widget: Kép (Ảnh Nền + Tiện Ích)
       autonomous:
-        title: Cinematic Autonomy (Autonomous Artist)
-        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
-        threshold: Manifestation Threshold
-        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
+        title: Tự chủ điện ảnh (Họa sĩ tự động)
+        description: Khi bật, "Producer" sẽ chạy song song với nhân vật để quyết định xem có cần hình ảnh hay không. Điều này giúp nhân vật không quên tạo cảnh.
+        threshold: Ngưỡng xuất hiện
+        threshold_description: Dùng {min} để tạo cảnh mạnh tay hơn hoặc {max} để yêu cầu bằng chứng rõ ràng hơn trước khi tạo.
         threshold_min: Luôn Luôn Tạo (0%)
         threshold_max: Khắt Khe (100%)
       model:
         label: Mô Hình Nghệ Thuật (Ghi Đè Tùy Chọn)
-        description: Model identifier if needed by provider
+        description: Mã định danh mô hình nếu nhà cung cấp yêu cầu
       prompt-prefix:
         label: Tiền Tố Prompt Nghệ Thuật Mặc Định
         description: Được thêm vào đầu mỗi prompt khi gửi đến trình tạo ảnh.
@@ -571,9 +630,9 @@ pages:
         description: Tùy chỉnh các hướng dẫn cho AI về cách dùng các khả năng tạo nội dung.
     categories:
       essential: Cần thiết
-      messaging: Messaging
-      gaming: Gaming
-      artistry: Artistry
+      messaging: Nhắn tin
+      gaming: Chơi game
+      artistry: Nghệ thuật
     consciousness:
       description: Tính cách, mô hình mong muốn, v.v.
       sections:
@@ -603,6 +662,10 @@ pages:
             show_more: Hiện thêm
             subtitle: Chọn một mô hình mặc định từ nhà cung cấp
             title: Mô hình
+          model-options:
+            title: Tùy chọn mô hình
+            thinking:
+              label: Suy nghĩ
       title: Ý thức
     description: Tư duy, thị giác, tổng hợp giọng nói, chơi game, v.v.
     gaming-factorio:
@@ -624,32 +687,32 @@ pages:
       title: Minecraft
       enable: Bật tích hợp Minecraft
       enable-description: >-
-        Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
+        Bao gồm tự nhận thức về Minecraft trong lượt trò chuyện trên Sân khấu (Stage) và duy trì hiển thị thụ động trong thời gian chạy.
       configured: Đã cấu hình Minecraft thành công!
       read-only:
-        title: Read-only shell
+        title: Shell chỉ đọc
         description: >-
-          Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+          Sân khấu hiện tại hiển thị Minecraft dưới dạng shell thụ động. Trạng thái thời gian chạy và lưu lượng truy cập hiển thị tại đây, nhưng cấu hình dịch vụ vẫn nằm trong tệp dịch vụ Minecraft.
       setup:
         title: Thiết lập
         description: >-
           Bạn có thể tìm thấy các chỉ dẫn cho việc thiết lập bot trong file sau
       runtime:
-        title: Observed runtime
+        title: Thực thi được quan sát
         connection: Kết nối
         latest-context: Bối cảnh bot mới nhất
-        waiting: Waiting for a fresh bot-originated context push.
+        waiting: Đang chờ một lần đẩy ngữ cảnh mới từ bot.
         unknown: Không xác định
       debug:
-        title: Minecraft traffic
-        empty: No Minecraft traffic observed yet.
+        title: Lưu lượng Minecraft
+        empty: Chưa ghi nhận lưu lượng Minecraft nào.
         source: 'Nguồn: {source}'
       status:
         service-online: Dịch vụ trực tuyến
         service-offline: Dịch vụ ngoại tuyến
-        no-runtime-context: No bot context observed yet
-        last-context-seconds: 'Last bot context: {seconds}s ago'
-        last-context-stale: 'Last bot context: Stale'
+        no-runtime-context: Chưa ghi nhận ngữ cảnh nào từ bot
+        last-context-seconds: 'Ngữ cảnh bot gần nhất: {seconds} giây trước'
+        last-context-stale: 'Ngữ cảnh bot gần nhất: Đã cũ'
     hearing:
       description: Cấu hình nhận diện giọng nói
       title: Nghe
@@ -657,13 +720,26 @@ pages:
         section:
           provider-selection:
             description: Chọn nhà cung cấp nhận diện giọng nói phù hợp
+          playground:
+            current: Phiên âm hiện tại
+            description: Lắng nghe qua pipeline Nghe đang hoạt động và hiển thị từng đoạn lời nói đã hoàn tất bên dưới.
+            empty: Bắt đầu theo dõi và nói vào micro đã chọn.
+            error-title: Lỗi phiên âm
+            listening: Đang lắng nghe giọng nói…
+            no-transcription: Không nhận diện được giọng nói trong đoạn âm thanh này.
+            segment: 'Đoạn lời nói {number}'
+            start: Bắt đầu theo dõi
+            stop: Dừng theo dõi
+            title: Khu thử nghiệm nhận diện giọng nói
+            transcribing: Đang phiên âm…
+            transcription-failed: Phiên âm thất bại.
           confidence-threshold:
             title: Ngưỡng Tự Tin
             description: >-
-              Lọc các đoạn nhận dạng giọng nói có độ tin cậy thấp để giảm tình trạng ảo tưởng của Whisper. Giá trị càng tiến về 0 thì càng khắt khe bơn; kéo sang trái để vô hiệu. Chỉ hiệu quả với các nhà dung cấp API của Whisper (ví dụ như OpenAI, Groq).
+              Lọc các đoạn nhận dạng giọng nói có độ tin cậy thấp để giảm tình trạng ảo tưởng của Whisper. Giá trị càng tiến về 0 thì càng khắt khe hơn; kéo sang trái để vô hiệu. Chỉ hiệu quả với các nhà cung cấp API của Whisper (ví dụ như OpenAI, Groq).
             disabled: Tắt
             verbose-json-note: >-
-              Note: Nếu nhà cung cấp của bạn không hỗ trợ phản hồi verbose_json, cài đặng này sẽ không có tác dụng.
+              Lưu ý: Nếu nhà cung cấp của bạn không hỗ trợ phản hồi verbose_json, cài đặt này sẽ không có tác dụng.
             verbose-json-unsupported: >-
               Nhà cung cấp của bạn không trả về các đoạn (segment) verbose_json. Lọc kết quả dựa trên độ tin cậy không có tác dụng cho đoạn phiên âm mới nhất.
     memory-long-term:
@@ -749,40 +825,40 @@ pages:
       access-token-secret-placeholder: Nhập bí mật mã truy cập X / Twitter của bạn
       configured: Đã cấu hình X / Twitter thành công!
     web-search:
-      title: Web Search
-      description: Let AIRI search the web for current information
-      enable: Enable Web Search
-      enable-description: Allow AIRI to search the web during chat
-      api-key: Tavily API Key
-      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
-      api-key-placeholder: Enter your Tavily API key
-      configured: Web search is ready to use!
+      title: Tìm kiếm trên web
+      description: Cho phép AIRI tìm kiếm trên web để lấy thông tin mới nhất
+      enable: Kích hoạt Tìm kiếm trên Web
+      enable-description: Cho phép AIRI tìm kiếm trên web trong khi trò chuyện
+      api-key: Khóa API Tavily
+      api-key-description: Chức năng tìm kiếm trên web được cung cấp bởi Tavily. Nhận API miễn phí tại tavily.com.
+      api-key-placeholder: Nhập Tavily API của bạn
+      configured: Tìm kiếm web đã sẵn sàng sử dụng!
     mcp-server:
       title: Các máy chủ MCP
-      description: Configure MCP servers and bring their tools into AIRI.
-      config-path: Config file
+      description: Cấu hình các máy chủ MCP và đưa công cụ của chúng vào AIRI.
+      config-path: Tệp cấu hình
       runtime-title: Trạng thái thực thi
-      empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
+      empty: Chưa có máy chủ MCP nào. Nhấp "Thêm máy chủ" bên dưới để tạo một máy chủ, hoặc dán cấu hình qua "Chỉnh sửa JSON".
       error-title: Úi
       success-title: Xong!
       existing:
-        title: Configured
-        description: Servers recorded in mcp.json. Click any row to expand and edit it.
+        title: Đã cấu hình
+        description: Các máy chủ được lưu trong mcp.json. Nhấp vào một dòng để mở rộng và chỉnh sửa.
         empty: Chưa có cái nào ở đây hết. Thêm một cái vào bên dưới đi!
       add:
         title: Mới
-        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
+        description: "Điền thông tin máy chủ mới, sau đó nhấp \"Lưu và khởi động lại\". Máy chủ sẽ được chuyển lên mục \"Đã cấu hình\" ở trên."
         pending-badge: Chưa được lưu
       status:
         unknown: chưa tải
       actions:
-        open-config: Reveal in file manager
+        open-config: Hiển thị trong trình quản lý tệp
         apply-and-restart: Lưu và khởi động lại
         restart: Khởi động lại MCP
         add-server: Thêm máy chủ
         add-env: Thêm biến
         remove: Xóa
-        test: Test
+        test: Kiểm tra
         edit-json: Chỉnh sửa JSON
         close-json: Đóng
         format-json: Định dạng
@@ -790,15 +866,15 @@ pages:
         apply-json: Áp dụng
         cancel: Hủy
         expand: Mở rộng
-        collapse: Collapse
+        collapse: Thu gọn
       fields:
         identifier:
-          label: Identifier
+          label: Mã định danh
           description: Tên độc nhất; trở thành khóa trong mcp.json.
           placeholder: 'ví dụ: filesystem'
         command:
           label: Lệnh
-          description: Executable spawned over stdio.
+          description: Tệp thực thi được khởi chạy qua stdio.
           placeholder: 'ví dụ: npx'
         args:
           label: Đối số
@@ -806,46 +882,46 @@ pages:
           placeholder: "-y\nsome-package-name\n/tmp"
         cwd:
           label: Thư mục làm việc
-          description: Optional directory used as the process working directory.
-          placeholder: e.g. /Users/you/project
+          description: Thư mục tùy chọn được dùng làm thư mục làm việc của tiến trình.
+          placeholder: 'ví dụ: /Users/you/project'
         env:
           label: Môi trường
           description: Các biến được đưa vào tiến trình con.
-          key-placeholder: KEY
+          key-placeholder: KHÓA
           value-placeholder: giá trị
         enabled:
           label: Bật
       json:
         title: Chỉnh sửa mcp.json
-        description: 'Edit the raw JSON directly. Click "Apply" to load it into the form, then "Save and restart" to write it to disk.'
+        description: 'Chỉnh sửa trực tiếp JSON thô. Nhấp "Áp dụng" để nạp vào biểu mẫu, sau đó "Lưu và khởi động lại" để ghi vào đĩa.'
         placeholder: Dán mcp.json vào đây…
       test:
         title: Kiểm tra kết nối
-        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
+        description: Máy chủ sẽ được khởi chạy trong thời gian ngắn để kiểm tra lệnh có hoạt động và xem máy chủ cung cấp những công cụ nào.
         pick-server-label: Máy chủ
         no-servers: Chưa có gì để kiểm tra
         no-server-selected: Chọn một máy chủ trước.
-        server-disabled: '"{name}" is disabled — enable it on the card first.'
-        disabled-suffix: vô hiệu hóa
-        untitled: untitled
+        server-disabled: '"{name}" đã bị vô hiệu hóa — hãy bật nó trên thẻ trước.'
+        disabled-suffix: đã vô hiệu hóa
+        untitled: chưa có tiêu đề
         running: Đang kiểm tra…
         success: Kết nối thành công! Đã tìm thấy {count} công cụ trong {ms}ms.
         failure: Kết nối thất bại sau {ms}ms
       errors:
-        empty-identifier: Server # {index} is missing an identifier.
-        duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
+        empty-identifier: Máy chủ # {index} is missing an identifier.
+        duplicate-identifier: Mã định danh "{name}" đã được sử dụng nhiều hơn một lần — tên phải là duy nhất.
         empty-command: '"{name}" đang thiếu một lệnh.'
-        invalid-shape: Nhìn không giống mcp.json hợp lệ — root cần một trường "mcpServers".
+        invalid-shape: Nhìn không giống mcp.json hợp lệ — gốc (root) cần một trường "mcpServers".
       messages:
         opened: Đã mở {path} trong trình quản lý tệp của bạn
-        json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
+        json-applied: Đã áp dụng JSON vào biểu mẫu. Nhấp "Lưu và khởi động lại" để lưu vào đĩa.
         restarted: Tất cả đã được khởi động lại! {started} đã khởi động, {failed} thất bại, {skipped} đã bỏ qua.
   flux:
     title: Flux
     buy: Mua
     currency: Tiền tệ
     description: Số Flux hiện tại
-    packagesError: Failed to load packages. Please try again later.
+    packagesError: Không thể tải các gói. Vui lòng thử lại sau.
     checkout:
       success: Thanh toán hoàn tất! Flux của bạn đã được nạp.
       canceled: Thanh toán đã bị hủy.
@@ -859,7 +935,7 @@ pages:
       typeAddition: Nạp thêm
       typeConsumption: Mức sử dụng
       typeInitial: Khoản Cấp Ban Đầu
-      typePromo: Promo Grant
+      typePromo: Tặng khuyến mãi
       loading: Đang tải lịch sử...
       empty: Chưa có giao dịch nào.
       loadMore: Tải Thêm
@@ -868,7 +944,7 @@ pages:
     packages:
       title: Gói Flux
       buy: Mua
-      description: Flux packages to choose from.
+      description: Các gói Flux để lựa chọn.
   providers:
     catalog:
       edit:
@@ -884,6 +960,10 @@ pages:
               Bạn vẫn có thể lưu cấu hình nếu muốn tiếp tục.
             action: Vẫn lưu
         config:
+          loading: Đang tải cài đặt nhà cung cấp...
+          load-error: Không thể tải cài đặt nhà cung cấp.
+          save-error: Không thể lưu cài đặt nhà cung cấp.
+          retry: Thử lại
           common:
             fields:
               field:
@@ -894,11 +974,11 @@ pages:
                 base-url:
                   label: URL cơ sở
                   description: >-
-                    Địa chỉ kết nối dịch vụ. Thường là http://localhost:11434/v1 hoặc tương tự.
+                    Địa chỉ kết nối dịch vụ. Thường là http: "//localhost:11434/v1 hoặc tương tự."
                   placeholder: URL cơ sở...
                 headers:
                   label: Tiêu đề HTTP tùy chỉnh
-                  description: Tùy chỉnh HTTP Headers
+                  description: Tùy chỉnh Tiêu đề HTTP
                   key:
                     placeholder: Khóa (Key)
                   value:
@@ -956,7 +1036,7 @@ pages:
                 description: Thêm HTTP header tùy chỉnh
                 key:
                   placeholder: Khóa
-                label: HTTP Headers
+                label: Tiêu đề HTTP
                 value:
                   placeholder: Giá trị
           title: Nâng cao
@@ -969,27 +1049,27 @@ pages:
       recommended: Được gợi ý
     filters:
       pricing: Bảng Giá
-      deployment: Deployment
+      deployment: Triển khai
       all: Tất cả
       free: Miễn phí
       paid: Trả phí
-      internal: Internal
+      internal: Nội bộ
       local: Cục bộ
       cloud: Đám mây
     categories:
       chat:
-        title: Chat
+        title: Trò chuyện
         description: 'Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.'
       vision:
-        title: Vision
+        title: Thị giác
         description: Các nhà cung cấp mô hình thị giác máy cho việc hiểu hình ảnh.
       speech:
         title: Giọng nói
-        description: 'Các nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs, Azure Speech.'
+        description: 'Các nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs, Azure Giọng nói.'
       transcription:
         title: Phiên âm
         description: >-
-          Các nhà cung cấp mô hình phiên âm (speech-to-text). Ví dụ: Whisper.cpp OpenAI, Azure Speech
+          Các nhà cung cấp mô hình phiên âm (speech-to-text). Ví dụ: Whisper.cpp OpenAI, Azure Giọng nói
       artistry:
         title: Nghệ thuật
         description: 'Các nhà cung cấp mô hình tạo ảnh và thiết kế. Ví dụ: ComfyUI, Replicate.'
@@ -999,7 +1079,7 @@ pages:
           replicate:
             description: Dịch vụ mô hình suy luận dựa trên đám mây.
           nanobanana:
-            description: Google AI Studio Image Preview.
+            description: Xem trước hình ảnh trên Google AI Studio.
     helpinfo:
       title: Lần đầu tới đây?
       description: >
@@ -1011,6 +1091,14 @@ pages:
         Nhà cung cấp mô hình chuyển giọng nói thành văn bản. Ví dụ: Whisper.cpp, OpenAI, Azure Speech
     description: LLMs, nhà cung cấp giọng nói, v.v.
     provider:
+      apple-speech-transcription:
+        title: Apple Giọng nói
+        description: Nhận diện giọng nói trên thiết bị với macOS 26 trở lên. Không yêu cầu khóa API.
+        fields:
+          locale:
+            label: Ngôn ngữ địa phương
+            description: Sử dụng locale Apple Giọng nói chính xác, chẳng hạn en-US hoặc zh-CN.
+            placeholder: en-US
       app-local-audio-transcription:
         title: Ứng dụng (Local)
         description: https://github.com/moeru-ai/xsai-transformers
@@ -1031,12 +1119,12 @@ pages:
         description: aws.amazon.com/bedrock
         config:
           api-key:
-            label: Bedrock API Key
-            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            label: Khóa API Bedrock
+            description: Khóa API Amazon Bedrock (tạo trong AWS Console → Bedrock → API Keys)
             placeholder: bedrock-...
           region:
-            label: AWS Region
-            description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
+            label: Khu vực AWS
+            description: 'Khu vực AWS nơi Bedrock được bật (ví dụ: us-east-1, us-west-2)'
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude
@@ -1078,6 +1166,26 @@ pages:
             volume:
               description: Điều chỉnh âm lượng
               label: Âm lượng
+      voicevox:
+        description: voicevox.hiroshiba.jp
+        title: VOICEVOX
+        fields:
+          field:
+            intonation:
+              description: Adjust how much the intonation of the reading varies
+              label: Intonation
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
+      aivis-speech:
+        description: aivis-project.com
+        title: AivisSpeech
+        fields:
+          field:
+            intonation:
+              description: Adjust how strongly the speaking style is expressed
+              label: Emotion expression strength
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
@@ -1086,30 +1194,30 @@ pages:
         description: Không phát âm thanh.
       comfyui:
         settings:
-          title: ComfyUI (Local)
-          heading: ComfyUI Native API
-          description: Connect to your local ComfyUI and bring your own workflows.
+          title: ComfyUI (Cục bộ)
+          heading: API gốc ComfyUI
+          description: Kết nối với ComfyUI cục bộ và sử dụng các workflow của bạn.
           info:
             what_you_need:
               label: Những Gì Bạn Cần
-              value: ComfyUI running locally or on your network.
+              value: ComfyUI đang chạy cục bộ hoặc trên mạng của bạn.
             how_to_export:
               label: Cách Để Xuất
               value: Bật Chế Độ Nhà Phát Triển → "Lưu (Định Dạng API)".
             scope_boundary:
               label: Giới Hạn Phạm Vi
-              value: Model downloads & node installs are your job.
+              value: Bạn tự chịu trách nhiệm tải mô hình và cài đặt node.
           connection:
             title: Kết nối
             connected: Đã kết nối
             failed: Kết nối thất bại
             error_prefix: Lỗi
-            test: Test
-            testing: Testing...
+            test: Kiểm tra
+            testing: Đang kiểm tra...
             unknown_error: Lỗi kết nối không xác định
             unknown_gpu: GPU không xác định
             server_url:
-              label: Server URL
+              label: URL máy chủ
               description: Địa chỉ ComfyUI đang hoạt động
               placeholder: http://localhost:8188
           cors:
@@ -1120,21 +1228,21 @@ pages:
             title: Mẫu Workflow
             upload: Tải Workflow
             cancel_upload: Hủy
-            empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
-            exposed_parameters: Exposed Parameters
-            summary: '{nodes} nodes · {fields} exposed fields'
-            remove: Remove
-            config_snippet: Artistry Config Snippet
-            copy_json: Copy JSON
-            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
+            empty: Chưa có workflow nào được tải lên. Nhấp "Tải workflow" để nhập workflow_api.json từ ComfyUI.
+            exposed_parameters: Tham số được cung cấp
+            summary: '{nodes} node · {fields} trường được cung cấp'
+            remove: Xóa
+            config_snippet: Đoạn cấu hình Nghệ thuật
+            copy_json: Sao chép JSON
+            paste_hint: Dán nội dung này vào cấu hình Nghệ thuật của Thẻ AIRI để ghi đè các node này.
           upload:
-            prompt: Drop or select a workflow_api.json file
-            invalid_json: Invalid JSON
+            prompt: Kéo thả hoặc chọn tệp workflow_api.json
+            invalid_json: JSON không hợp lệ
             workflow_name:
               label: Tên Workflow
               description: Cho workflow này một cái tên dễ nhận biết nào
-              placeholder: e.g. Anime Text2Img
-            select_fields: 'Select fields to expose to the AI agent:'
+              placeholder: 'ví dụ: Anime Text2Img'
+            select_fields: 'Chọn các trường muốn cung cấp cho tác nhân AI:'
             fields_exposed: '{count} trường được cung cấp'
             save: Lưu Workflow
       replicate:
@@ -1148,7 +1256,7 @@ pages:
             placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
             label: Mô Hình Mặc Định
-            description: Fallback owner/model string to use if the character card doesn't specify one
+            description: Chuỗi owner/model dự phòng được dùng nếu thẻ nhân vật không chỉ định.
             placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
             label: Tỉ Lệ Khung Hình
@@ -1160,24 +1268,28 @@ pages:
       nanobanana:
         settings:
           title: Nano Banana
-          heading: Nano Banana (Google AI Studio)
-          description: Configure Google Gemini's native image generation capabilities.
+          heading: Nano Banana (Google AIスタジオ)
+          description: Cấu hình khả năng tạo ảnh gốc của Google Gemini.
           api_key:
-            label: API Key
+            label: Khóa API
             description: Khóa Google AI Studio API của bạn
             placeholder: AIpk...
           preferred_model:
-            label: Preferred Model
-            description: The specific Gemini image preview model to use
+            label: Mô hình ưu tiên
+            description: Mô hình xem trước tạo ảnh Gemini cụ thể sẽ được sử dụng
           default_resolution:
             label: Độ Phân Giải Mặc Định
             description: Độ phân giải mong muốn cho ảnh được tạo
           model_options:
-            nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
-            nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
-            nano_banana: Nano Banana (Gemini 2.5 Flash Image)
+            nano_banana_2: Nano Banana 2（Gemini 3.1 Flash Image）
+            nano_banana_pro: Nano Banana Pro（Gemini 3 Pro Image）
+            nano_banana: Nano Banana（Gemini 2.5 Flash Image）
       deepseek:
         description: deepseek.com
+        fields:
+          field:
+            thinking-mode:
+              description: Kiểm soát việc các mô hình suy luận DeepSeek có sử dụng chế độ suy nghĩ trong yêu cầu trò chuyện hay không.
         title: DeepSeek
       elevenlabs:
         description: elevenlabs.io
@@ -1256,7 +1368,7 @@ pages:
             region:
               description: Khu vực dịch vụ Speech
               label: Khu vực
-        title: Microsoft / Azure Speech
+        title: Microsoft / Azure Giọng nói
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
@@ -1272,10 +1384,10 @@ pages:
         description: minimax.io
         title: MiniMax Global
       minimax-speech:
-        description: minimax.io
-        title: MiniMax Speech
+        description:
+        title: MiniMax Giọng nói
       mimo:
-        description: api.xiaomimimo.com
+        description:
         title: Xiaomi MiMo
       mistral:
         description: mistral.ai
@@ -1346,17 +1458,22 @@ pages:
           field:
             appId:
               description: App ID của dự án (lấy trong Console)
-              label: App ID
-        title: Volcano Engine
+              label: ID ứng dụng
+        title: Động cơ Volcano
       volcengine-coding-plan:
-        description: Volcengine Coding Plan
-        title: Volcengine Coding Plan
+        description: Kế hoạch Lập trình Volcengine
+        models:
+          ark-code-latest:
+            description: Sử dụng mô hình được chọn trong bảng điều khiển Coding Plan, bao gồm Auto; thay đổi sẽ có hiệu lực sau 3–5 phút.
+          legacy:
+            description: Mô hình Coding Plan cũ đã được lên lịch ngừng hỗ trợ. Hãy chuyển sang mô hình hiện được hỗ trợ.
+        title: Kế hoạch Lập trình Volcengine
       byteplus:
         description: byteplus.com
         title: BytePlus
       byteplus-coding-plan:
-        description: BytePlus Coding Plan
-        title: BytePlus Coding Plan
+        description: Kế hoạch Lập trình BytePlus
+        title: Kế hoạch Lập trình BytePlus
       xai:
         description: x.ai
         title: xAI
@@ -1377,12 +1494,12 @@ pages:
         title: Aliyun NLS
       browser-web-speech-api:
         description: STT gốc trình duyệt (yêu cầu Chrome/Edge/Safari)
-        title: Web Speech API
+        title: Web Giọng nói API
       official:
         title: Nhà Cung Cấp Chính Thức
         description: Nhà cung cấp AI chính thức bởi AIRI.
-        speech-title: Official Speech Provider
-        speech-description: Official text-to-speech provider by AIRI.
+        speech-title: Nhà cung cấp giọng nói chính thức
+        speech-description: Nhà cung cấp chuyển văn bản thành giọng nói chính thức của AIRI.
         speech-streaming-title: Nhà Cung Cấp Giọng Nói Thời Gian Thực (Streaming) Chính Thức
         speech-streaming-description: Nhà cung cấp text-to-speech độ trễ thấp chính thức bởi AIRI (WebSocket hai chiều).
         transcription-title: Nhà Cung Cấp Phiên Âm Chính Thức
@@ -1398,48 +1515,40 @@ pages:
     description: Cấu hình kết nối máy chủ WebSocket
     title: Kết nối
     websocket-url:
-      description: Địa chỉ đầy đủ máy chủ WebSocket (ví dụ ws://localhost:6121/ws)
-      label: Địa chỉ máy chủ WebSocket
+      description: Địa chỉ mà ứng dụng này sử dụng để kết nối với máy chủ cục bộ.
+      label: Địa chỉ máy chủ
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: Expose On Network
-      description: >-
-        Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
-      advanced-label: Bind Hostname
-      advanced-description: >-
-        Use a specific hostname or IP address when you need manual network binding.
-      options:
-        this-device: This device
-        all: All
-        advanced: Advanced
+      label: Cho phép tất cả thiết bị truy cập
+      description: Cho phép các thiết bị khác trong mạng cục bộ kết nối với máy chủ này.
     server-auth-token:
-      label: Auth Token
+      label: Mã ghép nối
       description: >-
-        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
-      placeholder: Auto-generate
+        Các thiết bị khác sử dụng token này để ghép nối với máy chủ. AIRI sẽ tự tạo token khi trường này để trống.
+      placeholder: Tự động tạo
     qr:
-      title: Connect from Stage Pocket
+      title: Ghép nối
       description: >-
-        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
-      refresh: Refresh
-      image-alt: AIRI server channel connection QR code
-      candidates: Candidate addresses
+        Quét mã QR này bằng ứng dụng di động. Ứng dụng sẽ thử từng địa chỉ cục bộ và lưu địa chỉ đầu tiên hoạt động.
+      refresh: Làm mới
+      image-alt: Mã QR ghép nối AIRI
+      candidates: Các địa chỉ khả dụng
       token-hint: >-
-        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+        Mã QR có chứa token ghép nối. Không chia sẻ mã QR công khai.
       errors:
-        title: QR code unavailable
-        unavailable: Failed to prepare the connection QR code.
+        title: Không thể tạo mã QR
+        unavailable: Không thể chuẩn bị mã QR kết nối.
     qr-scan:
-      title: Quick Connect
-      description: Scan the QR code from Tamagotchi to quick connect
-      instructions: Point the camera at the AIRI connection QR code.
-      action: Scan
+      title: Kết nối nhanh
+      description: Quét mã QR từ Tamagotchi để kết nối nhanh
+      instructions: Hướng camera vào mã QR kết nối AIRI.
+      action: Quét
       success:
-        title: Connected address saved
-        description: 'URL been used: {url}'
+        title: Đã lưu địa chỉ kết nối
+        description: 'URL đã sử dụng: {url}'
       errors:
-        title: QR scan failed
-        failed: Failed to scan or connect with the QR code.
+        title: Quét mã QR thất bại
+        failed: Không thể quét hoặc kết nối bằng mã QR.
   system:
     color-scheme:
       description: Đổi bảng màu sân khấu.
@@ -1470,7 +1579,7 @@ pages:
             section:
               performance-visualizer:
                 title: Trực quan hiệu năng
-                description: Bật/Tắt lớp phủ FPS/tác vụ dài/bộ nhớ
+                description: Hiển thị FPS, thời gian khung hình, tác vụ dài và các chỉ số bộ nhớ trình duyệt được hỗ trợ.
               markdown-stress:
                 title: Kiểm thử Markdown
                 description: Thử nghiệm phân tích Markdown với hội thoại lớn
@@ -1496,7 +1605,7 @@ pages:
                 title: Hình ảnh
                 description: Xử lý hình ảnh
               polaroid:
-                title: Polaroid
+                title: Phân cực
                 description: Công cụ chụp ảnh mô hình
               context-flow:
                 description: >-
@@ -1508,12 +1617,12 @@ pages:
                 title: Trích xuất màu
                 description: Thử nghiệm trích xuất màu sắc
               providers-transcription-realtime-aliyun-nls:
-                title: Aliyun Real-time Transcriber
+                title: Công cụ chuyển đổi giọng nói thành văn bản theo thời gian thực của Aliyun
                 description: >-
                   Truyền âm thanh micro tới Aliyun NLS và kiểm tra văn bản trực tiếp
               performance-playground:
                 title: Khu thử nghiệm hiệu năng
-                description: VRM expressions + TTS lip sync playground
+                description: Khu vực thử nghiệm biểu cảm VRM + đồng bộ môi TTS
         theme-presets:
           presets:
             default:
@@ -1567,7 +1676,7 @@ pages:
                 color-6: Đá phiến
                 color-7: Mây
                 color-8: Đá
-              description: Phong cách màu tối giản vùng Scandinavia
+              description: Phong cách màu tối giản vùng Quétdinavia
               title: Màu Bắc Âu
             chinese:
               colors:
@@ -1590,29 +1699,29 @@ pages:
         title: Mở Công cụ nhà phát triển
         button: Mở
   credits:
-    buy: Buy
+    buy: Mua
   scene:
-    title: Scenes
-    description: Customize the virtual environment for your characters.
-    beta_label: Scenes System
-    beta_description: Each character card specifies its own preferred background from this gallery. Setting it here will set it as the default for the currently active character.
+    title: Bối cảnh
+    description: Tùy chỉnh môi trường ảo cho nhân vật của bạn.
+    beta_label: Hệ thống bối cảnh
+    beta_description: Mỗi thẻ nhân vật chỉ định hình nền ưa thích từ thư viện này. Thiết lập tại đây sẽ đặt hình nền đó làm mặc định cho nhân vật đang hoạt động.
     background_image:
-      title: Active Character Background
-      no_background: No background active for this character. Upload a square or landscape image for best results.
-      upload: Upload to Gallery
-      change: Change Background
-      clear: Clear Default
+      title: Hình nền nhân vật đang hoạt động
+      no_background: Nhân vật này chưa có hình nền đang hoạt động. Hãy tải lên ảnh vuông hoặc ảnh ngang để có kết quả tốt nhất.
+      upload: Tải lên thư viện
+      change: Đổi hình nền
+      clear: Xóa mặc định
     gallery:
-      title: Scene Gallery
-      empty: No images in gallery yet. Upload one above!
-      set_as_global: Set as Character Default
-      delete: Delete from Gallery
-      global_badge: Character Default
-      active_badge: Current Scene
-      delete_confirm: Are you sure you want to delete this background?
+      title: Thư viện bối cảnh
+      empty: Thư viện chưa có ảnh nào. Hãy tải một ảnh lên ở trên!
+      set_as_global: Đặt làm mặc định cho nhân vật
+      delete: Xóa khỏi thư viện
+      global_badge: Mặc định của nhân vật
+      active_badge: Bối cảnh hiện tại
+      delete_confirm: Bạn có chắc muốn xóa hình nền này không?
     tip:
-      label: Tip!
-      description: Using a square image will leverage <b>cover</b> cropping in portrait mode, focusing on the center of the scene.
+      label: Mẹo!
+      description: Sử dụng ảnh vuông sẽ tận dụng chế độ cắt <b>cover</b> khi hiển thị dọc, tập trung vào trung tâm bối cảnh.
 sections:
   section:
     general:
@@ -1664,101 +1773,101 @@ vrm:
     skybox-intensity: Cường Độ SkyBox
     skybox-specular-mix: Độ Trộn Phản Chiếu
 spine:
-  title: Spine Settings
+  title: Cài đặt Spine
   scale-and-position:
-    title: Scale And Position
-    scale: Scale
+    title: Tỷ lệ và vị trí
+    scale: Tỷ lệ
     x: X
     'y': 'Y'
   theme-color-from-model:
-    title: Extract colors from model
+    title: Trích xuất màu từ mô hình
     button-extract:
-      title: Extract
+      title: Trích xuất
   animation:
-    title: Animation
-    idle-animation: Idle Animation
-    mix-duration: Mix Duration (seconds)
-    speed: Animation Speed
+    title: Hoạt ảnh
+    idle-animation: Hoạt ảnh nhàn rỗi (Idle)
+    mix-duration: Thời lượng trộn (giây)
+    speed: Tốc độ hoạt ảnh
   appearance:
     title: Diện mạo
   variant:
-    title: Variant
-    current-variant: Active Variant
+    title: Biến thể
+    current-variant: Biến thể đang hoạt động
   skin:
-    title: Skin
-    current-skin: Current Skin
+    title: Trang phục (Skin)
+    current-skin: Trang phục hiện tại
   rendering:
-    title: Rendering
-    max-fps: Maximum FPS
-    render-scale: Render Scale
+    title: Kết xuất
+    max-fps: FPS tối đa
+    render-scale: Tỷ lệ Render
   fps:
     options:
-      unlimited: Unlimited
+      unlimited: Không giới hạn
 mmd:
-  title: MMD Settings
+  title: Cài đặt MMD
   scale-and-position:
-    title: Scale And Position
-    scale: Scale
+    title: Tỷ lệ và vị trí
+    scale: Tỷ lệ
     x: X
     'y': 'Y'
-    rotation: Rotation
+    rotation: Xoay
   theme-color-from-model:
-    title: Extract colors from model
+    title: Trích xuất màu từ mô hình
     button-extract:
-      title: Extract
+      title: Trích xuất
   physics:
-    title: Physics & Rig
-    enabled: Enable physics (hair, skirt, accessories)
-    ik: Enable IK (inverse kinematics)
-    grant: Enable append-bone propagation
-    gravity: Gravity strength
+    title: Vật lý & Rig
+    enabled: Bật vật lý (tóc, váy, phụ kiện)
+    ik: Bật IK (động học ngược)
+    grant: Bật lan truyền xương phụ
+    gravity: Cường độ trọng lực
   gaze:
-    title: Gaze
-    tracking: Looking at
+    title: Hướng nhìn
+    tracking: Nhìn vào
     options:
-      cursor: Mouse
+      cursor: Chuột
       camera: Camera
-      none: Disabled
+      none: Vô hiệu hóa
   animation:
-    title: Animation
-    idle-motion: Idle Motion
-    import-motion: Import Motion (.vmd)
-    play-once: Preview Animation
-    remove: Remove motion
+    title: Hoạt ảnh
+    idle-motion: Chuyển động chờ
+    import-motion: Nhập chuyển động (.vmd)
+    play-once: Xem trước hoạt ảnh
+    remove: Xóa chuyển động
     description: >-
-      Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
+      Nhập các tệp chuyển động VMD, thiết lập một tệp làm chuyển động lặp nhàn rỗi, hoặc phát bất kỳ chuyển động nào dưới dạng cử chỉ một lần. Áp các cảm xúc vào chuyển động để phát các cử chỉ cùng với biểu cảm khuôn mặt.
   morphs:
-    title: Morphs
-    auto: (auto)
-    revert: Revert to auto
-    no-morphs: This model exposes no morphs.
+    title: Các biến thể hình dạng
+    auto: (Tự động)
+    revert: Khôi phục về tự động
+    no-morphs: Mô hình này không cung cấp morph nào.
     description: >-
-      The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
+      Trình kết xuất tự động phát hiện các tên morph tiếng Nhật tiêu chuẩn (あいうえお, まばたき). Ghi đè một ô tại đây nếu mô hình của bạn sử dụng tên không tiêu chuẩn.
   materials:
-    title: Materials
-    no-materials: This model exposes no materials.
+    title: Vật liệu
+    no-materials: Mô hình này không cung cấp vật liệu nào.
     description: >-
-      Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
+      Điều chỉnh độ đục của các phần mô hình riêng lẻ (mặt, tóc, quần áo, phụ kiện). Đặt một phần thành 0 để ẩn phần đó đi.
 tachie:
-  title: Tachie Settings
-  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
+  title: Cài đặt Tachie
+  archive-description: Mô hình Tachie sử dụng tệp lưu trữ .tachie.zip chứa các ảnh được đặt tên theo cảm xúc.
   scale-and-position:
-    title: Scale And Position
-    scale: Scale
+    title: Tỷ lệ và vị trí
+    scale: Tỷ lệ
     x: X
     'y': 'Y'
   theme-color-from-model:
-    title: Extract colors from model
+    title: Trích xuất màu từ mô hình
     button-extract:
-      title: Extract
+      title: Trích xuất
   rendering:
-    title: Rendering
-    render-scale: Render Scale
-    shadow: Theme-colored drop shadow
+    title: Kết xuất
+    render-scale: Tỷ lệ Render
+    shadow: Bóng đổ theo màu chủ đề
 websocket-secure-enabled:
-  title: Bật WebSocket bảo mật (WSS)
+  title: Cung cấp WebSocket bảo mật (WSS)
   description: >-
-    Bật WSS để hỗ trợ kết nối HTTPS cho thiết bị di động trong quá trình phát triển. Chứng chỉ tự ký sẽ được tạo tự động.
+    Sử dụng WSS cho các kết nối di động an toàn. AIRI sẽ tự tạo chứng chỉ tự ký (self-signed certificate).
 wip:
   title: Đang phát triển
   description: >-

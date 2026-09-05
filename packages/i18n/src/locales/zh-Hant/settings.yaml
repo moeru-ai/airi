@@ -51,16 +51,16 @@ dialogs:
     no-models-help: >-
       請返回上一步並檢查您的 API Key，或檢查網路連線。
     permissions:
-      title: 權限管理
-      description: 您現在可以授予所需權限，或繼續並稍後在系統設定中配置。
-      notificationsTitle: 通知
-      notificationsDescription: 允許提醒以及重要的狀態更新。
-      microphoneTitle: 麥克風
-      microphoneDescription: 允許 AIRI 使用麥克風進行語音輸入和轉錄。
-      requestAction: 請求取得
-      optionalHint: 即使沒有授予這些權限，您也可以繼續。
-      stateGranted: 已授權
-      stateNotGranted: 未授權
+      title: Permission management
+      description: You can grant the required permissions now or continue and configure them later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      microphoneTitle: Microphone
+      microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      requestAction: Request access
+      optionalHint: You can continue even if these permissions are not granted.
+      stateGranted: Granted
+      stateNotGranted: Not granted
   bug-report:
     title: Bug report (´;ω;`)ヾ(･∀･`)
     subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
@@ -117,6 +117,38 @@ model-select:
     import: Import
     remove: Remove
     confirm: Confirm
+  live2d-report:
+    title: Before import
+    description: Review the model data and any issues found in the archive.
+    description-short: Review the model data and issues.
+    close: Close
+    model:
+      title: Model
+      files: '{count} files'
+      types:
+        cubism: 'Cubism {version} ({format})'
+        cubism-compatible: 'Cubism 3+ ({format})'
+        unknown: Unknown
+    resources:
+      title: Resources
+      motions: Motions
+      expressions: Expressions
+      parameters: Parameters
+      textures: Textures
+      referenced-and-found: '{referenced} referenced · {found} found'
+      referenced: '{count} referenced'
+      found: '{count} found'
+    issues:
+      title: Issues
+      errors: '{count} errors'
+      warnings: '{count} warnings'
+      none: No issues found.
+      how-to-fix: How to fix
+      resolve-before-import: Resolve the errors before import.
+    actions:
+      cancel: Cancel
+      confirm: Confirm Import
+      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: 從檔案載入
@@ -142,78 +174,105 @@ live2d:
   theme-color-from-model:
     title: 從模型中提取顏色
     description: >
-      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
+      登入即可使用 AIRI 官方提供者，享受最佳體驗。
     button-extract:
       title: 提取
   animation:
-    title: Animation
-    focus:
-      title: Enable mouse tracking
-      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
-      offset: Eye offset(%)
-    force-idle-eye-animation:
-      title: Idle eye movement
-      description: Randomly look around when there is no active cursor focus.
-    blink-enable:
-      title: Enable blink
-      description: Let the model blink.
-    auto-blink:
-      title: Auto
-      description: Use default blinking animation of the model
-    force-auto-blink:
-      title: Force
-      description: Force blinking animation with external timer
-    blink-mode:
-      title: Blink mode
-      description: Choose the model built-in blink or AIRI's forced blink timer.
-    idle-motion:
-      title: Idle animation
-      no-motion: No animation available
-      placeholder: Select animation
-      disable-motion: Disabled
-      disable-motion-description: Disable idle animation
-  parameters:
-    title: Model Parameters
-    render-scale:
-      title: Render scale
-    fps:
-      title: FPS
-      description: Limit rendering frame rate
+    title: 登入
+    motion-driver:
+      title: Motion driver
+      description: Select how AIRI creates idle body and eye motion.
       options:
-        unlimited: '∞'
-    shadow: Drop shadow
-    reset-parameters: Reset to default parameters
-  clear-model-cache: Clear model cache
+        universal:
+          title: Universal
+          description: Use model motions, idle eye movement, and mouse tracking.
+        magic:
+          title: MAGIC
+          description: Generate motion from the bundled MAGIC dataset.
+      magic:
+        profile:
+          title: MAGIC profile
+          description: Select the bundled motion dataset that fits the MAGIC driver.
+          options:
+            idle-calm:
+              title: Idle / calm
+              description: Use the bundled idle and calm motion recording.
+            speaking-excited:
+              title: Speaking / excited
+              description: Use the bundled speaking and excited motion recording.
+        skip-mouth-open:
+          title: Skip generated mouth opening
+          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
+        force-view-target:
+          title: Force forward view target
+          description: Keep the eyes aimed forward while MAGIC moves the head.
+    focus:
+      title: 使用您的提供者設定
+      description: Flux
+      offset: 為 Flux 充值
+    force-idle-eye-animation:
+      title: 通知
+      description: 您可以現在允許通知，或繼續操作並稍後設定。
+    blink-enable:
+      title: 通知
+      description: 允許提醒與重要狀態更新。
+    auto-blink:
+      title: 要求通知權限
+      description: 若拒絕，之後可以從 iOS 設定中啟用通知。
+    force-auto-blink:
+      title: 開啟 iOS 設定
+      description: 即使未授予通知權限，您仍可繼續操作。
+    blink-mode:
+      title: 未要求
+      description: 要求中...
+    idle-motion:
+      title: 已授予
+      no-motion: 未授予
+      placeholder: 錯誤回報
+      disable-motion: 糟糕，很抱歉我們出錯了。您願意告訴我們發生了什麼嗎？
+      disable-motion-description: 回報錯誤
+  parameters:
+    title: 傳送錯誤回報
+    render-scale:
+      title: 附上螢幕截圖和頁面內容，協助我們分流處理此問題。
+    fps:
+      title: 重現步驟、預期行為與實際行為
+      description: 附上目前頁面的螢幕截圖
+      options:
+        unlimited: 手動選擇螢幕截圖／錄影
+    shadow: 選填。
+    reset-parameters: 媒體檔案
+  clear-model-cache: 選填：手動選擇。
   expressions:
-    title: Expressions
-    override-toggle: Expression system
+    title: 選擇螢幕截圖或影片檔案
+    override-toggle: 已選取 {count} 個檔案
     sdk-preset-preserved-notice: >
-      SDK expression manager and eye blink are preserved when disabled.
-    no-expression: No expressions available for this model.
-    llm-integration-wip: LLM tool integration is not yet wired up.
-    save-default: Save expression defaults
-    reset: Reset all expressions
-    expose-to-llm-toggle: Expose to LLM
+      上次提交的內容預覽
+    no-expression: 介面語言。您可以稍後設定角色語言。
+    llm-integration-wip: 使用分析
+    save-default: AIRI 會收集匿名使用分析，以協助我們了解應用程式的使用方式並提升穩定性。我們不會收集個人資料。
+    reset: 閱讀
+    expose-to-llm-toggle: 隱私權政策
     expose-to-llm-options:
-      none: None
-      all: All
-      custom: Custom
+      none: 您稍後可以在「設定 > 系統 > 一般」中關閉使用分析。
+      all: 您可以隨時關閉使用分析。
+      custom: 啟用使用分析
 microphone: 麥克風
 models: 模型
 pages:
   account:
-    title: Account
-    description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Sign in
-    logout: Sign out
-    fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    signedInAs: Signed in as
+    title: 關閉此項以退出使用分析收集。
+    description: 此開發版本已停用使用分析
+    notLoggedIn: 我們支援 2D 和 3D 模型
+    login: 點擊 {select-button} 以選取或匯入模型。目前支援 Live2D 和 Spine 模型的 {zip}，以及 VRM 模型的 {vrm}。
+    logout: Neuro-sama 使用由 Live2D Inc 開發的框架驅動 2D 模型，而 Grok Ani（Grok Companion 中的角色）使用由 VRM / MMD 開放格式驅動的 3D 模型。
+    fluxBalance: 模型選擇器
+    viewFluxDetails: 選擇模型
+    signedInAs: 選取
     profile:
-      tab: Profile
-      title: Profile
-      description: Manage your public display name.
+      tab: 匯入
+      title: 移除
+      description: 確認
       name:
         label: Display name
         placeholder: How others see you
@@ -299,10 +358,10 @@ pages:
     activate: 啟用
     active: 已啟用
     active_badge: 目前使用中
-    activation_notice: 已切換至 {name}，目前對話將使用此角色。
+    activation_notice: Switched to {name}. The current conversation now uses this character.
     cancel: 取消操作
     save: 儲存變更
-    save_and_activate: 儲存並啟用
+    save_and_activate: Save and activate
     card_not_found: 找不到角色卡
     character: 角色設定
     close: 關閉
@@ -603,6 +662,10 @@ pages:
             show_more: 顯示更多
             subtitle: 從該提供者中選擇預設模型
             title: 模型
+          model-options:
+            title: Model options
+            thinking:
+              label: Thinking
       title: 意識
     description: 思維、視覺、語音綜合、遊戲等
     gaming-factorio:
@@ -657,6 +720,19 @@ pages:
         section:
           provider-selection:
             description: 選擇合適的語音辨識提供者
+          playground:
+            current: Current transcript
+            description: Listen through the active Hearing pipeline and keep each completed speech segment below.
+            empty: Start monitoring and speak into the selected microphone.
+            error-title: Transcription error
+            listening: Listening for speech…
+            no-transcription: No speech was recognized in this audio.
+            segment: 'Speech segment {number}'
+            start: Start monitoring
+            stop: Stop monitoring
+            title: Hearing playground
+            transcribing: Transcribing…
+            transcription-failed: Transcription failed.
           confidence-threshold:
             title: Confidence Threshold
             description: >-
@@ -771,7 +847,7 @@ pages:
         empty: 目前沒有內容。請在下方新增一個！
       add:
         title: 新增
-        description: '填寫新伺服器後，點擊「儲存並重新啟動」—它會移至上方的「已設定」區域。'
+        description: "填寫新伺服器後，點擊「儲存並重新啟動」—它會移至上方的「已設定」區域。"
         pending-badge: 未儲存
       status:
         unknown: 未載入
@@ -803,7 +879,7 @@ pages:
         args:
           label: 引數
           description: 每行一個，依序排列。
-          placeholder: '-y some-package-name /tmp'
+          placeholder: "-y some-package-name /tmp"
         cwd:
           label: 工作目錄
           description: 用作程序工作目錄的選用目錄。
@@ -884,6 +960,10 @@ pages:
               如果您想繼續，之後仍可儲存目前的設定。
             action: 仍然儲存
         config:
+          loading: Loading provider settings...
+          load-error: Failed to load provider settings.
+          save-error: Failed to save provider settings.
+          retry: Retry
           common:
             fields:
               field:
@@ -1011,6 +1091,14 @@ pages:
         轉錄（語音轉文字）模型服務來源，例如 Whisper.cpp、OpenAI、Azure Speech
     description: LLM、語音合成、語音辨識服務來源等
     provider:
+      apple-speech-transcription:
+        title: Apple Speech
+        description: On-device speech recognition on macOS 26 or later. No API key is required.
+        fields:
+          locale:
+            label: Locale
+            description: Use an exact Apple Speech locale, such as en-US or zh-CN.
+            placeholder: en-US
       app-local-audio-transcription:
         title: 應用程式內（本機）
         description: https://github.com/moeru-ai/xsai-transformers
@@ -1078,6 +1166,26 @@ pages:
             volume:
               description: 調整語音的響度
               label: 響度
+      voicevox:
+        description: voicevox.hiroshiba.jp
+        title: VOICEVOX
+        fields:
+          field:
+            intonation:
+              description: Adjust how much the intonation of the reading varies
+              label: Intonation
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
+      aivis-speech:
+        description: aivis-project.com
+        title: AivisSpeech
+        fields:
+          field:
+            intonation:
+              description: Adjust how strongly the speaking style is expressed
+              label: Emotion expression strength
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
@@ -1178,6 +1286,10 @@ pages:
             nano_banana: Nano Banana (Gemini 2.5 Flash Image)
       deepseek:
         description: DeepSeek.com
+        fields:
+          field:
+            thinking-mode:
+              description: Controls whether DeepSeek reasoning models use thinking in chat requests.
         title: 深度求索 DeepSeek
       elevenlabs:
         description: Elevenlabs.io
@@ -1350,6 +1462,11 @@ pages:
         title: 火山引擎
       volcengine-coding-plan:
         description: Volcengine Coding Plan
+        models:
+          ark-code-latest:
+            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
+          legacy:
+            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
         title: Volcengine Coding Plan
       byteplus:
         description: byteplus.com
@@ -1398,34 +1515,26 @@ pages:
     description: 配置 WebSocket 伺服器連接
     title: 連線
     websocket-url:
-      description: WebSocket 伺服器的完整位址（例如：ws://localhost:6121/ws）
-      label: WebSocket 伺服器位址
+      description: The address that this app uses to connect to the local server.
+      label: Server Address
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: Expose On Network
-      description: >-
-        Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
-      advanced-label: Bind Hostname
-      advanced-description: >-
-        Use a specific hostname or IP address when you need manual network binding.
-      options:
-        this-device: This device
-        all: All
-        advanced: Advanced
+      label: Expose To All
+      description: Allow other devices on the local network to connect to this server.
     server-auth-token:
-      label: Auth Token
+      label: Pairing Token
       description: >-
-        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+        Other devices use this token to pair with this server. AIRI generates a token when this field is empty.
       placeholder: Auto-generate
     qr:
-      title: Connect from Stage Pocket
+      title: Pairing
       description: >-
-        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+        Scan this QR code with the mobile app. The app tries each local address and saves the first working address.
       refresh: Refresh
-      image-alt: AIRI server channel connection QR code
+      image-alt: AIRI pairing QR code
       candidates: Candidate addresses
       token-hint: >-
-        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+        The QR code includes the pairing token. Do not share the QR code publicly.
       errors:
         title: QR code unavailable
         unavailable: Failed to prepare the connection QR code.
@@ -1451,8 +1560,8 @@ pages:
       description: 深色主題、語言等選項
       title: 通用
     permissions:
-      description: 查看目前權限狀態
-      title: 權限管理
+      description: View current permission status.
+      title: Permission Management
     description: 自訂你的舞台外觀！
     sections:
       section:
@@ -1470,7 +1579,7 @@ pages:
             section:
               performance-visualizer:
                 title: 效能檢視器
-                description: 切換 FPS/長時間任務/記憶疊加層
+                description: Show FPS, frame time, long tasks, and supported browser memory metrics
               markdown-stress:
                 title: Markdown 壓力測試
                 description: 使用大量聊天內容進行 Markdown 解析與渲染的壓力測試
@@ -1740,25 +1849,25 @@ mmd:
     description: >-
       Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
 tachie:
-  title: Tachie 設定
-  archive-description: Tachie 模型使用包含情緒命名圖片的 .tachie.zip 壓縮檔。
+  title: Tachie Settings
+  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
   scale-and-position:
-    title: 縮放與位置
-    scale: 縮放
+    title: Scale And Position
+    scale: Scale
     x: X
     'y': 'Y'
   theme-color-from-model:
-    title: 從模型提取顏色
+    title: Extract colors from model
     button-extract:
-      title: 提取
+      title: Extract
   rendering:
-    title: 渲染
-    render-scale: 渲染縮放
-    shadow: 主題色動態陰影
+    title: Rendering
+    render-scale: Render Scale
+    shadow: Theme-colored drop shadow
 websocket-secure-enabled:
-  title: 啟用安全 WebSocket (WSS)
+  title: Serve as Secure WebSocket (WSS)
   description: >-
-    啟用 WSS（WebSocket Secure）以允許開發模式下行動裝置（pocket）的 HTTPS 連線。這將自動產生自簽名憑證。
+    Use WSS for secure mobile connections. AIRI creates a self-signed certificate.
 wip:
   title: 正在開發中
   description: >-

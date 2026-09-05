@@ -51,14 +51,14 @@ dialogs:
     no-models-help: >-
       请返回上一步并检查您的 API Key，或检查网络连接。
     permissions:
-      title: 权限管理
-      description: 您现在可以授予所需权限，或继续并稍后在系统设置中配置。
+      title: Permission management
+      description: You can grant the required permissions now or continue and configure them later.
       notificationsTitle: 通知
       notificationsDescription: 允许提醒以及重要的状态更新。
-      microphoneTitle: 麦克风
-      microphoneDescription: 允许 AIRI 使用麦克风进行语音输入和转写。
-      requestAction: 请求获取
-      optionalHint: 即使没有授予这些权限，您也可以继续。
+      microphoneTitle: Microphone
+      microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      requestAction: Request access
+      optionalHint: You can continue even if these permissions are not granted.
       stateGranted: 已授权
       stateNotGranted: 未授权
   bug-report:
@@ -118,37 +118,37 @@ model-select:
     remove: 移除
     confirm: 确认
   live2d-report:
-    title: 导入前检查
-    description: 检查模型数据以及压缩包中发现的问题。
-    description-short: 检查模型数据和问题。
-    close: 关闭
+    title: Before import
+    description: Review the model data and any issues found in the archive.
+    description-short: Review the model data and issues.
+    close: Close
     model:
-      title: 模型
-      files: '{count} 个文件'
+      title: Model
+      files: '{count} files'
       types:
         cubism: 'Cubism {version} ({format})'
         cubism-compatible: 'Cubism 3+ ({format})'
-        unknown: 未知
+        unknown: Unknown
     resources:
-      title: 资源
-      motions: 动作
-      expressions: 表情
-      parameters: 参数
-      textures: 纹理
-      referenced-and-found: '引用 {referenced} 个 · 找到 {found} 个'
-      referenced: '引用 {count} 个'
-      found: '找到 {count} 个'
+      title: Resources
+      motions: Motions
+      expressions: Expressions
+      parameters: Parameters
+      textures: Textures
+      referenced-and-found: '{referenced} referenced · {found} found'
+      referenced: '{count} referenced'
+      found: '{count} found'
     issues:
-      title: 问题
-      errors: '{count} 个错误'
-      warnings: '{count} 个警告'
-      none: 未发现问题。
-      how-to-fix: 如何解决
-      resolve-before-import: 请先解决错误再导入。
+      title: Issues
+      errors: '{count} errors'
+      warnings: '{count} warnings'
+      none: No issues found.
+      how-to-fix: How to fix
+      resolve-before-import: Resolve the errors before import.
     actions:
-      cancel: 取消
-      confirm: 确认导入
-      import-anyway: 仍然导入
+      cancel: Cancel
+      confirm: Confirm Import
+      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: 从文件加载
@@ -180,32 +180,32 @@ live2d:
   animation:
     title: 动画
     motion-driver:
-      title: 动作驱动器
-      description: 选择 AIRI 如何生成空闲身体和眼部动作。
+      title: Motion driver
+      description: Select how AIRI creates idle body and eye motion.
       options:
         universal:
-          title: 通用
-          description: 使用模型动作、空闲眼部动作和鼠标跟踪。
+          title: Universal
+          description: Use model motions, idle eye movement, and mouse tracking.
         magic:
           title: MAGIC
-          description: 使用内置 MAGIC 数据集生成动作。
+          description: Generate motion from the bundled MAGIC dataset.
       magic:
         profile:
-          title: MAGIC 配置
-          description: 选择用于拟合 MAGIC 驱动器的内置动作数据集。
+          title: MAGIC profile
+          description: Select the bundled motion dataset that fits the MAGIC driver.
           options:
             idle-calm:
-              title: 空闲 / 平静
-              description: 使用内置的空闲和平静动作录制数据。
+              title: Idle / calm
+              description: Use the bundled idle and calm motion recording.
             speaking-excited:
-              title: 说话 / 兴奋
-              description: 使用内置的说话和兴奋动作录制数据。
+              title: Speaking / excited
+              description: Use the bundled speaking and excited motion recording.
         skip-mouth-open:
-          title: 忽略生成的嘴部开合
-          description: 让语音口型控制嘴部开合。关闭此选项后将使用配置中的嘴部开合。
+          title: Skip generated mouth opening
+          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
         force-view-target:
-          title: 强制视线朝前
-          description: MAGIC 转动头部时，让眼睛持续看向正前方。
+          title: Force forward view target
+          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
       title: 启用鼠标跟踪
       description: 鼠标移动时注视光标；光标停止后恢复空闲眼部动作。
@@ -358,10 +358,10 @@ pages:
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
-    activation_notice: 已切换到 {name}，当前会话将使用该角色。
+    activation_notice: Switched to {name}. The current conversation now uses this character.
     cancel: 取消操作
     save: 保存更改
-    save_and_activate: 保存并激活
+    save_and_activate: Save and activate
     card_not_found: 未找到角色卡
     character: 角色设定
     close: 关闭
@@ -594,45 +594,45 @@ pages:
       card:
         description: 配置 AIRI 生成图像和视觉内容的方式。
         comfyui_empty: 未配置 ComfyUI 工作流。前往设置 → 提供商 → ComfyUI 上传工作流模板。
-        exposed_fields: '{count} exposed fields'
-        open_on_replicate: Open on Replicate
+        exposed_fields: '投影'
+        open_on_replicate: 重置为默认参数
         instruction_sync:
-          title: ComfyUI Instruction Sync
-          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
-          apply: Apply Recommended Prompt
-          keep: Keep Existing
-      provider: Artistry Provider
+          title: 清除模型缓存
+          description: 表情
+          apply: 表情系统
+          keep: 禁用后仍会保留 SDK 表情管理器和眨眼功能。
+      provider: 此模型没有可用表情。
       spawn_mode:
-        label: Manifestation Mode (Spawn Mode)
-        description: Choose how images are delivered to the interface.
+        label: LLM 工具集成尚未完成。
+        description: 保存默认表情设置
         options:
-          bg: Background Environment
-          inline: Inline Chat
-          widget: Overlay Widget
-          bg_widget: Dual (Background + Widget)
+          bg: 重置所有表情
+          inline: 向 LLM 公开
+          widget: 无
+          bg_widget: 全部
       autonomous:
-        title: Cinematic Autonomy (Autonomous Artist)
-        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
-        threshold: Manifestation Threshold
-        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
-        threshold_min: Always Generate (0%)
-        threshold_max: Strict (100%)
+        title: 自定义
+        description: 确认新密码
+        threshold: 此处包含不可撤销的账户操作。
+        threshold_description: 删除账户？
+        threshold_min: 邮箱不匹配。
+        threshold_max: 发送确认邮件
       model:
-        label: Artistry Model (Optional Override)
-        description: Model identifier if needed by provider
+        label: 取消
+        description: 请查看 {email} 收件箱中的删除链接。
       prompt-prefix:
-        label: Artistry Prompt Default Prefix
-        description: Pre-pended to every prompt sent to the image generator.
+        label: 无法开始删除操作，请稍后重试。
+        description: 视觉 / 提供商
       options:
-        label: Artistry Provider Options (JSON)
+        label: 视觉 / 模型
       widget-instructions:
-        label: Widget System Prompt
-        description: Custom instructions for the AI on how to use the generation capabilities.
+        label: 错误：绘图服务提供商选项包含无效的 JSON。
+        description: 无
     categories:
       essential: 基础
-      messaging: Messaging
-      gaming: Gaming
-      artistry: Artistry
+      messaging: 导出
+      gaming: 角色卡包已导出
+      artistry: 导出角色卡包失败
     consciousness:
       description: 人格设定、使用的模型等配置
       sections:
@@ -663,9 +663,9 @@ pages:
             subtitle: 选择一个默认模型
             title: 模型
           model-options:
-            title: 模型选项
+            title: Model options
             thinking:
-              label: 思考
+              label: Thinking
       title: 意识
     description: 思维，视觉，言语综合，游戏等
     gaming-factorio:
@@ -721,18 +721,18 @@ pages:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
           playground:
-            current: 当前转写
-            description: 通过当前的听觉管线监听，并在下方保留每一段完成的语音转写。
-            empty: 开始监听，然后对着所选麦克风说话。
-            error-title: 转写错误
-            listening: 正在等待语音……
-            no-transcription: 此段音频中未识别到语音。
-            segment: '语音片段 {number}'
-            start: 开始监听
-            stop: 停止监听
-            title: 听觉测试面板
-            transcribing: 正在转写……
-            transcription-failed: 转写失败。
+            current: Current transcript
+            description: Listen through the active Hearing pipeline and keep each completed speech segment below.
+            empty: Start monitoring and speak into the selected microphone.
+            error-title: Transcription error
+            listening: Listening for speech…
+            no-transcription: No speech was recognized in this audio.
+            segment: 'Speech segment {number}'
+            start: Start monitoring
+            stop: Stop monitoring
+            title: Hearing playground
+            transcribing: Transcribing…
+            transcription-failed: Transcription failed.
           confidence-threshold:
             title: 置信度阈值
             description: >-
@@ -769,11 +769,11 @@ pages:
               loading: 正在加载模型……
               required: 请选择声线
           voice-pack:
-            description: Select a curated voice for the active character
-            empty: No Voice Packs available
-            error: Error loading Voice Packs
-            loading: Loading Voice Packs...
-            title: Voice Pack
+            description: 角色卡包已导入
+            empty: 角色卡包缺少必需文件
+            error: 角色卡包文件无效
+            loading: 点击或拖放 AIRI 角色卡包以导入
+            title: 将桌面窗口移至中央
           provider-voice-selection:
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
@@ -847,7 +847,7 @@ pages:
         empty: 这里什么都还没有哦，在下面添加一个！
       add:
         title: 新建
-        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
+        description: "填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」"
         pending-badge: 未保存
       status:
         unknown: 未加载
@@ -935,7 +935,7 @@ pages:
       typeAddition: 充电
       typeConsumption: 用量
       typeInitial: 初始额度
-      typePromo: Promo Grant
+      typePromo: ComfyUI（本地）
       loading: 加载历史...
       empty: 暂无消耗记录
       loadMore: 更多信息
@@ -960,10 +960,10 @@ pages:
               如果你想要继续，你仍然可以保存当前的配置。
             action: 仍要保存
         config:
-          loading: 正在加载服务来源设置……
-          load-error: 无法加载服务来源设置。
-          save-error: 无法保存服务来源设置。
-          retry: 重试
+          loading: Loading provider settings...
+          load-error: Failed to load provider settings.
+          save-error: Failed to save provider settings.
+          retry: Retry
           common:
             fields:
               field:
@@ -1059,20 +1059,20 @@ pages:
     categories:
       chat:
         title: 聊天
-        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+        description: 通过 WSL 使用本地 ComfyUI 实例生成图像。
       vision:
-        title: Vision
-        description: Vision model providers for image understanding.
+        title: Replicate.ai（云端）
+        description: 通过 Replicate API 使用云端模型。
       speech:
-        title: Speech
-        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+        title: Nano Banana（预览版）
+        description: 使用 Google AI Studio 生成预览图像和反应。
       transcription:
-        title: Transcription
+        title: 配置 AIRI 如何生成图像和视觉内容。
         description: >-
-          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+          尚未配置 ComfyUI 工作流。请前往“设置 → 服务提供商 → ComfyUI”上传工作流模板。
       artistry:
-        title: Artistry
-        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
+        title: 绘图
+        description: '{count} 个公开字段'
         items:
           comfyui:
             description: 本地图像生成运行器。
@@ -1092,13 +1092,13 @@ pages:
     description: LLM，语音合成，语音识别服务来源等
     provider:
       apple-speech-transcription:
-        title: Apple 语音识别
-        description: 使用 macOS 26 或更高版本的设备端语音识别，无需 API 密钥。
+        title: Apple Speech
+        description: On-device speech recognition on macOS 26 or later. No API key is required.
         fields:
           locale:
-            label: 语言区域
-            description: 使用 Apple 语音识别支持的完整语言区域代码，例如 en-US 或 zh-CN。
-            placeholder: zh-CN
+            label: Locale
+            description: Use an exact Apple Speech locale, such as en-US or zh-CN.
+            placeholder: en-US
       app-local-audio-transcription:
         title: 应用内（本地）
         description: https://github.com/moeru-ai/xsai-transformers
@@ -1166,6 +1166,26 @@ pages:
             volume:
               description: 调节语音的响度
               label: 响度
+      voicevox:
+        description: voicevox.hiroshiba.jp
+        title: VOICEVOX
+        fields:
+          field:
+            intonation:
+              description: Adjust how much the intonation of the reading varies
+              label: Intonation
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
+      aivis-speech:
+        description: aivis-project.com
+        title: AivisSpeech
+        fields:
+          field:
+            intonation:
+              description: Adjust how strongly the speaking style is expressed
+              label: Emotion expression strength
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
@@ -1269,7 +1289,7 @@ pages:
         fields:
           field:
             thinking-mode:
-              description: 控制 DeepSeek 推理模型是否在聊天请求中启用深度思考。
+              description: Controls whether DeepSeek reasoning models use thinking in chat requests.
         title: 深度求索 DeepSeek
       elevenlabs:
         description: Elevenlabs.io
@@ -1442,6 +1462,11 @@ pages:
         title: 火山引擎
       volcengine-coding-plan:
         description: 火山引擎 Coding Plan
+        models:
+          ark-code-latest:
+            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
+          legacy:
+            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
         title: 火山引擎 Coding Plan
       byteplus:
         description: byteplus.com
@@ -1490,23 +1515,26 @@ pages:
     description: 配置 WebSocket 服务器连接
     title: 连接
     websocket-url:
-      description: 此应用连接本地服务器时使用的地址。
-      label: 服务器地址
+      description: The address that this app uses to connect to the local server.
+      label: Server Address
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: 向所有设备开放
-      description: 允许本地网络中的其他设备连接此服务器。
+      label: Expose To All
+      description: Allow other devices on the local network to connect to this server.
     server-auth-token:
-      label: 配对令牌
-      description: 其他设备使用此令牌与服务器配对。如果此字段为空，AIRI 会生成一个令牌。
+      label: Pairing Token
+      description: >-
+        Other devices use this token to pair with this server. AIRI generates a token when this field is empty.
       placeholder: 自动生成
     qr:
-      title: 配对
-      description: 使用移动应用扫描此二维码。应用会尝试每个本地地址，并保存第一个可用地址。
+      title: Pairing
+      description: >-
+        Scan this QR code with the mobile app. The app tries each local address and saves the first working address.
       refresh: 刷新
-      image-alt: AIRI 配对二维码
+      image-alt: AIRI pairing QR code
       candidates: 备选连接地址
-      token-hint: 二维码包含配对令牌。请勿公开分享此二维码。
+      token-hint: >-
+        The QR code includes the pairing token. Do not share the QR code publicly.
       errors:
         title: 二维码暂不可用
         unavailable: 无法生成配对二维码
@@ -1532,8 +1560,8 @@ pages:
       description: 深色主题、语言等选项
       title: 通用
     permissions:
-      description: 查看当前权限状态
-      title: 权限管理
+      description: View current permission status.
+      title: Permission Management
     description: 自定义你的舞台外观！
     sections:
       section:
@@ -1551,7 +1579,7 @@ pages:
             section:
               performance-visualizer:
                 title: 性能可视化工具
-                description: 显示 FPS、帧时间、长任务和浏览器支持的内存指标
+                description: Show FPS, frame time, long tasks, and supported browser memory metrics
               markdown-stress:
                 title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
@@ -1821,24 +1849,25 @@ mmd:
     description: >-
       Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
 tachie:
-  title: Tachie 设置
-  archive-description: Tachie 模型使用包含情绪命名图片的 .tachie.zip 压缩包。
+  title: Tachie Settings
+  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
   scale-and-position:
-    title: 缩放与位置
-    scale: 缩放
+    title: Scale And Position
+    scale: Scale
     x: X
     'y': 'Y'
   theme-color-from-model:
-    title: 从模型提取颜色
+    title: Extract colors from model
     button-extract:
-      title: 提取
+      title: Extract
   rendering:
-    title: 渲染
-    render-scale: 渲染缩放
-    shadow: 主题色动态阴影
+    title: Rendering
+    render-scale: Render Scale
+    shadow: Theme-colored drop shadow
 websocket-secure-enabled:
-  title: 作为安全 WebSocket (WSS) 提供服务
-  description: 使用 WSS 建立安全的移动端连接。AIRI 会创建一个自签名证书。
+  title: Serve as Secure WebSocket (WSS)
+  description: >-
+    Use WSS for secure mobile connections. AIRI creates a self-signed certificate.
 wip:
   title: 正在开发中
   description: >-

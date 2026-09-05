@@ -49,249 +49,300 @@ devtools:
   pages:
     context-flow:
       title: 上下文流程
+    editor:
+      title: AIRI Editor
+      description: Open the standalone AIRI Editor window
+      button: Open Editor
     lag-visualizer:
       title: 卡頓可視化
     live2d-motion:
-      title: Live2D 動作控制
-      description: 控制 Live2D 的眼睛、頭部與身體動作。
+      title: Live2D Motion Control
+      description: Control Live2D eye, head, and body motion.
       actions:
-        back: 返回
+        back: Back
+      system-audio:
+        title: System audio lip sync
+        description: Capture audio from other players. The same input drives Beat Sync and Live2D mouth movement.
+        signal: Input signal
+        mouth-open: Mouth open
+        input-volume-threshold: Input volume threshold
+        random-close-delay: Random close delay
+        random-close-probability: Random close probability
+        actions:
+          start: Start input
+          stop: Stop input
       panels:
-        direct-control: 直接控制
-        preview: 模型預覽
-        timeline: 時間軸
-        inference: 模型推理
+        direct-control: Direct control
+        preview: Model preview
+        timeline: Timeline
+        inference: Model inference
       preview:
         groups:
-          expression: 表情
-          offset: 位置偏移
+          expression: Expression
+          offset: Position offset
         values:
-          squint: 瞇眼
-          mouth-form: 嘴型
-          mouth-open: 張開
-      joystick-label: Live2D 動作搖桿
-      instructions: 拖曳搖桿，或使用方向鍵控制 X/Y 軸。R 讓眼睛微瞇。F 讓眼睛更瞇。C 閉上眼睛。W/S 改變嘴型。空白鍵張開嘴巴。A/D 控制身體 X 軸。Q/E 讓頭部左右傾斜。放開按鍵後會平滑回到中央。
-      parameter-note: 搖桿控制 X/Y 軸。R 映射至 1/3 瞇眼。F 映射至 2/3 瞇眼。C 映射至完全閉眼。W/S 映射至嘴型 ±1。空白鍵映射至嘴巴張開 1。A/D 映射至身體 X 軸 ±10°。Q/E 映射至頭部 Z 軸 ±30°。
+          squint: Squint
+          mouth-form: Form
+          mouth-open: Open
+      joystick-label: Live2D motion joystick
+      wave:
+        toggle: Boat mode
+      instructions: Drag the joystick, or use the arrow keys for X/Y. R adds a slight squint. F adds a stronger squint. C closes the eyes. W/S changes the mouth shape. Space opens the mouth. A/D moves the body on X. Q/E tilts the head. Released keys return smoothly to center.
+      parameter-note: The joystick controls X/Y. R maps to 1/3 squint. F maps to 2/3 squint. C maps to fully closed eyes. W/S maps to mouth form ±1. Space maps to mouth open 1. A/D maps to body X ±10°. Q/E maps to head Z ±30°.
       input:
-        keyboard: 鍵盤
-        controller: 控制器
+        keyboard: Keyboard
+        controller: Controller
       input-actions:
-        move-body-head: 移動身體與頭部
-        tilt-head: 傾斜頭部
-        blink: 眨眼
-        open-mouth: 張開嘴巴
-        mouth-shape: 改變嘴型
+        move-body-head: Move body and head
+        tilt-head: Tilt head
+        blink: Blink
+        open-mouth: Open mouth
+        mouth-shape: Change mouth shape
       eye-view:
-        title: 固定視線
-        description: 選擇目標後，眼睛會抵銷頭部動作並持續注視目標。
-        pad-label: 固定視線目標
+        title: Latched eye view
+        description: Choose a target. The eyes counter head movement to keep looking at it.
+        pad-label: Latched eye view target
         actions:
-          enable: 啟用注視
-          disable: 停用注視
-          center: 目標置中
+          enable: Enable fixation
+          disable: Disable fixation
+          center: Center target
         counter:
-          label: 頭部抵銷強度
-          description: 眼睛抵銷頭部 X/Y 軸動作的強度。
+          label: Head counter strength
+          description: How strongly the eyes offset head X/Y movement.
         values:
-          target: 目標
-          output: 眼睛輸出
+          target: Target
+          output: Eye output
       editor:
-        title: 動作編輯器
-        instructions: 灰色曲線是原始動作。新增動作疊加層或視線目標關鍵影格。選取軌道後，拖曳其控制點。
-        play: 播放時間軸
-        pause: 暫停時間軸
-        undo: 復原
-        redo: 重做
-        crop-to-view: 裁切至檢視範圍
-        reset-view: 重設檢視
-        export-project: 匯出專案
-        import-project: 匯入專案
-        import-error: 此檔案不是有效的 AIRI Live2D 動作專案。
+        title: Motion editor
+        instructions: The gray curve is the source. Add motion overlays or view-target keyframes. Select a track, then drag its points.
+        play: Play timeline
+        pause: Pause timeline
+        undo: Undo
+        redo: Redo
+        crop-to-view: Crop to view
+        reset-view: Reset view
+        export-project: Export project
+        import-project: Import project
+        import-error: This file is not a valid AIRI Live2D motion project.
         playback:
-          label: 時間軸播放控制
-          start: 跳至開頭
-          step-backward: 後退一格
-          step-forward: 前進一格
-          end: 跳至結尾
-          timecode: 目前與總時間碼
+          label: Timeline playback controls
+          start: Go to start
+          step-backward: Step backward
+          step-forward: Step forward
+          end: Go to end
+          timecode: Current and total timecode
         input-actions:
-          play: 播放
-          stop: 停止
-          start: 跳至開頭
-          end: 跳至結尾
-          step-backward: 後退一格
-          step-forward: 前進一格
-          restart-recording: 重新錄製
-          clear-timeline: 清空時間軸
-          previous-track: 選取上一條軌道
-          next-track: 選取下一條軌道
-        timeline-label: 動作時間軸
-        timeline-help: 拖曳尺規可搜尋時間。使用滾輪縮放。按住 Shift 並拖曳可平移。在所選曲線按兩下可新增控制點。每個視線目標關鍵影格會持續至下一個關鍵影格。
-        overlay-count: '{count} 個疊加層'
+          play: Play
+          stop: Stop
+          start: Go to start
+          end: Go to end
+          step-backward: Step backward
+          step-forward: Step forward
+          restart-recording: Record again
+          clear-timeline: Clear timeline
+          previous-track: Select previous track
+          next-track: Select next track
+        timeline-label: Motion timeline
+        timeline-help: Drag the ruler to scrub. Use the wheel to zoom. Hold Shift and drag to pan. Double-click a selected curve to add a point. Each view-target key holds until the next key.
+        overlay-count: '{count} overlays'
         controls:
-          add: 相加
-          replace: 取代
-          create-keyframes: 建立關鍵影格
-          weight: 權重
-          remove: 移除
+          add: Add
+          replace: Replace
+          create-keyframes: Create keyframes
+          weight: Weight
+          remove: Remove
         tracks:
-          viewTargetX: 視線目標 X
-          viewTargetY: 視線目標 Y
-          eyeX: 眼睛 X
-          eyeY: 眼睛 Y
-          eyeOpen: 眼睛張開
-          headX: 頭部 X
-          headY: 頭部 Y
-          headZ: 頭部 Z
-          bodyX: 身體 X
-          bodyY: 身體 Y
-          bodyZ: 身體 Z
-          mouthForm: 嘴型
-          mouthOpen: 嘴巴張開
+          viewTargetX: View target X
+          viewTargetY: View target Y
+          eyeX: Eye X
+          eyeY: Eye Y
+          eyeOpen: Eye open
+          headX: Head X
+          headY: Head Y
+          headZ: Head Z
+          bodyX: Body X
+          bodyY: Body Y
+          bodyZ: Body Z
+          mouthForm: Mouth shape
+          mouthOpen: Mouth open
       var:
-        title: VAR 待機動作產生器
-        description: 擬合已錄製動作，再產生新的待機動作序列。
+        title: VAR idle-motion generator
+        description: Fits recorded motion, then generates a new idle sequence.
         actions:
-          fit: 擬合目前動作
-          refit: 重新擬合目前動作
-          generate: 產生動作
-          stop: 停止產生
-          new-seed: 新種子
+          fit: Fit current motion
+          refit: Refit current motion
+          generate: Generate motion
+          stop: Stop generation
+          new-seed: New seed
         order:
-          label: VAR 階數
-          description: 每次預測使用的先前影格數。
+          label: VAR order
+          description: Past frames used for each prediction.
         residual:
-          label: 殘差強度
-          description: 產生的變化量；零代表確定性預測。
+          label: Residual strength
+          description: Generated variation. Zero is deterministic.
         diagnostics:
-          source: 來源
-          model: 模型
-          fit: 擬合
-          run: 已產生動作
+          source: Source
+          model: Model
+          fit: Fit
+          run: Generated run
         status:
-          no-source: 請先匯入或錄製動作
-          source-ready: '{count} 個取樣 · {duration}s'
-          fit-failed: VAR 擬合失敗。
+          no-source: Import or record a motion first
+          source-ready: '{count} samples · {duration}s'
+          fit-failed: The VAR fit failed.
         values:
-          frames: '{count} 個影格'
-          model: '{channels} 個通道 · {features} 個項目'
-          fit: '{frames} 個影格 · RMSE {error} · {duration}ms'
-          run: '種子 {seed} · {duration}'
+          frames: '{count} frames'
+          model: '{channels} channels · {features} terms'
+          fit: '{frames} frames · RMSE {error} · {duration}ms'
+          run: 'seed {seed} · {duration}'
       ar-hmm:
-        title: AR-HMM 待機動作產生器
-        description: 學習動作狀態與轉換，以產生更多變化的待機動作。
+        title: AR-HMM idle-motion generator
+        description: Learns motion states and transitions for varied idle motion.
         actions:
-          fit: 擬合動作
-          refit: 重新擬合
-          generate: 產生
-          stop: 停止
-          new-seed: 新種子
+          fit: Fit motion
+          refit: Refit
+          generate: Generate
+          stop: Stop
+          new-seed: New seed
         states:
-          label: 隱藏狀態
-          description: 模型可學習的動作模式數量。
+          label: Hidden states
+          description: Motion patterns the model can learn.
         order:
-          label: AR 階數
-          description: 每個狀態使用的先前影格數。
+          label: AR order
+          description: Past frames used within each state.
         residual:
-          label: 創新強度
-          description: 每個狀態內的變化量。
+          label: Innovation strength
+          description: Variation within each state.
         diagnostics:
-          source: 來源
-          model: 模型
-          fit: 擬合
-          states: 狀態占比
-          run: 已產生動作
+          source: Source
+          model: Model
+          fit: Fit
+          states: State occupancy
+          run: Generated run
         status:
-          no-source: 請先匯入或錄製動作
-          source-ready: '{count} 個取樣 · {duration}s'
-          fit-failed: AR-HMM 擬合失敗。
+          no-source: Import or record a motion first
+          source-ready: '{count} samples · {duration}s'
+          fit-failed: The AR-HMM fit failed.
         values:
-          count: '{count} 個狀態'
-          frames: '{count} 個影格'
-          model: '{states} 個狀態 · {channels} 個通道 · {features} 個項目'
-          fit: 'log p/影格 {likelihood} · {duration}ms'
-          states: '{occupancy} · 停留 {dwell}s'
-          run: '狀態 {state} · 種子 {seed} · {duration}'
+          count: '{count} states'
+          frames: '{count} frames'
+          model: '{states} states · {channels} channels · {features} terms'
+          fit: 'log p/frame {likelihood} · {duration}ms'
+          states: '{occupancy} · dwell {dwell}s'
+          run: 'state {state} · seed {seed} · {duration}'
       output-filter:
-        title: 產生器輸出濾波器
-        description: 在彈簧接收每個姿勢前，平滑產生器輸出並抑制微小變化。
+        title: Generator output filter
+        description: Smooths generator output and holds small changes before the spring receives each pose.
         actions:
-          enable: 啟用濾波器
-          disable: 停用濾波器
-          reset: 重設狀態
+          enable: Enable filter
+          disable: Disable filter
+          reset: Reset state
         smoothing:
-          label: EMA 平滑
-          description: 將每個接受的目標與上一個輸出混合。數值越高，移除的抖動越多，但延遲也越長。
+          label: EMA smoothing
+          description: Blends each accepted target with the previous output. Higher values remove more jitter but add more delay.
         cutoff:
-          label: 變化截止值
-          description: 在累積的正規化變化達到此值前，保持通道的上一個目標。
+          label: Change cutoff
+          description: Holds a channel until its cumulative normalized change reaches this value.
         diagnostics:
-          status: 狀態
-          input-change: 原始變化 MAE
-          output-change: 濾波後變化 MAE
-          cutoff-tracks: 保持的通道
+          status: Status
+          input-change: Raw change MAE
+          output-change: Filtered change MAE
+          cutoff-tracks: Held channels
         status:
-          waiting: 等待產生器
-          filtering: 正在濾波產生器輸出
-          bypassed: 正在傳遞原始產生器輸出
+          waiting: Waiting for a generator
+          filtering: Filtering generator output
+          bypassed: Passing raw generator output
       breath:
-        title: 手動呼吸
-        description: 使用可調整的吸氣、呼氣與停留時間控制 ParamBreath，且不將呼吸資料加入錄製內容。
+        title: Manual breath
+        description: Controls ParamBreath with adjustable inhale, exhale, and dwell timing, without adding breath data to recordings.
         actions:
-          enable: 啟用呼吸
-          disable: 停用呼吸
-          reset: 重設週期
+          enable: Enable breath
+          disable: Disable breath
+          reset: Reset cycle
         cycle:
-          label: 呼吸時間
-          description: 設定一次吸氣與呼氣的時間，不包含呼氣後停留。
+          label: Breath duration
+          description: Sets the time for one inhale and exhale, before the exhaled dwell.
         inhale:
-          label: 吸氣占比
-          description: 設定呼吸時間中用於吸氣的比例。剩餘時間用於呼氣。
+          label: Inhale share
+          description: Sets the part of the breath duration used to inhale. The remaining time is the exhale.
         dwell:
-          label: 呼氣後停留
-          description: 在下一次吸氣前，將 ParamBreath 保持在最小值。
+          label: Exhaled dwell
+          description: Holds ParamBreath at the minimum before the next inhale.
         minimum:
-          label: 最小值
-          description: 設定寫入 ParamBreath 的最低值。
+          label: Minimum
+          description: Sets the lowest value written to ParamBreath.
         maximum:
-          label: 最大值
-          description: 設定寫入 ParamBreath 的最高值。
+          label: Maximum
+          description: Sets the highest value written to ParamBreath.
         diagnostics:
-          stage: 階段
-          phase: 週期進度
-          output: ParamBreath 輸出
+          stage: Stage
+          phase: Cycle progress
+          output: ParamBreath output
         stage:
-          inhale: 吸氣
-          exhale: 呼氣
-          dwell: 呼氣後停留
+          inhale: Inhale
+          exhale: Exhale
+          dwell: Exhaled dwell
       spring:
         follow:
-          label: 跟隨
-          description: 動作跟隨搖桿的速度。
+          label: Follow
+          description: How quickly motion follows the joystick.
         inertia:
-          label: 慣性
-          description: 動作保留的動量。
+          label: Inertia
+          description: How much momentum the motion keeps.
       groups:
-        eyes: 眼睛
-        head: 頭部
-        body: 身體
+        eyes: Eyes
+        head: Head
+        body: Body
       recording:
         actions:
-          record: 錄製
-          stop-recording: 停止錄製
-          play: 播放
-          stop-playback: 停止播放
-          export: 匯出
-          import: 匯入
+          record: Record
+          stop-recording: Stop recording
+          play: Play
+          stop-playback: Stop playback
+          export: Export
+          import: Import
         status:
-          empty: 尚無動作錄製
-          recording: 正在錄製動作
-          playing: 正在播放動作
-          ready: '{count} 個取樣 · {duration}'
-        import-error: 此檔案不是有效的 AIRI Live2D 動作錄製檔。
+          empty: No motion recording
+          recording: Recording motion
+          playing: Playing motion
+          ready: '{count} samples · {duration}'
+        import-error: This file is not a valid AIRI Live2D motion recording.
     performance-visualizer:
       title: 效能顯示器
-      description: 切換 FPS/長任務/記憶體覆蓋
+      description: Inspect live performance metrics and runtime diagnostics
+      controls:
+        enable-all:
+          label: Enable all available metrics
+          description: Enable each metric that this browser supports.
+        start-recording: Start recording
+        stop-recording: Stop recording ({seconds}s)
+        export-last-recording: Export last recording
+      metrics:
+        fps:
+          label: FPS
+          description: Frames per second during the last 10 seconds.
+        frame-duration:
+          label: Frame time (ms)
+          description: Time between animation frames during the last 10 seconds.
+        long-task:
+          label: Long tasks
+          description: Main-thread tasks that take at least 50 ms.
+          unsupported: This browser does not expose long-task timing.
+        memory:
+          label: JS heap (MB)
+          description: JavaScript heap usage from Chromium's performance.memory API.
+          unsupported: This browser does not expose JavaScript heap usage.
+      recording:
+        title: Last recording
+        duration: Duration {duration} ms
+        limit: Recording stops after 60 seconds.
+      overlay:
+        title: Performance
+        move: Move performance overlay
+        reset-position: Reset overlay position
+        record: Record
+        stop: Stop
+        export: Export last recording
+        average: avg
     markdown-stress:
       title: Markdown Stress
       description: 使用大量聊天負載來進行 Markdown 解析與渲染的壓力測試
