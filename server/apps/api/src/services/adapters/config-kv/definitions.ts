@@ -258,6 +258,9 @@ export const configEntrySchemas = {
       stripe: optional(object({
         priceId: pipe(string(), nonEmpty('FLUX_PACKS[].processors.stripe.priceId must not be empty')),
       })),
+      appleIap: optional(object({
+        productId: pipe(string(), nonEmpty('FLUX_PACKS[].processors.appleIap.productId must not be empty')),
+      })),
     }), {}),
   })), []),
   // No default — absent lets Stripe auto-select payment methods via Dashboard config
