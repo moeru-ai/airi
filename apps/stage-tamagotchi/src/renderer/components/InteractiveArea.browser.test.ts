@@ -9,11 +9,12 @@ import { PiniaColada } from '@pinia/colada'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
+import { BasicContentEditable } from '@proj-airi/ui'
 import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { userEvent } from 'vitest/browser'
-import { nextTick } from 'vue'
+import { defineComponent, nextTick, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -31,6 +32,24 @@ function createTestI18n() {
     messages: { en: {} },
   })
 }
+
+const ContentEditableHarness = defineComponent({
+  components: { BasicContentEditable },
+  setup() {
+    const defaultHeight = ref('32px')
+    const message = ref('')
+
+    return { defaultHeight, message }
+  },
+  template: `
+    <button type="button" @click="defaultHeight = '48px'">Expand editor</button>
+    <BasicContentEditable
+      v-model="message"
+      :default-height="defaultHeight"
+      placeholder="Write a message"
+    />
+  `,
+})
 
 async function renderArea(component: Component = InteractiveArea) {
   const sessionB: ChatSessionMeta = {
@@ -315,14 +334,99 @@ describe('interactive area synchronized state', () => {
     }))
   })
 
-  it('opts the mobile composer out of browser form assistance', async () => {
+  it('keeps the mobile composer outside Safari form controls', async () => {
+    // ROOT CAUSE:
+    //
+    // Safari displays Form Assistant above its keyboard for a textarea, even
+    // when autocomplete and text-correction attributes are disabled.
+    //
+    // The mobile chat composer uses a plain-text contenteditable element.
+    // It remains a keyboard target without becoming a Safari form control.
     const { screen } = await renderArea(MobileInteractiveArea)
-    const input = screen.getByRole('textbox').element() as HTMLTextAreaElement
+    const input = screen.getByRole('textbox').element()
 
-    expect(input.getAttribute('autocomplete')).toBe('off')
+    expect(input.tagName).toBe('DIV')
+    expect(input.getAttribute('contenteditable')).toBe('plaintext-only')
+    expect(input.getAttribute('aria-multiline')).toBe('true')
     expect(input.getAttribute('autocapitalize')).toBe('off')
     expect(input.getAttribute('autocorrect')).toBe('off')
-    expect(input.spellcheck).toBe(false)
+    expect(input.getAttribute('spellcheck')).toBe('false')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r3932375161
+  it('restores the mobile placeholder after a draft is cleared', async () => {
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const input = screen.getByRole('textbox').element()
+
+    await userEvent.fill(input, 'draft')
+    await userEvent.clear(input)
+
+    await vi.waitFor(() => expect(input.getAttribute('data-empty')).toBe(''))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r3932701283
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r3932882973
+  it('normalizes rich input and reacts to default height changes', async () => {
+    const screen = await render(ContentEditableHarness)
+    const input = screen.getByRole('textbox').element()
+
+    input.innerHTML = '<strong>formatted</strong>'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+
+    await vi.waitFor(() => expect(input.innerHTML).toBe('formatted'))
+    await vi.waitFor(() => expect(input.style.height).toBe('32px'))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Expand editor' }))
+
+    await vi.waitFor(() => expect(input.style.height).toBe('48px'))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r3935363246
+  it('does not serialize the Shift+Enter caret filler as another line', async () => {
+    const screen = await render(ContentEditableHarness)
+    const input = screen.getByRole('textbox').element()
+
+    input.innerHTML = 'draft<br><br>'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+
+    await vi.waitFor(() => expect(input.textContent).toBe('draft\n'))
+  })
+
+  it('keeps a one-line mobile draft at the composer height', async () => {
+    // ROOT CAUSE:
+    //
+    // An empty contenteditable has different intrinsic sizing from a typed
+    // contenteditable. On a phone, that made the composer visibly taller after
+    // the first character.
+    //
+    // The shared editor measures overflow against its explicit empty height. A
+    // one-line draft must retain the empty composer height.
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const input = screen.getByRole('textbox').element()
+    const emptyHeight = input.getBoundingClientRect().height
+
+    await userEvent.fill(input, 'hi')
+
+    await vi.waitFor(() => expect(input.style.height).toMatch(/px$/))
+    expect(input.getBoundingClientRect().height).toBe(emptyHeight)
+  })
+
+  it('keeps a one-line mobile draft at the composer width', async () => {
+    // ROOT CAUSE:
+    //
+    // The mobile composer expanded when its editor received focus. A one-line
+    // draft must keep the resting composer width.
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const inputBubble = screen.getByTestId('mobile-input-bubble').element()
+    const input = screen.getByRole('textbox')
+    const emptyWidth = inputBubble.getBoundingClientRect().width
+
+    expect(emptyWidth).toBeGreaterThan(0)
+
+    await userEvent.fill(input, 'hi')
+    await new Promise(resolve => setTimeout(resolve, 400))
+
+    expect(inputBubble.getBoundingClientRect().width).toBe(emptyWidth)
   })
 
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755530944
@@ -341,7 +445,7 @@ describe('interactive area synchronized state', () => {
     chatSession.activeSessionId = 'session-a'
     rejectSend?.(new Error('send failed'))
 
-    await expect.element(input).toHaveValue('')
+    await expect.element(input).toHaveTextContent('')
   })
 
   it('does not restore a deleted-session draft in the shared chat widget', async () => {

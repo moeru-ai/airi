@@ -343,6 +343,19 @@ Auto-resizing textarea with submit and paste-file events.
 **v-model**: `input: string`
 **Emits**: `submit(message: string)`, `pasteFile(files: File[])`
 
+### BasicContentEditable
+
+Plain-text multiline contenteditable control with submit and paste-file events. It preserves browser undo for plain-text paste and is for text entry that must not use browser form controls.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `defaultHeight` | `string?` | — | Reactive height when empty |
+| `placeholder` | `string?` | — | Placeholder text |
+| `submitOnEnter` | `boolean?` | `true` | Submit on Enter (Shift+Enter for newline) |
+
+**v-model**: `input: string`
+**Emits**: `submit(message: string)`, `pasteFile(files: File[])`
+
 ### Textarea
 
 Styled textarea wrapping `BasicTextarea`.
