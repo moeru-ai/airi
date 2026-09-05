@@ -129,11 +129,8 @@ devtools:
           title: 反應時間
           description: 設定取樣色彩適應螢幕變化的速度。
         sample-width:
-          title: 取樣寬度
-          description: 設定縮小後擷取畫面的寬度。畫面越寬，光照圖的細節越多。
-        sample-height:
-          title: 取樣高度
-          description: 設定縮小後擷取畫面的高度。畫面越高，光照圖的細節越多。
+          title: 取樣尺寸
+          description: 設定縮小後擷取畫面的寬度。畫面越寬，光照圖的細節越多。高度會跟隨你的螢幕。
         neutral-color-weight:
           title: 中性色權重
           description: 設定低飽和色彩的最低權重。彩色內容的權重高於灰色。

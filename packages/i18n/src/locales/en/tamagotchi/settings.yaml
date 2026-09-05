@@ -129,11 +129,8 @@ devtools:
           title: Response time
           description: Set how quickly sampled colors adapt to a screen change.
         sample-width:
-          title: Sample width
-          description: Set the width of the downscaled capture frame. A wider frame puts more detail in the light maps.
-        sample-height:
-          title: Sample height
-          description: Set the height of the downscaled capture frame. A taller frame puts more detail in the light maps.
+          title: Sample size
+          description: Set the width of the downscaled capture frame. A wider frame puts more detail in the light maps. The height follows your display.
         neutral-color-weight:
           title: Neutral-color weight
           description: Set the minimum weight for colors with low saturation. Colored content counts for more than gray.

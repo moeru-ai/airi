@@ -4,7 +4,7 @@ import type { ComponentPublicInstance } from 'vue'
 
 import type { ScreenAmbientLightDiagnosticsSnapshot } from '../../../../shared/screen-ambient-light-diagnostics'
 
-import { ambientLightMapMargin } from '@proj-airi/stage-shared/screen-ambient-light'
+import { ambientLightNeutralMapMargin } from '@proj-airi/stage-shared/screen-ambient-light'
 import { computed, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -15,16 +15,21 @@ const props = defineProps<{
 /**
  * Part of a map that the AIRI window covers, as a fraction of the map.
  *
- * The map reaches half a window past every edge, so the window sits in the
- * middle half of it. The outline marks that part, which is what the character
- * stands in front of.
+ * The maps reach the same distance past every edge, so a window that is not
+ * square sits in a taller or wider part of the map than it does across. The
+ * reach travels with the measurement for that reason.
  */
-const windowInsetStyle = {
-  left: `${(ambientLightMapMargin / (1 + 2 * ambientLightMapMargin)) * 100}%`,
-  top: `${(ambientLightMapMargin / (1 + 2 * ambientLightMapMargin)) * 100}%`,
-  width: `${(1 / (1 + 2 * ambientLightMapMargin)) * 100}%`,
-  height: `${(1 / (1 + 2 * ambientLightMapMargin)) * 100}%`,
-}
+const windowInsetStyle = computed(() => {
+  const margin = props.sampling?.appliedEnvironment?.mapMargin ?? ambientLightNeutralMapMargin
+  const spanX = 1 + 2 * margin.x
+  const spanY = 1 + 2 * margin.y
+  return {
+    left: `${(margin.x / spanX) * 100}%`,
+    top: `${(margin.y / spanY) * 100}%`,
+    width: `${(1 / spanX) * 100}%`,
+    height: `${(1 / spanY) * 100}%`,
+  }
+})
 
 const { t } = useI18n()
 // The canvases sit inside two nested v-for loops, so a keyed map is what
