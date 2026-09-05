@@ -2,6 +2,7 @@ import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { OtelInstance } from './otel'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
+import type { SteamMicroTxnClient } from './routes/steam/client'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { FluxMeter } from './services/domain/billing/flux-meter'
@@ -56,6 +57,8 @@ import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
+import { createSteamRoutes } from './routes/steam'
+import { createSteamMicroTxnClient } from './routes/steam/client'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
@@ -88,6 +91,7 @@ interface AppDeps {
   fluxService: FluxService
   fluxTransactionService: FluxTransactionService
   paymentService: PaymentService
+  steamClient: SteamMicroTxnClient | null
   stripe: Stripe | null
   billingService: BillingService
   ttsMeter: FluxMeter
@@ -411,6 +415,18 @@ export async function buildApp(deps: AppDeps) {
     ))
 
     /**
+     * Steam MicroTxn routes (web InitTxn checkout and FinalizeTxn settle).
+     */
+    .route('/api/v1/steam', createSteamRoutes(
+      deps.paymentService,
+      deps.db,
+      deps.steamClient,
+      deps.configKV,
+      deps.env,
+      deps.otel?.rateLimit ?? null,
+    ))
+
+    /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
      * Found" so unmatched routes (typos, stale email links, scanners) get a
      * structured response and a hint at where to go for the real product UI.
@@ -587,6 +603,20 @@ export async function createApp() {
     },
   })
 
+  const steamClient = injeca.provide('services:steamClient', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => {
+      if (!dependsOn.env.STEAM_PUBLISHER_KEY || dependsOn.env.STEAM_APP_ID == null)
+        return null
+      const sandboxRaw = dependsOn.env.STEAM_MICROTXN_SANDBOX
+      return createSteamMicroTxnClient({
+        publisherKey: dependsOn.env.STEAM_PUBLISHER_KEY,
+        appId: dependsOn.env.STEAM_APP_ID,
+        sandbox: sandboxRaw === 'true' || sandboxRaw === '1',
+      })
+    },
+  })
+
   const fluxTransactionService = injeca.provide('services:fluxTransaction', {
     dependsOn: { db },
     build: ({ dependsOn }) => createFluxTransactionService(dependsOn.db),
@@ -706,6 +736,7 @@ export async function createApp() {
     voicePackService,
     productEventService,
     paymentService,
+    steamClient,
     stripe,
     billingService,
     ttsMeter,
@@ -732,6 +763,7 @@ export async function createApp() {
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
     paymentService: resolved.paymentService,
+    steamClient: resolved.steamClient,
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,
     billingService: resolved.billingService,

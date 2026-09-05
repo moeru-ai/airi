@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
-import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
+import { errorMessageFrom } from '@moeru/std'
+import { isFluxPurchaseDisabled, isStageTamagotchi, isSteamDistribution } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { useFluxSteamCheckout } from '@proj-airi/stage-ui/composables/use-flux-steam-checkout'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Button, SelectTab } from '@proj-airi/ui'
+import { Button, Callout, SelectTab } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+
+type CheckoutMethod = 'stripe' | 'steam'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -27,6 +31,7 @@ const {
 } = useAnalytics()
 
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
+const steamDistribution = isSteamDistribution()
 
 // On desktop, checkout happens in the external system browser (see handleBuy), so
 // the app never receives the success_url redirect that web/mobile use to refresh.
@@ -243,15 +248,21 @@ const groupedRows = computed<GroupedRow[]>(() => {
   return rows
 })
 
-async function fetchPackages() {
+async function fetchPackages(method: CheckoutMethod) {
+  packages.value = []
   try {
-    const res = await client.api.v1.stripe.packages.$get()
-    if (res.ok) {
-      const data = await res.json() as FluxPackage[]
-      packages.value = data
-      if (data.length > 0)
-        selectedCurrency.value = data[0].defaultCurrency
+    const res = method === 'steam'
+      ? await client.api.v1.steam.packages.$get()
+      : await client.api.v1.stripe.packages.$get()
+    if (!res.ok) {
+      if (!checkoutReturnMessageActive.value)
+        message.value = { type: 'error', text: t('settings.pages.flux.packagesError') }
+      return
     }
+    const data = await res.json() as FluxPackage[]
+    packages.value = data
+    if (data.length > 0)
+      selectedCurrency.value = data[0].defaultCurrency
   }
   catch {
     if (!checkoutReturnMessageActive.value)
@@ -267,9 +278,42 @@ function showCheckoutReturnMessage(type: 'success' | 'error', text: string) {
   message.value = { type, text }
 }
 
+const {
+  steamLinked,
+  returningFromSteam,
+  startCheckout: startSteamCheckout,
+} = useFluxSteamCheckout({
+  onBanner: showCheckoutReturnMessage,
+  onPaid: () => Promise.allSettled([authStore.updateCredits(), fetchAuditHistory()]),
+})
+
+const selectedMethod = ref<CheckoutMethod>(
+  (returningFromSteam || steamDistribution || sessionStorage.getItem('airi.fluxCheckoutMethod') === 'steam') ? 'steam' : 'stripe',
+)
+const steamUnlinked = computed(() => selectedMethod.value === 'steam' && !steamLinked.value)
+
+const checkoutMethodOptions = computed(() => [
+  {
+    label: t('settings.pages.flux.checkout.paymentStripe'),
+    value: 'stripe' as const,
+    icon: 'i-simple-icons-stripe',
+  },
+  {
+    label: t('settings.pages.flux.checkout.paymentSteam'),
+    value: 'steam' as const,
+    icon: 'i-simple-icons-steam',
+  },
+])
+
+watch(selectedMethod, (method) => {
+  sessionStorage.setItem('airi.fluxCheckoutMethod', method)
+  if (!fluxPurchaseDisabled)
+    void fetchPackages(method)
+}, { immediate: true })
+
 onMounted(async () => {
   const creditsRefresh = authStore.updateCredits()
-  void Promise.allSettled([fetchStats(), fetchAuditHistory(), ...(fluxPurchaseDisabled ? [] : [fetchPackages()])])
+  void Promise.allSettled([fetchStats(), fetchAuditHistory()])
 
   if (route.query.success === 'true') {
     showCheckoutReturnMessage('success', t('settings.pages.flux.checkout.success'))
@@ -322,6 +366,19 @@ async function handleBuy(packKey: string) {
     entry_surface: 'settings_flux',
   })
   try {
+    if (selectedMethod.value === 'steam') {
+      const url = await startSteamCheckout(packKey)
+      trackCheckoutStarted(packKey, {
+        currency: selectedCurrency.value,
+        entry_surface: 'settings_flux',
+      })
+      if (isStageTamagotchi())
+        window.open(url, '_blank')
+      else
+        window.location.href = url
+      return
+    }
+
     const res = await client.api.v1.stripe.checkout.$post({ json: { packKey, currency: selectedCurrency.value } })
     if (!res.ok) {
       const data = await res.json() as { error?: string, message?: string }
@@ -347,8 +404,8 @@ async function handleBuy(packKey: string) {
         window.location.href = data.url
     }
   }
-  catch {
-    message.value = { type: 'error', text: t('settings.pages.flux.checkout.error') }
+  catch (error) {
+    message.value = { type: 'error', text: errorMessageFrom(error) ?? t('settings.pages.flux.checkout.error') }
   }
   finally {
     loadingPackKey.value = null
@@ -391,8 +448,22 @@ async function handleBuy(packKey: string) {
     </div>
 
     <div v-if="!fluxPurchaseDisabled" flex="~ col gap-4">
+      <fieldset
+        v-if="!steamDistribution"
+        min-w-0 space-y-3
+      >
+        <legend p-0 text-sm font-medium>
+          {{ t('settings.pages.flux.checkout.payWith') }}
+        </legend>
+        <SelectTab
+          v-model="selectedMethod"
+          :options="checkoutMethodOptions"
+          w-full
+        />
+      </fieldset>
+
       <!-- Currency selector -->
-      <div v-if="currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
+      <div v-if="!steamUnlinked && currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
         <SelectTab
           v-model="selectedCurrency"
           :options="currencyOptions"
@@ -400,7 +471,31 @@ async function handleBuy(packKey: string) {
         />
       </div>
 
-      <div grid="~ cols-1 sm:cols-3 gap-4">
+      <Callout
+        v-if="steamUnlinked"
+        theme="primary"
+      >
+        <template #label>
+          {{ t('settings.pages.flux.checkout.paymentSteam') }}
+        </template>
+        <div flex="~ col gap-3">
+          <p>{{ t('settings.pages.flux.checkout.steamLinkHint') }}</p>
+          <RouterLink
+            to="/settings/account"
+            :class="[
+              'w-fit rounded-lg bg-primary-500 px-4 py-2 text-white',
+              'transition-colors active:scale-95 hover:bg-primary-600',
+            ]"
+          >
+            {{ t('settings.pages.flux.checkout.steamLinkHintAction') }}
+          </RouterLink>
+        </div>
+      </Callout>
+
+      <div
+        v-else
+        grid="~ cols-1 sm:cols-3 gap-4"
+      >
         <button
           v-for="(pkg, index) in packages" :key="pkg.packKey"
           :disabled="loadingPackKey !== null"

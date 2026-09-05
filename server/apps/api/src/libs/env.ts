@@ -5,7 +5,7 @@ import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { array, check, integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform, url } from 'valibot'
+import { array, check, integer, maxValue, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform, url } from 'valibot'
 
 const AdditionalTrustedOriginsSchema = pipe(
   string(),
@@ -115,6 +115,19 @@ const EnvSchema = object({
   STRIPE_SECRET_KEY: optional(string()),
 
   STRIPE_WEBHOOK_SECRET: optional(string()),
+  // Steam MicroTxn (ISteamMicroTxn). When STEAM_PUBLISHER_KEY or STEAM_APP_ID
+  // is unset, steam routes stay mounted. Checkout and finalize return 503
+  // STEAM_MICROTXN_DISABLED.
+  STEAM_PUBLISHER_KEY: optional(string()),
+  STEAM_APP_ID: optional(pipe(
+    string(),
+    nonEmpty('STEAM_APP_ID must not be empty when set'),
+    transform(input => Number(input)),
+    integer('STEAM_APP_ID must be an integer'),
+    minValue(1, 'STEAM_APP_ID must be at least 1'),
+  )),
+  // When true, call ISteamMicroTxnSandbox instead of production.
+  STEAM_MICROTXN_SANDBOX: optional(picklist(['true', 'false', '1', '0']), 'false'),
   // Testing-only bearer token bypass. Keep unset in production. When set,
   // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
   // through resolveRequestAuth without creating an Auth session row.
@@ -122,11 +135,11 @@ const EnvSchema = object({
   TEST_AUTH_USER_EMAIL: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_EMAIL must not be empty when set')), 'test@example.com'),
   TEST_AUTH_USER_ID: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_ID must not be empty when set')), 'test-user'),
   TEST_AUTH_USER_NAME: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_NAME must not be empty when set')), 'Test User'),
-  // Canonical user-facing web app origin. Used as the Stripe redirect base
-  // (success_url / cancel_url / portal return_url) when a request has no trusted
-  // browser origin — notably the Electron desktop renderer, which loads from
-  // file:// and sends no usable web origin. Web/mobile requests keep returning to
-  // their own origin; only origin-less clients fall back to this.
+  // Canonical user-facing web app origin. Used as the Stripe and Steam redirect
+  // base when a request has no trusted browser origin — notably the Electron
+  // desktop renderer, which loads from file:// and sends no usable web origin.
+  // Web/mobile requests keep returning to their own origin; only origin-less
+  // clients fall back to this.
   WEB_APP_URL: optional(string(), 'https://airi.moeru.ai'),
 })
 
