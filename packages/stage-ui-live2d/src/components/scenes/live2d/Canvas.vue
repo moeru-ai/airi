@@ -5,8 +5,9 @@ import { extensions } from '@pixi/extensions'
 import { Sprite } from '@pixi/sprite'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
 import { coverRect } from '@proj-airi/stage-shared'
-import { Live2DModel } from 'pixi-live2d-display/cubism4'
 import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+
+import { resolveLive2DRuntime } from '../../../utils/live2d-runtime'
 
 const props = withDefaults(defineProps<{
   width: number
@@ -33,6 +34,7 @@ const containerRef = ref<HTMLDivElement>()
 const isPixiCanvasReady = ref(false)
 const pixiApp = shallowRef<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
+let isDisposed = false
 
 function resolveMaxFps(limit?: number) {
   if (!limit || limit <= 0)
@@ -66,6 +68,11 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   componentState.value = 'loading'
   isPixiCanvasReady.value = false
 
+  const { runtime } = await resolveLive2DRuntime()
+  if (isDisposed)
+    return
+
+  const { Live2DModel } = runtime
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
@@ -216,6 +223,10 @@ onMounted(async () => {
   }
 })
 onUnmounted(() => {
+  // Runtime resolution is asynchronous, so a stage initialization already in flight
+  // can still resolve after this teardown. It checks this flag before it builds
+  // anything on an application that is about to go away.
+  isDisposed = true
   // Destroying the application detaches its children without freeing them, so the
   // scene texture is released before the stage it hangs from disappears.
   backgroundSprite.value?.destroy({ baseTexture: true, texture: true })

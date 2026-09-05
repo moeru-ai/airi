@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { validateLive2DZip } from './live2d-validator'
 
@@ -95,6 +95,60 @@ async function createLooseMocFile(): Promise<File> {
 }
 
 describe('validateLive2DZip', () => {
+  // https://github.com/moeru-ai/airi/pull/2197
+  it('reports Cubism 2 resources through the current import report contract', async () => {
+    const zip = new JSZip()
+    zip.file('model/model.json', JSON.stringify({
+      model: 'avatar.moc',
+      textures: ['texture.png'],
+      motions: { idle: [{ file: 'idle.mtn' }] },
+      expressions: [{ name: 'happy', file: 'happy.exp.json' }],
+    }))
+    zip.file('model/avatar.moc', new Uint8Array([109, 111, 99, 11]))
+    zip.file('model/texture.png', new Uint8Array([1]))
+    zip.file('model/idle.mtn', '# Live2D Animator Motion Data\nPARAM_ANGLE_X=0,1,0')
+    zip.file('model/happy.exp.json', JSON.stringify({ params: [] }))
+    const file = new File([await zip.generateAsync({ type: 'arraybuffer' })], 'legacy.zip')
+    const resolveRuntime = vi.fn(async () => ({ supportsCubism2: true }))
+
+    const report = await validateLive2DZip(file, resolveRuntime)
+
+    expect(report.status).toBe('VALID')
+    expect(report.model.type).toBe('model2')
+    expect(report.model.moc).toEqual({ path: 'model/avatar.moc', version: null, size: 4 })
+    expect(report.resources.motions).toEqual({ discovered: 1, referenced: 1, parsed: 0 })
+    expect(report.resources.expressions).toEqual({ discovered: 1, referenced: 1, parsed: 1 })
+    expect(resolveRuntime).toHaveBeenCalledOnce()
+
+    const unavailable = await validateLive2DZip(file, async () => ({ supportsCubism2: false }))
+    expect(unavailable.status).toBe('INVALID')
+    expect(unavailable.issues).toContainEqual(expect.objectContaining({ code: 'runtime-unavailable', severity: 'error' }))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2197
+  it('accepts uppercase loose Cubism 4 extensions without loading a runtime', async () => {
+    const zip = new JSZip()
+    zip.file('MODEL.MOC3', createMoc())
+    zip.file('TEXTURE.PNG', new Uint8Array([1]))
+    const resolveRuntime = vi.fn()
+    const report = await validateLive2DZip(new Blob([await zip.generateAsync({ type: 'arraybuffer' })]), resolveRuntime)
+
+    expect(report.status).toBe('VALID')
+    expect(report.model.moc?.path).toBe('MODEL.MOC3')
+    expect(report.resources.textures.discovered).toBe(1)
+    expect(resolveRuntime).not.toHaveBeenCalled()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2197
+  it('rejects ambiguous generation manifests before import', async () => {
+    const zip = await JSZip.loadAsync(await (await createLive2DFile()).arrayBuffer())
+    zip.file('legacy/model.json', JSON.stringify({ model: 'avatar.moc', textures: ['texture.png'] }))
+    const report = await validateLive2DZip(new Blob([await zip.generateAsync({ type: 'arraybuffer' })]))
+
+    expect(report.status).toBe('INVALID')
+    expect(report.issues).toContainEqual(expect.objectContaining({ code: 'multiple-settings-files', severity: 'error' }))
+  })
+
   it('reports the model type, parsed resources, parameters, and base model data', async () => {
     const report = await validateLive2DZip(await createLive2DFile())
 

@@ -71,6 +71,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@proj-airi/unplugin-live2d-sdk": "catalog:",
     "@types/culori": "catalog:",
     "@types/three": "catalog:",
     "@vitest/browser-playwright": "catalog:vitest",
