@@ -2,11 +2,9 @@ import type Stripe from 'stripe'
 
 import type { Env } from '../../../libs/env'
 import type { RevenueMetrics } from '../../../otel'
-import type { ConfigKVService } from '../../../services/adapters/config-kv'
+import type { ConfigDefinitions, ConfigKVService } from '../../../services/adapters/config-kv'
+import type { PaymentService } from '../../../services/domain/payment'
 import type { ProductEventService } from '../../../services/domain/product-events'
-import type { StripeService } from '../../../services/domain/stripe'
-import type { HonoEnv } from '../../../types/hono'
-import type { StripePriceCatalog } from '../price-catalog'
 
 import { safeParse } from 'valibot'
 
@@ -14,134 +12,111 @@ import { createBadRequestError, createServiceUnavailableError } from '../../../u
 import { resolveCheckoutRedirectBase } from '../../../utils/origin'
 import { CheckoutBodySchema } from '../schema'
 
-type AuthenticatedUser = NonNullable<HonoEnv['Variables']['user']>
-type CheckoutSessionCreateParams = NonNullable<Parameters<Stripe['checkout']['sessions']['create']>[0]>
-
-export interface CheckoutOperationDeps {
-  stripe: Stripe | null
-  priceCatalog: StripePriceCatalog | null
-  stripeService: StripeService
-  configKV: ConfigKVService
-  env: Env
-  metrics?: RevenueMetrics | null
-  productEventService?: ProductEventService
-}
-
-export interface CheckoutOperationInput {
-  user: AuthenticatedUser
-  body: unknown
-  request: Request
-}
-
-interface PosthogIdentityHeaders {
-  distinctId?: string
-  sessionId?: string
-}
-
 /**
- * Creates Stripe checkout sessions for Flux packages.
+ * Opens a pending order through Payment CORE, then creates a Stripe Checkout Session.
  *
- * Use when:
- * - A signed-in user starts a one-time Flux purchase.
- * - The route already enforced auth and rate limiting.
- *
- * Expects:
- * - ConfigKV has `STRIPE_FLUX_PRODUCT_ID`.
- * - `body` matches {@link CheckoutBodySchema}.
- *
- * Returns:
- * - A Stripe-hosted checkout URL.
+ * `{ packKey }` and legacy `{ stripePriceId }` resolve a Flux pack.
  */
-export function createCheckoutOperation(deps: CheckoutOperationDeps) {
-  return async (input: CheckoutOperationInput): Promise<{ url: string | null }> => {
-    const fluxProductId = await deps.configKV.getOptional('STRIPE_FLUX_PRODUCT_ID')
-    if (!deps.stripe || !deps.priceCatalog || !fluxProductId)
+export function createCheckoutOperation(
+  payment: PaymentService,
+  stripe: Stripe | null,
+  configKV: ConfigKVService,
+  env: Env,
+  metrics: RevenueMetrics | null,
+  productEventService: ProductEventService | null,
+) {
+  return async (
+    user: { id: string, email: string },
+    body: unknown,
+    request: Request,
+  ): Promise<{ url: string }> => {
+    if (!stripe)
       throw createServiceUnavailableError('Stripe is not configured', 'STRIPE_NOT_CONFIGURED')
 
-    const result = safeParse(CheckoutBodySchema, input.body)
-    if (!result.success)
-      throw createBadRequestError('Invalid checkout request', 'INVALID_REQUEST', result.issues)
+    const parsed = safeParse(CheckoutBodySchema, body)
+    if (!parsed.success)
+      throw createBadRequestError('Invalid checkout request', 'INVALID_REQUEST', parsed.issues)
 
-    const { stripePriceId, currency } = result.output
+    const { packKey, stripePriceId, currency } = parsed.output
+    const packs = await configKV.getOptional('FLUX_PACKS') ?? []
+    const pack = resolveStripeCheckoutPack(packs, packKey, stripePriceId)
+    if (!pack)
+      throw createBadRequestError('Invalid pack', 'INVALID_PACKAGE', { packKey })
+    const priceId = pack.processors.stripe?.priceId
+    if (!priceId)
+      throw createServiceUnavailableError('Stripe pack mapping is missing', 'STRIPE_PACK_NOT_MAPPED', { packKey: pack.key })
 
-    const price = await deps.priceCatalog.findActivePrice(fluxProductId, stripePriceId)
-    if (!price)
-      throw createBadRequestError('Invalid price', 'INVALID_PACKAGE', { stripePriceId })
+    const redirectBase = resolveCheckoutRedirectBase(request, env.ADDITIONAL_TRUSTED_ORIGINS, env.WEB_APP_URL)
+    const posthogIdentity = readPosthogIdentityHeaders(request)
 
-    const fluxAmount = Number(price.metadata.fluxAmount)
-    if (!Number.isFinite(fluxAmount) || fluxAmount <= 0)
-      throw createBadRequestError('Price is missing fluxAmount metadata', 'INVALID_PACKAGE', { stripePriceId })
+    const order = await payment.openPending({
+      userId: user.id,
+      processor: 'stripe',
+      packKey: pack.key,
+      fluxAmount: pack.fluxAmount,
+      currency,
+    })
 
-    // Reuse existing stripe customer if available.
-    const customer = await deps.stripeService.getCustomerByUserId(input.user.id)
-    const stripeCustomerId = customer?.stripeCustomerId
-
-    const redirectBase = resolveCheckoutRedirectBase(input.request, deps.env.ADDITIONAL_TRUSTED_ORIGINS, deps.env.WEB_APP_URL)
-
-    const paymentMethods = await deps.configKV.getOptional('STRIPE_PAYMENT_METHODS')
-    const paymentMethodOptions = await deps.configKV.getOptional('STRIPE_PAYMENT_METHOD_OPTIONS') ?? {}
-    const posthogIdentity = readPosthogIdentityHeaders(input.request)
-
-    const sessionParams: CheckoutSessionCreateParams = {
-      line_items: [{ price: stripePriceId, quantity: 1 }],
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      line_items: [{ price: priceId, quantity: 1 }],
       mode: 'payment',
       allow_promotion_codes: true,
       success_url: `${redirectBase}/settings/flux?success=true`,
       cancel_url: `${redirectBase}/settings/flux?canceled=true`,
-      customer: stripeCustomerId,
-      customer_email: stripeCustomerId ? undefined : input.user.email,
+      customer: order.customerId,
+      customer_email: order.customerId ? undefined : user.email,
       metadata: {
-        userId: input.user.id,
-        fluxAmount: String(fluxAmount),
+        payment_order_id: order.id,
+        userId: user.id,
+        packKey: pack.key,
+        fluxAmount: String(pack.fluxAmount),
         ...(posthogIdentity.distinctId && { posthogDistinctId: posthogIdentity.distinctId }),
         ...(posthogIdentity.sessionId && { posthogSessionId: posthogIdentity.sessionId }),
       },
     }
 
-    // When STRIPE_PAYMENT_METHODS is not set, omit payment_method_types to let Stripe
-    // automatically determine available methods based on currency and Dashboard settings.
+    const paymentMethods = await configKV.getOptional('STRIPE_PAYMENT_METHODS')
+    const paymentMethodOptions = await configKV.getOptional('STRIPE_PAYMENT_METHOD_OPTIONS') ?? {}
+
     if (paymentMethods)
-      sessionParams.payment_method_types = paymentMethods as CheckoutSessionCreateParams['payment_method_types']
+      sessionParams.payment_method_types = paymentMethods as Stripe.Checkout.SessionCreateParams['payment_method_types']
 
     if (Object.keys(paymentMethodOptions).length > 0)
-      sessionParams.payment_method_options = paymentMethodOptions as CheckoutSessionCreateParams['payment_method_options']
+      sessionParams.payment_method_options = paymentMethodOptions as Stripe.Checkout.SessionCreateParams['payment_method_options']
 
-    // When currency is specified, Stripe uses the matching currency_options on the Price.
     if (currency)
       sessionParams.currency = currency
 
-    const session = await deps.stripe.checkout.sessions.create(sessionParams)
+    let session: Stripe.Checkout.Session
+    try {
+      session = await stripe.checkout.sessions.create(sessionParams)
+    }
+    catch (error) {
+      await payment.abandon(order.id)
+      throw error
+    }
 
-    // Persist the checkout session.
-    await deps.stripeService.upsertCheckoutSession({
-      userId: input.user.id,
-      stripeSessionId: session.id,
-      stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id,
-      mode: session.mode ?? 'payment',
-      status: session.status,
-      paymentStatus: session.payment_status,
-      amountTotal: session.amount_total,
-      currency: session.currency,
-      successUrl: session.success_url,
-      cancelUrl: session.cancel_url,
-      stripePaymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id,
-      stripeSubscriptionId: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id,
-      metadata: session.metadata ? JSON.stringify(session.metadata) : null,
-      expiresAt: session.expires_at ? new Date(session.expires_at * 1000) : null,
+    if (!session.url) {
+      await payment.abandon(order.id)
+      throw createServiceUnavailableError('Stripe checkout did not return a URL', 'STRIPE_CHECKOUT_URL_MISSING')
+    }
+
+    await payment.bindProcessorOrder(order.id, {
+      processorOrderId: session.id,
+      amount: session.amount_total ?? undefined,
+      currency: session.currency ?? currency,
     })
 
-    deps.metrics?.stripeCheckoutCreated.add(1)
-    void deps.productEventService?.track({
-      userId: input.user.id,
+    metrics?.stripeCheckoutCreated.add(1)
+    void productEventService?.track({
+      userId: user.id,
       feature: 'billing',
       action: 'checkout_started',
       status: 'succeeded',
-      eventId: session.id,
+      eventId: order.id,
       source: 'stripe.checkout',
       metadata: {
-        flux_amount: fluxAmount,
-        amount_total: session.amount_total,
-        currency: session.currency,
+        pack_key: pack.key,
         ...(posthogIdentity.distinctId && { posthog_distinct_id: posthogIdentity.distinctId }),
         ...(posthogIdentity.sessionId && { posthog_session_id: posthogIdentity.sessionId }),
       },
@@ -151,7 +126,19 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
   }
 }
 
-function readPosthogIdentityHeaders(request: Request): PosthogIdentityHeaders {
+function resolveStripeCheckoutPack(
+  packs: ConfigDefinitions['FLUX_PACKS'],
+  packKey: string | undefined,
+  stripePriceId: string | undefined,
+) {
+  if (packKey)
+    return packs.find(item => item.key === packKey)
+  if (stripePriceId)
+    return packs.find(item => item.processors.stripe?.priceId === stripePriceId)
+  return undefined
+}
+
+function readPosthogIdentityHeaders(request: Request) {
   const distinctId = readStripeMetadataHeader(request, 'x-posthog-distinct-id')
   const sessionId = readStripeMetadataHeader(request, 'x-posthog-session-id')
   return {
@@ -160,13 +147,10 @@ function readPosthogIdentityHeaders(request: Request): PosthogIdentityHeaders {
   }
 }
 
-function readStripeMetadataHeader(request: Request, name: string): string | undefined {
+function readStripeMetadataHeader(request: Request, name: string) {
   const value = request.headers.get(name)?.trim()
   if (!value)
     return undefined
 
-  // Stripe metadata values are capped and user-controlled headers can be
-  // oversized. Truncating keeps the checkout request valid without turning
-  // analytics identity into a payment blocker.
   return value.slice(0, 200)
 }

@@ -12,6 +12,15 @@ auth/OIDC routes.
 - Redis cache, configuration KV, and cross-instance Pub/Sub.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
 
+## Payment
+
+`src/services/domain/payment` owns pack grant and `payment_order` rows.
+CORE exposes `openPending`, `bindProcessorOrder`, `abandon`, `settle`,
+and `deleteAllForUser`. Checkout and package list live in the Stripe
+adapter on `/api/v1/stripe/*`. CORE never sees a raw processor event.
+The adapter maps the processor result onto a `ClaimReceipt`, then calls
+`settle`.
+
 ## Run locally
 
 ```sh

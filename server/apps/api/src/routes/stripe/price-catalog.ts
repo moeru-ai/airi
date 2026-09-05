@@ -1,140 +1,77 @@
 import type Redis from 'ioredis'
 import type Stripe from 'stripe'
 
+import type { ConfigDefinitions } from '../../services/adapters/config-kv'
+
 import { useLogger } from '@guiiai/logg'
 
+import { formatPrice } from '../../utils/format-price'
 import { redisKeyFrom } from '../../utils/redis-keys'
 
-const logger = useLogger('stripe')
+const logger = useLogger('stripe.catalog')
 
-const PRICES_CACHE_KEY = redisKeyFrom('cache', 'stripe', 'prices')
+/** Display prices stay 5 minutes old. */
 const PRICES_CACHE_TTL_SEC = 5 * 60
+const PRICES_CACHE_KEY = redisKeyFrom('cache', 'stripe', 'prices')
 
-interface CachedCurrencyOption {
-  unitAmount: number | null
+interface StripePackListItem {
+  packKey: string
+  label: string
+  defaultCurrency: string
+  currencies: Record<string, string>
+  recommended: boolean
 }
 
-export interface CachedPrice {
-  id: string
-  unitAmount: number | null
-  currency: string
-  product: string
-  active: boolean
-  metadata: Record<string, string>
-  currencyOptions: Record<string, CachedCurrencyOption>
-}
+export async function listStripePackages(
+  stripe: Stripe | null,
+  redis: Redis,
+  packs: ConfigDefinitions['FLUX_PACKS'],
+): Promise<StripePackListItem[]> {
+  if (!stripe)
+    return []
 
-export interface StripePriceCatalog {
-  getActivePrices: (productId: string) => Promise<CachedPrice[]>
-  findActivePrice: (productId: string, stripePriceId: string) => Promise<CachedPrice | null>
-}
-
-/**
- * Creates a Stripe price catalog backed by Redis.
- *
- * Use when:
- * - Listing public Flux packages.
- * - Validating checkout price ids before creating Stripe sessions.
- *
- * Expects:
- * - A configured Stripe client and Redis connection.
- *
- * Returns:
- * - Cached active prices for a single configured product.
- */
-export function createStripePriceCatalog(stripe: Stripe, redis: Redis): StripePriceCatalog {
-  return {
-    async getActivePrices(productId: string): Promise<CachedPrice[]> {
-      const cached = await redis.get(PRICES_CACHE_KEY)
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached) as { productId: string, prices: CachedPrice[] }
-          if (parsed.productId === productId)
-            return parsed.prices
-        }
-        catch { /* corrupted cache, refetch */ }
-      }
-
-      let result: Stripe.ApiList<Stripe.Price>
-      try {
-        result = await stripe.prices.list({ product: productId, active: true, expand: ['data.currency_options'] })
-      }
-      catch (err) {
-        logger.withError(err).warn('Failed to fetch prices from Stripe')
-        return []
-      }
-
-      const prices = result.data
-        .sort((a, b) => (a.unit_amount ?? 0) - (b.unit_amount ?? 0))
-        .map(toCachedPrice)
-
-      await redis.set(PRICES_CACHE_KEY, JSON.stringify({ productId, prices }), 'EX', PRICES_CACHE_TTL_SEC)
-      return prices
-    },
-
-    async findActivePrice(productId: string, stripePriceId: string): Promise<CachedPrice | null> {
-      // Validate against cached prices first, fall back to direct Stripe API.
-      const cachedPrices = await this.getActivePrices(productId)
-      const cached = cachedPrices.find(p => p.id === stripePriceId)
-      if (cached)
-        return cached
-
-      // Cache miss — price may have just been created.
-      let fetched: Stripe.Price
-      try {
-        fetched = await stripe.prices.retrieve(stripePriceId)
-      }
-      catch {
-        return null
-      }
-
-      const fetchedProductId = typeof fetched.product === 'string' ? fetched.product : fetched.product.id
-      if (!fetched.active || fetchedProductId !== productId)
-        return null
-
-      // Invalidate cache so all instances pick up the new price.
-      await redis.del(PRICES_CACHE_KEY)
-      return toCachedPrice(fetched)
-    },
+  const cacheKey = packs.map(pack => pack.processors.stripe?.priceId ?? '').join(',')
+  const cached = await redis.get(PRICES_CACHE_KEY)
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached) as { cacheKey: string, items: StripePackListItem[] }
+      if (parsed.cacheKey === cacheKey)
+        return parsed.items
+    }
+    catch { /* corrupted cache, refetch */ }
   }
-}
 
-function toCachedPrice(price: Stripe.Price): CachedPrice {
-  return {
-    id: price.id,
-    unitAmount: price.unit_amount,
-    currency: price.currency,
-    product: typeof price.product === 'string' ? price.product : price.product.id,
-    active: price.active,
-    metadata: price.metadata,
-    currencyOptions: Object.fromEntries(
-      Object.entries(price.currency_options ?? {}).map(([cur, opt]) => [cur, { unitAmount: opt.unit_amount }]),
-    ),
-  }
-}
+  const items: StripePackListItem[] = []
+  for (const pack of packs) {
+    const priceId = pack.processors.stripe?.priceId
+    if (!priceId)
+      continue
 
-/**
- * Format Stripe smallest-unit amount into a human-readable price string.
- *
- * Before:
- * - `300, "usd"`
- * - `500, "jpy"`
- *
- * After:
- * - `"$3.00"`
- * - `"¥500"`
- */
-export function formatPrice(unitAmount: number | null, currency: string): string {
-  if (unitAmount == null)
-    return currency.toUpperCase()
+    let price: Stripe.Price
+    try {
+      price = await stripe.prices.retrieve(priceId, { expand: ['currency_options'] })
+    }
+    catch (error) {
+      logger.withError(error).withFields({ priceId, packKey: pack.key }).warn('Stripe price lookup skipped')
+      continue
+    }
 
-  try {
-    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency })
-    const fractionDigits = formatter.resolvedOptions().minimumFractionDigits ?? 2
-    const amount = unitAmount / (10 ** fractionDigits)
-    return formatter.format(amount)
+    const currencies: Record<string, string> = {
+      [price.currency]: formatPrice(price.unit_amount, price.currency),
+    }
+    for (const [currency, option] of Object.entries(price.currency_options ?? {})) {
+      currencies[currency] = formatPrice(option.unit_amount, currency)
+    }
+
+    items.push({
+      packKey: pack.key,
+      label: pack.name,
+      defaultCurrency: price.currency,
+      currencies,
+      recommended: pack.recommended,
+    })
   }
-  catch {
-    return `${unitAmount / 100} ${currency.toUpperCase()}`
-  }
+
+  await redis.set(PRICES_CACHE_KEY, JSON.stringify({ cacheKey, items }), 'EX', PRICES_CACHE_TTL_SEC)
+  return items
 }

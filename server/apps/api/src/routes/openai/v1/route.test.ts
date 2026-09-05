@@ -23,7 +23,6 @@ import {
 function createMockFluxService(flux = 100): FluxService {
   return {
     getFlux: vi.fn(async () => ({ userId: 'user-1', flux })),
-    updateStripeCustomerId: vi.fn(),
   } as any
 }
 
@@ -40,8 +39,6 @@ function createMockBillingService(flux = 100): BillingService {
       return { userId: input.userId, flux: balance, charged, requested: input.amount }
     }),
     creditFlux: vi.fn(),
-    creditFluxFromStripeCheckout: vi.fn(),
-    creditFluxFromInvoice: vi.fn(),
   } as any
 }
 
