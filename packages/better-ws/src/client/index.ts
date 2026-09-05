@@ -163,7 +163,10 @@ export interface PrepareContext<TMessage> {
   attempt: number
   /** Whether this prepare call belongs to a reconnect attempt. */
   reconnecting: boolean
-  /** Sends a bootstrap message while the client is `open`, `preparing`, or `ready`. */
+  /**
+   * Sends a bootstrap message while this connection is `open`, `preparing`, or `ready`.
+   * Returns `{ ok: false, reason: 'closed' }` after this connection closes or is replaced.
+   */
   send: (message: TMessage) => WsSendResult
   /**
    * Waits for the first future message that matches the predicate.
@@ -257,7 +260,7 @@ export interface Client<TMessage> {
   close: (code?: number, reason?: string) => void
   /** Registers an incoming message handler. */
   onMessage: (handler: (context: ClientMessageContext<TMessage>) => void | Promise<void>) => () => void
-  /** Registers a state change handler. */
+  /** Registers a state change handler that runs synchronously during each transition. */
   onStateChange: (handler: (change: ClientStateChange) => void) => () => void
 }
 
@@ -491,10 +494,9 @@ function createClientWithConnector<TMessage>(
       throw error
     }
 
-    if ((currentConnectionEpoch !== connectionEpoch || manuallyClosed)) {
-      (prepareController as AbortController | undefined)?.abort()
-      prepareController = undefined
-
+    if (currentConnectionEpoch !== connectionEpoch || manuallyClosed) {
+      // This attempt has not started preparation. The shared controller can
+      // belong to a newer connection, so only close this stale transport.
       nextConnection.close?.()
       return
     }
@@ -505,10 +507,20 @@ function createClientWithConnector<TMessage>(
 
     transition('open')
 
+    // State handlers can close or replace this connection before preparation starts.
+    if (currentConnectionEpoch !== connectionEpoch || manuallyClosed) {
+      return
+    }
+
     let currentPrepareController: AbortController | undefined
     try {
       if (options.prepare) {
         transition('preparing')
+
+        // A preparing handler can invalidate the attempt before it owns a controller.
+        if (currentConnectionEpoch !== connectionEpoch || manuallyClosed) {
+          return
+        }
 
         currentPrepareController = new AbortController()
         prepareController = currentPrepareController
@@ -517,7 +529,14 @@ function createClientWithConnector<TMessage>(
           signal: currentPrepareController.signal,
           attempt: reconnectAttempt,
           reconnecting: reconnectAttempt > 0,
-          send: message => client.send(message, { requireReady: false }),
+          send: (message) => {
+            if (currentConnectionEpoch !== connectionEpoch) {
+              // A delayed prepare continuation must not send through a newer connection.
+              return { ok: false, reason: 'closed' }
+            }
+
+            return client.send(message, { requireReady: false })
+          },
           waitFor: createWaitForMessage(currentPrepareController.signal, currentConnectionEpoch),
         })
 
