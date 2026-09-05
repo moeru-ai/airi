@@ -400,7 +400,6 @@ export async function buildApp(deps: AppDeps) {
      */
     .route('/api/v1/stripe', createStripeRoutes(
       deps.paymentService,
-      deps.db,
       deps.stripe,
       deps.redis,
       deps.configKV,
