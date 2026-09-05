@@ -1,6 +1,6 @@
 import type { Database } from '../../../../libs/db'
 import type { ConfigKVService } from '../../../adapters/config-kv'
-import type { ClaimReceipt } from '../types'
+import type { ClaimReceipt, EvidenceReceipt } from '../types'
 
 import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -255,5 +255,61 @@ describe('payment CORE', () => {
 
     const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
     expect(flux?.flux).toBe(500)
+  })
+
+  function appleEvidence(overrides: Partial<EvidenceReceipt> = {}): EvidenceReceipt {
+    return {
+      kind: 'evidence',
+      processor: 'apple_iap',
+      processorOrderId: 'txn_1',
+      userId: 'user-pay-1',
+      packKey: 'starter',
+      fluxAmount: 500,
+      amount: 4990000,
+      currency: 'USD',
+      customerId: 'token-1',
+      ...overrides,
+    }
+  }
+
+  it('evidence settle inserts a paid order and credits Flux from the receipt', async () => {
+    const result = await payment.settle(appleEvidence())
+
+    expect(result).toMatchObject({ applied: true, fluxAmount: 500, balanceAfter: 500 })
+
+    const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
+    expect(order?.status).toBe('paid')
+    expect(order?.processor).toBe('apple_iap')
+    expect(order?.processorOrderId).toBe('txn_1')
+    expect(order?.packKey).toBe('starter')
+    expect(order?.fluxAmount).toBe(500)
+    expect(order?.creditedAt).toBeInstanceOf(Date)
+
+    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
+    expect(flux?.flux).toBe(500)
+    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBe('500')
+  })
+
+  it('evidence settle replay returns applied false and does not double credit', async () => {
+    const receipt = appleEvidence()
+    const first = await payment.settle(receipt)
+    const second = await payment.settle(receipt)
+
+    expect(first.applied).toBe(true)
+    expect(second.applied).toBe(false)
+
+    const ledger = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
+    expect(ledger).toHaveLength(1)
+
+    const orders = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
+    expect(orders).toHaveLength(1)
+  })
+
+  it('evidence settle snapshots flux from the receipt', async () => {
+    const first = await payment.settle(appleEvidence({ processorOrderId: 'txn_catalog_1' }))
+    expect(first).toMatchObject({ applied: true, fluxAmount: 500 })
+
+    const second = await payment.settle(appleEvidence({ processorOrderId: 'txn_catalog_2', fluxAmount: 9999 }))
+    expect(second).toMatchObject({ applied: true, fluxAmount: 9999 })
   })
 })

@@ -18,6 +18,28 @@ export interface ClaimReceipt {
   extras?: Record<string, unknown>
 }
 
+/**
+ * Evidence-first grant for in-app purchase stores (such as Apple IAP).
+ *
+ * The channel verifies native proof and resolves the pack.
+ * CORE inserts a paid order by `(processor, processorOrderId)` and snapshots
+ * flux from the receipt.
+ */
+export interface EvidenceReceipt {
+  kind: 'evidence'
+  processor: 'apple_iap'
+  processorOrderId: string
+  userId: string
+  packKey: string
+  fluxAmount: number
+  amount?: number
+  currency?: string
+  customerId?: string
+  extras?: Record<string, unknown>
+}
+
+export type Receipt = ClaimReceipt | EvidenceReceipt
+
 export type SettleResult
   = | { applied: true, userId: string, fluxAmount: number, balanceAfter: number }
     | { applied: false }

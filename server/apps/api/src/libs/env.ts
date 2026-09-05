@@ -5,7 +5,7 @@ import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { array, check, integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform, url } from 'valibot'
+import { array, check, integer, maxValue, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform, url } from 'valibot'
 
 const AdditionalTrustedOriginsSchema = pipe(
   string(),
@@ -52,6 +52,19 @@ const EnvSchema = object({
     '',
   ),
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
+
+  // Apple In-App Purchase (StoreKit 2). When APPLE_BUNDLE_ID is
+  // unset, apple-iap routes stay mounted but return 503 APPLE_IAP_DISABLED.
+  APPLE_BUNDLE_ID: optional(string()),
+  APPLE_IAP_ENV: optional(picklist(['sandbox', 'production', 'xcode']), 'sandbox'),
+  // App Store Connect numeric app id. Required when APPLE_IAP_ENV is production.
+  APPLE_APP_APPLE_ID: optional(pipe(
+    string(),
+    nonEmpty('APPLE_APP_APPLE_ID must not be empty when set'),
+    transform(input => Number(input)),
+    integer('APPLE_APP_APPLE_ID must be an integer'),
+    minValue(1, 'APPLE_APP_APPLE_ID must be at least 1'),
+  )),
 
   AUTH_SERVER_INTERNAL_URL: optional(string()),
   AUTH_SERVER_URL: optional(string(), 'http://localhost:3000'),
