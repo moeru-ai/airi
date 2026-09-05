@@ -169,6 +169,13 @@
       "when": 1786957404393,
       "tag": "0023_payment_order",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1787808818776,
+      "tag": "0024_drop_stripe_tables",
+      "breakpoints": true
     }
   ]
 }
