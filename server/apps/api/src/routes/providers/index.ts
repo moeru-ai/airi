@@ -5,8 +5,8 @@ import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
-import { createBadRequestError, createForbiddenError, createNotFoundError } from '../../utils/error'
-import { CreateProviderConfigSchema, UpdateProviderConfigSchema } from './schema'
+import { createBadRequestError } from '../../utils/error'
+import { UpsertProviderConfigSchema } from './schema'
 
 export function createProviderRoutes(providerService: ProviderService) {
   return new Hono<HonoEnv>()
@@ -14,70 +14,32 @@ export function createProviderRoutes(providerService: ProviderService) {
 
     .get('/', async (c) => {
       const user = c.get('user')!
-      const providers = await providerService.findAll(user.id)
+      const providers = await providerService.listAll(user.id)
       return c.json(providers)
     })
 
-    .get('/:id', async (c) => {
+    .put('/:id', async (c) => {
       const user = c.get('user')!
       const id = c.req.param('id')
-      const provider = await providerService.findById(id, user.id)
-      if (!provider)
-        throw createNotFoundError()
-
-      return c.json(provider)
-    })
-
-    .post('/', async (c) => {
-      const user = c.get('user')!
       const body = await c.req.json()
-      const result = safeParse(CreateProviderConfigSchema, body)
+      const result = safeParse(UpsertProviderConfigSchema, body)
 
-      if (!result.success) {
+      if (!result.success)
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
-      }
 
-      const provider = await providerService.createUserConfig({
-        ...result.output,
+      const provider = await providerService.upsert({
+        id,
         ownerId: user.id,
+        definitionId: result.output.definitionId,
+        config: result.output.config,
       })
-
-      return c.json(provider, 201)
-    })
-
-    .patch('/:id', async (c) => {
-      const user = c.get('user')!
-      const id = c.req.param('id')
-      const body = await c.req.json()
-      const result = safeParse(UpdateProviderConfigSchema, body)
-
-      if (!result.success) {
-        throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
-      }
-
-      // TODO: Move ownership checks into the service layer with an actor-aware API such as updateUserConfigByOwner(user.id, id, input).
-      const existing = await providerService.findUserConfigById(id)
-      if (!existing)
-        throw createNotFoundError()
-      if (existing.ownerId !== user.id)
-        throw createForbiddenError()
-
-      const updated = await providerService.updateUserConfig(id, result.output)
-      return c.json(updated)
+      return c.json(provider)
     })
 
     .delete('/:id', async (c) => {
       const user = c.get('user')!
       const id = c.req.param('id')
-
-      // TODO: Move ownership checks into the service layer with an actor-aware API such as deleteUserConfigByOwner(user.id, id).
-      const existing = await providerService.findUserConfigById(id)
-      if (!existing)
-        throw createNotFoundError()
-      if (existing.ownerId !== user.id)
-        throw createForbiddenError()
-
-      await providerService.deleteUserConfig(id)
+      await providerService.tombstone(id, user.id)
       return c.body(null, 204)
     })
 }

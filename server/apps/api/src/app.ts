@@ -557,9 +557,20 @@ export async function createApp() {
     build: ({ dependsOn }) => createCharacterService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
+  // Envelope crypto for at-rest upstream key decryption. Shared by provider
+  // config rows, the LLM router (HTTP chat / TTS), and the audio-speech-ws
+  // proxy (streaming TTS) so a single master-key change rotates every surface.
+  const envelopeCrypto = injeca.provide('libs:envelopeCrypto', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createEnvelopeCrypto({
+      masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
+      previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,
+    }),
+  })
+
   const providerService = injeca.provide('services:providers', {
-    dependsOn: { db },
-    build: ({ dependsOn }) => createProviderService(dependsOn.db),
+    dependsOn: { db, envelopeCrypto },
+    build: ({ dependsOn }) => createProviderService(dependsOn.db, dependsOn.envelopeCrypto),
   })
 
   const chatService = injeca.provide('services:chats', {
@@ -647,17 +658,6 @@ export async function createApp() {
         }
       },
     }, dependsOn.otel?.revenue),
-  })
-
-  // Envelope crypto for at-rest upstream key decryption. Shared by the LLM
-  // router (HTTP chat / TTS) and the audio-speech-ws proxy (streaming TTS)
-  // so a single master-key change rotates every surface at once.
-  const envelopeCrypto = injeca.provide('libs:envelopeCrypto', {
-    dependsOn: { env: parsedEnv },
-    build: ({ dependsOn }) => createEnvelopeCrypto({
-      masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
-      previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,
-    }),
   })
 
   // LLM router (KTD-5 in-process replacement for the knoway sidecar).
