@@ -44,7 +44,7 @@
     "capture:tamagotchi": "pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif",
     "to-avif": "tsx docs/scripts/avif.ts",
     "sponsors:generate": "sponsorkit --output-dir docs/content/public/assets/sponsors",
-    "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./server/**\" -F=\"./docs\" --parallel typecheck",
+    "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./server/**\" -F=\"./services/*\" -F=\"./docs\" --parallel typecheck",
     "typecheck:engines": "pnpm -rF=\"./engines/*\" --parallel typecheck",
     "up": "taze -w -r -I && pnpm prune && pnpm dedupe",
     "nolyfill": "pnpm dlx nolyfill",
