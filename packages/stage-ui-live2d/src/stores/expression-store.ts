@@ -300,7 +300,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
       for (const param of resolved.group.parameters) {
         const entry = expressions.value.get(param.parameterId)
         if (entry) {
-          const newValue = isActive ? entry.modelDefault : param.value
+          const newValue = isActive ? entry.defaultValue : param.value
           applyValue(entry, newValue, duration)
           states.push(toState(entry))
         }
@@ -308,9 +308,9 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
       return { success: true, state: states }
     }
 
-    // Direct parameter toggle: flip between modelDefault and exp3 target value
+    // Direct parameter toggle: flip between the blend's neutral value and the expression target.
     const entry = resolved.entry
-    const newValue = entry.currentValue !== entry.modelDefault ? entry.modelDefault : entry.targetValue
+    const newValue = entry.currentValue !== entry.defaultValue ? entry.defaultValue : entry.targetValue
     applyValue(entry, newValue, duration)
     return { success: true, state: toState(entry) }
   }
@@ -340,7 +340,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
     clearAllTimers()
     const states: ExpressionState[] = []
     for (const entry of expressions.value.values()) {
-      entry.currentValue = entry.modelDefault
+      entry.currentValue = entry.defaultValue
       states.push(toState(entry))
     }
     return { success: true, state: states }

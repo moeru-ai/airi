@@ -29,6 +29,15 @@ interface Exp3Json {
   // FadeInTime / FadeOutTime are intentionally ignored (we do direct application).
 }
 
+interface Cubism2ExpressionJson {
+  params?: Array<{
+    id: string
+    val: number
+    calc?: 'add' | 'mult'
+    def?: number
+  }>
+}
+
 // ---------------------------------------------------------------------------
 // Controller
 // ---------------------------------------------------------------------------
@@ -81,11 +90,20 @@ export function useExpressionController(options: ExpressionControllerOptions) {
     for (const expRef of expressionRefs) {
       try {
         const raw = await readExpFile(expRef.File)
-        const exp3: Exp3Json = JSON.parse(raw)
+        const parsed = JSON.parse(raw) as Exp3Json | Cubism2ExpressionJson
+        const parameters: Exp3Parameter[] = 'Parameters' in parsed
+          ? parsed.Parameters
+          : (parsed.params ?? []).map(param => ({
+              Id: param.id,
+              Value: normalizeCubism2ExpressionValue(param),
+              Blend: param.calc === 'mult'
+                ? 'Multiply'
+                : param.calc === 'add' || !param.calc ? 'Add' : 'Overwrite',
+            }))
 
         const groupParams: ExpressionGroupDefinition['parameters'] = []
 
-        for (const param of exp3.Parameters) {
+        for (const param of parameters) {
           const blend = normaliseBlend(param.Blend)
 
           groupParams.push({
@@ -98,12 +116,13 @@ export function useExpressionController(options: ExpressionControllerOptions) {
           // modelDefault; the store handles last-write-wins at runtime).
           if (!entryMap.has(param.Id)) {
             const modelDefault = getModelParameterDefault(param.Id)
+            const controlDefault = expressionControlDefault(blend, modelDefault)
             entryMap.set(param.Id, {
               name: param.Id,
               parameterId: param.Id,
               blend,
-              currentValue: modelDefault,
-              defaultValue: modelDefault,
+              currentValue: controlDefault,
+              defaultValue: controlDefault,
               modelDefault,
               targetValue: param.Value,
             })
@@ -245,6 +264,22 @@ export function useExpressionController(options: ExpressionControllerOptions) {
       default:
         return 'Overwrite'
     }
+  }
+
+  function expressionControlDefault(blend: ExpressionBlendMode, modelDefault: number): number {
+    if (blend === 'Add')
+      return 0
+    if (blend === 'Multiply')
+      return 1
+    return modelDefault
+  }
+
+  function normalizeCubism2ExpressionValue(param: NonNullable<Cubism2ExpressionJson['params']>[number]): number {
+    if (param.calc === 'mult')
+      return param.val / (param.def ?? 1)
+    if (param.calc === 'add' || !param.calc)
+      return param.val - (param.def ?? 0)
+    return param.val
   }
 
   /**
