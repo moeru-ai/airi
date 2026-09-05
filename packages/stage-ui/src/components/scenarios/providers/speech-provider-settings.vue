@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computedAsync, useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -55,29 +55,14 @@ const providerMetadata = computedAsync(async () => {
   return await selectProviderMetadata(definition, t, { id: props.providerId })
 }, undefined)
 
-// Common provider settings
-const apiKey = computed({
-  get: () => providers.value[props.providerId]?.apiKey as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
-
-    providers.value[props.providerId].apiKey = value
-  },
-})
-
-const baseUrl = computed({
-  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
-
-    providers.value[props.providerId].baseUrl = value
-  },
-})
+// Common provider settings stay local until the debounced leader write.
+const apiKey = ref('')
+const baseUrl = ref('')
 
 // Voice settings as reactive objects to allow for different provider settings
 const voiceSettings = ref<Record<string, any>>({})
+let settingsInitialized = false
+let pendingProviderConfigUpdate = Promise.resolve()
 
 /**
  * Resolves the voice settings a provider starts from.
@@ -124,28 +109,48 @@ onMounted(async () => {
   if (providerStore.configuredProviders[props.providerId]) {
     speechStore.loadVoicesForProvider(props.providerId)
   }
+
+  // Run the initial assignments before enabling persistence watchers.
+  await nextTick()
+  settingsInitialized = true
 })
 
-const debouncedUpdate = useDebounceFn(() => {
-  providers.value[props.providerId] = {
-    ...providers.value[props.providerId],
+async function persistProviderConfig() {
+  const patch = {
     // A provider without a credential field keeps no `apiKey` key. The guard in
     // `onMounted` stops the same key arriving by the other path.
     ...(props.hideApiKey ? {} : { apiKey: apiKey.value }),
     baseUrl: baseUrl.value || providerMetadata.value?.defaultConfig.baseUrl || '',
     voiceSettings: { ...voiceSettings.value },
   }
-}, 1000)
+
+  // Follower-only settings windows route this action to the leader. Keep each
+  // write in order so a later field patch cannot overtake an earlier one. A
+  // `.catch` on the prior link clears a rejected leader RPC before chaining
+  // the next patch, so one timeout does not stop every later write.
+  pendingProviderConfigUpdate = pendingProviderConfigUpdate
+    .catch(() => {})
+    .then(() => providerStore.patchProviderConfig(props.providerId, patch))
+  await pendingProviderConfigUpdate
+}
+
+const debouncedUpdate = useDebounceFn(persistProviderConfig, 1000)
+
+async function scheduleProviderConfigUpdate() {
+  if (!settingsInitialized)
+    return
+
+  await debouncedUpdate()
+}
 
 // Watch all settings and update the provider configuration
-watch([apiKey, baseUrl], debouncedUpdate)
+watch([apiKey, baseUrl], scheduleProviderConfigUpdate)
 
 // Watch voice settings for changes
-watch(voiceSettings, debouncedUpdate, { deep: true })
+watch(voiceSettings, scheduleProviderConfigUpdate, { deep: true })
 
 function handleResetVoiceSettings() {
   voiceSettings.value = resolveDefaultVoiceSettings()
-  debouncedUpdate()
 }
 </script>
 

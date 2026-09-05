@@ -154,6 +154,24 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   /**
+   * Applies configuration fields through the leader-owned provider snapshot.
+   *
+   * A settings window can hold a stale replicated snapshot. The leader merges
+   * this patch with its current configuration so unrelated recent changes stay
+   * intact.
+   */
+  async function patchProviderConfig(providerId: string, patch: Record<string, unknown>) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+
+    providers.value[providerId] = {
+      ...provider,
+      config: { ...provider.config, ...patch },
+    }
+  }
+
+  /**
    * Updates the selected model in the leader-owned provider snapshot.
    *
    * Follower renderers must await this action instead of mutating replicated
@@ -288,6 +306,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     markProviderAdded,
     unmarkProviderAdded,
     setProviderStatus,
+    patchProviderConfig,
     setProviderModel,
     setProviderModelIfUnset,
     fetchProviders,
@@ -304,6 +323,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'markProviderAdded',
       'unmarkProviderAdded',
       'setProviderStatus',
+      'patchProviderConfig',
       'setProviderModel',
       'setProviderModelIfUnset',
       'addProvider',
