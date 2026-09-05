@@ -75,6 +75,7 @@ const {
 const {
   active: screenAmbientLightActive,
   environment: screenAmbientLightEnvironment,
+  subject: screenAmbientLightSubject,
 } = storeToRefs(useScreenAmbientLightEnvironment())
 const screenAmbientLightFilterOptions = computed(() => ({
   baseBrightness: screenAmbientLightBaseBrightness.value,
@@ -162,6 +163,7 @@ defineExpose({
         :screen-ambient-light-active="screenAmbientLightEnabled && screenAmbientLightActive"
         :screen-ambient-light-filter-options="screenAmbientLightFilterOptions"
         :screen-ambient-light-environment="screenAmbientLightEnvironment"
+        :screen-ambient-light-subject="screenAmbientLightSubject"
         :screen-ambient-light-mode="screenAmbientLightMode"
         :screen-ambient-light-strength="screenAmbientLightStrength"
         :screen-ambient-light-squint="screenAmbientLightSquint"

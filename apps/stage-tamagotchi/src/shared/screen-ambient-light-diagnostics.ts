@@ -44,6 +44,12 @@ export interface ScreenAmbientLightDiagnosticsSnapshot {
   }
   frame?: ScreenAmbientLightCaptureFrame
   excludedRegion?: ScreenAmbientLightRectangle
+  /**
+   * Bounds of what the renderer drew, on the same frame as
+   * {@link excludedRegion}. The maps are placed around this, so the preview
+   * has to draw their coverage around it too.
+   */
+  subjectRegion?: ScreenAmbientLightRectangle
   sampling?: ScreenAmbientLightSamplingDiagnostics & {
     /** Environment measured from this frame, before temporal smoothing. */
     targetEnvironment?: AmbientLightEnvironment
