@@ -4,6 +4,7 @@ import type {
   AmbientLightMapMargin,
   AmbientLightSample,
   AmbientLightSamplingOptions,
+  NormalizedRectangle,
 } from './environment'
 
 import {
@@ -19,13 +20,6 @@ import {
 
 export interface PixelFrame {
   data: Uint8ClampedArray
-  width: number
-  height: number
-}
-
-export interface NormalizedRectangle {
-  x: number
-  y: number
   width: number
   height: number
 }
@@ -47,6 +41,20 @@ export interface SampleRegion {
    * never reach the measurement.
    */
   paintedAlpha?: Uint8ClampedArray
+  /**
+   * Bounds of what the renderer actually drew, in the same units as
+   * {@link exclude}. The maps are placed around this rather than around the
+   * window.
+   *
+   * A window is only as tight around its subject as its shape allows: a wide
+   * window holding an upright character leaves most of itself empty, and maps
+   * placed around the window would spend their texels on that emptiness and
+   * report light from the far end of it as light behind the character.
+   *
+   * Leave it out when the renderer cannot supply it, and the window takes its
+   * place.
+   */
+  subject?: NormalizedRectangle
   /**
    * Width divided by height of the captured display.
    *
@@ -167,7 +175,8 @@ export function sampleScreenAmbientLight(
   region: SampleRegion,
   options: AmbientLightSamplingOptions,
 ): ScreenAmbientLightSamplingResult {
-  const grid = workingGridFor(frame, region.exclude)
+  const subject = subjectOf(region)
+  const grid = workingGridFor(frame, subject)
   // Interleaved as weighted linear red, green, and blue, then the weight
   // itself, so that one blur pass carries the numerator and the denominator of
   // the normalized convolution together. Each cell sums the frame pixels it
@@ -242,22 +251,22 @@ export function sampleScreenAmbientLight(
   for (let index = 0; index < field.length; index += 1)
     field[index] /= pixelsPerCell
 
-  const windowHeightCells = Math.max(1, region.exclude.height * frame.height / grid.scale)
+  const subjectHeightCells = Math.max(1, subject.height * frame.height / grid.scale)
   const scratchA = new Float32Array(field.length)
   const scratchB = new Float32Array(field.length)
-  const mapMargin = ambientLightMapMarginFor(windowAspectOf(frame, region.exclude))
+  const mapMargin = ambientLightMapMarginFor(windowAspectOf(frame, subject))
   const contact = readMapTexels(
-    blurField(field, scratchA, scratchB, grid.width, grid.height, contactSigmaWindowHeights * windowHeightCells),
+    blurField(field, scratchA, scratchB, grid.width, grid.height, contactSigmaWindowHeights * subjectHeightCells),
     grid,
     frame,
-    region.exclude,
+    subject,
     mapMargin,
   )
   const surround = readMapTexels(
-    blurField(field, scratchA, scratchB, grid.width, grid.height, surroundSigmaWindowHeights * windowHeightCells),
+    blurField(field, scratchA, scratchB, grid.width, grid.height, surroundSigmaWindowHeights * subjectHeightCells),
     grid,
     frame,
-    region.exclude,
+    subject,
     mapMargin,
   )
 
@@ -293,10 +302,19 @@ interface WorkingGrid {
   height: number
 }
 
-/** Width over height of the window, in frame pixels. */
-function windowAspectOf(frame: PixelFrame, windowRectangle: NormalizedRectangle) {
-  const width = Math.max(1, windowRectangle.width * frame.width)
-  const height = Math.max(1, windowRectangle.height * frame.height)
+/** The rectangle the maps are placed around, which is the window until a renderer says otherwise. */
+function subjectOf(region: SampleRegion): NormalizedRectangle {
+  const subject = region.subject
+  if (!subject || subject.width <= 0 || subject.height <= 0)
+    return region.exclude
+
+  return subject
+}
+
+/** Width over height of a rectangle, in frame pixels. */
+function windowAspectOf(frame: PixelFrame, rectangle: NormalizedRectangle) {
+  const width = Math.max(1, rectangle.width * frame.width)
+  const height = Math.max(1, rectangle.height * frame.height)
   return width / height
 }
 

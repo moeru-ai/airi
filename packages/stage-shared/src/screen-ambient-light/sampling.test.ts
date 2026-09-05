@@ -198,6 +198,63 @@ describe('screen ambient light sampling', () => {
     expect(above / beside).toBeLessThan(1.15)
   })
 
+  it('places the maps around what was drawn rather than around the window', () => {
+    // ROOT CAUSE:
+    //
+    // The maps used to sit around the AIRI window. A window is only as tight
+    // around its subject as its shape allows, and the model is fitted to the
+    // smaller side, so a wide window holding an upright character is mostly
+    // empty. Light in that empty half was reported as light behind the
+    // character, and the map spent its texels on the emptiness: on a 1200 x 400
+    // window the character covered about 5 of the 24 texels across.
+    //
+    // The measurement now takes the bounds of what the renderer drew and places
+    // the maps around those.
+    const wideWindow = { x: 0.1, y: 0.4, width: 0.8, height: 0.2 }
+    const drawn = { x: 0.46, y: 0.4, width: 0.08, height: 0.2 }
+
+    function behindLuminanceWith(subject?: typeof drawn) {
+      const frame = createFrame(128, 128, [4, 4, 5, 255])
+      // A bright patch inside the window but well away from what was drawn.
+      fillPixels(frame, 16, 52, 24, 24, [255, 255, 255, 255])
+      // Only the drawn part is painted. The rest of the window is transparent,
+      // so the patch reaches the measurement as the desktop showing through.
+      const painted = new Uint8ClampedArray(128 * 128)
+      fillMask(painted, 128, Math.round(drawn.x * 128), Math.round(drawn.y * 128), Math.round(drawn.width * 128), Math.round(drawn.height * 128), 255)
+      return sampleScreenAmbientLight(frame, {
+        exclude: wideWindow,
+        subject,
+        displayAspect: 1,
+        paintedAlpha: painted,
+      }, samplingOptions).environment.behindLuminance
+    }
+
+    const aroundWindow = behindLuminanceWith()
+    const aroundSubject = behindLuminanceWith(drawn)
+
+    // The patch is behind the window but not behind the character, so reading
+    // the subject reports far less light behind it.
+    expect(aroundWindow).toBeGreaterThan(0)
+    expect(aroundSubject).toBeLessThan(aroundWindow * 0.5)
+  })
+
+  it('falls back to the window when nothing was drawn to measure', () => {
+    const window = { x: 0.3, y: 0.3, width: 0.4, height: 0.4 }
+    const frame = createFrame(64, 64, [40, 60, 90, 255])
+    const withoutSubject = sampleScreenAmbientLight(frame, {
+      exclude: window,
+      displayAspect: 1,
+    }, samplingOptions).environment
+    const withEmptySubject = sampleScreenAmbientLight(frame, {
+      exclude: window,
+      subject: { x: 0.5, y: 0.5, width: 0, height: 0 },
+      displayAspect: 1,
+    }, samplingOptions).environment
+
+    expect(withEmptySubject.mapMargin).toEqual(withoutSubject.mapMargin)
+    expect(withEmptySubject.exposure).toBeCloseTo(withoutSubject.exposure, 6)
+  })
+
   it('never lets the character reach the light maps', () => {
     // ROOT CAUSE:
     //
