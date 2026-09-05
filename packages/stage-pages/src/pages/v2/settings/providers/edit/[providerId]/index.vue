@@ -19,6 +19,7 @@ import {
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
 import { createDebouncedValidationRunner, createLatestValidationGuard, createProviderDraftSourceKey, createProviderValidationScheduleGate, createValidationStatusRestorer, getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { resolveProviderCreationId, useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { computedAsync, useCloned } from '@vueuse/core'
@@ -34,6 +35,7 @@ const router = useRouter()
 const route = useRoute('v2/settings/providers/edit/[providerId]')
 
 const providerStore = useProviderConfigStore()
+const hearingStore = useHearingStore()
 const validationStatusRestorer = createValidationStatusRestorer<string>(async (providerId, token) => {
   await providerStore.restoreProviderStatus(providerId, token)
 })
@@ -380,7 +382,9 @@ async function runValidation() {
     const validatedConfig = isEdited.value && providerConfigEdit.value
       ? { ...providerConfigEdit.value.config }
       : undefined
-    await providerStore.finishProviderValidationAndUpdateConfig(validationProviderId, validationToken, validatedConfig)
+    const didCommit = await providerStore.finishProviderValidationAndUpdateConfig(validationProviderId, validationToken, validatedConfig)
+    if (didCommit && validatedConfig)
+      await hearingStore.refreshActiveTranscriptionModelForProvider(validationProviderId)
     validationStatusRestorer.clear(validationToken)
   }
   catch (error) {

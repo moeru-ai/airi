@@ -290,6 +290,23 @@ export function resolveActiveTranscriptionModel(activeModel: string, providerCon
 }
 
 /**
+ * Keeps a valid transcription model after a provider catalog refresh.
+ *
+ * An endpoint change can replace the complete model catalog. Prefer the
+ * current selection while it remains available, otherwise move to the first
+ * advertised model. A failed or empty refresh must not erase a manual choice.
+ */
+export function resolveRefreshedTranscriptionModel(
+  activeModel: string,
+  models: ReadonlyArray<{ id: string }>,
+) {
+  if (models.length === 0 || models.some(model => model.id === activeModel))
+    return activeModel
+
+  return models[0].id
+}
+
+/**
  * Resolves extra transcription request options from provider config and UI locale.
  *
  * Use when:
@@ -407,6 +424,36 @@ export const useHearingStore = defineStore('hearing-store', () => {
     }
 
     return []
+  }
+
+  async function refreshActiveTranscriptionModelForProvider(providerId: string) {
+    const resolvedProviderId = resolveProviderCreationId(providerStore.providerCreationResolutions, providerId)
+    const resolvedActiveProviderId = resolveProviderCreationId(
+      providerStore.providerCreationResolutions,
+      activeTranscriptionProvider.value,
+    )
+    if (resolvedActiveProviderId !== resolvedProviderId || !providersStore.supportsModelListing(resolvedProviderId))
+      return false
+
+    const provider = providerStore.getProvider(resolvedProviderId)
+    if (!provider)
+      return false
+
+    const validatedConfigKey = JSON.stringify(provider.config)
+    const catalog = await providersStore.fetchModelsForProvider(resolvedProviderId)
+    const currentProvider = providerStore.getProvider(resolvedProviderId)
+    const currentActiveProviderId = resolveProviderCreationId(
+      providerStore.providerCreationResolutions,
+      activeTranscriptionProvider.value,
+    )
+    if (currentActiveProviderId !== resolvedProviderId || JSON.stringify(currentProvider?.config) !== validatedConfigKey)
+      return false
+
+    activeTranscriptionModel.value = resolveRefreshedTranscriptionModel(
+      activeTranscriptionModel.value,
+      catalog.models,
+    )
+    return true
   }
 
   const configured = computed(() => {
@@ -589,6 +636,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     transcription,
     reconcileActiveTranscriptionProviderId,
+    refreshActiveTranscriptionModelForProvider,
     loadModelsForProvider,
     getModelsForProvider,
     resetState,
@@ -597,6 +645,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   synced: {
     actions: [
       'reconcileActiveTranscriptionProviderId',
+      'refreshActiveTranscriptionModelForProvider',
     ],
     state: true,
   },

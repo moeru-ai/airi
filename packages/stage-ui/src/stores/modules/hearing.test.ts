@@ -1,15 +1,34 @@
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useProviderConfigStore } from '../providers/config'
 import {
   describeEmptyTranscriptionResponse,
   filterTranscriptionByConfidence,
   normalizeGeneratedTranscriptionText,
   resolveActiveTranscriptionModel,
   resolveActiveTranscriptionProviderError,
+  resolveRefreshedTranscriptionModel,
   resolveStreamTranscriptionExecutor,
   resolveTranscriptionFileName,
   resolveTranscriptionProviderOptions,
+  useHearingStore,
 } from './hearing'
+
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    locale: { value: 'en' },
+    t: (_key: string, fallback?: string) => fallback ?? _key,
+  }),
+}))
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('filterTranscriptionByConfidence', () => {
   const segments = [
@@ -84,6 +103,46 @@ describe('resolveActiveTranscriptionModel', () => {
    */
   it('prefers the explicit hearing model over the provider config model', () => {
     expect(resolveActiveTranscriptionModel('whisper-1', { model: 'FunAudioLLM/SenseVoiceSmall' })).toBe('whisper-1')
+  })
+})
+
+describe('resolveRefreshedTranscriptionModel', () => {
+  it('replaces a model that is unavailable at the newly configured endpoint', () => {
+    expect(resolveRefreshedTranscriptionModel('model-a', [
+      { id: 'model-b' },
+    ])).toBe('model-b')
+  })
+
+  it('keeps the active model when the refreshed catalog still contains it', () => {
+    expect(resolveRefreshedTranscriptionModel('model-b', [
+      { id: 'model-a' },
+      { id: 'model-b' },
+    ])).toBe('model-b')
+  })
+
+  it('keeps the active model when refreshing returns no models', () => {
+    expect(resolveRefreshedTranscriptionModel('model-a', [])).toBe('model-a')
+  })
+})
+
+describe('refreshActiveTranscriptionModelForProvider', () => {
+  it('refreshes a changed FunASR endpoint and replaces its stale active model', async () => {
+    const providerId = 'funasr-instance'
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://new.example/v1/',
+    })
+
+    const hearingStore = useHearingStore()
+    hearingStore.activeTranscriptionProvider = providerId
+    hearingStore.activeTranscriptionModel = 'model-a'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [{ id: 'model-b' }],
+      object: 'list',
+    }), { headers: { 'Content-Type': 'application/json' }, status: 200 })))
+
+    await expect(hearingStore.refreshActiveTranscriptionModelForProvider(providerId)).resolves.toBe(true)
+    expect(hearingStore.activeTranscriptionModel).toBe('model-b')
   })
 })
 
