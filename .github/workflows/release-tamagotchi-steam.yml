@@ -36,7 +36,6 @@ jobs:
     env:
       VITE_DISTRIBUTION: steam
       VITE_DISABLE_CUSTOM_PROVIDERS: 'true'
-      VITE_DISABLE_FLUX_PURCHASE: 'true'
       VITE_ENABLE_POSTHOG: 'false'
     strategy:
       fail-fast: false

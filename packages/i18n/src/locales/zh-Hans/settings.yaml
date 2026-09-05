@@ -926,6 +926,13 @@ pages:
       success: 谢谢你！你的 Flux 通量已经更新好啦～
       canceled: 支付被取消
       error: 哎呀，出错了，请稍后再试
+      steamAccountNotLinked: 请先在账号设置里绑定 Steam 账号，然后再试一次。
+      steamPending: 请在 Steam 完成购买。返回后 Flux 会更新。
+      payWith: 付款方式
+      paymentStripe: Stripe
+      paymentSteam: Steam 钱包
+      steamLinkHint: 绑定后可以用 Steam 钱包支付。
+      steamLinkHintAction: 去绑定
     audit:
       title: 使用记录
       time: 时间
