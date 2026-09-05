@@ -11,7 +11,6 @@ const {
   screenAmbientLightCaptureIntervalMs,
   screenAmbientLightNeutralColorWeight,
   screenAmbientLightResponseMs,
-  screenAmbientLightSampleHeight,
   screenAmbientLightSampleWidth,
 } = storeToRefs(useSettingsScreenAmbientLight())
 
@@ -67,17 +66,6 @@ function formatPercent(value: number) {
         :format-value="formatPixels"
         :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-width.title')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-width.description')"
-      />
-      <FieldRange
-        v-model="screenAmbientLightSampleHeight"
-        as="div"
-        :min="24"
-        :max="192"
-        :step="8"
-        :default-value="ambientLightDefaults.sampleHeight"
-        :format-value="formatPixels"
-        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-height.title')"
-        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-height.description')"
       />
       <FieldRange
         v-model="screenAmbientLightNeutralColorWeight"

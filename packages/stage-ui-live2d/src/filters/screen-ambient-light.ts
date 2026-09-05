@@ -10,8 +10,8 @@ import { ALPHA_MODES, CLEAR_MODES, MIPMAP_MODES, SCALE_MODES, WRAP_MODES } from 
 import { BaseTexture, Filter, Texture } from '@pixi/core'
 import {
   ambientLightDefaults,
-  ambientLightMapMargin,
   ambientLightMapSize,
+  ambientLightNeutralMapMargin,
   averageAmbientLightMap,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 
@@ -132,6 +132,11 @@ uniform float uChroma;
 uniform float uWrapIntensity;
 uniform float uSurroundPeak;
 uniform float uTranslucentWrap;
+// How far the maps reach past the window on each axis, in units of that axis.
+// The two differ whenever the window is not square and they stand for the same
+// distance on screen. The measurement places the texels with this pair, so the
+// two disagree about every position if they differ.
+uniform vec2 uMapMargin;
 
 const vec3 luminanceWeights = vec3(0.2126, 0.7152, 0.0722);
 
@@ -143,16 +148,12 @@ const float castFloorLuminance = 0.04;
 
 // Largest factor the cast may apply to one channel. Unit luminance divides the
 // light by its luminance, and red carries only 0.21 of the luminance weight,
-// so a pure red screen asks for 4.4x on red, or 2.7x at chroma 0.5. The cap
+// so a pure red screen asks for 4.7x on red, or 2.85x at chroma 0.5. The cap
 // trades luminance for headroom: it holds the hue shift, because the channels
 // the light lacks are still scaled down, but a strongly saturated screen then
 // darkens the model instead of pushing one channel toward white.
 const float castGainLimit = 1.6;
 
-// Mirrors ambientLightMapMargin in @proj-airi/stage-shared/screen-ambient-light.
-// The extraction places the map texels with it and this shader reads them back
-// with it, so the two disagree about every position if they differ.
-const float mapMargin = ${ambientLightMapMargin.toFixed(4)};
 
 vec3 srgbToLinear(vec3 color) {
   vec3 low = color / 12.92;
@@ -222,7 +223,7 @@ void main(void) {
   // of the screen beside the sleeve rather than a color shared by its whole
   // side of the model.
   vec2 windowUv = (outputFrame.xy + frameCoord * outputFrame.zw) / uStageSize;
-  vec2 mapUv = (windowUv + mapMargin) / (1.0 + 2.0 * mapMargin);
+  vec2 mapUv = (windowUv + uMapMargin) / (vec2(1.0) + 2.0 * uMapMargin);
 
   vec3 baseLinear = srgbToLinear(source.rgb / source.a);
   float effect = min(uStrength, 1.0);
@@ -376,6 +377,7 @@ export class ScreenAmbientLightFilter extends Filter {
       uWrapIntensity: ambientLightDefaults.filter.wrapIntensity,
       uSurroundPeak: 1,
       uTranslucentWrap: 0,
+      uMapMargin: new Float32Array([ambientLightNeutralMapMargin.x, ambientLightNeutralMapMargin.y]),
     })
 
     this.surroundTexels = surroundTexels
@@ -412,6 +414,8 @@ export class ScreenAmbientLightFilter extends Filter {
     this.uniforms.uBaseContrast = clamp(options.baseContrast, 0.5, 2)
     this.uniforms.uExposure = clamp(environment.exposure, 0, 1)
     this.uniforms.uExposureRange = clamp(options.exposureRange, -1, 1)
+    this.uniforms.uMapMargin[0] = environment.mapMargin.x
+    this.uniforms.uMapMargin[1] = environment.mapMargin.y
     this.uniforms.uChroma = clamp(options.chroma, 0, 1)
     this.uniforms.uWrapIntensity = Math.max(0, options.wrapIntensity)
     this.uniforms.uBacklight = clamp(options.backlight, 0, 2)

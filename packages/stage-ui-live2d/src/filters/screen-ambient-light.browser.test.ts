@@ -221,7 +221,7 @@ describe('screen ambient light filter', () => {
     // ROOT CAUSE:
     //
     // Unit luminance divides the light by its luminance, and red carries only
-    // 0.21 of the luminance weight, so a pure red screen asks for 4.4x on the
+    // 0.2126 of the luminance weight, so a pure red screen asks for 4.7x on the
     // red channel. Without a cap the channel runs into clipping, which flattens
     // the shading of every bright part. The cast caps each channel at
     // castGainLimit and lets the luminance drop instead, so under pure red at

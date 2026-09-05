@@ -1,10 +1,9 @@
-import type { AmbientLightMap } from './environment'
+import type { AmbientLightMap, AmbientLightMapMargin } from './environment'
 
 import { describe, expect, it } from 'vitest'
 
 import {
   ambientLightDefaults,
-  ambientLightMapMargin,
   ambientLightMapSize,
   averageAmbientLightMap,
 } from './environment'
@@ -64,8 +63,8 @@ describe('screen ambient light sampling', () => {
 
     for (const [windowU, windowV] of [[-0.2, 0.5], [0.5, 0.5], [1.2, 0.5], [0.5, -0.3]] as const) {
       for (const map of ['contact', 'surround'] as const) {
-        const coarseLight = lightAt(fromCoarse[map], windowU, windowV)
-        const fineLight = lightAt(fromFine[map], windowU, windowV)
+        const coarseLight = lightAt(fromCoarse[map], fromCoarse.mapMargin, windowU, windowV)
+        const fineLight = lightAt(fromFine[map], fromFine.mapMargin, windowU, windowV)
         for (let channel = 0; channel < 3; channel += 1)
           expect(fineLight[channel], `${map} at ${windowU}, ${windowV} channel ${channel}`).toBeCloseTo(coarseLight[channel], 1)
       }
@@ -104,9 +103,10 @@ describe('screen ambient light sampling', () => {
 
     const contact = result.environment.contact
     const surround = result.environment.surround
-    expect(lightAt(contact, -0.2, 0.5)[0]).toBeGreaterThan(0.5)
-    expect(lightAt(contact, 1.2, 0.5)[0]).toBeLessThan(0.01)
-    expect(lightAt(surround, -0.2, 0.5)[0]).toBeGreaterThan(lightAt(surround, 1.2, 0.5)[0] + 0.2)
+    const margin = result.environment.mapMargin
+    expect(lightAt(contact, margin, -0.2, 0.5)[0]).toBeGreaterThan(0.5)
+    expect(lightAt(contact, margin, 1.2, 0.5)[0]).toBeLessThan(0.01)
+    expect(lightAt(surround, margin, -0.2, 0.5)[0]).toBeGreaterThan(lightAt(surround, margin, 1.2, 0.5)[0] + 0.2)
   })
 
   it('keeps the lower half dark when the light beside the window sits above it', () => {
@@ -128,11 +128,74 @@ describe('screen ambient light sampling', () => {
 
     const contact = result.environment.contact
     const surround = result.environment.surround
-    expect(lightAt(contact, -0.2, 0.1)[0]).toBeGreaterThan(0.5)
-    expect(lightAt(contact, -0.2, 0.9)[0]).toBeLessThan(0.01)
+    const margin = result.environment.mapMargin
+    expect(lightAt(contact, margin, -0.2, 0.1)[0]).toBeGreaterThan(0.5)
+    expect(lightAt(contact, margin, -0.2, 0.9)[0]).toBeLessThan(0.01)
     // The wide blur still reaches down, but far less than at the lit height.
     // Measured: 0.87 at the top and 0.23 at the bottom.
-    expect(lightAt(surround, -0.2, 0.9)[0]).toBeLessThan(lightAt(surround, -0.2, 0.1)[0] * 0.5)
+    expect(lightAt(surround, margin, -0.2, 0.9)[0]).toBeLessThan(lightAt(surround, margin, -0.2, 0.1)[0] * 0.5)
+  })
+
+  it('reaches the same distance on every side of the window', () => {
+    // ROOT CAUSE:
+    //
+    // The maps used to reach half the window's own width to the sides and half
+    // its own height above and below, so a tall window gathered further up and
+    // down than it did across. The positional lookup hid it, because a fragment
+    // stores and reads at the same window position. The mean of the map did
+    // not: measured on a 96 x 192 window, the same patch of light counted 17%
+    // more above the window than beside it, and the exposure followed it.
+    //
+    // The reach is now one distance on screen, carried per axis because the
+    // axes are measured in different units. The same measurement now reads
+    // 0.962 rather than 1.170.
+    const frame = createFrame(128, 128, [4, 4, 5, 255])
+    const window = { x: 0.40625, y: 0.25, width: 0.1875, height: 0.375 }
+    const environment = sampleScreenAmbientLight(frame, {
+      exclude: window,
+      displayAspect: 1,
+    }, samplingOptions).environment
+
+    const windowWidthPixels = window.width * frame.width
+    const windowHeightPixels = window.height * frame.height
+    expect(windowWidthPixels).not.toBeCloseTo(windowHeightPixels)
+    expect(environment.mapMargin.x * windowWidthPixels)
+      .toBeCloseTo(environment.mapMargin.y * windowHeightPixels, 6)
+  })
+
+  it('moves the map mean little when a light only changes direction', () => {
+    const window = { x: 0.40625, y: 0.25, width: 0.1875, height: 0.375 }
+    const gap = 10
+    const patch = 12
+
+    function meanWithPatchAt(place: 'left' | 'above') {
+      const frame = createFrame(128, 128, [4, 4, 5, 255])
+      const left = Math.round(window.x * 128)
+      const top = Math.round(window.y * 128)
+      const width = Math.round(window.width * 128)
+      const height = Math.round(window.height * 128)
+      if (place === 'left')
+        fillPixels(frame, left - gap - patch, top + height / 2 - patch / 2, patch, patch, [255, 255, 255, 255])
+      else
+        fillPixels(frame, left + width / 2 - patch / 2, top - gap - patch, patch, patch, [255, 255, 255, 255])
+
+      const environment = sampleScreenAmbientLight(frame, {
+        exclude: window,
+        displayAspect: 1,
+      }, samplingOptions).environment
+      const [red, green, blue] = averageAmbientLightMap(environment.surround)
+      return (red + green + blue) / 3
+    }
+
+    const beside = meanWithPatchAt('left')
+    const above = meanWithPatchAt('above')
+
+    // What remains is the shape of the window itself: a tall window has a long
+    // side edge, so light beside it spreads along more of the silhouette than
+    // light above it does. The reach no longer adds to that.
+    expect(beside).toBeGreaterThan(0)
+    expect(above / beside).toBeGreaterThan(0.85)
+    expect(above / beside).toBeLessThan(1.15)
   })
 
   it('never lets the character reach the light maps', () => {
@@ -182,7 +245,7 @@ describe('screen ambient light sampling', () => {
       paintedAlpha: painted,
     }, samplingOptions)
 
-    const behind = lightAt(result.environment.contact, 0.5, 0.5)
+    const behind = lightAt(result.environment.contact, result.environment.mapMargin, 0.5, 0.5)
     expect(result.diagnostics.seeThroughPixelCount).toBe(256)
     expect(result.diagnostics.excludedPixelCount).toBe(0)
     expect(behind[1]).toBeGreaterThan(behind[0])
@@ -341,10 +404,14 @@ function blackFrame() {
  * coordinates: 0 is the left or top edge of the AIRI window and 1 is the right
  * or bottom edge, so -0.2 lies beside the window and 0.5 is its center.
  */
-function lightAt(map: AmbientLightMap, windowU: number, windowV: number) {
-  const span = 1 + 2 * ambientLightMapMargin
-  const column = texelIndex((windowU + ambientLightMapMargin) / span)
-  const row = texelIndex((windowV + ambientLightMapMargin) / span)
+function lightAt(
+  map: AmbientLightMap,
+  margin: AmbientLightMapMargin,
+  windowU: number,
+  windowV: number,
+) {
+  const column = texelIndex((windowU + margin.x) / (1 + 2 * margin.x))
+  const row = texelIndex((windowV + margin.y) / (1 + 2 * margin.y))
   const offset = (row * ambientLightMapSize + column) * 3
   return [map.data[offset], map.data[offset + 1], map.data[offset + 2]]
 }
