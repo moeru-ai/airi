@@ -125,8 +125,8 @@ catalog:
   '@moeru/eslint-config': 0.1.0-beta.19
   '@moeru/eventa': 1.0.0
   '@moeru/std': 0.1.0-beta.17
-  '@moeru/three-mmd': 0.1.2
-  '@moeru/three-mmd-physics-ammo': 0.1.2
+  '@moeru/three-mmd': 0.2.0-beta.2
+  '@moeru/three-mmd-physics-ammo': 0.2.0-beta.2
   '@napi-rs/image': ^1.14.0
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@opentelemetry/api': ^1.9.1
