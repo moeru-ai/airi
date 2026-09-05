@@ -1,10 +1,13 @@
 import type { Database } from '../../../../libs/db'
 
+import { Buffer } from 'node:buffer'
+
 import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../../libs/mock-db'
 import { createTestRedis } from '../../../../libs/tests/redis'
+import { createEnvelopeCrypto } from '../../../../utils/envelope-crypto'
 import { createCharacterService } from '../../characters'
 import { createChatService } from '../../chats'
 import { createFluxService } from '../../flux'
@@ -71,11 +74,11 @@ describe('providerService.deleteAllForUser', () => {
   it('marks every userProviderConfigs row owned by the user', async () => {
     await db.insert(schema.user).values({ id: 'u-prov-1', name: 'P', email: 'p@example.com' })
     await db.insert(schema.userProviderConfigs).values([
-      { ownerId: 'u-prov-1', definitionId: 'openai', name: 'a' },
-      { ownerId: 'u-prov-1', definitionId: 'anthropic', name: 'b' },
+      { id: 'p-a', ownerId: 'u-prov-1', definitionId: 'openai', config: 'v1.x.x.x' },
+      { id: 'p-b', ownerId: 'u-prov-1', definitionId: 'anthropic', config: 'v1.x.x.x' },
     ])
 
-    const service = createProviderService(db)
+    const service = createProviderService(db, createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) }))
     await service.deleteAllForUser('u-prov-1')
 
     const rows = await db.query.userProviderConfigs.findMany({ where: eq(schema.userProviderConfigs.ownerId, 'u-prov-1') })
@@ -85,9 +88,9 @@ describe('providerService.deleteAllForUser', () => {
 
   it('does not touch other users rows', async () => {
     await db.insert(schema.user).values({ id: 'u-prov-other', name: 'O', email: 'o@example.com' })
-    await db.insert(schema.userProviderConfigs).values({ ownerId: 'u-prov-other', definitionId: 'openai', name: 'kept' })
+    await db.insert(schema.userProviderConfigs).values({ id: 'p-kept', ownerId: 'u-prov-other', definitionId: 'openai', config: 'v1.x.x.x' })
 
-    const service = createProviderService(db)
+    const service = createProviderService(db, createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) }))
     await service.deleteAllForUser('u-prov-1')
 
     const otherRow = await db.query.userProviderConfigs.findFirst({ where: eq(schema.userProviderConfigs.ownerId, 'u-prov-other') })

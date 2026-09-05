@@ -169,6 +169,13 @@
       "when": 1789035949919,
       "tag": "0023_payment_order",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789035950000,
+      "tag": "0024_premium_frog_thor",
+      "breakpoints": true
     }
   ]
 }
