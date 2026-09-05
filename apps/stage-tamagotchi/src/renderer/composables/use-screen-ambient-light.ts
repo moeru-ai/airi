@@ -14,6 +14,7 @@ import {
   sampleScreenAmbientLight,
   smoothAmbientLightEnvironment,
   uniformAmbientLightEnvironment,
+  wholeWindowRectangle,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { until, useBroadcastChannel } from '@vueuse/core'
@@ -326,17 +327,30 @@ export function useScreenAmbientLight(sources: {
     const frame = context.getImageData(0, 0, canvas.width, canvas.height)
     const now = performance.now()
     const excludedWindow = normalizeWindowBounds(display.bounds, currentWindowBounds())
+    const painted = paintedMask.maskFor(excludedWindow, now)
+    const subjectInWindow = painted?.subject ?? wholeWindowRectangle
+    // The mask measures the subject inside the window; the sampler places its
+    // maps on the display, so the rectangle changes frame here.
+    const subjectOnDisplay = {
+      x: excludedWindow.x + subjectInWindow.x * excludedWindow.width,
+      y: excludedWindow.y + subjectInWindow.y * excludedWindow.height,
+      width: subjectInWindow.width * excludedWindow.width,
+      height: subjectInWindow.height * excludedWindow.height,
+    }
     const result = sampleScreenAmbientLight(frame, {
       exclude: excludedWindow,
+      // The mask measures the subject inside the window; the sampler places its
+      // maps on the display, so the rectangle changes frame here.
+      subject: subjectOnDisplay,
       displayAspect: display.bounds.width / Math.max(1, display.bounds.height),
-      paintedAlpha: paintedMask.maskFor(excludedWindow, now),
+      paintedAlpha: painted?.alpha,
     }, samplingOptions.value)
 
     const nextEnvironment = ambientLight.active
       ? smoothAmbientLightEnvironment(ambientLight.environment, result.environment, now - lastSampleTime, screenAmbientLightResponseMs.value)
       : result.environment
     lastSampleTime = now
-    ambientLight.setEnvironment(nextEnvironment)
+    ambientLight.setEnvironment(nextEnvironment, subjectInWindow)
 
     publishDiagnostics('capturing', {
       frame: {
@@ -345,6 +359,7 @@ export function useScreenAmbientLight(sources: {
         data: frame.data.slice(),
       },
       excludedRegion: excludedWindow,
+      subjectRegion: subjectOnDisplay,
       sampling: {
         ...result.diagnostics,
         targetEnvironment: result.environment,
@@ -390,7 +405,7 @@ export function useScreenAmbientLight(sources: {
 
   function publishDiagnostics(
     status: ScreenAmbientLightCaptureStatus,
-    details: Partial<Pick<ScreenAmbientLightDiagnosticsSnapshot, 'frame' | 'excludedRegion' | 'sampling'>> = {},
+    details: Partial<Pick<ScreenAmbientLightDiagnosticsSnapshot, 'frame' | 'excludedRegion' | 'subjectRegion' | 'sampling'>> = {},
   ) {
     const display = capturedDisplay.value
     const snapshot: ScreenAmbientLightDiagnosticsSnapshot = {

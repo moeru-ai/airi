@@ -106,6 +106,14 @@ export interface AmbientLightFilterOptions {
  */
 export const ambientLightMapSize = 24
 
+/** A rectangle in coordinates where the whole frame spans 0 to 1 on each axis. */
+export interface NormalizedRectangle {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 /**
  * How far a light map reaches past the stage window on every side, in window
  * heights.
@@ -122,6 +130,20 @@ export const ambientLightMapSize = 24
  * every position if they differ.
  */
 export const ambientLightMapMargin = 0.5
+
+/**
+ * The whole stage window, which stands in wherever the bounds of what was
+ * drawn are unknown.
+ *
+ * It is frozen and shared because components default to it: a fresh object
+ * every time would look like a change to every watcher reading it.
+ */
+export const wholeWindowRectangle: Readonly<NormalizedRectangle> = Object.freeze({
+  x: 0,
+  y: 0,
+  width: 1,
+  height: 1,
+})
 
 /**
  * The reach of a light map on each axis, in units of that axis of the window.

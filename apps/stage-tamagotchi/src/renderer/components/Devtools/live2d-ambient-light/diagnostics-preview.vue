@@ -11,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 const props = defineProps<{
   frame?: ScreenAmbientLightCaptureFrame
   excludedRegion?: ScreenAmbientLightRectangle
+  subjectRegion?: ScreenAmbientLightRectangle
 }>()
 
 const { t } = useI18n()
@@ -29,7 +30,9 @@ const excludedRegionStyle = computed(() => {
 // Area that the two light maps cover: the window grown by the same distance on
 // every edge. The wrap and the cast can only use light inside this outline.
 const mapRegionStyle = computed(() => {
-  const region = props.excludedRegion
+  // The maps follow what was drawn, which is smaller than the window whenever
+  // the window is not the shape of the subject.
+  const region = props.subjectRegion ?? props.excludedRegion
   const frame = props.frame
   if (!region || !frame)
     return undefined
