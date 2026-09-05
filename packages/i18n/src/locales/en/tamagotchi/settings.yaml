@@ -49,6 +49,131 @@ devtools:
   pages:
     context-flow:
       title: Context Flow
+    live2d-ambient-light:
+      title: Live2D Ambient Light
+      description: Tune screen sampling and the Live2D color-light shader
+      controls:
+        title: Light source and output
+      enabled:
+        title: Ambient light
+        description: Apply the ambient-light filter to the active Live2D model.
+      source:
+        title: Light source
+        options:
+          screen-capture: Screen capture
+          forced-color: Forced color
+      mode:
+        title: Lighting mode
+        options:
+          window-gradient: Window gradient
+          global: Global ambient
+      forced-color:
+        title: Test color
+        description: Apply this color without screen capture.
+      strength:
+        title: Light strength
+        description: Set the overall effect amount. 1 is the designed look, and up to 3 makes the color cast and the light wrap stronger.
+      main-window-note: Changes appear in the main AIRI window.
+      diagnostics:
+        title: Capture diagnostics
+        waiting: Waiting for diagnostics from the main AIRI window.
+        status:
+          disabled: Disabled
+          starting: Starting
+          capturing: Capturing
+          forced-color: Forced color
+          error: Error
+        capture:
+          title: Capture state
+          description: Inspect the selected display, capture dimensions, and exclusion coordinates.
+          display: Display and bounds
+          video-size: Source video
+          sample-size: Sample frame
+          window-bounds: AIRI window bounds
+          excluded-region: Excluded region
+          exposure: Screen exposure
+          behind-luminance: Light behind the character
+          updated: Last update
+        preview:
+          title: Downscaled capture
+          description: The red rectangle marks the AIRI window. The dashed rectangle marks the area that the light maps cover.
+          unavailable: No captured frame is available.
+        pixels:
+          title: Pixel decisions
+          total: Total
+          accepted: Accepted
+          excluded: Painted
+          transparent: Transparent
+          see-through: See-through
+        maps:
+          title: Light maps
+          window: Each map covers the AIRI window and half a window on every side. The outline marks the window.
+          unavailable: No environment is available.
+          target: Measured
+          applied: Applied after smoothing
+          surround:
+            title: Surround map
+            description: Wide blur of the screen around and behind the window. This map drives the color cast over the model.
+          contact:
+            title: Contact map
+            description: Narrow blur of the same content. This map drives the light wrap and the backlight rim.
+      sampling:
+        title: Screen sampling
+        capture-interval:
+          title: Capture interval
+          description: Set the time between screen samples. The capture stream runs at this rate.
+        response-time:
+          title: Response time
+          description: Set how quickly sampled colors adapt to a screen change.
+        sample-width:
+          title: Sample width
+          description: Set the width of the downscaled capture frame. A wider frame puts more detail in the light maps.
+        sample-height:
+          title: Sample height
+          description: Set the height of the downscaled capture frame. A taller frame puts more detail in the light maps.
+        neutral-color-weight:
+          title: Neutral-color weight
+          description: Set the minimum weight for colors with low saturation. Colored content counts for more than gray.
+      shader:
+        title: Shader response
+        base-brightness:
+          title: Base brightness
+          description: Set the model brightness over a black screen. The measured screen level moves it from here.
+        exposure-range:
+          title: Exposure response
+          description: Set how far the measured screen level moves the base brightness. Above 0 a brighter screen brightens the model. Below 0 a brighter screen darkens it, so the light wrap stands out.
+        wrap-intensity:
+          title: Light wrap intensity
+          description: Set how strongly the background color bleeds onto the edge of the model.
+        backlight:
+          title: Backlight
+          description: Set how strongly light from behind the character darkens its interior and lights its whole edge.
+        wrap-diffuse:
+          title: Light wrap width
+          description: Set how far the wrapped background color reaches inside the edge of the model.
+        translucent-wrap:
+          title: Reduce wrap on translucent parts
+          description: Scale the light wrap and rim by the square of the model alpha. Parts drawn with partial alpha already show the desktop through themselves.
+        base-contrast:
+          title: Base contrast
+          description: Set how strongly the model separates light and dark values before sampled light is added.
+        chroma:
+          title: Color cast chroma
+          description: Set how much of the surrounding hue the cast keeps. 0 keeps the model colors. 1 applies the full screen color.
+      preview-shader:
+        title: Shader preview
+        description: Run the real shader over a test card, with the live environment and the settings above.
+        window-mapping: The filter takes this canvas as the whole stage window, so the preview is not a pixel-accurate copy of the stage.
+        filtered: Shader output
+        unavailable: The preview needs WebGL, and this window could not create a context.
+        environment:
+          live: Light comes from the latest snapshot that the main AIRI window published.
+          neutral: No snapshot has arrived yet, so the preview uses the neutral environment.
+        regions:
+          title: Test card regions
+          body: The wide body carries a tone ramp from sRGB {low} to {high}. Brightness, contrast, chroma, and headroom show along it.
+          bars: The bars are {first}, {second}, {third}, {fourth}, and {fifth} pixels wide. They show how far the light wrap reaches into a thin shape.
+          patches: The two patches are drawn at {strong} and {weak} alpha, which is what the translucent-wrap option acts on.
     editor:
       title: AIRI Editor
       description: Open the standalone AIRI Editor window

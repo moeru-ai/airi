@@ -49,6 +49,131 @@ devtools:
   pages:
     context-flow:
       title: 上下文流程
+    live2d-ambient-light:
+      title: Live2D 環境光
+      description: 調整螢幕取樣與 Live2D 彩色光照著色器
+      controls:
+        title: 光源與輸出
+      enabled:
+        title: 環境光
+        description: 將環境光濾鏡套用至目前的 Live2D 模型。
+      source:
+        title: 光源
+        options:
+          screen-capture: 螢幕擷取
+          forced-color: 強制色彩
+      mode:
+        title: 光照模式
+        options:
+          window-gradient: 視窗漸層
+          global: 全域環境光
+      forced-color:
+        title: 測試色彩
+        description: 不擷取螢幕，直接套用此色彩。
+      strength:
+        title: 光照強度
+        description: 設定整體效果量。1 是設計值，最高 3 會加強色偏與光線包覆。
+      main-window-note: 變更會顯示在 AIRI 主視窗中。
+      diagnostics:
+        title: 擷取診斷
+        waiting: 正在等待 AIRI 主視窗傳送診斷資料。
+        status:
+          disabled: 已停用
+          starting: 啟動中
+          capturing: 擷取中
+          forced-color: 強制色彩
+          error: 錯誤
+        capture:
+          title: 擷取狀態
+          description: 檢查所選顯示器、擷取尺寸與排除區域座標。
+          display: 顯示器與邊界
+          video-size: 來源影片
+          sample-size: 取樣畫面
+          window-bounds: AIRI 視窗邊界
+          excluded-region: 排除區域
+          exposure: 螢幕曝光
+          behind-luminance: 角色背後的光線
+          updated: 最後更新
+        preview:
+          title: 縮小後擷取畫面
+          description: 紅色矩形標示 AIRI 視窗。虛線矩形標示光照圖涵蓋的範圍。
+          unavailable: 沒有可用的擷取畫面。
+        pixels:
+          title: 像素判定
+          total: 總計
+          accepted: 已接受
+          excluded: 已繪製
+          transparent: 透明
+          see-through: 穿透
+        maps:
+          title: 光照圖
+          window: 每張光照圖涵蓋 AIRI 視窗，以及四邊各半個視窗的範圍。外框標示視窗位置。
+          unavailable: 沒有可用的環境資料。
+          target: 實測值
+          applied: 平滑後套用值
+          surround:
+            title: 環繞光照圖
+            description: 視窗周圍與背後畫面的大範圍模糊。此圖驅動模型整體的色偏。
+          contact:
+            title: 接觸光照圖
+            description: 同一畫面的小範圍模糊。此圖驅動光線包覆與逆光邊緣。
+      sampling:
+        title: 螢幕取樣
+        capture-interval:
+          title: 擷取間隔
+          description: 設定螢幕取樣之間的時間。擷取串流以此速率執行。
+        response-time:
+          title: 反應時間
+          description: 設定取樣色彩適應螢幕變化的速度。
+        sample-width:
+          title: 取樣寬度
+          description: 設定縮小後擷取畫面的寬度。畫面越寬，光照圖的細節越多。
+        sample-height:
+          title: 取樣高度
+          description: 設定縮小後擷取畫面的高度。畫面越高，光照圖的細節越多。
+        neutral-color-weight:
+          title: 中性色權重
+          description: 設定低飽和色彩的最低權重。彩色內容的權重高於灰色。
+      shader:
+        title: 著色器反應
+        base-brightness:
+          title: 基礎亮度
+          description: 設定螢幕全黑時的模型亮度，實測螢幕亮度會以此為起點調整它。
+        exposure-range:
+          title: 曝光反應
+          description: 設定實測螢幕亮度調整基礎亮度的幅度與方向。大於 0 時螢幕越亮模型越亮；小於 0 時螢幕越亮模型越暗，讓光線包覆更明顯。
+        wrap-intensity:
+          title: 光線包覆強度
+          description: 設定背景顏色滲入模型邊緣的強度。
+        backlight:
+          title: 逆光
+          description: 設定來自角色背後的光線壓暗內部、並點亮整圈邊緣的強度。
+        wrap-diffuse:
+          title: 光線包覆寬度
+          description: 設定被包覆的背景顏色向模型邊緣內延伸多遠。
+        translucent-wrap:
+          title: 減少半透明部件的包覆
+          description: 以模型 alpha 的平方縮放光線包覆與邊緣光。以部分 alpha 繪製的部件本身已經透出桌面。
+        base-contrast:
+          title: 基礎對比
+          description: 設定加入取樣光線前模型明暗值的區分程度。
+        chroma:
+          title: 色偏彩度
+          description: 設定色偏保留多少環境色相。0 保留模型原色，1 套用完整螢幕色。
+      preview-shader:
+        title: 著色器預覽
+        description: 以測試卡執行實際著色器，使用實時環境與上方的設定。
+        window-mapping: 濾鏡把此畫布當成整個舞台視窗，因此預覽不是舞台的像素級複製。
+        filtered: 著色器輸出
+        unavailable: 預覽需要 WebGL，但此視窗無法建立繪圖環境。
+        environment:
+          live: 光線來自 AIRI 主視窗發布的最新快照。
+          neutral: 尚未收到快照，因此預覽使用中性環境。
+        regions:
+          title: 測試卡區域
+          body: 寬大的主體帶有從 sRGB {low} 到 {high} 的明暗漸層。亮度、對比、彩度與高光餘裕都會沿著它顯示。
+          bars: 長條寬度分別為 {first}、{second}、{third}、{fourth} 與 {fifth} 像素，用來顯示光線包覆延伸進細窄形狀的距離。
+          patches: 兩個色塊以 {strong} 與 {weak} alpha 繪製，正是半透明包覆選項作用的對象。
     lag-visualizer:
       title: 卡頓可視化
     live2d-motion:

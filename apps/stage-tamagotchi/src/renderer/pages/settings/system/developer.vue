@@ -92,6 +92,12 @@ const menu = computed(() => [
     to: '/devtools/screen-capture',
   },
   {
+    title: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.title'),
+    description: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.description'),
+    icon: 'i-solar:lightbulb-bolt-bold-duotone',
+    to: '/devtools/live2d-ambient-light',
+  },
+  {
     title: 'Vision Capture',
     description: 'Capture a screen frame and inspect the output payload',
     icon: 'i-solar:eye-closed-bold-duotone',

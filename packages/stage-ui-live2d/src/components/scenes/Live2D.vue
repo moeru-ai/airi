@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Live2DEyeFocusSource } from '../../composables/live2d'
 
+import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref, watch } from 'vue'
@@ -57,6 +58,33 @@ const {
   live2dShadowEnabled,
 } = storeToRefs(useSettingsLive2d())
 const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
+const {
+  screenAmbientLightBacklight,
+  screenAmbientLightBaseBrightness,
+  screenAmbientLightBaseContrast,
+  screenAmbientLightChroma,
+  screenAmbientLightEnabled,
+  screenAmbientLightExposureRange,
+  screenAmbientLightMode,
+  screenAmbientLightStrength,
+  screenAmbientLightTranslucentWrap,
+  screenAmbientLightWrapDiffuse,
+  screenAmbientLightWrapIntensity,
+} = storeToRefs(useSettingsScreenAmbientLight())
+const {
+  active: screenAmbientLightActive,
+  environment: screenAmbientLightEnvironment,
+} = storeToRefs(useScreenAmbientLightEnvironment())
+const screenAmbientLightFilterOptions = computed(() => ({
+  baseBrightness: screenAmbientLightBaseBrightness.value,
+  exposureRange: screenAmbientLightExposureRange.value,
+  baseContrast: screenAmbientLightBaseContrast.value,
+  chroma: screenAmbientLightChroma.value,
+  wrapIntensity: screenAmbientLightWrapIntensity.value,
+  wrapDiffuse: screenAmbientLightWrapDiffuse.value,
+  backlight: screenAmbientLightBacklight.value,
+  translucentWrap: screenAmbientLightTranslucentWrap.value,
+}))
 const mouseFocus = useLive2DEyeFocusFor({
   canvas: () => live2dCanvasRef.value?.canvasElement(),
   model: () => ({
@@ -130,6 +158,11 @@ defineExpose({
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-expression-enabled="live2dExpressionEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
+        :screen-ambient-light-active="screenAmbientLightEnabled && screenAmbientLightActive"
+        :screen-ambient-light-filter-options="screenAmbientLightFilterOptions"
+        :screen-ambient-light-environment="screenAmbientLightEnvironment"
+        :screen-ambient-light-mode="screenAmbientLightMode"
+        :screen-ambient-light-strength="screenAmbientLightStrength"
         @error="emit('error', $event)"
       />
     </Live2DCanvas>
