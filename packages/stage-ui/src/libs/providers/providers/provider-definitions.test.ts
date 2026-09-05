@@ -2,21 +2,24 @@ import type { ProviderTranslator } from '@proj-airi/provider-inference'
 
 import type { StageProviderId } from './registry'
 
-import { describe, expect, expectTypeOf, it } from 'vitest'
+import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { z } from 'zod'
 
+import { selectProviderMetadata } from '../metadata'
 import { providerAliyunNlsTranscription } from './aliyun-nls'
 import {
   providerAppLocalAudioSpeech,
   providerAppLocalAudioTranscription,
   providerBrowserLocalAudioSpeech,
   providerBrowserLocalAudioTranscription,
+  providerFunASRAudioTranscription,
 } from './local-audio'
 import { getDefinedProvider } from './registry'
 
 import './index'
 
-const translate = ((key: string) => key) as ProviderTranslator
+const translate = ((key: string, parameters?: Record<string, unknown>) =>
+  parameters?.error ? `${key}: ${parameters.error}` : key) as unknown as ProviderTranslator
 
 function getRequiredProvider(id: string) {
   const provider = getDefinedProvider(id)
@@ -27,9 +30,14 @@ function getRequiredProvider(id: string) {
 }
 
 describe('migrated provider definitions', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('exposes a closed provider id union to stage-ui consumers', () => {
     expectTypeOf<'openai'>().toExtend<StageProviderId>()
     expectTypeOf<'official-provider'>().toExtend<StageProviderId>()
+    expectTypeOf<'funasr-audio-transcription'>().toExtend<StageProviderId>()
     expectTypeOf<string>().not.toExtend<StageProviderId>()
   })
 
@@ -44,6 +52,7 @@ describe('migrated provider definitions', () => {
       'app-local-audio-transcription',
       'browser-local-audio-speech',
       'browser-local-audio-transcription',
+      'funasr-audio-transcription',
       'openai-audio-speech',
       'openai-compatible-audio-speech',
       'openai-audio-transcription',
@@ -126,6 +135,87 @@ describe('migrated provider definitions', () => {
     expect(missing?.valid).toBe(false)
     expect(missing?.reason).toContain('Base URL is required.')
     expect(configured?.valid).toBe(true)
+  })
+
+  it('registers FunASR as a local transcription provider with a saved endpoint configuration', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        { created: 0, id: 'SenseVoiceSmall', object: 'model', owned_by: 'funasr' },
+        { created: 0, id: 'fun-asr-nano', object: 'model', owned_by: 'funasr' },
+        { created: 0, id: 'paraformer-zh', object: 'model', owned_by: 'funasr' },
+      ],
+      object: 'list',
+    }), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 200,
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const defaults = z.parse(
+      await providerFunASRAudioTranscription.createProviderConfig({ t: translate }),
+      {},
+    )
+    const provider = await providerFunASRAudioTranscription.createProvider(defaults)
+    const models = await providerFunASRAudioTranscription.extraMethods?.listModels?.(
+      defaults,
+      provider,
+    )
+
+    expect(defaults).toEqual({ baseUrl: 'http://localhost:8000/v1/' })
+    expect(providerFunASRAudioTranscription.validationRequiredWhen?.(defaults)).toBe(true)
+    expect(providerFunASRAudioTranscription.validationRequiredWhen?.({ baseUrl: '   ' })).toBe(false)
+    expect(providerFunASRAudioTranscription.requiresCredentials).toBeUndefined()
+    expect(providerFunASRAudioTranscription.capabilities?.transcription).toEqual({
+      protocol: 'http',
+      generateOutput: true,
+      streamOutput: false,
+      streamInput: false,
+    })
+    expect(models?.map(model => model.id)).toEqual([
+      'SenseVoiceSmall',
+      'fun-asr-nano',
+      'paraformer-zh',
+    ])
+
+    const metadata = await selectProviderMetadata(providerFunASRAudioTranscription, translate)
+    expect(metadata.to).toBe('/v2/settings/providers/edit/funasr-audio-transcription')
+    expect(metadata.pricing).toBe('free')
+    expect(metadata.deployment).toBe('local')
+    expect(providerFunASRAudioTranscription.descriptionLocalize({ t: translate }))
+      .toBe('settings.pages.providers.provider.funasr-audio-transcription.description')
+  })
+
+  it('validates the configured FunASR OpenAI-compatible endpoint', async () => {
+    const validator = await providerFunASRAudioTranscription.validators?.validateProvider?.[0]({ t: translate })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [{ id: 'SenseVoiceSmall' }] }),
+    })
+    const reachable = await validator?.validator(
+      { baseUrl: 'http://localhost:8000/v1/' },
+      await providerFunASRAudioTranscription.createProvider({ baseUrl: 'http://localhost:8000/v1/' }),
+      {},
+      { t: translate },
+    )
+
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404 })
+    const wrongPath = await validator?.validator(
+      { baseUrl: 'http://localhost:8000/wrong/' },
+      await providerFunASRAudioTranscription.createProvider({ baseUrl: 'http://localhost:8000/wrong/' }),
+      {},
+      { t: translate },
+    )
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://localhost:8000/v1/models', expect.any(Object))
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://localhost:8000/wrong/models', expect.any(Object))
+    expect(reachable?.valid).toBe(true)
+    expect(wrongPath?.valid).toBe(false)
+    expect(wrongPath?.reason).toContain('HTTP 404')
+
+    vi.unstubAllGlobals()
   })
 
   it('describes Web Speech API streaming support without runtime state', async () => {

@@ -1007,6 +1007,10 @@ pages:
               title: 能够列出模型
             check-supports-chat-completion:
               title: 能够处理 Chat Completion（聊天补全）请求
+          funasr:
+            invalid-base-url: FunASR 地址必须是绝对 HTTP(S) URL。
+            connectivity-failed: '无法连接 FunASR OpenAI 兼容端点：{error}'
+            unknown-error: 未知错误
           status:
             validating: 验证中……
             valid: 通过

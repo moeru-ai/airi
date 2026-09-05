@@ -15,6 +15,8 @@ import { useI18n } from 'vue-i18n'
 
 import HearingPlaygroundTranscripts from './components/hearing-playground-transcripts.vue'
 
+import { allowsManualModelInput as allowsManualModelInputForProvider } from './hearing-model-selection'
+
 const { t } = useI18n()
 
 const hearingStore = useHearingStore()
@@ -94,6 +96,14 @@ const sortedProviderModels = computed(() => {
     if (right.id === activeTranscriptionModel.value)
       return 1
     return 0
+  })
+})
+const allowsManualModelInput = computed(() => {
+  return allowsManualModelInputForProvider({
+    supportsModelListing: supportsModelListing.value,
+    modelCount: providerModels.value.length,
+    isLoading: isLoadingActiveProviderModels.value,
+    provider: providerStore.providers[activeTranscriptionProvider.value],
   })
 })
 
@@ -502,16 +512,9 @@ onUnmounted(() => {
               <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
             </div>
 
-            <!-- Error state -->
-            <ErrorContainer
-              v-else-if="activeProviderModelError && supportsModelListing"
-              :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-              :error="activeProviderModelError"
-            />
-
             <!-- Manual input for providers without model listing or when no models are available -->
             <div
-              v-else-if="!supportsModelListing || (activeTranscriptionProvider === 'openai-compatible-audio-transcription' && providerModels.length === 0 && !isLoadingActiveProviderModels)"
+              v-else-if="allowsManualModelInput"
               class="mt-2"
             >
               <FieldInput
@@ -520,6 +523,13 @@ onUnmounted(() => {
                 @update:model-value="updateCustomModelName"
               />
             </div>
+
+            <!-- Error state -->
+            <ErrorContainer
+              v-else-if="activeProviderModelError && supportsModelListing"
+              :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+              :error="activeProviderModelError"
+            />
 
             <!-- No models available (for other providers with model listing but no models) -->
             <Alert

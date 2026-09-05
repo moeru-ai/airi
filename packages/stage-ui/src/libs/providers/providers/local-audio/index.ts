@@ -1,8 +1,10 @@
 import type { ComposerTranslation } from 'vue-i18n'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { createOpenAI } from '@xsai-ext/providers/create'
+import { listModels } from '@xsai/model'
 import { z } from 'zod'
 
 import { defineProvider } from '../registry'
@@ -14,6 +16,13 @@ const localAudioConfigSchema = z.object({
 
 type LocalAudioConfig = z.input<typeof localAudioConfigSchema>
 
+const funASRAudioConfigSchema = z.object({
+  apiKey: z.string().optional(),
+  baseUrl: z.string().optional().default('http://localhost:8000/v1/'),
+})
+
+type FunASRAudioConfig = z.input<typeof funASRAudioConfigSchema>
+
 function createLocalAudioConfigSchema(t: ComposerTranslation) {
   return localAudioConfigSchema.extend({
     apiKey: localAudioConfigSchema.shape.apiKey.meta({
@@ -23,6 +32,22 @@ function createLocalAudioConfigSchema(t: ComposerTranslation) {
       type: 'password',
     }),
     baseUrl: localAudioConfigSchema.shape.baseUrl.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  })
+}
+
+function createFunASRAudioConfigSchema(t: ComposerTranslation) {
+  return funASRAudioConfigSchema.extend({
+    apiKey: funASRAudioConfigSchema.shape.apiKey.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
+    }),
+    baseUrl: funASRAudioConfigSchema.shape.baseUrl.meta({
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
@@ -65,6 +90,74 @@ function createLocalAudioValidators() {
             reason,
             reasonKey: '',
             valid,
+          }
+        },
+      }),
+    ],
+  }
+}
+
+function createFunASRAudioValidators() {
+  return {
+    ...createLocalAudioValidators(),
+    validateProvider: [
+      ({ t }: { t: ComposerTranslation }) => ({
+        id: 'funasr-audio:check-connectivity',
+        name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-connectivity.title'),
+        validator: async (config: FunASRAudioConfig) => {
+          let modelsUrl: string
+          try {
+            const baseUrl = new URL(normalizeBaseUrl(config.baseUrl))
+            if (baseUrl.protocol !== 'http:' && baseUrl.protocol !== 'https:')
+              throw new Error('Unsupported protocol')
+            modelsUrl = new URL('models', baseUrl).toString()
+          }
+          catch (error) {
+            const reason = t('settings.pages.providers.catalog.edit.validators.funasr.invalid-base-url')
+            return { errors: [{ error }], reason, reasonKey: '', valid: false }
+          }
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 10_000)
+
+          try {
+            const response = await fetch(
+              modelsUrl,
+              {
+                headers: config.apiKey?.trim() ? { Authorization: `Bearer ${config.apiKey.trim()}` } : {},
+                method: 'GET',
+                signal: controller.signal,
+              },
+            )
+            if (!response.ok)
+              throw new Error(`HTTP ${response.status}`)
+
+            const payload: unknown = await response.json()
+            const models = typeof payload === 'object' && payload !== null
+              ? (payload as { data?: unknown }).data
+              : undefined
+            if (
+              !Array.isArray(models)
+              || !models.some(model => (
+                typeof model === 'object'
+                && model !== null
+                && 'id' in model
+                && typeof model.id === 'string'
+                && model.id.trim().length > 0
+              ))
+            ) {
+              throw new Error('Unexpected /models response')
+            }
+
+            return { errors: [], reason: '', reasonKey: '', valid: true }
+          }
+          catch (error) {
+            const message = errorMessageFrom(error)
+              ?? t('settings.pages.providers.catalog.edit.validators.funasr.unknown-error')
+            const reason = t('settings.pages.providers.catalog.edit.validators.funasr.connectivity-failed', { error: message })
+            return { errors: [{ error }], reason, reasonKey: '', valid: false }
+          }
+          finally {
+            clearTimeout(timeout)
           }
         },
       }),
@@ -157,4 +250,43 @@ export const providerBrowserLocalAudioTranscription = defineProvider<LocalAudioC
   createProviderConfig: ({ t }) => createLocalAudioConfigSchema(t),
   createProvider: createLocalTranscriptionProvider,
   validators: createLocalAudioValidators(),
+})
+
+export const providerFunASRAudioTranscription = defineProvider<FunASRAudioConfig, 'funasr-audio-transcription'>({
+  id: 'funasr-audio-transcription',
+  name: 'FunASR',
+  nameLocalize: () => 'FunASR',
+  description: 'Local FunASR transcription through its OpenAI-compatible API.',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.funasr-audio-transcription.description'),
+  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+  icon: 'i-lobe-icons:openai',
+  settingsPath: '/v2/settings/providers/edit/funasr-audio-transcription',
+  capabilities: {
+    transcription: {
+      protocol: 'http',
+      generateOutput: true,
+      streamOutput: false,
+      streamInput: false,
+    },
+  },
+  createProviderConfig: ({ t }) => createFunASRAudioConfigSchema(t),
+  createProvider: createLocalTranscriptionProvider,
+  validationRequiredWhen: config => Boolean(config.baseUrl?.trim()),
+  validators: createFunASRAudioValidators(),
+  extraMethods: {
+    listModels: async (config) => {
+      const apiKey = config.apiKey?.trim() ?? ''
+      const models = await listModels({
+        baseURL: normalizeBaseUrl(config.baseUrl),
+        ...(apiKey ? { apiKey } : {}),
+      })
+      return models.map(model => ({
+        id: model.id,
+        name: model.id,
+        provider: 'funasr-audio-transcription',
+        contextLength: 0,
+        deprecated: false,
+      }))
+    },
+  },
 })

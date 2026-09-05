@@ -46,6 +46,14 @@ export interface ProviderRuntimeState {
   modelError: string | null
 }
 
+interface ProviderModelCatalogResult {
+  [key: string]: unknown
+  available?: boolean
+  defaultModel?: string | null
+  lastKnownAvailable?: boolean
+  models: ModelInfo[]
+}
+
 /** Stable fallback for reactive consumers when a provider has no cached catalog. */
 const emptyProviderModels: ModelInfo[] = []
 Object.freeze(emptyProviderModels)
@@ -95,7 +103,8 @@ export const useProviderStore = defineStore('provider', () => {
   const addedProviders = computed(() => providerConfigStore.addedProviders)
   // Provider instances contain functions and transport handles. Keep this map
   // private so it never enters Pinia state.
-  const providerInstanceCache = new Map<string, unknown>()
+  const providerInstanceCache = new Map<string, { instance: unknown, configHash: string }>()
+  const providerInstanceRequests = new Map<string, { promise: Promise<unknown>, configHash: string }>()
   const { t } = useI18n()
 
   const VISION_PROVIDER_ID_PREFIX = 'vision-'
@@ -159,6 +168,9 @@ export const useProviderStore = defineStore('provider', () => {
   })
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
   const providerVoiceListInFlight = new Map<string, Promise<VoiceInfo[]>>()
+  const providerModelRequestVersions = new Map<string, number>()
+  const providerModelRequests = new Map<string, { configKey: string, promise: Promise<ProviderModelCatalogResult> }>()
+  let nextProviderModelRequestVersion = 0
   const providerRevalidationLoops = new Map<string, { pause: () => void, resume: () => void }>()
 
   // Server-driven availability overrides for providers whose visibility can
@@ -474,6 +486,8 @@ export const useProviderStore = defineStore('provider', () => {
   function deleteProvider(providerId: string) {
     void providerConfigStore.removeProvider(providerId)
     delete providerRuntimeState.value[providerId]
+    providerModelRequestVersions.delete(providerId)
+    providerModelRequests.delete(providerId)
   }
 
   function forceProviderConfigured(providerId: string) {
@@ -499,6 +513,8 @@ export const useProviderStore = defineStore('provider', () => {
   async function resetProviderSettings() {
     await providerConfigStore.resetProviders()
     providerRuntimeState.value = {}
+    providerModelRequestVersions.clear()
+    providerModelRequests.clear()
 
     providerRevalidationLoops.forEach(loop => loop.pause())
     providerRevalidationLoops.clear()
@@ -612,7 +628,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   // Function to fetch models for a specific provider
-  async function fetchModelsForProvider(providerId: string) {
+  async function fetchModelsForProvider(providerId: string): Promise<ProviderModelCatalogResult> {
     const definition = findProviderDefinition(providerId)
     if (!definition)
       return { models: [] }
@@ -621,71 +637,96 @@ export const useProviderStore = defineStore('provider', () => {
     if (!config && definition.requiresCredentials !== false)
       return { models: [] }
 
-    initializeProviderRuntimeState(providerId)
-    providerRuntimeState.value = {
-      ...providerRuntimeState.value,
-      [providerId]: {
-        ...providerRuntimeState.value[providerId],
-        modelStatus: 'loading',
-        modelError: null,
-      },
+    const configKey = JSON.stringify(config || {})
+    const pendingRequest = providerModelRequests.get(providerId)
+    if (pendingRequest?.configKey === configKey)
+      return pendingRequest.promise
+
+    const requestVersion = ++nextProviderModelRequestVersion
+    providerModelRequestVersions.set(providerId, requestVersion)
+    const isCurrentRequest = () => {
+      const currentConfigKey = JSON.stringify(providerCredentials.value[providerId] || {})
+      return providerModelRequestVersions.get(providerId) === requestVersion
+        && currentConfigKey === configKey
     }
 
-    try {
-      const catalog = await listProviderModels(providerId, config || {})
-      const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
-        .map(model => ({
-          id: model.id,
-          name: model.name,
-          description: model.description,
-          contextLength: model.contextLength,
-          deprecated: model.deprecated,
-          provider: providerId,
-        }))
+    const runRequest = async (): Promise<ProviderModelCatalogResult> => {
+      initializeProviderRuntimeState(providerId)
+      providerRuntimeState.value = {
+        ...providerRuntimeState.value,
+        [providerId]: {
+          ...providerRuntimeState.value[providerId],
+          modelStatus: 'loading',
+          modelError: null,
+        },
+      }
 
-      // Transform and store the models
-      // A synced snapshot can replace this provider entry while the request is
-      // pending. Read the current entry after await instead of updating the
-      // detached object that entered the request.
-      const currentRuntimeState = providerRuntimeState.value[providerId]
-      if (currentRuntimeState) {
-        providerRuntimeState.value = {
-          ...providerRuntimeState.value,
-          [providerId]: {
-            ...currentRuntimeState,
+      try {
+        const catalog = await listProviderModels(providerId, config || {})
+        const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
+          .map(model => ({
+            id: model.id,
+            name: model.name,
+            description: model.description,
+            contextLength: model.contextLength,
+            deprecated: model.deprecated,
+            provider: providerId,
+          }))
+
+        // A synced snapshot or a newer configuration request can replace this
+        // provider entry while the request is pending. Only the newest request
+        // for the current credentials may publish its catalog.
+        const currentRuntimeState = isCurrentRequest()
+          ? providerRuntimeState.value[providerId]
+          : undefined
+        if (currentRuntimeState) {
+          providerRuntimeState.value = {
+            ...providerRuntimeState.value,
+            [providerId]: {
+              ...currentRuntimeState,
+              models: normalizedModels,
+              defaultModel: catalog.defaultModel ?? null,
+              modelStatus: 'ready',
+              modelError: null,
+            },
+          }
+          // Synced action results pass through structuredClone. Return local
+          // catalog values because reading models back from state returns a Vue
+          // proxy and provider-specific metadata is not part of synced state.
+          return {
+            ...catalog,
             models: normalizedModels,
-            defaultModel: catalog.defaultModel ?? null,
-            modelStatus: 'ready',
-            modelError: null,
-          },
+          }
         }
-        // Synced action results pass through structuredClone. Return local
-        // catalog values because reading models back from state returns a Vue
-        // proxy and provider-specific metadata is not part of synced state.
-        return {
-          ...catalog,
-          models: normalizedModels,
-        }
+        return { models: [] }
       }
-      return { models: [] }
-    }
-    catch (error) {
-      console.error(`Error fetching models for ${providerId}:`, error)
-      const currentRuntimeState = providerRuntimeState.value[providerId]
-      if (currentRuntimeState) {
-        providerRuntimeState.value = {
-          ...providerRuntimeState.value,
-          [providerId]: {
-            ...currentRuntimeState,
-            modelStatus: 'error',
-            modelError: errorMessageFrom(error) ?? 'Unknown error',
-          },
+      catch (error) {
+        console.error(`Error fetching models for ${providerId}:`, error)
+        const currentRuntimeState = isCurrentRequest()
+          ? providerRuntimeState.value[providerId]
+          : undefined
+        if (currentRuntimeState) {
+          providerRuntimeState.value = {
+            ...providerRuntimeState.value,
+            [providerId]: {
+              ...currentRuntimeState,
+              modelStatus: 'error',
+              modelError: errorMessageFrom(error) ?? 'Unknown error',
+            },
+          }
         }
+        const lastKnownAvailable = providerAvailabilityOverrides.value[providerId]
+          ?? (providerConfigStore.configuredProviders[providerId] ? true : undefined)
+        return { models: [], lastKnownAvailable }
       }
-      const lastKnownAvailable = providerAvailabilityOverrides.value[providerId]
-        ?? (providerConfigStore.configuredProviders[providerId] ? true : undefined)
-      return { models: [], lastKnownAvailable }
     }
+
+    const request = runRequest().finally(() => {
+      if (providerModelRequests.get(providerId)?.promise === request)
+        providerModelRequests.delete(providerId)
+    })
+    providerModelRequests.set(providerId, { configKey, promise: request })
+    return request
   }
 
   // Get models for a specific provider
@@ -739,8 +780,13 @@ export const useProviderStore = defineStore('provider', () => {
     if (!metadata)
       return undefined
 
+    const genericEditorPath = `/v2/settings/providers/edit/${configuredProvider?.definitionId}`
+
     return {
       ...metadata,
+      ...(configuredProvider && metadata.to === genericEditorPath
+        ? { to: `/v2/settings/providers/edit/${providerId}` }
+        : {}),
       id: providerId,
       localizedName: metadata.nameKey === metadata.name
         ? metadata.name
@@ -801,10 +847,6 @@ export const useProviderStore = defineStore('provider', () => {
   | TranscriptionProviderWithExtraOptions,
   >(providerId: string): Promise<R> {
     await waitForProviderMetadata()
-    const cached = providerInstanceCache.get(providerId) as R | undefined
-    if (cached)
-      return cached
-
     const definition = getProviderDefinition(providerId)
 
     // Providers that don't require credentials use empty config
@@ -819,14 +861,41 @@ export const useProviderStore = defineStore('provider', () => {
     if (!config && !noCredentials)
       throw new Error(`Provider credentials for ${providerId} not found`)
 
-    try {
-      const instance = await definition.createProvider(config || {})
-      providerInstanceCache.set(providerId, instance)
-      return instance as R
+    const configHash = JSON.stringify(config || {})
+    const cached = providerInstanceCache.get(providerId)
+    if (cached?.configHash === configHash)
+      return cached.instance as R
+
+    const pending = providerInstanceRequests.get(providerId)
+    if (pending?.configHash === configHash)
+      return pending.promise as Promise<R>
+    if (pending) {
+      await pending.promise.catch(() => undefined)
+      return getProviderInstance<R>(providerId)
     }
-    catch (error) {
-      console.error(`Error creating provider instance for ${providerId}:`, error)
-      throw error
+
+    const request = (async () => {
+      if (cached)
+        await disposeProviderInstance(providerId)
+
+      try {
+        const instance = await definition.createProvider(config || {})
+        providerInstanceCache.set(providerId, { instance, configHash })
+        return instance as R
+      }
+      catch (error) {
+        console.error(`Error creating provider instance for ${providerId}:`, error)
+        throw error
+      }
+    })()
+    providerInstanceRequests.set(providerId, { promise: request, configHash })
+
+    try {
+      return await request
+    }
+    finally {
+      if (providerInstanceRequests.get(providerId)?.promise === request)
+        providerInstanceRequests.delete(providerId)
     }
   }
 
@@ -848,11 +917,14 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   async function disposeProviderInstance(providerId: string) {
-    const instance = providerInstanceCache.get(providerId) as { dispose?: () => Promise<void> | void } | undefined
-    if (instance?.dispose)
-      await instance.dispose()
+    const cached = providerInstanceCache.get(providerId)
+    if (!cached)
+      return
 
     providerInstanceCache.delete(providerId)
+    const instance = cached.instance as { dispose?: () => Promise<void> | void }
+    if (instance?.dispose)
+      await instance.dispose()
   }
 
   const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {
@@ -940,8 +1012,9 @@ export const useProviderStore = defineStore('provider', () => {
     return getProviderDefinition(providerId).configuredBy ?? 'user'
   }
 
-  function isProviderConfiguredForModule(providerId: string) {
-    return providerConfigStore.configuredProviders[providerId]
+  function isProviderUsableForModule(providerId: string) {
+    const status = providerConfigStore.providers[providerId]?.status
+    return (status === 'configured' || status === 'bypassed')
       && (providerConfiguredBy(providerId) !== 'authentication' || authStore.isAuthenticated)
   }
 
@@ -950,7 +1023,7 @@ export const useProviderStore = defineStore('provider', () => {
   // remain available without a persisted configuration record.
   const moduleChatProvidersMetadata = computed(() => {
     return allChatProvidersMetadata.value.filter(metadata =>
-      isProviderConfiguredForModule(metadata.id)
+      isProviderUsableForModule(metadata.id)
       || (providerConfiguredBy(metadata.id) !== 'authentication' && shouldListProvider(metadata.id))
       || isProviderAvailableWithoutConfiguration(metadata.id),
     )
@@ -958,21 +1031,21 @@ export const useProviderStore = defineStore('provider', () => {
 
   const moduleSpeechProvidersMetadata = computed(() => {
     return allAudioSpeechProvidersMetadata.value.filter(metadata =>
-      isProviderConfiguredForModule(metadata.id)
+      isProviderUsableForModule(metadata.id)
       || isProviderAvailableWithoutConfiguration(metadata.id),
     )
   })
 
   const moduleTranscriptionProvidersMetadata = computed(() => {
     return allAudioTranscriptionProvidersMetadata.value.filter(metadata =>
-      isProviderConfiguredForModule(metadata.id)
+      isProviderUsableForModule(metadata.id)
       || isProviderAvailableWithoutConfiguration(metadata.id),
     )
   })
 
   const moduleVisionProvidersMetadata = computed(() => {
     return allVisionProvidersMetadata.value.filter(metadata =>
-      isProviderConfiguredForModule(metadata.id)
+      isProviderUsableForModule(metadata.id)
       || (providerConfiguredBy(metadata.id) !== 'authentication' && shouldListProvider(metadata.id))
       || isProviderAvailableWithoutConfiguration(metadata.id),
     )

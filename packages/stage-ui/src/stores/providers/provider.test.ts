@@ -2,7 +2,7 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Session, User } from 'better-auth'
 
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/official'
@@ -19,6 +19,10 @@ vi.mock('vue-i18n', () => ({
 describe('provider store synchronization boundary', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   // ROOT CAUSE:
@@ -92,6 +96,75 @@ describe('provider store synchronization boundary', () => {
     expect(getProviderCalls).toBe(0)
   })
 
+  it('routes a configured FunASR instance to its own editor', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const providerId = 'funasr-instance'
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://localhost:8000/v1/',
+      model: 'sensevoice',
+    })
+    configStore.setProviderStatus(providerId, 'configured')
+
+    await vi.waitFor(() => {
+      expect(store.availableProvidersMetadata.find(provider => provider.id === providerId)?.to)
+        .toBe(`/v2/settings/providers/edit/${providerId}`)
+    })
+  })
+
+  it('lists a configured FunASR instance without its unconfigured catalog definition', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const providerId = 'funasr-instance'
+
+    expect(store.moduleTranscriptionProvidersMetadata.map(provider => provider.id))
+      .not
+      .toContain('funasr-audio-transcription')
+
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://localhost:8000/v1/',
+    })
+    configStore.setProviderStatus(providerId, 'configured')
+
+    await vi.waitFor(() => {
+      const providerIds = store.moduleTranscriptionProvidersMetadata.map(provider => provider.id)
+      expect(providerIds).toContain(providerId)
+      expect(providerIds).not.toContain('funasr-audio-transcription')
+    })
+  })
+
+  it('lists a bypassed FunASR instance without its unconfigured catalog definition', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const providerId = 'funasr-bypassed-instance'
+
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://localhost:8000/v1/',
+    })
+    configStore.setProviderStatus(providerId, 'bypassed')
+
+    await vi.waitFor(() => {
+      const providerIds = store.moduleTranscriptionProvidersMetadata.map(provider => provider.id)
+      expect(providerIds).toContain(providerId)
+      expect(providerIds).not.toContain('funasr-audio-transcription')
+    })
+  })
+
+  it('preserves the dedicated Web Speech API settings route after configuration', async () => {
+    vi.stubGlobal('window', { SpeechRecognition: class {} })
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const providerId = 'browser-web-speech-api'
+    configStore.ensureProvider(providerId, providerId, {})
+    configStore.setProviderStatus(providerId, 'configured')
+
+    await vi.waitFor(() => {
+      const provider = store.allAudioTranscriptionProvidersMetadata.find(provider => provider.id === providerId)
+      expect(provider).toBeDefined()
+      expect(provider?.to).toBeUndefined()
+    })
+  })
+
   // ROOT CAUSE:
   //
   // Module pages treated every credential-free provider as available before
@@ -101,6 +174,11 @@ describe('provider store synchronization boundary', () => {
   // We fixed this by requiring a configured record for official providers
   // while keeping account-free browser and local providers available.
   it('lists official providers only after authenticated setup configures them', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ flux: 0 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
 
@@ -155,6 +233,7 @@ describe('provider store synchronization boundary', () => {
     expect(store.moduleSpeechProvidersMetadata.map(provider => provider.id)).not.toContain(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
     expect(store.moduleTranscriptionProvidersMetadata.map(provider => provider.id)).toContain(OFFICIAL_TRANSCRIPTION_PROVIDER_ID)
     expect(store.moduleVisionProvidersMetadata.map(provider => provider.id)).toContain('vision-official-provider')
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled())
   })
 
   // ROOT CAUSE:
@@ -192,6 +271,61 @@ describe('provider store synchronization boundary', () => {
     expect(baseProvider.chat('any-model')).not.toHaveProperty('reasoningEffort')
   })
 
+  it('recreates a cached provider after its saved configuration changes', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider('openai', 'openai', {
+      apiKey: 'first-key',
+      baseUrl: 'https://first.example.com/v1/',
+    })
+
+    const first = await store.getProviderInstance<ChatProvider>('openai')
+    const dispose = vi.fn()
+    Object.assign(first, { dispose })
+
+    expect(await store.getProviderInstance<ChatProvider>('openai')).toBe(first)
+
+    configStore.providers.openai!.config = {
+      apiKey: 'second-key',
+      baseUrl: 'https://second.example.com/v1/',
+    }
+
+    expect(await store.getProviderInstance<ChatProvider>('openai')).not.toBe(first)
+    expect(dispose).toHaveBeenCalledOnce()
+  })
+
+  it('shares one provider replacement across concurrent callers', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider('openai', 'openai', {
+      apiKey: 'first-key',
+      baseUrl: 'https://first.example.com/v1/',
+    })
+
+    const first = await store.getProviderInstance<ChatProvider>('openai')
+    let releaseDispose!: () => void
+    const disposeGate = new Promise<void>((resolve) => {
+      releaseDispose = resolve
+    })
+    const dispose = vi.fn(() => disposeGate)
+    Object.assign(first, { dispose })
+
+    configStore.providers.openai!.config = {
+      apiKey: 'second-key',
+      baseUrl: 'https://second.example.com/v1/',
+    }
+
+    const firstReplacement = store.getProviderInstance<ChatProvider>('openai')
+    await vi.waitFor(() => expect(dispose).toHaveBeenCalledOnce())
+    const secondReplacement = store.getProviderInstance<ChatProvider>('openai')
+    await new Promise<void>(resolve => queueMicrotask(resolve))
+    releaseDispose()
+
+    const [firstResult, secondResult] = await Promise.all([firstReplacement, secondReplacement])
+    expect(secondResult).toBe(firstResult)
+    expect(dispose).toHaveBeenCalledOnce()
+  })
+
   // ROOT CAUSE:
   //
   // A model request kept a reference to its runtime entry across an await.
@@ -218,6 +352,77 @@ describe('provider store synchronization boundary', () => {
     expect(store.providerRuntimeState['official-provider']?.models).toEqual([
       expect.objectContaining({ id: 'auto' }),
     ])
+  })
+
+  it('ignores a model catalog returned for superseded provider credentials', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const providerId = 'funasr-instance'
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://first.example/v1/',
+    })
+
+    const responseResolvers: Array<(response: Response) => void> = []
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => {
+      responseResolvers.push(resolve)
+    })))
+
+    const firstRequest = store.fetchModelsForProvider(providerId)
+    await vi.waitFor(() => expect(responseResolvers).toHaveLength(1))
+
+    configStore.providers[providerId]!.config = {
+      baseUrl: 'http://second.example/v1/',
+    }
+    const secondRequest = store.fetchModelsForProvider(providerId)
+    await vi.waitFor(() => expect(responseResolvers).toHaveLength(2))
+
+    responseResolvers[1](new Response(JSON.stringify({
+      data: [{ id: 'model-b' }],
+      object: 'list',
+    }), { headers: { 'Content-Type': 'application/json' }, status: 200 }))
+    await secondRequest
+    expect(store.getModelsForProvider(providerId)).toEqual([
+      expect.objectContaining({ id: 'model-b' }),
+    ])
+
+    responseResolvers[0](new Response(JSON.stringify({
+      data: [{ id: 'model-a' }],
+      object: 'list',
+    }), { headers: { 'Content-Type': 'application/json' }, status: 200 }))
+    await firstRequest
+
+    expect(store.getModelsForProvider(providerId)).toEqual([
+      expect.objectContaining({ id: 'model-b' }),
+    ])
+  })
+
+  it('shares concurrent model catalog requests for the same provider credentials', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const providerId = 'funasr-instance'
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://same.example/v1/',
+    })
+
+    let resolveResponse!: (response: Response) => void
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => {
+      resolveResponse = resolve
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const firstRequest = store.fetchModelsForProvider(providerId)
+    const secondRequest = store.fetchModelsForProvider(providerId)
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
+
+    resolveResponse(new Response(JSON.stringify({
+      data: [{ id: 'shared-model' }],
+      object: 'list',
+    }), { headers: { 'Content-Type': 'application/json' }, status: 200 }))
+
+    const [firstCatalog, secondCatalog] = await Promise.all([firstRequest, secondRequest])
+    expect(firstCatalog.models).toEqual([expect.objectContaining({ id: 'shared-model' })])
+    expect(secondCatalog.models).toEqual([expect.objectContaining({ id: 'shared-model' })])
+    expect(fetchMock).toHaveBeenCalledOnce()
   })
 
   // ROOT CAUSE:

@@ -18,30 +18,79 @@ import {
   ProviderSettingsLayout,
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
-import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
-import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { createDebouncedValidationRunner, createLatestValidationGuard, createProviderDraftSourceKey, createProviderValidationScheduleGate, createValidationStatusRestorer, getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { resolveProviderCreationId, useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
-import { computedAsync, useCloned, useDebounceFn } from '@vueuse/core'
+import { computedAsync, useCloned } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+
+import { continueProviderCreationNavigation } from './provider-creation-navigation'
 
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute('v2/settings/providers/edit/[providerId]')
 
 const providerStore = useProviderConfigStore()
+const hearingStore = useHearingStore()
+const validationStatusRestorer = createValidationStatusRestorer<string>(async (providerId, token) => {
+  await providerStore.restoreProviderStatus(providerId, token)
+})
 const emptyProviderConfig = Object.freeze({})
 const emptyProviderConfigValues = Object.freeze({})
 
 const providerId = computed(() => route.params.providerId as string)
 const providerConfig = computed(() => providerStore.getProvider(providerId.value) ?? emptyProviderConfig)
 const providerDefinition = computed(() => getDefinedProvider(providerConfig.value.definitionId))
+let isActive = true
+let stopProviderResolutionWatch: (() => void) | undefined
+const validationRunGuard = createLatestValidationGuard()
+
+onMounted(async () => {
+  const initialProviderId = providerId.value
+  const resolvedInitialProviderId = resolveProviderCreationId(providerStore.providerCreationResolutions, initialProviderId)
+  if (resolvedInitialProviderId !== initialProviderId && providerStore.getProvider(resolvedInitialProviderId)) {
+    await router.replace(`/v2/settings/providers/edit/${resolvedInitialProviderId}`)
+    return
+  }
+  if (providerStore.getProvider(initialProviderId) || !getDefinedProvider(initialProviderId))
+    return
+
+  const provider = providerStore.prepareProviderAddition(initialProviderId)
+  void providerStore.synchronizeAddedProvider(provider)
+
+  const redirectToResolvedProvider = async (resolvedProviderId?: string) => {
+    if (!isActive || providerId.value !== provider.id || !resolvedProviderId || resolvedProviderId === provider.id)
+      return
+
+    stopProviderResolutionWatch?.()
+    stopProviderResolutionWatch = undefined
+    await router.replace(`/v2/settings/providers/edit/${resolvedProviderId}`)
+  }
+
+  const continued = await continueProviderCreationNavigation(
+    () => router.replace(`/v2/settings/providers/edit/${provider.id}`),
+    () => isActive,
+    () => {
+      stopProviderResolutionWatch = watch(
+        () => providerStore.providerCreationResolutions[provider.id],
+        resolvedProviderId => void redirectToResolvedProvider(resolvedProviderId),
+      )
+    },
+  )
+  if (!continued)
+    return
+
+  await redirectToResolvedProvider(providerStore.providerCreationResolutions[provider.id])
+})
 
 // NOTICE: useCloned handles deep cloning and state isolation for the draft.
 // It provides a 'cloned' ref that we use for editing without affecting the original store state.
 const { cloned: providerConfigEdit, sync: syncProviderConfigEdit } = useCloned(providerConfig, { manual: true })
+const providerConfigDraftKey = computed(() => JSON.stringify(providerConfigEdit.value?.config ?? emptyProviderConfigValues))
 
 const isProviderSchemaLoading = ref(false)
 const providerSchemaError = ref<string | undefined>()
@@ -80,15 +129,19 @@ const providerSchema = computedAsync<$ZodType | undefined>(async (onCancel) => {
   }
 }, undefined, { evaluating: isProviderSchemaLoading })
 const providerSchemaDefault = computed(() => getSchemaDefault(providerSchema.value))
+const providerDraftSourceKey = computed(() => createProviderDraftSourceKey(providerConfig.value))
 
-watch(providerConfig, (newVal, oldVal) => {
-  if (newVal && Object.keys(newVal).length > 0) {
-    // Only sync the draft if the underlying data in the store has actually changed from an external source.
-    if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
-      syncProviderConfigEdit()
-    }
-  }
+watch(providerDraftSourceKey, () => {
+  if (Object.keys(providerConfig.value).length > 0)
+    syncProviderConfigEdit()
 }, { immediate: true })
+
+watch(providerId, (nextProviderId, previousProviderId) => {
+  if (!previousProviderId || resolveProviderCreationId(providerStore.providerCreationResolutions, previousProviderId) === nextProviderId)
+    return
+
+  syncProviderConfigEdit()
+})
 
 const isEdited = computed(() => {
   const currentConfig = providerConfigEdit.value?.config ?? emptyProviderConfigValues
@@ -258,11 +311,16 @@ function removeHeaderRow(index: number) {
 }
 
 async function runValidation() {
-  if (!providerDefinition.value)
+  if (!isActive || !providerDefinition.value)
+    return
+
+  const isCurrentRun = validationRunGuard.begin()
+  await validationStatusRestorer.restore()
+  if (!isActive || !isCurrentRun())
     return
 
   const validationPlan = await getValidationPlan()
-  if (!validationPlan)
+  if (!isActive || !isCurrentRun() || !validationPlan)
     return
 
   if (canSkipValidation.value)
@@ -271,47 +329,97 @@ async function runValidation() {
   if (!validationPlan.shouldValidate)
     return
 
+  const validationProviderId = providerId.value
+  const validatedDraftKey = providerConfigDraftKey.value
+  const validationToken = crypto.randomUUID()
+  await providerStore.beginProviderValidation(validationProviderId, validationToken)
+
+  validationStatusRestorer.begin(validationProviderId, validationToken)
+  if (!isActive || !isCurrentRun()) {
+    await validationStatusRestorer.restore(validationToken)
+    return
+  }
+
   isValidating.value = true
-  providerStore.setProviderStatus(providerId.value, 'validating')
   validatorEventStates.value = {}
   try {
     const results = await validateProvider(validationPlan, { t }, {
       onValidatorStart: ({ step }) => {
+        if (!isCurrentRun())
+          return
         validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'running' }
         syncValidationSteps()
       },
       onValidatorSuccess: ({ step }) => {
+        if (!isCurrentRun())
+          return
         validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'success' }
         syncValidationSteps()
       },
       onValidatorError: ({ step }) => {
+        if (!isCurrentRun())
+          return
         validatorEventStates.value = { ...validatorEventStates.value, [step.id]: 'error' }
         syncValidationSteps()
       },
     })
-    if (results.some(step => step.status === 'invalid')) {
-      providerStore.setProviderStatus(providerId.value, 'invalid')
+    if (!isCurrentRun()) {
+      await validationStatusRestorer.restore(validationToken)
       return
     }
 
-    if (isEdited.value)
-      commitEditedConfig('configured')
-    else
-      providerStore.setProviderStatus(providerId.value, 'configured')
+    if (results.some(step => step.status === 'invalid')) {
+      await providerStore.finishProviderValidation(validationProviderId, validationToken, 'invalid')
+      validationStatusRestorer.clear(validationToken)
+      return
+    }
+
+    if (providerConfigDraftKey.value !== validatedDraftKey) {
+      await validationStatusRestorer.restore(validationToken)
+      return
+    }
+
+    const validatedConfig = isEdited.value && providerConfigEdit.value
+      ? { ...providerConfigEdit.value.config }
+      : undefined
+    const didCommit = await providerStore.finishProviderValidationAndUpdateConfig(validationProviderId, validationToken, validatedConfig)
+    if (didCommit && validatedConfig)
+      await hearingStore.refreshActiveTranscriptionModelForProvider(validationProviderId)
+    validationStatusRestorer.clear(validationToken)
   }
   catch (error) {
-    providerStore.setProviderStatus(providerId.value, 'invalid')
+    if (!isCurrentRun()) {
+      await validationStatusRestorer.restore(validationToken)
+      return
+    }
+    await providerStore.finishProviderValidation(validationProviderId, validationToken, 'invalid')
+    validationStatusRestorer.clear(validationToken)
     throw error
   }
   finally {
-    isValidating.value = false
+    if (isCurrentRun()) {
+      isValidating.value = false
+      validationStatusRestorer.clear(validationToken)
+    }
   }
 }
 
-const debouncedValidation = useDebounceFn(runValidation, 1500)
-let didInitValidation = false
+const debouncedValidation = createDebouncedValidationRunner(runValidation, 1500)
+const shouldScheduleValidation = createProviderValidationScheduleGate()
 
-watch([providerConfigEdit, providerDefinition, providerSchema], async () => {
+onUnmounted(() => {
+  isActive = false
+  stopProviderResolutionWatch?.()
+  validationRunGuard.invalidate()
+  debouncedValidation.cancel()
+  void validationStatusRestorer.restore()
+})
+
+watch([providerConfigDraftKey, providerDefinition, providerSchema], async () => {
+  validationRunGuard.invalidate()
+  await validationStatusRestorer.restore()
+  isValidating.value = false
+
   if (!providerConfig.value || !providerConfigEdit.value) {
     return
   }
@@ -320,14 +428,9 @@ watch([providerConfigEdit, providerDefinition, providerSchema], async () => {
   if (!validationPlan)
     return
 
-  if (canSkipValidation.value)
+  if (!shouldScheduleValidation(canSkipValidation.value))
     return
-
-  if (!didInitValidation) {
-    didInitValidation = true
-    return
-  }
-  void debouncedValidation()
+  void debouncedValidation.run()
 }, { deep: true, immediate: true })
 
 let initializedSchemaProviderId: string | undefined
@@ -368,18 +471,18 @@ function syncValidationSteps() {
   validationSteps.value = [...validationSteps.value]
 }
 
-function commitEditedConfig(status: 'configured' | 'bypassed') {
+async function commitEditedConfig(status: 'configured' | 'bypassed') {
   if (!providerConfigEdit.value)
     return
 
-  providerStore.updateProviderConfig(providerId.value, { ...providerConfigEdit.value.config }, status)
+  await providerStore.updateProviderConfig(providerId.value, { ...providerConfigEdit.value.config }, status)
 }
 
 function handleSaveAnyway() {
   if (!isEdited.value)
     return
 
-  commitEditedConfig('bypassed')
+  void commitEditedConfig('bypassed')
 }
 
 function handleDeleteProvider() {
