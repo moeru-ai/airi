@@ -247,8 +247,9 @@ export const configEntrySchemas = {
   // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
   // 24h gives users a long-enough window for accumulated dust to settle naturally.
   TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
-  // One-time Flux packs. Display prices are preformatted strings keyed by
-  // currency. Processor ids map each pack onto Stripe.
+  // One-time Flux packs. Adapters format display prices at list time.
+  // `processors.stripe.priceId` maps onto a Stripe Price.
+  // `processors.steam` holds the MicroTxn item id, amount, and currency.
   FLUX_PACKS: optional(array(object({
     key: pipe(string(), nonEmpty('FLUX_PACKS[].key must not be empty')),
     name: pipe(string(), nonEmpty('FLUX_PACKS[].name must not be empty')),
@@ -257,6 +258,11 @@ export const configEntrySchemas = {
     processors: optional(object({
       stripe: optional(object({
         priceId: pipe(string(), nonEmpty('FLUX_PACKS[].processors.stripe.priceId must not be empty')),
+      })),
+      steam: optional(object({
+        itemId: pipe(number(), minValue(1, 'FLUX_PACKS[].processors.steam.itemId must be >= 1')),
+        amount: pipe(number(), minValue(1, 'FLUX_PACKS[].processors.steam.amount must be >= 1')),
+        currency: pipe(string(), nonEmpty('FLUX_PACKS[].processors.steam.currency must not be empty')),
       })),
     }), {}),
   })), []),

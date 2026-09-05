@@ -963,6 +963,13 @@ pages:
       success: Payment successful! Your Flux has been topped up.
       canceled: Payment was canceled.
       error: Something went wrong. Please try again later.
+      steamAccountNotLinked: Link a Steam account in Account settings. Then try again.
+      steamPending: Finish the purchase in Steam. Flux updates when you return.
+      payWith: Pay with
+      paymentStripe: Stripe
+      paymentSteam: Steam Wallet
+      steamLinkHint: After you link a Steam account, you can pay with Steam Wallet.
+      steamLinkHintAction: Link Steam account
     audit:
       title: Transaction History
       time: Time
