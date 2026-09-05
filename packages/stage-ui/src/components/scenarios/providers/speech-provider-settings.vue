@@ -125,8 +125,12 @@ async function persistProviderConfig() {
   }
 
   // Follower-only settings windows route this action to the leader. Keep each
-  // write in order so a later field patch cannot overtake an earlier one.
-  pendingProviderConfigUpdate = pendingProviderConfigUpdate.then(() => providerStore.patchProviderConfig(props.providerId, patch))
+  // write in order so a later field patch cannot overtake an earlier one. A
+  // `.catch` on the prior link clears a rejected leader RPC before chaining
+  // the next patch, so one timeout does not stop every later write.
+  pendingProviderConfigUpdate = pendingProviderConfigUpdate
+    .catch(() => {})
+    .then(() => providerStore.patchProviderConfig(props.providerId, patch))
   await pendingProviderConfigUpdate
 }
 
