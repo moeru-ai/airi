@@ -1,3 +1,4 @@
+import type { StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
 
@@ -74,6 +75,32 @@ function toolNameFrom(tool: unknown) {
   }
 
   return candidate.function?.name ?? candidate.name
+}
+
+function mockStreamEvents(events: unknown[]) {
+  streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => void }) => {
+    const steps = new Promise<unknown[]>((resolve) => {
+      queueMicrotask(() => {
+        for (const event of events)
+          options.onEvent(event)
+        resolve([])
+      })
+    })
+
+    return { ...createMockStreamResult(), steps }
+  })
+}
+
+function createSparkTool(): Tool {
+  return {
+    type: 'function',
+    function: {
+      name: 'builtIn_emitSparkCommand',
+      description: 'Send a command to a connected game module.',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: vi.fn(async () => 'ok'),
+  }
 }
 
 describe('isToolRelatedError', () => {
@@ -221,6 +248,179 @@ describe('isToolRelatedError', () => {
     const secondCallTools = streamTextMock.mock.calls[1]?.[0]?.tools
     expect(Array.isArray(secondCallTools)).toBe(true)
     expect(secondCallTools?.map(toolNameFrom)).toContain('runtime_play_chess_match')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Some providers emit a registered tool call as assistant text instead of
+  // using the native tool protocol.
+  //
+  // Before the fix, that raw JSON reached the chat UI and later requests kept
+  // sending the same incompatible tool payload.
+  //
+  // We fixed this by retrying once without tools only before any output or tool
+  // work is committed, then caching the model's incompatibility.
+  // https://github.com/moeru-ai/airi/issues/2161
+  it('retries without tools when a model emits a plain-text tool call for Issue #2161', async () => {
+    const rawToolCall = JSON.stringify({
+      name: 'builtIn_emitSparkCommand',
+      parameters: { destinations: [] },
+    })
+    const fallbackText = 'I cannot play a game because no game tool is available.'
+    const customTool = createSparkTool()
+    const events: unknown[] = []
+    const splitAt = Math.floor(rawToolCall.length / 2)
+
+    mockStreamEvents([
+      { type: 'text.delta', delta: rawToolCall.slice(0, splitAt) },
+      { type: 'text.delta', delta: rawToolCall.slice(splitAt) },
+    ])
+    mockStreamEvents([
+      { type: 'text.delta', delta: fallbackText },
+    ])
+
+    const store = useLLM()
+    await store.stream('model-a', provider, [{ role: 'user', content: 'Can you play games?' }] as Message[], {
+      supportsTools: true,
+      toolChoice: 'auto',
+      tools: [customTool],
+      onStreamEvent: (event) => {
+        events.push(event)
+      },
+    })
+
+    expect(streamTextMock).toHaveBeenCalledTimes(2)
+    expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
+    expect(streamTextMock.mock.calls[0]?.[0]?.toolChoice).toBe('auto')
+    expect(streamTextMock.mock.calls[1]?.[0]?.tools).toBeUndefined()
+    expect(streamTextMock.mock.calls[1]?.[0]?.toolChoice).toBeUndefined()
+    expect(events
+      .filter((event): event is { type: 'text-delta', text: string } => (
+        typeof event === 'object' && event !== null && (event as { type?: unknown }).type === 'text-delta'
+      ))
+      .map(event => event.text)
+      .join(''))
+      .toBe(fallbackText)
+
+    streamTextMock.mockImplementationOnce(() => createMockStreamResult())
+    await store.stream('model-a', provider, [{ role: 'user', content: 'Try again.' }] as Message[], {
+      supportsTools: true,
+      toolChoice: 'auto',
+      tools: [customTool],
+    })
+
+    expect(streamTextMock).toHaveBeenCalledTimes(3)
+    expect(streamTextMock.mock.calls[2]?.[0]?.tools).toBeUndefined()
+    expect(streamTextMock.mock.calls[2]?.[0]?.toolChoice).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A later plain-text tool-call failure could occur after an earlier native
+  // tool event had already committed work in the same request.
+  //
+  // Before the fix, automatically replaying that request could execute the
+  // earlier tool work a second time.
+  //
+  // We fixed this by caching the incompatibility without replaying any attempt
+  // that has already emitted output or native tool activity.
+  // https://github.com/moeru-ai/airi/issues/2161
+  it('does not replay earlier native tool work after a later plain-text tool call for Issue #2161', async () => {
+    const rawToolCall = JSON.stringify({
+      name: 'builtIn_emitSparkCommand',
+      parameters: { destinations: [] },
+    })
+    const customTool = createSparkTool()
+    const events: unknown[] = []
+
+    mockStreamEvents([
+      { type: 'step.start' },
+      {
+        type: 'tool-call.done',
+        args: '{}',
+        toolCallId: 'call-1',
+        toolCallType: 'function',
+        toolName: 'builtIn_emitSparkCommand',
+      },
+      { type: 'step.done', usage: {} },
+      { type: 'step.start' },
+      { type: 'text.delta', delta: rawToolCall },
+      { type: 'step.done', usage: {} },
+    ])
+    streamTextMock.mockImplementationOnce(() => createMockStreamResult())
+
+    const store = useLLM()
+    await expect(store.stream('model-a', provider, [{ role: 'user', content: 'Can you play games?' }] as Message[], {
+      supportsTools: true,
+      toolChoice: 'auto',
+      tools: [customTool],
+      onStreamEvent: (event) => {
+        events.push(event)
+      },
+    })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    expect(streamTextMock).toHaveBeenCalledTimes(1)
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'tool-call',
+      toolCallId: 'call-1',
+    }))
+
+    await store.stream('model-a', provider, [{ role: 'user', content: 'Try again.' }] as Message[], {
+      supportsTools: true,
+      toolChoice: 'auto',
+      tools: [customTool],
+    })
+
+    expect(streamTextMock).toHaveBeenCalledTimes(2)
+    expect(streamTextMock.mock.calls[1]?.[0]?.tools).toBeUndefined()
+    expect(streamTextMock.mock.calls[1]?.[0]?.toolChoice).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A forced request that leaked a text tool call marked the model as tool-
+  // incompatible, so the cache stripped tools from the next forced request.
+  //
+  // Before the fix, that later request could resolve without ever performing
+  // the required Spark command.
+  //
+  // We fixed this by letting required choices bypass the compatibility cache
+  // while still rejecting them when no tools are actually available.
+  // https://github.com/moeru-ai/airi/issues/2161
+  it('does not downgrade a forced tool choice after a plain-text leak for Issue #2161', async () => {
+    const rawToolCall = JSON.stringify({
+      name: 'builtIn_emitSparkCommand',
+      parameters: { destinations: [] },
+    })
+    const customTool = createSparkTool()
+
+    mockStreamEvents([
+      { type: 'text.delta', delta: rawToolCall },
+    ])
+
+    const store = useLLM()
+    const options = {
+      supportsTools: true,
+      toolChoice: {
+        type: 'function',
+        function: { name: 'builtIn_emitSparkCommand' },
+      },
+      tools: [customTool],
+    } satisfies StreamOptions
+
+    await expect(store.stream('model-a', provider, [{ role: 'user', content: 'You must play a game.' }] as Message[], options)).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    expect(streamTextMock).toHaveBeenCalledTimes(1)
+
+    mockStreamEvents([
+      { type: 'text.delta', delta: rawToolCall },
+    ])
+
+    await expect(store.stream('model-a', provider, [{ role: 'user', content: 'You still must play a game.' }] as Message[], options)).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    expect(streamTextMock).toHaveBeenCalledTimes(2)
+    expect(streamTextMock.mock.calls[1]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
+    expect(streamTextMock.mock.calls[1]?.[0]?.toolChoice).toEqual(options.toolChoice)
   })
 
   it('merges runtime-registered tools from the llm-tools store into the builtin tool resolver', async () => {

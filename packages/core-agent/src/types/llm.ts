@@ -35,6 +35,7 @@ export interface StreamOptions {
     roundId: string
   }
   toolsCompatibility?: Map<string, boolean>
+  /** Request-level gate. `false` disables tools; otherwise cached incompatibility wins unless the tool choice requires tools. */
   supportsTools?: boolean
   waitForTools?: boolean
   /** Provider tool-selection directive for one request. */

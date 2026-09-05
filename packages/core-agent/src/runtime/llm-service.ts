@@ -73,9 +73,28 @@ export function modelKey(model: string, chatProvider: ChatProvider): string {
   return `${chatProvider.chat(model).baseURL}-${model}`
 }
 
+function toolChoiceRequiresTools(toolChoice: StreamOptions['toolChoice']): boolean {
+  if (toolChoice === 'required')
+    return true
+  if (typeof toolChoice !== 'object' || toolChoice === null)
+    return false
+
+  return toolChoice.type === 'function'
+    || (toolChoice.type === 'allowed_tools' && toolChoice.mode === 'required')
+}
+
+/**
+ * Resolve whether tools may be attached to the provider request.
+ *
+ * An explicit `supportsTools: false` always wins. A required tool choice takes
+ * precedence over the runtime incompatibility cache so a mandatory tool call
+ * is retried with its tools instead of being silently downgraded to text.
+ */
 export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
-  if (options?.supportsTools !== undefined)
-    return options.supportsTools
+  if (options?.supportsTools === false)
+    return false
+  if (toolChoiceRequiresTools(options?.toolChoice))
+    return true
   const key = modelKey(model, chatProvider)
   return options?.toolsCompatibility?.get(key) !== false
 }
@@ -99,6 +118,53 @@ async function resolveTools(options?: StreamOptions) {
     ? await options.tools()
     : options?.tools
   return tools ?? []
+}
+
+const PLAIN_TEXT_TOOL_CALL_ERROR_CODE = 'AIRI_PLAIN_TEXT_TOOL_CALL'
+
+type BufferedOutputEvent
+  = | { type: 'text-delta', text: string }
+    | { type: 'reasoning-delta', text: string }
+
+function plainTextToolCallError(toolName: string): Error {
+  return Object.assign(
+    new Error(`Model returned tool call "${toolName}" as plain text instead of native tool calling.`),
+    { code: PLAIN_TEXT_TOOL_CALL_ERROR_CODE },
+  )
+}
+
+function leakedToolCallName(text: string, toolNames: Set<string>): string | undefined {
+  const candidate = text.trim()
+  if (!candidate.startsWith('{') || !candidate.endsWith('}'))
+    return undefined
+
+  try {
+    const parsed = JSON.parse(candidate) as unknown
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
+      return undefined
+
+    const record = parsed as Record<string, unknown>
+    if (typeof record.name !== 'string' || !toolNames.has(record.name))
+      return undefined
+    if (!Object.hasOwn(record, 'parameters') && !Object.hasOwn(record, 'arguments'))
+      return undefined
+
+    return record.name
+  }
+  catch {
+    return undefined
+  }
+}
+
+function toolNameFrom(tool: unknown): string | undefined {
+  if (typeof tool !== 'object' || tool === null)
+    return undefined
+
+  const candidate = tool as {
+    name?: string
+    function?: { name?: string }
+  }
+  return candidate.function?.name ?? candidate.name
 }
 
 /**
@@ -161,10 +227,17 @@ export async function streamFrom({
   const customTools = supportedTools ? await resolveTools(options) : []
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
+  if (!tools && toolChoiceRequiresTools(options?.toolChoice))
+    throw new Error('Cannot satisfy a required tool choice because no tools are available for this request.')
+  const toolNames = new Set(mergedTools.flatMap(tool => toolNameFrom(tool) ?? []))
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
     let stepsSettled = false
+    let bufferPossibleToolCall = toolNames.size > 0
+    let bufferedOutputEvents: BufferedOutputEvent[] = []
+    let bufferedReasoningText = ''
+    let bufferedText = ''
     const resolveOnce = () => {
       if (settled)
         return
@@ -178,17 +251,127 @@ export async function streamFrom({
       reject(error)
     }
 
-    const onEvent = async (event: Event) => {
-      try {
-        const streamEvent = toAiriStreamEvent(event)
-        if (streamEvent != null)
-          await options?.onStreamEvent?.(streamEvent)
-        if (streamEvent?.type === 'error')
-          rejectOnce(streamEvent.error)
+    const emitOutputEvent = async (event: BufferedOutputEvent) => {
+      if (event.text)
+        await options?.onStreamEvent?.(event)
+    }
+
+    const bufferOutputEvent = (event: BufferedOutputEvent) => {
+      const previous = bufferedOutputEvents.at(-1)
+      if (previous?.type === event.type)
+        previous.text += event.text
+      else
+        bufferedOutputEvents.push(event)
+    }
+
+    const takeBufferedOutput = () => {
+      const events = bufferedOutputEvents
+      bufferedOutputEvents = []
+      bufferedReasoningText = ''
+      bufferedText = ''
+      return events
+    }
+
+    const flushBufferedOutput = async () => {
+      const events = takeBufferedOutput()
+      for (const event of events)
+        await emitOutputEvent(event)
+    }
+
+    const passThroughBufferedOutput = async () => {
+      bufferPossibleToolCall = false
+      await flushBufferedOutput()
+    }
+
+    const finishPossibleToolCall = async () => {
+      if (!bufferPossibleToolCall)
+        return
+
+      bufferPossibleToolCall = false
+      const toolName = leakedToolCallName(bufferedText, toolNames)
+        ?? leakedToolCallName(bufferedReasoningText, toolNames)
+      if (toolName) {
+        takeBufferedOutput()
+        throw plainTextToolCallError(toolName)
       }
-      catch (error) {
-        rejectOnce(error)
+
+      await flushBufferedOutput()
+    }
+
+    const startToolCallGuardStep = async () => {
+      await finishPossibleToolCall()
+      bufferPossibleToolCall = toolNames.size > 0
+    }
+
+    const consumeTextDelta = async (text: string) => {
+      if (!bufferPossibleToolCall) {
+        await emitOutputEvent({ type: 'text-delta', text })
+        return
       }
+
+      bufferOutputEvent({ type: 'text-delta', text })
+      bufferedText += text
+      const firstNonWhitespace = bufferedText.trimStart().at(0)
+      // xsAI already retains the full step text. Keep any JSON-shaped candidate
+      // until the step ends; releasing a large candidate would expose the leak.
+      if (firstNonWhitespace !== undefined && firstNonWhitespace !== '{') {
+        await finishPossibleToolCall()
+      }
+    }
+
+    const consumeReasoningDelta = async (text: string) => {
+      if (!bufferPossibleToolCall) {
+        await emitOutputEvent({ type: 'reasoning-delta', text })
+        return
+      }
+
+      bufferOutputEvent({ type: 'reasoning-delta', text })
+      bufferedReasoningText += text
+    }
+
+    const processEvent = async (event: Event) => {
+      if (event.type === 'step.start') {
+        await startToolCallGuardStep()
+        return
+      }
+      if (event.type === 'step.done') {
+        await finishPossibleToolCall()
+        return
+      }
+      if (event.type === 'text.delta') {
+        await consumeTextDelta(event.delta)
+        return
+      }
+      if (event.type === 'reasoning.delta') {
+        await consumeReasoningDelta(event.delta)
+        return
+      }
+      if (
+        event.type === 'tool-call.start'
+        || event.type === 'tool-call.delta'
+        || event.type === 'tool-call.done'
+      ) {
+        // A native tool-call event proves this step used the provider protocol.
+        // Release any reasoning that arrived before it.
+        await passThroughBufferedOutput()
+      }
+
+      const streamEvent = toAiriStreamEvent(event)
+      if (streamEvent != null)
+        await options?.onStreamEvent?.(streamEvent)
+      if (streamEvent?.type === 'error')
+        rejectOnce(streamEvent.error)
+    }
+
+    // xsAI intentionally does not await onEvent. Keep our own chain so output
+    // events retain provider order and completion waits for accepted deltas.
+    let eventQueue = Promise.resolve()
+    const onEvent = (event: Event) => {
+      if (settled || stepsSettled)
+        return
+
+      eventQueue = eventQueue.then(() => processEvent(event))
+      void eventQueue.catch(error => rejectOnce(error))
     }
 
     try {
@@ -200,7 +383,7 @@ export async function streamFrom({
         streamOptions: { includeUsage: true },
         stopWhen: stepCountAtLeast(10),
         tools,
-        toolChoice: options?.toolChoice,
+        toolChoice: tools ? options?.toolChoice : undefined,
         onEvent,
       })
 
@@ -219,9 +402,22 @@ export async function streamFrom({
       // Keep `steps.then(resolveOnce)` so evaluation runners observe the real end
       // of the stream lifecycle instead of an intermediate tool boundary.
       void streamResult.steps.then(async () => {
-        // Ignore any late provider error event emitted after xsAI has already
-        // resolved the authoritative full-step lifecycle.
+        const acceptedEvents = eventQueue
+        // Mark the provider lifecycle settled before awaiting accepted events.
+        // Late provider errors must not invalidate an already completed stream.
         stepsSettled = true
+        try {
+          await acceptedEvents
+          await finishPossibleToolCall()
+        }
+        catch (error) {
+          if (!settled) {
+            settled = true
+            reject(error)
+          }
+          return
+        }
+
         try {
           const finalMessages = await streamResult.messages
           await options?.onMessages?.(finalMessages)
@@ -309,8 +505,26 @@ const TOOLS_RELATED_ERROR_PATTERNS: RegExp[] = [
 ]
 
 export function isToolRelatedError(error: unknown): boolean {
+  if (isPlainTextToolCallError(error))
+    return true
+
   const message = String(error)
   return TOOLS_RELATED_ERROR_PATTERNS.some(pattern => pattern.test(message))
+}
+
+/**
+ * Return whether an error is the internal sentinel emitted when this module's
+ * leak guard catches a complete plain-text call to a tool offered in the same
+ * model step. Message text alone never matches.
+ *
+ * A `true` result does not make replay safe by itself. Callers must separately
+ * verify that no output or tool side effects were committed and that the tool
+ * choice does not require a tool before retrying without tools.
+ */
+export function isPlainTextToolCallError(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && (error as { code?: unknown }).code === PLAIN_TEXT_TOOL_CALL_ERROR_CODE
 }
 
 // Runtime auto-degrade: patterns that indicate the provider rejected
