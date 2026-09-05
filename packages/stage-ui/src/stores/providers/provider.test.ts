@@ -174,6 +174,11 @@ describe('provider store synchronization boundary', () => {
   // We fixed this by requiring a configured record for official providers
   // while keeping account-free browser and local providers available.
   it('lists official providers only after authenticated setup configures them', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ flux: 0 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
 
@@ -228,6 +233,7 @@ describe('provider store synchronization boundary', () => {
     expect(store.moduleSpeechProvidersMetadata.map(provider => provider.id)).not.toContain(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
     expect(store.moduleTranscriptionProvidersMetadata.map(provider => provider.id)).toContain(OFFICIAL_TRANSCRIPTION_PROVIDER_ID)
     expect(store.moduleVisionProvidersMetadata.map(provider => provider.id)).toContain('vision-official-provider')
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled())
   })
 
   // ROOT CAUSE:
@@ -263,6 +269,61 @@ describe('provider store synchronization boundary', () => {
     expect(reasoningDisabledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'none' })
     expect(reasoningEnabledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'medium' })
     expect(baseProvider.chat('any-model')).not.toHaveProperty('reasoningEffort')
+  })
+
+  it('recreates a cached provider after its saved configuration changes', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider('openai', 'openai', {
+      apiKey: 'first-key',
+      baseUrl: 'https://first.example.com/v1/',
+    })
+
+    const first = await store.getProviderInstance<ChatProvider>('openai')
+    const dispose = vi.fn()
+    Object.assign(first, { dispose })
+
+    expect(await store.getProviderInstance<ChatProvider>('openai')).toBe(first)
+
+    configStore.providers.openai!.config = {
+      apiKey: 'second-key',
+      baseUrl: 'https://second.example.com/v1/',
+    }
+
+    expect(await store.getProviderInstance<ChatProvider>('openai')).not.toBe(first)
+    expect(dispose).toHaveBeenCalledOnce()
+  })
+
+  it('shares one provider replacement across concurrent callers', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider('openai', 'openai', {
+      apiKey: 'first-key',
+      baseUrl: 'https://first.example.com/v1/',
+    })
+
+    const first = await store.getProviderInstance<ChatProvider>('openai')
+    let releaseDispose!: () => void
+    const disposeGate = new Promise<void>((resolve) => {
+      releaseDispose = resolve
+    })
+    const dispose = vi.fn(() => disposeGate)
+    Object.assign(first, { dispose })
+
+    configStore.providers.openai!.config = {
+      apiKey: 'second-key',
+      baseUrl: 'https://second.example.com/v1/',
+    }
+
+    const firstReplacement = store.getProviderInstance<ChatProvider>('openai')
+    await vi.waitFor(() => expect(dispose).toHaveBeenCalledOnce())
+    const secondReplacement = store.getProviderInstance<ChatProvider>('openai')
+    await new Promise<void>(resolve => queueMicrotask(resolve))
+    releaseDispose()
+
+    const [firstResult, secondResult] = await Promise.all([firstReplacement, secondReplacement])
+    expect(secondResult).toBe(firstResult)
+    expect(dispose).toHaveBeenCalledOnce()
   })
 
   // ROOT CAUSE:

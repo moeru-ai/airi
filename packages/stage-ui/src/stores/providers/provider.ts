@@ -95,7 +95,8 @@ export const useProviderStore = defineStore('provider', () => {
   const addedProviders = computed(() => providerConfigStore.addedProviders)
   // Provider instances contain functions and transport handles. Keep this map
   // private so it never enters Pinia state.
-  const providerInstanceCache = new Map<string, unknown>()
+  const providerInstanceCache = new Map<string, { instance: unknown, configHash: string }>()
+  const providerInstanceRequests = new Map<string, { promise: Promise<unknown>, configHash: string }>()
   const { t } = useI18n()
 
   const VISION_PROVIDER_ID_PREFIX = 'vision-'
@@ -806,10 +807,6 @@ export const useProviderStore = defineStore('provider', () => {
   | TranscriptionProviderWithExtraOptions,
   >(providerId: string): Promise<R> {
     await waitForProviderMetadata()
-    const cached = providerInstanceCache.get(providerId) as R | undefined
-    if (cached)
-      return cached
-
     const definition = getProviderDefinition(providerId)
 
     // Providers that don't require credentials use empty config
@@ -824,14 +821,41 @@ export const useProviderStore = defineStore('provider', () => {
     if (!config && !noCredentials)
       throw new Error(`Provider credentials for ${providerId} not found`)
 
-    try {
-      const instance = await definition.createProvider(config || {})
-      providerInstanceCache.set(providerId, instance)
-      return instance as R
+    const configHash = JSON.stringify(config || {})
+    const cached = providerInstanceCache.get(providerId)
+    if (cached?.configHash === configHash)
+      return cached.instance as R
+
+    const pending = providerInstanceRequests.get(providerId)
+    if (pending?.configHash === configHash)
+      return pending.promise as Promise<R>
+    if (pending) {
+      await pending.promise.catch(() => undefined)
+      return getProviderInstance<R>(providerId)
     }
-    catch (error) {
-      console.error(`Error creating provider instance for ${providerId}:`, error)
-      throw error
+
+    const request = (async () => {
+      if (cached)
+        await disposeProviderInstance(providerId)
+
+      try {
+        const instance = await definition.createProvider(config || {})
+        providerInstanceCache.set(providerId, { instance, configHash })
+        return instance as R
+      }
+      catch (error) {
+        console.error(`Error creating provider instance for ${providerId}:`, error)
+        throw error
+      }
+    })()
+    providerInstanceRequests.set(providerId, { promise: request, configHash })
+
+    try {
+      return await request
+    }
+    finally {
+      if (providerInstanceRequests.get(providerId)?.promise === request)
+        providerInstanceRequests.delete(providerId)
     }
   }
 
@@ -853,11 +877,14 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   async function disposeProviderInstance(providerId: string) {
-    const instance = providerInstanceCache.get(providerId) as { dispose?: () => Promise<void> | void } | undefined
-    if (instance?.dispose)
-      await instance.dispose()
+    const cached = providerInstanceCache.get(providerId)
+    if (!cached)
+      return
 
     providerInstanceCache.delete(providerId)
+    const instance = cached.instance as { dispose?: () => Promise<void> | void }
+    if (instance?.dispose)
+      await instance.dispose()
   }
 
   const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {
