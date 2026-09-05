@@ -16,7 +16,6 @@ const screenAmbientLightStrength = useLocalStorageManualReset<number>('settings/
 const screenAmbientLightSquint = useLocalStorageManualReset<number>('settings/screen-ambient-light/squint', ambientLightDefaults.squint)
 const screenAmbientLightCaptureIntervalMs = useLocalStorageManualReset<number>('settings/screen-ambient-light/capture-interval-ms', ambientLightDefaults.captureIntervalMs)
 const screenAmbientLightSampleWidth = useLocalStorageManualReset<number>('settings/screen-ambient-light/sample-width', ambientLightDefaults.sampleWidth)
-const screenAmbientLightSampleHeight = useLocalStorageManualReset<number>('settings/screen-ambient-light/sample-height', ambientLightDefaults.sampleHeight)
 const screenAmbientLightResponseMs = useLocalStorageManualReset<number>('settings/screen-ambient-light/response-ms', ambientLightDefaults.responseMs)
 const screenAmbientLightNeutralColorWeight = useLocalStorageManualReset<number>('settings/screen-ambient-light/neutral-color-weight', ambientLightDefaults.sampling.neutralColorWeight)
 const screenAmbientLightBaseBrightness = useLocalStorageManualReset<number>('settings/screen-ambient-light/base-brightness', ambientLightDefaults.filter.baseBrightness)
@@ -37,7 +36,6 @@ function resetState() {
   screenAmbientLightSquint.reset()
   screenAmbientLightCaptureIntervalMs.reset()
   screenAmbientLightSampleWidth.reset()
-  screenAmbientLightSampleHeight.reset()
   screenAmbientLightResponseMs.reset()
   screenAmbientLightNeutralColorWeight.reset()
   screenAmbientLightBaseBrightness.reset()
@@ -60,7 +58,6 @@ export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambien
     screenAmbientLightSquint,
     screenAmbientLightCaptureIntervalMs,
     screenAmbientLightSampleWidth,
-    screenAmbientLightSampleHeight,
     screenAmbientLightResponseMs,
     screenAmbientLightNeutralColorWeight,
     screenAmbientLightBaseBrightness,

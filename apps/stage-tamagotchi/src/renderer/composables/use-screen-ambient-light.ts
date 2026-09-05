@@ -77,7 +77,6 @@ export function useScreenAmbientLight(sources: {
     screenAmbientLightForcedColor,
     screenAmbientLightNeutralColorWeight,
     screenAmbientLightResponseMs,
-    screenAmbientLightSampleHeight,
     screenAmbientLightSampleWidth,
     screenAmbientLightSource,
   } = storeToRefs(settings)
@@ -167,11 +166,6 @@ export function useScreenAmbientLight(sources: {
     if (screenAmbientLightEnabled.value && screenAmbientLightSource.value === 'forced-color')
       applyForcedColor()
   })
-
-  watch([screenAmbientLightSampleWidth, screenAmbientLightSampleHeight], ([width, height]) => {
-    canvas.width = Math.max(1, Math.round(width))
-    canvas.height = Math.max(1, Math.round(height))
-  }, { immediate: true })
 
   // The stream rate is the sample rate, so a new interval must reach the track.
   // A rejected constraint keeps the old rate, which is slower but still correct.
@@ -300,6 +294,25 @@ export function useScreenAmbientLight(sources: {
     ambientLight.reset()
   }
 
+  /**
+   * Sizes the sample canvas so that a frame pixel is square on screen.
+   *
+   * The track already delivers the display aspect, so matching it means the
+   * measurement never stretches the frame. Stretching made the blur oval and
+   * weighed the squashed axis more, which moved the map mean and the exposure
+   * whenever a light moved between the sides and the top.
+   */
+  function followVideoShape() {
+    const width = Math.max(1, Math.round(screenAmbientLightSampleWidth.value))
+    const height = Math.max(1, Math.round(width * video.videoHeight / Math.max(1, video.videoWidth)))
+    if (canvas.width === width && canvas.height === height)
+      return
+
+    canvas.width = width
+    canvas.height = height
+    paintedMask.reset()
+  }
+
   function sample() {
     if (!context || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
       return
@@ -308,6 +321,7 @@ export function useScreenAmbientLight(sources: {
     if (!display)
       return
 
+    followVideoShape()
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
     const frame = context.getImageData(0, 0, canvas.width, canvas.height)
     const now = performance.now()
