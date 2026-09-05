@@ -9,7 +9,7 @@ import { useLogger } from '@guiiai/logg'
 import { extractUsageFromBody } from '../../../../../services/domain/billing/billing'
 import { createBadRequestError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
-import { buildSafeResponseHeaders } from '../../http/response'
+import { buildSafeErrorResponseHeaders, buildSafeResponseHeaders } from '../../http/response'
 import { createOpenAiRouteBilling } from '../../middlewares/billing'
 import { createRouteTelemetry, newRouteContext } from '../../middlewares/telemetry'
 
@@ -143,7 +143,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
 
       return new Response(response.body, {
         status: response.status,
-        headers: buildSafeResponseHeaders(response),
+        headers: buildSafeErrorResponseHeaders(response),
       })
     }
 
@@ -259,7 +259,8 @@ async function routeChatAliasCandidates(input: {
   routeCtx: ReturnType<typeof newRouteContext>
 }> {
   let lastError: unknown
-  for (const modelId of input.modelIds) {
+  for (let index = 0; index < input.modelIds.length; index += 1) {
+    const modelId = input.modelIds[index]
     const routeCtx = newRouteContext()
     try {
       const response = await input.deps.llmRouter.route({
@@ -268,7 +269,13 @@ async function routeChatAliasCandidates(input: {
         headers: {},
         abortSignal: input.abortSignal,
       }, routeCtx)
-      return { modelId, response, routeCtx }
+      if (response.ok || index === input.modelIds.length - 1)
+        return { modelId, response, routeCtx }
+
+      // The alias owns the next configured model candidate. Its non-2xx body
+      // cannot reach the client while a later candidate can still serve the
+      // request, so release it before the next route attempt.
+      await response.body?.cancel().catch(() => {})
     }
     catch (err) {
       if (input.abortSignal?.aborted)
