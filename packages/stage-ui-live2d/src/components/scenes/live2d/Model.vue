@@ -189,8 +189,10 @@ const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
 const internalModelRef = shallowRef<PixiLive2DInternalModel>()
 const expressionController = useExpressionController({
   internalModel: internalModelRef,
-  modelId: props.modelId,
 })
+// This identity belongs to model.value. It changes only when a model load
+// commits, so expression initialization cannot observe a newer prop by mistake.
+let loadedModelId: string | undefined
 // Saved SDK manager references for runtime expression toggle (restore on disable)
 const savedEyeBlink = shallowRef<any>(null)
 const savedExpressionManager = shallowRef<any>(null)
@@ -244,6 +246,7 @@ async function performModelLoad() {
     // Dispose expression controller before destroying the old model
     expressionController.dispose()
     internalModelRef.value = undefined
+    loadedModelId = undefined
 
     try {
       pixiApp.value.stage.removeChild(model.value)
@@ -254,7 +257,11 @@ async function performModelLoad() {
     }
     model.value = undefined
   }
-  if (!modelSrcRef.value) {
+  const pendingModel = {
+    id: props.modelId,
+    src: modelSrcRef.value,
+  }
+  if (!pendingModel.src) {
     console.warn('No Live2D model source provided.')
     modelLoading.value = false
     componentState.value = 'mounted'
@@ -269,7 +276,7 @@ async function performModelLoad() {
     }
 
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
+    await Live2DFactory.setupLive2DModel(live2DModel, { url: pendingModel.src, id: pendingModel.id }, { autoInteract: false })
     availableMotions.value.forEach((motion) => {
       if (motion.motionName in Emotion) {
         motionMap.value[motion.fileName] = motion.motionName
@@ -436,6 +443,7 @@ async function performModelLoad() {
     // toggled off at runtime.
     savedEyeBlink.value = internalModel.eyeBlink
     savedExpressionManager.value = motionManager.expressionManager
+    loadedModelId = pendingModel.id
 
     // --- Expression controller initialisation (conditional)
     if (live2dExpressionEnabled.value) {
@@ -465,7 +473,7 @@ async function performModelLoad() {
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
-    await initExpressionController(internalModelRef.value).catch((err) => {
+    await initExpressionController(internalModelRef.value, loadedModelId).catch((err) => {
       console.warn('[Model.vue] Expression controller initialization failed:', err)
     })
   }
@@ -478,7 +486,7 @@ async function performModelLoad() {
  * This is intentionally fire-and-forget from loadModel so that a failure in
  * expression loading does not prevent the model itself from rendering.
  */
-async function initExpressionController(internalModel?: PixiLive2DInternalModel) {
+async function initExpressionController(internalModel?: PixiLive2DInternalModel, modelId?: string) {
   // Dispose any previous state (handles model reloads)
   expressionController.dispose()
 
@@ -502,7 +510,7 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
     return response.text()
   }
 
-  await expressionController.initialise(expressionRefs, readExpFile)
+  await expressionController.initialise(modelId, expressionRefs, readExpFile)
 }
 
 async function setMotion(motionName: string, index?: number) {
@@ -738,7 +746,7 @@ watch(live2dExpressionEnabled, (enabled) => {
     }
 
     internalModelRef.value = im
-    initExpressionController(im).catch((err) => {
+    initExpressionController(im, loadedModelId).catch((err) => {
       console.warn('[Model.vue] Expression controller initialisation failed:', err)
     })
   }
@@ -773,6 +781,7 @@ onUnmounted(() => {
   resizeAnimation?.pause()
   disposeShouldUpdateView?.()
   expressionController.dispose()
+  loadedModelId = undefined
 })
 
 function listMotionGroups() {
