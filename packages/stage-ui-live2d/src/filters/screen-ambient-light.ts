@@ -3,6 +3,7 @@ import type {
   AmbientLightEnvironment,
   AmbientLightFilterOptions,
   AmbientLightMap,
+  NormalizedRectangle,
   ScreenAmbientLightMode,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 
@@ -13,6 +14,7 @@ import {
   ambientLightMapSize,
   ambientLightNeutralMapMargin,
   averageAmbientLightMap,
+  wholeWindowRectangle,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 
 /**
@@ -137,6 +139,12 @@ uniform float uTranslucentWrap;
 // distance on screen. The measurement places the texels with this pair, so the
 // two disagree about every position if they differ.
 uniform vec2 uMapMargin;
+// Where the renderer drew its subject inside the stage window, as x, y, width
+// and height in window units. The measurement places the maps around this
+// rectangle, so reading them anywhere else lands on the wrong texel: a window
+// wider than its subject would otherwise stretch the maps across its empty
+// half.
+uniform highp vec4 uSubjectRect;
 
 const vec3 luminanceWeights = vec3(0.2126, 0.7152, 0.0722);
 
@@ -223,7 +231,8 @@ void main(void) {
   // of the screen beside the sleeve rather than a color shared by its whole
   // side of the model.
   vec2 windowUv = (outputFrame.xy + frameCoord * outputFrame.zw) / uStageSize;
-  vec2 mapUv = (windowUv + uMapMargin) / (vec2(1.0) + 2.0 * uMapMargin);
+  vec2 subjectUv = (windowUv - uSubjectRect.xy) / max(uSubjectRect.zw, vec2(0.0001));
+  vec2 mapUv = (subjectUv + uMapMargin) / (vec2(1.0) + 2.0 * uMapMargin);
 
   vec3 baseLinear = srgbToLinear(source.rgb / source.a);
   float effect = min(uStrength, 1.0);
@@ -300,6 +309,15 @@ void main(void) {
 /** One frame of measurements that the filter turns into shader uniforms. */
 export interface ScreenAmbientLightFilterUpdate {
   environment: AmbientLightEnvironment
+  /**
+   * Where the renderer drew its subject inside the stage window, in window
+   * units. It has to be the rectangle the measurement placed its maps around,
+   * or every lookup lands somewhere the light was never measured.
+   *
+   * Leave it out and the whole window stands in, which is what a stage with
+   * nothing drawn on it reports.
+   */
+  subject?: NormalizedRectangle
   mode: ScreenAmbientLightMode
   strength: number
   options: AmbientLightFilterOptions
@@ -378,6 +396,7 @@ export class ScreenAmbientLightFilter extends Filter {
       uSurroundPeak: 1,
       uTranslucentWrap: 0,
       uMapMargin: new Float32Array([ambientLightNeutralMapMargin.x, ambientLightNeutralMapMargin.y]),
+      uSubjectRect: new Float32Array([0, 0, 1, 1]),
     })
 
     this.surroundTexels = surroundTexels
@@ -416,6 +435,11 @@ export class ScreenAmbientLightFilter extends Filter {
     this.uniforms.uExposureRange = clamp(options.exposureRange, -1, 1)
     this.uniforms.uMapMargin[0] = environment.mapMargin.x
     this.uniforms.uMapMargin[1] = environment.mapMargin.y
+    const subject = next.subject ?? wholeWindowRectangle
+    this.uniforms.uSubjectRect[0] = subject.x
+    this.uniforms.uSubjectRect[1] = subject.y
+    this.uniforms.uSubjectRect[2] = Math.max(subject.width, 0.0001)
+    this.uniforms.uSubjectRect[3] = Math.max(subject.height, 0.0001)
     this.uniforms.uChroma = clamp(options.chroma, 0, 1)
     this.uniforms.uWrapIntensity = Math.max(0, options.wrapIntensity)
     this.uniforms.uBacklight = clamp(options.backlight, 0, 2)

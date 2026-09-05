@@ -1,10 +1,15 @@
-import type { AmbientLightEnvironment, ScreenAmbientLightMode, ScreenAmbientLightSource } from '../screen-ambient-light'
+import type {
+  AmbientLightEnvironment,
+  NormalizedRectangle,
+  ScreenAmbientLightMode,
+  ScreenAmbientLightSource,
+} from '../screen-ambient-light'
 
 import { defineStore } from 'pinia'
 import { shallowRef } from 'vue'
 
 import { useLocalStorageManualReset } from '../composables'
-import { ambientLightDefaults, ambientLightNeutralEnvironment } from '../screen-ambient-light'
+import { ambientLightDefaults, ambientLightNeutralEnvironment, wholeWindowRectangle } from '../screen-ambient-light'
 
 // These describe the screen behind the AIRI window, not one renderer, so they
 // stay out of the Live2D package that owns the only shader reading them today.
@@ -75,20 +80,32 @@ export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambien
 /** Holds the latest screen-derived environment for the active renderer. */
 export const useScreenAmbientLightEnvironment = defineStore('screen-ambient-light-environment', () => {
   const environment = shallowRef<AmbientLightEnvironment>(ambientLightNeutralEnvironment)
+  /**
+   * Where the renderer drew its subject inside the stage window, in window
+   * units, as the capture measured it.
+   *
+   * The maps are placed around this rectangle, so a renderer has to read the
+   * same one to turn a fragment position into a map position. Publishing it
+   * beside the light keeps the two from drifting apart.
+   */
+  const subject = shallowRef<NormalizedRectangle>(wholeWindowRectangle)
   const active = shallowRef(false)
 
-  function setEnvironment(next: AmbientLightEnvironment) {
+  function setEnvironment(next: AmbientLightEnvironment, nextSubject: NormalizedRectangle = wholeWindowRectangle) {
     environment.value = next
+    subject.value = nextSubject
     active.value = true
   }
 
   function reset() {
     environment.value = ambientLightNeutralEnvironment
+    subject.value = wholeWindowRectangle
     active.value = false
   }
 
   return {
     environment,
+    subject,
     active,
     setEnvironment,
     reset,

@@ -4,13 +4,14 @@ import type { Filter } from '@pixi/core'
 import type {
   AmbientLightEnvironment,
   AmbientLightFilterOptions,
+  NormalizedRectangle,
   ScreenAmbientLightMode,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
-import { ambientLightDefaults, ambientLightNeutralEnvironment, ambientLightPerceptualLevel } from '@proj-airi/stage-shared/screen-ambient-light'
+import { ambientLightDefaults, ambientLightNeutralEnvironment, ambientLightPerceptualLevel, wholeWindowRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useTheme } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { animate } from 'animejs'
@@ -66,6 +67,7 @@ const props = withDefaults(defineProps<{
   screenAmbientLightActive?: boolean
   screenAmbientLightFilterOptions?: AmbientLightFilterOptions
   screenAmbientLightEnvironment?: AmbientLightEnvironment
+  screenAmbientLightSubject?: NormalizedRectangle
   screenAmbientLightMode?: ScreenAmbientLightMode
   screenAmbientLightStrength?: number
   screenAmbientLightSquint?: number
@@ -89,6 +91,7 @@ const props = withDefaults(defineProps<{
   screenAmbientLightActive: false,
   screenAmbientLightFilterOptions: () => ({ ...ambientLightDefaults.filter }),
   screenAmbientLightEnvironment: () => ambientLightNeutralEnvironment,
+  screenAmbientLightSubject: () => wholeWindowRectangle,
   screenAmbientLightMode: ambientLightDefaults.mode,
   screenAmbientLightStrength: ambientLightDefaults.strength,
   screenAmbientLightSquint: ambientLightDefaults.squint,
@@ -233,6 +236,7 @@ const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
 const screenAmbientLightActive = toRef(() => props.screenAmbientLightActive)
 const screenAmbientLightFilterOptions = toRef(() => props.screenAmbientLightFilterOptions)
 const screenAmbientLightEnvironment = toRef(() => props.screenAmbientLightEnvironment)
+const screenAmbientLightSubject = toRef(() => props.screenAmbientLightSubject)
 const screenAmbientLightMode = toRef(() => props.screenAmbientLightMode)
 const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
 const screenAmbientLightSquint = toRef(() => props.screenAmbientLightSquint)
@@ -602,6 +606,9 @@ function updateAmbientLightFilter() {
 
   screenAmbientLightFilter.value.update({
     environment: screenAmbientLightEnvironment.value,
+    // The measurement placed its maps around this rectangle, so the shader has
+    // to read them from it rather than from the whole window.
+    subject: screenAmbientLightSubject.value,
     mode: screenAmbientLightMode.value,
     strength: screenAmbientLightStrength.value,
     options: screenAmbientLightFilterOptions.value,
