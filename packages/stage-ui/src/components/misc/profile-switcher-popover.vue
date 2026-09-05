@@ -35,7 +35,8 @@ const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const { cards, activeCardId, activeCard } = storeToRefs(cardStore)
 
-const creatingNew = ref(false)
+/** Keeps host surfaces open while the user enters a name for a new profile. */
+const creatingNew = defineModel<boolean>('creating', { default: false })
 const newProfileName = ref('')
 const nameInputRef = ref<HTMLInputElement>()
 const containerRef = ref<HTMLElement>()
@@ -78,12 +79,6 @@ const selectOptions = computed(() => [
   },
 ])
 
-watch(open, (isOpen) => {
-  if (!isOpen) {
-    cancelCreate()
-  }
-})
-
 watch(activeCardId, (value) => {
   selectedProfile.value = value
 }, { immediate: true })
@@ -97,7 +92,6 @@ watch(selectedProfile, (value, previousValue) => {
 })
 
 onClickOutside(containerRef, () => {
-  open.value = false
   cancelCreate()
 })
 
@@ -159,7 +153,7 @@ function toggleOpen() {
 </script>
 
 <template>
-  <div ref="containerRef" :class="['relative inline-flex flex-col items-end gap-2']">
+  <div :class="['relative inline-flex flex-col items-end gap-2']">
     <!-- Electron -->
     <div
       v-if="$slots.default"
@@ -290,6 +284,7 @@ function toggleOpen() {
     >
       <div
         v-if="creatingNew"
+        ref="containerRef"
         :class="[
           'absolute z-[10011] w-56 rounded-xl border-2 p-2 shadow-sm backdrop-blur-xl',
           props.contentSide === 'top' ? 'bottom-full mb-2' : 'top-full mt-2',
