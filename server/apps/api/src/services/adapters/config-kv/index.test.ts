@@ -342,10 +342,10 @@ describe('configKVService', () => {
   })
 
   it('refresh should bypass the ordinary store read', async () => {
-    store._store.set('STRIPE_FLUX_PRODUCT_ID', JSON.stringify('prod_abc123'))
+    store._store.set('FLUX_PER_REQUEST', '9')
 
-    await expect(service.refresh('STRIPE_FLUX_PRODUCT_ID')).resolves.toBe('prod_abc123')
-    expect(store.getFreshRaw).toHaveBeenCalledWith('STRIPE_FLUX_PRODUCT_ID')
+    await expect(service.refresh('FLUX_PER_REQUEST')).resolves.toBe(9)
+    expect(store.getFreshRaw).toHaveBeenCalledWith('FLUX_PER_REQUEST')
     expect(store.getRaw).not.toHaveBeenCalled()
   })
 })
