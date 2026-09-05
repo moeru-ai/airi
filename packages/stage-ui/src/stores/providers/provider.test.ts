@@ -354,6 +354,77 @@ describe('provider store synchronization boundary', () => {
     ])
   })
 
+  it('ignores a model catalog returned for superseded provider credentials', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const providerId = 'funasr-instance'
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://first.example/v1/',
+    })
+
+    const responseResolvers: Array<(response: Response) => void> = []
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => {
+      responseResolvers.push(resolve)
+    })))
+
+    const firstRequest = store.fetchModelsForProvider(providerId)
+    await vi.waitFor(() => expect(responseResolvers).toHaveLength(1))
+
+    configStore.providers[providerId]!.config = {
+      baseUrl: 'http://second.example/v1/',
+    }
+    const secondRequest = store.fetchModelsForProvider(providerId)
+    await vi.waitFor(() => expect(responseResolvers).toHaveLength(2))
+
+    responseResolvers[1](new Response(JSON.stringify({
+      data: [{ id: 'model-b' }],
+      object: 'list',
+    }), { headers: { 'Content-Type': 'application/json' }, status: 200 }))
+    await secondRequest
+    expect(store.getModelsForProvider(providerId)).toEqual([
+      expect.objectContaining({ id: 'model-b' }),
+    ])
+
+    responseResolvers[0](new Response(JSON.stringify({
+      data: [{ id: 'model-a' }],
+      object: 'list',
+    }), { headers: { 'Content-Type': 'application/json' }, status: 200 }))
+    await firstRequest
+
+    expect(store.getModelsForProvider(providerId)).toEqual([
+      expect.objectContaining({ id: 'model-b' }),
+    ])
+  })
+
+  it('shares concurrent model catalog requests for the same provider credentials', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const providerId = 'funasr-instance'
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://same.example/v1/',
+    })
+
+    let resolveResponse!: (response: Response) => void
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => {
+      resolveResponse = resolve
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const firstRequest = store.fetchModelsForProvider(providerId)
+    const secondRequest = store.fetchModelsForProvider(providerId)
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
+
+    resolveResponse(new Response(JSON.stringify({
+      data: [{ id: 'shared-model' }],
+      object: 'list',
+    }), { headers: { 'Content-Type': 'application/json' }, status: 200 }))
+
+    const [firstCatalog, secondCatalog] = await Promise.all([firstRequest, secondRequest])
+    expect(firstCatalog.models).toEqual([expect.objectContaining({ id: 'shared-model' })])
+    expect(secondCatalog.models).toEqual([expect.objectContaining({ id: 'shared-model' })])
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
   // ROOT CAUSE:
   //
   // Speech startup previously had both an immediate watcher and a mounted

@@ -46,6 +46,14 @@ export interface ProviderRuntimeState {
   modelError: string | null
 }
 
+interface ProviderModelCatalogResult {
+  [key: string]: unknown
+  available?: boolean
+  defaultModel?: string | null
+  lastKnownAvailable?: boolean
+  models: ModelInfo[]
+}
+
 /** Stable fallback for reactive consumers when a provider has no cached catalog. */
 const emptyProviderModels: ModelInfo[] = []
 Object.freeze(emptyProviderModels)
@@ -160,6 +168,9 @@ export const useProviderStore = defineStore('provider', () => {
   })
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
   const providerVoiceListInFlight = new Map<string, Promise<VoiceInfo[]>>()
+  const providerModelRequestVersions = new Map<string, number>()
+  const providerModelRequests = new Map<string, { configKey: string, promise: Promise<ProviderModelCatalogResult> }>()
+  let nextProviderModelRequestVersion = 0
   const providerRevalidationLoops = new Map<string, { pause: () => void, resume: () => void }>()
 
   // Server-driven availability overrides for providers whose visibility can
@@ -475,6 +486,8 @@ export const useProviderStore = defineStore('provider', () => {
   function deleteProvider(providerId: string) {
     void providerConfigStore.removeProvider(providerId)
     delete providerRuntimeState.value[providerId]
+    providerModelRequestVersions.delete(providerId)
+    providerModelRequests.delete(providerId)
   }
 
   function forceProviderConfigured(providerId: string) {
@@ -500,6 +513,8 @@ export const useProviderStore = defineStore('provider', () => {
   async function resetProviderSettings() {
     await providerConfigStore.resetProviders()
     providerRuntimeState.value = {}
+    providerModelRequestVersions.clear()
+    providerModelRequests.clear()
 
     providerRevalidationLoops.forEach(loop => loop.pause())
     providerRevalidationLoops.clear()
@@ -613,7 +628,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   // Function to fetch models for a specific provider
-  async function fetchModelsForProvider(providerId: string) {
+  async function fetchModelsForProvider(providerId: string): Promise<ProviderModelCatalogResult> {
     const definition = findProviderDefinition(providerId)
     if (!definition)
       return { models: [] }
@@ -622,71 +637,96 @@ export const useProviderStore = defineStore('provider', () => {
     if (!config && definition.requiresCredentials !== false)
       return { models: [] }
 
-    initializeProviderRuntimeState(providerId)
-    providerRuntimeState.value = {
-      ...providerRuntimeState.value,
-      [providerId]: {
-        ...providerRuntimeState.value[providerId],
-        modelStatus: 'loading',
-        modelError: null,
-      },
+    const configKey = JSON.stringify(config || {})
+    const pendingRequest = providerModelRequests.get(providerId)
+    if (pendingRequest?.configKey === configKey)
+      return pendingRequest.promise
+
+    const requestVersion = ++nextProviderModelRequestVersion
+    providerModelRequestVersions.set(providerId, requestVersion)
+    const isCurrentRequest = () => {
+      const currentConfigKey = JSON.stringify(providerCredentials.value[providerId] || {})
+      return providerModelRequestVersions.get(providerId) === requestVersion
+        && currentConfigKey === configKey
     }
 
-    try {
-      const catalog = await listProviderModels(providerId, config || {})
-      const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
-        .map(model => ({
-          id: model.id,
-          name: model.name,
-          description: model.description,
-          contextLength: model.contextLength,
-          deprecated: model.deprecated,
-          provider: providerId,
-        }))
+    const runRequest = async (): Promise<ProviderModelCatalogResult> => {
+      initializeProviderRuntimeState(providerId)
+      providerRuntimeState.value = {
+        ...providerRuntimeState.value,
+        [providerId]: {
+          ...providerRuntimeState.value[providerId],
+          modelStatus: 'loading',
+          modelError: null,
+        },
+      }
 
-      // Transform and store the models
-      // A synced snapshot can replace this provider entry while the request is
-      // pending. Read the current entry after await instead of updating the
-      // detached object that entered the request.
-      const currentRuntimeState = providerRuntimeState.value[providerId]
-      if (currentRuntimeState) {
-        providerRuntimeState.value = {
-          ...providerRuntimeState.value,
-          [providerId]: {
-            ...currentRuntimeState,
+      try {
+        const catalog = await listProviderModels(providerId, config || {})
+        const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
+          .map(model => ({
+            id: model.id,
+            name: model.name,
+            description: model.description,
+            contextLength: model.contextLength,
+            deprecated: model.deprecated,
+            provider: providerId,
+          }))
+
+        // A synced snapshot or a newer configuration request can replace this
+        // provider entry while the request is pending. Only the newest request
+        // for the current credentials may publish its catalog.
+        const currentRuntimeState = isCurrentRequest()
+          ? providerRuntimeState.value[providerId]
+          : undefined
+        if (currentRuntimeState) {
+          providerRuntimeState.value = {
+            ...providerRuntimeState.value,
+            [providerId]: {
+              ...currentRuntimeState,
+              models: normalizedModels,
+              defaultModel: catalog.defaultModel ?? null,
+              modelStatus: 'ready',
+              modelError: null,
+            },
+          }
+          // Synced action results pass through structuredClone. Return local
+          // catalog values because reading models back from state returns a Vue
+          // proxy and provider-specific metadata is not part of synced state.
+          return {
+            ...catalog,
             models: normalizedModels,
-            defaultModel: catalog.defaultModel ?? null,
-            modelStatus: 'ready',
-            modelError: null,
-          },
+          }
         }
-        // Synced action results pass through structuredClone. Return local
-        // catalog values because reading models back from state returns a Vue
-        // proxy and provider-specific metadata is not part of synced state.
-        return {
-          ...catalog,
-          models: normalizedModels,
-        }
+        return { models: [] }
       }
-      return { models: [] }
-    }
-    catch (error) {
-      console.error(`Error fetching models for ${providerId}:`, error)
-      const currentRuntimeState = providerRuntimeState.value[providerId]
-      if (currentRuntimeState) {
-        providerRuntimeState.value = {
-          ...providerRuntimeState.value,
-          [providerId]: {
-            ...currentRuntimeState,
-            modelStatus: 'error',
-            modelError: errorMessageFrom(error) ?? 'Unknown error',
-          },
+      catch (error) {
+        console.error(`Error fetching models for ${providerId}:`, error)
+        const currentRuntimeState = isCurrentRequest()
+          ? providerRuntimeState.value[providerId]
+          : undefined
+        if (currentRuntimeState) {
+          providerRuntimeState.value = {
+            ...providerRuntimeState.value,
+            [providerId]: {
+              ...currentRuntimeState,
+              modelStatus: 'error',
+              modelError: errorMessageFrom(error) ?? 'Unknown error',
+            },
+          }
         }
+        const lastKnownAvailable = providerAvailabilityOverrides.value[providerId]
+          ?? (providerConfigStore.configuredProviders[providerId] ? true : undefined)
+        return { models: [], lastKnownAvailable }
       }
-      const lastKnownAvailable = providerAvailabilityOverrides.value[providerId]
-        ?? (providerConfigStore.configuredProviders[providerId] ? true : undefined)
-      return { models: [], lastKnownAvailable }
     }
+
+    const request = runRequest().finally(() => {
+      if (providerModelRequests.get(providerId)?.promise === request)
+        providerModelRequests.delete(providerId)
+    })
+    providerModelRequests.set(providerId, { configKey, promise: request })
+    return request
   }
 
   // Get models for a specific provider
