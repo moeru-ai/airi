@@ -7,7 +7,7 @@ import type { ProviderSyncRow, ProviderSyncSnapshot } from './merge'
 import { useDebounceFn, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 
 import { client } from '../../composables/api'
 import { getDefinedProvider } from '../../libs/providers'
@@ -33,10 +33,8 @@ function isUserProvider(provider: InferenceServiceProvider) {
 }
 
 /**
- * Stores serializable provider instances and their configuration.
- *
- * Local data is the primary copy. Cloud is a replica that this store
- * syncs on login and pushes after a debounce.
+ * Local provider instances are the primary copy. Cloud is a replica:
+ * pull on login, push after a debounce.
  */
 export const useProviderConfigStore = defineStore('provider-config', () => {
   const authStore = useAuthStore()
@@ -84,6 +82,12 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
   }
 
+  // Uploaded fields only. status and replicaUpdatedAt stay local; a successful
+  // push writes replicaUpdatedAt and must not look like a new local edit.
+  function replicaBody(row: { definitionId: string, config: Record<string, unknown> }) {
+    return { definitionId: row.definitionId, config: row.config }
+  }
+
   function snapshotLocal(): ProviderSyncSnapshot {
     const live: Record<string, ProviderSyncRow> = {}
     for (const provider of Object.values(providers.value)) {
@@ -91,8 +95,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
         continue
       live[provider.id] = {
         id: provider.id,
-        definitionId: provider.definitionId,
-        config: provider.config,
+        ...replicaBody(provider),
         replicaUpdatedAt: provider.replicaUpdatedAt,
       }
     }
@@ -115,13 +118,28 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     const remote = lastLiveRemote[provider.id]
     if (!remote)
       return true
-    return JSON.stringify({ definitionId: provider.definitionId, config: provider.config })
-      !== JSON.stringify({ definitionId: remote.definitionId, config: remote.config })
+    return JSON.stringify(replicaBody(provider)) !== JSON.stringify(replicaBody(remote))
   }
 
   const schedulePush = useDebounceFn(() => {
     void pushProviders()
   }, PUSH_DEBOUNCE_MS)
+
+  // Nested config writes skip actions, so the replica payload is watched.
+  const replicaSignature = computed(() => {
+    const snapshot = snapshotLocal()
+    const live = Object.fromEntries(
+      Object.entries(snapshot.live).map(([id, row]) => [id, replicaBody(row)]),
+    )
+    return JSON.stringify({
+      live,
+      pendingDeletes: snapshot.pendingDeletes,
+    })
+  })
+
+  watch(replicaSignature, () => {
+    void schedulePush()
+  })
 
   const configs = computed(() => Object.fromEntries(
     Object.entries(providers.value).map(([providerId, provider]) => [providerId, provider.config]),
