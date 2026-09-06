@@ -4,7 +4,7 @@ import type { Character, CreateCharacterPayload } from '@proj-airi/stage-ui/type
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
 import { CreateCharacterSchema } from '@proj-airi/stage-ui/types/character'
-import { Button, FieldInput, GhostButton } from '@proj-airi/ui'
+import { Button, FieldInput, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import {
   DialogContent,
   DialogOverlay,
@@ -234,7 +234,11 @@ const isOpen = computed({
             </div>
 
             <!-- Content -->
-            <div class="flex-1 overflow-y-auto p-6">
+            <ScrollableArea
+              :class="['min-h-0 flex-1']"
+              :style="{ maxHeight: 'calc(85vh - 8rem)' }"
+              :viewport-class="['p-6']"
+            >
               <!-- Identity Tab -->
               <div v-show="activeTab === 'identity'" class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
@@ -286,7 +290,7 @@ const isOpen = computed({
                   </div>
                 </div>
               </div>
-            </div>
+            </ScrollableArea>
           </div>
 
           <!-- Footer -->

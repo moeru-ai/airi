@@ -65,6 +65,20 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       definitionId,
       config,
       status: 'unconfigured',
+      configuredBy: definition.configuredBy ?? 'user',
+    }
+  }
+
+  // Provider definitions own configuration lifecycle policy. Apply that
+  // policy to persisted snapshots before module pages consume them. Providers
+  // without an owner declaration remain user-configured.
+  for (const provider of Object.values(providers.value)) {
+    const configuredByDefinition = getDefinedProvider(provider.definitionId)?.configuredBy
+    if (configuredByDefinition) {
+      provider.configuredBy = configuredByDefinition
+    }
+    else if (!provider.configuredBy) {
+      provider.configuredBy = 'user'
     }
   }
 
@@ -119,6 +133,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       definitionId,
       config,
       status: 'unconfigured' as const,
+      configuredBy: definition.configuredBy ?? 'user',
     }
     providers.value[providerId] = provider
     return provider
@@ -136,6 +151,42 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     const provider = providers.value[providerId]
     if (provider)
       provider.status = status
+  }
+
+  /**
+   * Updates the selected model in the leader-owned provider snapshot.
+   *
+   * Follower renderers must await this action instead of mutating replicated
+   * configuration directly, because `state: true` proposals contain the full
+   * store and can overwrite newer leader state.
+   */
+  async function setProviderModel(providerId: string, model: string) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+
+    providers.value[providerId] = {
+      ...provider,
+      config: { ...provider.config, model },
+    }
+  }
+
+  /**
+   * Seeds a discovered default without replacing a model selected by the user.
+   */
+  async function setProviderModelIfUnset(providerId: string, model: string) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+
+    const currentModel = provider.config.model
+    if (typeof currentModel === 'string' && currentModel.length > 0)
+      return
+
+    providers.value[providerId] = {
+      ...provider,
+      config: { ...provider.config, model },
+    }
   }
 
   function mergeProviderSnapshot(snapshot: Record<string, InferenceServiceProvider>) {
@@ -237,6 +288,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     markProviderAdded,
     unmarkProviderAdded,
     setProviderStatus,
+    setProviderModel,
+    setProviderModelIfUnset,
     fetchProviders,
     addProvider,
     removeProvider,
@@ -251,6 +304,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'markProviderAdded',
       'unmarkProviderAdded',
       'setProviderStatus',
+      'setProviderModel',
+      'setProviderModelIfUnset',
       'addProvider',
       'removeProvider',
       'updateProviderConfig',

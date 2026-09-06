@@ -3,7 +3,7 @@ import type { Ref } from 'vue'
 
 import { Rive } from '@rive-app/canvas-lite'
 import { breakpointsTailwind, useBreakpoints, useDark } from '@vueuse/core'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 
 import CircleFadeInAnimation from './assets/circle_blink_in_-_loading_(@proj-airi).riv'
 import CRT from './CRT.vue'
@@ -243,9 +243,9 @@ const bootMessages = computed<BootMessage[]>(() => [
   },
 ])
 
-const riveCanvas = ref<HTMLCanvasElement>()
+const riveCanvas = useTemplateRef<HTMLCanvasElement>('riveCanvas')
 const rive = ref<Rive>()
-const crtRef = ref<InstanceType<typeof CRT>>()
+const crtRef = useTemplateRef<InstanceType<typeof CRT>>('crtRef')
 
 const isDark = useDark()
 
@@ -271,8 +271,9 @@ function handleUpdateDone(value: boolean) {
 
 // Method to update typing speed for a specific message
 function setMessageTypingSpeed(index: number, speed: number) {
-  if (index >= 0 && index < bootMessages.value.length && speed > 0) {
-    bootMessages[index].typingSpeed = speed
+  const message = bootMessages.value[index]
+  if (message && speed > 0) {
+    message.typingSpeed = speed
   }
 }
 
@@ -376,12 +377,16 @@ async function writeLine<T extends any[]>(
 }
 
 onMounted(async () => {
-  riveCanvas.value.width = Math.max(window.innerWidth, 500) * 2
-  riveCanvas.value.height = Math.max(window.innerWidth, 500) * 2
+  const canvas = riveCanvas.value
+  if (!canvas)
+    return
+
+  canvas.width = Math.max(window.innerWidth, 500) * 2
+  canvas.height = Math.max(window.innerWidth, 500) * 2
 
   rive.value = new Rive({
     src: CircleFadeInAnimation,
-    canvas: riveCanvas.value,
+    canvas,
     autoplay: true,
     artboard: isDark.value ? 'Bold' : 'Bold (Light)',
   })
@@ -398,10 +403,14 @@ onMounted(async () => {
 })
 
 watch(isDark, () => {
+  const canvas = riveCanvas.value
+  if (!canvas)
+    return
+
   rive.value?.cleanup()
   rive.value = new Rive({
     src: CircleFadeInAnimation,
-    canvas: riveCanvas.value,
+    canvas,
     autoplay: true,
     artboard: isDark.value ? 'Bold' : 'Bold (Light)',
   })

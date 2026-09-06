@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import type { Live2DMotionDriver } from '@proj-airi/stage-ui-live2d'
+import type { SelectTabOption } from '@proj-airi/ui'
+
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
 import { defaultModelParameters, useExpressionStore, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
@@ -7,6 +10,8 @@ import { Button, Checkbox, FieldCheckbox, FieldCombobox, FieldRange, SelectTab }
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import MagicMotionSettings from '../../../../features/motions/live2d/components/magic-settings.vue'
 
 import { PropertyPoint } from '../../../data-pane'
 import { Section } from '../../../layouts'
@@ -27,6 +32,7 @@ const { t } = useI18n()
 
 const settings = useSettingsLive2d()
 const {
+  live2dMotionDriver,
   live2dEyeTracking,
   live2dModelEyeOffset,
   live2dIdleAnimationEnabled,
@@ -38,6 +44,19 @@ const {
   live2dRenderScale,
   live2dForceIdleEyeAnimation,
 } = storeToRefs(settings)
+
+const motionDriverOptions = computed<SelectTabOption<Live2DMotionDriver>[]>(() => [
+  {
+    value: 'universal',
+    label: t('settings.live2d.animation.motion-driver.options.universal.title'),
+    description: t('settings.live2d.animation.motion-driver.options.universal.description'),
+  },
+  {
+    value: 'magic',
+    label: t('settings.live2d.animation.motion-driver.options.magic.title'),
+    description: t('settings.live2d.animation.motion-driver.options.magic.description'),
+  },
+])
 
 const live2d = useLive2dParams()
 const {
@@ -338,13 +357,31 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     size="sm"
     :expand="false"
   >
+    <label :class="['flex flex-wrap gap-4']">
+      <div :class="['min-w-0 flex-1']">
+        <div :class="['flex items-center gap-1 text-sm font-medium']">
+          {{ t('settings.live2d.animation.motion-driver.title') }}
+        </div>
+        <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+          {{ t('settings.live2d.animation.motion-driver.description') }}
+        </div>
+      </div>
+      <SelectTab
+        v-model="live2dMotionDriver"
+        :options="motionDriverOptions"
+        size="sm"
+        :class="['shrink-0']"
+      />
+    </label>
+    <MagicMotionSettings v-if="live2dMotionDriver === 'magic'" />
     <FieldCheckbox
       v-model="live2dEyeTracking"
       :label="t('settings.live2d.animation.focus.title')"
       :description="t('settings.live2d.animation.focus.description')"
+      :disabled="live2dMotionDriver === 'magic'"
       placement="right"
     />
-    <div v-if="live2dEyeTracking" class="grid grid-cols-4">
+    <div v-if="live2dMotionDriver === 'universal' && live2dEyeTracking" :class="['grid grid-cols-4']">
       <PropertyPoint
         v-model:x="live2dModelEyeOffset.x"
         v-model:y="live2dModelEyeOffset.y"
@@ -363,6 +400,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       v-model="live2dForceIdleEyeAnimation"
       :label="t('settings.live2d.animation.force-idle-eye-animation.title')"
       :description="t('settings.live2d.animation.force-idle-eye-animation.description')"
+      :disabled="live2dMotionDriver === 'magic'"
       placement="right"
     />
     <FieldCheckbox
@@ -389,6 +427,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       :placeholder="t('settings.live2d.animation.idle-motion.placeholder')"
       :select-class="['w-full']"
       :content-min-width="256"
+      :disabled="live2dMotionDriver === 'magic'"
       @update:model-value="handleMotionSelect"
     >
       <template #empty>

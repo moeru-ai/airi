@@ -383,7 +383,6 @@ onUnmounted(() => {
           'max-w-6xl',
           'h-fit',
           'sm:max-h-[80dvh]',
-          'overflow-y-scroll',
           'relative',
         ]"
         @patch-godot-view-state="handleGodotViewPatch"

@@ -17,7 +17,7 @@ const airiCardStore = useAiriCardStore()
 const visionStore = useVisionStore()
 const visionProcessingStore = useVisionProcessingStore()
 const { configuredProviders } = storeToRefs(providerStore)
-const { persistedVisionProvidersMetadata } = storeToRefs(providersStore)
+const { moduleVisionProvidersMetadata } = storeToRefs(providersStore)
 const {
   activeProvider,
   activeModel,
@@ -106,12 +106,12 @@ function formatRelativeTime(timestamp: number | null) {
         </div>
         <div :class="['max-w-full']">
           <fieldset
-            v-if="persistedVisionProvidersMetadata.length > 0"
+            v-if="moduleVisionProvidersMetadata.length > 0"
             :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'overflow-x-auto', 'scroll-smooth']"
             role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in persistedVisionProvidersMetadata"
+              v-for="metadata in moduleVisionProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeProvider"

@@ -11,11 +11,11 @@ import type {
 import type {} from 'pinia-plugin-synced'
 
 import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/providers'
-import type { ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
+import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
-import { computedAsync, useIntervalFn } from '@vueuse/core'
+import { computedAsync, useAsyncState, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
 import { uniqBy } from 'es-toolkit'
 import { defineStore } from 'pinia'
@@ -31,6 +31,7 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
+import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
 import { normalizeProviderConfigDefaults } from './config-defaults'
 
@@ -40,6 +41,7 @@ export type { ModelInfo, VoiceInfo } from '../../libs/providers/types'
 export interface ProviderRuntimeState {
   validatedCredentialHash?: string
   models: ModelInfo[]
+  defaultModel: string | null
   modelStatus: 'idle' | 'loading' | 'ready' | 'error'
   modelError: string | null
 }
@@ -47,6 +49,20 @@ export interface ProviderRuntimeState {
 /** Stable fallback for reactive consumers when a provider has no cached catalog. */
 const emptyProviderModels: ModelInfo[] = []
 Object.freeze(emptyProviderModels)
+
+function withChatRequestOptions(
+  provider: ChatProviderWithExtraOptions<string, ChatRequestOptions>,
+  options: ChatRequestOptions,
+): ChatProvider {
+  const decorated = {
+    ...provider,
+    chat(model: string) {
+      return provider.chat(model, options)
+    },
+  }
+
+  return decorated
+}
 
 // Only the provider data plane crosses renderer boundaries. Async derived refs
 // stay in useProviderStore and recompute locally instead of being patched as
@@ -72,6 +88,7 @@ const useProviderStateStore = defineStore('provider-state', () => {
  * configuration remains in {@link useProviderConfigStore}.
  */
 export const useProviderStore = defineStore('provider', () => {
+  const authStore = useAuthStore()
   const providerConfigStore = useProviderConfigStore()
   const providerStateStore = useProviderStateStore()
   const providerCredentials = computed(() => providerConfigStore.configs)
@@ -98,28 +115,42 @@ export const useProviderStore = defineStore('provider', () => {
   const providerDefinitions = Object.fromEntries(
     definedProviders.map(definition => [definition.id, definition]),
   ) as Record<string, ProviderDefinition>
-  const providerMetadata = selectProvidersMetadata(definedProviders, t)
-
   const providerValidationIntervalMsById = new Map<string, number>()
-  for (const definition of definedProviders) {
-    const intervalMs = getProviderValidationIntervalMs({
-      definition,
-      contextOptions: { t },
-    })
-    if (intervalMs && intervalMs > 0) {
+  const providerMetadataState = useAsyncState(async () => {
+    const metadata = await selectProvidersMetadata(definedProviders, t)
+
+    await Promise.all(definedProviders.map(async (definition) => {
+      const intervalMs = await getProviderValidationIntervalMs({
+        definition,
+        contextOptions: { t },
+      })
+      if (!intervalMs || intervalMs <= 0)
+        return
+
       providerValidationIntervalMsById.set(definition.id, intervalMs)
       providerValidationIntervalMsById.set(`${VISION_PROVIDER_ID_PREFIX}${definition.id}`, intervalMs)
-    }
-  }
+    }))
 
-  for (const definition of definedProviders.filter(definition => providerMetadata[definition.id]?.category === 'chat')) {
-    const id = `${VISION_PROVIDER_ID_PREFIX}${definition.id}`
-    providerMetadata[id] = selectProviderMetadata(definition, t, {
-      id,
-      to: `/settings/providers/vision/${definition.id}`,
-      category: 'vision',
-      tasks: Array.from(new Set([...definition.tasks, 'vision', 'image-understanding'])),
-    })
+    await Promise.all(definedProviders
+      .filter(definition => metadata[definition.id]?.category === 'chat')
+      .map(async (definition) => {
+        const id = `${VISION_PROVIDER_ID_PREFIX}${definition.id}`
+        metadata[id] = await selectProviderMetadata(definition, t, {
+          id,
+          to: `/settings/providers/vision/${definition.id}`,
+          category: 'vision',
+          tasks: Array.from(new Set([...definition.tasks, 'vision', 'image-understanding'])),
+        })
+      }))
+
+    return metadata
+  }, {})
+  const providerMetadata = providerMetadataState.state
+
+  async function waitForProviderMetadata() {
+    await providerMetadataState
+    if (providerMetadataState.error.value)
+      throw providerMetadataState.error.value
   }
 
   const providerRuntimeState = computed({
@@ -186,9 +217,10 @@ export const useProviderStore = defineStore('provider', () => {
     config: Record<string, unknown>,
     options: { onlyChatPingCheck?: boolean, skipChatPingCheck?: boolean } = {},
   ) {
+    await waitForProviderMetadata()
     const definition = getProviderDefinition(providerId)
     const schemaDefaults = getDefaultProviderConfig(providerId)
-    const plan = getValidatorsOfProvider({
+    const plan = await getValidatorsOfProvider({
       definition,
       config,
       schemaDefaults,
@@ -229,12 +261,13 @@ export const useProviderStore = defineStore('provider', () => {
     }
   }
 
-  function hasManualProviderValidators(providerId: string) {
+  async function hasManualProviderValidators(providerId: string) {
     const definition = findProviderDefinition(providerId)
     if (!definition || definition.disableChatPingCheckUI)
       return false
-    return (definition.validators?.validateProvider ?? [])
-      .some(createValidator => createValidator({ t }).id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+    const validators = await Promise.all((definition.validators?.validateProvider ?? [])
+      .map(createValidator => createValidator({ t })))
+    return validators.some(validator => validator.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
   }
 
   function supportsModelListing(providerId: string) {
@@ -243,6 +276,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Configuration validation functions
   async function validateProvider(providerId: string, options: { force?: boolean } = {}): Promise<boolean> {
+    await waitForProviderMetadata()
     const definition = findProviderDefinition(providerId)
     if (!definition)
       return false
@@ -319,8 +353,8 @@ export const useProviderStore = defineStore('provider', () => {
 
   function getDefaultProviderConfig(providerId: string) {
     const definitionId = getProviderDefinitionId(providerId)
-    const defaultOptions = providerMetadata[providerId]?.defaultConfig
-      ?? providerMetadata[definitionId]?.defaultConfig
+    const defaultOptions = providerMetadata.value[providerId]?.defaultConfig
+      ?? providerMetadata.value[definitionId]?.defaultConfig
       ?? {}
     return {
       ...defaultOptions,
@@ -332,6 +366,7 @@ export const useProviderStore = defineStore('provider', () => {
     if (!providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId] = {
         models: [],
+        defaultModel: null,
         modelStatus: 'idle',
         modelError: null,
       }
@@ -339,7 +374,8 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   // Initialize provider configurations
-  function initializeProvider(providerId: string) {
+  async function initializeProvider(providerId: string) {
+    await waitForProviderMetadata()
     if (!providerCredentials.value[providerId]) {
       const definitionId = getProviderDefinitionId(providerId)
       providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
@@ -356,7 +392,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   function reconcileUnlistedProviders() {
-    for (const providerId of Object.keys(providerMetadata)) {
+    for (const providerId of Object.keys(providerMetadata.value)) {
       if (shouldListProvider(providerId))
         continue
       stopRevalidationLoop(providerId)
@@ -370,7 +406,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   function startPeriodicRuntimeValidation() {
     for (const [providerId, intervalMs] of providerValidationIntervalMsById.entries()) {
-      if (!providerMetadata[providerId] || intervalMs <= 0)
+      if (!providerMetadata.value[providerId] || intervalMs <= 0)
         continue
 
       if (!shouldListProvider(providerId))
@@ -390,7 +426,8 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Update configuration status for listed providers only.
   async function updateConfigurationStatus() {
-    await Promise.all(Object.entries(providerMetadata)
+    await waitForProviderMetadata()
+    await Promise.all(Object.entries(providerMetadata.value)
       .filter(([providerId]) => shouldListProvider(providerId) || providerId === 'browser-web-speech-api')
       .map(async ([providerId]) => {
         try {
@@ -495,23 +532,33 @@ export const useProviderStore = defineStore('provider', () => {
     const definition = getProviderDefinition(providerId)
     const provider = await definition.createProvider(config)
     try {
+      if (definition.extraMethods?.listModelCatalog) {
+        const catalog = await definition.extraMethods.listModelCatalog(config, provider, { t })
+        return {
+          ...catalog,
+          models: normalizeProviderModels(providerId, catalog.models),
+        }
+      }
+
       if (definition.extraMethods?.listModels) {
         const models = await definition.extraMethods.listModels(config, provider, { t })
-        return normalizeProviderModels(providerId, models)
+        return { models: normalizeProviderModels(providerId, models) }
       }
 
       if (isModelProvider(provider))
-        return normalizeProviderModels(providerId, await listModels(provider.model()))
+        return { models: normalizeProviderModels(providerId, await listModels(provider.model())) }
 
       const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
       const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
       if (!baseUrl)
-        return []
+        return { models: [] }
 
-      return normalizeProviderModels(providerId, await listModels({
-        baseURL: baseUrl,
-        ...(apiKey ? { apiKey } : {}),
-      }))
+      return {
+        models: normalizeProviderModels(providerId, await listModels({
+          baseURL: baseUrl,
+          ...(apiKey ? { apiKey } : {}),
+        })),
+      }
     }
     finally {
       await disposeTemporaryProvider(provider)
@@ -568,11 +615,11 @@ export const useProviderStore = defineStore('provider', () => {
   async function fetchModelsForProvider(providerId: string) {
     const definition = findProviderDefinition(providerId)
     if (!definition)
-      return []
+      return { models: [] }
 
     const config = providerCredentials.value[providerId]
     if (!config && definition.requiresCredentials !== false)
-      return []
+      return { models: [] }
 
     initializeProviderRuntimeState(providerId)
     providerRuntimeState.value = {
@@ -585,8 +632,8 @@ export const useProviderStore = defineStore('provider', () => {
     }
 
     try {
-      const models = await listProviderModels(providerId, config || {})
-      const normalizedModels = uniqBy(models.filter(model => !!model.id), m => m.id)
+      const catalog = await listProviderModels(providerId, config || {})
+      const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
         .map(model => ({
           id: model.id,
           name: model.name,
@@ -607,15 +654,20 @@ export const useProviderStore = defineStore('provider', () => {
           [providerId]: {
             ...currentRuntimeState,
             models: normalizedModels,
+            defaultModel: catalog.defaultModel ?? null,
             modelStatus: 'ready',
             modelError: null,
           },
         }
-        // Synced action results pass through structuredClone. Return the local
-        // array because reading the same array from state returns a Vue proxy.
-        return normalizedModels
+        // Synced action results pass through structuredClone. Return local
+        // catalog values because reading models back from state returns a Vue
+        // proxy and provider-specific metadata is not part of synced state.
+        return {
+          ...catalog,
+          models: normalizedModels,
+        }
       }
-      return []
+      return { models: [] }
     }
     catch (error) {
       console.error(`Error fetching models for ${providerId}:`, error)
@@ -630,7 +682,9 @@ export const useProviderStore = defineStore('provider', () => {
           },
         }
       }
-      return []
+      const lastKnownAvailable = providerAvailabilityOverrides.value[providerId]
+        ?? (providerConfigStore.configuredProviders[providerId] ? true : undefined)
+      return { models: [], lastKnownAvailable }
     }
   }
 
@@ -638,6 +692,10 @@ export const useProviderStore = defineStore('provider', () => {
   function getModelsForProvider(providerId: string) {
     return providerRuntimeState.value[providerId]?.models ?? emptyProviderModels
   }
+
+  const getDefaultModelForProvider = computed(() => (providerId: string) => {
+    return providerRuntimeState.value[providerId]?.defaultModel ?? null
+  })
 
   // Load models for all configured providers
   async function loadModelsForConfiguredProviders() {
@@ -675,8 +733,8 @@ export const useProviderStore = defineStore('provider', () => {
 
   function projectProvider(providerId: string): ProviderMetadata | undefined {
     const configuredProvider = providerConfigStore.providers[providerId]
-    const metadata = providerMetadata[providerId]
-      ?? providerMetadata[configuredProvider?.definitionId ?? '']
+    const metadata = providerMetadata.value[providerId]
+      ?? providerMetadata.value[configuredProvider?.definitionId ?? '']
 
     if (!metadata)
       return undefined
@@ -697,13 +755,20 @@ export const useProviderStore = defineStore('provider', () => {
   // Get all provider metadata in registry order for the settings page.
   const allProvidersMetadata = computed(() => {
     const definitions = definedProviders
-      .filter(d => providerMetadata[d.id])
+      .filter(d => providerMetadata.value[d.id])
       .map(d => projectProvider(d.id))
       .filter(metadata => metadata !== undefined)
+    // Vision providers reuse chat definitions under separate instance ids.
+    // Include these generated definitions before configured custom instances.
+    const visionDefinitions = definedProviders
+      .filter(definition => providerMetadata.value[definition.id]?.category === 'chat')
+      .map(definition => projectProvider(`${VISION_PROVIDER_ID_PREFIX}${definition.id}`))
+      .filter(metadata => metadata !== undefined)
+    const definitionIds = new Set([...definitions, ...visionDefinitions].map(metadata => metadata.id))
 
     const configuredInstances: ProviderMetadata[] = []
     for (const providerId of Object.keys(providerConfigStore.providers)) {
-      if (providerMetadata[providerId])
+      if (definitionIds.has(providerId))
         continue
 
       const metadata = projectProvider(providerId)
@@ -711,7 +776,7 @@ export const useProviderStore = defineStore('provider', () => {
         configuredInstances.push(metadata)
     }
 
-    return [...definitions, ...configuredInstances]
+    return [...definitions, ...visionDefinitions, ...configuredInstances]
   })
 
   function getTranscriptionFeatures(providerId: string) {
@@ -735,6 +800,7 @@ export const useProviderStore = defineStore('provider', () => {
   | TranscriptionProvider
   | TranscriptionProviderWithExtraOptions,
   >(providerId: string): Promise<R> {
+    await waitForProviderMetadata()
     const cached = providerInstanceCache.get(providerId) as R | undefined
     if (cached)
       return cached
@@ -754,14 +820,31 @@ export const useProviderStore = defineStore('provider', () => {
       throw new Error(`Provider credentials for ${providerId} not found`)
 
     try {
-      const instance = await definition.createProvider(config || {}) as R
+      const instance = await definition.createProvider(config || {})
       providerInstanceCache.set(providerId, instance)
-      return instance
+      return instance as R
     }
     catch (error) {
       console.error(`Error creating provider instance for ${providerId}:`, error)
       throw error
     }
+  }
+
+  /**
+   * Passes AIRI chat options to the provider that owns their wire representation.
+   * The cached base instance remains unchanged for consumers that do not opt in.
+   */
+  async function getChatProviderInstance(
+    providerId: string,
+    options: ChatRequestOptions,
+  ): Promise<ChatProvider> {
+    const provider = await getProviderInstance<ChatProviderWithExtraOptions<string, ChatRequestOptions>>(providerId)
+    const definition = findProviderDefinition(providerId)
+    const reasoning = definition?.capabilities?.chat?.reasoning
+    if (!reasoning?.modes.includes(options.reasoning))
+      return provider
+
+    return withChatRequestOptions(provider, options)
   }
 
   async function disposeProviderInstance(providerId: string) {
@@ -844,6 +927,57 @@ export const useProviderStore = defineStore('provider', () => {
     return !!addedProviders.value[providerId] || isProviderConfigDirty(providerId)
   }
 
+  function isProviderAvailableWithoutConfiguration(providerId: string) {
+    return providerConfiguredBy(providerId) !== 'authentication'
+      && getProviderDefinition(providerId).requiresCredentials === false
+  }
+
+  function providerConfiguredBy(providerId: string) {
+    const configuredProvider = providerConfigStore.providers[providerId]
+    if (configuredProvider)
+      return configuredProvider.configuredBy
+
+    return getProviderDefinition(providerId).configuredBy ?? 'user'
+  }
+
+  function isProviderConfiguredForModule(providerId: string) {
+    return providerConfigStore.configuredProviders[providerId]
+      && (providerConfiguredBy(providerId) !== 'authentication' || authStore.isAuthenticated)
+  }
+
+  // Authentication-owned providers do not require a user-supplied API key,
+  // but they do require an authenticated session. Browser and local providers
+  // remain available without a persisted configuration record.
+  const moduleChatProvidersMetadata = computed(() => {
+    return allChatProvidersMetadata.value.filter(metadata =>
+      isProviderConfiguredForModule(metadata.id)
+      || (providerConfiguredBy(metadata.id) !== 'authentication' && shouldListProvider(metadata.id))
+      || isProviderAvailableWithoutConfiguration(metadata.id),
+    )
+  })
+
+  const moduleSpeechProvidersMetadata = computed(() => {
+    return allAudioSpeechProvidersMetadata.value.filter(metadata =>
+      isProviderConfiguredForModule(metadata.id)
+      || isProviderAvailableWithoutConfiguration(metadata.id),
+    )
+  })
+
+  const moduleTranscriptionProvidersMetadata = computed(() => {
+    return allAudioTranscriptionProvidersMetadata.value.filter(metadata =>
+      isProviderConfiguredForModule(metadata.id)
+      || isProviderAvailableWithoutConfiguration(metadata.id),
+    )
+  })
+
+  const moduleVisionProvidersMetadata = computed(() => {
+    return allVisionProvidersMetadata.value.filter(metadata =>
+      isProviderConfiguredForModule(metadata.id)
+      || (providerConfiguredBy(metadata.id) !== 'authentication' && shouldListProvider(metadata.id))
+      || isProviderAvailableWithoutConfiguration(metadata.id),
+    )
+  })
+
   const persistedProvidersMetadata = computed(() => {
     return availableProvidersMetadata.value.filter(metadata => shouldListProvider(metadata.id))
   })
@@ -875,10 +1009,12 @@ export const useProviderStore = defineStore('provider', () => {
     modelLoadError,
     fetchModelsForProvider,
     getModelsForProvider,
+    getDefaultModelForProvider,
     listProviderVoices,
     loadProviderModel,
     loadModelsForConfiguredProviders,
     getProviderInstance,
+    getChatProviderInstance,
     disposeProviderInstance,
     resetProviderSettings,
     forceProviderConfigured,
@@ -893,6 +1029,10 @@ export const useProviderStore = defineStore('provider', () => {
     configuredSpeechProvidersMetadata,
     configuredTranscriptionProvidersMetadata,
     configuredVisionProvidersMetadata,
+    moduleChatProvidersMetadata,
+    moduleSpeechProvidersMetadata,
+    moduleTranscriptionProvidersMetadata,
+    moduleVisionProvidersMetadata,
     persistedChatProvidersMetadata,
     persistedVisionProvidersMetadata,
   }

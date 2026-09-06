@@ -51,27 +51,12 @@ else {
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: env.OTEL_SERVICE_NAME || 'auth-server',
     [ATTR_SERVICE_VERSION]: env.npm_package_version || '0.0.0',
-    'service.namespace': env.OTEL_SERVICE_NAMESPACE || 'airi',
-    'service.instance.id': instanceId,
     'deployment.environment': env.NODE_ENV || 'development',
+    'service.instance.id': instanceId,
+    'service.namespace': env.OTEL_SERVICE_NAMESPACE || 'airi',
   })
 
   const sdk = new NodeSDK({
-    resource,
-    sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(samplingRatio) }),
-    spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({
-      url: `${otlpEndpoint}/v1/traces`,
-      headers,
-    }))],
-    metricReaders: [new PeriodicExportingMetricReader({
-      exporter: new OTLPMetricExporter({ url: `${otlpEndpoint}/v1/metrics`, headers }),
-      exportIntervalMillis: 15_000,
-      exportTimeoutMillis: 10_000,
-    })],
-    logRecordProcessors: [new BatchLogRecordProcessor(new OTLPLogExporter({
-      url: `${otlpEndpoint}/v1/logs`,
-      headers,
-    }))],
     instrumentations: [
       new HttpInstrumentation({ disableIncomingRequestInstrumentation: true }),
       new PgInstrumentation({ enhancedDatabaseReporting: true }),
@@ -79,6 +64,23 @@ else {
       new RuntimeNodeInstrumentation(),
       new UndiciInstrumentation(),
     ],
+    logRecordProcessors: [new BatchLogRecordProcessor({
+      exporter: new OTLPLogExporter({
+        headers,
+        url: `${otlpEndpoint}/v1/logs`,
+      }),
+    })],
+    metricReaders: [new PeriodicExportingMetricReader({
+      exporter: new OTLPMetricExporter({ headers, url: `${otlpEndpoint}/v1/metrics` }),
+      exportIntervalMillis: 15_000,
+      exportTimeoutMillis: 10_000,
+    })],
+    resource,
+    sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(samplingRatio) }),
+    spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({
+      headers,
+      url: `${otlpEndpoint}/v1/traces`,
+    }))],
   })
 
   sdk.start()

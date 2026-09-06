@@ -7,11 +7,27 @@ interface LagEnabled {
   memory: boolean
 }
 
+type LagMetricSupport = Readonly<Record<keyof LagEnabled, boolean>>
+
+/**
+ * Creates a browser-local sampler for live performance metrics.
+ *
+ * Unsupported metrics stay disabled because their Web APIs do not produce
+ * comparable fallback values.
+ */
 export function createLagSampler(tracer: PerfTracer) {
   let rafId: number | undefined
   let lastTs: number | undefined
   let longTaskObserver: PerformanceObserver | undefined
   let memoryTimer: ReturnType<typeof setInterval> | undefined
+
+  const supported: LagMetricSupport = {
+    fps: typeof requestAnimationFrame === 'function',
+    frameDuration: typeof requestAnimationFrame === 'function',
+    longtask: typeof PerformanceObserver !== 'undefined'
+      && PerformanceObserver.supportedEntryTypes.includes('longtask'),
+    memory: typeof performance !== 'undefined' && 'memory' in performance,
+  }
 
   function stopRaf() {
     if (rafId !== undefined) {
@@ -58,7 +74,7 @@ export function createLagSampler(tracer: PerfTracer) {
 
   function startLongTaskObserver() {
     stopLongTaskObserver()
-    if (!('PerformanceObserver' in window))
+    if (!supported.longtask)
       return
 
     try {
@@ -89,7 +105,7 @@ export function createLagSampler(tracer: PerfTracer) {
   function startMemoryTimer() {
     stopMemoryTimer()
     const perfWithMemory = performance as Performance & { memory?: { usedJSHeapSize: number } }
-    if (!perfWithMemory.memory)
+    if (!supported.memory || !perfWithMemory.memory)
       return
 
     memoryTimer = setInterval(() => {
@@ -105,13 +121,13 @@ export function createLagSampler(tracer: PerfTracer) {
   function start(enabled: LagEnabled) {
     stop()
 
-    if (enabled.fps || enabled.frameDuration)
+    if ((enabled.fps && supported.fps) || (enabled.frameDuration && supported.frameDuration))
       startRaf()
 
-    if (enabled.longtask)
+    if (enabled.longtask && supported.longtask)
       startLongTaskObserver()
 
-    if (enabled.memory)
+    if (enabled.memory && supported.memory)
       startMemoryTimer()
   }
 
@@ -122,6 +138,7 @@ export function createLagSampler(tracer: PerfTracer) {
   }
 
   return {
+    supported,
     start,
     stop,
   }

@@ -7,6 +7,7 @@ import { nextTick } from 'vue'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useConsciousnessStore } from './consciousness'
+import { useConsciousnessSettingsStore } from './consciousness-settings'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -74,6 +75,21 @@ describe('consciousness store provider selection', () => {
 
     expect(definition?.id).toBe('openai')
     expect(definition?.name).toBe('OpenAI')
+  })
+
+  it('resolves chat providers with the current reasoning mode', async () => {
+    const providerConfigStore = useProviderConfigStore()
+    providerConfigStore.ensureProvider('openai', 'openai', { apiKey: 'sk-test' })
+    const consciousnessStore = useConsciousnessStore()
+    const settingsStore = useConsciousnessSettingsStore()
+
+    const disabledProvider = await consciousnessStore.getChatProviderInstance('openai')
+    expect(disabledProvider.chat('test-model')).toMatchObject({ reasoningEffort: 'none' })
+
+    await settingsStore.setReasoning(true)
+
+    const enabledProvider = await consciousnessStore.getChatProviderInstance('openai')
+    expect(enabledProvider.chat('test-model')).toMatchObject({ reasoningEffort: 'medium' })
   })
 
   // ROOT CAUSE:

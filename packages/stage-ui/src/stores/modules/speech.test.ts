@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, providerOfficialSpeech } from '../../libs/providers/providers/official'
@@ -105,7 +105,7 @@ describe('speech store helpers', () => {
     const providerConfigStore = useProviderConfigStore()
     vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
     const speechStore = useSpeechStore()
-    providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+    await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     providersStore.forceProviderConfigured(OFFICIAL_SPEECH_PROVIDER_ID)
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speechStore.activeSpeechModel = 'auto'
@@ -219,17 +219,48 @@ describe('speech store helpers', () => {
     expect(listVoices).not.toHaveBeenCalled()
   })
 
+  // ROOT CAUSE:
+  //
+  // Streaming discovery kept its default model in one renderer's module
+  // variable. Another renderer received the synchronized models but selected
+  // the first entry instead of the operator default.
+  //
+  // Before: read getDefaultStreamingModel() from renderer-local memory.
+  //
+  // We fixed this by storing the default beside the synchronized model catalog.
+  it('selects the synchronized streaming default instead of the first model', async () => {
+    const providersStore = useProviderStore()
+    vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
+    const speechStore = useSpeechStore()
+    await providersStore.initializeProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    providersStore.providerRuntimeState[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID] = {
+      models: [
+        { id: 'volcengine/seed-tts-1.0', name: 'Seed TTS 1.0', provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID },
+        { id: 'volcengine/seed-tts-2.0', name: 'Seed TTS 2.0', provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID },
+      ],
+      defaultModel: 'volcengine/seed-tts-2.0',
+      modelStatus: 'ready',
+      modelError: null,
+    }
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+    speechStore.activeSpeechModel = ''
+
+    speechStore.ensureActiveSpeechModel()
+
+    expect(speechStore.activeSpeechModel).toBe('volcengine/seed-tts-2.0')
+  })
+
   /**
    * @example
    * speechStore.ensureActiveSpeechModel()
    */
-  it('keeps a real Voice Pack TTS model selected for the regular official provider', () => {
+  it('keeps a real Voice Pack TTS model selected for the regular official provider', async () => {
     const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speechStore.activeSpeechModel = 'volcengine/pool-a'
     speechStore.activeSpeechVoiceId = 'voice-a'
-    providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+    await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = [
       { id: 'volcengine/pool-a', name: 'volcengine/pool-a', provider: OFFICIAL_SPEECH_PROVIDER_ID },
       { id: 'microsoft/v1', name: 'microsoft/v1', provider: OFFICIAL_SPEECH_PROVIDER_ID },
@@ -280,10 +311,11 @@ describe('speech store helpers', () => {
       languages: [],
     }
     try {
-      providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+      await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+      const provider = await providerOfficialSpeech.createProvider({})
       providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
         {},
-        providerOfficialSpeech.createProvider({}),
+        provider,
       )
 
       speechStore.ensureActiveSpeechModel()
@@ -339,10 +371,11 @@ describe('speech store helpers', () => {
     speechStore.activeSpeechVoiceId = 'old-model-voice'
 
     try {
-      providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+      await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+      const provider = await providerOfficialSpeech.createProvider({})
       providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
         {},
-        providerOfficialSpeech.createProvider({}),
+        provider,
       )
 
       speechStore.ensureActiveSpeechModel()
@@ -397,10 +430,11 @@ describe('speech store helpers', () => {
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
 
     try {
-      providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+      await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+      const provider = await providerOfficialSpeech.createProvider({})
       providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
         {},
-        providerOfficialSpeech.createProvider({}),
+        provider,
       )
 
       speechStore.ensureActiveSpeechModel()
@@ -412,5 +446,93 @@ describe('speech store helpers', () => {
     finally {
       vi.unstubAllGlobals()
     }
+  })
+})
+
+describe('single model speech providers', () => {
+  // Selecting a provider makes the speech store load its voices. Without a stub
+  // the VOICEVOX entries reach for a real engine on localhost. The rejection
+  // then logs after the file finishes, and the run fails on a teardown race.
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.stubGlobal('fetch', async () => Response.json([]))
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2166
+  it('selects the only published model, so the provider is not left unconfigured — Issue #2166', async () => {
+    // `settings/modules/speech.vue` clears `activeSpeechModel` on every provider
+    // switch. Without the seeding below, a provider that publishes one model
+    // keeps an empty model, `configured` stays false, and the stage never
+    // speaks until the user opens the dropdown and picks that one entry.
+    const providersStore = useProviderStore()
+    const speechStore = useSpeechStore()
+    speechStore.activeSpeechProvider = 'voicevox'
+    speechStore.activeSpeechModel = ''
+    await providersStore.initializeProvider('voicevox')
+    providersStore.providerRuntimeState.voicevox.models = [
+      { id: 'default', name: 'VOICEVOX', provider: 'voicevox' },
+    ]
+
+    speechStore.ensureActiveSpeechModel()
+
+    expect(speechStore.activeSpeechModel).toBe('default')
+  })
+
+  it('keeps the voice when it seeds the model, because voices belong to the provider', async () => {
+    const providersStore = useProviderStore()
+    const speechStore = useSpeechStore()
+    speechStore.activeSpeechProvider = 'voicevox'
+    speechStore.activeSpeechModel = ''
+    speechStore.activeSpeechVoiceId = '3'
+    await providersStore.initializeProvider('voicevox')
+    providersStore.providerRuntimeState.voicevox.models = [
+      { id: 'default', name: 'VOICEVOX', provider: 'voicevox' },
+    ]
+
+    speechStore.ensureActiveSpeechModel()
+
+    expect(speechStore.activeSpeechVoiceId).toBe('3')
+  })
+
+  it('does not guess when a provider publishes several models', async () => {
+    const providersStore = useProviderStore()
+    const speechStore = useSpeechStore()
+    speechStore.activeSpeechProvider = 'elevenlabs'
+    speechStore.activeSpeechModel = ''
+    await providersStore.initializeProvider('elevenlabs')
+    providersStore.providerRuntimeState.elevenlabs.models = [
+      { id: 'eleven_v3', name: 'v3', provider: 'elevenlabs' },
+      { id: 'eleven_flash_v2_5', name: 'flash', provider: 'elevenlabs' },
+    ]
+
+    speechStore.ensureActiveSpeechModel()
+
+    expect(speechStore.activeSpeechModel).toBe('')
+  })
+})
+
+describe('vOICEVOX provider defaults', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2166
+  it('persists the neutral volume default, so a new provider is not silent — Issue #2166', async () => {
+    // The settings form seeds `{ pitch: 0, speed: 1, volume: 0 }` when the
+    // stored configuration carries no voice settings, and a `volumeScale` of
+    // zero is silence. Provider metadata resolves asynchronously, so this pins
+    // that `initializeProvider` waits for it before it writes the schema
+    // defaults into the stored configuration.
+    const providersStore = useProviderStore()
+    const providerConfigStore = useProviderConfigStore()
+
+    await providersStore.initializeProvider('voicevox')
+
+    expect(providerConfigStore.getProviderConfig('voicevox')?.voiceSettings)
+      .toEqual({ speed: 1, pitch: 0, intonation: 1, volume: 1 })
   })
 })

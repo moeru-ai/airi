@@ -1,8 +1,7 @@
 {
   "name": "@proj-airi/better-ws",
   "type": "module",
-  "version": "0.11.3",
-  "private": true,
+  "version": "0.12.0-beta.5",
   "description": "Transport-agnostic reliable WebSocket runtime primitives",
   "author": {
     "name": "Moeru AI Project AIRI Team",

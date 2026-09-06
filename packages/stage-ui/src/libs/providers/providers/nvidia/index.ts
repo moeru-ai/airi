@@ -1,3 +1,5 @@
+import type { ChatRequestOptions } from '../../types'
+
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
@@ -17,13 +19,14 @@ const nvidiaConfigSchema = z.object({
 
 type NvidiaConfig = z.input<typeof nvidiaConfigSchema>
 
-export const providerNvidia = defineProvider<NvidiaConfig>({
+export const providerNvidia = defineProvider<NvidiaConfig, 'nvidia'>({
   id: 'nvidia',
   name: 'NVIDIA NIM',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.nvidia.title'),
   description: 'build.nvidia.com',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.nvidia.description'),
   tasks: ['chat'],
+  capabilities: { chat: { reasoning: { modes: ['enabled', 'disabled'] } } },
   icon: 'i-simple-icons:nvidia',
   isAvailableBy: isStageTamagotchi,
 
@@ -41,7 +44,17 @@ export const providerNvidia = defineProvider<NvidiaConfig>({
     }),
   }),
   createProvider(config) {
-    return createOpenAI(config.apiKey, config.baseUrl)
+    const provider = createOpenAI(config.apiKey, config.baseUrl)
+    return {
+      ...provider,
+      chat(model: string, options?: ChatRequestOptions) {
+        const request = provider.chat(model)
+        if (!options?.reasoning)
+          return request
+
+        return { ...request, chatTemplateKwargs: { enable_thinking: options.reasoning === 'enabled' } }
+      },
+    }
   },
 
   validationRequiredWhen(config) {

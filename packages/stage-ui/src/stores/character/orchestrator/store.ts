@@ -1,26 +1,26 @@
 import type { SparkNotifyResponseControl } from '@proj-airi/core-agent/agents/spark-notify'
 import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin } from '@proj-airi/core-agent/agents/spark-notify'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import { useCharacterNotebookStore, useCharacterStore } from '../'
+import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prompt'
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
-import { useProviderStore } from '../../providers/provider'
 
 export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
 
 export const useCharacterOrchestratorStore = defineStore('character-orchestrator', () => {
   const { stream } = useLLM()
-  const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
-  const providersStore = useProviderStore()
+  const consciousnessStore = useConsciousnessStore()
+  const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
   const characterStore = useCharacterStore()
   const notebookStore = useCharacterNotebookStore()
   const { systemPrompt } = storeToRefs(characterStore)
+  const runtimePrompt = useAiriRuntimePrompt()
   const modsServerChannelStore = useModsServerChannelStore()
 
   const processing = ref(false)
@@ -123,7 +123,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       return undefined
     }
 
-    const provider = await providersStore.getProviderInstance<ChatProvider>(providerId)
+    const provider = await consciousnessStore.getChatProviderInstance(providerId)
     processing.value = true
 
     try {
@@ -135,6 +135,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
           provider,
         },
         systemPrompt: systemPrompt.value,
+        runtimePrompt: runtimePrompt.value,
         control,
       })
       if (!result.commands.length)

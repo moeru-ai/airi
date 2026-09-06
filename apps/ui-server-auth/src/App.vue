@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ToasterRoot } from '@proj-airi/stage-ui/components'
-import { useSettingsGeneral, useSettingsTheme } from '@proj-airi/stage-ui/stores/settings'
+import { ToasterRoot } from '@proj-airi/stage-ui/components/scenarios/toasters'
+import { useSettingsGeneral } from '@proj-airi/stage-ui/stores/settings/general'
+import { useSettingsTheme } from '@proj-airi/stage-ui/stores/settings/theme'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'

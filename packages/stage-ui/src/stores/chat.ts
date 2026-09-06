@@ -2,7 +2,7 @@ import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamE
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
-import type {} from 'pinia-plugin-synced'
+import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } from '../types/chat'
 import type { ToolCallRerunPayload } from './tool-call-rerun'
@@ -15,19 +15,20 @@ import { defineStore, storeToRefs } from 'pinia'
 import { shallowRef, toRaw } from 'vue'
 
 import { getConversationAnalyticsSurface } from '../composables'
+import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
-} from '../libs/analytics-headers'
-import { createChatAnalyticsHooks, getProviderMode } from '../libs/analytics/events/chat'
-import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+} from '../libs/product-signals/headers'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
-import { createMinecraftContext } from './chat/context-providers'
+import { createMinecraftContext, createRuntimePromptContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -36,7 +37,6 @@ import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useWebSearchStore } from './modules/web-search'
-import { useProviderStore } from './providers/provider'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -136,6 +136,7 @@ function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): numbe
 export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 export const useChatStore = defineStore('chat', () => {
+  const runtimePrompt = useAiriRuntimePrompt()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
@@ -146,7 +147,6 @@ export const useChatStore = defineStore('chat', () => {
   // without its paired prompt-injection defense.
   useWebSearchStore()
   const consciousnessStore = useConsciousnessStore()
-  const providerStore = useProviderStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
   const chatSession = useChatSessionStore()
@@ -162,9 +162,36 @@ export const useChatStore = defineStore('chat', () => {
   const activeStreamingMessage = shallowRef<StreamingAssistantMessage>()
   const pendingQueuedSendCount = shallowRef(0)
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
+  let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks({
     getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId),
   })
+
+  /**
+   * Initializes chat state and binds local consumers to synchronized leadership.
+   * A promoted renderer restarts the leader-owned cloud consumer.
+   */
+  async function initialize(syncedPinia: SyncedPiniaRuntime) {
+    stopLeadershipListener ??= syncedPinia.onLeadershipChange((isLeader) => {
+      if (!isLeader) {
+        chatSession.dispose()
+        return
+      }
+
+      void chatSession.ensureCurrentSession().catch((error) => {
+        console.error('[chat] Failed to start chat consumers after leader promotion:', error)
+      })
+    })
+
+    await chatSession.initialize()
+  }
+
+  /** Stops chat consumers that belong to this window. */
+  function dispose() {
+    stopLeadershipListener?.()
+    stopLeadershipListener = undefined
+    chatSession.dispose()
+  }
 
   async function streamWithStageAdapters(
     model: string,
@@ -272,6 +299,7 @@ export const useChatStore = defineStore('chat', () => {
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
+      () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,
     ],
     createId: nanoid,
@@ -363,7 +391,7 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error('Failed to load the target chat session')
 
     const messageCount = chatSession.getSessionMessages(payload.sessionId).length
-    const chatProvider = await providerStore.getProviderInstance<ChatProvider>(providerId)
+    const chatProvider = await consciousnessStore.getChatProviderInstance(providerId)
     if (!chatProvider)
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
 
@@ -495,6 +523,8 @@ export const useChatStore = defineStore('chat', () => {
     activeStreamingMessage,
     pendingQueuedSendCount,
 
+    initialize,
+    dispose,
     cleanup,
     deleteSession,
     ingest,

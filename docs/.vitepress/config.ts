@@ -747,8 +747,8 @@ export default defineConfig<ThemeConfig>({
             items: [
               { text: '소개', link: withBase('/ko/docs/overview/') },
               { text: '버전과 다운로드', link: withBase('/ko/docs/overview/versions') },
-              { text: 'AI VTuber 란', link: withBase('/ko/docs/overview/about-ai-vtuber') },
-              { text: 'Neuro-sama 란', link: withBase('/ko/docs/overview/about-neuro-sama') },
+              { text: 'AI VTuber란', link: withBase('/ko/docs/overview/about-ai-vtuber') },
+              { text: 'Neuro-sama란', link: withBase('/ko/docs/overview/about-neuro-sama') },
               { text: '비슷한 다른 프로젝트들', link: withBase('/ko/docs/overview/other-similar-projects') },
             ],
           },

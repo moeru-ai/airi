@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-sdk-shared",
   "type": "module",
-  "version": "0.11.3",
+  "version": "0.12.0-beta.5",
   "private": true,
   "description": "Eventa contracts for the hosted chat WebSocket",
   "author": {

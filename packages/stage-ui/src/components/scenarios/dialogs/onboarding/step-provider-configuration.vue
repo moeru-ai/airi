@@ -3,7 +3,8 @@ import type { ProviderMetadata } from '../../../../libs/providers/metadata'
 import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { Button, Callout, FieldCheckbox, FieldInput } from '@proj-airi/ui'
+import { Button, Callout, FieldCheckbox, FieldInput, ScrollableArea } from '@proj-airi/ui'
+import { computedAsync } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -86,9 +87,12 @@ const needsBaseUrl = computed(() => {
   return props.selectedProvider.id !== 'cloudflare-workers-ai'
 })
 
-const showChatCheckOption = computed(() => {
-  return props.selectedProvider ? providersStore.hasManualProviderValidators(props.selectedProvider.id) : false
-})
+const showChatCheckOption = computedAsync(
+  async () => props.selectedProvider
+    ? await providersStore.hasManualProviderValidators(props.selectedProvider.id)
+    : false,
+  false,
+)
 
 const canProceed = computed(() => {
   if (!props.selectedProviderId)
@@ -226,97 +230,99 @@ initializeForm()
       </h2>
       <div h-5 w-5 />
     </div>
-    <div v-if="props.selectedProvider" flex-1 overflow-y-auto space-y-4>
-      <Callout :label="t('settings.dialogs.onboarding.credentialsSafeLabel')" theme="violet">
-        <div>
+    <ScrollableArea v-if="props.selectedProvider" :class="['min-h-0 flex-1']">
+      <div :class="['space-y-4']">
+        <Callout :label="t('settings.dialogs.onboarding.credentialsSafeLabel')" theme="violet">
           <div>
-            {{ t('settings.dialogs.onboarding.credentialsSafeLocal') }}
+            <div>
+              {{ t('settings.dialogs.onboarding.credentialsSafeLocal') }}
+            </div>
+            <div>
+              <i18n-t keypath="settings.dialogs.onboarding.credentialsSafeOpenSource" tag="span">
+                <template #github>
+                  <span inline-flex translate-y-1 items-center gap-1>
+                    <span i-simple-icons:github inline-block /><a decoration-underline decoration-dashed href="https://github.com/moeru-ai/airi" target="_blank" rel="noopener noreferrer">GitHub</a>
+                  </span>
+                </template>
+              </i18n-t>
+            </div>
           </div>
-          <div>
-            <i18n-t keypath="settings.dialogs.onboarding.credentialsSafeOpenSource" tag="span">
-              <template #github>
-                <span inline-flex translate-y-1 items-center gap-1>
-                  <span i-simple-icons:github inline-block /><a decoration-underline decoration-dashed href="https://github.com/moeru-ai/airi" target="_blank" rel="noopener noreferrer">GitHub</a>
-                </span>
-              </template>
-            </i18n-t>
-          </div>
+        </Callout>
+        <div class="space-y-4">
+          <!-- Custom onboarding fields (provider-specific, e.g. Amazon Bedrock SigV4) -->
+          <template v-if="hasOnboardingFields">
+            <FieldInput
+              v-for="field in props.selectedProvider.onboardingFields"
+              :key="field.key"
+              v-model="customFieldValues[field.key]"
+              :type="field.type"
+              :label="field.label"
+              :description="field.description"
+              :placeholder="field.placeholder || ''"
+              :required="field.required"
+            />
+          </template>
+
+          <!-- Standard fields for other providers -->
+          <template v-else>
+            <!-- API Key Input -->
+            <div v-if="needsApiKey">
+              <FieldInput
+                v-model="apiKey"
+                :placeholder="getApiKeyPlaceholder(props.selectedProvider.id)"
+                type="password"
+                label="API Key"
+                description="Enter your API key for the selected provider."
+                required
+              />
+            </div>
+
+            <!-- Base URL Input -->
+            <div v-if="needsBaseUrl">
+              <FieldInput
+                v-model="baseUrl"
+                :placeholder="getBaseUrlPlaceholder(props.selectedProvider.id)"
+                type="text"
+                label="Base URL"
+                description="Enter the base URL for the provider's API."
+              />
+            </div>
+
+            <!-- Account ID for Cloudflare -->
+            <div v-if="props.selectedProvider.id === 'cloudflare-workers-ai'">
+              <ProviderAccountIdInput v-model="accountId" />
+            </div>
+          </template>
         </div>
-      </Callout>
-      <div class="space-y-4">
-        <!-- Custom onboarding fields (provider-specific, e.g. Amazon Bedrock SigV4) -->
-        <template v-if="hasOnboardingFields">
-          <FieldInput
-            v-for="field in props.selectedProvider.onboardingFields"
-            :key="field.key"
-            v-model="customFieldValues[field.key]"
-            :type="field.type"
-            :label="field.label"
-            :description="field.description"
-            :placeholder="field.placeholder || ''"
-            :required="field.required"
-          />
-        </template>
 
-        <!-- Standard fields for other providers -->
-        <template v-else>
-          <!-- API Key Input -->
-          <div v-if="needsApiKey">
-            <FieldInput
-              v-model="apiKey"
-              :placeholder="getApiKeyPlaceholder(props.selectedProvider.id)"
-              type="password"
-              label="API Key"
-              description="Enter your API key for the selected provider."
-              required
-            />
-          </div>
+        <!-- Chat Ping Check Option -->
+        <FieldCheckbox
+          v-if="showChatCheckOption"
+          v-model="enableChatCheck"
+          :label="t('settings.dialogs.onboarding.enableChatCheck')"
+          placement="left"
+        />
 
-          <!-- Base URL Input -->
-          <div v-if="needsBaseUrl">
-            <FieldInput
-              v-model="baseUrl"
-              :placeholder="getBaseUrlPlaceholder(props.selectedProvider.id)"
-              type="text"
-              label="Base URL"
-              description="Enter the base URL for the provider's API."
-            />
-          </div>
-
-          <!-- Account ID for Cloudflare -->
-          <div v-if="props.selectedProvider.id === 'cloudflare-workers-ai'">
-            <ProviderAccountIdInput v-model="accountId" />
-          </div>
-        </template>
+        <!-- Validation Status -->
+        <Alert v-if="validation === 'failed'" type="error">
+          <template #title>
+            <div class="w-full flex items-center justify-between">
+              <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
+              <button
+                type="button"
+                class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
+                @click="handleContinueAnyway"
+              >
+                {{ t('settings.pages.providers.common.continueAnyway') }}
+              </button>
+            </div>
+          </template>
+          <template v-if="validationError" #content>
+            <pre class="whitespace-pre-wrap break-all">{{ String(validationError) }}</pre>
+          </template>
+        </Alert>
       </div>
-
-      <!-- Chat Ping Check Option -->
-      <FieldCheckbox
-        v-if="showChatCheckOption"
-        v-model="enableChatCheck"
-        :label="t('settings.dialogs.onboarding.enableChatCheck')"
-        placement="left"
-      />
-
-      <!-- Validation Status -->
-      <Alert v-if="validation === 'failed'" type="error">
-        <template #title>
-          <div class="w-full flex items-center justify-between">
-            <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-            <button
-              type="button"
-              class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
-              @click="handleContinueAnyway"
-            >
-              {{ t('settings.pages.providers.common.continueAnyway') }}
-            </button>
-          </div>
-        </template>
-        <template v-if="validationError" #content>
-          <pre class="whitespace-pre-wrap break-all">{{ String(validationError) }}</pre>
-        </template>
-      </Alert>
-    </div>
+    </ScrollableArea>
 
     <!-- Action Buttons -->
     <Button

@@ -33,11 +33,11 @@ jobs:
           key: ${{ runner.os }}-turbo-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-turbo-
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v6
+      - uses: pnpm/setup@v2
         with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@26.7.0
+          cache: true
+          install: false
       # NOTICE:
       #
       # Here installing wrangler to global is required, or otherwise:
@@ -81,7 +81,7 @@ jobs:
           POSTHOG_CLI_TOKEN: ${{ secrets.POSTHOG_TOKEN }}
         continue-on-error: true
 
-      - uses: cloudflare/wrangler-action@v3.14.1
+      - uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

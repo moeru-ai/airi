@@ -7,6 +7,7 @@ import type {
   LlmStreamingControlSignal,
   LlmStreamingControlSignalContext,
   LlmStreamingControlSignalHandler,
+  LlmStreamingControlTurn,
   LlmStreamingControlTurnDone,
 } from './types'
 
@@ -14,148 +15,10 @@ import { tokenAct, tokenCall, tokenDelay } from './parsers'
 import { renderCallManifestPrompt } from './parsers/call'
 
 interface StreamingControlTurnState {
-  handlers: Map<string, Set<LlmStreamingControlCallHandler>>
   callManifests: Map<string, LlmStreamingControlCallManifest>
-  settle: (result: LlmStreamingControlTurnDone) => void
   done: Promise<LlmStreamingControlTurnDone>
-}
-
-/**
- * Converts parsed signal payload into observer-friendly text.
- *
- * Use when:
- * - Observer logs need a compact human-readable parameter
- *
- * Notice:
- * - Intentionally serializes payloads once
- * - Returns undefined for empty CALL payload
- */
-function parsedParameter(signal: LlmStreamingControlSignal): string | undefined {
-  switch (signal.type) {
-    case 'act':
-      return JSON.stringify(signal.payload)
-
-    case 'call':
-      return signal.payload != null
-        ? JSON.stringify(signal.payload)
-        : undefined
-
-    case 'delay':
-      return `${signal.seconds}s`
-  }
-}
-
-function createTurnId() {
-  return `turn:${
-    globalThis.crypto?.randomUUID?.()
-    ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-  }`
-}
-
-/**
- * Normalizes manifest values before registration.
- *
- * Notice:
- * - Empty names/prompts are rejected
- * - Prevents duplicated trim logic
- */
-function normalizeManifest(
-  manifest: LlmStreamingControlCallManifest,
-): LlmStreamingControlCallManifest | undefined {
-  const name = manifest.name.trim()
-  const prompt = manifest.prompt.trim()
-
-  if (!name || !prompt)
-    return
-
-  return {
-    ...manifest,
-    name,
-    prompt,
-  }
-}
-
-/**
- * Emits observer events safely.
- *
- * Notice:
- * - Observer failures must never break dispatch
- */
-function emit(
-  context: Pick<LlmStreamingControlCallContext, 'observer'> | undefined,
-  payload: Parameters<NonNullable<LlmStreamingControlCallContext['observer']>>[0],
-) {
-  try {
-    context?.observer?.(payload)
-  }
-  catch {}
-}
-
-/**
- * Creates isolated turn state.
- *
- * Notice:
- * - Promise resolves once only
- * - Prevents accidental double completion
- */
-function createTurnState(): StreamingControlTurnState {
-  let settled = false
-  let settle!: (result: LlmStreamingControlTurnDone) => void
-
-  const done = new Promise<LlmStreamingControlTurnDone>((resolve) => {
-    settle = (result) => {
-      if (settled)
-        return
-
-      settled = true
-      resolve(result)
-    }
-  })
-
-  return {
-    handlers: new Map(),
-    callManifests: new Map(),
-    settle,
-    done,
-  }
-}
-
-/**
- * Registers handler and keeps cleanup centralized.
- *
- * Notice:
- * - Avoid duplicated Map allocations
- * - Removes manifest automatically once empty
- */
-function registerHandler<TPayload extends Record<string, unknown>>(
-  container: Pick<StreamingControlTurnState, 'handlers' | 'callManifests'>,
-  manifest: LlmStreamingControlCallManifest,
-  handler: LlmStreamingControlCallHandler<TPayload>,
-) {
-  const normalized = normalizeManifest(manifest)
-
-  if (!normalized)
-    return () => undefined
-
-  let set = container.handlers.get(normalized.name)
-
-  if (!set) {
-    set = new Set()
-    container.handlers.set(normalized.name, set)
-  }
-
-  container.callManifests.set(normalized.name, normalized)
-
-  set.add(handler as LlmStreamingControlCallHandler)
-
-  return () => {
-    set!.delete(handler)
-
-    if (set!.size === 0) {
-      container.handlers.delete(normalized.name)
-      container.callManifests.delete(normalized.name)
-    }
-  }
+  handlers: Map<string, Set<LlmStreamingControlCallHandler>>
+  settle: (result: LlmStreamingControlTurnDone) => void
 }
 
 /**
@@ -223,11 +86,22 @@ export function createStreamingControlParser(
   function createTurnApi(
     turnId: string,
     turn: StreamingControlTurnState,
-  ) {
+  ): LlmStreamingControlTurn {
     return {
-      turnId,
+      cancel() {
+        finalizeTurn(turnId, 'cancelled')
+      },
 
-      on<TPayload extends Record<string, unknown> = Record<string, unknown>>(manifest, handler) {
+      complete() {
+        finalizeTurn(turnId, 'completed')
+      },
+
+      done: turn.done,
+
+      on<TPayload extends Record<string, unknown> = Record<string, unknown>>(
+        manifest: LlmStreamingControlCallManifest,
+        handler: LlmStreamingControlCallHandler<TPayload>,
+      ) {
         return registerHandler<TPayload>(turn, manifest, handler)
       },
 
@@ -237,21 +111,35 @@ export function createStreamingControlParser(
         )
       },
 
-      complete() {
-        finalizeTurn(turnId, 'completed')
-      },
-
-      cancel() {
-        finalizeTurn(turnId, 'cancelled')
-      },
-
-      done: turn.done,
+      turnId,
     }
   }
 
   return {
-    match(input) {
-      return !!findParser(input)
+    beginTurn(options) {
+      // crypto UUID avoids collision under concurrency
+      const turnId
+        = options?.turnId?.trim()
+          || createTurnId()
+
+      const existing = turns.get(turnId)
+
+      if (existing)
+        return createTurnApi(turnId, existing)
+
+      const turn = createTurnState()
+
+      turns.set(turnId, turn)
+
+      return createTurnApi(turnId, turn)
+    },
+
+    cancelTurn(turnId) {
+      finalizeTurn(turnId, 'cancelled')
+    },
+
+    completeTurn(turnId) {
+      finalizeTurn(turnId, 'completed')
     },
 
     async dispatchWith(special, context) {
@@ -259,8 +147,8 @@ export function createStreamingControlParser(
 
       if (!parser) {
         emit(context, {
-          type: 'rejected',
           reason: 'no-matching-parser',
+          type: 'rejected',
         })
 
         return false
@@ -270,23 +158,23 @@ export function createStreamingControlParser(
 
       if (!parsed) {
         emit(context, {
-          type: 'rejected',
-          reason: 'parse-failed',
           parserName: parser.name,
+          reason: 'parse-failed',
+          type: 'rejected',
         })
 
         return false
       }
 
       emit(context, {
-        type: 'parsed',
-        parserName: parser.name,
-        tokenType: parsed.type,
         callName:
           parsed.type === 'call'
             ? parsed.name
             : undefined,
         parameter: parsedParameter(parsed),
+        parserName: parser.name,
+        tokenType: parsed.type,
+        type: 'parsed',
       })
 
       const {
@@ -306,9 +194,9 @@ export function createStreamingControlParser(
         }
         catch (error) {
           emit(context, {
-            type: 'signal-handler-error',
-            tokenType: parsed.type,
             error,
+            tokenType: parsed.type,
+            type: 'signal-handler-error',
           })
 
           console.warn(
@@ -337,15 +225,15 @@ export function createStreamingControlParser(
       ]
 
       emit(context, {
-        type: 'call-handler-count',
         count: registeredHandlers.length,
+        type: 'call-handler-count',
       })
 
       if (!registeredHandlers.length) {
         emit(context, {
-          type: 'call-handler-missing',
           callName: parsed.name,
           payload: parsed.payload,
+          type: 'call-handler-missing',
         })
 
         return true
@@ -356,8 +244,8 @@ export function createStreamingControlParser(
       for (const handler of registeredHandlers) {
         try {
           emit(context, {
-            type: 'call-handler-start',
             callName: parsed.name,
+            type: 'call-handler-start',
           })
 
           await handler(
@@ -366,15 +254,15 @@ export function createStreamingControlParser(
           )
 
           emit(context, {
-            type: 'call-handler-end',
             callName: parsed.name,
+            type: 'call-handler-end',
           })
         }
         catch (error) {
           emit(context, {
-            type: 'call-handler-error',
             callName: parsed.name,
             error,
+            type: 'call-handler-error',
           })
 
           console.warn(
@@ -387,20 +275,18 @@ export function createStreamingControlParser(
       return true
     },
 
+    match(input) {
+      return !!findParser(input)
+    },
+
     on(manifest, handler) {
       return registerHandler(
         {
-          handlers,
           callManifests,
+          handlers,
         },
         manifest,
         handler,
-      )
-    },
-
-    renderManifestPrompt() {
-      return renderCallManifestPrompt(
-        [...callManifests.values()],
       )
     },
 
@@ -412,30 +298,160 @@ export function createStreamingControlParser(
       }
     },
 
-    beginTurn(options) {
-      // crypto UUID avoids collision under concurrency
-      const turnId
-        = options?.turnId?.trim()
-          || createTurnId()
-
-      const existing = turns.get(turnId)
-
-      if (existing)
-        return createTurnApi(turnId, existing)
-
-      const turn = createTurnState()
-
-      turns.set(turnId, turn)
-
-      return createTurnApi(turnId, turn)
+    renderManifestPrompt() {
+      return renderCallManifestPrompt(
+        [...callManifests.values()],
+      )
     },
+  }
+}
 
-    completeTurn(turnId) {
-      finalizeTurn(turnId, 'completed')
-    },
+function createTurnId() {
+  return `turn:${
+    globalThis.crypto?.randomUUID?.()
+    ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  }`
+}
 
-    cancelTurn(turnId) {
-      finalizeTurn(turnId, 'cancelled')
-    },
+/**
+ * Creates isolated turn state.
+ *
+ * Notice:
+ * - Promise resolves once only
+ * - Prevents accidental double completion
+ */
+function createTurnState(): StreamingControlTurnState {
+  let settled = false
+  let settle!: (result: LlmStreamingControlTurnDone) => void
+
+  const done = new Promise<LlmStreamingControlTurnDone>((resolve) => {
+    settle = (result) => {
+      if (settled)
+        return
+
+      settled = true
+      resolve(result)
+    }
+  })
+
+  return {
+    callManifests: new Map(),
+    done,
+    handlers: new Map(),
+    settle,
+  }
+}
+
+/**
+ * Emits observer events safely.
+ *
+ * Notice:
+ * - Observer failures must never break dispatch
+ */
+function emit(
+  context: Pick<LlmStreamingControlCallContext, 'observer'> | undefined,
+  payload: Parameters<NonNullable<LlmStreamingControlCallContext['observer']>>[0],
+) {
+  try {
+    context?.observer?.(payload)
+  }
+  catch {}
+}
+
+/**
+ * Normalizes manifest values before registration.
+ *
+ * Notice:
+ * - Empty names/prompts are rejected
+ * - Prevents duplicated trim logic
+ */
+function normalizeManifest(
+  manifest: LlmStreamingControlCallManifest,
+): LlmStreamingControlCallManifest | undefined {
+  const name = manifest.name.trim()
+  const prompt = manifest.prompt.trim()
+
+  if (!name || !prompt)
+    return
+
+  return {
+    ...manifest,
+    name,
+    prompt,
+  }
+}
+
+/**
+ * Converts parsed signal payload into observer-friendly text.
+ *
+ * Use when:
+ * - Observer logs need a compact human-readable parameter
+ *
+ * Notice:
+ * - Intentionally serializes payloads once
+ * - Returns undefined for empty CALL payload
+ */
+function parsedParameter(signal: LlmStreamingControlSignal): string | undefined {
+  switch (signal.type) {
+    case 'act':
+      return JSON.stringify(signal.payload)
+
+    case 'call':
+      return signal.payload != null
+        ? JSON.stringify(signal.payload)
+        : undefined
+
+    case 'delay':
+      return `${signal.seconds}s`
+  }
+}
+
+/**
+ * Registers one CALL handler and returns its disposer.
+ *
+ * Triggering workflow:
+ *
+ * {@link createStreamingControlParser}
+ *   -> `LlmStreamingControl.on` or `LlmStreamingControlTurn.on`
+ *     -> {@link registerHandler}
+ *
+ * Upstream:
+ * - {@link LlmStreamingControl}
+ * - {@link LlmStreamingControlTurn}
+ *
+ * Downstream:
+ * - {@link StreamingControlTurnState} handler and manifest registries
+ */
+function registerHandler<TPayload extends Record<string, unknown>>(
+  container: Pick<StreamingControlTurnState, 'callManifests' | 'handlers'>,
+  manifest: LlmStreamingControlCallManifest,
+  handler: LlmStreamingControlCallHandler<TPayload>,
+) {
+  const normalized = normalizeManifest(manifest)
+
+  if (!normalized)
+    return () => undefined
+
+  let registeredHandlers = container.handlers.get(normalized.name)
+
+  if (!registeredHandlers) {
+    registeredHandlers = new Set()
+    container.handlers.set(normalized.name, registeredHandlers)
+  }
+
+  container.callManifests.set(normalized.name, normalized)
+
+  // The registration API associates each payload type with one opaque CALL name.
+  // The runtime registry erases that relation before it looks up the name.
+  const registeredHandler = handler as LlmStreamingControlCallHandler
+  registeredHandlers.add(registeredHandler)
+
+  return () => {
+    registeredHandlers.delete(registeredHandler)
+
+    if (registeredHandlers.size === 0) {
+      container.handlers.delete(normalized.name)
+      container.callManifests.delete(normalized.name)
+    }
   }
 }

@@ -128,7 +128,7 @@ export interface WidgetsAddPayload {
   // size presets or explicit spans; renderer decides mapping
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
-  // auto-dismiss in ms; if omitted, persistent until closed by user
+  /** Automatic destruction delay in milliseconds. If omitted or zero, the widget stays until an explicit close. */
   ttlMs?: number
 }
 
@@ -138,6 +138,7 @@ export interface WidgetsUpdatePayload {
   alwaysOnTop?: boolean
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
+  /** Replaces the automatic destruction delay. If omitted, the current expiry time does not change. */
   ttlMs?: number
 }
 
