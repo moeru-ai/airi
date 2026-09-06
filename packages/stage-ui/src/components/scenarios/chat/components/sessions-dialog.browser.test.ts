@@ -87,6 +87,7 @@ describe('sessions dialog actions', () => {
   it('keeps the current marker and deletion confirmation usable at 320 pixels', async () => {
     await page.viewport(320, 740)
     const screen = await render(createHarness(), { global: { plugins: [createTestI18n()] } })
+    await expect.poll(() => screen.getByRole('dialog').element().getBoundingClientRect().height).toBeGreaterThanOrEqual(370)
     const current = screen.getByRole('button', { name: /^First chat/ })
     await expect.element(current).toHaveAttribute('aria-current', 'true')
     const remove = screen.getByRole('button', { name: 'Delete: Second chat' })

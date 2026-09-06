@@ -124,7 +124,10 @@ Mobile modal surface built on Vaul Vue. It owns the drag handle, overlay,
 focus boundary, scroll region, and bottom safe area. Dragging
 starts only on the handle, so action buttons and scrolling do not dismiss it.
 
-**Props**: `title` (required visible and accessible title).
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | Visible and accessible title |
+| `minimumHeight` | `'content' \| 'half'` | `'content'` | Uses content height or at least half of the viewport height |
 
 Dismiss with the handle, overlay, or Escape. There is no close button.
 

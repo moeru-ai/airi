@@ -29,6 +29,7 @@ const { t } = useI18n()
     v-if="!isDesktop"
     :model-value="open"
     :title="t('stage.chat.sessions.title')"
+    minimum-height="half"
     @update:model-value="emit('update:open', $event)"
   >
     <template v-if="$slots.trigger" #trigger>

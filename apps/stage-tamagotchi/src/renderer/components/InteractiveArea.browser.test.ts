@@ -121,6 +121,10 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
     await expect.element(screen.getByText('stage.mobile-tools.sign-in', { exact: true })).toBeVisible()
     const account = screen.getByRole('button', { name: 'stage.mobile-tools.sign-in stage.mobile-tools.account-description' }).element()
+    const drawerTitle = screen.getByRole('heading', { name: 'stage.mobile-tools.title' }).element()
+    const signIn = screen.getByText('stage.mobile-tools.sign-in', { exact: true }).element()
+    expect(signIn.getBoundingClientRect().left).toBe(drawerTitle.getBoundingClientRect().left)
+    expect(account.getBoundingClientRect().height).toBe(56)
     expect(account.querySelector('[data-avatar-fallback], [data-avatar-image]')).toBeNull()
     await expect.element(screen.getByText('stage.mobile-tools.cleanup', { exact: true })).not.toBeInTheDocument()
     await expect.element(screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()
@@ -157,6 +161,33 @@ describe('interactive area synchronized state', () => {
     expect(conversations.textContent?.trim()).toBe('')
     await screen.getByTestId('conversation-selector-button').click()
     await expect.element(screen.getByRole('dialog')).toBeVisible()
+  })
+
+  it('keeps the empty mobile input compact and aligns the one-line send action', async () => {
+    // ROOT CAUSE:
+    //
+    // The hierarchy redesign removed the input bubble's compact maximum width.
+    // The 40px bubble also top-aligned its 32px textarea while the send action
+    // aligned to the bottom of the same row.
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const composer = screen.getByTestId('mobile-message-composer').element()
+    const bubble = screen.getByTestId('mobile-input-bubble').element()
+    const input = screen.getByRole('textbox').element()
+    const composerStyle = getComputedStyle(composer)
+    const composerContentWidth = composer.clientWidth
+      - Number.parseFloat(composerStyle.paddingLeft)
+      - Number.parseFloat(composerStyle.paddingRight)
+
+    expect(Math.round(bubble.getBoundingClientRect().width)).toBe(Math.round(composerContentWidth * 0.7))
+
+    await userEvent.fill(input, 'hi')
+    const send = composer.querySelector<HTMLButtonElement>('button')
+    expect(send).not.toBeNull()
+    await expect.poll(() => input.getBoundingClientRect().height).toBe(32)
+    expect(send!.getBoundingClientRect().height).toBe(32)
+    expect(input.getBoundingClientRect().top).toBe(send!.getBoundingClientRect().top)
+    expect(input.getBoundingClientRect().bottom).toBe(send!.getBoundingClientRect().bottom)
   })
 
   it('closes mobile settings before requesting sign-in', async () => {

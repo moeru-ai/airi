@@ -68,6 +68,7 @@ it('selects a character through the real store and opens character management', 
   await page.viewport(390, 844)
   const { screen, store, router } = await mountSwitcher()
   await screen.getByTestId('character-selector-button').click()
+  await expect.poll(() => page.getByRole('dialog').element().getBoundingClientRect().height).toBeGreaterThanOrEqual(422)
   await expect.element(page.getByRole('button', { name: 'ReLU', exact: true })).toHaveAttribute('aria-pressed', 'true')
   expect(document.querySelector('[data-vaul-handle]')).not.toBeNull()
   await page.getByRole('button', { name: 'Hiyori', exact: true }).click()

@@ -66,6 +66,7 @@ function finishClose() {
     <BottomDrawer
       v-model="open"
       :title="t('stage.character-switcher.title')"
+      minimum-height="half"
       @after-close="finishClose"
       @close-auto-focus="event => { if (manageAfterClose) event.preventDefault() }"
     >

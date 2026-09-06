@@ -77,7 +77,10 @@ watch(hearingOpen, async (open) => {
     </template>
     <GhostButton
       block size="unset"
-      :class="['mobile-tool-row mb-4 min-h-16 rounded-2xl px-4 py-3']"
+      :class="[
+        'mobile-tool-row rounded-2xl',
+        isAuthenticated ? 'mb-4 min-h-16 px-4! py-3' : 'mb-3 min-h-14 px-0! py-2',
+      ]"
       @click="openPanel('account')"
     >
       <Avatar v-if="isAuthenticated" :src="user?.image" :class="['size-12 shrink-0 rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-700']" />

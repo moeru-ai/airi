@@ -477,7 +477,7 @@ onUnmounted(() => {
           data-testid="mobile-input-bubble"
           :data-dragging="inputBubbleDragging"
           :class="[
-            'group relative min-h-10 flex origin-center self-center',
+            'group relative mx-auto min-h-10 flex items-end origin-center',
             'touch-none select-none focus-within:touch-auto focus-within:select-text',
             inputBubbleDragging || inputBubbleAnimating
               ? 'transition-none'
@@ -487,7 +487,7 @@ onUnmounted(() => {
                 'h-10 max-w-10 w-10 cursor-pointer rounded-xl border-2 border-solid backdrop-blur-md',
                 'border-neutral-100/60 bg-neutral-50/70 dark:border-neutral-800/30 dark:bg-neutral-800/70',
               ]
-              : 'max-w-full w-full',
+              : 'max-w-[70%] w-full focus-within:max-w-full',
           ]"
           @click="handleInputBubbleClick"
           @contextmenu="handleInputBubbleContextMenu"

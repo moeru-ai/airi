@@ -2,10 +2,14 @@
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle, DrawerTrigger } from 'vaul-vue'
 import { watch } from 'vue'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   /** Names the dialog for both the visible heading and assistive technology. */
   title: string
-}>()
+  /** Sets the minimum drawer height while content can still expand to the shared maximum. @default 'content' */
+  minimumHeight?: 'content' | 'half'
+}>(), {
+  minimumHeight: 'content',
+})
 
 const emit = defineEmits<{
   /** Fires after dismissal completes, so a consumer can open another modal. */
@@ -47,6 +51,7 @@ function finishAnimation(value: boolean) {
           'bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100',
           'pb-[max(1rem,env(safe-area-inset-bottom))]',
           'motion-reduce:animate-none motion-reduce:transition-none',
+          props.minimumHeight === 'half' ? 'min-h-[50dvh]' : undefined,
         ]"
         @close-auto-focus="emit('closeAutoFocus', $event)"
       >
@@ -54,7 +59,7 @@ function finishAnimation(value: boolean) {
           <DrawerHandle :class="['mb-3 bg-neutral-300 dark:bg-neutral-600']" />
           <div :class="['mb-5 pt-2']">
             <DrawerTitle :class="['text-xl font-semibold tracking-tight']">
-              {{ title }}
+              {{ props.title }}
             </DrawerTitle>
           </div>
         </div>
