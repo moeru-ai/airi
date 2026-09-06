@@ -35,6 +35,7 @@ const resolvedSide = computed<NonNullable<TooltipContentProps['side']>>(() => {
         <Transition name="fade">
           <TooltipContent
             :class="[
+              'controls-island-tooltip',
               'border-1 border-solid border-neutral-200/60 dark:border-neutral-800/10',
               'bg-neutral-50/80 dark:bg-neutral-800/70',
               'w-fit flex items-center self-end justify-center px-1.5 py-1',
@@ -53,6 +54,10 @@ const resolvedSide = computed<NonNullable<TooltipContentProps['side']>>(() => {
 </template>
 
 <style scoped>
+:global([data-reka-popper-content-wrapper=""]:has(.controls-island-tooltip)) {
+  z-index: 1000 !important;
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease-in-out;

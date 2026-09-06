@@ -20,6 +20,12 @@ import 'virtual:uno.css'
 
 const isOutside = ref(false)
 const openSettings = vi.fn().mockResolvedValue(undefined)
+const authState = vi.hoisted(() => ({
+  credits: { value: 0 },
+  isAuthenticated: { value: false },
+  needsLogin: { value: false },
+  user: { value: null as { createdAt: Date, email: string, emailVerified: boolean, id: string, name: string, updatedAt: Date } | null },
+}))
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
   useElectronEventaContext: () => ref({ on: vi.fn(), emit: vi.fn() }),
@@ -31,6 +37,16 @@ vi.mock('@moeru/eventa', async importOriginal => ({
   ...await importOriginal<typeof import('@moeru/eventa')>(),
   defineInvoke: () => vi.fn(),
 }))
+
+vi.mock('@proj-airi/stage-ui/stores/auth', async () => {
+  const { ref } = await import('vue')
+  authState.credits = ref(0)
+  authState.isAuthenticated = ref(false)
+  authState.needsLogin = ref(false)
+  authState.user = ref(null)
+
+  return { useAuthStore: () => authState }
+})
 
 function scrollOwners(island: HTMLElement) {
   return Array.from(island.querySelectorAll<HTMLElement>('[data-reka-scroll-area-viewport]'))
@@ -59,7 +75,7 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
   })
   useSettings(pinia).controlsIslandIconSize = size
 
-  return { i18n, screen, settings: useSettings(pinia) }
+  return { auth: authState, i18n, screen, settings: useSettings(pinia) }
 }
 
 beforeEach(() => {
@@ -168,6 +184,46 @@ describe('controls Island overflow', () => {
     const previousScrollWidth = viewport.scrollWidth
 
     settings.controlsIslandIconSize = 'large'
+    await expect.poll(() => viewport.scrollWidth).toBeGreaterThan(previousScrollWidth)
+    await expect.poll(() => viewport.scrollLeft).toBe(viewport.scrollWidth - viewport.clientWidth)
+  })
+
+  it('issue #2400 raises portaled control tooltips above the stage', async () => {
+    await page.viewport(450, 600)
+    const { i18n, screen } = mountControlsIsland('bottom-right')
+    const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+
+    await screen.getByLabelText(label('expand'), { exact: true }).click()
+    await screen.getByLabelText(label('open-settings'), { exact: true }).hover()
+
+    const tooltipWrapper = '[data-reka-popper-content-wrapper]'
+    await expect.poll(() => document.querySelector(tooltipWrapper)).not.toBeNull()
+    expect(getComputedStyle(document.querySelector(tooltipWrapper)!).zIndex).toBe('1000')
+  })
+
+  it('issue #2400 realigns the right dock after authentication content grows', async () => {
+    await page.viewport(450, 600)
+    const { auth, i18n, screen } = mountControlsIsland('bottom-right')
+    const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+
+    await screen.getByLabelText(label('expand'), { exact: true }).click()
+    const island = screen.getByTestId('controls-island').element() as HTMLElement
+    const viewport = island.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
+    await page.viewport(40, 600)
+    await expect.poll(() => viewport.scrollLeft).toBeGreaterThan(0)
+    const previousScrollWidth = viewport.scrollWidth
+
+    auth.credits.value = 999999999
+    auth.isAuthenticated.value = true
+    auth.user.value = {
+      createdAt: new Date('2020-01-01'),
+      email: 'user@example.com',
+      emailVerified: true,
+      id: 'user',
+      name: 'A very long authenticated user name that changes the island width',
+      updatedAt: new Date('2020-01-01'),
+    }
+
     await expect.poll(() => viewport.scrollWidth).toBeGreaterThan(previousScrollWidth)
     await expect.poll(() => viewport.scrollLeft).toBe(viewport.scrollWidth - viewport.clientWidth)
   })

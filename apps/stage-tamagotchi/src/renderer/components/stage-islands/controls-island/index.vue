@@ -57,6 +57,7 @@ const expanded = ref(false)
 const islandElement = useTemplateRef<HTMLElement>('island')
 const islandScrollArea = useTemplateRef<InstanceType<typeof ScrollableArea>>('islandScrollArea')
 const islandViewport = computed(() => islandScrollArea.value?.viewport)
+const islandContent = useTemplateRef<HTMLElement>('islandContent')
 const mainControlsElement = useTemplateRef<HTMLElement>('mainControls')
 const { height: mainControlsHeight } = useElementSize(mainControlsElement)
 // This probe measures the CSS viewport limit, including the current rem size.
@@ -88,6 +89,7 @@ function alignHorizontalScroll() {
 }
 
 useResizeObserver(islandViewport, alignHorizontalScroll)
+useResizeObserver(islandContent, alignHorizontalScroll)
 watch([dock, expanded, controlsIslandIconSize], async () => {
   await nextTick()
   alignHorizontalScroll()
@@ -253,7 +255,7 @@ function resetMainWindowPosition() {
       :class="['max-h-[inherit] max-w-[inherit]']"
       viewport-class="overscroll-contain"
     >
-      <div :class="['min-w-max flex', islandLayoutClasses]">
+      <div ref="islandContent" :class="['min-w-max flex', islandLayoutClasses]">
         <!-- iOS Style Drawer Panel -->
         <Transition
           enter-active-class="transition-all duration-500 cubic-bezier(0.32, 0.72, 0, 1)"
