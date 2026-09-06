@@ -354,6 +354,10 @@ Two-column input for key-value pairs.
 ### BasicTextarea
 
 Auto-resizing textarea with submit and paste-file events.
+The native row count defaults to one, so typing does not introduce a second
+row. Content grows when it wraps. Native `rows` attributes can override this minimum.
+When set, `defaultHeight` also provides the baseline for content measurement,
+so flex layouts do not stretch the empty measurement box.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|

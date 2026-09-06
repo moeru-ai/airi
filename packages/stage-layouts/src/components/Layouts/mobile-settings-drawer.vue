@@ -2,7 +2,7 @@
 import { HearingConfig } from '@proj-airi/stage-ui/components'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { Avatar, BasicButton, BottomDrawer, Checkbox, DoubleCheckButton, GhostButton, useTheme } from '@proj-airi/ui'
+import { Avatar, BasicButton, BottomDrawer, Checkbox, GhostButton, useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,10 +13,6 @@ import ViewControls from './InteractiveArea/Actions/ViewControls.vue'
 
 import { BackgroundDialogPicker } from '../Backgrounds'
 
-const emit = defineEmits<{
-  /** Clears the active conversation only after the user confirms the action. */
-  cleanup: []
-}>()
 const characterVoiceEnabled = defineModel<boolean>('characterVoiceEnabled', { required: true })
 const { t } = useI18n()
 const { isDark } = useTheme()
@@ -84,7 +80,7 @@ watch(hearingOpen, async (open) => {
       :class="['mobile-tool-row mb-4 min-h-16 rounded-2xl px-4 py-3']"
       @click="openPanel('account')"
     >
-      <Avatar :src="user?.image" :class="['size-12 shrink-0 rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-700']" />
+      <Avatar v-if="isAuthenticated" :src="user?.image" :class="['size-12 shrink-0 rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-700']" />
       <span :class="['min-w-0 flex-1 text-left']">
         <span :class="['block truncate text-base font-semibold']">{{ isAuthenticated ? user?.name : t('stage.mobile-tools.sign-in') }}</span>
         <span :class="['block text-xs text-neutral-500 dark:text-neutral-400']">{{ t('stage.mobile-tools.account-description') }}</span>
@@ -163,24 +159,6 @@ watch(hearingOpen, async (open) => {
           <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
         </GhostButton>
       </div>
-    </section>
-    <section :class="['mb-2']">
-      <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
-        {{ t('stage.mobile-tools.conversation') }}
-      </h3>
-      <DoubleCheckButton
-        block variant="secondary"
-        :class="['[&_button]:min-h-11 [&_button]:bg-transparent [&_button]:text-red-600 dark:[&_button]:text-red-400']"
-        @confirm="emit('cleanup')"
-      >
-        {{ t('stage.mobile-tools.cleanup') }}
-        <template #confirm>
-          {{ t('stage.mobile-tools.confirm-cleanup') }}
-        </template>
-        <template #cancel>
-          {{ t('stage.mobile-tools.cancel') }}
-        </template>
-      </DoubleCheckButton>
     </section>
   </BottomDrawer>
   <BottomDrawer

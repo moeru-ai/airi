@@ -4,12 +4,11 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { ChatHistory } from '@proj-airi/stage-ui/components'
+import { CharacterSwitcherDrawer, ChatHistory } from '@proj-airi/stage-ui/components'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
@@ -38,7 +37,6 @@ const emit = defineEmits<{
 const chatOrchestrator = useChatStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
-const { cleanupMessages } = useChatMaintenanceStore()
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
@@ -51,7 +49,7 @@ const isActiveSessionSending = computed(() => (
 const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
   ? activeStreamingMessage.value
   : streamingMessage.value)
-const { trackChatMessageDeleted, trackChatMessagesCleared } = useAnalytics()
+const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 
 async function handleDeleteMessage(index: number) {
@@ -64,15 +62,6 @@ async function handleDeleteMessage(index: number) {
   trackChatMessageDeleted({
     source: 'history',
     message_role: message?.role ?? 'unknown',
-  })
-}
-
-function handleCleanupMessages() {
-  const messageCount = messages.value.filter(message => message.role !== 'system').length
-  cleanupMessages()
-  trackChatMessagesCleared({
-    source: 'chat_controls',
-    message_count: messageCount,
   })
 }
 
@@ -417,7 +406,8 @@ onUnmounted(() => {
       >
         <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-6']" />
       </BasicButton>
-      <MobileSettingsDrawer v-model:character-voice-enabled="characterVoiceEnabled" @cleanup="handleCleanupMessages" />
+      <CharacterSwitcherDrawer />
+      <MobileSettingsDrawer v-model:character-voice-enabled="characterVoiceEnabled" />
     </MobileHeader>
     <div
       :class="[

@@ -120,6 +120,9 @@ describe('interactive area synchronized state', () => {
     await trigger.click()
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
     await expect.element(screen.getByText('stage.mobile-tools.sign-in', { exact: true })).toBeVisible()
+    const account = screen.getByRole('button', { name: 'stage.mobile-tools.sign-in stage.mobile-tools.account-description' }).element()
+    expect(account.querySelector('[data-avatar-fallback], [data-avatar-image]')).toBeNull()
+    await expect.element(screen.getByText('stage.mobile-tools.cleanup', { exact: true })).not.toBeInTheDocument()
     await expect.element(screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()
     const voice = screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })
     const before = voice.element().getAttribute('aria-checked')
@@ -128,6 +131,14 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByRole('button', { name: 'Close', exact: true })).not.toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
     await expect.element(trigger).toHaveFocus()
+  })
+
+  it('removes the clear-messages action from desktop chat surfaces', async () => {
+    for (const component of [InteractiveArea, SharedInteractiveArea, ChatArea]) {
+      const { screen } = await renderArea(component)
+      expect(screen.container.querySelector('[class*="trash-bin-2-bold-duotone"]')).toBeNull()
+      screen.unmount()
+    }
   })
 
   it('places the conversation selector opposite settings in the mobile header', async () => {
