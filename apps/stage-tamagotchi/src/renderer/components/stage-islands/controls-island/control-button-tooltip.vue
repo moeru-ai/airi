@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TooltipContentProps } from 'reka-ui'
 
-import { TooltipContent, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
+import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { computed } from 'vue'
 
 import { useControlsIslandPlacement } from './use-controls-island-placement'
@@ -31,21 +31,23 @@ const resolvedSide = computed<NonNullable<TooltipContentProps['side']>>(() => {
       <TooltipTrigger>
         <slot />
       </TooltipTrigger>
-      <Transition name="fade">
-        <TooltipContent
-          :class="[
-            'border-1 border-solid border-neutral-200/60 dark:border-neutral-800/10',
-            'bg-neutral-50/80 dark:bg-neutral-800/70',
-            'w-fit flex items-center self-end justify-center px-1.5 py-1',
-            'rounded-lg backdrop-blur-md',
-            'max-w-[min(18rem,calc(100vw-1rem))] break-words text-center text-xs leading-4 whitespace-normal',
-          ]"
-          :side="resolvedSide"
-          :side-offset="4"
-        >
-          <slot name="tooltip" />
-        </TooltipContent>
-      </Transition>
+      <TooltipPortal>
+        <Transition name="fade">
+          <TooltipContent
+            :class="[
+              'border-1 border-solid border-neutral-200/60 dark:border-neutral-800/10',
+              'bg-neutral-50/80 dark:bg-neutral-800/70',
+              'w-fit flex items-center self-end justify-center px-1.5 py-1',
+              'rounded-lg backdrop-blur-md',
+              'max-w-[min(18rem,calc(100vw-1rem))] break-words text-center text-xs leading-4 whitespace-normal',
+            ]"
+            :side="resolvedSide"
+            :side-offset="4"
+          >
+            <slot name="tooltip" />
+          </TooltipContent>
+        </Transition>
+      </TooltipPortal>
     </TooltipRoot>
   </TooltipProvider>
 </template>
