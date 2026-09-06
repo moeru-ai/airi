@@ -66,15 +66,15 @@ export interface SampleRegion {
 }
 
 /**
- * Standard deviation of the two blurs, in window heights.
+ * Standard deviation of the two blurs, in subject heights.
  *
  * The contact blur feeds the light wrap and the backlight rim, which must show
  * what sits directly behind or beside the silhouette, so it stays narrow. The
  * surround blur feeds the color cast over the whole model, so it reaches about
- * a third of the window height and averages a large area into one hue.
+ * a third of the subject height and averages a large area into one hue.
  */
-const contactSigmaWindowHeights = 0.08
-const surroundSigmaWindowHeights = 0.30
+const contactSigmaSubjectHeights = 0.08
+const surroundSigmaSubjectHeights = 0.30
 
 /**
  * Height of the stage window on the working grid, in cells.
@@ -254,16 +254,16 @@ export function sampleScreenAmbientLight(
   const subjectHeightCells = Math.max(1, subject.height * frame.height / grid.scale)
   const scratchA = new Float32Array(field.length)
   const scratchB = new Float32Array(field.length)
-  const mapMargin = ambientLightMapMarginFor(windowAspectOf(frame, subject))
+  const mapMargin = ambientLightMapMarginFor(aspectOf(frame, subject))
   const contact = readMapTexels(
-    blurField(field, scratchA, scratchB, grid.width, grid.height, contactSigmaWindowHeights * subjectHeightCells),
+    blurField(field, scratchA, scratchB, grid.width, grid.height, contactSigmaSubjectHeights * subjectHeightCells),
     grid,
     frame,
     subject,
     mapMargin,
   )
   const surround = readMapTexels(
-    blurField(field, scratchA, scratchB, grid.width, grid.height, surroundSigmaWindowHeights * subjectHeightCells),
+    blurField(field, scratchA, scratchB, grid.width, grid.height, surroundSigmaSubjectHeights * subjectHeightCells),
     grid,
     frame,
     subject,
@@ -312,7 +312,7 @@ function subjectOf(region: SampleRegion): NormalizedRectangle {
 }
 
 /** Width over height of a rectangle, in frame pixels. */
-function windowAspectOf(frame: PixelFrame, rectangle: NormalizedRectangle) {
+function aspectOf(frame: PixelFrame, rectangle: NormalizedRectangle) {
   const width = Math.max(1, rectangle.width * frame.width)
   const height = Math.max(1, rectangle.height * frame.height)
   return width / height
@@ -323,8 +323,8 @@ function workingGridFor(frame: PixelFrame, windowRectangle: NormalizedRectangle)
   const scale = Math.max(1, Math.round(windowHeightPixels / workingWindowHeight))
   // The grid has to hold the map and the blur that fills it, and both reach the
   // same distance on every side, so the fraction differs between the axes.
-  const reach = ambientLightMapMargin + 3 * surroundSigmaWindowHeights
-  const aspect = windowAspectOf(frame, windowRectangle)
+  const reach = ambientLightMapMargin + 3 * surroundSigmaSubjectHeights
+  const aspect = aspectOf(frame, windowRectangle)
   const reachX = reach / aspect
   const reachY = reach
 
