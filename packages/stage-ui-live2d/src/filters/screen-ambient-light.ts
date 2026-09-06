@@ -13,9 +13,13 @@ import {
   ambientLightDefaults,
   ambientLightMapSize,
   ambientLightNeutralMapMargin,
+  ambientLightPerceptualLevel,
   averageAmbientLightMap,
+  linearToSrgb,
+  relativeLuminance,
   wholeWindowRectangle,
 } from '@proj-airi/stage-shared/screen-ambient-light'
+import { clamp } from 'es-toolkit'
 
 /**
  * Transparent margin kept around the model, in pixels.
@@ -629,23 +633,13 @@ function writeMapTexels(texels: Uint8Array, map: AmbientLightMap) {
 function peakPerceptualLevel(map: AmbientLightMap) {
   let peak = 0
   for (let texel = 0; texel < map.width * map.height; texel += 1) {
-    const luminance = map.data[texel * 3] * 0.2126
-      + map.data[texel * 3 + 1] * 0.7152
-      + map.data[texel * 3 + 2] * 0.0722
-    peak = Math.max(peak, luminance)
+    const offset = texel * 3
+    peak = Math.max(peak, relativeLuminance(map.data[offset], map.data[offset + 1], map.data[offset + 2]))
   }
 
-  return clamp(linearToSrgb(peak), 0, 1)
+  return ambientLightPerceptualLevel(peak)
 }
 
 function toTexel(value: number) {
   return Math.round(clamp(value, 0, 1) * 255)
-}
-
-function linearToSrgb(value: number) {
-  return value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055
-}
-
-function clamp(value: number, minimum: number, maximum: number) {
-  return Math.min(maximum, Math.max(minimum, value))
 }

@@ -4,7 +4,8 @@ import type { ComponentPublicInstance } from 'vue'
 
 import type { ScreenAmbientLightDiagnosticsSnapshot } from '../../../../shared/screen-ambient-light-diagnostics'
 
-import { ambientLightNeutralMapMargin } from '@proj-airi/stage-shared/screen-ambient-light'
+import { ambientLightNeutralMapMargin, linearToSrgb } from '@proj-airi/stage-shared/screen-ambient-light'
+import { clamp } from 'es-toolkit'
 import { computed, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -89,9 +90,7 @@ function drawMap(canvas: HTMLCanvasElement, map: AmbientLightMap) {
 
 /** The map holds linear light, and a canvas expects the sRGB encoding. */
 function toByte(linear: number) {
-  const clamped = Math.min(1, Math.max(0, linear))
-  const encoded = clamped <= 0.0031308 ? clamped * 12.92 : 1.055 * clamped ** (1 / 2.4) - 0.055
-  return Math.round(encoded * 255)
+  return Math.round(linearToSrgb(clamp(linear, 0, 1)) * 255)
 }
 </script>
 

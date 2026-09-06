@@ -16,7 +16,6 @@ import {
 } from './sampling'
 
 const samplingOptions = ambientLightDefaults.sampling
-const displayAspect = 16 / 9
 /** Window that the positional cases share, at the center of the frame. */
 const centeredWindow = { x: 0.375, y: 0.25, width: 0.25, height: 0.5 }
 
@@ -29,7 +28,6 @@ describe('screen ambient light sampling', () => {
       // The window covers the first pixel. No mask arrives, so that pixel may
       // hold the character and cannot be measured.
       exclude: { x: 0, y: 0, width: 0.2, height: 1 },
-      displayAspect,
     }, samplingOptions)
 
     // The sampler reads the window plus 1.4 window widths beside it, which is
@@ -57,7 +55,7 @@ describe('screen ambient light sampling', () => {
     const fine = createFrame(256, 192, [0, 0, 0, 255])
     fillPixels(fine, 32, 0, 64, 192, [255, 0, 0, 255])
 
-    const region = { exclude: centeredWindow, displayAspect }
+    const region = { exclude: centeredWindow }
     const fromCoarse = sampleScreenAmbientLight(coarse, region, samplingOptions).environment
     const fromFine = sampleScreenAmbientLight(fine, region, samplingOptions).environment
 
@@ -84,7 +82,6 @@ describe('screen ambient light sampling', () => {
 
     const result = sampleScreenAmbientLight(frame, {
       exclude: { x: 0.4, y: 0.4, width: 0.2, height: 0.2 },
-      displayAspect,
     }, samplingOptions)
 
     expect(result.environment.exposure).toBeLessThan(0.05)
@@ -98,7 +95,6 @@ describe('screen ambient light sampling', () => {
 
     const result = sampleScreenAmbientLight(frame, {
       exclude: centeredWindow,
-      displayAspect,
     }, samplingOptions)
 
     const contact = result.environment.contact
@@ -123,7 +119,6 @@ describe('screen ambient light sampling', () => {
 
     const result = sampleScreenAmbientLight(frame, {
       exclude: centeredWindow,
-      displayAspect,
     }, samplingOptions)
 
     const contact = result.environment.contact
@@ -153,7 +148,6 @@ describe('screen ambient light sampling', () => {
     const window = { x: 0.40625, y: 0.25, width: 0.1875, height: 0.375 }
     const environment = sampleScreenAmbientLight(frame, {
       exclude: window,
-      displayAspect: 1,
     }, samplingOptions).environment
 
     const windowWidthPixels = window.width * frame.width
@@ -181,7 +175,6 @@ describe('screen ambient light sampling', () => {
 
       const environment = sampleScreenAmbientLight(frame, {
         exclude: window,
-        displayAspect: 1,
       }, samplingOptions).environment
       const [red, green, blue] = averageAmbientLightMap(environment.surround)
       return (red + green + blue) / 3
@@ -224,7 +217,6 @@ describe('screen ambient light sampling', () => {
       return sampleScreenAmbientLight(frame, {
         exclude: wideWindow,
         subject,
-        displayAspect: 1,
         paintedAlpha: painted,
       }, samplingOptions).environment.behindLuminance
     }
@@ -243,12 +235,10 @@ describe('screen ambient light sampling', () => {
     const frame = createFrame(64, 64, [40, 60, 90, 255])
     const withoutSubject = sampleScreenAmbientLight(frame, {
       exclude: window,
-      displayAspect: 1,
     }, samplingOptions).environment
     const withEmptySubject = sampleScreenAmbientLight(frame, {
       exclude: window,
       subject: { x: 0.5, y: 0.5, width: 0, height: 0 },
-      displayAspect: 1,
     }, samplingOptions).environment
 
     expect(withEmptySubject.mapMargin).toEqual(withoutSubject.mapMargin)
@@ -273,7 +263,6 @@ describe('screen ambient light sampling', () => {
 
     const result = sampleScreenAmbientLight(frame, {
       exclude: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
-      displayAspect: 1,
       paintedAlpha: painted,
     }, samplingOptions)
 
@@ -298,7 +287,6 @@ describe('screen ambient light sampling', () => {
 
     const result = sampleScreenAmbientLight(frame, {
       exclude: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
-      displayAspect: 1,
       paintedAlpha: painted,
     }, samplingOptions)
 
@@ -320,7 +308,6 @@ describe('screen ambient light sampling', () => {
 
     const result = sampleScreenAmbientLight(frame, {
       exclude: centeredWindow,
-      displayAspect,
     }, samplingOptions)
     const cloned = structuredClone(result.environment)
 
@@ -335,7 +322,6 @@ describe('screen ambient light sampling', () => {
 
     const result = sampleScreenAmbientLight(frame, {
       exclude: { x: 0, y: 0, width: 1, height: 1 },
-      displayAspect,
     }, samplingOptions)
 
     const [red, green, blue] = averageAmbientLightMap(result.environment.surround)
@@ -348,12 +334,10 @@ describe('screen ambient light sampling', () => {
   it('reports a full exposure and a full backlight over a white screen', () => {
     const white = sampleScreenAmbientLight(createFrame(32, 32, [255, 255, 255, 255]), {
       exclude: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
-      displayAspect: 1,
       paintedAlpha: new Uint8ClampedArray(32 * 32),
     }, samplingOptions)
     const black = sampleScreenAmbientLight(createFrame(32, 32, [0, 0, 0, 255]), {
       exclude: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
-      displayAspect: 1,
       paintedAlpha: new Uint8ClampedArray(32 * 32),
     }, samplingOptions)
 
@@ -437,7 +421,6 @@ describe('screen ambient light sampling', () => {
     fillMask(painted, 128, 46, 25, 36, 46, 255)
     const region = {
       exclude: { x: 46 / 128, y: 25 / 96, width: 36 / 128, height: 46 / 96 },
-      displayAspect,
       paintedAlpha: painted,
     }
 
