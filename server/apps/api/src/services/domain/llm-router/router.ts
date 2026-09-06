@@ -8,6 +8,7 @@ import type { EnvelopeCrypto } from '../../../utils/envelope-crypto'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { TtsAdapterId, TtsInput } from '../../adapters/tts/types'
 import type { ConcurrencyLedger } from './concurrency-ledger'
+import type { UpstreamAttempt } from './error-mapping'
 import type { LlmRouteContext, LlmRouteRequest, LlmRoutingGroup, LlmUpstream, RouteFailureTriggers, TtsRoutingGroup, TtsUpstream } from './types'
 
 import { Buffer as NodeBuffer } from 'node:buffer'
@@ -37,6 +38,10 @@ interface HttpAttemptFailure {
   bodySnippet?: string
   errorMessage?: string
   response?: Response
+}
+
+function toDiagnosticAttempt({ provider, keyId, status, bodySnippet, errorMessage }: HttpAttemptFailure & { provider: string }): UpstreamAttempt {
+  return { provider, keyId, status, bodySnippet, errorMessage }
 }
 
 async function discardUpstreamResponse(response: Response | undefined): Promise<void> {
@@ -548,7 +553,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         triedUpstreams,
         lastStatusCode: lastFailure.status,
       },
-      allFailures,
+      allFailures.map(toDiagnosticAttempt),
     )
   }
 
@@ -760,6 +765,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     let attemptedPools = 0
     const statuses: Array<number | 'timeout'> = []
     let lastResponse: Response | undefined
+
+    async function discardPreviousPoolResponse(): Promise<void> {
+      await discardUpstreamResponse(lastResponse)
+      lastResponse = undefined
+    }
+
     for (let rankedIndex = 0; rankedIndex < ranked.length; rankedIndex += 1) {
       const { upstream, index, poolId, maxConcurrency } = ranked[rankedIndex]
       const hasNextCandidate = rankedIndex < ranked.length - 1
@@ -767,6 +778,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         // Unlimited pool — dispatch without occupying a slot.
         dispatchedAny = true
         attemptedPools += 1
+        await discardPreviousPoolResponse()
         const result = await attemptUpstream(upstream, index)
         if (result.kind === 'ok')
           return result
@@ -792,6 +804,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       dispatchedAny = true
       attemptedPools += 1
       try {
+        await discardPreviousPoolResponse()
         const result = await attemptUpstream(upstream, index)
         if (result.kind === 'ok')
           return result
@@ -939,6 +952,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         const hasNextCandidate = groupCandidateIndex < indexedUpstreams.length - 1
         if (hasNextCandidate && !failuresMatch(result.statuses, group.retryOn))
           return { kind: 'exhausted', statuses, transitionBlocked: true, response: result.response }
+        if (hasNextCandidate)
+          await discardUpstreamResponse(result.response)
       }
 
       return { kind: 'exhausted', statuses, transitionBlocked: false, response: allFailures.at(-1)?.response }
@@ -961,6 +976,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
             terminalResponse = result.response
           break
         }
+        await discardUpstreamResponse(result.response)
       }
     }
     else {
@@ -975,6 +991,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
             return result.response
           if (i === ttsModel.upstreams.length - 1 && result.response != null)
             terminalResponse = result.response
+          else
+            await discardUpstreamResponse(result.response)
         }
       }
       else {
@@ -1019,7 +1037,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         triedUpstreams,
         lastStatusCode: lastFailure.status,
       },
-      allFailures,
+      allFailures.map(toDiagnosticAttempt),
     )
   }
 

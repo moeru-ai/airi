@@ -465,6 +465,10 @@ describe('createLlmRouterService', () => {
       expect(first).toMatchObject({ keyId: 'kA1', status: 401 })
       expect(first.bodySnippet).toEqual(expect.stringContaining('key disabled'))
       expect(first.errorMessage).toBeUndefined()
+      // https://github.com/moeru-ai/airi/pull/2333#discussion_r3828016906
+      // `Response` owns headers and a body stream. The diagnostic cause must
+      // keep only the documented serializable attempt fields.
+      expect(first.response).toBeUndefined()
 
       const second = (cause!.attempts as Array<Record<string, unknown>>)[1]
       expect(second).toMatchObject({ keyId: 'kB1', status: 'timeout' })
