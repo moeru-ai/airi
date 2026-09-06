@@ -1,12 +1,16 @@
 mobile-tools:
-  title: Stage
+  sign-in: Sign in to AIRI
+  account-description: Account and preferences
+  sound: Sound
+  character-voice: Character voice
+  title: Settings
   appearance: Appearance
   dark-mode: Dark mode
   application: Application
   conversation: Current conversation
   more: More
   background: Background
-  settings: Settings
+  settings: All settings
   about: About
   view: View
   cleanup: Clear messages

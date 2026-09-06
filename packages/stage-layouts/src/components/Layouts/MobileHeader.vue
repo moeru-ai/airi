@@ -1,14 +1,11 @@
-<script setup lang="ts">
-import HeaderAvatar from './HeaderAvatar.vue'
-</script>
-
 <template>
   <header
     :class="[
-      'mb-1 w-full px-2',
-      'flex items-center justify-end gap-2',
+      'pointer-events-none absolute inset-x-0 top-0 z-30',
+      'flex items-center justify-between',
+      'pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))]',
     ]"
   >
-    <HeaderAvatar compact />
+    <slot />
   </header>
 </template>

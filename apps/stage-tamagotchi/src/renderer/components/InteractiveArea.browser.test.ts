@@ -1,3 +1,4 @@
+import type { AuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import type { ChatSessionMeta } from '@proj-airi/stage-ui/types/chat-session'
 import type { Component } from 'vue'
 
@@ -6,13 +7,14 @@ import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/M
 import ChatArea from '@proj-airi/stage-layouts/components/Widgets/ChatArea'
 
 import { PiniaColada } from '@pinia/colada'
+import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
-import { userEvent } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -102,6 +104,80 @@ async function attachImages(screen: Awaited<ReturnType<typeof renderArea>>['scre
 }
 
 describe('interactive area synchronized state', () => {
+  it('opens mobile settings from an icon-only header and restores focus', async () => {
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const trigger = screen.getByRole('button', { name: 'stage.mobile-tools.title', exact: true })
+    const bounds = trigger.element().getBoundingClientRect()
+    expect(bounds.width).toBeGreaterThanOrEqual(44)
+    expect(bounds.height).toBeGreaterThanOrEqual(44)
+    expect(bounds.right).toBeLessThanOrEqual(390)
+    expect(bounds.left).toBeGreaterThan(300)
+    expect(bounds.top).toBeLessThan(40)
+    expect(trigger.element().textContent?.trim()).toBe('')
+    await expect.element(screen.getByTestId('speech-mute-button')).not.toBeInTheDocument()
+
+    await trigger.click()
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
+    await expect.element(screen.getByText('stage.mobile-tools.sign-in', { exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()
+    const voice = screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })
+    const before = voice.element().getAttribute('aria-checked')
+    await voice.click()
+    await expect.element(voice).toHaveAttribute('aria-checked', before === 'true' ? 'false' : 'true')
+    await expect.element(screen.getByRole('button', { name: 'Close', exact: true })).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(trigger).toHaveFocus()
+  })
+
+  it('places the conversation selector opposite settings in the mobile header', async () => {
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const composer = screen.getByTestId('mobile-message-composer').element()
+    const conversations = screen.getByTestId('conversation-selector-button').element()
+    const bounds = conversations.getBoundingClientRect()
+    const settingsBounds = screen.getByTestId('mobile-settings-button').element().getBoundingClientRect()
+    expect(composer.contains(conversations)).toBe(false)
+    expect(bounds.left).toBe(12)
+    expect(bounds.top).toBe(settingsBounds.top)
+    expect(bounds.width).toBe(44)
+    expect(bounds.height).toBe(44)
+    expect(bounds.left).toBe(390 - settingsBounds.right)
+    expect(conversations.textContent?.trim()).toBe('')
+    await screen.getByTestId('conversation-selector-button').click()
+    await expect.element(screen.getByRole('dialog')).toBeVisible()
+  })
+
+  it('closes mobile settings before requesting sign-in', async () => {
+    let openDialogAtSignIn = true
+    const authorize = vi.fn<AuthorizationHandler>(async () => {
+      openDialogAtSignIn = document.querySelector('[role="dialog"][data-state="open"]') !== null
+    })
+    registerAuthorizationHandler(authorize)
+    try {
+      const { screen } = await renderArea(MobileInteractiveArea)
+      await screen.getByTestId('mobile-settings-button').click()
+      await screen.getByRole('button', { name: 'stage.mobile-tools.sign-in stage.mobile-tools.account-description' }).click()
+      await expect.poll(() => authorize.mock.calls.length).toBe(1)
+      expect(openDialogAtSignIn).toBe(false)
+      await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
+    }
+    finally {
+      registerAuthorizationHandler(browserAuthorizationHandler)
+    }
+  })
+
+  it('returns from hearing to mobile settings without stacked dialogs', async () => {
+    const { screen } = await renderArea(MobileInteractiveArea)
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.hearing' }).click()
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).toBeVisible()
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).not.toBeInTheDocument()
+  })
+
   // https://github.com/moeru-ai/airi/pull/2399
   it('keeps the input visible when a short window contains many attachments', async () => {
     // ROOT CAUSE:

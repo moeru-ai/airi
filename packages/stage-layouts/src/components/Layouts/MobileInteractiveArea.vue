@@ -4,7 +4,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
+import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -15,30 +15,26 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea, BottomDrawer, Checkbox, DoubleCheckButton, GhostButton, OverlayButton, useTheme } from '@proj-airi/ui'
+import { BasicButton, BasicTextarea } from '@proj-airi/ui'
 import { onLongPress, useEventListener, usePointerSwipe } from '@vueuse/core'
 import { animate, spring } from 'animejs'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
 
-import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
-import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
-import ActionAbout from './InteractiveArea/Actions/About.vue'
+import MobileSettingsDrawer from './mobile-settings-drawer.vue'
+import MobileHeader from './MobileHeader.vue'
 
 import { useMobileInteractiveAreaLayout } from '../../composables/use-mobile-interactive-area-layout'
 import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
-import { BackgroundDialogPicker } from '../Backgrounds'
 
 const emit = defineEmits<{
   /** Reports the stable height and offset that keep the Stage in the same screen position. */
   stageViewportChange: [viewport: { height: number, offsetTop: number }]
 }>()
 
-const { isDark } = useTheme()
 const chatOrchestrator = useChatStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
@@ -85,25 +81,7 @@ const isComposing = shallowRef(false)
 const inputBubbleDocked = shallowRef(false)
 const inputBubbleDragging = shallowRef(false)
 const inputBubbleAnimating = shallowRef(false)
-const backgroundDialogOpen = shallowRef(false)
 const sessionsDrawerOpen = shallowRef(false)
-const moreOpen = shallowRef(false)
-const aboutOpen = shallowRef(false)
-// Finish closing More before opening a sibling modal, so focus and scroll locks have one owner.
-const nextPanel = shallowRef<'background' | 'about'>()
-
-function openPanel(panel: 'background' | 'about') {
-  nextPanel.value = panel
-  moreOpen.value = false
-}
-
-function finishMoreClose() {
-  if (nextPanel.value === 'background')
-    backgroundDialogOpen.value = true
-  else if (nextPanel.value === 'about')
-    aboutOpen.value = true
-  nextPanel.value = undefined
-}
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
 const inputBubble = useTemplateRef<HTMLElement>('inputBubble')
@@ -180,7 +158,7 @@ const messageInputPointerEventsClass = computed(() => {
   return 'pointer-events-auto'
 })
 
-const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(
+useTranscriptions(
   {
     messageInputRef: messageInput,
     sendMessage: handleSend,
@@ -188,7 +166,13 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription } =
   },
 )
 const { showStopSpeakingButton, speechMuted, stopSpeakingFromChat, toggleSpeechMuted } = useStopSpeakingButton()
-const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
+const characterVoiceEnabled = computed({
+  get: () => !speechMuted.value,
+  set: (value) => {
+    if (value === speechMuted.value)
+      toggleSpeechMuted()
+  },
+})
 
 let suppressNextInputBubbleClick = false
 
@@ -416,8 +400,25 @@ onUnmounted(() => {
     :class="mobileInteractiveAreaClass"
     :style="mobileInteractiveAreaStyle"
   >
-    <BackgroundDialogPicker v-model="backgroundDialogOpen" class="pointer-events-auto" />
-    <ActionAbout v-model="aboutOpen" hide-trigger />
+    <MobileHeader>
+      <BasicButton
+        size="unset"
+        data-testid="conversation-selector-button"
+        :class="[
+          'pointer-events-auto size-11 shrink-0 rounded-full backdrop-blur-md',
+          'bg-neutral-50/70 text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300',
+          'focus-visible:outline-2 focus-visible:outline-primary-500',
+        ]"
+        :title="t('stage.chat.sessions.title')"
+        :aria-label="t('stage.chat.sessions.title')"
+        aria-haspopup="dialog"
+        :aria-expanded="sessionsDrawerOpen"
+        @click="sessionsDrawerOpen = true"
+      >
+        <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-6']" />
+      </BasicButton>
+      <MobileSettingsDrawer v-model:character-voice-enabled="characterVoiceEnabled" @cleanup="handleCleanupMessages" />
+    </MobileHeader>
     <div
       :class="[
         'min-h-0 flex flex-1 flex-col justify-end overflow-hidden',
@@ -469,153 +470,7 @@ onUnmounted(() => {
             data-testid="mobile-input-bubble-dock-target"
             class="invisible size-10 shrink-0 self-end"
           />
-          <div :class="['flex flex-col items-end gap-1']">
-            <OverlayButton
-              size="unset"
-              data-testid="conversation-selector-button"
-              :class="[
-                'size-11 flex items-center justify-center self-end rounded-full p-2 backdrop-blur-md',
-
-                'focus-visible:outline-2 focus-visible:outline-primary-500',
-              ]"
-              :title="t('stage.chat.sessions.title')"
-              :aria-label="t('stage.chat.sessions.title')"
-              @click="sessionsDrawerOpen = true"
-            >
-              <div i-solar:chat-line-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
-            </OverlayButton>
-            <OverlayButton
-              size="unset"
-              data-testid="speech-mute-button"
-              :class="[
-                'size-11 flex items-center self-end justify-center rounded-full p-2 backdrop-blur-md focus-visible:outline-2 focus-visible:outline-primary-500',
-                'border-neutral-100/60 text-neutral-500 transition-colors active:scale-95 dark:border-neutral-800/30 dark:text-neutral-400',
-                speechMuted
-                  ? 'bg-primary-100/80 text-primary-600 dark:bg-primary-900/60 dark:text-primary-300'
-                  : 'bg-neutral-50/70 hover:text-primary-500 dark:bg-neutral-800/70 dark:hover:text-primary-400',
-              ]"
-              :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
-              :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
-              :aria-pressed="speechMuted"
-              @click="toggleSpeechMuted"
-            >
-              <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone size-5" />
-              <div v-else class="i-solar:volume-loud-bold-duotone size-5" />
-            </OverlayButton>
-          </div>
           <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
-          <HearingConfigDialog
-            v-model:enabled="enabled"
-            :transcription="isListening"
-            :toggle-transcription="toggleTranscription"
-            :granted="true"
-          >
-            <OverlayButton
-              size="unset"
-              :class="[
-                'size-11 flex items-center justify-center self-end rounded-full p-2 backdrop-blur-md',
-
-                'focus-visible:outline-2 focus-visible:outline-primary-500',
-                (enabled || isListening) && 'bg-primary-100/80 text-primary-600 dark:bg-primary-900/60 dark:text-primary-300',
-              ]"
-              :aria-pressed="enabled || isListening"
-              :title="t('stage.mobile-tools.hearing')"
-              :aria-label="t('stage.mobile-tools.hearing')"
-            >
-              <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="enabled" size-5 :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
-                <div v-else i-solar:microphone-3-outline size-5 text="neutral-500 dark:neutral-400" />
-              </Transition>
-            </OverlayButton>
-          </HearingConfigDialog>
-          <BottomDrawer
-            v-model="moreOpen"
-            :title="t('stage.mobile-tools.title')"
-            @after-close="finishMoreClose"
-            @close-auto-focus="event => { if (nextPanel) event.preventDefault() }"
-          >
-            <template #trigger>
-              <GhostButton
-                size="unset"
-                :aria-label="t('stage.mobile-tools.more')"
-                :class="['mt-2 size-11 self-end rounded-full bg-neutral-50/40 backdrop-blur-md dark:bg-neutral-950/30']"
-                icon="i-solar:menu-dots-bold"
-              />
-            </template>
-            <section :class="['mb-5']">
-              <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
-                {{ t('stage.mobile-tools.appearance') }}
-              </h3>
-              <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
-                <label :class="['min-h-15 flex cursor-pointer items-center gap-3 px-4 py-3']">
-                  <span aria-hidden="true" :class="['i-solar:moon-outline size-5 shrink-0 text-neutral-400']" />
-                  <span :class="['flex-1 text-sm']">{{ t('stage.mobile-tools.dark-mode') }}</span>
-                  <Checkbox v-model="isDark" :aria-label="t('stage.mobile-tools.dark-mode')" />
-                </label>
-                <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
-                <GhostButton
-                  block size="unset"
-                  :class="['mobile-tool-row min-h-15 rounded-none px-4 py-3']"
-                  @click="openPanel('background')"
-                >
-                  <span aria-hidden="true" :class="['i-solar:gallery-wide-outline size-5 shrink-0 text-neutral-400']" />
-                  <span :class="['flex-1 text-left text-sm']">{{ t('stage.mobile-tools.background') }}</span>
-                  <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
-                </GhostButton>
-                <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
-                <ViewControls>
-                  {{ t('stage.mobile-tools.view') }}
-                </ViewControls>
-              </div>
-            </section>
-            <section :class="['mb-5']">
-              <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
-                {{ t('stage.mobile-tools.application') }}
-              </h3>
-              <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
-                <RouterLink
-                  to="/settings"
-                  :class="[
-                    'min-h-15 flex items-center gap-3 px-4 py-3 text-sm',
-                    'hover:bg-primary-500/10 focus-visible:outline-2 focus-visible:outline-primary-500',
-                  ]"
-                  @click="moreOpen = false"
-                >
-                  <span aria-hidden="true" :class="['i-solar:settings-outline size-5 shrink-0 text-neutral-400']" />
-                  <span :class="['flex-1']">{{ t('stage.mobile-tools.settings') }}</span>
-                  <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
-                </RouterLink>
-                <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
-                <GhostButton
-                  block size="unset"
-                  :class="['mobile-tool-row min-h-15 rounded-none px-4 py-3']"
-                  @click="openPanel('about')"
-                >
-                  <span aria-hidden="true" :class="['i-solar:info-circle-outline size-5 text-neutral-400']" />
-                  <span :class="['flex-1 text-left text-sm']">{{ t('stage.mobile-tools.about') }}</span>
-                  <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
-                </GhostButton>
-              </div>
-            </section>
-            <section :class="['mb-2']">
-              <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
-                {{ t('stage.mobile-tools.conversation') }}
-              </h3>
-              <DoubleCheckButton
-                block variant="secondary"
-                :class="['[&_button]:min-h-11 [&_button]:bg-transparent [&_button]:text-red-600 dark:[&_button]:text-red-400']"
-                @confirm="handleCleanupMessages"
-              >
-                {{ t('stage.mobile-tools.cleanup') }}
-                <template #confirm>
-                  {{ t('stage.mobile-tools.confirm-cleanup') }}
-                </template>
-                <template #cancel>
-                  {{ t('stage.mobile-tools.cancel') }}
-                </template>
-              </DoubleCheckButton>
-            </section>
-          </BottomDrawer>
         </div>
       </div>
       <div
@@ -623,7 +478,7 @@ onUnmounted(() => {
         data-testid="mobile-message-composer"
         :class="[
           'max-h-100dvh max-w-100dvw w-full',
-          'flex gap-1 px-3 pt-2',
+          'flex gap-2 px-3 pt-2',
         ]"
         :style="messageComposerStyle"
       >
@@ -632,7 +487,7 @@ onUnmounted(() => {
           data-testid="mobile-input-bubble"
           :data-dragging="inputBubbleDragging"
           :class="[
-            'group relative mx-auto min-h-10 flex origin-center',
+            'group relative min-h-10 flex origin-center self-center',
             'touch-none select-none focus-within:touch-auto focus-within:select-text',
             inputBubbleDragging || inputBubbleAnimating
               ? 'transition-none'
@@ -642,7 +497,7 @@ onUnmounted(() => {
                 'h-10 max-w-10 w-10 cursor-pointer rounded-xl border-2 border-solid backdrop-blur-md',
                 'border-neutral-100/60 bg-neutral-50/70 dark:border-neutral-800/30 dark:bg-neutral-800/70',
               ]
-              : 'max-w-[70%] w-full focus-within:max-w-full',
+              : 'max-w-full w-full',
           ]"
           @click="handleInputBubbleClick"
           @contextmenu="handleInputBubbleContextMenu"
@@ -709,14 +564,3 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.mobile-tool-row :deep(.basic-button-content) {
-  width: 100%;
-  gap: 0.75rem;
-}
-
-.mobile-tool-row :deep([aria-hidden]) {
-  flex-shrink: 0;
-}
-</style>
