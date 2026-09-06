@@ -2,7 +2,7 @@ import type Stripe from 'stripe'
 
 import type { Env } from '../../../libs/env'
 import type { RevenueMetrics } from '../../../otel'
-import type { ConfigDefinitions, ConfigKVService } from '../../../services/adapters/config-kv'
+import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { PaymentService } from '../../../services/domain/payment'
 import type { ProductEventService } from '../../../services/domain/product-events'
 
@@ -15,7 +15,7 @@ import { CheckoutBodySchema } from '../schema'
 /**
  * Opens a pending order through Payment CORE, then creates a Stripe Checkout Session.
  *
- * `{ packKey }` and legacy `{ stripePriceId }` resolve a Flux pack.
+ * `{ packKey }` resolves a Flux pack.
  */
 export function createCheckoutOperation(
   payment: PaymentService,
@@ -37,9 +37,9 @@ export function createCheckoutOperation(
     if (!parsed.success)
       throw createBadRequestError('Invalid checkout request', 'INVALID_REQUEST', parsed.issues)
 
-    const { packKey, stripePriceId, currency } = parsed.output
+    const { packKey, currency } = parsed.output
     const packs = await configKV.getOptional('FLUX_PACKS') ?? []
-    const pack = resolveStripeCheckoutPack(packs, packKey, stripePriceId)
+    const pack = packs.find(item => item.key === packKey)
     if (!pack)
       throw createBadRequestError('Invalid pack', 'INVALID_PACKAGE', { packKey })
     const priceId = pack.processors.stripe?.priceId
@@ -126,17 +126,6 @@ export function createCheckoutOperation(
   }
 }
 
-function resolveStripeCheckoutPack(
-  packs: ConfigDefinitions['FLUX_PACKS'],
-  packKey: string | undefined,
-  stripePriceId: string | undefined,
-) {
-  if (packKey)
-    return packs.find(item => item.key === packKey)
-  if (stripePriceId)
-    return packs.find(item => item.processors.stripe?.priceId === stripePriceId)
-  return undefined
-}
 
 function readPosthogIdentityHeaders(request: Request) {
   const distinctId = readStripeMetadataHeader(request, 'x-posthog-distinct-id')

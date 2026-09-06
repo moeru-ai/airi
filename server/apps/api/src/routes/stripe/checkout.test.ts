@@ -118,27 +118,6 @@ describe('stripe checkout', () => {
     expect(order?.currency).toBe('usd')
   })
 
-  it('resolves legacy stripePriceId onto a pack snapshot', async () => {
-    const create = vi.fn(async () => ({
-      id: 'cs_test_price',
-      url: 'https://checkout.stripe.test/cs_test_price',
-      amount_total: 500,
-      currency: 'usd',
-    }))
-
-    const checkout = createCheckout(payment, { checkout: { sessions: { create } } })
-
-    await checkout(
-      testUser,
-      { stripePriceId: 'price_starter' },
-      new Request('http://localhost/api/v1/stripe/checkout'),
-    )
-
-    const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
-    expect(order?.packKey).toBe('starter')
-    expect(order?.fluxAmount).toBe(500)
-    expect(create).toHaveBeenCalled()
-  })
 
   it('credits Flux when settle runs before the session id is bound', async () => {
     const create = vi.fn(async (params: { metadata?: Record<string, string> }) => {
