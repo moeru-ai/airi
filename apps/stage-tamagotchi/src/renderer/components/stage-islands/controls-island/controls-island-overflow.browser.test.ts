@@ -56,16 +56,16 @@ function scrollOwners(island: HTMLElement) {
 const docks: ControlsIslandDock[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
 const sizes = ['small', 'large', 'auto'] as const
 
-function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number] = 'auto') {
+function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number] = 'auto', dockRef = ref(dock)) {
   const pinia = createPinia()
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   const screen = render(ControlsIsland, {
     global: {
       provide: {
         [controlsIslandPlacementKey as symbol]: {
-          dock: ref(dock),
-          isTop: computed(() => dock.startsWith('top')),
-          isLeft: computed(() => dock.endsWith('left')),
+          dock: dockRef,
+          isTop: computed(() => dockRef.value.startsWith('top')),
+          isLeft: computed(() => dockRef.value.endsWith('left')),
           motionPhase: ref('idle'),
         },
       },
@@ -75,7 +75,7 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
   })
   useSettings(pinia).controlsIslandIconSize = size
 
-  return { auth: authState, i18n, screen, settings: useSettings(pinia) }
+  return { auth: authState, dock: dockRef, i18n, screen, settings: useSettings(pinia) }
 }
 
 beforeEach(() => {
@@ -226,6 +226,21 @@ describe('controls Island overflow', () => {
 
     await expect.poll(() => viewport.scrollWidth).toBeGreaterThan(previousScrollWidth)
     await expect.poll(() => viewport.scrollLeft).toBe(viewport.scrollWidth - viewport.clientWidth)
+  })
+
+  it('issue #2400 resets horizontal scroll after moving from a right dock to a left dock', async () => {
+    await page.viewport(450, 600)
+    const { dock, i18n, screen } = mountControlsIsland('bottom-right')
+    const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+
+    await screen.getByLabelText(label('expand'), { exact: true }).click()
+    const island = screen.getByTestId('controls-island').element() as HTMLElement
+    const viewport = island.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
+    await page.viewport(40, 600)
+    await expect.poll(() => viewport.scrollLeft).toBeGreaterThan(0)
+
+    dock.value = 'bottom-left'
+    await expect.poll(() => viewport.scrollLeft).toBe(0)
   })
 
   // The interaction path is independent from the size and dock matrix.

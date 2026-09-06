@@ -82,8 +82,13 @@ const isBlocked = computed(() => blockingOverlays.size > 0 || pressed.value)
 // wider than the viewport. Reapply this after resize and after the menu opens.
 function alignHorizontalScroll() {
   const viewport = islandViewport.value
-  if (!viewport || isLeft.value)
+  if (!viewport)
     return
+
+  if (isLeft.value) {
+    viewport.scrollLeft = 0
+    return
+  }
 
   viewport.scrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth)
 }
