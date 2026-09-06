@@ -13,6 +13,8 @@
 ## Architecture decisions
 
 - Put server ADRs in `../airi-docs/adr/`.
+- For an ADR task, write or update the ADR only. Do not stage, commit, push, or open a PR for ADR files.
+- The user owns ADR commits and pushes.
 - Create or update the ADR before you change a server boundary.
 - A server boundary includes an HTTP contract, provider contract, persistence model, or cross-module lifecycle.
 - Add a module dependency graph, an affected-file tree, and a sequence diagram to every implementation ADR.
