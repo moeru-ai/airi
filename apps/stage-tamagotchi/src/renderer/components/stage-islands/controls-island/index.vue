@@ -88,7 +88,7 @@ function alignHorizontalScroll() {
 }
 
 useResizeObserver(islandViewport, alignHorizontalScroll)
-watch([dock, expanded], async () => {
+watch([dock, expanded, controlsIslandIconSize], async () => {
   await nextTick()
   alignHorizontalScroll()
 }, { flush: 'post' })

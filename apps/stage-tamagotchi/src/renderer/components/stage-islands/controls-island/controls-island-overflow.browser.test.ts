@@ -59,7 +59,7 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
   })
   useSettings(pinia).controlsIslandIconSize = size
 
-  return { i18n, screen }
+  return { i18n, screen, settings: useSettings(pinia) }
 }
 
 beforeEach(() => {
@@ -154,6 +154,23 @@ describe('controls Island overflow', () => {
       await expect.poll(() => viewport.scrollLeft).toBeGreaterThan(0)
     })
   }
+
+  it('issue #2400 realigns the right dock after an icon size change', async () => {
+    await page.viewport(450, 600)
+    const { i18n, screen, settings } = mountControlsIsland('bottom-right', 'small')
+    const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+
+    await screen.getByLabelText(label('expand'), { exact: true }).click()
+    const island = screen.getByTestId('controls-island').element() as HTMLElement
+    const viewport = island.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
+    await page.viewport(40, 600)
+    await expect.poll(() => viewport.scrollLeft).toBeGreaterThan(0)
+    const previousScrollWidth = viewport.scrollWidth
+
+    settings.controlsIslandIconSize = 'large'
+    await expect.poll(() => viewport.scrollWidth).toBeGreaterThan(previousScrollWidth)
+    await expect.poll(() => viewport.scrollLeft).toBe(viewport.scrollWidth - viewport.clientWidth)
+  })
 
   // The interaction path is independent from the size and dock matrix.
   it('issue #2400 keeps the expanded menu open during a scrollbar drag', async () => {
