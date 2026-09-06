@@ -4,9 +4,9 @@ import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInEl
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ScrollableArea, useTheme } from '@proj-airi/ui'
-import { refDebounced, useElementSize, useIntervalFn, useMousePressed } from '@vueuse/core'
+import { refDebounced, useElementSize, useIntervalFn, useMousePressed, useResizeObserver } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, reactive, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, reactive, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import StatusIsland from '../status-island/index.vue'
@@ -55,6 +55,8 @@ const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
 
 const expanded = ref(false)
 const islandElement = useTemplateRef<HTMLElement>('island')
+const islandScrollArea = useTemplateRef<InstanceType<typeof ScrollableArea>>('islandScrollArea')
+const islandViewport = computed(() => islandScrollArea.value?.viewport)
 const mainControlsElement = useTemplateRef<HTMLElement>('mainControls')
 const { height: mainControlsHeight } = useElementSize(mainControlsElement)
 // This probe measures the CSS viewport limit, including the current rem size.
@@ -74,6 +76,22 @@ const blockingOverlays = reactive(new Set<string>())
 // A scrollbar drag can leave the visible boundary before the user releases it.
 const { pressed } = useMousePressed({ target: islandElement })
 const isBlocked = computed(() => blockingOverlays.size > 0 || pressed.value)
+
+// Right-docked content must start at the right edge when its natural width is
+// wider than the viewport. Reapply this after resize and after the menu opens.
+function alignHorizontalScroll() {
+  const viewport = islandViewport.value
+  if (!viewport || isLeft.value)
+    return
+
+  viewport.scrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth)
+}
+
+useResizeObserver(islandViewport, alignHorizontalScroll)
+watch([dock, expanded], async () => {
+  await nextTick()
+  alignHorizontalScroll()
+}, { flush: 'post' })
 
 function setOverlay(key: string, active: boolean) {
   if (active) {
@@ -230,6 +248,7 @@ function resetMainWindowPosition() {
       :class="['pointer-events-none invisible absolute h-[calc(100dvh-1rem)] w-0']"
     />
     <ScrollableArea
+      ref="islandScrollArea"
       :orientation="scrollWholeIsland ? 'both' : 'horizontal'"
       :class="['max-h-[inherit] max-w-[inherit]']"
       viewport-class="overscroll-contain"

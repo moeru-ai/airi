@@ -106,6 +106,8 @@ describe('controls Island overflow', () => {
           expect(menu.getBoundingClientRect().width).toBe(naturalWidth)
           const outer = island.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
           if (width < naturalWidth + 16) {
+            if (!dock.endsWith('left'))
+              await expect.poll(() => outer.scrollLeft).toBeGreaterThan(0)
             outer.scrollLeft = outer.scrollWidth
             expect(outer.scrollLeft).toBeGreaterThan(0)
           }
