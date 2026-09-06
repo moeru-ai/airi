@@ -54,10 +54,34 @@ describe('mergeProviderSync', () => {
     expect(result.live[localLive.id]?.config).toEqual({ apiKey: 'sk-remote' })
   })
 
-  it('keeps local when timestamps are equal', () => {
+  it('applies remote when timestamps are equal', () => {
+    // ROOT CAUSE:
+    //
+    // replicaUpdatedAt is the last successful upload. A later local persist
+    // copy can keep that stamp after the config was stripped. Equal timestamps
+    // then kept the empty local row, so a hard refresh showed no key.
+    //
+    // A successful GET applies the cloud row at the same stamp.
     const result = mergeProviderSync(
       { live: { [localLive.id]: localLive }, pendingDeletes: {} },
       [{ ...remoteLive, updatedAt: localLive.replicaUpdatedAt! }],
+    )
+
+    expect(result.live[localLive.id]?.config).toEqual({ apiKey: 'sk-remote' })
+  })
+
+  it('keeps a local live row uploaded after the remote stamp', () => {
+    const result = mergeProviderSync(
+      {
+        live: {
+          [localLive.id]: {
+            ...localLive,
+            replicaUpdatedAt: '2026-01-03T00:00:00.000Z',
+          },
+        },
+        pendingDeletes: {},
+      },
+      [remoteLive],
     )
 
     expect(result.live[localLive.id]?.config).toEqual({ apiKey: 'sk-local' })
@@ -96,5 +120,31 @@ describe('mergeProviderSync', () => {
 
     expect(result.live[localLive.id]).toBeUndefined()
     expect(result.pendingDeletes[localLive.id]).toBe('2026-01-03T00:00:00.000Z')
+  })
+
+  it('keeps a pending delete when timestamps are equal', () => {
+    const result = mergeProviderSync(
+      {
+        live: {},
+        pendingDeletes: { [localLive.id]: localLive.replicaUpdatedAt! },
+      },
+      [{ ...remoteLive, updatedAt: localLive.replicaUpdatedAt! }],
+    )
+
+    expect(result.live[localLive.id]).toBeUndefined()
+    expect(result.pendingDeletes[localLive.id]).toBe(localLive.replicaUpdatedAt)
+  })
+
+  it('applies a strictly newer remote live row over a pending delete', () => {
+    const result = mergeProviderSync(
+      {
+        live: {},
+        pendingDeletes: { [localLive.id]: '2026-01-01T00:00:00.000Z' },
+      },
+      [remoteLive],
+    )
+
+    expect(result.live[localLive.id]?.config).toEqual({ apiKey: 'sk-remote' })
+    expect(result.pendingDeletes[localLive.id]).toBeUndefined()
   })
 })
