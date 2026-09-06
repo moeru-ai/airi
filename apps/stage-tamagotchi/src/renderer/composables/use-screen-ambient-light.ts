@@ -18,6 +18,7 @@ import {
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { until, useBroadcastChannel } from '@vueuse/core'
+import { clamp } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
@@ -50,7 +51,7 @@ const captureOversampling = 4
 const maximumCaptureWidth = 512
 
 /**
- * Captures and samples the display behind the Desktop window for Live2D lighting.
+ * Captures and samples the display behind the stage window for ambient lighting.
  *
  * Capture state lives in this composable. The store receives only the smoothed
  * environment. The lifecycle is:
@@ -147,7 +148,7 @@ export function useScreenAmbientLight(sources: {
         return
 
       lastCaptureError = errorMessageFrom(error) ?? 'Unknown error'
-      console.error(`Failed to start Live2D screen ambient light: ${lastCaptureError}`)
+      console.error(`Failed to start screen ambient light: ${lastCaptureError}`)
       publishDiagnostics('error')
       screenAmbientLightEnabled.value = false
     }
@@ -342,7 +343,6 @@ export function useScreenAmbientLight(sources: {
       // The mask measures the subject inside the window; the sampler places its
       // maps on the display, so the rectangle changes frame here.
       subject: subjectOnDisplay,
-      displayAspect: display.bounds.width / Math.max(1, display.bounds.height),
       paintedAlpha: painted?.alpha,
     }, samplingOptions.value)
 
@@ -372,7 +372,7 @@ export function useScreenAmbientLight(sources: {
     const sample = ambientLightSampleFromHex(screenAmbientLightForcedColor.value)
     if (!sample) {
       lastCaptureError = 'The forced color must use #RRGGBB or #RRGGBBAA format.'
-      console.error(`Failed to apply forced Live2D ambient light: ${lastCaptureError}`)
+      console.error(`Failed to apply forced ambient light: ${lastCaptureError}`)
       ambientLight.reset()
       publishDiagnostics('error')
       return
@@ -451,8 +451,4 @@ async function waitForVideo(video: HTMLVideoElement) {
   }
 
   await video.play()
-}
-
-function clamp(value: number, minimum: number, maximum: number) {
-  return Math.min(maximum, Math.max(minimum, value))
 }

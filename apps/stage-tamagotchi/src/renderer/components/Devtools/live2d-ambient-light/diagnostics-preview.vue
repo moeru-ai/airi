@@ -1,17 +1,14 @@
 <script setup lang="ts">
-import type {
-  ScreenAmbientLightCaptureFrame,
-  ScreenAmbientLightRectangle,
-} from '../../../../shared/screen-ambient-light-diagnostics'
+import type { NormalizedRectangle, PixelFrame } from '@proj-airi/stage-shared/screen-ambient-light'
 
 import { ambientLightMapMarginFor } from '@proj-airi/stage-shared/screen-ambient-light'
 import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
-  frame?: ScreenAmbientLightCaptureFrame
-  excludedRegion?: ScreenAmbientLightRectangle
-  subjectRegion?: ScreenAmbientLightRectangle
+  frame?: PixelFrame
+  excludedRegion?: NormalizedRectangle
+  subjectRegion?: NormalizedRectangle
 }>()
 
 const { t } = useI18n()
