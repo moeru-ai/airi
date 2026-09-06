@@ -15,7 +15,7 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea, useTheme } from '@proj-airi/ui'
+import { BasicTextarea, BottomDrawer, Checkbox, DoubleCheckButton, GhostButton, OverlayButton, useTheme } from '@proj-airi/ui'
 import { onLongPress, useEventListener, usePointerSwipe } from '@vueuse/core'
 import { animate, spring } from 'animejs'
 import { storeToRefs } from 'pinia'
@@ -38,7 +38,7 @@ const emit = defineEmits<{
   stageViewportChange: [viewport: { height: number, offsetTop: number }]
 }>()
 
-const { isDark, toggleDark } = useTheme()
+const { isDark } = useTheme()
 const chatOrchestrator = useChatStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
@@ -87,6 +87,23 @@ const inputBubbleDragging = shallowRef(false)
 const inputBubbleAnimating = shallowRef(false)
 const backgroundDialogOpen = shallowRef(false)
 const sessionsDrawerOpen = shallowRef(false)
+const moreOpen = shallowRef(false)
+const aboutOpen = shallowRef(false)
+// Finish closing More before opening a sibling modal, so focus and scroll locks have one owner.
+const nextPanel = shallowRef<'background' | 'about'>()
+
+function openPanel(panel: 'background' | 'about') {
+  nextPanel.value = panel
+  moreOpen.value = false
+}
+
+function finishMoreClose() {
+  if (nextPanel.value === 'background')
+    backgroundDialogOpen.value = true
+  else if (nextPanel.value === 'about')
+    aboutOpen.value = true
+  nextPanel.value = undefined
+}
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
 const inputBubble = useTemplateRef<HTMLElement>('inputBubble')
@@ -400,6 +417,7 @@ onUnmounted(() => {
     :style="mobileInteractiveAreaStyle"
   >
     <BackgroundDialogPicker v-model="backgroundDialogOpen" class="pointer-events-auto" />
+    <ActionAbout v-model="aboutOpen" hide-trigger />
     <div
       :class="[
         'min-h-0 flex flex-1 flex-col justify-end overflow-hidden',
@@ -451,23 +469,26 @@ onUnmounted(() => {
             data-testid="mobile-input-bubble-dock-target"
             class="invisible size-10 shrink-0 self-end"
           />
-          <ActionAbout />
-          <div flex="~ col" items-end gap-1>
-            <button
+          <div :class="['flex flex-col items-end gap-1']">
+            <OverlayButton
+              size="unset"
               data-testid="conversation-selector-button"
-              border="2 solid neutral-100/60 dark:neutral-800/30"
-              bg="neutral-50/70 dark:neutral-800/70"
-              w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+              :class="[
+                'size-11 flex items-center justify-center self-end rounded-full p-2 backdrop-blur-md',
+
+                'focus-visible:outline-2 focus-visible:outline-primary-500',
+              ]"
               :title="t('stage.chat.sessions.title')"
               :aria-label="t('stage.chat.sessions.title')"
               @click="sessionsDrawerOpen = true"
             >
               <div i-solar:chat-line-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
-            </button>
-            <button
+            </OverlayButton>
+            <OverlayButton
+              size="unset"
               data-testid="speech-mute-button"
               :class="[
-                'w-fit flex items-center self-end justify-center rounded-xl border-2 border-solid p-2 backdrop-blur-md',
+                'size-11 flex items-center self-end justify-center rounded-full p-2 backdrop-blur-md focus-visible:outline-2 focus-visible:outline-primary-500',
                 'border-neutral-100/60 text-neutral-500 transition-colors active:scale-95 dark:border-neutral-800/30 dark:text-neutral-400',
                 speechMuted
                   ? 'bg-primary-100/80 text-primary-600 dark:bg-primary-900/60 dark:text-primary-300'
@@ -480,7 +501,7 @@ onUnmounted(() => {
             >
               <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone size-5" />
               <div v-else class="i-solar:volume-loud-bold-duotone size-5" />
-            </button>
+            </OverlayButton>
           </div>
           <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
           <HearingConfigDialog
@@ -489,46 +510,112 @@ onUnmounted(() => {
             :toggle-transcription="toggleTranscription"
             :granted="true"
           >
-            <button
-              border="2 solid neutral-100/60 dark:neutral-800/30"
-              bg="neutral-50/70 dark:neutral-800/70"
-              w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
-              title="Hearing"
+            <OverlayButton
+              size="unset"
+              :class="[
+                'size-11 flex items-center justify-center self-end rounded-full p-2 backdrop-blur-md',
+
+                'focus-visible:outline-2 focus-visible:outline-primary-500',
+                (enabled || isListening) && 'bg-primary-100/80 text-primary-600 dark:bg-primary-900/60 dark:text-primary-300',
+              ]"
+              :aria-pressed="enabled || isListening"
+              :title="t('stage.mobile-tools.hearing')"
+              :aria-label="t('stage.mobile-tools.hearing')"
             >
               <Transition name="fade" mode="out-in">
                 <IndicatorMicVolume v-if="enabled" size-5 :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
                 <div v-else i-solar:microphone-3-outline size-5 text="neutral-500 dark:neutral-400" />
               </Transition>
-            </button>
+            </OverlayButton>
           </HearingConfigDialog>
-          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Theme" @click="toggleDark()">
-            <Transition name="fade" mode="out-in">
-              <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-500 dark:neutral-400" />
-              <div v-else i-solar:sun-2-outline size-5 text="neutral-500 dark:neutral-400" />
-            </Transition>
-          </button>
-          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Background" @click="backgroundDialogOpen = true">
-            <div i-solar:gallery-wide-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
-          </button>
-          <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Language">
-            <div i-solar:earth-outline size-5 text="neutral-500 dark:neutral-400" />
-          </button> -->
-          <RouterLink to="/settings" border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Settings">
-            <div i-solar:settings-outline size-5 text="neutral-500 dark:neutral-400" />
-          </RouterLink>
-          <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Model">
-            <div i-solar:face-scan-circle-outline size-5 text="neutral-500 dark:neutral-400" />
-          </button> -->
-          <button
-            border="2 solid neutral-100/60 dark:neutral-800/30"
-            bg="neutral-50/70 dark:neutral-800/70"
-            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
-            title="Cleanup Messages"
-            @click="handleCleanupMessages"
+          <BottomDrawer
+            v-model="moreOpen"
+            :title="t('stage.mobile-tools.title')"
+            @after-close="finishMoreClose"
+            @close-auto-focus="event => { if (nextPanel) event.preventDefault() }"
           >
-            <div class="i-solar:trash-bin-2-bold-duotone" />
-          </button>
-          <ViewControls />
+            <template #trigger>
+              <GhostButton
+                size="unset"
+                :aria-label="t('stage.mobile-tools.more')"
+                :class="['mt-2 size-11 self-end rounded-full bg-neutral-50/40 backdrop-blur-md dark:bg-neutral-950/30']"
+                icon="i-solar:menu-dots-bold"
+              />
+            </template>
+            <section :class="['mb-5']">
+              <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
+                {{ t('stage.mobile-tools.appearance') }}
+              </h3>
+              <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
+                <label :class="['min-h-15 flex cursor-pointer items-center gap-3 px-4 py-3']">
+                  <span aria-hidden="true" :class="['i-solar:moon-outline size-5 shrink-0 text-neutral-400']" />
+                  <span :class="['flex-1 text-sm']">{{ t('stage.mobile-tools.dark-mode') }}</span>
+                  <Checkbox v-model="isDark" :aria-label="t('stage.mobile-tools.dark-mode')" />
+                </label>
+                <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+                <GhostButton
+                  block size="unset"
+                  :class="['mobile-tool-row min-h-15 rounded-none px-4 py-3']"
+                  @click="openPanel('background')"
+                >
+                  <span aria-hidden="true" :class="['i-solar:gallery-wide-outline size-5 shrink-0 text-neutral-400']" />
+                  <span :class="['flex-1 text-left text-sm']">{{ t('stage.mobile-tools.background') }}</span>
+                  <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+                </GhostButton>
+                <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+                <ViewControls>
+                  {{ t('stage.mobile-tools.view') }}
+                </ViewControls>
+              </div>
+            </section>
+            <section :class="['mb-5']">
+              <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
+                {{ t('stage.mobile-tools.application') }}
+              </h3>
+              <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
+                <RouterLink
+                  to="/settings"
+                  :class="[
+                    'min-h-15 flex items-center gap-3 px-4 py-3 text-sm',
+                    'hover:bg-primary-500/10 focus-visible:outline-2 focus-visible:outline-primary-500',
+                  ]"
+                  @click="moreOpen = false"
+                >
+                  <span aria-hidden="true" :class="['i-solar:settings-outline size-5 shrink-0 text-neutral-400']" />
+                  <span :class="['flex-1']">{{ t('stage.mobile-tools.settings') }}</span>
+                  <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+                </RouterLink>
+                <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+                <GhostButton
+                  block size="unset"
+                  :class="['mobile-tool-row min-h-15 rounded-none px-4 py-3']"
+                  @click="openPanel('about')"
+                >
+                  <span aria-hidden="true" :class="['i-solar:info-circle-outline size-5 text-neutral-400']" />
+                  <span :class="['flex-1 text-left text-sm']">{{ t('stage.mobile-tools.about') }}</span>
+                  <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+                </GhostButton>
+              </div>
+            </section>
+            <section :class="['mb-2']">
+              <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
+                {{ t('stage.mobile-tools.conversation') }}
+              </h3>
+              <DoubleCheckButton
+                block variant="secondary"
+                :class="['[&_button]:min-h-11 [&_button]:bg-transparent [&_button]:text-red-600 dark:[&_button]:text-red-400']"
+                @confirm="handleCleanupMessages"
+              >
+                {{ t('stage.mobile-tools.cleanup') }}
+                <template #confirm>
+                  {{ t('stage.mobile-tools.confirm-cleanup') }}
+                </template>
+                <template #cancel>
+                  {{ t('stage.mobile-tools.cancel') }}
+                </template>
+              </DoubleCheckButton>
+            </section>
+          </BottomDrawer>
         </div>
       </div>
       <div
@@ -622,3 +709,14 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.mobile-tool-row :deep(.basic-button-content) {
+  width: 100%;
+  gap: 0.75rem;
+}
+
+.mobile-tool-row :deep([aria-hidden]) {
+  flex-shrink: 0;
+}
+</style>

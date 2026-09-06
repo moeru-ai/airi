@@ -1,3 +1,18 @@
+mobile-tools:
+  title: Stage
+  appearance: Appearance
+  dark-mode: Dark mode
+  application: Application
+  conversation: Current conversation
+  more: More
+  background: Background
+  settings: Settings
+  about: About
+  view: View
+  cleanup: Clear messages
+  confirm-cleanup: Clear messages?
+  cancel: Cancel
+  hearing: Hearing
 chat:
   actions:
     retry: Retry

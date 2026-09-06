@@ -1,3 +1,18 @@
+mobile-tools:
+  title: 舞台
+  appearance: 外观
+  dark-mode: 深色模式
+  application: 应用
+  conversation: 当前对话
+  more: 更多
+  background: 背景
+  settings: 设置
+  about: 关于
+  view: 视角
+  cleanup: 清空消息
+  confirm-cleanup: 确认清空消息？
+  cancel: 取消
+  hearing: 听觉
 chat:
   actions:
     retry: 重试

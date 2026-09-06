@@ -118,6 +118,26 @@ Line-clamped content container that expands and collapses when the overflowing c
 
 ## Misc
 
+### BottomDrawer
+
+Mobile modal surface built on Vaul Vue. It owns the drag handle, overlay,
+focus boundary, scroll region, and bottom safe area. Dragging
+starts only on the handle, so action buttons and scrolling do not dismiss it.
+
+**Props**: `title` (required visible and accessible title).
+
+Dismiss with the handle, overlay, or Escape. There is no close button.
+
+**v-model**: `boolean`, defaults to `false`.
+
+**Slots**: `trigger` (one button), `default` (drawer content).
+
+**Emits**: `afterClose()` after the dismissal animation;
+`closeAutoFocus(event)` to prevent focus restoration when another modal opens.
+
+Use for mobile action menus and settings panels. Desktop dialogs and panels
+that need snap points use their own surface.
+
 ### Avatar
 
 Shared user-avatar primitive built on Reka UI. It retries when `src` changes and
