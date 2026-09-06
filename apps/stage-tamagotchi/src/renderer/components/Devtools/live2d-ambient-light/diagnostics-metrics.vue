@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { ScreenAmbientLightDiagnosticsSnapshot } from '../../../../shared/screen-ambient-light-diagnostics'
+import type { NormalizedRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
+
+import type { DisplayPixelRectangle, ScreenAmbientLightDiagnosticsSnapshot } from '../../../../shared/screen-ambient-light-diagnostics'
 
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -89,11 +91,11 @@ const pixelRows = computed(() => {
   ]
 })
 
-function formatRectangle(rectangle: { x: number, y: number, width: number, height: number }) {
+function formatRectangle(rectangle: DisplayPixelRectangle) {
   return `${Math.round(rectangle.x)}, ${Math.round(rectangle.y)} · ${Math.round(rectangle.width)} × ${Math.round(rectangle.height)}`
 }
 
-function formatNormalizedRectangle(rectangle: { x: number, y: number, width: number, height: number }) {
+function formatNormalizedRectangle(rectangle: NormalizedRectangle) {
   return `${formatPercent(rectangle.x)}, ${formatPercent(rectangle.y)} · ${formatPercent(rectangle.width)} × ${formatPercent(rectangle.height)}`
 }
 
