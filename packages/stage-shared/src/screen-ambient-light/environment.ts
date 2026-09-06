@@ -115,12 +115,12 @@ export interface NormalizedRectangle {
 }
 
 /**
- * How far a light map reaches past the stage window on every side, in window
+ * How far a light map reaches past the subject on every side, in subject
  * heights.
  *
- * The maps reach past the window because the light that wraps onto the
+ * The maps reach past the subject because the light that wraps onto the
  * silhouette comes from beside it. One figure covers both axes because the
- * reach is a distance on screen, not a fraction of each side: a tall window
+ * reach is a distance on screen, not a fraction of each side: a tall subject
  * that reached half its height above and half its width to the left would
  * gather more light from above than from beside, and the mean of the map would
  * report a light that had only moved.
@@ -158,14 +158,14 @@ export interface AmbientLightMapMargin {
 }
 
 /**
- * Reach for one window, from its width divided by its height.
+ * Reach for one subject, from its width divided by its height.
  *
  * @example
  * ambientLightMapMarginFor(430 / 526)
  * // => { x: 0.6116..., y: 0.5 }
  */
-export function ambientLightMapMarginFor(windowAspect: number): AmbientLightMapMargin {
-  return { x: ambientLightMapMargin / Math.max(windowAspect, 0.0001), y: ambientLightMapMargin }
+export function ambientLightMapMarginFor(subjectAspect: number): AmbientLightMapMargin {
+  return { x: ambientLightMapMargin / Math.max(subjectAspect, 0.0001), y: ambientLightMapMargin }
 }
 
 /** The reach for a square window, which is what a map with no measurement behind it assumes. */
@@ -268,7 +268,7 @@ export interface AmbientLightEnvironment {
   exposure: number
   /**
    * Wide blur of the screen, in linear RGB. It drives the color cast over the
-   * whole model, and reaches about a third of the window height.
+   * whole model, and reaches about a third of the subject height.
    */
   surround: AmbientLightMap
   /**
