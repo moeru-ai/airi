@@ -79,7 +79,8 @@ watch(hearingOpen, async (open) => {
       block size="unset"
       :class="[
         'mobile-tool-row rounded-2xl',
-        isAuthenticated ? 'mb-4 min-h-16 px-4! py-3' : 'mb-3 min-h-14 px-0! py-2',
+        '[&_.basic-button-content]:w-full [&_.basic-button-content]:gap-3 [&_[aria-hidden]]:shrink-0',
+        isAuthenticated ? 'mobile-tool-row-authenticated mb-4 min-h-16' : 'mobile-tool-row-anonymous mb-3 min-h-14',
       ]"
       @click="openPanel('account')"
     >
@@ -184,5 +185,13 @@ watch(hearingOpen, async (open) => {
 
 .mobile-tool-row :deep([aria-hidden]) {
   flex-shrink: 0;
+}
+
+.mobile-tool-row.mobile-tool-row-authenticated {
+  padding: 0.75rem 1rem !important;
+}
+
+.mobile-tool-row.mobile-tool-row-anonymous {
+  padding: 0.5rem 0 !important;
 }
 </style>

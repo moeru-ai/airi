@@ -122,8 +122,18 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByText('stage.mobile-tools.sign-in', { exact: true })).toBeVisible()
     const account = screen.getByRole('button', { name: 'stage.mobile-tools.sign-in stage.mobile-tools.account-description' }).element()
     const drawerTitle = screen.getByRole('heading', { name: 'stage.mobile-tools.title' }).element()
-    const signIn = screen.getByText('stage.mobile-tools.sign-in', { exact: true }).element()
-    expect(signIn.getBoundingClientRect().left).toBe(drawerTitle.getBoundingClientRect().left)
+    const accountContent = account.querySelector<HTMLElement>('.basic-button-content')
+    // ROOT CAUSE:
+    //
+    // The account row relied on scoped descendant CSS to stretch
+    // BasicButton's content wrapper. The combined browser bundle could leave
+    // that wrapper at its content width, centering the label inward. Comparing
+    // text coordinates was also unstable while the drawer portal animated, so
+    // assert the owned row and content geometry directly.
+    expect(accountContent).not.toBeNull()
+    await expect.poll(() => getComputedStyle(account).paddingLeft).toBe('0px')
+    expect(account.getBoundingClientRect().left).toBe(drawerTitle.getBoundingClientRect().left)
+    expect(accountContent!.getBoundingClientRect().width).toBe(account.clientWidth)
     expect(account.getBoundingClientRect().height).toBe(56)
     expect(account.querySelector('[data-avatar-fallback], [data-avatar-image]')).toBeNull()
     await expect.element(screen.getByText('stage.mobile-tools.cleanup', { exact: true })).not.toBeInTheDocument()
