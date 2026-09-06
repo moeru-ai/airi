@@ -1,12 +1,72 @@
 import type { AuthDatabase } from '../db'
+import type { EmailService } from '../email'
 import type { AuthEnv } from '../env'
 
 import { generateKeyPairSync } from 'node:crypto'
 
-import { decodeJwt, decodeProtectedHeader, importSPKI, jwtVerify } from 'jose'
-import { describe, expect, it, vi } from 'vitest'
+import { user } from '@proj-airi/auth-shared'
+import { apple } from 'better-auth/social-providers'
+import { eq } from 'drizzle-orm'
+import { decodeJwt, decodeProtectedHeader, importSPKI, jwtVerify, SignJWT } from 'jose'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createAuth, ensureDynamicFirstPartyRedirectUri, seedTrustedClients } from '../auth'
+import { createTestDatabase } from './mock-db'
+
+function createTestEmailService() {
+  return {
+    send: vi.fn<EmailService['send']>(async () => {}),
+    sendVerification: vi.fn<EmailService['sendVerification']>(async () => {}),
+    sendPasswordReset: vi.fn<EmailService['sendPasswordReset']>(async () => {}),
+    sendMagicLink: vi.fn<EmailService['sendMagicLink']>(async () => {}),
+    sendChangeEmailConfirmation: vi.fn<EmailService['sendChangeEmailConfirmation']>(async () => {}),
+    sendDeleteAccountVerification: vi.fn<EmailService['sendDeleteAccountVerification']>(async () => {}),
+  } satisfies EmailService
+}
+
+function createTestAuthEnv(): AuthEnv {
+  return {
+    HOST: '127.0.0.1',
+    PORT: 3000,
+    PUBLIC_URL: 'http://localhost:3000',
+    RESOURCE_SERVER_URL: 'http://localhost:3001',
+    AUTH_UI_URL: 'https://accounts.airi.build/ui',
+    ADDITIONAL_TRUSTED_ORIGINS: [],
+    DATABASE_URL: 'postgres://localhost/auth-test',
+    REDIS_URL: 'redis://localhost:6379',
+    BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+    AUTH_GOOGLE_CLIENT_ID: 'google-client',
+    AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+    AUTH_GITHUB_CLIENT_ID: 'github-client',
+    AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+    AUTH_APPLE_CLIENT_ID: '',
+    AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: [],
+    AUTH_APPLE_TEAM_ID: '',
+    AUTH_APPLE_KEY_ID: '',
+    AUTH_APPLE_PRIVATE_KEY_PEM: '',
+    RESEND_API_KEY: '',
+    RESEND_FROM_EMAIL: 'noreply@example.com',
+    RESEND_FROM_NAME: 'Project AIRI',
+    DB_POOL_MAX: 1,
+    DB_POOL_IDLE_TIMEOUT_MS: 1000,
+    DB_POOL_CONNECTION_TIMEOUT_MS: 1000,
+    DB_POOL_KEEPALIVE_INITIAL_DELAY_MS: 1000,
+    OTEL_SERVICE_NAME: 'auth-test',
+  }
+}
+
+function cookieHeader(headers: Headers): string {
+  return headers.getSetCookie()
+    .map(cookie => cookie.split(';', 1)[0])
+    .join('; ')
+}
+
+function callbackRequest(url: string, cookie?: string): Request {
+  const callbackUrl = new URL(url)
+  callbackUrl.searchParams.delete('callbackURL')
+
+  return new Request(callbackUrl, cookie ? { headers: { cookie } } : undefined)
+}
 
 function createMockDb(existingRowsByCall: unknown[][] = []) {
   const limit = vi.fn()
@@ -39,6 +99,80 @@ describe('createAuth', () => {
   const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
   const applePrivateKey = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
   const applePublicKey = publicKey.export({ type: 'spki', format: 'pem' }).toString()
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('exposes the native Better Auth change-email route', async () => {
+    const db = await createTestDatabase()
+    const email = createTestEmailService()
+    const auth = createAuth(db as unknown as AuthDatabase, createTestAuthEnv(), email)
+    const signUpResponse = await auth.handler(new Request('http://localhost:3000/api/auth/sign-up/email', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: 'current@example.com',
+        name: 'Email Change User',
+        password: 'correct horse battery staple',
+      }),
+    }))
+
+    expect(signUpResponse.status).toBe(200)
+    expect(email.sendVerification).toHaveBeenCalledOnce()
+    expect(email.sendVerification).toHaveBeenCalledWith({
+      to: 'current@example.com',
+      url: expect.stringContaining('/api/auth/verify-email?token='),
+    })
+
+    const signUpVerificationUrl = email.sendVerification.mock.calls[0][0].url
+    const signUpVerificationResponse = await auth.handler(callbackRequest(signUpVerificationUrl))
+    expect(signUpVerificationResponse.status).toBe(200)
+
+    const sessionCookie = cookieHeader(signUpVerificationResponse.headers)
+    expect(sessionCookie).not.toBe('')
+    await expect(auth.api.getSession({
+      headers: new Headers({ cookie: sessionCookie }),
+    })).resolves.toMatchObject({
+      user: {
+        email: 'current@example.com',
+        emailVerified: true,
+      },
+    })
+
+    email.sendVerification.mockClear()
+
+    const authenticatedHeaders = {
+      'content-type': 'application/json',
+      'cookie': sessionCookie,
+      'origin': 'http://localhost:3000',
+    }
+    const response = await auth.handler(new Request('http://localhost:3000/api/auth/change-email', {
+      method: 'POST',
+      headers: authenticatedHeaders,
+      body: JSON.stringify({
+        newEmail: 'new@example.com',
+        callbackURL: 'http://localhost:4173/profile',
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ status: true })
+    expect(email.sendChangeEmailConfirmation).toHaveBeenCalledOnce()
+    expect(email.sendChangeEmailConfirmation).toHaveBeenCalledWith({
+      to: 'current@example.com',
+      newEmail: 'new@example.com',
+      url: expect.stringContaining('/api/auth/verify-email?token='),
+    })
+
+    const confirmationUrl = email.sendChangeEmailConfirmation.mock.calls[0][0].url
+    const confirmationResponse = await auth.handler(callbackRequest(confirmationUrl, sessionCookie))
+
+    expect(confirmationResponse.status).toBe(200)
+    expect(email.sendVerification).toHaveBeenCalledOnce()
+    expect(email.sendVerification).toHaveBeenCalledWith({
+      to: 'new@example.com',
+      url: expect.stringContaining('/api/auth/verify-email?token='),
+    })
+  })
 
   it('allows signed-in users to link OAuth accounts that use a different email', () => {
     const auth = createAuth({} as unknown as AuthDatabase, {
@@ -163,27 +297,37 @@ describe('createAuth', () => {
     ])
     expect(header).toMatchObject({ alg: 'ES256', kid: 'apple-key-id' })
     expect(claims.exp! - claims.iat!).toBe(180 * 24 * 60 * 60)
-    expect(await config.mapProfileToUser?.({
-      sub: 'apple-user-id',
-      email: '',
+    const appleAdapter = apple(config)
+
+    const fallbackIdToken = await new SignJWT({
       email_verified: true,
       is_private_email: false,
       real_user_status: 2,
-      name: '',
-      picture: '',
-    })).toEqual({
-      email: 'apple-user-id@apple.placeholder.local',
     })
-    expect(await config.mapProfileToUser?.({
-      sub: 'apple-user-id',
+      .setProtectedHeader({ alg: 'ES256', kid: 'apple-key-id' })
+      .setSubject('apple-user-id')
+      .sign(privateKey)
+    await expect(appleAdapter.getUserInfo({ idToken: fallbackIdToken })).resolves.toMatchObject({
+      user: {
+        email: 'apple-user-id@apple.placeholder.local',
+        emailVerified: false,
+      },
+    })
+
+    const realEmailIdToken = await new SignJWT({
       email: 'relay@privaterelay.appleid.com',
       email_verified: true,
       is_private_email: true,
       real_user_status: 2,
-      name: '',
-      picture: '',
-    })).toEqual({
-      email: 'relay@privaterelay.appleid.com',
+    })
+      .setProtectedHeader({ alg: 'ES256', kid: 'apple-key-id' })
+      .setSubject('apple-user-id')
+      .sign(privateKey)
+    await expect(appleAdapter.getUserInfo({ idToken: realEmailIdToken })).resolves.toMatchObject({
+      user: {
+        email: 'relay@privaterelay.appleid.com',
+        emailVerified: true,
+      },
     })
 
     const trustedOrigins = auth.options.trustedOrigins
@@ -191,6 +335,66 @@ describe('createAuth', () => {
     if (typeof trustedOrigins !== 'function')
       throw new TypeError('Expected request-aware trusted origins')
     expect(await trustedOrigins(new Request('http://localhost:3000/api/auth/sign-in/social'))).toContain('https://appleid.apple.com')
+  })
+
+  it('does not send email verification to a new Apple fallback address', async () => {
+    const db = await createTestDatabase()
+    const email = createTestEmailService()
+    const auth = createAuth(db as unknown as AuthDatabase, {
+      ...createTestAuthEnv(),
+      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: [],
+      AUTH_APPLE_TEAM_ID: 'apple-team-id',
+      AUTH_APPLE_KEY_ID: 'apple-key-id',
+      AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
+    }, email)
+    const fallbackIdToken = await new SignJWT({
+      email_verified: true,
+      is_private_email: false,
+      real_user_status: 2,
+    })
+      .setProtectedHeader({ alg: 'ES256', kid: 'apple-key-id' })
+      .setSubject('apple-callback-user-id')
+      .sign(privateKey)
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
+      access_token: 'apple-access-token',
+      expires_in: 3600,
+      id_token: fallbackIdToken,
+      refresh_token: 'apple-refresh-token',
+      token_type: 'Bearer',
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })))
+
+    const startResponse = await auth.handler(new Request('http://localhost:3000/api/auth/sign-in/social', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        provider: 'apple',
+        callbackURL: 'http://localhost:3000/profile',
+      }),
+    }))
+    expect(startResponse.status).toBe(200)
+    const start = await startResponse.json() as { url: string }
+    const state = new URL(start.url).searchParams.get('state')
+    if (!state)
+      throw new Error('The Apple authorization URL did not include OAuth state.')
+
+    const callback = await auth.handler(new Request(`http://localhost:3000/api/auth/callback/apple?code=apple-code&state=${state}`, {
+      headers: { cookie: cookieHeader(startResponse.headers) },
+    }))
+
+    expect(callback.status).toBe(302)
+    expect(callback.headers.get('location')).toBe('http://localhost:3000/profile')
+    await expect(db.select({
+      email: user.email,
+      emailVerified: user.emailVerified,
+    }).from(user).where(eq(user.email, 'apple-callback-user-id@apple.placeholder.local'))).resolves.toEqual([{
+      email: 'apple-callback-user-id@apple.placeholder.local',
+      emailVerified: false,
+    }])
+    expect(email.sendVerification).not.toHaveBeenCalled()
   })
 
   it('revokes external authorizations before deleting resource data', async () => {

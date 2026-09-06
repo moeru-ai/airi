@@ -131,6 +131,38 @@ profile:
     avatar: Avatar
     password: Password
     linkedAccounts: Connected accounts
+  emailChange:
+    title:
+      add: Add email
+      change: Change email
+    description:
+      add: Add an email for sign-in, password recovery, and account security.
+      change: Change the email address that you use for your account.
+    current:
+      label: Current email
+      notSet: Not set
+      verified: Verified
+      unverified: Unverified
+    input:
+      label: New email
+      placeholder: you{'@'}example.com
+    action:
+      add: Add email
+      change: Change email
+      resend: Resend email
+      resendIn: Resend in {seconds}s
+      retry: Try again
+    accepted:
+      current: We sent a confirmation email to your current email address.
+      new: We sent a verification email to your new email address.
+    callback:
+      processed: Your email-change link was processed.
+      failed: We could not process the email-change link.
+    error:
+      request: We could not send the email. Try again.
+      rateLimited: Too many emails were sent. Try again later.
+      unavailable: This email address is not available. Use a different email.
+    passwordDependency: Add an email before you set a password.
   field:
     email: Email
     emailVerified: Email status

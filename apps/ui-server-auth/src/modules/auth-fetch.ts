@@ -27,6 +27,18 @@ export interface AuthFetchBase {
   fetchImpl?: typeof fetch
 }
 
+/** An Auth HTTP failure with the stable server code and response status. */
+export class AuthFetchError extends Error {
+  constructor(
+    message: string,
+    readonly code: string | null,
+    readonly status: number,
+  ) {
+    super(message)
+    this.name = 'AuthFetchError'
+  }
+}
+
 /**
  * POST a JSON body to `/api/auth<path>` and parse the response with `parse`.
  *
@@ -67,7 +79,11 @@ export async function postAuthJSON<T>(
   }
 
   if (!response.ok) {
-    throw new Error(extractAuthError(data) ?? `Auth request failed (${response.status})`)
+    throw new AuthFetchError(
+      extractAuthError(data) ?? `Auth request failed (${response.status})`,
+      extractAuthErrorCode(data),
+      response.status,
+    )
   }
 
   return parse(data, response)
@@ -111,7 +127,11 @@ export async function getAuthJSON<T>(
   }
 
   if (!response.ok) {
-    throw new Error(extractAuthError(data) ?? `Auth request failed (${response.status})`)
+    throw new AuthFetchError(
+      extractAuthError(data) ?? `Auth request failed (${response.status})`,
+      extractAuthErrorCode(data),
+      response.status,
+    )
   }
 
   return parse(data, response)
@@ -150,6 +170,28 @@ export function extractAuthError(data: unknown): string | null {
     && typeof (error as { message: unknown }).message === 'string'
   ) {
     return (error as { message: string }).message
+  }
+
+  return null
+}
+
+/** Returns the stable error code from a Better Auth error response. */
+export function extractAuthErrorCode(data: unknown): string | null {
+  if (!data || typeof data !== 'object')
+    return null
+
+  const maybe = data as { code?: unknown, error?: unknown }
+  if (typeof maybe.code === 'string')
+    return maybe.code
+
+  // The top-level error field also carries human messages. Only the
+  // constant-style form is a stable code that callers can match.
+  if (typeof maybe.error === 'string' && /^[A-Z][A-Z0-9_]*$/.test(maybe.error))
+    return maybe.error
+
+  if (maybe.error && typeof maybe.error === 'object' && 'code' in maybe.error) {
+    const code = (maybe.error as { code?: unknown }).code
+    return typeof code === 'string' ? code : null
   }
 
   return null

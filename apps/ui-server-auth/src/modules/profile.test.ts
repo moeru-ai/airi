@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { changePassword, getCurrentSession, signOut, updateUserProfile } from './profile'
+import {
+  changePassword,
+  emailChangeConsumedLocation,
+  getCurrentSession,
+  isPlaceholderEmail,
+  signOut,
+  updateUserProfile,
+} from './profile'
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -10,6 +17,98 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe('ui-server-auth profile flow helpers', () => {
+  it('identifies placeholder emails after trimming and case normalization', () => {
+    expect(isPlaceholderEmail('123@steam.placeholder.local')).toBe(true)
+    expect(isPlaceholderEmail('  USER@APPLE.PLACEHOLDER.LOCAL  ')).toBe(true)
+    expect(isPlaceholderEmail('user@example.com')).toBe(false)
+  })
+
+  it('removes the native callback marker and error from the consumed location', () => {
+    expect(emailChangeConsumedLocation({
+      hash: '#security',
+      query: {
+        email_change: 'processed',
+        error: 'TOKEN_EXPIRED',
+        redirect: '/settings',
+        source: ['account', 'banner'],
+      },
+    })).toEqual({
+      hash: '#security',
+      query: {
+        redirect: '/settings',
+        source: ['account', 'banner'],
+      },
+    })
+  })
+
+  it('preserves an unrelated error when the native callback marker is absent', () => {
+    expect(emailChangeConsumedLocation({
+      hash: '#security',
+      query: {
+        error: 'unrelated-login-error',
+        redirect: '/settings',
+      },
+    })).toEqual({
+      hash: '#security',
+      query: {
+        error: 'unrelated-login-error',
+        redirect: '/settings',
+      },
+    })
+  })
+
+  it('preserves array callback and error values as malformed input', () => {
+    expect(emailChangeConsumedLocation({
+      hash: '',
+      query: {
+        email_change: ['processed', 'tampered'],
+        error: ['TOKEN_EXPIRED', 'private-server-message'],
+      },
+    })).toEqual({
+      hash: '',
+      query: {
+        email_change: ['processed', 'tampered'],
+        error: ['TOKEN_EXPIRED', 'private-server-message'],
+      },
+    })
+  })
+
+  it('preserves an array error when the native callback marker is scalar', () => {
+    expect(emailChangeConsumedLocation({
+      hash: '#profile',
+      query: {
+        email_change: 'processed',
+        error: ['TOKEN_EXPIRED', 'private-server-message'],
+        keep: 'yes',
+      },
+    })).toEqual({
+      hash: '#profile',
+      query: {
+        email_change: 'processed',
+        error: ['TOKEN_EXPIRED', 'private-server-message'],
+        keep: 'yes',
+      },
+    })
+  })
+
+  it('preserves an unknown scalar error and the native callback marker', () => {
+    expect(emailChangeConsumedLocation({
+      hash: '#profile',
+      query: {
+        email_change: 'processed',
+        error: 'private-server-message',
+        keep: 'yes',
+      },
+    })).toEqual({
+      hash: '#profile',
+      query: {
+        email_change: 'processed',
+        error: 'private-server-message',
+        keep: 'yes',
+      },
+    })
+  })
+
   it('parses the better-auth get-session response into a flat user shape', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse({
       session: { id: 'sess-1' },

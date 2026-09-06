@@ -73,4 +73,18 @@ describe('standalone auth app', () => {
     expect(deps.db.execute).toHaveBeenCalledWith('SELECT 1 FROM "user" LIMIT 1')
     expect(deps.redis.ping).toHaveBeenCalledTimes(1)
   })
+
+  it('does not write callback query tokens to the access log', async () => {
+    const accessLog = vi.fn()
+    const deps = { ...createTestDeps(), accessLog }
+
+    const { app } = await buildAuthApp(deps)
+
+    await app.request('/api/auth/verify-email?token=raw-one-time-token&callbackURL=https%3A%2F%2Faccounts.airi.build%2Fui')
+
+    const messages = accessLog.mock.calls.flat().join('\n')
+    expect(messages).toContain('/api/auth/verify-email')
+    expect(messages).not.toContain('raw-one-time-token')
+    expect(messages).not.toContain('?token=')
+  })
 })

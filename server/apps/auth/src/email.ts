@@ -3,7 +3,6 @@ import type { Logger } from '@guiiai/logg'
 import type { EmailMetrics } from './otel'
 
 import { useLogger } from '@guiiai/logg'
-import { errorMessageFrom } from '@moeru/std'
 import { Resend } from 'resend'
 
 import { ApiError } from './error'
@@ -17,7 +16,7 @@ import { ApiError } from './error'
  * Expects:
  * - Both `html` and `text` set so deliverability scoring stays high (text fallback
  *   is what spam filters score when HTML is hostile or stripped).
- * - `to` is already validated by Better Auth (we trust caller for internal flows).
+ * - `to` can come from any internal flow. The send boundary drops placeholder recipients.
  */
 export interface EmailPayload {
   /** Recipient address. Single address — Better Auth callbacks always emit one. */
@@ -41,7 +40,7 @@ export interface EmailPayload {
  * - Service is constructed once per process by `injeca` and shared across requests.
  *
  * Returns:
- * - A `send` method plus four high-level helpers that own subject/body composition.
+ * - A `send` method plus high-level helpers that own subject/body composition.
  */
 export interface EmailService {
   send: (payload: EmailPayload) => Promise<void>
@@ -66,6 +65,17 @@ interface EmailConfig {
   apiKey: string
   fromEmail: string
   fromName?: string
+}
+
+/**
+ * Identifies a system email address that cannot receive messages.
+ *
+ * @example
+ * isPlaceholderEmail('  USER@APPLE.PLACEHOLDER.LOCAL  ')
+ * // => true
+ */
+export function isPlaceholderEmail(email: string): boolean {
+  return email.trim().toLowerCase().endsWith('.local')
 }
 
 /**
@@ -121,6 +131,9 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
   const from = formatFrom(config)
 
   async function send(payload: EmailPayload, template: string = 'unknown'): Promise<void> {
+    if (isPlaceholderEmail(payload.to))
+      return
+
     const startedAt = Date.now()
     try {
       const { error } = await getClient().emails.send({
@@ -132,10 +145,10 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
       })
 
       if (error) {
-        logger.withFields({ to: payload.to, subject: payload.subject, errorName: error.name }).error(error.message)
+        logger.withFields({ template, errorName: error.name }).error('Email provider rejected the message.')
         metrics?.failures.add(1, { template, error_name: error.name })
         metrics?.duration.record((Date.now() - startedAt) / 1000, { template, outcome: 'error' })
-        throw new ApiError(502, 'email/send_failed', error.message, { providerError: error.name })
+        throw new ApiError(502, 'email/send_failed', 'Email provider rejected the message.', { providerError: error.name })
       }
       metrics?.send.add(1, { template })
       metrics?.duration.record((Date.now() - startedAt) / 1000, { template, outcome: 'ok' })
@@ -144,11 +157,11 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
       if (error instanceof ApiError)
         throw error
 
-      const message = errorMessageFrom(error) ?? 'Unknown email send error'
-      logger.withFields({ to: payload.to, subject: payload.subject }).error(message)
-      metrics?.failures.add(1, { template, error_name: 'unhandled' })
+      const errorName = error instanceof Error ? error.name : 'UnknownError'
+      logger.withFields({ template, errorName }).error('Email provider request failed.')
+      metrics?.failures.add(1, { template, error_name: errorName })
       metrics?.duration.record((Date.now() - startedAt) / 1000, { template, outcome: 'error' })
-      throw new ApiError(502, 'email/send_failed', message)
+      throw new ApiError(502, 'email/send_failed', 'Email provider request failed.')
     }
   }
 

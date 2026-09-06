@@ -70,6 +70,7 @@
     "@types/splitpanes": "catalog:",
     "@unocss/reset": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
+    "@vitest/browser-playwright": "catalog:vitest",
     "@vue-macros/volar": "catalog:",
     "@vueuse/motion": "catalog:",
     "@webgpu/types": "catalog:",
@@ -78,6 +79,8 @@
     "vite": "catalog:",
     "vite-plugin-vue-devtools": "catalog:",
     "vite-plugin-vue-layouts": "catalog:",
+    "vitest": "catalog:vitest",
+    "vitest-browser-vue": "catalog:",
     "vue-macros": "catalog:",
     "vue-tsc": "catalog:"
   }

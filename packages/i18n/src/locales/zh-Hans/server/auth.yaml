@@ -128,6 +128,38 @@ profile:
     avatar: 头像
     password: 密码
     linkedAccounts: 已关联的账户
+  emailChange:
+    title:
+      add: 添加邮箱
+      change: 更换邮箱
+    description:
+      add: 添加用于登录、找回密码和账户安全的邮箱。
+      change: 更换账户使用的邮箱地址。
+    current:
+      label: 当前邮箱
+      notSet: 未设置
+      verified: 已验证
+      unverified: 未验证
+    input:
+      label: 新邮箱
+      placeholder: you{'@'}example.com
+    action:
+      add: 添加邮箱
+      change: 更换邮箱
+      resend: 重新发送邮件
+      resendIn: '{seconds} 秒后可重新发送'
+      retry: 重试
+    accepted:
+      current: 确认邮件已发送到当前邮箱。
+      new: 验证邮件已发送到新邮箱。
+    callback:
+      processed: 邮箱更换链接已处理。
+      failed: 无法处理邮箱更换链接。
+    error:
+      request: 无法发送邮件，请重试。
+      rateLimited: 发送邮件次数过多，请稍后重试。
+      unavailable: 此邮箱不可用，请使用其他邮箱。
+    passwordDependency: 添加邮箱后才能设置密码。
   field:
     email: 邮箱
     emailVerified: 邮箱状态

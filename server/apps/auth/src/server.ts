@@ -16,7 +16,6 @@ import { withRetry } from '@moeru/std'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
-import { logger as honoLogger } from 'hono/logger'
 import { createContainer, createLoggLogger, lifecycle, provide, resolve, start, stop } from 'injeca'
 
 import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from './auth'
@@ -63,11 +62,18 @@ export interface AuthAppDeps {
   redis: Redis
   env: AuthEnv
   rateLimitMetrics?: RateLimitMetrics | null
+  /**
+   * Writes access-log messages that contain request pathnames but no query.
+   *
+   * @default The `auth-app` logger.
+   */
+  accessLog?: (message: string) => void
 }
 
 /** Builds the standalone Auth HTTP surface without constructing its runtime dependencies. */
 export async function buildAuthApp(deps: AuthAppDeps) {
   const logger = useLogger('auth-app').useGlobalConfig()
+  const accessLog = deps.accessLog ?? (message => logger.log(message))
 
   const app = new Hono<HonoEnv>()
     .use('*', async (c, next) => {
@@ -83,7 +89,14 @@ export async function buildAuthApp(deps: AuthAppDeps) {
         credentials: true,
       }),
     )
-    .use(honoLogger())
+    .use('*', async (c, next) => {
+      const method = c.req.method
+      const path = c.req.path
+      accessLog(`<-- ${method} ${path}`)
+      const startedAt = Date.now()
+      await next()
+      accessLog(`--> ${method} ${path} ${c.res.status} ${Date.now() - startedAt}ms`)
+    })
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError((err, c) => {
       if (err instanceof ApiError) {

@@ -19,6 +19,11 @@ import type { OauthCallbackFailureStage } from '@proj-airi/stage-ui/composables'
 /** Login/signup credential kinds shown on the sign-in page. */
 export type AuthMethod = 'email' | 'github' | 'google' | 'steam'
 
+/** Anonymous outcomes that the native email-change UI can observe. */
+export type EmailChangeAnalytics
+  = { flow: 'standard' | 'placeholder', result: 'requested' | 'failed' }
+    | { result: 'callback_processed' }
+
 interface CaptureOptions {
   /**
    * Set when navigation immediately follows capture. Adapters can select a
@@ -186,6 +191,19 @@ export function trackPasswordResetCompleted(): void {
 
 export function trackPasswordChanged(): void {
   capture('password_changed', {})
+}
+
+/** Records only the native email-change result fields that the client observes. */
+export function trackEmailChange(properties: EmailChangeAnalytics): void {
+  if (properties.result === 'failed' || properties.result === 'requested') {
+    capture('email_change', {
+      flow: properties.flow,
+      result: properties.result,
+    })
+    return
+  }
+
+  capture('email_change', { result: 'callback_processed' })
 }
 
 /**

@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import type { ProfileUser } from '../modules/profile'
 
-import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
-import { useLinkedAccounts } from '@proj-airi/stage-ui/composables'
+import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth/providers'
+import { useLinkedAccounts } from '@proj-airi/stage-ui/composables/use-linked-accounts'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { Avatar, Button, FieldInput } from '@proj-airi/ui'
 import { computed, onMounted, reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+
+import EmailChangeSection from '../components/profile/email-change-section.vue'
 
 import {
   identifyAuthUser,
+  trackEmailChange,
   trackOauthProviderLinkStarted,
   trackOauthProviderUnlinked,
   trackPasswordChanged,
@@ -18,17 +21,21 @@ import {
   trackSignedOut,
 } from '../modules/analytics'
 import { getAuthClient } from '../modules/auth-client'
+import { parseEmailChangeError } from '../modules/email-change'
 import { requestPasswordReset } from '../modules/email-password'
 import {
   changePassword,
   describeProfileError,
+  emailChangeConsumedLocation,
   getCurrentSession,
+  isPlaceholderEmail,
   signOut,
   updateUserProfile,
 } from '../modules/profile'
 import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
 
 const { t, locale } = useI18n()
+const route = useRoute()
 const router = useRouter()
 
 const bootstrapContext = getServerAuthBootstrapContext()
@@ -36,6 +43,11 @@ const apiServerUrl = bootstrapContext?.apiServerUrl ?? SERVER_URL
 
 const initialLoading = shallowRef(true)
 const user = shallowRef<ProfileUser | null>(null)
+const emailChangeCallbackStatus = shallowRef<'failed' | 'processed' | null>(null)
+const placeholderEmail = computed(() => user.value ? isPlaceholderEmail(user.value.email) : false)
+const displayedEmail = computed(() => placeholderEmail.value
+  ? t('server.auth.profile.emailChange.current.notSet')
+  : user.value?.email ?? '')
 
 const profileForm = reactive({ name: '' })
 const profileLoading = shallowRef(false)
@@ -74,10 +86,13 @@ const usingGravatarFallback = computed(
   () => avatarUrl.value?.startsWith(GRAVATAR_AVATAR_PREFIX) ?? false,
 )
 const gravatarProfileUrl = computed(() => {
-  if (!usingGravatarFallback.value || !user.value?.email)
+  if (!usingGravatarFallback.value || !user.value?.email || placeholderEmail.value)
     return null
   return `https://gravatar.com/${encodeURIComponent(user.value.email.trim().toLowerCase())}`
 })
+const safeAvatarUrl = computed(() => placeholderEmail.value && usingGravatarFallback.value
+  ? null
+  : avatarUrl.value)
 
 // Connected accounts: state + handlers come from the shared composable
 // in stage-ui (mirrored on stage-web). Destructuring at top-level so the
@@ -137,20 +152,19 @@ onMounted(async () => {
     if (!result.user) {
       // Preserve the original target so the user lands back on /profile after
       // sign-in, rather than the sign-in default landing.
-      await router.replace({
-        path: '/sign-in',
-        query: { redirect: '/profile' },
-      })
+      await redirectToSignIn()
       return
     }
     // Setting `user` flips `isAuthenticated` true and the composable's
     // watch picks it up to load linked accounts — no explicit refresh
     // call needed here.
-    user.value = result.user
-    profileForm.name = result.user.name
+    applyProfileUser(result.user)
     // Merge this browser's anonymous funnel events (sign-in page views,
     // login_started, …) into the Better Auth user person.
     identifyAuthUser(result.user.id)
+
+    if (route.query.email_change === 'processed')
+      await handleNativeEmailChangeCallback()
   }
   catch (error) {
     profileError.value = describeProfileError(error) || t('server.auth.profile.error.loadFailed')
@@ -159,6 +173,19 @@ onMounted(async () => {
     initialLoading.value = false
   }
 })
+
+function applyProfileUser(profileUser: ProfileUser) {
+  user.value = profileUser
+  profileForm.name = profileUser.name
+}
+
+async function redirectToSignIn() {
+  user.value = null
+  await router.replace({
+    path: '/sign-in',
+    query: { redirect: '/profile' },
+  })
+}
 
 async function handleSaveName(event: Event) {
   event.preventDefault()
@@ -224,7 +251,7 @@ async function handleChangePassword(event: Event) {
 }
 
 async function handleSendSetPasswordLink() {
-  if (setPasswordLoading.value || !user.value)
+  if (setPasswordLoading.value || !user.value || placeholderEmail.value)
     return
 
   setPasswordLoading.value = true
@@ -260,6 +287,38 @@ async function handleSendSetPasswordLink() {
   finally {
     setPasswordLoading.value = false
   }
+}
+
+function handleEmailChangeSubmitted() {
+  trackEmailChange({
+    flow: placeholderEmail.value ? 'placeholder' : 'standard',
+    result: 'requested',
+  })
+}
+
+async function handleNativeEmailChangeCallback() {
+  const consumedLocation = emailChangeConsumedLocation(route)
+  const nativeError = parseEmailChangeError(route.query.error)
+  const hasNativeError = route.query.error !== undefined
+  emailChangeCallbackStatus.value = hasNativeError ? 'failed' : 'processed'
+  if (!hasNativeError)
+    trackEmailChange({ result: 'callback_processed' })
+
+  try {
+    const refreshedSession = await getCurrentSession({ apiServerUrl })
+    if (!refreshedSession.user) {
+      await redirectToSignIn()
+      return
+    }
+
+    applyProfileUser(refreshedSession.user)
+  }
+  catch (error) {
+    profileError.value = describeProfileError(error) || t('server.auth.profile.error.loadFailed')
+  }
+
+  if (!hasNativeError || nativeError !== null)
+    await router.replace(consumedLocation)
 }
 
 async function handleSignOut() {
@@ -329,7 +388,7 @@ function formatLinkedSince(iso: string): string {
         :class="['max-w-sm w-full flex flex-col items-center gap-2 mb-6']"
       >
         <Avatar
-          :src="avatarUrl"
+          :src="safeAvatarUrl"
           :alt="t('server.auth.profile.avatar.altText')"
           referrer-policy="no-referrer"
           :class="[
@@ -359,9 +418,12 @@ function formatLinkedSince(iso: string): string {
       >
         <div :class="['flex items-center justify-between text-sm']">
           <span :class="['text-neutral-500']">{{ t('server.auth.profile.field.email') }}</span>
-          <span :class="['font-medium']">{{ user.email }}</span>
+          <span :class="['font-medium']">{{ displayedEmail }}</span>
         </div>
-        <div :class="['flex items-center justify-between text-sm']">
+        <div
+          v-if="!placeholderEmail"
+          :class="['flex items-center justify-between text-sm']"
+        >
           <span :class="['text-neutral-500']">{{ t('server.auth.profile.field.emailVerified') }}</span>
           <span
             :class="[
@@ -386,6 +448,28 @@ function formatLinkedSince(iso: string): string {
           <span :class="['font-medium']">{{ formattedCreatedAt }}</span>
         </div>
       </section>
+
+      <EmailChangeSection
+        :api-server-url="apiServerUrl"
+        :email="user.email"
+        :email-verified="user.emailVerified"
+        :class="['mb-6']"
+        @submitted="handleEmailChangeSubmitted"
+      />
+
+      <p
+        v-if="emailChangeCallbackStatus"
+        :class="[
+          'max-w-sm w-full mb-6 text-sm',
+          emailChangeCallbackStatus === 'processed'
+            ? 'text-green-600 dark:text-green-400'
+            : 'text-red-500',
+        ]"
+        :role="emailChangeCallbackStatus === 'processed' ? 'status' : 'alert'"
+        aria-live="polite"
+      >
+        {{ t(`server.auth.profile.emailChange.callback.${emailChangeCallbackStatus}`) }}
+      </p>
 
       <!-- Display name form -->
       <form
@@ -505,7 +589,9 @@ function formatLinkedSince(iso: string): string {
           :class="['flex flex-col gap-3']"
         >
           <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
-            {{ t('server.auth.profile.password.setDescription') }}
+            {{ t(placeholderEmail
+              ? 'server.auth.profile.emailChange.passwordDependency'
+              : 'server.auth.profile.password.setDescription') }}
           </p>
 
           <div
@@ -527,7 +613,7 @@ function formatLinkedSince(iso: string): string {
           <Button
             :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
             :loading="setPasswordLoading"
-            :disabled="!!setPasswordSuccess"
+            :disabled="placeholderEmail || !!setPasswordSuccess"
             @click="handleSendSetPasswordLink"
           >
             <span>{{ t('server.auth.profile.action.sendSetPasswordLink') }}</span>

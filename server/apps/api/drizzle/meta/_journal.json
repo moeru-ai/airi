@@ -155,6 +155,13 @@
       "when": 1786864179375,
       "tag": "0021_chilly_starjammers",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1787324408314,
+      "tag": "0022_placeholder_email_unverified",
+      "breakpoints": true
     }
   ]
 }

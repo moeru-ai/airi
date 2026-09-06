@@ -13,7 +13,7 @@ import { Buffer } from 'node:buffer'
 
 import { oauthProvider } from '@better-auth/oauth-provider'
 import { useLogger } from '@guiiai/logg'
-import { betterAuth } from 'better-auth'
+import { APIError, betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
 import { deleteSessionCookie } from 'better-auth/cookies'
@@ -22,6 +22,7 @@ import { eq } from 'drizzle-orm'
 
 import * as authSchema from '@proj-airi/auth-shared'
 
+import { isPlaceholderEmail } from './email'
 import { ApiError } from './error'
 import { getAuthTrustedOrigins, getTrustedOrigin } from './origin'
 import { banGuard } from './plugins/ban-guard'
@@ -30,6 +31,11 @@ import { steam } from './plugins/steam'
 import { createAppleClientSecret, createSocialAuthorizationRevoker } from './social-authorization'
 
 const logger = useLogger('auth').useGlobalConfig()
+
+const EMAIL_CHANGE_EMAIL_UNAVAILABLE = {
+  code: 'EMAIL_CHANGE_EMAIL_UNAVAILABLE',
+  message: 'This email address is not available.',
+} as const
 
 interface TrustedClientSeed {
   clientId: string
@@ -143,9 +149,15 @@ function createAppleProviderConfig(
         // Source: `https://better-auth.com/docs/concepts/oauth#handling-providers-without-email`.
         // Removal condition: Better Auth resolves existing accounts by
         // providerId/accountId without requiring email (tracked upstream as #9124).
-        mapProfileToUser: (profile: AppleProfile) => ({
-          email: profile.email || `${profile.sub}@apple.placeholder.local`,
-        }),
+        mapProfileToUser: (profile: AppleProfile) => {
+          if (profile.email)
+            return { email: profile.email }
+
+          return {
+            email: `${profile.sub}@apple.placeholder.local`,
+            emailVerified: false,
+          }
+        },
       }
     },
   }
@@ -525,6 +537,7 @@ export function createAuth(
     },
 
     emailVerification: {
+      expiresIn: 3600,
       // Trigger sendVerificationEmail automatically on sign-up so the frontend
       // doesn't need to make a follow-up call. requireEmailVerification above
       // already enforces this on its own, but sendOnSignUp keeps behavior
@@ -537,6 +550,9 @@ export function createAuth(
       // Source: node_modules/better-auth/dist/api/routes/email-verification.mjs L268+
       autoSignInAfterVerification: true,
       async sendVerificationEmail({ user, url }) {
+        if (isPlaceholderEmail(user.email))
+          return
+
         await requireEmailService(email).sendVerification({ to: user.email, url })
       },
     },
@@ -623,6 +639,9 @@ export function createAuth(
     trustedOrigins: request => getAuthTrustedOrigins(env, request),
 
     advanced: {
+      // Better Auth disables origin checks in test mode by default. Keep this
+      // explicit so integration tests and production use the same boundary.
+      disableOriginCheck: false,
       // Caddy reconstructs this header from Cloudflare's client address before
       // forwarding to the private Auth service. Better Auth otherwise defaults
       // to X-Forwarded-For, which contains the proxy chain and can collapse
@@ -701,6 +720,15 @@ export function createAuth(
 
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === '/change-email') {
+          const newEmail = typeof ctx.body?.newEmail === 'string'
+            ? ctx.body.newEmail.trim().toLowerCase()
+            : ''
+
+          if (isPlaceholderEmail(newEmail))
+            throw APIError.from('BAD_REQUEST', EMAIL_CHANGE_EMAIL_UNAVAILABLE)
+        }
+
         const isAuthAttempt = ctx.path.includes('/sign-in') || ctx.path.includes('/sign-up')
         if (isAuthAttempt) {
           metrics?.attempts.add(1, { 'auth.method': ctx.path.split('/').pop() ?? 'unknown' })

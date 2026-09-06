@@ -18,6 +18,7 @@ import type { AuthFetchBase } from './auth-fetch'
 import { errorMessageFrom } from '@moeru/std'
 
 import { getAuthClient } from './auth-client'
+import { parseEmailChangeError } from './email-change'
 
 /**
  * Trimmed view of the better-auth `user` row exposed via `/get-session`.
@@ -57,6 +58,13 @@ export interface CurrentSessionResult {
   user: ProfileUser | null
 }
 
+type ProfileLocationQuery = Record<string, string | (string | null)[] | null | undefined>
+
+interface ProfileRouteLocation {
+  hash: string
+  query: ProfileLocationQuery
+}
+
 interface UpdateUserProfileArgs extends AuthFetchBase {
   /** Trim before passing — server stores the value as-is. */
   name?: string
@@ -73,6 +81,38 @@ interface ChangePasswordArgs extends AuthFetchBase {
    * @default true
    */
   revokeOtherSessions?: boolean
+}
+
+/**
+ * Identifies a system email that cannot receive messages.
+ *
+ * @example
+ * isPlaceholderEmail('  USER@STEAM.LOCAL  ')
+ * // => true
+ */
+export function isPlaceholderEmail(email: string): boolean {
+  return email.trim().toLowerCase().endsWith('.local')
+}
+
+/**
+ * Builds the route location after the page evaluates an email-change result.
+ * The location keeps all values when the error is malformed or unknown.
+ * Otherwise, it removes native callback values and keeps unrelated values.
+ */
+export function emailChangeConsumedLocation(route: ProfileRouteLocation): ProfileRouteLocation {
+  if (route.query.email_change !== 'processed')
+    return { hash: route.hash, query: { ...route.query } }
+
+  const nativeError = parseEmailChangeError(route.query.error)
+  if (route.query.error !== undefined && nativeError === null)
+    return { hash: route.hash, query: { ...route.query } }
+
+  const { email_change: _, ...query } = route.query
+  if (nativeError === null)
+    return { hash: route.hash, query }
+
+  const { error: _error, ...queryWithoutNativeError } = query
+  return { hash: route.hash, query: queryWithoutNativeError }
 }
 
 /**

@@ -41,9 +41,8 @@ const CallbackQuerySchema = z.looseObject({
  * Identity model:
  * - Steam never exposes an email address. New sign-ups get a placeholder
  *   `<steamid64>@steam.placeholder.local` (mirrors Apple's
- *   `<sub>@apple.placeholder.local`) with `emailVerified: true` — the
- *   placeholder can never receive mail, so verification is meaningless and
- *   would otherwise permanently block sign-in.
+ *   `<sub>@apple.placeholder.local`) with `emailVerified: false`. The
+ *   placeholder cannot receive mail and does not prove email ownership.
  *
  * Mechanism:
  * - Both start endpoints build the same `checkid_setup` redirect URL,
@@ -209,7 +208,7 @@ export function steam() {
       const { user } = await ctx.context.internalAdapter.createOAuthUser(
         {
           email: `${steamId}@steam.placeholder.local`,
-          emailVerified: true,
+          emailVerified: false,
           name: `Steam User ${steamId}`,
         },
         { providerId: 'steam', accountId: steamId },
