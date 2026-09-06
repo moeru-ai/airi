@@ -1,22 +1,19 @@
 import type {
   AmbientLightEnvironment,
+  NormalizedRectangle,
+  PixelFrame,
   ScreenAmbientLightSamplingDiagnostics,
   ScreenAmbientLightSource,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 
 export const screenAmbientLightDiagnosticsChannelName = 'airi::screen-ambient-light-diagnostics'
 
-export interface ScreenAmbientLightRectangle {
+/** A rectangle in display pixels, which is the unit Electron reports bounds in. */
+export interface DisplayPixelRectangle {
   x: number
   y: number
   width: number
   height: number
-}
-
-export interface ScreenAmbientLightCaptureFrame {
-  width: number
-  height: number
-  data: Uint8ClampedArray
 }
 
 export type ScreenAmbientLightCaptureStatus
@@ -34,22 +31,22 @@ export interface ScreenAmbientLightDiagnosticsSnapshot {
   error?: string
   display?: {
     id: number
-    bounds: ScreenAmbientLightRectangle
+    bounds: DisplayPixelRectangle
   }
-  windowBounds?: ScreenAmbientLightRectangle
+  windowBounds?: DisplayPixelRectangle
   /** Size of the frames that the capture stream delivers, after constraints. */
   videoSize?: {
     width: number
     height: number
   }
-  frame?: ScreenAmbientLightCaptureFrame
-  excludedRegion?: ScreenAmbientLightRectangle
+  frame?: PixelFrame
+  excludedRegion?: NormalizedRectangle
   /**
    * Bounds of what the renderer drew, on the same frame as
    * {@link excludedRegion}. The maps are placed around this, so the preview
    * has to draw their coverage around it too.
    */
-  subjectRegion?: ScreenAmbientLightRectangle
+  subjectRegion?: NormalizedRectangle
   sampling?: ScreenAmbientLightSamplingDiagnostics & {
     /** Environment measured from this frame, before temporal smoothing. */
     targetEnvironment?: AmbientLightEnvironment

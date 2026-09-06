@@ -16,6 +16,9 @@ import {
   ambientLightNeutralMapMargin,
   averageAmbientLightMap,
   createAmbientLightMap,
+  linearToSrgb,
+  relativeLuminance,
+  srgbToLinear,
 } from './environment'
 
 export interface PixelFrame {
@@ -55,14 +58,6 @@ export interface SampleRegion {
    * place.
    */
   subject?: NormalizedRectangle
-  /**
-   * Width divided by height of the captured display.
-   *
-   * The measurement does not read it: the window rectangle already carries the
-   * shape of the window on the display. The capture side reports it here for
-   * the diagnostics view.
-   */
-  displayAspect: number
 }
 
 /**
@@ -77,15 +72,15 @@ const contactSigmaSubjectHeights = 0.08
 const surroundSigmaSubjectHeights = 0.30
 
 /**
- * Height of the stage window on the working grid, in cells.
+ * Height of the subject on the working grid, in cells.
  *
- * The maps hold 24 texels over twice the window, which is 12 per window
+ * The maps hold 24 texels over twice the subject, which is 12 per subject
  * height. The grid keeps twice that density, so the bilinear read from grid to
  * map loses nothing the map can show. Measured at 20 captures per second with
  * a 256 x 192 frame, the blur over the whole frame cost 11 ms per capture; the
  * grid holds a few thousand cells whatever the frame size is.
  */
-const workingWindowHeight = 24
+const workingSubjectHeight = 24
 
 /**
  * Painted opacity below which a pixel counts as the desktop behind the window.
@@ -115,6 +110,7 @@ export interface ScreenAmbientLightSamplingDiagnostics {
   totalPixelCount: number
   /** Pixels inside the window that AIRI paints. These carry no measurement. */
   excludedPixelCount: number
+  /** Frame pixels the capture left fully transparent. These carry no light. */
   transparentPixelCount: number
   /** Pixels that contributed light to the maps. */
   acceptedPixelCount: number
@@ -280,14 +276,14 @@ export function sampleScreenAmbientLight(
  * Part of the frame that the measurement reads, and the coarser grid it is
  * summed onto.
  *
- * The frame covers the whole display, but the maps cover the window plus its
+ * The frame covers the whole display, but the maps cover the subject plus its
  * margin, and a pixel can reach a map texel only through the blur. Everything
- * farther than the margin plus three surround deviations from the window has no
- * measurable effect and is not read. Inside that region the pixels are summed
- * onto cells of `scale` x `scale` pixels, chosen so that the window spans about
- * {@link workingWindowHeight} cells: the maps hold half that density, so the
- * cells lose nothing the maps can show, and the blur cost follows the window
- * size instead of the display size.
+ * farther than the margin plus three surround deviations from the subject has
+ * no measurable effect and is not read. Inside that region the pixels are
+ * summed onto cells of `scale` x `scale` pixels, chosen so that the subject
+ * spans about {@link workingSubjectHeight} cells: the maps hold half that
+ * density, so the cells lose nothing the maps can show, and the blur cost
+ * follows the subject size instead of the display size.
  */
 interface WorkingGrid {
   /** Frame pixel bounds of the region, left and top inclusive, right and bottom exclusive. */
@@ -318,20 +314,20 @@ function aspectOf(frame: PixelFrame, rectangle: NormalizedRectangle) {
   return width / height
 }
 
-function workingGridFor(frame: PixelFrame, windowRectangle: NormalizedRectangle): WorkingGrid {
-  const windowHeightPixels = Math.max(1, windowRectangle.height * frame.height)
-  const scale = Math.max(1, Math.round(windowHeightPixels / workingWindowHeight))
+function workingGridFor(frame: PixelFrame, subject: NormalizedRectangle): WorkingGrid {
+  const subjectHeightPixels = Math.max(1, subject.height * frame.height)
+  const scale = Math.max(1, Math.round(subjectHeightPixels / workingSubjectHeight))
   // The grid has to hold the map and the blur that fills it, and both reach the
   // same distance on every side, so the fraction differs between the axes.
   const reach = ambientLightMapMargin + 3 * surroundSigmaSubjectHeights
-  const aspect = aspectOf(frame, windowRectangle)
+  const aspect = aspectOf(frame, subject)
   const reachX = reach / aspect
   const reachY = reach
 
-  const left = clamp(Math.floor((windowRectangle.x - reachX * windowRectangle.width) * frame.width), 0, frame.width)
-  const top = clamp(Math.floor((windowRectangle.y - reachY * windowRectangle.height) * frame.height), 0, frame.height)
-  const right = clamp(Math.ceil((windowRectangle.x + (1 + reachX) * windowRectangle.width) * frame.width), left, frame.width)
-  const bottom = clamp(Math.ceil((windowRectangle.y + (1 + reachY) * windowRectangle.height) * frame.height), top, frame.height)
+  const left = clamp(Math.floor((subject.x - reachX * subject.width) * frame.width), 0, frame.width)
+  const top = clamp(Math.floor((subject.y - reachY * subject.height) * frame.height), 0, frame.height)
+  const right = clamp(Math.ceil((subject.x + (1 + reachX) * subject.width) * frame.width), left, frame.width)
+  const bottom = clamp(Math.ceil((subject.y + (1 + reachY) * subject.height) * frame.height), top, frame.height)
 
   return {
     left,
@@ -540,47 +536,58 @@ function blurField(
   return scratchB
 }
 
-function blurAlongRows(
+/**
+ * One box pass over parallel lines of the field.
+ *
+ * The strides choose the axis, so rows and columns share this code: a row steps
+ * one cell per tap and one width per line, and a column swaps the two. Taps
+ * that fall off the field are dropped, and every write divides by the number of
+ * taps actually read, so color and weight keep the same per-cell weighting and
+ * their ratio stays a mean of the cells that were measured.
+ */
+function blurAlongAxis(
   source: Float32Array,
   target: Float32Array,
-  width: number,
-  height: number,
+  lineCount: number,
+  lineLength: number,
+  lineStride: number,
+  tapStride: number,
   radius: number,
 ) {
-  for (let y = 0; y < height; y += 1) {
-    const row = y * width
+  for (let line = 0; line < lineCount; line += 1) {
+    const base = line * lineStride
     let red = 0
     let green = 0
     let blue = 0
     let weight = 0
-    const initialTaps = Math.min(radius, width - 1)
-    for (let x = 0; x <= initialTaps; x += 1) {
-      const offset = (row + x) * 4
+    const initialTaps = Math.min(radius, lineLength - 1)
+    for (let tap = 0; tap <= initialTaps; tap += 1) {
+      const offset = base + tap * tapStride
       red += source[offset]
       green += source[offset + 1]
       blue += source[offset + 2]
       weight += source[offset + 3]
     }
 
-    for (let x = 0; x < width; x += 1) {
-      const divisor = Math.min(width - 1, x + radius) - Math.max(0, x - radius) + 1
-      const offset = (row + x) * 4
+    for (let tap = 0; tap < lineLength; tap += 1) {
+      const divisor = Math.min(lineLength - 1, tap + radius) - Math.max(0, tap - radius) + 1
+      const offset = base + tap * tapStride
       target[offset] = red / divisor
       target[offset + 1] = green / divisor
       target[offset + 2] = blue / divisor
       target[offset + 3] = weight / divisor
 
-      const entering = x + 1 + radius
-      if (entering < width) {
-        const enteringOffset = (row + entering) * 4
+      const entering = tap + 1 + radius
+      if (entering < lineLength) {
+        const enteringOffset = base + entering * tapStride
         red += source[enteringOffset]
         green += source[enteringOffset + 1]
         blue += source[enteringOffset + 2]
         weight += source[enteringOffset + 3]
       }
-      const leaving = x - radius
+      const leaving = tap - radius
       if (leaving >= 0) {
-        const leavingOffset = (row + leaving) * 4
+        const leavingOffset = base + leaving * tapStride
         red -= source[leavingOffset]
         green -= source[leavingOffset + 1]
         blue -= source[leavingOffset + 2]
@@ -590,57 +597,16 @@ function blurAlongRows(
   }
 }
 
-function blurAlongColumns(
-  source: Float32Array,
-  target: Float32Array,
-  width: number,
-  height: number,
-  radius: number,
-) {
-  for (let x = 0; x < width; x += 1) {
-    let red = 0
-    let green = 0
-    let blue = 0
-    let weight = 0
-    const initialTaps = Math.min(radius, height - 1)
-    for (let y = 0; y <= initialTaps; y += 1) {
-      const offset = (y * width + x) * 4
-      red += source[offset]
-      green += source[offset + 1]
-      blue += source[offset + 2]
-      weight += source[offset + 3]
-    }
+function blurAlongRows(source: Float32Array, target: Float32Array, width: number, height: number, radius: number) {
+  blurAlongAxis(source, target, height, width, width * 4, 4, radius)
+}
 
-    for (let y = 0; y < height; y += 1) {
-      const divisor = Math.min(height - 1, y + radius) - Math.max(0, y - radius) + 1
-      const offset = (y * width + x) * 4
-      target[offset] = red / divisor
-      target[offset + 1] = green / divisor
-      target[offset + 2] = blue / divisor
-      target[offset + 3] = weight / divisor
-
-      const entering = y + 1 + radius
-      if (entering < height) {
-        const enteringOffset = (entering * width + x) * 4
-        red += source[enteringOffset]
-        green += source[enteringOffset + 1]
-        blue += source[enteringOffset + 2]
-        weight += source[enteringOffset + 3]
-      }
-      const leaving = y - radius
-      if (leaving >= 0) {
-        const leavingOffset = (leaving * width + x) * 4
-        red -= source[leavingOffset]
-        green -= source[leavingOffset + 1]
-        blue -= source[leavingOffset + 2]
-        weight -= source[leavingOffset + 3]
-      }
-    }
-  }
+function blurAlongColumns(source: Float32Array, target: Float32Array, width: number, height: number, radius: number) {
+  blurAlongAxis(source, target, width, height, 4, width * 4, radius)
 }
 
 /**
- * The map covers the window grown by `margin`, which is the same distance on
+ * The map covers the subject grown by `margin`, which is the same distance on
  * every side. A texel whose center lies off the display reports no support, so
  * that the fallback chain fills it instead of the repeated border color. Light
  * that was never captured must not decide a color.
@@ -649,16 +615,16 @@ function readMapTexels(
   field: Float32Array,
   grid: WorkingGrid,
   frame: PixelFrame,
-  windowRectangle: NormalizedRectangle,
+  subject: NormalizedRectangle,
   margin: AmbientLightMapMargin,
 ): ResampledField {
   const texelCount = ambientLightMapSize * ambientLightMapSize
   const colors = new Float32Array(texelCount * 3)
   const support = new Float32Array(texelCount)
-  const originX = windowRectangle.x - margin.x * windowRectangle.width
-  const originY = windowRectangle.y - margin.y * windowRectangle.height
-  const spanX = windowRectangle.width * (1 + 2 * margin.x)
-  const spanY = windowRectangle.height * (1 + 2 * margin.y)
+  const originX = subject.x - margin.x * subject.width
+  const originY = subject.y - margin.y * subject.height
+  const spanX = subject.width * (1 + 2 * margin.x)
+  const spanY = subject.height * (1 + 2 * margin.y)
 
   for (let row = 0; row < ambientLightMapSize; row += 1) {
     const normalizedY = originY + ((row + 0.5) / ambientLightMapSize) * spanY
@@ -723,14 +689,6 @@ function smoothMap(
   return { width: next.width, height: next.height, data }
 }
 
-function relativeLuminance(red: number, green: number, blue: number) {
-  return red * 0.2126 + green * 0.7152 + blue * 0.0722
-}
-
-function srgbToLinear(value: number): number {
-  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
-}
-
 /**
  * Converts a linear luminance into the perceptual level that `exposure` already
  * travels on, so that the two can be compared and tuned against one scale.
@@ -745,10 +703,6 @@ function srgbToLinear(value: number): number {
  */
 export function ambientLightPerceptualLevel(linearLuminance: number): number {
   return clamp(linearToSrgb(linearLuminance), 0, 1)
-}
-
-function linearToSrgb(value: number): number {
-  return value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055
 }
 
 function mix(from: number, to: number, amount: number): number {

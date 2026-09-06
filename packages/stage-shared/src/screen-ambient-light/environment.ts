@@ -102,7 +102,7 @@ export interface AmbientLightFilterOptions {
  * Texel columns and rows of a light map.
  *
  * The shader reads between texels, so the grid stays coarse. 24 texels over
- * twice the window is finer than the blur that produces a map.
+ * twice the subject is finer than the blur that produces a map.
  */
 export const ambientLightMapSize = 24
 
@@ -168,12 +168,12 @@ export function ambientLightMapMarginFor(subjectAspect: number): AmbientLightMap
   return { x: ambientLightMapMargin / Math.max(subjectAspect, 0.0001), y: ambientLightMapMargin }
 }
 
-/** The reach for a square window, which is what a map with no measurement behind it assumes. */
+/** The reach for a square subject, which is what a map with no measurement behind it assumes. */
 export const ambientLightNeutralMapMargin: Readonly<AmbientLightMapMargin> = Object.freeze(
   ambientLightMapMarginFor(1),
 )
 
-/** Screen light over the stage window and its margin, as a small color grid. */
+/** Screen light over the subject and its margin, as a small color grid. */
 export interface AmbientLightMap {
   /** Texel columns and rows. Both are {@link ambientLightMapSize}. */
   width: number
@@ -218,7 +218,7 @@ export function averageAmbientLightMap(map: AmbientLightMap): [number, number, n
 }
 
 /**
- * Mean linear luminance of the texels that cover the stage window itself.
+ * Mean linear luminance of the texels that cover the subject itself.
  *
  * Those texels sit behind the character, so the value says how much light the
  * character stands in front of. The backlight darkens the interior by it.
@@ -284,8 +284,8 @@ export interface AmbientLightEnvironment {
   behindLuminance: number
   /**
    * The reach the two maps were placed with, which every reader needs to turn a
-   * window position into a map position. It travels with the maps because it
-   * depends on the shape of the window they were measured around.
+   * screen position into a map position. It travels with the maps because it
+   * depends on the shape of the subject they were measured around.
    */
   mapMargin: AmbientLightMapMargin
 }
@@ -359,6 +359,17 @@ export const ambientLightNeutralEnvironment: Readonly<AmbientLightEnvironment> =
   behindLuminance: 0,
 })
 
-function relativeLuminance(red: number, green: number, blue: number) {
+/** Relative luminance of a linear RGB color, by the sRGB primaries. */
+export function relativeLuminance(red: number, green: number, blue: number): number {
   return red * 0.2126 + green * 0.7152 + blue * 0.0722
+}
+
+/** sRGB encoded channel to linear light. Both are 0 to 1. */
+export function srgbToLinear(value: number): number {
+  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+}
+
+/** Linear light to the sRGB encoding a display and a canvas expect. */
+export function linearToSrgb(value: number): number {
+  return value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055
 }
