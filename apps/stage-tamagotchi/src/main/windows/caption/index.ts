@@ -308,7 +308,14 @@ export function setupCaptionWindowManager(params: {
     const { context } = createContext(ipcMain, window)
     eventaContext = context
 
-    await setupBaseWindowElectronInvokes({ context, window, serverChannel: params.serverChannel, i18n: params.i18n })
+    await setupBaseWindowElectronInvokes({
+      context,
+      window,
+      serverChannel: params.serverChannel,
+      i18n: params.i18n,
+      // The main process owns caption click-through state. Navigation recovery must not override it.
+      manageWindowInteractivity: false,
+    })
 
     applyIgnoreMouseEvents(window, isFollowing)
 
