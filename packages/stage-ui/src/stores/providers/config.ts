@@ -33,8 +33,9 @@ function isUserProvider(provider: InferenceServiceProvider) {
 }
 
 /**
- * Local provider instances are the primary copy. Cloud is a replica:
- * pull on login, push after a debounce.
+ * Local providers are the primary copy. Cloud is a replica: pull on login,
+ * push after a debounce. Upsert only configured rows. Do not upload status;
+ * after a pull, the provider store validates locally.
  */
 export const useProviderConfigStore = defineStore('provider-config', () => {
   const authStore = useAuthStore()
@@ -46,6 +47,16 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   let lastLiveRemote: Record<string, ProviderReplicaRow> = {}
   let replicaMerged = false
   let syncInFlight: Promise<void> | undefined
+  const afterSyncHooks: Array<() => void | Promise<void>> = []
+
+  function onAfterSync(hook: () => void | Promise<void>) {
+    afterSyncHooks.push(hook)
+    return () => {
+      const index = afterSyncHooks.indexOf(hook)
+      if (index >= 0)
+        afterSyncHooks.splice(index, 1)
+    }
+  }
 
   // Import the previous provider configuration shape once. Provider ids remain
   // stable, so existing model selections keep pointing at the same provider.
@@ -108,8 +119,13 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   function indexLiveRemote(remote: ProviderReplicaRow[]) {
     const next: Record<string, ProviderReplicaRow> = {}
     for (const row of remote) {
-      if (!row.deletedAt)
-        next[row.id] = row
+      if (!row.deletedAt) {
+        next[row.id] = {
+          ...row,
+          // Copy config so a later local write is not compared against itself.
+          config: { ...row.config },
+        }
+      }
     }
     lastLiveRemote = next
   }
@@ -189,8 +205,14 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
   function setProviderStatus(providerId: string, status: ProviderValidationStatus) {
     const provider = providers.value[providerId]
-    if (provider)
-      provider.status = status
+    if (!provider)
+      return
+
+    provider.status = status
+    // Config often changes first; validation marks configured later.
+    // Push then, or a finished key never uploads.
+    if (status === 'configured')
+      schedulePush()
   }
 
   /**
@@ -300,6 +322,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
         return
       }
       await pushProviders()
+      for (const hook of afterSyncHooks)
+        await hook()
     })()
 
     try {
@@ -314,7 +338,9 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (!authStore.isAuthenticated || !replicaMerged)
       return
 
-    const toUpsert = Object.values(providers.value).filter(provider => isUserProvider(provider) && isDirty(provider))
+    const toUpsert = Object.values(providers.value).filter(provider =>
+      isUserProvider(provider) && isDirty(provider) && provider.status === 'configured',
+    )
 
     for (const provider of toUpsert) {
       try {
@@ -362,7 +388,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       return
 
     if (isUserProvider(provider))
-      pendingDeletes.value[providerId] = provider.replicaUpdatedAt ?? null
+      pendingDeletes.value[providerId] = new Date().toISOString()
 
     delete providers.value[providerId]
     unmarkProviderAdded(providerId)
@@ -416,6 +442,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     removeProvider,
     updateProviderConfig,
     resetProviders,
+    onAfterSync,
   }
 }, {
   synced: {

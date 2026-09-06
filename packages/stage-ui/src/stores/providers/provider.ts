@@ -480,15 +480,12 @@ export const useProviderStore = defineStore('provider', () => {
       .filter(([providerId]) => shouldListProvider(providerId) || providerId === 'browser-web-speech-api')
       .map(async ([providerId]) => {
         try {
-          if (providerRuntimeState.value[providerId]) {
-            const isValid = await validateProvider(providerId)
-            providerConfigStore.setProviderStatus(providerId, isValid ? 'configured' : 'invalid')
-          }
+          initializeProviderRuntimeState(providerId)
+          const isValid = await validateProvider(providerId)
+          providerConfigStore.setProviderStatus(providerId, isValid ? 'configured' : 'invalid')
         }
         catch {
-          if (providerRuntimeState.value[providerId]) {
-            providerConfigStore.setProviderStatus(providerId, 'invalid')
-          }
+          providerConfigStore.setProviderStatus(providerId, 'invalid')
         }
       }))
   }
@@ -498,6 +495,8 @@ export const useProviderStore = defineStore('provider', () => {
     await updateConfigurationStatus()
     startPeriodicRuntimeValidation()
   }
+
+  providerConfigStore.onAfterSync(() => refreshListedProviderValidation())
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.values(providerConfigStore.providers)
