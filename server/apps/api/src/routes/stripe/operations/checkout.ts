@@ -126,7 +126,6 @@ export function createCheckoutOperation(
   }
 }
 
-
 function readPosthogIdentityHeaders(request: Request) {
   const distinctId = readStripeMetadataHeader(request, 'x-posthog-distinct-id')
   const sessionId = readStripeMetadataHeader(request, 'x-posthog-session-id')

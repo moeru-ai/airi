@@ -118,7 +118,6 @@ describe('stripe checkout', () => {
     expect(order?.currency).toBe('usd')
   })
 
-
   it('credits Flux when settle runs before the session id is bound', async () => {
     const create = vi.fn(async (params: { metadata?: Record<string, string> }) => {
       const paymentOrderId = params.metadata?.payment_order_id
