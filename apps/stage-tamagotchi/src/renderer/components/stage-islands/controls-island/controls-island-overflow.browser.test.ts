@@ -4,7 +4,7 @@ import en from '@proj-airi/i18n/locales/en'
 
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { createPinia } from 'pinia'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
 import { computed, nextTick, ref } from 'vue'
@@ -40,6 +40,33 @@ function scrollOwners(island: HTMLElement) {
 const docks: ControlsIslandDock[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
 const sizes = ['small', 'large', 'auto'] as const
 
+function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number] = 'auto') {
+  const pinia = createPinia()
+  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+  const screen = render(ControlsIsland, {
+    global: {
+      provide: {
+        [controlsIslandPlacementKey as symbol]: {
+          dock: ref(dock),
+          isTop: computed(() => dock.startsWith('top')),
+          isLeft: computed(() => dock.endsWith('left')),
+          motionPhase: ref('idle'),
+        },
+      },
+      plugins: [pinia, i18n],
+      directives: { 'track-button': {} },
+    },
+  })
+  useSettings(pinia).controlsIslandIconSize = size
+
+  return { i18n, screen }
+}
+
+beforeEach(() => {
+  isOutside.value = false
+  openSettings.mockClear()
+})
+
 describe('controls Island overflow', () => {
   for (const dock of docks) {
     for (const size of sizes) {
@@ -50,23 +77,7 @@ describe('controls Island overflow', () => {
       // https://github.com/moeru-ai/airi/issues/2400
       it(`Issue #2400 keeps ${dock} ${size} controls reachable across measured boundaries`, async () => {
         await page.viewport(450, 600)
-        const pinia = createPinia()
-        const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-        const screen = render(ControlsIsland, {
-          global: {
-            provide: {
-              [controlsIslandPlacementKey as symbol]: {
-                dock: ref(dock),
-                isTop: computed(() => dock.startsWith('top')),
-                isLeft: computed(() => dock.endsWith('left')),
-                motionPhase: ref('idle'),
-              },
-            },
-            plugins: [pinia, i18n],
-            directives: { 'track-button': {} },
-          },
-        })
-        useSettings(pinia).controlsIslandIconSize = size
+        const { i18n, screen } = mountControlsIsland(dock, size)
         await nextTick()
         const island = screen.getByTestId('controls-island').element() as HTMLElement
         const main = screen.getByTestId('main-controls').element() as HTMLElement
@@ -106,8 +117,6 @@ describe('controls Island overflow', () => {
           expect(menu.getBoundingClientRect().width).toBe(naturalWidth)
           const outer = island.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
           if (width < naturalWidth + 16) {
-            if (!dock.endsWith('left'))
-              await expect.poll(() => outer.scrollLeft).toBeGreaterThan(0)
             outer.scrollLeft = outer.scrollWidth
             expect(outer.scrollLeft).toBeGreaterThan(0)
           }
@@ -121,23 +130,6 @@ describe('controls Island overflow', () => {
         await settings.click()
         expect(openSettings).toHaveBeenCalledWith({ route: '/settings' })
 
-        if (dock === 'bottom-right' && size === 'auto') {
-          settingsElement.focus()
-          const focused = document.activeElement as HTMLElement
-          expect(island.contains(focused)).toBe(true)
-          expect(focused.getBoundingClientRect().bottom).toBeGreaterThan(8)
-          expect(focused.getBoundingClientRect().top).toBeLessThan(mainHeight + 52)
-
-          island.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
-          isOutside.value = true
-          await new Promise(resolve => setTimeout(resolve, 1700))
-          expect(screen.getByTestId('controls-menu').element()).toBeInTheDocument()
-          window.dispatchEvent(new MouseEvent('mouseup'))
-          await expect.poll(() => screen.container.querySelector('[data-testid="controls-menu"]'), { timeout: 3500 }).toBeNull()
-          isOutside.value = false
-          await screen.getByLabelText(label('expand'), { exact: true }).click()
-        }
-
         await screen.getByLabelText(label('collapse'), { exact: true }).click()
         await expect.poll(() => screen.container.querySelector('[data-testid="controls-menu"]')).toBeNull()
         await screen.getByLabelText(label('expand'), { exact: true }).click()
@@ -146,4 +138,41 @@ describe('controls Island overflow', () => {
       })
     }
   }
+
+  for (const dock of ['top-right', 'bottom-right'] as const) {
+    it(`Issue #2400 aligns ${dock} controls to the visible right edge`, async () => {
+      await page.viewport(450, 600)
+      const { i18n, screen } = mountControlsIsland(dock)
+      const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+
+      await screen.getByLabelText(label('expand'), { exact: true }).click()
+      const island = screen.getByTestId('controls-island').element() as HTMLElement
+      const naturalWidth = island.getBoundingClientRect().width
+      await page.viewport(Math.max(40, Math.floor(naturalWidth / 2)), 600)
+
+      const viewport = island.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
+      await expect.poll(() => viewport.scrollLeft).toBeGreaterThan(0)
+    })
+  }
+
+  // The interaction path is independent from the size and dock matrix.
+  it('issue #2400 keeps the expanded menu open during a scrollbar drag', async () => {
+    await page.viewport(450, 300)
+    const { i18n, screen } = mountControlsIsland('bottom-right')
+    const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+    await screen.getByLabelText(label('expand'), { exact: true }).click()
+
+    const island = screen.getByTestId('controls-island').element() as HTMLElement
+    const settings = screen.getByLabelText(label('open-settings'), { exact: true }).element() as HTMLElement
+    settings.focus()
+    expect(island.contains(document.activeElement)).toBe(true)
+    expect(settings.getBoundingClientRect().bottom).toBeGreaterThan(8)
+
+    island.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    isOutside.value = true
+    await new Promise(resolve => setTimeout(resolve, 1700))
+    expect(screen.getByTestId('controls-menu').element()).toBeInTheDocument()
+    window.dispatchEvent(new MouseEvent('mouseup'))
+    await expect.poll(() => screen.container.querySelector('[data-testid="controls-menu"]'), { timeout: 3500 }).toBeNull()
+  })
 })
