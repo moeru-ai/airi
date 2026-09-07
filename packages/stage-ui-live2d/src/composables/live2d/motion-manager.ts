@@ -46,6 +46,12 @@ export type MotionManagerPluginContext = MotionManagerUpdateContext & {
 
 export type MotionManagerPlugin = (ctx: MotionManagerPluginContext) => void
 
+/**
+ * Final-stage plugins whose registration order defines parameter ownership.
+ * Later plugins take precedence when multiple plugins write the same Live2D
+ * parameter; in particular, lip sync follows manual control so speech owns
+ * `ParamMouthOpenY` while active.
+ */
 export interface Live2DFinalMotionPlugins {
   expression: MotionManagerPlugin
   autoEyeBlink: MotionManagerPlugin

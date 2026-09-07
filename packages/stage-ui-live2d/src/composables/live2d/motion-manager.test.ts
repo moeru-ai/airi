@@ -326,6 +326,15 @@ describe('live2d motion manager plugins', () => {
   })
 
   it('keeps lip sync in control of the mouth while speech is active', () => {
+    // ROOT CAUSE:
+    //
+    // MAGIC applies its pose through manual control, which can write
+    // ParamMouthOpenY in the same final stage as lip sync. Registering manual
+    // control after lip sync replaced the speech-driven value with MAGIC's
+    // mouth value in every frame.
+    //
+    // We fixed this by sharing the production registration path with this
+    // regression test and placing lip sync after manual control.
     const context = createContext({ timeDelta: 1 / 60 })
     const manualControl = useMotionUpdatePluginManualControl(ref({
       active: true,
