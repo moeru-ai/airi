@@ -146,7 +146,7 @@ export async function setupMainWindow(params: {
     }
   }
 
-  function persistWindowBounds(bounds: Rectangle) {
+  function persistWindowBounds(bounds: Rectangle, preserveSavedPosition = false) {
     const config = getConfig()
     if (!config.windows || !Array.isArray(config.windows)) {
       config.windows = []
@@ -167,8 +167,10 @@ export async function setupMainWindow(params: {
     else {
       const mainWindowConfig = defu(config.windows[existingConfigIndex], { title: 'AIRI', tag: 'main' })
 
-      mainWindowConfig.x = bounds.x
-      mainWindowConfig.y = bounds.y
+      if (!preserveSavedPosition || typeof mainWindowConfig.x !== 'number' || typeof mainWindowConfig.y !== 'number') {
+        mainWindowConfig.x = bounds.x
+        mainWindowConfig.y = bounds.y
+      }
       mainWindowConfig.width = bounds.width
       mainWindowConfig.height = bounds.height
 
@@ -178,13 +180,19 @@ export async function setupMainWindow(params: {
     updateConfig(config)
   }
 
-  window.on('resize', () => persistWindowBounds(window.getBounds()))
-  window.on('move', () => persistWindowBounds(window.getBounds()))
   const isNativeWayland = isLinux && resolveIsWayland({
     explicitOzonePlatform: app.commandLine.getSwitchValue('ozone-platform'),
     ozonePlatformHint: app.commandLine.getSwitchValue('ozone-platform-hint'),
     env,
   })
+
+  // NOTICE:
+  // Native Wayland does not expose reusable absolute window coordinates, so resize events retain the last saved position.
+  // Electron returns compositor-selected x/y from getBounds(), which would erase a valid X11/XWayland placement.
+  // Source: https://www.electronjs.org/docs/latest/api/browser-window#winsetpositionx-y-animate-macos
+  // Remove when Electron can round-trip absolute window coordinates under native Wayland.
+  window.on('resize', () => persistWindowBounds(window.getBounds(), isNativeWayland))
+  window.on('move', () => persistWindowBounds(window.getBounds()))
   if (savedMainWindowBounds && !isNativeWayland)
     persistWindowBounds(window.getBounds())
   window.on('close', (event) => {

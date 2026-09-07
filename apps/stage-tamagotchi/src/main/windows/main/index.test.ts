@@ -6,20 +6,25 @@ const mocks = vi.hoisted(() => {
   const updateConfig = vi.fn()
   const actualBounds = { x: 0, y: 0, width: 450, height: 600 }
   const commandLineSwitches = new Map<string, string>()
+  const windowEventHandlers = new Map<string, () => void>()
 
   class FakeBrowserWindow {
     webContents = { openDevTools: vi.fn() }
 
     getBounds = vi.fn(() => actualBounds)
     hide = vi.fn()
-    on = vi.fn()
+    on = vi.fn((event: string, handler: () => void) => {
+      windowEventHandlers.set(event, handler)
+      return this
+    })
+
     setFullScreenable = vi.fn()
     setVisibleOnAllWorkspaces = vi.fn()
     setWindowButtonVisibility = vi.fn()
     show = vi.fn()
   }
 
-  return { actualBounds, commandLineSwitches, FakeBrowserWindow, updateConfig }
+  return { actualBounds, commandLineSwitches, FakeBrowserWindow, updateConfig, windowEventHandlers }
 })
 
 vi.mock('@electron-toolkit/utils', () => ({ is: { dev: false } }))
@@ -88,6 +93,8 @@ describe('setupMainWindow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.commandLineSwitches.clear()
+    mocks.windowEventHandlers.clear()
+    Object.assign(mocks.actualBounds, { x: 0, y: 0, width: 450, height: 600 })
     vi.stubEnv('XDG_SESSION_TYPE', 'wayland')
   })
 
@@ -110,5 +117,23 @@ describe('setupMainWindow', () => {
     await setupMainWindow(createSetupMainWindowParams())
 
     expect(mocks.updateConfig).toHaveBeenCalledOnce()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2203#discussion_r3946151748
+  it('preserves saved coordinates during native Wayland resize events for Issue #2181', async () => {
+    // ROOT CAUSE:
+    //
+    // Electron reports compositor-owned x/y values on native Wayland even when only the window size changes.
+    // Saving the complete bounds during resize erased coordinates that remained reusable under X11 or XWayland.
+    //
+    // We fixed this by persisting the new size while retaining the previously saved position on native Wayland.
+    await setupMainWindow(createSetupMainWindowParams())
+    Object.assign(mocks.actualBounds, { x: 0, y: 0, width: 640, height: 720 })
+
+    mocks.windowEventHandlers.get('resize')?.()
+
+    expect(mocks.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      windows: [expect.objectContaining({ x: 120, y: 80, width: 640, height: 720 })],
+    }))
   })
 })
