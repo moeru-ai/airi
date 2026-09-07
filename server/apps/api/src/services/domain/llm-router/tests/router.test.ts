@@ -90,7 +90,7 @@ function makeConfigKV(config: RouterConfig | null): ConfigKVService {
 }
 
 function makeConfig(opts: {
-  upstreams?: Array<{ baseURL: string, keyIds: string[], protocols?: ('chat-completions' | 'responses')[], overrideModel?: string, timeoutMs?: number }>
+  upstreams?: Array<{ baseURL: string, keyIds: string[], overrideModel?: string, timeoutMs?: number }>
   fallbackHttpCodes?: number[]
 }): { config: RouterConfig, ciphertextByKey: Map<string, string>, crypto: ReturnType<typeof createEnvelopeCrypto> } {
   const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
@@ -100,7 +100,6 @@ function makeConfig(opts: {
   const upstreams = opts.upstreams ?? [{ baseURL: 'https://up-a.example/v1', keyIds: ['kA1'] }]
   const upstreamConfigs = upstreams.map(u => ({
     baseURL: u.baseURL,
-    protocols: u.protocols,
     overrideModel: u.overrideModel,
     headerTemplate: 'Bearer {KEY}',
     timeoutMs: u.timeoutMs,
@@ -1877,49 +1876,4 @@ describe('createLlmRouterService', () => {
       expect(tryAcquire).toHaveBeenCalledWith('app-2', 10)
     })
   })
-})
-
-describe('responses upstream protocol routing', () => {
-  it('skips chat-only upstreams and posts Items to an opted-in Responses endpoint', async () => {
-    const { config, crypto } = makeConfig({ upstreams: [
-      { baseURL: 'https://chat.example/v1', keyIds: ['chat'] },
-      { baseURL: 'https://responses.example/v1', keyIds: ['responses'], protocols: ['responses'], overrideModel: 'native-model' },
-    ] })
-    const fetchImpl = vi.fn<typeof fetch>(async () => happyResponse({ id: 'resp_1' }))
-    const router = createLlmRouterService({ configKV: makeConfigKV(config), envelopeCrypto: crypto, gatewayMetrics: makeMetrics(), fetchImpl, redis: makeRedisStub(), concurrencyLedger: makeLedger() })
-    await router.route({ modelName: 'openai/gpt-5-mini', protocol: 'responses', body: { input: 'hello', store: false } })
-    expect(fetchImpl).toHaveBeenCalledTimes(1)
-    expect(fetchImpl.mock.calls[0][0]).toBe('https://responses.example/v1/responses')
-    expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body))).toEqual({ input: 'hello', store: false, model: 'native-model' })
-  })
-
-  it('does not send a Responses request when no upstream declares support', async () => {
-    const { config, crypto } = makeConfig({})
-    const fetchImpl = vi.fn<typeof fetch>()
-    const router = createLlmRouterService({ configKV: makeConfigKV(config), envelopeCrypto: crypto, gatewayMetrics: makeMetrics(), fetchImpl, redis: makeRedisStub(), concurrencyLedger: makeLedger() })
-    await expect(router.route({ modelName: 'openai/gpt-5-mini', protocol: 'responses', body: { input: 'hello' } })).rejects.toMatchObject({ statusCode: 503, errorCode: 'LLM_PROTOCOL_UNAVAILABLE' })
-    expect(fetchImpl).not.toHaveBeenCalled()
-  })
-})
-
-// ROOT CAUSE:
-// Empty failure lists stopped group transitions before a compatible Responses
-// upstream could run. Protocol filtering now happens before failure policy.
-it('skips protocol-incompatible groups before applying failure transition policy', async () => {
-  const { config, crypto } = makeConfig({ upstreams: [
-    { baseURL: 'https://chat.example/v1', keyIds: ['chat'] },
-    { baseURL: 'https://responses.example/v1', keyIds: ['responses'], protocols: ['responses'] },
-  ] })
-  const model = config.llm!.models['openai/gpt-5-mini']
-  model.upstreams[0].id = 'chat'
-  model.upstreams[1].id = 'responses'
-  model.routing = { groups: [
-    { id: 'chat', upstreamIds: ['chat'], retryOn: { httpCodes: [], onTimeout: false } },
-    { id: 'responses', upstreamIds: ['responses'], retryOn: { httpCodes: [], onTimeout: false } },
-  ] }
-  const fetchImpl = vi.fn<typeof fetch>(async () => happyResponse({ id: 'resp_1' }))
-  const router = createLlmRouterService({ configKV: makeConfigKV(config), envelopeCrypto: crypto, gatewayMetrics: makeMetrics(), fetchImpl, redis: makeRedisStub(), concurrencyLedger: makeLedger() })
-  await router.route({ modelName: 'openai/gpt-5-mini', protocol: 'responses', body: { input: 'hello' } })
-  expect(fetchImpl).toHaveBeenCalledTimes(1)
-  expect(fetchImpl.mock.calls[0][0]).toBe('https://responses.example/v1/responses')
 })

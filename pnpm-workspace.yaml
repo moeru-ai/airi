@@ -252,7 +252,6 @@ catalog:
   '@xsai/model': 0.5.0
   '@xsai/shared': 0.5.0
   '@xsai/shared-chat': 0.5.0
-  '@xsai/shared-stream': 0.5.0
   '@xsai/stream-text': 0.5.0
   '@xsai/stream-transcription': 0.5.0
   '@xsai/tool': 0.5.0

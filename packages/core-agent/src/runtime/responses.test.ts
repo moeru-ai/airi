@@ -4,6 +4,7 @@ import type { Tool } from '@xsai/shared-chat'
 
 import type { ConversationContext, ConversationTurn } from '../messages/types'
 
+import { getDefinedProvider } from '@proj-airi/provider-inference'
 import { describe, expect, it, vi } from 'vitest'
 
 import { streamFrom } from './llm-service'
@@ -240,4 +241,37 @@ it('rejects malformed persisted continuation before sending a request', async ()
   }] }
   await expect(streamFrom({ model: 'test', chatProvider: provider(fetch), context })).rejects.toThrow()
   expect(fetch).not.toHaveBeenCalled()
+})
+
+it.each(['openai', 'openai-compatible'] as const)('sends %s BYOK requests directly without the AIRI backend', async (id) => {
+  const definition = getDefinedProvider(id)!
+  const instance = await definition.createProvider({
+    api: 'responses',
+    apiKey: 'test-user-key',
+    baseUrl: 'https://byok.example/v1/',
+  })
+  if (!('responses' in instance) || !instance.responses)
+    throw new Error('Expected a Responses provider')
+  const answer: ItemParam = { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Hello.' }] }
+  const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+    expect(String(url)).toBe('https://byok.example/v1/responses')
+    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-user-key')
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      model: 'byok-model',
+      store: false,
+      input: [{ type: 'message', role: 'user', content: 'Hello' }],
+    })
+    return sse(completed([answer]))
+  })
+  try {
+    await streamFrom({
+      model: 'byok-model',
+      chatProvider: instance,
+      context: { turns: [{ messages: [{ id: 'user', role: 'user', segments: [{ type: 'text', text: 'Hello' }] }] }] },
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  }
+  finally {
+    fetchMock.mockRestore()
+  }
 })

@@ -48,9 +48,6 @@ export const keyEntrySchema = object({
 })
 
 export const llmUpstreamSchema = object({
-  // Omission declares Chat Completions support. Responses must be enabled by
-  // the operator; the router never sends Items to an unverified chat endpoint.
-  protocols: optional(pipe(array(picklist(['chat-completions', 'responses'])), nonEmpty())),
   id: optional(pipe(
     string(),
     nonEmpty('llm.upstreams[].id must not be empty'),
