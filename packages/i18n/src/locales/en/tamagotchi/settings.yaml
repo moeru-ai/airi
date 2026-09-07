@@ -77,6 +77,18 @@ devtools:
         title: Squint at bright changes
         description: Narrow the eyes when the screen brightens faster than the character has adapted to it. A screen that stays bright leaves the eyes open. 0 turns this off.
       main-window-note: Changes appear in the main AIRI window.
+      geometry:
+        title: Virtual screen shape
+        description: Bend the screen sides forward to light the face. Applies to Surface lighting. Changes appear in the main AIRI window.
+        bend:
+          title: Edge bend
+          description: Set how much the sides curve toward the character. 0 restores the flat screen; 2 is the default curve.
+        gap:
+          title: Screen gap
+          description: Set the distance behind the character, as a percentage of window height. Larger gaps reduce frontal light.
+        flat-width:
+          title: Flat center width
+          description: Set the width that stays flat, as a percentage of window height. The screen curves outside this area.
       diagnostics:
         title: Capture diagnostics
         waiting: Waiting for diagnostics from the main AIRI window.

@@ -19,6 +19,9 @@ const screenAmbientLightForcedColor = useLocalStorageManualReset<string>('settin
 const screenAmbientLightMode = useLocalStorageManualReset<ScreenAmbientLightMode>('settings/screen-ambient-light/mode', ambientLightDefaults.mode)
 const screenAmbientLightStrength = useLocalStorageManualReset<number>('settings/screen-ambient-light/strength', ambientLightDefaults.strength)
 const screenAmbientLightSquint = useLocalStorageManualReset<number>('settings/screen-ambient-light/squint', ambientLightDefaults.squint)
+const screenAmbientLightBend = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-bend', ambientLightDefaults.geometry.bend)
+const screenAmbientLightGap = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-gap', ambientLightDefaults.geometry.gap)
+const screenAmbientLightFlatRadius = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-flat-radius', ambientLightDefaults.geometry.flatRadius)
 const screenAmbientLightCaptureIntervalMs = useLocalStorageManualReset<number>('settings/screen-ambient-light/capture-interval-ms', ambientLightDefaults.captureIntervalMs)
 const screenAmbientLightSampleWidth = useLocalStorageManualReset<number>('settings/screen-ambient-light/sample-width', ambientLightDefaults.sampleWidth)
 const screenAmbientLightResponseMs = useLocalStorageManualReset<number>('settings/screen-ambient-light/response-ms', ambientLightDefaults.responseMs)
@@ -39,6 +42,9 @@ function resetState() {
   screenAmbientLightMode.reset()
   screenAmbientLightStrength.reset()
   screenAmbientLightSquint.reset()
+  screenAmbientLightBend.reset()
+  screenAmbientLightGap.reset()
+  screenAmbientLightFlatRadius.reset()
   screenAmbientLightCaptureIntervalMs.reset()
   screenAmbientLightSampleWidth.reset()
   screenAmbientLightResponseMs.reset()
@@ -61,6 +67,9 @@ export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambien
     screenAmbientLightMode,
     screenAmbientLightStrength,
     screenAmbientLightSquint,
+    screenAmbientLightBend,
+    screenAmbientLightGap,
+    screenAmbientLightFlatRadius,
     screenAmbientLightCaptureIntervalMs,
     screenAmbientLightSampleWidth,
     screenAmbientLightResponseMs,

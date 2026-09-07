@@ -1,4 +1,4 @@
-import type { AmbientLightMap } from '@proj-airi/stage-shared/screen-ambient-light'
+import type { AmbientLightMap, AmbientLightScreenGeometry } from '@proj-airi/stage-shared/screen-ambient-light'
 
 import { ambientLightMapMargin } from '@proj-airi/stage-shared/screen-ambient-light'
 
@@ -9,18 +9,8 @@ const mapSpan = 1 + 2 * ambientLightMapMargin
 /** Eight by eight finite emitting tiles over the stage and its screen margin. */
 export const screenLightCount = screenLightGridSize * screenLightGridSize
 
-/** Screen geometry in window-height units; +Z points toward the viewer. */
-export interface ScreenGeometry {
-  /** Distance from the character to the flat center. Must be positive. */
-  gap: number
-  /** Edge curvature in radians per window height. Nonnegative; zero keeps the screen flat. */
-  bend: number
-  /** Nonnegative half-width of the flat center, in window heights. */
-  flatRadius: number
-}
-
-/** The desktop keeps the original flat screen until a curved profile is chosen. */
-export const flatScreenGeometry: Readonly<ScreenGeometry> = Object.freeze({ gap: 0.04, bend: 0, flatRadius: 0.2 })
+/** Flat reference geometry for the original preview and shader comparisons. */
+export const flatScreenGeometry: Readonly<AmbientLightScreenGeometry> = Object.freeze({ gap: 0.04, bend: 0, flatRadius: 0.2 })
 
 /**
  * Bends a horizontal screen coordinate along a circular arc without stretching
@@ -28,7 +18,7 @@ export const flatScreenGeometry: Readonly<ScreenGeometry> = Object.freeze({ gap:
  * Beyond an 85-degree turn, the edge continues along its tangent instead of
  * curling back through the character. Used by lighting and the preview diagram.
  */
-export function sampleScreenCurve(x: number, geometry: ScreenGeometry): [number, number, number, number] {
+export function sampleScreenCurve(x: number, geometry: AmbientLightScreenGeometry): [number, number, number, number] {
   const edge = Math.max(0, Math.abs(x) - geometry.flatRadius)
   if (geometry.bend === 0 || edge === 0)
     return [x, -geometry.gap, 0, 1]
@@ -45,7 +35,7 @@ export function sampleScreenCurve(x: number, geometry: ScreenGeometry): [number,
 }
 
 /** Prepares finite tile positions and normals when geometry or aspect changes. */
-export function writeScreenGeometry(geometry: ScreenGeometry, aspect: number, target: Float32Array) {
+export function writeScreenGeometry(geometry: AmbientLightScreenGeometry, aspect: number, target: Float32Array) {
   for (let i = 0; i < screenLightGridSize; i++) {
     const x = ((i + 0.5) / screenLightGridSize * mapSpan - ambientLightMapMargin - 0.5) * aspect
     target.set(sampleScreenCurve(x, geometry), i * 4)

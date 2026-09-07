@@ -13,8 +13,8 @@ exposure, contrast, wrap, and backlight controls remain available. Forced color
 is useful for checking the effect without screen capture.
 
 `filters/surface-lighting.ts` runs inside the Cubism drawable shaders. It treats the screen as
-a finite emitting plane behind the character, with a gap of 4% of the window
-height. The narrow screen reconstruction supplies linear radiance to 64 tiles.
+a finite emitting surface with a flat center behind the character and sides
+that curve forward. The default center gap is 4% of the window height. The narrow screen reconstruction supplies linear radiance to 64 tiles.
 Each fragment uses its current window position, its normal, the distance to each
 tile, and the emitting and receiving angles. A finite tile footprint avoids a
 point-light singularity at close range. Distant tiles get weaker through their
@@ -24,6 +24,13 @@ gradient is not applied a second time. The final filter still owns exposure and
 silhouette effects. Its rim and inward glow approximate backlight scattering;
 it does not add a bloom halo outside the character. The diagnostic test-card preview remains a flat filter
 reference; inspect the live model to judge surface lighting.
+
+In Tamagotchi, open **Settings → System → Developer → Live2D Ambient Light**.
+The **Virtual screen shape** controls adjust edge bend, screen gap, and flat
+center width in the main window. They persist with the other ambient settings.
+The default bend is 2; set it to 0 to compare flat lighting. The flat center
+starts at 20% of the window height in width. Geometry updates separately from
+capture, so adjusting a slider does not restart the screen stream.
 
 Iru uses the reviewed AI normal map in `src/assets/lighting`. The profile stores
 neutral reference coordinates, texture UVs, and face drawable assignments. The
@@ -68,3 +75,8 @@ This implementation uses finite-tile quadrature, not ray tracing or exact polygo
 For a standalone visual check, open `/ambient.html` in the lighting experiment
 and evaluate `verify-screen-plane.js`. The preview uses the production material
 and final filter with a movable screen patch.
+
+`verify-curved-live.js` checks the live settings-to-renderer path with a frozen
+pose and one captured environment. It verifies bend, gap, and center-width
+changes through actual GPU pixels, then restores animation and the settings.
+The standalone `/ambient-curved.html` comparison remains available.

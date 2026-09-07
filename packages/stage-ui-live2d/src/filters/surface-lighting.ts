@@ -1,8 +1,6 @@
 import type { Renderer as PixiRenderer } from '@pixi/core'
-import type { AmbientLightEnvironment, ScreenAmbientLightMode } from '@proj-airi/stage-shared/screen-ambient-light'
+import type { AmbientLightEnvironment, AmbientLightScreenGeometry, ScreenAmbientLightMode } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Cubism4InternalModel } from 'pixi-live2d-display/cubism4'
-
-import type { ScreenGeometry } from './surface-irradiance'
 
 import { Matrix } from '@pixi/math'
 import { CubismShader_WebGL, fragmentShaderSrcsetupMask } from 'pixi-live2d-display/cubism4'
@@ -153,7 +151,7 @@ export class SurfaceLighting {
   private readonly buffers = new Map<number, WebGLBuffer>()
   private programs = new WeakMap<WebGLProgram, Locations>()
   private readonly clipToStage = new Matrix()
-  private geometry: Readonly<ScreenGeometry> = flatScreenGeometry
+  private geometry: Readonly<AmbientLightScreenGeometry> = flatScreenGeometry
   private geometryAspect = 0
   private readonly emitters = new Float32Array(screenLightGridSize * 4)
   private readonly lights = new Float32Array(screenLightCount * 3)
@@ -200,7 +198,7 @@ export class SurfaceLighting {
   }
 
   /** Changes only this binding's virtual screen; the default remains flat. */
-  setScreenGeometry(geometry: Readonly<ScreenGeometry>) {
+  setScreenGeometry(geometry: Readonly<AmbientLightScreenGeometry>) {
     this.geometry = { ...geometry }
     this.geometryAspect = 0
   }

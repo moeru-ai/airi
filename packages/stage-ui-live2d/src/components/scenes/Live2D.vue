@@ -68,6 +68,9 @@ const {
   screenAmbientLightMode,
   screenAmbientLightSquint,
   screenAmbientLightStrength,
+  screenAmbientLightBend,
+  screenAmbientLightGap,
+  screenAmbientLightFlatRadius,
   screenAmbientLightTranslucentWrap,
   screenAmbientLightWrapDiffuse,
   screenAmbientLightWrapIntensity,
@@ -77,6 +80,11 @@ const {
   environment: screenAmbientLightEnvironment,
   subject: screenAmbientLightSubject,
 } = storeToRefs(useScreenAmbientLightEnvironment())
+const screenAmbientLightGeometry = computed(() => ({
+  bend: screenAmbientLightBend.value,
+  gap: screenAmbientLightGap.value,
+  flatRadius: screenAmbientLightFlatRadius.value,
+}))
 const screenAmbientLightFilterOptions = computed(() => ({
   baseBrightness: screenAmbientLightBaseBrightness.value,
   exposureRange: screenAmbientLightExposureRange.value,
@@ -167,6 +175,7 @@ defineExpose({
         :screen-ambient-light-mode="screenAmbientLightMode"
         :screen-ambient-light-strength="screenAmbientLightStrength"
         :screen-ambient-light-squint="screenAmbientLightSquint"
+        :screen-ambient-light-geometry="screenAmbientLightGeometry"
         @error="emit('error', $event)"
       />
     </Live2DCanvas>

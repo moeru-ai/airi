@@ -1,3 +1,13 @@
+/** Screen geometry in window-height units; +Z points toward the viewer. */
+export interface AmbientLightScreenGeometry {
+  /** Distance from the character to the flat center. Must be positive. @default 0.04 */
+  gap: number
+  /** Edge curvature in radians per window height. Nonnegative; zero keeps the screen flat. @default 2 */
+  bend: number
+  /** Nonnegative half-width of the flat center, in window heights. @default 0.1 */
+  flatRadius: number
+}
+
 /** One measured light color. The channels are sRGB, from 0 to 1. */
 export interface AmbientLightSample {
   red: number
@@ -312,6 +322,8 @@ export const ambientLightDefaults = Object.freeze({
    * leaves the eyes open. See `useMotionUpdatePluginLightSquint`.
    */
   squint: 1,
+  /** Virtual screen shape used by directional Live2D surface lighting. */
+  geometry: Object.freeze<AmbientLightScreenGeometry>({ gap: 0.04, bend: 2, flatRadius: 0.1 }),
   captureIntervalMs: 250,
   /**
    * Width of the downscaled capture frame, in pixels. It decides how much
