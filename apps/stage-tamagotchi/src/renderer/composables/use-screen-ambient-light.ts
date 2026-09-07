@@ -194,9 +194,14 @@ export function useScreenAmbientLight(sources: {
     if (!context)
       throw new Error('Failed to create the screen sampling canvas')
 
-    const permission = await checkMacOSPermission()
-    if (permission === 'not-determined')
-      await requestMacOSPermission()
+    // Only macOS puts screen capture behind a permission, and the main-process
+    // handler throws on every other platform, which would fail the start and
+    // switch the feature off. Elsewhere the capture begins straight away.
+    if (window.platform === 'darwin') {
+      const permission = await checkMacOSPermission()
+      if (permission === 'not-determined')
+        await requestMacOSPermission()
+    }
 
     if (displays.value.length === 0)
       await until(displays).toMatch(currentDisplays => currentDisplays.length > 0)
@@ -214,11 +219,15 @@ export function useScreenAmbientLight(sources: {
       (sources) => {
         const source = sources.find(candidate => candidate.display_id === String(display.id))
           ?? sources.find(candidate => candidate.id.startsWith('screen:'))
-        // An empty source list is what a missing macOS screen-recording
-        // permission looks like from here. Passing an empty id on would fail
-        // later inside the main process with a message that names no cause.
-        if (!source)
-          throw new Error('No screen-capture source is available. Check the screen-recording permission for AIRI.')
+        // Passing an empty id on would fail later inside the main process with
+        // a message that names no cause. On macOS an empty list is what a
+        // missing screen-recording permission looks like from here, so that
+        // platform gets the extra hint.
+        if (!source) {
+          throw new Error(window.platform === 'darwin'
+            ? 'No screen-capture source is available. Check the screen-recording permission for AIRI.'
+            : 'No screen-capture source is available.')
+        }
         return source.id
       },
       async () => await navigator.mediaDevices.getDisplayMedia({
