@@ -133,68 +133,62 @@ function plainTextToolCallError(toolName: string): Error {
   )
 }
 
-function serializedToolCallName(text: string, toolNames: Set<string>): string | undefined {
-  const candidate = text.trim()
-  if (!candidate.startsWith('{') || !candidate.endsWith('}'))
+function serializedToolCallName(parsed: unknown, toolNames: Set<string>): string | undefined {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
     return undefined
 
-  try {
-    const parsed = JSON.parse(candidate) as unknown
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
-      return undefined
-
-    const record = parsed as Record<string, unknown>
-    if (typeof record.name !== 'string' || !toolNames.has(record.name))
-      return undefined
-    if (!Object.hasOwn(record, 'parameters') && !Object.hasOwn(record, 'arguments'))
-      return undefined
-
-    return record.name
-  }
-  catch {
+  const record = parsed as Record<string, unknown>
+  if (typeof record.name !== 'string' || !toolNames.has(record.name))
     return undefined
-  }
+  if (!Object.hasOwn(record, 'parameters') && !Object.hasOwn(record, 'arguments'))
+    return undefined
+
+  return record.name
 }
 
 function leakedToolCallName(text: string, toolNames: Set<string>): string | undefined {
-  let start = 0
-  let depth = 0
-  let inString = false
-  let escaped = false
-
-  // Scan complete objects after prose or Markdown fences. Braces inside JSON
-  // strings do not end an object, and nested objects belong to their outer object.
-  for (let index = 0; index < text.length; index++) {
+  // Each opening brace needs its own boundary, independent of malformed prefixes.
+  // Build suffix boundaries once instead of rescanning the rest of the channel
+  // for every unmatched opening brace. -1 means that no closing boundary exists.
+  const stringEnds = new Int32Array(text.length + 2).fill(-1)
+  const objectEnds = new Int32Array(text.length + 2).fill(-1)
+  for (let index = text.length - 1; index >= 0; index--) {
     const character = text[index]
-    if (depth === 0) {
-      if (character === '{') {
-        start = index
-        depth = 1
-      }
+    // Inside a string, a backslash consumes the next character, including a quote.
+    stringEnds[index] = character === '"'
+      ? index
+      : stringEnds[index + (character === '\\' ? 2 : 1)]
+
+    if (character === '}') {
+      objectEnds[index] = index
+    }
+    else if (character === '"' || character === '{') {
+      const end = character === '"' ? stringEnds[index + 1] : objectEnds[index + 1]
+      // Outside strings, skip a complete string or nested object to find the
+      // closing brace for the enclosing object.
+      objectEnds[index] = end < 0 ? -1 : objectEnds[end + 1]
+    }
+    else {
+      objectEnds[index] = objectEnds[index + 1]
+    }
+  }
+
+  for (let start = text.indexOf('{'); start >= 0; start = text.indexOf('{', start + 1)) {
+    const end = objectEnds[start + 1]
+    if (end < 0)
       continue
+
+    try {
+      const parsed: unknown = JSON.parse(text.slice(start, end + 1))
+      const toolName = serializedToolCallName(parsed, toolNames)
+      if (toolName)
+        return toolName
+      // A valid ordinary object owns its children and quoted examples.
+      // Only malformed candidates permit recovery at a later opening brace.
+      start = end
     }
-    if (inString) {
-      if (escaped)
-        escaped = false
-      else if (character === '\\')
-        escaped = true
-      else if (character === '"')
-        inString = false
+    catch {
       continue
-    }
-    if (character === '"') {
-      inString = true
-    }
-    else if (character === '{') {
-      depth++
-    }
-    else if (character === '}') {
-      depth--
-      if (depth === 0) {
-        const toolName = serializedToolCallName(text.slice(start, index + 1), toolNames)
-        if (toolName)
-          return toolName
-      }
     }
   }
   return undefined
@@ -381,6 +375,8 @@ export async function streamFrom({
 
       bufferOutputEvent({ type: 'reasoning-delta', text })
       bufferedReasoningText += text
+      if (!hasBufferedJsonCandidate && bufferedReasoningText.trim().length > 0)
+        await flushBufferedOutput()
     }
 
     const processEvent = async (event: Event) => {

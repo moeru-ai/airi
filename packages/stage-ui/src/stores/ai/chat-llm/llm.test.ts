@@ -480,6 +480,64 @@ describe('isToolRelatedError', () => {
     expect(customTool.execute).not.toHaveBeenCalled()
   })
 
+  // ROOT CAUSE:
+  //
+  // A later request had no guard names because the capability cache skipped its resolver.
+  // Before the fix, the default Spark prompt could produce an unchecked JSON call.
+  // We resolve current names for cache-disabled requests without sending tools or retrying them.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949439833
+  it.each(['text.delta', 'reasoning.delta'])('guards a later cache-disabled request in %s for Issue #2161', async (type) => {
+    const sparkTool = createSparkTool()
+    sparkTool.function.name = 'builtIn_sparkCommand'
+    createSparkCommandToolMock.mockResolvedValueOnce([sparkTool]).mockResolvedValueOnce([sparkTool])
+    const rawToolCall = '{"name":"builtIn_sparkCommand","arguments":{}}'
+    const store = useLLM()
+    mockStreamEvents([{ type: 'text.delta', delta: rawToolCall }])
+    mockStreamEvents([{ type: 'text.delta', delta: 'No tool is available.' }])
+    await store.stream('model-a', provider, [])
+
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    mockStreamEvents([{ type, delta: rawToolCall }])
+    await expect(store.stream('model-a', provider, [
+      { role: 'system', content: 'Use builtIn_sparkCommand to send a game command.' },
+    ], { toolChoice: 'auto', onStreamEvent, onMessages })).rejects.toThrow('tool call "builtIn_sparkCommand" as plain text')
+
+    expect(streamTextMock).toHaveBeenCalledTimes(3)
+    expect(streamTextMock.mock.calls[2]?.[0]?.tools).toBeUndefined()
+    expect(streamTextMock.mock.calls[2]?.[0]?.toolChoice).toBeUndefined()
+    expect(createSparkCommandToolMock).toHaveBeenCalledTimes(2)
+    expect(sparkTool.execute).not.toHaveBeenCalled()
+    expect(onStreamEvent).not.toHaveBeenCalled()
+    expect(onMessages).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // Ordinary reasoning was hidden, so a later leak could replay the whole request.
+  // We now emit ordinary reasoning immediately and treat it as committed output.
+  // A later leak rejects without replaying that output or emitting the raw JSON.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949439849
+  it('does not retry a leak after visible reasoning for Issue #2161', async () => {
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    mockStreamEvents([
+      { type: 'reasoning.delta', delta: 'Let me think.' },
+      { type: 'text.delta', delta: '{"name":"builtIn_emitSparkCommand","parameters":{}}' },
+    ])
+    mockStreamEvents([{ type: 'text.delta', delta: 'A repeated answer.' }])
+
+    await expect(useLLM().stream('model-a', provider, [], {
+      tools: [createSparkTool()],
+      onStreamEvent,
+      onMessages,
+    })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    expect(streamTextMock).toHaveBeenCalledTimes(1)
+    expect(onStreamEvent).toHaveBeenCalledExactlyOnceWith({ type: 'reasoning-delta', text: 'Let me think.' })
+    expect(onMessages).not.toHaveBeenCalled()
+  })
+
   it('keeps retry tool names isolated between requests to the same model', async () => {
     const rawToolCall = '{"name":"builtIn_emitSparkCommand","parameters":{}}'
     const store = useLLM()
@@ -488,14 +546,54 @@ describe('isToolRelatedError', () => {
     await store.stream('model-a', provider, [], { tools: [createSparkTool()] })
 
     const onStreamEvent = vi.fn()
+    const customTools = vi.fn(async () => [createSparkTool()])
     mockStreamEvents([{ type: 'text.delta', delta: rawToolCall }])
     await store.stream('model-a', provider, [
       { role: 'user', content: 'Quote this JSON as a documentation example.' },
-    ], { supportsTools: false, onStreamEvent })
+    ], { supportsTools: false, tools: customTools, onStreamEvent })
 
     expect(streamTextMock).toHaveBeenCalledTimes(3)
+    expect(customTools).not.toHaveBeenCalled()
+    expect(mcpMock).toHaveBeenCalledTimes(1)
     expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: rawToolCall })
     expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
+  })
+
+  // ROOT CAUSE:
+  //
+  // The capability cache skipped tool resolution on later requests.
+  // Reusing old names would instead mix unrelated request tools.
+  // We resolve each request's current tools for detection, even after cache downgrade.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949439833
+  it('uses current custom tools after a cached downgrade for Issue #2161', async () => {
+    const store = useLLM()
+    const oldCall = '{"name":"builtIn_emitSparkCommand","arguments":{}}'
+    mockStreamEvents([{ type: 'text.delta', delta: oldCall }])
+    mockStreamEvents([{ type: 'text.delta', delta: 'No tool is available.' }])
+    await store.stream('model-a', provider, [], { tools: [createSparkTool()] })
+
+    const newTool = createSparkTool()
+    newTool.function.name = 'new_game_tool'
+    const currentTools = vi.fn(async () => [newTool])
+    const onStreamEvent = vi.fn()
+    mockStreamEvents([{ type: 'text.delta', delta: oldCall }])
+    await store.stream('model-a', provider, [], { tools: currentTools, onStreamEvent })
+    expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: oldCall })
+    expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
+
+    onStreamEvent.mockClear()
+    mockStreamEvents([{ type: 'text.delta', delta: '{"name":"new_game_tool","arguments":{}}' }])
+    await expect(store.stream('model-a', provider, [], {
+      tools: currentTools,
+      onStreamEvent,
+    })).rejects.toThrow('tool call "new_game_tool" as plain text')
+
+    expect(currentTools).toHaveBeenCalledTimes(2)
+    expect(newTool.execute).not.toHaveBeenCalled()
+    expect(streamTextMock).toHaveBeenCalledTimes(4)
+    expect(streamTextMock.mock.calls[2]?.[0]?.tools).toBeUndefined()
+    expect(streamTextMock.mock.calls[3]?.[0]?.tools).toBeUndefined()
+    expect(onStreamEvent).not.toHaveBeenCalled()
   })
 
   it('merges runtime-registered tools from the llm-tools store into the builtin tool resolver', async () => {

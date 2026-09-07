@@ -339,13 +339,12 @@ describe('streamFrom tool errors', () => {
   // Some providers serialize an offered tool call as assistant text instead
   // of emitting the native tool-call protocol events.
   //
-  // Before the fix, both the raw JSON and its preceding reasoning reached the
-  // UI as ordinary model output.
+  // Before the fix, the raw JSON reached the UI as ordinary model output.
   //
-  // We fixed this by buffering each candidate step and rejecting a complete
-  // JSON call that names one of the tools offered in that step.
+  // We reject complete JSON calls for known tools. Ordinary reasoning can
+  // stream before a candidate starts, so callers must not replay that output.
   // https://github.com/moeru-ai/airi/issues/2161
-  it('rejects reasoning and a known plain-text tool call before emitting them for Issue #2161', async () => {
+  it('rejects a known plain-text tool call after ordinary reasoning for Issue #2161', async () => {
     let resolveSteps: ((steps: unknown[]) => void) | undefined
     const events: unknown[] = []
     const rawToolCall = JSON.stringify({
@@ -400,7 +399,7 @@ describe('streamFrom tool errors', () => {
     expect(String(error)).toContain('tool call "builtIn_emitSparkCommand" as plain text')
     expect(isPlainTextToolCallError(error)).toBe(true)
     expect(isPlainTextToolCallError(new Error('A provider mentioned a tool call as plain text.'))).toBe(false)
-    expect(events).not.toContainEqual({ type: 'reasoning-delta', text: 'I should call the game tool.' })
+    expect(events).toContainEqual({ type: 'reasoning-delta', text: 'I should call the game tool.' })
     expect(events).not.toContainEqual({ type: 'text-delta', text: rawToolCall })
     expect(events).not.toContainEqual({ type: 'finish' })
   })
@@ -544,6 +543,41 @@ describe('streamFrom tool errors', () => {
     expect(onStreamEvent).not.toHaveBeenCalled()
   })
 
+  // ROOT CAUSE:
+  //
+  // An unmatched opening brace kept the first candidate open for the whole step.
+  // Before the fix, a later complete tool call remained inside that invalid candidate.
+  // We inspect later objects independently, but skip children of valid JSON objects.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949439841
+  it.each([
+    ['text.delta', 'Use {value here.\n'],
+    ['reasoning.delta', 'Use {value here.\n'],
+    ['text.delta', '{{{'],
+    ['reasoning.delta', '{{{'],
+    ['text.delta', '{"unfinished":"prefix '],
+    ['reasoning.delta', '{"unfinished":"prefix '],
+    ['text.delta', '{invalid: '],
+    ['reasoning.delta', '{invalid: '],
+  ])('rejects a tool JSON in %s after malformed prefix %j for Issue #2161', async (type, prefix) => {
+    const rawToolCall = '{"name":"builtIn_emitSparkCommand","arguments":{"text":"A } brace and a { brace."}}'
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    mockStreamEvents([
+      { type, delta: prefix },
+      ...Array.from(rawToolCall, delta => ({ type, delta })),
+    ])
+
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { tools: [createSparkTool()], onStreamEvent, onMessages },
+    })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    expect(onStreamEvent).not.toHaveBeenCalled()
+    expect(onMessages).not.toHaveBeenCalled()
+  })
+
   it.each([
     'A plain answer without JSON.',
     'Use {score} for the value. Then {not JSON}.',
@@ -552,6 +586,8 @@ describe('streamFrom tool errors', () => {
     'Result: {"example":{"name":"builtIn_emitSparkCommand","parameters":{}}}',
     'Result: {"text":"A brace } and an escaped quote \\" followed by {"}',
     'An incomplete object: {"name":"builtIn_emitSparkCommand",',
+    'Malformed { prefix, then {"example":{"name":"builtIn_emitSparkCommand","parameters":{}}}',
+    JSON.stringify({ text: '{"name":"builtIn_emitSparkCommand","parameters":{}}', escaped: '\\"{}\\' }),
   ])('preserves ordinary output %j after inspecting JSON candidates', async (answer) => {
     const onStreamEvent = vi.fn()
     mockStreamEvents(Array.from(answer, delta => ({ type: 'text.delta', delta })))
@@ -565,6 +601,28 @@ describe('streamFrom tool errors', () => {
 
     expect(onStreamEvent.mock.calls.map(([event]) => event.text ?? '').join('')).toBe(answer)
     expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
+  })
+
+  // ROOT CAUSE:
+  //
+  // A malformed enclosing object hid a complete tool call even with balanced braces.
+  // We skip nested candidates only after JSON.parse accepts their enclosing object.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949439841
+  it.each([
+    '{{"name":"builtIn_emitSparkCommand","arguments":{}}}',
+    `${'{'.repeat(20_000)}{"name":"builtIn_emitSparkCommand","arguments":{}}`,
+  ])('recovers from malformed enclosing braces for Issue #2161 %#', async (answer) => {
+    const onStreamEvent = vi.fn()
+    mockStreamEvents([{ type: 'text.delta', delta: answer }])
+
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { tools: [createSparkTool()], onStreamEvent },
+    })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    expect(onStreamEvent).not.toHaveBeenCalled()
   })
 
   it('streams ordinary text before the provider finishes the step', async () => {
@@ -592,6 +650,44 @@ describe('streamFrom tool errors', () => {
     expect(onStreamEvent).not.toHaveBeenCalledWith({ type: 'finish' })
     finish?.([])
     await pending
+    expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
+  })
+
+  // ROOT CAUSE:
+  //
+  // The reasoning path buffered every delta while tools were available.
+  // Before the fix, ordinary reasoning stayed hidden until another event flushed it.
+  // We stream reasoning until either output channel starts a JSON candidate.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949439849
+  it('streams reasoning before text or step completion for Issue #2161', async () => {
+    let emit: ((event: unknown) => void) | undefined
+    let finish: ((steps: unknown[]) => void) | undefined
+    const onStreamEvent = vi.fn()
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => void }) => {
+      emit = options.onEvent
+      return createMockStreamResult(new Promise((resolve) => {
+        finish = resolve
+      }))
+    })
+    const pending = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { tools: [createSparkTool()], onStreamEvent },
+    })
+
+    try {
+      await vi.waitFor(() => expect(emit).toBeTypeOf('function'))
+      emit!({ type: 'reasoning.delta', delta: 'Let me think.' })
+      await vi.waitFor(() => expect(onStreamEvent).toHaveBeenCalledWith({ type: 'reasoning-delta', text: 'Let me think.' }))
+      emit!({ type: 'reasoning.delta', delta: ' I can explain.' })
+      await vi.waitFor(() => expect(onStreamEvent).toHaveBeenCalledWith({ type: 'reasoning-delta', text: ' I can explain.' }))
+      expect(onStreamEvent).not.toHaveBeenCalledWith({ type: 'finish' })
+    }
+    finally {
+      finish?.([])
+      await pending
+    }
     expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
   })
 

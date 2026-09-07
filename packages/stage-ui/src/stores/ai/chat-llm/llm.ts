@@ -2,7 +2,7 @@ import type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
-import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
+import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError, modelKey, streamOptionsToolsCompatibilityOk } from '@proj-airi/core-agent'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -29,8 +29,12 @@ export const useLLM = defineStore('llm', () => {
   async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
     const key = modelKey(model, chatProvider)
     const { tools: customTools, ...streamOptions } = options ?? {}
-    // Keep names for this request's retries even after the capability cache
-    // disables tool resolution. Do not carry these names into another request.
+    const startsWithTools = streamOptionsToolsCompatibilityOk(model, chatProvider, {
+      ...streamOptions,
+      toolsCompatibility: toolsCompatibility.value,
+    })
+    // Each request owns its current tool names and retains them for retries.
+    // The capability cache controls provider tools, not output inspection.
     const toolCallGuardNames = new Set<string>()
     const builtinToolsResolver = async () => {
       const tools = await resolveLlmTools({ customTools })
@@ -41,6 +45,10 @@ export const useLLM = defineStore('llm', () => {
       }
       return tools
     }
+    // Cache-disabled requests still need detection, but explicitly tool-free
+    // requests must not resolve tools or inherit names from other requests.
+    if (!startsWithTools && streamOptions.supportsTools !== false)
+      await builtinToolsResolver()
     let hasCommittedAttemptOutput = false
 
     const runStream = () => coreStreamFrom({
@@ -66,6 +74,7 @@ export const useLLM = defineStore('llm', () => {
     }
     catch (err) {
       const shouldRetryWithoutTools = isPlainTextToolCallError(err)
+        && startsWithTools
         && !hasCommittedAttemptOutput
         && !toolChoiceRequiresTools(streamOptions.toolChoice)
       if (isToolRelatedError(err)) {
