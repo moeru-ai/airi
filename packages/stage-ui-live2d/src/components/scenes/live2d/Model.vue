@@ -5,6 +5,7 @@ import type {
   AmbientLightEnvironment,
   AmbientLightFilterOptions,
   NormalizedRectangle,
+  AmbientLightScreenGeometry,
   ScreenAmbientLightMode,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Cubism4ModelSettings } from 'pixi-live2d-display/cubism4'
@@ -78,6 +79,7 @@ const props = withDefaults(defineProps<{
   screenAmbientLightMode?: ScreenAmbientLightMode
   screenAmbientLightStrength?: number
   screenAmbientLightSquint?: number
+  screenAmbientLightGeometry?: AmbientLightScreenGeometry
 }>(), {
   mouthOpenSize: 0,
   nowSpeaking: false,
@@ -102,6 +104,7 @@ const props = withDefaults(defineProps<{
   screenAmbientLightMode: ambientLightDefaults.mode,
   screenAmbientLightStrength: ambientLightDefaults.strength,
   screenAmbientLightSquint: ambientLightDefaults.squint,
+  screenAmbientLightGeometry: () => ({ ...ambientLightDefaults.geometry }),
 })
 
 const emits = defineEmits<{
@@ -264,6 +267,7 @@ const screenAmbientLightFilterOptions = toRef(() => props.screenAmbientLightFilt
 const screenAmbientLightEnvironment = toRef(() => props.screenAmbientLightEnvironment)
 const screenAmbientLightSubject = toRef(() => props.screenAmbientLightSubject)
 const screenAmbientLightMode = toRef(() => props.screenAmbientLightMode)
+const screenAmbientLightGeometry = toRef(() => props.screenAmbientLightGeometry)
 const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
 const screenAmbientLightSquint = toRef(() => props.screenAmbientLightSquint)
 
@@ -373,6 +377,7 @@ async function performModelLoad() {
       const lighting = new SurfaceLighting(live2DModel.internalModel, pixiApp.value!.renderer)
       surfaceLighting = lighting
       try {
+        lighting.setScreenGeometry(screenAmbientLightGeometry.value)
         await lighting.load()
       }
       catch (error) {
@@ -738,6 +743,8 @@ function updateModelFilters() {
   updateFilterStack()
 }
 
+// Geometry follows settings changes, independently of the screen capture cadence.
+watch(screenAmbientLightGeometry, geometry => surfaceLighting?.setScreenGeometry(geometry))
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateModelFilters, { immediate: true })
 watch([model, themeColorsHue], updateModelFilters)
