@@ -294,6 +294,56 @@ describe('provider config store', () => {
     )
   })
 
+  it('uploads a reset as tombstones and does not restore cloud credentials', async () => {
+    // ROOT CAUSE:
+    //
+    // Reset cleared local rows and pendingDeletes, then set replicaMerged to
+    // false. The next pull restored the cloud credentials.
+    //
+    // Reset now tombstones each user provider. Push sends those deletes.
+    const store = installStore()
+    store.providers[localProvider.id] = { ...localProvider, replicaUpdatedAt: '2026-01-01T00:00:00.000Z' }
+    store.providers[officialProvider.id] = { ...officialProvider }
+    mocks.service.listRemote.mockResolvedValue([{
+      id: localProvider.id,
+      definitionId: localProvider.definitionId,
+      config: localProvider.config,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      deletedAt: null,
+    }])
+    authState.isAuthenticated = true
+
+    await store.syncProviders()
+    store.pendingDeletes['already-gone'] = '2026-01-01T00:00:00.000Z'
+    mocks.service.deleteRemote.mockClear()
+    mocks.service.upsertRemote.mockClear()
+
+    await store.resetProviders()
+
+    expect(store.providers[localProvider.id]).toBeUndefined()
+    expect(store.providers[officialProvider.id]).toBeUndefined()
+    expect(store.pendingDeletes[localProvider.id]).toBeDefined()
+    expect(store.pendingDeletes['already-gone']).toBe('2026-01-01T00:00:00.000Z')
+    expect(store.pendingDeletes[officialProvider.id]).toBeUndefined()
+
+    await store.syncProviders()
+
+    expect(store.providers[localProvider.id]).toBeUndefined()
+    expect(mocks.service.upsertRemote).not.toHaveBeenCalled()
+    expect(mocks.service.deleteRemote).toHaveBeenCalledWith(
+      mocks.client,
+      localProvider.id,
+    )
+    expect(mocks.service.deleteRemote).toHaveBeenCalledWith(
+      mocks.client,
+      'already-gone',
+    )
+    expect(mocks.service.deleteRemote).not.toHaveBeenCalledWith(
+      mocks.client,
+      officialProvider.id,
+    )
+  })
+
   it('keeps a local delete through a pull that still returns the live row', async () => {
     const store = installStore()
     store.providers[localProvider.id] = { ...localProvider, replicaUpdatedAt: '2026-01-01T00:00:00.000Z' }

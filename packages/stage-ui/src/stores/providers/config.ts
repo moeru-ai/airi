@@ -412,11 +412,11 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function resetProviders() {
-    providers.value = {}
+    for (const id of Object.keys(providers.value))
+      await removeProvider(id)
+
     addedProviders.value = {}
-    pendingDeletes.value = {}
     lastLiveRemote = {}
-    replicaMerged = false
   }
 
   return {
