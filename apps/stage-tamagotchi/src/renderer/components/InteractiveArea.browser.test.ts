@@ -205,15 +205,27 @@ describe('interactive area synchronized state', () => {
     await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
 
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
-    await expect.element(screen.getByTestId('mobile-message-composer')).not.toBeInTheDocument()
+    await expect.element(screen.getByTestId('mobile-message-composer')).not.toBeVisible()
     await expect.element(screen.getByTestId('conversation-selector-button')).not.toBeInTheDocument()
     await expect.element(screen.getByRole('button', { name: 'X', exact: true })).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'Y', exact: true })).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'Scale', exact: true })).toBeVisible()
 
     const close = screen.getByTestId('view-controls-close-button').element()
+    // ROOT CAUSE:
+    //
+    // The drawer suppressed focus restoration before emitting the mode change,
+    // but the Stage did not move focus into the newly rendered controls.
+    await expect.element(screen.getByTestId('view-controls-close-button')).toHaveFocus()
     expect(close.getBoundingClientRect().right).toBe(378)
     expect(close.getBoundingClientRect().top).toBe(12)
+    const toolbar = screen.getByTestId('view-controls-toolbar').element()
+    // ROOT CAUSE:
+    //
+    // Fixed horizontal padding ignored display cutouts in landscape viewports.
+    // The toolbar now uses the same left and right safe-area minimum as the header.
+    expect(toolbar.classList).toContain('pl-[max(0.75rem,env(safe-area-inset-left))]')
+    expect(toolbar.classList).toContain('pr-[max(0.75rem,env(safe-area-inset-right))]')
 
     await screen.getByRole('button', { name: 'stage.mobile-tools.close-view', exact: true }).click()
 
@@ -221,6 +233,49 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByTestId('conversation-selector-button')).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'X', exact: true })).not.toBeInTheDocument()
     expect(viewControl.viewControlsEnabled.value).toBe(false)
+  })
+
+  it('keeps a docked input bubble mounted while view controls are open', async () => {
+    // ROOT CAUSE:
+    //
+    // Entering view mode removed the composer subtree. Its dock animation stores
+    // opacity and position on the mounted elements, while the docked state survives.
+    // Recreating the subtree therefore lost the visual state when view mode closed.
+    await page.viewport(390, 844)
+    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
+    stageModel.setStageModelRenderer('live2d')
+    const bubble = screen.getByTestId('mobile-input-bubble').element()
+    const input = screen.getByRole('textbox').element()
+    const icon = bubble.querySelector<HTMLElement>('[aria-hidden="true"]')!
+    const bounds = bubble.getBoundingClientRect()
+    const pointer = {
+      bubbles: true,
+      clientX: bounds.left + bounds.width / 2,
+      clientY: bounds.top + bounds.height / 2,
+      isPrimary: true,
+      pointerId: 1,
+      pointerType: 'touch',
+    }
+    vi.spyOn(bubble, 'setPointerCapture').mockImplementation(() => {})
+
+    bubble.dispatchEvent(new PointerEvent('pointerdown', { ...pointer, button: 0, buttons: 1 }))
+    await new Promise(resolve => setTimeout(resolve, 550))
+    bubble.dispatchEvent(new PointerEvent('pointermove', { ...pointer, buttons: 1, clientY: pointer.clientY - 80 }))
+    bubble.dispatchEvent(new PointerEvent('pointerup', { ...pointer, buttons: 0, clientY: pointer.clientY - 80 }))
+    await expect.poll(() => getComputedStyle(input).opacity).toBe('0')
+    expect(getComputedStyle(icon).opacity).toBe('1')
+
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
+
+    expect(bubble.isConnected).toBe(true)
+    await expect.element(screen.getByTestId('mobile-message-composer')).not.toBeVisible()
+
+    await screen.getByTestId('view-controls-close-button').click()
+
+    expect(screen.getByTestId('mobile-input-bubble').element()).toBe(bubble)
+    expect(getComputedStyle(input).opacity).toBe('0')
+    expect(getComputedStyle(icon).opacity).toBe('1')
   })
 
   it('exits view controls when the active renderer changes', async () => {

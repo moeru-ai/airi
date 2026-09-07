@@ -140,16 +140,18 @@ const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
 
-function openViewControls() {
+async function openViewControls() {
   closeViewControls()
 
-  if (stageModelRenderer.value === 'live2d') {
+  if (stageModelRenderer.value === 'live2d')
     l2dViewControl.viewControlsEnabled.value = true
-    return
-  }
-
-  if (stageModelRenderer.value === 'vrm')
+  else if (stageModelRenderer.value === 'vrm')
     threeViewControl.viewControlsEnabled.value = true
+
+  await nextTick()
+  mobileInteractiveArea.value
+    ?.querySelector<HTMLButtonElement>('[data-testid="view-controls-close-button"]')
+    ?.focus()
 }
 
 function closeViewControls() {
@@ -487,7 +489,7 @@ onUnmounted(() => {
       </KeepAlive>
     </div>
     <div
-      v-if="!viewControlsEnabled"
+      v-show="!viewControlsEnabled"
       ref="interactionControls"
       data-testid="mobile-interaction-controls"
       :class="[
@@ -609,9 +611,11 @@ onUnmounted(() => {
       </div>
     </div>
     <div
-      v-else
+      v-show="viewControlsEnabled"
+      data-testid="view-controls-toolbar"
       :class="[
-        'pointer-events-auto fixed inset-x-0 z-30 px-3',
+        'pointer-events-auto fixed inset-x-0 z-30',
+        'pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]',
         'bottom-[max(1rem,env(safe-area-inset-bottom))]',
       ]"
     >
