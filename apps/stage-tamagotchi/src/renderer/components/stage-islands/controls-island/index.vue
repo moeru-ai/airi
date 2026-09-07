@@ -80,10 +80,12 @@ const isBlocked = computed(() => blockingOverlays.size > 0 || pressed.value)
 
 // Right-docked content must start at the right edge when its natural width is
 // wider than the viewport. Reapply this after resize and after the menu opens.
-function alignHorizontalScroll() {
+function alignScrollPosition() {
   const viewport = islandViewport.value
   if (!viewport)
     return
+
+  viewport.scrollTop = isTop.value ? 0 : Math.max(0, viewport.scrollHeight - viewport.clientHeight)
 
   if (isLeft.value) {
     viewport.scrollLeft = 0
@@ -93,11 +95,11 @@ function alignHorizontalScroll() {
   viewport.scrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth)
 }
 
-useResizeObserver(islandViewport, alignHorizontalScroll)
-useResizeObserver(islandContent, alignHorizontalScroll)
+useResizeObserver(islandViewport, alignScrollPosition)
+useResizeObserver(islandContent, alignScrollPosition)
 watch([dock, expanded, controlsIslandIconSize], async () => {
   await nextTick()
-  alignHorizontalScroll()
+  alignScrollPosition()
 }, { flush: 'post' })
 
 function setOverlay(key: string, active: boolean) {

@@ -243,6 +243,18 @@ describe('controls Island overflow', () => {
     await expect.poll(() => viewport.scrollLeft).toBe(0)
   })
 
+  it('issue #2400 aligns bottom docks to the visible vertical scroll end', async () => {
+    await page.viewport(450, 200)
+    const { i18n, screen } = mountControlsIsland('bottom-right')
+    const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+
+    await screen.getByLabelText(label('expand'), { exact: true }).click()
+    const island = screen.getByTestId('controls-island').element() as HTMLElement
+    const viewport = island.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
+    await expect.poll(() => viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight)
+    await expect.poll(() => viewport.scrollTop).toBe(viewport.scrollHeight - viewport.clientHeight)
+  })
+
   // The interaction path is independent from the size and dock matrix.
   it('issue #2400 keeps the expanded menu open during a scrollbar drag', async () => {
     await page.viewport(450, 300)
