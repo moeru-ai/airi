@@ -2,6 +2,7 @@
 import { errorMessageFrom } from '@moeru/std'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useAudioAnalyzer, useHearingPlaygroundSegments, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
+import { hearingProviderViewContextKey } from '@proj-airi/stage-ui/libs'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
@@ -9,7 +10,7 @@ import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, shallowRef, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import HearingPlaygroundTranscripts from './components/hearing-playground-transcripts.vue'
@@ -33,7 +34,7 @@ const {
 } = storeToRefs(hearingStore)
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
-const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
+const { moduleTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
@@ -59,6 +60,15 @@ let volumeSpeechEndTimer: ReturnType<typeof setTimeout> | undefined
 
 const error = shallowRef('')
 const isMonitoring = shallowRef(false)
+const activeProviderConfig = computed(() => {
+  if (!activeTranscriptionProvider.value)
+    return undefined
+  return providerStore.providers[activeTranscriptionProvider.value]?.config
+})
+const activeProviderHearingView = computed(() => {
+  const loadView = providersStore.findProviderDefinition(activeTranscriptionProvider.value)?.views?.hearing
+  return loadView ? defineAsyncComponent(loadView) : undefined
+})
 
 const {
   current: currentTranscription,
@@ -251,6 +261,50 @@ function updateCustomModelName(value: string | undefined) {
   activeTranscriptionModel.value = modelValue
 }
 
+async function updateActiveProviderConfig(patch: Record<string, unknown>) {
+  const providerId = activeTranscriptionProvider.value
+  if (!providerId)
+    throw new Error('No transcription Provider is active.')
+
+  const shouldRestartMonitoring = isMonitoring.value
+
+  try {
+    await providersStore.initializeProvider(providerId)
+    const provider = providerStore.getProvider(providerId)
+    if (!provider)
+      throw new Error('The transcription Provider configuration is unavailable.')
+
+    const update = providerStore.updateProviderConfig(
+      providerId,
+      { ...provider.config, ...patch },
+      'configured',
+    )
+
+    if (shouldRestartMonitoring) {
+      isMonitoring.value = false
+      await stopAudioMonitoring(providerId)
+    }
+
+    await update
+    await providersStore.disposeProviderInstance(providerId)
+    clearPlaygroundSegments()
+
+    // The selected Provider can change while a remote configuration save is pending.
+    // Only restart the monitoring session for the Provider that requested the save.
+    if (shouldRestartMonitoring && activeTranscriptionProvider.value === providerId)
+      isMonitoring.value = await setupAudioMonitoring()
+  }
+  catch (cause) {
+    error.value = errorMessageFrom(cause) ?? t('settings.pages.providers.catalog.edit.config.save-error')
+    throw cause
+  }
+}
+
+provide(hearingProviderViewContextKey, {
+  providerConfig: activeProviderConfig,
+  updateProviderConfig: updateActiveProviderConfig,
+})
+
 // Sync OpenAI Compatible model from provider config
 function syncOpenAICompatibleSettings() {
   if (activeTranscriptionProvider.value !== 'openai-compatible-audio-transcription')
@@ -364,13 +418,13 @@ onUnmounted(() => {
             See also: https://stackoverflow.com/a/33737340
           -->
             <fieldset
-              v-if="configuredTranscriptionProvidersMetadata.length > 0"
+              v-if="moduleTranscriptionProvidersMetadata.length > 0"
               flex="~ row gap-4"
               min-w-0 overflow-x-auto scroll-smooth
               role="radiogroup"
             >
               <RadioCardSimple
-                v-for="metadata in configuredTranscriptionProvidersMetadata"
+                v-for="metadata in moduleTranscriptionProvidersMetadata"
                 :id="metadata.id"
                 :key="metadata.id"
                 v-model="activeTranscriptionProvider"
@@ -416,6 +470,11 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+
+        <component
+          :is="activeProviderHearingView"
+          v-if="activeProviderHearingView"
+        />
 
         <!-- Model selection section -->
         <div v-if="activeTranscriptionProvider">

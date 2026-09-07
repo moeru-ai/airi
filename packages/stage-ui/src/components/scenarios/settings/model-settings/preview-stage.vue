@@ -217,7 +217,7 @@ const cursorPosition = computed(() => ({
   </template>
   <template v-if="stageModelRenderer === 'vrm'">
     <div :class="vrmSceneClassList">
-      <ThreeScene ref="vrmSceneRef" :cursor-position="cursorPosition" :model-src="stageModelSelectedUrl" />
+      <ThreeScene ref="vrmSceneRef" :cursor-position="cursorPosition" :model-id="stageModelSelected" :model-src="stageModelSelectedUrl" />
     </div>
   </template>
   <template v-if="stageModelRenderer === 'spine'">

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 defineProps<{
-  providerName: string
+  providerName?: string
   providerIcon?: string
   providerIconColor?: string
   onBack?: () => void

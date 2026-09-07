@@ -3,6 +3,7 @@ import type {
   ModulePermissionDeclaration as ProtocolModulePermissionDeclaration,
   ModulePermissionGrant as ProtocolModulePermissionGrant,
 } from '@proj-airi/plugin-protocol/types'
+import type { GenericSchema } from 'valibot'
 
 import type { KitDescriptor } from './kits'
 
@@ -15,6 +16,7 @@ import {
   lazy,
   literal,
   minValue,
+  null_,
   number,
   object,
   optional,
@@ -110,12 +112,12 @@ export interface HostDataRecord {
  * - The recursive union used across shared host data structures
  */
 export type HostDataValue
-  = | null
-    | string
-    | number
-    | boolean
+  = | boolean
     | HostDataArray
     | HostDataRecord
+    | null
+    | number
+    | string
 
 /**
  * Creates the recursive Valibot schema used for one {@link HostDataValue}.
@@ -129,14 +131,14 @@ export type HostDataValue
  * Returns:
  * - A Valibot schema covering the full `HostDataValue` recursion
  */
-export function createHostDataValueSchema() {
+export function createHostDataValueSchema(): GenericSchema<HostDataValue> {
   return union([
-    literal(null),
+    null_(),
     string(),
     boolean(),
     pipe(number(), finite()),
     array(lazy(createHostDataValueSchema)),
-    pipe(record(string(), lazy(createHostDataValueSchema)), check(isPlainObject)),
+    pipe(record(string(), lazy(createHostDataValueSchema)), check<HostDataRecord>(isPlainObject)),
   ])
 }
 
@@ -166,7 +168,10 @@ export const hostDataValueSchema = createHostDataValueSchema()
  * Returns:
  * - A Valibot schema for one host-safe record
  */
-export const hostDataRecordSchema = pipe(record(string(), lazy(createHostDataValueSchema)), check(isPlainObject))
+export const hostDataRecordSchema = pipe(
+  record(string(), lazy(createHostDataValueSchema)),
+  check<HostDataRecord>(isPlainObject),
+)
 
 /**
  * Validates one non-negative safe integer used for timestamps and revisions.
@@ -197,6 +202,34 @@ export const nonNegativeIntegerSchema = pipe(number(), safeInteger(), minValue(0
 export type ExtensionIdentity = ProtocolExtensionIdentity
 
 /**
+ * Describes a version-1 extension manifest consumed by `ExtensionHost`.
+ *
+ * Extension manifests are the install/session-level package description. Module
+ * registration happens later during `defineExtension({ setup })`.
+ */
+export interface ExtensionManifestV1 {
+  /** Manifest schema version expected by the current host implementation. */
+  apiVersion: 'v1'
+  /** Runtime-specific extension entrypoints that the host can resolve and import. */
+  entrypoints: {
+    /** Fallback entrypoint used when no runtime-specific path is provided. */
+    default?: string
+    /** Electron-specific entrypoint path. */
+    electron?: string
+    /** Node-specific entrypoint path. */
+    node?: string
+    /** Web-specific entrypoint path. */
+    web?: string
+  }
+  /** Stable extension id used for identity generation and display. */
+  id: string
+  /** Manifest kind discriminator used to identify AIRI extension manifests. */
+  kind: 'manifest.extension.airi.moeru.ai'
+  /** Package/session permission ceiling that module permissions are capped by. */
+  permissions: ModulePermissionDeclaration
+}
+
+/**
  * Re-exports the protocol permission declaration model used by manifests and runtime permission flow.
  *
  * Use when:
@@ -224,77 +257,49 @@ export type ModulePermissionDeclaration = ProtocolModulePermissionDeclaration
  */
 export type ModulePermissionGrant = ProtocolModulePermissionGrant
 
-/**
- * Describes a version-1 extension manifest consumed by `ExtensionHost`.
- *
- * Extension manifests are the install/session-level package description. Module
- * registration happens later during `defineExtension({ setup })`.
- */
-export interface ExtensionManifestV1 {
-  /** Manifest schema version expected by the current host implementation. */
-  apiVersion: 'v1'
-  /** Manifest kind discriminator used to identify AIRI extension manifests. */
-  kind: 'manifest.extension.airi.moeru.ai'
-  /** Stable extension id used for identity generation and display. */
-  id: string
-  /** Package/session permission ceiling that module permissions are capped by. */
-  permissions: ModulePermissionDeclaration
-  /** Runtime-specific extension entrypoints that the host can resolve and import. */
-  entrypoints: {
-    /** Fallback entrypoint used when no runtime-specific path is provided. */
-    default?: string
-    /** Electron-specific entrypoint path. */
-    electron?: string
-    /** Node-specific entrypoint path. */
-    node?: string
-    /** Web-specific entrypoint path. */
-    web?: string
-  }
-}
-
 const localizableSchema = union([
   string(),
   object({
-    key: string(),
     fallback: optional(string()),
+    key: string(),
     params: optional(record(string(), union([string(), number(), boolean()]))),
   }),
 ])
 
 const permissionDeclarationSchema = object({
   apis: optional(array(object({
-    key: string(),
     actions: array(picklist(['invoke', 'emit'])),
-    reason: optional(localizableSchema),
-    label: optional(localizableSchema),
-    required: optional(boolean()),
-  }))),
-  resources: optional(array(object({
     key: string(),
-    actions: array(picklist(['read', 'write', 'subscribe'])),
-    reason: optional(localizableSchema),
     label: optional(localizableSchema),
+    reason: optional(localizableSchema),
     required: optional(boolean()),
   }))),
   capabilities: optional(array(object({
-    key: string(),
     actions: array(picklist(['wait', 'snapshot'])),
-    reason: optional(localizableSchema),
-    label: optional(localizableSchema),
-    required: optional(boolean()),
-  }))),
-  processors: optional(array(object({
     key: string(),
-    actions: array(picklist(['register', 'execute', 'manage'])),
-    reason: optional(localizableSchema),
     label: optional(localizableSchema),
+    reason: optional(localizableSchema),
     required: optional(boolean()),
   }))),
   pipelines: optional(array(object({
-    key: string(),
     actions: array(picklist(['hook', 'process', 'emit', 'manage'])),
-    reason: optional(localizableSchema),
+    key: string(),
     label: optional(localizableSchema),
+    reason: optional(localizableSchema),
+    required: optional(boolean()),
+  }))),
+  processors: optional(array(object({
+    actions: array(picklist(['register', 'execute', 'manage'])),
+    key: string(),
+    label: optional(localizableSchema),
+    reason: optional(localizableSchema),
+    required: optional(boolean()),
+  }))),
+  resources: optional(array(object({
+    actions: array(picklist(['read', 'write', 'subscribe'])),
+    key: string(),
+    label: optional(localizableSchema),
+    reason: optional(localizableSchema),
     required: optional(boolean()),
   }))),
 })
@@ -321,11 +326,97 @@ const manifestEntrypointsSchema = object({
  */
 export const extensionManifestV1Schema = object({
   apiVersion: literal('v1'),
-  kind: literal('manifest.extension.airi.moeru.ai'),
-  id: string(),
-  permissions: permissionDeclarationSchema,
   entrypoints: manifestEntrypointsSchema,
+  id: string(),
+  kind: literal('manifest.extension.airi.moeru.ai'),
+  permissions: permissionDeclarationSchema,
 })
+
+/**
+ * Installs one generic host feature into `ExtensionHost`.
+ *
+ * Use when:
+ * - The host should register kits, resources, capabilities, or runtime-specific behavior
+ *
+ * Expects:
+ * - Installation is idempotent for one host instance
+ * - Contributions keep domain-specific behavior out of the low-level host core
+ *
+ * Returns:
+ * - No value; the contribution mutates the provided install context
+ */
+export interface ExtensionHostContribution {
+  install: (context: ExtensionHostInstallContext) => void
+}
+
+/**
+ * Provides the host-owned registration surface that contributions can use during installation.
+ *
+ * Use when:
+ * - Installing a host feature into `ExtensionHost`
+ * - Registering kits, resources, or capabilities
+ *
+ * Expects:
+ * - Installation happens during `ExtensionHost` construction
+ *
+ * Returns:
+ * - Registration helpers that keep `ExtensionHost` generic while allowing host-specific features
+ */
+export interface ExtensionHostInstallContext {
+  announceCapability: (key: string, metadata?: Record<string, unknown>) => void
+  markCapabilityDegraded: (key: string, metadata?: Record<string, unknown>) => void
+  markCapabilityReady: (key: string, metadata?: Record<string, unknown>) => void
+  registerKit: (kit: KitDescriptor) => KitDescriptor
+  setResourceResolver: <T>(key: string, resolver: () => Promise<T> | T) => void
+  setResourceValue: <T>(key: string, value: T) => void
+  unregisterKit: (kitId: string) => KitDescriptor | undefined
+  withdrawCapability: (key: string, metadata?: Record<string, unknown>) => void
+}
+
+/**
+ * Configures one `ExtensionHost` instance.
+ *
+ * Use when:
+ * - Constructing a host with specific runtime, permission, or contribution behavior
+ *
+ * Expects:
+ * - Omitted fields fall back to the host defaults documented below
+ *
+ * Returns:
+ * - The host bootstrap options consumed by {@link import('../core').ExtensionHost}
+ */
+export interface ExtensionHostOptions {
+  /** Installable host features that can register kits, resources, and capabilities. @default [] */
+  contributions?: ExtensionHostContribution[]
+  /** Callback that decides the granted permission set for one extension session. */
+  permissionResolver?: (payload: {
+    identity: ExtensionIdentity
+    manifest: ExtensionManifestV1
+    persisted?: ModulePermissionGrant
+    requested: ModulePermissionDeclaration
+  }) => ModulePermissionGrant | Promise<ModulePermissionGrant>
+  /** Runtime used when callers do not override it per load/start call. @default 'electron' */
+  runtime?: PluginRuntime
+}
+
+/**
+ * Describes one permission gate that a contribution-owned session API can enforce.
+ *
+ * Use when:
+ * - A contribution method must check host-granted API, resource, or capability access
+ *
+ * Expects:
+ * - The permission key/action pair matches the manifest permission contract
+ *
+ * Returns:
+ * - The permission request consumed by `ExtensionHost.assertPermission(...)`
+ */
+export interface ExtensionHostPermissionRequest {
+  action: string
+  area: 'apis' | 'capabilities' | 'pipelines' | 'processors' | 'resources'
+  key: string
+  reason?: string
+}
 
 /**
  * Configures how the host resolves and loads an extension entrypoint.
@@ -344,92 +435,6 @@ export interface ExtensionLoadOptions {
   cwd?: string
   /** Runtime used when selecting a manifest entrypoint. */
   runtime?: PluginRuntime
-}
-
-/**
- * Configures one `ExtensionHost` instance.
- *
- * Use when:
- * - Constructing a host with specific runtime, permission, or contribution behavior
- *
- * Expects:
- * - Omitted fields fall back to the host defaults documented below
- *
- * Returns:
- * - The host bootstrap options consumed by {@link import('../core').ExtensionHost}
- */
-export interface ExtensionHostOptions {
-  /** Runtime used when callers do not override it per load/start call. @default 'electron' */
-  runtime?: PluginRuntime
-  /** Callback that decides the granted permission set for one extension session. */
-  permissionResolver?: (payload: {
-    identity: ExtensionIdentity
-    manifest: ExtensionManifestV1
-    requested: ModulePermissionDeclaration
-    persisted?: ModulePermissionGrant
-  }) => ModulePermissionGrant | Promise<ModulePermissionGrant>
-  /** Installable host features that can register kits, resources, and capabilities. @default [] */
-  contributions?: ExtensionHostContribution[]
-}
-
-/**
- * Describes one permission gate that a contribution-owned session API can enforce.
- *
- * Use when:
- * - A contribution method must check host-granted API, resource, or capability access
- *
- * Expects:
- * - The permission key/action pair matches the manifest permission contract
- *
- * Returns:
- * - The permission request consumed by `ExtensionHost.assertPermission(...)`
- */
-export interface ExtensionHostPermissionRequest {
-  area: 'apis' | 'resources' | 'capabilities' | 'processors' | 'pipelines'
-  action: string
-  key: string
-  reason?: string
-}
-
-/**
- * Provides the host-owned registration surface that contributions can use during installation.
- *
- * Use when:
- * - Installing a host feature into `ExtensionHost`
- * - Registering kits, resources, or capabilities
- *
- * Expects:
- * - Installation happens during `ExtensionHost` construction
- *
- * Returns:
- * - Registration helpers that keep `ExtensionHost` generic while allowing host-specific features
- */
-export interface ExtensionHostInstallContext {
-  registerKit: (kit: KitDescriptor) => KitDescriptor
-  unregisterKit: (kitId: string) => KitDescriptor | undefined
-  setResourceResolver: <T>(key: string, resolver: () => Promise<T> | T) => void
-  setResourceValue: <T>(key: string, value: T) => void
-  announceCapability: (key: string, metadata?: Record<string, unknown>) => void
-  markCapabilityReady: (key: string, metadata?: Record<string, unknown>) => void
-  markCapabilityDegraded: (key: string, metadata?: Record<string, unknown>) => void
-  withdrawCapability: (key: string, metadata?: Record<string, unknown>) => void
-}
-
-/**
- * Installs one generic host feature into `ExtensionHost`.
- *
- * Use when:
- * - The host should register kits, resources, capabilities, or runtime-specific behavior
- *
- * Expects:
- * - Installation is idempotent for one host instance
- * - Contributions keep domain-specific behavior out of the low-level host core
- *
- * Returns:
- * - No value; the contribution mutates the provided install context
- */
-export interface ExtensionHostContribution {
-  install: (context: ExtensionHostInstallContext) => void
 }
 
 /**

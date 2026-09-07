@@ -119,19 +119,46 @@ jobs:
           xcodebuild -version
           actool --version
 
-      - uses: pnpm/action-setup@v4
+      # NOTICE:
+      # pnpm 11 does not ship a working standalone executable for Intel macOS.
+      # Install pnpm through npm so it uses the Node.js runtime from setup-node.
+      # https://github.com/pnpm/pnpm/issues/11423
+      # Remove this branch when the project uses pnpm 12 or later.
+      - uses: actions/setup-node@v6
+        if: matrix.os == 'macos-15-intel'
         with:
-          run_install: false
+          node-version: 26.7.0
+
+      - name: Install pnpm with npm
+        if: matrix.os == 'macos-15-intel'
+        run: npm install --global pnpm@11.24.0
+
+      - name: Get pnpm store path
+        if: matrix.os == 'macos-15-intel'
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        if: matrix.os == 'macos-15-intel'
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-store-
+
+      - uses: pnpm/setup@v2
+        if: matrix.os != 'macos-15-intel'
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
 
       - name: Install macOS System Dependencies for node-canvas
         if: runner.os == 'macOS'
         run: |
           brew install pkg-config cairo pango jpeg giflib librsvg
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: pnpm
       - run: pnpm install --frozen-lockfile
 
       # ---------

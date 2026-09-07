@@ -17,6 +17,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./auth": "./src/auth/index.ts",
+    "./analytics/posthog": "./src/analytics/posthog.ts",
     "./beat-sync": "./src/beat-sync/index.ts",
     "./global-shortcut": "./src/global-shortcut/index.ts",
     "./godot-stage": "./src/godot-stage/index.ts",
@@ -36,6 +37,7 @@
     "@vueuse/core": "catalog:",
     "gpuu": "catalog:",
     "pinia": "catalog:",
+    "posthog-js": "catalog:",
     "valibot": "catalog:",
     "vue": "catalog:"
   },

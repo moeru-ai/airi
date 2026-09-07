@@ -79,6 +79,21 @@ Responsive screen component that calculates canvas dimensions based on breakpoin
 
 **Props**: None | **Slots**: `default({ width, height })`
 
+### ScrollableArea
+
+Reka UI scroll area with shared light-mode and dark-mode scrollbar styles.
+The component forwards HTML attributes to the scroll-area root.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `contentAsChild` | `boolean?` | `false` | Render the viewport content wrapper through the single default slot child |
+| `orientation` | `'vertical' \| 'horizontal' \| 'both'` | `'vertical'` | Scrollbar orientations to render |
+| `type` | `ScrollAreaRootProps['type']?` | `'auto'` | Reka UI scrollbar visibility behavior |
+| `viewportClass` | `string \| string[]?` | — | Classes for the Reka UI viewport |
+
+**Slots**: `default`
+**Exposed**: `viewport` (the native scroll owner. Reka UI hides its native scrollbar and renders the configured custom track.)
+
 ### Skeleton
 
 Loading placeholder with animation.
@@ -102,6 +117,29 @@ Line-clamped content container that expands and collapses when the overflowing c
 ---
 
 ## Misc
+
+### BottomDrawer
+
+Mobile modal surface built on Vaul Vue. It owns the drag handle, overlay,
+focus boundary, scroll region, and bottom safe area. Dragging
+starts only on the handle, so action buttons and scrolling do not dismiss it.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | Visible and accessible title |
+| `minimumHeight` | `'content' \| 'half'` | `'content'` | Uses content height or at least half of the viewport height |
+
+Dismiss with the handle, overlay, or Escape. There is no close button.
+
+**v-model**: `boolean`, defaults to `false`.
+
+**Slots**: `trigger` (one button), `default` (drawer content).
+
+**Emits**: `afterClose()` after the dismissal animation;
+`closeAutoFocus(event)` to prevent focus restoration when another modal opens.
+
+Use for mobile action menus and settings panels. Desktop dialogs and panels
+that need snap points use their own surface.
 
 ### Avatar
 
@@ -319,6 +357,10 @@ Two-column input for key-value pairs.
 ### BasicTextarea
 
 Auto-resizing textarea with submit and paste-file events.
+The native row count defaults to one, so typing does not introduce a second
+row. Content grows when it wraps. Native `rows` attributes can override this minimum.
+When set, `defaultHeight` also provides the baseline for content measurement,
+so flex layouts do not stretch the empty measurement box.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -511,6 +553,23 @@ Tab-like selection using radio buttons with animated indicator.
 ## Form — Field (Labeled wrappers)
 
 All Field components wrap a base input with `label`, `description`, and consistent layout. Common slots: `label`, `description`.
+
+### FieldButton
+
+Displays field information on the left and a compact action button on the right.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | *(required)* | Field label |
+| `description` | `string?` | — | Helper text |
+| `buttonLabel` | `string` | *(required)* | Action button label |
+| `buttonIcon` | `string?` | — | UnoCSS/Iconify class for the action button |
+| `disabled` | `boolean?` | — | Prevents the action |
+| `loading` | `boolean?` | — | Shows a spinner and prevents the action |
+
+**Slots**: `label`, `description`
+
+**Emits**: `click(event: MouseEvent)`
 
 ### FieldInput
 

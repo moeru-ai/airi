@@ -92,6 +92,33 @@ describe('configKVService', () => {
       })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2445#discussion_r3913931906
+  // ROOT CAUSE:
+  //
+  // The streaming TTS config accepted an empty default model. The catalog
+  // exposed that value as a present default, so clients skipped their fallback.
+  //
+  // Before: defaultModel used optional(string()).
+  //
+  // We fixed this by rejecting an empty configured default at the ConfigKV boundary.
+  it('rejects an empty streaming TTS default model', async () => {
+    store._store.set('UNSPEECH_UPSTREAM', JSON.stringify({
+      restBaseURL: 'http://unspeech.local:5933',
+      streaming: {
+        baseURL: 'wss://unspeech.local',
+        keys: [{ id: 'k1', ciphertext: 'enc' }],
+        defaultModel: '',
+      },
+    }))
+
+    await expect(service.getOptional('UNSPEECH_UPSTREAM'))
+      .rejects
+      .toMatchObject({
+        statusCode: 503,
+        errorCode: 'CONFIG_INVALID',
+      })
+  })
+
   it('wraps database failures as CONFIG_UNAVAILABLE', async () => {
     store.getRaw.mockRejectedValueOnce(new Error('database offline'))
 

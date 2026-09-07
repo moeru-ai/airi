@@ -14,6 +14,7 @@ import { tool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
@@ -24,7 +25,9 @@ import { useProviderStore } from '../../providers/provider'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
+    locale: ref('en'),
     t: (key: string) => key,
+    te: () => true,
   }),
 }))
 
@@ -113,9 +116,9 @@ describe('store character-orchestrator', () => {
     sendSparkCommandMock.mockReset()
     mockedStore(useModsServerChannelStore, pinia).send = sendSparkCommandMock
 
-    const mockGetProviderInstance = vi.fn()
-    mockedStore(useProviderStore, pinia).getProviderInstance = mockGetProviderInstance
-    mockedStore(useProviderStore, pinia).getProviderInstance.mockResolvedValue({ chat: (_model: string) => ({} as any) })
+    const mockGetChatProviderInstance = vi.fn()
+    mockedStore(useProviderStore, pinia).getChatProviderInstance = mockGetChatProviderInstance
+    mockedStore(useProviderStore, pinia).getChatProviderInstance.mockResolvedValue({ chat: (_model: string) => ({} as any) })
 
     const consciousnessStore = useConsciousnessStore(pinia)
     consciousnessStore.activeProvider = 'mock-provider'
@@ -310,7 +313,8 @@ describe('store character-orchestrator', () => {
     expect(onEnd).toHaveBeenCalledWith(event.data.id, '')
   })
 
-  it('forwards runtime-only message overrides into the rendered spark prompt', async () => {
+  // https://github.com/moeru-ai/airi/pull/2464#discussion_r3933609456
+  it('preserves runtime rules when a Spark caller replaces the user payload', async () => {
     const mockStream = vi.fn()
     mockedStore(useLLM, pinia).stream = mockStream
     mockedStore(useLLM, pinia).stream.mockImplementation(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
@@ -337,11 +341,15 @@ describe('store character-orchestrator', () => {
       messageOverride: {
         appendSystemInstructions: ['Plugin-specific hint'],
         appendUserSections: ['Rendered board snapshot'],
+        replaceUserMessage: 'Replacement user payload',
       },
     })
 
     const renderedMessages = mockStream.mock.lastCall?.[2] as Array<{ role: string, content: string }> | undefined
     expect(String(renderedMessages?.[0]?.content)).toContain('Plugin-specific hint')
+    expect(String(renderedMessages?.[1]?.content)).toContain('Replacement user payload')
     expect(String(renderedMessages?.[1]?.content)).toContain('Rendered board snapshot')
+    expect(String(renderedMessages?.[1]?.content)).toContain('base.prompt.emotion')
+    expect(String(renderedMessages?.[1]?.content)).toContain('base.prompt.emoji')
   })
 })

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
-import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -10,7 +10,7 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { configureAsDefaultsIfEmpty } from '@proj-airi/stage-ui/stores/modules/default'
+import { configureAsDefaultsIfEmpty, unconfigureAuthenticationProviders } from '@proj-airi/stage-ui/stores/modules/default'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
@@ -51,6 +51,16 @@ useSettingsStageModel()
 useVisionStore()
 
 let stopAuthenticatedSetup: (() => void) | undefined
+let stopLoggedOutSetup: (() => void) | undefined
+
+async function removeAuthenticationProviderConfiguration() {
+  if (!syncedPinia.isLeader())
+    return
+
+  if (await unconfigureAuthenticationProviders())
+    await cardStore.persistActiveCardModuleSelections()
+}
+
 function registerAuthenticatedSetup() {
   stopAuthenticatedSetup ??= authStore.onAuthenticated(async () => {
     if (!syncedPinia.isLeader())
@@ -60,6 +70,7 @@ function registerAuthenticatedSetup() {
       await cardStore.persistActiveCardModuleSelections()
     await onboardingStore.closeAfterAuthentication()
   })
+  stopLoggedOutSetup ??= authStore.onLogout(removeAuthenticationProviderConfiguration)
 }
 
 const primaryColor = computed(() => {
@@ -103,6 +114,8 @@ onMounted(async () => {
   await displayModelsStore.initialize()
   await cardStore.initialize()
   registerAuthenticatedSetup()
+  if (!authStore.isAuthenticated)
+    await removeAuthenticationProviderConfiguration()
 
   if (onboardingStore.needsOnboarding) {
     onboardingStore.showingSetup = true
@@ -122,6 +135,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopAuthenticatedSetup?.()
+  stopLoggedOutSetup?.()
   contextBridgeStore.dispose()
 })
 

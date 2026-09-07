@@ -18,6 +18,7 @@ import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCombobox, FieldInput } from '@proj-airi/ui'
+import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 
@@ -110,12 +111,12 @@ const {
   forceValid,
 } = useProviderValidation(providerId)
 
-const apiKeyPlaceholder = computed(() => {
+const apiKeyPlaceholder = computedAsync(async () => {
   const definition = getDefinedProvider(providerId)
   if (!definition?.createProviderConfig)
     return 'sk-...'
 
-  const schema = definition.createProviderConfig({ t }) as any
+  const schema = await definition.createProviderConfig({ t }) as any
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
   if (!apiKeySchema)
@@ -123,7 +124,7 @@ const apiKeyPlaceholder = computed(() => {
 
   const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
   return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
-})
+}, 'sk-...')
 
 // Expand Advanced section if there's a base URL validation error
 const shouldExpandAdvanced = computed(() => {
@@ -159,7 +160,7 @@ function isValidTranscriptionModel(modelName: string | undefined | null): boolea
 
 // Initialize provider settings on mount
 onMounted(async () => {
-  providersStore.initializeProvider(providerId)
+  await providersStore.initializeProvider(providerId)
   // Initialize baseUrl with default if not set
   if (!providers.value[providerId]?.baseUrl) {
     const defaultBaseUrl = providersStore.getDefaultProviderConfig(providerId).baseUrl as string | undefined

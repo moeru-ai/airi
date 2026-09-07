@@ -3,7 +3,8 @@ import type { RemovableRef } from '@vueuse/core'
 import type { ProviderMode } from './use-analytics'
 
 import { errorMessageFrom } from '@moeru/std'
-import { useDebounceFn } from '@vueuse/core'
+import { computedAsync, useDebounceFn } from '@vueuse/core'
+import { cloneDeep } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -37,13 +38,13 @@ export function useProviderValidation(providerId: string) {
   } = useAnalytics()
   const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
-  const providerMetadata = computed(() => {
+  const providerMetadata = computedAsync(async () => {
     const definition = providersStore.getProviderDefinition(providerId)
-    return selectProviderMetadata(definition, t, {
+    return await selectProviderMetadata(definition, t, {
       id: providerId,
       configured: providerStore.getProvider(providerId)?.status === 'configured',
     })
-  })
+  }, undefined)
 
   // --- Internal Computed Properties for Credentials ---
   const credentials = computed(() => providers.value[providerId] || {})
@@ -82,7 +83,10 @@ export function useProviderValidation(providerId: string) {
   const validationMessage = ref('')
 
   // Manual chat ping check state (settings pages only)
-  const hasManualValidators = computed(() => providersStore.hasManualProviderValidators(providerId))
+  const hasManualValidators = computedAsync(
+    async () => await providersStore.hasManualProviderValidators(providerId),
+    false,
+  )
   const isManualTesting = ref(false)
   const manualTestPassed = ref(false)
   const manualTestMessage = ref('')
@@ -92,6 +96,23 @@ export function useProviderValidation(providerId: string) {
       provider_id: providerId,
       provider_mode: providerModeForAnalytics(providerId),
     }
+  }
+
+  /**
+   * `validateProviderConfig` is a synchronized action. A follower renderer posts
+   * its arguments over a BroadcastChannel.
+   *
+   * `structuredClone` rejects a Vue reactive proxy. A shallow copy keeps the
+   * nested values as proxies, so this copy must be deep.
+   */
+  function configToValidate(): Record<string, any> {
+    const config = cloneDeep(credentials.value)
+    if (config.apiKey)
+      config.apiKey = config.apiKey.trim()
+    if (config.baseUrl)
+      config.baseUrl = config.baseUrl.trim()
+
+    return config
   }
 
   async function validateConfiguration() {
@@ -104,18 +125,13 @@ export function useProviderValidation(providerId: string) {
     let finalValidationMessage = ''
 
     try {
-      const config = { ...credentials.value }
-      if (config.apiKey)
-        config.apiKey = config.apiKey.trim()
-      if (config.baseUrl)
-        config.baseUrl = config.baseUrl.trim()
-
       // Settings pages always skip chat ping check during automatic validation
       // to avoid unexpected API billing. Users can trigger it manually.
-      const validationResult = await providersStore.validateProviderConfig(providerId, config, {
+      const validationResult = await providersStore.validateProviderConfig(providerId, configToValidate(), {
         skipChatPingCheck: true,
       })
       isValid.value = validationResult.valid
+      providerStore.setProviderStatus(providerId, isValid.value ? 'configured' : 'invalid')
 
       if (!isValid.value) {
         finalValidationMessage = validationResult.reason
@@ -131,6 +147,7 @@ export function useProviderValidation(providerId: string) {
     }
     catch (error) {
       isValid.value = false
+      providerStore.setProviderStatus(providerId, 'invalid')
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
         error: errorMessageFrom(error) ?? 'Generic error (993b5ad7)',
       })
@@ -153,13 +170,7 @@ export function useProviderValidation(providerId: string) {
     trackProviderConnectionTestStarted(providerConnectionTestAnalyticsBase())
 
     try {
-      const config = { ...credentials.value }
-      if (config.apiKey)
-        config.apiKey = config.apiKey.trim()
-      if (config.baseUrl)
-        config.baseUrl = config.baseUrl.trim()
-
-      const result = await providersStore.validateProviderConfig(providerId, config, {
+      const result = await providersStore.validateProviderConfig(providerId, configToValidate(), {
         onlyChatPingCheck: true,
       })
       manualTestPassed.value = result.valid
@@ -195,17 +206,15 @@ export function useProviderValidation(providerId: string) {
     }
   }
 
-  const AUTH_FIELDS = ['apiKey', 'baseUrl', 'accountId', 'apiToken', 'accessToken'] as const
+  async function shouldValidateConfiguration() {
+    const definition = providersStore.getProviderDefinition(providerId)
+    return await definition.validationRequiredWhen?.(credentials.value) ?? false
+  }
 
-  const debouncedValidateConfiguration = useDebounceFn(() => {
-    const config = credentials.value as Record<string, unknown>
-    // Only check auth credential fields — excludes config-only fields like region, endpoint
-    const hasAnyCredential = AUTH_FIELDS.some((field) => {
-      const v = config[field]
-      return v !== null && v !== undefined && String(v).trim() !== ''
-    })
-    if (!hasAnyCredential) {
+  const debouncedValidateConfiguration = useDebounceFn(async () => {
+    if (!await shouldValidateConfiguration()) {
       isValid.value = false
+      providerStore.setProviderStatus(providerId, 'unconfigured')
       validationMessage.value = ''
       isValidating.value = 0
       return
@@ -213,14 +222,10 @@ export function useProviderValidation(providerId: string) {
     validateConfiguration()
   }, debounceTime)
 
-  onMounted(() => {
-    providersStore.initializeProvider(providerId)
-    const config = credentials.value as Record<string, unknown>
-    if (AUTH_FIELDS.some((field) => {
-      const v = config[field]
-      return v !== null && v !== undefined && String(v).trim() !== ''
-    })) {
-      validateConfiguration()
+  onMounted(async () => {
+    await providersStore.initializeProvider(providerId)
+    if (await shouldValidateConfiguration()) {
+      await validateConfiguration()
     }
   })
 

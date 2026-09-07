@@ -20,7 +20,6 @@ async function executeGetWeather(input: { city: string }): Promise<string> {
 
   await executeWidgetAction({
     action: 'spawn',
-    id: `weather-${weather.city.toLowerCase().replace(/\s+/g, '-')}`,
     componentName: 'weather',
     componentProps: weather,
     size: 'm',

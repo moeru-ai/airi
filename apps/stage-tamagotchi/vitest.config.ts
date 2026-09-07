@@ -1,6 +1,7 @@
 import { cwd } from 'node:process'
 
 import vue from '@vitejs/plugin-vue'
+import UnoCss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
 
 import { playwright } from '@vitest/browser-playwright'
@@ -12,6 +13,7 @@ export default defineConfig({
   plugins: [
     Info(),
     vue(),
+    UnoCss(),
   ],
   test: {
     env: loadEnv('test', cwd(), ''),

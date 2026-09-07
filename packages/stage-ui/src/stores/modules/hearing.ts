@@ -8,6 +8,8 @@ import type { AIRIStreamTranscriptionResult } from '../../libs/providers/stream-
 import type { StreamingTranscriptionCallbacks, StreamingTranscriptionConsumer } from './streaming-transcription-consumers'
 
 import { errorMessageFrom, tryCatch } from '@moeru/std'
+import { toPCM16FromFloat32 } from '@proj-airi/audio/encoding'
+import { streamWebSpeechAPITranscription } from '@proj-airi/provider-inference'
 import { errorMessageFromValue, IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
@@ -21,7 +23,7 @@ import { useAnalytics } from '../../composables/use-analytics'
 import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { createVadStreamingSession } from '../../libs/audio/vad-streaming-session'
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
-import { streamWebSpeechAPITranscription } from '../../libs/providers/providers/browser-web-speech-api'
+import { APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID, executeAppleSpeechStream } from '../../libs/providers/providers/apple-speech'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
 import { useVAD } from '../ai/models/vad'
 import { useProviderConfigStore } from '../providers/config'
@@ -235,6 +237,7 @@ export function resolveTranscriptionFileName(file: File, explicitFileName?: stri
 
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamTranscription,
+  [APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID]: executeAppleSpeechStream,
   [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
 }
@@ -796,21 +799,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     return await stopRealtimeTranscription(abort, disposeProviderId)
   }
 
-  function float32ToInt16(buffer: Float32Array) {
-    const output = new Int16Array(buffer.length)
-    for (let i = 0; i < buffer.length; i++) {
-      const value = Math.max(-1, Math.min(1, buffer[i]))
-      output[i] = value < 0 ? value * 0x8000 : value * 0x7FFF
-    }
-
-    return output
-  }
-
   function enqueueVadAudio(segment: NonNullable<typeof streamingVadSession.value>['activeSegment'], buffer: Float32Array) {
     if (!segment)
       return
 
-    const pcm16 = float32ToInt16(buffer)
+    const pcm16 = toPCM16FromFloat32(buffer)
     const chunk = pcm16.buffer.slice(0)
     if (segment.audioStreamController) {
       segment.audioStreamController.enqueue(chunk)

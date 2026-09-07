@@ -1,11 +1,11 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/official'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useConsciousnessStore } from './consciousness'
-import { configureAsDefaultsIfEmpty } from './default'
+import { configureAsDefaultsIfEmpty, unconfigureAuthenticationProviders } from './default'
 import { useHearingStore } from './hearing'
 import { useSpeechStore } from './speech'
 import { useVisionStore } from './vision'
@@ -72,9 +72,13 @@ describe('official provider module defaults', () => {
     expect(visionStore.activeModel).toBe('auto')
 
     expect(providerConfigStore.providers['official-provider']?.status).toBe('configured')
+    expect(providerConfigStore.providers['official-provider']?.configuredBy).toBe('authentication')
     expect(providerConfigStore.providers[OFFICIAL_TRANSCRIPTION_PROVIDER_ID]?.status).toBe('configured')
+    expect(providerConfigStore.providers[OFFICIAL_TRANSCRIPTION_PROVIDER_ID]?.configuredBy).toBe('authentication')
     expect(providerConfigStore.providers[OFFICIAL_SPEECH_PROVIDER_ID]?.status).toBe('configured')
+    expect(providerConfigStore.providers[OFFICIAL_SPEECH_PROVIDER_ID]?.configuredBy).toBe('authentication')
     expect(providerConfigStore.providers['vision-official-provider']?.status).toBe('configured')
+    expect(providerConfigStore.providers['vision-official-provider']?.configuredBy).toBe('authentication')
     expect(providerConfigStore.addedProviders['official-provider']).toBe(true)
     expect(providerConfigStore.addedProviders[OFFICIAL_TRANSCRIPTION_PROVIDER_ID]).toBe(true)
     expect(providerConfigStore.addedProviders[OFFICIAL_SPEECH_PROVIDER_ID]).toBe(true)
@@ -193,11 +197,11 @@ describe('official provider module defaults', () => {
     expect(speechStore.activeSpeechVoiceId).toBe('')
     expect(visionStore.activeProvider).toBe('custom-vision')
     expect(visionStore.activeModel).toBe('custom-vision-model')
+    expect(providerConfigStore.providers['official-provider']?.status).toBe('configured')
+    expect(providerConfigStore.providers[OFFICIAL_TRANSCRIPTION_PROVIDER_ID]?.status).toBe('configured')
     expect(providerConfigStore.providers[OFFICIAL_SPEECH_PROVIDER_ID]?.status).toBe('configured')
     expect(providerConfigStore.addedProviders[OFFICIAL_SPEECH_PROVIDER_ID]).toBe(true)
-    expect(providerConfigStore.providers['official-provider']).toBeUndefined()
-    expect(providerConfigStore.providers[OFFICIAL_TRANSCRIPTION_PROVIDER_ID]).toBeUndefined()
-    expect(providerConfigStore.providers['vision-official-provider']).toBeUndefined()
+    expect(providerConfigStore.providers['vision-official-provider']?.status).toBe('configured')
   })
 
   it('adds a configured official provider to the visible provider list', async () => {
@@ -224,10 +228,10 @@ describe('official provider module defaults', () => {
 
     expect(providerConfigStore.providers['official-provider']?.status).toBe('configured')
     expect(providerConfigStore.addedProviders['official-provider']).toBe(true)
-    expect(forceProviderConfigured).toHaveBeenCalledOnce()
+    expect(forceProviderConfigured).toHaveBeenCalledTimes(4)
 
     await expect(configureAsDefaultsIfEmpty()).resolves.toBe(false)
-    expect(forceProviderConfigured).toHaveBeenCalledOnce()
+    expect(forceProviderConfigured).toHaveBeenCalledTimes(4)
   })
 
   it('keeps a custom module and configures the other empty modules', async () => {
@@ -249,9 +253,126 @@ describe('official provider module defaults', () => {
     expect(speechStore.activeSpeechModel).toBe('auto')
     expect(visionStore.activeProvider).toBe('vision-official-provider')
     expect(visionStore.activeModel).toBe('auto')
-    expect(providerConfigStore.providers['official-provider']).toBeUndefined()
+    expect(providerConfigStore.providers['official-provider']?.status).toBe('configured')
     expect(providerConfigStore.providers[OFFICIAL_TRANSCRIPTION_PROVIDER_ID]?.status).toBe('configured')
     expect(providerConfigStore.providers[OFFICIAL_SPEECH_PROVIDER_ID]?.status).toBe('configured')
     expect(providerConfigStore.providers['vision-official-provider']?.status).toBe('configured')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Authenticated setup only created an official provider record when its
+  // module was empty or already used that provider. A custom module selection
+  // therefore hid the official choice even while the user was signed in.
+  //
+  // We fixed this by configuring every standard official provider after login
+  // while applying official module selections only to empty modules.
+  it('configures official choices without replacing custom module selections', async () => {
+    const consciousnessStore = useConsciousnessStore()
+    const hearingStore = useHearingStore()
+    const speechStore = useSpeechStore()
+    const visionStore = useVisionStore()
+    const providerConfigStore = useProviderConfigStore()
+
+    consciousnessStore.activeProvider = 'custom-chat'
+    consciousnessStore.activeModel = 'custom-chat-model'
+    hearingStore.activeTranscriptionProvider = 'custom-transcription'
+    hearingStore.activeTranscriptionModel = 'custom-transcription-model'
+    speechStore.activeSpeechProvider = 'custom-speech'
+    speechStore.activeSpeechModel = 'custom-speech-model'
+    visionStore.activeProvider = 'custom-vision'
+    visionStore.activeModel = 'custom-vision-model'
+
+    await expect(configureAsDefaultsIfEmpty()).resolves.toBe(true)
+
+    expect(consciousnessStore.activeProvider).toBe('custom-chat')
+    expect(consciousnessStore.activeModel).toBe('custom-chat-model')
+    expect(hearingStore.activeTranscriptionProvider).toBe('custom-transcription')
+    expect(hearingStore.activeTranscriptionModel).toBe('custom-transcription-model')
+    expect(speechStore.activeSpeechProvider).toBe('custom-speech')
+    expect(speechStore.activeSpeechModel).toBe('custom-speech-model')
+    expect(visionStore.activeProvider).toBe('custom-vision')
+    expect(visionStore.activeModel).toBe('custom-vision-model')
+    expect(providerConfigStore.providers['official-provider']?.status).toBe('configured')
+    expect(providerConfigStore.providers[OFFICIAL_TRANSCRIPTION_PROVIDER_ID]?.status).toBe('configured')
+    expect(providerConfigStore.providers[OFFICIAL_SPEECH_PROVIDER_ID]?.status).toBe('configured')
+    expect(providerConfigStore.providers['vision-official-provider']?.status).toBe('configured')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Official provider records and module selections survived logout. Module
+  // pages therefore still treated official services as configured even though
+  // the authenticated session that grants access no longer existed.
+  //
+  // We fixed this by unconfiguring official records on logout and clearing only
+  // module selections that belong to those records. Custom selections remain.
+  it('removes authenticated official configuration on logout', async () => {
+    const consciousnessStore = useConsciousnessStore()
+    const hearingStore = useHearingStore()
+    const speechStore = useSpeechStore()
+    const visionStore = useVisionStore()
+    const providerStore = useProviderStore()
+    const providerConfigStore = useProviderConfigStore()
+
+    await configureAsDefaultsIfEmpty()
+    await providerStore.initializeProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    await providerStore.forceProviderConfigured(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+    speechStore.activeSpeechModel = 'streaming-model'
+
+    await expect(unconfigureAuthenticationProviders()).resolves.toBe(true)
+
+    expect(consciousnessStore.activeProvider).toBe('')
+    expect(consciousnessStore.activeModel).toBe('')
+    expect(hearingStore.activeTranscriptionProvider).toBe('')
+    expect(hearingStore.activeTranscriptionModel).toBe('')
+    expect(speechStore.activeSpeechProvider).toBe('speech-noop')
+    expect(speechStore.activeSpeechModel).toBe('')
+    expect(speechStore.activeSpeechVoiceId).toBe('')
+    expect(visionStore.activeProvider).toBe('')
+    expect(visionStore.activeModel).toBe('')
+
+    expect(providerConfigStore.providers['official-provider']?.status).toBe('unconfigured')
+    expect(providerConfigStore.providers[OFFICIAL_TRANSCRIPTION_PROVIDER_ID]?.status).toBe('unconfigured')
+    expect(providerConfigStore.providers[OFFICIAL_SPEECH_PROVIDER_ID]?.status).toBe('unconfigured')
+    expect(providerConfigStore.providers[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID]?.status).toBe('unconfigured')
+    expect(providerConfigStore.providers['vision-official-provider']?.status).toBe('unconfigured')
+    expect(providerConfigStore.addedProviders['official-provider']).toBeUndefined()
+    expect(providerConfigStore.addedProviders[OFFICIAL_TRANSCRIPTION_PROVIDER_ID]).toBeUndefined()
+    expect(providerConfigStore.addedProviders[OFFICIAL_SPEECH_PROVIDER_ID]).toBeUndefined()
+    expect(providerConfigStore.addedProviders[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID]).toBeUndefined()
+    expect(providerConfigStore.addedProviders['vision-official-provider']).toBeUndefined()
+
+    await expect(unconfigureAuthenticationProviders()).resolves.toBe(false)
+    await expect(configureAsDefaultsIfEmpty()).resolves.toBe(true)
+    expect(providerConfigStore.providers['official-provider']?.status).toBe('configured')
+  })
+
+  it('keeps custom module selections when official providers are unconfigured', async () => {
+    const consciousnessStore = useConsciousnessStore()
+    const hearingStore = useHearingStore()
+    const speechStore = useSpeechStore()
+    const visionStore = useVisionStore()
+
+    consciousnessStore.activeProvider = 'custom-chat'
+    consciousnessStore.activeModel = 'custom-chat-model'
+    hearingStore.activeTranscriptionProvider = 'custom-transcription'
+    hearingStore.activeTranscriptionModel = 'custom-transcription-model'
+    speechStore.activeSpeechProvider = 'speech-noop'
+    speechStore.activeSpeechModel = ''
+    visionStore.activeProvider = 'custom-vision'
+    visionStore.activeModel = 'custom-vision-model'
+
+    await expect(unconfigureAuthenticationProviders()).resolves.toBe(false)
+
+    expect(consciousnessStore.activeProvider).toBe('custom-chat')
+    expect(consciousnessStore.activeModel).toBe('custom-chat-model')
+    expect(hearingStore.activeTranscriptionProvider).toBe('custom-transcription')
+    expect(hearingStore.activeTranscriptionModel).toBe('custom-transcription-model')
+    expect(speechStore.activeSpeechProvider).toBe('speech-noop')
+    expect(speechStore.activeSpeechModel).toBe('')
+    expect(visionStore.activeProvider).toBe('custom-vision')
+    expect(visionStore.activeModel).toBe('custom-vision-model')
   })
 })

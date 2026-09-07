@@ -5,7 +5,7 @@ import posthog from 'posthog-js'
 import {
   DEFAULT_POSTHOG_CONFIG,
   POSTHOG_PROJECT_KEY,
-} from '../../../../../posthog.config'
+} from '@proj-airi/stage-shared/analytics/posthog'
 
 /** Creates the auth analytics adapter and initializes its provider SDK. */
 export function createPosthogAdapter(): AnalyticsAdapter {

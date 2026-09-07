@@ -3,9 +3,10 @@ import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@pr
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldRange } from '@proj-airi/ui'
+import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -15,8 +16,10 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const airiCardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
+const consciousnessSettingsStore = useConsciousnessSettingsStore()
 const { configuredProviders } = storeToRefs(providerStore)
-const { persistedChatProvidersMetadata } = storeToRefs(providersStore)
+const { moduleChatProvidersMetadata } = storeToRefs(providersStore)
+const { reasoning } = storeToRefs(consciousnessSettingsStore)
 const {
   activeProvider,
   activeModel,
@@ -32,7 +35,6 @@ const {
 
 const { t } = useI18n()
 const { trackModelSwitched, trackProviderClick } = useAnalytics()
-
 watch(activeProvider, async (provider) => {
   if (!provider)
     return
@@ -63,6 +65,10 @@ function handleDeleteProvider(providerId: string) {
   }
   providersStore.deleteProvider(providerId)
 }
+
+async function updateReasoning(value: boolean) {
+  await consciousnessSettingsStore.setReasoning(value)
+}
 </script>
 
 <template>
@@ -84,13 +90,13 @@ function handleDeleteProvider(providerId: string) {
           See also: https://stackoverflow.com/a/33737340
         -->
           <fieldset
-            v-if="persistedChatProvidersMetadata.length > 0"
+            v-if="moduleChatProvidersMetadata.length > 0"
             flex="~ row gap-4"
             min-w-0 overflow-x-auto scroll-smooth
             role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in persistedChatProvidersMetadata"
+              v-for="metadata in moduleChatProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeProvider"
@@ -283,6 +289,21 @@ function handleDeleteProvider(providerId: string) {
         </div>
       </div>
     </div>
+
+    <section
+      v-if="activeProvider && activeModel"
+      :class="['flex', 'flex-col', 'gap-4', 'border-t', 'border-neutral-200', 'pt-4', 'dark:border-neutral-800']"
+    >
+      <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
+        {{ t('settings.pages.modules.consciousness.sections.section.model-options.title') }}
+      </h2>
+
+      <FieldCheckbox
+        :model-value="reasoning"
+        :label="t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label')"
+        @update:model-value="updateReasoning"
+      />
+    </section>
   </div>
 
   <div v-if="activeProvider" :class="['bg-neutral-50 dark:bg-[rgba(0,0,0,0.3)]', 'rounded-xl', 'p-4', 'flex flex-col gap-4', 'mt-4']">

@@ -32,7 +32,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.11.3/AIRI-0.11.3-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.12.0-beta.5/AIRI-0.12.0-beta.5-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -48,7 +48,7 @@
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.11.3/AIRI-0.11.3-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.12.0-beta.5/AIRI-0.12.0-beta.5-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -208,7 +208,7 @@
 >
 > Vue.js, TypeScript 또는 이 프로젝트에 필요한 개발 도구에 익숙하지 않아도 괜찮습니다. 아티스트, 디자이너로 참여하거나, 첫 번째 라이브 스트리밍을 시작하는 데 도움을 줄 수도 있습니다.
 >
-> React, Svelte, 심지어 Solid를 주로 사용하시더라도 환영합니다. アイリ VTuber에서 보고 싶은 기능을 추가하거나 실험하고 싶은 기능을 위한 하위 디렉토리를 만들 수 있습니다.
+> React, Svelte, 심지어 Solid를 주로 사용하시더라도 환영합니다. アイリ VTuber에서 보고 싶은 기능을 추가하거나 실험하고 싶은 기능을 위한 하위 디렉터리를 만들 수 있습니다.
 >
 > 저희가 찾고 있는 분야 (및 관련 프로젝트):
 >
@@ -296,31 +296,17 @@ nix run github:moeru-ai/airi
 
 ### Stage Pocket (모바일 버전)
 
-Capacitor 웹 버전의 개발 서버를 시작합니다:
+Capacitor 개발 서버를 시작합니다:
 
 ```shell
-pnpm dev:pocket
+pnpm dev:pocket:ios --target "<DEVICE_ID_OR_SIMULATOR_NAME>"
+# 또는
+CAPACITOR_DEVICE_ID_IOS="<DEVICE_ID_OR_SIMULATOR_NAME>" pnpm dev:pocket:ios
 ```
 
-위 명령어 출력에서 IP 주소를 확인하세요:
+`iPhone 16 Pro`처럼 시뮬레이터 이름에는 공백이 들어가므로 대상 이름은 따옴표로 감싸세요.
 
-```shell
-  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
-
-  ➜  Local:   https://localhost:5273/
-  ➜  Network: https://<ip-will-be-here>:5273/
-  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
-  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
-  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
-```
-
-Xcode 프로젝트를 엽니다:
-
-```shell
-CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
-```
-
-그러면 Xcode가 열리고 "Run" 버튼을 클릭하여 iPhone에서 앱을 실행할 수 있습니다.
+`pnpm -F @proj-airi/stage-pocket exec cap run ios --list`를 실행하면 사용 가능한 기기와 시뮬레이터 목록을 확인할 수 있습니다. `@capacitor/cli`는 `apps/stage-pocket`에만 선언되어 있어서 저장소 루트에서는 `cap`이 resolve되지 않습니다.
 
 무선 모드에서 Pocket의 서버 채널에 연결해야 하는 경우, Tamagotchi를 루트 권한으로 시작해야 합니다:
 
@@ -399,92 +385,57 @@ npx bumpp --no-commit --no-tag
 - [SAD](https://github.com/moeru-ai/sad): 셀프 호스팅 및 브라우저에서 LLM을 실행하기 위한 문서 및 노트
 
 ```mermaid
-%%{ init: { 'flowchart': { 'curve': 'catmullRom' } } }%%
-
-flowchart TD
-  Core("Core")
-  Unspeech("unspeech")
-  DBDriver("@proj-airi/drizzle-duckdb-wasm")
-  MemoryDriver("[WIP] Memory Alaya")
-  DB1("@proj-airi/duckdb-wasm")
-  SVRT("@proj-airi/server-runtime")
-  Memory("메모리")
-  STT("STT")
-  Stage("스테이지")
-  StageUI("@proj-airi/stage-ui")
-  UI("@proj-airi/ui")
-
-  subgraph AIRI
-    DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
-    UI --> StageUI --> Stage --> Core
-    Core --> STT
-    Core --> SVRT
+flowchart LR
+  subgraph Apps[Stage applications]
+    Web[stage-web]
+    Desktop[stage-tamagotchi]
+    Pocket[stage-pocket\nexperimental]
   end
 
-  subgraph UI_컴포넌트
-    UI --> StageUI
-    UITransitions("@proj-airi/ui-transitions") --> StageUI
-    UILoadingScreens("@proj-airi/ui-loading-screens") --> StageUI
-    FontCJK("@proj-airi/font-cjkfonts-allseto") --> StageUI
-    FontXiaolai("@proj-airi/font-xiaolai") --> StageUI
+  subgraph Shared[Shared product packages]
+    StageUI[stage-ui]
+    Domain[core-agent\ncore-character]
+    Audio[pipelines-audio]
+    Renderers[stage-ui-live2d\nstage-ui-three and renderers]
+    SDK[server-sdk\nserver-shared]
   end
 
-  subgraph 앱
-    Stage --> StageWeb("@proj-airi/stage-web")
-    Stage --> StageTamagotchi("@proj-airi/stage-tamagotchi")
-    Core --> RealtimeAudio("@proj-airi/realtime-audio")
-    Core --> PromptEngineering("@proj-airi/playground-prompt-engineering")
+  subgraph Channel[Desktop server channel]
+    Runtime[server-runtime]
   end
 
-  subgraph 서버_컴포넌트
-    Core --> ServerSDK("@proj-airi/server-sdk")
-    ServerShared("@proj-airi/server-shared") --> SVRT
-    ServerShared --> ServerSDK
+  subgraph Integrations[Source-configured integrations]
+    Discord[discord-bot]
+    Minecraft[minecraft-bot]
+    Other[Telegram, Factorio, MCP, and others]
   end
 
-  STT -->|음성| Unspeech
-  SVRT -->|Factorio 플레이| F_AGENT
-  SVRT -->|Minecraft 플레이| MC_AGENT
-
-  subgraph Factorio_에이전트
-    F_AGENT("Factorio 에이전트")
-    F_API("Factorio RCON API")
-    factorio-server("factorio-server")
-    F_MOD1("autorio")
-
-    F_AGENT --> F_API -.-> factorio-server
-    F_MOD1 -.-> factorio-server
+  subgraph Hosted[Hosted backend]
+    Edge[Caddy]
+    API[api-server]
+    Auth[auth-server]
+    Database[(PostgreSQL)]
+    Cache[(Redis)]
   end
 
-  subgraph Minecraft_에이전트
-    MC_AGENT("Minecraft 에이전트")
-    Mineflayer("Mineflayer")
-    minecraft-server("minecraft-server")
-
-    MC_AGENT --> Mineflayer -.-> minecraft-server
-  end
-
-  XSAI("xsAI") --> Core
-  XSAI --> F_AGENT
-  XSAI --> MC_AGENT
-
-  Memory_PGVector("@proj-airi/memory-pgvector") --> Memory
-
-  style Core fill:#f9d4d4,stroke:#333,stroke-width:1px
-  style AIRI fill:#fcf7f7,stroke:#333,stroke-width:1px
-  style UI fill:#d4f9d4,stroke:#333,stroke-width:1px
-  style Stage fill:#d4f9d4,stroke:#333,stroke-width:1px
-  style UI_컴포넌트 fill:#d4f9d4,stroke:#333,stroke-width:1px
-  style 서버_컴포넌트 fill:#d4e6f9,stroke:#333,stroke-width:1px
-  style 앱 fill:#d4d4f9,stroke:#333,stroke-width:1px
-  style Factorio_에이전트 fill:#f9d4f2,stroke:#333,stroke-width:1px
-  style Minecraft_에이전트 fill:#f9d4f2,stroke:#333,stroke-width:1px
-
-  style DBDriver fill:#f9f9d4,stroke:#333,stroke-width:1px
-  style MemoryDriver fill:#f9f9d4,stroke:#333,stroke-width:1px
-  style DB1 fill:#f9f9d4,stroke:#333,stroke-width:1px
-  style Memory fill:#f9f9d4,stroke:#333,stroke-width:1px
-  style Memory_PGVector fill:#f9f9d4,stroke:#333,stroke-width:1px
+  Web --> StageUI
+  Desktop --> StageUI
+  Pocket --> StageUI
+  StageUI --> Domain
+  StageUI --> Audio
+  StageUI --> Renderers
+  StageUI --> SDK
+  Desktop --> Runtime
+  SDK <-->|server channel| Runtime
+  Discord --> SDK
+  Minecraft --> SDK
+  Other -. optional .-> SDK
+  Edge --> API
+  Edge --> Auth
+  API --> Database
+  API --> Cache
+  Auth --> Database
+  Auth --> Cache
 ```
 
 ## 유사 프로젝트
@@ -540,10 +491,10 @@ Project AIRI에 기여해 주신 모든 기여자분들께 특별한 감사를 �
 
 ## 스타 히스토리
 
-<a href="https://star-history.com/#moeru-ai/airi&Date">
+<a href="https://star-history.dera.page/#moeru-ai/airi&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date" />
   </picture>
 </a>

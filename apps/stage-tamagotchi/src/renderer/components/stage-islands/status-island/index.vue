@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { useLampFlickerAnimation } from '@proj-airi/stage-ui/composables/use-lamp-flicker-animation'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { lampFlickerAnimationClass } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -20,8 +19,6 @@ const props = defineProps<{
 const { t } = useI18n()
 const { connected } = storeToRefs(useModsServerChannelStore())
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
-
-const { flickerStyle, onAnimationIteration } = useLampFlickerAnimation(() => !connected.value)
 
 const iconClasses = computed(() => {
   return [
@@ -51,7 +48,7 @@ const tooltipLabel = computed(() => {
       :title="tooltipLabel"
       @click="openSettings({ route: '/settings/connection' })"
     >
-      <div :class="iconClasses" :style="flickerStyle" @animationiteration="onAnimationIteration" />
+      <div :class="iconClasses" />
     </ControlButton>
     <template #tooltip>
       {{ tooltipLabel }}

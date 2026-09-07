@@ -1,5 +1,7 @@
+import type { StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
+import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import { errorMessageFrom } from '@moeru/std'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
@@ -11,8 +13,9 @@ import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
-} from '../libs/analytics-headers'
+} from '../libs/product-signals/headers'
 import { useChatStore } from './chat'
+import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 
 vi.hoisted(() => {
   ;(globalThis as any).window = {
@@ -59,13 +62,17 @@ const redundantChatAnalyticsMocks = vi.hoisted(() => ({
 }))
 const ingestContextMessageMock = vi.fn()
 const getContextsSnapshotMock = vi.fn()
+const createRuntimePromptContextMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
 const loadSessionMock = vi.fn()
 const deleteSessionMock = vi.fn()
-const getProviderInstanceMock = vi.fn()
+const initializeSessionMock = vi.fn()
+const disposeSessionMock = vi.fn()
+const ensureCurrentSessionMock = vi.fn()
+const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 
 const activeSessionIdRef = ref('session-1')
@@ -87,7 +94,7 @@ vi.mock('../composables', () => ({
   getConversationAnalyticsSurface: () => 'web',
 }))
 
-vi.mock('../libs/analytics', () => ({
+vi.mock('../libs/product-signals', () => ({
   getAnalytics: () => ({
     emit: (event: { name: string }, properties: unknown) => {
       switch (event.name) {
@@ -120,6 +127,15 @@ vi.mock('../composables/use-io-tracer', () => ({
 
 vi.mock('./chat/context-providers', () => ({
   createMinecraftContext: () => createMinecraftContextMock(),
+  createRuntimePromptContext: (prompt: string) => createRuntimePromptContextMock(prompt),
+}))
+
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    locale: ref('en'),
+    t: (key: string) => key,
+    te: () => true,
+  }),
 }))
 
 vi.mock('./chat/context-store', () => ({
@@ -148,6 +164,9 @@ vi.mock('./chat/session-store', () => ({
     getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
     loadSession: loadSessionMock,
     deleteSession: deleteSessionMock,
+    initialize: initializeSessionMock,
+    dispose: disposeSessionMock,
+    ensureCurrentSession: ensureCurrentSessionMock,
     persistSessionMessages: persistSessionMessagesMock,
     getSessionGeneration: () => currentGeneration,
     setSessionMessages: (sessionId: string, messages: any[]) => {
@@ -178,12 +197,6 @@ vi.mock('./ai/chat-llm/tools', () => ({
   }),
 }))
 
-vi.mock('./providers/provider', () => ({
-  useProviderStore: () => ({
-    getProviderInstance: getProviderInstanceMock,
-  }),
-}))
-
 vi.mock('./ai/chat-llm/toolset-prompts', () => ({
   useLlmToolsetPromptsStore: () => ({
     activeToolsetPrompt: 'Plugin toolset guidance.',
@@ -194,6 +207,9 @@ vi.mock('./modules/consciousness', () => ({
   useConsciousnessStore: () => ({
     activeModel: activeModelRef,
     activeProvider: activeProviderRef,
+    getChatProviderInstance: (providerId: string) => getChatProviderInstanceMock(providerId, {
+      reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
+    }),
   }),
 }))
 
@@ -234,6 +250,8 @@ describe('chat store contract', () => {
     ingestContextMessageMock.mockReset()
     getContextsSnapshotMock.mockReset()
     getContextsSnapshotMock.mockReturnValue({})
+    createRuntimePromptContextMock.mockReset()
+    createRuntimePromptContextMock.mockReturnValue(undefined)
     createMinecraftContextMock.mockReset()
     createMinecraftContextMock.mockReturnValue(undefined)
     persistSessionMessagesMock.mockReset()
@@ -241,7 +259,10 @@ describe('chat store contract', () => {
     ensureSessionMock.mockReset()
     loadSessionMock.mockReset().mockResolvedValue(true)
     deleteSessionMock.mockReset().mockResolvedValue(undefined)
-    getProviderInstanceMock.mockReset().mockResolvedValue(provider)
+    initializeSessionMock.mockReset().mockResolvedValue(undefined)
+    disposeSessionMock.mockReset()
+    ensureCurrentSessionMock.mockReset().mockResolvedValue('session-1')
+    getChatProviderInstanceMock.mockReset().mockResolvedValue(provider)
     getToolsByNamesMock.mockReset().mockImplementation(names => names.map(name => ({
       type: 'function',
       function: {
@@ -285,13 +306,73 @@ describe('chat store contract', () => {
       text: 'continue',
     })
 
-    expect(getProviderInstanceMock).toHaveBeenCalledTimes(2)
-    expect(getProviderInstanceMock).toHaveBeenCalledWith('mock-provider')
+    expect(getChatProviderInstanceMock).toHaveBeenCalledTimes(2)
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'disabled' })
     expect(() => structuredClone(result)).not.toThrow()
     expect(resolvedToolNames).toEqual([
       ['stage_widgets'],
       ['stage_widgets'],
     ])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2394#discussion_r3883162024
+  it('restarts chat consumers when this renderer becomes the leader', async () => {
+    // ROOT CAUSE:
+    //
+    // The application stopped observing chat leadership changes. If the Web
+    // leader closed, the promoted renderer kept the replicated session state
+    // but did not start a new cloud WebSocket.
+    //
+    // The chat store now owns the leadership subscription. It starts the
+    // session consumers after promotion and stops local consumers after
+    // demotion or disposal.
+    let leadershipListener: ((isLeader: boolean) => void) | undefined
+    const stopLeadershipListener = vi.fn()
+    const syncedPinia: SyncedPiniaRuntime = {
+      dispose: vi.fn(),
+      getLeaderId: vi.fn(),
+      getParticipantCount: vi.fn(() => 1),
+      isLeader: vi.fn(() => false),
+      onCoordinationChange: vi.fn(() => vi.fn()),
+      onLeadershipChange: vi.fn((listener) => {
+        leadershipListener = listener
+        listener(false)
+        return stopLeadershipListener
+      }),
+      participantId: 'chat-test',
+      plugin: vi.fn(),
+    }
+    const store = useChatStore()
+
+    await store.initialize(syncedPinia)
+
+    expect(initializeSessionMock).toHaveBeenCalledOnce()
+    expect(disposeSessionMock).toHaveBeenCalledOnce()
+    expect(ensureCurrentSessionMock).not.toHaveBeenCalled()
+
+    leadershipListener?.(true)
+    await vi.waitFor(() => expect(ensureCurrentSessionMock).toHaveBeenCalledOnce())
+
+    leadershipListener?.(false)
+    expect(disposeSessionMock).toHaveBeenCalledTimes(2)
+
+    store.dispose()
+    expect(stopLeadershipListener).toHaveBeenCalledOnce()
+    expect(disposeSessionMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('passes the current consciousness reasoning option to the chat provider', async () => {
+    const settings = useConsciousnessSettingsStore()
+    await settings.setReasoning(true)
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'reply without changing provider defaults' })
+
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'enabled' })
+    await settings.setReasoning(false)
   })
 
   // https://github.com/moeru-ai/airi/issues/2085
@@ -556,10 +637,8 @@ describe('chat store contract', () => {
     expect(store.sending).toBe(false)
     expect(trackFirstMessageMock).toHaveBeenCalledOnce()
     // Datetime is no longer pushed through ingestContextMessage; it is now
-    // applied at message-assembly time as a system-prompt anchor + per-message
-    // [HH:MM] prefix. ingestContextMessage should still be called for other
-    // context providers (e.g. minecraft) when they are configured, but not
-    // for datetime in this test (minecraft is mocked to return undefined).
+    // applied at message-assembly time as per-message [HH:MM] prefixes. The
+    // runtime-rule and Minecraft providers are disabled in this test.
     expect(ingestContextMessageMock).not.toHaveBeenCalled()
     expect(persistSessionMessagesMock).not.toHaveBeenCalled()
     expect(hookOrder).toEqual([
@@ -592,10 +671,8 @@ describe('chat store contract', () => {
     expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMOutputChunkLengths, [5])
     expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMTextLength, 5)
 
-    // System message stays untouched: keeping it 100% static is what makes
-    // the prefix permanently KV-cache friendly across turns and across day
-    // boundaries (the date now lives inside per-message timestamp prefixes
-    // instead of a system anchor).
+    // The persisted system message stays unchanged. Per-message time prefixes
+    // keep the static card prompt cacheable across day boundaries.
     const systemContent = (composedMessages[0] as any).content
     const systemText = typeof systemContent === 'string' ? systemContent : systemContent.map((p: any) => p.text).join('')
     expect(systemText).toContain('system prompt')
@@ -705,7 +782,14 @@ describe('chat store contract', () => {
     expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
   })
 
-  it('ingests runtime context providers before composing prompt snapshots', async () => {
+  it('ingests the runtime prompt before composing prompt snapshots', async () => {
+    const runtimePromptContext = {
+      id: 'airi-runtime-prompt-context',
+      contextId: 'system:airi-runtime-prompt',
+      strategy: 'replace-self',
+      text: 'Start every reply with an ACT token.\n\nDo not use emojis.',
+      createdAt: 123,
+    }
     const minecraftContext = {
       id: 'minecraft-context',
       contextId: 'system:minecraft',
@@ -716,8 +800,10 @@ describe('chat store contract', () => {
     }
     let composedMessages: Message[] = []
 
+    createRuntimePromptContextMock.mockReturnValue(runtimePromptContext)
     createMinecraftContextMock.mockReturnValue(minecraftContext)
     getContextsSnapshotMock.mockReturnValue({
+      'system:airi-runtime-prompt': [runtimePromptContext],
       'system:minecraft': [minecraftContext],
     })
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
@@ -733,15 +819,21 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })
 
-    expect(ingestContextMessageMock).toHaveBeenCalledTimes(1)
-    expect(ingestContextMessageMock).toHaveBeenCalledWith(minecraftContext)
+    expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emotion'))
+    expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emoji'))
+    expect(ingestContextMessageMock).toHaveBeenCalledTimes(2)
+    expect(ingestContextMessageMock).toHaveBeenNthCalledWith(1, runtimePromptContext)
+    expect(ingestContextMessageMock).toHaveBeenNthCalledWith(2, minecraftContext)
     expect(ingestContextMessageMock.mock.invocationCallOrder[0]).toBeLessThan(
       getContextsSnapshotMock.mock.invocationCallOrder[0],
     )
-    const minecraftMessageContent = composedMessages[1]?.content
-    if (!Array.isArray(minecraftMessageContent))
+    const contextMessageContent = composedMessages[1]?.content
+    if (!Array.isArray(contextMessageContent))
       throw new TypeError('Expected composed user message content to be an array')
-    expect(minecraftMessageContent[1]).toMatchObject({
+    expect(contextMessageContent[1]).toMatchObject({
+      text: expect.stringContaining('- system:airi-runtime-prompt: Start every reply with an ACT token.'),
+    })
+    expect(contextMessageContent[1]).toMatchObject({
       text: expect.stringContaining('- system:minecraft: player is near spawn'),
     })
   })

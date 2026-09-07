@@ -39,6 +39,7 @@ const recommendedPaidCloud = {
 const providerAttributesById = {
   '302-ai': paidCloud,
   'aihubmix': paidCloud,
+  'aivis-speech': freeLocal,
   'alibaba-cloud-model-studio': paidCloud,
   'aliyun-nls-transcription': paidCloud,
   'amazon-bedrock': paidCloud,
@@ -98,6 +99,7 @@ const providerAttributesById = {
   'player2-speech': freeLocal,
   'speech-noop': false,
   'together-ai': paidCloud,
+  'voicevox': freeLocal,
   'volcengine': paidCloud,
   'volcengine-coding-plan': paidCloud,
   'xai': paidCloud,

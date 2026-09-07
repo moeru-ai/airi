@@ -1,15 +1,9 @@
 import type { JsonSchema } from 'xsschema'
 
-import z from 'zod/v4'
-
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
-import { rawTool } from '@xsai/tool'
 import { describe, expect, it, vi } from 'vitest'
-import { toJsonSchema } from 'xsschema'
 
-import { normalizeNullableAnyOf } from '../../json-schema'
 import { createSparkCommandTool } from './spark-command'
-import { sparkNotifyCommandItemSchema } from './spark-command-shared'
 
 function isJsonSchema(value: JsonSchema | boolean | undefined): value is JsonSchema {
   return Boolean(value && typeof value === 'object')
@@ -55,85 +49,6 @@ function findObjectSchema(schema: JsonSchema | undefined, predicate: (schema: Js
 }
 
 describe('tools/character/orchestrator/spark-command', () => {
-  it('normalizes scalar|null anyOf into a type array', async () => {
-    const schemaTestUnion = await toJsonSchema(z.object({
-      testField: z.union([z.string(), z.null()]),
-    }))
-    const normalized = normalizeNullableAnyOf(schemaTestUnion as JsonSchema)
-    const testField = normalized.properties?.testField as JsonSchema
-
-    expect(testField.type).toEqual(['string', 'null'])
-    expect(testField.anyOf).toBeUndefined()
-  })
-
-  it('deduplicates primitive types after normalization', async () => {
-    const schemaTestUnion = await toJsonSchema(z.object({
-      testField: z.union([z.literal('force'), z.literal('soft'), z.literal(false)]),
-    }))
-    const normalized = normalizeNullableAnyOf(schemaTestUnion as JsonSchema)
-    const testField = normalized.properties?.testField as JsonSchema
-
-    expect(testField.type).toEqual(['string', 'boolean'])
-    expect(testField.anyOf).toBeUndefined()
-  })
-
-  it('removes required keys that are not declared in sibling properties', () => {
-    const normalized = normalizeNullableAnyOf({
-      type: 'object',
-      properties: {
-        contexts: {
-          anyOf: [
-            {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  metadata: {
-                    anyOf: [
-                      {
-                        type: 'array',
-                        items: {
-                          type: 'object',
-                          properties: {
-                            key: { type: 'string' },
-                          },
-                          required: ['key', 'value'],
-                        },
-                      },
-                      { type: 'null' },
-                    ],
-                  },
-                },
-              },
-            },
-            { type: 'null' },
-          ],
-        },
-      },
-      required: ['contexts'],
-    } as JsonSchema)
-
-    const contexts = getArraySchema(normalized.properties?.contexts as JsonSchema)
-    const contextItem = contexts?.items as JsonSchema
-    const metadata = getArraySchema(contextItem.properties?.metadata as JsonSchema)
-    const metadataItem = metadata?.items as JsonSchema
-
-    expect(metadataItem.required).toEqual(['key'])
-  })
-
-  it('should render sparkNotifyCommandItemSchema into correct schema', async () => {
-    const schemaTest = await toJsonSchema(sparkNotifyCommandItemSchema)
-    const normalized = normalizeNullableAnyOf(schemaTest as JsonSchema)
-
-    const res = rawTool({
-      name: 'test_tool',
-      strict: true,
-      parameters: normalized,
-      execute: () => ({ success: true }),
-    })
-    expect(res.function.parameters).toStrictEqual(normalized)
-  })
-
   it('emits a strict parameter schema', async () => {
     const tools = await createSparkCommandTool({
       sendSparkCommand: () => undefined,
@@ -157,6 +72,35 @@ describe('tools/character/orchestrator/spark-command', () => {
 
     expect(guidancePersona.propertyNames).toBeUndefined()
     expect(metadata.propertyNames).toBeUndefined()
+  })
+
+  it('preserves heterogeneous nullable metadata values as anyOf', async () => {
+    const tools = await createSparkCommandTool({
+      sendSparkCommand: () => undefined,
+    })
+
+    const schema = tools[0].function.parameters as JsonSchema
+    const contexts = getArraySchema(schema.properties?.contexts as JsonSchema)
+    const contextItem = contexts?.items as JsonSchema
+    const metadata = getArraySchema(contextItem.properties?.metadata as JsonSchema)
+    const metadataItem = metadata?.items as JsonSchema
+    const metadataValue = metadataItem.properties?.value as JsonSchema
+
+    // ROOT CAUSE:
+    //
+    // A global normalizer collapsed this union into `type: ['string', 'number',
+    // 'boolean', 'null']`. The Gemini conversion in OpenRouter then removed the
+    // metadata properties but kept the `required` keys.
+    //
+    // The tool now keeps the canonical `anyOf`. Provider adapters can convert
+    // this schema when their target rejects the canonical form.
+    expect(metadataValue.type).toBeUndefined()
+    expect(metadataValue.anyOf).toEqual([
+      { type: 'string' },
+      { type: 'number' },
+      { type: 'boolean' },
+      { type: 'null' },
+    ])
   })
 
   it('uses explicit required keys for nested strict option objects', async () => {

@@ -8,6 +8,7 @@ import { selectProviderMetadata } from '@proj-airi/stage-ui/libs'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Callout } from '@proj-airi/ui'
+import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -19,7 +20,7 @@ const providersStore = useProviderStore()
 const { isAuthenticated, credits, needsLogin } = storeToRefs(authStore)
 
 const providerId = 'official-provider-speech'
-const providerMetadata = selectProviderMetadata(providersStore.getProviderDefinition(providerId), t, { id: providerId })
+const providerMetadata = computedAsync(() => selectProviderMetadata(providersStore.getProviderDefinition(providerId), t, { id: providerId }))
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
 function handleLogin() {

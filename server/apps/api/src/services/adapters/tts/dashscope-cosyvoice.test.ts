@@ -3,6 +3,7 @@ import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
 
 import { dashscopeCosyvoiceAdapter } from './dashscope-cosyvoice'
+import { TtsUpstreamResponseError } from './types'
 
 const UNSPEECH = 'http://unspeech.local:5933'
 const SPEECH_URL = `${UNSPEECH}/v1/audio/speech`
@@ -52,11 +53,12 @@ describe('dashscopeCosyvoiceAdapter', () => {
     expect(Array.from(out)).toEqual(Array.from(audioBytes))
   })
 
-  it('throws Error with .status when unspeech returns non-2xx (router walks to next key)', async () => {
+  it('throws TtsUpstreamResponseError when unspeech returns non-2xx', async () => {
     const fetchImpl = vi.fn().mockResolvedValueOnce(new Response('bad key', { status: 401 }))
 
-    await expect(
-      dashscopeCosyvoiceAdapter.send(
+    let caught: unknown
+    try {
+      await dashscopeCosyvoiceAdapter.send(
         { text: 'hi', voice: 'longxiaochun_v2' },
         {
           keyPlaintext: Buffer.from('sk-test', 'utf8'),
@@ -65,8 +67,16 @@ describe('dashscopeCosyvoiceAdapter', () => {
           adapterParams: {},
           fetchImpl: fetchImpl as unknown as typeof fetch,
         },
-      ),
-    ).rejects.toMatchObject({ status: 401, message: expect.stringContaining('401') })
+      )
+    }
+    catch (error) {
+      caught = error
+    }
+
+    expect(caught).toBeInstanceOf(TtsUpstreamResponseError)
+    if (!(caught instanceof TtsUpstreamResponseError))
+      throw caught
+    expect(caught.response.status).toBe(401)
 
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })

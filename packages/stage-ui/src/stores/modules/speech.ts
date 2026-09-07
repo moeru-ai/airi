@@ -14,7 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
-import { getDefaultSpeechModel, getDefaultStreamingModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
+import { getDefaultSpeechModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 
@@ -174,7 +174,7 @@ export const useSpeechStore = defineStore('speech', () => {
     // When no default can be resolved yet (catalog not loaded), clear it to ''
     // so callers pass `undefined` (server returns the full streaming catalog)
     // rather than forwarding a stale non-streaming model id as `?model=`.
-    const nextModel = getDefaultStreamingModel() ?? streamingModels[0]?.id ?? ''
+    const nextModel = providersStore.getDefaultModelForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID) ?? streamingModels[0]?.id ?? ''
     if (activeSpeechModel.value === nextModel)
       return
     activeSpeechModel.value = nextModel
@@ -183,11 +183,32 @@ export const useSpeechStore = defineStore('speech', () => {
     clearVoiceSelection()
   }
 
+  // A provider that publishes one model publishes no choice. An empty selection
+  // keeps `configured` false until the user opens the dropdown and picks that
+  // one entry, and the provider looks broken until then. This applies to every
+  // single-model speech provider, not only to the VOICEVOX family.
+  //
+  // The voice selection stays as it is. Voices belong to the provider, not to
+  // this model, and a provider switch clears both before this runs.
+  function ensureSingleOptionSpeechModel() {
+    const models = providersStore.getModelsForProvider(activeSpeechProvider.value)
+    if (models.length !== 1)
+      return
+
+    const onlyModelId = models[0]?.id ?? ''
+    if (!onlyModelId || activeSpeechModel.value === onlyModelId)
+      return
+
+    activeSpeechModel.value = onlyModelId
+  }
+
   function ensureActiveSpeechModel() {
     ensureStreamingDefaultModel()
 
-    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID)
+    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID) {
+      ensureSingleOptionSpeechModel()
       return
+    }
 
     const models = providersStore.getModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     if (!models.length)

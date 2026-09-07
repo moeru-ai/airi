@@ -1,8 +1,8 @@
-import type { MediaAccessPermissionRequest, PermissionCheckHandlerHandlerDetails, WebContents } from 'electron'
+import type { DevicePermissionHandlerHandlerDetails, HIDDevice, MediaAccessPermissionRequest, PermissionCheckHandlerHandlerDetails, Session, WebContents } from 'electron'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { shouldGrantAudioCapturePermission, shouldGrantElectronPermission } from './media-permissions'
+import { setupPermissionHandlers, shouldGrantAudioCapturePermission, shouldGrantElectronPermission } from './media-permissions'
 
 const localWebContents = {
   getURL: () => 'file:///app/index.html',
@@ -25,6 +25,31 @@ function createMediaRequestDetails(overrides: Partial<MediaAccessPermissionReque
 function createPermissionCheckDetails(overrides: Partial<PermissionCheckHandlerHandlerDetails> = {}): PermissionCheckHandlerHandlerDetails {
   return {
     isMainFrame: true,
+    ...overrides,
+  }
+}
+
+function createHIDPermissionDetails(overrides: Partial<DevicePermissionHandlerHandlerDetails> = {}): DevicePermissionHandlerHandlerDetails {
+  const device: HIDDevice = {
+    collections: [{
+      children: [],
+      featureReports: [],
+      inputReports: [],
+      outputReports: [],
+      type: 1,
+      usage: 0x05,
+      usagePage: 0x01,
+    }],
+    deviceId: 'dualsense-1',
+    name: 'DualSense Wireless Controller',
+    productId: 0x0CE6,
+    vendorId: 0x054C,
+  }
+
+  return {
+    device,
+    deviceType: 'hid',
+    origin: 'file://',
     ...overrides,
   }
 }
@@ -299,6 +324,39 @@ describe('media permissions', () => {
       localWebContents,
       'notifications',
       'file:///app/index.html',
+      createPermissionCheckDetails(),
+    )).toBe(false)
+  })
+
+  it('grants local AIRI pages access to HID devices through the device permission handler', () => {
+    const targetSession = {
+      setDevicePermissionHandler: vi.fn<Session['setDevicePermissionHandler']>(),
+      setPermissionCheckHandler: vi.fn<Session['setPermissionCheckHandler']>(),
+      setPermissionRequestHandler: vi.fn<Session['setPermissionRequestHandler']>(),
+    }
+
+    setupPermissionHandlers(targetSession, () => false)
+
+    expect(targetSession.setDevicePermissionHandler).toHaveBeenCalledOnce()
+
+    const handler = targetSession.setDevicePermissionHandler.mock.calls[0]?.[0]
+    expect(handler).not.toBeNull()
+    expect(handler?.(createHIDPermissionDetails())).toBe(true)
+    expect(handler?.(createHIDPermissionDetails({ origin: 'https://example.com' }))).toBe(false)
+    expect(handler?.(createHIDPermissionDetails({ deviceType: 'usb' }))).toBe(false)
+  })
+
+  it('allows HID permission checks only for local AIRI pages', () => {
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'hid',
+      'file:///app/index.html',
+      createPermissionCheckDetails(),
+    )).toBe(true)
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'hid',
+      'https://example.com',
       createPermissionCheckDetails(),
     )).toBe(false)
   })

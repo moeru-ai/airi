@@ -7,12 +7,11 @@ import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/com
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
-import { initializeAnalytics } from '@proj-airi/stage-ui/libs/analytics'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
@@ -20,7 +19,7 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { configureAsDefaultsIfEmpty } from '@proj-airi/stage-ui/stores/modules/default'
+import { configureAsDefaultsIfEmpty, unconfigureAuthenticationProviders } from '@proj-airi/stage-ui/stores/modules/default'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
@@ -79,18 +78,16 @@ const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
 const router = useRouter()
 const route = useRoute()
-const chatSessionStore = useChatSessionStore()
 const context = useElectronEventaContext()
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const windowContext = resolveRendererWindowContext()
 const initialRoutePath = resolveInitialRendererRoutePath(route.path)
-useChatStore()
+const chatStore = useChatStore()
 const builtinToolsStore = useTamagotchiBuiltinToolsStore()
 const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
-chatSessionStore.setCloudSyncOwnership(syncedPinia.isLeader())
 const isSpotlightWindow = initialRoutePath === '/spotlight'
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
 
@@ -106,7 +103,6 @@ async function refreshPluginRuntimeTools() {
 // Every renderer creates the runtime tool stores for synchronized state. Only
 // the main Stage renderer discovers tools and keeps executors.
 const stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
-  chatSessionStore.setCloudSyncOwnership(isLeader)
   if (!isLeader)
     return
 
@@ -140,6 +136,16 @@ function createFullStageRuntime() {
   useVisionStore()
 
   let stopAuthenticatedSetup: (() => void) | undefined
+  let stopLoggedOutSetup: (() => void) | undefined
+
+  async function removeAuthenticationProviderConfiguration() {
+    if (!syncedPinia.isLeader())
+      return
+
+    if (await unconfigureAuthenticationProviders())
+      await cardStore.persistActiveCardModuleSelections()
+  }
+
   function registerAuthenticatedSetup() {
     stopAuthenticatedSetup ??= authStore.onAuthenticated(async () => {
       if (!syncedPinia.isLeader())
@@ -149,6 +155,7 @@ function createFullStageRuntime() {
         await cardStore.persistActiveCardModuleSelections()
       await onboardingStore.closeAfterAuthentication()
     })
+    stopLoggedOutSetup ??= authStore.onLogout(removeAuthenticationProviderConfiguration)
   }
 
   const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
@@ -254,6 +261,8 @@ function createFullStageRuntime() {
       await displayModelsStore.initialize()
       await cardStore.initialize()
       registerAuthenticatedSetup()
+      if (!authStore.isAuthenticated)
+        await removeAuthenticationProviderConfiguration()
 
       await displayModelsStore.loadDisplayModelsFromIndexedDB()
       await settingsStore.initializeStageModel()
@@ -299,6 +308,7 @@ function createFullStageRuntime() {
     },
     dispose() {
       stopAuthenticatedSetup?.()
+      stopLoggedOutSetup?.()
       contextBridgeStore.dispose()
     },
   }
@@ -337,7 +347,7 @@ onMounted(async () => {
   // https://github.com/moeru-ai/airi/issues/1658
   await restoreLocale()
 
-  await chatSessionStore.initialize()
+  await chatStore.initialize(syncedPinia)
 
   await fullStageRuntime?.initialize()
 })
@@ -352,6 +362,7 @@ watch(themeColorsHueDynamic, () => {
 
 onUnmounted(() => {
   stopLeadershipListener?.()
+  chatStore.dispose()
   fullStageRuntime?.dispose()
 })
 </script>
