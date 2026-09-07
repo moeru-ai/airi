@@ -19,7 +19,7 @@ import { formatHex } from 'culori'
 import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
-import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
+import { Cubism4InternalModel, Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
 import {
@@ -41,6 +41,7 @@ import {
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { ScreenAmbientLightFilter } from '../../../filters/screen-ambient-light'
+import { SurfaceLighting } from '../../../filters/surface-lighting'
 import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
 
 const props = withDefaults(defineProps<{
@@ -166,6 +167,7 @@ const dropShadowFilter = shallowRef(new DropShadowFilter({
   rotation: 45,
 }))
 const screenAmbientLightFilter = shallowRef(new ScreenAmbientLightFilter())
+let surfaceLighting: SurfaceLighting | undefined
 
 let resizeAnimation: ReturnType<typeof animate> | undefined
 
@@ -299,6 +301,8 @@ async function performModelLoad() {
 
   // REVIEW: here as await until(...) guarded the pixiApp and stage to be valid.
   if (model.value && pixiApp.value?.stage) {
+    surfaceLighting?.dispose()
+    surfaceLighting = undefined
     // Dispose expression controller before destroying the old model
     expressionController.dispose()
     internalModelRef.value = undefined
@@ -341,6 +345,28 @@ async function performModelLoad() {
         motionMap.value[motion.fileName] = EmotionNeutralMotionName
       }
     })
+
+    if (live2DModel.internalModel instanceof Cubism4InternalModel) {
+      const lighting = new SurfaceLighting(live2DModel.internalModel)
+      surfaceLighting = lighting
+      try {
+        await lighting.load()
+      }
+      catch (error) {
+        lighting.dispose()
+        surfaceLighting = undefined
+        live2DModel.destroy()
+        throw error
+      }
+    }
+
+    // Loading the authored textures can finish after the scene has unmounted.
+    if (isUnmounted) {
+      surfaceLighting?.dispose()
+      surfaceLighting = undefined
+      live2DModel.destroy()
+      return
+    }
 
     // --- Scene
 
@@ -601,6 +627,13 @@ const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
 function updateAmbientLightFilter() {
+  surfaceLighting?.update(
+    screenAmbientLightEnvironment.value,
+    screenAmbientLightActive.value,
+    screenAmbientLightStrength.value,
+    screenAmbientLightFilterOptions.value.chroma,
+    screenAmbientLightMode.value,
+  )
   if (!screenAmbientLightActive.value)
     return
 
@@ -611,7 +644,11 @@ function updateAmbientLightFilter() {
     subject: screenAmbientLightSubject.value,
     mode: screenAmbientLightMode.value,
     strength: screenAmbientLightStrength.value,
-    options: screenAmbientLightFilterOptions.value,
+    // Surface shading owns the color cast. This filter still owns exposure,
+    // silhouette wrap, and backlight, without applying the old spatial tint.
+    options: surfaceLighting
+      ? { ...screenAmbientLightFilterOptions.value, chroma: 0 }
+      : screenAmbientLightFilterOptions.value,
   })
 }
 
@@ -897,6 +934,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  surfaceLighting?.dispose()
+  surfaceLighting = undefined
   isUnmounted = true
   resizeAnimation?.pause()
   disposeShouldUpdateView?.()

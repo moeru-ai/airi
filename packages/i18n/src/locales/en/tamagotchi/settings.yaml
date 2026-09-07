@@ -65,7 +65,7 @@ devtools:
       mode:
         title: Lighting mode
         options:
-          window-gradient: Window gradient
+          window-gradient: Surface lighting
           global: Global ambient
       forced-color:
         title: Test color

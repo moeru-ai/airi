@@ -65,7 +65,7 @@ devtools:
       mode:
         title: 光照模式
         options:
-          window-gradient: 視窗漸層
+          window-gradient: 曲面光照
           global: 全域環境光
       forced-color:
         title: 測試色彩
