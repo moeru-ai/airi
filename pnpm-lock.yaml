@@ -1244,7 +1244,7 @@ overrides:
 packageExtensionsChecksum: sha256-lLxz4me6BFXSsuohDen54RU9DmiItse34Xa+IWGtSzU=
 
 patchedDependencies:
-  '@xsai-ext/responses@0.5.0': ff72dc2cfb8d6ed98a5839deee5cc60bfd13f5c3b12c4d53e65b77df475bf24d
+  '@xsai-ext/responses@0.5.0': 8c913d3bc60d2e5970cb95ec6a5621911cfaa812822872d06d21fd940a5e3810
   mineflayer-pathfinder: 4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797
   pixi-live2d-display: 7881eb52793f46a10d6c04d62b1799a3d0ef79f83edc0283777baa6db339ed6d
   sponsorkit@17.1.0: f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88
@@ -3553,7 +3553,7 @@ importers:
         version: 0.5.0
       '@xsai-ext/responses':
         specifier: 'catalog:'
-        version: 0.5.0(patch_hash=ff72dc2cfb8d6ed98a5839deee5cc60bfd13f5c3b12c4d53e65b77df475bf24d)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.0(patch_hash=8c913d3bc60d2e5970cb95ec6a5621911cfaa812822872d06d21fd940a5e3810)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.0
@@ -3895,7 +3895,7 @@ importers:
         version: 0.5.0
       '@xsai-ext/responses':
         specifier: 'catalog:'
-        version: 0.5.0(patch_hash=ff72dc2cfb8d6ed98a5839deee5cc60bfd13f5c3b12c4d53e65b77df475bf24d)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.0(patch_hash=8c913d3bc60d2e5970cb95ec6a5621911cfaa812822872d06d21fd940a5e3810)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai-transformers/shared':
         specifier: 'catalog:'
         version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
@@ -20180,7 +20180,7 @@ snapshots:
 
   '@apeira/core@0.0.7(zod@4.4.3)':
     dependencies:
-      '@xsai-ext/responses': 0.5.0(patch_hash=ff72dc2cfb8d6ed98a5839deee5cc60bfd13f5c3b12c4d53e65b77df475bf24d)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai-ext/responses': 0.5.0(patch_hash=8c913d3bc60d2e5970cb95ec6a5621911cfaa812822872d06d21fd940a5e3810)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai/shared': 0.5.0
       '@xsai/shared-chat': 0.5.0
       '@xsai/stream-text': 0.5.0
@@ -26704,7 +26704,7 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.5.0-beta.6
 
-  '@xsai-ext/responses@0.5.0(patch_hash=ff72dc2cfb8d6ed98a5839deee5cc60bfd13f5c3b12c4d53e65b77df475bf24d)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+  '@xsai-ext/responses@0.5.0(patch_hash=8c913d3bc60d2e5970cb95ec6a5621911cfaa812822872d06d21fd940a5e3810)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
     dependencies:
       '@xsai/shared': 0.5.0
       '@xsai/shared-chat': 0.5.0

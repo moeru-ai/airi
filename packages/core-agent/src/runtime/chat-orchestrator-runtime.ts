@@ -753,7 +753,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
         const systemMessage = context.turns.flatMap(turn => turn.messages).find(message => message.role === 'system')
-        if (systemMessage)
+        if (systemMessage?.role === 'system')
           systemMessage.segments.push({ type: 'text', text: `\n\n${systemPromptSupplement}` })
         else
           context.turns.unshift({ messages: [{ id: 'system-supplement', role: 'system', segments: [{ type: 'text', text: systemPromptSupplement }] }] })
@@ -838,6 +838,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             return
 
           switch (event.type) {
+            case 'search':
+              buildingMessage.search = { id: event.id, status: event.status }
+              updateStream(sessionId, buildingMessage)
+              break
+            case 'citations':
+              buildingMessage.citations = [...(buildingMessage.citations ?? []), ...event.citations]
+              updateStream(sessionId, buildingMessage)
+              break
             case 'tool-call':
               toolCallQueue.enqueue({
                 type: 'tool-call',

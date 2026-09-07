@@ -247,7 +247,7 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
         }
 
         if (streamEvent.type === 'tool-call') {
-          await emit({ type: 'model-output-tool-call', payload: { eventId: request.event.data.eventId, toolCallId: streamEvent.id, toolName: streamEvent.function.name, input: streamEvent.function.arguments } })
+          await emit({ type: 'model-output-tool-call', payload: { eventId: request.event.data.eventId, toolCallId: streamEvent.toolCallId, toolName: streamEvent.toolName, input: streamEvent.args } })
           return
         }
 

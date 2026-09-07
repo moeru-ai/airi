@@ -36,9 +36,9 @@ Local history preserves complete turns. Cloud chat sync currently transfers text
 
 ## Responses API
 
-A provider can expose `responses(model)` without a Chat implementation. When both capabilities exist, Responses selects the generation protocol. The adapter uses `@xsai-ext/responses` with `store: false`. It replays complete Items and executes local function tools for at most ten steps.
+A provider resolves a discriminated `GenerationRequest` before context projection. The adapter owns its wire format and SDK event conversion. The adapter uses `@xsai-ext/responses` with `store: false`. It replays complete Items and executes local function tools for at most ten steps.
 
-The current Responses adapter supports text, images, file data or URLs, refusals, and function calls. It rejects audio input and provider file IDs. It does not execute hosted search tools. Incomplete responses and EOF before a terminal event fail the generation. Session cancellation aborts the active provider request.
+The current Responses adapter supports text, images, file data or URLs, refusals, and function calls. It rejects audio input and provider file IDs. It supports provider-executed web search alongside local function tools. Search records remain in native continuation. Citation events and portable text retain source URLs and offsets. Incomplete responses and EOF before a terminal event fail the generation. Session cancellation aborts the active provider request.
 
 Realtime transport is not implemented. A future session adapter can project the same context, but must define continuous input, interruption, and session ownership separately.
 
@@ -48,3 +48,11 @@ Realtime transport is not implemented. A future session adapter can project the 
 pnpm -F @proj-airi/core-agent typecheck
 pnpm -F @proj-airi/core-agent exec vitest run src/runtime src/messages src/agents/spark-notify
 ```
+
+## Type boundaries
+
+Message roles constrain their segments. Users cannot invoke tools, and tool messages require correlated results.
+Files have exactly one source. SDK output and restored continuation enter through protocol boundaries.
+The public stream event union has no `any` branch. Protocol adapters translate SDK events into this contract.
+The scheduler commits a transcript only after transport, local tools, and event consumers complete.
+Source links remain separate from speech text and survive local history persistence.

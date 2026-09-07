@@ -9,6 +9,10 @@ This patch fixes behavior in the published SDK. AIRI's protocol and billing code
 - Cancel and release each step's reader on completion, failure, tool continuation, or abort.
 - Accept OpenAI `response.reasoning_text.delta` and `.done` events alongside the Open Responses event names.
 - Do not assign a random provider Item ID to a local function output. The provider owns Item IDs; `call_id` matches the function output to its call.
+- Support native `web_search` tools and preserve search output Items across function steps.
+- Keep hosted tools out of the local executor list.
+- Await `onNativeEvent` before transcript commit so consumers can retain sources and search activity.
+- Use Fetch and headers types from `@xsai/shared`, the owner of the HTTP request contract.
 - Export the existing `ItemParam` type for consumers that retain native history.
 
 Browser regressions are in `packages/provider-inference/src/responses.browser.test.ts`. Core integration tests use the real patched SDK with synthetic HTTP responses in `packages/core-agent/src/runtime/responses.test.ts`.

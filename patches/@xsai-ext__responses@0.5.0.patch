@@ -1,8 +1,41 @@
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index c3a04a52394fdd05dad55bb072861c355137d0bd..5a91dd8ec11e87be011d86ab69c3eef106a5e90a 100644
+index c3a04a52394fdd05dad55bb072861c355137d0bd..b83cee8ba936f05f1fcdf52a343aa9c5cbfcb9f6 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -1292,7 +1292,7 @@ type ResponseReasoningDeltaStreamingEvent = {
+@@ -1,3 +1,4 @@
++import type { CommonRequestOptions } from '@xsai/shared';
+ import { Tool as Tool$1, StopCondition as StopCondition$1, StopContext as StopContext$1, Event, CompletionStep, PostToolCall, PrepareStep, PreToolCall, Usage as Usage$1 } from '@xsai/shared-chat';
+ export { Usage, and, hasToolCall, not, or, shouldStop, stepCountAtLeast } from '@xsai/shared-chat';
+ 
+@@ -249,7 +250,17 @@ type FunctionCallOutputItemParam = {
+     output: string | Array<InputTextContentParam | InputImageContentParamAutoParam | InputFileContentParam | InputVideoContent>;
+     status?: (FunctionCallStatus & unknown) | null;
+ };
+-type ItemParam = ItemReferenceParam | ReasoningItemParam | CompactionSummaryItemParam | UserMessageItemParam | SystemMessageItemParam | DeveloperMessageItemParam | AssistantMessageItemParam | FunctionCallItemParam | FunctionCallOutputItemParam;
++/** Provider-executed search. It has no local executor. */
++type WebSearchTool = { type: 'web_search' };
++type WebSearchCall = {
++    type: 'web_search_call';
++    id: string;
++    status: 'in_progress' | 'searching' | 'completed' | 'failed';
++    action?: { type: 'search'; query?: string; queries?: string[]; sources?: { type: 'url'; url: string }[] }
++      | { type: 'open_page'; url: string }
++      | { type: 'find_in_page'; url: string; pattern: string };
++};
++type ItemParam = WebSearchCall | ItemReferenceParam | ReasoningItemParam | CompactionSummaryItemParam | UserMessageItemParam | SystemMessageItemParam | DeveloperMessageItemParam | AssistantMessageItemParam | FunctionCallItemParam | FunctionCallOutputItemParam;
+ type IncludeEnum = 'reasoning.encrypted_content' | 'message.output_text.logprobs';
+ type EmptyModelParam = {
+     [key: string]: unknown;
+@@ -680,7 +691,7 @@ type CompactionBody = {
+ /**
+  * An item representing a message, tool call, tool output, reasoning, or other response element.
+  */
+-type ItemField = Message | FunctionCall | FunctionCallOutput | ReasoningBody | CompactionBody;
++type ItemField = WebSearchCall | Message | FunctionCall | FunctionCallOutput | ReasoningBody | CompactionBody;
+ /**
+  * Error
+  *
+@@ -1292,7 +1303,7 @@ type ResponseReasoningDeltaStreamingEvent = {
      /**
       * The type of the event, always `response.reasoning.delta`.
       */
@@ -11,7 +44,7 @@ index c3a04a52394fdd05dad55bb072861c355137d0bd..5a91dd8ec11e87be011d86ab69c3eef1
      /**
       * The sequence number of the event that was emitted.
       */
-@@ -1327,7 +1327,7 @@ type ResponseReasoningDoneStreamingEvent = {
+@@ -1327,7 +1338,7 @@ type ResponseReasoningDoneStreamingEvent = {
      /**
       * The type of the event, always `response.reasoning.done`.
       */
@@ -20,17 +53,47 @@ index c3a04a52394fdd05dad55bb072861c355137d0bd..5a91dd8ec11e87be011d86ab69c3eef1
      /**
       * The sequence number of the event that was emitted.
       */
-@@ -1639,4 +1639,4 @@ interface ResponsesResult {
+@@ -1595,7 +1606,7 @@ interface OpenResponsesOptions extends CamelCaseProperties<Omit<NoNullCreateResp
+     model: string;
+     /** @remarks `@xsai-ext/responses` only supports `stream: true`, so you should not set it. */
+     stream?: never;
+-    tools?: Tool$1[];
++    tools?: (Tool$1 | WebSearchTool)[];
+ }
+ type CamelCaseProperties<T> = {
+     [K in keyof T as K extends string ? SnakeToCamel<K> : never]: CamelCaseValue<T[K]>;
+@@ -1614,9 +1625,10 @@ interface ResponsesOptions extends OpenResponsesOptions {
+     abortSignal?: AbortSignal;
+     apiKey?: string;
+     baseURL: string | URL;
+-    fetch?: typeof globalThis.fetch;
+-    headers?: Record<string, string>;
++    fetch?: CommonRequestOptions['fetch'];
++    headers?: CommonRequestOptions['headers'];
+     onEvent?: (event: Event) => Promise<unknown> | unknown;
++    onNativeEvent?: (event: FullEvent) => Promise<unknown> | unknown;
+     onFinish?: (step?: CompletionStep) => Promise<unknown> | unknown;
+     onStepFinish?: (step: CompletionStep) => Promise<unknown> | unknown;
+     postToolCall?: PostToolCall;
+@@ -1639,4 +1651,4 @@ interface ResponsesResult {
  declare const responses: (options: ResponsesOptions) => ResponsesResult;
  
  export { responses };
 -export type { FullEvent, FullEventType, OpenResponsesOptions, ResponsesOptions, ResponsesResult, StopCondition, StopContext };
-+export type { ItemParam, FullEvent, FullEventType, OpenResponsesOptions, ResponsesOptions, ResponsesResult, StopCondition, StopContext };
++export type { WebSearchTool, WebSearchCall, ItemParam, FullEvent, FullEventType, OpenResponsesOptions, ResponsesOptions, ResponsesResult, StopCondition, StopContext };
 diff --git a/dist/index.js b/dist/index.js
-index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..5e8d4f3f51f69ff056e00267c4b58d5260929ee7 100644
+index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..7255223777ebe65ccd01311cd1b2e91c2ffa2e18 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -88,7 +88,7 @@ const responses = (options) => {
+@@ -11,6 +11,7 @@ const normalizeInput = (input) => Array.isArray(input) ? input : [{
+ 
+ const normalizeOutput = (item) => {
+   switch (item.type) {
++    case "web_search_call":
+     case "compaction":
+     case "function_call":
+     case "function_call_output":
+@@ -88,7 +89,7 @@ const responses = (options) => {
    const mapFullEvent = (event) => {
      switch (event.type) {
        case "error":
@@ -39,7 +102,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..5e8d4f3f51f69ff056e00267c4b58d52
        case "response.completed":
        case "response.failed":
        case "response.incomplete":
-@@ -118,9 +118,11 @@ const responses = (options) => {
+@@ -118,9 +119,11 @@ const responses = (options) => {
          return [{ delta: event.delta, type: "text.delta" }];
        case "response.output_text.done":
          return [{ content: event.text, type: "text.done" }];
@@ -51,7 +114,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..5e8d4f3f51f69ff056e00267c4b58d52
        case "response.reasoning.done":
        case "response.reasoning_summary_text.done":
          return [{ content: event.text, type: "reasoning.done" }];
-@@ -145,19 +147,20 @@ const responses = (options) => {
+@@ -145,19 +148,20 @@ const responses = (options) => {
        case "response.refusal.delta":
          textCtrl.current?.enqueue(event.delta);
          break;
@@ -76,7 +139,30 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..5e8d4f3f51f69ff056e00267c4b58d52
      }
    };
    const createReader = async () => {
-@@ -199,7 +202,6 @@ const responses = (options) => {
+@@ -174,6 +178,7 @@ const responses = (options) => {
+       input: stepOptions.input,
+       model: stepOptions.model,
+       onEvent: void 0,
++      onNativeEvent: void 0,
+       onFinish: void 0,
+       onStepFinish: void 0,
+       postToolCall: void 0,
+@@ -183,7 +188,7 @@ const responses = (options) => {
+       stream: true,
+       streamOptions: options.streamOptions != null ? objCamelToSnake(options.streamOptions) : void 0,
+       toolChoice: stepOptions.toolChoice,
+-      tools: options.tools?.map(toFunctionTool)
++      tools: options.tools?.map(tool => tool.type === "web_search" ? tool : toFunctionTool(tool))
+     });
+     return res.body.pipeThrough(new TextDecoderStream()).pipeThrough(new EventSourceParserStream()).pipeThrough(new JsonMessageTransformStream()).getReader();
+   };
+@@ -194,12 +199,11 @@ const responses = (options) => {
+       postToolCall: options.postToolCall,
+       preToolCall: options.preToolCall,
+       toolCall: toToolCall(functionCall),
+-      tools: options.tools,
++      tools: options.tools?.filter(tool => tool.type === "function"),
+       wrapResult: toFunctionCallOutput
      });
      const functionCallOutput = {
        call_id: functionCall.call_id,
@@ -84,7 +170,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..5e8d4f3f51f69ff056e00267c4b58d52
        output: result,
        status: "completed",
        type: "function_call_output"
-@@ -222,10 +224,17 @@ const responses = (options) => {
+@@ -222,11 +226,19 @@ const responses = (options) => {
      const functionCalls = [];
      const toolCalls = [];
      const toolResults = [];
@@ -101,9 +187,11 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..5e8d4f3f51f69ff056e00267c4b58d52
 -        return;
 +        throw new Error("Responses stream ended before a terminal event");
        let shouldContinue = false;
++      await options.onNativeEvent?.(event);
        const events = mapFullEvent(event);
        const step = { events, functionCalls, toolCalls};
-@@ -280,11 +289,18 @@ const responses = (options) => {
+       switch (event.type) {
+@@ -280,11 +292,18 @@ const responses = (options) => {
            break;
        }
        pushStreamingEvent(event);

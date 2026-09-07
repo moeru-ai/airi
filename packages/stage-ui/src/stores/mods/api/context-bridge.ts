@@ -1,6 +1,6 @@
 import type { LlmStreamingControlCallManifest } from '@proj-airi/pipelines-audio'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { UserMessage } from '@xsai/shared-chat'
 
 import type { ChatStreamEventContext, ContextMessage } from '../../../types/chat'
@@ -681,7 +681,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
 
         if (activeProvider.value && activeModel.value) {
-          let chatProvider: ChatProvider
+          let chatProvider: GenerationProvider
           try {
             chatProvider = await consciousnessStore.getChatProviderInstance(activeProvider.value)
           }

@@ -973,6 +973,9 @@ pages:
           common:
             fields:
               field:
+                web-search:
+                  label: 联网搜索
+                  description: 允许支持的 OpenAI 模型按需搜索。使用你的 API key，可能产生搜索费用。需要 Responses API。
                 api-protocol:
                   label: API 协议
                   description: 选择此提供商和模型支持的 API。

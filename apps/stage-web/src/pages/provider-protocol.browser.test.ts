@@ -27,7 +27,6 @@ it('opens a configured provider protocol selector without an initialization erro
   })
   createApp({}).use(pinia).use(PiniaColada)
   useProviderConfigStore(pinia).ensureProvider('openai', 'openai', {
-    api: 'responses',
     apiKey: 'sk-test',
     baseUrl: 'https://api.openai.com/v1/',
   })
@@ -48,5 +47,15 @@ it('opens a configured provider protocol selector without an initialization erro
   })
   await router.isReady()
   await expect.element(result.getByRole('combobox')).toHaveValue('Responses API')
+  const search = result.getByRole('switch', { name: /Web search/ })
+  await expect.element(search).toBeChecked()
+  await search.click()
+  await expect.element(search).not.toBeChecked()
+  await result.getByRole('combobox').click()
+  await result.getByRole('option', { name: 'Chat Completions', exact: true }).click()
+  await expect.element(search).toBeDisabled()
+  await result.getByRole('combobox').click()
+  await result.getByRole('option', { name: 'Responses API', exact: true }).click()
+  await expect.element(search).not.toBeChecked()
   expect(errors).toEqual([])
 })

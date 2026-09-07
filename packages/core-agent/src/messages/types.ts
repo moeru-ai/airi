@@ -18,26 +18,22 @@ export interface RawMessage {
   metadata?: Record<string, unknown>
 }
 
-/**
- * Rich message projected from session, spark, or domain data.
- *
- * Use when:
- * - You need structured message segments
- * - You want to preserve history blocks, summaries, or other contextual payloads
- *
- * Expects:
- * - `segments` to describe the full rendered message content
- *
- * Returns:
- * - A structured message that can be compacted or rendered later
- */
-export interface Message {
+/** Role and content form one contract. Tool results cannot masquerade as instructions. */
+export type Message = {
   id: string
-  role: 'system' | 'developer' | 'user' | 'assistant' | 'tool' | 'context' | 'event' | 'summary'
   source?: string
-  segments: MessageSegment[]
   metadata?: Record<string, unknown>
-}
+} & (
+  | { role: 'user', segments: (InputSegment | ContextSegment)[] }
+  | { role: 'assistant', segments: (SegmentText | SegmentRefusal | SegmentToolCall | ContextSegment)[] }
+  | { role: 'tool', segments: SegmentToolResult[] }
+  | { role: 'system' | 'developer' | 'context' | 'event' | 'summary', segments: (SegmentText | ContextSegment)[] }
+)
+
+/** Domain data becomes text only inside the selected protocol adapter. */
+export type ContextSegment = SegmentInstruction | SegmentTaggedText | SegmentDomainEvent
+  | SegmentStateSnapshot | SegmentHistoryBlock | SegmentSummary | SegmentReference
+  | { type: 'runtime-context', entries: { source: string, text: string }[] }
 
 /**
  * Structured content segment used inside a projected message.
@@ -56,11 +52,26 @@ export type MessageSegment
     | { type: 'runtime-context', entries: { source: string, text: string }[] }
 
 /** Content semantics retained until the selected protocol renders a request. */
-export type ContentSegment = SegmentText
+export type InputSegment = SegmentText
   | { type: 'image', url: string, detail?: 'auto' | 'low' | 'high' }
   | { type: 'audio', data: string, format: 'wav' | 'mp3' }
-  | { type: 'file', data?: string, url?: string, name?: string, providerFileId?: string }
-  | { type: 'refusal', text: string }
+  | ({ type: 'file', name?: string } & (
+    | { data: string, url?: never, providerFileId?: never }
+    | { url: string, data?: never, providerFileId?: never }
+    | { providerFileId: string, data?: never, url?: never }
+  ))
+
+export interface SegmentRefusal { type: 'refusal', text: string }
+
+export type ContentSegment = InputSegment | SegmentRefusal
+
+/** A source belongs to a specific output text item, with offsets in that item's text. */
+export interface Citation {
+  url: string
+  title: string
+  startIndex: number
+  endIndex: number
+}
 
 /** A complete invocation. The call id correlates its result across protocol projections. */
 export interface SegmentToolCall {
@@ -74,7 +85,7 @@ export interface SegmentToolCall {
 export interface SegmentToolResult {
   type: 'tool-result'
   callId: string
-  content: ContentSegment[]
+  content: InputSegment[]
 }
 
 /**
@@ -83,7 +94,7 @@ export interface SegmentToolResult {
  * A different scope uses the turn's portable messages instead of this state.
  */
 export interface ProviderContinuation {
-  protocol: string
+  protocol: 'chat-completions' | 'responses'
   scope: string
   data: unknown
 }
@@ -105,6 +116,7 @@ export interface ConversationContext {
 export interface SegmentText {
   type: 'text'
   text: string
+  citations?: Citation[]
 }
 
 /**

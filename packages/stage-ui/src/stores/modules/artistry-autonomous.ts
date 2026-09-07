@@ -2,8 +2,9 @@ import type { Message } from '@xsai/shared-chat'
 
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
+import { readChatMessages, streamFrom } from '@proj-airi/core-agent'
+import { isGenerationProvider } from '@proj-airi/provider-inference'
 import { artistryGenerateHeadless } from '@proj-airi/stage-shared'
-import { generateText } from '@xsai/generate-text'
 import { defineStore } from 'pinia'
 import { ref, toRaw } from 'vue'
 import { toast } from 'vue-sonner'
@@ -157,8 +158,8 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         throw new Error(`Missing LLM configuration (Model: ${modelId}, Provider: ${providerId})`)
       }
 
-      const chatProvider = await providersStore.getProviderInstance(providerId) as any
-      if (!chatProvider) {
+      const chatProvider = await providersStore.getProviderInstance(providerId)
+      if (!isGenerationProvider(chatProvider)) {
         throw new Error(`Failed to resolve chat provider instance for: ${providerId}`)
       }
 
@@ -176,14 +177,18 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         model: modelId,
         reason: target,
       })
-      const chatConfig = chatProvider.chat(modelId)
-      const response = await generateText({
-        ...chatConfig,
-        messages,
-        headers: { 'Accept-Encoding': 'identity' },
+      let responseText = ''
+      await streamFrom({
+        model: modelId,
+        chatProvider,
+        context: { turns: [{ messages: readChatMessages(messages) }] },
+        options: { onStreamEvent: (event) => {
+          if (event.type === 'text-delta')
+            responseText += event.text
+        } },
       })
 
-      const rawContent = (response.text || '').trim()
+      const rawContent = responseText.trim()
       artistLog('Received raw response from Director LLM:', rawContent)
 
       // 3. Parse and analyze

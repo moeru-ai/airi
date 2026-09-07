@@ -1,6 +1,5 @@
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type {
-  ChatProvider,
   ChatProviderWithExtraOptions,
   EmbedProvider,
   EmbedProviderWithExtraOptions,
@@ -15,6 +14,7 @@ import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/provid
 import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
+import { isGenerationProvider, resolveGeneration } from '@proj-airi/provider-inference'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { computedAsync, useAsyncState, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
@@ -65,21 +65,6 @@ export interface ProviderRuntimeState {
 /** Stable fallback for reactive consumers when a provider has no cached catalog. */
 const emptyProviderModels: ModelInfo[] = []
 Object.freeze(emptyProviderModels)
-
-function withChatRequestOptions(
-  provider: ChatProviderWithExtraOptions<string, ChatRequestOptions> & GenerationProvider,
-  options: ChatRequestOptions,
-): ChatProvider {
-  const decorated = {
-    ...provider,
-    responses: provider.responses ? (model: string) => provider.responses!(model, options) : undefined,
-    chat(model: string) {
-      return provider.chat(model, options)
-    },
-  }
-
-  return decorated
-}
 
 // Only the provider data plane crosses renderer boundaries. Async derived refs
 // stay in useProviderStore and recompute locally instead of being patched as
@@ -898,7 +883,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Function to get provider object by provider id
   async function getProviderInstance<R extends
-  | ChatProvider
+  | GenerationProvider
   | ChatProviderWithExtraOptions
   | EmbedProvider
   | EmbedProviderWithExtraOptions
@@ -944,14 +929,13 @@ export const useProviderStore = defineStore('provider', () => {
   async function getChatProviderInstance(
     providerId: string,
     options: ChatRequestOptions,
-  ): Promise<ChatProvider> {
-    const provider = await getProviderInstance<ChatProviderWithExtraOptions<string, ChatRequestOptions>>(providerId)
-    const definition = findProviderDefinition(providerId)
-    const reasoning = definition?.capabilities?.chat?.reasoning
-    if (!reasoning?.modes.includes(options.reasoning))
-      return provider
-
-    return withChatRequestOptions(provider, options)
+  ): Promise<GenerationProvider> {
+    const provider = await getProviderInstance(providerId)
+    if (!isGenerationProvider(provider))
+      throw new Error(`Provider ${providerId} does not support generation`)
+    const reasoning = findProviderDefinition(providerId)?.capabilities?.chat?.reasoning
+    const requestOptions = reasoning?.modes.includes(options.reasoning) ? options : undefined
+    return { generation: model => resolveGeneration(provider, model, requestOptions) }
   }
 
   async function disposeProviderInstance(providerId: string) {
