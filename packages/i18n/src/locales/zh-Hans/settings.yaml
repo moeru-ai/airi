@@ -1555,6 +1555,13 @@ pages:
               markdown-stress:
                 title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
+              plugin-host:
+                actions:
+                  enable-and-load: 启用并加载
+                  disable-and-unload: 停用并卸载
+                errors:
+                  enable-and-load: '启用并加载插件 {extensionId} 失败。'
+                  disable-and-unload: '停用并卸载插件 {extensionId} 失败。'
               use-magic-keys:
                 title: useMagicKeys 工具
                 description: 测试快捷键

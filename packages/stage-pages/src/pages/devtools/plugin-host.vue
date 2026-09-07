@@ -9,9 +9,11 @@ import { Section } from '@proj-airi/stage-ui/components'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { Button, Callout, GhostButton, Input } from '@proj-airi/ui'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
 const store = usePluginHostInspectorStore()
+const { t } = useI18n()
 const filter = ref('')
 const selectedExtensionId = ref('')
 
@@ -155,7 +157,7 @@ async function enableAndLoadPlugin(plugin: PluginManifestSummary) {
     await store.enableAndLoad({ extensionId: plugin.extensionId, path: plugin.path })
   }
   catch (error) {
-    toast.error(errorMessageFrom(error) ?? `Failed to enable and load plugin ${plugin.extensionId}.`)
+    toast.error(errorMessageFrom(error) ?? t('settings.pages.system.sections.section.developer.sections.section.plugin-host.errors.enable-and-load', { extensionId: plugin.extensionId }))
   }
 }
 
@@ -164,7 +166,7 @@ async function disableAndUnloadPlugin(plugin: PluginManifestSummary) {
     await store.disableAndUnload({ extensionId: plugin.extensionId, path: plugin.path })
   }
   catch (error) {
-    toast.error(errorMessageFrom(error) ?? `Failed to disable and unload plugin ${plugin.extensionId}.`)
+    toast.error(errorMessageFrom(error) ?? t('settings.pages.system.sections.section.developer.sections.section.plugin-host.errors.disable-and-unload', { extensionId: plugin.extensionId }))
   }
 }
 
@@ -324,7 +326,7 @@ onMounted(async () => {
             <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2']">
               <Button
                 size="sm"
-                label="Enable and Load"
+                :label="t('settings.pages.system.sections.section.developer.sections.section.plugin-host.actions.enable-and-load')"
                 icon="i-solar:play-bold-duotone"
                 :disabled="store.loading || (plugin.enabled && plugin.loaded)"
                 :loading="store.loading"
@@ -332,7 +334,7 @@ onMounted(async () => {
               />
               <GhostButton
                 size="sm"
-                label="Disable and Unload"
+                :label="t('settings.pages.system.sections.section.developer.sections.section.plugin-host.actions.disable-and-unload')"
                 icon="i-solar:stop-bold-duotone"
                 :disabled="store.loading || (!plugin.enabled && !plugin.loaded)"
                 :loading="store.loading"

@@ -1641,6 +1641,13 @@ pages:
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
+              plugin-host:
+                actions:
+                  enable-and-load: Enable and Load
+                  disable-and-unload: Disable and Unload
+                errors:
+                  enable-and-load: 'Failed to enable and load plugin {extensionId}.'
+                  disable-and-unload: 'Failed to disable and unload plugin {extensionId}.'
               use-magic-keys:
                 title: useMagicKeys Tool
                 description: Test shortcuts
