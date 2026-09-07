@@ -1,3 +1,23 @@
+character-switcher:
+  title: Switch character
+  manage: Manage characters
+  empty: No characters yet
+  failed: Could not switch characters. Try again.
+mobile-tools:
+  sign-in: Sign in to AIRI
+  account-description: Account and preferences
+  sound: Sound
+  character-voice: Character voice
+  title: Settings
+  appearance: Appearance
+  dark-mode: Dark mode
+  application: Application
+  more: More
+  background: Background
+  settings: All settings
+  about: About
+  view: View
+  hearing: Hearing
 chat:
   actions:
     retry: Retry
@@ -9,7 +29,10 @@ chat:
   reasoning: Reasoning
   sessions:
     title: Conversations
-    new: + New
+    new: New conversation
+    current: Current
+    confirm-delete: Delete this conversation and its messages?
+    cancel: Cancel
     empty: No conversations yet
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat

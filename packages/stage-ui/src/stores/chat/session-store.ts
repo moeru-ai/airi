@@ -13,7 +13,6 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
-import { captureAnalyticsEvent } from '../../libs/analytics'
 import { authedFetch } from '../../libs/auth-fetch'
 import {
   applyCreateActions,
@@ -24,6 +23,7 @@ import {
   mergeCloudMessagesIntoLocal,
   reconcileLocalAndRemote,
 } from '../../libs/chat-sync'
+import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'

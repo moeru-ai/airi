@@ -8,10 +8,8 @@ import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import SystemPromptV2 from '../../constants/prompts/system-v2'
-
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
-import { captureAnalyticsEvent } from '../../libs/analytics'
+import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
@@ -371,13 +369,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       cards.value.set('default', newAiriCard({
         name: 'ReLU',
         version: '1.0.0',
-        description: SystemPromptV2(
-          t('base.prompt.prefix'),
-          t('base.prompt.suffix'),
-        ).content,
+        description: t('base.prompt.prefix'),
       }))
     }
-
     // The active id and card map are persisted separately. Older versions
     // could delete the selected card without repairing its stored id.
     if (!cards.value.has(activeCardId.value))

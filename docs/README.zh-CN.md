@@ -293,6 +293,15 @@ pnpm dev:tamagotchi
 nix run github:moeru-ai/airi
 ```
 
+#### NixOS
+
+在 NixOS 上，Electron 需要一些不在标准路径下的共享库。请使用 `flake.nix` 中定义的 FHS shell：
+
+```shell
+nix develop .#fhs
+pnpm dev:tamagotchi
+```
+
 ### Stage Pocket（移动版）
 
 启动 Capacitor Web 版本的开发服务器：
@@ -352,7 +361,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Ollama](https://github.com/ollama/ollama)
 - [x] [302.AI (sponsored)](https://share.302.ai/514k2v)
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
-  - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)（欢迎 PR）
+  - [x] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)
 - [x] [Anthropic Claude](https://anthropic.com)
   - [ ] [AWS Claude](https://docs.anthropic.com/en/api/claude-on-amazon-bedrock)（欢迎 PR）
 - [x] [深度求索 DeepSeek](https://www.deepseek.com/)
@@ -504,10 +513,10 @@ flowchart LR
 
 ## Star History
 
-<a href="https://star-history.com/#moeru-ai/airi&Date">
+<a href="https://star-history.dera.page/#moeru-ai/airi&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date" />
   </picture>
 </a>

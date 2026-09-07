@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
-import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'

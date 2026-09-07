@@ -15,19 +15,20 @@ import { defineStore, storeToRefs } from 'pinia'
 import { shallowRef, toRaw } from 'vue'
 
 import { getConversationAnalyticsSurface } from '../composables'
+import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
-} from '../libs/analytics-headers'
-import { createChatAnalyticsHooks, getProviderMode } from '../libs/analytics/events/chat'
-import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+} from '../libs/product-signals/headers'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
-import { createMinecraftContext } from './chat/context-providers'
+import { createMinecraftContext, createRuntimePromptContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -135,6 +136,7 @@ function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): numbe
 export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 export const useChatStore = defineStore('chat', () => {
+  const runtimePrompt = useAiriRuntimePrompt()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
@@ -297,6 +299,7 @@ export const useChatStore = defineStore('chat', () => {
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
+      () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,
     ],
     createId: nanoid,

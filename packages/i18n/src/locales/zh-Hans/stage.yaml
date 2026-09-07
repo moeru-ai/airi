@@ -1,3 +1,23 @@
+character-switcher:
+  title: 切换角色
+  manage: 管理角色
+  empty: 暂无角色
+  failed: 无法切换角色，请重试。
+mobile-tools:
+  sign-in: 登录 AIRI
+  account-description: 账户与偏好
+  sound: 声音
+  character-voice: 角色声音
+  title: 设置
+  appearance: 外观
+  dark-mode: 深色模式
+  application: 应用
+  more: 更多
+  background: 背景
+  settings: 全部设置
+  about: 关于
+  view: 视角
+  hearing: 听觉
 chat:
   actions:
     retry: 重试
@@ -9,7 +29,10 @@ chat:
   reasoning: 思考
   sessions:
     title: 对话
-    new: + 新建
+    new: 新建对话
+    current: 当前
+    confirm-delete: 删除此对话及其中的消息？
+    cancel: 取消
     empty: 暂无对话
     cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
