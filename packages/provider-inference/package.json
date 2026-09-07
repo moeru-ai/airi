@@ -40,6 +40,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/audio": "workspace:^",
     "@xsai-ext/providers": "catalog:",
+    "@xsai-ext/responses": "catalog:",
     "@xsai-transformers/shared": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/model": "catalog:",

@@ -57,3 +57,26 @@ Set `AUTH_SERVER_INTERNAL_URL` from Auth's Railway private domain. It is only
 the private JWKS route; `AUTH_SERVER_URL` remains the public Auth issuer URL.
 See [`server/README.md`](../../README.md#railway-deployment) for the complete
 cross-service variable and migration contract.
+
+## Responses gateway
+
+`POST /api/v1/openai/responses` supports stateless Responses creation in JSON and SSE form. It uses the same authentication, per-user generation rate limit, alias catalog, and Flux debit transaction as Chat Completions.
+
+Enable the protocol on each compatible `LLM_ROUTER_CONFIG.llm.models[model].upstreams[]` entry:
+
+```json
+{
+  "baseURL": "https://api.openai.com/v1",
+  "protocols": ["chat-completions", "responses"],
+  "overrideModel": "your-model",
+  "keys": [{ "id": "key-id", "ciphertext": "existing-encrypted-key" }]
+}
+```
+
+Omitting `protocols` means Chat Completions only. Responses requests skip upstreams that do not declare support. Alias and key fallback finish before the gateway starts forwarding the accepted response. A stream failure does not start another upstream request.
+
+The gateway maps `usage.input_tokens` and `usage.output_tokens` to the existing Flux token policy. If usage is absent, it uses `FLUX_PER_REQUEST`. A completed response gets one debit request ID. Failed, incomplete, cancelled, and truncated streams do not charge. Each SDK tool step is a separate HTTP request and is billed separately. This endpoint retains the existing balance-check and debit policy; it does not reserve Flux before generation.
+
+The endpoint accepts full text, image, file-data, reasoning, function-call, and function-output Items. It forwards native SSE JSON and event names. It supports local function tools and common generation controls. It forces `store: false` and rejects provider-side conversation references, background jobs, and hosted tools with separate provider charges. It does not expose response retrieval, deletion, or a separate search service.
+
+The provider settings catalog can select Responses for OpenAI, OpenAI Compatible, and the official provider. The official provider defaults to Chat Completions until the user selects Responses. This code change does not update live router configuration.

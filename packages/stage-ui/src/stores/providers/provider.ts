@@ -1,3 +1,4 @@
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type {
   ChatProvider,
   ChatProviderWithExtraOptions,
@@ -66,11 +67,12 @@ const emptyProviderModels: ModelInfo[] = []
 Object.freeze(emptyProviderModels)
 
 function withChatRequestOptions(
-  provider: ChatProviderWithExtraOptions<string, ChatRequestOptions>,
+  provider: ChatProviderWithExtraOptions<string, ChatRequestOptions> & GenerationProvider,
   options: ChatRequestOptions,
 ): ChatProvider {
   const decorated = {
     ...provider,
+    responses: provider.responses ? (model: string) => provider.responses!(model, options) : undefined,
     chat(model: string) {
       return provider.chat(model, options)
     },

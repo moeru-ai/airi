@@ -29,7 +29,7 @@ describe('createSparkNotifyAgent', () => {
     const onEnd = vi.fn()
     const observedEvents: string[] = []
     const run = vi.fn(async (request: SparkNotifyRunRequest) => {
-      expect(request.messages).toHaveLength(2)
+      expect(request.context.turns[0].messages).toHaveLength(2)
       expect(request.tools).toHaveLength(2)
       await request.onStreamEvent({ type: 'text-delta', text: 'Checkmate.' })
     })
@@ -85,7 +85,7 @@ describe('createSparkNotifyAgent', () => {
   // https://github.com/moeru-ai/airi/pull/2464#discussion_r3933609456
   it('keeps appended sections when the host replaces the user payload', async () => {
     const run = vi.fn(async (request: SparkNotifyRunRequest) => {
-      expect(request.messages[1]?.content).toBe('Rendered board snapshot\n\nCaller context\n\nRuntime prompt')
+      expect(request.context.turns[0].messages[1]?.segments).toEqual([{ type: 'text', text: 'Rendered board snapshot\n\nCaller context\n\nRuntime prompt' }])
     })
     const agent = createSparkNotifyAgent({ runner: { run } })
 

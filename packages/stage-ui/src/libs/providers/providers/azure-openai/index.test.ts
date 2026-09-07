@@ -49,7 +49,7 @@ describe('providerAzureOpenAI tool schemas', () => {
       apiKey: 'test-key',
       baseUrl: 'https://example.openai.azure.com/openai/',
     })
-    if (!('chat' in provider))
+    if (!('chat' in provider) || !provider.chat)
       throw new Error('Azure OpenAI did not create a chat provider.')
 
     const providerFetch = provider.chat('test-deployment').fetch

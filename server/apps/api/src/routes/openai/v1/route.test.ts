@@ -2424,3 +2424,106 @@ describe('v1CompletionsRoutes', () => {
     })
   })
 })
+
+describe('responses gateway', () => {
+  const path = '/api/v1/openai/responses'
+  const result = { id: 'resp_1', status: 'completed', output: [], usage: { input_tokens: 1200, output_tokens: 300, total_tokens: 1500 } }
+
+  it('routes native JSON and charges Responses usage through Flux', async () => {
+    const route = vi.fn(async () => Response.json(result))
+    const billing = createMockBillingService()
+    const app = createTestApp(createMockFluxService(), createMockConfigKV({ FLUX_PER_1K_TOKENS: 2 }), billing, undefined, undefined, createMockLlmRouter({ route }))
+    const response = await app.request(path, { method: 'POST', body: JSON.stringify({ model: 'auto', input: 'hello' }), headers: { 'Content-Type': 'application/json' } }, { user: testUser })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual(result)
+    expect(route).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses', body: expect.objectContaining({ store: false, input: 'hello' }) }), expect.anything())
+    expect(billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+    expect(billing.consumeFluxForLLM).toHaveBeenCalledWith(expect.objectContaining({ amount: 3, promptTokens: 1200, completionTokens: 300 }))
+  })
+
+  it('preserves large terminal SSE events split inside UTF-8 and charges once', async () => {
+    const terminal = { ...result, output: [{ type: 'message', content: [{ type: 'output_text', text: '你好'.repeat(2000), annotations: [] }] }] }
+    const body = `event: response.completed\ndata: ${JSON.stringify({ type: 'response.completed', response: terminal })}\n\n`
+    const bytes = new TextEncoder().encode(body)
+    const upstream = new ReadableStream<Uint8Array>({ start(controller) {
+      for (let offset = 0; offset < bytes.length; offset += 37)
+        controller.enqueue(bytes.slice(offset, offset + 37))
+      controller.close()
+    } })
+    const billing = createMockBillingService()
+    const app = createTestApp(createMockFluxService(), createMockConfigKV({ FLUX_PER_1K_TOKENS: 2 }), billing, undefined, undefined, createMockLlmRouter({ route: vi.fn(async () => new Response(upstream)) }))
+    const response = await app.request(path, { method: 'POST', body: JSON.stringify({ input: 'hello', stream: true }) }, { user: testUser })
+    expect(await response.text()).toBe(body)
+    expect(billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+    expect(billing.consumeFluxForLLM).toHaveBeenCalledWith(expect.objectContaining({ amount: 3 }))
+  })
+
+  it('forwards failed terminal events without charging', async () => {
+    const body = `data: ${JSON.stringify({ type: 'response.failed', response: { ...result, status: 'failed' } })}\n\n`
+    const billing = createMockBillingService()
+    const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, undefined, undefined, createMockLlmRouter({ route: vi.fn(async () => new Response(body)) }))
+    const response = await app.request(path, { method: 'POST', body: JSON.stringify({ input: 'hello', stream: true }) }, { user: testUser })
+    expect(await response.text()).toBe(body)
+    expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
+  })
+
+  it('rejects truncated streams without charging', async () => {
+    const billing = createMockBillingService()
+    const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, undefined, undefined, createMockLlmRouter({ route: vi.fn(async () => new Response('data: {"type":"response.output_text.delta","delta":"partial"}\n\n')) }))
+    const response = await app.request(path, { method: 'POST', body: JSON.stringify({ input: 'hello', stream: true }) }, { user: testUser })
+    await expect(response.text()).rejects.toThrow('before a terminal event')
+    expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
+  })
+
+  it('rejects shared upstream state references and unpriced hosted tools', async () => {
+    const route = vi.fn(async () => Response.json(result))
+    const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, createMockLlmRouter({ route }))
+    for (const fields of [{ previous_response_id: 'resp_other_user' }, { store: true }, { background: true }, { tools: [{ type: 'web_search' }] }, { input: [{ type: 'item_reference', id: 'msg_other' }] }]) {
+      const response = await app.request(path, { method: 'POST', body: JSON.stringify({ input: 'hello', ...fields }) }, { user: testUser })
+      expect(response.status).toBe(400)
+    }
+    expect(route).not.toHaveBeenCalled()
+  })
+
+  it('requires authentication and sufficient Flux before dispatch', async () => {
+    const route = vi.fn(async () => Response.json(result))
+    const app = createTestApp(createMockFluxService(0), createMockConfigKV(), undefined, undefined, undefined, createMockLlmRouter({ route }))
+    const unauthenticated = await app.request(path, { method: 'POST', body: JSON.stringify({ input: 'hello' }) })
+    expect(unauthenticated.status).toBe(401)
+    const emptyBalance = await app.request(path, { method: 'POST', body: JSON.stringify({ input: 'hello' }) }, { user: testUser })
+    expect(emptyBalance.status).toBe(402)
+    expect(route).not.toHaveBeenCalled()
+  })
+})
+
+it('keeps function schemas and accepts standard Responses message input', async () => {
+  const parameters = { type: 'object', properties: { city: { type: 'string' } }, required: ['city'], additionalProperties: false }
+  const route = vi.fn(async () => Response.json({ id: 'resp_1', status: 'completed', output: [] }))
+  const billing = createMockBillingService()
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, undefined, undefined, createMockLlmRouter({ route }))
+  const response = await app.request('/api/v1/openai/responses', {
+    method: 'POST',
+    body: JSON.stringify({ input: [{ role: 'user', content: 'hello' }], tools: [{ type: 'function', name: 'weather', parameters }] }),
+  }, { user: testUser })
+  expect(response.status).toBe(200)
+  expect(route).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ input: [{ type: 'message', role: 'user', content: 'hello' }], tools: [{ type: 'function', name: 'weather', parameters }] }) }), expect.anything())
+  expect(billing.consumeFluxForLLM).toHaveBeenCalledWith(expect.objectContaining({ amount: 1 }))
+})
+
+it('cancels a Responses upstream reader when the client stops consuming', async () => {
+  const cancelled = vi.fn()
+  const upstream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('data: {"type":"response.output_text.delta","delta":"partial"}\n\n'))
+    },
+    cancel: cancelled,
+  })
+  const billing = createMockBillingService()
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, undefined, undefined, createMockLlmRouter({ route: vi.fn(async () => new Response(upstream)) }))
+  const response = await app.request('/api/v1/openai/responses', { method: 'POST', body: JSON.stringify({ input: 'hello', stream: true }) }, { user: testUser })
+  const reader = response.body!.getReader()
+  await reader.read()
+  await reader.cancel()
+  await vi.waitFor(() => expect(cancelled).toHaveBeenCalledTimes(1))
+  expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
+})

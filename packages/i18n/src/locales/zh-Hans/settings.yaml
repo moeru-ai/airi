@@ -973,6 +973,9 @@ pages:
           common:
             fields:
               field:
+                api-protocol:
+                  label: API 协议
+                  description: 选择此提供商和模型支持的 API。
                 api-key:
                   label: API 密钥
                   description: API 密钥用于授权此服务来源的请求

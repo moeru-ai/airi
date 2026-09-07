@@ -3,6 +3,7 @@ import type { ProviderDefinition, ProviderExtraMethods, ProviderInstance } from 
 import isNetworkError from 'is-network-error'
 
 import { errorMessageFrom } from '@moeru/std'
+import { responses } from '@xsai-ext/responses'
 import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
@@ -134,7 +135,18 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       }
     }
 
+    const generation = 'responses' in provider ? provider : undefined
     try {
+      if (generation?.responses) {
+        const result = responses({
+          ...generation?.responses(normalizedModel),
+          input: 'ping',
+          store: false,
+          headers: additionalHeaders,
+        })
+        await Promise.all([result.steps, result.input, result.usage, result.totalUsage])
+        return { connectivityOk: true, chatOk: true }
+      }
       await generateText({
         apiKey: config.apiKey,
         baseURL: config.baseUrl!,
@@ -159,7 +171,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       }
 
       const status = extractStatusCode(e)
-      const chatOk = status === 400 || Boolean(status && status >= 200 && status < 300)
+      const chatOk = !generation?.responses && (status === 400 || Boolean(status && status >= 200 && status < 300))
       return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
     }
   }

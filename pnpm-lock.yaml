@@ -573,6 +573,9 @@ catalogs:
     '@xsai-ext/providers':
       specifier: 0.5.0
       version: 0.5.0
+    '@xsai-ext/responses':
+      specifier: 0.5.0
+      version: 0.5.0
     '@xsai-transformers/embed':
       specifier: ^0.1.0
       version: 0.1.0
@@ -601,6 +604,9 @@ catalogs:
       specifier: 0.5.0
       version: 0.5.0
     '@xsai/shared-chat':
+      specifier: 0.5.0
+      version: 0.5.0
+    '@xsai/shared-stream':
       specifier: 0.5.0
       version: 0.5.0
     '@xsai/stream-text':
@@ -1241,6 +1247,7 @@ overrides:
 packageExtensionsChecksum: sha256-lLxz4me6BFXSsuohDen54RU9DmiItse34Xa+IWGtSzU=
 
 patchedDependencies:
+  '@xsai-ext/responses@0.5.0': ff72dc2cfb8d6ed98a5839deee5cc60bfd13f5c3b12c4d53e65b77df475bf24d
   mineflayer-pathfinder: 4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797
   pixi-live2d-display: 7881eb52793f46a10d6c04d62b1799a3d0ef79f83edc0283777baa6db339ed6d
   sponsorkit@17.1.0: f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88
@@ -3532,6 +3539,9 @@ importers:
       '@proj-airi/plugin-protocol':
         specifier: workspace:^
         version: link:../plugin-protocol
+      '@proj-airi/provider-inference':
+        specifier: workspace:^
+        version: link:../provider-inference
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../server-sdk
@@ -3544,6 +3554,9 @@ importers:
       '@xsai-ext/providers':
         specifier: 'catalog:'
         version: 0.5.0
+      '@xsai-ext/responses':
+        specifier: 'catalog:'
+        version: 0.5.0(patch_hash=ff72dc2cfb8d6ed98a5839deee5cc60bfd13f5c3b12c4d53e65b77df475bf24d)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.0
@@ -3883,6 +3896,9 @@ importers:
       '@xsai-ext/providers':
         specifier: 'catalog:'
         version: 0.5.0
+      '@xsai-ext/responses':
+        specifier: 'catalog:'
+        version: 0.5.0(patch_hash=ff72dc2cfb8d6ed98a5839deee5cc60bfd13f5c3b12c4d53e65b77df475bf24d)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai-transformers/shared':
         specifier: 'catalog:'
         version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
@@ -5607,6 +5623,9 @@ importers:
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
         version: link:../../packages/server-sdk-shared
+      '@xsai/shared-stream':
+        specifier: 'catalog:'
+        version: 0.5.0
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
@@ -12321,6 +12340,9 @@ packages:
 
   '@xsai-ext/providers@0.5.0-beta.6':
     resolution: {integrity: sha512-DNvYbSN+/xQEYV2Kpq+4k2haZNGdQebZ06Zs87/0DHqSCyZyacFhHSriLQrkhFmDbDWI+2pVV+DRs0qjvHNa+w==}
+
+  '@xsai-ext/responses@0.5.0':
+    resolution: {integrity: sha512-b49cuZS/pt68xCgPmasis0cHM47kFXTrvhOT0IYFm++ehngqCYGGNOg5JGkEvCJo/lP6aAnHOnDFyi8akqUb5Q==}
 
   '@xsai-ext/responses@0.5.0-beta.8':
     resolution: {integrity: sha512-U72Gkmvmiv86l1qyKBfsEBGOS4D0QEfHZoVFKTVR9OCIwMM66rQR35RAjNZvsL7oTdzKLmEsVvrVl1x5+LaSVA==}
@@ -26722,6 +26744,20 @@ snapshots:
   '@xsai-ext/providers@0.5.0-beta.6':
     dependencies:
       '@xsai/shared': 0.5.0-beta.6
+
+  '@xsai-ext/responses@0.5.0(patch_hash=ff72dc2cfb8d6ed98a5839deee5cc60bfd13f5c3b12c4d53e65b77df475bf24d)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+    dependencies:
+      '@xsai/shared': 0.5.0
+      '@xsai/shared-chat': 0.5.0
+      '@xsai/shared-stream': 0.5.0
+      '@xsai/tool': 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+    transitivePeerDependencies:
+      - '@valibot/to-json-schema'
+      - arktype
+      - effect
+      - sury
+      - zod
+      - zod-to-json-schema
 
   '@xsai-ext/responses@0.5.0-beta.8(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
     dependencies:

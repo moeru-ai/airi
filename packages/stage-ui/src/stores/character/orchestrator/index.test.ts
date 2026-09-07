@@ -1,6 +1,6 @@
+import type { ConversationContext } from '@proj-airi/core-agent'
 /* eslint-disable style/indent-binary-ops */
 /* eslint-disable style/operator-linebreak */
-
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { Pinia, Store, StoreDefinition } from 'pinia'
 import type { Mock } from 'vitest'
@@ -204,7 +204,7 @@ describe('store character-orchestrator', () => {
     expect(mockStream.mock.calls).toHaveLength(1)
     expect(mockStream.mock.calls[0][0]).toEqual('mock-model')
     expect(mockStream.mock.calls[0][1]).not.toBeNull()
-    expect(mockStream.mock.calls[0][2]).toHaveLength(2)
+    expect((mockStream.mock.calls[0][2] as ConversationContext).turns[0].messages).toHaveLength(2)
     expect(mockStream.mock.calls[0][3]).toHaveProperty('tools')
 
     expect(mockOnSparkNotifyReactionStreamEvent).toHaveBeenCalledWith(event.data.id, 'Ahhh, got hit by zombie!')
@@ -345,11 +345,12 @@ describe('store character-orchestrator', () => {
       },
     })
 
-    const renderedMessages = mockStream.mock.lastCall?.[2] as Array<{ role: string, content: string }> | undefined
-    expect(String(renderedMessages?.[0]?.content)).toContain('Plugin-specific hint')
-    expect(String(renderedMessages?.[1]?.content)).toContain('Replacement user payload')
-    expect(String(renderedMessages?.[1]?.content)).toContain('Rendered board snapshot')
-    expect(String(renderedMessages?.[1]?.content)).toContain('base.prompt.emotion')
-    expect(String(renderedMessages?.[1]?.content)).toContain('base.prompt.emoji')
+    const context = mockStream.mock.lastCall?.[2] as ConversationContext | undefined
+    const renderedMessages = context?.turns[0].messages.map(message => message.segments.map(segment => segment.type === 'text' ? segment.text : '').join(''))
+    expect(String(renderedMessages?.[0])).toContain('Plugin-specific hint')
+    expect(String(renderedMessages?.[1])).toContain('Replacement user payload')
+    expect(String(renderedMessages?.[1])).toContain('Rendered board snapshot')
+    expect(String(renderedMessages?.[1])).toContain('base.prompt.emotion')
+    expect(String(renderedMessages?.[1])).toContain('base.prompt.emoji')
   })
 })

@@ -1,15 +1,18 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
 import type { AgentContextPort } from '../contracts/context-port'
+import type { AgentLLMPort } from '../contracts/llm-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
-import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, ErrorMessage, StreamingAssistantMessage } from '../types/chat'
+import type { ConversationContext, ConversationTurn } from '../messages/types'
+import type { ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
 
-import { formatContextPromptText } from '../messages/context-prompt'
+import { readChatMessages } from '../messages/chat-completions'
 import { formatTimePrefix } from '../messages/datetime-prefix'
+import { renderConversationPreview } from '../messages/preview'
 import { createChatHooks } from './agent-hooks'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
@@ -105,7 +108,7 @@ export interface ChatOrchestratorSendOptions {
   /** Provider model identifier used for the outbound LLM request. */
   model: string
   /** Concrete chat provider implementation selected by the caller. */
-  chatProvider: ChatProvider
+  chatProvider: GenerationProvider
   /** Provider-specific request options, currently used for headers. */
   providerConfig?: Record<string, unknown>
   /** Image attachments appended to the user message content parts. */
@@ -171,10 +174,7 @@ export interface ChatOrchestratorSessionPort {
 /**
  * LLM streaming boundary used by the core chat orchestrator runtime.
  */
-export interface ChatOrchestratorLLMPort {
-  /** Streams one composed chat request and emits normalized stream events. */
-  stream: (model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) => Promise<void>
-}
+export type ChatOrchestratorLLMPort = AgentLLMPort
 
 /**
  * Lifecycle record emitted around prompt composition.
@@ -204,7 +204,7 @@ export interface ChatOrchestratorPromptProjection {
   contexts: Record<string, ContextMessage[]>
   /** Historical standalone context prompt shape, kept for compatibility. */
   promptMessage?: Message | null
-  /** Provider-ready message array sent to the LLM port. */
+  /** Display projection for hooks and diagnostics. This is not an API payload. */
   composedMessage?: Message[]
 }
 
@@ -407,6 +407,9 @@ function defaultCreateId() {
  * - A runtime with send queue APIs, hook registry, writable sending state, and queue snapshots.
  */
 export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps): ChatOrchestratorRuntime {
+  // A queued send owns one controller until performSend settles. Session reset
+  // aborts that transport as well as rejecting queued work for the same session.
+  const activeSends = new Map<string, AbortController>()
   const hooks = createChatHooks()
   const now = deps.now ?? (() => Date.now())
   const monotonicNow = deps.monotonicNow ?? (() => globalThis.performance?.now?.() ?? Date.now())
@@ -485,38 +488,23 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return fallbackCreatedAt
   }
 
-  function buildProviderMessages(sessionMessagesForSend: ChatHistoryItem[]): Array<Message | ErrorMessage> {
+  function buildContext(history: ChatHistoryItem[]): ConversationContext {
     const nowTs = now()
-    const messagesById = new Map(
-      sessionMessagesForSend.flatMap(message => message.id ? [[message.id, message] as const] : []),
-    )
-
-    return sessionMessagesForSend.flatMap<Message | ErrorMessage>((msg) => {
-      const { context: _context, id: _id, createdAt: _createdAt, replyToMessageId, tools: _tools, ...withoutContext } = msg
-      const rawMessage = unwrapMessage(withoutContext)
-
-      if (rawMessage.role === 'user') {
-        const prefix = `${formatTimePrefix(getStablePromptTimestamp(msg, nowTs))}${formatReplyPromptPrefix(replyToMessageId, messagesById)}`
-        return [prependTextToContent(rawMessage, prefix)]
-      }
-
-      if (rawMessage.role === 'assistant') {
-        const {
-          slices: _slices,
-          tool_results: _toolResults,
-          providerTranscript,
-          categorization: _categorization,
-          ...rest
-        } = rawMessage as ChatAssistantMessage
-
-        if (providerTranscript?.length)
-          return providerTranscript.map(message => unwrapMessage(message))
-
-        return [unwrapMessage(rest)]
-      }
-
-      return [rawMessage]
+    const messagesById = new Map(history.flatMap(message => message.id ? [[message.id, message] as const] : []))
+    const turns = history.map((message): ConversationTurn => {
+      if (message.role === 'assistant' && message.generationTranscript)
+        return structuredClone(unwrapMessage(message.generationTranscript))
+      const source = message.role === 'user'
+        ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
+        : unwrapMessage(message)
+      // The existing session store uses Chat-shaped records. Decode them at
+      // this storage boundary; request adapters consume only portable context.
+      const messages = readChatMessages(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source])
+      for (const [index, entry] of messages.entries())
+        entry.id = `${message.id ?? 'history'}-${index}`
+      return { messages }
     })
+    return { turns }
   }
 
   async function performSend(
@@ -524,6 +512,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     options: ChatOrchestratorSendOptions,
     generation: number,
     sessionId: string,
+    abortSignal: AbortSignal,
   ) {
     if (!sendingMessage && !options.attachments?.length)
       return
@@ -577,7 +566,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     })
 
     const isStaleGeneration = () => deps.session.getSessionGeneration(sessionId) !== generation
-    const shouldAbort = () => isStaleGeneration()
+    const shouldAbort = () => isStaleGeneration() || abortSignal.aborted
     if (shouldAbort())
       return
 
@@ -760,63 +749,40 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ],
       })
 
-      const newMessages = buildProviderMessages(sessionMessagesForSend)
+      const context = buildContext(sessionMessagesForSend)
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
-        const systemMessage = newMessages.find(message => message.role === 'system')
-        if (systemMessage) {
-          systemMessage.content = `${systemMessage.content}\n\n${systemPromptSupplement}`
-        }
-        else {
-          newMessages.unshift({
-            role: 'system',
-            content: systemPromptSupplement,
-          })
-        }
+        const systemMessage = context.turns.flatMap(turn => turn.messages).find(message => message.role === 'system')
+        if (systemMessage)
+          systemMessage.segments.push({ type: 'text', text: `\n\n${systemPromptSupplement}` })
+        else
+          context.turns.unshift({ messages: [{ id: 'system-supplement', role: 'system', segments: [{ type: 'text', text: systemPromptSupplement }] }] })
       }
 
       const contextsSnapshot = deps.context.snapshot()
-      const contextPromptText = formatContextPromptText(contextsSnapshot)
-      if (contextPromptText) {
-        const lastMessage = newMessages.at(-1)
-        if (lastMessage && lastMessage.role === 'user') {
-          const existingParts = typeof lastMessage.content === 'string'
-            ? [{ type: 'text' as const, text: lastMessage.content }]
-            : lastMessage.content
-
-          lastMessage.content = [
-            ...existingParts,
-            { type: 'text' as const, text: `\n${contextPromptText}` },
-          ]
-        }
-
-        deps.onLifecycle?.({
-          phase: 'prompt-context-built',
-          channel: 'chat',
-          sessionId,
-          details: {
-            contexts: contextsSnapshot,
-            promptText: contextPromptText,
-          },
-        })
+      const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
+      if (entries.length) {
+        const lastMessage = context.turns.at(-1)?.messages.at(-1)
+        if (lastMessage?.role === 'user')
+          lastMessage.segments.push({ type: 'runtime-context', entries })
+        deps.onLifecycle?.({ phase: 'prompt-context-built', channel: 'chat', sessionId, details: { contexts: contextsSnapshot } })
       }
 
-      streamingMessageContext.composedMessage = newMessages as Message[]
+      // Hooks and the plugin bridge consume a display projection. It contains
+      // no native continuation state and never becomes a provider request.
+      streamingMessageContext.composedMessage = renderConversationPreview(context)
       deps.onPromptProjection?.({
         sessionId,
         message: sendingMessage,
         contexts: contextsSnapshot,
-        promptMessage: undefined,
-        composedMessage: newMessages as Message[],
+        composedMessage: streamingMessageContext.composedMessage,
       })
       deps.onLifecycle?.({
         phase: 'after-compose',
         channel: 'chat',
         sessionId,
         textPreview: sendingMessage,
-        details: {
-          composedMessage: newMessages,
-        },
+        details: { context },
       })
 
       await hooks.emitAfterMessageComposedHooks(sendingMessage, streamingMessageContext)
@@ -831,8 +797,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const llmRequestStartedAt = monotonicNow()
       let llmFirstTokenEmitted = false
       let generationUsage: LlmUsage = { source: 'unavailable' }
-      let providerTranscript: Message[] | undefined
-      const providerInputMessageCount = newMessages.length
+      let generationTranscript: ConversationTurn | undefined
       deps.onLlmRequestStarted?.({
         ...correlation,
         model: options.model,
@@ -840,8 +805,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         hasVoice,
       })
 
-      await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
+      await deps.llm.stream(options.model, options.chatProvider, context, {
         headers,
+        providerId: activeProvider,
+        abortSignal,
+        onTranscript: (transcript) => { generationTranscript = structuredClone(transcript) },
         requestCorrelation: {
           conversationId: correlation.conversationId,
           roundId: correlation.roundId,
@@ -850,16 +818,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         temperature: options.temperature,
         topP: options.topP,
         waitForTools: true,
-        onMessages: (messages) => {
-          const currentTurnMessages = messages.slice(providerInputMessageCount)
-          const hasToolRound = currentTurnMessages.some(message =>
-            message.role === 'tool'
-            || (message.role === 'assistant' && Boolean(message.tool_calls?.length)),
-          )
-
-          if (hasToolRound)
-            providerTranscript = structuredClone(currentTurnMessages)
-        },
         onUsage: (usage) => {
           if (shouldAbort())
             return
@@ -951,14 +909,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
 
-      buildingMessage.providerTranscript = providerTranscript
+      buildingMessage.generationTranscript = generationTranscript
       deps.onAssistantResponseRendered?.({
         ...correlation,
         model: options.model,
         latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
       })
 
-      if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
+      if (!shouldAbort() && (buildingMessage.slices.length > 0 || generationTranscript?.continuation || generationTranscript?.messages.length)) {
         const finalAssistant = buildingMessage
         deps.session.appendSessionMessage(sessionId, finalAssistant)
         deps.onAssistantMessageAppended?.({
@@ -1019,7 +977,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
     }
     catch (error) {
-      if (isStaleGeneration())
+      if (shouldAbort())
         return
 
       console.error('Error sending message:', error)
@@ -1062,12 +1020,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           return
         }
 
+        const controller = new AbortController()
+        activeSends.set(sessionId, controller)
         try {
-          await performSend(sendingMessage, options, generation, sessionId)
+          await performSend(sendingMessage, options, generation, sessionId, controller.signal)
           deferred.resolve()
         }
         catch (error) {
           deferred.reject(error)
+        }
+        finally {
+          activeSends.delete(sessionId)
         }
       },
     ],
@@ -1103,6 +1066,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function cancelPendingSends(sessionId?: string) {
+    for (const [activeSessionId, controller] of activeSends) {
+      if (!sessionId || sessionId === activeSessionId)
+        controller.abort(new Error('Chat session send was cancelled'))
+    }
+
     for (const queued of pendingQueuedSends) {
       if (sessionId && queued.sessionId !== sessionId)
         continue

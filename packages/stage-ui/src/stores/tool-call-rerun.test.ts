@@ -42,6 +42,21 @@ function tool(name: string, execute: Tool['execute']): Tool {
 }
 
 describe('replaceToolCallResult', () => {
+  it('updates portable history and invalidates native state after a local tool rerun', () => {
+    // ROOT CAUSE:
+    // A rerun updates UI tool results, but replaying the old native transcript
+    // sends the previous result again. Editing a turn must invalidate native
+    // state so its adapter renders the updated portable messages.
+    const message = assistantMessage({ generationTranscript: {
+      messages: [{ id: 'result', role: 'tool', segments: [{ type: 'tool-result', callId: 'call-weather', content: [{ type: 'text', text: 'old weather' }] }] }],
+      continuation: { protocol: 'responses', scope: 'session', data: 'opaque' },
+    } })
+    const next = replaceToolCallResult(message, { id: 'call-weather', result: 'new weather' })
+    expect(next.generationTranscript?.continuation).toBeUndefined()
+    expect(next.generationTranscript?.messages[0].segments).toEqual([{ type: 'tool-result', callId: 'call-weather', content: [{ type: 'text', text: 'new weather' }] }])
+    expect(message.generationTranscript?.continuation).toBeDefined()
+  })
+
   it('replaces stored tool_results by id', () => {
     const message = assistantMessage({
       content: 'assistant content',

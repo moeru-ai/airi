@@ -29,3 +29,19 @@ pnpm -F @proj-airi/provider-inference test:node
 pnpm -F @proj-airi/provider-inference test:browser
 pnpm -F @proj-airi/provider-inference build
 ```
+
+## Generation protocols
+
+OpenAI and OpenAI Compatible configurations accept `api: 'chat-completions' | 'responses'`. The default is `chat-completions`. The provider settings page renders this field as an API protocol selector.
+
+`GenerationProvider` describes Chat or Responses configuration capabilities. A Responses provider does not need a Chat implementation. If both methods exist, `responses(model, options)` selects Responses. These methods return request configuration. `core-agent` projects its context directly into the selected protocol and owns streaming, tools, and history. The validation probe uses the selected protocol.
+
+```ts
+const definition = getDefinedProvider('openai')
+const provider = await definition.createProvider({
+  apiKey: 'your-key',
+  api: 'responses',
+})
+```
+
+The official provider has the same selector in stage-ui. It uses the signed-in user's gateway credentials. Selecting Responses requires an enabled Responses upstream on the server.

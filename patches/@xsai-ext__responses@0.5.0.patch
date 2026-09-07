@@ -1,0 +1,129 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index c3a04a52394fdd05dad55bb072861c355137d0bd..5a91dd8ec11e87be011d86ab69c3eef106a5e90a 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -1292,7 +1292,7 @@ type ResponseReasoningDeltaStreamingEvent = {
+     /**
+      * The type of the event, always `response.reasoning.delta`.
+      */
+-    type: 'response.reasoning.delta';
++    type: 'response.reasoning.delta' | 'response.reasoning_text.delta';
+     /**
+      * The sequence number of the event that was emitted.
+      */
+@@ -1327,7 +1327,7 @@ type ResponseReasoningDoneStreamingEvent = {
+     /**
+      * The type of the event, always `response.reasoning.done`.
+      */
+-    type: 'response.reasoning.done';
++    type: 'response.reasoning.done' | 'response.reasoning_text.done';
+     /**
+      * The sequence number of the event that was emitted.
+      */
+@@ -1639,4 +1639,4 @@ interface ResponsesResult {
+ declare const responses: (options: ResponsesOptions) => ResponsesResult;
+ 
+ export { responses };
+-export type { FullEvent, FullEventType, OpenResponsesOptions, ResponsesOptions, ResponsesResult, StopCondition, StopContext };
++export type { ItemParam, FullEvent, FullEventType, OpenResponsesOptions, ResponsesOptions, ResponsesResult, StopCondition, StopContext };
+diff --git a/dist/index.js b/dist/index.js
+index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..5e8d4f3f51f69ff056e00267c4b58d5260929ee7 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -88,7 +88,7 @@ const responses = (options) => {
+   const mapFullEvent = (event) => {
+     switch (event.type) {
+       case "error":
+-        return [{ cause: event.error, message: event.error.message, type: "error" }];
++        return [{ cause: event.error ?? event, message: event.error?.message ?? event.message ?? "Responses API error", type: "error" }];
+       case "response.completed":
+       case "response.failed":
+       case "response.incomplete":
+@@ -118,9 +118,11 @@ const responses = (options) => {
+         return [{ delta: event.delta, type: "text.delta" }];
+       case "response.output_text.done":
+         return [{ content: event.text, type: "text.done" }];
++      case "response.reasoning_text.delta":
+       case "response.reasoning.delta":
+       case "response.reasoning_summary_text.delta":
+         return [{ delta: event.delta, type: "reasoning.delta" }];
++      case "response.reasoning_text.done":
+       case "response.reasoning.done":
+       case "response.reasoning_summary_text.done":
+         return [{ content: event.text, type: "reasoning.done" }];
+@@ -145,19 +147,20 @@ const responses = (options) => {
+       case "response.refusal.delta":
+         textCtrl.current?.enqueue(event.delta);
+         break;
++      case "response.reasoning_text.delta":
+       case "response.reasoning.delta":
+       case "response.reasoning_summary_text.delta":
+         reasoningTextCtrl.current?.enqueue(event.delta);
+         break;
+     }
+   };
+-  const pushEvent = (event) => {
++  const pushEvent = async (event) => {
+     eventCtrl.current?.enqueue(event);
+-    void options.onEvent?.(event);
++    await options.onEvent?.(event);
+   };
+-  const pushEvents = (events) => {
++  const pushEvents = async (events) => {
+     for (const event of events) {
+-      pushEvent(event);
++      await pushEvent(event);
+     }
+   };
+   const createReader = async () => {
+@@ -199,7 +202,6 @@ const responses = (options) => {
+     });
+     const functionCallOutput = {
+       call_id: functionCall.call_id,
+-      id: crypto.randomUUID(),
+       output: result,
+       status: "completed",
+       type: "function_call_output"
+@@ -222,10 +224,17 @@ const responses = (options) => {
+     const functionCalls = [];
+     const toolCalls = [];
+     const toolResults = [];
++    // The reader belongs to this step. Abort, failure, and tool continuation
++    // all release its transport before another step can start.
++    const cancel = () => { void reader.cancel(options.abortSignal.reason).catch(() => {}); };
++    options.abortSignal?.addEventListener("abort", cancel, { once: true });
++    try {
+     while (true) {
++      options.abortSignal?.throwIfAborted();
+       const { done, value: event } = await reader.read();
++      options.abortSignal?.throwIfAborted();
+       if (done)
+-        return;
++        throw new Error("Responses stream ended before a terminal event");
+       let shouldContinue = false;
+       const events = mapFullEvent(event);
+       const step = { events, functionCalls, toolCalls};
+@@ -280,11 +289,18 @@ const responses = (options) => {
+           break;
+       }
+       pushStreamingEvent(event);
+-      pushEvents(events);
+-      if (shouldContinue) {
+-        reader.releaseLock();
+-        return async () => doStream();
+-      }
++      await pushEvents(events);
++      if (event.type === "error" || event.type === "response.failed")
++        throw new Error(event.response?.error?.message ?? event.error?.message ?? event.message ?? "Responses request failed");
++      if (event.type === "response.incomplete")
++        throw new Error(`Responses request incomplete: ${event.response.incomplete_details?.reason ?? "unknown"}`);
++      if (event.type === "response.completed")
++        return shouldContinue ? async () => doStream() : undefined;
++    }
++    } finally {
++      options.abortSignal?.removeEventListener("abort", cancel);
++      await reader.cancel().catch(() => {});
++      reader.releaseLock();
+     }
+   };
+   void (async () => {

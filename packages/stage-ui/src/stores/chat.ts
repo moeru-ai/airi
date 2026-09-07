@@ -1,6 +1,6 @@
-import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ConversationContext, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
@@ -203,10 +203,11 @@ export const useChatStore = defineStore('chat', () => {
 
   async function streamWithStageAdapters(
     model: string,
-    chatProvider: ChatProvider,
-    messages: Message[],
+    chatProvider: GenerationProvider,
+    context: ConversationContext,
     options?: StreamOptions,
   ) {
+    const messages = context.turns.flatMap(turn => turn.messages)
     let llmTextLength = 0
     let llmOutputChunkCount = 0
     const llmOutputChunkLengths: number[] = []
@@ -236,7 +237,7 @@ export const useChatStore = defineStore('chat', () => {
     let llmFirstTokenEmitted = false
 
     try {
-      await llmStore.stream(model, chatProvider, messages, {
+      await llmStore.stream(model, chatProvider, context, {
         ...options,
         headers,
         onStreamEvent: async (event: StreamEvent) => {

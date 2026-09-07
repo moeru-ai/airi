@@ -33,7 +33,7 @@ export interface RawMessage {
  */
 export interface Message {
   id: string
-  role: 'system' | 'user' | 'assistant' | 'context' | 'event' | 'summary'
+  role: 'system' | 'developer' | 'user' | 'assistant' | 'tool' | 'context' | 'event' | 'summary'
   source?: string
   segments: MessageSegment[]
   metadata?: Record<string, unknown>
@@ -43,7 +43,9 @@ export interface Message {
  * Structured content segment used inside a projected message.
  */
 export type MessageSegment
-  = SegmentText
+  = ContentSegment
+    | SegmentToolCall
+    | SegmentToolResult
     | SegmentInstruction
     | SegmentTaggedText
     | SegmentDomainEvent
@@ -51,6 +53,51 @@ export type MessageSegment
     | SegmentHistoryBlock
     | SegmentSummary
     | SegmentReference
+    | { type: 'runtime-context', entries: { source: string, text: string }[] }
+
+/** Content semantics retained until the selected protocol renders a request. */
+export type ContentSegment = SegmentText
+  | { type: 'image', url: string, detail?: 'auto' | 'low' | 'high' }
+  | { type: 'audio', data: string, format: 'wav' | 'mp3' }
+  | { type: 'file', data?: string, url?: string, name?: string, providerFileId?: string }
+  | { type: 'refusal', text: string }
+
+/** A complete invocation. The call id correlates its result across protocol projections. */
+export interface SegmentToolCall {
+  type: 'tool-call'
+  callId: string
+  name: string
+  arguments: string
+}
+
+/** A completed tool result, including media that the target protocol can carry. */
+export interface SegmentToolResult {
+  type: 'tool-result'
+  callId: string
+  content: ContentSegment[]
+}
+
+/**
+ * Serializable state owned and validated by its protocol adapter.
+ * The scope identifies the provider instance, endpoint, model, and conversation.
+ * A different scope uses the turn's portable messages instead of this state.
+ */
+export interface ProviderContinuation {
+  protocol: string
+  scope: string
+  data: unknown
+}
+
+/** One ordered interaction, including intermediate model messages and tool results. */
+export interface ConversationTurn {
+  messages: Message[]
+  continuation?: ProviderContinuation
+}
+
+/** Provider-independent context. Projection must not mutate this snapshot. */
+export interface ConversationContext {
+  turns: ConversationTurn[]
+}
 
 /**
  * Plain text segment for projected message rendering.

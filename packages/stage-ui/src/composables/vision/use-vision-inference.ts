@@ -1,5 +1,5 @@
+import type { ConversationContext } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { CommonContentPart, Message } from '@xsai/shared-chat'
 
 import type { VisionWorkloadId } from './use-vision-workloads'
 
@@ -62,19 +62,11 @@ export function useVisionInference() {
       } satisfies ChatProvider
       : provider
 
-    const contentParts: CommonContentPart[] = [
-      { type: 'text', text: prompt },
-      {
-        type: 'image_url',
-        image_url: {
-          url,
-        },
-      },
-    ]
-
-    const messages: Message[] = [
-      { role: 'user', content: contentParts },
-    ]
+    const context: ConversationContext = { turns: [{ messages: [{
+      id: 'vision-input',
+      role: 'user',
+      segments: [{ type: 'text', text: prompt }, { type: 'image', url }],
+    }] }] }
 
     let buffer = ''
     const abortController = new AbortController()
@@ -83,7 +75,7 @@ export function useVisionInference() {
     }, VISION_INFERENCE_TIMEOUT_MS)
 
     try {
-      await llmStore.stream(activeModel.value, visionProvider, messages, {
+      await llmStore.stream(activeModel.value, visionProvider, context, {
         abortSignal: abortController.signal,
         onStreamEvent: (event) => {
           if (event.type === 'text-delta') {

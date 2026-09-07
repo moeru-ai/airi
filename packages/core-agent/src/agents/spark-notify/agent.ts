@@ -1,7 +1,8 @@
 import type { ProtocolEvents } from '@proj-airi/plugin-protocol/types'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
-import type { Message, ToolChoice } from '@xsai/shared-chat'
+import type { ToolChoice } from '@xsai/shared-chat'
 
+import type { Message } from '../../messages/types'
 import type { SparkNotifyCommandDraft } from './tools'
 import type {
   SparkNotifyPlugin,
@@ -203,17 +204,19 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
 
     const messages: Message[] = [
       {
+        id: 'spark-system',
         role: 'system',
-        content: [
+        segments: [{ type: 'text', text: [
           request.systemPrompt,
           getSparkNotifyHandlingAgentInstruction(getEventSourceKey(request.event)),
           ...(request.control?.messageOverride?.appendSystemInstructions ?? []),
           ...systemInstructions,
-        ].filter(Boolean).join('\n\n'),
+        ].filter(Boolean).join('\n\n') }],
       },
       {
+        id: request.event.data.eventId,
         role: 'user',
-        content: renderSparkNotifyUserMessage(request, userSections),
+        segments: [{ type: 'text', text: renderSparkNotifyUserMessage(request, userSections) }],
       },
     ]
 
@@ -229,7 +232,7 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
     let reaction = ''
     await options.runner.run({
       selectedChat: request.selectedChat,
-      messages,
+      context: { turns: [{ messages }] },
       tools,
       policy,
       onStreamEvent: async (streamEvent) => {

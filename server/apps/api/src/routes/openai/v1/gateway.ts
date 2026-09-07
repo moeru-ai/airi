@@ -2,6 +2,7 @@ import type { Context, Handler, MiddlewareHandler } from 'hono'
 
 import type { HonoEnv } from '../../../types/hono'
 import type { ChatCompletionsOperationRequest } from './operations/chat-completions'
+import type { ResponsesOperationRequest } from './operations/responses'
 import type { SpeechGenerationOperationRequest } from './operations/speech-generation'
 import type { V1RouteDeps } from './types'
 
@@ -20,6 +21,7 @@ export type V1HttpSurface = 'audio' | 'openai'
 
 export interface V1GatewayOperationInput {
   'chat.completions': ChatCompletionsOperationRequest
+  'responses.create': ResponsesOperationRequest
   'speech.generate': SpeechGenerationOperationRequest
 }
 
@@ -82,6 +84,7 @@ type OperationMiddlewares = {
 function cloneOperationMiddlewares(input: OperationMiddlewares): OperationMiddlewares {
   return {
     'chat.completions': [...input['chat.completions']],
+    'responses.create': [...input['responses.create']],
     'speech.generate': [...input['speech.generate']],
   }
 }
@@ -118,6 +121,7 @@ export function createV1Gateway(deps: V1RouteDeps): V1GatewayRuntime {
   const httpMiddlewares: RegisteredHttpMiddleware[] = []
   const operationMiddlewares: OperationMiddlewares = {
     'chat.completions': [],
+    'responses.create': [],
     'speech.generate': [],
   }
 
