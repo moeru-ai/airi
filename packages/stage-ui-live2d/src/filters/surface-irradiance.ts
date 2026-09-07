@@ -2,20 +2,60 @@ import type { AmbientLightMap } from '@proj-airi/stage-shared/screen-ambient-lig
 
 import { ambientLightMapMargin } from '@proj-airi/stage-shared/screen-ambient-light'
 
-const gridSize = 8
+/** Horizontal samples shared by each row of the emitting screen. */
+export const screenLightGridSize = 8
+const mapSpan = 1 + 2 * ambientLightMapMargin
 
 /** Eight by eight finite emitting tiles over the stage and its screen margin. */
-export const screenLightCount = gridSize * gridSize
+export const screenLightCount = screenLightGridSize * screenLightGridSize
 
-// Coordinates use stage height as the world unit, with +Z toward the viewer.
-// The character is a normal-mapped surface 4% of a window height off the screen.
-const screenDistance = 0.04
-const mapSpan = 1 + 2 * ambientLightMapMargin
+/** Screen geometry in window-height units; +Z points toward the viewer. */
+export interface ScreenGeometry {
+  /** Distance from the character to the flat center. Must be positive. */
+  gap: number
+  /** Edge curvature in radians per window height. Nonnegative; zero keeps the screen flat. */
+  bend: number
+  /** Nonnegative half-width of the flat center, in window heights. */
+  flatRadius: number
+}
+
+/** The desktop keeps the original flat screen until a curved profile is chosen. */
+export const flatScreenGeometry: Readonly<ScreenGeometry> = Object.freeze({ gap: 0.04, bend: 0, flatRadius: 0.2 })
+
+/**
+ * Bends a horizontal screen coordinate along a circular arc without stretching
+ * its emitting area. Returns X, Z, normal X, normal Z for the inward-facing side.
+ * Beyond an 85-degree turn, the edge continues along its tangent instead of
+ * curling back through the character. Used by lighting and the preview diagram.
+ */
+export function sampleScreenCurve(x: number, geometry: ScreenGeometry): [number, number, number, number] {
+  const edge = Math.max(0, Math.abs(x) - geometry.flatRadius)
+  if (geometry.bend === 0 || edge === 0)
+    return [x, -geometry.gap, 0, 1]
+  const arc = Math.min(edge, 1.483529864 / geometry.bend)
+  const angle = arc * geometry.bend
+  const tail = edge - arc
+  const side = Math.sign(x)
+  return [
+    side * (geometry.flatRadius + Math.sin(angle) / geometry.bend + tail * Math.cos(angle)),
+    -geometry.gap + (1 - Math.cos(angle)) / geometry.bend + tail * Math.sin(angle),
+    -side * Math.sin(angle),
+    Math.cos(angle),
+  ]
+}
+
+/** Prepares finite tile positions and normals when geometry or aspect changes. */
+export function writeScreenGeometry(geometry: ScreenGeometry, aspect: number, target: Float32Array) {
+  for (let i = 0; i < screenLightGridSize; i++) {
+    const x = ((i + 0.5) / screenLightGridSize * mapSpan - ambientLightMapMargin - 0.5) * aspect
+    target.set(sampleScreenCurve(x, geometry), i * 4)
+  }
+}
+
 const integrate = Array.from({ length: screenLightCount }, (_, i) => {
-  const x = (i % gridSize + 0.5) / gridSize * mapSpan - ambientLightMapMargin
-  const y = (Math.floor(i / gridSize) + 0.5) / gridSize * mapSpan - ambientLightMapMargin
+  const y = (Math.floor(i / screenLightGridSize) + 0.5) / screenLightGridSize * mapSpan - ambientLightMapMargin
   return `
-  irradiance += u_airiLights[${i}] * airiScreenWeight(n, stageUv, vec2(${x.toFixed(8)}, ${y.toFixed(8)}));
+  irradiance += u_airiLights[${i}] * airiScreenWeight(n, stageUv, ${y.toFixed(8)}, u_airiEmitters[${i % screenLightGridSize}]);
   meanRadiance += u_airiLights[${i}] / ${screenLightCount.toFixed(1)};`
 }).join('\n')
 
@@ -28,13 +68,16 @@ const integrate = Array.from({ length: screenLightCount }, (_, i) => {
 export const surfaceIrradianceShader = `
 uniform vec3 u_airiLights[${screenLightCount}];
 uniform float u_airiStageAspect;
-float airiScreenWeight(vec3 n, vec2 p, vec2 emitter) {
-  vec3 delta = vec3((emitter.x-p.x)*u_airiStageAspect, p.y-emitter.y, -${screenDistance});
+uniform vec4 u_airiEmitters[${screenLightGridSize}];
+float airiScreenWeight(vec3 n, vec2 p, float emitterY, vec4 emitter) {
+  vec3 delta = vec3(emitter.x-(p.x-0.5)*u_airiStageAspect, p.y-emitterY, emitter.y);
   float distanceSquared = dot(delta,delta);
-  vec3 direction = delta*inversesqrt(distanceSquared);
+  // A curved tile can intersect the surface plane; zero displacement must
+  // produce zero direction rather than NaN. Tile area bounds its energy.
+  vec3 direction = delta*inversesqrt(max(distanceSquared,1e-8));
   float receiverCosine = max(dot(n,direction),0.);
-  float emitterCosine = max(-direction.z,0.);
-  float area = ${((mapSpan / gridSize) ** 2).toFixed(8)}*u_airiStageAspect;
+  float emitterCosine = max(dot(vec3(emitter.z,0.,emitter.w),-direction),0.);
+  float area = ${((mapSpan / screenLightGridSize) ** 2).toFixed(8)}*u_airiStageAspect;
   // Finite tile area softens the near-field quadrature, avoiding a point-light
   // singularity. At distance this converges to area*cos(emitter)/distance^2.
   float solidAngle = area*emitterCosine/(distanceSquared+area/3.14159265);
@@ -64,14 +107,14 @@ export function writeScreenLights(map: AmbientLightMap, target: Float32Array) {
   target.fill(0)
   // Area overlap keeps energy and source positions stable for non-divisible
   // map dimensions. It also permits small synthetic maps in renderer checks.
-  for (let row = 0; row < gridSize; row++) {
-    const top = row * height / gridSize
-    const bottom = (row + 1) * height / gridSize
-    for (let column = 0; column < gridSize; column++) {
-      const left = column * width / gridSize
-      const right = (column + 1) * width / gridSize
+  for (let row = 0; row < screenLightGridSize; row++) {
+    const top = row * height / screenLightGridSize
+    const bottom = (row + 1) * height / screenLightGridSize
+    for (let column = 0; column < screenLightGridSize; column++) {
+      const left = column * width / screenLightGridSize
+      const right = (column + 1) * width / screenLightGridSize
       const area = (right - left) * (bottom - top)
-      const targetOffset = (row * gridSize + column) * 3
+      const targetOffset = (row * screenLightGridSize + column) * 3
       for (let y = Math.floor(top); y < Math.ceil(bottom); y++) {
         for (let x = Math.floor(left); x < Math.ceil(right); x++) {
           const overlap = (Math.min(x + 1, right) - Math.max(x, left)) * (Math.min(y + 1, bottom) - Math.max(y, top))

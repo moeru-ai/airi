@@ -2,6 +2,8 @@ import type { Renderer as PixiRenderer } from '@pixi/core'
 import type { AmbientLightEnvironment, ScreenAmbientLightMode } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Cubism4InternalModel } from 'pixi-live2d-display/cubism4'
 
+import type { ScreenGeometry } from './surface-irradiance'
+
 import { Matrix } from '@pixi/math'
 import { CubismShader_WebGL, fragmentShaderSrcsetupMask } from 'pixi-live2d-display/cubism4'
 
@@ -9,7 +11,7 @@ import iruNormalUrl from '../assets/lighting/iru-normal.png?url'
 import iruOwnershipUrl from '../assets/lighting/iru-ownership.png?url'
 import iruProfile from '../assets/lighting/iru.json'
 
-import { screenLightCount, surfaceIrradianceShader, writeScreenLights } from './surface-irradiance'
+import { flatScreenGeometry, screenLightCount, screenLightGridSize, surfaceIrradianceShader, writeScreenGeometry, writeScreenLights } from './surface-irradiance'
 
 type Renderer = Cubism4InternalModel['renderer']
 type Profile = typeof iruProfile
@@ -135,6 +137,7 @@ interface Locations {
   lights: WebGLUniformLocation | null
   clipToStage: WebGLUniformLocation | null
   aspect: WebGLUniformLocation | null
+  emitters: WebGLUniformLocation | null
 }
 
 /**
@@ -150,6 +153,9 @@ export class SurfaceLighting {
   private readonly buffers = new Map<number, WebGLBuffer>()
   private programs = new WeakMap<WebGLProgram, Locations>()
   private readonly clipToStage = new Matrix()
+  private geometry: Readonly<ScreenGeometry> = flatScreenGeometry
+  private geometryAspect = 0
+  private readonly emitters = new Float32Array(screenLightGridSize * 4)
   private readonly lights = new Float32Array(screenLightCount * 3)
   private gl?: WebGLRenderingContext
   private normal?: WebGLTexture
@@ -193,6 +199,12 @@ export class SurfaceLighting {
     bindings.set(model.renderer, this)
   }
 
+  /** Changes only this binding's virtual screen; the default remains flat. */
+  setScreenGeometry(geometry: Readonly<ScreenGeometry>) {
+    this.geometry = { ...geometry }
+    this.geometryAspect = 0
+  }
+
   /** Loads the matching authored maps once; other models use their smooth proxy. */
   async load() {
     if (this.profile !== 'iru')
@@ -233,7 +245,7 @@ export class SurfaceLighting {
     let locations = this.programs.get(program)
     if (!locations) {
       const uniform = (name: string) => gl.getUniformLocation(program, `u_airi${name}`)
-      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), face: uniform('Face'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect') }
+      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), face: uniform('Face'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect'), emitters: uniform('Emitters[0]') }
       this.programs.set(program, locations)
     }
     let buffer = this.buffers.get(vertices.byteOffset)
@@ -268,7 +280,13 @@ export class SurfaceLighting {
     const { width, height } = this.stage.screen
     this.clipToStage.copyFrom(this.stage.projection.projectionMatrix).invert().scale(1 / width, 1 / height)
     gl.uniformMatrix3fv(locations.clipToStage, false, this.clipToStage.toArray(true))
-    gl.uniform1f(locations.aspect, width / height)
+    const aspect = width / height
+    if (this.geometryAspect !== aspect) {
+      writeScreenGeometry(this.geometry, aspect, this.emitters)
+      this.geometryAspect = aspect
+    }
+    gl.uniform1f(locations.aspect, aspect)
+    gl.uniform4fv(locations.emitters, this.emitters)
     gl.uniform1i(locations.normal, 2)
     gl.uniform1i(locations.ownership, 3)
     gl.activeTexture(gl.TEXTURE2)
