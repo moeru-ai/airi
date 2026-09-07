@@ -1,6 +1,6 @@
 import type { StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message, Tool } from '@xsai/shared-chat'
+import type { Event, Message, Tool } from '@xsai/shared-chat'
 
 import type { ExecutableTool } from './tools'
 
@@ -156,6 +156,90 @@ describe('isToolRelatedError', () => {
     })
   }
 
+  // ROOT CAUSE:
+  //
+  // The store forwards events through an async listener, even for synchronous consumers.
+  // Before the fix, provider completion hid an error accepted behind that listener.
+  // The core queue now rejects accepted errors before the store can report success.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949844407
+  it('rejects a queued error without saving partial messages or retrying for Issue #2161', async () => {
+    const steps = Promise.withResolvers<unknown[]>()
+    const listenerStarted = Promise.withResolvers<void>()
+    const releaseListener = Promise.withResolvers<void>()
+    const streamError = new Error('accepted provider error')
+    const onMessages = vi.fn()
+    const onStreamEvent = vi.fn<NonNullable<StreamOptions['onStreamEvent']>>(async (event) => {
+      if (event.type === 'text-delta') {
+        listenerStarted.resolve()
+        await releaseListener.promise
+      }
+    })
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: Event) => void }) => {
+      options.onEvent({ type: 'text.delta', delta: 'partial answer' })
+      options.onEvent({ type: 'error', message: streamError.message, cause: streamError })
+      options.onEvent({ type: 'text.delta', delta: 'must not escape' })
+      return { ...createMockStreamResult(), steps: steps.promise }
+    })
+    const result = useLLM().stream('model-a', provider, [], { onStreamEvent, onMessages }).then(() => undefined, error => error)
+    await listenerStarted.promise
+    steps.resolve([])
+    await new Promise(resolve => setImmediate(resolve))
+    releaseListener.resolve()
+
+    expect(await result).toBe(streamError)
+    expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
+      { type: 'text-delta', text: 'partial answer' },
+      { type: 'error', error: streamError },
+    ])
+    expect(onMessages).not.toHaveBeenCalled()
+    expect(streamTextMock).toHaveBeenCalledTimes(1)
+  })
+
+  // ROOT CAUSE:
+  //
+  // Before the fix, provider failure rejected the store call while its listener still ran.
+  // Later output could change consumer state after the caller handled failure.
+  // The core queue now stops later events and waits for the active listener.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949844417
+  it('finishes the active consumer before rejection and discards queued output for Issue #2161', async () => {
+    const steps = Promise.withResolvers<unknown[]>()
+    const listenerStarted = Promise.withResolvers<void>()
+    const releaseListener = Promise.withResolvers<void>()
+    const streamError = new Error('steps failed during output')
+    const mutations: string[] = []
+    let settled = false
+    const onStreamEvent = vi.fn<NonNullable<StreamOptions['onStreamEvent']>>(async () => {
+      listenerStarted.resolve()
+      await releaseListener.promise
+      mutations.push(settled ? 'after rejection' : 'before rejection')
+    })
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: Event) => void }) => {
+      options.onEvent({ type: 'text.delta', delta: 'first' })
+      options.onEvent({ type: 'text.delta', delta: 'second' })
+      return { ...createMockStreamResult(), steps: steps.promise }
+    })
+    const result = useLLM().stream('model-a', provider, [], { onStreamEvent }).then(
+      () => { settled = true },
+      (error) => {
+        settled = true
+        return error
+      },
+    )
+    await listenerStarted.promise
+    steps.reject(streamError)
+    await new Promise(resolve => setImmediate(resolve))
+    const settledBeforeRelease = settled
+    releaseListener.resolve()
+    const error = await result
+    await new Promise(resolve => setImmediate(resolve))
+
+    expect(settledBeforeRelease).toBe(false)
+    expect(error).toBe(streamError)
+    expect(mutations).toEqual(['before rejection'])
+    expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([{ type: 'text-delta', text: 'first' }])
+    expect(streamTextMock).toHaveBeenCalledTimes(1)
+  })
+
   it('resolves from steps and emits a single finish event', async () => {
     streamTextMock.mockImplementation(() => createMockStreamResult())
 
@@ -197,6 +281,9 @@ describe('isToolRelatedError', () => {
   })
 
   it('keeps builtin tools when stream steps resolve before a tool-related error event', async () => {
+    const transcriptStarted = Promise.withResolvers<void>()
+    const releaseTranscript = Promise.withResolvers<void>()
+    const providerStarted = Promise.withResolvers<(event: Event) => void>()
     const store = useLLM()
     const llmToolsStore = useLlmToolsStore()
     const customTool = {
@@ -221,16 +308,25 @@ describe('isToolRelatedError', () => {
 
     llmToolsStore.addTools(runtimeTool)
 
-    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void>, tools?: unknown[] }) => {
-      queueMicrotask(async () => {
-        await options.onEvent({ type: 'error', message: 'model does not support tools', cause: new Error('model does not support tools') })
-      })
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: Event) => void }) => {
+      providerStarted.resolve(options.onEvent)
       return createMockStreamResult()
     })
 
-    await expect(store.stream('model-a', provider, [{ role: 'user', content: 'hello' }] as Message[], {
+    const pending = store.stream('model-a', provider, [{ role: 'user', content: 'hello' }] as Message[], {
       tools: [customTool],
-    })).resolves.toBeUndefined()
+      onMessages: async () => {
+        transcriptStarted.resolve()
+        await releaseTranscript.promise
+      },
+    })
+    // The old fixture queued its error before the completion observer ran.
+    // Transcript delivery proves that accepted events finished and admission closed.
+    await transcriptStarted.promise
+    const onEvent = await providerStarted.promise
+    onEvent({ type: 'error', message: 'model does not support tools', cause: new Error('model does not support tools') })
+    releaseTranscript.resolve()
+    await expect(pending).resolves.toBeUndefined()
 
     const firstCallTools = streamTextMock.mock.calls[0]?.[0]?.tools
     expect(Array.isArray(firstCallTools)).toBe(true)

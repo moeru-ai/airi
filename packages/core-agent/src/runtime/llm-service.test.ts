@@ -1,5 +1,7 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message, Tool } from '@xsai/shared-chat'
+import type { Event, Message, Tool } from '@xsai/shared-chat'
+
+import type { StreamOptions } from '../types/llm'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -164,6 +166,286 @@ describe('streamFrom tool errors', () => {
     resolveMessages?.([])
 
     await expect(pending).resolves.toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A slow output listener leaves an accepted error behind it in the queue.
+  // Before the fix, stepsSettled made rejectOnce ignore that error.
+  // The stream then saved partial messages and emitted finish.
+  // Accepted errors now reject the queue even after provider completion.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949844407
+  it.each([false, true])('rejects an accepted error after steps resolve with tools=%s for Issue #2161', async (withTools) => {
+    const steps = Promise.withResolvers<unknown[]>()
+    const listenerStarted = Promise.withResolvers<void>()
+    const releaseListener = Promise.withResolvers<void>()
+    const streamError = new Error('accepted provider error')
+    const onMessages = vi.fn()
+    const onUsage = vi.fn()
+    const onStreamEvent = vi.fn<NonNullable<StreamOptions['onStreamEvent']>>(async (event) => {
+      if (event.type === 'text-delta') {
+        listenerStarted.resolve()
+        await releaseListener.promise
+      }
+    })
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: Event) => void }) => {
+      options.onEvent({ type: 'text.delta', delta: 'partial answer' })
+      options.onEvent({ type: 'error', message: streamError.message, cause: streamError })
+      options.onEvent({ type: 'text.delta', delta: 'must not escape' })
+      return createMockStreamResult(steps.promise)
+    })
+    const result = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hello' }],
+      options: { tools: withTools ? [createSparkTool()] : undefined, onStreamEvent, onMessages, onUsage },
+    }).then(() => undefined, error => error)
+
+    await listenerStarted.promise
+    steps.resolve([])
+    await new Promise(resolve => setImmediate(resolve))
+    releaseListener.resolve()
+
+    expect(await result).toBe(streamError)
+    expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
+      { type: 'text-delta', text: 'partial answer' },
+      { type: 'error', error: streamError },
+    ])
+    expect(onMessages).not.toHaveBeenCalled()
+    expect(onUsage).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A provider failure can arrive while an output listener waits on a plugin.
+  // Before the fix, the caller received rejection before that listener returned.
+  // Queued events and buffered output then continued to change the session.
+  // Failure now stops pending output and waits for the active listener before rejection.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949844417
+  it.each(['plain', 'step-end', 'native-tool'] as const)('stops %s output and drains the active listener on failure for Issue #2161', async (mode) => {
+    const steps = Promise.withResolvers<unknown[]>()
+    const listenerStarted = Promise.withResolvers<void>()
+    const releaseListener = Promise.withResolvers<void>()
+    const streamError = new Error('steps failed during output')
+    const onMessages = vi.fn()
+    const onUsage = vi.fn()
+    const mutations: string[] = []
+    let settled = false
+    const firstEvent = mode === 'plain'
+      ? { type: 'text-delta', text: 'first' }
+      : { type: 'reasoning-delta', text: '{"ordinary":1}' }
+    const onStreamEvent = vi.fn<NonNullable<StreamOptions['onStreamEvent']>>(async () => {
+      listenerStarted.resolve()
+      await releaseListener.promise
+      mutations.push(settled ? 'after rejection' : 'before rejection')
+    })
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: Event) => void }) => {
+      if (mode === 'plain') {
+        options.onEvent({ type: 'text.delta', delta: 'first' })
+      }
+      else {
+        options.onEvent({ type: 'reasoning.delta', delta: '{"ordinary":1}' })
+        options.onEvent({ type: 'text.delta', delta: 'buffered output' })
+        options.onEvent(mode === 'step-end'
+          ? { type: 'step.done', usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } }
+          : { type: 'tool-call.done', toolCallId: 'call-1', toolCallType: 'function', toolName: 'builtIn_emitSparkCommand', args: '{}' })
+      }
+      options.onEvent({ type: 'text.delta', delta: 'queued output' })
+      return createMockStreamResult(steps.promise)
+    })
+    const result = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hello' }],
+      options: { tools: [createSparkTool()], onStreamEvent, onMessages, onUsage },
+    }).then(
+      () => {
+        settled = true
+      },
+      (error) => {
+        settled = true
+        return error
+      },
+    )
+
+    await listenerStarted.promise
+    steps.reject(streamError)
+    await new Promise(resolve => setImmediate(resolve))
+    const settledBeforeRelease = settled
+    releaseListener.resolve()
+    const error = await result
+    await new Promise(resolve => setImmediate(resolve))
+
+    expect(settledBeforeRelease).toBe(false)
+    expect(error).toBe(streamError)
+    expect(mutations).toEqual(['before rejection'])
+    expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([firstEvent])
+    expect(onMessages).not.toHaveBeenCalled()
+    expect(onUsage).not.toHaveBeenCalled()
+  })
+
+  it('drains accepted output but ignores new provider events after steps resolve', async () => {
+    const steps = Promise.withResolvers<unknown[]>()
+    const listenerStarted = Promise.withResolvers<void>()
+    const releaseListener = Promise.withResolvers<void>()
+    let onEvent: (event: Event) => void = () => {
+      throw new Error('provider not started')
+    }
+    const onMessages = vi.fn()
+    const onStreamEvent = vi.fn<NonNullable<StreamOptions['onStreamEvent']>>(async (event) => {
+      if (event.type === 'text-delta') {
+        listenerStarted.resolve()
+        await releaseListener.promise
+      }
+    })
+    streamTextMock.mockImplementationOnce((options: { onEvent: typeof onEvent }) => {
+      onEvent = options.onEvent
+      onEvent({ type: 'text.delta', delta: 'accepted output' })
+      return createMockStreamResult(steps.promise)
+    })
+    const pending = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hello' }],
+      options: { onStreamEvent, onMessages },
+    })
+    await listenerStarted.promise
+    steps.resolve([])
+    await new Promise(resolve => setImmediate(resolve))
+    onEvent({ type: 'error', message: 'late provider error' })
+    onEvent({ type: 'text.delta', delta: 'late output' })
+    expect(onMessages).not.toHaveBeenCalled()
+    releaseListener.resolve()
+    await pending
+
+    expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
+      { type: 'text-delta', text: 'accepted output' },
+      { type: 'finish' },
+    ])
+    expect(onMessages).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([false, true])('stops the queue when an output listener rejects with steps complete=%s', async (stepsComplete) => {
+    const steps = Promise.withResolvers<unknown[]>()
+    const listenerStarted = Promise.withResolvers<void>()
+    const releaseListener = Promise.withResolvers<void>()
+    const listenerError = new Error('output listener failed')
+    const onMessages = vi.fn()
+    const onStreamEvent = vi.fn<NonNullable<StreamOptions['onStreamEvent']>>(async () => {
+      listenerStarted.resolve()
+      await releaseListener.promise
+      throw listenerError
+    })
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: Event) => void }) => {
+      options.onEvent({ type: 'text.delta', delta: 'first' })
+      options.onEvent({ type: 'text.delta', delta: 'second' })
+      return createMockStreamResult(steps.promise)
+    })
+    const result = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { onStreamEvent, onMessages },
+    }).then(() => undefined, error => error)
+
+    await listenerStarted.promise
+    if (stepsComplete)
+      steps.resolve([])
+    await new Promise(resolve => setImmediate(resolve))
+    releaseListener.resolve()
+    try {
+      expect(await result).toBe(listenerError)
+    }
+    finally {
+      steps.resolve([])
+    }
+    await new Promise(resolve => setImmediate(resolve))
+    expect(onStreamEvent).toHaveBeenCalledTimes(1)
+    expect(onMessages).not.toHaveBeenCalled()
+  })
+
+  it('keeps the provider failure when the active listener also rejects', async () => {
+    const steps = Promise.withResolvers<unknown[]>()
+    const listenerStarted = Promise.withResolvers<void>()
+    const releaseListener = Promise.withResolvers<void>()
+    const streamError = new Error('provider failed first')
+    const onStreamEvent = vi.fn<NonNullable<StreamOptions['onStreamEvent']>>(async () => {
+      listenerStarted.resolve()
+      await releaseListener.promise
+      throw new Error('listener failed later')
+    })
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: Event) => void }) => {
+      options.onEvent({ type: 'text.delta', delta: 'first' })
+      options.onEvent({ type: 'text.delta', delta: 'second' })
+      return createMockStreamResult(steps.promise)
+    })
+    const result = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { onStreamEvent },
+    }).then(() => undefined, error => error)
+    await listenerStarted.promise
+    steps.reject(streamError)
+    await new Promise(resolve => setImmediate(resolve))
+    releaseListener.resolve()
+
+    expect(await result).toBe(streamError)
+    expect(onStreamEvent).toHaveBeenCalledTimes(1)
+  })
+
+  // ROOT CAUSE:
+  //
+  // Before the fix, an error rejected the caller but left queued output and success callbacks active.
+  // Failure now stops both paths even if the provider later resolves its steps.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949844407
+  it('rejects an accepted error before steps complete without later success callbacks for Issue #2161', async () => {
+    const steps = Promise.withResolvers<unknown[]>()
+    const streamError = new Error('provider event failed')
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    const onUsage = vi.fn()
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: Event) => void }) => {
+      options.onEvent({ type: 'error', message: streamError.message, cause: streamError })
+      options.onEvent({ type: 'text.delta', delta: 'must not escape' })
+      return createMockStreamResult(steps.promise)
+    })
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { onStreamEvent, onMessages, onUsage },
+    })).rejects.toBe(streamError)
+    steps.resolve([])
+    await new Promise(resolve => setImmediate(resolve))
+
+    expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([{ type: 'error', error: streamError }])
+    expect(onMessages).not.toHaveBeenCalled()
+    expect(onUsage).not.toHaveBeenCalled()
+  })
+
+  it.each(['messages', 'listener'] as const)('does not emit finish when the final %s rejects', async (failureSource) => {
+    const persistenceError = new Error('transcript failed')
+    const onStreamEvent = vi.fn()
+    const onUsage = vi.fn()
+    const onMessages = vi.fn(() => {
+      throw persistenceError
+    })
+    streamTextMock.mockReturnValueOnce(createMockStreamResult(
+      Promise.resolve([]),
+      Promise.resolve(undefined),
+      failureSource === 'messages' ? Promise.reject(persistenceError) : Promise.resolve([]),
+    ))
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { onMessages, onStreamEvent, onUsage },
+    })).rejects.toBe(persistenceError)
+
+    expect(onMessages).toHaveBeenCalledTimes(failureSource === 'messages' ? 0 : 1)
+    expect(onStreamEvent).not.toHaveBeenCalled()
+    expect(onUsage).not.toHaveBeenCalled()
   })
 
   it('requests final streaming usage and emits the reported token totals once', async () => {

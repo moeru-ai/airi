@@ -247,6 +247,12 @@ function toAiriStreamEvent(event: Event): StreamEvent | null {
   }
 }
 
+/**
+ * Forwards provider events in order and completes after the accepted callbacks.
+ * On failure, pending output stops before this promise rejects. An active callback
+ * must settle first because the runtime cannot cancel consumer side effects.
+ * Events received after provider completion do not enter the queue.
+ */
 export async function streamFrom({
   model,
   chatProvider,
@@ -276,8 +282,13 @@ export async function streamFrom({
   }
 
   return new Promise<void>((resolve, reject) => {
+    // Provider completion closes admission, but accepted events can still fail.
+    // Failure stops queued work. Settlement waits for the active callback so
+    // consumers cannot receive a rejection while that callback still changes state.
     let settled = false
     let stepsSettled = false
+    let failed = false
+    let eventQueue = Promise.resolve()
     let bufferPossibleToolCall = toolNames.size > 0
     let bufferedOutputEvents: BufferedOutputEvent[] = []
     let bufferedReasoningText = ''
@@ -287,18 +298,11 @@ export async function streamFrom({
     // until the complete objects can be checked at the end of the step.
     let hasBufferedJsonCandidate = false
     const resolveOnce = () => {
-      if (settled)
+      if (settled || failed)
         return
       settled = true
       resolve()
     }
-    const rejectOnce = (error: unknown) => {
-      if (settled || stepsSettled)
-        return
-      settled = true
-      reject(error)
-    }
-
     const emitOutputEvent = async (event: BufferedOutputEvent) => {
       if (event.text)
         await options?.onStreamEvent?.(event)
@@ -322,10 +326,27 @@ export async function streamFrom({
       return events
     }
 
+    const rejectOnce = (error: unknown) => {
+      if (settled || failed)
+        return
+      failed = true
+      const rejectAfterEvents = () => {
+        takeBufferedOutput()
+        settled = true
+        reject(error)
+      }
+      // Both queue outcomes retain the first failure. The queue can itself
+      // reject, or finish after an active listener returns from a provider failure.
+      void eventQueue.then(rejectAfterEvents, rejectAfterEvents)
+    }
+
     const flushBufferedOutput = async () => {
       const events = takeBufferedOutput()
-      for (const event of events)
+      for (const event of events) {
+        if (failed)
+          return
         await emitOutputEvent(event)
+      }
     }
 
     const passThroughBufferedOutput = async () => {
@@ -404,23 +425,27 @@ export async function streamFrom({
         // A native tool-call event proves this step used the provider protocol.
         // Release any reasoning that arrived before it.
         await passThroughBufferedOutput()
+        if (failed)
+          return
       }
 
       const streamEvent = toAiriStreamEvent(event)
       if (streamEvent != null)
         await options?.onStreamEvent?.(streamEvent)
       if (streamEvent?.type === 'error')
-        rejectOnce(streamEvent.error)
+        throw streamEvent.error
     }
 
     // xsAI intentionally does not await onEvent. Keep our own chain so output
     // events retain provider order and completion waits for accepted deltas.
-    let eventQueue = Promise.resolve()
     const onEvent = (event: Event) => {
-      if (settled || stepsSettled)
+      if (settled || stepsSettled || failed)
         return
 
-      eventQueue = eventQueue.then(() => processEvent(event))
+      eventQueue = eventQueue.then(() => {
+        if (!failed)
+          return processEvent(event)
+      })
       void eventQueue.catch(error => rejectOnce(error))
     }
 
@@ -453,18 +478,16 @@ export async function streamFrom({
       // of the stream lifecycle instead of an intermediate tool boundary.
       void streamResult.steps.then(async () => {
         const acceptedEvents = eventQueue
-        // Mark the provider lifecycle settled before awaiting accepted events.
-        // Late provider errors must not invalidate an already completed stream.
+        // Reject new provider events, not errors already accepted into the queue.
         stepsSettled = true
         try {
           await acceptedEvents
+          if (failed)
+            return
           await finishPossibleToolCall()
         }
         catch (error) {
-          if (!settled) {
-            settled = true
-            reject(error)
-          }
+          rejectOnce(error)
           return
         }
 
@@ -475,23 +498,14 @@ export async function streamFrom({
         catch (error) {
           // Transcript persistence is part of the completed response contract,
           // unlike late provider events and optional usage observation.
-          if (!settled) {
-            settled = true
-            reject(error)
-          }
+          rejectOnce(error)
           return
         }
         try {
           await options?.onStreamEvent?.({ type: 'finish' } as const)
         }
         catch (error) {
-          // The finish listener runs after steps settled, so rejectOnce would
-          // ignore this error as a "late provider event". A listener failure
-          // is still a real failure and must reject the outer promise.
-          if (!settled) {
-            settled = true
-            reject(error)
-          }
+          rejectOnce(error)
           return
         }
         let usage: Usage | undefined
@@ -515,13 +529,6 @@ export async function streamFrom({
         }
         resolveOnce()
       }).catch((error) => {
-        // A failure after `steps` resolved belongs to optional usage
-        // observation and cannot invalidate the completed response.
-        if (stepsSettled) {
-          console.error('Stream usage observation error:', error)
-          resolveOnce()
-          return
-        }
         rejectOnce(error)
         console.error('Stream steps error:', error)
       })
