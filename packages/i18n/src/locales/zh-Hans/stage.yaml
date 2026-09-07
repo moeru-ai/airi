@@ -16,7 +16,8 @@ mobile-tools:
   background: 背景
   settings: 全部设置
   about: 关于
-  view: 视角
+  view: 视图
+  close-view: 保存并关闭视图调节
   hearing: 听觉
 chat:
   actions:
