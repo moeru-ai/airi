@@ -168,11 +168,26 @@ async function exitViewControls() {
 }
 
 watch(stageModelRenderer, (renderer) => {
+  const exitsViewControls = (renderer !== 'live2d' && l2dViewControl.viewControlsEnabled.value)
+    || (renderer !== 'vrm' && threeViewControl.viewControlsEnabled.value)
+  if (exitsViewControls) {
+    void exitViewControls()
+    return
+  }
+
   if (renderer !== 'live2d')
     l2dViewControl.viewControlsEnabled.value = false
   if (renderer !== 'vrm')
     threeViewControl.viewControlsEnabled.value = false
 }, { immediate: true })
+
+function handleViewControlsKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !viewControlsEnabled.value)
+    return
+
+  event.preventDefault()
+  void exitViewControls()
+}
 
 function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -433,6 +448,7 @@ onUnmounted(() => {
     data-testid="mobile-interactive-area"
     :class="mobileInteractiveAreaClass"
     :style="mobileInteractiveAreaStyle"
+    @keydown="handleViewControlsKeydown"
   >
     <MobileHeader v-if="!viewControlsEnabled">
       <BasicButton

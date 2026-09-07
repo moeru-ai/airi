@@ -283,6 +283,25 @@ describe('interactive area synchronized state', () => {
     expect(getComputedStyle(icon).opacity).toBe('1')
   })
 
+  it('closes view controls with Escape and restores focus', async () => {
+    // ROOT CAUSE:
+    //
+    // Moving view controls out of the dismissible drawer removed its Escape
+    // behavior, leaving keyboard users in the focused Stage mode.
+    await page.viewport(390, 844)
+    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
+    stageModel.setStageModelRenderer('live2d')
+
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
+    await expect.element(screen.getByTestId('view-controls-close-button')).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+
+    await expect.element(screen.getByTestId('mobile-message-composer')).toBeVisible()
+    await expect.element(screen.getByTestId('view-controls-close-button')).not.toBeInTheDocument()
+    await expect.element(screen.getByTestId('mobile-settings-button')).toHaveFocus()
+  })
+
   it('exits view controls when the active renderer changes', async () => {
     // ROOT CAUSE:
     //
@@ -305,6 +324,7 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByTestId('view-controls-close-button')).not.toBeInTheDocument()
     expect(live2dViewControl.viewControlsEnabled.value).toBe(false)
     expect(threeViewControl.viewControlsEnabled.value).toBe(false)
+    await expect.element(screen.getByTestId('mobile-settings-button')).toHaveFocus()
   })
 
   it('shows all five mobile view controls for VRM models', async () => {
