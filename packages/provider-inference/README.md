@@ -44,4 +44,4 @@ const provider = await definition.createProvider({
 })
 ```
 
-The official provider has the same selector in stage-ui. It uses the signed-in user's gateway credentials. Selecting Responses requires an enabled Responses upstream on the server.
+User-configured providers send Responses requests directly to their configured endpoint with their own API key. They do not require AIRI backend changes or Flux billing. The official provider continues to use Chat Completions; its Responses support is a separate gateway change.

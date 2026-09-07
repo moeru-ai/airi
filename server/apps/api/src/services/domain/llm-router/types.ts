@@ -115,8 +115,6 @@ export type ModelKind = 'llm' | 'tts'
  * chosen upstream.
  */
 export interface LlmRouteRequest {
-  /** Wire protocol for this request. @default 'chat-completions' */
-  protocol?: 'chat-completions' | 'responses'
   /**
    * Model name from the caller (e.g. `openai/gpt-5-mini`). Used to look up
    * the per-model upstream list in `LLM_ROUTER_CONFIG`.

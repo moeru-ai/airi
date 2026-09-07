@@ -1,9 +1,8 @@
-import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { describe, expect, it } from 'vitest'
 
-import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID, providerOfficialChat, providerOfficialSpeech, providerOfficialSpeechStreaming, providerOfficialTranscription } from './index'
+import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID, providerOfficialSpeech, providerOfficialSpeechStreaming, providerOfficialTranscription } from './index'
 
 interface OfficialSpeechOptions {
   speed?: number
@@ -110,15 +109,5 @@ describe('official transcription provider', () => {
         description: 'Realtime transcription routed by AIRI',
       },
     ])
-  })
-})
-
-describe('official Responses provider', () => {
-  it('uses the authenticated OpenAI gateway request configuration', async () => {
-    const provider = await providerOfficialChat.createProvider({ api: 'responses' }) as GenerationProvider
-    expect(provider.responses?.('auto').baseURL.toString()).toContain('/api/v1/openai/')
-    expect(provider.responses?.('auto').fetch).toBeTypeOf('function')
-    const defaultProvider = await providerOfficialChat.createProvider({}) as GenerationProvider
-    expect(defaultProvider.responses).toBeUndefined()
   })
 })
