@@ -13,7 +13,7 @@ import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
-} from '../libs/analytics-headers'
+} from '../libs/product-signals/headers'
 import { useChatStore } from './chat'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 
@@ -62,6 +62,7 @@ const redundantChatAnalyticsMocks = vi.hoisted(() => ({
 }))
 const ingestContextMessageMock = vi.fn()
 const getContextsSnapshotMock = vi.fn()
+const createRuntimePromptContextMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
@@ -93,7 +94,7 @@ vi.mock('../composables', () => ({
   getConversationAnalyticsSurface: () => 'web',
 }))
 
-vi.mock('../libs/analytics', () => ({
+vi.mock('../libs/product-signals', () => ({
   getAnalytics: () => ({
     emit: (event: { name: string }, properties: unknown) => {
       switch (event.name) {
@@ -126,6 +127,15 @@ vi.mock('../composables/use-io-tracer', () => ({
 
 vi.mock('./chat/context-providers', () => ({
   createMinecraftContext: () => createMinecraftContextMock(),
+  createRuntimePromptContext: (prompt: string) => createRuntimePromptContextMock(prompt),
+}))
+
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    locale: ref('en'),
+    t: (key: string) => key,
+    te: () => true,
+  }),
 }))
 
 vi.mock('./chat/context-store', () => ({
@@ -240,6 +250,8 @@ describe('chat store contract', () => {
     ingestContextMessageMock.mockReset()
     getContextsSnapshotMock.mockReset()
     getContextsSnapshotMock.mockReturnValue({})
+    createRuntimePromptContextMock.mockReset()
+    createRuntimePromptContextMock.mockReturnValue(undefined)
     createMinecraftContextMock.mockReset()
     createMinecraftContextMock.mockReturnValue(undefined)
     persistSessionMessagesMock.mockReset()
@@ -625,10 +637,8 @@ describe('chat store contract', () => {
     expect(store.sending).toBe(false)
     expect(trackFirstMessageMock).toHaveBeenCalledOnce()
     // Datetime is no longer pushed through ingestContextMessage; it is now
-    // applied at message-assembly time as a system-prompt anchor + per-message
-    // [HH:MM] prefix. ingestContextMessage should still be called for other
-    // context providers (e.g. minecraft) when they are configured, but not
-    // for datetime in this test (minecraft is mocked to return undefined).
+    // applied at message-assembly time as per-message [HH:MM] prefixes. The
+    // runtime-rule and Minecraft providers are disabled in this test.
     expect(ingestContextMessageMock).not.toHaveBeenCalled()
     expect(persistSessionMessagesMock).not.toHaveBeenCalled()
     expect(hookOrder).toEqual([
@@ -661,10 +671,8 @@ describe('chat store contract', () => {
     expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMOutputChunkLengths, [5])
     expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMTextLength, 5)
 
-    // System message stays untouched: keeping it 100% static is what makes
-    // the prefix permanently KV-cache friendly across turns and across day
-    // boundaries (the date now lives inside per-message timestamp prefixes
-    // instead of a system anchor).
+    // The persisted system message stays unchanged. Per-message time prefixes
+    // keep the static card prompt cacheable across day boundaries.
     const systemContent = (composedMessages[0] as any).content
     const systemText = typeof systemContent === 'string' ? systemContent : systemContent.map((p: any) => p.text).join('')
     expect(systemText).toContain('system prompt')
@@ -774,7 +782,14 @@ describe('chat store contract', () => {
     expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
   })
 
-  it('ingests runtime context providers before composing prompt snapshots', async () => {
+  it('ingests the runtime prompt before composing prompt snapshots', async () => {
+    const runtimePromptContext = {
+      id: 'airi-runtime-prompt-context',
+      contextId: 'system:airi-runtime-prompt',
+      strategy: 'replace-self',
+      text: 'Start every reply with an ACT token.\n\nDo not use emojis.',
+      createdAt: 123,
+    }
     const minecraftContext = {
       id: 'minecraft-context',
       contextId: 'system:minecraft',
@@ -785,8 +800,10 @@ describe('chat store contract', () => {
     }
     let composedMessages: Message[] = []
 
+    createRuntimePromptContextMock.mockReturnValue(runtimePromptContext)
     createMinecraftContextMock.mockReturnValue(minecraftContext)
     getContextsSnapshotMock.mockReturnValue({
+      'system:airi-runtime-prompt': [runtimePromptContext],
       'system:minecraft': [minecraftContext],
     })
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
@@ -802,15 +819,21 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })
 
-    expect(ingestContextMessageMock).toHaveBeenCalledTimes(1)
-    expect(ingestContextMessageMock).toHaveBeenCalledWith(minecraftContext)
+    expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emotion'))
+    expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emoji'))
+    expect(ingestContextMessageMock).toHaveBeenCalledTimes(2)
+    expect(ingestContextMessageMock).toHaveBeenNthCalledWith(1, runtimePromptContext)
+    expect(ingestContextMessageMock).toHaveBeenNthCalledWith(2, minecraftContext)
     expect(ingestContextMessageMock.mock.invocationCallOrder[0]).toBeLessThan(
       getContextsSnapshotMock.mock.invocationCallOrder[0],
     )
-    const minecraftMessageContent = composedMessages[1]?.content
-    if (!Array.isArray(minecraftMessageContent))
+    const contextMessageContent = composedMessages[1]?.content
+    if (!Array.isArray(contextMessageContent))
       throw new TypeError('Expected composed user message content to be an array')
-    expect(minecraftMessageContent[1]).toMatchObject({
+    expect(contextMessageContent[1]).toMatchObject({
+      text: expect.stringContaining('- system:airi-runtime-prompt: Start every reply with an ACT token.'),
+    })
+    expect(contextMessageContent[1]).toMatchObject({
       text: expect.stringContaining('- system:minecraft: player is near spawn'),
     })
   })

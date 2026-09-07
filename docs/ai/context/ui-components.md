@@ -118,6 +118,29 @@ Line-clamped content container that expands and collapses when the overflowing c
 
 ## Misc
 
+### BottomDrawer
+
+Mobile modal surface built on Vaul Vue. It owns the drag handle, overlay,
+focus boundary, scroll region, and bottom safe area. Dragging
+starts only on the handle, so action buttons and scrolling do not dismiss it.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | Visible and accessible title |
+| `minimumHeight` | `'content' \| 'half'` | `'content'` | Uses content height or at least half of the viewport height |
+
+Dismiss with the handle, overlay, or Escape. There is no close button.
+
+**v-model**: `boolean`, defaults to `false`.
+
+**Slots**: `trigger` (one button), `default` (drawer content).
+
+**Emits**: `afterClose()` after the dismissal animation;
+`closeAutoFocus(event)` to prevent focus restoration when another modal opens.
+
+Use for mobile action menus and settings panels. Desktop dialogs and panels
+that need snap points use their own surface.
+
 ### Avatar
 
 Shared user-avatar primitive built on Reka UI. It retries when `src` changes and
@@ -334,6 +357,10 @@ Two-column input for key-value pairs.
 ### BasicTextarea
 
 Auto-resizing textarea with submit and paste-file events.
+The native row count defaults to one, so typing does not introduce a second
+row. Content grows when it wraps. Native `rows` attributes can override this minimum.
+When set, `defaultHeight` also provides the baseline for content measurement,
+so flex layouts do not stretch the empty measurement box.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|

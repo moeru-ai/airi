@@ -11,7 +11,7 @@ const posthogMocks = vi.hoisted(() => ({
   })),
 }))
 
-vi.mock('./analytics', () => ({
+vi.mock('./product-signals', () => ({
   getAnalyticsIdentitySnapshot: posthogMocks.getAnalyticsIdentitySnapshot,
 }))
 

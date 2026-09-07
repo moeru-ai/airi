@@ -1,3 +1,4 @@
+import type { AuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import type { ChatSessionMeta } from '@proj-airi/stage-ui/types/chat-session'
 import type { Component } from 'vue'
 
@@ -6,13 +7,14 @@ import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/M
 import ChatArea from '@proj-airi/stage-layouts/components/Widgets/ChatArea'
 
 import { PiniaColada } from '@pinia/colada'
+import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
-import { userEvent } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -102,6 +104,132 @@ async function attachImages(screen: Awaited<ReturnType<typeof renderArea>>['scre
 }
 
 describe('interactive area synchronized state', () => {
+  it('opens mobile settings from an icon-only header and restores focus', async () => {
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const trigger = screen.getByRole('button', { name: 'stage.mobile-tools.title', exact: true })
+    const bounds = trigger.element().getBoundingClientRect()
+    expect(bounds.width).toBeGreaterThanOrEqual(44)
+    expect(bounds.height).toBeGreaterThanOrEqual(44)
+    expect(bounds.right).toBeLessThanOrEqual(390)
+    expect(bounds.left).toBeGreaterThan(300)
+    expect(bounds.top).toBeLessThan(40)
+    expect(trigger.element().textContent?.trim()).toBe('')
+    await expect.element(screen.getByTestId('speech-mute-button')).not.toBeInTheDocument()
+
+    await trigger.click()
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
+    await expect.element(screen.getByText('stage.mobile-tools.sign-in', { exact: true })).toBeVisible()
+    const account = screen.getByRole('button', { name: 'stage.mobile-tools.sign-in stage.mobile-tools.account-description' }).element()
+    const drawerTitle = screen.getByRole('heading', { name: 'stage.mobile-tools.title' }).element()
+    const accountContent = account.querySelector<HTMLElement>('.basic-button-content')
+    // ROOT CAUSE:
+    //
+    // The account row relied on scoped descendant CSS to stretch
+    // BasicButton's content wrapper. The combined browser bundle could leave
+    // that wrapper at its content width, centering the label inward. Comparing
+    // text coordinates was also unstable while the drawer portal animated, so
+    // assert the owned row and content geometry directly.
+    expect(accountContent).not.toBeNull()
+    await expect.poll(() => getComputedStyle(account).paddingLeft).toBe('0px')
+    expect(account.getBoundingClientRect().left).toBe(drawerTitle.getBoundingClientRect().left)
+    expect(accountContent!.getBoundingClientRect().width).toBe(account.clientWidth)
+    expect(account.getBoundingClientRect().height).toBe(56)
+    expect(account.querySelector('[data-avatar-fallback], [data-avatar-image]')).toBeNull()
+    await expect.element(screen.getByText('stage.mobile-tools.cleanup', { exact: true })).not.toBeInTheDocument()
+    await expect.element(screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()
+    const voice = screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })
+    const before = voice.element().getAttribute('aria-checked')
+    await voice.click()
+    await expect.element(voice).toHaveAttribute('aria-checked', before === 'true' ? 'false' : 'true')
+    await expect.element(screen.getByRole('button', { name: 'Close', exact: true })).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(trigger).toHaveFocus()
+  })
+
+  it('removes the clear-messages action from desktop chat surfaces', async () => {
+    for (const component of [InteractiveArea, SharedInteractiveArea, ChatArea]) {
+      const { screen } = await renderArea(component)
+      expect(screen.container.querySelector('[class*="trash-bin-2-bold-duotone"]')).toBeNull()
+      screen.unmount()
+    }
+  })
+
+  it('places the conversation selector opposite settings in the mobile header', async () => {
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const composer = screen.getByTestId('mobile-message-composer').element()
+    const conversations = screen.getByTestId('conversation-selector-button').element()
+    const bounds = conversations.getBoundingClientRect()
+    const settingsBounds = screen.getByTestId('mobile-settings-button').element().getBoundingClientRect()
+    expect(composer.contains(conversations)).toBe(false)
+    expect(bounds.left).toBe(12)
+    expect(bounds.top).toBe(settingsBounds.top)
+    expect(bounds.width).toBe(44)
+    expect(bounds.height).toBe(44)
+    expect(bounds.left).toBe(390 - settingsBounds.right)
+    expect(conversations.textContent?.trim()).toBe('')
+    await screen.getByTestId('conversation-selector-button').click()
+    await expect.element(screen.getByRole('dialog')).toBeVisible()
+  })
+
+  it('keeps the empty mobile input compact and aligns the one-line send action', async () => {
+    // ROOT CAUSE:
+    //
+    // The hierarchy redesign removed the input bubble's compact maximum width.
+    // The 40px bubble also top-aligned its 32px textarea while the send action
+    // aligned to the bottom of the same row.
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const composer = screen.getByTestId('mobile-message-composer').element()
+    const bubble = screen.getByTestId('mobile-input-bubble').element()
+    const input = screen.getByRole('textbox').element()
+    const composerStyle = getComputedStyle(composer)
+    const composerContentWidth = composer.clientWidth
+      - Number.parseFloat(composerStyle.paddingLeft)
+      - Number.parseFloat(composerStyle.paddingRight)
+
+    expect(Math.round(bubble.getBoundingClientRect().width)).toBe(Math.round(composerContentWidth * 0.7))
+
+    await userEvent.fill(input, 'hi')
+    const send = composer.querySelector<HTMLButtonElement>('button')
+    expect(send).not.toBeNull()
+    await expect.poll(() => input.getBoundingClientRect().height).toBe(32)
+    expect(send!.getBoundingClientRect().height).toBe(32)
+    expect(input.getBoundingClientRect().top).toBe(send!.getBoundingClientRect().top)
+    expect(input.getBoundingClientRect().bottom).toBe(send!.getBoundingClientRect().bottom)
+  })
+
+  it('closes mobile settings before requesting sign-in', async () => {
+    let openDialogAtSignIn = true
+    const authorize = vi.fn<AuthorizationHandler>(async () => {
+      openDialogAtSignIn = document.querySelector('[role="dialog"][data-state="open"]') !== null
+    })
+    registerAuthorizationHandler(authorize)
+    try {
+      const { screen } = await renderArea(MobileInteractiveArea)
+      await screen.getByTestId('mobile-settings-button').click()
+      await screen.getByRole('button', { name: 'stage.mobile-tools.sign-in stage.mobile-tools.account-description' }).click()
+      await expect.poll(() => authorize.mock.calls.length).toBe(1)
+      expect(openDialogAtSignIn).toBe(false)
+      await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
+    }
+    finally {
+      registerAuthorizationHandler(browserAuthorizationHandler)
+    }
+  })
+
+  it('returns from hearing to mobile settings without stacked dialogs', async () => {
+    const { screen } = await renderArea(MobileInteractiveArea)
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.hearing' }).click()
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).toBeVisible()
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).not.toBeInTheDocument()
+  })
+
   // https://github.com/moeru-ai/airi/pull/2399
   it('keeps the input visible when a short window contains many attachments', async () => {
     // ROOT CAUSE:
@@ -313,6 +441,16 @@ describe('interactive area synchronized state', () => {
       sessionId: 'session-b',
       text: 'mobile follower message',
     }))
+  })
+
+  it('opts the mobile composer out of browser form assistance', async () => {
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const input = screen.getByRole('textbox').element() as HTMLTextAreaElement
+
+    expect(input.getAttribute('autocomplete')).toBe('off')
+    expect(input.getAttribute('autocapitalize')).toBe('off')
+    expect(input.getAttribute('autocorrect')).toBe('off')
+    expect(input.spellcheck).toBe(false)
   })
 
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755530944

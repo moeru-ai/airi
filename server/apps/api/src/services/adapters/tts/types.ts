@@ -71,6 +71,19 @@ export interface TtsResult {
 }
 
 /**
+ * A non-2xx response from the immediate TTS upstream.
+ *
+ * The router uses this response for configured fallback. It returns the final
+ * response to the client when every permitted fallback has failed.
+ */
+export class TtsUpstreamResponseError extends Error {
+  constructor(readonly response: Response) {
+    super(`TTS upstream responded with ${response.status}`)
+    this.name = 'TtsUpstreamResponseError'
+  }
+}
+
+/**
  * Stable provider identifier for the v1 adapter registry.
  *
  * Adding a new adapter means adding a new id here AND registering it in
@@ -120,9 +133,8 @@ export interface TtsVoiceCatalogContext {
  *
  * Returns:
  * - A {@link TtsResult} on 2xx upstream responses.
- * - Throws (Error subclass) on upstream non-2xx — the router maps the error to
- *   the next fallback key/upstream or to a 5xx for the caller. Adapters MUST
- *   NOT swallow upstream failures.
+ * - Throws {@link TtsUpstreamResponseError} on upstream non-2xx. The router
+ *   can use the response for a fallback or return it to the caller.
  */
 export interface TtsAdapter {
   /** Stable id used by the registry and config (`tts.upstreams[i].adapter`). */

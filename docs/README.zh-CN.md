@@ -293,6 +293,15 @@ pnpm dev:tamagotchi
 nix run github:moeru-ai/airi
 ```
 
+#### NixOS
+
+在 NixOS 上，Electron 需要一些不在标准路径下的共享库。请使用 `flake.nix` 中定义的 FHS shell：
+
+```shell
+nix develop .#fhs
+pnpm dev:tamagotchi
+```
+
 ### Stage Pocket（移动版）
 
 启动 Capacitor Web 版本的开发服务器：
@@ -352,7 +361,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Ollama](https://github.com/ollama/ollama)
 - [x] [302.AI (sponsored)](https://share.302.ai/514k2v)
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
-  - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)（欢迎 PR）
+  - [x] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)
 - [x] [Anthropic Claude](https://anthropic.com)
   - [ ] [AWS Claude](https://docs.anthropic.com/en/api/claude-on-amazon-bedrock)（欢迎 PR）
 - [x] [深度求索 DeepSeek](https://www.deepseek.com/)

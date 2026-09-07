@@ -28,7 +28,7 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-vi.mock('../libs/analytics', () => ({
+vi.mock('../libs/product-signals', () => ({
   captureAnalyticsEvent: analyticsMocks.posthogCaptureMock,
   enableAnalytics: analyticsMocks.ensureAnalyticsInitializedMock,
   getAnalytics: () => ({
