@@ -2,7 +2,7 @@ import type { Conversation, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 
-import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
+import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError, modelKey, streamOptionsToolsCompatibilityOk } from '@proj-airi/core-agent'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -57,6 +57,10 @@ export const useLLM = defineStore('llm', () => {
       }
       return tools
     }
+    // Cache-disabled requests still need detection, but explicitly tool-free
+    // requests must not resolve tools or inherit names from other requests.
+    if (!startsWithTools && streamOptions.supportsTools !== false)
+      await builtinToolsResolver()
     let hasCommittedAttemptOutput = false
 
     const runStream = () => coreStreamFrom({
@@ -96,6 +100,7 @@ export const useLLM = defineStore('llm', () => {
     }
     catch (err) {
       const shouldRetryWithoutTools = isPlainTextToolCallError(err)
+        && startsWithTools
         && !hasCommittedAttemptOutput
         && !toolChoiceRequiresTools(streamOptions.toolChoice)
       if (isToolRelatedError(err)) {
