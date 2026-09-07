@@ -294,6 +294,37 @@ describe('provider config store', () => {
     )
   })
 
+  it('cancels a pending delete when the same id is ensured again', async () => {
+    // ROOT CAUSE:
+    //
+    // removeProvider left the id in pendingDeletes. ensureProvider revived
+    // the same id and left the tombstone. Push then deleted the replica.
+    //
+    // Recreating the live row cancels the local tombstone.
+    const store = installStore()
+    store.providers[localProvider.id] = { ...localProvider, replicaUpdatedAt: '2026-01-01T00:00:00.000Z' }
+    mocks.service.listRemote.mockResolvedValue([{
+      id: localProvider.id,
+      definitionId: localProvider.definitionId,
+      config: localProvider.config,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      deletedAt: null,
+    }])
+    authState.isAuthenticated = true
+
+    await store.syncProviders()
+    await store.removeProvider(localProvider.id)
+    mocks.service.deleteRemote.mockClear()
+
+    store.ensureProvider(localProvider.id, localProvider.definitionId, { apiKey: 'sk-new' })
+
+    expect(store.pendingDeletes[localProvider.id]).toBeUndefined()
+
+    await store.pushProviders()
+
+    expect(mocks.service.deleteRemote).not.toHaveBeenCalled()
+  })
+
   it('uploads a reset as tombstones and does not restore cloud credentials', async () => {
     // ROOT CAUSE:
     //
