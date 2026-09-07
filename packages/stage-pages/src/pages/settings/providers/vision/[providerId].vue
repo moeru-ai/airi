@@ -6,6 +6,7 @@ import {
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
   ProviderBasicSettings,
+  ProviderGenerationSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
   ProviderValidationAlerts,
@@ -19,8 +20,11 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
-const route = useRoute()
-const sourceProviderId = route.params.providerId as string
+const route = useRoute('/settings/providers/vision/[providerId]')
+const routeProviderId = route.params.providerId
+if (typeof routeProviderId !== 'string')
+  throw new Error('Expected a provider id in the settings route')
+const sourceProviderId = routeProviderId
 const providerId = `vision-${sourceProviderId}`
 const providerStore = useProviderConfigStore()
 const visionStore = useVisionStore()
@@ -102,6 +106,7 @@ function goToModelSelection() {
           :provider-name="providerMetadata?.localizedName"
           :placeholder="apiKeyPlaceholder"
         />
+        <ProviderGenerationSettings :provider-id="providerId" />
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
