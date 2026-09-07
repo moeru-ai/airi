@@ -26,8 +26,8 @@ import 'uno.css'
 
 if (isEnvTruthy(import.meta.env.VITE_ENABLE_POSTHOG)) {
   void loadAnalyticsAdapter(async () => {
-    const { createPosthogAdapter } = await import('./modules/analytics-adapters/posthog')
-    return createPosthogAdapter()
+    const { createOpenpanelAdapter } = await import('./modules/analytics-adapters/openpanel')
+    return createOpenpanelAdapter()
   })
 }
 

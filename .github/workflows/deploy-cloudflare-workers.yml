@@ -70,6 +70,8 @@ jobs:
           S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
           S3_REGION: ${{ secrets.S3_REGION }}
           VITE_ENABLE_POSTHOG: 'true'
+          VITE_OPENPANEL_CLIENT_ID: ${{ vars.OPENPANEL_CLIENT_ID }}
+          VITE_OPENPANEL_API_URL: ${{ vars.OPENPANEL_API_URL }}
           VITE_SERVER_URL: 'https://api.airi.build'
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
       - run: |

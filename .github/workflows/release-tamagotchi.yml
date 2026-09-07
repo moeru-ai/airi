@@ -49,6 +49,8 @@ jobs:
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     env:
       VITE_ENABLE_POSTHOG: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
+      VITE_OPENPANEL_CLIENT_ID: ${{ vars.OPENPANEL_CLIENT_ID }}
+      VITE_OPENPANEL_API_URL: ${{ vars.OPENPANEL_API_URL }}
     strategy:
       matrix:
         include:

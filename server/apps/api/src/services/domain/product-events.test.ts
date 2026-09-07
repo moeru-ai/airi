@@ -1,181 +1,91 @@
+import type { ProductCaptureInput } from '../adapters/openpanel'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import { createProductEventService } from './product-events'
 
 describe('productEventService', () => {
-  it('captures only the server-side funnel facts shared with the Go service', async () => {
-    const capture = vi.fn(async () => {})
-    const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
-
-    await service.track({
-      userId: 'user-1',
-      feature: 'auth',
-      action: 'user_signed_up',
-      status: 'succeeded',
-    })
-    await service.track({
-      userId: 'user-1',
-      feature: 'billing',
-      action: 'checkout_started',
-      status: 'succeeded',
-      source: 'stripe.checkout',
-    })
-    await service.track({
-      userId: 'user-1',
-      feature: 'billing',
-      action: 'payment_completed',
-      status: 'succeeded',
-      source: 'stripe.webhook',
-      metadata: { amount_minor_unit: 990, currency: 'usd' },
-    })
+  it('routes confirmed product facts to OpenPanel with stable AIRI user ids', async () => {
+    const capture = vi.fn<(input: ProductCaptureInput) => Promise<void>>().mockResolvedValue(undefined)
+    const aiCapture = vi.fn(async () => {})
+    const service = createProductEventService({ product: { capture }, ai: { capture: aiCapture, shutdown: vi.fn(async () => {}) } })
+    await service.track({ userId: 'user-1', feature: 'auth', action: 'user_signed_up', status: 'succeeded' })
+    await service.track({ userId: 'user-2', feature: 'billing', action: 'checkout_started', status: 'succeeded' })
 
     expect(capture).toHaveBeenNthCalledWith(1, {
-      distinctId: 'user-1',
+      userId: 'user-1',
       event: 'signup_completed',
-      properties: {
-        app_surface: 'server',
-        airi_user_id: 'user-1',
-        feature: 'auth',
-        status: 'succeeded',
-      },
+      properties: { app_surface: 'server', airi_user_id: 'user-1', feature: 'auth', status: 'succeeded' },
     })
-    expect(capture).toHaveBeenNthCalledWith(2, {
-      distinctId: 'user-1',
-      event: 'checkout_created',
-      properties: {
-        app_surface: 'server',
-        airi_user_id: 'user-1',
-        feature: 'billing',
-        status: 'succeeded',
-        source: 'stripe.checkout',
-      },
-    })
-    expect(capture).toHaveBeenNthCalledWith(3, {
-      distinctId: 'user-1',
-      event: 'payment_completed',
-      properties: {
-        app_surface: 'server',
-        airi_user_id: 'user-1',
-        feature: 'billing',
-        status: 'succeeded',
-        source: 'stripe.webhook',
-        amount_minor_unit: 990,
-        currency: 'usd',
-      },
-    })
+    expect(capture).toHaveBeenNthCalledWith(2, expect.objectContaining({ userId: 'user-2', event: 'checkout_created' }))
+    expect(aiCapture).not.toHaveBeenCalled()
   })
 
-  it('merges a Stripe conversion with its browser PostHog person', async () => {
-    const capture = vi.fn(async () => {})
-    const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
-
+  it('passes the checkout device id and source event id without a PostHog identify event', async () => {
+    const capture = vi.fn<(input: ProductCaptureInput) => Promise<void>>().mockResolvedValue(undefined)
+    const service = createProductEventService({ product: { capture } })
     await service.track({
       userId: 'user-1',
       feature: 'billing',
       action: 'payment_completed',
       status: 'succeeded',
       eventId: 'cs_123',
-      metadata: {
-        posthog_distinct_id: 'anon-browser-1',
-        posthog_session_id: 'ph-session-1',
-      },
+      metadata: { openpanel_device_id: 'browser-1', amount_total: 990, currency: 'usd' },
     })
-
-    expect(capture).toHaveBeenNthCalledWith(1, {
-      distinctId: 'user-1',
-      event: '$identify',
-      uuid: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
-      properties: {
-        $insert_id: 'cs_123',
-        $anon_distinct_id: 'anon-browser-1',
-        $session_id: 'ph-session-1',
-        airi_user_id: 'user-1',
-      },
-    })
-    expect(capture).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      distinctId: 'user-1',
-      event: 'payment_completed',
-      uuid: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
-      properties: expect.objectContaining({ $insert_id: 'cs_123' }),
-    }))
-  })
-
-  it('uses a stable PostHog UUID for replayed conversion captures', async () => {
-    const capture = vi.fn(async () => {})
-    const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
-    const input = {
-      userId: 'user-1' as const,
-      feature: 'billing' as const,
-      action: 'payment_completed' as const,
-      status: 'succeeded' as const,
-      eventId: 'cs_replayed',
-    }
-
-    await service.track(input)
-    await service.track(input)
-
-    expect(capture).toHaveBeenCalledTimes(2)
-    const captures = capture.mock.calls as unknown as Array<[
-      {
-        uuid?: string
-        properties: Record<string, unknown>
-      },
-    ]>
-    const first = captures[0]![0]
-    const replay = captures[1]![0]
-    expect(first.uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
-    expect(replay.uuid).toBe(first.uuid)
-    expect(first.properties.$insert_id).toBe('cs_replayed')
-  })
-
-  it('rejects metadata that can overwrite service-controlled PostHog properties', async () => {
-    const capture = vi.fn(async () => {})
-    const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
-
-    await expect(service.track({
+    expect(capture).toHaveBeenCalledTimes(1)
+    expect(capture).toHaveBeenCalledWith({
       userId: 'user-1',
-      feature: 'billing',
-      action: 'payment_completed',
-      status: 'succeeded',
-      metadata: { $insert_id: 'spoofed' },
-    })).resolves.toBeUndefined()
+      deviceId: 'browser-1',
+      event: 'payment_completed',
+      properties: {
+        openpanel_device_id: 'browser-1',
+        amount_total: 990,
+        currency: 'usd',
+        event_id: 'cs_123',
+        app_surface: 'server',
+        airi_user_id: 'user-1',
+        feature: 'billing',
+        status: 'succeeded',
+      },
+    })
+  })
 
+  it('rejects metadata that can forge provider identity or the source event id', async () => {
+    const capture = vi.fn(async () => {})
+    const service = createProductEventService({ product: { capture } })
+    for (const key of ['event_id', '__deviceId', 'profileId']) {
+      await service.track({ userId: 'user-1', feature: 'billing', action: 'payment_completed', status: 'succeeded', metadata: { [key]: 'forged' } })
+    }
     expect(capture).not.toHaveBeenCalled()
   })
 
-  it('still captures the funnel event when identity merging fails', async () => {
-    const capture = vi.fn()
-      .mockRejectedValueOnce(new Error('identify failed'))
-      .mockResolvedValueOnce(undefined)
-    const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
-
-    await expect(service.track({
-      userId: 'user-1',
-      feature: 'billing',
-      action: 'payment_completed',
-      status: 'succeeded',
-      eventId: 'cs_456',
-      metadata: { posthog_distinct_id: 'anon-browser-1' },
-    })).resolves.toBeUndefined()
-
-    expect(capture).toHaveBeenCalledTimes(2)
-    expect(capture).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      event: 'payment_completed',
-      properties: expect.objectContaining({ $insert_id: 'cs_456' }),
-    }))
+  it('does not fail the business path when OpenPanel is unavailable', async () => {
+    const capture = vi.fn(async () => {
+      throw new Error('unavailable')
+    })
+    const service = createProductEventService({ product: { capture } })
+    await expect(service.track({ userId: 'user-1', feature: 'billing', action: 'payment_completed', status: 'succeeded' })).resolves.toBeUndefined()
   })
 
-  it('does not fail a business path when capture throws', async () => {
-    const capture = vi.fn(async () => {
-      throw new Error('posthog exploded')
+  it('keeps AI generation in PostHog without sending it to OpenPanel', () => {
+    const capture = vi.fn(async () => {})
+    const captureQueued = vi.fn()
+    const service = createProductEventService({
+      product: { capture },
+      ai: { capture: vi.fn(async () => {}), captureQueued, shutdown: vi.fn(async () => {}) },
     })
-    const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
-
-    await expect(service.track({
+    service.trackGeneration({
       userId: 'user-1',
-      feature: 'billing',
-      action: 'payment_completed',
-      status: 'succeeded',
-    })).resolves.toBeUndefined()
+      traceId: 'trace-1',
+      generationId: 'generation-1',
+      model: 'model-1',
+      provider: 'provider-1',
+      providerType: 'custom',
+      usageSource: 'reported',
+      conversationId: 'conversation-1',
+      conversationIdSource: 'client_header',
+    })
+    expect(capture).not.toHaveBeenCalled()
+    expect(captureQueued).toHaveBeenCalledWith(expect.objectContaining({ distinctId: 'user-1', event: '$ai_generation' }))
   })
 })

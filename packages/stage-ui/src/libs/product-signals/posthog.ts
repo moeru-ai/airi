@@ -9,10 +9,14 @@ import {
   POSTHOG_PROJECT_KEY,
 } from '@proj-airi/stage-shared/analytics/posthog'
 
-/** Creates and initializes the default PostHog adapter. */
+/** Initializes the PostHog client retained for AI Analytics. */
 export function createPosthogAdapter(options: AnalyticsAdapterOptions): AnalyticsAdapter {
   posthog.init(POSTHOG_PROJECT_KEY, {
     ...DEFAULT_POSTHOG_CONFIG,
+    autocapture: false,
+    capture_pageview: false,
+    capture_pageleave: false,
+    disable_session_recording: true,
     opt_out_capturing_by_default: !options.enabled,
   })
   posthog.register({ app_surface: currentSurface() })

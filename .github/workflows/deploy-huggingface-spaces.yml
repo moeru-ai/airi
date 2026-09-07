@@ -34,6 +34,8 @@ jobs:
           TARGET_HUGGINGFACE_SPACE: 'true'
           VITE_APP_TARGET_HUGGINGFACE_SPACE: 'true'
           VITE_ENABLE_POSTHOG: 'true'
+          VITE_OPENPANEL_CLIENT_ID: ${{ vars.OPENPANEL_CLIENT_ID }}
+          VITE_OPENPANEL_API_URL: ${{ vars.OPENPANEL_API_URL }}
 
       - id: airi_diff
         working-directory: ./apps/stage-web/dist

@@ -1,13 +1,15 @@
+import type { ProductAnalyticsSink } from '../adapters/openpanel'
 import type { PosthogSink } from '../adapters/posthog'
-
-import { createHash } from 'node:crypto'
 
 import { useLogger } from '@guiiai/logg'
 
 const logger = useLogger('product-events')
 
-const RESERVED_POSTHOG_METADATA_KEYS = new Set([
-  '$insert_id',
+const RESERVED_PRODUCT_METADATA_KEYS = new Set([
+  'event_id',
+  '__deviceId',
+  '__identify',
+  'profileId',
   '$session_id',
   'airi_user_id',
   'app_surface',
@@ -27,7 +29,7 @@ export type ProductAction
     | 'checkout_started'
     | 'payment_completed'
 
-/** Product funnel fact forwarded to PostHog from the server. */
+/** Product funnel fact forwarded to OpenPanel from the server. */
 export interface ProductEventInput {
   /** Better Auth user id. Kept in Postgres only; never emitted as a Prometheus label. */
   userId: string
@@ -41,7 +43,7 @@ export interface ProductEventInput {
   source?: string
   /** Optional primitive metadata for product analysis. Avoid PII and raw prompts. */
   metadata?: ProductEventMetadata
-  /** Stable source event id used by PostHog for replay-safe deduplication. */
+  /** Stable source event id for reconciliation. Callers suppress replays before capture. */
   eventId?: string
 }
 
@@ -85,14 +87,14 @@ export interface AiGenerationEventInput {
 }
 
 /**
- * Server-side actions that anchor a PostHog product funnel. Per-request LLM
+ * Server-side actions that anchor the product funnel. Per-request LLM
  * and TTS telemetry stays in operational systems and does not enter this path.
  *
  * `user_signed_up` maps to `signup_completed` because the identified server
  * hook is the canonical registration fact for every signup method. Anonymous
  * auth UI progress uses `signup_form_completed` and never reuses this name.
  */
-const POSTHOG_FORWARDED_ACTIONS: Partial<Record<ProductAction, string>> = {
+const FORWARDED_ACTIONS: Partial<Record<ProductAction, string>> = {
   user_signed_up: 'signup_completed',
   checkout_started: 'checkout_created',
   payment_completed: 'payment_completed',
@@ -103,20 +105,12 @@ function stringMetadata(input: ProductEventInput, key: string): string | undefin
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
-function posthogEventUuid(event: string, eventId: string): string {
-  const digest = createHash('sha256').update(`airi:posthog:${event}:${eventId}`, 'utf8').digest()
-  digest[6] = (digest[6] & 0x0F) | 0x50
-  digest[8] = (digest[8] & 0x3F) | 0x80
-  const hex = digest.subarray(0, 16).toString('hex')
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
-}
-
 function hasReservedMetadataKey(metadata: ProductEventMetadata | undefined): boolean {
-  return metadata != null && Object.keys(metadata).some(key => RESERVED_POSTHOG_METADATA_KEYS.has(key))
+  return metadata != null && Object.keys(metadata).some(key => RESERVED_PRODUCT_METADATA_KEYS.has(key))
 }
 
 /**
- * Creates AIRI's server-side PostHog product analytics writer.
+ * Routes product facts to OpenPanel and AI usage to PostHog.
  *
  * Use when:
  * - A server has an authenticated user id and confirms a funnel fact.
@@ -128,9 +122,10 @@ function hasReservedMetadataKey(metadata: ProductEventMetadata | undefined): boo
  * Returns:
  * - A best-effort event writer. Capture errors never change the business flow.
  */
-export function createProductEventService(posthog?: PosthogSink | null) {
+export function createProductEventService(sinks: { product?: ProductAnalyticsSink | null, ai?: PosthogSink | null }) {
   return {
     trackGeneration(input: AiGenerationEventInput): void {
+      const posthog = sinks.ai
       if (!posthog)
         return
 
@@ -174,56 +169,35 @@ export function createProductEventService(posthog?: PosthogSink | null) {
     },
 
     async track(input: ProductEventInput): Promise<void> {
-      const forwardedEvent = POSTHOG_FORWARDED_ACTIONS[input.action]
-      if (!posthog || !forwardedEvent)
+      const forwardedEvent = FORWARDED_ACTIONS[input.action]
+      if (!sinks.product || !forwardedEvent)
         return
 
       if (hasReservedMetadataKey(input.metadata)) {
-        logger.withFields({ action: input.action }).warn('Rejected reserved PostHog product event metadata')
+        logger.withFields({ action: input.action }).warn('Rejected reserved product event metadata')
         return
       }
 
-      const posthogDistinctId = stringMetadata(input, 'posthog_distinct_id')
-      const posthogSessionId = stringMetadata(input, 'posthog_session_id')
-      if (posthogDistinctId && posthogDistinctId !== input.userId) {
-        try {
-          await posthog.capture({
-            distinctId: input.userId,
-            event: '$identify',
-            properties: {
-              ...(input.eventId && { $insert_id: input.eventId }),
-              $anon_distinct_id: posthogDistinctId,
-              airi_user_id: input.userId,
-              ...(posthogSessionId && { $session_id: posthogSessionId }),
-            },
-            ...(input.eventId && { uuid: posthogEventUuid('$identify', input.eventId) }),
-          })
-        }
-        catch (err) {
-          logger.withError(err).withFields({ action: input.action }).warn('PostHog anonymous identity capture failed')
-        }
-      }
+      const deviceId = stringMetadata(input, 'openpanel_device_id')
 
       try {
-        await posthog.capture({
-          distinctId: input.userId,
+        await sinks.product.capture({
+          userId: input.userId,
+          ...(deviceId && { deviceId }),
           event: forwardedEvent,
           properties: {
             ...input.metadata,
-            ...(input.eventId && { $insert_id: input.eventId }),
+            ...(input.eventId && { event_id: input.eventId }),
             app_surface: 'server',
             airi_user_id: input.userId,
-            ...(posthogDistinctId && { posthog_distinct_id: posthogDistinctId }),
-            ...(posthogSessionId && { $session_id: posthogSessionId }),
             feature: input.feature,
             status: input.status,
             ...(input.source && { source: input.source }),
           },
-          ...(input.eventId && { uuid: posthogEventUuid(forwardedEvent, input.eventId) }),
         })
       }
       catch (err) {
-        logger.withError(err).withFields({ action: input.action }).warn('PostHog product analytics capture failed')
+        logger.withError(err).withFields({ action: input.action }).warn('OpenPanel product analytics capture failed')
       }
     },
   }

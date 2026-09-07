@@ -37,8 +37,8 @@ describe('authedFetch', () => {
     const headers = fetchMock.mock.calls[0]?.[1]?.headers
     expect(headers).toBeInstanceOf(Headers)
     expect((headers as Headers).get('Authorization')).toBe('Bearer access-token')
-    expect((headers as Headers).get('x-posthog-distinct-id')).toBe('distinct-1')
-    expect((headers as Headers).get('x-posthog-session-id')).toBe('session-1')
+    expect((headers as Headers).get('x-openpanel-device-id')).toBe('distinct-1')
+    expect((headers as Headers).get('x-openpanel-session-id')).toBe('session-1')
   })
 
   it('omits PostHog identity headers when analytics has no active identity', async () => {
@@ -51,8 +51,8 @@ describe('authedFetch', () => {
     const headers = fetchMock.mock.calls[0]?.[1]?.headers
     expect(headers).toBeInstanceOf(Headers)
     expect((headers as Headers).get('Authorization')).toBe('Bearer access-token')
-    expect((headers as Headers).get('x-posthog-distinct-id')).toBeNull()
-    expect((headers as Headers).get('x-posthog-session-id')).toBeNull()
+    expect((headers as Headers).get('x-openpanel-device-id')).toBeNull()
+    expect((headers as Headers).get('x-openpanel-session-id')).toBeNull()
   })
 
   it('does not send PostHog identity headers to non-server origins', async () => {
@@ -64,7 +64,7 @@ describe('authedFetch', () => {
     const headers = fetchMock.mock.calls[0]?.[1]?.headers
     expect(headers).toBeInstanceOf(Headers)
     expect((headers as Headers).get('Authorization')).toBe('Bearer access-token')
-    expect((headers as Headers).get('x-posthog-distinct-id')).toBeNull()
-    expect((headers as Headers).get('x-posthog-session-id')).toBeNull()
+    expect((headers as Headers).get('x-openpanel-device-id')).toBeNull()
+    expect((headers as Headers).get('x-openpanel-session-id')).toBeNull()
   })
 })

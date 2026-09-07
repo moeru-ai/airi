@@ -60,6 +60,7 @@ import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
+import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createPosthogSink } from './services/adapters/posthog'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
@@ -547,9 +548,21 @@ export async function createApp() {
     },
   })
 
+  const openpanelSink = injeca.provide('services:openpanelSink', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => {
+      const { OPENPANEL_API_URL: apiUrl, OPENPANEL_CLIENT_ID: clientId, OPENPANEL_CLIENT_SECRET: clientSecret } = dependsOn.env
+      if (!apiUrl && !clientId && !clientSecret)
+        return null
+      if (!apiUrl || !clientId || !clientSecret)
+        throw new Error('OpenPanel requires API URL, client id, and client secret')
+      return createOpenpanelSink({ apiUrl, clientId, clientSecret })
+    },
+  })
+
   const productEventService = injeca.provide('services:productEvents', {
-    dependsOn: { posthogSink },
-    build: ({ dependsOn }) => createProductEventService(dependsOn.posthogSink),
+    dependsOn: { posthogSink, openpanelSink },
+    build: ({ dependsOn }) => createProductEventService({ product: dependsOn.openpanelSink, ai: dependsOn.posthogSink }),
   })
 
   const characterService = injeca.provide('services:characters', {

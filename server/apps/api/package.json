@@ -27,6 +27,7 @@
     "@langfuse/tracing": "catalog:",
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
+    "@openpanel/sdk": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",
     "@opentelemetry/exporter-logs-otlp-proto": "catalog:",

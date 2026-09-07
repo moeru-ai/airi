@@ -104,11 +104,14 @@ const EnvSchema = object({
 
   OTEL_TRACES_SAMPLING_RATIO: optionalNumberFromString(1, 'OTEL_TRACES_SAMPLING_RATIO', 0, 1),
   PORT: optionalIntegerFromString(3000, 'PORT', 1),
+  OPENPANEL_API_URL: optional(string()),
+  OPENPANEL_CLIENT_ID: optional(string()),
+  OPENPANEL_CLIENT_SECRET: optional(string()),
   POSTHOG_API_HOST: optional(string(), 'https://t.airi.build'),
-  // PostHog product-event forwarding for server-confirmed funnel facts.
+  // PostHog forwarding for AI Analytics.
   // Defaults to the shared AIRI project key (same browser-safe phc_* key the
   // client surfaces embed in stage-shared/analytics/posthog), so forwarding is on out of
-  // the box. Set to an empty string to disable server-side product analytics.
+  // the box. Set to an empty string to disable server-side AI Analytics.
   POSTHOG_PROJECT_KEY: optional(string(), 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9'), // cspell:disable-line
 
   REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
