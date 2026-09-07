@@ -52,7 +52,7 @@ function createHarness() {
   }
   const stream = vi.fn(async (_model: string, _chatProvider: GenerationProvider, _messages: ConversationContext, options?: StreamOptions) => {
     await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
-    await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    await options?.onStreamEvent?.({ type: 'finish' })
   })
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
   let systemPromptSupplement: string | undefined
@@ -162,7 +162,7 @@ describe('createChatOrchestratorRuntime', () => {
         await options?.onStreamEvent?.({ type: 'text-delta', text })
 
       patchesBeforeFinish = harness.foregroundPatches.length
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('show a slow response', {
@@ -396,7 +396,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = renderChatContext(messages)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'hello' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('hello from user', {
@@ -441,7 +441,7 @@ describe('createChatOrchestratorRuntime', () => {
     })
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: '<|CALL ["plugin.action"]|>' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('trigger special', {
@@ -471,7 +471,7 @@ describe('createChatOrchestratorRuntime', () => {
 
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       firstMessages.push(renderChatContext(messages))
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
     harness.now.set(new Date(2026, 3, 25, 18, 47).getTime())
 
@@ -482,7 +482,7 @@ describe('createChatOrchestratorRuntime', () => {
 
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       secondMessages.push(renderChatContext(messages))
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
     harness.now.set(new Date(2026, 3, 25, 19, 12).getTime())
 
@@ -503,7 +503,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = renderChatContext(messages)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'hello' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('hello from user', {
@@ -525,7 +525,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = renderChatContext(messages)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'hello' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('hello from user', {
@@ -545,7 +545,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.monotonicNow.set([100, 150, 250, 400, 460])
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
       await options?.onUsage?.({
         inputTokens: 12,
         outputTokens: 8,
@@ -900,7 +900,7 @@ describe('createChatOrchestratorRuntime', () => {
         source: 'reported',
       })
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'deleted reply' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     const pendingSend = harness.runtime.ingest('delete this chat', {
@@ -1106,7 +1106,7 @@ describe('createChatOrchestratorRuntime', () => {
         result: 'sunny',
       } as StreamEvent)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'visible reply' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('see image', {
@@ -1169,12 +1169,11 @@ describe('responses transcript ownership', () => {
   it('keeps portable history and opaque continuation together for the selected adapter', async () => {
     const harness = createHarness()
     const responsesProvider: GenerationProvider = {
-      chat: model => ({ model, baseURL: 'https://example.com/' }),
-      responses: model => ({ model, baseURL: 'https://example.com/' }),
+      generation: model => ({ protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://example.com/' } }),
     }
     const transcript = {
       messages: readChatMessages([{ role: 'assistant', content: 'answer' }]),
-      continuation: { protocol: 'responses', scope: 'adapter-scope', data: [{ type: 'reasoning', summary: [], encrypted_content: 'opaque' }] },
+      continuation: { protocol: 'responses' as const, scope: 'adapter-scope', data: [{ type: 'reasoning', summary: [], encrypted_content: 'opaque' }] },
     }
     harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
       await options?.onTranscript?.(transcript)
@@ -1217,10 +1216,10 @@ it('runs consecutive orchestrator turns through the real Responses adapter', asy
     { type: 'message', id: 'msg-1', role: 'assistant', content: [{ type: 'output_text', text: 'answer', annotations: [] }], phase: 'final_answer' },
   ]
   const provider: GenerationProvider = {
-    responses: model => ({
+    generation: model => ({ protocol: 'responses', webSearch: false, config: {
       model,
       baseURL: 'https://example.test/v1/',
-      fetch: async (_url, init) => {
+      fetch: async (_url: RequestInfo | URL, init?: RequestInit) => {
         requests.push(JSON.parse(String(init?.body)))
         const events = [
           { type: 'response.output_text.delta', delta: 'answer' },
@@ -1229,7 +1228,7 @@ it('runs consecutive orchestrator turns through the real Responses adapter', asy
         ]
         return new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'Content-Type': 'text/event-stream' } })
       },
-    }),
+    } }),
   }
   harness.stream.mockImplementation((model, chatProvider, context, options) => streamFrom({ model, chatProvider, context, options }))
   await harness.runtime.ingest('first', { model: 'test', chatProvider: provider })

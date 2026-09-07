@@ -105,14 +105,12 @@ export function compactConversationEntries(input: CompactConversationEntriesOpti
     if (!isStructuredMessage(entry))
       return entry
 
-    return {
-      ...entry,
-      segments: entry.segments.map((segment) => {
-        if (segment.type !== 'history-block')
-          return segment
-
-        return compactHistoryBlock(segment, input.recentTurnLimit, input.summarizeCompactedHistory)
-      }),
+    // Only history blocks change. Keep role-dependent segment types intact.
+    const compacted = structuredClone(entry)
+    for (const segment of compacted.segments) {
+      if (segment.type === 'history-block')
+        Object.assign(segment, compactHistoryBlock(segment, input.recentTurnLimit, input.summarizeCompactedHistory))
     }
+    return compacted
   })
 }

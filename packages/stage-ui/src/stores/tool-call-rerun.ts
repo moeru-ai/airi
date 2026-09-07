@@ -46,14 +46,20 @@ export function replaceToolCallResult(message: ChatAssistantMessage, result: Too
 
   let generationTranscript = message.generationTranscript
   if (generationTranscript?.messages.some(entry => entry.segments.some(segment => segment.type === 'tool-result' && segment.callId === result.id))) {
-    const replacement = readChatMessages([{ role: 'tool', tool_call_id: result.id, content: result.result ?? '' }])[0].segments[0]
+    const replacement = readChatMessages([{ role: 'tool', tool_call_id: result.id, content: result.result ?? '' }])[0]
+    if (replacement.role !== 'tool')
+      throw new Error('Expected a correlated tool result')
     // Native state describes the old result. After a local edit, every adapter
     // must render the portable turn instead of replaying that state.
     generationTranscript = {
-      messages: generationTranscript.messages.map(entry => ({
-        ...entry,
-        segments: entry.segments.map(segment => segment.type === 'tool-result' && segment.callId === result.id ? replacement : segment),
-      })),
+      messages: generationTranscript.messages.map((entry) => {
+        if (entry.role !== 'tool')
+          return entry
+        return {
+          ...entry,
+          segments: entry.segments.map(segment => segment.callId === result.id ? replacement.segments[0] : segment),
+        }
+      }),
     }
   }
 

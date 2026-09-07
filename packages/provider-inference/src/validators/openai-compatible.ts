@@ -9,7 +9,7 @@ import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 import { Mutex } from 'es-toolkit'
 
-import { isModelProvider, ProviderValidationCheck } from '../types'
+import { isGenerationProvider, isModelProvider, ProviderValidationCheck, resolveGeneration } from '../types'
 
 interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
   checks?: ProviderValidationCheck[]
@@ -135,11 +135,11 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       }
     }
 
-    const generation = 'responses' in provider ? provider : undefined
+    const generation = isGenerationProvider(provider) ? resolveGeneration(provider, normalizedModel) : undefined
     try {
-      if (generation?.responses) {
+      if (generation?.protocol === 'responses') {
         const result = responses({
-          ...generation?.responses(normalizedModel),
+          ...generation.config,
           input: 'ping',
           store: false,
           headers: additionalHeaders,
@@ -171,7 +171,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       }
 
       const status = extractStatusCode(e)
-      const chatOk = !generation?.responses && (status === 400 || Boolean(status && status >= 200 && status < 300))
+      const chatOk = generation?.protocol !== 'responses' && (status === 400 || Boolean(status && status >= 200 && status < 300))
       return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
     }
   }

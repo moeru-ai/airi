@@ -291,7 +291,7 @@ describe('chat store contract', () => {
       const tools = typeof options.tools === 'function' ? await options.tools() : options.tools
       resolvedToolNames.push(tools.map((tool: Tool) => tool.function.name))
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onStreamEvent({ type: 'finish' })
     })
 
     const store = useChatStore()
@@ -364,7 +364,7 @@ describe('chat store contract', () => {
     const settings = useConsciousnessSettingsStore()
     await settings.setReasoning(true)
     llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: StreamOptions) => {
-      await options.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options.onStreamEvent?.({ type: 'finish' })
     })
 
     const store = useChatStore()
@@ -411,7 +411,7 @@ describe('chat store contract', () => {
       return true
     })
     llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onStreamEvent({ type: 'finish' })
     })
 
     const store = useChatStore()
@@ -444,7 +444,7 @@ describe('chat store contract', () => {
   it('forwards one correlation identity across the action and result events', async () => {
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onStreamEvent({ type: 'finish' })
     })
 
     const store = useChatStore()
@@ -471,7 +471,7 @@ describe('chat store contract', () => {
   it('keeps custom and official provider usage in completed message rounds', async () => {
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onStreamEvent({ type: 'finish' })
       await options.onUsage({
         inputTokens: 12,
         outputTokens: 8,
@@ -517,7 +517,7 @@ describe('chat store contract', () => {
     activeProviderRef.value = 'official-provider'
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onStreamEvent({ type: 'finish' })
     })
 
     const store = useChatStore()
@@ -548,7 +548,7 @@ describe('chat store contract', () => {
   it('does not emit redundant generic chat aliases for a successful send', async () => {
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onStreamEvent({ type: 'finish' })
     })
 
     const store = useChatStore()
@@ -566,7 +566,7 @@ describe('chat store contract', () => {
   it('forwards later-turn failures to the canonical round failure event', async () => {
     llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onStreamEvent({ type: 'finish' })
     })
     llmStreamMock.mockRejectedValueOnce(new Error('later turn rejected'))
 
@@ -616,7 +616,7 @@ describe('chat store contract', () => {
       expect(options.captureToolErrors).toBeUndefined()
 
       await options.onStreamEvent({ type: 'text-delta', text: 'hello' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onStreamEvent({ type: 'finish' })
     })
 
     const store = useChatStore()
@@ -824,7 +824,7 @@ describe('chat store contract', () => {
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, context: ConversationContext, options: any) => {
       composedMessages = context.turns.flatMap(turn => turn.messages)
       await options.onStreamEvent({ type: 'text-delta', text: 'minecraft reply' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onStreamEvent({ type: 'finish' })
     })
 
     const store = useChatStore()
@@ -1060,7 +1060,7 @@ describe('chat store contract', () => {
     forkSessionMock.mockResolvedValue('session-forked')
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: ConversationContext, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'fork-reply' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onStreamEvent({ type: 'finish' })
     })
 
     const store = useChatStore()

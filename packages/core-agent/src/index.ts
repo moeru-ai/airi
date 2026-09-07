@@ -11,7 +11,7 @@ export {
 
 export type { ContextSnapshot } from './messages/context-prompt'
 export { formatTimePrefix } from './messages/datetime-prefix'
-export type { ContentSegment, ConversationContext, Message as ConversationMessage, ConversationTurn, ProviderContinuation } from './messages/types'
+export type { Citation, ContentSegment, ConversationContext, Message as ConversationMessage, ConversationTurn, ProviderContinuation } from './messages/types'
 export { createChatHooks } from './runtime/agent-hooks'
 export type {
   ChatOrchestratorLifecycleRecord,

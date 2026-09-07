@@ -275,11 +275,9 @@ describe('streamFrom tool errors', () => {
     expect(failingTool.execute).not.toHaveBeenCalled()
     expect(events).toContainEqual({
       type: 'tool-error',
-      args: {},
       isError: true,
       result: 'Tool "play_chess" execution failed: Focus mode does not accept game-state mutation inputs.',
       toolCallId: 'call-1',
-      toolName: 'play_chess',
     })
     expect(events).toContainEqual({ type: 'text-delta', text: 'ok' })
     expect(events).toContainEqual({ type: 'finish' })

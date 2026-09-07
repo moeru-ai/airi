@@ -18,10 +18,40 @@ import type { $ZodType } from 'zod/v4/core'
 /** Request configuration for the Responses protocol. The caller owns input and tools. */
 export type ResponsesConfig = Pick<ResponsesOptions, 'apiKey' | 'baseURL' | 'fetch' | 'headers' | 'model' | 'reasoning'>
 
-/** A configured generation capability. Responses-only providers do not need a Chat implementation. */
-export type GenerationProvider = (ChatProvider & { responses?: never }) | {
-  responses: (model: string, options?: ChatRequestOptions) => ResponsesConfig
-  chat?: ChatProvider['chat']
+/** A resolved request selects exactly one wire protocol before context projection. */
+export type GenerationRequest
+  = { protocol: 'chat-completions', config: ReturnType<ChatProvider['chat']> }
+    | { protocol: 'responses', config: ResponsesConfig, webSearch: boolean }
+
+/** A provider that owns protocol selection and model capabilities. */
+export interface NativeGenerationProvider {
+  generation: (model: string, options?: ChatRequestOptions) => GenerationRequest
+}
+
+/** Chat providers enter through the same resolver as providers with native protocols. */
+export type GenerationProvider = ChatProviderWithExtraOptions<string, ChatRequestOptions> | NativeGenerationProvider
+
+/** Declares implemented protocols. The default must be one of the supported protocols. */
+export type GenerationCapabilities = {
+  [Protocol in GenerationRequest['protocol']]: {
+    /** The preferred protocol is first in the selector. */
+    supportedProtocols: readonly [Protocol, ...GenerationRequest['protocol'][]]
+    defaultProtocol: Protocol
+    nativeTools?: { responses: readonly 'web-search'[] }
+  }
+}[GenerationRequest['protocol']]
+
+/** Resolves provider policy once. Callers do not infer protocols from optional methods. */
+export function resolveGeneration(provider: GenerationProvider, model: string, options?: ChatRequestOptions): GenerationRequest {
+  if ('generation' in provider)
+    return provider.generation(model, options)
+  return { protocol: 'chat-completions', config: provider.chat(model, options) }
+}
+
+/** Narrows a registry instance without asserting a requested provider type. */
+export function isGenerationProvider(provider: ProviderInstance): provider is GenerationProvider {
+  return ('generation' in provider && typeof provider.generation === 'function')
+    || ('chat' in provider && typeof provider.chat === 'function')
 }
 
 /** Translates a provider label or description for the active interface locale. */
@@ -273,6 +303,7 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
   }
   capabilities?: {
     chat?: {
+      generation?: GenerationCapabilities
       reasoning?: ChatReasoningCapability
     }
     transcription?: {

@@ -22,7 +22,7 @@ function completed(output: ItemParam[]) {
 
 function provider(fetch: typeof globalThis.fetch): GenerationProvider {
   return {
-    responses: model => ({ model, baseURL: 'https://example.test/v1/', fetch }),
+    generation: model => ({ protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://example.test/v1/', fetch } }),
   }
 }
 
@@ -67,6 +67,23 @@ describe('responses generation', () => {
     expect(onUsage).toHaveBeenCalledWith({ inputTokens: 20, outputTokens: 10, totalTokens: 30, source: 'reported' })
     expect(onStreamEvent).toHaveBeenCalledWith({ type: 'reasoning-delta', text: 'Checking.' })
     expect(onStreamEvent).toHaveBeenLastCalledWith({ type: 'finish' })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2477#discussion_r3950632651
+  it('issue #2477 serializes JSON tool results for the next Responses step', async () => {
+    const requests: unknown[] = []
+    const call: ItemParam = { type: 'function_call', call_id: 'json-call', name: 'lookup', arguments: '{}' }
+    const fetch: typeof globalThis.fetch = async (_url, init) => {
+      requests.push(JSON.parse(String(init?.body)))
+      return sse(completed(requests.length === 1 ? [call] : []))
+    }
+    await streamFrom({
+      model: 'test',
+      chatProvider: provider(fetch),
+      context: { turns: [] },
+      options: { tools: [{ type: 'function', function: { name: 'lookup', description: 'Lookup', parameters: { type: 'object', properties: {} } }, execute: async () => ({ found: true }) }] },
+    })
+    expect(requests[1]).toMatchObject({ input: [call, { type: 'function_call_output', output: '{"found":true}' }] })
   })
 
   it('maps image input and named function selection without chat wire fields', async () => {
@@ -226,7 +243,7 @@ it('replays native state only for the same provider, endpoint, model and convers
     { model: 'different', chatProvider: provider(fetch), options },
     { model: 'test', chatProvider: provider(fetch), options: { ...options, providerId: 'provider-2' } },
     { model: 'test', chatProvider: provider(fetch), options: { ...options, requestCorrelation: { conversationId: 'session-2', roundId: 'round-1' } } },
-    { model: 'test', chatProvider: { responses: (model: string) => ({ model, baseURL: 'https://another.test/v1/' as const, fetch }) }, options },
+    { model: 'test', chatProvider: { generation: (model: string) => ({ protocol: 'responses' as const, webSearch: false, config: { model, baseURL: 'https://another.test/v1/', fetch } }) }, options },
   ]) {
     await streamFrom({ ...change, context })
     expect(requests.at(-1)?.input).toEqual([{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'answer' }] }])
@@ -250,7 +267,7 @@ it.each(['openai', 'openai-compatible'] as const)('sends %s BYOK requests direct
     apiKey: 'test-user-key',
     baseUrl: 'https://byok.example/v1/',
   })
-  if (!('responses' in instance) || !instance.responses)
+  if (!('generation' in instance))
     throw new Error('Expected a Responses provider')
   const answer: ItemParam = { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Hello.' }] }
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
@@ -274,4 +291,50 @@ it.each(['openai', 'openai-compatible'] as const)('sends %s BYOK requests direct
   finally {
     fetchMock.mockRestore()
   }
+})
+
+it('runs hosted search and local tools together, then replays native search Items', async () => {
+  const search: ItemParam = { type: 'web_search_call', id: 'search-1', status: 'completed', action: { type: 'search', queries: ['weather'] } }
+  const call: ItemParam = { type: 'function_call', call_id: 'local-1', name: 'local', arguments: '{}' }
+  const answer: ItemParam = { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Sunny.', annotations: [{ type: 'url_citation', url: 'https://weather.example/report', title: 'Weather report', start_index: 0, end_index: 6 }] }] }
+  const requests: { input: ItemParam[], tools: unknown[] }[] = []
+  const fetch: typeof globalThis.fetch = async (_url, init) => {
+    requests.push(JSON.parse(String(init?.body)))
+    return sse(completed(requests.length === 1 ? [search, call] : [answer]))
+  }
+  const nativeProvider: GenerationProvider = { generation: model => ({ protocol: 'responses', webSearch: true, config: { model, baseURL: 'https://example.test/v1/', fetch } }) }
+  const onStreamEvent = vi.fn()
+  const execute = vi.fn(async () => 'ok')
+  let transcript: ConversationTurn | undefined
+  await streamFrom({
+    model: 'test',
+    chatProvider: nativeProvider,
+    context: { turns: [] },
+    options: {
+      onStreamEvent,
+      onTranscript: (turn) => {
+        transcript = turn
+      },
+      tools: [{ type: 'function', function: { name: 'local', description: 'Local tool', parameters: { type: 'object', properties: {} } }, execute }],
+    },
+  })
+  expect(execute).toHaveBeenCalledOnce()
+  expect(requests[0].tools).toContainEqual({ type: 'web_search' })
+  expect(requests[0].tools).toContainEqual(expect.objectContaining({ type: 'function', name: 'local' }))
+  expect(requests[1].input).toEqual([search, call, { type: 'function_call_output', call_id: 'local-1', output: 'ok', status: 'completed' }])
+  expect(onStreamEvent).toHaveBeenCalledWith({ type: 'search', id: 'search-1', status: 'completed' })
+  expect(onStreamEvent).toHaveBeenCalledWith({ type: 'citations', citations: [{ url: 'https://weather.example/report', title: 'Weather report', startIndex: 0, endIndex: 6 }] })
+  if (!transcript)
+    throw new Error('Expected settled transcript')
+  expect(transcript.messages.at(-1)?.segments[0]).toMatchObject({ type: 'text', text: 'Sunny.', citations: [{ title: 'Weather report' }] })
+  await streamFrom({ model: 'test', chatProvider: nativeProvider, context: { turns: [structuredClone(transcript)] } })
+  expect(requests[2].input).toEqual([...requests[1].input, answer])
+})
+
+it('does not send hosted search when disabled', async () => {
+  const fetch: typeof globalThis.fetch = async (_url, init) => {
+    expect(JSON.parse(String(init?.body)).tools).toBeUndefined()
+    return sse(completed([]))
+  }
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), context: { turns: [] } })
 })

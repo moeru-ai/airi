@@ -93,16 +93,16 @@ it('validates Responses through its own endpoint and rejects HTTP 400', async ()
   const validator = await validators!.validateProvider![0](context)
   let rejectRequest = false
   const provider: GenerationProvider = {
-    responses: model => ({
+    generation: model => ({ protocol: 'responses', webSearch: false, config: {
       model,
       baseURL: 'https://provider.test/v1/',
-      fetch: async (url) => {
+      fetch: async (url: RequestInfo | URL) => {
         expect(String(url)).toBe('https://provider.test/v1/responses')
         return rejectRequest
           ? new Response('Unsupported API', { status: 400 })
           : stream([{ type: 'response.completed', response: { output: [], usage: null } }])
       },
-    }),
+    } }),
   }
   const extra = { listModels: async () => [{ id: 'test', name: 'Test', provider: 'test' }] }
   expect((await validator.validator({}, provider, extra, context)).valid).toBe(true)

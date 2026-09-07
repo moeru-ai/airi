@@ -1,6 +1,6 @@
 import type { Message as ChatMessage, CommonContentPart } from '@xsai/shared-chat'
 
-import type { ContentSegment, ConversationContext, Message, MessageSegment } from './types'
+import type { ConversationContext, InputSegment, Message, MessageSegment } from './types'
 
 import { z } from 'zod'
 
@@ -27,7 +27,7 @@ const continuationSchema = z.array(z.union([
   z.looseObject({ role: z.literal('tool'), tool_call_id: z.string(), content: z.union([z.string(), z.array(contentPart)]) }),
 ]))
 
-function readContent(content: string | CommonContentPart[] | undefined): ContentSegment[] {
+function readContent(content: string | CommonContentPart[] | undefined): InputSegment[] {
   if (content == null)
     return []
   if (typeof content === 'string')
@@ -37,7 +37,12 @@ function readContent(content: string | CommonContentPart[] | undefined): Content
       case 'text': return { type: 'text', text: part.text }
       case 'image_url': return { type: 'image', url: part.image_url.url, detail: part.image_url.detail }
       case 'input_audio': return { type: 'audio', ...part.input_audio }
-      case 'file': return { type: 'file', data: part.file.file_data, name: part.file.filename, providerFileId: part.file.file_id }
+      case 'file':
+        if (part.file.file_data !== undefined && part.file.file_id === undefined)
+          return { type: 'file', data: part.file.file_data, name: part.file.filename }
+        if (part.file.file_id !== undefined && part.file.file_data === undefined)
+          return { type: 'file', providerFileId: part.file.file_id, name: part.file.filename }
+        throw new Error('Chat file requires exactly one source')
     }
     throw new Error('Unsupported Chat content part')
   })
@@ -59,7 +64,7 @@ export function readChatMessages(messages: (ChatMessage | { role: 'error', conte
     if (message.role === 'tool')
       return { id, role: 'tool', segments: [{ type: 'tool-result', callId: message.tool_call_id, content: readContent(message.content) }] }
     if (message.role === 'assistant') {
-      const segments: MessageSegment[] = typeof message.content === 'string'
+      const segments: Extract<Message, { role: 'assistant' }>['segments'] = typeof message.content === 'string'
         ? [{ type: 'text', text: message.content }]
         : message.content?.map(part => part.type === 'text' ? { type: 'text', text: part.text } : { type: 'refusal', text: part.refusal }) ?? []
       if (message.refusal)
@@ -71,6 +76,8 @@ export function readChatMessages(messages: (ChatMessage | { role: 'error', conte
       }
       return { id, role: 'assistant', segments }
     }
+    if (message.role === 'system' || message.role === 'developer')
+      return { id, role: message.role, segments: typeof message.content === 'string' ? [{ type: 'text', text: message.content }] : message.content.map(part => ({ type: 'text', text: part.text })) }
     return { id, role: message.role, segments: readContent(message.content) }
   })
 }

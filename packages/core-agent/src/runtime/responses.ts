@@ -1,15 +1,16 @@
 import type { ResponsesConfig } from '@proj-airi/provider-inference'
 import type { ItemParam, ResponsesOptions } from '@xsai-ext/responses'
-import type { Event, Tool } from '@xsai/shared-chat'
+import type { Tool } from '@xsai/shared-chat'
 
-import type { ContentSegment, ConversationContext, ConversationTurn, Message, MessageSegment } from '../messages/types'
-import type { StreamOptions } from '../types/llm'
+import type { Citation, ConversationContext, ConversationTurn, InputSegment, Message, MessageSegment } from '../messages/types'
+import type { StreamEvent, StreamOptions } from '../types/llm'
 
 import { responses } from '@xsai-ext/responses'
 import { stepCountAtLeast } from '@xsai/shared-chat'
 import { z } from 'zod'
 
 import { renderSegmentText } from '../messages/render-context'
+import { toAiriStreamEvent } from './xsai-events'
 
 // Persisted continuation data is untrusted after storage or import. Validate
 // the supported SDK contract here and retain unknown native fields for replay.
@@ -26,6 +27,7 @@ const id = z.string().nullish()
 const status = z.enum(['in_progress', 'completed', 'incomplete']).nullish()
 const continuationSchema = z.array(z.union([
   z.looseObject({ type: z.literal('reasoning'), id, summary: z.array(z.looseObject({ type: z.literal('summary_text'), text: z.string() })), content: z.null().optional(), encrypted_content: z.string().nullish() }),
+  z.looseObject({ type: z.literal('web_search_call'), id: z.string(), status: z.enum(['in_progress', 'searching', 'completed', 'failed']) }),
   z.looseObject({ type: z.literal('compaction'), id, encrypted_content: z.string() }),
   z.looseObject({ type: z.literal('function_call'), id, call_id: z.string(), name: z.string(), arguments: z.string(), status }),
   z.looseObject({ type: z.literal('function_call_output'), id, call_id: z.string(), output: content, status }),
@@ -100,7 +102,7 @@ function renderContext(context: ConversationContext, scope: string): ItemParam[]
   })
 }
 
-function readInputContent(content: Extract<ItemParam, { type: 'function_call_output' }>['output']): ContentSegment[] {
+function readInputContent(content: Extract<ItemParam, { type: 'function_call_output' }>['output']): InputSegment[] {
   if (typeof content === 'string')
     return [{ type: 'text', text: content }]
   return content.map((part) => {
@@ -110,11 +112,27 @@ function readInputContent(content: Extract<ItemParam, { type: 'function_call_out
         if (!part.image_url)
           throw new Error('Responses image output requires a URL')
         return { type: 'image', url: part.image_url, detail: part.detail ?? undefined }
-      case 'input_file': return { type: 'file', data: part.file_data ?? undefined, url: part.file_url ?? undefined, name: part.filename ?? undefined }
+      case 'input_file':
+        if (part.file_data != null && part.file_url == null)
+          return { type: 'file', data: part.file_data, name: part.filename ?? undefined }
+        if (part.file_url != null && part.file_data == null)
+          return { type: 'file', url: part.file_url, name: part.filename ?? undefined }
+        throw new Error('Responses file requires exactly one source')
       case 'input_video': throw new Error('Video tool output is not supported by the conversation model')
     }
     throw new Error('Unsupported Responses tool output')
   })
+}
+
+type AssistantContent = Exclude<Extract<ItemParam, { role: 'assistant' }>['content'], string>[number]
+
+function readCitations(part: Extract<AssistantContent, { type: 'output_text' }>): Citation[] | undefined {
+  return part.annotations?.map(entry => ({
+    url: entry.url,
+    title: entry.title,
+    startIndex: entry.start_index,
+    endIndex: entry.end_index,
+  }))
 }
 
 function readOutput(items: ItemParam[]): Message[] {
@@ -125,9 +143,13 @@ function readOutput(items: ItemParam[]): Message[] {
     if (item.type === 'function_call_output')
       return [{ id, role: 'tool', segments: [{ type: 'tool-result', callId: item.call_id, content: readInputContent(item.output) }] }]
     if (item.type === 'message' && item.role === 'assistant') {
-      const segments: ContentSegment[] = typeof item.content === 'string'
+      const segments: Extract<Message, { role: 'assistant' }>['segments'] = typeof item.content === 'string'
         ? [{ type: 'text', text: item.content }]
-        : item.content.map(part => part.type === 'output_text' ? { type: 'text', text: part.text } : { type: 'refusal', text: part.refusal })
+        : item.content.map((part) => {
+            if (part.type === 'output_text')
+              return { type: 'text', text: part.text, citations: readCitations(part) }
+            return { type: 'refusal', text: part.refusal }
+          })
       return [{ id, role: 'assistant', segments }]
     }
     // Reasoning and compaction are replayed through adapter continuation data.
@@ -150,11 +172,12 @@ function toolChoice(choice: StreamOptions['toolChoice']): ResponsesOptions['tool
  */
 export function streamResponses(input: {
   config: ResponsesConfig
+  webSearch?: boolean
   context: ConversationContext
   scope: string
   options?: StreamOptions
   tools?: Tool[]
-  onEvent: (event: Event) => Promise<void>
+  onEvent: (event: StreamEvent) => Promise<void>
 }) {
   const items = renderContext(input.context, input.scope)
   const result = responses({
@@ -163,11 +186,31 @@ export function streamResponses(input: {
     store: false,
     include: ['reasoning.encrypted_content'],
     abortSignal: input.options?.abortSignal,
-    headers: { ...input.config.headers, ...input.options?.headers },
-    tools: input.tools,
+    headers: { ...Object.fromEntries(new Headers(input.config.headers)), ...input.options?.headers },
+    tools: input.webSearch ? [...(input.tools ?? []), { type: 'web_search' }] : input.tools,
     toolChoice: toolChoice(input.options?.toolChoice),
     stopWhen: stepCountAtLeast(10),
-    onEvent: input.onEvent,
+    onEvent: async (event) => {
+      const mapped = toAiriStreamEvent(event)
+      if (mapped)
+        await input.onEvent(mapped)
+    },
+    onNativeEvent: async (event) => {
+      if (event.type !== 'response.output_item.done' && event.type !== 'response.output_item.added')
+        return
+      const item = event.item
+      if (item?.type === 'web_search_call')
+        await input.onEvent({ type: 'search', id: item.id, status: item.status })
+      if (event.type === 'response.output_item.done' && item?.type === 'message' && item.role === 'assistant') {
+        for (const part of item.content) {
+          if (part.type !== 'output_text')
+            continue
+          const citations = readCitations(part)
+          if (citations?.length)
+            await input.onEvent({ type: 'citations', citations })
+        }
+      }
+    },
   })
   const transcript = result.input.then(async (finalInput): Promise<ConversationTurn> => {
     const lastStep = (await result.steps).at(-1)

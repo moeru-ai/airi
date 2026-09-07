@@ -32,9 +32,9 @@ pnpm -F @proj-airi/provider-inference build
 
 ## Generation protocols
 
-OpenAI and OpenAI Compatible configurations accept `api: 'chat-completions' | 'responses'`. The default is `chat-completions`. The provider settings page renders this field as an API protocol selector.
+OpenAI and OpenAI Compatible configurations accept `api: 'chat-completions' | 'responses'`. OpenAI defaults to `responses`. OpenAI Compatible defaults to `chat-completions`. Saved protocol choices take precedence. The provider settings page renders this field as an API protocol selector.
 
-`GenerationProvider` describes Chat or Responses configuration capabilities. A Responses provider does not need a Chat implementation. If both methods exist, `responses(model, options)` selects Responses. These methods return request configuration. `core-agent` projects its context directly into the selected protocol and owns streaming, tools, and history. The validation probe uses the selected protocol.
+`resolveGeneration(provider, model, options)` returns a discriminated request with one protocol and its configuration. Native providers implement `generation`; existing Chat providers enter through this resolver. Catalog capabilities declare supported protocols, their default, and native tools. `core-agent` projects its context directly into the selected protocol and owns streaming, tools, and history. The validation probe uses the selected protocol.
 
 ```ts
 const definition = getDefinedProvider('openai')
@@ -45,3 +45,9 @@ const provider = await definition.createProvider({
 ```
 
 User-configured providers send Responses requests directly to their configured endpoint with their own API key. They do not require AIRI backend changes or Flux billing. The official provider continues to use Chat Completions; its Responses support is a separate gateway change.
+
+OpenAI has a `webSearch` switch, enabled by default. The selected protocol must be Responses.
+Only known supported model families on the official OpenAI endpoint enable search.
+Custom endpoints and unknown models do not inherit this capability from their API shape.
+Search is optional for each response. Disabling the switch omits the hosted tool.
+Search uses the configured OpenAI key and does not require an AIRI login or Tavily key.

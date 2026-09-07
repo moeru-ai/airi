@@ -1,5 +1,5 @@
 import type { GenerationProvider } from '@proj-airi/provider-inference'
-import type { CommonContentPart, CompletionToolCall, CompletionToolResult, Tool, ToolChoice } from '@xsai/shared-chat'
+import type { CommonContentPart, CompletionToolCall, Tool, ToolChoice } from '@xsai/shared-chat'
 
 import type { ConversationContext, ConversationTurn } from '../messages/types'
 
@@ -17,11 +17,13 @@ export interface LlmUsage {
 export type StreamEvent
   = | { type: 'text-delta', text: string }
     | { type: 'reasoning-delta', text: string }
-    | ({ type: 'finish' } & any)
+    | { type: 'finish' }
     | ({ type: 'tool-call' } & CompletionToolCall)
-    | (CompletionToolResult & { type: 'tool-error', isError: true })
+    | { type: 'tool-error', toolCallId: string, result?: string | CommonContentPart[], isError: true }
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
-    | { type: 'error', error: any }
+    | { type: 'citations', citations: import('../messages/types').Citation[] }
+    | { type: 'search', id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
+    | { type: 'error', error: unknown }
 
 /** Options shared by generation adapters. SDK payloads stay inside each adapter. */
 export interface StreamOptions {

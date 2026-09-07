@@ -7,6 +7,7 @@ import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 
 import ChatReplyQuote from './reply-quote.vue'
+import ResponseCitations from './response-citations.vue'
 import ChatResponsePart from './response-part.vue'
 import ChatToolCallBlock from './tool-call-block.vue'
 
@@ -141,7 +142,8 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
               </template>
             </template>
           </div>
-          <div v-else-if="showLoader" i-eos-icons:three-dots-loading />
+          <ResponseCitations v-if="message.citations?.length" :citations="message.citations" />
+          <div v-if="!resolvedSlices.length && showLoader" i-eos-icons:three-dots-loading />
         </div>
       </template>
     </ChatActionMenu>

@@ -1,16 +1,18 @@
 import type { GenerationProvider } from '@proj-airi/provider-inference'
-import type { Event, Tool, Usage } from '@xsai/shared-chat'
+import type { Tool, Usage } from '@xsai/shared-chat'
 
 import type { ConversationContext } from '../messages/types'
 import type { StreamEvent, StreamFromOptions, StreamOptions } from '../types/llm'
+
+import { resolveGeneration } from '@proj-airi/provider-inference'
 
 import { streamChatCompletions } from './chat-completions'
 import { streamResponses } from './responses'
 
 export function modelKey(model: string, chatProvider: GenerationProvider): string {
   const provider: GenerationProvider = chatProvider
-  const config = provider.responses ? provider.responses(model) : provider.chat(model)
-  return `${provider.responses ? 'responses:' : ''}${config.baseURL}-${model}`
+  const { protocol, config } = resolveGeneration(provider, model)
+  return `${protocol === 'responses' ? 'responses:' : ''}${config.baseURL}-${model}`
 }
 
 export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: GenerationProvider, options?: StreamOptions): boolean {
@@ -41,57 +43,15 @@ async function resolveTools(options?: StreamOptions) {
   return tools ?? []
 }
 
-/**
- * Maps xsAI stream events onto the AIRI {@link StreamEvent} contract.
- *
- * xsAI 0.5.0-beta.8 marks failed tool executions with `isError: true` on
- * `tool-result.done` instead of aborting the stream, so AIRI can distinguish
- * `tool-error` from `tool-result` directly from the event payload.
- */
-function toAiriStreamEvent(event: Event): StreamEvent | null {
-  switch (event.type) {
-    case 'text.delta':
-      return { type: 'text-delta', text: event.delta }
-    case 'reasoning.delta':
-      return { type: 'reasoning-delta', text: event.delta }
-    case 'tool-call.done':
-      return { ...event, type: 'tool-call' }
-    case 'tool-result.done':
-      if (event.isError === true)
-        return { ...event, type: 'tool-error', isError: true }
-      return {
-        type: 'tool-result',
-        toolCallId: event.toolCallId,
-        result: typeof event.result === 'string' || Array.isArray(event.result)
-          ? event.result
-          : JSON.stringify(event.result),
-      }
-    case 'error':
-      return {
-        type: 'error',
-        error: event.cause ?? new Error(event.message),
-      }
-    case 'text.start':
-    case 'text.done':
-    case 'reasoning.start':
-    case 'reasoning.done':
-    case 'step.start':
-    case 'step.done':
-    case 'tool-call.start':
-    case 'tool-call.delta':
-      return null
-  }
-}
-
-function startStream(provider: GenerationProvider, model: string, context: ConversationContext, options: StreamOptions | undefined, tools: Tool[] | undefined, onEvent: (event: Event) => Promise<void>) {
-  if (provider.responses) {
-    const config = provider.responses(model)
+function startStream(provider: GenerationProvider, model: string, context: ConversationContext, options: StreamOptions | undefined, tools: Tool[] | undefined, onEvent: (event: StreamEvent) => Promise<void>) {
+  const request = resolveGeneration(provider, model)
+  const { config } = request
+  if (request.protocol === 'responses') {
     const scope = JSON.stringify([options?.providerId, String(config.baseURL), model, options?.requestCorrelation?.conversationId])
-    return streamResponses({ config, context, scope, options, tools, onEvent })
+    return streamResponses({ config: request.config, webSearch: request.webSearch, context, scope, options, tools, onEvent })
   }
-  const config = provider.chat(model)
   return streamChatCompletions({
-    config,
+    config: request.config,
     context,
     options,
     tools,
@@ -135,9 +95,8 @@ export async function streamFrom({
       reject(error)
     }
 
-    const onEvent = async (event: Event) => {
+    const onEvent = async (streamEvent: StreamEvent) => {
       try {
-        const streamEvent = toAiriStreamEvent(event)
         if (streamEvent != null)
           await options?.onStreamEvent?.(streamEvent)
         if (streamEvent?.type === 'error')
@@ -145,7 +104,7 @@ export async function streamFrom({
       }
       catch (error) {
         rejectOnce(error)
-        if (provider.responses)
+        if (resolveGeneration(provider, model).protocol === 'responses')
           throw error
       }
     }
