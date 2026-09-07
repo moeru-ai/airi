@@ -150,6 +150,24 @@ async function unloadPlugin(plugin: PluginManifestSummary) {
   }
 }
 
+async function enableAndLoadPlugin(plugin: PluginManifestSummary) {
+  try {
+    await store.enableAndLoad({ extensionId: plugin.extensionId, path: plugin.path })
+  }
+  catch (error) {
+    toast.error(errorMessageFrom(error) ?? `Failed to enable and load plugin ${plugin.extensionId}.`)
+  }
+}
+
+async function disableAndUnloadPlugin(plugin: PluginManifestSummary) {
+  try {
+    await store.disableAndUnload({ extensionId: plugin.extensionId, path: plugin.path })
+  }
+  catch (error) {
+    toast.error(errorMessageFrom(error) ?? `Failed to disable and unload plugin ${plugin.extensionId}.`)
+  }
+}
+
 async function loadSelectedPlugin() {
   const extensionId = selectedExtensionId.value.trim()
   if (!extensionId) {
@@ -304,6 +322,22 @@ onMounted(async () => {
               </span>
             </div>
             <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2']">
+              <Button
+                size="sm"
+                label="Enable and Load"
+                icon="i-solar:play-bold-duotone"
+                :disabled="store.loading || (plugin.enabled && plugin.loaded)"
+                :loading="store.loading"
+                @click="enableAndLoadPlugin(plugin)"
+              />
+              <GhostButton
+                size="sm"
+                label="Disable and Unload"
+                icon="i-solar:stop-bold-duotone"
+                :disabled="store.loading || (!plugin.enabled && !plugin.loaded)"
+                :loading="store.loading"
+                @click="disableAndUnloadPlugin(plugin)"
+              />
               <Button
                 size="sm"
 
