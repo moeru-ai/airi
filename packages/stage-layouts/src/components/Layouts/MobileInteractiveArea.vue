@@ -126,7 +126,13 @@ const { stageModelRenderer } = storeToRefs(useSettingsStageModel())
 const l2dViewControl = useL2dViewControl()
 const threeViewControl = useThreeViewControl()
 const viewControlsAvailable = computed(() => stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'vrm')
-const viewControlsEnabled = computed(() => l2dViewControl.viewControlsEnabled.value || threeViewControl.viewControlsEnabled.value)
+const viewControlsEnabled = computed(() => {
+  if (stageModelRenderer.value === 'live2d')
+    return l2dViewControl.viewControlsEnabled.value
+  if (stageModelRenderer.value === 'vrm')
+    return threeViewControl.viewControlsEnabled.value
+  return false
+})
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(settingsAudioDevice)
 const { t } = useI18n()
@@ -135,6 +141,8 @@ const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
 
 function openViewControls() {
+  closeViewControls()
+
   if (stageModelRenderer.value === 'live2d') {
     l2dViewControl.viewControlsEnabled.value = true
     return
@@ -148,6 +156,13 @@ function closeViewControls() {
   l2dViewControl.viewControlsEnabled.value = false
   threeViewControl.viewControlsEnabled.value = false
 }
+
+watch(stageModelRenderer, (renderer) => {
+  if (renderer !== 'live2d')
+    l2dViewControl.viewControlsEnabled.value = false
+  if (renderer !== 'vrm')
+    threeViewControl.viewControlsEnabled.value = false
+}, { immediate: true })
 
 function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)

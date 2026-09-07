@@ -223,6 +223,30 @@ describe('interactive area synchronized state', () => {
     expect(viewControl.viewControlsEnabled.value).toBe(false)
   })
 
+  it('exits view controls when the active renderer changes', async () => {
+    // ROOT CAUSE:
+    //
+    // Mobile view mode combined both renderer flags. After a renderer switch,
+    // the previous flag kept the chat hidden while the new renderer had no controls.
+    // The active renderer now owns the visible mode, and transitions clear stale flags.
+    await page.viewport(390, 844)
+    const live2dViewControl = useL2dViewControl()
+    const threeViewControl = useThreeViewControl()
+    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
+    stageModel.setStageModelRenderer('live2d')
+
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
+    await expect.element(screen.getByTestId('view-controls-close-button')).toBeVisible()
+
+    stageModel.setStageModelRenderer('vrm')
+
+    await expect.element(screen.getByTestId('mobile-message-composer')).toBeVisible()
+    await expect.element(screen.getByTestId('view-controls-close-button')).not.toBeInTheDocument()
+    expect(live2dViewControl.viewControlsEnabled.value).toBe(false)
+    expect(threeViewControl.viewControlsEnabled.value).toBe(false)
+  })
+
   it('shows all five mobile view controls for VRM models', async () => {
     await page.viewport(390, 844)
     const { screen, stageModel } = await renderArea(MobileInteractiveArea)
