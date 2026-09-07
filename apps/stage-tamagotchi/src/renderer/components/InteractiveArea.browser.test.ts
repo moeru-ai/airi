@@ -232,6 +232,11 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByTestId('mobile-message-composer')).toBeVisible()
     await expect.element(screen.getByTestId('conversation-selector-button')).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'X', exact: true })).not.toBeInTheDocument()
+    // ROOT CAUSE:
+    //
+    // Closing view mode removed its focused header without moving focus to the
+    // newly mounted normal header, so keyboard users fell back to the document body.
+    await expect.element(screen.getByTestId('mobile-settings-button')).toHaveFocus()
     expect(viewControl.viewControlsEnabled.value).toBe(false)
   })
 

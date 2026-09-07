@@ -159,6 +159,14 @@ function closeViewControls() {
   threeViewControl.viewControlsEnabled.value = false
 }
 
+async function exitViewControls() {
+  closeViewControls()
+  await nextTick()
+  mobileInteractiveArea.value
+    ?.querySelector<HTMLButtonElement>('[data-testid="mobile-settings-button"]')
+    ?.focus()
+}
+
 watch(stageModelRenderer, (renderer) => {
   if (renderer !== 'live2d')
     l2dViewControl.viewControlsEnabled.value = false
@@ -461,7 +469,7 @@ onUnmounted(() => {
           'bg-neutral-50/70 text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300',
           'focus-visible:outline-2 focus-visible:outline-primary-500',
         ]"
-        @click="closeViewControls"
+        @click="exitViewControls"
       >
         <span aria-hidden="true" :class="['i-solar:close-circle-outline size-6']" />
       </BasicButton>
