@@ -2,8 +2,10 @@
 
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 import { useOnboardingStore } from './onboarding'
+import { useProviderConfigStore } from './providers/config'
 
 vi.mock('./auth', async () => {
   const { defineStore } = await import('pinia')
@@ -24,7 +26,7 @@ vi.mock('./providers/config', async () => {
   return {
     useProviderConfigStore: defineStore('provider-config', {
       state: () => ({
-        configuredProviders: {},
+        configuredProviders: {} as Record<string, boolean>,
       }),
       actions: {
         getProviderConfig: () => undefined,
@@ -37,6 +39,51 @@ describe('onboarding store', () => {
   beforeEach(() => {
     localStorage.clear()
     setActivePinia(createPinia())
+  })
+
+  it('suppresses onboarding for an essential provider configured at startup', () => {
+    const providerStore = useProviderConfigStore()
+    providerStore.configuredProviders.openai = true
+
+    const store = useOnboardingStore()
+
+    expect(store.needsOnboarding).toBe(false)
+  })
+
+  // ROOT CAUSE:
+  //
+  // Reactive provider status closed onboarding before model selection (P1).
+  // The startup snapshot prevents provider changes from closing the dialog.
+  // https://github.com/moeru-ai/airi/pull/1900
+  it('keeps onboarding open when a provider becomes configured during setup', async () => {
+    const providerStore = useProviderConfigStore()
+    const store = useOnboardingStore()
+    store.forceShowSetup()
+
+    expect(store.needsOnboarding).toBe(true)
+
+    providerStore.configuredProviders.openai = true
+    await nextTick()
+
+    expect(store.hasEssentialProviderConfigured).toBe(true)
+    expect(store.needsOnboarding).toBe(true)
+    expect(store.showingSetup).toBe(true)
+  })
+
+  // ROOT CAUSE:
+  //
+  // An azure-openai apiKey without a baseUrl suppressed onboarding even without a validated provider (P2).
+  // Only validated provider status at startup can suppress onboarding.
+  // https://github.com/moeru-ai/airi/pull/1900
+  it('requires onboarding when startup credentials have no validated provider', () => {
+    const providerStore = useProviderConfigStore()
+    vi.spyOn(providerStore, 'getProviderConfig').mockImplementation(providerId => providerId === 'azure-openai' ? { apiKey: 'sk-x', baseUrl: '' } : undefined)
+
+    const store = useOnboardingStore()
+
+    expect(store.hasEssentialProviderCredentialConfigured).toBe(true)
+    expect(store.hasEssentialProviderConfigured).toBe(false)
+    expect(store.needsOnboarding).toBe(true)
   })
 
   // ROOT CAUSE:
