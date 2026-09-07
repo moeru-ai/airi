@@ -69,12 +69,6 @@ export async function* chunkTtsInput(
   while (!current.done) {
     let value = current.value
 
-    if (value.length > 1) {
-      previousValue = value
-      current = await iterator.next()
-      continue
-    }
-
     const flush = value === TTS_FLUSH_INSTRUCTION
     const special = value === TTS_SPECIAL_TOKEN
     const hard = hardPunctuations.has(value)
