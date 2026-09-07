@@ -12,12 +12,17 @@ uses the captured screen's linear RGB environment to illuminate model normals.
 exposure, contrast, wrap, and backlight controls remain available. Forced color
 is useful for checking the effect without screen capture.
 
-`filters/surface-lighting.ts` runs inside the Cubism drawable shaders. It groups
-the measured environment into nine area lights and computes their diffuse
-response. `Model.vue` passes the existing ambient state into that binding and
+`filters/surface-lighting.ts` runs inside the Cubism drawable shaders. It treats the screen as
+a finite emitting plane behind the character, with a gap of 4% of the window
+height. The narrow screen reconstruction supplies linear radiance to 64 tiles.
+Each fragment uses its current window position, its normal, the distance to each
+tile, and the emitting and receiving angles. A finite tile footprint avoids a
+point-light singularity at close range. Distant tiles get weaker through their
+solid angle, rather than a separate distance-based blur. `Model.vue` passes the existing ambient state into that binding and
 sets the final screen filter's chroma to zero, so the old position-based color
 gradient is not applied a second time. The final filter still owns exposure and
-silhouette effects. The diagnostic test-card preview remains a flat filter
+silhouette effects. Its rim and inward glow approximate backlight scattering;
+it does not add a bloom halo outside the character. The diagnostic test-card preview remains a flat filter
 reference; inspect the live model to judge surface lighting.
 
 Iru uses the reviewed AI normal map in `src/assets/lighting`. The profile stores
@@ -26,7 +31,9 @@ map loads only when every drawable ID and texture UV matches at Float32
 precision. Other Cubism 4 models use a smooth analytic proxy. They do not inherit
 Iru's facial shape. Cubism 2 keeps its existing final filter.
 
-Normal coordinates follow their original mesh vertices during animation. The
+Normal coordinates follow their original mesh vertices during animation.
+Light directions use current stage positions, recovered from the Cubism
+projection even when Pixi renders into a cropped filter target. The
 face correction is restricted to its assigned drawables, and the saved ownership
 map prevents an occluded layer from borrowing the visible layer's normal.
 Coverage is interpolated across each texel edge without blending encoded IDs.
@@ -46,7 +53,7 @@ reference buffers have fixed dimensions and do not depend on window size.
 Run the focused final-filter GPU tests with Vitest using this package's config:
 
 ```sh
-pnpm exec vitest run --config packages/stage-ui-live2d/vitest.config.ts src/filters/screen-ambient-light.browser.test.ts
+pnpm exec vitest run --config packages/stage-ui-live2d/vitest.config.ts src/filters/surface-irradiance.test.ts src/filters/surface-irradiance.browser.test.ts src/filters/screen-ambient-light.browser.test.ts
 ```
 
 For actual Cubism pixel checks, import Iru into an isolated desktop profile and
@@ -54,3 +61,10 @@ evaluate `docs/research/live2d-lighting-experiment/verify-ambient.js` with
 agent-browser. It checks the authored profile on the model with 65 masked drawables,
 alpha parity, zero-strength parity, and opposite light directions at three head
 poses. The source model and Cubism SDK are local inputs, not bundled test assets.
+
+The screen geometry follows the area-light irradiance integral described in
+[Physically Based Rendering](https://pbr-book.org/4ed/Radiometry%2C_Spectra%2C_and_Color/Working_with_Radiometric_Integrals).
+This implementation uses finite-tile quadrature, not ray tracing or exact polygon integration.
+For a standalone visual check, open `/ambient.html` in the lighting experiment
+and evaluate `verify-screen-plane.js`. The preview uses the production material
+and final filter with a movable screen patch.
