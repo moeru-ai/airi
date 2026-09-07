@@ -7,6 +7,8 @@ export interface AmbientLightSample {
   luminance: number
 }
 
+// The persisted 'window-gradient' key now selects directional surface lighting.
+// Keeping the key preserves the user's directional/global preference.
 export type ScreenAmbientLightMode = 'window-gradient' | 'global'
 export type ScreenAmbientLightSource = 'screen-capture' | 'forced-color'
 
