@@ -18,6 +18,7 @@ import {
   createBeatSyncController,
   createLive2DMotionSpring,
   disableLive2DSdkBreath,
+  registerLive2DFinalMotionPlugins,
   useExpressionController,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
@@ -383,11 +384,13 @@ async function performModelLoad() {
     // Expression first: sets desired parameter values (e.g. closed eyes = 0).
     // Blink second: reads post-expression eye values, Multiply-modulates on top.
     // This ensures blink respects expression state (0 × blinkFactor = 0).
-    motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
-    motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
-    motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring), 'final')
-    motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
-    motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
+    registerLive2DFinalMotionPlugins(motionManagerUpdate.register, {
+      expression: useMotionUpdatePluginExpression(expressionController),
+      autoEyeBlink: useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled),
+      manualControl: useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring),
+      lipSync: useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking),
+      breathControl: useMotionUpdatePluginBreathControl(manualBreathControl),
+    })
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {

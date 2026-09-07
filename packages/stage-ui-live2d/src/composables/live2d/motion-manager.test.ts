@@ -8,6 +8,7 @@ import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
 import { createLive2DMotionSpring } from './motion-control-spring'
 import {
   disableLive2DSdkBreath,
+  registerLive2DFinalMotionPlugins,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginIdleDisable,
@@ -337,10 +338,18 @@ describe('live2d motion manager plugins', () => {
     }), createLive2DMotionSpring())
     const lipSync = useMotionUpdatePluginLipSync(ref(0.8), ref(true))
 
-    // Model.vue registers manual control before lip sync in the final stage so
-    // MAGIC cannot overwrite speech-driven mouth movement in the same frame.
-    manualControl(context)
-    lipSync(context)
+    const finalPlugins: Array<(typeof manualControl)> = []
+    registerLive2DFinalMotionPlugins(
+      plugin => finalPlugins.push(plugin),
+      {
+        expression: () => {},
+        autoEyeBlink: () => {},
+        manualControl,
+        lipSync,
+        breathControl: () => {},
+      },
+    )
+    finalPlugins.forEach(plugin => plugin(context))
 
     expect(context.model.getParameterValueById('ParamMouthOpenY')).toBe(0.8)
   })
