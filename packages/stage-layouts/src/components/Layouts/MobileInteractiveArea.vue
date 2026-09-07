@@ -14,6 +14,7 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { BasicButton, BasicTextarea } from '@proj-airi/ui'
 import { onLongPress, useEventListener, usePointerSwipe } from '@vueuse/core'
 import { animate, spring } from 'animejs'
@@ -21,6 +22,7 @@ import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import MobileSettingsDrawer from './mobile-settings-drawer.vue'
 import MobileHeader from './MobileHeader.vue'
 
@@ -107,7 +109,7 @@ const mobileInteractiveAreaClass = [
 ]
 const chatHistoryClass = [
   'pointer-events-auto relative z-20',
-  'max-w-[calc(100%_-_3.5rem)] w-full self-start pb-3 pl-3',
+  'w-full self-start px-3 pb-3',
 ]
 const controlsIslandClass = computed(() => [
   'absolute right-0 translate-y-[-100%]',
@@ -120,14 +122,32 @@ const controlsIslandClass = computed(() => [
   ],
 ])
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
-const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
-const { viewControlsEnabled: threeViewCtrlEnabled } = useThreeViewControl()
+const { stageModelRenderer } = storeToRefs(useSettingsStageModel())
+const l2dViewControl = useL2dViewControl()
+const threeViewControl = useThreeViewControl()
+const viewControlsAvailable = computed(() => stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'vrm')
+const viewControlsEnabled = computed(() => l2dViewControl.viewControlsEnabled.value || threeViewControl.viewControlsEnabled.value)
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(settingsAudioDevice)
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
+
+function openViewControls() {
+  if (stageModelRenderer.value === 'live2d') {
+    l2dViewControl.viewControlsEnabled.value = true
+    return
+  }
+
+  if (stageModelRenderer.value === 'vrm')
+    threeViewControl.viewControlsEnabled.value = true
+}
+
+function closeViewControls() {
+  l2dViewControl.viewControlsEnabled.value = false
+  threeViewControl.viewControlsEnabled.value = false
+}
 
 function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -389,7 +409,7 @@ onUnmounted(() => {
     :class="mobileInteractiveAreaClass"
     :style="mobileInteractiveAreaStyle"
   >
-    <MobileHeader>
+    <MobileHeader v-if="!viewControlsEnabled">
       <BasicButton
         size="unset"
         data-testid="conversation-selector-button"
@@ -407,7 +427,27 @@ onUnmounted(() => {
         <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-6']" />
       </BasicButton>
       <CharacterSwitcherDrawer />
-      <MobileSettingsDrawer v-model:character-voice-enabled="characterVoiceEnabled" />
+      <MobileSettingsDrawer
+        v-model:character-voice-enabled="characterVoiceEnabled"
+        :view-controls-available="viewControlsAvailable"
+        @open-view-controls="openViewControls"
+      />
+    </MobileHeader>
+    <MobileHeader v-else>
+      <BasicButton
+        size="unset"
+        data-testid="view-controls-close-button"
+        :title="t('stage.mobile-tools.close-view')"
+        :aria-label="t('stage.mobile-tools.close-view')"
+        :class="[
+          'pointer-events-auto ml-auto size-11 rounded-full backdrop-blur-md',
+          'bg-neutral-50/70 text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300',
+          'focus-visible:outline-2 focus-visible:outline-primary-500',
+        ]"
+        @click="closeViewControls"
+      >
+        <span aria-hidden="true" :class="['i-solar:close-circle-outline size-6']" />
+      </BasicButton>
     </MobileHeader>
     <div
       :class="[
@@ -417,7 +457,7 @@ onUnmounted(() => {
       <KeepAlive>
         <Transition name="fade">
           <ChatHistory
-            v-if="!threeViewCtrlEnabled && !l2dViewCtrlEnabled"
+            v-if="!viewControlsEnabled"
             variant="mobile"
             :messages="historyMessages"
             :sending="isActiveSessionSending"
@@ -432,6 +472,7 @@ onUnmounted(() => {
       </KeepAlive>
     </div>
     <div
+      v-if="!viewControlsEnabled"
       ref="interactionControls"
       data-testid="mobile-interaction-controls"
       :class="[
@@ -551,6 +592,15 @@ onUnmounted(() => {
           <div i-solar:arrow-up-outline />
         </button>
       </div>
+    </div>
+    <div
+      v-else
+      :class="[
+        'pointer-events-auto fixed inset-x-0 z-30 px-3',
+        'bottom-[max(1rem,env(safe-area-inset-bottom))]',
+      ]"
+    >
+      <ViewControls variant="mobile-stage" />
     </div>
   </div>
 </template>

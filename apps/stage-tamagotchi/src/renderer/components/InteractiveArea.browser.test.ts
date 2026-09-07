@@ -7,10 +7,13 @@ import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/M
 import ChatArea from '@proj-airi/stage-layouts/components/Widgets/ChatArea'
 
 import { PiniaColada } from '@pinia/colada'
+import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
+import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
@@ -35,6 +38,8 @@ function createTestI18n() {
 }
 
 async function renderArea(component: Component = InteractiveArea) {
+  useL2dViewControl().viewControlsEnabled.value = false
+  useThreeViewControl().viewControlsEnabled.value = false
   const sessionB: ChatSessionMeta = {
     sessionId: 'session-b',
     userId: 'local',
@@ -73,6 +78,7 @@ async function renderArea(component: Component = InteractiveArea) {
     chat: useChatStore(pinia),
     chatSession: useChatSessionStore(pinia),
     chatStream: useChatStreamStore(pinia),
+    stageModel: useSettingsStageModel(pinia),
     screen,
   }
 }
@@ -171,6 +177,67 @@ describe('interactive area synchronized state', () => {
     expect(conversations.textContent?.trim()).toBe('')
     await screen.getByTestId('conversation-selector-button').click()
     await expect.element(screen.getByRole('dialog')).toBeVisible()
+  })
+
+  it('uses the full mobile width for chat history after removing the action rail', async () => {
+    // ROOT CAUSE:
+    //
+    // The removed right action rail left a fixed 3.5rem reservation on the
+    // chat history. Long messages and the scrollbar still stopped before the
+    // right edge even though the controls no longer occupied that space.
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const history = screen.container.querySelector<HTMLElement>('.chat-history')
+
+    expect(history).not.toBeNull()
+    expect(history!.getBoundingClientRect().width).toBe(390)
+  })
+
+  it('opens view controls on the stage and closes them from the top right', async () => {
+    await page.viewport(390, 844)
+    const viewControl = useL2dViewControl()
+    viewControl.viewControlsEnabled.value = false
+
+    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
+    stageModel.setStageModelRenderer('live2d')
+
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
+
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
+    await expect.element(screen.getByTestId('mobile-message-composer')).not.toBeInTheDocument()
+    await expect.element(screen.getByTestId('conversation-selector-button')).not.toBeInTheDocument()
+    await expect.element(screen.getByRole('button', { name: 'X', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Y', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Scale', exact: true })).toBeVisible()
+
+    const close = screen.getByTestId('view-controls-close-button').element()
+    expect(close.getBoundingClientRect().right).toBe(378)
+    expect(close.getBoundingClientRect().top).toBe(12)
+
+    await screen.getByRole('button', { name: 'stage.mobile-tools.close-view', exact: true }).click()
+
+    await expect.element(screen.getByTestId('mobile-message-composer')).toBeVisible()
+    await expect.element(screen.getByTestId('conversation-selector-button')).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'X', exact: true })).not.toBeInTheDocument()
+    expect(viewControl.viewControlsEnabled.value).toBe(false)
+  })
+
+  it('shows all five mobile view controls for VRM models', async () => {
+    await page.viewport(390, 844)
+    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
+    stageModel.setStageModelRenderer('vrm')
+
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
+
+    await expect.element(screen.getByRole('button', { name: 'X', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Y', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Z', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Dis', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'FOV', exact: true })).toBeVisible()
+
+    await screen.getByTestId('view-controls-close-button').click()
   })
 
   it('keeps the empty mobile input compact and aligns the one-line send action', async () => {
