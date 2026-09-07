@@ -7,7 +7,7 @@ import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { resolveLlmTools } from './tool-resolver'
+import { resolveLlmTools, toolNameFrom } from './tool-resolver'
 
 export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 export { isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError } from '@proj-airi/core-agent'
@@ -29,7 +29,18 @@ export const useLLM = defineStore('llm', () => {
   async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
     const key = modelKey(model, chatProvider)
     const { tools: customTools, ...streamOptions } = options ?? {}
-    const builtinToolsResolver = () => resolveLlmTools({ customTools })
+    // Keep names for this request's retries even after the capability cache
+    // disables tool resolution. Do not carry these names into another request.
+    const toolCallGuardNames = new Set<string>()
+    const builtinToolsResolver = async () => {
+      const tools = await resolveLlmTools({ customTools })
+      for (const tool of tools) {
+        const name = toolNameFrom(tool)
+        if (name)
+          toolCallGuardNames.add(name)
+      }
+      return tools
+    }
     let hasCommittedAttemptOutput = false
 
     const runStream = () => coreStreamFrom({
@@ -47,6 +58,7 @@ export const useLLM = defineStore('llm', () => {
         },
       },
       builtinToolsResolver,
+      toolCallGuardNames,
     })
 
     try {

@@ -133,7 +133,7 @@ function plainTextToolCallError(toolName: string): Error {
   )
 }
 
-function leakedToolCallName(text: string, toolNames: Set<string>): string | undefined {
+function serializedToolCallName(text: string, toolNames: Set<string>): string | undefined {
   const candidate = text.trim()
   if (!candidate.startsWith('{') || !candidate.endsWith('}'))
     return undefined
@@ -154,6 +154,50 @@ function leakedToolCallName(text: string, toolNames: Set<string>): string | unde
   catch {
     return undefined
   }
+}
+
+function leakedToolCallName(text: string, toolNames: Set<string>): string | undefined {
+  let start = 0
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  // Scan complete objects after prose or Markdown fences. Braces inside JSON
+  // strings do not end an object, and nested objects belong to their outer object.
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index]
+    if (depth === 0) {
+      if (character === '{') {
+        start = index
+        depth = 1
+      }
+      continue
+    }
+    if (inString) {
+      if (escaped)
+        escaped = false
+      else if (character === '\\')
+        escaped = true
+      else if (character === '"')
+        inString = false
+      continue
+    }
+    if (character === '"') {
+      inString = true
+    }
+    else if (character === '{') {
+      depth++
+    }
+    else if (character === '}') {
+      depth--
+      if (depth === 0) {
+        const toolName = serializedToolCallName(text.slice(start, index + 1), toolNames)
+        if (toolName)
+          return toolName
+      }
+    }
+  }
+  return undefined
 }
 
 function toolNameFrom(tool: unknown): string | undefined {
@@ -215,6 +259,7 @@ export async function streamFrom({
   messages,
   options,
   builtinToolsResolver,
+  toolCallGuardNames,
 }: StreamFromOptions) {
   const chatConfig = chatProvider.chat(model)
   const supportsContentArray = streamOptionsContentArrayCompatibilityOk(model, chatProvider, options)
@@ -229,7 +274,12 @@ export async function streamFrom({
   const tools = mergedTools.length > 0 ? mergedTools : undefined
   if (!tools && toolChoiceRequiresTools(options?.toolChoice))
     throw new Error('Cannot satisfy a required tool choice because no tools are available for this request.')
-  const toolNames = new Set(mergedTools.flatMap(tool => toolNameFrom(tool) ?? []))
+  const toolNames = new Set(toolCallGuardNames)
+  for (const tool of mergedTools) {
+    const name = toolNameFrom(tool)
+    if (name)
+      toolNames.add(name)
+  }
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
@@ -238,6 +288,10 @@ export async function streamFrom({
     let bufferedOutputEvents: BufferedOutputEvent[] = []
     let bufferedReasoningText = ''
     let bufferedText = ''
+    // The guard stays active until step completion or a native tool event.
+    // After either channel starts a JSON candidate, preserve all output order
+    // until the complete objects can be checked at the end of the step.
+    let hasBufferedJsonCandidate = false
     const resolveOnce = () => {
       if (settled)
         return
@@ -257,6 +311,7 @@ export async function streamFrom({
     }
 
     const bufferOutputEvent = (event: BufferedOutputEvent) => {
+      hasBufferedJsonCandidate ||= event.text.includes('{')
       const previous = bufferedOutputEvents.at(-1)
       if (previous?.type === event.type)
         previous.text += event.text
@@ -269,6 +324,7 @@ export async function streamFrom({
       bufferedOutputEvents = []
       bufferedReasoningText = ''
       bufferedText = ''
+      hasBufferedJsonCandidate = false
       return events
     }
 
@@ -311,12 +367,10 @@ export async function streamFrom({
 
       bufferOutputEvent({ type: 'text-delta', text })
       bufferedText += text
-      const firstNonWhitespace = bufferedText.trimStart().at(0)
-      // xsAI already retains the full step text. Keep any JSON-shaped candidate
-      // until the step ends; releasing a large candidate would expose the leak.
-      if (firstNonWhitespace !== undefined && firstNonWhitespace !== '{') {
-        await finishPossibleToolCall()
-      }
+      // Stream plain text without disabling detection for later JSON. Once a
+      // prefix reaches the caller, a later failure cannot safely replay it.
+      if (!hasBufferedJsonCandidate && bufferedText.trim().length > 0)
+        await flushBufferedOutput()
     }
 
     const consumeReasoningDelta = async (text: string) => {
@@ -513,9 +567,9 @@ export function isToolRelatedError(error: unknown): boolean {
 }
 
 /**
- * Return whether an error is the internal sentinel emitted when this module's
- * leak guard catches a complete plain-text call to a tool offered in the same
- * model step. Message text alone never matches.
+ * Identify this module's sentinel for a plain-text call to a known tool.
+ * Known names include tools from an earlier attempt of the same request.
+ * Message text alone never matches.
  *
  * A `true` result does not make replay safe by itself. Callers must separately
  * verify that no output or tool side effects were committed and that the tool

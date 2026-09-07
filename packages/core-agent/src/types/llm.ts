@@ -68,4 +68,10 @@ export interface StreamFromOptions {
   messages: Message[]
   options?: StreamOptions
   builtinToolsResolver?: BuiltinToolsResolver
+  /**
+   * Names from an earlier attempt of this request that the leak guard must retain.
+   * These names only control output inspection. They do not enable tools or enter
+   * the provider payload. The caller must scope them to one request and its retries.
+   */
+  toolCallGuardNames?: ReadonlySet<string>
 }

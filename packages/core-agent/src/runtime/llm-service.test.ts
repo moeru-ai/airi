@@ -40,6 +40,31 @@ function createMockStreamResult(
   }
 }
 
+function mockStreamEvents(events: unknown[]) {
+  streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => void }) => {
+    const steps = new Promise<unknown[]>((resolve) => {
+      queueMicrotask(() => {
+        for (const event of events)
+          options.onEvent(event)
+        resolve([])
+      })
+    })
+    return createMockStreamResult(steps)
+  })
+}
+
+function createSparkTool(): Tool {
+  return {
+    type: 'function',
+    function: {
+      name: 'builtIn_emitSparkCommand',
+      description: 'Send a command to a connected game module.',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: vi.fn(async () => 'ok'),
+  }
+}
+
 describe('streamFrom tool errors', () => {
   beforeEach(() => {
     streamTextMock.mockReset()
@@ -454,6 +479,144 @@ describe('streamFrom tool errors', () => {
       { type: 'text.delta', delta: 'I cannot play that game.' },
     ])
     expect(streamTextMock).toHaveBeenCalledTimes(2)
+  })
+
+  // ROOT CAUSE:
+  //
+  // A text prefix disabled the guard for the rest of the model step.
+  // Before the fix, a later tool JSON reached the caller as normal output.
+  // We keep the guard active and inspect complete JSON objects after prefixes.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3932132863
+  it.each([
+    ['text.delta', 'I will call the game tool.\n'],
+    ['text.delta', '```json\n'],
+    ['text.delta', '{not JSON}\n{"status":"ready"}\n'],
+    ['reasoning.delta', 'I will call the game tool.\n'],
+    ['reasoning.delta', '```json\n'],
+  ])('rejects a prefixed tool JSON in %s with prefix %j for Issue #2161', async (type, prefix) => {
+    const rawToolCall = JSON.stringify({
+      name: 'builtIn_emitSparkCommand',
+      parameters: { guidance: 'Use {braces}, a "quote", and a \\ slash.' },
+    })
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    mockStreamEvents([
+      { type: 'step.start' },
+      { type, delta: prefix },
+      ...Array.from(rawToolCall, delta => ({ type, delta })),
+      { type, delta: '\n```\nDone.' },
+      { type: 'step.done', usage: {} },
+    ])
+
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'Can you play games?' }],
+      options: { tools: [createSparkTool()], onStreamEvent, onMessages },
+    })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    const output = onStreamEvent.mock.calls.map(([event]) => event.text ?? '').join('')
+    expect(output).not.toContain('{')
+    expect(onStreamEvent).not.toHaveBeenCalledWith({ type: 'finish' })
+    expect(onMessages).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A prose prefix and its tool JSON can arrive in the same provider chunk.
+  // Before the fix, the prefix made the whole chunk bypass JSON detection.
+  // We inspect complete objects regardless of the provider chunk boundaries.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3932132863
+  it('rejects a prefix and tool JSON in one chunk for Issue #2161', async () => {
+    const onStreamEvent = vi.fn()
+    mockStreamEvents([{
+      type: 'text.delta',
+      delta: 'Here is the call: ```json\n{"name":"builtIn_emitSparkCommand","arguments":{}}\n```',
+    }])
+
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { tools: [createSparkTool()], onStreamEvent },
+    })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    expect(onStreamEvent).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'A plain answer without JSON.',
+    'Use {score} for the value. Then {not JSON}.',
+    '```json\n{"name":"Airi","parameters":{}}\n```',
+    'Result: {"name":"builtIn_emitSparkCommand","description":"A tool name without a call."}',
+    'Result: {"example":{"name":"builtIn_emitSparkCommand","parameters":{}}}',
+    'Result: {"text":"A brace } and an escaped quote \\" followed by {"}',
+    'An incomplete object: {"name":"builtIn_emitSparkCommand",',
+  ])('preserves ordinary output %j after inspecting JSON candidates', async (answer) => {
+    const onStreamEvent = vi.fn()
+    mockStreamEvents(Array.from(answer, delta => ({ type: 'text.delta', delta })))
+
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { tools: [createSparkTool()], onStreamEvent },
+    })
+
+    expect(onStreamEvent.mock.calls.map(([event]) => event.text ?? '').join('')).toBe(answer)
+    expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
+  })
+
+  it('streams ordinary text before the provider finishes the step', async () => {
+    let emit: ((event: unknown) => void) | undefined
+    let finish: ((steps: unknown[]) => void) | undefined
+    const onStreamEvent = vi.fn()
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => void }) => {
+      emit = options.onEvent
+      return createMockStreamResult(new Promise((resolve) => {
+        finish = resolve
+      }))
+    })
+    const pending = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { tools: [createSparkTool()], onStreamEvent },
+    })
+
+    await vi.waitFor(() => expect(emit).toBeTypeOf('function'))
+    emit!({ type: 'text.delta', delta: 'Hello' })
+    await vi.waitFor(() => expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: 'Hello' }))
+    emit!({ type: 'text.delta', delta: ' there.' })
+    await vi.waitFor(() => expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: ' there.' }))
+    expect(onStreamEvent).not.toHaveBeenCalledWith({ type: 'finish' })
+    finish?.([])
+    await pending
+    expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
+  })
+
+  // ROOT CAUSE:
+  //
+  // Assistant text can arrive between chunks of a reasoning JSON object.
+  // Before the fix, normal text flushed the incomplete candidate to the caller.
+  // We retain both channels until their JSON candidates are complete.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3932132863
+  it('holds an interleaved reasoning candidate for Issue #2161', async () => {
+    const onStreamEvent = vi.fn()
+    mockStreamEvents([
+      { type: 'reasoning.delta', delta: 'Call: {"name":"builtIn_emitSparkCommand",' },
+      { type: 'text.delta', delta: 'I can try.' },
+      { type: 'reasoning.delta', delta: '"parameters":{}}' },
+    ])
+
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { tools: [createSparkTool()], onStreamEvent },
+    })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    expect(onStreamEvent).not.toHaveBeenCalled()
   })
 
   it('preserves a JSON answer that does not name an available tool', async () => {

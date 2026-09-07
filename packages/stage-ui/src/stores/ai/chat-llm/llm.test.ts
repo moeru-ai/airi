@@ -423,6 +423,81 @@ describe('isToolRelatedError', () => {
     expect(streamTextMock.mock.calls[1]?.[0]?.toolChoice).toEqual(options.toolChoice)
   })
 
+  // ROOT CAUSE:
+  //
+  // The tool-free retry skipped tool resolution and lost the original tool names.
+  // Before the fix, a repeated JSON call reached the UI and the request succeeded.
+  // We retain the resolved names for detection across attempts of the same request.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3932132876
+  it.each(['text.delta', 'reasoning.delta'])('rejects a repeated tool JSON in %s on the tool-free retry for Issue #2161', async (type) => {
+    const customTool = createSparkTool()
+    const customTools = vi.fn(async () => [customTool])
+    const rawToolCall = JSON.stringify({ name: 'builtIn_emitSparkCommand', parameters: { destinations: [] } })
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    mockStreamEvents([{ type: 'text.delta', delta: rawToolCall }])
+    mockStreamEvents([{ type, delta: rawToolCall }])
+
+    await expect(useLLM().stream('model-a', provider, [
+      { role: 'system', content: 'Use builtIn_emitSparkCommand to play games.' },
+      { role: 'user', content: 'Can you play games?' },
+    ], { tools: customTools, toolChoice: 'auto', onStreamEvent, onMessages })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    expect(streamTextMock).toHaveBeenCalledTimes(2)
+    expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
+    expect(streamTextMock.mock.calls[1]?.[0]?.tools).toBeUndefined()
+    expect(streamTextMock.mock.calls[1]?.[0]?.toolChoice).toBeUndefined()
+    expect(customTools).toHaveBeenCalledTimes(1)
+    expect(customTool.execute).not.toHaveBeenCalled()
+    expect(onStreamEvent).not.toHaveBeenCalled()
+    expect(onMessages).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A later JSON call can follow a prefix that already reached the caller.
+  // Before the fix, this call bypassed the guard and the stream succeeded.
+  // We reject the call without retrying or replaying the visible prefix.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3932132863
+  it('does not retry a leak after visible text for Issue #2161', async () => {
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    const customTool = createSparkTool()
+    mockStreamEvents([
+      { type: 'text.delta', delta: 'I will call the game tool.\n' },
+      { type: 'text.delta', delta: '{"name":"builtIn_emitSparkCommand","parameters":{}}' },
+    ])
+
+    await expect(useLLM().stream('model-a', provider, [], {
+      tools: [customTool],
+      onStreamEvent,
+      onMessages,
+    })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+
+    expect(streamTextMock).toHaveBeenCalledTimes(1)
+    expect(onStreamEvent).toHaveBeenCalledExactlyOnceWith({ type: 'text-delta', text: 'I will call the game tool.\n' })
+    expect(onMessages).not.toHaveBeenCalled()
+    expect(customTool.execute).not.toHaveBeenCalled()
+  })
+
+  it('keeps retry tool names isolated between requests to the same model', async () => {
+    const rawToolCall = '{"name":"builtIn_emitSparkCommand","parameters":{}}'
+    const store = useLLM()
+    mockStreamEvents([{ type: 'text.delta', delta: rawToolCall }])
+    mockStreamEvents([{ type: 'text.delta', delta: 'No tool is available.' }])
+    await store.stream('model-a', provider, [], { tools: [createSparkTool()] })
+
+    const onStreamEvent = vi.fn()
+    mockStreamEvents([{ type: 'text.delta', delta: rawToolCall }])
+    await store.stream('model-a', provider, [
+      { role: 'user', content: 'Quote this JSON as a documentation example.' },
+    ], { supportsTools: false, onStreamEvent })
+
+    expect(streamTextMock).toHaveBeenCalledTimes(3)
+    expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: rawToolCall })
+    expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
+  })
+
   it('merges runtime-registered tools from the llm-tools store into the builtin tool resolver', async () => {
     const store = useLLM()
     const llmToolsStore = useLlmToolsStore()
