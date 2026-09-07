@@ -2,7 +2,7 @@
 import type { SelectContentProps } from 'reka-ui'
 
 import { Select } from '@proj-airi/ui'
-import { onClickOutside } from '@vueuse/core'
+import { onClickOutside, useElementBounding } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -39,6 +39,12 @@ const creatingNew = ref(false)
 const newProfileName = ref('')
 const nameInputRef = ref<HTMLInputElement>()
 const containerRef = ref<HTMLElement>()
+const { x: containerX, y: containerY, width: containerWidth, height: containerHeight } = useElementBounding(containerRef)
+const createFormStyle = computed(() => ({
+  left: `${props.contentAlign === 'start' ? containerX.value : containerX.value + containerWidth.value - 224}px`,
+  top: `${props.contentSide === 'top' ? containerY.value : containerY.value + containerHeight.value}px`,
+  transform: props.contentSide === 'top' ? 'translateY(calc(-100% - 0.5rem))' : 'translateY(0.5rem)',
+}))
 
 const cardsList = computed(() =>
   Array.from(cards.value.entries()).map(([id, card]) => ({ id, name: card.name })),
@@ -288,61 +294,62 @@ function toggleOpen() {
       leave-from-class="opacity-100 scale-100"
       leave-to-class="opacity-0 scale-95"
     >
-      <div
-        v-if="creatingNew"
-        :class="[
-          'absolute z-[10011] w-56 rounded-xl border-2 p-2 shadow-sm backdrop-blur-xl',
-          props.contentSide === 'top' ? 'bottom-full mb-2' : 'top-full mt-2',
-          props.contentAlign === 'start' ? 'left-0' : 'right-0',
-          props.contentSide === 'top' && props.contentAlign === 'start' ? 'origin-bottom-left' : '',
-          props.contentSide === 'top' && props.contentAlign === 'end' ? 'origin-bottom-right' : '',
-          props.contentSide === 'bottom' && props.contentAlign === 'start' ? 'origin-top-left' : '',
-          props.contentSide === 'bottom' && props.contentAlign === 'end' ? 'origin-top-right' : '',
-          'border-neutral-200 bg-white/95 dark:border-neutral-800 dark:bg-neutral-900/95',
-        ]"
-      >
-        <div :class="['flex items-center gap-2']">
-          <input
-            ref="nameInputRef"
-            v-model="newProfileName"
-            type="text"
-            :placeholder="t('stage.profile-switcher.new-profile-name')"
-            :class="[
-              'min-w-0 flex-1 rounded-lg border-2 px-2 py-1 text-sm outline-none transition-colors',
-              'bg-neutral-50 text-neutral-800 placeholder:text-neutral-400',
-              'dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-500',
-              isDuplicateName
-                ? 'border-red-400 dark:border-red-600'
-                : 'border-neutral-100 focus:border-primary-300 dark:border-neutral-900 dark:focus:border-primary-400/50',
-            ]"
-            @keydown.enter="confirmCreate"
-            @keydown.escape="cancelCreate"
-          >
+      <Teleport to="body">
+        <div
+          v-if="creatingNew"
+          :style="createFormStyle"
+          :class="[
+            'fixed z-[10011] w-56 rounded-xl border-2 p-2 shadow-sm backdrop-blur-xl',
+            props.contentSide === 'top' && props.contentAlign === 'start' ? 'origin-bottom-left' : '',
+            props.contentSide === 'top' && props.contentAlign === 'end' ? 'origin-bottom-right' : '',
+            props.contentSide === 'bottom' && props.contentAlign === 'start' ? 'origin-top-left' : '',
+            props.contentSide === 'bottom' && props.contentAlign === 'end' ? 'origin-top-right' : '',
+            'border-neutral-200 bg-white/95 dark:border-neutral-800 dark:bg-neutral-900/95',
+          ]"
+        >
+          <div :class="['flex items-center gap-2']">
+            <input
+              ref="nameInputRef"
+              v-model="newProfileName"
+              type="text"
+              :placeholder="t('stage.profile-switcher.new-profile-name')"
+              :class="[
+                'min-w-0 flex-1 rounded-lg border-2 px-2 py-1 text-sm outline-none transition-colors',
+                'bg-neutral-50 text-neutral-800 placeholder:text-neutral-400',
+                'dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-500',
+                isDuplicateName
+                  ? 'border-red-400 dark:border-red-600'
+                  : 'border-neutral-100 focus:border-primary-300 dark:border-neutral-900 dark:focus:border-primary-400/50',
+              ]"
+              @keydown.enter="confirmCreate"
+              @keydown.escape="cancelCreate"
+            >
 
-          <button
-            :class="[
-              'shrink-0 p-1.5 transition',
-              'text-primary-500 hover:text-primary-600 dark:hover:text-primary-400',
-              (newProfileName.trim() && !isDuplicateName) ? '' : 'pointer-events-none opacity-30',
-            ]"
-            type="button"
-            @click="confirmCreate"
-          >
-            <div class="i-solar:check-circle-bold size-4.5" />
-          </button>
+            <button
+              :class="[
+                'shrink-0 p-1.5 transition',
+                'text-primary-500 hover:text-primary-600 dark:hover:text-primary-400',
+                (newProfileName.trim() && !isDuplicateName) ? '' : 'pointer-events-none opacity-30',
+              ]"
+              type="button"
+              @click="confirmCreate"
+            >
+              <div class="i-solar:check-circle-bold size-4.5" />
+            </button>
 
-          <button
-            :class="[
-              'shrink-0 p-1.5 transition',
-              'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300',
-            ]"
-            type="button"
-            @click="cancelCreate"
-          >
-            <div class="i-solar:close-circle-bold size-4.5" />
-          </button>
+            <button
+              :class="[
+                'shrink-0 p-1.5 transition',
+                'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300',
+              ]"
+              type="button"
+              @click="cancelCreate"
+            >
+              <div class="i-solar:close-circle-bold size-4.5" />
+            </button>
+          </div>
         </div>
-      </div>
+      </Teleport>
     </Transition>
   </div>
 </template>
