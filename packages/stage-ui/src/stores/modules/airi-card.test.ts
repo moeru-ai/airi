@@ -184,7 +184,7 @@ describe('airi-card store', () => {
     expect(visionStore.activeModel).toBe('auto')
   })
 
-  it('migrates the old default speech placeholder to inherited settings', async () => {
+  it('preserves ambiguous old default speech settings', async () => {
     const cardStore = useAiriCardStore()
     cardStore.cards.set('default', {
       name: 'ReLU',
@@ -205,7 +205,7 @@ describe('airi-card store', () => {
     await cardStore.initialize()
 
     expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
-      provider: '',
+      provider: 'speech-noop',
       model: '',
       voice_id: '',
     })
@@ -326,17 +326,17 @@ describe('airi-card store', () => {
     const cardStore = useAiriCardStore()
     await cardStore.initialize()
 
-    expect(await cardStore.updateActiveCardDisplayModel('display-model-iru-v2')).toBe(true)
+    expect(await cardStore.updateActiveCardDisplayModel('preset-vrm-1')).toBe(true)
     expect(await cardStore.updateActiveCardConsciousness({ provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' })).toBe(true)
     expect(await cardStore.updateActiveCardVision({ provider: 'ollama', model: 'llava' })).toBe(true)
     expect(await cardStore.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' })).toBe(true)
     expect(cardStore.activeCard?.extensions.airi.modules).toMatchObject({
-      displayModelId: 'display-model-iru-v2',
+      displayModelId: 'preset-vrm-1',
       consciousness: { provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' },
       vision: { provider: 'ollama', model: 'llava' },
       speech: { provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' },
     })
-    expect(stageModelStore.stageModelSelected).toBe('display-model-iru-v2')
+    expect(stageModelStore.stageModelSelected).toBe('preset-vrm-1')
   })
 
   // ROOT CAUSE:

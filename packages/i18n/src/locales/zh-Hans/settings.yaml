@@ -422,6 +422,7 @@ pages:
         consciousness_model: 为这个角色选择 AI 模型。
         speech_model: 为此角色指定语音合成模型与音色。
       errors:
+        model_required: 请为指定的提供商选择模型，不能继承其他提供商的模型。
         name: 错误：你必须提供一个有效的名称！
         version: '错误：版本号无效！'
         description: '错误：你必须为此卡片提供描述。'
