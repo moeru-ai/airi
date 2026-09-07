@@ -192,6 +192,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       configuredBy: definition.configuredBy ?? 'user',
     }
     providers.value[providerId] = provider
+    delete pendingDeletes.value[providerId]
     return provider
   }
 
