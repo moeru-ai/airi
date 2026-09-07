@@ -8,6 +8,7 @@ import { createOpenAICompatibleValidators } from '../../../validators'
 import { defineProvider } from '../../registry'
 
 const openAICompatibleConfigSchema = z.object({
+  api: z.enum(['chat-completions', 'responses']).default('chat-completions'),
   apiKey: z
     .string('API Key'),
   baseUrl: z
@@ -30,6 +31,12 @@ export const providerOpenAI = defineProvider<OpenAICompatibleConfig, 'openai'>({
   icon: 'i-lobe-icons:openai',
 
   createProviderConfig: ({ t }) => openAICompatibleConfigSchema.extend({
+    api: openAICompatibleConfigSchema.shape.api.meta({
+      type: 'select',
+      options: [{ label: 'Chat Completions', value: 'chat-completions' }, { label: 'Responses API', value: 'responses' }],
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.description'),
+    }),
     apiKey: openAICompatibleConfigSchema.shape.apiKey.meta({
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
@@ -46,6 +53,19 @@ export const providerOpenAI = defineProvider<OpenAICompatibleConfig, 'openai'>({
     const provider = createOpenAI(config.apiKey, config.baseUrl)
     return {
       ...provider,
+      responses: config.api === 'responses'
+        ? (model: string, options?: ChatRequestOptions) => {
+            const request = provider.chat(model)
+            if (!options?.reasoning)
+              return request
+            return {
+              ...request,
+              reasoning: options.reasoning === 'enabled'
+                ? { effort: 'medium' as const, summary: 'auto' as const }
+                : { effort: 'none' as const },
+            }
+          }
+        : undefined,
       chat(model: string, options?: ChatRequestOptions) {
         const request = provider.chat(model)
         if (!options?.reasoning)

@@ -29,7 +29,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 const { t } = useI18n()
 const router = useRouter()
-const route = useRoute('v2/settings/providers/edit/[providerId]')
+const route = useRoute('/v2/settings/providers/edit/[providerId]/')
 
 const providerStore = useProviderConfigStore()
 const emptyProviderConfig = Object.freeze({})
@@ -310,6 +310,7 @@ async function runValidation() {
 
 const debouncedValidation = useDebounceFn(runValidation, 1500)
 let didInitValidation = false
+let validationPlanRequestId = 0
 
 watch([providerConfigEdit, providerDefinition, providerSchema], async () => {
   if (!providerConfig.value || !providerConfigEdit.value) {
@@ -340,7 +341,6 @@ watch([providerId, providerSchema], ([nextProviderId, schema]) => {
     providerConfigEdit.value.config = merge(providerSchemaDefault.value, providerConfigEdit.value.config)
 }, { immediate: true })
 
-let validationPlanRequestId = 0
 async function getValidationPlan() {
   const requestId = ++validationPlanRequestId
   const definition = providerDefinition.value

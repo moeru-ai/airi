@@ -51,9 +51,10 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       run: request => stream(
         request.selectedChat.model,
         request.selectedChat.provider,
-        request.messages,
+        request.context,
         {
           tools: request.tools,
+          providerId: request.selectedChat.providerId,
           supportsTools: request.policy.supportsTools,
           waitForTools: request.policy.waitForTools,
           toolChoice: request.policy.toolChoice,

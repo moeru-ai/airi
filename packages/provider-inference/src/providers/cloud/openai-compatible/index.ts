@@ -6,6 +6,7 @@ import { createOpenAICompatibleValidators } from '../../../validators'
 import { defineProvider } from '../../registry'
 
 const openAICompatibleConfigSchema = z.object({
+  api: z.enum(['chat-completions', 'responses']).default('chat-completions'),
   apiKey: z
     .string('API Key')
     .optional(),
@@ -28,6 +29,12 @@ export const providerOpenAICompatible = defineProvider<OpenAICompatibleConfig, '
   icon: 'i-lobe-icons:openai',
 
   createProviderConfig: ({ t }) => openAICompatibleConfigSchema.extend({
+    api: openAICompatibleConfigSchema.shape.api.meta({
+      type: 'select',
+      options: [{ label: 'Chat Completions', value: 'chat-completions' }, { label: 'Responses API', value: 'responses' }],
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.description'),
+    }),
     apiKey: openAICompatibleConfigSchema.shape.apiKey.meta({
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
@@ -41,7 +48,11 @@ export const providerOpenAICompatible = defineProvider<OpenAICompatibleConfig, '
     }),
   }),
   createProvider(config) {
-    return createOpenAI(config.apiKey as string, config.baseUrl)
+    const provider = createOpenAI(config.apiKey ?? '', config.baseUrl)
+    return {
+      ...provider,
+      responses: config.api === 'responses' ? (model: string) => provider.chat(model) : undefined,
+    }
   },
 
   validationRequiredWhen(config) {

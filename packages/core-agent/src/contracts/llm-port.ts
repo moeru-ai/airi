@@ -1,8 +1,9 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message } from '@xsai/shared-chat'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 
+import type { ConversationContext } from '../messages/types'
 import type { StreamOptions } from '../types/llm'
 
+/** The selected provider adapter projects context and owns the request lifecycle. */
 export interface AgentLLMPort {
-  stream: (model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) => Promise<void>
+  stream: (model: string, provider: GenerationProvider, context: ConversationContext, options?: StreamOptions) => Promise<void>
 }

@@ -24,7 +24,7 @@ interface RateLimitBucket {
 
 export function chatCompletionsRateLimit(input: {
   metrics?: RateLimitMetrics | null
-}): GatewayMiddleware<'chat.completions'> {
+}): GatewayMiddleware<'chat.completions' | 'responses.create'> {
   return createGatewayRateLimiter({
     classify: context => ({
       key: context.input.userId,

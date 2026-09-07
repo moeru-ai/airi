@@ -303,7 +303,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
         let response: Response
         try {
-          response = await fetchImpl(`${upstream.baseURL.replace(/\/+$/, '')}/chat/completions`, {
+          response = await fetchImpl(`${upstream.baseURL.replace(/\/+$/, '')}/${req.protocol === 'responses' ? 'responses' : 'chat/completions'}`, {
             method: 'POST',
             headers,
             body,
@@ -416,7 +416,15 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     let triedUpstreams = 0
     let terminalResponse: Response | undefined
 
+    function supportsProtocol(upstream: LlmUpstream) {
+      const protocol = req.protocol ?? 'chat-completions'
+      return upstream.protocols ? upstream.protocols.includes(protocol) : protocol === 'chat-completions'
+    }
+
     async function attemptUpstream(upstream: LlmUpstream, index: number) {
+      if (!supportsProtocol(upstream))
+        return { kind: 'exhausted' as const, statuses: [], response: undefined }
+
       const provider = deriveProviderTag(upstream.baseURL)
       triedUpstreams += 1
       // Surface the current upstream so the caller can label success metrics
@@ -450,24 +458,28 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     }
 
     async function routeGroup(group: LlmRoutingGroup): Promise<
+      | { kind: 'skipped' }
       | { kind: 'ok', response: Response }
       | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean, response?: Response }
     > {
-      const statuses: Array<number | 'timeout'> = []
-      for (let groupCandidateIndex = 0; groupCandidateIndex < group.upstreamIds.length; groupCandidateIndex += 1) {
-        const upstreamId = group.upstreamIds[groupCandidateIndex]
+      const candidates = group.upstreamIds.map((upstreamId) => {
         const index = llmModel.upstreams.findIndex(upstream => upstream.id === upstreamId)
-        if (index === -1) {
-          throw new Error(
-            `LLM routing group ${group.id} references unknown upstream ${upstreamId} for model ${req.modelName}`,
-          )
-        }
-
-        const result = await attemptUpstream(llmModel.upstreams[index], index)
+        if (index === -1)
+          throw new Error(`LLM routing group ${group.id} references unknown upstream ${upstreamId} for model ${req.modelName}`)
+        return { index, upstream: llmModel.upstreams[index] }
+      }).filter(candidate => supportsProtocol(candidate.upstream))
+      // Protocol selection happens before attempts. Retry and continue rules
+      // govern actual failures, not a group with no compatible endpoint.
+      if (candidates.length === 0)
+        return { kind: 'skipped' }
+      const statuses: Array<number | 'timeout'> = []
+      for (let groupCandidateIndex = 0; groupCandidateIndex < candidates.length; groupCandidateIndex += 1) {
+        const { upstream, index } = candidates[groupCandidateIndex]
+        const result = await attemptUpstream(upstream, index)
         if (result.kind === 'ok')
           return result
         statuses.push(...result.statuses)
-        const hasNextCandidate = groupCandidateIndex < group.upstreamIds.length - 1
+        const hasNextCandidate = groupCandidateIndex < candidates.length - 1
         if (hasNextCandidate && !failuresMatch(result.statuses, group.retryOn))
           return { kind: 'exhausted', statuses, transitionBlocked: true, response: result.response }
         if (hasNextCandidate)
@@ -481,6 +493,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       for (let groupIndex = 0; groupIndex < llmModel.routing.groups.length; groupIndex += 1) {
         const group = llmModel.routing.groups[groupIndex]
         const result = await routeGroup(group)
+        if (result.kind === 'skipped')
+          continue
         if (result.kind === 'ok')
           return result.response
 
@@ -512,6 +526,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     // Terminal exhaustion: every transition allowed by the active provider
     // route has failed. A policy boundary may intentionally leave later
     // upstreams untouched.
+    if (triedUpstreams === 0) {
+      throw createServiceUnavailableError('No upstream supports the requested protocol', 'LLM_PROTOCOL_UNAVAILABLE', {
+        model: req.modelName,
+        protocol: req.protocol ?? 'chat-completions',
+      })
+    }
     const lastFailure = allFailures.at(-1)
     if (lastFailure == null) {
       // Should not happen: schema guarantees ≥1 upstream and ≥1 key. Treat

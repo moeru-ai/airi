@@ -10,9 +10,19 @@ import type {
   TranscriptionProvider,
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/providers/utils'
+import type { ResponsesOptions } from '@xsai-ext/responses'
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type { MaybePromise } from 'clustr'
 import type { $ZodType } from 'zod/v4/core'
+
+/** Request configuration for the Responses protocol. The caller owns input and tools. */
+export type ResponsesConfig = Pick<ResponsesOptions, 'apiKey' | 'baseURL' | 'fetch' | 'headers' | 'model' | 'reasoning'>
+
+/** A configured generation capability. Responses-only providers do not need a Chat implementation. */
+export type GenerationProvider = (ChatProvider & { responses?: never }) | {
+  responses: (model: string, options?: ChatRequestOptions) => ResponsesConfig
+  chat?: ChatProvider['chat']
+}
 
 /** Translates a provider label or description for the active interface locale. */
 export type ProviderTranslator = (input: string) => string
@@ -24,7 +34,7 @@ export interface ProviderContext {
 }
 
 export type ProviderInstance
-  = | ChatProvider
+  = | GenerationProvider
     | ChatProviderWithExtraOptions
     | EmbedProvider
     | EmbedProviderWithExtraOptions

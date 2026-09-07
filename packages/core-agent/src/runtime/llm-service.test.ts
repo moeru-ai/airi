@@ -1,9 +1,12 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
 
+import type { ConversationContext } from '../messages/types'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { isContentArrayRelatedError, sanitizeMessages, streamFrom } from './llm-service'
+import { readChatMessages, renderChatContext } from '../messages/chat-completions'
+import { isContentArrayRelatedError, streamFrom } from './llm-service'
 
 const { streamTextMock } = vi.hoisted(() => ({
   streamTextMock: vi.fn(),
@@ -46,7 +49,7 @@ describe('streamFrom tool errors', () => {
   })
 
   it('emits the final xsAI messages after all tool rounds finish', async () => {
-    const onMessages = vi.fn()
+    const onTranscript = vi.fn()
     const finalMessages: Message[] = [
       { role: 'user', content: 'Check the weather.' },
       {
@@ -72,12 +75,12 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: finalMessages.slice(0, 1),
-      options: { onMessages },
+      context: { turns: [{ messages: readChatMessages(finalMessages.slice(0, 1)) }] },
+      options: { onTranscript },
     })
 
-    expect(onMessages).toHaveBeenCalledTimes(1)
-    expect(onMessages).toHaveBeenCalledWith(finalMessages)
+    expect(onTranscript).toHaveBeenCalledTimes(1)
+    expect(onTranscript).toHaveBeenCalledWith(expect.objectContaining({ messages: readChatMessages(finalMessages.slice(1)) }))
   })
 
   it('ignores provider errors after steps resolve while final messages are pending', async () => {
@@ -103,7 +106,7 @@ describe('streamFrom tool errors', () => {
     const pending = streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
     })
 
     await vi.waitFor(() => expect(onEvent).toBeTypeOf('function'))
@@ -124,7 +127,7 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
       options: { onUsage },
     })
 
@@ -147,7 +150,7 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
       options: { onUsage },
     })
 
@@ -164,7 +167,7 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
       options: { onUsage },
     })
 
@@ -189,7 +192,7 @@ describe('streamFrom tool errors', () => {
       await expect(streamFrom({
         model: 'model-a',
         chatProvider: provider,
-        messages: [{ role: 'user', content: 'hello' }] as Message[],
+        context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
       })).rejects.toThrow('provider stream failed')
       await new Promise(resolve => setImmediate(resolve))
       expect(unhandledRejections).toEqual([])
@@ -205,7 +208,7 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
       options: {
         onUsage: () => {
           throw new Error('analytics unavailable')
@@ -257,7 +260,7 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'play chess' }] as Message[],
+      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'play chess' }]) }] },
       options: {
         tools: [failingTool],
         onStreamEvent: (event) => {
@@ -288,7 +291,7 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
       options: {
         onStreamEvent: async (event) => {
           if (event.type === 'finish')
@@ -299,14 +302,17 @@ describe('streamFrom tool errors', () => {
   })
 })
 
-describe('sanitizeMessages', () => {
+describe('chat protocol compatibility', () => {
+  function projectChat(messages: Parameters<typeof readChatMessages>[0], supportsContentArray = true) {
+    return renderChatContext({ turns: [{ messages: readChatMessages(messages) }] }, supportsContentArray)
+  }
   it('rewrites internal `error`-role messages as user-role narrations', () => {
     /**
      * @example
-     * sanitizeMessages([{ role: 'error', content: 'Remote sent 400' }])
+     * projectChat([{ role: 'error', content: 'Remote sent 400' }])
      * // -> [{ role: 'user', content: 'User encountered error: Remote sent 400' }]
      */
-    const out = sanitizeMessages([{ role: 'error', content: 'Remote sent 400' }])
+    const out = projectChat([{ role: 'error', content: 'Remote sent 400' }])
     expect(out).toEqual([
       { role: 'user', content: 'User encountered error: Remote sent 400' },
     ])
@@ -315,13 +321,13 @@ describe('sanitizeMessages', () => {
   it('flattens text-only content arrays to a string by default', () => {
     /**
      * @example
-     * sanitizeMessages([{
+     * projectChat([{
      *   role: 'user',
      *   content: [{ type: 'text', text: 'hi' }, { type: 'text', text: ' there' }],
      * }])
      * // -> [{ role: 'user', content: 'hi there' }]
      */
-    const out = sanitizeMessages([{
+    const out = projectChat([{
       role: 'user',
       content: [
         { type: 'text', text: 'hi' },
@@ -334,17 +340,17 @@ describe('sanitizeMessages', () => {
   it('preserves multimodal arrays when supportsContentArray is true (default)', () => {
     /**
      * @example
-     * sanitizeMessages([{ role: 'user', content: [{type:'text',text:'see'},{type:'image_url',...}] }])
+     * projectChat([{ role: 'user', content: [{type:'text',text:'see'},{type:'image_url',...}] }])
      * // -> unchanged: image_url part stays so vision-capable providers receive the image
      */
-    const message = {
+    const message: Message = {
       role: 'user',
       content: [
         { type: 'text', text: 'see this' },
         { type: 'image_url', image_url: { url: 'data:image/png;base64,AAA' } },
       ],
     }
-    const out = sanitizeMessages([message])
+    const out = projectChat([message])
     expect(out[0]).toEqual(message)
   })
 
@@ -367,10 +373,10 @@ describe('sanitizeMessages', () => {
   it('issue #1500: drops image_url parts and flattens to string when supportsContentArray=false', () => {
     /**
      * @example
-     * sanitizeMessages([{ role:'user', content: [{type:'text',text:'hi'},{type:'image_url',...}] }], false)
+     * projectChat([{ role:'user', content: [{type:'text',text:'hi'},{type:'image_url',...}] }], false)
      * // -> [{ role: 'user', content: 'hi' }]
      */
-    const out = sanitizeMessages([
+    const out = projectChat([
       {
         role: 'user',
         content: [
@@ -385,10 +391,10 @@ describe('sanitizeMessages', () => {
   it('issue #1500: drops audio/file parts when supportsContentArray=false', () => {
     /**
      * @example
-     * sanitizeMessages([{ role:'user', content: [{type:'text',text:'q'},{type:'input_audio',...},{type:'file',...}] }], false)
+     * projectChat([{ role:'user', content: [{type:'text',text:'q'},{type:'input_audio',...},{type:'file',...}] }], false)
      * // -> [{ role: 'user', content: 'q' }]
      */
-    const out = sanitizeMessages([
+    const out = projectChat([
       {
         role: 'user',
         content: [
@@ -402,9 +408,9 @@ describe('sanitizeMessages', () => {
   })
 
   it('passes string content through untouched regardless of the flag', () => {
-    expect(sanitizeMessages([{ role: 'user', content: 'plain' }], true))
+    expect(projectChat([{ role: 'user', content: 'plain' }], true))
       .toEqual([{ role: 'user', content: 'plain' }])
-    expect(sanitizeMessages([{ role: 'user', content: 'plain' }], false))
+    expect(projectChat([{ role: 'user', content: 'plain' }], false))
       .toEqual([{ role: 'user', content: 'plain' }])
   })
 })
@@ -441,4 +447,37 @@ describe('isContentArrayRelatedError', () => {
     expect(isContentArrayRelatedError('Tool call failed: invalid schema for function')).toBe(false)
     expect(isContentArrayRelatedError(undefined)).toBe(false)
   })
+})
+
+it('preserves native Chat reasoning for an unchanged turn and drops it on a model switch', async () => {
+  const output: Message[] = [{ role: 'assistant', content: 'answer', reasoning_content: 'provider state' }]
+  const context: ConversationContext = { turns: [] }
+  streamTextMock.mockReturnValueOnce(createMockStreamResult(Promise.resolve([]), Promise.resolve(undefined), Promise.resolve(output)))
+  await streamFrom({ model: 'test', chatProvider: provider, context, options: { onTranscript: (turn) => {
+    context.turns.push(turn)
+  } } })
+  streamTextMock.mockReturnValueOnce(createMockStreamResult())
+  await streamFrom({ model: 'test', chatProvider: provider, context })
+  expect(streamTextMock.mock.lastCall?.[0].messages).toEqual(output)
+  streamTextMock.mockReturnValueOnce(createMockStreamResult())
+  await streamFrom({ model: 'another', chatProvider: provider, context })
+  expect(streamTextMock.mock.lastCall?.[0].messages).toEqual([{ role: 'assistant', content: 'answer' }])
+})
+
+it('does not publish a transcript when the terminal event consumer fails', async () => {
+  const onTranscript = vi.fn()
+  streamTextMock.mockReturnValueOnce(createMockStreamResult())
+  await expect(streamFrom({
+    model: 'test',
+    chatProvider: provider,
+    context: { turns: [] },
+    options: {
+      onTranscript,
+      onStreamEvent: (event) => {
+        if (event.type === 'finish')
+          throw new Error('terminal consumer failed')
+      },
+    },
+  })).rejects.toThrow('terminal consumer failed')
+  expect(onTranscript).not.toHaveBeenCalled()
 })
