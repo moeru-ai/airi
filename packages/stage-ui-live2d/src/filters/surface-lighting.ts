@@ -1,11 +1,15 @@
+import type { Renderer as PixiRenderer } from '@pixi/core'
 import type { AmbientLightEnvironment, ScreenAmbientLightMode } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Cubism4InternalModel } from 'pixi-live2d-display/cubism4'
 
+import { Matrix } from '@pixi/math'
 import { CubismShader_WebGL, fragmentShaderSrcsetupMask } from 'pixi-live2d-display/cubism4'
 
 import iruNormalUrl from '../assets/lighting/iru-normal.png?url'
 import iruOwnershipUrl from '../assets/lighting/iru-ownership.png?url'
 import iruProfile from '../assets/lighting/iru.json'
+
+import { screenLightCount, surfaceIrradianceShader, writeScreenLights } from './surface-irradiance'
 
 type Renderer = Cubism4InternalModel['renderer']
 type Profile = typeof iruProfile
@@ -15,6 +19,7 @@ let installed = false
 
 const declarations = `
 varying vec2 v_airiReference;
+varying vec2 v_airiStage;
 uniform float u_airiEnabled;
 uniform float u_airiProfile;
 uniform float u_airiFace;
@@ -24,7 +29,7 @@ uniform float u_airiChroma;
 uniform float u_airiDirectional;
 uniform sampler2D u_airiNormal;
 uniform sampler2D u_airiOwnership;
-uniform vec3 u_airiLights[9];
+${surfaceIrradianceShader}
 vec3 airiLinear(vec3 c) {
   return mix(c/12.92, pow((c+0.055)/1.055, vec3(2.4)), step(vec3(0.04045), c));
 }
@@ -54,20 +59,6 @@ vec3 airiProxy(vec2 p) {
 }
 `
 
-// Nine equal-area source regions retain screen color energy and direction.
-// The existing capture map is linear RGB. Positive normal Y points upward;
-// map rows run downward. Z places the screen light in front of the artwork.
-const directions = Array.from({ length: 9 }, (_, i) => {
-  const x = i % 3 - 1
-  const y = 1 - Math.floor(i / 3)
-  const length = Math.hypot(x, y, 0.75)
-  return [x / length, y / length, 0.75 / length]
-})
-const flatWeight = directions.reduce((sum, d) => sum + d[2], 0)
-const integrate = directions.map((d, i) => `
-  irradiance += u_airiLights[${i}] * max(dot(n, vec3(${d.map(v => v.toFixed(8)).join(',')})),0.);
-  reference += u_airiLights[${i}] * ${d[2].toFixed(8)};
-`).join('\n')
 const shading = `
 if (u_airiEnabled > 0.5 && gl_FragColor.a > 0.0001) {
   vec3 n = airiProxy(v_airiReference);
@@ -82,20 +73,7 @@ if (u_airiEnabled > 0.5 && gl_FragColor.a > 0.0001) {
       n = normalize(vec3(face.x*0.4,-face.y*0.4,1.));
     }
   }
-  n = normalize(mix(vec3(0.,0.,1.),n,u_airiDirectional));
-  vec3 irradiance = vec3(0.);
-  vec3 reference = vec3(0.);
-  ${integrate}
-  irradiance /= ${flatWeight.toFixed(8)};
-  reference /= ${flatWeight.toFixed(8)};
-  vec3 weights = vec3(0.2126,0.7152,0.0722);
-  float referenceEnergy = dot(reference,weights);
-  float energy = dot(irradiance,weights);
-  float volume = clamp(energy/max(referenceEnergy,0.0005),0.2,1.6);
-  vec3 colorCast = min(irradiance/max(energy,0.0005),vec3(1.6));
-  vec3 response = volume*mix(vec3(1.),colorCast,u_airiChroma);
-  float presence = smoothstep(0.,0.04,referenceEnergy);
-  response = mix(vec3(1.),response,min(u_airiStrength,1.)*presence);
+  vec3 response = airiSurfaceResponse(n, v_airiStage);
   vec3 color = airiLinear(gl_FragColor.rgb/gl_FragColor.a);
   gl_FragColor.rgb = airiSrgb(clamp(color*response,0.,1.))*gl_FragColor.a;
 }
@@ -109,7 +87,8 @@ function installShaderDispatch() {
   const load = prototype.loadShaderProgram
   prototype.loadShaderProgram = function (vertex, fragment) {
     if (fragment !== fragmentShaderSrcsetupMask) {
-      vertex = `attribute vec2 a_airiReference; varying vec2 v_airiReference; ${vertex}`.replace('void main(){', 'void main(){ v_airiReference=a_airiReference;')
+      vertex = `attribute vec2 a_airiReference; varying vec2 v_airiReference; varying vec2 v_airiStage; uniform mat3 u_airiClipToStage; ${vertex}`.replace('void main(){', 'void main(){ v_airiReference=a_airiReference;')
+      vertex = `${vertex.slice(0, vertex.lastIndexOf('}'))} v_airiStage=(u_airiClipToStage*vec3(gl_Position.xy/gl_Position.w,1.)).xy; }`
       fragment = fragment.replace('precision mediump float;', 'precision highp float;')
       fragment = fragment.replace('void main()', `${declarations} void main()`)
       fragment = `${fragment.slice(0, fragment.lastIndexOf('}'))}${shading}}`
@@ -154,6 +133,8 @@ interface Locations {
   normal: WebGLUniformLocation | null
   ownership: WebGLUniformLocation | null
   lights: WebGLUniformLocation | null
+  clipToStage: WebGLUniformLocation | null
+  aspect: WebGLUniformLocation | null
 }
 
 /**
@@ -168,7 +149,8 @@ export class SurfaceLighting {
   private readonly references = new Map<number, { coordinates: Float32Array, index: number, face: boolean }>()
   private readonly buffers = new Map<number, WebGLBuffer>()
   private programs = new WeakMap<WebGLProgram, Locations>()
-  private readonly lights = new Float32Array(27)
+  private readonly clipToStage = new Matrix()
+  private readonly lights = new Float32Array(screenLightCount * 3)
   private gl?: WebGLRenderingContext
   private normal?: WebGLTexture
   private ownership?: WebGLTexture
@@ -181,7 +163,7 @@ export class SurfaceLighting {
   private directional = true
   readonly profile: 'iru' | 'proxy'
 
-  constructor(private readonly model: Cubism4InternalModel) {
+  constructor(private readonly model: Cubism4InternalModel, private readonly stage: PixiRenderer) {
     installShaderDispatch()
     const core = model.coreModel
     const ids = core.getDrawableIds()
@@ -233,17 +215,9 @@ export class SurfaceLighting {
     if (this.environment === environment)
       return
     this.environment = environment
-    const { width, height, data } = environment.surround
-    this.lights.fill(0)
-    const counts = new Uint32Array(9)
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const region = Math.min(2, Math.floor(y * 3 / height)) * 3 + Math.min(2, Math.floor(x * 3 / width))
-        counts[region]++
-        for (let c = 0; c < 3; c++) this.lights[region * 3 + c] += data[(y * width + x) * 3 + c]
-      }
-    }
-    for (let i = 0; i < 27; i++) this.lights[i] /= Math.max(1, counts[Math.floor(i / 3)])
+    // The narrow reconstruction approximates screen emission. The old wide
+    // surround blur has already mixed distant colors and must not be lit again.
+    writeScreenLights(environment.contact, this.lights)
   }
 
   /** Called by the shared dispatcher after the SDK has bound its color shader. */
@@ -259,7 +233,7 @@ export class SurfaceLighting {
     let locations = this.programs.get(program)
     if (!locations) {
       const uniform = (name: string) => gl.getUniformLocation(program, `u_airi${name}`)
-      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), face: uniform('Face'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]') }
+      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), face: uniform('Face'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect') }
       this.programs.set(program, locations)
     }
     let buffer = this.buffers.get(vertices.byteOffset)
@@ -288,6 +262,13 @@ export class SurfaceLighting {
     gl.uniform1f(locations.chroma, this.chroma)
     gl.uniform1f(locations.directional, this.directional ? 1 : 0)
     gl.uniform3fv(locations.lights, this.lights)
+    // Undo exactly the projection Cubism used, including Pixi filter frames.
+    // Current mesh positions then locate light sources in the stage window;
+    // neutral reference UVs are only for normal/material lookup.
+    const { width, height } = this.stage.screen
+    this.clipToStage.copyFrom(this.stage.projection.projectionMatrix).invert().scale(1 / width, 1 / height)
+    gl.uniformMatrix3fv(locations.clipToStage, false, this.clipToStage.toArray(true))
+    gl.uniform1f(locations.aspect, width / height)
     gl.uniform1i(locations.normal, 2)
     gl.uniform1i(locations.ownership, 3)
     gl.activeTexture(gl.TEXTURE2)

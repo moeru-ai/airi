@@ -370,7 +370,7 @@ async function performModelLoad() {
     })
 
     if (live2DModel.internalModel instanceof Cubism4InternalModel) {
-      const lighting = new SurfaceLighting(live2DModel.internalModel)
+      const lighting = new SurfaceLighting(live2DModel.internalModel, pixiApp.value!.renderer)
       surfaceLighting = lighting
       try {
         await lighting.load()
