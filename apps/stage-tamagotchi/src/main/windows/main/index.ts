@@ -31,6 +31,7 @@ import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { setupNormalGeneration } from '../../services/electron/live2d-normal-generation'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
@@ -185,6 +186,12 @@ export async function setupMainWindow(params: {
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
   })
+
+  // One inference handler serves every devtool. Omitting the destination window
+  // lets Eventa reply to the requesting renderer instead of the character window.
+  const normalContext = createContext(ipcMain)
+  setupNormalGeneration({ context: normalContext.context, window })
+  window.once('closed', () => normalContext.dispose())
 
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/', {
     query: { 'synced-leader': 'true' },

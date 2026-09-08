@@ -45,6 +45,7 @@ import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { ScreenAmbientLightFilter } from '../../../filters/screen-ambient-light'
 import { SurfaceLighting } from '../../../filters/surface-lighting'
+import { registerNormalPipeline } from '../../../lighting/channel'
 import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
 
 const props = withDefaults(defineProps<{
@@ -177,6 +178,7 @@ const dropShadowFilter = shallowRef(new DropShadowFilter({
 }))
 const screenAmbientLightFilter = shallowRef(new ScreenAmbientLightFilter())
 let surfaceLighting: SurfaceLighting | undefined
+let stopNormalPipeline: (() => void) | undefined
 
 let resizeAnimation: ReturnType<typeof animate> | undefined
 
@@ -312,6 +314,8 @@ async function performModelLoad() {
 
   // REVIEW: here as await until(...) guarded the pixiApp and stage to be valid.
   if (model.value && pixiApp.value?.stage) {
+    stopNormalPipeline?.()
+    stopNormalPipeline = undefined
     surfaceLighting?.dispose()
     surfaceLighting = undefined
     // Dispose expression controller before destroying the old model
@@ -365,6 +369,7 @@ async function performModelLoad() {
         lighting.setMaterial(screenAmbientLightMaterial.value)
         lighting.setScreenGeometry(screenAmbientLightGeometry.value)
         await lighting.load()
+        stopNormalPipeline = registerNormalPipeline(live2DModel.internalModel, lighting, modelSrcRef.value, props.modelId ?? 'live2d')
       }
       catch (error) {
         lighting.dispose()
@@ -376,6 +381,8 @@ async function performModelLoad() {
 
     // Loading the authored textures can finish after the scene has unmounted.
     if (isUnmounted) {
+      stopNormalPipeline?.()
+      stopNormalPipeline = undefined
       surfaceLighting?.dispose()
       surfaceLighting = undefined
       live2DModel.destroy()
@@ -959,6 +966,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopNormalPipeline?.()
+  stopNormalPipeline = undefined
   surfaceLighting?.dispose()
   surfaceLighting = undefined
   isUnmounted = true

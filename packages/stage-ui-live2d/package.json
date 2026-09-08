@@ -35,13 +35,17 @@
     "./utils/live2d-preview": "./src/utils/live2d-preview.ts",
     "./utils/live2d-zip-loader": "./src/utils/live2d-zip-loader.ts",
     "./utils/live2d-opfs-registration": "./src/utils/live2d-opfs-registration.ts",
-    "./utils/opfs-loader": "./src/utils/opfs-loader.ts"
+    "./utils/opfs-loader": "./src/utils/opfs-loader.ts",
+    "./lighting/attachment": "./src/lighting/attachment.ts",
+    "./lighting/channel": "./src/lighting/channel.ts",
+    "./lighting/capture": "./src/lighting/capture.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@lemonneko/crop-empty-pixels": "catalog:",
+    "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@pixi/app": "catalog:",
     "@pixi/constants": "catalog:",
@@ -65,6 +69,7 @@
     "culori": "catalog:",
     "es-toolkit": "catalog:",
     "jszip": "catalog:",
+    "localforage": "catalog:",
     "pinia": "catalog:",
     "pixi-filters": "catalog:",
     "pixi-live2d-display": "catalog:",

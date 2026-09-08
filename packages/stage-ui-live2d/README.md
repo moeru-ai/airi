@@ -95,6 +95,36 @@ The trial follows the separation of physical light and exposure in
 bright/dark adaptation speeds in
 [Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/auto-exposure-in-unreal-engine).
 
+### Experimental per-model normals
+
+The ambient-light devtool has an **Experimental normal generation** panel.
+It checks the active model and existing attachment without running inference.
+**Generate for current model** captures a separate neutral rig, runs local
+Marigold, saves the attachment, and binds it to the live model. **Regenerate and
+overwrite** replaces that model's saved result. The panel shows the neutral
+capture, normal map, reference coverage, fingerprint, timestamp, and active binding.
+
+Attachments live in a separate IndexedDB database, `airi-live2d-lighting`.
+Each record stores image blobs and its drawable reference together. A SHA-256
+fingerprint covers the rig bytes and ordered texture contents. Renaming or
+repacking identical assets reuses the attachment. Original model files stay unchanged.
+Loading a model applies an existing compatible attachment but never starts generation.
+Closing the devtool cancels its active inference job. Model changes reject stale
+results. Failed inference leaves the previous saved attachment intact.
+
+The capture uses Cubism's alpha and clipping masks to record drawable ownership.
+Visible neutral regions follow their mesh vertices during animation. Newly exposed
+regions use the analytic proxy. This first experiment uses raw Marigold normals;
+it does not infer semantic face/hair assignments or transfer Iru's fitted nose.
+Reference positions deform, but normal vectors still use the neutral coordinate basis.
+
+The Electron worker uses a host-owned Python process, cached weights, and no shell
+or network access. Development uses the existing research environment under
+`docs/research/live2d-lighting-experiment`. Other installations can set
+`AIRI_NORMAL_PYTHON` to a Python executable with PyTorch, Diffusers, NumPy, and Pillow,
+and `AIRI_NORMAL_WEIGHTS` to the Hugging Face cache containing the pinned checkpoint.
+Runtime installation and weight downloads are not part of this experiment.
+
 ### Illustrated materials
 
 **Illustrated materials** uses reviewed hair and face assignments. Hair reflects
