@@ -72,3 +72,5 @@ pnpm -F @proj-airi/stage-ui run story:dev
 Set `VITE_CLOUD_API_URL` to a local Cloud origin for development. The default is `https://cloud.airi.build`. Requests omit credentials. A refresh runs every minute while the component is mounted. Local expiry checks run every second. A failed refresh hides cached content.
 
 Use the generated `@proj-airi/cloud-client` contract. Do not add announcement calls to the TS resource API client. Content is plain text; only HTTPS actions can open a new browser tab. Closing the panel is local and does not record a read receipt.
+
+Each announcement can include one cover image. Previous and next controls cycle through all active announcements. Cover paths resolve against the configured Cloud origin; image failures preserve the text. Cloud checks publication before redirecting to private storage.

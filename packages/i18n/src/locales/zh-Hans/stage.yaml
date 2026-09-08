@@ -139,6 +139,7 @@ websocket-status:
   open-settings: 打开连接设置
 
 announcements:
+  cover: 公告封面
   title: 公告
   open: 打开公告
   close: 关闭公告

@@ -33,6 +33,39 @@ async function mount(onOpenChange = (_open: boolean) => {}) {
 }
 
 describe('cloud announcement display', () => {
+  it('cycles across multiple announcements and keeps text when a cover cannot load', async () => {
+    const entries = [
+      { ...announcement, coverUrl: '/v1/announcements/notice-1/cover?revision=2' },
+      { ...announcement, id: 'notice-2', title: 'Second announcement' },
+    ]
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async () => Response.json({ announcements: entries })))
+    await mount()
+    await page.getByRole('button', { name: 'Open announcements' }).click()
+    await expect.element(page.getByRole('heading', { name: 'AIRI update' })).toBeVisible()
+    await page.getByRole('button', { name: 'Next announcement' }).click()
+    await expect.element(page.getByRole('heading', { name: 'Second announcement' })).toBeVisible()
+    await page.getByRole('button', { name: 'Next announcement' }).click()
+    await expect.element(page.getByRole('heading', { name: 'AIRI update' })).toBeVisible()
+    await page.getByRole('button', { name: 'Previous announcement' }).click()
+    await expect.element(page.getByRole('heading', { name: 'Second announcement' })).toBeVisible()
+  })
+
+  it('resolves cover paths against Cloud and rejects an unrelated image origin', async () => {
+    let coverUrl = '/v1/announcements/notice-1/cover?revision=2'
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async () => Response.json({ announcements: [{ ...announcement, coverUrl }] })))
+    const scope = effectScope()
+    const state = scope.run(() => useAnnouncements('web', 'en'))!
+    try {
+      await state.refresh()
+      expect(new URL(state.announcements.value[0]!.coverUrl).pathname).toBe('/v1/announcements/notice-1/cover')
+      coverUrl = 'https://untrusted.example/image.png'
+      await state.refresh()
+      expect(state.announcements.value).toHaveLength(0)
+      expect(state.error.value).not.toBeNull()
+    }
+    finally { scope.stop() }
+  })
+
   it('uses the generated request and renders plain text with a safe external link', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({ announcements: [announcement] }))
     vi.stubGlobal('fetch', fetch)

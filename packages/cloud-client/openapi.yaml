@@ -142,6 +142,9 @@ definitions:
       endsAt:
         type: string
         description: Empty means no expiry. The end time is exclusive.
+      coverUrl:
+        type: string
+        description: Empty or a Cloud-relative path. Reading checks publication before redirecting.
   v1ListAnnouncementsResponse:
     type: object
     properties:
