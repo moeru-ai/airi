@@ -4,9 +4,9 @@ import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInEl
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ScrollableArea, useTheme } from '@proj-airi/ui'
-import { refDebounced, useElementSize, useIntervalFn, useMousePressed, useResizeObserver } from '@vueuse/core'
+import { refDebounced, useIntervalFn, useMousePressed } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, reactive, ref, useTemplateRef, watch } from 'vue'
+import { computed, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import StatusIsland from '../status-island/index.vue'
@@ -28,6 +28,7 @@ import {
   electronStartDraggingWindow,
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
+import { useControlsIslandLayout } from './use-controls-island-layout'
 import { useControlsIslandPlacement } from './use-controls-island-placement'
 
 interface Emits {
@@ -39,7 +40,8 @@ const emit = defineEmits<Emits>()
 
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
-const { dock, isLeft, isTop, motionPhase } = useControlsIslandPlacement()
+const placement = useControlsIslandPlacement()
+const { dock, isLeft, isTop, motionPhase } = placement
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
@@ -54,53 +56,36 @@ const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
 
 const expanded = ref(false)
+// Closing disables interaction immediately. Keep layout until the exit
+// animation ends, then isolate the same menu for natural-size measurement.
+const panelPresent = ref(false)
 const islandElement = useTemplateRef<HTMLElement>('island')
 const islandScrollArea = useTemplateRef<InstanceType<typeof ScrollableArea>>('islandScrollArea')
 const islandViewport = computed(() => islandScrollArea.value?.viewport)
 const islandContent = useTemplateRef<HTMLElement>('islandContent')
 const mainControlsElement = useTemplateRef<HTMLElement>('mainControls')
-const { height: mainControlsHeight } = useElementSize(mainControlsElement)
-// This probe measures the CSS viewport limit, including the current rem size.
-// It stays outside layout and hit testing when the Island changes corners.
+const menuContent = useTemplateRef<HTMLElement>('menuContent')
+const menuScrollArea = useTemplateRef<InstanceType<typeof ScrollableArea>>('menuScrollArea')
+const menuViewport = computed(() => menuScrollArea.value?.viewport)
 const availableSpaceElement = useTemplateRef<HTMLElement>('availableSpace')
-const { height: availableHeight } = useElementSize(availableSpaceElement)
-
-// Only one viewport owns vertical scrolling. Main controls keep their natural
-// height, including development buttons, while the menu receives the remainder.
-const scrollWholeIsland = computed(() => mainControlsHeight.value >= availableHeight.value)
-const panelMaxHeight = computed(() => scrollWholeIsland.value
-  ? 'none'
-  : `${Math.max(0, availableHeight.value - mainControlsHeight.value)}px`)
+const gapElement = useTemplateRef<HTMLElement>('gap')
+const menuId = useId()
+const profileOpen = ref(false)
+const { direction, scrollWholeIsland, panelStyle, layoutClasses: islandLayoutClasses, arrowRotation, motionOffset } = useControlsIslandLayout({
+  main: mainControlsElement,
+  menu: menuContent,
+  available: availableSpaceElement,
+  gap: gapElement,
+  viewport: islandViewport,
+  menuViewport,
+  content: islandContent,
+}, expanded, placement)
 
 // Tracks open overlays/dialogs that should prevent auto-collapse (e.g. 'hearing', 'profile-picker')
 const blockingOverlays = reactive(new Set<string>())
 // A scrollbar drag can leave the visible boundary before the user releases it.
 const { pressed } = useMousePressed({ target: islandElement })
 const isBlocked = computed(() => blockingOverlays.size > 0 || pressed.value)
-
-// Right-docked content must start at the right edge when its natural width is
-// wider than the viewport. Reapply this after resize and after the menu opens.
-function alignScrollPosition() {
-  const viewport = islandViewport.value
-  if (!viewport)
-    return
-
-  viewport.scrollTop = isTop.value ? 0 : Math.max(0, viewport.scrollHeight - viewport.clientHeight)
-
-  if (isLeft.value) {
-    viewport.scrollLeft = 0
-    return
-  }
-
-  viewport.scrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth)
-}
-
-useResizeObserver(islandViewport, alignScrollPosition)
-useResizeObserver(islandContent, alignScrollPosition)
-watch([dock, expanded, controlsIslandIconSize], async () => {
-  await nextTick()
-  alignScrollPosition()
-}, { flush: 'post' })
 
 function setOverlay(key: string, active: boolean) {
   if (active) {
@@ -114,6 +99,7 @@ function setOverlay(key: string, active: boolean) {
 // The stage page observes this element for cursor hit testing.
 defineExpose({
   get element() { return islandElement.value },
+  get overlayActive() { return blockingOverlays.size > 0 },
   get hearingDialogOpen() { return blockingOverlays.has('hearing') },
   set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
 })
@@ -128,7 +114,12 @@ watch(isOutsideAfter2seconds, (outside) => {
 })
 
 watch(expanded, (isExpanded) => {
+  if (isExpanded)
+    panelPresent.value = true
   if (!isExpanded) {
+    if (menuContent.value?.contains(document.activeElement) || blockingOverlays.size > 0)
+      mainControlsElement.value?.querySelector<HTMLButtonElement>('[aria-controls]')?.focus()
+    profileOpen.value = false
     blockingOverlays.clear()
   }
 })
@@ -201,10 +192,6 @@ const islandMotionClasses = computed(() => {
     isHidden && !isTop.value ? 'translate-y-2' : '',
   ]
 })
-const islandLayoutClasses = computed(() => [
-  isTop.value ? 'flex-col-reverse' : 'flex-col',
-  isLeft.value ? 'items-start' : 'items-end',
-])
 const mainControlsLayoutClasses = computed(() => [
   'flex gap-1',
   isTop.value ? 'flex-col-reverse' : 'flex-col',
@@ -219,7 +206,6 @@ const panelPositionClasses = computed(() => {
 
   return ['origin-bottom-right']
 })
-const panelHiddenTransformClass = computed(() => isTop.value ? '-translate-y-8' : 'translate-y-8')
 
 /**
  * This is a know issue (or expected behavior maybe) to Electron.
@@ -245,40 +231,47 @@ function resetMainWindowPosition() {
   <div
     ref="island"
     data-testid="controls-island"
+    :data-direction="direction"
+    :data-scroll-owner="scrollWholeIsland ? 'island' : 'menu'"
     :class="[
       'fixed max-h-[calc(100dvh-1rem)] max-w-[calc(100dvw-1rem)]',
       islandPositionClasses,
       islandMotionClasses,
     ]"
   >
-    <div
-      ref="availableSpace"
-      aria-hidden="true"
-      :class="['pointer-events-none invisible absolute h-[calc(100dvh-1rem)] w-0']"
-    />
+    <!-- Probes track viewport/rem sizes without adding scrollable overflow. -->
+    <div aria-hidden="true" :class="['pointer-events-none invisible fixed size-0 overflow-hidden [contain:strict]']">
+      <div ref="availableSpace" :class="['h-[calc(100dvh-1rem)] w-[calc(100dvw-1rem)]']" />
+      <div ref="gap" :class="['size-3']" />
+    </div>
     <ScrollableArea
       ref="islandScrollArea"
-      :orientation="scrollWholeIsland ? 'both' : 'horizontal'"
+      orientation="both"
       :class="['max-h-[inherit] max-w-[inherit]']"
       viewport-class="overscroll-contain"
     >
-      <div ref="islandContent" :class="['min-w-max flex', islandLayoutClasses]">
+      <div ref="islandContent" :class="['relative w-max flex', panelPresent ? 'gap-3' : '', islandLayoutClasses]">
         <!-- iOS Style Drawer Panel -->
-        <Transition
-          enter-active-class="transition-all duration-500 cubic-bezier(0.32, 0.72, 0, 1)"
-          leave-active-class="transition-all duration-400 cubic-bezier(0.32, 0.72, 0, 1)"
-          :enter-from-class="`opacity-0 ${panelHiddenTransformClass} scale-90 blur-sm`"
-          :leave-to-class="`opacity-0 ${panelHiddenTransformClass} scale-90 blur-sm`"
+        <div
+          :inert="!expanded"
+          :aria-hidden="!expanded"
+          :class="panelPresent ? 'contents' : 'pointer-events-none invisible absolute size-0 overflow-hidden [contain:strict]'"
         >
           <ScrollableArea
-            v-if="expanded"
+            :id="menuId"
+            ref="menuScrollArea"
             data-testid="controls-menu"
-            :orientation="scrollWholeIsland ? 'horizontal' : 'vertical'"
-            :style="{ maxHeight: panelMaxHeight }"
+            orientation="both"
+            :style="panelStyle"
             :class="['w-max shrink-0', panelPositionClasses]"
             viewport-class="overscroll-contain"
           >
-            <div :class="[isTop ? 'pt-3' : 'pb-3']">
+            <div
+              ref="menuContent"
+              :class="['w-max', expanded ? 'controls-menu-enter' : panelPresent ? 'controls-menu-leave' : 'opacity-0']"
+              :style="{ '--menu-offset': motionOffset }"
+              @animationend.self="panelPresent = expanded"
+            >
               <div
                 :class="[
                   'w-max flex flex-col gap-1 rounded-2xl border border-neutral-200 p-2 dark:border-neutral-800',
@@ -286,6 +279,7 @@ function resetMainWindowPosition() {
                 ]"
               >
                 <ControlsIslandAuthButton
+                  :active="expanded"
                   :button-style="adjustStyleClasses.button"
                   :icon-class="adjustStyleClasses.icon"
                 />
@@ -306,7 +300,7 @@ function resetMainWindowPosition() {
                   </ControlButtonTooltip>
 
                   <ControlButtonTooltip disable-hoverable-content>
-                    <ControlsIslandProfilePicker :open="blockingOverlays.has('profile-picker')" @update:open="setOverlay('profile-picker', $event)">
+                    <ControlsIslandProfilePicker v-model:open="profileOpen" :active="expanded" @interaction-change="setOverlay('profile-picker', $event)">
                       <template #default="{ toggle }">
                         <ControlButton
                           v-track-button="{ name: 'controls_island_action', action: 'toggle_profile_picker' }"
@@ -410,7 +404,7 @@ function resetMainWindowPosition() {
               </div>
             </div>
           </ScrollableArea>
-        </Transition>
+        </div>
 
         <!-- Main Controls -->
         <div ref="mainControls" data-testid="main-controls" :class="['shrink-0', mainControlsLayoutClasses]">
@@ -421,11 +415,14 @@ function resetMainWindowPosition() {
                 action: expanded ? 'collapse_controls' : 'expand_controls',
               }"
               :button-style="adjustStyleClasses.button"
+              :aria-expanded="expanded"
+              :aria-controls="menuId"
               :aria-label="expanded ? t('tamagotchi.stage.controls-island.collapse') : t('tamagotchi.stage.controls-island.expand')"
               @click="toggleControls"
             >
               <div
-                :class="[adjustStyleClasses.icon, isTop !== expanded ? 'rotate-180' : 'rotate-0']"
+                :class="adjustStyleClasses.icon"
+                :style="{ transform: `rotate(${arrowRotation}deg)` }"
                 i-solar:alt-arrow-up-line-duotone scale-110 transition-all duration-300
                 text="neutral-800 dark:neutral-300"
               />
@@ -489,3 +486,34 @@ function resetMainWindowPosition() {
     </ScrollableArea>
   </div>
 </template>
+
+<style scoped>
+.controls-menu-enter {
+  animation: controls-menu-enter 400ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.controls-menu-leave {
+  animation: controls-menu-leave 300ms ease-in both;
+}
+
+@keyframes controls-menu-enter {
+  from {
+    opacity: 0;
+    transform: translate(var(--menu-offset)) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+@keyframes controls-menu-leave {
+  from {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--menu-offset)) scale(0.9);
+  }
+}
+</style>

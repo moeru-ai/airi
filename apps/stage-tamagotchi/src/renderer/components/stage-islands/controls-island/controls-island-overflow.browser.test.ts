@@ -2,12 +2,13 @@ import type { ControlsIslandDock } from './use-controls-island-placement'
 
 import en from '@proj-airi/i18n/locales/en'
 
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
-import { computed, nextTick, ref } from 'vue'
+import { computed, defineComponent, h, nextTick, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import ControlsIsland from './index.vue'
@@ -28,7 +29,7 @@ const authState = vi.hoisted(() => ({
 }))
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
-  useElectronEventaContext: () => ref({ on: vi.fn(), emit: vi.fn() }),
+  useElectronEventaContext: () => ref({ on: vi.fn(() => vi.fn()), emit: vi.fn() }),
   useElectronEventaInvoke: (event: unknown) => event === electronOpenSettings ? openSettings : vi.fn().mockResolvedValue(false),
   useElectronMouseInElement: () => ({ isOutside }),
 }))
@@ -56,10 +57,20 @@ function scrollOwners(island: HTMLElement) {
 const docks: ControlsIslandDock[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
 const sizes = ['small', 'large', 'auto'] as const
 
-function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number] = 'auto', dockRef = ref(dock)) {
+function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number] = 'auto', dockRef = ref(dock), initializeProfile = false) {
   const pinia = createPinia()
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-  const screen = render(ControlsIsland, {
+  const component = initializeProfile
+    ? defineComponent({
+        setup() {
+          // The stage initializes runtime stores inside setup so useI18n has
+          // its component context. Keep that production lifecycle in this fixture.
+          void useAiriCardStore().initialize()
+          return () => h(ControlsIsland)
+        },
+      })
+    : ControlsIsland
+  const screen = render(component, {
     global: {
       provide: {
         [controlsIslandPlacementKey as symbol]: {
@@ -75,12 +86,16 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
   })
   useSettings(pinia).controlsIslandIconSize = size
 
-  return { auth: authState, dock: dockRef, i18n, screen, settings: useSettings(pinia) }
+  return { cards: useAiriCardStore(pinia), auth: authState, dock: dockRef, i18n, screen, settings: useSettings(pinia) }
 }
 
 beforeEach(() => {
   isOutside.value = false
   openSettings.mockClear()
+  authState.credits.value = 0
+  authState.isAuthenticated.value = false
+  authState.needsLogin.value = false
+  authState.user.value = null
 })
 
 describe('controls Island overflow', () => {
@@ -106,21 +121,26 @@ describe('controls Island overflow', () => {
         await expect.poll(() => island.getBoundingClientRect().height).toBeGreaterThan(mainHeight)
         expect(main.getBoundingClientRect().top).toBe(mainBefore.top)
         expect(main.getBoundingClientRect().right).toBe(mainBefore.right)
-        expect(scrollOwners(island)).toHaveLength(0)
+        await expect.poll(() => scrollOwners(island)).toHaveLength(0)
         const naturalHeight = island.getBoundingClientRect().height
         const naturalWidth = island.getBoundingClientRect().width
+        const menuHeight = menu.querySelector<HTMLElement>('.w-max')!.offsetHeight
+        const isTop = dock.startsWith('top')
+        const isLeft = dock.endsWith('left')
 
         for (const height of [naturalHeight + 17, naturalHeight + 16, naturalHeight + 15, mainHeight + 17, mainHeight + 16, mainHeight + 15, 600]) {
           await page.viewport(450, Math.ceil(height))
-          await expect.poll(() => island.getBoundingClientRect().height).toBeLessThanOrEqual(height - 16)
+          const sideways = height < naturalHeight + 16
+          await expect.poll(() => island.dataset.direction).toBe(sideways ? (isLeft ? 'right' : 'left') : (isTop ? 'down' : 'up'))
+          await expect.poll(() => island.getBoundingClientRect().height).toBeLessThanOrEqual(Math.ceil(height) - 16)
           expect(island.getBoundingClientRect().top).toBeGreaterThanOrEqual(8)
-          expect(island.getBoundingClientRect().bottom).toBeLessThanOrEqual(height - 8)
+          expect(island.getBoundingClientRect().bottom).toBeLessThanOrEqual(Math.ceil(height) - 8)
           expect(main.getBoundingClientRect().height).toBe(mainHeight)
-          const expectedOwnerCount = height < naturalHeight + 16 ? 1 : 0
+          const expectedOwnerCount = Math.max(mainHeight, menuHeight) > Math.ceil(height) - 16 ? 1 : 0
           await expect.poll(() => scrollOwners(island).length).toBe(expectedOwnerCount)
           if (expectedOwnerCount) {
             const owner = scrollOwners(island)[0]!
-            expect(menu.contains(owner)).toBe(height > mainHeight + 16)
+            expect(menu.contains(owner)).toBe(height >= mainHeight + 16)
             owner.scrollTop = owner.scrollHeight
             expect(owner.scrollTop).toBeGreaterThan(0)
           }
@@ -128,13 +148,13 @@ describe('controls Island overflow', () => {
 
         for (const width of [naturalWidth + 17, naturalWidth + 16, naturalWidth + 15, 40, 450]) {
           await page.viewport(Math.ceil(width), 600)
-          await expect.poll(() => island.getBoundingClientRect().width).toBeLessThanOrEqual(width - 16)
+          await expect.poll(() => island.getBoundingClientRect().width).toBeLessThanOrEqual(Math.ceil(width) - 16)
           expect(island.getBoundingClientRect().left).toBeGreaterThanOrEqual(8)
-          expect(menu.getBoundingClientRect().width).toBe(naturalWidth)
-          const outer = island.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
           if (width < naturalWidth + 16) {
-            outer.scrollLeft = outer.scrollWidth
-            expect(outer.scrollLeft).toBeGreaterThan(0)
+            const owner = Array.from(island.querySelectorAll<HTMLElement>('[data-reka-scroll-area-viewport]'))
+              .find(viewport => viewport.scrollWidth > viewport.clientWidth)!
+            owner.scrollLeft = owner.scrollWidth
+            expect(owner.scrollLeft).toBeGreaterThan(0)
           }
         }
 
@@ -147,7 +167,7 @@ describe('controls Island overflow', () => {
         expect(openSettings).toHaveBeenCalledWith({ route: '/settings' })
 
         await screen.getByLabelText(label('collapse'), { exact: true }).click()
-        await expect.poll(() => screen.container.querySelector('[data-testid="controls-menu"]')).toBeNull()
+        await expect.poll(() => menu.closest('[aria-hidden]')?.getAttribute('aria-hidden')).toBe('true')
         await screen.getByLabelText(label('expand'), { exact: true }).click()
         const reopenedViewport = screen.getByTestId('controls-menu').element().querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
         expect(reopenedViewport.scrollTop).toBe(0)
@@ -167,7 +187,8 @@ describe('controls Island overflow', () => {
       await page.viewport(Math.max(40, Math.floor(naturalWidth / 2)), 600)
 
       const viewport = island.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
-      await expect.poll(() => viewport.scrollLeft).toBeGreaterThan(0)
+      await expect.poll(() => screen.getByTestId('main-controls').element().getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth - 8)
+      expect(viewport.scrollLeft).toBe(0)
     })
   }
 
@@ -252,6 +273,11 @@ describe('controls Island overflow', () => {
     const island = screen.getByTestId('controls-island').element() as HTMLElement
     const viewport = island.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
     await expect.poll(() => viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight)
+    // Focused collapse remains reachable even when docking would clip it.
+    const collapse = screen.getByLabelText(label('collapse'), { exact: true }).element() as HTMLElement
+    expect(collapse.getBoundingClientRect().top).toBeGreaterThanOrEqual(8)
+    collapse.blur()
+    await page.viewport(450, 190)
     await expect.poll(() => viewport.scrollTop).toBe(viewport.scrollHeight - viewport.clientHeight)
   })
 
@@ -273,6 +299,138 @@ describe('controls Island overflow', () => {
     await new Promise(resolve => setTimeout(resolve, 1700))
     expect(screen.getByTestId('controls-menu').element()).toBeInTheDocument()
     window.dispatchEvent(new MouseEvent('mouseup'))
-    await expect.poll(() => screen.container.querySelector('[data-testid="controls-menu"]'), { timeout: 3500 }).toBeNull()
+    await expect.poll(() => screen.getByTestId('controls-menu').element().closest('[aria-hidden]')?.getAttribute('aria-hidden'), { timeout: 3500 }).toBe('true')
   })
+})
+
+// https://github.com/moeru-ai/airi/pull/2474
+it('measures the collapsed menu and opens inward when height is insufficient (PR #2474)', async () => {
+  // ROOT CAUSE:
+  // The menu only mounted after opening and always used the vertical axis.
+  // Natural content measurement now determines both placement and the arrow.
+  await page.viewport(600, 300)
+  const { i18n, screen } = mountControlsIsland('bottom-right')
+  const island = screen.getByTestId('controls-island').element()
+  await expect.poll(() => island.getAttribute('data-direction')).toBe('left')
+  await screen.getByLabelText(i18n.global.t('tamagotchi.stage.controls-island.expand'), { exact: true }).click()
+  const main = screen.getByTestId('main-controls').element()
+  const menu = screen.getByTestId('controls-menu').element()
+  await expect.poll(() => menu.getBoundingClientRect().right).toBeLessThanOrEqual(main.getBoundingClientRect().left - 12)
+})
+
+// https://github.com/moeru-ai/airi/pull/2474
+it('keeps the profile creation form open for pointer interaction (PR #2474)', async () => {
+  // ROOT CAUSE:
+  // Closing the selector canceled creation, and the body portal counted as an
+  // outside click. The selector and form must share one interaction lifecycle.
+  await page.viewport(600, 300)
+  const { cards, i18n, screen } = mountControlsIsland('bottom-right', 'auto', ref('bottom-right'), true)
+  await screen.getByLabelText(i18n.global.t('tamagotchi.stage.controls-island.expand'), { exact: true }).click()
+  await screen.getByRole('combobox').click()
+  await page.getByRole('option', { name: i18n.global.t('stage.profile-switcher.save-as-new') }).click()
+  const input = page.getByPlaceholder(i18n.global.t('stage.profile-switcher.new-profile-name'))
+  await input.click()
+  await input.fill('New profile')
+  await expect.element(input).toHaveValue('New profile')
+  isOutside.value = true
+  await new Promise(resolve => setTimeout(resolve, 1700))
+  expect(screen.getByTestId('controls-menu').element().closest('[inert]')).toBeNull()
+  for (const [width, height] of [[160, 200], [100, 80], [600, 600]] as const) {
+    await page.viewport(width, height)
+    const form = page.getByTestId('profile-create-form').element() as HTMLElement
+    await expect.poll(() => form.getBoundingClientRect().right).toBeLessThanOrEqual(width - 8)
+    await expect.poll(() => form.getBoundingClientRect().bottom).toBeLessThanOrEqual(height - 8)
+    expect(form.getBoundingClientRect().left).toBeGreaterThanOrEqual(8)
+    expect(form.getBoundingClientRect().top).toBeGreaterThanOrEqual(8)
+  }
+  await page.getByRole('button', { name: i18n.global.t('stage.profile-switcher.save-as-new'), exact: true }).click()
+  await expect.poll(() => cards.activeCard?.name).toBe('New profile')
+  await expect.element(input).not.toBeInTheDocument()
+  isOutside.value = false
+  await screen.getByRole('combobox').click()
+  await page.getByRole('option', { name: i18n.global.t('stage.profile-switcher.save-as-new') }).click()
+  const form = page.getByTestId('profile-create-form').element() as HTMLElement
+  form.querySelectorAll<HTMLButtonElement>('button')[1]!.click()
+  await expect.element(input).not.toBeInTheDocument()
+})
+
+for (const dock of docks) {
+  // https://github.com/moeru-ai/airi/pull/2474
+  it(`PR #2474 keeps one inert measured menu and rotates the ${dock} arrow before opening`, async () => {
+    await page.viewport(600, 600)
+    const { i18n, screen, settings } = mountControlsIsland(dock, 'small')
+    const island = screen.getByTestId('controls-island').element() as HTMLElement
+    const main = screen.getByTestId('main-controls').element() as HTMLElement
+    const menu = screen.getByTestId('controls-menu').element() as HTMLElement
+    const toggle = main.querySelector<HTMLButtonElement>('[aria-controls]')!
+    const icon = toggle.querySelector<HTMLElement>('[i-solar\\:alt-arrow-up-line-duotone]')!
+    const isTop = dock.startsWith('top')
+    const isLeft = dock.endsWith('left')
+    await expect.poll(() => island.offsetHeight === main.offsetHeight).toBe(true)
+    expect(toggle.getAttribute('aria-controls')).toBe(menu.id)
+    expect(menu.closest('[inert]')).not.toBeNull()
+    const hiddenButton = menu.querySelector<HTMLButtonElement>('button')!
+    hiddenButton.focus()
+    expect(document.activeElement).not.toBe(hiddenButton)
+    await expect.poll(() => icon.style.transform).toBe(`rotate(${isTop ? 180 : 0}deg)`)
+    await page.viewport(600, 120)
+    await expect.poll(() => island.dataset.direction).toBe(isLeft ? 'right' : 'left')
+    expect(icon.style.transform).toBe(`rotate(${isLeft ? 90 : 270}deg)`)
+    settings.controlsIslandIconSize = 'large'
+    await expect.poll(() => main.querySelector('.size-5')).not.toBeNull()
+    await page.viewport(600, 300)
+    await screen.getByLabelText(i18n.global.t('tamagotchi.stage.controls-island.expand'), { exact: true }).click()
+    expect(screen.getByTestId('controls-menu').element()).toBe(menu)
+    expect(menu.closest('[inert]')).toBeNull()
+    expect(icon.style.transform).toBe(`rotate(${isLeft ? 270 : 90}deg)`)
+    await page.viewport(600, 600)
+    await expect.poll(() => island.dataset.direction).toBe(isTop ? 'down' : 'up')
+    expect(screen.getByTestId('controls-menu').element()).toBe(menu)
+    const settingsButton = screen.getByLabelText(i18n.global.t('tamagotchi.stage.controls-island.open-settings'), { exact: true }).element() as HTMLElement
+    settingsButton.focus()
+    isOutside.value = true
+    await expect.poll(() => toggle.getAttribute('aria-expanded'), { timeout: 3500 }).toBe('false')
+    expect(document.activeElement).toBe(toggle)
+    await expect.poll(() => island.offsetHeight === main.offsetHeight).toBe(true)
+    expect(menu.closest('[inert]')).not.toBeNull()
+  })
+}
+
+// https://github.com/moeru-ai/airi/pull/2474
+it('assigns sideways overflow to the necessary menu axes without nested scrolling (PR #2474)', async () => {
+  await page.viewport(600, 600)
+  const { i18n, screen } = mountControlsIsland('top-left', 'small')
+  await screen.getByLabelText(i18n.global.t('tamagotchi.stage.controls-island.expand'), { exact: true }).click()
+  const island = screen.getByTestId('controls-island').element() as HTMLElement
+  const main = screen.getByTestId('main-controls').element() as HTMLElement
+  const menu = screen.getByTestId('controls-menu').element() as HTMLElement
+  const content = menu.querySelector<HTMLElement>('.w-max')!
+  const viewport = menu.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
+  const outer = island.querySelector<HTMLElement>('[data-reka-scroll-area-viewport]')!
+  await expect.poll(() => scrollOwners(island)).toHaveLength(0)
+  // Extra auth-row spacing exercises content growth with native layout intact.
+  const login = menu.querySelector<HTMLButtonElement>('button')!
+  login.style.paddingBlock = '3rem'
+  await expect.poll(() => content.offsetHeight).toBeGreaterThan(main.offsetHeight + 20)
+  const menuHeight = content.offsetHeight
+  const narrowWidth = main.offsetWidth + 12 + content.offsetWidth - 20 + 16
+  for (const [width, height, horizontal, vertical] of [
+    [600, menuHeight + 16, false, false],
+    [narrowWidth, menuHeight + 16, true, false],
+    [600, menuHeight + 6, false, true],
+    [narrowWidth, menuHeight + 6, true, true],
+  ] as const) {
+    await page.viewport(width, height)
+    await expect.poll(() => island.dataset.direction).toBe('right')
+    await expect.poll(() => viewport.scrollWidth > viewport.clientWidth).toBe(horizontal)
+    await expect.poll(() => viewport.scrollHeight > viewport.clientHeight).toBe(vertical)
+    await expect.poll(() => outer.scrollWidth === outer.clientWidth).toBe(true)
+    await expect.poll(() => outer.scrollHeight === outer.clientHeight).toBe(true)
+    viewport.scrollTo(viewport.scrollWidth, viewport.scrollHeight)
+    await nextTick()
+    if (horizontal)
+      expect(viewport.scrollLeft).toBeGreaterThan(0)
+    if (vertical)
+      expect(viewport.scrollTop).toBeGreaterThan(0)
+  }
 })

@@ -141,7 +141,7 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
-const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
+const controlsOverlayActive = computed(() => controlsIslandRef.value?.overlayActive ?? false)
 
 const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
   const hasModel = !!stageModelSelectedUrl.value
@@ -246,7 +246,7 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
  * Upstream:
  * - {@link isOutsideFor250Ms} and {@link isAroundWindowBorderFor250Ms}
  * - {@link isOutsideWindow}, {@link isTransparent}, and {@link isTransparentForMouseEvents}
- * - {@link hearingDialogOpen}, {@link fadeOnHoverEnabled}, and {@link stagePaused}
+ * - {@link controlsOverlayActive}, {@link fadeOnHoverEnabled}, and {@link stagePaused}
  *
  * Downstream:
  * - {@link resolveFadeOnHoverInteraction}
@@ -260,8 +260,8 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  if (hearingDialogOpen.value) {
-    // Hearing dialog/drawer is open; keep window interactive
+  if (controlsOverlayActive.value) {
+    // Portaled controls must receive clicks even outside the Island's bounds.
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
@@ -292,7 +292,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, hearingDialogOpen, fadeOnHoverEnabled, stagePaused],
+  [isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, stagePaused],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )

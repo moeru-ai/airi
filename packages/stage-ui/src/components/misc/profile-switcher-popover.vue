@@ -2,19 +2,22 @@
 import type { SelectContentProps } from 'reka-ui'
 
 import { Select } from '@proj-airi/ui'
-import { onClickOutside, useElementBounding } from '@vueuse/core'
+import { onClickOutside, useElementBounding, useElementSize, useWindowSize } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, ref, toRaw, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 
 const props = withDefaults(defineProps<Props>(), {
+  active: true,
   contentAlign: 'start',
   contentSide: 'bottom',
 })
 const emit = defineEmits<{
   (e: 'manage'): void
+  /** Includes the selector and its portaled create form for host interaction protection. */
+  (e: 'interactionChange', active: boolean): void
 }>()
 const CREATE_PROFILE_ACTION = '__create-profile__'
 const MANAGE_PROFILE_ACTION = '__manage-profile__'
@@ -23,9 +26,18 @@ type ProfileSelectValue = string | typeof CREATE_PROFILE_ACTION | typeof MANAGE_
 
 /** Placement preferences for the profile selector and its create form. */
 export interface Props {
-  /** Horizontal alignment before collision handling. */
+  /**
+   * Stops all overlays when the host menu closes.
+   * @default true
+   */
+  active?: boolean
+  /** Horizontal alignment before collision handling.
+   * @default 'start'
+   */
   contentAlign?: Extract<SelectContentProps['align'], 'start' | 'end'>
-  /** Vertical side before collision handling. */
+  /** Vertical side before collision handling.
+   * @default 'bottom'
+   */
   contentSide?: Extract<SelectContentProps['side'], 'top' | 'bottom'>
 }
 
@@ -40,11 +52,30 @@ const newProfileName = ref('')
 const nameInputRef = ref<HTMLInputElement>()
 const containerRef = ref<HTMLElement>()
 const { x: containerX, y: containerY, width: containerWidth, height: containerHeight } = useElementBounding(containerRef)
-const createFormStyle = computed(() => ({
-  left: `${props.contentAlign === 'start' ? containerX.value : containerX.value + containerWidth.value - 224}px`,
-  top: `${props.contentSide === 'top' ? containerY.value : containerY.value + containerHeight.value}px`,
-  transform: props.contentSide === 'top' ? 'translateY(calc(-100% - 0.5rem))' : 'translateY(0.5rem)',
-}))
+const createFormRef = ref<HTMLElement>()
+const createContentRef = ref<HTMLElement>()
+const { width: windowWidth, height: windowHeight } = useWindowSize()
+const { width: formWidth } = useElementSize(createFormRef, undefined, { box: 'border-box' })
+const { height: formHeight } = useElementSize(createContentRef, undefined, { box: 'border-box' })
+const createFormStyle = computed(() => {
+  // The portal cannot use the Island's scroll area. Fit it to the viewport,
+  // flip toward the larger vertical space, then clamp if neither side fits.
+  const margin = 8
+  const height = Math.min(formHeight.value, Math.max(0, windowHeight.value - margin * 2))
+  const above = containerY.value - margin * 2
+  const below = windowHeight.value - containerY.value - containerHeight.value - margin * 2
+  let topSide = props.contentSide === 'top'
+  if ((topSide ? above : below) < height)
+    topSide = above > below
+  const anchorLeft = props.contentAlign === 'start' ? containerX.value : containerX.value + containerWidth.value - formWidth.value
+  const anchorTop = topSide ? containerY.value - margin - height : containerY.value + containerHeight.value + margin
+  return {
+    left: `${Math.max(margin, Math.min(anchorLeft, windowWidth.value - formWidth.value - margin))}px`,
+    top: `${Math.max(margin, Math.min(anchorTop, windowHeight.value - height - margin))}px`,
+    width: 'min(14rem, calc(100dvw - 1rem))',
+    maxHeight: 'calc(100dvh - 1rem)',
+  }
+})
 
 const cardsList = computed(() =>
   Array.from(cards.value.entries()).map(([id, card]) => ({ id, name: card.name })),
@@ -84,11 +115,16 @@ const selectOptions = computed(() => [
   },
 ])
 
-watch(open, (isOpen) => {
-  if (!isOpen) {
+// Selector close and form open are one transition. Only the host becoming
+// inactive cancels both surfaces; Select closes itself after selection.
+watch(() => props.active, (active) => {
+  if (!active) {
+    open.value = false
     cancelCreate()
   }
 })
+watch(() => open.value || creatingNew.value, active => emit('interactionChange', active), { immediate: true })
+onScopeDispose(() => emit('interactionChange', false))
 
 watch(activeCardId, (value) => {
   selectedProfile.value = value
@@ -103,9 +139,8 @@ watch(selectedProfile, (value, previousValue) => {
 })
 
 onClickOutside(containerRef, () => {
-  open.value = false
   cancelCreate()
-})
+}, { ignore: [createFormRef] })
 
 async function handleSelection(value: ProfileSelectValue) {
   if (value === CREATE_PROFILE_ACTION) {
@@ -297,9 +332,11 @@ function toggleOpen() {
       <Teleport to="body">
         <div
           v-if="creatingNew"
+          ref="createFormRef"
+          data-testid="profile-create-form"
           :style="createFormStyle"
           :class="[
-            'fixed z-[10011] w-56 rounded-xl border-2 p-2 shadow-sm backdrop-blur-xl',
+            'fixed z-[10011] overflow-auto rounded-xl shadow-sm backdrop-blur-xl',
             props.contentSide === 'top' && props.contentAlign === 'start' ? 'origin-bottom-left' : '',
             props.contentSide === 'top' && props.contentAlign === 'end' ? 'origin-bottom-right' : '',
             props.contentSide === 'bottom' && props.contentAlign === 'start' ? 'origin-top-left' : '',
@@ -307,14 +344,14 @@ function toggleOpen() {
             'border-neutral-200 bg-white/95 dark:border-neutral-800 dark:bg-neutral-900/95',
           ]"
         >
-          <div :class="['flex items-center gap-2']">
+          <div ref="createContentRef" :class="['flex flex-wrap items-center justify-end gap-2 border-2 rounded-xl p-2']">
             <input
               ref="nameInputRef"
               v-model="newProfileName"
               type="text"
               :placeholder="t('stage.profile-switcher.new-profile-name')"
               :class="[
-                'min-w-0 flex-1 rounded-lg border-2 px-2 py-1 text-sm outline-none transition-colors',
+                'min-w-0 w-full rounded-lg border-2 px-2 py-1 text-sm outline-none transition-colors',
                 'bg-neutral-50 text-neutral-800 placeholder:text-neutral-400',
                 'dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-500',
                 isDuplicateName
@@ -332,6 +369,8 @@ function toggleOpen() {
                 (newProfileName.trim() && !isDuplicateName) ? '' : 'pointer-events-none opacity-30',
               ]"
               type="button"
+              :aria-label="t('stage.profile-switcher.save-as-new')"
+              :disabled="!newProfileName.trim() || isDuplicateName"
               @click="confirmCreate"
             >
               <div class="i-solar:check-circle-bold size-4.5" />
