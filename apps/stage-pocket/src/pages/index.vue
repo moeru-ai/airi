@@ -57,7 +57,7 @@ const hearingPipeline = useHearingSpeechInputPipeline()
 const { removeStreamingTranscriptionConsumer, transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const consciousnessStore = useConsciousnessStore()
-const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
+const { activeProvider: activeChatProvider, activeModel: activeChatModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
 
 /** Identifies this page in the shared streaming transcription session. */
@@ -91,7 +91,12 @@ async function sendVoiceInputTextToChat(text: string | undefined) {
 
     const provider = await consciousnessStore.getChatProviderInstance(providerId)
 
-    await chatStore.ingest(text, { model, chatProvider: provider })
+    await chatStore.ingest(text, {
+      model,
+      chatProvider: provider,
+      temperature: activeTemperature.value,
+      topP: activeTopP.value,
+    })
   }
   catch (error) {
     console.error('Failed to send chat from voice:', error)
