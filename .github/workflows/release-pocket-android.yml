@@ -30,8 +30,6 @@ jobs:
       PRODUCT_NAME: 'AIRI'
       # Every current trigger path produces an installable APK artifact, so ship the analytics-enabled build consistently.
       VITE_ENABLE_POSTHOG: 'true'
-      VITE_OPENPANEL_CLIENT_ID: ${{ vars.OPENPANEL_CLIENT_ID }}
-      VITE_OPENPANEL_API_URL: ${{ vars.OPENPANEL_API_URL }}
     steps:
       - uses: actions/checkout@v6
 

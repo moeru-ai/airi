@@ -19,13 +19,10 @@ vi.mock('posthog-js', () => ({
 
 afterEach(() => {
   vi.restoreAllMocks()
-  vi.unstubAllEnvs()
 })
 
 describe('openPanel browser adapter', () => {
   it('drops disabled events, isolates logout, and keeps AI events in PostHog', async () => {
-    vi.stubEnv('VITE_OPENPANEL_CLIENT_ID', 'test-client')
-    vi.stubEnv('VITE_OPENPANEL_API_URL', 'https://analytics.example.test/api')
     const requests: RequestInit[] = []
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
       if (init)

@@ -38,8 +38,6 @@ jobs:
       VITE_DISABLE_CUSTOM_PROVIDERS: 'true'
       VITE_DISABLE_FLUX_PURCHASE: 'true'
       VITE_ENABLE_POSTHOG: 'false'
-      VITE_OPENPANEL_CLIENT_ID: ${{ vars.OPENPANEL_CLIENT_ID }}
-      VITE_OPENPANEL_API_URL: ${{ vars.OPENPANEL_API_URL }}
     strategy:
       fail-fast: false
       matrix:

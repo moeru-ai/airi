@@ -8,12 +8,8 @@ Use this setup for product events, user profiles, and conversion funnels. It doe
 
 Keep `VITE_ENABLE_POSTHOG` as the existing build switch for analytics. This preserves release workflows and existing opt-out behavior during the provider change.
 
-Set these public GitHub repository variables before a release:
-
-- `OPENPANEL_API_URL`: The HTTPS API base URL, including `/api` when using the bundled proxy.
-- `OPENPANEL_CLIENT_ID`: The OpenPanel public write client id.
-
-Release workflows pass these values as `VITE_OPENPANEL_API_URL` and `VITE_OPENPANEL_CLIENT_ID`. Docker builds accept the same build arguments.
+Client builds use the public API URL and write client id from `packages/stage-shared/src/analytics/openpanel.ts`.
+The stage apps and auth UI share this configuration. CI variables and Docker build arguments are not required for these values.
 
 Never put a client secret in a Vite variable. Allow only the intended application origins on the public OpenPanel client.
 
@@ -73,7 +69,7 @@ Before merging and releasing:
 
 1. Confirm the public domain, DNS, and HTTPS certificate.
 2. Create the administrator, project, public client, and server client.
-3. Configure allowed origins, build variables, and server secrets.
+3. Configure allowed origins and server secrets.
 4. Send a marked browser event and a server event to the deployed API.
 5. Confirm both events and their user association in OpenPanel.
 6. Verify checkout attribution with a test-mode Stripe payment and a replayed webhook.

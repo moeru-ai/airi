@@ -47,8 +47,6 @@ jobs:
           file: ./apps/stage-web/Dockerfile
           build-args: |
             VITE_ENABLE_POSTHOG=true
-            VITE_OPENPANEL_CLIENT_ID=${{ vars.OPENPANEL_CLIENT_ID }}
-            VITE_OPENPANEL_API_URL=${{ vars.OPENPANEL_API_URL }}
           platforms: linux/amd64,linux/arm64,linux/arm64/v8
           cache-from: type=gha
           cache-to: type=gha,mode=max

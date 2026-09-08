@@ -50,8 +50,6 @@ jobs:
         run: pnpm -F @proj-airi/ui-server-auth run build
         env:
           VITE_ENABLE_POSTHOG: 'true'
-          VITE_OPENPANEL_CLIENT_ID: ${{ vars.OPENPANEL_CLIENT_ID }}
-          VITE_OPENPANEL_API_URL: ${{ vars.OPENPANEL_API_URL }}
           VITE_SERVER_URL: 'https://api.airi.build'
       - run: |
           CI=true pnpm install -g @posthog/cli

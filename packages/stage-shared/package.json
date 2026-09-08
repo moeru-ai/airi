@@ -17,6 +17,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./auth": "./src/auth/index.ts",
+    "./analytics/openpanel": "./src/analytics/openpanel.ts",
     "./analytics/posthog": "./src/analytics/posthog.ts",
     "./beat-sync": "./src/beat-sync/index.ts",
     "./global-shortcut": "./src/global-shortcut/index.ts",

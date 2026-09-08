@@ -2,6 +2,7 @@ import type { AnalyticsAdapter, AnalyticsAdapterOptions } from './client'
 
 import { OpenPanel } from '@openpanel/web'
 import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
+import { OPENPANEL_CONFIG } from '@proj-airi/stage-shared/analytics/openpanel'
 
 import { createPosthogAdapter } from './posthog'
 
@@ -32,19 +33,13 @@ function rotateDeviceId(): string {
 
 /** Routes product events to OpenPanel and AI events to PostHog. */
 export function createOpenpanelAdapter(options: AnalyticsAdapterOptions): AnalyticsAdapter {
-  const clientId = import.meta.env.VITE_OPENPANEL_CLIENT_ID
-  const apiUrl = import.meta.env.VITE_OPENPANEL_API_URL
-  if (!clientId || !apiUrl)
-    throw new Error('OpenPanel client id and API URL are required')
-
   let enabled = options.enabled
   // Rotate the device on logout. Clearing SDK fields alone reuses its
   // server-derived fingerprint and can link two accounts in one browser.
   let deviceId = enabled ? loadDeviceId() : undefined
   const ai = createPosthogAdapter(options)
   const panel = new OpenPanel({
-    clientId,
-    apiUrl,
+    ...OPENPANEL_CONFIG,
     // Consent must drop events. The SDK's disabled option queues them instead.
     filter(payload) {
       if (!enabled)

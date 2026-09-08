@@ -1,17 +1,12 @@
 import type { AnalyticsAdapter } from '../analytics'
 
 import { OpenPanel } from '@openpanel/web'
+import { OPENPANEL_CONFIG } from '@proj-airi/stage-shared/analytics/openpanel'
 
 /** Sends auth milestones to the same OpenPanel project as the stage apps. */
 export function createOpenpanelAdapter(): AnalyticsAdapter {
-  const clientId = import.meta.env.VITE_OPENPANEL_CLIENT_ID
-  const apiUrl = import.meta.env.VITE_OPENPANEL_API_URL
-  if (!clientId || !apiUrl)
-    throw new Error('OpenPanel client id and API URL are required')
-
   const panel = new OpenPanel({
-    clientId,
-    apiUrl,
+    ...OPENPANEL_CONFIG,
     trackScreenViews: true,
     filter(payload) {
       // OAuth codes and other query values must not enter analytics.

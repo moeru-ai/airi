@@ -27,8 +27,6 @@ jobs:
     env:
       PRODUCT_NAME: 'AIRI'
       VITE_ENABLE_POSTHOG: 'true'
-      VITE_OPENPANEL_CLIENT_ID: ${{ vars.OPENPANEL_CLIENT_ID }}
-      VITE_OPENPANEL_API_URL: ${{ vars.OPENPANEL_API_URL }}
       UPLOAD_TESTFLIGHT: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.testflight) }}
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
