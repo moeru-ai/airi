@@ -51,6 +51,13 @@ import {
   shouldSuppressVoiceInput,
 } from '../utils/voice-input-suppression'
 
+const announcementsRef = ref<InstanceType<typeof HoloCoupon>>()
+const announcementsOpen = ref(false)
+const announcementTrigger = toRef(() => announcementsRef.value?.triggerElement)
+const { isOutside: isOutsideAnnouncements } = useElectronMouseInElement(announcementTrigger)
+// Removed triggers must not keep a stale native hit-test result interactive.
+const insideAnnouncements = computed(() => !!announcementTrigger.value && !isOutsideAnnouncements.value)
+
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
 const controlsIslandElement = toRef(() => controlsIslandRef.value?.element)
@@ -247,7 +254,8 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
  * Upstream:
  * - {@link isOutsideFor250Ms} and {@link isAroundWindowBorderFor250Ms}
  * - {@link isOutsideWindow}, {@link isTransparent}, and {@link isTransparentForMouseEvents}
- * - {@link controlsOverlayActive}, {@link fadeOnHoverEnabled}, and {@link stagePaused}
+ * - {@link controlsOverlayActive}, {@link announcementsOpen}, and {@link insideAnnouncements}
+ * - {@link fadeOnHoverEnabled} and {@link stagePaused}
  *
  * Downstream:
  * - {@link resolveFadeOnHoverInteraction}
@@ -261,8 +269,8 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  if (controlsOverlayActive.value) {
-    // Portaled controls must receive clicks even outside the Island's bounds.
+  if (controlsOverlayActive.value || announcementsOpen.value) {
+    // Portaled content and its outside-click dismissal need native pointer events.
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
@@ -272,7 +280,7 @@ function handleFadeOnHoverInteractionChange() {
   const insideControls = !isOutsideFor250Ms.value
   const nearBorder = isAroundWindowBorderFor250Ms.value
 
-  if (insideControls || nearBorder) {
+  if (insideControls || insideAnnouncements.value || nearBorder) {
     // Inside interactive controls or near resize border: do NOT ignore events
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
@@ -293,7 +301,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, stagePaused],
+  [isOutsideFor250Ms, insideAnnouncements, announcementsOpen, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, stagePaused],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -809,7 +817,7 @@ const cursorPosition = computed(() => ({
           :cursor-position="cursorPosition"
           :paused="stagePaused"
         />
-        <HoloCoupon client="desktop" />
+        <HoloCoupon ref="announcementsRef" v-model:open="announcementsOpen" client="desktop" />
         <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
           <ControlsIsland
             ref="controlsIslandRef"

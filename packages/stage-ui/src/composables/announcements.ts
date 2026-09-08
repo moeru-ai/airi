@@ -2,7 +2,7 @@ import type { MaybeRefOrGetter } from 'vue'
 
 import { announcementServiceListAnnouncements } from '@proj-airi/cloud-client'
 import { useIntervalFn, useNow } from '@vueuse/core'
-import { array, isoTimestamp, nonEmpty, object, parse, pipe, string } from 'valibot'
+import { array, isoTimestamp, nonEmpty, object, optional, parse, pipe, string } from 'valibot'
 import { computed, onScopeDispose, ref, toValue, watch } from 'vue'
 
 const contentSchema = object({
@@ -10,10 +10,10 @@ const contentSchema = object({
   locale: pipe(string(), nonEmpty()),
   title: pipe(string(), nonEmpty()),
   body: pipe(string(), nonEmpty()),
-  actionLabel: string(),
-  actionUrl: string(),
+  actionLabel: optional(string(), ''),
+  actionUrl: optional(string(), ''),
   startsAt: pipe(string(), isoTimestamp()),
-  endsAt: string(),
+  endsAt: optional(string(), ''),
 })
 
 /**
