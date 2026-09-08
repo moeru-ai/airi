@@ -151,7 +151,7 @@ export const providerOfficialSpeech = defineProvider({
         provider: OFFICIAL_SPEECH_PROVIDER_ID,
       }))
     },
-    listVoices: async (_config, _provider, model): Promise<VoiceInfo[]> => {
+    listVoices: async (_config, _provider, model, signal): Promise<VoiceInfo[]> => {
       // Voice catalogs are model-scoped on the server side. Pass the active
       // model through so Azure / cosyvoice / future provider voices route to
       // the right adapter. If model discovery has not completed yet, keep the
@@ -159,7 +159,7 @@ export const providerOfficialSpeech = defineProvider({
       const target = model && model.length > 0 ? model : 'auto'
       const url = new URL(`${SERVER_URL}/api/v1/audio/voices`)
       url.searchParams.set('model', target)
-      const res = await globalThis.fetch(url.toString(), { headers: authHeaders() })
+      const res = await globalThis.fetch(url.toString(), { headers: authHeaders(), signal })
       if (!res.ok)
         throw new Error(`audio voices upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
@@ -180,6 +180,8 @@ export const providerOfficialSpeech = defineProvider({
         recommended?: Record<string, string>
       }
 
+      // An aborted response must not replace the current session's recommendations.
+      signal?.throwIfAborted()
       // Refresh the server-side recommendation map. Done here rather than
       // threading it through the return value because the auto-pick watcher
       // lives in this module and reads the same singleton.
@@ -262,7 +264,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
   extraMethods: {
     listModelCatalog: listStreamingModelCatalog,
     listModels: async () => (await listStreamingModelCatalog()).models,
-    listVoices: async (_config, _provider, model): Promise<VoiceInfo[]> => {
+    listVoices: async (_config, _provider, model, signal): Promise<VoiceInfo[]> => {
       // Streaming voices live behind a dedicated endpoint
       // (`/audio/voices/streaming`) because they come from the
       // `UNSPEECH_UPSTREAM.streaming` configKV subtree rather than the HTTP TTS
@@ -279,7 +281,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
         voicesURL.searchParams.set('model', apiResourceId)
       const res = await globalThis.fetch(
         voicesURL.toString(),
-        { headers: authHeaders() },
+        { headers: authHeaders(), signal },
       )
       if (!res.ok)
         throw new Error(`streaming voices upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
@@ -296,6 +298,8 @@ export const providerOfficialSpeechStreaming = defineProvider({
         recommended?: Record<string, string>
       }
 
+      // An aborted response must not replace the current session's recommendations.
+      signal?.throwIfAborted()
       // Mirror the HTTP provider: stash the server's per-locale recommendations
       // so setupOfficialSpeechAutoPick can seed a curated default voice when
       // the streaming provider becomes active.

@@ -463,8 +463,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
+  /** Applies the initial card while preserving setup context when no auth work is pending. */
   async function initialize() {
-    await pendingAuthenticationSetup
+    // Awaiting undefined would leave component setup before the first runtime
+    // stores bind i18n. An existing auth operation already owns those stores.
+    if (pendingAuthenticationSetup)
+      await pendingAuthenticationSetup
     // This synchronized action executes in the leader. Each window calls it,
     // but only the first call can apply persisted card settings to the runtime.
     if (initialized)

@@ -1,7 +1,7 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type {} from 'pinia-plugin-synced'
 
-import type { VoiceInfo } from '../providers/provider'
+import type { VoiceCatalogConfiguration, VoiceInfo } from '../providers/provider'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
@@ -112,8 +112,30 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
   })
 
-  /** Loads voices in the leader and resolves missing active-model selections there. */
-  async function loadVoicesForProvider(provider: string, model?: string) {
+  // Only leader loads own these counters. Older responses for a provider cannot
+  // replace its newer catalog, and only the latest load owns global query status.
+  let voiceLoadSequence = 0
+  const latestVoiceLoads = new Map<string, number>()
+
+  /**
+   * Captures caller configuration and contains failures outside the leader action.
+   * Transport failures return no voices without proposing follower state.
+   */
+  async function loadVoicesForProvider(provider: string, model?: string): Promise<VoiceInfo[]> {
+    if (!provider)
+      return []
+    try {
+      const configuration = providersStore.getVoiceCatalogConfiguration(provider)
+      return await useSpeechStore(pinia).loadVoiceCatalog(provider, model, configuration)
+    }
+    catch (error) {
+      console.error('Failed to load speech voice catalog:', errorMessageFrom(error))
+      return []
+    }
+  }
+
+  /** Executes a caller's immutable catalog request in the synchronization leader. */
+  async function loadVoiceCatalog(provider: string, model: string | undefined, configuration: VoiceCatalogConfiguration): Promise<VoiceInfo[]> {
     if (!provider) {
       return []
     }
@@ -130,11 +152,19 @@ export const useSpeechStore = defineStore('speech', () => {
       model ??= activeSpeechModel.value || undefined
     }
 
+    const loadSequence = ++voiceLoadSequence
+    latestVoiceLoads.set(provider, loadSequence)
     isLoadingSpeechProviderVoices.value = true
     speechProviderError.value = null
 
     try {
-      const voices = await providersStore.listProviderVoices(provider, model)
+      const voices = await providersStore.listProviderVoices(provider, model, configuration)
+      // The provider boundary owns authentication epochs. Undefined discards a
+      // superseded session without coupling speech to login or token state.
+      if (voices === undefined)
+        return []
+      if (latestVoiceLoads.get(provider) !== loadSequence)
+        return voices
       // Reassign to trigger reactivity when adding/updating provider entries
       availableVoices.value = {
         ...availableVoices.value,
@@ -144,11 +174,13 @@ export const useSpeechStore = defineStore('speech', () => {
     }
     catch (error) {
       console.error(`Error fetching voices for ${provider}:`, error)
-      speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
+      if (loadSequence === voiceLoadSequence)
+        speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
       return []
     }
     finally {
-      isLoadingSpeechProviderVoices.value = false
+      if (loadSequence === voiceLoadSequence)
+        isLoadingSpeechProviderVoices.value = false
     }
   }
 
@@ -246,14 +278,7 @@ export const useSpeechStore = defineStore('speech', () => {
     await Promise.resolve()
     if (stale)
       return
-    try {
-      await useSpeechStore(pinia).loadVoicesForProvider(newProvider)
-    }
-    catch (error) {
-      // Transport shutdown can reject before the leader enters the loader.
-      // Do not turn that failure into a follower state proposal.
-      console.error('Failed to route speech voice loading:', errorMessageFrom(error))
-    }
+    await useSpeechStore(pinia).loadVoicesForProvider(newProvider)
     // Don't reset voice settings when changing providers to allow for persistence
   }, {
     // REVIEW: should we always load voices on init? What will happen when network is not available?
@@ -471,6 +496,7 @@ export const useSpeechStore = defineStore('speech', () => {
     // Actions
     speech,
     loadVoicesForProvider,
+    loadVoiceCatalog,
     getVoicesForProvider,
     ensureStreamingDefaultModel,
     ensureActiveSpeechModel,
@@ -480,7 +506,7 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 }, {
   synced: {
-    actions: ['loadVoicesForProvider'],
+    actions: ['loadVoiceCatalog'],
     state: true,
   },
 })

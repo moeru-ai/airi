@@ -98,8 +98,10 @@ export interface ProviderExtraMethods<TConfig> {
    * Returns the voice catalogue. `model` lets providers whose voices vary by
    * model variant (Volcengine streaming TTS 1.0 vs 2.0 differ in catalogue)
    * narrow the result. Providers with a single catalogue ignore it.
+   * The request owner aborts the signal when its session ends. Adapters must
+   * discard aborted response side effects, including recommendation caches.
    */
-  listVoices?: (config: TConfig, provider: ProviderInstance, model?: string) => Promise<VoiceInfo[]>
+  listVoices?: (config: TConfig, provider: ProviderInstance, model?: string, signal?: AbortSignal) => Promise<VoiceInfo[]>
   loadModel?: (config: TConfig, provider: ProviderInstance, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
 }
 

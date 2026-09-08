@@ -317,4 +317,45 @@ describe('provider store synchronization boundary', () => {
       vi.unstubAllGlobals()
     }
   })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960349395
+  // ROOT CAUSE:
+  // A detached catalog task survived logout and occupied the next session's
+  // in-flight slot. Session changes must isolate requests and stale errors.
+  it.each([200, 401])('discards the previous session voice response with status %i', async (status) => {
+    const store = useProviderStore()
+    const auth = useAuthStore()
+    auth.$patch(createAuthenticatedState())
+    let finishOld!: (response: Response) => void
+    const oldResponse = new Promise<Response>((resolve) => {
+      finishOld = resolve
+    })
+    let requests = 0
+    let oldSignal: AbortSignal | null | undefined
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (_input, options) => {
+      requests++
+      if (requests === 1) {
+        oldSignal = options?.signal
+        return oldResponse
+      }
+      return Response.json({ recommended: {}, voices: [{ id: 'new-voice', name: 'New voice', languages: [] }] })
+    }))
+    const oldLoad = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
+    try {
+      await vi.waitFor(() => expect(requests).toBe(1))
+      auth.$patch({ user: null, session: null, token: null })
+      expect(oldSignal?.aborted).toBe(true)
+      auth.$patch({ ...createAuthenticatedState(), token: 'new-access-token' })
+      const newLoad = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
+      await vi.waitFor(() => expect(requests).toBe(2))
+      expect((await newLoad)?.[0]?.id).toBe('new-voice')
+      finishOld(Response.json({ recommended: {}, voices: [{ id: 'old-voice', name: 'Old voice', languages: [] }] }, { status }))
+      await expect(oldLoad).resolves.toBeUndefined()
+    }
+    finally {
+      finishOld(Response.json({ voices: [], recommended: {} }))
+      await oldLoad.catch(() => {})
+      vi.unstubAllGlobals()
+    }
+  })
 })

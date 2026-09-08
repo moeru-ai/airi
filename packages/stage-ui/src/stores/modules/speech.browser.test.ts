@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { useProviderConfigStore } from '../providers/config'
 import { useSpeechStore } from './speech'
 
 const syncedContexts: Array<{
@@ -58,6 +59,7 @@ describe('speech synchronization', () => {
       disposePinia(context.pinia)
     }
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
     localStorage.clear()
   })
 
@@ -84,7 +86,7 @@ describe('speech synchronization', () => {
 
     let leaderLoads = 0
     leaderContext.speechStore.$onAction(({ name }) => {
-      if (name === 'loadVoicesForProvider')
+      if (name === 'loadVoiceCatalog')
         leaderLoads++
     })
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
@@ -115,7 +117,7 @@ describe('speech synchronization', () => {
     await new Promise(resolve => setTimeout(resolve, 100))
     let leaderLoads = 0
     leaderContext.speechStore.$onAction(({ name }) => {
-      if (name === 'loadVoicesForProvider')
+      if (name === 'loadVoiceCatalog')
         leaderLoads++
     })
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
@@ -128,5 +130,86 @@ describe('speech synchronization', () => {
 
     const proposals = traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))
     expect(proposals).toHaveLength(0)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960349403
+  // ROOT CAUSE:
+  // Configuration proposals and voice RPCs use independent queues. Capture
+  // request configuration in the caller instead of reading a stale leader copy.
+  it('loads voices with the follower configuration before its snapshot arrives', async () => {
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const leaderConfig = useProviderConfigStore(leader.pinia)
+    await leaderConfig.ensureProvider('microsoft-speech', 'microsoft-speech', {
+      apiKey: 'old-key',
+      baseUrl: 'https://old.invalid/v1/',
+      region: 'eastasia',
+    })
+    const follower = createSyncedContext(namespace, 'follower-only')
+    const followerConfig = useProviderConfigStore(follower.pinia)
+    await vi.waitFor(() => expect(followerConfig.configs['microsoft-speech']?.apiKey).toBe('old-key'))
+    const requests: string[] = []
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+      requests.push(String(input))
+      return Response.json({ voices: [] })
+    }))
+    followerConfig.configs['microsoft-speech'].baseUrl = 'https://new.invalid/v1/'
+    await follower.speechStore.loadVoicesForProvider('microsoft-speech')
+    expect(requests).toHaveLength(1)
+    expect(requests[0]).toContain('https://new.invalid/')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960349408
+  // ROOT CAUSE:
+  // Leader RPC failures bypassed the loader's provider catch block. Public
+  // loading must contain transport failures without mutating follower state.
+  it('contains voice RPC failure when the synchronization runtime closes', async () => {
+    const context = createSyncedContext(`speech:${crypto.randomUUID()}`, 'follower-only')
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const loading = context.speechStore.loadVoicesForProvider('speech-noop')
+    context.runtime.dispose()
+    await expect(loading).resolves.toEqual([])
+    expect(errors).toHaveBeenCalled()
+    expect(context.speechStore.speechProviderError).toBeNull()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960349403
+  // ROOT CAUSE:
+  // A slow response for earlier configuration must not overwrite the catalog
+  // returned for the newer configuration carried by a subsequent command.
+  it('keeps the newer configuration catalog when an older response arrives last', async () => {
+    const context = createSyncedContext(`speech:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    const config = useProviderConfigStore(context.pinia)
+    await config.ensureProvider('microsoft-speech', 'microsoft-speech', {
+      apiKey: 'key',
+      baseUrl: 'https://old.invalid/v1/',
+      region: 'eastasia',
+    })
+    let finishOld!: (response: Response) => void
+    const oldResponse = new Promise<Response>((resolve) => {
+      finishOld = resolve
+    })
+    let requests = 0
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => {
+      requests++
+      if (requests === 1)
+        return oldResponse
+      return Response.json({ voices: [{ id: 'new', name: 'New', languages: [] }] })
+    }))
+    const oldLoad = context.speechStore.loadVoicesForProvider('microsoft-speech')
+    try {
+      await vi.waitFor(() => expect(requests).toBe(1))
+      config.configs['microsoft-speech'].baseUrl = 'https://new.invalid/v1/'
+      await context.speechStore.loadVoicesForProvider('microsoft-speech')
+      finishOld(Response.json({ voices: [{ id: 'old', name: 'Old', languages: [] }] }))
+      await oldLoad
+      expect(context.speechStore.availableVoices['microsoft-speech'][0]?.id).toBe('new')
+    }
+    finally {
+      finishOld(Response.json({ voices: [] }))
+      await oldLoad
+    }
   })
 })
