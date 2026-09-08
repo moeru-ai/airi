@@ -80,3 +80,21 @@ and final filter with a movable screen patch.
 pose and one captured environment. It verifies bend, gap, and center-width
 changes through actual GPU pixels, then restores animation and the settings.
 The standalone `/ambient-curved.html` comparison remains available.
+
+## Surface lighting diagnostics
+
+The Tamagotchi ambient-light devtool includes a **Surface lighting preview**.
+Choose a cylinder to inspect horizontal direction or a sphere to inspect both
+axes. **Show surface normals** displays the known normals without lighting.
+The main window continues to show the Live2D character for comparison.
+
+The preview uses the same applied contact map, screen geometry, lighting mode,
+strength, and chroma as the stage. It uses fixed gray and omits exposure changes,
+rim, and wrap. The canvas follows the main window's aspect ratio. Its analytic
+normals occupy the same surface plane as Live2D; this is not a depth or
+self-shadowing simulation. The existing test card remains for final-filter checks.
+
+`SurfaceLightPreviewFilter` imports the production irradiance shader directly.
+The preview has no animation loop; it renders on diagnostics or control changes
+and releases its context on unmount. Its browser tests cover side direction,
+frontal light from curved emitters, shape silhouettes, and the normals view.

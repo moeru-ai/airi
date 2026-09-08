@@ -172,6 +172,13 @@ devtools:
         chroma:
           title: Color cast chroma
           description: Set how much of the surrounding hue the cast keeps. 0 keeps the model colors. 1 applies the full screen color.
+      surface-preview:
+        title: Surface lighting preview
+        description: Inspect the character’s surface shader on neutral gray shapes. Uses the live screen, geometry, strength, and chroma settings, with fixed exposure and no rim or wrap.
+        cylinder: Cylinder
+        sphere: Sphere
+        normals: Show surface normals
+        mapping: Shapes use known normals on the same surface plane as Live2D, without depth or painted shading. The canvas matches the main window’s proportions. Compare with the character in the main window.
       preview-shader:
         title: Shader preview
         description: Run the real shader over a test card, with the live environment and the settings above.

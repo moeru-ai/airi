@@ -5,12 +5,14 @@ import Live2DAmbientLightGeometry from '../../components/Devtools/live2d-ambient
 import Live2DAmbientLightSampling from '../../components/Devtools/live2d-ambient-light/sampling.vue'
 import Live2DAmbientLightShaderPreview from '../../components/Devtools/live2d-ambient-light/shader-preview.vue'
 import Live2DAmbientLightShader from '../../components/Devtools/live2d-ambient-light/shader.vue'
+import Live2DSurfacePreview from '../../components/Devtools/live2d-ambient-light/surface-preview.vue'
 </script>
 
 <template>
   <div :class="['grid gap-4 pb-12']">
     <Live2DAmbientLightControls />
     <Live2DAmbientLightGeometry />
+    <Live2DSurfacePreview />
     <Live2DAmbientLightDiagnostics />
     <Live2DAmbientLightSampling />
     <Live2DAmbientLightShader />

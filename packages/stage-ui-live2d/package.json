@@ -17,6 +17,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./components": "./src/components/index.ts",
+    "./components/diagnostics/surface-light-preview.vue": "./src/components/diagnostics/surface-light-preview.vue",
+    "./filters/surface-light-preview": "./src/filters/surface-light-preview.ts",
     "./components/diagnostics/screen-ambient-light-preview.vue": "./src/components/diagnostics/screen-ambient-light-preview.vue",
     "./components/scenes": "./src/components/scenes/index.ts",
     "./components/scenes/Live2D.vue": "./src/components/scenes/Live2D.vue",
