@@ -135,6 +135,11 @@ watch(selectedProfile, (value, previousValue) => {
     return
   }
 
+  // Restoring the active card after choosing "Save as new" is part of the
+  // close-to-create transition, not a user selection that cancels creation.
+  if (previousValue === CREATE_PROFILE_ACTION && value === activeCardId.value)
+    return
+
   handleSelection(value)
 })
 
@@ -151,11 +156,13 @@ async function handleSelection(value: ProfileSelectValue) {
 
   if (value === MANAGE_PROFILE_ACTION) {
     selectedProfile.value = activeCardId.value
+    cancelCreate()
     handleManage()
     return
   }
 
   await cardStore.activateCard(value)
+  cancelCreate()
 }
 
 async function showCreateInput() {

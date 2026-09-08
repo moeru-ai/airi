@@ -418,6 +418,22 @@ it('keeps the profile creation form open for pointer interaction (PR #2474)', as
   await expect.poll(() => cards.activeCard?.name).toBe('New profile')
   await expect.element(input).not.toBeInTheDocument()
   isOutside.value = false
+
+  // ROOT CAUSE:
+  // Reopening the selector while creation was active changed the selected
+  // card but left the old form state alive. A later save could clone the new
+  // card with the name entered for the previous card.
+  //
+  // We fixed this by canceling creation when a non-create option is selected.
+  // The close-to-create transition remains allowed.
+  await screen.getByRole('combobox').click()
+  await page.getByRole('option', { name: i18n.global.t('stage.profile-switcher.save-as-new') }).click()
+  await page.getByPlaceholder(i18n.global.t('stage.profile-switcher.new-profile-name')).fill('Stale profile name')
+  await screen.getByRole('combobox').click()
+  await page.getByRole('option', { name: 'ReLU' }).click()
+  await expect.element(page.getByTestId('profile-create-form')).not.toBeInTheDocument()
+  await expect.poll(() => cards.activeCard?.name).toBe('ReLU')
+
   await screen.getByRole('combobox').click()
   await page.getByRole('option', { name: i18n.global.t('stage.profile-switcher.save-as-new') }).click()
   const form = page.getByTestId('profile-create-form').element() as HTMLElement
