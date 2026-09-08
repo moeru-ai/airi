@@ -436,6 +436,7 @@ catalog:
   wavefile: ^11.0.0
   web-haptics: ^0.0.6
   whatwg-mimetype: ^5.0.0
+  wheel-gestures: ^2.2.48
   wlipsync: ^1.3.1
   workbox-window: ^7.4.1
   ws: ^8.21.3

@@ -64,6 +64,8 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
   context?: ContextMessage
   createdAt?: number
   id?: string
+  /** Message that this message replies to in the same chat session. */
+  replyToMessageId?: string
   /** Tools selected for this message. The runtime rebuilds executors from these names. */
   tools?: ChatToolReference[]
 }

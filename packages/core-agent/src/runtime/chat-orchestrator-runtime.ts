@@ -16,6 +16,12 @@ import { categorizeResponse, createStreamingCategorizer } from './response-categ
 
 const REASONING_UI_FLUSH_CHUNK_SIZE = 24
 
+/**
+ * Caps repeated reply text in the model prompt. The referenced message remains
+ * in history, so the prefix only needs enough text to identify it.
+ */
+const REPLY_PROMPT_REFERENCE_CHARACTER_LIMIT = 480
+
 function prependTextToContent<T extends { content?: unknown }>(msg: T, text: string): T {
   const content = msg.content
   if (content === undefined)
@@ -33,6 +39,54 @@ function prependTextToContent<T extends { content?: unknown }>(msg: T, text: str
   }
 
   return msg
+}
+
+function getMessageText(message: ChatHistoryItem): string {
+  if (typeof message.content === 'string')
+    return message.content
+
+  if (!Array.isArray(message.content))
+    return ''
+
+  return message.content
+    .filter(part => part.type === 'text')
+    .map(part => part.text)
+    .join('\n')
+}
+
+/**
+ * Formats a model-only reference to the message selected by the user.
+ *
+ * @example
+ * formatReplyPromptPrefix('message-1', new Map([
+ *   ['message-1', { id: 'message-1', role: 'user', content: 'Earlier turn' }],
+ * ]))
+ * // => '[Replying to: Earlier turn]\n'
+ */
+function formatReplyPromptPrefix(replyToMessageId: string | undefined, messagesById: Map<string, ChatHistoryItem>): string {
+  if (!replyToMessageId)
+    return ''
+
+  const target = messagesById.get(replyToMessageId)
+  if (!target)
+    return ''
+
+  const targetText = getMessageText(target).replace(/\s+/g, ' ').trim()
+  const preview = targetText.length > REPLY_PROMPT_REFERENCE_CHARACTER_LIMIT
+    ? `${targetText.slice(0, REPLY_PROMPT_REFERENCE_CHARACTER_LIMIT - 1).trimEnd()}…`
+    : targetText
+  return preview
+    ? `[Replying to: ${preview}]\n`
+    : `[Replying to message: ${replyToMessageId}]\n`
+}
+
+function resolveReplyTargetId(replyToMessageId: string | undefined, messages: ChatHistoryItem[]): string | undefined {
+  if (!replyToMessageId)
+    return undefined
+
+  return messages.some(message => message.id === replyToMessageId)
+    ? replyToMessageId
+    : undefined
 }
 
 function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAssistantMessage {
@@ -62,6 +116,8 @@ export interface ChatOrchestratorSendOptions {
   toolReferences?: ChatToolReference[]
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
+  /** Message that the new user turn replies to in the target session. */
+  replyToMessageId?: string
   /** Temperature for the LLM request. */
   temperature?: number
   /** Top_p for the LLM request. */
@@ -431,13 +487,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
   function buildProviderMessages(sessionMessagesForSend: ChatHistoryItem[]): Array<Message | ErrorMessage> {
     const nowTs = now()
+    const messagesById = new Map(
+      sessionMessagesForSend.flatMap(message => message.id ? [[message.id, message] as const] : []),
+    )
 
     return sessionMessagesForSend.flatMap<Message | ErrorMessage>((msg) => {
-      const { context: _context, id: _id, createdAt: _createdAt, tools: _tools, ...withoutContext } = msg
+      const { context: _context, id: _id, createdAt: _createdAt, replyToMessageId, tools: _tools, ...withoutContext } = msg
       const rawMessage = unwrapMessage(withoutContext)
 
       if (rawMessage.role === 'user') {
-        return [prependTextToContent(rawMessage, formatTimePrefix(getStablePromptTimestamp(msg, nowTs)))]
+        const prefix = `${formatTimePrefix(getStablePromptTimestamp(msg, nowTs))}${formatReplyPromptPrefix(replyToMessageId, messagesById)}`
+        return [prependTextToContent(rawMessage, prefix)]
       }
 
       if (rawMessage.role === 'assistant') {
@@ -471,6 +531,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     deps.session.ensureSession(sessionId)
 
     const existingSessionMessages = deps.session.getSessionMessages(sessionId)
+    let replyToMessageId = resolveReplyTargetId(options.replyToMessageId, existingSessionMessages)
     const turnIndex = existingSessionMessages.filter(message => message.role === 'user').length + 1
 
     // Activation measures whether a conversation reaches its first assistant
@@ -494,7 +555,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const roundId = createId()
     const streamingMessageContext: ChatStreamEventContext = {
       turnId: roundId,
-      message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: streamContextMessageId },
+      message: {
+        role: 'user',
+        content: sendingMessage,
+        createdAt: sendingCreatedAt,
+        id: streamContextMessageId,
+        ...(replyToMessageId ? { replyToMessageId } : {}),
+      },
       contexts: deps.context.snapshot(),
       composedMessage: [],
       input: options.input,
@@ -581,11 +648,21 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
 
+      replyToMessageId = resolveReplyTargetId(
+        options.replyToMessageId,
+        deps.session.getSessionMessages(sessionId),
+      )
+      if (replyToMessageId)
+        streamingMessageContext.message.replyToMessageId = replyToMessageId
+      else
+        delete streamingMessageContext.message.replyToMessageId
+
       const userMessage = {
         role: 'user' as const,
         content: finalContent,
         createdAt: sendingCreatedAt,
         id: roundId,
+        ...(replyToMessageId ? { replyToMessageId } : {}),
         ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
       }
       deps.session.appendSessionMessage(sessionId, userMessage)

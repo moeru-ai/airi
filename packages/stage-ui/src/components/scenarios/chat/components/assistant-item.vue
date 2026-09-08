@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatSlicesText, ChatSlicesToolCallResult } from '../../../../types/chat'
+import type { ChatHistoryReplyPayload } from '../reply'
 import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 
+import ChatReplyQuote from './reply-quote.vue'
 import ChatResponsePart from './response-part.vue'
 import ChatToolCallBlock from './tool-call-block.vue'
 
@@ -16,11 +18,14 @@ import { createToolCallResultLookup, resolveToolCallBlockState } from './tool-ca
 const props = withDefaults(defineProps<{
   message: ChatAssistantMessage
   label: string
+  replyTarget?: ChatHistoryReplyPayload
+  canReply?: boolean
   scrollContainer?: HTMLElement | null
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'
   toolCallRenderers?: ChatToolCallRendererRegistry
 }>(), {
+  canReply: false,
   showPlaceholder: false,
   scrollContainer: null,
   variant: 'desktop',
@@ -30,6 +35,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'copy'): void
   (e: 'delete'): void
+  (e: 'reply'): void
   (e: 'toolCallRerun', payload: { toolCallId: string, toolName: string, args: string }): void
 }>()
 
@@ -89,10 +95,13 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
   <div flex :class="['font-cute', containerClass]" class="ph-no-capture">
     <ChatActionMenu
       :copy-text="copyText"
+      :can-reply="canReply"
       :can-delete="!showPlaceholder"
+      :press-feedback-enabled="variant === 'mobile'"
       :scroll-container="scrollContainer"
       @copy="emit('copy')"
       @delete="emit('delete')"
+      @reply="emit('reply')"
     >
       <template #default="{ setMeasuredElement }">
         <div
@@ -105,6 +114,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
           ]"
         >
+          <ChatReplyQuote v-if="replyTarget" :target="replyTarget" />
           <ChatResponsePart
             v-if="message.categorization"
             :message="message"

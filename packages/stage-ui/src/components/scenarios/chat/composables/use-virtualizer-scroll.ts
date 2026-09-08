@@ -9,6 +9,13 @@ interface VirtualScrollRequest {
   index: number
 }
 
+interface VirtualizerScrollOptions {
+  /** Extra space reserved after an end-aligned item. */
+  tailInset: Readonly<Ref<number>>
+  /** Virtua handle that owns item measurement and scrolling. */
+  virtualizer: Readonly<ShallowRef<VirtualizerHandle | null>>
+}
+
 interface VirtualizerBottomAlignmentOptions {
   container: Readonly<Ref<HTMLElement | null>>
   itemCount: Readonly<Ref<number>>
@@ -22,7 +29,7 @@ interface VirtualizerBottomAlignmentOptions {
  * a non-zero viewport size. This adapter polls only while one request waits for that value.
  */
 export function useVirtualizerScroll(
-  virtualizer: Readonly<ShallowRef<VirtualizerHandle | null>>,
+  { tailInset, virtualizer }: VirtualizerScrollOptions,
 ) {
   let didObserveReadyFrame = false
   const pendingRequest = shallowRef<VirtualScrollRequest>()
@@ -46,7 +53,10 @@ export function useVirtualizerScroll(
       return
     }
 
-    currentVirtualizer.scrollToIndex(request.index, { align: request.align })
+    currentVirtualizer.scrollToIndex(request.index, {
+      align: request.align,
+      offset: request.align === 'end' ? Math.max(0, tailInset.value) : 0,
+    })
     pendingRequest.value = undefined
     didObserveReadyFrame = false
     pause()
@@ -106,7 +116,9 @@ export function useVirtualizerBottomAlignment({
   return {
     itemProps: () => ({
       style: {
-        transform: bottomOffset.value > 0 ? `translateY(${bottomOffset.value}px)` : undefined,
+        transform: bottomOffset.value > 0
+          ? `translateY(max(0px, calc(${bottomOffset.value}px - var(--chat-history-bottom-inset, 0px))))`
+          : undefined,
       },
     }),
   }

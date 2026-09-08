@@ -374,6 +374,28 @@ describe('chat store contract', () => {
     await settings.setReasoning(false)
   })
 
+  it('passes a native reply relation to the chat runtime', async () => {
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      { role: 'assistant', content: 'Earlier answer', slices: [], tool_results: [], id: 'assistant-1' },
+    ]
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+    const store = useChatStore()
+
+    await store.send({
+      sessionId: 'session-1',
+      text: 'My follow-up',
+      replyToMessageId: 'assistant-1',
+    })
+
+    expect(sessionMessages['session-1']?.find(message => message.role === 'user')).toMatchObject({
+      content: 'My follow-up',
+      replyToMessageId: 'assistant-1',
+    })
+  })
+
   // https://github.com/moeru-ai/airi/issues/2085
   it('hydrates the target session before sending for Issue #2085', async () => {
     // ROOT CAUSE:
