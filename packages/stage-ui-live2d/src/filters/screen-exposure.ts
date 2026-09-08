@@ -14,6 +14,8 @@ export class ScreenExposure {
   private environment?: AmbientLightEnvironment
   private targetLog = 0
   private adaptedLog = 0
+  private targetMean = 0
+  private adaptedMean = 0
   private lastTime?: number
   enabled = false
   responseCurve = ambientLightDefaults.exposure.responseCurve
@@ -21,6 +23,16 @@ export class ScreenExposure {
   cameraExposure = 1
   bloomGain = 1
   glareGain = 1
+
+  /** Current ambient fill; undefined preserves the manually configured baseline. */
+  get baseBrightness(): number | undefined {
+    if (!this.enabled || !this.options.adaptiveBase)
+      return undefined
+    const dark = Math.max(0, Math.min(1, this.options.darkBase))
+    const bright = Math.max(dark, Math.min(1, this.options.brightBase))
+    const curve = Math.max(0.1, Math.min(3, this.options.baseCurve))
+    return dark + (bright - dark) * this.adaptedMean ** curve
+  }
 
   /** Publishes settings and a current linear-light meter reading; timestamps use milliseconds. */
   configure(environment: AmbientLightEnvironment, options: Readonly<AmbientLightExposureOptions>, active: boolean, now = performance.now()) {
@@ -32,10 +44,15 @@ export class ScreenExposure {
     if (this.environment !== environment) {
       const [r, g, b] = averageAmbientLightMap(environment.surround)
       this.targetLog = Math.log2(Math.max(0.001, r * 0.2126 + g * 0.7152 + b * 0.0722))
+      // Full-display radiance makes the baseline independent of the character's
+      // window and position. Synthetic color studies only provide a local map.
+      const [screenR, screenG, screenB] = averageAmbientLightMap(environment.screen?.radiance ?? environment.surround)
+      this.targetMean = Math.max(0, Math.min(1, screenR * 0.2126 + screenG * 0.7152 + screenB * 0.0722))
       this.environment = environment
     }
     if (!enabled || !this.enabled || resumed) {
       this.adaptedLog = this.targetLog
+      this.adaptedMean = this.targetMean
       this.lastTime = enabled ? now : undefined
     }
     this.enabled = enabled
@@ -44,7 +61,7 @@ export class ScreenExposure {
     this.updateBloom()
   }
 
-  /** Advances an exponential moving mean in stops, independent of render cadence. */
+  /** Advances the log bloom meter and linear baseline mean, independent of render cadence. */
   advance(now = performance.now()) {
     if (!this.enabled)
       return
@@ -52,11 +69,15 @@ export class ScreenExposure {
     this.lastTime = now
     if (elapsed > 2000) {
       this.adaptedLog = this.targetLog
+      this.adaptedMean = this.targetMean
     }
     else {
       const seconds = this.targetLog > this.adaptedLog ? this.options.brightSeconds : this.options.darkSeconds
       const weight = 1 - Math.exp(-elapsed / (1000 * Math.max(0.1, seconds)))
       this.adaptedLog += (this.targetLog - this.adaptedLog) * weight
+      const baseSeconds = this.targetMean > this.adaptedMean ? this.options.brightSeconds : this.options.darkSeconds
+      const baseWeight = 1 - Math.exp(-elapsed / (1000 * Math.max(0.1, baseSeconds)))
+      this.adaptedMean += (this.targetMean - this.adaptedMean) * baseWeight
     }
     this.updateBloom()
   }
