@@ -206,6 +206,28 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     return nextRegistry
   }
 
+  /** Keeps enablement visible if loading fails, so the user can retry loading. */
+  async function enableAndLoad(payload: { extensionId: string, path?: string }) {
+    return withBridge(async (activeBridge) => {
+      assignRegistry(await activeBridge.setEnabled({ ...payload, enabled: true }))
+      const nextRegistry = await activeBridge.load({ extensionId: payload.extensionId })
+      assignRegistry(nextRegistry)
+      assignInspection(await activeBridge.inspect())
+      return nextRegistry
+    })
+  }
+
+  /** Keeps the plugin disabled for future startup even if stopping its current session fails. */
+  async function disableAndUnload(payload: { extensionId: string, path?: string }) {
+    return withBridge(async (activeBridge) => {
+      assignRegistry(await activeBridge.setEnabled({ ...payload, enabled: false }))
+      const nextRegistry = await activeBridge.unload({ extensionId: payload.extensionId })
+      assignRegistry(nextRegistry)
+      assignInspection(await activeBridge.inspect())
+      return nextRegistry
+    })
+  }
+
   return {
     registry,
     sessions,
@@ -229,5 +251,7 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     loadEnabled,
     load,
     unload,
+    enableAndLoad,
+    disableAndUnload,
   }
 })
