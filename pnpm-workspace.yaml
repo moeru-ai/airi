@@ -341,6 +341,7 @@ catalog:
   mineflayer-tool: ^1.2.0
   minisearch: ^7.2.0
   mkcert: ^3.2.0
+  model-bank: 1.0.20260904203849
   motion-v: ^2.4.0
   nano-staged: ^1.0.2
   nanoid: ^6.0.1
