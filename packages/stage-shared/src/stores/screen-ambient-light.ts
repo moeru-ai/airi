@@ -19,7 +19,7 @@ const screenAmbientLightForcedColor = useLocalStorageManualReset<string>('settin
 const screenAmbientLightMode = useLocalStorageManualReset<ScreenAmbientLightMode>('settings/screen-ambient-light/mode', ambientLightDefaults.mode)
 const screenAmbientLightStrength = useLocalStorageManualReset<number>('settings/screen-ambient-light/strength', ambientLightDefaults.strength)
 const screenAmbientLightSquint = useLocalStorageManualReset<number>('settings/screen-ambient-light/squint', ambientLightDefaults.squint)
-const screenAmbientLightAreaLights = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/area-lights', false)
+const screenAmbientLightAreaLights = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/area-lights', ambientLightDefaults.geometry.areaLights ?? false)
 const screenAmbientLightBend = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-bend', ambientLightDefaults.geometry.bend)
 const screenAmbientLightGap = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-gap', ambientLightDefaults.geometry.gap)
 const screenAmbientLightFlatRadius = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-flat-radius', ambientLightDefaults.geometry.flatRadius)
@@ -45,6 +45,10 @@ const screenAmbientLightBloom = useLocalStorageManualReset<number>('settings/scr
 const screenAmbientLightBacklight = useLocalStorageManualReset<number>('settings/screen-ambient-light/backlight', ambientLightDefaults.filter.backlight)
 const screenAmbientLightTranslucentWrap = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/translucent-wrap', ambientLightDefaults.filter.translucentWrap)
 
+const screenAmbientLightAdaptiveBase = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/adaptive-base', ambientLightDefaults.exposure.adaptiveBase)
+const screenAmbientLightDarkBase = useLocalStorageManualReset<number>('settings/screen-ambient-light/dark-base', ambientLightDefaults.exposure.darkBase)
+const screenAmbientLightBrightBase = useLocalStorageManualReset<number>('settings/screen-ambient-light/bright-base', ambientLightDefaults.exposure.brightBase)
+const screenAmbientLightBaseCurve = useLocalStorageManualReset<number>('settings/screen-ambient-light/base-curve', ambientLightDefaults.exposure.baseCurve)
 const screenAmbientLightResponseCurve = useLocalStorageManualReset<number>('settings/screen-ambient-light/response-curve', ambientLightDefaults.exposure.responseCurve)
 const screenAmbientLightPhysicalExposure = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/physical-exposure', ambientLightDefaults.exposure.enabled)
 const screenAmbientLightScreenNits = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-nits', ambientLightDefaults.exposure.screenNits)
@@ -54,6 +58,10 @@ const screenAmbientLightDarkAdaptation = useLocalStorageManualReset<number>('set
 const screenAmbientLightBrightAdaptation = useLocalStorageManualReset<number>('settings/screen-ambient-light/bright-adaptation', ambientLightDefaults.exposure.brightSeconds)
 
 function resetState() {
+  screenAmbientLightAdaptiveBase.reset()
+  screenAmbientLightDarkBase.reset()
+  screenAmbientLightBrightBase.reset()
+  screenAmbientLightBaseCurve.reset()
   screenAmbientLightResponseCurve.reset()
   screenAmbientLightPhysicalExposure.reset()
   screenAmbientLightScreenNits.reset()
@@ -97,6 +105,10 @@ function resetState() {
 
 export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambient-light', () => {
   return {
+    screenAmbientLightAdaptiveBase,
+    screenAmbientLightDarkBase,
+    screenAmbientLightBrightBase,
+    screenAmbientLightBaseCurve,
     screenAmbientLightResponseCurve,
     screenAmbientLightPhysicalExposure,
     screenAmbientLightScreenNits,

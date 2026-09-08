@@ -400,7 +400,7 @@ export class SurfaceLighting {
     gl.uniform1f(locations.photometry, this.exposure.enabled ? 1 : 0)
     gl.uniform1f(locations.lightScale, this.exposure.lightScale)
     gl.uniform1f(locations.cameraExposure, this.exposure.cameraExposure)
-    gl.uniform1f(locations.ambient, this.ambient)
+    gl.uniform1f(locations.ambient, this.exposure.baseBrightness ?? this.ambient)
     gl.uniform1f(locations.contrast, this.contrast)
     gl.uniform1f(locations.faceShadowStrength, this.shadowEnabled() ? this.material.faceShadow : 0)
     gl.uniform1f(locations.faceHeight, this.faceHeight)

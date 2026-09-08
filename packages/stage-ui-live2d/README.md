@@ -14,7 +14,7 @@ is useful for checking the effect without screen capture.
 
 `filters/surface-lighting.ts` runs inside the Cubism drawable shaders. It treats the screen as
 a finite emitting surface with a flat center behind the character and sides
-that curve forward. The default center gap is 4% of the window height. The narrow screen reconstruction supplies linear radiance to 64 tiles.
+that curve forward. The default center gap is 11% of the full character height. The narrow screen reconstruction supplies linear radiance to 64 tiles.
 Each fragment uses its current window position, its normal, the distance to each
 tile, and the emitting and receiving angles. A finite tile footprint avoids a
 point-light singularity at close range. Distant tiles get weaker through their
@@ -22,9 +22,9 @@ solid angle, rather than a separate distance-based blur. `Model.vue` passes the 
 sets the final screen filter's chroma to zero, so the old position-based color
 gradient is not applied a second time. Ambient exposure and contrast apply before
 direct surface light, so reducing ambient fill does not dim the added highlights.
-**Chroma** also reduces ambient color channels absent from the received screen
-light. This artistic color cast follows surface normals and fades with light
-energy; unlit surfaces retain their ambient color. A neutral screen stays neutral.
+**Chroma** controls the screen light's color contribution. **Dim-light color
+boost** amplifies its perceptual color shift while preserving lit luminance.
+Each RGB channel stays at or above the current baseline; neutral light stays neutral.
 The final filter retains silhouette effects. Its rim and inward glow approximate
 backlight scattering. **Backlight bloom** adds an exterior halo; set it to zero
 to preserve the original silhouette alpha. The diagnostic test-card preview remains a flat filter
@@ -33,8 +33,8 @@ reference; inspect the live model to judge surface lighting.
 In Tamagotchi, open **Settings → System → Developer → Live2D Ambient Light**.
 The **Virtual screen shape** controls adjust edge bend, screen gap, and flat
 center width in the main window. They persist with the other ambient settings.
-The default bend is 2; set it to 0 to compare flat lighting. The flat center
-starts at 20% of the window height in width. Geometry updates separately from
+The default bend is 5; set it to 0 to compare flat lighting. The flat center
+starts at 42% of the full character height in width. Geometry updates separately from
 capture, so adjusting a slider does not restart the screen stream.
 
 Under **Shader response**, **Surface sheen** controls broad reflections of the
@@ -47,24 +47,28 @@ model without changing or regenerating its normal-map image.
 
 ### Brightness and eye adaptation trial
 
-The devtool's **Try linear screen lighting** switch preserves the saved response
-when disabled. The trial applies only to directional surface lighting. **Base
-brightness** supplies steady room illumination; **Exposure range** is unused.
-Screen pixels remain linear RGB. **Screen white luminance** scales their emission
-relative to an assumed 200-nit display. Capture does not measure physical nits.
+The devtool's **Try linear screen lighting** switch is enabled in the default
+preset. The trial applies only to directional surface lighting. The automatic
+baseline follows the smoothed full-display mean luminance with a tunable power
+curve: `dark + (bright - dark) * mean^curve`. The preset uses dark 0.11, bright 1,
+and curve 2. Disable the automatic baseline to use steady **Base brightness**.
+**Exposure range** is unused in this mode. Screen pixels remain linear RGB.
+**Screen white luminance** defaults to 450 nits and scales emission relative to
+a 200-nit reference. Capture does not measure physical nits.
 **Exposure compensation** applies stops after room and direct surface lighting.
 A shared RGB shoulder above 0.6 rolls off highlights while preserving midtones.
 The existing illustrated materials and color cast remain artistic approximations.
 
 **Adaptive bloom** meters the surrounding light map and averages its luminance
 in stops over time. Its exponential moving mean has separate time constants:
-six seconds toward darkness and 1.5 seconds toward brightness by default.
+0.5 seconds toward darkness and 0.2 seconds toward brightness by default.
+The automatic baseline uses the same time constants with a separate linear mean.
 This increases halo sensitivity after darkness and suppresses it on a sustained
 bright screen. Sustained bright pages also reduce inward silhouette glare. The
 halo gain applies after highlight compression so that strong bloom settings do
 not hide the reduction. Local screen light still supplies all halo energy;
-black produces none. Camera exposure and room illumination stay fixed to avoid
-face-brightness pumping during scene cuts. These timings approximate a visual
+black produces none. Camera exposure stays fixed while the automatic baseline
+follows the smoothed screen mean. These timings approximate a visual
 effect, not the full physiology of human dark adaptation.
 
 Desktop capture excludes all nonzero character and bloom alpha on each sample.
@@ -96,7 +100,7 @@ bright/dark adaptation speeds in
 **Illustrated materials** uses reviewed hair and face assignments. Hair reflects
 light through GGX with fixed dielectric reflectance 0.046. **Hair roughness**
 defaults to 0.70 and changes reflection width without changing the normal field.
-**Face light relief** defaults to 1. The face uses a fitted height field with
+**Face light relief** defaults to 0.8. The face uses a fitted height field with
 cheeks, a tapered chin, and a small nose. Local surface slopes produce a light
 gradient and an unlit region under side light. Zero blends the entire face back
 to one diffuse direction. The nose keeps
@@ -104,7 +108,7 @@ its narrow highlight; clothing receives no added sheen in illustrated mode.
 Disable the toggle to compare the previous Blinn-Phong material.
 
 **Face turn angle** rotates the fitted face and nose normals with Iru's head X
-parameter. The default is 20 degrees at the rig's maximum head turn. Zero
+parameter. The default is 45 degrees at the rig's maximum head turn. Zero
 restores the previous directions. This calibration is independent of surface
 relief: a flat face still turns toward or away from a light. Core parameters
 are read on every draw, including frames without a new screen sample. The nose
@@ -114,8 +118,8 @@ The transform also follows the nose position during pitch and roll; normal
 orientation still uses the calibrated head yaw.
 
 This combines physical hair reflection with artistic diffuse and silhouette
-responses. It is not full PBR. **Hair shadow on face** defaults to zero because
-Iru's artwork already contains painted hair shadows. If enabled, it projects coverage from
+responses. It is not full PBR. **Hair shadow on face** defaults to 0.5 in the saved
+preset; zero retains only the artwork's painted shadows. If enabled, it projects coverage from
 five reviewed foreground hair meshes onto a fitted convex face. The coverage
 pass uses current vertices, atlas alpha, visibility, and render order. Each
 screen emitter projects its own shadow; ambient fill remains visible.
@@ -214,8 +218,8 @@ animation. The unit fixture records the actual nose vertices at three head angle
 ### Area tile comparison
 
 The devtool's **Virtual screen shape → Try area light tiles** switch selects
-cached area lighting for both the character and surface preview. The default is
-off, which retains the point-tile response.
+cached area lighting for both the character and surface preview. It is enabled
+by default; disable it to compare the point-tile response.
 
 The surface samples an 8 by 8 grid over the full captured display. Capture stores
 this emission separately from the local contact and surround maps used for glow.

@@ -58,12 +58,12 @@ describe('surface material response', () => {
     render({ surface: true })
   }, 30_000)
 
-  it('lights different face regions independently with the default curved material', () => {
+  it('lights different face regions independently at full face relief', () => {
     // ROOT CAUSE:
     // The shallow face mixed 55% of one forward-facing light value into every
     // pixel. A cheek facing away therefore retained direct light. Evaluate the
     // production height-derived normals through the actual screen integrator.
-    const options = { illustrated: true, face: true, surface: true, sheen: 0, ambient: 0, albedo: 0.3, soft: false, bend: 1 }
+    const options = { illustrated: true, face: true, surface: true, skinRelief: 1, sheen: 0, ambient: 0, albedo: 0.3, soft: false, bend: 1 }
     const toward = render({ ...options, facePoint: [-0.8, -0.45] })
     const center = render({ ...options, facePoint: [0, -0.45] })
     const away = render({ ...options, facePoint: [0.8, -0.45] })
@@ -254,7 +254,7 @@ describe('surface material response', () => {
     // ROOT CAUSE:
     // A blue emitter cannot remove the red light already in the room.
     // Hue comes from added energy, not multiplication of the baseline.
-    const options = { illustrated: true, face: true, albedo: 0.3, ambient: 0.65, sheen: 0, lightColor: [0, 0, 1], light: 8 }
+    const options = { illustrated: true, face: true, skinRelief: 1, albedo: 0.3, ambient: 0.65, sheen: 0, lightColor: [0, 0, 1], light: 8 }
     const unlit = render({ ...options, light: 0 })
     const blue = render(options)
     expect(blue[0]).toBe(unlit[0])

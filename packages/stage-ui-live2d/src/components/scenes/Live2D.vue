@@ -59,6 +59,10 @@ const {
 } = storeToRefs(useSettingsLive2d())
 const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
 const {
+  screenAmbientLightAdaptiveBase,
+  screenAmbientLightDarkBase,
+  screenAmbientLightBrightBase,
+  screenAmbientLightBaseCurve,
   screenAmbientLightResponseCurve,
   screenAmbientLightPhysicalExposure,
   screenAmbientLightScreenNits,
@@ -98,6 +102,10 @@ const {
   subject: screenAmbientLightSubject,
 } = storeToRefs(useScreenAmbientLightEnvironment())
 const screenAmbientLightExposure = computed(() => ({
+  adaptiveBase: screenAmbientLightAdaptiveBase.value,
+  darkBase: screenAmbientLightDarkBase.value,
+  brightBase: screenAmbientLightBrightBase.value,
+  baseCurve: screenAmbientLightBaseCurve.value,
   responseCurve: screenAmbientLightResponseCurve.value,
   enabled: screenAmbientLightPhysicalExposure.value,
   screenNits: screenAmbientLightScreenNits.value,

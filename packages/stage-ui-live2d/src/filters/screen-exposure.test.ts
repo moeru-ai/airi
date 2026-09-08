@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 
 import { ScreenExposure } from './screen-exposure'
 
-const options = { ...ambientLightDefaults.exposure, enabled: true }
+// Fixed photometric inputs keep timing and unit-conversion checks independent
+// of the user-tuned default preset.
+const options = { ...ambientLightDefaults.exposure, enabled: true, screenNits: 200, compensation: 0, darkSeconds: 6, brightSeconds: 1.5, darkBase: 0.2, brightBase: 0.5, baseCurve: 0.5 }
 function environment(level: number) {
   return { ...ambientLightNeutralEnvironment, surround: createAmbientLightMap([level, level, level]) }
 }
@@ -12,6 +14,45 @@ function advance(meter: ScreenExposure, from: number, to: number, step = 100) {
 }
 
 describe('screen exposure', () => {
+  it('maps full-screen mean brightness through a bounded monotonic baseline curve', () => {
+    const meter = new ScreenExposure()
+    const base = { ...options, adaptiveBase: true, darkBase: 0.2, brightBase: 0.6, baseCurve: 0.5 }
+    let previous = 0
+    for (const level of [0, 0.01, 0.25, 0.5, 1]) {
+      // Local glow remains black; the full-display mean determines the baseline.
+      const screen = { radiance: createAmbientLightMap([level, level, level]), stage: { x: 0.8, y: 0.5, width: 0.2, height: 0.5 }, aspect: 1 }
+      meter.configure({ ...environment(0), screen }, base, true, 0)
+      meter.advance(10000)
+      expect(meter.baseBrightness).toBeCloseTo(0.2 + 0.4 * Math.sqrt(level), 6)
+      expect(meter.baseBrightness!).toBeGreaterThanOrEqual(previous)
+      previous = meter.baseBrightness!
+    }
+    meter.configure(environment(0.25), { ...base, baseCurve: 1 }, true, 20000)
+    expect(meter.baseBrightness).toBeCloseTo(0.3, 6)
+    meter.configure(environment(0.25), { ...base, adaptiveBase: false }, true, 20000)
+    expect(meter.baseBrightness).toBeUndefined()
+  })
+
+  it('smooths the baseline without new samples and leaves direct light independent', () => {
+    const meter = new ScreenExposure()
+    meter.configure(environment(1), options, true, 0)
+    const bright = meter.baseBrightness!
+    meter.configure(environment(0), options, true, 0)
+    expect(meter.baseBrightness).toBe(bright)
+    advance(meter, 0, 1000)
+    expect(meter.baseBrightness!).toBeLessThan(bright)
+    expect(meter.baseBrightness!).toBeGreaterThan(options.darkBase)
+    const intermediate = meter.baseBrightness!
+    advance(meter, 1000, 6000)
+    expect(meter.baseBrightness!).toBeLessThan(intermediate)
+    expect(meter.lightScale).toBe(1)
+    expect(meter.cameraExposure).toBe(1)
+    meter.configure(environment(1), { ...options, darkBase: 0.8, brightBase: 0.1 }, true, 20000)
+    expect(meter.baseBrightness).toBe(0.8)
+    meter.configure(environment(0), options, false, 21000)
+    expect(meter.baseBrightness).toBeUndefined()
+  })
+
   it('recovers bloom sensitivity slowly after a bright screen becomes dark', () => {
     const meter = new ScreenExposure()
     meter.configure(environment(1), options, true, 0)

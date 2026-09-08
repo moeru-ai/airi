@@ -2,17 +2,17 @@
 export interface AmbientLightMaterialOptions {
   /** Use matte face relief and restrict sheen to reviewed hair/nose regions. @default true */
   illustrated: boolean
-  /** Optional extra hair shadow on the fitted face. Leave at zero for artwork with painted shadows. @default 0 */
+  /** Additional hair shadow on the fitted face; zero retains only painted shadows. @default 0.5 */
   faceShadow: number
-  /** Fitted face yaw in degrees at Iru head X=30, from 0 to 45. Zero keeps neutral directions. @default 20 */
+  /** Fitted face yaw in degrees at Iru head X=30, from 0 to 45. Zero keeps neutral directions. @default 45 */
   faceYaw: number
   /** Hair reflection roughness in illustrated mode, from 0.15 to 0.9. @default 0.7 */
   roughness: number
-  /** Local face diffuse response in illustrated mode, from 0 to 1. Zero uses one face-wide direction. @default 1 */
+  /** Local face diffuse response in illustrated mode, from 0 to 1. Zero uses one face-wide direction. @default 0.8 */
   skinRelief: number
-  /** Strength of reflected highlights. @default 0.8 */
+  /** Strength of reflected highlights. @default 1.65 */
   sheen: number
-  /** Nose relief for reflection. Zero removes the nose highlight without changing diffuse shading. @default 1 */
+  /** Nose relief for reflection. Zero removes the nose highlight without changing diffuse shading. @default 0.15 */
   nose: number
   /** Compress added light into available headroom instead of clipping. @default true */
   softHighlights: boolean
@@ -20,13 +20,13 @@ export interface AmbientLightMaterialOptions {
 
 /** Screen geometry in character-height units; +Z points toward the viewer. */
 export interface AmbientLightScreenGeometry {
-  /** Distance from the character to the flat center. Must be positive. @default 0.04 */
+  /** Distance from the character to the flat center. Must be positive. @default 0.11 */
   gap: number
-  /** Edge curvature in radians per character height. Nonnegative; zero keeps the screen flat. @default 2 */
+  /** Edge curvature in radians per character height. Nonnegative; zero keeps the screen flat. @default 5 */
   bend: number
-  /** Nonnegative half-width of the flat center, in character heights. @default 0.1 */
+  /** Nonnegative half-width of the flat center, in character heights. @default 0.21 */
   flatRadius: number
-  /** Cache area-integrated diffuse light and broad highlights by position and normal. @default false */
+  /** Cache area-integrated diffuse light and broad highlights by position and normal. @default true */
   areaLights?: boolean
 }
 
@@ -46,19 +46,27 @@ export type ScreenAmbientLightSource = 'screen-capture' | 'forced-color'
 
 /** Independent light emission, camera exposure, and bloom adaptation for the surface-lighting trial. */
 export interface AmbientLightExposureOptions {
-  /** Perceptual color emphasis for dim light. Preserves baseline RGB and lit luminance; zero disables it. Range 0 to 100. @default 15 */
+  /** Derive ambient fill from the smoothed full-screen mean in physical mode. @default true */
+  adaptiveBase: boolean
+  /** Ambient fill under a black screen, from 0 to 1. @default 0.11 */
+  darkBase: number
+  /** Ambient fill under a white screen; never applied below darkBase. @default 1 */
+  brightBase: number
+  /** Power applied to the smoothed linear mean; below one raises dim scenes. @default 2 */
+  baseCurve: number
+  /** Perceptual color emphasis for dim light. Preserves baseline RGB and lit luminance; zero disables it. Range 0 to 100. @default 94 */
   responseCurve: number
-  /** Selects the trial; false reproduces the saved surface response. @default false */
+  /** Selects the trial; false reproduces the saved surface response. @default true */
   enabled: boolean
-  /** Assumed display-white luminance in cd/m², relative to a 200-nit reference. @default 200 */
+  /** Assumed display-white luminance in cd/m², relative to a 200-nit reference. @default 450 */
   screenNits: number
-  /** Camera exposure compensation in stops; +1 doubles linear light. @default 0 */
+  /** Camera exposure compensation in stops; +1 doubles linear light. @default -0.2 */
   compensation: number
   /** Adjusts bloom sensitivity using recent screen luminance. @default true */
   adaptiveBloom: boolean
-  /** Time constant toward dark surroundings, in seconds. @default 6 */
+  /** Time constant toward dark surroundings, in seconds. @default 0.5 */
   darkSeconds: number
-  /** Time constant toward bright surroundings, in seconds. @default 1.5 */
+  /** Time constant toward bright surroundings, in seconds. @default 0.2 */
   brightSeconds: number
 }
 
@@ -69,7 +77,7 @@ export interface AmbientLightSamplingOptions {
    * A desktop is mostly gray, so a plain mean lands near gray and the character
    * shows no color. A weight below 1 lets colored content count for more.
    *
-   * @default 0.35
+   * @default 0.51
    */
   neutralColorWeight: number
 }
@@ -79,7 +87,7 @@ export interface AmbientLightFilterOptions {
    * Model brightness when the screen is black. The measured screen level moves
    * it from here by `exposureRange`, in either direction.
    *
-   * @default 1
+   * @default 0.2
    */
   baseBrightness: number
   /**
@@ -91,10 +99,10 @@ export interface AmbientLightFilterOptions {
    * unlit side dark so that the light wrap keeps its contrast against it. At 0
    * the model holds one exposure whatever the screen shows.
    *
-   * @default -0.3
+   * @default 1
    */
   exposureRange: number
-  /** Base model contrast before light is applied. @default 1.2 */
+  /** Base model contrast before light is applied. @default 1.43 */
   baseContrast: number
   /**
    * How much of the environment hue the color cast keeps.
@@ -104,7 +112,7 @@ export interface AmbientLightFilterOptions {
    * its own colors. At 1 a saturated screen color removes the channels that the
    * light lacks, which turns skin gray.
    *
-   * @default 0.5
+   * @default 1
    */
   chroma: number
   /**
@@ -112,7 +120,7 @@ export interface AmbientLightFilterOptions {
    * silhouette. This is the compositing cue that makes the model read as part
    * of the screen content behind it.
    *
-   * @default 0.85
+   * @default 0.87
    */
   wrapIntensity: number
   /**
@@ -123,10 +131,10 @@ export interface AmbientLightFilterOptions {
    * follows the contact map at each fragment, so an edge with a dark desktop
    * behind it gains nothing.
    *
-   * @default 0.8
+   * @default 0.69
    */
   backlight: number
-  /** Exterior halo from backlight; zero keeps the original silhouette alpha. @default 0.5 */
+  /** Exterior halo from backlight; zero keeps the original silhouette alpha. @default 1.15 */
   bloom: number
   /**
    * Width of the light wrap band, as a fraction of the model height. It matches
@@ -136,7 +144,7 @@ export interface AmbientLightFilterOptions {
    * half this width, so the light fades out about one width inside the
    * silhouette and has no inner boundary of its own.
    *
-   * @default 0.03
+   * @default 0.025
    */
   wrapDiffuse: number
   /**
@@ -363,15 +371,12 @@ export interface AmbientLightEnvironment {
 
 /** Default values for the screen ambient-light sampler, renderer, and devtool. */
 export const ambientLightDefaults = Object.freeze({
-  enabled: false,
+  enabled: true,
   source: 'screen-capture' as ScreenAmbientLightSource,
-  forcedColor: '#bf6fff',
+  forcedColor: '#ffdfb0ff',
   mode: 'window-gradient' as ScreenAmbientLightMode,
-  /**
-   * Overall effect amount. 1 is the designed look. Values up to 3 scale the
-   * color cast and the light wrap for a more dramatic response.
-   */
-  strength: 1,
+  /** Overall amount for surface lighting and silhouette light wrap. */
+  strength: 1.16,
   /**
    * How far a rise in the measured screen level narrows the eyes, from 0 to 1.
    * At 0 the eyes never react.
@@ -382,34 +387,26 @@ export const ambientLightDefaults = Object.freeze({
    */
   squint: 1,
   /** Surface highlights and the reviewed Iru nose correction. */
-  material: Object.freeze<AmbientLightMaterialOptions>({ illustrated: true, faceShadow: 0, faceYaw: 20, roughness: 0.7, skinRelief: 1, sheen: 0.8, nose: 1, softHighlights: true }),
+  material: Object.freeze<AmbientLightMaterialOptions>({ illustrated: true, faceShadow: 0.5, faceYaw: 45, roughness: 0.7, skinRelief: 0.8, sheen: 1.65, nose: 0.15, softHighlights: true }),
   /** Virtual screen shape used by directional Live2D surface lighting. */
-  geometry: Object.freeze<AmbientLightScreenGeometry>({ gap: 0.04, bend: 2, flatRadius: 0.1 }),
-  exposure: Object.freeze<AmbientLightExposureOptions>({ responseCurve: 15, enabled: false, screenNits: 200, compensation: 0, adaptiveBloom: true, darkSeconds: 6, brightSeconds: 1.5 }),
-  captureIntervalMs: 250,
-  /**
-   * Width of the downscaled capture frame, in pixels. It decides how much
-   * detail a map texel can hold. The height follows the display, so that a
-   * frame pixel is square on screen: a frame stretched into a fixed aspect
-   * makes the blur oval and weighs one direction more than the other.
-   *
-   * At 128 across, a normal stage window covers about 22 x 27 frame pixels on
-   * a 2560 x 1440 display, a few pixels per map texel.
-   */
-  sampleWidth: 128,
-  responseMs: 650,
+  geometry: Object.freeze<AmbientLightScreenGeometry>({ areaLights: true, gap: 0.11, bend: 5, flatRadius: 0.21 }),
+  exposure: Object.freeze<AmbientLightExposureOptions>({ adaptiveBase: true, darkBase: 0.11, brightBase: 1, baseCurve: 2, responseCurve: 94, enabled: true, screenNits: 450, compensation: -0.2, adaptiveBloom: true, darkSeconds: 0.5, brightSeconds: 0.2 }),
+  captureIntervalMs: 50,
+  /** Capture width in pixels; height follows the display aspect ratio. */
+  sampleWidth: 160,
+  responseMs: 50,
   sampling: Object.freeze<AmbientLightSamplingOptions>({
-    neutralColorWeight: 0.35,
+    neutralColorWeight: 0.51,
   }),
   filter: Object.freeze<AmbientLightFilterOptions>({
-    baseBrightness: 1,
-    exposureRange: -0.3,
-    baseContrast: 1.2,
-    chroma: 0.5,
-    wrapIntensity: 0.85,
-    wrapDiffuse: 0.03,
-    backlight: 0.8,
-    bloom: 0.5,
+    baseBrightness: 0.2,
+    exposureRange: 1,
+    baseContrast: 1.43,
+    chroma: 1,
+    wrapIntensity: 0.87,
+    wrapDiffuse: 0.025,
+    backlight: 0.69,
+    bloom: 1.15,
     translucentWrap: false,
   }),
 })
