@@ -2,6 +2,7 @@ import type { Renderer as PixiRenderer } from '@pixi/core'
 import type { AmbientLightEnvironment, AmbientLightMaterialOptions, AmbientLightScreenGeometry, NormalizedRectangle, ScreenAmbientLightMode } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Cubism4InternalModel } from 'pixi-live2d-display/cubism4'
 
+import type { NormalAttachment } from '../lighting/attachment'
 import type { FaceShadowCaster } from './face-shadow'
 import type { SurfaceLightFrame } from './surface-irradiance'
 
@@ -13,6 +14,7 @@ import iruNormalUrl from '../assets/lighting/iru-normal.png?url'
 import iruOwnershipUrl from '../assets/lighting/iru-ownership.png?url'
 import iruProfile from '../assets/lighting/iru.json'
 
+import { validateNormalBinding } from '../lighting/attachment'
 import { FaceShadow } from './face-shadow'
 import { faceSurfaceShader } from './face-surface'
 import { NoseAttachment } from './nose-attachment'
@@ -32,6 +34,8 @@ varying vec2 v_airiStage;
 varying vec2 v_airiNoseReference;
 uniform float u_airiEnabled;
 uniform float u_airiProfile;
+uniform float u_airiCapture;
+uniform vec2 u_airiMapSize;
 uniform float u_airiOwner;
 uniform float u_airiNose;
 uniform vec2 u_airiFaceRotation;
@@ -58,9 +62,9 @@ float airiOwns(vec2 p) {
   return abs(id-u_airiOwner)<0.5 ? 1. : 0.;
 }
 float airiCoverage(vec2 p) {
-  // The authored maps are 512 x 640. Interpolate coverage, never encoded IDs,
+  // Interpolate coverage, never encoded IDs,
   // so magnifying the model does not expose a staircase at ownership edges.
-  vec2 size = vec2(512.,640.);
+  vec2 size = u_airiMapSize;
   vec2 texel = p*size-0.5;
   vec2 base = (floor(texel)+0.5)/size;
   vec2 weight = fract(texel);
@@ -118,6 +122,10 @@ if (u_airiEnabled > 0.5 && gl_FragColor.a > 0.0001) {
   vec3 color = airiLinear(gl_FragColor.rgb/gl_FragColor.a);
   gl_FragColor.rgb = airiSrgb(airiSurfaceColor(n,v_airiStage,color,materialSheen))*gl_FragColor.a;
 }
+if (u_airiCapture > .5) {
+  if (gl_FragColor.a <= .05) discard;
+  gl_FragColor = vec4(mod(u_airiOwner,256.)/255.,floor(u_airiOwner/256.)/255.,0.,1.);
+}
 `
 
 function installShaderDispatch() {
@@ -147,7 +155,20 @@ function installShaderDispatch() {
     if (!program)
       return
     const binding = bindings.get(renderer)
+    if (binding?.captureMode && blend !== 0) {
+      // Painted multiply shadows and additive accents do not own a surface.
+      gl.uniform1f(gl.getUniformLocation(program, 'u_airiEnabled'), 0)
+      gl.uniform1f(gl.getUniformLocation(program, 'u_airiCapture'), 0)
+      gl.uniform4f(gl.getUniformLocation(program, 'u_baseColor'), 0, 0, 0, 0)
+      const attribute = gl.getAttribLocation(program, 'a_airiReference')
+      if (attribute >= 0) {
+        gl.disableVertexAttribArray(attribute)
+        gl.vertexAttrib2f(attribute, 0.5, 0.5)
+      }
+      return
+    }
     if (!binding || blend !== 0) {
+      gl.uniform1f(gl.getUniformLocation(program, 'u_airiCapture'), 0)
       // Multiply shadows and additive effects retain their authored color
       // operation. Relighting those overlays exposes their full mask footprint.
       gl.uniform1f(gl.getUniformLocation(program, 'u_airiEnabled'), 0)
@@ -160,12 +181,20 @@ function installShaderDispatch() {
     }
     binding.bind(gl, program, vertices)
   }
+  // Restore the SDK methods before hot replacement. Otherwise the next capture
+  // wraps the previous shader injection and compiles duplicate declarations.
+  import.meta.hot?.dispose(() => {
+    prototype.loadShaderProgram = load
+    prototype.setupShaderProgram = setup
+  })
 }
 
 interface Locations {
   attribute: number
   enabled: WebGLUniformLocation | null
   profile: WebGLUniformLocation | null
+  capture: WebGLUniformLocation | null
+  mapSize: WebGLUniformLocation | null
   face: WebGLUniformLocation | null
   faceRotation: WebGLUniformLocation | null
   modelToNose: WebGLUniformLocation | null
@@ -252,7 +281,9 @@ export class SurfaceLighting {
   private ambient = 1
   private contrast = 1
   private directional = true
-  readonly profile: 'iru' | 'proxy'
+  profile: 'iru' | 'proxy' | 'generated'
+  /** Only the isolated authoring renderer sets this mode. */
+  captureMode = false
 
   constructor(private readonly model: Cubism4InternalModel, private readonly stage: PixiRenderer) {
     installShaderDispatch()
@@ -321,7 +352,7 @@ export class SurfaceLighting {
 
   /** Updates material response without rebinding or regenerating normal textures. */
   setMaterial(material: Readonly<AmbientLightMaterialOptions>) {
-    this.material = { ...material, illustrated: material.illustrated && this.profile === 'iru' }
+    this.material = { ...material }
   }
 
   /** Loads the matching authored maps once; other models use their smooth proxy. */
@@ -335,6 +366,35 @@ export class SurfaceLighting {
     await Promise.all([normal.decode(), ownership.decode()])
     if (!this.disposed)
       this.images = [normal, ownership]
+  }
+
+  /** Decodes and validates a replacement before changing the active GPU binding. */
+  async applyAttachment(attachment: NormalAttachment) {
+    validateNormalBinding(this.model, attachment)
+    const urls = [URL.createObjectURL(attachment.normal), URL.createObjectURL(attachment.ownership)]
+    try {
+      const images = urls.map((url) => {
+        const image = new Image()
+        image.src = url
+        return image
+      })
+      await Promise.all(images.map(image => image.decode()))
+      if (images.some(image => image.width !== attachment.width || image.height !== attachment.height))
+        throw new Error('The normal images do not match their binding dimensions.')
+      if (this.disposed)
+        throw new Error('The model was unloaded before its normal map was ready.')
+      this.releaseGpu()
+      this.gl = undefined
+      this.profile = 'generated'
+      attachment.drawables.forEach((entry, index) => {
+        const vertices = this.model.coreModel.getDrawableVertices(index)
+        this.references.set(vertices.byteOffset, { coordinates: new Float32Array(entry.reference), index, face: false, hair: false })
+      })
+      this.images = [images[0], images[1]]
+    }
+    finally {
+      urls.forEach(url => URL.revokeObjectURL(url))
+    }
   }
 
   /** Applies the capture state; the light grid changes only with a new sample. */
@@ -364,7 +424,7 @@ export class SurfaceLighting {
     let locations = this.programs.get(program)
     if (!locations) {
       const uniform = (name: string) => gl.getUniformLocation(program, `u_airi${name}`)
-      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), face: uniform('Face'), faceRotation: uniform('FaceRotation'), modelToNose: uniform('ModelToNose'), hair: uniform('Hair'), illustrated: uniform('Illustrated'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), edges: uniform('Edges[0]'), area: uniform('Area'), field: uniform('Field'), fieldEnabled: uniform('FieldEnabled'), fieldMean: uniform('FieldMean'), bounds: uniform('Bounds'), screen: uniform('Screen'), fieldBounds: uniform('FieldBounds'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect'), emitters: uniform('Emitters[0]'), faceShadow: uniform('FaceShadow'), faceShadowStrength: uniform('FaceShadowStrength'), faceHeight: uniform('FaceHeight'), roughness: uniform('Roughness'), skinRelief: uniform('SkinRelief'), sheen: uniform('Sheen'), nose: uniform('Nose'), softHighlights: uniform('SoftHighlights'), responseCurve: uniform('ResponseCurve'), photometry: uniform('Photometry'), lightScale: uniform('LightScale'), cameraExposure: uniform('CameraExposure'), ambient: uniform('Ambient'), contrast: uniform('Contrast') }
+      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), capture: uniform('Capture'), mapSize: uniform('MapSize'), face: uniform('Face'), faceRotation: uniform('FaceRotation'), modelToNose: uniform('ModelToNose'), hair: uniform('Hair'), illustrated: uniform('Illustrated'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), edges: uniform('Edges[0]'), area: uniform('Area'), field: uniform('Field'), fieldEnabled: uniform('FieldEnabled'), fieldMean: uniform('FieldMean'), bounds: uniform('Bounds'), screen: uniform('Screen'), fieldBounds: uniform('FieldBounds'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect'), emitters: uniform('Emitters[0]'), faceShadow: uniform('FaceShadow'), faceShadowStrength: uniform('FaceShadowStrength'), faceHeight: uniform('FaceHeight'), roughness: uniform('Roughness'), skinRelief: uniform('SkinRelief'), sheen: uniform('Sheen'), nose: uniform('Nose'), softHighlights: uniform('SoftHighlights'), responseCurve: uniform('ResponseCurve'), photometry: uniform('Photometry'), lightScale: uniform('LightScale'), cameraExposure: uniform('CameraExposure'), ambient: uniform('Ambient'), contrast: uniform('Contrast') }
       this.programs.set(program, locations)
     }
     let buffer = this.buffers.get(vertices.byteOffset)
@@ -387,6 +447,8 @@ export class SurfaceLighting {
     }
     gl.uniform1f(locations.enabled, this.active && this.strength > 0 ? 1 : 0)
     gl.uniform1f(locations.profile, this.normal && this.ownership ? 1 : 0)
+    gl.uniform1f(locations.capture, this.captureMode ? 1 : 0)
+    gl.uniform2f(locations.mapSize, this.images?.[0].width ?? 512, this.images?.[0].height ?? 640)
     gl.uniform1f(locations.face, reference.face ? 1 : 0)
     gl.uniform2fv(locations.faceRotation, this.faceRotation)
     if (this.noseAttachment)

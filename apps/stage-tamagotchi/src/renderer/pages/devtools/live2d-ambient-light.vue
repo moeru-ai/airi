@@ -3,6 +3,7 @@ import Live2DAmbientLightControls from '../../components/devtools/live2d-ambient
 import Live2DAmbientLightDiagnostics from '../../components/devtools/live2d-ambient-light/diagnostics.vue'
 import Exposure from '../../components/devtools/live2d-ambient-light/exposure.vue'
 import Live2DAmbientLightGeometry from '../../components/devtools/live2d-ambient-light/geometry.vue'
+import NormalGeneration from '../../components/devtools/live2d-ambient-light/normals.vue'
 import Live2DAmbientLightSampling from '../../components/devtools/live2d-ambient-light/sampling.vue'
 import Live2DAmbientLightShaderPreview from '../../components/devtools/live2d-ambient-light/shader-preview.vue'
 import Live2DAmbientLightShader from '../../components/devtools/live2d-ambient-light/shader.vue'
@@ -12,6 +13,7 @@ import Live2DSurfacePreview from '../../components/devtools/live2d-ambient-light
 <template>
   <div :class="['grid gap-4 pb-12']">
     <Live2DAmbientLightControls />
+    <NormalGeneration />
     <Live2DAmbientLightGeometry />
     <Live2DSurfacePreview />
     <Live2DAmbientLightDiagnostics />
