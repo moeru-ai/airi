@@ -1,8 +1,12 @@
 import type { StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Event, Message, Tool } from '@xsai/shared-chat'
+import type { StreamTextChunkResult, StreamTextOptions, StreamTextResult } from '@xsai/stream-text'
 
 import type { ExecutableTool } from './tools'
+
+import { createServer } from 'node:http'
+import { env } from 'node:process'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -19,10 +23,13 @@ const {
   streamTextMock: vi.fn(),
   mcpMock: vi.fn(async (): Promise<Tool[]> => []),
   debugMock: vi.fn(async (): Promise<Tool[]> => []),
-  createSparkCommandToolMock: vi.fn(async (): Promise<unknown> => [{
-    name: 'spark',
-    description: '',
-    parameters: {},
+  createSparkCommandToolMock: vi.fn(async (): Promise<Tool[]> => [{
+    type: 'function',
+    function: {
+      name: 'spark',
+      description: '',
+      parameters: { type: 'object', properties: {} },
+    },
     execute: vi.fn(),
   }]),
 }))
@@ -33,10 +40,6 @@ vi.mock('@xsai/model', () => ({
 
 vi.mock('@xsai/stream-text', () => ({
   streamText: streamTextMock,
-}))
-
-vi.mock('@xsai/shared-chat', () => ({
-  stepCountAtLeast: vi.fn(),
 }))
 
 vi.mock('../../../tools', () => ({
@@ -344,6 +347,287 @@ describe('isToolRelatedError', () => {
     const secondCallTools = streamTextMock.mock.calls[1]?.[0]?.tools
     expect(Array.isArray(secondCallTools)).toBe(true)
     expect(secondCallTools?.map(toolNameFrom)).toContain('runtime_play_chess_match')
+  })
+
+  // ROOT CAUSE:
+  // Native events disabled inspection before the store saw a leak error.
+  // Native activity must also prevent retries when its UI event is still buffered.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440962
+  it.each(['tool-call.start', 'tool-call.delta', 'tool-call.done'] as const)('does not replay buffered output after %s for Issue #2161', async (type) => {
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    const nativeEvent: Event = type === 'tool-call.start'
+      ? { type, toolCallId: 'call-1', toolName: 'builtIn_emitSparkCommand' }
+      : type === 'tool-call.delta'
+        ? { type, delta: '{}' }
+        : { type, toolCallId: 'call-1', toolName: 'builtIn_emitSparkCommand', toolCallType: 'function', args: '{}' }
+    mockStreamEvents([
+      { type: 'reasoning.delta', delta: '{"name":"builtIn_emitSparkCommand","arguments":{}}' },
+      nativeEvent,
+    ] satisfies Event[])
+    await expect(useLLM().stream('model-a', provider, [], {
+      tools: [createSparkTool()],
+      onStreamEvent,
+      onMessages,
+    })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+    expect(streamTextMock).toHaveBeenCalledTimes(1)
+    expect(onStreamEvent).not.toHaveBeenCalled()
+    expect(onMessages).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  // Native events released leaks, and retry errors bypassed compatibility checks.
+  // These tests use the real SDK and scripted HTTP responses to check both fixes.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440962
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440972
+  it.runIf(env.AIRI_TEST_REAL_SSE === '1').each(['native-text', 'native-reasoning', 'native-safe', 'tools-first', 'arrays-first'] as const)('checks %s with real xsAI and HTTP/SSE for Issue #2161', async (scenario) => {
+    const { streamText } = await vi.importActual<typeof import('@xsai/stream-text')>('@xsai/stream-text')
+    const sdkResults: StreamTextResult[] = []
+    streamTextMock.mockImplementation((options: Parameters<typeof streamText>[0]) => {
+      const result = streamText(options)
+      sdkResults.push(result)
+      return result
+    })
+    const requests: Pick<StreamTextOptions, 'messages' | 'tools'>[] = []
+    const call = '{"name":"builtIn_emitSparkCommand","arguments":{}}'
+    const native = scenario.startsWith('native')
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    const tool = createSparkTool()
+    const controller = new AbortController()
+    const server = createServer((request, response) => {
+      void (async () => {
+        let raw = ''
+        for await (const part of request)
+          raw += part.toString()
+        requests.push(JSON.parse(raw))
+        const attempt = requests.length
+        if (!native && attempt === (scenario === 'tools-first' ? 2 : 1)) {
+          response.writeHead(400, { 'Content-Type': 'application/json' })
+          response.end(JSON.stringify({ error: { message: 'messages[0]: invalid type: sequence, expected a string' } }))
+          return
+        }
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' })
+        const send = (delta: StreamTextChunkResult['choices'][number]['delta'], finishReason = 'stop') => {
+          response.write(`data: ${JSON.stringify({
+            id: 'fixture',
+            object: 'chat.completion.chunk',
+            model: 'fixture',
+            choices: [{ index: 0, delta, finish_reason: finishReason }],
+          })}\n\n`)
+        }
+        if (native && attempt === 1) {
+          const text = scenario === 'native-safe' ? '{"note":"safe"}' : call
+          send(scenario === 'native-text'
+            ? { role: 'assistant', content: text }
+            : { role: 'assistant', reasoning_content: text }, 'tool_calls')
+          send({ role: 'assistant', tool_calls: [{
+            index: 0,
+            id: 'call-1',
+            type: 'function',
+            function: { name: 'builtIn_emitSparkCommand', arguments: '{}' },
+          }] }, 'tool_calls')
+        }
+        else {
+          const leakAttempt = !native && attempt === (scenario === 'tools-first' ? 1 : 2)
+          send({ role: 'assistant', content: leakAttempt ? call : 'Recovered.' })
+        }
+        response.end('data: [DONE]\n\n')
+      })().catch((error) => { response.destroy(error) })
+    })
+    try {
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+      const address = server.address()
+      if (!address || typeof address === 'string')
+        throw new Error('The loopback server did not get a TCP port.')
+      const localProvider = {
+        chat: (model: string) => ({ model, baseURL: `http://127.0.0.1:${address.port}/v1/` }),
+      } as ChatProvider
+      const outcome = await useLLM().stream('fixture', localProvider, [{ role: 'user', content: [
+        { type: 'text', text: 'Play.' },
+        { type: 'image_url', image_url: { url: 'https://example.com/game.png' } },
+      ] }], { tools: [tool], abortSignal: controller.signal, onStreamEvent, onMessages }).then(() => undefined, error => error)
+      // The SDK can finish its tool round after the guard rejects UI output.
+      await Promise.allSettled(sdkResults.map(result => result.steps))
+      if (native) {
+        expect(tool.execute).toHaveBeenCalledTimes(1)
+        expect(streamTextMock).toHaveBeenCalledTimes(1)
+        expect(requests).toHaveLength(2)
+        expect(requests[1].messages).toContainEqual(expect.objectContaining({ role: 'tool', tool_call_id: 'call-1' }))
+        if (scenario === 'native-safe') {
+          expect(outcome).toBeUndefined()
+          expect(onMessages).toHaveBeenCalledTimes(1)
+          expect(onStreamEvent.mock.calls.map(([event]) => event.type)).toEqual(['reasoning-delta', 'tool-call', 'tool-result', 'text-delta', 'finish'])
+        }
+        else {
+          expect(String(outcome)).toContain('as plain text')
+          expect(onStreamEvent).not.toHaveBeenCalled()
+          expect(onMessages).not.toHaveBeenCalled()
+        }
+      }
+      else {
+        expect(outcome).toBeUndefined()
+        expect(tool.execute).not.toHaveBeenCalled()
+        expect(streamTextMock).toHaveBeenCalledTimes(3)
+        expect(requests.map(body => ({ tools: !!body.tools, array: Array.isArray(body.messages[0].content) }))).toEqual([
+          { tools: true, array: true },
+          { tools: scenario === 'arrays-first', array: scenario === 'tools-first' },
+          { tools: false, array: false },
+        ])
+        expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
+          { type: 'text-delta', text: 'Recovered.' },
+          { type: 'finish' },
+        ])
+        expect(onMessages).toHaveBeenCalledTimes(1)
+      }
+    }
+    finally {
+      controller.abort()
+      server.closeAllConnections()
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+    }
+  })
+
+  // ROOT CAUSE:
+  // Errors from an inline retry bypassed the other compatibility classifier.
+  // Every attempt must use the same classifier, with at most one retry per capability.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440972
+  it.each(['tools-first', 'arrays-first'] as const)('combines both compatibility fallbacks, %s, for Issue #2161', async (order) => {
+    const messages: Message[] = [{ role: 'user', content: [
+      { type: 'text', text: 'Play.' },
+      { type: 'image_url', image_url: { url: 'https://example.com/game.png' } },
+    ] }]
+    const arrayError = new Error('messages[0]: invalid type: sequence, expected a string')
+    const mockLeak = () => mockStreamEvents([{ type: 'reasoning.delta', delta: '{"name":"builtIn_emitSparkCommand","arguments":{}}' }])
+    const mockArrayError = () => streamTextMock.mockImplementationOnce(() => {
+      throw arrayError
+    })
+    if (order === 'tools-first') {
+      mockLeak()
+      mockArrayError()
+    }
+    else {
+      mockArrayError()
+      mockLeak()
+    }
+    mockStreamEvents([{ type: 'text.delta', delta: 'Recovered.' }])
+    const store = useLLM()
+    const onStreamEvent = vi.fn()
+    const options = { tools: [createSparkTool()], onStreamEvent }
+    await store.stream('model-a', provider, messages, options)
+    expect(streamTextMock).toHaveBeenCalledTimes(3)
+    const attempts = streamTextMock.mock.calls.map(([attempt]) => ({
+      tools: attempt.tools !== undefined,
+      array: Array.isArray(attempt.messages[0].content),
+    }))
+    expect(attempts).toEqual([
+      { tools: true, array: true },
+      { tools: order !== 'tools-first', array: order === 'tools-first' },
+      { tools: false, array: false },
+    ])
+    expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
+      { type: 'text-delta', text: 'Recovered.' },
+      { type: 'finish' },
+    ])
+    mockStreamEvents([])
+    await store.stream('model-a', provider, messages, options)
+    expect(streamTextMock.mock.calls[3][0].tools).toBeUndefined()
+    expect(streamTextMock.mock.calls[3][0].messages[0].content).toBe('Play.')
+    expect(Array.isArray(messages[0].content)).toBe(true)
+  })
+
+  // ROOT CAUSE:
+  // Reclassifying retry errors must not create unbounded retries.
+  // Each capability changes once, so repeated errors stop the request.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440972
+  it.each(['tool-leak', 'array-error'] as const)('stops after both fallbacks when %s repeats for Issue #2161', async (failure) => {
+    const arrayError = new Error('messages[0]: invalid type: sequence, expected a string')
+    const leak: Event = { type: 'text.delta', delta: '{"name":"builtIn_emitSparkCommand","arguments":{}}' }
+    mockStreamEvents([leak])
+    streamTextMock.mockImplementationOnce(() => {
+      throw arrayError
+    })
+    if (failure === 'tool-leak') {
+      mockStreamEvents([leak])
+    }
+    else {
+      streamTextMock.mockImplementationOnce(() => {
+        throw arrayError
+      })
+    }
+    const onStreamEvent = vi.fn()
+    await expect(useLLM().stream('model-a', provider, [], {
+      tools: [createSparkTool()],
+      onStreamEvent,
+    })).rejects.toThrow(failure === 'tool-leak' ? 'as plain text' : arrayError.message)
+    expect(streamTextMock).toHaveBeenCalledTimes(3)
+    expect(streamTextMock.mock.calls[2][0].tools).toBeUndefined()
+    expect(onStreamEvent).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  // The array fallback ignored committed output and tool activity.
+  // Both fallbacks now reject after a consumer or native tool can change state.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440972
+  it.each(['text.delta', 'reasoning.delta', 'native', 'messages', 'finish'] as const)('does not replay a content-array error after %s for Issue #2161', async (activity) => {
+    const arrayError = new Error('messages[0]: invalid type: sequence, expected a string')
+    const onStreamEvent = vi.fn<NonNullable<StreamOptions['onStreamEvent']>>((event) => {
+      if (activity === 'finish' && event.type === 'finish')
+        throw arrayError
+    })
+    const onMessages = vi.fn(() => {
+      if (activity === 'messages')
+        throw arrayError
+    })
+    const events: Event[] = activity === 'native'
+      ? [
+          { type: 'reasoning.delta', delta: '{"ordinary":1}' },
+          { type: 'tool-call.start', toolCallId: 'call-1', toolName: 'builtIn_emitSparkCommand' },
+          { type: 'error', message: arrayError.message, cause: arrayError },
+        ]
+      : activity === 'messages' || activity === 'finish'
+        ? []
+        : [{ type: activity, delta: 'visible prefix' }, { type: 'error', message: arrayError.message, cause: arrayError }]
+    mockStreamEvents(events)
+    await expect(useLLM().stream('model-a', provider, [], {
+      tools: [createSparkTool()],
+      onStreamEvent,
+      onMessages,
+    })).rejects.toBe(arrayError)
+    expect(streamTextMock).toHaveBeenCalledTimes(1)
+    if (activity === 'native')
+      expect(onStreamEvent).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'reasoning-delta' }))
+  })
+
+  // ROOT CAUSE:
+  // Explicit array support overrides the cache, so a cached downgrade changes nothing.
+  // Reject the error instead of retrying the same payload.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440972
+  it.each([true, false] as const)('does not retry unchanged explicit array support %s for Issue #2161', async (supportsContentArray) => {
+    const arrayError = new Error('messages[0]: invalid type: sequence, expected a string')
+    streamTextMock.mockImplementationOnce(() => {
+      throw arrayError
+    })
+    await expect(useLLM().stream('model-a', provider, [], { supportsContentArray })).rejects.toBe(arrayError)
+    expect(streamTextMock).toHaveBeenCalledTimes(1)
+  })
+
+  // ROOT CAUSE:
+  // A retry can expose a second capability error on a required-tool request.
+  // Array fallback must preserve the tool choice and reject a later leak.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440972
+  it('keeps a required tool choice after the array fallback for Issue #2161', async () => {
+    streamTextMock.mockImplementationOnce(() => {
+      throw new Error('messages[0]: invalid type: sequence, expected a string')
+    })
+    mockStreamEvents([{ type: 'text.delta', delta: '{"name":"builtIn_emitSparkCommand","arguments":{}}' }])
+    await expect(useLLM().stream('model-a', provider, [], {
+      toolChoice: 'required',
+      tools: [createSparkTool()],
+    })).rejects.toThrow('as plain text')
+    expect(streamTextMock).toHaveBeenCalledTimes(2)
+    expect(streamTextMock.mock.calls[1][0].toolChoice).toBe('required')
+    expect(streamTextMock.mock.calls[1][0].tools.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
   })
 
   // ROOT CAUSE:

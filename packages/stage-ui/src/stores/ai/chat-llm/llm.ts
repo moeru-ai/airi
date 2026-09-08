@@ -2,7 +2,7 @@ import type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
-import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError, modelKey, streamOptionsToolsCompatibilityOk } from '@proj-airi/core-agent'
+import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError, modelKey, streamOptionsContentArrayCompatibilityOk, streamOptionsToolsCompatibilityOk } from '@proj-airi/core-agent'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -50,6 +50,11 @@ export const useLLM = defineStore('llm', () => {
     if (!startsWithTools && streamOptions.supportsTools !== false)
       await builtinToolsResolver()
     let hasCommittedAttemptOutput = false
+    let supportsTools = startsWithTools
+    let supportsContentArray = streamOptionsContentArrayCompatibilityOk(model, chatProvider, {
+      ...streamOptions,
+      contentArrayCompatibility: contentArrayCompatibility.value,
+    })
 
     const runStream = () => coreStreamFrom({
       model,
@@ -59,48 +64,63 @@ export const useLLM = defineStore('llm', () => {
         ...streamOptions,
         toolsCompatibility: toolsCompatibility.value,
         contentArrayCompatibility: contentArrayCompatibility.value,
+        supportsTools,
+        supportsContentArray,
         onStreamEvent: async (event: StreamEvent) => {
-          if (event.type !== 'error' && event.type !== 'finish')
+          if (event.type !== 'error')
             hasCommittedAttemptOutput = true
           await streamOptions.onStreamEvent?.(event)
+        },
+        onMessages: async (finalMessages) => {
+          hasCommittedAttemptOutput = true
+          await streamOptions.onMessages?.(finalMessages)
         },
       },
       builtinToolsResolver,
       toolCallGuardNames,
+      onNativeToolCall: () => { hasCommittedAttemptOutput = true },
     })
 
-    try {
-      await runStream()
-    }
-    catch (err) {
-      const shouldRetryWithoutTools = isPlainTextToolCallError(err)
-        && startsWithTools
-        && !hasCommittedAttemptOutput
-        && !toolChoiceRequiresTools(streamOptions.toolChoice)
-      if (isToolRelatedError(err)) {
-        const retryMessage = shouldRetryWithoutTools ? ' and retrying once' : ''
-        console.warn(`[llm] Auto-disabling tools for "${key}" due to tool-related error${retryMessage}`)
-        toolsCompatibility.value.set(key, false)
-      }
-      // The leak guard buffers this failure before any text reaches the UI, so
-      // retrying cannot duplicate partial output from the failed attempt.
-      if (shouldRetryWithoutTools) {
+    // Each retry disables one remaining capability. Neither capability returns
+    // during this request, so there are at most three stream attempts.
+    while (true) {
+      try {
         await runStream()
         return
       }
-      // NOTICE:
-      // Auto-degrade content-part arrays to plain strings on the next attempt
-      // when the provider returned the Rust/serde-style "expected a string"
-      // 400. We retry once inline so the user's failing turn recovers without
-      // requiring them to resend; subsequent calls reuse the cached degrade.
-      // See: https://github.com/moeru-ai/airi/issues/1500
-      if (isContentArrayRelatedError(err) && contentArrayCompatibility.value.get(key) !== false) {
-        console.warn(`[llm] Auto-disabling content-part arrays for "${key}" and retrying once`)
-        contentArrayCompatibility.value.set(key, false)
-        await runStream()
-        return
+      catch (err) {
+        const shouldRetryWithoutTools = isPlainTextToolCallError(err)
+          && supportsTools
+          && !hasCommittedAttemptOutput
+          && !toolChoiceRequiresTools(streamOptions.toolChoice)
+        if (isToolRelatedError(err)) {
+          const retryMessage = shouldRetryWithoutTools ? ' and retrying once' : ''
+          console.warn(`[llm] Auto-disabling tools for "${key}" due to tool-related error${retryMessage}`)
+          toolsCompatibility.value.set(key, false)
+        }
+        // Keep explicit array support intact. Its request-level override takes
+        // precedence over the cache, so the same payload cannot recover inline.
+        const shouldRetryWithoutArrays = isContentArrayRelatedError(err)
+          && supportsContentArray
+          && streamOptions.supportsContentArray !== true
+          && !hasCommittedAttemptOutput
+        if (isContentArrayRelatedError(err)) {
+          const retryMessage = shouldRetryWithoutArrays ? ' and retrying once' : ''
+          console.warn(`[llm] Auto-disabling content-part arrays for "${key}"${retryMessage}`)
+          contentArrayCompatibility.value.set(key, false)
+        }
+        if (shouldRetryWithoutTools) {
+          supportsTools = false
+          continue
+        }
+        // Issue #1500: string-only providers reject content-part arrays.
+        // Retry errors return to this classifier so both fallbacks can apply.
+        if (shouldRetryWithoutArrays) {
+          supportsContentArray = false
+          continue
+        }
+        throw err
       }
-      throw err
     }
   }
 

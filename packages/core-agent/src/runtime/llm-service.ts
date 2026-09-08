@@ -126,6 +126,8 @@ type BufferedOutputEvent
   = | { type: 'text-delta', text: string }
     | { type: 'reasoning-delta', text: string }
 
+type BufferedToolEvent = Extract<Event, { type: 'tool-call.done' | 'tool-result.done' }>
+
 function plainTextToolCallError(toolName: string): Error {
   return Object.assign(
     new Error(`Model returned tool call "${toolName}" as plain text instead of native tool calling.`),
@@ -260,6 +262,7 @@ export async function streamFrom({
   options,
   builtinToolsResolver,
   toolCallGuardNames,
+  onNativeToolCall,
 }: StreamFromOptions) {
   const chatConfig = chatProvider.chat(model)
   const supportsContentArray = streamOptionsContentArrayCompatibilityOk(model, chatProvider, options)
@@ -290,10 +293,10 @@ export async function streamFrom({
     let failed = false
     let eventQueue = Promise.resolve()
     let bufferPossibleToolCall = toolNames.size > 0
-    let bufferedOutputEvents: BufferedOutputEvent[] = []
+    let bufferedOutputEvents: (BufferedOutputEvent | BufferedToolEvent)[] = []
     let bufferedReasoningText = ''
     let bufferedText = ''
-    // The guard stays active until step completion or a native tool event.
+    // The guard stays active until step completion, even after native tool events.
     // After either channel starts a JSON candidate, preserve all output order
     // until the complete objects can be checked at the end of the step.
     let hasBufferedJsonCandidate = false
@@ -345,13 +348,15 @@ export async function streamFrom({
       for (const event of events) {
         if (failed)
           return
-        await emitOutputEvent(event)
+        if (event.type === 'text-delta' || event.type === 'reasoning-delta') {
+          await emitOutputEvent(event)
+        }
+        else {
+          const streamEvent = toAiriStreamEvent(event)
+          if (streamEvent != null)
+            await options?.onStreamEvent?.(streamEvent)
+        }
       }
-    }
-
-    const passThroughBufferedOutput = async () => {
-      bufferPossibleToolCall = false
-      await flushBufferedOutput()
     }
 
     const finishPossibleToolCall = async () => {
@@ -417,16 +422,13 @@ export async function streamFrom({
         await consumeReasoningDelta(event.delta)
         return
       }
-      if (
-        event.type === 'tool-call.start'
-        || event.type === 'tool-call.delta'
-        || event.type === 'tool-call.done'
-      ) {
-        // A native tool-call event proves this step used the provider protocol.
-        // Release any reasoning that arrived before it.
-        await passThroughBufferedOutput()
-        if (failed)
+      if (event.type === 'tool-call.done' || event.type === 'tool-result.done') {
+        // Native events do not prove that other channels are safe. Keep their
+        // UI notifications behind any candidate to preserve output order.
+        if (bufferPossibleToolCall && bufferedOutputEvents.length > 0) {
+          bufferedOutputEvents.push(event)
           return
+        }
       }
 
       const streamEvent = toAiriStreamEvent(event)
@@ -441,6 +443,18 @@ export async function streamFrom({
     const onEvent = (event: Event) => {
       if (settled || stepsSettled || failed)
         return
+
+      if (event.type === 'tool-call.start' || event.type === 'tool-call.delta' || event.type === 'tool-call.done' || event.type === 'tool-result.done') {
+        // xsAI does not await our queue before tool execution. Notify the retry
+        // owner now, even if inspection later rejects buffered UI events.
+        try {
+          onNativeToolCall?.()
+        }
+        catch (error) {
+          rejectOnce(error)
+          return
+        }
+      }
 
       eventQueue = eventQueue.then(() => {
         if (!failed)

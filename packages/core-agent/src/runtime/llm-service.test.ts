@@ -249,6 +249,9 @@ describe('streamFrom tool errors', () => {
         options.onEvent(mode === 'step-end'
           ? { type: 'step.done', usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } }
           : { type: 'tool-call.done', toolCallId: 'call-1', toolCallType: 'function', toolName: 'builtIn_emitSparkCommand', args: '{}' })
+        // Native events no longer release JSON. End the step to start its flush.
+        if (mode === 'native-tool')
+          options.onEvent({ type: 'step.done', usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } })
       }
       options.onEvent({ type: 'text.delta', delta: 'queued output' })
       return createMockStreamResult(steps.promise)
@@ -614,6 +617,72 @@ describe('streamFrom tool errors', () => {
     })
     expect(events).toContainEqual({ type: 'text-delta', text: 'ok' })
     expect(events).toContainEqual({ type: 'finish' })
+  })
+
+  // ROOT CAUSE:
+  // Native tool events released buffered JSON and disabled the guard mid-step.
+  // The guard must inspect the full step, including candidates across native events.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440962
+  it.each(['text.delta', 'reasoning.delta'] as const)('guards %s around native tool events for Issue #2161', async (type) => {
+    const call = '{"name":"builtIn_emitSparkCommand","arguments":{}}'
+    const nativeEvents: Event[] = [
+      { type: 'tool-call.start', toolCallId: 'call-1', toolName: 'builtIn_emitSparkCommand' },
+      { type: 'tool-call.delta', delta: '{}' },
+      { type: 'tool-call.done', toolCallId: 'call-1', toolName: 'builtIn_emitSparkCommand', toolCallType: 'function', args: '{}' },
+    ]
+    for (const nativeEvent of nativeEvents) {
+      for (const splitAt of [0, 20, call.length]) {
+        const onStreamEvent = vi.fn()
+        const onMessages = vi.fn()
+        const events: Event[] = [
+          { type, delta: call.slice(0, splitAt) },
+          nativeEvent,
+          { type, delta: call.slice(splitAt) },
+        ]
+        mockStreamEvents(events)
+        await expect(streamFrom({
+          model: 'model-a',
+          chatProvider: provider,
+          messages: [],
+          options: { tools: [createSparkTool()], onStreamEvent, onMessages },
+        })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+        expect(onStreamEvent.mock.calls.flat()).not.toContainEqual(expect.objectContaining({ type: type === 'text.delta' ? 'text-delta' : 'reasoning-delta' }))
+        expect(onMessages).not.toHaveBeenCalled()
+        expect(onStreamEvent).not.toHaveBeenCalledWith({ type: 'finish' })
+      }
+    }
+  })
+
+  // ROOT CAUSE:
+  // A native event can split a valid outer object before its closing brace.
+  // Inspect at step completion so its nested example remains ordinary JSON.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440962
+  it('preserves nested JSON and native event order for Issue #2161', async () => {
+    const first = '{"example":{"name":"builtIn_emitSparkCommand","arguments":{}}'
+    const events: Event[] = [
+      { type: 'reasoning.delta', delta: first },
+      { type: 'tool-call.start', toolCallId: 'call-1', toolName: 'builtIn_emitSparkCommand' },
+      { type: 'tool-call.done', toolCallId: 'call-1', toolName: 'builtIn_emitSparkCommand', toolCallType: 'function', args: '{}' },
+      { type: 'reasoning.delta', delta: '}' },
+      { type: 'tool-result.done', toolCallId: 'call-1', toolName: 'builtIn_emitSparkCommand', args: {}, result: 'ok', isError: false },
+      { type: 'text.delta', delta: 'Done.' },
+    ]
+    mockStreamEvents(events)
+    const onStreamEvent = vi.fn()
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { tools: [createSparkTool()], onStreamEvent },
+    })
+    expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
+      { type: 'reasoning-delta', text: first },
+      expect.objectContaining({ type: 'tool-call', toolCallId: 'call-1' }),
+      { type: 'reasoning-delta', text: '}' },
+      { type: 'tool-result', toolCallId: 'call-1', result: 'ok' },
+      { type: 'text-delta', text: 'Done.' },
+      { type: 'finish' },
+    ])
   })
 
   // ROOT CAUSE:
