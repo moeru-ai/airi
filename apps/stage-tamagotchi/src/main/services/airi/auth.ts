@@ -30,9 +30,23 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://api.airi.build'
 const OIDC_AUTHORIZE_PATH = '/api/auth/oauth2/authorize'
 const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 
-// Active loopback server cleanup handle
-let closeLoopback: (() => void) | null = null
-let signingInFlight = false
+// One main-process attempt owns the callback across all renderer windows.
+// Replacement, logout, and owner closure invalidate it before cleanup. Async
+// continuations can publish results or clear ownership only while it is current.
+interface LoginAttempt {
+  window: BrowserWindow
+  controller: AbortController
+  closeLoopback?: () => void
+}
+
+let activeAttempt: LoginAttempt | undefined
+
+function cancelLogin(): void {
+  const attempt = activeAttempt
+  activeAttempt = undefined
+  attempt?.controller.abort()
+  attempt?.closeLoopback?.()
+}
 
 /**
  * Create the auth service IPC handlers for a given window context.
@@ -41,31 +55,40 @@ export function createAuthService(params: {
   context: MainContext
   window: BrowserWindow
 }): void {
+  params.window.once('closed', () => {
+    if (activeAttempt?.window === params.window)
+      cancelLogin()
+  })
+
   defineInvokeHandler(params.context, electronAuthStartLogin, async (_, options) => {
     if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
       return
     }
 
-    if (signingInFlight) {
-      log.withFields({ windowId: params.window.webContents.id }).warn('Replacing in-flight OIDC login attempt with a new request')
-      closeLoopback?.()
-      closeLoopback = null
-      signingInFlight = false
-    }
-
-    signingInFlight = true
+    cancelLogin()
+    const attempt: LoginAttempt = { window: params.window, controller: new AbortController() }
+    activeAttempt = attempt
 
     try {
-      // Clean up any previous in-flight login
-      closeLoopback?.()
-
       const codeVerifier = generateCodeVerifier()
       const codeChallenge = await generateCodeChallenge(codeVerifier)
+      if (activeAttempt !== attempt)
+        return
       const state = generateState()
 
       // Start loopback server to receive the callback
       const loopback = await startLoopbackServer(state)
-      closeLoopback = loopback.close
+      attempt.closeLoopback = loopback.close
+      // Attach a rejection handler before browser launch or cancellation. Either
+      // can happen before the callback arrives, including during server startup.
+      const result = loopback.result.then(
+        callback => ({ callback }),
+        error => ({ error }),
+      )
+      if (activeAttempt !== attempt) {
+        loopback.close()
+        return
+      }
 
       // Use the server-side relay as redirect_uri. The relay page serves HTML
       // that forwards the authorization code to the loopback via JS fetch().
@@ -88,30 +111,43 @@ export function createAuthService(params: {
       url.searchParams.set('prompt', 'login')
       url.searchParams.set('resource', SERVER_URL)
 
-      // Open system browser
-      await shell.openExternal(url.toString())
-
-      // Wait for the callback in the background
-      loopback.result
-        .then(async ({ code }) => {
-          const tokens = await exchangeCode(code, codeVerifier, redirectUri)
+      // The IPC request completes when the browser opens. This background task
+      // owns the callback and token exchange until success, failure, or cancellation.
+      async function completeLogin(): Promise<void> {
+        try {
+          const outcome = await result
+          if (activeAttempt !== attempt)
+            return
+          if ('error' in outcome)
+            throw outcome.error
+          const tokens = await exchangeCode(outcome.callback.code, codeVerifier, redirectUri, attempt.controller.signal)
+          if (activeAttempt !== attempt)
+            return
           params.context.emit(electronAuthCallback, tokens)
           log.log('OIDC token exchange successful')
-        })
-        .catch((err) => {
-          log.withError(err).error('OIDC signing in failed')
-          params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(err) ?? 'OIDC signing in failed' })
-        })
-        .finally(() => {
-          closeLoopback = null
-          signingInFlight = false
-        })
+        }
+        catch (error) {
+          if (activeAttempt !== attempt)
+            return
+          log.withError(error).error('OIDC signing in failed')
+          params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(error) ?? 'OIDC signing in failed' })
+        }
+        finally {
+          loopback.close()
+          if (activeAttempt === attempt)
+            activeAttempt = undefined
+        }
+      }
+
+      void completeLogin()
+      await shell.openExternal(url.toString())
     }
-    catch (err) {
-      closeLoopback = null
-      signingInFlight = false
-      log.withError(err).error('Failed to start OIDC signing in flow')
-      params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(err) ?? 'OIDC signing in failed' })
+    catch (error) {
+      if (activeAttempt !== attempt)
+        return
+      cancelLogin()
+      log.withError(error).error('Failed to start OIDC signing in flow')
+      params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(error) ?? 'OIDC signing in failed' })
     }
   })
 
@@ -120,9 +156,7 @@ export function createAuthService(params: {
       return
     }
 
-    closeLoopback?.()
-    closeLoopback = null
-    signingInFlight = false
+    cancelLogin()
   })
 }
 
@@ -135,7 +169,7 @@ interface TokenExchangeResult {
   expiresIn: number
 }
 
-async function exchangeCode(code: string, codeVerifier: string, redirectUri: string): Promise<TokenExchangeResult> {
+async function exchangeCode(code: string, codeVerifier: string, redirectUri: string, signal: AbortSignal): Promise<TokenExchangeResult> {
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
@@ -147,6 +181,7 @@ async function exchangeCode(code: string, codeVerifier: string, redirectUri: str
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
     method: 'POST',
+    signal,
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   })

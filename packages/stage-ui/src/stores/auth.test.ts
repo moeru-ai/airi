@@ -75,6 +75,8 @@ describe('auth store sign-in requests', () => {
   beforeEach(() => {
     storage = new MemoryStorage()
     vi.stubGlobal('localStorage', storage)
+    // Authentication also requests credits. Keep that HTTP boundary inside the test.
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ flux: 0 })))
     setActivePinia(createPinia())
     vi.mocked(triggerSignIn).mockReset()
     vi.mocked(triggerSignIn).mockResolvedValue()

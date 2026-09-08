@@ -55,11 +55,9 @@ context.value.on(electronAuthCallbackError, () => {
 })
 
 // React to needsLogin from other components (e.g. onboarding)
-watch(needsLogin, (val) => {
-  if (val && !isAuthenticated.value) {
+watch(needsLogin, async (val) => {
+  if (val && !isAuthenticated.value && await authStore.consumeLoginRequest())
     doSigningIn()
-    needsLogin.value = false
-  }
 })
 
 // Clear loading when authenticated

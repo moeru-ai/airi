@@ -3,10 +3,11 @@ import type { Ref } from 'vue'
 import { watch } from 'vue'
 
 interface UseOnboardingAuthenticationOptions {
+  consumeLoginRequest: () => Promise<boolean>
   closeRequestId: Readonly<Ref<number>>
   closeWindow: () => Promise<unknown>
   isAuthenticated: Readonly<Ref<boolean>>
-  needsLogin: Ref<boolean>
+  needsLogin: Readonly<Ref<boolean>>
   onCloseError: (error: unknown) => void
   startLogin: () => Promise<void>
 }
@@ -55,8 +56,10 @@ export function useOnboardingAuthentication(options: UseOnboardingAuthentication
     if (!needsLogin || options.isAuthenticated.value)
       return
 
-    await options.startLogin()
-    options.needsLogin.value = false
+    // All login-capable renderers can receive the same snapshot. The leader
+    // grants consumption once, before the winning renderer starts its IPC flow.
+    if (await options.consumeLoginRequest())
+      await options.startLogin()
   })
 
   return { closeOnboardingWindow }
