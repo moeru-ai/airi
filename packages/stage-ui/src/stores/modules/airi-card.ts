@@ -3,6 +3,7 @@ import type { Card, ccv3 } from '@proj-airi/ccc'
 import type { CardModuleDefaults } from '../../services/airi-card-modules'
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
+import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { StorageSerializers } from '@vueuse/core'
 import { nanoid } from 'nanoid'
@@ -138,8 +139,13 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       if (previous)
         await previous.catch(() => {})
       await applyAuthenticationDefaults(authenticated)
-      if (authenticated)
-        await loadAuthenticatedSpeechVoices()
+      if (authenticated) {
+        // Voice discovery is owned by the speech action. It must not hold the
+        // authentication queue, card edits, or logout cleanup open on network IO.
+        void loadAuthenticatedSpeechVoices().catch((error) => {
+          console.error('Failed to refresh authenticated speech voices:', errorMessageFrom(error))
+        })
+      }
     })()
     pendingAuthenticationSetup = operation
     try {

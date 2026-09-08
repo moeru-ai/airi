@@ -8,7 +8,7 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { isEqual } from 'es-toolkit'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toXml } from 'xast-util-to-xml'
@@ -46,6 +46,7 @@ interface SpeechAnalytics {
 }
 
 export const useSpeechStore = defineStore('speech', () => {
+  const pinia = getActivePinia()
   const providersStore = useProviderStore()
   const providerStore = useProviderConfigStore()
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
@@ -111,6 +112,7 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
   })
 
+  /** Loads voices in the leader and resolves missing active-model selections there. */
   async function loadVoicesForProvider(provider: string, model?: string) {
     if (!provider) {
       return []
@@ -121,6 +123,11 @@ export const useSpeechStore = defineStore('speech', () => {
     // pages cannot bypass it and issue `/voices/streaming` while unavailable.
     if (provider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID && !providerStore.configuredProviders[provider]) {
       return []
+    }
+
+    if (provider === activeSpeechProvider.value) {
+      ensureActiveSpeechModel()
+      model ??= activeSpeechModel.value || undefined
     }
 
     isLoadingSpeechProviderVoices.value = true
@@ -227,11 +234,26 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // Watch for provider changes, then load the voice catalog. Credential policy
   // belongs to the provider boundary, so this module stays auth-agnostic.
-  watch(activeSpeechProvider, async (newProvider) => {
+  watch(activeSpeechProvider, async (newProvider, _, onCleanup) => {
     if (!newProvider)
       return
-    ensureActiveSpeechModel()
-    await loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
+    let stale = false
+    onCleanup(() => {
+      stale = true
+    })
+    // Immediate watchers run before Pinia installs action wrappers. Wait for
+    // setup, then use this store's Pinia instance, even if another app is active.
+    await Promise.resolve()
+    if (stale)
+      return
+    try {
+      await useSpeechStore(pinia).loadVoicesForProvider(newProvider)
+    }
+    catch (error) {
+      // Transport shutdown can reject before the leader enters the loader.
+      // Do not turn that failure into a follower state proposal.
+      console.error('Failed to route speech voice loading:', errorMessageFrom(error))
+    }
     // Don't reset voice settings when changing providers to allow for persistence
   }, {
     // REVIEW: should we always load voices on init? What will happen when network is not available?

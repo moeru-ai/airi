@@ -95,4 +95,38 @@ describe('speech synchronization', () => {
     const proposals = traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))
     expect(proposals).toHaveLength(0)
   })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960117797
+  // ROOT CAUSE:
+  // The provider watcher called its setup-scope function, bypassing the public
+  // action wrapper. A replicated provider change then published follower state.
+  // Route watcher requests through the exposed action after store setup.
+  it('routes replicated provider watcher loading through the leader', async () => {
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    leaderContext.speechStore.activeSpeechProvider = ''
+    await vi.waitFor(() => expect(followerContext.speechStore.activeSpeechProvider).toBe(''))
+    await new Promise(resolve => setTimeout(resolve, 100))
+    let leaderLoads = 0
+    leaderContext.speechStore.$onAction(({ name }) => {
+      if (name === 'loadVoicesForProvider')
+        leaderLoads++
+    })
+    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+
+    leaderContext.speechStore.activeSpeechProvider = 'speech-noop'
+    await vi.waitFor(() => expect(followerContext.speechStore.activeSpeechProvider).toBe('speech-noop'))
+    // Both renderers observe the provider, but both requests execute in the leader.
+    await vi.waitFor(() => expect(leaderLoads).toBe(2))
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    const proposals = traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))
+    expect(proposals).toHaveLength(0)
+  })
 })

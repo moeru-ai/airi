@@ -109,6 +109,8 @@ describe('speech store helpers', () => {
     speechStore.activeSpeechVoice = undefined
     speechStore.availableVoices = {}
     await nextTick()
+    // The startup watcher now enters through the deferred public action.
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
 
     let mutations = 0
     speechStore.$subscribe(() => mutations += 1, { flush: 'sync' })
@@ -235,6 +237,9 @@ describe('speech store helpers', () => {
   it('does not load streaming voices before server availability is confirmed', async () => {
     const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
+    // Let the initial no-speech request finish before observing streaming calls.
+    await nextTick()
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
     const listVoices = vi.spyOn(providersStore, 'listProviderVoices')
     providersStore.setProviderUnconfigured(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
 
