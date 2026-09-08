@@ -92,21 +92,6 @@ export const useAuthStore = defineStore('auth', () => {
   const initialized = ref(false)
 
   const credits = ref(0)
-  // Only successful queries create a snapshot. The owner prevents account switches
-  // and replicated state from exposing another user's balance to the model.
-  const creditsSnapshot = ref<{
-    userId: string
-    sessionId: string
-    amount: number
-    checkedAt: number
-  } | null>(null)
-  const creditBalance = computed(() => {
-    const snapshot = creditsSnapshot.value
-    if (!isAuthenticated.value || snapshot?.userId !== user.value?.id || snapshot?.sessionId !== session.value?.id)
-      return null
-    return snapshot
-  })
-  let creditsRequest = 0
 
   // Cross-app "user must log in" flag. Setting this to true triggers an
   // immediate OIDC redirect on web (mobile + desktop). Electron skips this
@@ -354,8 +339,6 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function clearAuthState(): void {
     stopRefreshTimer()
-    creditsRequest++
-    creditsSnapshot.value = null
     user.value = null
     session.value = null
     token.value = null
@@ -370,24 +353,13 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuthState()
   }
 
-  /**
-   * Refreshes the current account balance. Failed queries retain the last successful snapshot.
-   * Responses from older requests or other account sessions cannot commit state.
-   */
   const updateCredits = async () => {
-    if (!user.value || !session.value)
+    if (!isAuthenticated.value)
       return
-    const ownerId = user.value.id
-    const ownerSessionId = session.value.id
-    const request = ++creditsRequest
     const res = await client.api.v1.flux.$get()
     if (res.ok) {
       const data = await res.json()
-      // A late response cannot replace a newer query or another account's state.
-      if (request !== creditsRequest || ownerId !== user.value?.id || ownerSessionId !== session.value?.id)
-        return
       credits.value = data.flux
-      creditsSnapshot.value = { userId: ownerId, sessionId: ownerSessionId, amount: data.flux, checkedAt: Date.now() }
     }
   }
 
@@ -430,8 +402,6 @@ export const useAuthStore = defineStore('auth', () => {
     idToken,
     isAuthenticated,
     credits,
-    creditsSnapshot,
-    creditBalance,
     updateCredits,
     needsLogin,
     onAuthenticated,

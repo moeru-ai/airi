@@ -288,7 +288,15 @@ export const useChatStore = defineStore('chat', () => {
     },
     context: {
       ingest: envelope => chatContext.ingestContextMessage(envelope),
-      snapshot: () => chatContext.getContextsSnapshot(),
+      snapshot: () => {
+        const snapshot = { ...chatContext.getContextsSnapshot() }
+        // Account data belongs to this request, not the persistent context registry.
+        // A signed-out request therefore cannot inherit the previous account snapshot.
+        const account = createUserAccountContext(authStore)
+        if (account)
+          snapshot[account.contextId] = [account]
+        return snapshot
+      },
     },
     foregroundStream: {
       patch: (message) => {
@@ -306,7 +314,6 @@ export const useChatStore = defineStore('chat', () => {
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
-      () => createUserAccountContext(authStore),
       createMinecraftContext,
     ],
     createId: nanoid,

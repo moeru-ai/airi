@@ -4,20 +4,15 @@ Shared core for stage
 
 ## Account context in chat
 
-Each model request reads the current account display name and the last successful
-Flux balance query through `createUserAccountContext`. The provider does not fetch
-data or change the character card. Existing account refresh actions update the
-balance snapshot, which includes its account, session, and query time.
+Each signed-in model request reads the current account display name through
+`createUserAccountContext`. The chat store adds it to the request snapshot without
+saving it in the context registry or character card. Signed-out requests contain
+no account context, including no profile instructions. Flux is not included.
 
-Use this context for natural forms of address and relevant balance questions.
-An unknown balance differs from zero. The snapshot is not a live balance or an
-access decision. The server owns billing. Sign-out replaces the active account
-context, and account switches hide snapshots from other sessions.
-
-Nickname edits belong in **Settings > Account > Profile > Display name** at
-`/settings/account`. A nickname requested in chat does not update the account or
-persistent memory. Do not put credentials, email addresses, or payment history
-in this context.
+Use this context for natural forms of address. Nickname edits belong in
+**Settings > Account > Profile > Display name** at `/settings/account`.
+A nickname requested in chat does not update the account or persistent memory.
+Do not put credentials, email addresses, or payment history in this context.
 
 ## Character-card module settings
 
