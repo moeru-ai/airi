@@ -82,18 +82,30 @@ index c3a04a52394fdd05dad55bb072861c355137d0bd..b83cee8ba936f05f1fcdf52a343aa9c5
 -export type { FullEvent, FullEventType, OpenResponsesOptions, ResponsesOptions, ResponsesResult, StopCondition, StopContext };
 +export type { WebSearchTool, WebSearchCall, ItemParam, FullEvent, FullEventType, OpenResponsesOptions, ResponsesOptions, ResponsesResult, StopCondition, StopContext };
 diff --git a/dist/index.js b/dist/index.js
-index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..7255223777ebe65ccd01311cd1b2e91c2ffa2e18 100644
+index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..b04c931cc4f255c56151894f5461de0a8432efc2 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -11,6 +11,7 @@ const normalizeInput = (input) => Array.isArray(input) ? input : [{
+@@ -9,19 +9,6 @@ const normalizeInput = (input) => Array.isArray(input) ? input : [{
+   type: "message"
+ }];
  
- const normalizeOutput = (item) => {
-   switch (item.type) {
-+    case "web_search_call":
-     case "compaction":
-     case "function_call":
-     case "function_call_output":
-@@ -88,7 +89,7 @@ const responses = (options) => {
+-const normalizeOutput = (item) => {
+-  switch (item.type) {
+-    case "compaction":
+-    case "function_call":
+-    case "function_call_output":
+-      return item;
+-    case "message":
+-      return item;
+-    case "reasoning":
+-      return item;
+-  }
+-};
+-
+ const toFunctionCallOutput = (result) => {
+   if (typeof result === "string")
+     return result;
+@@ -88,7 +75,7 @@ const responses = (options) => {
    const mapFullEvent = (event) => {
      switch (event.type) {
        case "error":
@@ -102,7 +114,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..7255223777ebe65ccd01311cd1b2e91c
        case "response.completed":
        case "response.failed":
        case "response.incomplete":
-@@ -118,9 +119,11 @@ const responses = (options) => {
+@@ -118,9 +105,11 @@ const responses = (options) => {
          return [{ delta: event.delta, type: "text.delta" }];
        case "response.output_text.done":
          return [{ content: event.text, type: "text.done" }];
@@ -114,7 +126,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..7255223777ebe65ccd01311cd1b2e91c
        case "response.reasoning.done":
        case "response.reasoning_summary_text.done":
          return [{ content: event.text, type: "reasoning.done" }];
-@@ -145,19 +148,20 @@ const responses = (options) => {
+@@ -145,19 +134,20 @@ const responses = (options) => {
        case "response.refusal.delta":
          textCtrl.current?.enqueue(event.delta);
          break;
@@ -139,7 +151,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..7255223777ebe65ccd01311cd1b2e91c
      }
    };
    const createReader = async () => {
-@@ -174,6 +178,7 @@ const responses = (options) => {
+@@ -174,6 +164,7 @@ const responses = (options) => {
        input: stepOptions.input,
        model: stepOptions.model,
        onEvent: void 0,
@@ -147,7 +159,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..7255223777ebe65ccd01311cd1b2e91c
        onFinish: void 0,
        onStepFinish: void 0,
        postToolCall: void 0,
-@@ -183,7 +188,7 @@ const responses = (options) => {
+@@ -183,7 +174,7 @@ const responses = (options) => {
        stream: true,
        streamOptions: options.streamOptions != null ? objCamelToSnake(options.streamOptions) : void 0,
        toolChoice: stepOptions.toolChoice,
@@ -156,7 +168,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..7255223777ebe65ccd01311cd1b2e91c
      });
      return res.body.pipeThrough(new TextDecoderStream()).pipeThrough(new EventSourceParserStream()).pipeThrough(new JsonMessageTransformStream()).getReader();
    };
-@@ -194,12 +199,11 @@ const responses = (options) => {
+@@ -194,12 +185,11 @@ const responses = (options) => {
        postToolCall: options.postToolCall,
        preToolCall: options.preToolCall,
        toolCall: toToolCall(functionCall),
@@ -170,7 +182,21 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..7255223777ebe65ccd01311cd1b2e91c
        output: result,
        status: "completed",
        type: "function_call_output"
-@@ -222,11 +226,19 @@ const responses = (options) => {
+@@ -209,7 +199,12 @@ const responses = (options) => {
+   const handleOutputItemDone = (event, step) => {
+     if (event.item == null)
+       return;
+-    input.push(normalizeOutput(event.item));
++    // NOTICE:
++    // Output items can contain provider extensions and newly introduced native tools.
++    // A partial type switch dropped unknown items instead of replaying them.
++    // Source/context: AIRI PR #2477 and xsai normalizeOutput.
++    // Removal condition: The upstream SDK preserves all output items during replay.
++    input.push(event.item);
+     if (event.item.type === "function_call") {
+       step.functionCalls.push(event.item);
+       const toolCall = toCompletionToolCall(toToolCall(event.item));
+@@ -222,11 +217,19 @@ const responses = (options) => {
      const functionCalls = [];
      const toolCalls = [];
      const toolResults = [];
@@ -191,7 +217,16 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..7255223777ebe65ccd01311cd1b2e91c
        const events = mapFullEvent(event);
        const step = { events, functionCalls, toolCalls};
        switch (event.type) {
-@@ -280,11 +292,18 @@ const responses = (options) => {
+@@ -251,7 +254,7 @@ const responses = (options) => {
+             for (const { completionToolCall, completionToolResult, functionCallOutput } of results) {
+               toolCalls.push(completionToolCall);
+               toolResults.push(completionToolResult);
+-              input.push(normalizeOutput(functionCallOutput));
++              input.push(functionCallOutput);
+               events.push({ ...completionToolResult, type: "tool-result.done" });
+             }
+             if (stepDoneEvent != null)
+@@ -280,11 +283,18 @@ const responses = (options) => {
            break;
        }
        pushStreamingEvent(event);

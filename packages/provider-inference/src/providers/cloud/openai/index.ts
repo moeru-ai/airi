@@ -89,7 +89,7 @@ export const providerOpenAI = defineProvider<Config, 'openai'>({
   extraMethods: {
     listModelCatalog: config => listModelCatalog(
       { apiKey: config.apiKey, baseURL: config.baseUrl ?? 'https://api.openai.com/v1' },
-      { source: 'model-bank', models: openaiChatModels, providerId: 'openai', baseURL: 'https://api.openai.com/v1' },
+      { models: openaiChatModels, providerId: 'openai', baseURL: 'https://api.openai.com/v1' },
     ),
   },
 

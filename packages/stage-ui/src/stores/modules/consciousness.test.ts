@@ -1,4 +1,3 @@
-import { resolveGeneration } from '@proj-airi/provider-inference'
 // @vitest-environment jsdom
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -84,12 +83,12 @@ describe('consciousness store provider selection', () => {
     const settingsStore = useConsciousnessSettingsStore()
 
     const disabledProvider = await consciousnessStore.getChatProviderInstance('openai')
-    expect(resolveGeneration(disabledProvider, 'test-model').config).toMatchObject({ reasoning: { effort: 'none' } })
+    expect(disabledProvider.generation('test-model').config).toMatchObject({ reasoning: { effort: 'none' } })
 
     await settingsStore.setReasoning(true)
 
     const enabledProvider = await consciousnessStore.getChatProviderInstance('openai')
-    expect(resolveGeneration(enabledProvider, 'test-model').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
+    expect(enabledProvider.generation('test-model').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
   })
 
   // ROOT CAUSE:

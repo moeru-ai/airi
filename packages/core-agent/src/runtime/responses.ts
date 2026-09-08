@@ -7,32 +7,9 @@ import type { StreamEvent, StreamOptions } from '../types/llm'
 
 import { responses } from '@xsai-ext/responses'
 import { stepCountAtLeast } from '@xsai/shared-chat'
-import { z } from 'zod'
 
 import { renderSegmentText } from '../messages/render-context'
 import { toAiriStreamEvent } from './xsai-events'
-
-// Persisted continuation data is untrusted after storage or import. Validate
-// the supported SDK contract here and retain unknown native fields for replay.
-const textPart = z.looseObject({ type: z.literal('input_text'), text: z.string() })
-const imagePart = z.looseObject({ type: z.literal('input_image'), image_url: z.string().nullish(), detail: z.enum(['auto', 'low', 'high']).nullish() })
-const filePart = z.looseObject({ type: z.literal('input_file'), file_data: z.string().nullish(), file_url: z.string().nullish(), filename: z.string().nullish() })
-const content = z.union([z.string(), z.array(z.union([textPart, imagePart, filePart]))])
-const citation = z.looseObject({ type: z.literal('url_citation'), start_index: z.number(), end_index: z.number(), title: z.string(), url: z.string() })
-const outputPart = z.union([
-  z.looseObject({ type: z.literal('output_text'), text: z.string(), annotations: z.array(citation).optional() }),
-  z.looseObject({ type: z.literal('refusal'), refusal: z.string() }),
-])
-const id = z.string().nullish()
-const status = z.enum(['in_progress', 'completed', 'incomplete']).nullish()
-const continuationSchema = z.array(z.union([
-  z.looseObject({ type: z.literal('reasoning'), id, summary: z.array(z.looseObject({ type: z.literal('summary_text'), text: z.string() })), content: z.null().optional(), encrypted_content: z.string().nullish() }),
-  z.looseObject({ type: z.literal('web_search_call'), id: z.string(), status: z.enum(['in_progress', 'searching', 'completed', 'failed']) }),
-  z.looseObject({ type: z.literal('compaction'), id, encrypted_content: z.string() }),
-  z.looseObject({ type: z.literal('function_call'), id, call_id: z.string(), name: z.string(), arguments: z.string(), status }),
-  z.looseObject({ type: z.literal('function_call_output'), id, call_id: z.string(), output: content, status }),
-  z.looseObject({ type: z.literal('message'), id, role: z.literal('assistant'), content: z.union([z.string(), z.array(outputPart)]), phase: z.enum(['commentary', 'final_answer']).optional(), status: z.string().nullish() }),
-]))
 
 type InputContent = Exclude<Extract<ItemParam, { role: 'user' }>['content'], string>
 
@@ -94,8 +71,13 @@ function renderMessage(message: Message): ItemParam[] {
 
 function renderContext(context: ConversationContext, scope: string): ItemParam[] {
   return context.turns.flatMap((turn) => {
-    if (turn.continuation?.protocol === 'responses' && turn.continuation.scope === scope)
-      return continuationSchema.parse(turn.continuation.data)
+    if (turn.continuation?.protocol === 'responses' && turn.continuation.scope === scope) {
+      if (!Array.isArray(turn.continuation.data))
+        throw new Error('Responses continuation must contain an item array')
+      // The provider owns nested native fields, including tools this adapter does not interpret.
+      // Do not reconstruct SDK output through a partial schema before replay.
+      return turn.continuation.data
+    }
     // A protocol or scope change intentionally uses portable messages. Native
     // encrypted reasoning and provider ids cannot cross this ownership boundary.
     return turn.messages.flatMap(renderMessage)

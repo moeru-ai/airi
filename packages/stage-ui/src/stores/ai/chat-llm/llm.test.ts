@@ -1,4 +1,4 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 
 import type { ExecutableTool } from './tools'
@@ -47,11 +47,9 @@ vi.mock('../../../tools', () => ({
   createWebSearchTools: vi.fn(async (): Promise<Tool[]> => []),
 }))
 
-const provider = {
-  chat: () => ({
-    baseURL: 'https://example.com/',
-  }),
-} as unknown as ChatProvider
+const provider: GenerationProvider = {
+  generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
+}
 
 function createMockStreamResult() {
   return {

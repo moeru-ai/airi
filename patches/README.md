@@ -9,7 +9,7 @@ This patch fixes behavior in the published SDK. AIRI's protocol and billing code
 - Cancel and release each step's reader on completion, failure, tool continuation, or abort.
 - Accept OpenAI `response.reasoning_text.delta` and `.done` events alongside the Open Responses event names.
 - Do not assign a random provider Item ID to a local function output. The provider owns Item IDs; `call_id` matches the function output to its call.
-- Support native `web_search` tools and preserve search output Items across function steps.
+- Support native `web_search` tools and preserve all output Items, including unknown native tools, across steps.
 - Keep hosted tools out of the local executor list.
 - Await `onNativeEvent` before transcript commit so consumers can retain sources and search activity.
 - Use Fetch and headers types from `@xsai/shared`, the owner of the HTTP request contract.

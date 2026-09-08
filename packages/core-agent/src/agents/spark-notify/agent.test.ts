@@ -1,5 +1,4 @@
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import type { SparkNotifyRunRequest } from './types'
 
@@ -49,7 +48,7 @@ describe('createSparkNotifyAgent', () => {
       selectedChat: {
         providerId: 'mock-provider',
         model: 'mock-model',
-        provider: {} as ChatProvider,
+        provider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/' } }) },
       },
       systemPrompt: 'You are a character.',
     })
@@ -73,7 +72,7 @@ describe('createSparkNotifyAgent', () => {
       selectedChat: {
         providerId: 'mock-provider',
         model: 'mock-model',
-        provider: {} as ChatProvider,
+        provider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/' } }) },
       },
       systemPrompt: 'You are a character.',
       control: { forceTextResponse: true },
@@ -94,7 +93,7 @@ describe('createSparkNotifyAgent', () => {
       selectedChat: {
         providerId: 'mock-provider',
         model: 'mock-model',
-        provider: {} as ChatProvider,
+        provider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/' } }) },
       },
       systemPrompt: 'You are a character.',
       runtimePrompt: 'Runtime prompt',

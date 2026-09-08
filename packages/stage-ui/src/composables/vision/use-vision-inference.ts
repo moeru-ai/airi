@@ -3,7 +3,6 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 
 import type { VisionWorkloadId } from './use-vision-workloads'
 
-import { isGenerationProvider } from '@proj-airi/provider-inference'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
@@ -47,22 +46,19 @@ export function useVisionInference() {
     if (!activeProvider.value || !activeModel.value)
       throw new Error('Vision provider/model not configured')
 
-    const provider = await providersStore.getProviderInstance(activeProvider.value)
-    if (!isGenerationProvider(provider))
-      throw new Error('Vision provider does not support generation')
+    const provider = await providersStore.getChatProviderInstance(activeProvider.value)
     const workload = getVisionWorkload(input.workloadId)
     const prompt = input.promptOverride ?? workload.prompt
     const { url } = parseDataUrl(input.imageDataUrl)
-    const visionProvider = activeProvider.value === 'vision-ollama' && 'chat' in provider
+    const visionProvider: GenerationProvider = activeProvider.value === 'vision-ollama'
       ? {
-        ...provider,
-        chat(model: string) {
-          return {
-            ...provider.chat(model),
-            think: ollamaThinkingEnabled.value,
-          }
-        },
-      } satisfies GenerationProvider
+          generation(model) {
+            const request = provider.generation(model)
+            if (request.protocol !== 'chat-completions')
+              return request
+            return { ...request, config: { ...request.config, think: ollamaThinkingEnabled.value } }
+          },
+        }
       : provider
 
     const context: ConversationContext = { turns: [{ messages: [{

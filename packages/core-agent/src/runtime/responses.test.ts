@@ -202,7 +202,7 @@ it('uses one context for Chat and Responses while keeping call and result order'
     return sse([{ choices: [{ index: 0, delta: { content: 'ok' }, finish_reason: 'stop' }] }])
   }
   await streamFrom({ model: 'test', chatProvider: provider(fetch), context })
-  await streamFrom({ model: 'test', chatProvider: { chat: model => ({ model, baseURL: 'https://example.test/v1/', fetch }) }, context })
+  await streamFrom({ model: 'test', chatProvider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/v1/', fetch } }) }, context })
   expect(requests[0].input).toEqual([
     { type: 'message', role: 'user', content: 'Domain event: clock\n{\n  "hour": 12\n}' },
     { type: 'function_call', call_id: 'call-1', name: 'read', arguments: '{}' },
@@ -250,14 +250,32 @@ it('replays native state only for the same provider, endpoint, model and convers
   }
 })
 
-it('rejects malformed persisted continuation before sending a request', async () => {
-  const fetch = vi.fn<typeof globalThis.fetch>()
-  const context: ConversationContext = { turns: [{
-    messages: [],
-    continuation: { protocol: 'responses', scope: JSON.stringify([undefined, 'https://example.test/v1/', 'test', undefined]), data: [{ type: 'function_call', call_id: 'missing-arguments' }] },
-  }] }
-  await expect(streamFrom({ model: 'test', chatProvider: provider(fetch), context })).rejects.toThrow()
-  expect(fetch).not.toHaveBeenCalled()
+// https://github.com/moeru-ai/airi/pull/2477
+it('replays unknown provider items without filtering their fields through a partial schema', async () => {
+  // ROOT CAUSE:
+  // A local union rejected new native tools before the provider could receive its own state.
+  // Preserve SDK output unchanged inside the matching provider scope.
+  const native = { type: 'future_native_tool', id: 'native-1', status: 'provider-status', payload: { opaque: ['state'] } }
+  const answer: ItemParam = { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'answer' }] }
+  const requests: unknown[] = []
+  const fetch: typeof globalThis.fetch = async (_url, init) => {
+    requests.push(JSON.parse(String(init?.body)))
+    return sse([
+      { type: 'response.output_item.done', item: native },
+      ...completed([answer]),
+    ])
+  }
+  const context: ConversationContext = { turns: [] }
+  await streamFrom({
+    model: 'test',
+    chatProvider: provider(fetch),
+    context,
+    options: { onTranscript: (turn) => {
+      context.turns.push(turn)
+    } },
+  })
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), context })
+  expect(requests[1]).toMatchObject({ input: [native, answer] })
 })
 
 it.each(['openai', 'openai-compatible'] as const)('sends %s BYOK requests directly without the AIRI backend', async (id) => {
@@ -337,4 +355,25 @@ it('does not send hosted search when disabled', async () => {
     return sse(completed([]))
   }
   await streamFrom({ model: 'test', chatProvider: provider(fetch), context: { turns: [] } })
+})
+
+// https://github.com/moeru-ai/airi/pull/2200
+it('preserves sampling controls when routing through either protocol adapter', async () => {
+  // ROOT CAUSE:
+  // Main added sampling options to the old streamText call. Keeping only the
+  // protocol dispatch during the merge would drop them from both wire requests.
+  const requests: unknown[] = []
+  const fetch: typeof globalThis.fetch = async (url, init) => {
+    requests.push(JSON.parse(String(init?.body)))
+    return String(url).endsWith('/responses')
+      ? sse(completed([]))
+      : sse([{ choices: [{ index: 0, delta: { content: 'ok' }, finish_reason: 'stop' }] }])
+  }
+  const context: ConversationContext = { turns: [] }
+  const options = { temperature: 0, topP: 0.8 }
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), context, options })
+  await streamFrom({ model: 'test', chatProvider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/v1/', fetch } }) }, context, options })
+  expect(requests).toHaveLength(2)
+  expect(requests[0]).toMatchObject({ temperature: 0, top_p: 0.8 })
+  expect(requests[1]).toMatchObject({ temperature: 0, top_p: 0.8 })
 })

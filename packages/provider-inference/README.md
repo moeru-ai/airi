@@ -34,7 +34,10 @@ pnpm -F @proj-airi/provider-inference build
 
 OpenAI and OpenAI Compatible configurations accept `api: 'chat-completions' | 'responses'`. OpenAI defaults to `responses`. OpenAI Compatible defaults to `chat-completions`. Saved protocol choices take precedence. The provider settings page renders this field as an API protocol selector.
 
-`resolveGeneration(provider, model, options)` returns a discriminated request with one protocol and its configuration. Native providers implement `generation`; existing Chat providers enter through this resolver. Catalog capabilities declare supported protocols, their default, and native tools. `core-agent` projects its context directly into the selected protocol and owns streaming, tools, and history. The validation probe uses the selected protocol.
+`ProviderDefinition` owns configuration and instance creation. `getGenerationProvider(instance)` adapts SDK Chat instances at that boundary.
+`GenerationProvider.generation(model, options)` selects a protocol and returns its request configuration.
+Core-agent receives this single interface and projects context directly into the selected protocol.
+Protocol defaults and native tools remain provider-owned policy. The validation probe uses the selected protocol.
 
 ```ts
 const definition = getDefinedProvider('openai')
@@ -53,18 +56,11 @@ Search uses the configured OpenAI key and does not require an AIRI login or Tavi
 
 ## Model metadata
 
-OpenAI model discovery uses LobeHub's [`model-bank`](https://github.com/lobehub/lobehub/tree/canary/packages/model-bank) for exact-ID metadata.
-Provider-specific imports avoid loading unrelated catalogs. Upgrade the pinned dependency to refresh this data.
-OpenRouter discovery uses its [Models API](https://openrouter.ai/docs/guides/overview/models).
-The endpoint model list remains authoritative. Catalog entries cannot add models unavailable through that endpoint.
-Custom endpoints receive no metadata from official routes.
+OpenAI and OpenRouter use their provider-specific [model-bank](https://github.com/lobehub/lobehub/tree/canary/packages/model-bank) catalogs.
+The endpoint model list remains authoritative for availability. Catalog data only enriches exact model IDs on the matching endpoint.
+Custom endpoints receive no metadata from official routes. There is no separate online catalog request or cache.
+Upgrade the pinned model-bank dependency to refresh metadata.
 
-`ModelInfo.metadata` discriminates model-bank data from OpenRouter data.
-Model-bank abilities, settings, and pricing use its exported `AIChatModelCard` contract.
-Currency and fixed, tiered, or lookup pricing remain intact. OpenRouter prices use USD per million tokens.
-Catalog prices are advisory data, not Flux billing quotes.
-Neither tool calling nor OpenRouter search parameters imply native search on another route.
-Protocol defaults and native tool declarations remain provider-owned policy.
-
-OpenAI metadata requires no catalog request. OpenRouter public snapshots use no credentials and expire after one hour. Concurrent discovery shares the same snapshot request.
-Generation does not fetch catalogs. Failed metadata requests preserve endpoint models and return `metadataError`.
+`ModelInfo.metadata` uses model-bank's exported `AIChatModelCard` contract for abilities, settings, and pricing.
+Currency and fixed, tiered, or lookup pricing remain intact. Catalog prices are advisory data, not Flux billing quotes.
+Reported search abilities do not select a native tool implementation.

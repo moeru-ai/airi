@@ -1,3 +1,6 @@
+import type { ItemParam } from '@xsai-ext/responses'
+import type { Message as ChatMessage } from '@xsai/shared-chat'
+
 /**
  * Provider-ready message payload.
  *
@@ -89,15 +92,15 @@ export interface SegmentToolResult {
 }
 
 /**
- * Serializable state owned and validated by its protocol adapter.
+ * Serializable SDK output owned by its protocol adapter.
  * The scope identifies the provider instance, endpoint, model, and conversation.
  * A different scope uses the turn's portable messages instead of this state.
+ * Replay preserves provider extensions without parsing or rebuilding their nested payloads.
  */
-export interface ProviderContinuation {
-  protocol: 'chat-completions' | 'responses'
-  scope: string
-  data: unknown
-}
+export type ProviderContinuation = { scope: string } & (
+  | { protocol: 'chat-completions', data: ChatMessage[] }
+  | { protocol: 'responses', data: ItemParam[] }
+)
 
 /** One ordered interaction, including intermediate model messages and tool results. */
 export interface ConversationTurn {

@@ -3,7 +3,6 @@ import type { Message } from '@xsai/shared-chat'
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { readChatMessages, streamFrom } from '@proj-airi/core-agent'
-import { isGenerationProvider } from '@proj-airi/provider-inference'
 import { artistryGenerateHeadless } from '@proj-airi/stage-shared'
 import { defineStore } from 'pinia'
 import { ref, toRaw } from 'vue'
@@ -158,10 +157,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         throw new Error(`Missing LLM configuration (Model: ${modelId}, Provider: ${providerId})`)
       }
 
-      const chatProvider = await providersStore.getProviderInstance(providerId)
-      if (!isGenerationProvider(chatProvider)) {
-        throw new Error(`Failed to resolve chat provider instance for: ${providerId}`)
-      }
+      const chatProvider = await providersStore.getChatProviderInstance(providerId)
 
       // NOTICE: Artificial 10s delay for USER target to avoid race conditions/429s.
       // Skipped for ASSISTANT target as the main response is already finalized.
