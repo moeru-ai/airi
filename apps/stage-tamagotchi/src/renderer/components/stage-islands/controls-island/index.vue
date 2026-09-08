@@ -99,7 +99,7 @@ function setOverlay(key: string, active: boolean) {
 // The stage page observes this element for cursor hit testing.
 defineExpose({
   get element() { return islandElement.value },
-  get overlayActive() { return blockingOverlays.size > 0 },
+  get overlayActive() { return blockingOverlays.size > 0 || pressed.value },
   get hearingDialogOpen() { return blockingOverlays.has('hearing') },
   set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
 })

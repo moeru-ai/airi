@@ -1,9 +1,16 @@
+import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
+
 import type { ControlsIslandDock } from './use-controls-island-placement'
 
 import en from '@proj-airi/i18n/locales/en'
 
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision/store'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
@@ -63,9 +70,31 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
   const component = initializeProfile
     ? defineComponent({
         setup() {
-          // The stage initializes runtime stores inside setup so useI18n has
-          // its component context. Keep that production lifecycle in this fixture.
-          void useAiriCardStore().initialize()
+          // Seed the profile store without invoking the stage's asynchronous
+          // runtime initialization. The profile form only needs an active card.
+          const cards = useAiriCardStore()
+          // Create the stores that card duplication reads while Vue still has
+          // a component setup context. The action itself can then reuse them.
+          useArtistryStore()
+          useConsciousnessStore()
+          useSpeechStore()
+          useSettingsStageModel()
+          useVisionStore()
+          const defaultCard = {
+            name: 'ReLU',
+            version: '1.0.0',
+            extensions: {
+              airi: {
+                modules: {
+                  consciousness: { provider: '', model: '' },
+                  vision: { provider: '', model: '' },
+                  speech: { provider: '', model: '', voice_id: '' },
+                },
+                agents: {},
+              },
+            },
+          } satisfies AiriCard
+          cards.cards.set('default', defaultCard)
           return () => h(ControlsIsland)
         },
       })
