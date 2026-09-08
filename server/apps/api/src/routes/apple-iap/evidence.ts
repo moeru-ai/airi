@@ -81,6 +81,13 @@ export function grantableConsumableTransaction(payload: JWSTransactionDecodedPay
       message: 'Only consumable Apple products are supported',
     }
   }
+  if (payload.revocationDate != null) {
+    return {
+      ok: false as const,
+      code: 'TRANSACTION_REVOKED',
+      message: 'Transaction was refunded or revoked',
+    }
+  }
 
   return {
     ok: true as const,
