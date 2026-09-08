@@ -35,6 +35,9 @@ varying vec2 v_airiNoseReference;
 uniform float u_airiEnabled;
 uniform float u_airiProfile;
 uniform float u_airiCapture;
+uniform vec4 u_airiGeneratedFace;
+uniform vec4 u_airiGeneratedNose;
+uniform float u_airiGeneratedNoseStrength;
 uniform vec2 u_airiMapSize;
 uniform float u_airiOwner;
 uniform float u_airiNose;
@@ -119,6 +122,20 @@ if (u_airiEnabled > 0.5 && gl_FragColor.a > 0.0001) {
       }
     }
   }
+  if (u_airiGeneratedFace.z > 0.) {
+    // Paint layers belong to one curved face, independent of their opacity or
+    // neutral visibility. The SDK alpha/masks still define every visible edge.
+    vec2 q = (v_airiReference-u_airiGeneratedFace.xy)/u_airiGeneratedFace.zw;
+    vec2 slope = vec2(q.x,-q.y)*.55;
+    float bump = 0.;
+    if (u_airiGeneratedNose.z > 0.) {
+      vec2 nose = (v_airiNoseReference-u_airiGeneratedNose.xy)/u_airiGeneratedNose.zw;
+      bump = exp(-.5*dot(nose,nose))*u_airiGeneratedNoseStrength;
+      slope += vec2(nose.x,-nose.y)*bump;
+    }
+    n = airiRotateFace(normalize(vec3(slope,1.)));
+    materialSheen = .12 + bump*1.5;
+  }
   vec3 color = airiLinear(gl_FragColor.rgb/gl_FragColor.a);
   gl_FragColor.rgb = airiSrgb(airiSurfaceColor(n,v_airiStage,color,materialSheen))*gl_FragColor.a;
 }
@@ -193,6 +210,9 @@ interface Locations {
   attribute: number
   enabled: WebGLUniformLocation | null
   profile: WebGLUniformLocation | null
+  generatedNose: WebGLUniformLocation | null
+  generatedNoseStrength: WebGLUniformLocation | null
+  generatedFace: WebGLUniformLocation | null
   capture: WebGLUniformLocation | null
   mapSize: WebGLUniformLocation | null
   face: WebGLUniformLocation | null
@@ -243,7 +263,7 @@ interface Locations {
  * Dispose before the model is destroyed. Context restoration rebuilds GL data.
  */
 export class SurfaceLighting {
-  private readonly references = new Map<number, { coordinates: Float32Array, index: number, face: boolean, hair: boolean }>()
+  private readonly references = new Map<number, { coordinates: Float32Array, index: number, face: boolean, hair: boolean, generatedFace?: boolean }>()
   private readonly buffers = new Map<number, WebGLBuffer>()
   private programs = new WeakMap<WebGLProgram, Locations>()
   private readonly clipToStage = new Matrix()
@@ -251,9 +271,14 @@ export class SurfaceLighting {
   private readonly drawModel: Renderer['doDrawModel']
   private readonly faceIndex: number
   private readonly faceYawIndex: number
+  private readonly generatedNose = new Float32Array(4)
+  private generatedNoseStrength = 0
+  private generatedYawIndex = -1
+  private generatedYawRange = 30
+  private readonly generatedFace = new Float32Array(4)
   private readonly faceRotation = new Float32Array([0, 1])
-  private readonly noseIndex: number
-  private readonly noseAttachment?: NoseAttachment
+  private noseIndex: number
+  private noseAttachment?: NoseAttachment
   private readonly shadowCasters: (FaceShadowCaster & { index: number })[] = []
   private shadow?: FaceShadow
   private field?: SurfaceLightField
@@ -386,9 +411,29 @@ export class SurfaceLighting {
       this.releaseGpu()
       this.gl = undefined
       this.profile = 'generated'
+      this.generatedFace.fill(0)
+      this.generatedNose.fill(0)
+      this.generatedNoseStrength = 0
+      this.generatedYawIndex = -1
+      this.noseIndex = -1
+      this.noseAttachment = undefined
+      if (attachment.faceSurface) {
+        const face = attachment.faceSurface
+        this.generatedFace.set([...face.center, ...face.radius])
+        if (face.yaw) {
+          this.generatedYawIndex = this.model.coreModel.getParameterIndex(face.yaw.parameter)
+          this.generatedYawRange = face.yaw.range
+        }
+        if (face.nose) {
+          this.generatedNose.set([...face.nose.center, ...face.nose.radius])
+          this.generatedNoseStrength = face.nose.strength
+          this.noseIndex = face.nose.drawable
+          this.noseAttachment = new NoseAttachment(attachment.drawables[this.noseIndex].reference, this.model.coreModel.getDrawableVertexIndices(this.noseIndex), face.nose.center)
+        }
+      }
       attachment.drawables.forEach((entry, index) => {
         const vertices = this.model.coreModel.getDrawableVertices(index)
-        this.references.set(vertices.byteOffset, { coordinates: new Float32Array(entry.reference), index, face: false, hair: false })
+        this.references.set(vertices.byteOffset, { coordinates: new Float32Array(entry.reference), index, face: false, hair: false, generatedFace: attachment.faceSurface?.drawables.includes(index) })
       })
       this.images = [images[0], images[1]]
     }
@@ -424,7 +469,7 @@ export class SurfaceLighting {
     let locations = this.programs.get(program)
     if (!locations) {
       const uniform = (name: string) => gl.getUniformLocation(program, `u_airi${name}`)
-      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), capture: uniform('Capture'), mapSize: uniform('MapSize'), face: uniform('Face'), faceRotation: uniform('FaceRotation'), modelToNose: uniform('ModelToNose'), hair: uniform('Hair'), illustrated: uniform('Illustrated'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), edges: uniform('Edges[0]'), area: uniform('Area'), field: uniform('Field'), fieldEnabled: uniform('FieldEnabled'), fieldMean: uniform('FieldMean'), bounds: uniform('Bounds'), screen: uniform('Screen'), fieldBounds: uniform('FieldBounds'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect'), emitters: uniform('Emitters[0]'), faceShadow: uniform('FaceShadow'), faceShadowStrength: uniform('FaceShadowStrength'), faceHeight: uniform('FaceHeight'), roughness: uniform('Roughness'), skinRelief: uniform('SkinRelief'), sheen: uniform('Sheen'), nose: uniform('Nose'), softHighlights: uniform('SoftHighlights'), responseCurve: uniform('ResponseCurve'), photometry: uniform('Photometry'), lightScale: uniform('LightScale'), cameraExposure: uniform('CameraExposure'), ambient: uniform('Ambient'), contrast: uniform('Contrast') }
+      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), capture: uniform('Capture'), generatedFace: uniform('GeneratedFace'), generatedNose: uniform('GeneratedNose'), generatedNoseStrength: uniform('GeneratedNoseStrength'), mapSize: uniform('MapSize'), face: uniform('Face'), faceRotation: uniform('FaceRotation'), modelToNose: uniform('ModelToNose'), hair: uniform('Hair'), illustrated: uniform('Illustrated'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), edges: uniform('Edges[0]'), area: uniform('Area'), field: uniform('Field'), fieldEnabled: uniform('FieldEnabled'), fieldMean: uniform('FieldMean'), bounds: uniform('Bounds'), screen: uniform('Screen'), fieldBounds: uniform('FieldBounds'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect'), emitters: uniform('Emitters[0]'), faceShadow: uniform('FaceShadow'), faceShadowStrength: uniform('FaceShadowStrength'), faceHeight: uniform('FaceHeight'), roughness: uniform('Roughness'), skinRelief: uniform('SkinRelief'), sheen: uniform('Sheen'), nose: uniform('Nose'), softHighlights: uniform('SoftHighlights'), responseCurve: uniform('ResponseCurve'), photometry: uniform('Photometry'), lightScale: uniform('LightScale'), cameraExposure: uniform('CameraExposure'), ambient: uniform('Ambient'), contrast: uniform('Contrast') }
       this.programs.set(program, locations)
     }
     let buffer = this.buffers.get(vertices.byteOffset)
@@ -451,6 +496,12 @@ export class SurfaceLighting {
     gl.uniform2f(locations.mapSize, this.images?.[0].width ?? 512, this.images?.[0].height ?? 640)
     gl.uniform1f(locations.face, reference.face ? 1 : 0)
     gl.uniform2fv(locations.faceRotation, this.faceRotation)
+    gl.uniform4fv(locations.generatedNose, this.generatedNose)
+    gl.uniform1f(locations.generatedNoseStrength, this.generatedNoseStrength * this.material.nose)
+    if (reference.generatedFace)
+      gl.uniform4fv(locations.generatedFace, this.generatedFace)
+    else
+      gl.uniform4f(locations.generatedFace, 0, 0, 0, 0)
     if (this.noseAttachment)
       gl.uniformMatrix3fv(locations.modelToNose, false, this.noseAttachment.matrix.toArray(true))
     gl.uniform1f(locations.hair, reference.hair ? 1 : 0)
@@ -567,8 +618,10 @@ export class SurfaceLighting {
     }
     // Iru's head X spans -30..30 rig units. Read Core on every draw, since
     // model animation can update more often than the sampled screen lighting.
-    const headX = this.faceYawIndex >= 0 ? this.model.coreModel.getParameterValueByIndex(this.faceYawIndex) : 0
-    const yaw = Math.max(-1, Math.min(1, headX / 30)) * this.material.faceYaw * Math.PI / 180
+    const yawIndex = this.profile === 'generated' ? this.generatedYawIndex : this.faceYawIndex
+    const yawRange = this.profile === 'generated' ? this.generatedYawRange : 30
+    const headX = yawIndex >= 0 ? this.model.coreModel.getParameterValueByIndex(yawIndex) : 0
+    const yaw = Math.max(-1, Math.min(1, headX / yawRange)) * this.material.faceYaw * Math.PI / 180
     this.faceRotation[0] = Math.sin(yaw)
     this.faceRotation[1] = Math.cos(yaw)
     this.noseAttachment?.update(this.model.coreModel.getDrawableVertices(this.noseIndex))
