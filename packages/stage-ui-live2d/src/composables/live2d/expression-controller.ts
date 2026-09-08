@@ -39,12 +39,6 @@ export interface ExpressionControllerOptions {
    * while a model is being swapped).
    */
   internalModel: Ref<PixiLive2DInternalModel | undefined>
-
-  /**
-   * An optional model identifier used for persistence scoping.
-   * Falls back to `'unknown'` if not provided.
-   */
-  modelId?: string
 }
 
 /**
@@ -66,12 +60,15 @@ export function useExpressionController(options: ExpressionControllerOptions) {
    * Parse model3.json expression references and the corresponding exp3 data,
    * then register everything in the store.
    *
+   * @param modelId        - The identifier captured for this model load. It
+   *                         scopes expression persistence to the loaded model.
    * @param expressionRefs - `FileReferences.Expressions` from model3.json
    * @param readExpFile    - An async function that reads the content of an
    *                         exp3.json file given its path (relative to the
    *                         model root inside the ZIP / OPFS).
    */
   async function initialise(
+    modelId: string | undefined,
     expressionRefs: Model3ExpressionRef[],
     readExpFile: (path: string) => Promise<string>,
   ) {
@@ -126,7 +123,7 @@ export function useExpressionController(options: ExpressionControllerOptions) {
     }
 
     store.registerExpressions(
-      options.modelId ?? 'unknown',
+      modelId ?? 'unknown',
       groups,
       Array.from(entryMap.values()),
     )

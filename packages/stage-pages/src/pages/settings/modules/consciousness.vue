@@ -6,7 +6,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldCheckbox } from '@proj-airi/ui'
+import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -29,6 +29,8 @@ const {
   providerModels,
   isLoadingActiveProviderModels,
   activeProviderModelError,
+  activeTemperature,
+  activeTopP,
 } = storeToRefs(consciousnessStore)
 
 const { t } = useI18n()
@@ -302,6 +304,29 @@ async function updateReasoning(value: boolean) {
         @update:model-value="updateReasoning"
       />
     </section>
+  </div>
+
+  <div v-if="activeProvider" :class="['bg-neutral-50 dark:bg-[rgba(0,0,0,0.3)]', 'rounded-xl', 'p-4', 'flex flex-col gap-4', 'mt-4']">
+    <div :class="['flex flex-col gap-4']">
+      <FieldRange
+        v-model="activeTemperature"
+        :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.temperature_label')"
+        :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.temperature_description')"
+        :min="0"
+        :max="2"
+        :step="0.1"
+        :format-value="value => value.toFixed(1)"
+      />
+      <FieldRange
+        v-model="activeTopP"
+        :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.top_p_label')"
+        :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.top_p_description')"
+        :min="0"
+        :max="1"
+        :step="0.1"
+        :format-value="value => value.toFixed(1)"
+      />
+    </div>
   </div>
 
   <div
