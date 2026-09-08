@@ -55,6 +55,8 @@ const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
 
 const expanded = ref(false)
 const islandElement = useTemplateRef<HTMLElement>('island')
+const profilePickerOpen = ref(false)
+const profileCreationActive = ref(false)
 
 // Tracks open overlays/dialogs that should prevent auto-collapse (e.g. 'hearing', 'profile-picker')
 const blockingOverlays = reactive(new Set<string>())
@@ -68,6 +70,12 @@ function setOverlay(key: string, active: boolean) {
 
   blockingOverlays.delete(key)
 }
+
+// Closing the Select does not end profile creation. The Island must stay open
+// until the user saves or cancels the form.
+watch([profilePickerOpen, profileCreationActive], ([isPickerOpen, isCreatingProfile]) => {
+  setOverlay('profile-picker', isPickerOpen || isCreatingProfile)
+}, { immediate: true })
 
 // The stage page observes this element for cursor hit testing.
 defineExpose({
@@ -87,6 +95,8 @@ watch(isOutsideAfter2seconds, (outside) => {
 
 watch(expanded, (isExpanded) => {
   if (!isExpanded) {
+    profilePickerOpen.value = false
+    profileCreationActive.value = false
     blockingOverlays.clear()
   }
 })
@@ -250,7 +260,10 @@ function resetMainWindowPosition() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlsIslandProfilePicker :open="blockingOverlays.has('profile-picker')" @update:open="setOverlay('profile-picker', $event)">
+              <ControlsIslandProfilePicker
+                v-model:open="profilePickerOpen"
+                v-model:creating="profileCreationActive"
+              >
                 <template #default="{ toggle }">
                   <ControlButton
                     v-track-button="{ name: 'controls_island_action', action: 'toggle_profile_picker' }"
