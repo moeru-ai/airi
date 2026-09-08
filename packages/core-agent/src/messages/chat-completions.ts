@@ -2,32 +2,16 @@ import type { Message as ChatMessage, CommonContentPart } from '@xsai/shared-cha
 
 import type { ConversationContext, InputSegment, Message, MessageSegment } from './types'
 
-import { z } from 'zod'
-
 import { renderSegmentText } from './render-context'
 
-const textPart = z.object({ type: z.literal('text'), text: z.string() })
-const refusalPart = z.object({ type: z.literal('refusal'), refusal: z.string() })
-const contentPart = z.union([
-  textPart,
-  z.object({ type: z.literal('image_url'), image_url: z.object({ url: z.string(), detail: z.enum(['auto', 'low', 'high']).optional() }) }),
-  z.object({ type: z.literal('input_audio'), input_audio: z.object({ data: z.string(), format: z.enum(['wav', 'mp3']) }) }),
-  z.object({ type: z.literal('file'), file: z.object({ file_id: z.string().optional(), file_data: z.string().optional(), filename: z.string().optional() }) }),
-])
-const continuationSchema = z.array(z.union([
-  z.looseObject({
-    role: z.literal('assistant'),
-    content: z.union([z.string(), z.array(z.union([textPart, refusalPart]))]).optional(),
-    name: z.string().optional(),
-    reasoning: z.string().optional(),
-    reasoning_content: z.string().optional(),
-    refusal: z.string().optional(),
-    tool_calls: z.array(z.object({ type: z.literal('function'), id: z.string(), function: z.object({ name: z.string(), arguments: z.string() }) })).optional(),
-  }),
-  z.looseObject({ role: z.literal('tool'), tool_call_id: z.string(), content: z.union([z.string(), z.array(contentPart)]) }),
-]))
-
-function readContent(content: string | CommonContentPart[] | undefined): InputSegment[] {
+/**
+ * Converts Chat content at storage and SDK boundaries without inventing a message envelope.
+ *
+ * @example
+ * readChatContent('hello')
+ * // => [{ type: 'text', text: 'hello' }]
+ */
+export function readChatContent(content: string | CommonContentPart[] | undefined): InputSegment[] {
   if (content == null)
     return []
   if (typeof content === 'string')
@@ -62,7 +46,7 @@ export function readChatMessages(messages: (ChatMessage | { role: 'error', conte
     if (message.role === 'error')
       return { id, role: 'user', segments: [{ type: 'text', text: `User encountered error: ${message.content}` }] }
     if (message.role === 'tool')
-      return { id, role: 'tool', segments: [{ type: 'tool-result', callId: message.tool_call_id, content: readContent(message.content) }] }
+      return { id, role: 'tool', segments: [{ type: 'tool-result', callId: message.tool_call_id, content: readChatContent(message.content) }] }
     if (message.role === 'assistant') {
       const segments: Extract<Message, { role: 'assistant' }>['segments'] = typeof message.content === 'string'
         ? [{ type: 'text', text: message.content }]
@@ -78,7 +62,7 @@ export function readChatMessages(messages: (ChatMessage | { role: 'error', conte
     }
     if (message.role === 'system' || message.role === 'developer')
       return { id, role: message.role, segments: typeof message.content === 'string' ? [{ type: 'text', text: message.content }] : message.content.map(part => ({ type: 'text', text: part.text })) }
-    return { id, role: message.role, segments: readContent(message.content) }
+    return { id, role: message.role, segments: readChatContent(message.content) }
   })
 }
 
@@ -97,13 +81,22 @@ function writeContent(segment: MessageSegment): CommonContentPart {
 /**
  * Projects context directly into Chat Completions messages.
  * Array compatibility applies only here. Only matching Chat continuation can bypass portable projection.
+ * Pure-text arrays become strings. With array support disabled, non-text parts are omitted.
+ * Input messages and provider extension fields remain unchanged.
  */
 export function renderChatContext(context: ConversationContext, supportsContentArray = true, scope?: string): ChatMessage[] {
+  // NOTICE:
+  // Some compatible servers reject content arrays with "invalid type: sequence, expected a string".
+  // They implement only the string variant of Chat Completions content.
+  // Source/context: https://github.com/moeru-ai/airi/issues/1500
+  // Removal condition: All supported endpoints accept content arrays.
   return context.turns.flatMap((turn) => {
     if (scope && turn.continuation?.protocol === 'chat-completions' && turn.continuation.scope === scope) {
       // Keep provider reasoning fields on unchanged local turns. These fields
       // cannot be reconstructed from UI speech or portable tool messages.
-      return continuationSchema.parse(turn.continuation.data).map((message) => {
+      if (!Array.isArray(turn.continuation.data))
+        throw new Error('Chat continuation must contain a message array')
+      return turn.continuation.data.map((message) => {
         if (Array.isArray(message.content) && (!supportsContentArray || message.content.every(part => part.type === 'text')) && !message.content.some(part => part.type === 'refusal'))
           return { ...message, content: message.content.map(part => part.type === 'text' ? part.text : '').join('') }
         return message

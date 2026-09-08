@@ -3,7 +3,7 @@ export type { ChatHookRegistry } from './contracts/hook-types'
 export type { AgentLLMPort } from './contracts/llm-port'
 export type { AgentSessionPort } from './contracts/session-port'
 export type { AgentForegroundStreamPort } from './contracts/stream-port'
-export { readChatMessages, renderChatContext } from './messages/chat-completions'
+export { readChatContent, readChatMessages, renderChatContext } from './messages/chat-completions'
 export {
   buildContextPromptMessage,
   formatContextPromptText,

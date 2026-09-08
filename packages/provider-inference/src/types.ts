@@ -25,12 +25,9 @@ export type GenerationRequest
     | { protocol: 'responses', config: ResponsesConfig, webSearch: boolean }
 
 /** A provider that owns protocol selection and model capabilities. */
-export interface NativeGenerationProvider {
+export interface GenerationProvider {
   generation: (model: string, options?: ChatRequestOptions) => GenerationRequest
 }
-
-/** Chat providers enter through the same resolver as providers with native protocols. */
-export type GenerationProvider = ChatProviderWithExtraOptions<string, ChatRequestOptions> | NativeGenerationProvider
 
 /** Declares implemented protocols. The default must be one of the supported protocols. */
 export type GenerationCapabilities = {
@@ -42,17 +39,20 @@ export type GenerationCapabilities = {
   }
 }[GenerationRequest['protocol']]
 
-/** Resolves provider policy once. Callers do not infer protocols from optional methods. */
-export function resolveGeneration(provider: GenerationProvider, model: string, options?: ChatRequestOptions): GenerationRequest {
-  if ('generation' in provider)
-    return provider.generation(model, options)
-  return { protocol: 'chat-completions', config: provider.chat(model, options) }
+/** Narrows instances that already expose AIRI's protocol-neutral inference capability. */
+export function isGenerationProvider(provider: ProviderInstance): provider is GenerationProvider {
+  return 'generation' in provider && typeof provider.generation === 'function'
 }
 
-/** Narrows a registry instance without asserting a requested provider type. */
-export function isGenerationProvider(provider: ProviderInstance): provider is GenerationProvider {
-  return ('generation' in provider && typeof provider.generation === 'function')
-    || ('chat' in provider && typeof provider.chat === 'function')
+/**
+ * Adapts SDK chat instances at the provider boundary. Existing native instances keep their identity.
+ * Non-chat definitions return undefined. Core-agent receives only the returned generation interface.
+ */
+export function getGenerationProvider(provider: ProviderInstance): GenerationProvider | undefined {
+  if (isGenerationProvider(provider))
+    return provider
+  if ('chat' in provider && typeof provider.chat === 'function')
+    return { generation: (model, options) => ({ protocol: 'chat-completions', config: provider.chat(model, options) }) }
 }
 
 /** Translates a provider label or description for the active interface locale. */
@@ -66,7 +66,7 @@ export interface ProviderContext {
 
 export type ProviderInstance
   = | GenerationProvider
-    | ChatProviderWithExtraOptions
+    | ChatProviderWithExtraOptions<string, ChatRequestOptions>
     | EmbedProvider
     | EmbedProviderWithExtraOptions
     | SpeechProvider
@@ -122,8 +122,6 @@ export interface ProviderConfigContext<TConfig> extends ProviderContext {
 
 /** Serializable model discovery result returned across renderer boundaries. */
 export interface ProviderModelCatalog {
-  /** Advisory catalog failure. Endpoint discovery can still succeed without metadata. */
-  metadataError?: string
   /** Models discovered for this provider. */
   models: ModelInfo[]
   /** Whether the server exposes this catalog. Absent when discovery did not return an authoritative state. */
@@ -208,15 +206,7 @@ export interface ProviderRuntimeValidator<TConfig> {
  * Advisory route metadata. Model-bank contracts retain their original pricing and search semantics.
  * Reported search abilities do not select an AIRI native tool implementation.
  */
-export type ModelMetadata
-  = | ({ source: 'model-bank' } & Pick<AIChatModelCard, 'abilities' | 'maxOutput' | 'pricing' | 'settings'>)
-    | {
-      source: 'openrouter'
-      modalities?: { input: string[], output: string[] }
-      supportedParameters?: string[]
-      /** Catalog prices in USD per million tokens. These are not billing quotes. */
-      pricing?: { input: number, output: number }
-    }
+export type ModelMetadata = Pick<AIChatModelCard, 'abilities' | 'maxOutput' | 'pricing' | 'settings'>
 
 export interface ModelInfo {
   metadata?: ModelMetadata

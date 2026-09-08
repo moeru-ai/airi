@@ -1,5 +1,5 @@
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { TraceEvent } from '@proj-airi/stage-shared'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import type { StreamEvent } from './ai/chat-llm/llm'
 
@@ -295,7 +295,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
     const chatStore = useChatStore()
     const targetScenario = ensureScenario()
 
-    const provider = await providersStore.getProviderInstance(activeProvider.value) as ChatProvider | undefined
+    const provider = await providersStore.getChatProviderInstance(activeProvider.value)
     if (!provider || !activeModel.value) {
       console.warn('[markdown-stress] No active provider/model for online mode')
       canRunOnline.value = false
@@ -327,16 +327,12 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
     const llm = useLLM()
     const targetScenario = ensureScenario()
     const modelToUse = mockModelId
-    const mockProvider: ChatProvider = {
-      chat(model: string) {
-        return {
-          baseURL: 'mock://markdown-stress/',
-          apiKey: '',
-          headers: {},
-          model,
-        } as any
-      },
-    } as ChatProvider
+    const mockProvider: GenerationProvider = {
+      generation: model => ({
+        protocol: 'chat-completions',
+        config: { baseURL: 'mock://markdown-stress/', apiKey: '', model },
+      }),
+    }
 
     const originalStream = llm.stream
     llm.stream = async (_model, _provider, _messages, options) => {

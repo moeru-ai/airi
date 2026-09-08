@@ -24,13 +24,13 @@ await streamFrom({
 })
 ```
 
-The existing session store uses Chat-shaped UI records. The orchestrator decodes those records at the storage boundary, then composes runtime context as structured segments. Chat sends, vision inputs, and Spark notifications use the same generation contract. Hooks and the plugin bridge receive a separate display projection. That projection is not a provider request and excludes native continuation data.
+The existing session store uses Chat-shaped UI records. The orchestrator decodes those records at the storage boundary, then composes runtime context as structured segments. Chat sends, vision inputs, and Spark notifications use the same generation contract. Hooks and the plugin bridge receive a separate display projection. That projection is text-only and excludes native continuation data and media payloads. Images, audio, and files become labels, including tool results.
 
 ## Turn history
 
 After all SDK steps settle, `onTranscript` receives only the new turn. Portable messages preserve intermediate calls and results. Optional continuation data preserves provider fields such as encrypted reasoning, assistant phase, and Chat reasoning fields.
 
-The adapter validates continuation data before replay. Its scope contains provider identity, endpoint, model, and conversation. A protocol or scope change projects portable messages. A local tool-result edit invalidates that turn's continuation data. Cancelled or failed generations do not commit a transcript.
+The adapter preserves SDK continuation data without parsing nested provider fields through local schemas. It checks the outer array before replay. Its scope contains provider identity, endpoint, model, and conversation. A protocol or scope change projects portable messages. A local tool-result edit invalidates that turn's continuation data. Cancelled or failed generations do not commit a transcript.
 
 Local history preserves complete turns. Cloud chat sync currently transfers text and does not restore native continuation on another device.
 

@@ -3,7 +3,7 @@ import type { Tool } from '@xsai/shared-chat'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlicesToolCallResult } from '../types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
-import { readChatMessages } from '@proj-airi/core-agent'
+import { readChatContent } from '@proj-airi/core-agent'
 
 import { toolNameFrom } from './ai/chat-llm/tool-resolver'
 
@@ -46,9 +46,7 @@ export function replaceToolCallResult(message: ChatAssistantMessage, result: Too
 
   let generationTranscript = message.generationTranscript
   if (generationTranscript?.messages.some(entry => entry.segments.some(segment => segment.type === 'tool-result' && segment.callId === result.id))) {
-    const replacement = readChatMessages([{ role: 'tool', tool_call_id: result.id, content: result.result ?? '' }])[0]
-    if (replacement.role !== 'tool')
-      throw new Error('Expected a correlated tool result')
+    const replacement = { type: 'tool-result' as const, callId: result.id, content: readChatContent(result.result) }
     // Native state describes the old result. After a local edit, every adapter
     // must render the portable turn instead of replaying that state.
     generationTranscript = {
@@ -57,7 +55,7 @@ export function replaceToolCallResult(message: ChatAssistantMessage, result: Too
           return entry
         return {
           ...entry,
-          segments: entry.segments.map(segment => segment.callId === result.id ? replacement.segments[0] : segment),
+          segments: entry.segments.map(segment => segment.callId === result.id ? replacement : segment),
         }
       }),
     }

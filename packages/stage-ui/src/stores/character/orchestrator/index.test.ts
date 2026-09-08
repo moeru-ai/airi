@@ -118,7 +118,7 @@ describe('store character-orchestrator', () => {
 
     const mockGetChatProviderInstance = vi.fn()
     mockedStore(useProviderStore, pinia).getChatProviderInstance = mockGetChatProviderInstance
-    mockedStore(useProviderStore, pinia).getChatProviderInstance.mockResolvedValue({ chat: (_model: string) => ({} as any) })
+    mockedStore(useProviderStore, pinia).getChatProviderInstance.mockResolvedValue({ generation: (model: string) => ({ protocol: 'chat-completions', config: { model, apiKey: 'test', baseURL: 'https://example.com/v1/' } }) })
 
     const consciousnessStore = useConsciousnessStore(pinia)
     consciousnessStore.activeProvider = 'mock-provider'

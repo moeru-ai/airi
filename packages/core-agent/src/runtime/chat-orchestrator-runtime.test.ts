@@ -1,5 +1,4 @@
 import type { GenerationProvider } from '@proj-airi/provider-inference'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
 import type { ConversationContext } from '../messages/types'
@@ -13,9 +12,9 @@ import { readChatMessages, renderChatContext } from '../messages/chat-completion
 import { createChatOrchestratorRuntime } from './chat-orchestrator-runtime'
 import { streamFrom } from './llm-service'
 
-const provider = {
-  chat: () => ({ baseURL: 'https://example.com/' }),
-} as unknown as ChatProvider
+const provider: GenerationProvider = {
+  generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
+}
 
 function createHarness() {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
@@ -1173,7 +1172,7 @@ describe('responses transcript ownership', () => {
     }
     const transcript = {
       messages: readChatMessages([{ role: 'assistant', content: 'answer' }]),
-      continuation: { protocol: 'responses' as const, scope: 'adapter-scope', data: [{ type: 'reasoning', summary: [], encrypted_content: 'opaque' }] },
+      continuation: { protocol: 'responses' as const, scope: 'adapter-scope', data: [{ type: 'reasoning' as const, summary: [], encrypted_content: 'opaque' }] },
     }
     harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
       await options?.onTranscript?.(transcript)

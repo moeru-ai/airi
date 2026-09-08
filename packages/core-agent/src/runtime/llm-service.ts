@@ -4,14 +4,11 @@ import type { Tool, Usage } from '@xsai/shared-chat'
 import type { ConversationContext } from '../messages/types'
 import type { StreamEvent, StreamFromOptions, StreamOptions } from '../types/llm'
 
-import { resolveGeneration } from '@proj-airi/provider-inference'
-
 import { streamChatCompletions } from './chat-completions'
 import { streamResponses } from './responses'
 
 export function modelKey(model: string, chatProvider: GenerationProvider): string {
-  const provider: GenerationProvider = chatProvider
-  const { protocol, config } = resolveGeneration(provider, model)
+  const { protocol, config } = chatProvider.generation(model)
   return `${protocol === 'responses' ? 'responses:' : ''}${config.baseURL}-${model}`
 }
 
@@ -43,8 +40,8 @@ async function resolveTools(options?: StreamOptions) {
   return tools ?? []
 }
 
-function startStream(provider: GenerationProvider, model: string, context: ConversationContext, options: StreamOptions | undefined, tools: Tool[] | undefined, onEvent: (event: StreamEvent) => Promise<void>) {
-  const request = resolveGeneration(provider, model)
+function startStream(chatProvider: GenerationProvider, model: string, context: ConversationContext, options: StreamOptions | undefined, tools: Tool[] | undefined, onEvent: (event: StreamEvent) => Promise<void>) {
+  const request = chatProvider.generation(model)
   const { config } = request
   if (request.protocol === 'responses') {
     const scope = JSON.stringify([options?.providerId, String(config.baseURL), model, options?.requestCorrelation?.conversationId])
@@ -57,7 +54,7 @@ function startStream(provider: GenerationProvider, model: string, context: Conve
     tools,
     onEvent,
     scope: JSON.stringify([options?.providerId, String(config.baseURL), model, options?.requestCorrelation?.conversationId]),
-    supportsContentArray: streamOptionsContentArrayCompatibilityOk(model, provider, options),
+    supportsContentArray: streamOptionsContentArrayCompatibilityOk(model, chatProvider, options),
   })
 }
 
@@ -69,8 +66,6 @@ export async function streamFrom({
   options,
   builtinToolsResolver,
 }: StreamFromOptions) {
-  const provider: GenerationProvider = chatProvider
-
   const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, options)
   const builtinTools = supportedTools
     ? await (builtinToolsResolver?.(model, chatProvider) ?? Promise.resolve([]))
@@ -104,13 +99,13 @@ export async function streamFrom({
       }
       catch (error) {
         rejectOnce(error)
-        if (resolveGeneration(provider, model).protocol === 'responses')
+        if (chatProvider.generation(model).protocol === 'responses')
           throw error
       }
     }
 
     try {
-      const streamResult = startStream(provider, model, context, options, tools, onEvent)
+      const streamResult = startStream(chatProvider, model, context, options, tools, onEvent)
 
       // NOTICE: Consume underlying promises to prevent unhandled rejections from
       // @xsai/stream-text's SSE parser surfacing as faulted app state.

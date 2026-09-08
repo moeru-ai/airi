@@ -49,7 +49,7 @@ describe('replaceToolCallResult', () => {
     // state so its adapter renders the updated portable messages.
     const message = assistantMessage({ generationTranscript: {
       messages: [{ id: 'result', role: 'tool', segments: [{ type: 'tool-result', callId: 'call-weather', content: [{ type: 'text', text: 'old weather' }] }] }],
-      continuation: { protocol: 'responses', scope: 'session', data: 'opaque' },
+      continuation: { protocol: 'responses', scope: 'session', data: [{ type: 'function_call_output', call_id: 'call-weather', output: 'old weather' }] },
     } })
     const next = replaceToolCallResult(message, { id: 'call-weather', result: 'new weather' })
     expect(next.generationTranscript?.continuation).toBeUndefined()

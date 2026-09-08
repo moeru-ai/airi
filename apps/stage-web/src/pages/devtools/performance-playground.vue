@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { EmotionPayload } from '@proj-airi/stage-ui/constants/emotions'
-import type { ChatProvider, SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
@@ -202,7 +202,7 @@ async function sendChat() {
   if (!content)
     return
 
-  const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+  const provider = await providersStore.getChatProviderInstance(activeChatProvider.value)
   if (!provider || !activeChatModel.value) {
     log('未配置聊天模型或 provider')
     return
@@ -211,7 +211,7 @@ async function sendChat() {
   try {
     await chatOrchestrator.ingest(content, {
       model: activeChatModel.value,
-      chatProvider: provider as ChatProvider,
+      chatProvider: provider,
     })
     chatInput.value = ''
   }

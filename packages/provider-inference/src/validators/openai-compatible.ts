@@ -9,7 +9,7 @@ import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 import { Mutex } from 'es-toolkit'
 
-import { isGenerationProvider, isModelProvider, ProviderValidationCheck, resolveGeneration } from '../types'
+import { getGenerationProvider, isModelProvider, ProviderValidationCheck } from '../types'
 
 interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
   checks?: ProviderValidationCheck[]
@@ -135,7 +135,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       }
     }
 
-    const generation = isGenerationProvider(provider) ? resolveGeneration(provider, normalizedModel) : undefined
+    const generation = getGenerationProvider(provider)?.generation(normalizedModel)
     try {
       if (generation?.protocol === 'responses') {
         const result = responses({

@@ -1,5 +1,7 @@
 import type { ChatRequestOptions } from '../../../types'
 
+import openRouterModels from 'model-bank/openrouter'
+
 import { createOpenRouter } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
@@ -74,7 +76,7 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig, 'openrouter
   extraMethods: {
     listModelCatalog: config => listModelCatalog(
       { apiKey: config.apiKey, baseURL: config.baseUrl ?? 'https://openrouter.ai/api/v1/', headers: OPENROUTER_ATTRIBUTION_HEADERS },
-      { source: 'openrouter', providerId: 'openrouter-ai', baseURL: 'https://openrouter.ai/api/v1/' },
+      { models: openRouterModels.filter(model => model.type === 'chat'), providerId: 'openrouter-ai', baseURL: 'https://openrouter.ai/api/v1/' },
     ),
   },
 

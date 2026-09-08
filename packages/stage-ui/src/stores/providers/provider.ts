@@ -1,20 +1,11 @@
 import type { GenerationProvider } from '@proj-airi/provider-inference'
-import type {
-  ChatProviderWithExtraOptions,
-  EmbedProvider,
-  EmbedProviderWithExtraOptions,
-  SpeechProvider,
-  SpeechProviderWithExtraOptions,
-  TranscriptionProvider,
-  TranscriptionProviderWithExtraOptions,
-} from '@xsai-ext/providers/utils'
 import type {} from 'pinia-plugin-synced'
 
 import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/providers'
 import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { isGenerationProvider, resolveGeneration } from '@proj-airi/provider-inference'
+import { getGenerationProvider } from '@proj-airi/provider-inference'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { computedAsync, useAsyncState, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
@@ -727,8 +718,6 @@ export const useProviderStore = defineStore('provider', () => {
 
     try {
       const catalog = await listProviderModels(providerId, config || {})
-      if (catalog.metadataError)
-        console.warn(`Model metadata unavailable for ${providerId}:`, catalog.metadataError)
       const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
         .map(model => ({
           metadata: model.metadata,
@@ -887,16 +876,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   // Function to get provider object by provider id
-  async function getProviderInstance<R extends
-  | GenerationProvider
-  | ChatProviderWithExtraOptions
-  | EmbedProvider
-  | EmbedProviderWithExtraOptions
-  | SpeechProvider
-  | SpeechProviderWithExtraOptions
-  | TranscriptionProvider
-  | TranscriptionProviderWithExtraOptions,
-  >(providerId: string): Promise<R> {
+  async function getProviderInstance<R extends ProviderInstance>(providerId: string): Promise<R> {
     await waitForProviderMetadata()
     const cached = providerInstanceCache.get(providerId) as R | undefined
     if (cached)
@@ -933,14 +913,14 @@ export const useProviderStore = defineStore('provider', () => {
    */
   async function getChatProviderInstance(
     providerId: string,
-    options: ChatRequestOptions,
+    options?: ChatRequestOptions,
   ): Promise<GenerationProvider> {
-    const provider = await getProviderInstance(providerId)
-    if (!isGenerationProvider(provider))
+    const provider = getGenerationProvider(await getProviderInstance(providerId))
+    if (!provider)
       throw new Error(`Provider ${providerId} does not support generation`)
     const reasoning = findProviderDefinition(providerId)?.capabilities?.chat?.reasoning
-    const requestOptions = reasoning?.modes.includes(options.reasoning) ? options : undefined
-    return { generation: model => resolveGeneration(provider, model, requestOptions) }
+    const requestOptions = options && reasoning?.modes.includes(options.reasoning) ? options : undefined
+    return { generation: model => provider.generation(model, requestOptions) }
   }
 
   async function disposeProviderInstance(providerId: string) {

@@ -1,6 +1,6 @@
 import type { Session, User } from 'better-auth'
 
-import { isGenerationProvider, resolveGeneration } from '@proj-airi/provider-inference'
+import { isGenerationProvider } from '@proj-airi/provider-inference'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
@@ -232,11 +232,11 @@ describe('provider store synchronization boundary', () => {
 
     expect(reasoningDisabledProvider).not.toBe(baseProvider)
     expect(reasoningEnabledProvider).not.toBe(baseProvider)
-    expect(resolveGeneration(reasoningDisabledProvider, 'any-model').config).toMatchObject({ reasoning: { effort: 'none' } })
-    expect(resolveGeneration(reasoningEnabledProvider, 'any-model').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
+    expect(reasoningDisabledProvider.generation('any-model').config).toMatchObject({ reasoning: { effort: 'none' } })
+    expect(reasoningEnabledProvider.generation('any-model').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
     if (!isGenerationProvider(baseProvider))
       throw new Error('Expected generation provider')
-    expect(resolveGeneration(baseProvider, 'any-model').config).not.toHaveProperty('reasoning')
+    expect(baseProvider.generation('any-model').config).not.toHaveProperty('reasoning')
   })
 
   // ROOT CAUSE:
