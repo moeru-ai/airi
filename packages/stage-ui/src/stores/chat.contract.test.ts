@@ -128,6 +128,7 @@ vi.mock('../composables/use-io-tracer', () => ({
 vi.mock('./chat/context-providers', () => ({
   createMinecraftContext: () => createMinecraftContextMock(),
   createRuntimePromptContext: (prompt: string) => createRuntimePromptContextMock(prompt),
+  createUserAccountContext: () => undefined,
 }))
 
 vi.mock('vue-i18n', () => ({
