@@ -166,6 +166,7 @@ computer-use:
   description: 允许此聊天窗口查看和操作本机应用。
 
 announcements:
+  cover: 公告封面
   title: 公告
   open: 打开公告
   close: 关闭公告

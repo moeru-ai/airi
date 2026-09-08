@@ -16,6 +16,7 @@ const triggerElement = ref<HTMLDivElement>()
 // keeps the window interactive while the portaled content is visible.
 defineExpose({ triggerElement })
 const current = ref(0)
+const failedCover = ref('')
 const active = computed(() => announcements.value[current.value])
 
 watch(announcements, (items) => {
@@ -53,7 +54,14 @@ watch(announcements, (items) => {
               <Button size="sm" icon="i-lucide:x" :aria-label="t('stage.announcements.close')" />
             </PopoverClose>
           </header>
-          <article :class="['max-h-[50dvh] overflow-y-auto break-words']">
+          <article aria-live="polite" :class="['max-h-[50dvh] overflow-y-auto break-words']">
+            <img
+              v-if="active.coverUrl && failedCover !== active.coverUrl"
+              :key="active.coverUrl" :src="active.coverUrl" :alt="t('stage.announcements.cover')"
+              referrerpolicy="no-referrer"
+              :class="['mb-4 aspect-video w-full rounded-xl object-contain', 'bg-neutral-100 dark:bg-neutral-800']"
+              @error="failedCover = active.coverUrl"
+            >
             <h2 :class="['mb-3 text-xl font-semibold']">
               {{ active.title }}
             </h2>
@@ -67,9 +75,9 @@ watch(announcements, (items) => {
             >{{ active.actionLabel }}</a>
           </article>
           <footer v-if="announcements.length > 1" :class="['mt-4 flex items-center justify-between gap-2']">
-            <Button size="sm" icon="i-lucide:chevron-left" :disabled="current === 0" :aria-label="t('stage.announcements.previous')" @click="current--" />
+            <Button size="sm" icon="i-lucide:chevron-left" :aria-label="t('stage.announcements.previous')" @click="current = (current - 1 + announcements.length) % announcements.length" />
             <span :class="['text-xs text-neutral-500']">{{ current + 1 }} / {{ announcements.length }}</span>
-            <Button size="sm" icon="i-lucide:chevron-right" :disabled="current === announcements.length - 1" :aria-label="t('stage.announcements.next')" @click="current++" />
+            <Button size="sm" icon="i-lucide:chevron-right" :aria-label="t('stage.announcements.next')" @click="current = (current + 1) % announcements.length" />
           </footer>
         </PopoverContent>
       </PopoverPortal>

@@ -166,6 +166,7 @@ computer-use:
   description: Allow this chat window to inspect and control native apps on this computer.
 
 announcements:
+  cover: Announcement cover
   title: Announcements
   open: Open announcements
   close: Close announcements

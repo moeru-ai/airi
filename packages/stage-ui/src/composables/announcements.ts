@@ -10,6 +10,7 @@ const contentSchema = object({
   locale: pipe(string(), nonEmpty()),
   title: pipe(string(), nonEmpty()),
   body: pipe(string(), nonEmpty()),
+  coverUrl: optional(string(), ''),
   actionLabel: optional(string(), ''),
   actionUrl: optional(string(), ''),
   startsAt: pipe(string(), isoTimestamp()),
@@ -22,6 +23,7 @@ const contentSchema = object({
  * The scope owns polling and cancellation. Expiry is checked locally each second.
  */
 export function useAnnouncements(client: MaybeRefOrGetter<'web' | 'desktop'>, locale: MaybeRefOrGetter<string>) {
+  const baseUrl = import.meta.env.VITE_CLOUD_API_URL || 'https://cloud.airi.build'
   const entries = ref<ReturnType<typeof readContent>>([])
   const now = useNow({ interval: 1000 })
   const error = ref<unknown>(null)
@@ -34,7 +36,7 @@ export function useAnnouncements(client: MaybeRefOrGetter<'web' | 'desktop'>, lo
     controller = request
     try {
       const { data } = await announcementServiceListAnnouncements({
-        baseUrl: import.meta.env.VITE_CLOUD_API_URL || 'https://cloud.airi.build',
+        baseUrl,
         query: { client: toValue(client), locale: toValue(locale), limit: 100 },
         credentials: 'omit',
         signal: AbortSignal.any([request.signal, AbortSignal.timeout(10000)]),
@@ -42,7 +44,7 @@ export function useAnnouncements(client: MaybeRefOrGetter<'web' | 'desktop'>, lo
       })
       if (disposed || request.signal.aborted)
         return
-      entries.value = readContent(data)
+      entries.value = readContent(data, baseUrl)
       error.value = null
     }
     catch (caught) {
@@ -72,9 +74,15 @@ export function useAnnouncements(client: MaybeRefOrGetter<'web' | 'desktop'>, lo
   return { announcements, error, refresh }
 }
 
-function readContent(data: unknown) {
+function readContent(data: unknown, baseUrl: string) {
   const result = parse(object({ announcements: array(contentSchema) }), data)
   for (const item of result.announcements) {
+    if (item.coverUrl !== '') {
+      const url = new URL(item.coverUrl, baseUrl)
+      if (url.origin !== new URL(baseUrl).origin || url.pathname !== `/v1/announcements/${encodeURIComponent(item.id)}/cover` || url.username || url.password)
+        throw new Error('Invalid announcement cover')
+      item.coverUrl = url.href
+    }
     if (item.endsAt !== '' && !Number.isFinite(Date.parse(item.endsAt)))
       throw new Error('Invalid announcement expiry')
     if (item.actionUrl !== '') {

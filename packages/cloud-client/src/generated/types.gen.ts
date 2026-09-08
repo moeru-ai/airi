@@ -44,6 +44,10 @@ export type V1Announcement = {
      * Empty means no expiry. The end time is exclusive.
      */
     endsAt?: string;
+    /**
+     * Empty or a Cloud-relative path. Reading checks publication before redirecting.
+     */
+    coverUrl?: string;
 };
 
 export type V1ListAnnouncementsResponse = {
