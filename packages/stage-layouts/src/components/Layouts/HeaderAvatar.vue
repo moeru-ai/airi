@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { signOut } from '@proj-airi/stage-ui/libs/auth'
+import { SignOutDialog } from '@proj-airi/stage-ui/components'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { AnimatedContent, Avatar } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from 'reka-ui'
-import { computed } from 'vue'
+import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -23,6 +23,7 @@ defineProps<{
 const authStore = useAuthStore()
 const { isAuthenticated, user, credits } = storeToRefs(authStore)
 const { t } = useI18n()
+const signOutDialogOpen = shallowRef(false)
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
@@ -186,15 +187,16 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
                   'data-[highlighted]:bg-red-50 dark:data-[highlighted]:bg-red-900/20',
                   'transition-colors duration-150 ease-in-out',
                 ]"
-                @click="signOut"
+                @click="signOutDialogOpen = true"
               >
                 <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
-                Sign out
+                {{ t('settings.pages.account.logout') }}
               </button>
             </DropdownMenuItem>
           </AnimatedContent>
         </DropdownMenuContent>
       </DropdownMenuPortal>
+      <SignOutDialog v-model="signOutDialogOpen" />
     </DropdownMenuRoot>
   </div>
 </template>
