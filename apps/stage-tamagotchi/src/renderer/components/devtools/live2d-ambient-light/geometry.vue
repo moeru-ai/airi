@@ -2,13 +2,14 @@
 import { ambientLightDefaults } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { Section } from '@proj-airi/stage-ui/components'
-import { FieldRange } from '@proj-airi/ui'
+import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const {
   screenAmbientLightBend,
+  screenAmbientLightAreaLights,
   screenAmbientLightGap,
   screenAmbientLightFlatRadius,
 } = storeToRefs(useSettingsScreenAmbientLight())
@@ -31,6 +32,11 @@ function formatWidth(value: number) {
     <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
       {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.geometry.description') }}
     </p>
+    <FieldCheckbox
+      v-model="screenAmbientLightAreaLights"
+      :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.geometry.area-lights.title')"
+      :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.geometry.area-lights.description')"
+    />
     <div :class="['grid gap-5', 'md:grid-cols-2']">
       <FieldRange
         v-model="screenAmbientLightBend"

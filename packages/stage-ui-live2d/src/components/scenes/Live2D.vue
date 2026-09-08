@@ -75,6 +75,13 @@ const {
 } = storeToRefs(useSettingsLive2d())
 const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
 const {
+  screenAmbientLightResponseCurve,
+  screenAmbientLightPhysicalExposure,
+  screenAmbientLightScreenNits,
+  screenAmbientLightExposureCompensation,
+  screenAmbientLightAdaptiveBloom,
+  screenAmbientLightDarkAdaptation,
+  screenAmbientLightBrightAdaptation,
   screenAmbientLightBloom,
   screenAmbientLightBacklight,
   screenAmbientLightBaseCurve,
@@ -97,6 +104,7 @@ const {
   screenAmbientLightBend,
   screenAmbientLightGap,
   screenAmbientLightFlatRadius,
+  screenAmbientLightAreaLights,
   screenAmbientLightTranslucentWrap,
   screenAmbientLightWrapDiffuse,
   screenAmbientLightWrapIntensity,
@@ -107,6 +115,15 @@ const {
   environment: screenAmbientLightEnvironment,
   subject: screenAmbientLightSubject,
 } = storeToRefs(useScreenAmbientLightEnvironment())
+const screenAmbientLightExposure = computed(() => ({
+  responseCurve: screenAmbientLightResponseCurve.value,
+  enabled: screenAmbientLightPhysicalExposure.value,
+  screenNits: screenAmbientLightScreenNits.value,
+  compensation: screenAmbientLightExposureCompensation.value,
+  adaptiveBloom: screenAmbientLightAdaptiveBloom.value,
+  darkSeconds: screenAmbientLightDarkAdaptation.value,
+  brightSeconds: screenAmbientLightBrightAdaptation.value,
+}))
 const screenAmbientLightMaterial = computed(() => ({
   illustrated: screenAmbientLightIllustrated.value,
   faceShadow: screenAmbientLightFaceShadow.value,
@@ -121,6 +138,7 @@ const screenAmbientLightGeometry = computed(() => ({
   bend: screenAmbientLightBend.value,
   gap: screenAmbientLightGap.value,
   flatRadius: screenAmbientLightFlatRadius.value,
+  areaLights: screenAmbientLightAreaLights.value,
 }))
 const screenAmbientLightFilterOptions = computed(() => ({
   darkBase: screenAmbientLightDarkBase.value,
@@ -167,6 +185,7 @@ watch([componentStateModel, componentStateCanvas], () => {
 })
 
 defineExpose({
+  characterBounds: () => live2dModelRef.value?.characterBounds(),
   canvasElement: () => {
     return live2dCanvasRef.value?.canvasElement()
   },
@@ -213,6 +232,7 @@ defineExpose({
         :live2d-shadow-enabled="live2dShadowEnabled"
         :screen-ambient-light-active="screenAmbientLightEnabled && screenAmbientLightActive"
         :screen-ambient-light-filter-options="screenAmbientLightFilterOptions"
+        :screen-ambient-light-exposure="screenAmbientLightExposure"
         :screen-ambient-light-environment="screenAmbientLightEnvironment"
         :screen-ambient-light-subject="screenAmbientLightSubject"
         :screen-ambient-light-mode="screenAmbientLightMode"
