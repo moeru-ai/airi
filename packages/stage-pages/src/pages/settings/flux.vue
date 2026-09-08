@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
+import type { FluxAuditRecord } from './flux-history'
+
 import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
@@ -11,6 +13,8 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+
+import { groupFluxHistory } from './flux-history'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -59,18 +63,6 @@ const currencyOptions = computed(() => {
     .map(c => ({ label: c.toUpperCase(), value: c }))
 })
 
-// NOTICE: Manual interface instead of hono InferResponseType because hono client
-// type instantiation hits TS recursion limits ("excessively deep and possibly infinite").
-// Keep this manual shape aligned with the API response.
-interface AuditRecord {
-  id: string
-  type: string
-  amount: number
-  description: string
-  metadata: Record<string, unknown> | null
-  createdAt: string
-}
-
 function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num)
 }
@@ -93,13 +85,13 @@ function fluxBalanceBucket(balance: number | undefined): FluxBalanceBucket {
 }
 
 /** Display amount with sign: debit is negative, credit/initial are positive */
-function displayAmount(record: AuditRecord): string {
+function displayAmount(record: FluxAuditRecord): string {
   const signed = record.type === 'debit' ? -record.amount : record.amount
   const formatted = formatNumber(Math.abs(signed))
   return signed >= 0 ? `+${formatted}` : `-${formatted}`
 }
 
-function isPositive(record: AuditRecord): boolean {
+function isPositive(record: FluxAuditRecord): boolean {
   return record.type !== 'debit'
 }
 
@@ -117,7 +109,7 @@ function typeLabel(type: string): string {
   return t(TYPE_LABEL_KEY[type] ?? TYPE_LABEL_KEY.initial)
 }
 
-const auditRecords = ref<AuditRecord[]>([])
+const auditRecords = ref<FluxAuditRecord[]>([])
 const auditLoading = ref(false)
 const auditHasMore = ref(false)
 const auditOffset = ref(0)
@@ -152,7 +144,7 @@ async function fetchAuditHistory(loadMore = false) {
       query: { limit: String(AUDIT_PAGE_SIZE), offset: String(offset) },
     })
     if (res.ok) {
-      const data = await res.json() as { records: AuditRecord[], hasMore: boolean }
+      const data = await res.json() as { records: FluxAuditRecord[], hasMore: boolean }
       if (loadMore) {
         auditRecords.value.push(...data.records)
       }
@@ -175,22 +167,6 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleString()
 }
 
-// Group consecutive TTS debit records into collapsible rows
-type GroupedRow = {
-  type: 'single'
-  record: AuditRecord
-} | {
-  type: 'group'
-  key: string
-  description: string
-  model: string
-  count: number
-  totalAmount: number
-  firstTime: string
-  lastTime: string
-  records: AuditRecord[]
-}
-
 const expandedGroups = ref<Set<string>>(new Set())
 
 function toggleGroup(key: string) {
@@ -200,48 +176,7 @@ function toggleGroup(key: string) {
     expandedGroups.value.add(key)
 }
 
-const groupedRows = computed<GroupedRow[]>(() => {
-  const rows: GroupedRow[] = []
-  let i = 0
-  const records = auditRecords.value
-
-  while (i < records.length) {
-    const record = records[i]
-    if (record.type === 'debit' && record.description?.startsWith('tts:')) {
-      // Collect consecutive TTS records with the same description
-      const group: AuditRecord[] = [record]
-      while (i + 1 < records.length
-        && records[i + 1].type === 'debit'
-        && records[i + 1].description === record.description) {
-        i++
-        group.push(records[i])
-      }
-
-      if (group.length > 1) {
-        rows.push({
-          type: 'group',
-          key: `tts-group-${record.id}`,
-          description: record.description,
-          model: (record.metadata?.model as string) || '',
-          count: group.length,
-          totalAmount: group.reduce((sum, r) => sum + r.amount, 0),
-          firstTime: group.at(-1)!.createdAt,
-          lastTime: group[0].createdAt,
-          records: group,
-        })
-      }
-      else {
-        rows.push({ type: 'single', record })
-      }
-    }
-    else {
-      rows.push({ type: 'single', record })
-    }
-    i++
-  }
-
-  return rows
-})
+const groupedRows = computed(() => groupFluxHistory(auditRecords.value))
 
 async function fetchPackages() {
   try {
@@ -521,7 +456,7 @@ async function handleBuy(stripePriceId: string) {
                     ({{ row.record.metadata.promptTokens }}+{{ row.record.metadata.completionTokens }} tokens)
                   </span>
                   <span
-                    v-else-if="row.record.description?.startsWith('tts:') && row.record.metadata?.model"
+                    v-else-if="row.record.description === 'tts_request' && row.record.metadata?.model"
                     ml-1 text="xs neutral-400"
                   >
                     ({{ row.record.metadata.model }})
@@ -566,7 +501,7 @@ async function handleBuy(stripePriceId: string) {
                 </td>
                 <td px-4 py-3 text-right font-mono>
                   <span text="orange-600 dark:orange-400">
-                    -{{ row.totalAmount }}
+                    -{{ formatNumber(row.totalAmount) }}
                   </span>
                 </td>
               </tr>
@@ -585,7 +520,7 @@ async function handleBuy(stripePriceId: string) {
                   {{ child.description }}
                 </td>
                 <td px-4 py-2 text-right font-mono text="xs orange-500 dark:orange-400">
-                  -{{ child.amount }}
+                  {{ displayAmount(child) }}
                 </td>
               </tr>
             </template>
@@ -623,7 +558,7 @@ async function handleBuy(stripePriceId: string) {
                 ({{ row.record.metadata.promptTokens }}+{{ row.record.metadata.completionTokens }} tokens)
               </span>
               <span
-                v-else-if="row.record.description?.startsWith('tts:') && row.record.metadata?.model"
+                v-else-if="row.record.description === 'tts_request' && row.record.metadata?.model"
                 ml-1 text="xs neutral-400"
               >
                 ({{ row.record.metadata.model }})
@@ -648,7 +583,7 @@ async function handleBuy(stripePriceId: string) {
                 {{ t('settings.pages.flux.audit.typeConsumption') }}
               </span>
               <span text-sm font-semibold font-mono text="orange-600 dark:orange-400">
-                -{{ row.totalAmount }}
+                -{{ formatNumber(row.totalAmount) }}
               </span>
             </div>
             <div flex="~ items-center gap-1" text="sm neutral-600 dark:neutral-300">
@@ -670,7 +605,7 @@ async function handleBuy(stripePriceId: string) {
                 flex="~ items-center justify-between" text="xs neutral-400"
               >
                 <span>{{ formatDate(child.createdAt) }}</span>
-                <span font-mono>-{{ child.amount }}</span>
+                <span font-mono>{{ displayAmount(child) }}</span>
               </div>
             </div>
           </div>

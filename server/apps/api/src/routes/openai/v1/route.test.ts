@@ -1400,6 +1400,53 @@ describe('v1CompletionsRoutes', () => {
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
     })
 
+    it('records the conversation and round on automatic TTS billing', async () => {
+      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const ttsMeter = createMockTtsMeter()
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        ttsMeter,
+      )
+
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            [AIRI_CHAT_SESSION_ID_HEADER]: 'conversation-1',
+          },
+          body: JSON.stringify({
+            model: 'auto',
+            input: 'hello',
+            voice: 'alloy',
+            extra_body: {
+              airi_analytics: {
+                trigger: 'auto',
+                source: 'chat_auto_tts',
+                round_id: 'round-1',
+              },
+            },
+          }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(response.status).toBe(200)
+      expect(ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({
+          conversationId: 'conversation-1',
+          roundId: 'round-1',
+        }),
+      }))
+    })
+
     /**
      * @example
      * POST /api/v1/audio/speech { "input": "hello", "voice": "alloy" }

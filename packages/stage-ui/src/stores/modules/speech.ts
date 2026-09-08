@@ -43,6 +43,7 @@ interface SpeechAnalytics {
   trigger: 'auto' | 'manual'
   source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
   voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
+  round_id?: string
 }
 
 export const useSpeechStore = defineStore('speech', () => {

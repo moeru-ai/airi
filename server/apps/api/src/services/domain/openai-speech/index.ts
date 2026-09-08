@@ -71,6 +71,7 @@ type TtsTrigger = 'auto' | 'manual'
 interface TtsAnalyticsContext {
   trigger: TtsTrigger
   source: 'audio.speech' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  roundId?: string
 }
 
 /**
@@ -215,7 +216,12 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         units: billingUnits,
         currentBalance: flux.flux,
         requestId,
-        metadata: { model: requestModel, costMultiplier: voicePackRequest.costMultiplier },
+        metadata: {
+          model: requestModel,
+          costMultiplier: voicePackRequest.costMultiplier,
+          ...(input.sessionId != null && { conversationId: input.sessionId }),
+          ...(analytics.roundId != null && { roundId: analytics.roundId }),
+        },
       })
       fluxConsumed = result.fluxDebited
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
@@ -289,7 +295,16 @@ function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext
     || rawSource === 'settings_test'
     ? rawSource
     : 'audio.speech'
-  return { trigger, source }
+  const roundId = readCorrelationId(analytics?.round_id)
+  return { trigger, source, roundId }
+}
+
+function readCorrelationId(value: unknown): string | undefined {
+  if (typeof value !== 'string')
+    return undefined
+
+  const id = value.trim()
+  return id.length > 0 && id.length <= 128 ? id : undefined
 }
 
 async function voicePackRequestOptions(
