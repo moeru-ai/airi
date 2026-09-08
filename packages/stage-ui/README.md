@@ -2,18 +2,6 @@
 
 Shared core for stage
 
-## Account context in chat
-
-Each signed-in model request reads the current account display name through
-`createUserAccountContext`. The chat store adds it to the request snapshot without
-saving it in the context registry or character card. Signed-out requests contain
-no account context, including no profile instructions. Flux is not included.
-
-Use this context for natural forms of address. Nickname edits belong in
-**Settings > Account > Profile > Display name** at `/settings/account`.
-A nickname requested in chat does not update the account or persistent memory.
-Do not put credentials, email addresses, or payment history in this context.
-
 ## Character-card module settings
 
 The card store owns three distinct states:
