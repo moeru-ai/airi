@@ -26,7 +26,7 @@ import { clamp } from 'es-toolkit'
  * a silhouette that touches the filter frame reads its own alpha past the
  * frame edge, and no wrap appears there.
  */
-const wrapPadding = 16
+const wrapPadding = 64
 
 /**
  * Resolution of the alpha blur passes relative to the filter input.
@@ -40,11 +40,11 @@ const blurResolutionScale = 0.5
 
 /**
  * Taps on each side of the center tap in one blur pass, and their spacing in
- * standard deviations. Six taps half a deviation apart span three deviations,
+ * standard deviations. Twenty-four taps span three deviations,
  * which holds 99.7% of the kernel.
  */
-const blurHalfTaps = 6
-const blurTapSpacingSigma = 0.5
+const blurHalfTaps = 24
+const blurTapSpacingSigma = 3 / blurHalfTaps
 
 /**
  * Standard deviation of the backlight rim, as a fraction of the frame height.
@@ -114,6 +114,7 @@ uniform vec3 uSurroundAverage;
 uniform vec3 uContactAverage;
 uniform highp vec2 uStageSize;
 uniform float uBacklight;
+uniform float uBloom;
 uniform float uDirectional;
 uniform float uStrength;
 uniform float uDisplayLevel;
@@ -217,7 +218,7 @@ vec3 enhanceLightColor(vec3 unlit, vec3 lit, vec3 incident) {
 
 void main(void) {
   vec4 source = texture2D(uSampler, vTextureCoord);
-  if (source.a <= 0.0) {
+  if (source.a <= 0.0 && uBloom <= 0.0) {
     gl_FragColor = source;
     return;
   }
@@ -236,7 +237,7 @@ void main(void) {
   vec2 subjectUv = (windowUv - uSubjectRect.xy) / max(uSubjectRect.zw, vec2(0.0001));
   vec2 mapUv = (subjectUv + uMapMargin) / (vec2(1.0) + 2.0 * uMapMargin);
 
-  vec3 baseLinear = srgbToLinear(source.rgb / source.a);
+  vec3 baseLinear = srgbToLinear(source.rgb / max(source.a, 0.0001));
 
   // Global mode replaces both lookups with the mean of the map, so the whole
   // model takes one color.
@@ -315,7 +316,18 @@ void main(void) {
   vec3 unlitClamped = clamp(unlit, 0.0, 1.0);
   litLinear = enhanceLightColor(unlitClamped, litLinear, max(litLinear - unlitClamped, vec3(0.0)));
 
-  gl_FragColor = vec4(linearToSrgb(litLinear) * source.a, source.a);
+  // Outside the silhouette, the same backlight field illuminates the blurred
+  // coverage. This adds a premultiplied halo over the transparent desktop.
+  // It is independent of albedo, so pale clothes cannot bloom on a dark screen.
+  // Coverage remains linear opacity. Applying the sRGB curve to the 8-bit
+  // mask amplifies its lowest steps into visible bands outside the model.
+  float haloCoverage = max(blurredAlpha.g-source.a,0.0);
+  vec3 haloEnergy = wrapColor * uStrength * uBacklight * uBloom;
+  vec3 halo = linearToSrgb(vec3(1.0)-exp(-haloEnergy))*haloCoverage;
+  float haloAlpha = max(max(halo.r,halo.g),halo.b);
+  vec3 outputColor = linearToSrgb(litLinear)*source.a + halo*(1.0-source.a);
+  float outputAlpha = source.a + haloAlpha*(1.0-source.a);
+  gl_FragColor = vec4(outputColor,outputAlpha);
 }
 `
 
@@ -402,6 +414,7 @@ export class ScreenAmbientLightFilter extends Filter {
       uContactAverage: new Float32Array([1, 1, 1]),
       uStageSize: new Float32Array([1, 1]),
       uBacklight: ambientLightDefaults.filter.backlight,
+      uBloom: ambientLightDefaults.filter.bloom,
       uDirectional: 0,
       uStrength: 0,
       uDisplayLevel: 1,
@@ -463,6 +476,7 @@ export class ScreenAmbientLightFilter extends Filter {
     this.uniforms.uWrapIntensity = Math.max(0, options.wrapIntensity)
     this.uniforms.uWrapSaturation = clamp(options.wrapSaturation, 0, 1)
     this.uniforms.uBacklight = clamp(options.backlight, 0, 4)
+    this.uniforms.uBloom = clamp(options.bloom, 0, 3)
     this.uniforms.uTranslucentWrap = options.translucentWrap ? 1 : 0
     this.wrapDiffuse = clamp(options.wrapDiffuse, 0, 0.5)
   }

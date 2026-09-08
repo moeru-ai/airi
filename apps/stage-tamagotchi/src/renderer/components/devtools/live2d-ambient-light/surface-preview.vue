@@ -28,7 +28,7 @@ const options = computed<SurfaceLightPreviewOptions>(() => {
   const bounds = diagnostics.value?.windowBounds
   return {
     environment: diagnostics.value?.sampling?.appliedEnvironment ?? ambientLightNeutralEnvironment,
-    material: { sheen: settings.screenAmbientLightSheen.value, nose: settings.screenAmbientLightNose.value, softHighlights: settings.screenAmbientLightSoftHighlights.value },
+    material: { faceYaw: settings.screenAmbientLightFaceYaw.value, faceShadow: settings.screenAmbientLightFaceShadow.value, roughness: settings.screenAmbientLightRoughness.value, skinRelief: settings.screenAmbientLightSkinRelief.value, illustrated: settings.screenAmbientLightIllustrated.value, sheen: settings.screenAmbientLightSheen.value, nose: settings.screenAmbientLightNose.value, softHighlights: settings.screenAmbientLightSoftHighlights.value },
     geometry: { bend: settings.screenAmbientLightBend.value, gap: settings.screenAmbientLightGap.value, flatRadius: settings.screenAmbientLightFlatRadius.value },
     mode: settings.screenAmbientLightMode.value,
     strength: settings.screenAmbientLightStrength.value,

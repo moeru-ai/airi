@@ -22,6 +22,11 @@ const screenAmbientLightSquint = useLocalStorageManualReset<number>('settings/sc
 const screenAmbientLightBend = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-bend', ambientLightDefaults.geometry.bend)
 const screenAmbientLightGap = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-gap', ambientLightDefaults.geometry.gap)
 const screenAmbientLightFlatRadius = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-flat-radius', ambientLightDefaults.geometry.flatRadius)
+const screenAmbientLightIllustrated = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/illustrated', ambientLightDefaults.material.illustrated)
+const screenAmbientLightFaceShadow = useLocalStorageManualReset<number>('settings/screen-ambient-light/face-shadow', ambientLightDefaults.material.faceShadow)
+const screenAmbientLightFaceYaw = useLocalStorageManualReset<number>('settings/screen-ambient-light/face-yaw', ambientLightDefaults.material.faceYaw)
+const screenAmbientLightRoughness = useLocalStorageManualReset<number>('settings/screen-ambient-light/roughness', ambientLightDefaults.material.roughness)
+const screenAmbientLightSkinRelief = useLocalStorageManualReset<number>('settings/screen-ambient-light/skin-relief', ambientLightDefaults.material.skinRelief)
 const screenAmbientLightSheen = useLocalStorageManualReset<number>('settings/screen-ambient-light/sheen', ambientLightDefaults.material.sheen)
 const screenAmbientLightNose = useLocalStorageManualReset<number>('settings/screen-ambient-light/nose', ambientLightDefaults.material.nose)
 const screenAmbientLightSoftHighlights = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/soft-highlights', ambientLightDefaults.material.softHighlights)
@@ -37,6 +42,7 @@ const screenAmbientLightColorBoost = useLocalStorageManualReset<number>('setting
 const screenAmbientLightWrapIntensity = useLocalStorageManualReset<number>('settings/screen-ambient-light/wrap-intensity', ambientLightDefaults.filter.wrapIntensity)
 const screenAmbientLightWrapSaturation = useLocalStorageManualReset<number>('settings/screen-ambient-light/wrap-saturation', ambientLightDefaults.filter.wrapSaturation)
 const screenAmbientLightWrapDiffuse = useLocalStorageManualReset<number>('settings/screen-ambient-light/wrap-diffuse', ambientLightDefaults.filter.wrapDiffuse)
+const screenAmbientLightBloom = useLocalStorageManualReset<number>('settings/screen-ambient-light/bloom', ambientLightDefaults.filter.bloom)
 const screenAmbientLightBacklight = useLocalStorageManualReset<number>('settings/screen-ambient-light/backlight', ambientLightDefaults.filter.backlight)
 const screenAmbientLightTranslucentWrap = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/translucent-wrap', ambientLightDefaults.filter.translucentWrap)
 
@@ -47,6 +53,11 @@ function resetState() {
   screenAmbientLightMode.reset()
   screenAmbientLightStrength.reset()
   screenAmbientLightSquint.reset()
+  screenAmbientLightIllustrated.reset()
+  screenAmbientLightFaceShadow.reset()
+  screenAmbientLightFaceYaw.reset()
+  screenAmbientLightRoughness.reset()
+  screenAmbientLightSkinRelief.reset()
   screenAmbientLightSheen.reset()
   screenAmbientLightNose.reset()
   screenAmbientLightSoftHighlights.reset()
@@ -65,6 +76,7 @@ function resetState() {
   screenAmbientLightWrapIntensity.reset()
   screenAmbientLightWrapSaturation.reset()
   screenAmbientLightWrapDiffuse.reset()
+  screenAmbientLightBloom.reset()
   screenAmbientLightBacklight.reset()
   screenAmbientLightTranslucentWrap.reset()
 }
@@ -77,6 +89,11 @@ export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambien
     screenAmbientLightMode,
     screenAmbientLightStrength,
     screenAmbientLightSquint,
+    screenAmbientLightIllustrated,
+    screenAmbientLightFaceShadow,
+    screenAmbientLightFaceYaw,
+    screenAmbientLightRoughness,
+    screenAmbientLightSkinRelief,
     screenAmbientLightSheen,
     screenAmbientLightNose,
     screenAmbientLightSoftHighlights,
@@ -95,6 +112,7 @@ export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambien
     screenAmbientLightWrapIntensity,
     screenAmbientLightWrapSaturation,
     screenAmbientLightWrapDiffuse,
+    screenAmbientLightBloom,
     screenAmbientLightBacklight,
     screenAmbientLightTranslucentWrap,
     resetState,

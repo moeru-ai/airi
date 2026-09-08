@@ -65,6 +65,45 @@ uniform float u_airiSheen;
 uniform float u_airiSoftHighlights;
 uniform float u_airiAmbient;
 uniform float u_airiContrast;
+uniform float u_airiIllustrated;
+uniform float u_airiFace;
+uniform float u_airiHair;
+uniform float u_airiRoughness;
+uniform float u_airiSkinRelief;
+uniform sampler2D u_airiFaceShadow;
+uniform float u_airiFaceShadowStrength;
+uniform float u_airiFaceHeight;
+float airiFaceDepth = 0.;
+float airiShadowVisibility(vec2 p, vec3 direction) {
+  if (u_airiFaceShadowStrength <= 0. || u_airiFace < .5 || direction.z <= 0.) return 1.;
+  // The fitted face approaches a common bang plane at its center. Scale the
+  // gap by the current face height so zoom and window size do not move shadows.
+  float gap = u_airiFaceHeight*(.14-.11*airiFaceDepth);
+  // Directions use window-height units; horizontal texture UVs use width.
+  vec2 projected = p+vec2(direction.x/u_airiStageAspect,-direction.y)*gap/max(direction.z,.2);
+  if (any(lessThan(projected,vec2(0.))) || any(greaterThan(projected,vec2(1.)))) return 1.;
+  return 1.-texture2D(u_airiFaceShadow,projected).r*u_airiFaceShadowStrength;
+}
+// The model shader sets this per fragment from the broad face shape before
+// evaluating lighting. It excludes the small nose bump used for reflection.
+vec3 airiSkinNormal = vec3(0.,0.,1.);
+vec3 airiFaceForward = vec3(0.,0.,1.);
+float airiHairReflection(vec3 n, vec3 light, vec3 halfway) {
+  float nl = max(dot(n,light),0.);
+  float nv = max(n.z,0.);
+  if (nl <= 0. || nv <= 0.) return 0.;
+  float nh = max(dot(n,halfway),0.);
+  float vh = max(halfway.z,0.);
+  float alpha = clamp(u_airiRoughness,.15,.9);
+  alpha *= alpha;
+  float a2 = alpha*alpha;
+  float denominator = nh*nh*(a2-1.)+1.;
+  float distribution = a2/(3.14159265*denominator*denominator);
+  float visibility = .5/max(nl*sqrt(nv*nv*(1.-a2)+a2)+nv*sqrt(nl*nl*(1.-a2)+a2),.00001);
+  // Dielectric hair reflectance. GGX changes the lobe, not the normal relief.
+  float fresnel = .046+.954*pow(1.-vh,5.);
+  return distribution*visibility*fresnel*nl;
+}
 vec2 airiScreenWeight(vec3 n, vec2 p, float emitterY, vec4 emitter) {
   vec3 delta = vec3(emitter.x-(p.x-0.5)*u_airiStageAspect, p.y-emitterY, emitter.y);
   float distanceSquared = dot(delta,delta);
@@ -72,16 +111,31 @@ vec2 airiScreenWeight(vec3 n, vec2 p, float emitterY, vec4 emitter) {
   // produce zero direction rather than NaN. Tile area bounds its energy.
   vec3 direction = delta*inversesqrt(max(distanceSquared,1e-8));
   float receiverCosine = max(dot(n,direction),0.);
+  if (u_airiIllustrated > .5) {
+    if (u_airiFace > .5) receiverCosine = mix(max(dot(airiFaceForward,direction),0.),max(dot(airiSkinNormal,direction),0.),u_airiSkinRelief);
+    if (u_airiHair > .5) receiverCosine = mix(receiverCosine,smoothstep(.3,.8,receiverCosine),.65);
+    else receiverCosine *= mix(.5,.7,u_airiFace);
+  }
   float emitterCosine = max(dot(vec3(emitter.z,0.,emitter.w),-direction),0.);
   float area = ${((mapSpan / screenLightGridSize) ** 2).toFixed(8)}*u_airiStageAspect;
   // Finite tile area softens the near-field quadrature, avoiding a point-light
   // singularity. At distance this converges to area*cos(emitter)/distance^2.
   float solidAngle = area*emitterCosine/(distanceSquared+area/3.14159265);
+  solidAngle *= airiShadowVisibility(p,direction);
   // Broad Blinn-Phong reflection, with the camera looking along -Z. Both
   // cosine factors still reject light arriving through an opaque surface.
   vec3 halfway = direction + vec3(0.,0.,1.);
   halfway *= inversesqrt(max(dot(halfway,halfway),1e-8));
-  float reflection = u_airiSheen > 0. ? 2.*pow(max(dot(n,halfway),0.),24.) : 0.;
+  float reflectionPower = mix(24.,60.,u_airiIllustrated);
+  // The face's per-fragment sheen mask already confines this accent to the
+  // nose. A broader angular response keeps it visible under oblique light
+  // without expanding the mask or adding shine to the rest of the skin.
+  if (u_airiIllustrated > .5 && u_airiFace > .5) reflectionPower = 8.;
+  float reflection = u_airiSheen > 0. ? 2.*pow(max(dot(n,halfway),0.),reflectionPower) : 0.;
+  if (u_airiIllustrated > .5 && u_airiHair > .5) {
+    float hairReflection = u_airiSheen > 0. ? airiHairReflection(n,direction,halfway) : 0.;
+    return solidAngle*vec2(receiverCosine/3.14159265,hairReflection);
+  }
   return receiverCosine*solidAngle*vec2(1./3.14159265,reflection);
 }
 vec3 airiSurfaceResponseWithSheen(vec3 n, vec2 stageUv, out vec3 sheen) {

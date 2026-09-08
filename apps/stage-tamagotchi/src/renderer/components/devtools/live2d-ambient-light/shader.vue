@@ -10,12 +10,18 @@ import { formatMultiplier, formatPercent } from './format'
 
 const { t } = useI18n()
 const {
+  screenAmbientLightBloom,
   screenAmbientLightBacklight,
   screenAmbientLightBaseCurve,
   screenAmbientLightColorBoost,
   screenAmbientLightDarkBase,
   screenAmbientLightLocalShare,
   screenAmbientLightTint,
+  screenAmbientLightIllustrated,
+  screenAmbientLightFaceShadow,
+  screenAmbientLightFaceYaw,
+  screenAmbientLightRoughness,
+  screenAmbientLightSkinRelief,
   screenAmbientLightSheen,
   screenAmbientLightNose,
   screenAmbientLightSoftHighlights,
@@ -109,6 +115,15 @@ const {
         :format-value="formatPercent"
         :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.wrap-saturation.title')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.wrap-saturation.description')"
+        v-model="screenAmbientLightBloom"
+        as="div"
+        :min="0"
+        :max="3"
+        :step="0.05"
+        :default-value="ambientLightDefaults.filter.bloom"
+        :format-value="formatMultiplier"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.bloom.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.bloom.description')"
       />
       <FieldRange
         v-model="screenAmbientLightBacklight"
@@ -144,6 +159,49 @@ const {
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.sheen.description')"
       />
       <FieldRange
+        v-model="screenAmbientLightRoughness"
+        as="div"
+        :min=".15"
+        :max=".9"
+        :step=".025"
+        :default-value="ambientLightDefaults.material.roughness"
+        :format-value="formatPercent"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.roughness.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.roughness.description')"
+      />
+      <FieldRange
+        v-model="screenAmbientLightSkinRelief"
+        as="div"
+        :min="0"
+        :max="1"
+        :step=".05"
+        :default-value="ambientLightDefaults.material.skinRelief"
+        :format-value="formatPercent"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.skin-relief.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.skin-relief.description')"
+      />
+      <FieldRange
+        v-model="screenAmbientLightFaceYaw"
+        as="div"
+        :min="0"
+        :max="45"
+        :step="1"
+        :default-value="ambientLightDefaults.material.faceYaw"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.face-yaw.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.face-yaw.description')"
+      />
+      <FieldRange
+        v-model="screenAmbientLightFaceShadow"
+        as="div"
+        :min="0"
+        :max="1"
+        :step="0.05"
+        :default-value="ambientLightDefaults.material.faceShadow"
+        :format-value="formatPercent"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.face-shadow.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.face-shadow.description')"
+      />
+      <FieldRange
         v-model="screenAmbientLightNose"
         as="div"
         :min="0"
@@ -156,6 +214,11 @@ const {
       />
     </div>
 
+    <FieldCheckbox
+      v-model="screenAmbientLightIllustrated"
+      :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.illustrated.title')"
+      :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.illustrated.description')"
+    />
     <FieldCheckbox
       v-model="screenAmbientLightSoftHighlights"
       :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.soft-highlights.title')"

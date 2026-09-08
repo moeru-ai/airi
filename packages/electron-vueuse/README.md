@@ -11,6 +11,11 @@ VueUse-like composables and helpers shared across AIRI Electron apps.
 
 For IPC contract definitions, use `@proj-airi/electron-eventa`.
 
+`useElectronAllDisplays()` polls every five seconds and retains the last
+completed snapshot while a request is pending. A failed refresh also retains
+that snapshot. The list starts empty; only a successful response replaces it.
+The caller's Vue scope owns the polling lifecycle.
+
 ## Usage
 
 ```ts
