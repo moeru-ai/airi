@@ -25,7 +25,7 @@ import { createTransactionsOperation } from './operations/transactions'
  *
  * Native finish policy:
  * - 2xx / 400: client finishes the StoreKit transaction.
- * - 403 / 5xx: client keeps the transaction unfinished and retries later.
+ * - 403 / 5xx: client keeps the transaction unfinished.
  */
 export function createAppleIapRoutes(
   payment: PaymentService,

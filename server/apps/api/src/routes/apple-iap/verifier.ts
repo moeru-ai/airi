@@ -14,7 +14,7 @@ import {
 } from '@apple/app-store-server-library'
 import { useLogger } from '@guiiai/logg'
 
-import { createBadRequestError } from '../../utils/error'
+import { createBadRequestError, createInternalError } from '../../utils/error'
 
 const logger = useLogger('apple-iap.verifier')
 
@@ -93,10 +93,17 @@ function mapVerificationError(error: unknown, kind: 'transaction' | 'notificatio
       throw createBadRequestError('Bundle identifier mismatch', 'BUNDLE_MISMATCH')
     if (error.status === VerificationStatus.INVALID_ENVIRONMENT)
       throw createBadRequestError('Transaction environment mismatch', 'ENVIRONMENT_MISMATCH')
+    if (error.status === VerificationStatus.RETRYABLE_VERIFICATION_FAILURE) {
+      logger.withError(error).error(`JWS ${kind} verification failed`)
+      throw createInternalError(`Signed ${kind} verification failed`)
+    }
+
+    logger.withError(error).warn(`JWS ${kind} verification failed`)
+    throw createBadRequestError(`Signed ${kind} failed verification`, 'JWS_VERIFICATION_FAILED')
   }
 
-  logger.withError(error).warn(`JWS ${kind} verification failed`)
-  throw createBadRequestError(`Signed ${kind} failed verification`, 'JWS_VERIFICATION_FAILED')
+  logger.withError(error).error(`JWS ${kind} verification failed`)
+  throw createInternalError(`Signed ${kind} verification failed`)
 }
 
 export type Verifier = Awaited<ReturnType<typeof createVerifier>>
