@@ -5,6 +5,7 @@ import type {
   AmbientLightEnvironment,
   AmbientLightFilterOptions,
   NormalizedRectangle,
+  AmbientLightMaterialOptions,
   AmbientLightScreenGeometry,
   ScreenAmbientLightMode,
 } from '@proj-airi/stage-shared/screen-ambient-light'
@@ -73,6 +74,7 @@ const props = withDefaults(defineProps<{
   screenAmbientLightMode?: ScreenAmbientLightMode
   screenAmbientLightStrength?: number
   screenAmbientLightSquint?: number
+  screenAmbientLightMaterial?: AmbientLightMaterialOptions
   screenAmbientLightGeometry?: AmbientLightScreenGeometry
 }>(), {
   mouthOpenSize: 0,
@@ -98,6 +100,7 @@ const props = withDefaults(defineProps<{
   screenAmbientLightMode: ambientLightDefaults.mode,
   screenAmbientLightStrength: ambientLightDefaults.strength,
   screenAmbientLightSquint: ambientLightDefaults.squint,
+  screenAmbientLightMaterial: () => ({ ...ambientLightDefaults.material }),
   screenAmbientLightGeometry: () => ({ ...ambientLightDefaults.geometry }),
 })
 
@@ -243,6 +246,7 @@ const screenAmbientLightFilterOptions = toRef(() => props.screenAmbientLightFilt
 const screenAmbientLightEnvironment = toRef(() => props.screenAmbientLightEnvironment)
 const screenAmbientLightSubject = toRef(() => props.screenAmbientLightSubject)
 const screenAmbientLightMode = toRef(() => props.screenAmbientLightMode)
+const screenAmbientLightMaterial = toRef(() => props.screenAmbientLightMaterial)
 const screenAmbientLightGeometry = toRef(() => props.screenAmbientLightGeometry)
 const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
 const screenAmbientLightSquint = toRef(() => props.screenAmbientLightSquint)
@@ -354,6 +358,7 @@ async function performModelLoad() {
       const lighting = new SurfaceLighting(live2DModel.internalModel, pixiApp.value!.renderer)
       surfaceLighting = lighting
       try {
+        lighting.setMaterial(screenAmbientLightMaterial.value)
         lighting.setScreenGeometry(screenAmbientLightGeometry.value)
         await lighting.load()
       }
@@ -632,6 +637,11 @@ const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
 function updateAmbientLightFilter() {
+  const options = screenAmbientLightFilterOptions.value
+  surfaceLighting?.setExposure(
+    options.baseBrightness + options.exposureRange * screenAmbientLightEnvironment.value.exposure,
+    options.baseContrast,
+  )
   surfaceLighting?.update(
     screenAmbientLightEnvironment.value,
     screenAmbientLightActive.value,
@@ -649,10 +659,10 @@ function updateAmbientLightFilter() {
     subject: screenAmbientLightSubject.value,
     mode: screenAmbientLightMode.value,
     strength: screenAmbientLightStrength.value,
-    // Surface shading owns the color cast. This filter still owns exposure,
-    // silhouette wrap, and backlight, without applying the old spatial tint.
+    // Surface shading applies ambient exposure before adding direct light. The
+    // final filter retains silhouette wrap and backlight without dimming the highlights.
     options: surfaceLighting
-      ? { ...screenAmbientLightFilterOptions.value, chroma: 0 }
+      ? { ...options, chroma: 0, baseBrightness: 1, exposureRange: 0, baseContrast: 1 }
       : screenAmbientLightFilterOptions.value,
   })
 }
@@ -700,6 +710,7 @@ function updateModelFilters() {
 }
 
 // Geometry follows settings changes, independently of the screen capture cadence.
+watch(screenAmbientLightMaterial, material => surfaceLighting?.setMaterial(material))
 watch(screenAmbientLightGeometry, geometry => surfaceLighting?.setScreenGeometry(geometry))
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateModelFilters, { immediate: true })

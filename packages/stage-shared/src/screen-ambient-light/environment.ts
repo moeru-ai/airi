@@ -1,3 +1,13 @@
+/** Surface response shared by the character and diagnostic shapes. */
+export interface AmbientLightMaterialOptions {
+  /** Strength of broad reflected highlights. @default 0.8 */
+  sheen: number
+  /** Relief of the hand-fitted Iru nose; zero restores the smooth face. @default 1 */
+  nose: number
+  /** Compress added light into available headroom instead of clipping. @default true */
+  softHighlights: boolean
+}
+
 /** Screen geometry in window-height units; +Z points toward the viewer. */
 export interface AmbientLightScreenGeometry {
   /** Distance from the character to the flat center. Must be positive. @default 0.04 */
@@ -322,6 +332,8 @@ export const ambientLightDefaults = Object.freeze({
    * leaves the eyes open. See `useMotionUpdatePluginLightSquint`.
    */
   squint: 1,
+  /** Surface highlights and the reviewed Iru nose correction. */
+  material: Object.freeze<AmbientLightMaterialOptions>({ sheen: 0.8, nose: 1, softHighlights: true }),
   /** Virtual screen shape used by directional Live2D surface lighting. */
   geometry: Object.freeze<AmbientLightScreenGeometry>({ gap: 0.04, bend: 2, flatRadius: 0.1 }),
   captureIntervalMs: 250,

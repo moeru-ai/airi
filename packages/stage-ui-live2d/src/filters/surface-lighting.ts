@@ -1,8 +1,9 @@
 import type { Renderer as PixiRenderer } from '@pixi/core'
-import type { AmbientLightEnvironment, AmbientLightScreenGeometry, ScreenAmbientLightMode } from '@proj-airi/stage-shared/screen-ambient-light'
+import type { AmbientLightEnvironment, AmbientLightMaterialOptions, AmbientLightScreenGeometry, ScreenAmbientLightMode } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Cubism4InternalModel } from 'pixi-live2d-display/cubism4'
 
 import { Matrix } from '@pixi/math'
+import { ambientLightDefaults } from '@proj-airi/stage-shared/screen-ambient-light'
 import { CubismShader_WebGL, fragmentShaderSrcsetupMask } from 'pixi-live2d-display/cubism4'
 
 import iruNormalUrl from '../assets/lighting/iru-normal.png?url'
@@ -24,6 +25,7 @@ uniform float u_airiEnabled;
 uniform float u_airiProfile;
 uniform float u_airiFace;
 uniform float u_airiOwner;
+uniform float u_airiNose;
 uniform float u_airiStrength;
 uniform float u_airiChroma;
 uniform float u_airiDirectional;
@@ -62,20 +64,31 @@ vec3 airiProxy(vec2 p) {
 const shading = `
 if (u_airiEnabled > 0.5 && gl_FragColor.a > 0.0001) {
   vec3 n = airiProxy(v_airiReference);
+  float materialSheen = 0.25;
+  float noseTip = 0.;
   if (u_airiProfile > 0.5) {
     // The authored ownership map records contributors above 5% alpha. The
     // smooth confidence avoids a hard proxy contour in near-opaque bangs.
     float confidence = airiCoverage(v_airiReference)*smoothstep(0.05,0.95,gl_FragColor.a);
     vec3 estimate = normalize(texture2D(u_airiNormal,v_airiReference).rgb*2.-1.);
     n = normalize(mix(n,estimate,confidence));
+    // The upper head gets a broader sheen than the coat and body. This is a
+    // deliberately coarse material estimate for the reviewed Iru reference.
+    materialSheen = mix(1.,0.25,smoothstep(0.30,0.42,v_airiReference.y));
     if (u_airiFace > 0.5) {
       vec2 face = (v_airiReference-vec2(0.5,0.190625))/vec2(0.0703125,0.06875);
-      n = normalize(vec3(face.x*0.4,-face.y*0.4,1.));
+      // Hand-fitted nose at (256,143) in the 512x640 neutral reference. The
+      // gradient of a small Gaussian bump tilts the normals; it paints no color.
+      // Drawable ownership and alpha still bound the entire face correction.
+      vec2 nose = (v_airiReference-vec2(0.5,0.2234375))/vec2(0.0045,0.0065);
+      noseTip = exp(-0.5*dot(nose,nose));
+      vec2 slope = vec2(face.x,-face.y)*0.4 + vec2(nose.x,-nose.y)*noseTip*u_airiNose;
+      n = normalize(vec3(slope,1.));
+      materialSheen = 0.12 + 0.8*noseTip*min(u_airiNose,1.);
     }
   }
-  vec3 response = airiSurfaceResponse(n, v_airiStage);
   vec3 color = airiLinear(gl_FragColor.rgb/gl_FragColor.a);
-  gl_FragColor.rgb = airiSrgb(clamp(color*response,0.,1.))*gl_FragColor.a;
+  gl_FragColor.rgb = airiSrgb(airiSurfaceColor(n,v_airiStage,color,materialSheen))*gl_FragColor.a;
 }
 `
 
@@ -136,6 +149,11 @@ interface Locations {
   clipToStage: WebGLUniformLocation | null
   aspect: WebGLUniformLocation | null
   emitters: WebGLUniformLocation | null
+  sheen: WebGLUniformLocation | null
+  nose: WebGLUniformLocation | null
+  softHighlights: WebGLUniformLocation | null
+  ambient: WebGLUniformLocation | null
+  contrast: WebGLUniformLocation | null
 }
 
 /**
@@ -152,6 +170,7 @@ export class SurfaceLighting {
   private programs = new WeakMap<WebGLProgram, Locations>()
   private readonly clipToStage = new Matrix()
   private geometry: Readonly<AmbientLightScreenGeometry> = flatScreenGeometry
+  private material: Readonly<AmbientLightMaterialOptions> = ambientLightDefaults.material
   private geometryAspect = 0
   private readonly emitters = new Float32Array(screenLightGridSize * 4)
   private readonly lights = new Float32Array(screenLightCount * 3)
@@ -164,6 +183,8 @@ export class SurfaceLighting {
   private active = false
   private strength = 0
   private chroma = 0
+  private ambient = 1
+  private contrast = 1
   private directional = true
   readonly profile: 'iru' | 'proxy'
 
@@ -201,6 +222,17 @@ export class SurfaceLighting {
   setScreenGeometry(geometry: Readonly<AmbientLightScreenGeometry>) {
     this.geometry = { ...geometry }
     this.geometryAspect = 0
+  }
+
+  /** Sets ambient fill before direct light, preserving bright reflected highlights. */
+  setExposure(brightness: number, contrast: number) {
+    this.ambient = Math.max(0, Math.min(1, brightness))
+    this.contrast = contrast
+  }
+
+  /** Updates material response without rebinding or regenerating normal textures. */
+  setMaterial(material: Readonly<AmbientLightMaterialOptions>) {
+    this.material = { ...material }
   }
 
   /** Loads the matching authored maps once; other models use their smooth proxy. */
@@ -243,7 +275,7 @@ export class SurfaceLighting {
     let locations = this.programs.get(program)
     if (!locations) {
       const uniform = (name: string) => gl.getUniformLocation(program, `u_airi${name}`)
-      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), face: uniform('Face'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect'), emitters: uniform('Emitters[0]') }
+      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), face: uniform('Face'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect'), emitters: uniform('Emitters[0]'), sheen: uniform('Sheen'), nose: uniform('Nose'), softHighlights: uniform('SoftHighlights'), ambient: uniform('Ambient'), contrast: uniform('Contrast') }
       this.programs.set(program, locations)
     }
     let buffer = this.buffers.get(vertices.byteOffset)
@@ -268,6 +300,11 @@ export class SurfaceLighting {
     gl.uniform1f(locations.profile, this.normal && this.ownership ? 1 : 0)
     gl.uniform1f(locations.face, reference.face ? 1 : 0)
     gl.uniform1f(locations.owner, reference.index + 1)
+    gl.uniform1f(locations.ambient, this.ambient)
+    gl.uniform1f(locations.contrast, this.contrast)
+    gl.uniform1f(locations.sheen, this.material.sheen)
+    gl.uniform1f(locations.nose, this.material.nose)
+    gl.uniform1f(locations.softHighlights, this.material.softHighlights ? 1 : 0)
     gl.uniform1f(locations.strength, this.strength)
     gl.uniform1f(locations.chroma, this.chroma)
     gl.uniform1f(locations.directional, this.directional ? 1 : 0)

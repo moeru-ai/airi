@@ -148,6 +148,15 @@ devtools:
           description: Set the minimum weight for colors with low saturation. Colored content counts for more than gray.
       shader:
         title: Shader response
+        sheen:
+          title: Surface sheen
+          description: Add broad reflected highlights. Hair receives more sheen than skin and clothing; 0 disables reflections.
+        nose:
+          title: Nose relief
+          description: Shape the small nose on Iru’s smooth face. Highlights follow the light; 0 restores the original face normals.
+        soft-highlights:
+          title: Soft highlights
+          description: Compress added light to preserve detail in bright areas instead of clipping to white.
         base-brightness:
           title: Base brightness
           description: Set the model brightness over a black screen. The measured screen level moves it from here.

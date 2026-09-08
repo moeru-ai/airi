@@ -28,7 +28,7 @@ function render(column: number, bend = 0, shape: SurfaceLightPreviewShape = 'cyl
   for (let y = 8; y < 16; y++) {
     for (let x = column; x < column + 4; x++) map.data[(y * 24 + x) * 3] = 1
   }
-  filter.update({ environment: { exposure: 0, behindLuminance: 0, surround: map, contact: map }, geometry: { bend, gap: 0.04, flatRadius: 0.1 }, mode: 'window-gradient', strength: 3, chroma: 1, aspect: 1, shape, normals })
+  filter.update({ material: { sheen: 0.8, nose: 1, softHighlights: true }, environment: { exposure: 0, behindLuminance: 0, surround: map, contact: map }, geometry: { bend, gap: 0.04, flatRadius: 0.1 }, mode: 'window-gradient', strength: 3, chroma: 1, aspect: 1, shape, normals })
   app.render()
   const gl = app.renderer.gl
   const pixels = new Uint8Array(100 * 100 * 4)

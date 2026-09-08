@@ -22,6 +22,9 @@ const screenAmbientLightSquint = useLocalStorageManualReset<number>('settings/sc
 const screenAmbientLightBend = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-bend', ambientLightDefaults.geometry.bend)
 const screenAmbientLightGap = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-gap', ambientLightDefaults.geometry.gap)
 const screenAmbientLightFlatRadius = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-flat-radius', ambientLightDefaults.geometry.flatRadius)
+const screenAmbientLightSheen = useLocalStorageManualReset<number>('settings/screen-ambient-light/sheen', ambientLightDefaults.material.sheen)
+const screenAmbientLightNose = useLocalStorageManualReset<number>('settings/screen-ambient-light/nose', ambientLightDefaults.material.nose)
+const screenAmbientLightSoftHighlights = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/soft-highlights', ambientLightDefaults.material.softHighlights)
 const screenAmbientLightCaptureIntervalMs = useLocalStorageManualReset<number>('settings/screen-ambient-light/capture-interval-ms', ambientLightDefaults.captureIntervalMs)
 const screenAmbientLightSampleWidth = useLocalStorageManualReset<number>('settings/screen-ambient-light/sample-width', ambientLightDefaults.sampleWidth)
 const screenAmbientLightResponseMs = useLocalStorageManualReset<number>('settings/screen-ambient-light/response-ms', ambientLightDefaults.responseMs)
@@ -42,6 +45,9 @@ function resetState() {
   screenAmbientLightMode.reset()
   screenAmbientLightStrength.reset()
   screenAmbientLightSquint.reset()
+  screenAmbientLightSheen.reset()
+  screenAmbientLightNose.reset()
+  screenAmbientLightSoftHighlights.reset()
   screenAmbientLightBend.reset()
   screenAmbientLightGap.reset()
   screenAmbientLightFlatRadius.reset()
@@ -67,6 +73,9 @@ export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambien
     screenAmbientLightMode,
     screenAmbientLightStrength,
     screenAmbientLightSquint,
+    screenAmbientLightSheen,
+    screenAmbientLightNose,
+    screenAmbientLightSoftHighlights,
     screenAmbientLightBend,
     screenAmbientLightGap,
     screenAmbientLightFlatRadius,

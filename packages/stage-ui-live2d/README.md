@@ -20,8 +20,9 @@ tile, and the emitting and receiving angles. A finite tile footprint avoids a
 point-light singularity at close range. Distant tiles get weaker through their
 solid angle, rather than a separate distance-based blur. `Model.vue` passes the existing ambient state into that binding and
 sets the final screen filter's chroma to zero, so the old position-based color
-gradient is not applied a second time. The final filter still owns exposure and
-silhouette effects. Its rim and inward glow approximate backlight scattering;
+gradient is not applied a second time. Ambient exposure and contrast apply before
+direct surface light, so reducing ambient fill does not dim the added highlights.
+The final filter retains silhouette effects. Its rim and inward glow approximate backlight scattering;
 it does not add a bloom halo outside the character. The diagnostic test-card preview remains a flat filter
 reference; inspect the live model to judge surface lighting.
 
@@ -31,6 +32,18 @@ center width in the main window. They persist with the other ambient settings.
 The default bend is 2; set it to 0 to compare flat lighting. The flat center
 starts at 20% of the window height in width. Geometry updates separately from
 capture, so adjusting a slider does not restart the screen stream.
+
+Under **Shader response**, **Surface sheen** controls broad reflections of the
+screen color, independent of the painted albedo. **Nose relief** adds a small
+Gaussian bump to Iru's analytic face normals; zero restores the smooth face.
+**Soft highlights** compresses added light into the remaining color range instead
+of clipping it to white. The nose follows the face's reference coordinates and
+retains its drawable ownership and alpha bounds. These controls update the live
+model without changing or regenerating its normal-map image.
+
+Sheen uses a broad Blinn-Phong lobe. Iru's upper head receives more sheen than
+the body, with a restrained face response and stronger nose tip. This is a coarse
+material estimate, not a semantic hair mask or anisotropic hair shader.
 
 Iru uses the reviewed AI normal map in `src/assets/lighting`. The profile stores
 neutral reference coordinates, texture UVs, and face drawable assignments. The
@@ -60,7 +73,7 @@ reference buffers have fixed dimensions and do not depend on window size.
 Run the focused final-filter GPU tests with Vitest using this package's config:
 
 ```sh
-pnpm exec vitest run --config packages/stage-ui-live2d/vitest.config.ts src/filters/surface-irradiance.test.ts src/filters/surface-irradiance.browser.test.ts src/filters/screen-ambient-light.browser.test.ts
+pnpm exec vitest run --config packages/stage-ui-live2d/vitest.config.ts src/filters/surface-irradiance.test.ts src/filters/surface-irradiance.browser.test.ts src/filters/screen-ambient-light.browser.test.ts src/filters/surface-light-preview.browser.test.ts src/filters/surface-material.browser.test.ts
 ```
 
 For actual Cubism pixel checks, import Iru into an isolated desktop profile and
@@ -81,6 +94,13 @@ pose and one captured environment. It verifies bend, gap, and center-width
 changes through actual GPU pixels, then restores animation and the settings.
 The standalone `/ambient-curved.html` comparison remains available.
 
+`/concept.html` compares the previous material against nose relief, sheen, soft
+highlights, and exposure before direct light under a fixed warm screen patch.
+`verify-concept.js` checks nose locality at three head angles, unchanged alpha,
+and exact artwork parity at zero strength. Its controlled light does not replace
+the desktop capture. The material GPU tests cover reflection color, ambient-fill
+independence, back rejection, highlight compression, and zero strength.
+
 ## Surface lighting diagnostics
 
 The Tamagotchi ambient-light devtool includes a **Surface lighting preview**.
@@ -89,7 +109,7 @@ axes. **Show surface normals** displays the known normals without lighting.
 The main window continues to show the Live2D character for comparison.
 
 The preview uses the same applied contact map, screen geometry, lighting mode,
-strength, and chroma as the stage. It uses fixed gray and omits exposure changes,
+strength, chroma, sheen, and soft highlights as the stage. It uses fixed gray and omits exposure changes,
 rim, and wrap. The canvas follows the main window's aspect ratio. Its analytic
 normals occupy the same surface plane as Live2D; this is not a depth or
 self-shadowing simulation. The existing test card remains for final-filter checks.

@@ -12,6 +12,9 @@ const {
   screenAmbientLightBaseBrightness,
   screenAmbientLightBaseContrast,
   screenAmbientLightChroma,
+  screenAmbientLightSheen,
+  screenAmbientLightNose,
+  screenAmbientLightSoftHighlights,
   screenAmbientLightExposureRange,
   screenAmbientLightTranslucentWrap,
   screenAmbientLightWrapDiffuse,
@@ -111,8 +114,35 @@ function formatMultiplier(value: number) {
         :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.wrap-diffuse.title')"
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.wrap-diffuse.description')"
       />
+      <FieldRange
+        v-model="screenAmbientLightSheen"
+        as="div"
+        :min="0"
+        :max="3"
+        :step="0.05"
+        :default-value="ambientLightDefaults.material.sheen"
+        :format-value="formatMultiplier"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.sheen.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.sheen.description')"
+      />
+      <FieldRange
+        v-model="screenAmbientLightNose"
+        as="div"
+        :min="0"
+        :max="2"
+        :step="0.05"
+        :default-value="ambientLightDefaults.material.nose"
+        :format-value="formatMultiplier"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.nose.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.nose.description')"
+      />
     </div>
 
+    <FieldCheckbox
+      v-model="screenAmbientLightSoftHighlights"
+      :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.soft-highlights.title')"
+      :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.soft-highlights.description')"
+    />
     <FieldCheckbox
       v-model="screenAmbientLightTranslucentWrap"
       :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.translucent-wrap.title')"
