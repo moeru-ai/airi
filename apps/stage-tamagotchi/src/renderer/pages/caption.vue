@@ -32,11 +32,13 @@ const getAttached = defineInvoke(context.value, captionGetIsFollowingWindow)
 const captionAnimatorByType = {
   'caption-speaker': createFadeAnimator({ duration: 180 }),
   'caption-assistant': createFadeAnimator({ duration: 180 }),
+  'caption-assistant-translation': createFadeAnimator({ duration: 180 }),
 } satisfies Record<CaptionChannelEvent['type'], ReturnType<typeof createFadeAnimator>>
 
 const captionTypes = [
   'caption-speaker',
   'caption-assistant',
+  'caption-assistant-translation',
 ] satisfies CaptionChannelEvent['type'][]
 
 function toCaptionTextSegments(type: CaptionChannelEvent['type']) {
@@ -51,6 +53,18 @@ function toCaptionTextSegments(type: CaptionChannelEvent['type']) {
 const captionTextByType = computed(() => ({
   'caption-speaker': toCaptionTextSegments('caption-speaker'),
   'caption-assistant': toCaptionTextSegments('caption-assistant'),
+  'caption-assistant-translation': toCaptionTextSegments('caption-assistant-translation'),
+}))
+
+/** Language label of the newest item of each source, when it carries one. */
+function toCaptionLabel(type: CaptionChannelEvent['type']) {
+  return captionItems.value.find(item => item.type === type)?.label
+}
+
+const captionLabelByType = computed(() => ({
+  'caption-speaker': toCaptionLabel('caption-speaker'),
+  'caption-assistant': toCaptionLabel('caption-assistant'),
+  'caption-assistant-translation': toCaptionLabel('caption-assistant-translation'),
 }))
 
 onMounted(async () => {
@@ -72,12 +86,7 @@ onMounted(async () => {
     watch(data, (event) => {
       if (!event)
         return
-      if (event.type === 'caption-speaker') {
-        addCaptionItem(event)
-      }
-      else if (event.type === 'caption-assistant') {
-        addCaptionItem(event)
-      }
+      addCaptionItem(event)
     }, { immediate: true })
   }
   catch {}
@@ -113,13 +122,18 @@ onUnmounted(() => {
           :class="[
             type === 'caption-speaker' ? 'rounded-md px-2 py-1 text-[1.1rem] text-neutral-50 font-medium text-shadow-lg text-shadow-color-neutral-900/60' : '',
             type === 'caption-assistant' ? 'rounded-md px-2 py-1 text-[1.35rem] text-primary-50 font-semibold text-stroke-4 text-stroke-primary-300/50 text-shadow-lg text-shadow-color-primary-700/50' : '',
+            type === 'caption-assistant-translation' ? 'rounded-md px-2 py-1 text-[1.05rem] text-neutral-100/90 font-medium text-shadow-lg text-shadow-color-neutral-900/60' : '',
           ]"
           :style="type === 'caption-assistant' ? { paintOrder: 'stroke fill' } : undefined"
         >
+          <span
+            v-if="captionLabelByType[type]"
+            class="mr-2 rounded bg-black/25 px-1.5 py-0.5 align-middle text-[0.7rem] font-semibold tracking-wide"
+          >{{ captionLabelByType[type] }}</span>
           <PoppinText
             :text="captionTextByType[type]"
             :animator="captionAnimatorByType[type]"
-            :text-class="type === 'caption-assistant' ? 'color-neutral-50! align-middle' : type === 'caption-speaker' ? 'color-neutral-50! align-middle' : ''"
+            text-class="color-neutral-50! align-middle"
           />
         </div>
       </div>

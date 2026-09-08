@@ -354,6 +354,24 @@ pages:
           emailSent: 请查看 {email} 中的删除链接。
         error:
           fallback: 无法开始删除操作，请稍后重试。
+  bilingual:
+    title: 双语字幕
+    description: 让 AIRI 用一种语言说话，同时显示另一种语言的字幕
+    enable:
+      title: 启用双语字幕
+      description: >-
+        让模型用朗读语言回答，并附带字幕翻译。AIRI 只会朗读其中一种语言。
+    tts-language:
+      title: 朗读语言
+      description: AIRI 朗读时使用的语言，同时也是主字幕行。
+    translation-language:
+      title: 翻译语言
+      description: >-
+        显示为第二行字幕，AIRI 不会朗读。选择无则不翻译。
+    none: 无
+    preview:
+      title: 提示词预览
+      description: 启用该功能后，这段指令会被加入模型请求中。
   card:
     activate: 激活
     active: 已激活

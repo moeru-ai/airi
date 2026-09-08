@@ -369,6 +369,26 @@ pages:
           emailSent: Check {email} for the deletion link.
         error:
           fallback: Could not start deletion. Try again later.
+  bilingual:
+    title: Bilingual Subtitle
+    description: Let AIRI speak one language while showing subtitles in another
+    enable:
+      title: Enable Bilingual Subtitle
+      description: >-
+        Ask the model to answer in the spoken language and translate it for the
+        subtitles. AIRI only speaks one of the two out loud.
+    tts-language:
+      title: TTS Language
+      description: The language AIRI speaks out loud. It is also the main subtitle line.
+    translation-language:
+      title: Translation Language
+      description: >-
+        Shown as a second subtitle line. AIRI never speaks it. Choose None to
+        turn translation off.
+    none: None
+    preview:
+      title: Prompt Preview
+      description: This instruction joins the model request while the feature is on.
   card:
     activate: Activate
     active: Active

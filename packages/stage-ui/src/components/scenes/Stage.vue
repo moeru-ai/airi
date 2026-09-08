@@ -7,6 +7,7 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
+import type { VoiceInfo } from '../../libs/providers/types'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
 
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -36,6 +37,7 @@ import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
+import { createBilingualParser } from '../../libs/bilingual/parser'
 import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
@@ -50,6 +52,7 @@ import { useSpeechStore } from '../../stores/modules/speech'
 import { useProviderConfigStore } from '../../stores/providers/config'
 import { useProviderStore } from '../../stores/providers/provider'
 import { useSettings } from '../../stores/settings'
+import { useSettingsBilingual } from '../../stores/settings/bilingual'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
 
@@ -434,6 +437,10 @@ function resolveStageVoiceType(): 'official_selected' | 'custom_configured' {
   return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID ? 'official_selected' : 'custom_configured'
 }
 
+// Declared ahead of the speech pipeline: its `tts` and `onStart` callbacks read
+// the bilingual settings, and the pipeline is created immediately below.
+const bilingualStore = useSettingsBilingual()
+
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
   tts: async (request, signal) => {
     if (signal.aborted)
@@ -516,6 +523,13 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
         }
         console.warn('[Speech Pipeline] OpenAI Compatible: No voice in provider config, using default', { providerConfig })
       }
+    }
+    // Multilingual engines (OpenAI-compatible) read the TTS language natively,
+    // so only the per-language voice swap applies to the locale-picked providers.
+    else if (bilingualStore.enabled) {
+      const bilingualVoice = resolveBilingualVoice()
+      if (bilingualVoice)
+        voice = bilingualVoice
     }
 
     if (!model || !voice)
@@ -620,6 +634,10 @@ bindSpeakingStateToPlaybackManager(playbackManager, {
     catch {
       // BroadcastChannel may be closed - don't break playback
     }
+    // Show the translation that belongs to this very sentence, so the two
+    // lines advance together instead of dumping the translation at once.
+    if (bilingualStore.enabled)
+      postBilingualTranslationForSentence()
     try {
       postPresent({ type: 'assistant-append', text: item.text })
     }
@@ -716,6 +734,144 @@ function setupAnalyser() {
 // decision point. See `packages/stage-ui/src/libs/speech/tts-session.ts`.
 let currentSession: StageTtsSession | null = null
 
+// Bilingual subtitles. The parser owns one turn of model output and routes each
+// language to a different consumer. The spoken language keeps the normal path
+// through the TTS session; its translation is held back until playback reaches
+// the sentence it belongs to, so the overlay shows both lines in step.
+let bilingualParser: ReturnType<typeof createBilingualParser> | null = null
+
+/**
+ * Sentences the model has finished, in order, each paired with the translation
+ * that followed it. Playback consumes one entry per spoken sentence.
+ */
+const bilingualPairs: Array<{ spoken: string, translation: string, label: string }> = []
+let bilingualSpoken = ''
+let bilingualTranslation = ''
+let bilingualTranslationLabel = ''
+
+/** Closes the sentence being accumulated and queues it for playback. */
+function flushBilingualPair() {
+  const spoken = bilingualSpoken.trim()
+  if (spoken)
+    bilingualPairs.push({ spoken, translation: bilingualTranslation.trim(), label: bilingualTranslationLabel })
+
+  bilingualSpoken = ''
+  bilingualTranslation = ''
+  bilingualTranslationLabel = ''
+}
+
+function clearBilingualTranslation() {
+  bilingualTranslation = ''
+  bilingualTranslationLabel = ''
+
+  try {
+    postCaption({ type: 'caption-assistant-translation', text: '' })
+  }
+  catch {
+    // BroadcastChannel may be closed - don't break playback
+  }
+}
+
+function resetBilingualTurn() {
+  bilingualParser = null
+  bilingualPairs.length = 0
+  bilingualSpoken = ''
+  clearBilingualTranslation()
+}
+
+/**
+ * Shows the translation of the sentence playback just started. It replaces the
+ * previous line so the two lines stay paired sentence by sentence instead of
+ * dumping the whole translation at once.
+ */
+function postBilingualTranslationForSentence() {
+  const pair = bilingualPairs.shift()
+  if (!pair?.translation)
+    return
+
+  try {
+    postCaption({
+      operation: 'replace',
+      type: 'caption-assistant-translation',
+      label: pair.label,
+      text: pair.translation,
+    })
+  }
+  catch {
+    // BroadcastChannel may be closed - don't break playback
+  }
+}
+
+function openBilingualParser() {
+  if (!bilingualStore.enabled)
+    return null
+
+  const ttsLanguage = bilingualStore.ttsLanguage
+
+  return createBilingualParser({
+    languages: bilingualStore.subtitleLanguages,
+    onText: (language, text) => {
+      if (language.code === ttsLanguage) {
+        // Output is interleaved, so returning to the spoken language means the
+        // previous sentence and its translation are both complete.
+        if (bilingualTranslation)
+          flushBilingualPair()
+
+        bilingualSpoken += text
+        currentSession?.appendText(text)
+        return
+      }
+
+      // The feature can be switched off mid-reply. The parser keeps running so
+      // the language tags are still stripped before speech, but nothing is
+      // captioned from that point on.
+      if (!bilingualStore.enabled)
+        return
+
+      bilingualTranslation += text
+      bilingualTranslationLabel = language.display
+    },
+  })
+}
+
+// Switching the feature off mid-reply has to remove the translated line at
+// once, rather than leaving it until the next message or its expiry.
+//
+// The in-flight parser is deliberately kept. The model is still replying with
+// language tags, and dropping the parser here would feed those tags straight
+// into the speech engine.
+watch(() => bilingualStore.enabled, (enabled) => {
+  if (enabled)
+    return
+
+  clearBilingualTranslation()
+})
+
+/**
+ * Voice that should read the spoken line while bilingual output is on.
+ *
+ * The speech settings hold one fixed voice, auto-picked from the UI locale.
+ * That voice would read a non-UI language with the wrong phonology — a Chinese
+ * voice reads Japanese kanji as Chinese, for example, which is exactly the
+ * "reads Japanese with Chinese mixed in" symptom. When the bilingual TTS
+ * language differs from the configured voice, pick a voice from the active
+ * provider's catalogue that actually speaks it (matched by language-code
+ * prefix, e.g. `ja` → `ja-JP`).
+ *
+ * Returns `undefined` when bilingual is off, or no matching voice exists, so
+ * callers fall back to the configured voice unchanged. A missing match is a
+ * provider limitation, not a regression: the user needs a provider that ships
+ * that language.
+ */
+function resolveBilingualVoice(): VoiceInfo | undefined {
+  if (!bilingualStore.enabled)
+    return undefined
+
+  const ttsLang = bilingualStore.ttsLanguage
+  const providerVoices = speechStore.availableVoices[activeSpeechProvider.value] || []
+  return providerVoices.find(v => (v.languages || []).some(l => l.code.toLowerCase().startsWith(ttsLang)))
+}
+
 function stopSpeechOutput(reason: string) {
   currentSession?.cancel(reason)
   currentSession = null
@@ -747,7 +903,10 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   // can't be opened (no voice picked, no audioContext, no model);
   // `createStageTtsSession` falls back to the segmenter adapter in that
   // case, which is the right behaviour for the rest of the providers too.
-  const voiceId = activeSpeechVoice.value?.id
+  // When bilingual output is on, prefer a voice that actually speaks the TTS
+  // language so Japanese (etc.) is not read with the locale-picked voice's
+  // phonology — see `resolveBilingualVoice`.
+  const voiceId = resolveBilingualVoice()?.id || activeSpeechVoice.value?.id
   if (!voiceId)
     return null
   // Resolve the concrete streaming model id. The active speech model is only
@@ -847,6 +1006,7 @@ watch(speechMuted, (muted) => {
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
+  resetBilingualTurn()
 
   currentSession?.cancel('new-message')
   currentSession = null
@@ -857,6 +1017,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   setupAnalyser()
   await setupLipSync()
   currentSession = openTtsSession(context.turnId)
+  bilingualParser = openBilingualParser()
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {
@@ -864,6 +1025,13 @@ chatHookCleanups.push(onBeforeSend(async () => {
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal) => {
+  // While bilingual output is on, the parser decides what reaches the speech
+  // engine: only the spoken language, with the language tags stripped.
+  if (bilingualParser) {
+    bilingualParser.push(literal)
+    return
+  }
+
   currentSession?.appendText(literal)
 }))
 
@@ -879,6 +1047,8 @@ chatHookCleanups.push(onTokenSpecial(async (special, context) => {
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
+  bilingualParser?.end()
+  flushBilingualPair()
   currentSession?.finishInput()
 }))
 

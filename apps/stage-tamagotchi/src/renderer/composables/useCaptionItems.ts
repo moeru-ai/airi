@@ -9,6 +9,8 @@ export interface CaptionItem {
   type: CaptionChannelEvent['type']
   /** Text payload rendered by the overlay. */
   text: string
+  /** Optional language label rendered alongside the text. */
+  label?: string
 }
 
 export interface UseCaptionItemsOptions {
@@ -80,6 +82,7 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
         id: nextId++,
         type: event.type,
         text: event.text,
+        label: event.label,
       }
       items.value = [...items.value, item]
       scheduleExpiry(item)
@@ -89,7 +92,7 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
     for (const item of matchedItems)
       clearTimer(item.id)
 
-    const replacement = { ...currentItem, text: event.text }
+    const replacement = { ...currentItem, text: event.text, label: event.label }
     items.value = items.value
       .filter(item => item.type !== event.type || item.id === currentItem.id)
       .map(item => item.id === currentItem.id ? replacement : item)
@@ -111,6 +114,7 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
       id: nextId++,
       type: event.type,
       text: event.text,
+      label: event.label,
     }
     items.value = [...items.value, item]
     scheduleExpiry(item)
