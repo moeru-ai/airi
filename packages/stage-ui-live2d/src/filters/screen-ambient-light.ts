@@ -21,6 +21,8 @@ import {
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import { clamp } from 'es-toolkit'
 
+import { ScreenExposure } from './screen-exposure'
+
 /**
  * Transparent margin kept around the model, in pixels.
  *
@@ -128,6 +130,11 @@ uniform vec3 uContactAverage;
 uniform highp vec2 uStageSize;
 uniform float uBacklight;
 uniform float uBloom;
+uniform float uPhotometry;
+uniform float uLightScale;
+uniform float uBloomGain;
+uniform float uGlareGain;
+uniform float uCameraExposure;
 uniform float uBehindLevel;
 uniform float uDirectional;
 uniform float uStrength;
@@ -286,7 +293,8 @@ void main(void) {
   float coverage = source.a * mix(1.0, source.a, uTranslucentWrap);
   float rimMask = coverage * (1.0 - blurredAlpha.r);
   float wrapMask = coverage * (1.0 - blurredAlpha.g);
-  vec3 wrapLight = contactLight * wrapMask * uWrapIntensity * uStrength;
+  vec3 physicalLight = contactLight * (uPhotometry > .5 ? uLightScale : 1.);
+  vec3 wrapLight = physicalLight * wrapMask * uWrapIntensity * uStrength;
 
   // Backlight. A subject in front of a bright plate reads as a silhouette: the
   // whole interior goes darker, a thin rim lights up along the whole edge, and
@@ -296,13 +304,15 @@ void main(void) {
   // of a dark area stays dark. The interior darkening instead follows one level
   // for the whole window, because darkening that changed across the body would
   // draw a second outline inside the silhouette.
-  float rimAmount = clamp(uBacklight * perceptualLevel(dot(contactLight, luminanceWeights)) * uStrength, 0.0, 2.0);
+  float rimLevel = uPhotometry > .5 ? 1. : perceptualLevel(dot(contactLight,luminanceWeights));
+  float rimAmount = clamp(uBacklight * rimLevel * uStrength, 0.0, 2.0);
   float interiorAmount = clamp(uBacklight * uBehindLevel * uStrength, 0.0, 2.0);
-  lit *= 1.0 - ${backlightShade.toFixed(3)} * min(interiorAmount, 1.0);
-  wrapLight += contactLight * rimAmount * (rimMask * ${backlightRimGain.toFixed(3)} + wrapMask * ${backlightGlowGain.toFixed(3)});
+  if (uPhotometry < .5) lit *= 1.0 - ${backlightShade.toFixed(3)} * min(interiorAmount, 1.0);
+  wrapLight += physicalLight * rimAmount * (rimMask * ${backlightRimGain.toFixed(3)} + wrapMask * ${backlightGlowGain.toFixed(3)});
 
   // Added light compresses into the remaining headroom instead of clipping, so
   // bright texture detail under a strong wrap keeps its differences.
+  wrapLight *= uCameraExposure*uGlareGain;
   vec3 headroom = max(vec3(0.0), vec3(1.0) - lit);
   vec3 compressedWrap = headroom * (vec3(1.0) - exp(-wrapLight / max(headroom, vec3(0.0001))));
   vec3 litLinear = clamp(lit + compressedWrap, 0.0, 1.0);
@@ -313,8 +323,13 @@ void main(void) {
   // Coverage remains linear opacity. Applying the sRGB curve to the 8-bit
   // mask amplifies its lowest steps into visible bands outside the model.
   float haloCoverage = max(blurredAlpha.g-source.a,0.0);
-  vec3 haloEnergy = contactLight*rimAmount*uBloom;
-  vec3 halo = linearToSrgb(vec3(1.0)-exp(-haloEnergy))*haloCoverage;
+  vec3 haloEnergy = physicalLight*rimAmount*uBloom*uCameraExposure;
+  vec3 haloColor = linearToSrgb(vec3(1.0)-exp(-haloEnergy));
+  // Adapt visible halo opacity after highlight compression. Applying the gain
+  // to energy first makes saturation and sRGB undo most bright-page suppression.
+  // One limiting factor preserves hue and premultiplied coverage when gain > 1.
+  float haloPeak = max(max(haloColor.r,haloColor.g),haloColor.b);
+  vec3 halo = haloColor*min(uBloomGain,1./max(haloPeak,.0001))*haloCoverage;
   float haloAlpha = max(max(halo.r,halo.g),halo.b);
   vec3 outputColor = linearToSrgb(litLinear)*source.a + halo*(1.0-source.a);
   float outputAlpha = source.a + haloAlpha*(1.0-source.a);
@@ -353,6 +368,7 @@ export interface ScreenAmbientLightFilterUpdate {
  * screen: `apply` reads the screen size for that conversion.
  */
 export class ScreenAmbientLightFilter extends Filter {
+  readonly exposure = new ScreenExposure()
   /**
    * The two light maps as sRGB texels.
    *
@@ -401,6 +417,11 @@ export class ScreenAmbientLightFilter extends Filter {
       uStageSize: new Float32Array([1, 1]),
       uBacklight: ambientLightDefaults.filter.backlight,
       uBloom: ambientLightDefaults.filter.bloom,
+      uPhotometry: 0,
+      uLightScale: 1,
+      uBloomGain: 1,
+      uGlareGain: 1,
+      uCameraExposure: 1,
       uBehindLevel: 0,
       uDirectional: 0,
       uStrength: 0,
@@ -474,6 +495,12 @@ export class ScreenAmbientLightFilter extends Filter {
    * pool before this returns.
    */
   override apply(filterManager: FilterSystem, input: RenderTexture, output: RenderTexture, clearMode?: CLEAR_MODES) {
+    this.exposure.advance()
+    this.uniforms.uPhotometry = this.exposure.enabled ? 1 : 0
+    this.uniforms.uLightScale = this.exposure.lightScale
+    this.uniforms.uBloomGain = this.exposure.bloomGain
+    this.uniforms.uGlareGain = this.exposure.glareGain
+    this.uniforms.uCameraExposure = this.exposure.cameraExposure
     // The stage size turns the filter frame, which Pixi reports in stage
     // pixels, into a position inside the window and then inside the maps.
     const screen = filterManager.renderer.screen

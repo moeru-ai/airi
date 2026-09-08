@@ -18,14 +18,16 @@ export interface AmbientLightMaterialOptions {
   softHighlights: boolean
 }
 
-/** Screen geometry in window-height units; +Z points toward the viewer. */
+/** Screen geometry in character-height units; +Z points toward the viewer. */
 export interface AmbientLightScreenGeometry {
   /** Distance from the character to the flat center. Must be positive. @default 0.04 */
   gap: number
-  /** Edge curvature in radians per window height. Nonnegative; zero keeps the screen flat. @default 2 */
+  /** Edge curvature in radians per character height. Nonnegative; zero keeps the screen flat. @default 2 */
   bend: number
-  /** Nonnegative half-width of the flat center, in window heights. @default 0.1 */
+  /** Nonnegative half-width of the flat center, in character heights. @default 0.1 */
   flatRadius: number
+  /** Cache area-integrated diffuse light and broad highlights by position and normal. @default false */
+  areaLights?: boolean
 }
 
 /** One measured light color. The channels are sRGB, from 0 to 1. */
@@ -41,6 +43,24 @@ export interface AmbientLightSample {
 // Keeping the key preserves the user's directional/global preference.
 export type ScreenAmbientLightMode = 'window-gradient' | 'global'
 export type ScreenAmbientLightSource = 'screen-capture' | 'forced-color'
+
+/** Independent light emission, camera exposure, and bloom adaptation for the surface-lighting trial. */
+export interface AmbientLightExposureOptions {
+  /** Perceptual color emphasis for dim light. Preserves baseline RGB and lit luminance; zero disables it. Range 0 to 100. @default 15 */
+  responseCurve: number
+  /** Selects the trial; false reproduces the saved surface response. @default false */
+  enabled: boolean
+  /** Assumed display-white luminance in cd/m², relative to a 200-nit reference. @default 200 */
+  screenNits: number
+  /** Camera exposure compensation in stops; +1 doubles linear light. @default 0 */
+  compensation: number
+  /** Adjusts bloom sensitivity using recent screen luminance. @default true */
+  adaptiveBloom: boolean
+  /** Time constant toward dark surroundings, in seconds. @default 6 */
+  darkSeconds: number
+  /** Time constant toward bright surroundings, in seconds. @default 1.5 */
+  brightSeconds: number
+}
 
 export interface AmbientLightSamplingOptions {
   /**
@@ -289,12 +309,29 @@ export function ambientLightMapInteriorLuminance(
   return count > 0 ? total / count : 0
 }
 
+/** Rectangle in the normalized coordinates of its owning surface. */
+export interface NormalizedRectangle {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 /**
- * Measurements of the screen around and behind the stage window, for one
- * capture frame. Both maps share one grid over the window grown by
- * {@link ambientLightMapMargin}.
+ * One capture's full-display emission and local glow maps. Contact and surround
+ * cover the window grown by {@link ambientLightMapMargin}; screen covers only
+ * the actual display. Glow extrapolation must never become a surface emitter.
  */
 export interface AmbientLightEnvironment {
+  /** Actual display emission for surface lighting. Omitted for synthetic color studies. */
+  screen?: {
+    radiance: AmbientLightMap
+    /** Canvas rectangle in display coordinates; may extend outside the display. */
+    stage: NormalizedRectangle
+    /** Physical canvas width / height, independent of its render resolution. */
+    aspect: number
+  }
+
   /**
    * Perceived screen level around the window, from 0 to 1. Every visible pixel
    * counts, so a dark desktop reads as dark even with no color to sample.
@@ -348,6 +385,7 @@ export const ambientLightDefaults = Object.freeze({
   material: Object.freeze<AmbientLightMaterialOptions>({ illustrated: true, faceShadow: 0, faceYaw: 20, roughness: 0.7, skinRelief: 1, sheen: 0.8, nose: 1, softHighlights: true }),
   /** Virtual screen shape used by directional Live2D surface lighting. */
   geometry: Object.freeze<AmbientLightScreenGeometry>({ gap: 0.04, bend: 2, flatRadius: 0.1 }),
+  exposure: Object.freeze<AmbientLightExposureOptions>({ responseCurve: 15, enabled: false, screenNits: 200, compensation: 0, adaptiveBloom: true, darkSeconds: 6, brightSeconds: 1.5 }),
   captureIntervalMs: 250,
   /**
    * Width of the downscaled capture frame, in pixels. It decides how much

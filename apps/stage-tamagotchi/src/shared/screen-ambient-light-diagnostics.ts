@@ -34,6 +34,10 @@ export interface ScreenAmbientLightDiagnosticsSnapshot {
     bounds: DisplayPixelRectangle
   }
   windowBounds?: DisplayPixelRectangle
+  /** Canvas rectangle in desktop CSS pixels. */
+  stageBounds?: DisplayPixelRectangle
+  /** Full drawn character bounds in stage UVs, before viewport clipping, bloom, or controls. */
+  characterBounds?: NormalizedRectangle
   /** Size of the frames that the capture stream delivers, after constraints. */
   videoSize?: {
     width: number

@@ -85,10 +85,13 @@ devtools:
           description: Set how much the sides curve toward the character. 0 restores the flat screen; 2 is the default curve.
         gap:
           title: Screen gap
-          description: Set the distance behind the character, as a percentage of window height. Larger gaps reduce frontal light.
+          description: Set the distance behind the character, as a percentage of character height. Larger gaps reduce frontal light.
+        area-lights:
+          title: Try area light tiles
+          description: Combine screen light in a cached field for smooth, faster lighting. Face motion and nose highlights stay detailed. Turn it off to compare point tiles.
         flat-width:
           title: Flat center width
-          description: Set the width that stays flat, as a percentage of window height. The screen curves outside this area.
+          description: Set the width that stays flat, as a percentage of character height. The screen curves outside this area.
       diagnostics:
         title: Capture diagnostics
         waiting: Waiting for diagnostics from the main AIRI window.
@@ -146,6 +149,29 @@ devtools:
         neutral-color-weight:
           title: Neutral-color weight
           description: Set the minimum weight for colors with low saturation. Colored content counts for more than gray.
+      exposure:
+        title: Brightness and eye adaptation
+        response-curve:
+          title: Dim-light color boost
+          description: Emphasize color from dim, saturated light without increasing lit brightness or darkening the baseline. 0 disables the boost. Neutral light stays unchanged; available color headroom limits the effect.
+        enabled:
+          title: Try linear screen lighting
+          description: 'Surface lighting only. Keep room light at Base brightness, apply screen emission and camera exposure separately. Turn off to compare the saved response.'
+        screen-nits:
+          title: Screen white luminance (nits)
+          description: Assumed display brightness. 200 nits is the reference; capture pixels do not measure physical display brightness.
+        compensation:
+          title: Exposure compensation (stops)
+          description: '+1 doubles light before highlight roll-off. Base brightness sets room illumination; Exposure range is unused in this trial.'
+        dark-seconds:
+          title: Dark adaptation (seconds)
+          description: Time constant for bloom sensitivity to rise after the screen darkens. Larger values respond more slowly.
+        bright-seconds:
+          title: Bright adaptation (seconds)
+          description: Time constant for bloom sensitivity to settle after the screen brightens.
+        bloom:
+          title: Adaptive bloom
+          description: Reduce bloom and inward glow on sustained bright pages. Recover sensitivity after darkness. A black light source never creates bloom.
       shader:
         title: Shader response
         sheen:
@@ -205,7 +231,7 @@ devtools:
         cylinder: Cylinder
         sphere: Sphere
         normals: Show surface normals
-        mapping: Shapes use known normals on the same surface plane as Live2D, without depth or painted shading. The canvas matches the main window’s proportions. Compare with the character in the main window.
+        mapping: Shapes use known normals on the same surface plane as Live2D, without depth or painted shading. The shape follows the character’s full model bounds and actual position on the display.
       preview-shader:
         title: Shader preview
         description: Run the real shader over a test card, with the live environment and the settings above.

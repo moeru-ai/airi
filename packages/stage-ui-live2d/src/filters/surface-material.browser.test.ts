@@ -15,7 +15,7 @@ const sprite = new Sprite(Texture.WHITE)
 app.stage.addChild(sprite)
 afterAll(() => app.destroy(true, { children: true }))
 
-function render({ sheen = 1, ambient = 0.5, strength = 2, soft = true, albedo = 0, bend = 3.5, normal = [-0.4, 0, 0.9165], light = 1, lightColor = [1, 0, 0], chroma = 1, illustrated = false, face = false, hair = false, roughness = 0.7, skinRelief = ambientLightDefaults.material.skinRelief, skinNormal = normal, surface = false, facePoint = [0, 0], faceForward = [0, 0, 1], shadow = 0, aspect = 1, shadowTexture = Texture.WHITE, visibilityOnly = false } = {}) {
+function render({ responseCurve = 0, photometry = false, lightScale = 1, cameraExposure = 1, sheen = 1, ambient = 0.5, strength = 2, soft = true, albedo = 0, albedoColor = [albedo, albedo, albedo], bend = 3.5, normal = [-0.4, 0, 0.9165], light = 1, lightColor = [1, 0, 0], chroma = 1, illustrated = false, face = false, hair = false, roughness = 0.7, skinRelief = ambientLightDefaults.material.skinRelief, skinNormal = normal, surface = false, facePoint = [0, 0], faceForward = [0, 0, 1], shadow = 0, aspect = 1, shadowTexture = Texture.WHITE, visibilityOnly = false } = {}) {
   const map = { width: 24, height: 24, data: new Float32Array(24 * 24 * 3) }
   for (let y = 8; y < 16; y++) {
     for (let x = 2; x < 6; x++) map.data.set(lightColor.map(channel => channel * light), (y * 24 + x) * 3)
@@ -32,14 +32,14 @@ function render({ sheen = 1, ambient = 0.5, strength = 2, soft = true, albedo = 
     uniform vec3 uNormal;
     uniform vec3 uSkinNormal;
     uniform vec3 uFaceForward;
-    uniform float uAlbedo;
+    uniform vec3 uAlbedo;
     uniform float u_airiStrength;
     uniform float u_airiChroma;
     uniform float u_airiDirectional;
     ${surfaceIrradianceShader}
     ${faceSurfaceShader}
-    void main() { if(uVisibilityOnly>.5) { gl_FragColor=vec4(vec3(airiShadowVisibility(vec2(.5),normalize(vec3(1.,0.,1.)))),1.); return; } airiSkinNormal = uFaceSurface > .5 ? airiFaceNormalAt(uFacePoint,uFacePoint,1.) : normalize(uSkinNormal); airiFaceForward = normalize(uFaceForward); gl_FragColor = vec4(airiSurfaceColor(normalize(uNormal),vec2(0.5),vec3(uAlbedo),1.),1.); }
-  `, { uFaceSurface: surface ? 1 : 0, uFacePoint: facePoint, uNormal: normal, uSkinNormal: skinNormal, uFaceForward: faceForward, u_airiSkinRelief: skinRelief, u_airiFaceShadowStrength: shadow, u_airiFaceHeight: 0.2, u_airiFaceShadow: shadowTexture, uVisibilityOnly: visibilityOnly ? 1 : 0, uAlbedo: albedo, u_airiStrength: strength, u_airiChroma: chroma, u_airiDirectional: 1, u_airiLights: lights, u_airiStageAspect: aspect, u_airiEmitters: emitters, u_airiSheen: sheen, u_airiSoftHighlights: soft ? 1 : 0, u_airiAmbient: ambient, u_airiContrast: 1, u_airiIllustrated: illustrated ? 1 : 0, u_airiFace: face ? 1 : 0, u_airiHair: hair ? 1 : 0, u_airiRoughness: roughness })
+    void main() { if(uVisibilityOnly>.5) { gl_FragColor=vec4(vec3(airiShadowVisibility(vec2(.5),normalize(vec3(1.,0.,1.)))),1.); return; } airiSkinNormal = uFaceSurface > .5 ? airiFaceNormalAt(uFacePoint,uFacePoint,1.) : normalize(uSkinNormal); airiFaceForward = normalize(uFaceForward); gl_FragColor = vec4(airiSurfaceColor(normalize(uNormal),vec2(0.5),uAlbedo,1.),1.); }
+  `, { uFaceSurface: surface ? 1 : 0, uFacePoint: facePoint, uNormal: normal, uSkinNormal: skinNormal, uFaceForward: faceForward, u_airiSkinRelief: skinRelief, u_airiFaceShadowStrength: shadow, u_airiFaceHeight: 0.2, u_airiFaceShadow: shadowTexture, uVisibilityOnly: visibilityOnly ? 1 : 0, uAlbedo: albedoColor, u_airiStrength: strength, u_airiChroma: chroma, u_airiDirectional: 1, u_airiLights: lights, u_airiBounds: [0, 0, 1, 1], u_airiScreen: [-0.5, -0.5, 2, 2], u_airiFieldBounds: [0, 0, 1, 1], u_airiStageAspect: aspect, u_airiEmitters: emitters, u_airiSheen: sheen, u_airiSoftHighlights: soft ? 1 : 0, u_airiResponseCurve: responseCurve, u_airiPhotometry: photometry ? 1 : 0, u_airiLightScale: lightScale, u_airiCameraExposure: cameraExposure, u_airiAmbient: ambient, u_airiContrast: 1, u_airiIllustrated: illustrated ? 1 : 0, u_airiFace: face ? 1 : 0, u_airiHair: hair ? 1 : 0, u_airiRoughness: roughness })
   sprite.filters = [filter]
   app.render()
   const gl = app.renderer.gl
@@ -169,14 +169,95 @@ describe('surface material response', () => {
     expect(render({ bend: 0, normal: [0, 0, 1] })).toEqual([0, 0, 0, 255])
   })
 
-  it('casts received screen color onto ambient artwork without tinting an unlit face', () => {
+  it('uses linear emission and camera exposure before the highlight shoulder', () => {
+    const options = { photometry: true, lightColor: [1, 1, 1], ambient: 0, albedo: 0.3, sheen: 0, light: 2 }
+    const base = render(options)[0]
+    expect(base).toBeGreaterThan(0)
+    expect(render({ ...options, lightScale: 2 })[0]).toBeCloseTo(base * 2, -1)
+    expect(render({ ...options, cameraExposure: 2 })[0]).toBeCloseTo(base * 2, -1)
+    expect(render({ ...options, lightScale: 0 })).toEqual([0, 0, 0, 255])
+  })
+
+  it('preserves unlit artwork and rolls off bright neutral light in the exposure trial', () => {
+    const options = { photometry: true, lightColor: [1, 1, 1], ambient: 0.5, albedo: 0.3, light: 80, cameraExposure: 2 }
+    expect(render({ ...options, strength: 0 })).toEqual(render({ ...options, strength: 0, photometry: false }))
+    const result = render(options)
+    expect(result[0]).toBeGreaterThan(150)
+    expect(result[0]).toBeLessThanOrEqual(255)
+    expect(result[0]).toBe(result[1])
+    expect(result[1]).toBe(result[2])
+  })
+
+  it('enhances colored light without increasing luminance or lowering the baseline', () => {
     // ROOT CAUSE:
-    // The normal renderer only added light. Missing source channels retained
-    // the full neutral ambient contribution, unlike the earlier color cast.
+    // An energy curve brightened white and colored light together. Only the
+    // color shift may change; baseline RGB and lit luminance remain fixed.
+    const options = { photometry: true, albedoColor: [0.35, 0.6, 0.85], ambient: 0.5, sheen: 0.5, light: 2, lightColor: [1, 0.25, 0.1] }
+    const baseline = render({ ...options, light: 0 })
+    const physical = render(options)
+    const enhanced = render({ ...options, responseCurve: 100 })
+    const luminance = (color: number[]) => color[0] * 0.2126 + color[1] * 0.7152 + color[2] * 0.0722
+    expect(enhanced[0]).toBeGreaterThan(physical[0] + 2)
+    expect(Math.abs(luminance(enhanced) - luminance(physical))).toBeLessThan(1)
+    for (let channel = 0; channel < 3; channel++) expect(enhanced[channel]).toBeGreaterThanOrEqual(baseline[channel])
+    expect(render({ ...options, responseCurve: 100, light: 0 })).toEqual(baseline)
+    expect(render({ ...options, responseCurve: 100, lightColor: [1, 1, 1] }))
+      .toEqual(render({ ...options, lightColor: [1, 1, 1] }))
+  })
+
+  it('keeps enhanced luminance increasing across light intensities and the display gamut', () => {
+    for (const responseCurve of [15, 100]) {
+      for (const lightColor of [[1, 0.25, 0.1], [0.1, 0.25, 1]]) {
+        const options = { responseCurve, lightColor, photometry: true, albedoColor: [0.35, 0.6, 0.85], ambient: 0.5, cameraExposure: 2 }
+        const baseline = render({ ...options, light: 0 })
+        let previous = 0
+        for (const light of [0, 0.01, 0.1, 1, 4, 16, 64, 1000]) {
+          const pixel = render({ ...options, light })
+          const physical = render({ ...options, light, responseCurve: 0 })
+          const luminance = pixel[0] * 0.2126 + pixel[1] * 0.7152 + pixel[2] * 0.0722
+          const physicalLuminance = physical[0] * 0.2126 + physical[1] * 0.7152 + physical[2] * 0.0722
+          expect(luminance).toBeGreaterThanOrEqual(previous - 1)
+          expect(Math.abs(luminance - physicalLuminance)).toBeLessThan(1)
+          for (let channel = 0; channel < 3; channel++) expect(pixel[channel]).toBeGreaterThanOrEqual(baseline[channel])
+          previous = luminance
+        }
+        expect(render({ ...options, chroma: 0 })).toEqual(render({ ...options, chroma: 0, responseCurve: 0 }))
+      }
+    }
+  })
+
+  it('never lets colored emission subtract from the fixed unlit baseline', () => {
+    // ROOT CAUSE:
+    // The received hue multiplied the ambient artwork, removing absent source
+    // channels. The HDR shoulder also compressed the baseline when light grew.
+    // Both effects must leave the black-screen baseline intact at fixed exposure.
+    for (const photometry of [false, true]) {
+      for (const responseCurve of [0, 15, 100]) {
+        for (const lightColor of [[1, 0, 0], [0.02, 0, 0], [0, 0, 1]]) {
+          const options = { responseCurve, photometry, albedo: 0.9, ambient: 0.8, cameraExposure: 2, sheen: 0, lightColor }
+          const baseline = render({ ...options, light: 0 })
+          let previous = baseline
+          for (const light of [0.01, 0.1, 1, 10, 1000]) {
+            const lit = render({ ...options, light })
+            for (let channel = 0; channel < 3; channel++) {
+              expect(lit[channel], `${photometry}/${lightColor}/${light}/${channel}`).toBeGreaterThanOrEqual(baseline[channel])
+              expect(lit[channel]).toBeGreaterThanOrEqual(previous[channel])
+            }
+            previous = lit
+          }
+        }
+      }
+    }
+  })
+
+  it('adds received screen color without subtracting other ambient channels', () => {
+    // ROOT CAUSE:
+    // A blue emitter cannot remove the red light already in the room.
+    // Hue comes from added energy, not multiplication of the baseline.
     const options = { illustrated: true, face: true, albedo: 0.3, ambient: 0.65, sheen: 0, lightColor: [0, 0, 1], light: 8 }
     const unlit = render({ ...options, light: 0 })
     const blue = render(options)
-    expect(blue[0]).toBeLessThan(unlit[0])
+    expect(blue[0]).toBe(unlit[0])
     expect(blue[2]).toBeGreaterThan(unlit[2])
     expect(render({ ...options, normal: [1, 0, 0] })).toEqual(unlit)
     expect(render({ ...options, strength: 0 })).toEqual(render({ ...options, strength: 0, light: 0 }))

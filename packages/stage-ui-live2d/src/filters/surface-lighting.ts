@@ -1,8 +1,9 @@
 import type { Renderer as PixiRenderer } from '@pixi/core'
-import type { AmbientLightEnvironment, AmbientLightMaterialOptions, AmbientLightScreenGeometry, ScreenAmbientLightMode } from '@proj-airi/stage-shared/screen-ambient-light'
+import type { AmbientLightEnvironment, AmbientLightMaterialOptions, AmbientLightScreenGeometry, NormalizedRectangle, ScreenAmbientLightMode } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Cubism4InternalModel } from 'pixi-live2d-display/cubism4'
 
 import type { FaceShadowCaster } from './face-shadow'
+import type { SurfaceLightFrame } from './surface-irradiance'
 
 import { Matrix } from '@pixi/math'
 import { ambientLightDefaults } from '@proj-airi/stage-shared/screen-ambient-light'
@@ -15,7 +16,9 @@ import iruProfile from '../assets/lighting/iru.json'
 import { FaceShadow } from './face-shadow'
 import { faceSurfaceShader } from './face-surface'
 import { NoseAttachment } from './nose-attachment'
-import { flatScreenGeometry, screenLightCount, screenLightGridSize, surfaceIrradianceShader, writeScreenGeometry, writeScreenLights } from './surface-irradiance'
+import { ScreenExposure } from './screen-exposure'
+import { flatScreenGeometry, referenceLightFrame, screenLightCount, screenLightGridSize, surfaceIrradianceShader, surfaceLightFrame, writeScreenEdges, writeScreenGeometry, writeScreenLights } from './surface-irradiance'
+import { SurfaceLightField } from './surface-light-field'
 
 type Renderer = Cubism4InternalModel['renderer']
 type Profile = typeof iruProfile
@@ -175,6 +178,14 @@ interface Locations {
   normal: WebGLUniformLocation | null
   ownership: WebGLUniformLocation | null
   lights: WebGLUniformLocation | null
+  edges: WebGLUniformLocation | null
+  area: WebGLUniformLocation | null
+  field: WebGLUniformLocation | null
+  fieldEnabled: WebGLUniformLocation | null
+  fieldMean: WebGLUniformLocation | null
+  bounds: WebGLUniformLocation | null
+  screen: WebGLUniformLocation | null
+  fieldBounds: WebGLUniformLocation | null
   clipToStage: WebGLUniformLocation | null
   aspect: WebGLUniformLocation | null
   emitters: WebGLUniformLocation | null
@@ -186,6 +197,10 @@ interface Locations {
   sheen: WebGLUniformLocation | null
   nose: WebGLUniformLocation | null
   softHighlights: WebGLUniformLocation | null
+  responseCurve: WebGLUniformLocation | null
+  photometry: WebGLUniformLocation | null
+  lightScale: WebGLUniformLocation | null
+  cameraExposure: WebGLUniformLocation | null
   ambient: WebGLUniformLocation | null
   contrast: WebGLUniformLocation | null
 }
@@ -212,10 +227,16 @@ export class SurfaceLighting {
   private readonly noseAttachment?: NoseAttachment
   private readonly shadowCasters: (FaceShadowCaster & { index: number })[] = []
   private shadow?: FaceShadow
+  private field?: SurfaceLightField
   private faceHeight = 0
   private geometry: Readonly<AmbientLightScreenGeometry> = flatScreenGeometry
   private material: Readonly<AmbientLightMaterialOptions> = ambientLightDefaults.material
-  private geometryAspect = 0
+  /** Drawn mesh bounds in stage UVs, before viewport clipping, filters, and window controls. */
+  readonly characterBounds: NormalizedRectangle = { x: 0, y: 0, width: 1, height: 1 }
+  private frame: SurfaceLightFrame = referenceLightFrame
+  private readonly boundsUniform = new Float32Array([0, 0, 1, 1])
+  private readonly screenUniform = new Float32Array([-0.5, -0.5, 2, 2])
+  private readonly edges = new Float32Array((screenLightGridSize + 1) * 4)
   private readonly emitters = new Float32Array(screenLightGridSize * 4)
   private readonly lights = new Float32Array(screenLightCount * 3)
   private gl?: WebGLRenderingContext
@@ -227,6 +248,7 @@ export class SurfaceLighting {
   private active = false
   private strength = 0
   private chroma = 0
+  private exposure = new ScreenExposure()
   private ambient = 1
   private contrast = 1
   private directional = true
@@ -284,7 +306,11 @@ export class SurfaceLighting {
   /** Changes only this binding's virtual screen; the default remains flat. */
   setScreenGeometry(geometry: Readonly<AmbientLightScreenGeometry>) {
     this.geometry = { ...geometry }
-    this.geometryAspect = 0
+  }
+
+  /** Shares the final filter's adaptation state; neither binding owns a timer. */
+  setPhotometry(exposure: ScreenExposure) {
+    this.exposure = exposure
   }
 
   /** Sets ambient fill before direct light, preserving bright reflected highlights. */
@@ -295,7 +321,7 @@ export class SurfaceLighting {
 
   /** Updates material response without rebinding or regenerating normal textures. */
   setMaterial(material: Readonly<AmbientLightMaterialOptions>) {
-    this.material = { ...material }
+    this.material = { ...material, illustrated: material.illustrated && this.profile === 'iru' }
   }
 
   /** Loads the matching authored maps once; other models use their smooth proxy. */
@@ -322,7 +348,7 @@ export class SurfaceLighting {
     this.environment = environment
     // The narrow reconstruction approximates screen emission. The old wide
     // surround blur has already mixed distant colors and must not be lit again.
-    writeScreenLights(environment.contact, this.lights)
+    writeScreenLights(environment.screen?.radiance ?? environment.contact, this.lights)
   }
 
   /** Called by the shared dispatcher after the SDK has bound its color shader. */
@@ -338,7 +364,7 @@ export class SurfaceLighting {
     let locations = this.programs.get(program)
     if (!locations) {
       const uniform = (name: string) => gl.getUniformLocation(program, `u_airi${name}`)
-      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), face: uniform('Face'), faceRotation: uniform('FaceRotation'), modelToNose: uniform('ModelToNose'), hair: uniform('Hair'), illustrated: uniform('Illustrated'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect'), emitters: uniform('Emitters[0]'), faceShadow: uniform('FaceShadow'), faceShadowStrength: uniform('FaceShadowStrength'), faceHeight: uniform('FaceHeight'), roughness: uniform('Roughness'), skinRelief: uniform('SkinRelief'), sheen: uniform('Sheen'), nose: uniform('Nose'), softHighlights: uniform('SoftHighlights'), ambient: uniform('Ambient'), contrast: uniform('Contrast') }
+      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), face: uniform('Face'), faceRotation: uniform('FaceRotation'), modelToNose: uniform('ModelToNose'), hair: uniform('Hair'), illustrated: uniform('Illustrated'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), edges: uniform('Edges[0]'), area: uniform('Area'), field: uniform('Field'), fieldEnabled: uniform('FieldEnabled'), fieldMean: uniform('FieldMean'), bounds: uniform('Bounds'), screen: uniform('Screen'), fieldBounds: uniform('FieldBounds'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect'), emitters: uniform('Emitters[0]'), faceShadow: uniform('FaceShadow'), faceShadowStrength: uniform('FaceShadowStrength'), faceHeight: uniform('FaceHeight'), roughness: uniform('Roughness'), skinRelief: uniform('SkinRelief'), sheen: uniform('Sheen'), nose: uniform('Nose'), softHighlights: uniform('SoftHighlights'), responseCurve: uniform('ResponseCurve'), photometry: uniform('Photometry'), lightScale: uniform('LightScale'), cameraExposure: uniform('CameraExposure'), ambient: uniform('Ambient'), contrast: uniform('Contrast') }
       this.programs.set(program, locations)
     }
     let buffer = this.buffers.get(vertices.byteOffset)
@@ -370,6 +396,10 @@ export class SurfaceLighting {
     // models keep the generic response until they have their own annotations.
     gl.uniform1f(locations.illustrated, this.material.illustrated && this.profile === 'iru' ? 1 : 0)
     gl.uniform1f(locations.owner, reference.index + 1)
+    gl.uniform1f(locations.responseCurve, this.exposure.responseCurve)
+    gl.uniform1f(locations.photometry, this.exposure.enabled ? 1 : 0)
+    gl.uniform1f(locations.lightScale, this.exposure.lightScale)
+    gl.uniform1f(locations.cameraExposure, this.exposure.cameraExposure)
     gl.uniform1f(locations.ambient, this.ambient)
     gl.uniform1f(locations.contrast, this.contrast)
     gl.uniform1f(locations.faceShadowStrength, this.shadowEnabled() ? this.material.faceShadow : 0)
@@ -392,13 +422,20 @@ export class SurfaceLighting {
     const { width, height } = this.stage.screen
     this.clipToStage.copyFrom(this.stage.projection.projectionMatrix).invert().scale(1 / width, 1 / height)
     gl.uniformMatrix3fv(locations.clipToStage, false, this.clipToStage.toArray(true))
-    const aspect = width / height
-    if (this.geometryAspect !== aspect) {
-      writeScreenGeometry(this.geometry, aspect, this.emitters)
-      this.geometryAspect = aspect
-    }
+    const aspect = this.environment?.screen?.aspect ?? width / height
+    gl.uniform4fv(locations.bounds, this.boundsUniform)
+    gl.uniform4fv(locations.screen, this.screenUniform)
     gl.uniform1f(locations.aspect, aspect)
     gl.uniform4fv(locations.emitters, this.emitters)
+    gl.uniform4fv(locations.edges, this.edges)
+    gl.uniform1f(locations.area, this.geometry.areaLights ? 1 : 0)
+    gl.uniform1f(locations.fieldEnabled, this.geometry.areaLights && this.field ? 1 : 0)
+    gl.uniform1i(locations.field, 5)
+    if (this.field) {
+      this.stage.texture.bind(this.field.texture, 5)
+      gl.uniform3fv(locations.fieldMean, this.field.mean)
+      gl.uniform4fv(locations.fieldBounds, this.field.bounds)
+    }
     gl.uniform1i(locations.normal, 2)
     gl.uniform1i(locations.ownership, 3)
     gl.activeTexture(gl.TEXTURE2)
@@ -414,6 +451,58 @@ export class SurfaceLighting {
   }
 
   private prepareDraw() {
+    this.exposure.advance()
+    const { width, height } = this.stage.screen
+    this.clipToStage.copyFrom(this.stage.projection.projectionMatrix).invert().scale(1 / width, 1 / height)
+    const mvp = this.model.renderer.getMvpMatrix().getArray()
+    this.modelToStage.set(mvp[0], mvp[1], mvp[4], mvp[5], mvp[12], mvp[13]).prepend(this.clipToStage)
+    const core = this.model.coreModel
+    let left = Infinity
+    let right = -Infinity
+    let upper = Infinity
+    let lower = -Infinity
+    // Core vertices already follow animation, layout, and zoom. Hidden meshes
+    // do not count, but off-viewport vertices do: cropping the same model must
+    // not change its physical height, center, or the screen bend around it.
+    for (const { index } of this.references.values()) {
+      if (!core.getDrawableDynamicFlagIsVisible(index) || core.getDrawableOpacity(index) <= 0.01)
+        continue
+      const vertices = core.getDrawableVertices(index)
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
+      for (let i = 0; i < vertices.length; i += 2) {
+        const x = this.modelToStage.a * vertices[i] + this.modelToStage.c * vertices[i + 1] + this.modelToStage.tx
+        const y = this.modelToStage.b * vertices[i] + this.modelToStage.d * vertices[i + 1] + this.modelToStage.ty
+        minX = Math.min(minX, x)
+        maxX = Math.max(maxX, x)
+        minY = Math.min(minY, y)
+        maxY = Math.max(maxY, y)
+      }
+      left = Math.min(left, minX)
+      right = Math.max(right, maxX)
+      upper = Math.min(upper, minY)
+      lower = Math.max(lower, maxY)
+    }
+    // A hidden model retains its last valid frame until it becomes visible.
+    if (right > left && lower > upper) {
+      Object.assign(this.characterBounds, { x: left, y: upper, width: right - left, height: lower - upper })
+    }
+    this.frame = surfaceLightFrame(this.environment, this.characterBounds)
+    const { character, screen } = this.frame
+    this.boundsUniform.set([character.x, character.y, character.width, character.height])
+    this.screenUniform.set([screen.x, screen.y, screen.width, screen.height])
+    const aspect = this.environment?.screen?.aspect ?? width / height
+    writeScreenGeometry(this.geometry, aspect, this.emitters, this.frame)
+    writeScreenEdges(this.geometry, aspect, this.edges, this.frame)
+    if (this.active && this.directional && this.strength > 0 && this.geometry.areaLights) {
+      this.field ??= new SurfaceLightField()
+      this.field.update(this.stage, this.lights, this.geometry, aspect, this.material, performance.now(), this.frame)
+      // Cubism uses raw GL after Pixi. Reset the cached geometry binding before
+      // its draw loop so the atlas VAO cannot retain Cubism's vertex pointers.
+      this.stage.geometry.reset()
+    }
     // Iru's head X spans -30..30 rig units. Read Core on every draw, since
     // model animation can update more often than the sampled screen lighting.
     const headX = this.faceYawIndex >= 0 ? this.model.coreModel.getParameterValueByIndex(this.faceYawIndex) : 0
@@ -430,11 +519,6 @@ export class SurfaceLighting {
       gl.canvas.addEventListener('webglcontextrestored', this.onContextRestored)
     }
     this.shadow ??= new FaceShadow(gl)
-    const { width, height } = this.stage.screen
-    this.clipToStage.copyFrom(this.stage.projection.projectionMatrix).invert().scale(1 / width, 1 / height)
-    const mvp = this.model.renderer.getMvpMatrix().getArray()
-    this.modelToStage.set(mvp[0], mvp[1], mvp[4], mvp[5], mvp[12], mvp[13]).prepend(this.clipToStage)
-    const core = this.model.coreModel
     const face = core.getDrawableVertices(this.faceIndex)
     let top = Infinity
     let bottom = -Infinity
@@ -483,6 +567,8 @@ export class SurfaceLighting {
     if (!this.gl)
       return
     this.shadow?.dispose()
+    this.field?.dispose()
+    this.field = undefined
     this.gl.canvas.removeEventListener('webglcontextrestored', this.onContextRestored)
     for (const buffer of this.buffers.values()) this.gl.deleteBuffer(buffer)
     if (this.normal)

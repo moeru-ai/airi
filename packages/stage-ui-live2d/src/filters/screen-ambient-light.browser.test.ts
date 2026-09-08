@@ -376,6 +376,32 @@ describe('screen ambient light filter', () => {
       .toBe(channelAt(without, without.centerColumn, without.middleRow, 0))
   })
 
+  it('suppresses sustained white-screen bloom and preserves dark-source transparency', () => {
+    const options = { backlight: 1, bloom: 1, wrapIntensity: 0 }
+    const brightAdapted = renderWrap(uniformMap(white), { ...options, adaptedLevel: 1 })
+    const darkAdapted = renderWrap(uniformMap(white), { ...options, adaptedLevel: 0.01 })
+    const blackSource = renderWrap(uniformMap(black), { ...options, adaptedLevel: 0.01 })
+    const x = brightAdapted.spriteLeft - 1
+    const y = brightAdapted.middleRow
+    expect(channelAt(darkAdapted, x, y, 3)).toBeGreaterThan(channelAt(brightAdapted, x, y, 3))
+    expect(channelAt(brightAdapted, x, y, 3)).toBeGreaterThan(0)
+    expect(channelAt(blackSource, x, y, 3)).toBe(0)
+    // Adaptation changes the halo, not the opaque artwork or its alpha.
+    expect(channelAt(darkAdapted, 50, 50, 0)).toBe(channelAt(brightAdapted, 50, 50, 0))
+    expect(channelAt(darkAdapted, 50, 50, 3)).toBe(255)
+  })
+
+  it('reduces bright-page inward glare at the current strong bloom settings', () => {
+    const options = { backlight: 0.99, bloom: 1.8, wrapIntensity: 0.85 }
+    const whitePage = renderWrap(uniformMap(white), { ...options, adaptedLevel: 1 })
+    const movie = renderWrap(uniformMap(white), { ...options, adaptedLevel: 0.05 })
+    const x = whitePage.spriteLeft
+    const y = whitePage.middleRow
+    expect(channelAt(whitePage, x, y, 0)).toBeLessThan(channelAt(movie, x, y, 0) - 20)
+    expect(channelAt(whitePage, x - 1, y, 3)).toBeLessThan(channelAt(movie, x - 1, y, 3) * 0.3)
+    expect(channelAt(whitePage, 50, 50, 0)).toBe(channelAt(movie, 50, 50, 0))
+  })
+
   it('adds exterior backlight only beside illuminated edges when bloom is enabled', () => {
     const options = { behindLuminance: 0.5, backlight: 1, wrapIntensity: 0 }
     const without = renderWrap(splitMap(black, white), { ...options, bloom: 0 })
@@ -548,6 +574,7 @@ interface WrapScene {
 function renderWrap(
   contact: AmbientLightMap,
   behind: {
+    adaptedLevel?: number
     canvasSize?: number
     behindLuminance?: number
     backlight?: number
@@ -581,6 +608,10 @@ function renderWrap(
   const sprite = new Sprite(Texture.from(source))
   sprite.position.set(spriteOffset, spriteOffset)
   const filter = new ScreenAmbientLightFilter()
+  if (behind.adaptedLevel !== undefined) {
+    const level = behind.adaptedLevel
+    filter.exposure.configure(environmentWith({ surround: uniformMap([level, level, level]), contact }), { ...ambientLightDefaults.exposure, enabled: true }, true)
+  }
   filter.update({
     environment: environmentWith({ contact, behindLuminance: behind.behindLuminance ?? 0 }),
     mode: 'window-gradient',

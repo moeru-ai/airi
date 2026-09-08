@@ -1,3 +1,4 @@
+import type { NormalizedRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { SourcesOptions } from 'electron'
 
 import type {
@@ -72,6 +73,8 @@ export function useScreenAmbientLight(sources: {
    * showing through behind it. Without it the backlight stays off.
    */
   stageCanvas?: () => HTMLCanvasElement | undefined
+  /** Drawn mesh bounds before viewport clipping or bloom, in stage UVs. Diagnostics only. */
+  characterBounds?: () => NormalizedRectangle | undefined
 } = {}) {
   const settings = useSettingsScreenAmbientLight()
   const {
@@ -353,6 +356,11 @@ export function useScreenAmbientLight(sources: {
     const frame = context.getImageData(0, 0, canvas.width, canvas.height)
     const now = performance.now()
     const excludedWindow = normalizeWindowBounds(display.bounds, currentWindowBounds())
+    const stage = sources.stageCanvas?.()?.getBoundingClientRect()
+    const window = currentWindowBounds()
+    const stageBounds = stage && stage.width > 0 && stage.height > 0
+      ? { x: window.x + stage.x, y: window.y + stage.y, width: stage.width, height: stage.height }
+      : window
     const painted = paintedMask.maskFor(excludedWindow, now)
     const subjectInWindow = painted?.subject ?? wholeWindowRectangle
     // The mask measures the subject inside the window; the sampler places its
@@ -369,6 +377,8 @@ export function useScreenAmbientLight(sources: {
       // maps on the display, so the rectangle changes frame here.
       subject: subjectOnDisplay,
       paintedAlpha: painted?.alpha,
+      stage: normalizeWindowBounds(display.bounds, stageBounds),
+      displayAspect: display.bounds.width / Math.max(1, display.bounds.height),
     }, samplingOptions.value)
 
     const nextEnvironment = ambientLight.active
@@ -378,6 +388,7 @@ export function useScreenAmbientLight(sources: {
     ambientLight.setEnvironment(nextEnvironment, subjectInWindow)
 
     publishDiagnostics('capturing', {
+      stageBounds,
       frame: {
         width: frame.width,
         height: frame.height,
@@ -430,7 +441,7 @@ export function useScreenAmbientLight(sources: {
 
   function publishDiagnostics(
     status: ScreenAmbientLightCaptureStatus,
-    details: Partial<Pick<ScreenAmbientLightDiagnosticsSnapshot, 'frame' | 'excludedRegion' | 'subjectRegion' | 'sampling'>> = {},
+    details: Partial<Pick<ScreenAmbientLightDiagnosticsSnapshot, 'frame' | 'excludedRegion' | 'subjectRegion' | 'sampling' | 'stageBounds'>> = {},
   ) {
     const display = capturedDisplay.value
     const snapshot: ScreenAmbientLightDiagnosticsSnapshot = {
@@ -445,6 +456,7 @@ export function useScreenAmbientLight(sources: {
           }
         : undefined,
       windowBounds: currentWindowBounds(),
+      characterBounds: sources.characterBounds?.(),
       videoSize: video.videoWidth > 0 && video.videoHeight > 0
         ? { width: video.videoWidth, height: video.videoHeight }
         : undefined,

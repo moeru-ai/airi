@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Live2DAmbientLightControls from '../../components/Devtools/live2d-ambient-light/controls.vue'
 import Live2DAmbientLightDiagnostics from '../../components/Devtools/live2d-ambient-light/diagnostics.vue'
+import Exposure from '../../components/Devtools/live2d-ambient-light/exposure.vue'
 import Live2DAmbientLightGeometry from '../../components/Devtools/live2d-ambient-light/geometry.vue'
 import Live2DAmbientLightSampling from '../../components/Devtools/live2d-ambient-light/sampling.vue'
 import Live2DAmbientLightShaderPreview from '../../components/Devtools/live2d-ambient-light/shader-preview.vue'
@@ -15,6 +16,7 @@ import Live2DSurfacePreview from '../../components/Devtools/live2d-ambient-light
     <Live2DSurfacePreview />
     <Live2DAmbientLightDiagnostics />
     <Live2DAmbientLightSampling />
+    <Exposure />
     <Live2DAmbientLightShader />
     <Live2DAmbientLightShaderPreview />
   </div>

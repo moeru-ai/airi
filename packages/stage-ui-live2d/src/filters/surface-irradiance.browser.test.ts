@@ -34,7 +34,7 @@ function render(normal: number[], column: number, row = 12, position = [0.5, 0.5
     uniform float u_airiDirectional;
     ${surfaceIrradianceShader}
     void main() { gl_FragColor = vec4(clamp(vec3(0.2)*airiSurfaceResponse(normalize(uNormal),uPosition),0.,1.),1.); }
-  `, { uNormal: normal, uPosition: position, u_airiStrength: 1, u_airiChroma: 1, u_airiDirectional: 1, u_airiLights: lights, u_airiStageAspect: 1, u_airiEmitters: emitters })
+  `, { uNormal: normal, uPosition: position, u_airiStrength: 1, u_airiChroma: 1, u_airiDirectional: 1, u_airiLights: lights, u_airiBounds: [0, 0, 1, 1], u_airiScreen: [-0.5, -0.5, 2, 2], u_airiFieldBounds: [0, 0, 1, 1], u_airiStageAspect: 1, u_airiEmitters: emitters })
   sprite.filters = [filter]
   app.renderer.render(app.stage)
   const gl = app.renderer.gl

@@ -59,7 +59,10 @@ const controlsIslandElement = toRef(() => controlsIslandRef.value?.element)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 // The stage canvas alpha tells the sampler which pixels of the window AIRI
 // paints, so it can read the desktop showing through behind the character.
-useScreenAmbientLight({ stageCanvas: () => widgetStageRef.value?.canvasElement() })
+useScreenAmbientLight({
+  stageCanvas: () => widgetStageRef.value?.canvasElement(),
+  characterBounds: () => widgetStageRef.value?.characterBounds(),
+})
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
 const stageMounted = computed(() => componentStateStage.value === 'mounted')

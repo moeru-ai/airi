@@ -3,6 +3,7 @@ import type { Application } from '@pixi/app'
 import type { Filter } from '@pixi/core'
 import type {
   AmbientLightEnvironment,
+  AmbientLightExposureOptions,
   AmbientLightFilterOptions,
   NormalizedRectangle,
   AmbientLightMaterialOptions,
@@ -69,6 +70,7 @@ const props = withDefaults(defineProps<{
   live2dShadowEnabled?: boolean
   screenAmbientLightActive?: boolean
   screenAmbientLightFilterOptions?: AmbientLightFilterOptions
+  screenAmbientLightExposure?: AmbientLightExposureOptions
   screenAmbientLightEnvironment?: AmbientLightEnvironment
   screenAmbientLightSubject?: NormalizedRectangle
   screenAmbientLightMode?: ScreenAmbientLightMode
@@ -94,6 +96,7 @@ const props = withDefaults(defineProps<{
   live2dExpressionEnabled: true,
   live2dShadowEnabled: true,
   screenAmbientLightActive: false,
+  screenAmbientLightExposure: () => ({ ...ambientLightDefaults.exposure }),
   screenAmbientLightFilterOptions: () => ({ ...ambientLightDefaults.filter }),
   screenAmbientLightEnvironment: () => ambientLightNeutralEnvironment,
   screenAmbientLightSubject: () => wholeWindowRectangle,
@@ -358,6 +361,7 @@ async function performModelLoad() {
       const lighting = new SurfaceLighting(live2DModel.internalModel, pixiApp.value!.renderer)
       surfaceLighting = lighting
       try {
+        lighting.setPhotometry(screenAmbientLightFilter.value.exposure)
         lighting.setMaterial(screenAmbientLightMaterial.value)
         lighting.setScreenGeometry(screenAmbientLightGeometry.value)
         await lighting.load()
@@ -638,8 +642,10 @@ const dropShadowAnimationId = ref(0)
 
 function updateAmbientLightFilter() {
   const options = screenAmbientLightFilterOptions.value
+  const physical = props.screenAmbientLightExposure.enabled && screenAmbientLightMode.value === 'window-gradient' && !!surfaceLighting
+  screenAmbientLightFilter.value.exposure.configure(screenAmbientLightEnvironment.value, props.screenAmbientLightExposure, physical && screenAmbientLightActive.value)
   surfaceLighting?.setExposure(
-    options.baseBrightness + options.exposureRange * screenAmbientLightEnvironment.value.exposure,
+    physical ? options.baseBrightness : options.baseBrightness + options.exposureRange * screenAmbientLightEnvironment.value.exposure,
     options.baseContrast,
   )
   surfaceLighting?.update(
@@ -720,6 +726,7 @@ watch(
   [
     screenAmbientLightActive,
     screenAmbientLightFilterOptions,
+    () => props.screenAmbientLightExposure,
     screenAmbientLightEnvironment,
     screenAmbientLightMode,
     screenAmbientLightStrength,
@@ -966,6 +973,7 @@ function listMotionGroups() {
 }
 
 defineExpose({
+  characterBounds: () => surfaceLighting ? { ...surfaceLighting.characterBounds } : undefined,
   setMotion,
   listMotionGroups,
   modelNormalizeParams,

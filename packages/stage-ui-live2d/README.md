@@ -45,6 +45,54 @@ the source color as reflections brighten. The nose follows its painted highlight
 retains the face drawable ownership and alpha bounds. These controls update the live
 model without changing or regenerating its normal-map image.
 
+### Brightness and eye adaptation trial
+
+The devtool's **Try linear screen lighting** switch preserves the saved response
+when disabled. The trial applies only to directional surface lighting. **Base
+brightness** supplies steady room illumination; **Exposure range** is unused.
+Screen pixels remain linear RGB. **Screen white luminance** scales their emission
+relative to an assumed 200-nit display. Capture does not measure physical nits.
+**Exposure compensation** applies stops after room and direct surface lighting.
+A shared RGB shoulder above 0.6 rolls off highlights while preserving midtones.
+The existing illustrated materials and color cast remain artistic approximations.
+
+**Adaptive bloom** meters the surrounding light map and averages its luminance
+in stops over time. Its exponential moving mean has separate time constants:
+six seconds toward darkness and 1.5 seconds toward brightness by default.
+This increases halo sensitivity after darkness and suppresses it on a sustained
+bright screen. Sustained bright pages also reduce inward silhouette glare. The
+halo gain applies after highlight compression so that strong bloom settings do
+not hide the reduction. Local screen light still supplies all halo energy;
+black produces none. Camera exposure and room illumination stay fixed to avoid
+face-brightness pumping during scene cuts. These timings approximate a visual
+effect, not the full physiology of human dark adaptation.
+
+Desktop capture excludes all nonzero character and bloom alpha on each sample.
+The mask retains 500 ms of coverage in display coordinates, with a two-cell
+margin for resampling. This covers recent poses and window positions while the
+capture catches up. Transparent desktop pixels outside that coverage remain
+available for lighting. Fresh canvas reads require GPU synchronization, so the
+capture interval also controls the cost of this feedback protection.
+
+The final filter owns the transient history and shares it with the surface
+binding. Render calls advance it without extra timers or capture uploads.
+Disabling the trial resets history; a render gap over two seconds seeds the
+current reading. History is neither persisted nor synchronized between windows.
+The cylinder and flat test-card previews retain their separate diagnostic response;
+judge this trial on the live model.
+
+`verify-exposure-live.js` captures matched saved, linear, and adapted results.
+`verify-adaptation-live.js` holds local illumination fixed while stepping the
+recent-surround meter through bright/dark transitions. Both scripts live in
+`docs/research/live2d-lighting-experiment` and restore live state afterward.
+
+The trial follows the separation of physical light and exposure in
+[Filament](https://google.github.io/filament/main/filament.html) and the separate
+bright/dark adaptation speeds in
+[Unreal Engine](https://dev.epicgames.com/documentation/unreal-engine/auto-exposure-in-unreal-engine).
+
+### Illustrated materials
+
 **Illustrated materials** uses reviewed hair and face assignments. Hair reflects
 light through GGX with fixed dielectric reflectance 0.046. **Hair roughness**
 defaults to 0.70 and changes reflection width without changing the normal field.
@@ -162,3 +210,49 @@ frontal light from curved emitters, shape silhouettes, and the normals view.
 nose center under two light directions, three horizontal turns, and two vertical
 turns. It checks alpha parity and restores the material, light, pose, and
 animation. The unit fixture records the actual nose vertices at three head angles.
+
+### Area tile comparison
+
+The devtool's **Virtual screen shape → Try area light tiles** switch selects
+cached area lighting for both the character and surface preview. The default is
+off, which retains the point-tile response.
+
+The surface samples an 8 by 8 grid over the full captured display. Capture stores
+this emission separately from the local contact and surround maps used for glow.
+Masked character pixels are excluded; only holes inside the display are filled.
+No emitting tiles exist beyond the display edge.
+
+The current drawn ArtMesh bounds define the character's center and height before viewport clipping.
+Screen positions come from the canvas rectangle on the physical display. Empty
+window margins cancel from the geometry; moving or scaling the character changes
+its distance from each source. Gap and curvature use full character heights. Cropping the model cannot change the lighting geometry.
+
+The trial uses the same source-color grid for point and area modes. Adjacent tiles share their
+boundaries on the curved screen. Each tile contributes its cosine-weighted
+solid angle, clipped at the receiving normal's horizon. This removes separate
+diffuse lobes from uniform screen regions without blurring the artwork.
+
+`SurfaceLightField` combines diffuse light and broad reflections in a 272 by 288
+atlas. The atlas stores 16 by 16 positions over the full character bounds, 17 by 9 normal samples, and two
+response layers. Its RGBA8 allocation is about 306 KiB. Square-root encoding
+preserves dim colors; interpolation approximates the spatial and angular response.
+Screen and character-bound updates refresh the atlas at most 20 times per second. Geometry settings, roughness,
+and renderer-context changes refresh on the next draw.
+
+The character still samples its current normal and position at full resolution.
+Nose highlights, cloth accents, and illustrated hair below roughness 0.5 retain
+the original reflection calculation. Optional animated face shadows use their
+current RGB transmission ratio to attenuate cached diffuse light. This ratio
+approximates shadowed area light; it does not repeat the polygon integrals.
+
+The Lambertian area response bypasses the hair's old diffuse shaping curve.
+Exposure, color strength, material masks, and bloom remain outside the cache.
+The cache interpolates lighting and can soften small source details. It does not
+reconstruct depth or remove the point approximation from specular light sources.
+
+Live profiling at 960 by 1178 pixels measured 86.9 FPS and 5.7 ms mean GPU time
+for the cache, with animation, capture, bloom, and face shadows active. Controls
+in the same session measured 46.8 FPS / 13.4 ms for point tiles and
+19.5 FPS / 41.5 ms for uncached area tiles. These live results depend on screen
+content and other GPU work. See
+`docs/research/live2d-lighting-experiment/cached-area-result.md` for evidence.

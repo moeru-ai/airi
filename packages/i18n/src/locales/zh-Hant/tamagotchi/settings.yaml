@@ -77,6 +77,16 @@ devtools:
         title: 對亮度變化眯眼
         description: 當螢幕變亮的速度快於角色的適應速度時收窄眼睛。持續明亮的螢幕不會讓眼睛保持眯著。設為 0 可關閉。
       main-window-note: 變更會顯示在 AIRI 主視窗中。
+      geometry:
+        gap:
+          title: 螢幕間距
+          description: 設定螢幕在角色後方的距離，以角色模型高度的百分比表示。間距越大，正面光線越少。
+        flat-width:
+          title: 中央平面寬度
+          description: 設定維持平面的寬度，以角色模型高度的百分比表示。螢幕在此範圍外開始彎曲。
+        area-lights:
+          title: 試用面積光源區塊
+          description: 將螢幕光照合併至快取光場，讓光線更連續並降低運算量。臉部動作與鼻尖高光保留細節；關閉即可比較點光源區塊。
       diagnostics:
         title: 擷取診斷
         waiting: 正在等待 AIRI 主視窗傳送診斷資料。
@@ -134,6 +144,29 @@ devtools:
         neutral-color-weight:
           title: 中性色權重
           description: 設定低飽和色彩的最低權重。彩色內容的權重高於灰色。
+      exposure:
+        title: 亮度與明暗適應
+        response-curve:
+          title: 暗光色彩增強
+          description: 強調微弱彩色光的色彩，不提高受光亮度，也不壓暗基礎色。0 關閉增強。中性光維持原樣，效果受可用色彩空間限制。
+        enabled:
+          title: 試用線性螢幕照明
+          description: 僅適用表面照明。以基礎亮度設定環境光，分別計算螢幕發光與相機曝光。關閉可比較原有效果。
+        screen-nits:
+          title: 螢幕白色亮度（尼特）
+          description: 假定的螢幕亮度，以 200 尼特為基準。擷取像素無法測得實際螢幕亮度。
+        compensation:
+          title: 曝光補償（級）
+          description: 增加一級會在高光壓縮前將光量加倍。基礎亮度設定環境光；此試驗不使用曝光範圍。
+        dark-seconds:
+          title: 暗適應（秒）
+          description: 螢幕變暗後，光暈敏感度上升的時間常數。數值越大，反應越慢。
+        bright-seconds:
+          title: 明適應（秒）
+          description: 螢幕變亮後，光暈敏感度下降的時間常數。
+        bloom:
+          title: 自適應光暈
+          description: 持續顯示明亮頁面時減少光暈與向內溢光，變暗後逐漸恢復敏感度。全黑光源不會產生光暈。
       shader:
         title: 著色器反應
         base-brightness:

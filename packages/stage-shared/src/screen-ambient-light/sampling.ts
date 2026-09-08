@@ -30,13 +30,16 @@ export interface PixelFrame {
 export interface SampleRegion {
   /** The AIRI window, in display-normalized coordinates. */
   exclude: NormalizedRectangle
+  /** Canvas in display coordinates. Omit when it fills the window. */
+  stage?: NormalizedRectangle
   /**
    * Opacity of what AIRI paints, on the same grid as the frame, from 0 to 255.
    *
    * The capture contains the AIRI window composited over the desktop, so the
    * window rectangle holds a mix of the character and the desktop showing
    * through wherever the window is transparent. This mask separates the two.
-   * Where it reads zero, the captured pixel is the desktop behind the window,
+   * Every nonzero value is excluded, including recent coverage outside the
+   * current window. Where it reads zero, the captured pixel is desktop,
    * which is the light the backlight term needs.
    *
    * Leave it out when the renderer cannot supply it. The whole window rectangle
@@ -81,16 +84,6 @@ const surroundSigmaSubjectHeights = 0.30
  * grid holds a few thousand cells whatever the frame size is.
  */
 const workingSubjectHeight = 24
-
-/**
- * Painted opacity below which a pixel counts as the desktop behind the window.
- *
- * The mask is coarse: one sample pixel covers a block of tens of screen pixels,
- * so any block that clips the character carries some opacity. The threshold is
- * near zero on purpose. Sampling the character would feed the filter its own
- * output, and the error grows every frame.
- */
-const seeThroughAlphaCeiling = 4
 
 /**
  * Least blurred weight a map texel may rest on before it falls back.
@@ -171,6 +164,8 @@ export function sampleScreenAmbientLight(
   region: SampleRegion,
   options: AmbientLightSamplingOptions,
 ): ScreenAmbientLightSamplingResult {
+  const stage = region.stage ?? region.exclude
+  const screen = { radiance: sampleDisplayEmission(frame, region, options), stage: { ...stage }, aspect: stage.width * region.displayAspect / stage.height }
   const subject = subjectOf(region)
   const grid = workingGridFor(frame, subject)
   // Interleaved as weighted linear red, green, and blue, then the weight
@@ -202,17 +197,15 @@ export function sampleScreenAmbientLight(
       const inside = insideRow
         && normalizedX >= region.exclude.x
         && normalizedX <= region.exclude.x + region.exclude.width
-      if (inside) {
-        // A pixel inside the window is either the character or the desktop that
-        // shows through the transparent window. Without a mask the two cannot
-        // be told apart, so the whole rectangle counts as painted.
-        const painted = paintedAlpha?.[index]
-        if (painted === undefined || painted > seeThroughAlphaCeiling) {
-          excludedPixelCount += 1
-          continue
-        }
-        seeThroughPixelCount += 1
+      // Recent painted coverage can remain outside the current window after
+      // it moves. Reject it there too: capture can still contain the old pose.
+      const painted = paintedAlpha?.[index]
+      if ((painted !== undefined && painted > 0) || (inside && painted === undefined)) {
+        excludedPixelCount += 1
+        continue
       }
+      if (inside)
+        seeThroughPixelCount += 1
 
       const red = frame.data[offset]
       const green = frame.data[offset + 1]
@@ -239,7 +232,7 @@ export function sampleScreenAmbientLight(
   }
 
   if (acceptedPixelCount === 0)
-    return { environment: ambientLightNeutralEnvironment, diagnostics }
+    return { environment: { ...ambientLightNeutralEnvironment, screen }, diagnostics }
 
   // A full cell holds the sum of scale x scale pixels. Dividing brings the
   // weight back to the 0 to 1 range that the support floor expects.
@@ -267,7 +260,7 @@ export function sampleScreenAmbientLight(
   )
 
   return {
-    environment: buildEnvironment(surround, contact, mapMargin) ?? ambientLightNeutralEnvironment,
+    environment: { ...(buildEnvironment(surround, contact, mapMargin) ?? ambientLightNeutralEnvironment), screen },
     diagnostics,
   }
 }
@@ -296,6 +289,63 @@ interface WorkingGrid {
   /** Cells per row and rows. */
   width: number
   height: number
+}
+
+// Full-display tiles preserve source positions. Only missing measurements inside
+// the display are reconstructed; the renderer never creates off-display tiles.
+function sampleDisplayEmission(frame: PixelFrame, region: SampleRegion, options: AmbientLightSamplingOptions): AmbientLightMap {
+  const size = ambientLightMapSize
+  const field = new Float32Array(size * size * 4)
+  for (let y = 0; y < frame.height; y++) {
+    const v = (y + 0.5) / frame.height
+    for (let x = 0; x < frame.width; x++) {
+      const index = y * frame.width + x
+      const offset = index * 4
+      const u = (x + 0.5) / frame.width
+      const inside = u >= region.exclude.x && u <= region.exclude.x + region.exclude.width
+        && v >= region.exclude.y && v <= region.exclude.y + region.exclude.height
+      if (!frame.data[offset + 3] || (region.paintedAlpha ? region.paintedAlpha[index] > 0 : inside))
+        continue
+      const r = frame.data[offset]
+      const g = frame.data[offset + 1]
+      const b = frame.data[offset + 2]
+      const maximum = Math.max(r, g, b)
+      const saturation = maximum === 0 ? 0 : (maximum - Math.min(r, g, b)) / maximum
+      const weight = options.neutralColorWeight + saturation * (1 - options.neutralColorWeight)
+      const cell = (Math.floor(v * size) * size + Math.floor(u * size)) * 4
+      field[cell] += srgbByteToLinear[r] * weight
+      field[cell + 1] += srgbByteToLinear[g] * weight
+      field[cell + 2] += srgbByteToLinear[b] * weight
+      field[cell + 3] += weight
+    }
+  }
+  const map = createAmbientLightMap([0, 0, 0])
+  // Extend the nearest measured tile through painted holes. Measured colors
+  // remain local, so bright distant sources do not smear across the screen.
+  const supported: number[] = []
+  for (let i = 0; i < size * size; i++) {
+    if (field[i * 4 + 3] > 0)
+      supported.push(i)
+  }
+  for (let i = 0; i < size * size; i++) {
+    let source = i
+    if (field[i * 4 + 3] === 0) {
+      let distance = Infinity
+      for (const candidate of supported) {
+        const d = ((i % size) - (candidate % size)) ** 2 + (Math.floor(i / size) - Math.floor(candidate / size)) ** 2
+        if (d < distance) {
+          distance = d
+          source = candidate
+        }
+      }
+    }
+    const weight = field[source * 4 + 3]
+    // A fully masked capture contains no light measurement.
+    if (weight === 0)
+      continue
+    for (let c = 0; c < 3; c++) map.data[i * 3 + c] = field[source * 4 + c] / weight
+  }
+  return map
 }
 
 /** The rectangle the maps are placed around, which is the window until a renderer says otherwise. */
@@ -384,6 +434,11 @@ export function smoothAmbientLightEnvironment(
   const alpha = 1 - Math.exp(-Math.max(0, elapsedMs) / Math.max(1, responseMs))
 
   return {
+    screen: next.screen && {
+      stage: next.screen.stage,
+      aspect: next.screen.aspect,
+      radiance: previous.screen ? smoothMap(previous.screen.radiance, next.screen.radiance, alpha) : next.screen.radiance,
+    },
     exposure: mix(previous.exposure, next.exposure, alpha),
     surround: smoothMap(previous.surround, next.surround, alpha),
     contact: smoothMap(previous.contact, next.contact, alpha),

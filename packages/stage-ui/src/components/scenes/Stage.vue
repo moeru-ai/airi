@@ -1062,6 +1062,7 @@ onUnmounted(() => {
 })
 
 defineExpose({
+  characterBounds: () => live2dSceneRef.value?.characterBounds(),
   canvasElement,
   captureFrame,
   readRenderTargetRegionAtClientPoint,

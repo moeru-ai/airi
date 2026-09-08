@@ -2,17 +2,10 @@ import type { NormalizedRectangle } from '@proj-airi/stage-shared/screen-ambient
 
 import { wholeWindowRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
 
-/**
- * How long one mask serves captures before the stage canvas is read again, in
- * milliseconds.
- *
- * A read costs about 3.4 ms at 20 captures per second, more than everything
- * else in a capture together, and reading a smaller region does not help. The
- * silhouette changes far more slowly than the screen behind it. 250 matches
- * the default capture interval, so the default configuration still reads once
- * per capture.
- */
-const paintedAlphaIntervalMs = 250
+/** Capture can lag the canvas: retain recent coverage for half a second. */
+const paintedHistoryMs = 500
+/** Two sample cells cover resampling edges and a changing faint bloom fringe. */
+const paintedMargin = 2
 
 /** Marks a DOM element as something AIRI paints over the stage window. */
 export const stageOpaqueAttribute = 'data-ambient-light-opaque'
@@ -59,34 +52,52 @@ export function useStagePaintedMask(sources: {
   // of the other.
   const canvas = document.createElement('canvas')
   const context = canvas.getContext('2d', { willReadFrequently: true })
-  let cache: { read: PaintedRead, readAt: number, window: NormalizedRectangle } | undefined
+  let paintedUntil = new Float64Array(0)
+  let horizontalUntil = new Float64Array(0)
 
   /**
-   * The cache answers until {@link paintedAlphaIntervalMs} passes, the window
-   * rectangle moves, or the sample grid changes size.
-   *
-   * @param windowRectangle - The stage window on the sample frame, in frame units.
-   * @param now - The capture time, on the same clock across calls.
+   * Reads every captured frame, retaining recent silhouettes in display-grid
+   * coordinates. Window moves keep old coverage until capture catches up.
+   * The returned binary mask also covers a small resampling/bloom margin.
+   * `now` is a monotonic capture timestamp in milliseconds.
    */
   function maskFor(windowRectangle: NormalizedRectangle, now: number): PaintedRead | undefined {
     followSampleGrid()
-
-    const cached = cache
-    const fresh = cached !== undefined
-      && now - cached.readAt < paintedAlphaIntervalMs
-      && cached.read.alpha.length === canvas.width * canvas.height
-      && sameRectangle(cached.window, windowRectangle)
-    if (fresh)
-      return cached.read
-
     const read = readPaintedAlpha(windowRectangle)
-    cache = read ? { read, readAt: now, window: windowRectangle } : undefined
-    return read
+    if (!read) {
+      reset()
+      return undefined
+    }
+    const painted = read.alpha
+    const { width, height } = canvas
+    for (let i = 0; i < painted.length; i++) {
+      if (painted[i] > 0)
+        paintedUntil[i] = now + paintedHistoryMs
+    }
+    // Separable maximum filter expands the union of recent silhouettes. Work
+    // stays proportional to the small sample grid, not the full stage canvas.
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let until = 0
+        for (let dx = Math.max(0, x - paintedMargin); dx <= Math.min(width - 1, x + paintedMargin); dx++)
+          until = Math.max(until, paintedUntil[y * width + dx])
+        horizontalUntil[y * width + x] = until
+      }
+    }
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let until = 0
+        for (let dy = Math.max(0, y - paintedMargin); dy <= Math.min(height - 1, y + paintedMargin); dy++)
+          until = Math.max(until, horizontalUntil[dy * width + x])
+        painted[y * width + x] = until > now ? 255 : 0
+      }
+    }
+    return { alpha: painted, subject: read.subject }
   }
 
-  /** A caller that stops capturing calls this: the window may paint something else before it resumes. */
+  /** Capture stop or display changes invalidate the display-grid history. */
   function reset() {
-    cache = undefined
+    paintedUntil.fill(0)
   }
 
   /** A mask on any grid but the caller's cannot index the frame. */
@@ -97,6 +108,8 @@ export function useStagePaintedMask(sources: {
 
     canvas.width = width
     canvas.height = height
+    paintedUntil = new Float64Array(width * height)
+    horizontalUntil = new Float64Array(width * height)
   }
 
   /**
@@ -215,8 +228,4 @@ export function useStagePaintedMask(sources: {
   }
 
   return { maskFor, reset }
-}
-
-function sameRectangle(a: NormalizedRectangle, b: NormalizedRectangle) {
-  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
 }

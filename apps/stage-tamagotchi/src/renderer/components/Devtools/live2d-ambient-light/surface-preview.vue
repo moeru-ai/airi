@@ -25,16 +25,18 @@ const choices = computed<SelectTabOption<SurfaceLightPreviewShape>[]>(() => [
   { value: 'sphere', label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.surface-preview.sphere') },
 ])
 const options = computed<SurfaceLightPreviewOptions>(() => {
-  const bounds = diagnostics.value?.windowBounds
+  const bounds = diagnostics.value?.stageBounds
   return {
     environment: diagnostics.value?.sampling?.appliedEnvironment ?? ambientLightNeutralEnvironment,
     material: { faceYaw: settings.screenAmbientLightFaceYaw.value, faceShadow: settings.screenAmbientLightFaceShadow.value, roughness: settings.screenAmbientLightRoughness.value, skinRelief: settings.screenAmbientLightSkinRelief.value, illustrated: settings.screenAmbientLightIllustrated.value, sheen: settings.screenAmbientLightSheen.value, nose: settings.screenAmbientLightNose.value, softHighlights: settings.screenAmbientLightSoftHighlights.value },
-    geometry: { bend: settings.screenAmbientLightBend.value, gap: settings.screenAmbientLightGap.value, flatRadius: settings.screenAmbientLightFlatRadius.value },
+    geometry: { areaLights: settings.screenAmbientLightAreaLights.value, bend: settings.screenAmbientLightBend.value, gap: settings.screenAmbientLightGap.value, flatRadius: settings.screenAmbientLightFlatRadius.value },
     mode: settings.screenAmbientLightMode.value,
     strength: settings.screenAmbientLightStrength.value,
     chroma: settings.screenAmbientLightChroma.value,
+    responseCurve: settings.screenAmbientLightResponseCurve.value,
     // Until the stage publishes its bounds, show a square neutral preview.
     aspect: bounds ? bounds.width / bounds.height : 1,
+    characterBounds: diagnostics.value?.characterBounds,
     shape: shape.value,
     normals: normals.value,
   }
