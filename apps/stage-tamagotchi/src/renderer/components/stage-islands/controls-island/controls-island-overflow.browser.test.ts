@@ -192,6 +192,13 @@ describe('controls Island overflow', () => {
     })
   }
 
+  // ROOT CAUSE:
+  // Icon size changes alter the Island geometry after a right-docked layout has
+  // been aligned. The old implementation did not realign after that change.
+  //
+  // Before the patch, the right dock kept a stale horizontal scroll position.
+  //
+  // We fixed this by observing the Island geometry and aligning after updates.
   it('issue #2400 realigns the right dock after an icon size change', async () => {
     await page.viewport(450, 600)
     const { i18n, screen, settings } = mountControlsIsland('bottom-right', 'small')
@@ -209,6 +216,13 @@ describe('controls Island overflow', () => {
     await expect.poll(() => viewport.scrollLeft).toBe(viewport.scrollWidth - viewport.clientWidth)
   })
 
+  // ROOT CAUSE:
+  // Tooltip content is portaled outside the Island and can render below the
+  // stage when it uses the default stacking order.
+  //
+  // Before the patch, a tooltip over a control could be hidden by the stage.
+  //
+  // We fixed this by keeping the control tooltip portal above the stage layer.
   it('issue #2400 raises portaled control tooltips above the stage', async () => {
     await page.viewport(450, 600)
     const { i18n, screen } = mountControlsIsland('bottom-right')
@@ -222,6 +236,13 @@ describe('controls Island overflow', () => {
     expect(getComputedStyle(document.querySelector(tooltipWrapper)!).zIndex).toBe('1000')
   })
 
+  // ROOT CAUSE:
+  // Authentication content can grow after the right-docked Island has been
+  // aligned, which changes the horizontal overflow range.
+  //
+  // Before the patch, the right edge moved out of view after the user signed in.
+  //
+  // We fixed this by observing content geometry and realigning the dock edge.
   it('issue #2400 realigns the right dock after authentication content grows', async () => {
     await page.viewport(450, 600)
     const { auth, i18n, screen } = mountControlsIsland('bottom-right')
@@ -249,6 +270,13 @@ describe('controls Island overflow', () => {
     await expect.poll(() => viewport.scrollLeft).toBe(viewport.scrollWidth - viewport.clientWidth)
   })
 
+  // ROOT CAUSE:
+  // Dock changes reverse the horizontal edge that must remain visible, but the
+  // previous scroll offset belongs to the old dock.
+  //
+  // Before the patch, moving from right to left kept the old right-edge offset.
+  //
+  // We fixed this by aligning both axes whenever the dock changes.
   it('issue #2400 resets horizontal scroll after moving from a right dock to a left dock', async () => {
     await page.viewport(450, 600)
     const { dock, i18n, screen } = mountControlsIsland('bottom-right')
@@ -264,6 +292,13 @@ describe('controls Island overflow', () => {
     await expect.poll(() => viewport.scrollLeft).toBe(0)
   })
 
+  // ROOT CAUSE:
+  // A bottom-docked Island must use the lower scroll edge when its content is
+  // taller than the window, or the main controls can remain below the viewport.
+  //
+  // Before the patch, the bottom dock could open with its main controls clipped.
+  //
+  // We fixed this by aligning the outer viewport to the dock edge after layout changes.
   it('issue #2400 aligns bottom docks to the visible vertical scroll end', async () => {
     await page.viewport(450, 200)
     const { i18n, screen } = mountControlsIsland('bottom-right')
@@ -281,6 +316,13 @@ describe('controls Island overflow', () => {
     await expect.poll(() => viewport.scrollTop).toBe(viewport.scrollHeight - viewport.clientHeight)
   })
 
+  // ROOT CAUSE:
+  // A scrollbar drag can move the pointer outside the Island while the user is
+  // still interacting with it.
+  //
+  // Before the patch, the outside timer collapsed the menu during a scrollbar drag.
+  //
+  // We fixed this by treating pressed scrollbar interaction as a blocked state.
   // The interaction path is independent from the size and dock matrix.
   it('issue #2400 keeps the expanded menu open during a scrollbar drag', async () => {
     await page.viewport(450, 300)
