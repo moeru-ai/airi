@@ -24,22 +24,9 @@ const loading = shallowRef(false)
 const errorMessage = shallowRef<string | null>(null)
 
 watch(open, (isOpen) => {
-  if (!isOpen) {
-    loading.value = false
+  if (!isOpen)
     errorMessage.value = null
-  }
 })
-
-function onOpenChange(value: boolean) {
-  if (loading.value && !value)
-    return
-  open.value = value
-}
-
-function preventDismissWhileLoading(event: Event) {
-  if (loading.value)
-    event.preventDefault()
-}
 
 async function runLeave(resetDevice: boolean) {
   if (loading.value)
@@ -70,9 +57,8 @@ async function runLeave(resetDevice: boolean) {
 <template>
   <BottomDrawer
     v-if="!isDesktop"
-    :model-value="open"
+    v-model="open"
     :title="t('settings.dialogs.signOut.title')"
-    @update:model-value="onOpenChange"
   >
     <SignOutBody
       :loading="loading"
@@ -80,14 +66,13 @@ async function runLeave(resetDevice: boolean) {
       :cancel-block="true"
       @sign-out="runLeave(false)"
       @reset-device="runLeave(true)"
-      @cancel="onOpenChange(false)"
+      @cancel="open = false"
     />
   </BottomDrawer>
 
   <DialogRoot
     v-else
-    :open="open"
-    @update:open="onOpenChange"
+    v-model:open="open"
   >
     <DialogPortal>
       <DialogOverlay
@@ -104,8 +89,6 @@ async function runLeave(resetDevice: boolean) {
           'dark:bg-neutral-900 dark:text-neutral-100',
           'data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow',
         ]"
-        @escape-key-down="preventDismissWhileLoading"
-        @interact-outside="preventDismissWhileLoading"
       >
         <DialogTitle :class="['mb-5 text-xl font-semibold tracking-tight']">
           {{ t('settings.dialogs.signOut.title') }}
@@ -116,7 +99,7 @@ async function runLeave(resetDevice: boolean) {
           :cancel-block="false"
           @sign-out="runLeave(false)"
           @reset-device="runLeave(true)"
-          @cancel="onOpenChange(false)"
+          @cancel="open = false"
         />
       </DialogContent>
     </DialogPortal>
