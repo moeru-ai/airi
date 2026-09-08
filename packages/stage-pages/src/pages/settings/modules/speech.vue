@@ -279,6 +279,7 @@ function selectSpeechProvider(providerId: string) {
  * Tracks explicit voice selection from catalog or custom input controls.
  */
 async function selectSpeechVoice(voiceId: string | undefined) {
+  await persistSelection()
   if (!voiceId)
     return
 
@@ -290,11 +291,15 @@ async function selectSpeechVoice(voiceId: string | undefined) {
   })
 }
 
-function selectSpeechSource(sourceId: string) {
+async function selectSpeechSource(sourceId: string) {
   activeSpeechProvider.value = sourceId
+  activeSpeechModel.value = ''
+  activeSpeechVoiceId.value = ''
+  activeSpeechVoice.value = undefined
+  await persistSelection()
 }
 
-function selectSpeechModel(modelOptionId: string) {
+async function selectSpeechModel(modelOptionId: string) {
   const streamingModelId = modelIdFromStreamingOptionId(modelOptionId)
   const nextProvider = streamingModelId == null
     ? activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
@@ -310,6 +315,9 @@ function selectSpeechModel(modelOptionId: string) {
   }
 
   activeSpeechModel.value = nextModel
+  activeSpeechVoiceId.value = ''
+  activeSpeechVoice.value = undefined
+  await persistSelection()
 }
 
 /**
@@ -366,26 +374,11 @@ onMounted(async () => {
   trackOfficialTtsExposure()
 })
 
-watch(activeSpeechProvider, async (newProvider, oldProvider) => {
+watch(activeSpeechProvider, async (newProvider) => {
   await providersStore.loadModelsForConfiguredProviders()
+  if (newProvider !== activeSpeechProvider.value)
+    return
 
-  // Reset model and voice when switching providers (but not on initial load)
-  const isMergedOfficialSwitch = (
-    oldProvider === OFFICIAL_SPEECH_PROVIDER_ID
-    || oldProvider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
-  ) && (
-    newProvider === OFFICIAL_SPEECH_PROVIDER_ID
-    || newProvider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
-  )
-  if (oldProvider !== undefined && oldProvider !== newProvider && !isMergedOfficialSwitch) {
-    activeSpeechModel.value = ''
-    activeSpeechVoiceId.value = ''
-    activeSpeechVoice.value = undefined
-  }
-
-  // Re-seed the streaming default model after the reset above so its voices
-  // load model-scoped (the server only returns recommended voices for an
-  // explicit ?model=). No-op for other providers / when a model is selected.
   speechStore.ensureActiveSpeechModel()
   await speechStore.loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
   trackOfficialTtsExposure(newProvider, currentTtsModelId())
@@ -397,16 +390,17 @@ watch(activeSpeechModel, async (model) => {
   if (!activeSpeechProvider.value)
     return
 
-  activeSpeechVoiceId.value = ''
-  activeSpeechVoice.value = undefined
-
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, model || undefined)
   trackOfficialTtsExposure(activeSpeechProvider.value, currentTtsModelId())
 })
 
-watch([activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], ([provider, model, voiceId]) => {
-  void airiCardStore.updateActiveCardSpeech({ provider, model, voice_id: voiceId })
-})
+async function persistSelection() {
+  await airiCardStore.updateActiveCardSpeech({
+    provider: activeSpeechProvider.value,
+    model: activeSpeechModel.value,
+    voice_id: activeSpeechVoiceId.value,
+  })
+}
 
 // Function to generate speech
 async function generateTestSpeech() {
@@ -589,21 +583,17 @@ function commitCustomVoiceSelection() {
 
 function updateCustomModelName(value: string | undefined) {
   activeSpeechModel.value = value || ''
+  activeSpeechVoiceId.value = ''
+  void persistSelection()
 }
 
-function handleDeleteProvider(providerId: string) {
+async function handleDeleteProvider(providerId: string) {
   if (providerId === 'speech-noop') {
     return
   }
 
-  if (activeSpeechProvider.value === providerId) {
-    activeSpeechProvider.value = 'speech-noop'
-    activeSpeechModel.value = ''
-    activeSpeechVoiceId.value = ''
-    activeSpeechVoice.value = undefined
-  }
-
-  providersStore.deleteProvider(providerId)
+  await airiCardStore.clearProviderSelections(providerId)
+  await providersStore.deleteProvider(providerId)
 }
 </script>
 
@@ -899,6 +889,7 @@ function handleDeleteProvider(providerId: string) {
               <select
                 v-model="activeSpeechModel"
                 class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+                @change="selectSpeechModel(activeSpeechModel)"
               >
                 <option value="eleven_monolingual_v1">
                   Monolingual v1

@@ -399,9 +399,10 @@ pages:
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
       modules_info: >-
-        为此角色卡配置模块。如未设置，将使用默认模块配置。
+        配置此角色卡的模块。空字段将继承全局设置。
       use_default: 使用默认
       use_default_not_configured: 使用默认（未配置）
+      inherit_global_settings: 继承全局设置
       fields_info:
         subtitle: >-
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
@@ -421,6 +422,7 @@ pages:
         consciousness_model: 为这个角色选择 AI 模型。
         speech_model: 为此角色指定语音合成模型与音色。
       errors:
+        model_required: 请为指定的提供商选择模型，不能继承其他提供商的模型。
         name: 错误：你必须提供一个有效的名称！
         version: '错误：版本号无效！'
         description: '错误：你必须为此卡片提供描述。'
