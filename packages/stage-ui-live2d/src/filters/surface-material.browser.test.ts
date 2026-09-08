@@ -15,10 +15,10 @@ const sprite = new Sprite(Texture.WHITE)
 app.stage.addChild(sprite)
 afterAll(() => app.destroy(true, { children: true }))
 
-function render({ sheen = 1, ambient = 0.5, strength = 2, soft = true, albedo = 0, bend = 3.5, normal = [-0.4, 0, 0.9165], light = 1, illustrated = false, face = false, hair = false, roughness = 0.7, skinRelief = ambientLightDefaults.material.skinRelief, skinNormal = normal, surface = false, facePoint = [0, 0], faceForward = [0, 0, 1], shadow = 0, aspect = 1, shadowTexture = Texture.WHITE, visibilityOnly = false } = {}) {
+function render({ sheen = 1, ambient = 0.5, strength = 2, soft = true, albedo = 0, bend = 3.5, normal = [-0.4, 0, 0.9165], light = 1, lightColor = [1, 0, 0], chroma = 1, illustrated = false, face = false, hair = false, roughness = 0.7, skinRelief = ambientLightDefaults.material.skinRelief, skinNormal = normal, surface = false, facePoint = [0, 0], faceForward = [0, 0, 1], shadow = 0, aspect = 1, shadowTexture = Texture.WHITE, visibilityOnly = false } = {}) {
   const map = { width: 24, height: 24, data: new Float32Array(24 * 24 * 3) }
   for (let y = 8; y < 16; y++) {
-    for (let x = 2; x < 6; x++) map.data[(y * 24 + x) * 3] = light
+    for (let x = 2; x < 6; x++) map.data.set(lightColor.map(channel => channel * light), (y * 24 + x) * 3)
   }
   const lights = new Float32Array(screenLightCount * 3)
   const emitters = new Float32Array(screenLightGridSize * 4)
@@ -39,7 +39,7 @@ function render({ sheen = 1, ambient = 0.5, strength = 2, soft = true, albedo = 
     ${surfaceIrradianceShader}
     ${faceSurfaceShader}
     void main() { if(uVisibilityOnly>.5) { gl_FragColor=vec4(vec3(airiShadowVisibility(vec2(.5),normalize(vec3(1.,0.,1.)))),1.); return; } airiSkinNormal = uFaceSurface > .5 ? airiFaceNormalAt(uFacePoint,uFacePoint,1.) : normalize(uSkinNormal); airiFaceForward = normalize(uFaceForward); gl_FragColor = vec4(airiSurfaceColor(normalize(uNormal),vec2(0.5),vec3(uAlbedo),1.),1.); }
-  `, { uFaceSurface: surface ? 1 : 0, uFacePoint: facePoint, uNormal: normal, uSkinNormal: skinNormal, uFaceForward: faceForward, u_airiSkinRelief: skinRelief, u_airiFaceShadowStrength: shadow, u_airiFaceHeight: 0.2, u_airiFaceShadow: shadowTexture, uVisibilityOnly: visibilityOnly ? 1 : 0, uAlbedo: albedo, u_airiStrength: strength, u_airiChroma: 1, u_airiDirectional: 1, u_airiLights: lights, u_airiStageAspect: aspect, u_airiEmitters: emitters, u_airiSheen: sheen, u_airiSoftHighlights: soft ? 1 : 0, u_airiAmbient: ambient, u_airiContrast: 1, u_airiIllustrated: illustrated ? 1 : 0, u_airiFace: face ? 1 : 0, u_airiHair: hair ? 1 : 0, u_airiRoughness: roughness })
+  `, { uFaceSurface: surface ? 1 : 0, uFacePoint: facePoint, uNormal: normal, uSkinNormal: skinNormal, uFaceForward: faceForward, u_airiSkinRelief: skinRelief, u_airiFaceShadowStrength: shadow, u_airiFaceHeight: 0.2, u_airiFaceShadow: shadowTexture, uVisibilityOnly: visibilityOnly ? 1 : 0, uAlbedo: albedo, u_airiStrength: strength, u_airiChroma: chroma, u_airiDirectional: 1, u_airiLights: lights, u_airiStageAspect: aspect, u_airiEmitters: emitters, u_airiSheen: sheen, u_airiSoftHighlights: soft ? 1 : 0, u_airiAmbient: ambient, u_airiContrast: 1, u_airiIllustrated: illustrated ? 1 : 0, u_airiFace: face ? 1 : 0, u_airiHair: hair ? 1 : 0, u_airiRoughness: roughness })
   sprite.filters = [filter]
   app.render()
   const gl = app.renderer.gl
@@ -167,6 +167,36 @@ describe('surface material response', () => {
   it('keeps zero-strength artwork exact and rejects reflection from behind', () => {
     expect(render({ strength: 0, albedo: 0.2 })).toEqual([51, 51, 51, 255])
     expect(render({ bend: 0, normal: [0, 0, 1] })).toEqual([0, 0, 0, 255])
+  })
+
+  it('casts received screen color onto ambient artwork without tinting an unlit face', () => {
+    // ROOT CAUSE:
+    // The normal renderer only added light. Missing source channels retained
+    // the full neutral ambient contribution, unlike the earlier color cast.
+    const options = { illustrated: true, face: true, albedo: 0.3, ambient: 0.65, sheen: 0, lightColor: [0, 0, 1], light: 8 }
+    const unlit = render({ ...options, light: 0 })
+    const blue = render(options)
+    expect(blue[0]).toBeLessThan(unlit[0])
+    expect(blue[2]).toBeGreaterThan(unlit[2])
+    expect(render({ ...options, normal: [1, 0, 0] })).toEqual(unlit)
+    expect(render({ ...options, strength: 0 })).toEqual(render({ ...options, strength: 0, light: 0 }))
+  })
+
+  it('keeps a neutral screen neutral at either end of the chroma control', () => {
+    const options = { illustrated: true, hair: true, albedo: 0.3, light: 8, lightColor: [1, 1, 1] }
+    expect(render({ ...options, chroma: 1 })).toEqual(render({ ...options, chroma: 0 }))
+  })
+
+  it('keeps reflected source chromaticity when compressing bright highlights', () => {
+    // ROOT CAUSE:
+    // Independent RGB compression pushes every nonzero channel toward white.
+    // A bright orange reflection must retain the same RGB proportions.
+    const options = { illustrated: true, hair: true, ambient: 0, albedo: 0, lightColor: [1, 0.2, 0.05], soft: true }
+    const low = render({ ...options, light: 8 })
+    const high = render({ ...options, light: 80 })
+    expect(Math.abs(high[1] / high[0] - 0.2)).toBeLessThan(0.03)
+    expect(Math.abs(high[2] / high[0] - 0.05)).toBeLessThan(0.02)
+    expect(high[0]).toBeGreaterThan(low[0])
   })
 
   it('compresses added light while leaving an unlit surface unchanged', () => {
