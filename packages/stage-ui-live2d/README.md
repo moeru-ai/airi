@@ -22,6 +22,9 @@ solid angle, rather than a separate distance-based blur. `Model.vue` passes the 
 sets the final screen filter's chroma to zero, so the old position-based color
 gradient is not applied a second time. Ambient exposure and contrast apply before
 direct surface light, so reducing ambient fill does not dim the added highlights.
+**Chroma** also reduces ambient color channels absent from the received screen
+light. This artistic color cast follows surface normals and fades with light
+energy; unlit surfaces retain their ambient color. A neutral screen stays neutral.
 The final filter retains silhouette effects. Its rim and inward glow approximate
 backlight scattering. **Backlight bloom** adds an exterior halo; set it to zero
 to preserve the original silhouette alpha. The diagnostic test-card preview remains a flat filter
@@ -37,8 +40,8 @@ capture, so adjusting a slider does not restart the screen stream.
 Under **Shader response**, **Surface sheen** controls broad reflections of the
 screen color, independent of the painted albedo. **Nose relief** adjusts the small
 nose reflection; zero removes it without changing diffuse face shading.
-**Soft highlights** compresses added light into the remaining color range instead
-of clipping it to white. The nose follows its painted highlight mesh's deformation and
+**Soft highlights** compresses added light with one shared RGB factor, preserving
+the source color as reflections brighten. The nose follows its painted highlight mesh's deformation and
 retains the face drawable ownership and alpha bounds. These controls update the live
 model without changing or regenerating its normal-map image.
 

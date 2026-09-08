@@ -138,8 +138,9 @@ vec2 airiScreenWeight(vec3 n, vec2 p, float emitterY, vec4 emitter) {
   }
   return receiverCosine*solidAngle*vec2(1./3.14159265,reflection);
 }
-vec3 airiSurfaceResponseWithSheen(vec3 n, vec2 stageUv, out vec3 sheen) {
+vec3 airiSurfaceResponseWithSheen(vec3 n, vec2 stageUv, out vec3 sheen, out vec3 colorCast) {
   sheen = vec3(0.);
+  colorCast = vec3(1.);
   vec2 weight;
   vec3 irradiance = vec3(0.);
   vec3 meanRadiance = vec3(0.);
@@ -147,11 +148,19 @@ vec3 airiSurfaceResponseWithSheen(vec3 n, vec2 stageUv, out vec3 sheen) {
   vec3 weights = vec3(0.2126,0.7152,0.0722);
   if (u_airiDirectional < 0.5) {
     float energy = dot(meanRadiance,weights);
-    vec3 colorCast = min(meanRadiance/max(energy,0.0005),vec3(1.6));
+    vec3 globalCast = min(meanRadiance/max(energy,0.0005),vec3(1.6));
     float presence = smoothstep(0.,0.04,energy);
     sheen = vec3(0.);
-    return mix(vec3(1.),colorCast,u_airiChroma*min(u_airiStrength,1.)*presence);
+    return mix(vec3(1.),globalCast,u_airiChroma*min(u_airiStrength,1.)*presence);
   }
+  // Missing source channels reduce the neutral ambient contribution. Adding
+  // colored energy alone leaves pale artwork almost unchanged in hue. Use the
+  // received irradiance so this cast follows normals and shadow visibility.
+  // Fade below a 0.04 linear direct-light increment; faint sources stay faint.
+  float peak = max(irradiance.r,max(irradiance.g,irradiance.b));
+  float presence = smoothstep(0.,.04,2.*u_airiStrength*peak);
+  vec3 unitColor = irradiance/max(peak,.00001);
+  colorCast = mix(vec3(1.),unitColor,u_airiChroma*min(u_airiStrength,1.)*presence);
   // Screen irradiance adds to the existing ambient exposure, through albedo.
   // A surface facing away from the screen gets no direct light or color cast.
   vec3 diffuse = mix(vec3(dot(irradiance,weights)),irradiance,u_airiChroma);
@@ -159,21 +168,28 @@ vec3 airiSurfaceResponseWithSheen(vec3 n, vec2 stageUv, out vec3 sheen) {
 }
 vec3 airiSurfaceResponse(vec3 n, vec2 stageUv) {
   vec3 sheen;
-  return airiSurfaceResponseWithSheen(n,stageUv,sheen);
+  vec3 colorCast;
+  return airiSurfaceResponseWithSheen(n,stageUv,sheen,colorCast);
 }
 vec3 airiSurfaceColor(vec3 n, vec2 stageUv, vec3 color, float materialSheen) {
   vec3 albedo = pow(color,vec3(mix(1.,u_airiContrast,min(u_airiStrength,1.))));
   color = albedo*mix(1.,u_airiAmbient,min(u_airiStrength,1.));
   vec3 sheen;
-  vec3 response = airiSurfaceResponseWithSheen(n,stageUv,sheen);
+  vec3 colorCast;
+  vec3 response = airiSurfaceResponseWithSheen(n,stageUv,sheen,colorCast);
   if (u_airiDirectional < 0.5) return clamp(color*response,0.,1.);
+  color *= colorCast;
   vec3 reflected = mix(vec3(dot(sheen,vec3(0.2126,0.7152,0.0722))),sheen,u_airiChroma);
   vec3 added = albedo*(response-1.) + reflected*u_airiSheen*materialSheen*u_airiStrength;
   if (u_airiSoftHighlights < 0.5) return clamp(color+added,0.,1.);
-  // Keep the unlit artwork exact. Only added energy is compressed, so bright
-  // highlights retain texture detail and the zero-strength result is unchanged.
+  // One exposure factor preserves the added light's RGB ratios. Compressing
+  // each channel independently makes a bright colored reflection turn white.
+  // The limiting channel supplies headroom; unlit artwork stays exact.
   vec3 room = max(vec3(0.),1.-color);
-  return color + room*(1.-exp(-added/max(room,vec3(0.0001))));
+  vec3 load = added/max(room,vec3(.0001));
+  float peakLoad = max(load.r,max(load.g,load.b));
+  float compression = (1.-exp(-peakLoad))/max(peakLoad,.0001);
+  return color + added*compression;
 }
 `
 
