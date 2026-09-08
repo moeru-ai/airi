@@ -151,9 +151,24 @@ devtools:
         sheen:
           title: Surface sheen
           description: Add broad reflected highlights. Hair receives more sheen than skin and clothing; 0 disables reflections.
+        roughness:
+          title: Hair roughness
+          description: Spread reflected highlights across the hair in illustrated mode. Higher values soften the reflection without changing surface relief.
+        skin-relief:
+          title: Face light relief
+          description: Add gentle directional shading to the face in illustrated mode. The nose highlight stays separate; 0 keeps diffuse face lighting flat.
+        face-yaw:
+          title: Face turn angle (degrees)
+          description: Turn the fitted face normals with Iru's head. Sets the angle at the maximum head turn. Zero keeps the previous lighting directions.
+        face-shadow:
+          title: Hair shadow on face
+          description: Let foreground hair block direct screen light on the curved face in illustrated mode. The shadow follows hair motion; 0 disables it.
         nose:
           title: Nose relief
           description: Shape the small nose on Iru’s smooth face. Highlights follow the light; 0 restores the original face normals.
+        illustrated:
+          title: Illustrated materials
+          description: Use matte face shading and limit sheen to hair and the nose on models with a reviewed material profile. Disable to compare rounded shading.
         soft-highlights:
           title: Soft highlights
           description: Compress added light to preserve detail in bright areas instead of clipping to white.
@@ -166,6 +181,9 @@ devtools:
         wrap-intensity:
           title: Light wrap intensity
           description: Set how strongly the background color bleeds onto the edge of the model.
+        bloom:
+          title: Backlight bloom
+          description: Add a soft halo outside illuminated edges. Light wrap width controls its spread; 0 disables the halo.
         backlight:
           title: Backlight
           description: Set how strongly light from behind the character darkens its interior and lights its whole edge.

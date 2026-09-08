@@ -59,6 +59,7 @@ const {
 } = storeToRefs(useSettingsLive2d())
 const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
 const {
+  screenAmbientLightBloom,
   screenAmbientLightBacklight,
   screenAmbientLightBaseBrightness,
   screenAmbientLightBaseContrast,
@@ -68,6 +69,11 @@ const {
   screenAmbientLightMode,
   screenAmbientLightSquint,
   screenAmbientLightStrength,
+  screenAmbientLightIllustrated,
+  screenAmbientLightFaceShadow,
+  screenAmbientLightFaceYaw,
+  screenAmbientLightRoughness,
+  screenAmbientLightSkinRelief,
   screenAmbientLightSheen,
   screenAmbientLightNose,
   screenAmbientLightSoftHighlights,
@@ -84,6 +90,11 @@ const {
   subject: screenAmbientLightSubject,
 } = storeToRefs(useScreenAmbientLightEnvironment())
 const screenAmbientLightMaterial = computed(() => ({
+  illustrated: screenAmbientLightIllustrated.value,
+  faceShadow: screenAmbientLightFaceShadow.value,
+  faceYaw: screenAmbientLightFaceYaw.value,
+  roughness: screenAmbientLightRoughness.value,
+  skinRelief: screenAmbientLightSkinRelief.value,
   sheen: screenAmbientLightSheen.value,
   nose: screenAmbientLightNose.value,
   softHighlights: screenAmbientLightSoftHighlights.value,
@@ -100,6 +111,7 @@ const screenAmbientLightFilterOptions = computed(() => ({
   chroma: screenAmbientLightChroma.value,
   wrapIntensity: screenAmbientLightWrapIntensity.value,
   wrapDiffuse: screenAmbientLightWrapDiffuse.value,
+  bloom: screenAmbientLightBloom.value,
   backlight: screenAmbientLightBacklight.value,
   translucentWrap: screenAmbientLightTranslucentWrap.value,
 }))

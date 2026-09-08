@@ -1,8 +1,18 @@
 /** Surface response shared by the character and diagnostic shapes. */
 export interface AmbientLightMaterialOptions {
-  /** Strength of broad reflected highlights. @default 0.8 */
+  /** Use matte face relief and restrict sheen to reviewed hair/nose regions. @default true */
+  illustrated: boolean
+  /** Optional extra hair shadow on the fitted face. Leave at zero for artwork with painted shadows. @default 0 */
+  faceShadow: number
+  /** Fitted face yaw in degrees at Iru head X=30, from 0 to 45. Zero keeps neutral directions. @default 20 */
+  faceYaw: number
+  /** Hair reflection roughness in illustrated mode, from 0.15 to 0.9. @default 0.7 */
+  roughness: number
+  /** Local face diffuse response in illustrated mode, from 0 to 1. Zero uses one face-wide direction. @default 1 */
+  skinRelief: number
+  /** Strength of reflected highlights. @default 0.8 */
   sheen: number
-  /** Relief of the hand-fitted Iru nose; zero restores the smooth face. @default 1 */
+  /** Nose relief for reflection. Zero removes the nose highlight without changing diffuse shading. @default 1 */
   nose: number
   /** Compress added light into available headroom instead of clipping. @default true */
   softHighlights: boolean
@@ -96,6 +106,8 @@ export interface AmbientLightFilterOptions {
    * @default 0.8
    */
   backlight: number
+  /** Exterior halo from backlight; zero keeps the original silhouette alpha. @default 0.5 */
+  bloom: number
   /**
    * Width of the light wrap band, as a fraction of the model height. It matches
    * the `Diffuse` control of a compositing light-wrap node.
@@ -333,7 +345,7 @@ export const ambientLightDefaults = Object.freeze({
    */
   squint: 1,
   /** Surface highlights and the reviewed Iru nose correction. */
-  material: Object.freeze<AmbientLightMaterialOptions>({ sheen: 0.8, nose: 1, softHighlights: true }),
+  material: Object.freeze<AmbientLightMaterialOptions>({ illustrated: true, faceShadow: 0, faceYaw: 20, roughness: 0.7, skinRelief: 1, sheen: 0.8, nose: 1, softHighlights: true }),
   /** Virtual screen shape used by directional Live2D surface lighting. */
   geometry: Object.freeze<AmbientLightScreenGeometry>({ gap: 0.04, bend: 2, flatRadius: 0.1 }),
   captureIntervalMs: 250,
@@ -359,6 +371,7 @@ export const ambientLightDefaults = Object.freeze({
     wrapIntensity: 0.85,
     wrapDiffuse: 0.03,
     backlight: 0.8,
+    bloom: 0.5,
     translucentWrap: false,
   }),
 })

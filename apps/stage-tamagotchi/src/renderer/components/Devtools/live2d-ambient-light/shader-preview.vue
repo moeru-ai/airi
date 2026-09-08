@@ -25,6 +25,7 @@ const plateColor = '#2c2c33'
 const { t } = useI18n()
 const { diagnostics } = useScreenAmbientLightDiagnostics()
 const {
+  screenAmbientLightBloom,
   screenAmbientLightBacklight,
   screenAmbientLightBaseBrightness,
   screenAmbientLightBaseContrast,
@@ -47,6 +48,7 @@ const filterOptions = computed<AmbientLightFilterOptions>(() => ({
   chroma: screenAmbientLightChroma.value,
   wrapIntensity: screenAmbientLightWrapIntensity.value,
   wrapDiffuse: screenAmbientLightWrapDiffuse.value,
+  bloom: screenAmbientLightBloom.value,
   backlight: screenAmbientLightBacklight.value,
   translucentWrap: screenAmbientLightTranslucentWrap.value,
 }))

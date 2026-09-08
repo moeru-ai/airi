@@ -56,7 +56,8 @@ const maximumCaptureWidth = 512
  * Capture state lives in this composable. The store receives only the smoothed
  * environment. The lifecycle is:
  *
- * - `enabled` or `source` changes stop the current capture and start the next.
+ * - `enabled`, `source`, or dominant-display changes stop the current capture
+ *   and start the next. A superseded request cannot install its stream.
  * - The capture stream is constrained to a small frame at the sample rate, so
  *   the renderer never receives full-resolution frames it does not use.
  * - Each delivered frame samples once through `requestVideoFrameCallback`, so
@@ -114,6 +115,21 @@ export function useScreenAmbientLight(sources: {
   video.playsInline = true
 
   const hasWindowBounds = computed(() => windowBounds.width.value > 0 && windowBounds.height.value > 0)
+  const captureTarget = computed(() => {
+    if (!screenAmbientLightEnabled.value || screenAmbientLightSource.value !== 'screen-capture' || !hasWindowBounds.value)
+      return undefined
+
+    const display = findDominantDisplayArea(currentWindowBounds(), displays.value)
+    if (!display)
+      return undefined
+
+    // Display polling creates new objects. Compare the capture identity and
+    // geometry so ordinary window movement does not restart the stream, while
+    // crossing monitors or changing display resolution refreshes both the
+    // stream constraints and the bounds used to normalize the sampled frame.
+    const { x, y, width, height } = display.bounds
+    return [display.id, x, y, width, height].join(':')
+  })
   const samplingOptions = computed(() => ({
     neutralColorWeight: screenAmbientLightNeutralColorWeight.value,
   }))
@@ -124,7 +140,7 @@ export function useScreenAmbientLight(sources: {
     requestMacOSPermission,
   } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
 
-  watch([screenAmbientLightEnabled, screenAmbientLightSource], async ([enabled, source]) => {
+  watch([screenAmbientLightEnabled, screenAmbientLightSource, captureTarget], async ([enabled, source]) => {
     const version = ++startVersion
     stop()
     if (!enabled) {

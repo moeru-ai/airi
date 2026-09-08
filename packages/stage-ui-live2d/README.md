@@ -22,8 +22,9 @@ solid angle, rather than a separate distance-based blur. `Model.vue` passes the 
 sets the final screen filter's chroma to zero, so the old position-based color
 gradient is not applied a second time. Ambient exposure and contrast apply before
 direct surface light, so reducing ambient fill does not dim the added highlights.
-The final filter retains silhouette effects. Its rim and inward glow approximate backlight scattering;
-it does not add a bloom halo outside the character. The diagnostic test-card preview remains a flat filter
+The final filter retains silhouette effects. Its rim and inward glow approximate
+backlight scattering. **Backlight bloom** adds an exterior halo; set it to zero
+to preserve the original silhouette alpha. The diagnostic test-card preview remains a flat filter
 reference; inspect the live model to judge surface lighting.
 
 In Tamagotchi, open **Settings → System → Developer → Live2D Ambient Light**.
@@ -34,16 +35,39 @@ starts at 20% of the window height in width. Geometry updates separately from
 capture, so adjusting a slider does not restart the screen stream.
 
 Under **Shader response**, **Surface sheen** controls broad reflections of the
-screen color, independent of the painted albedo. **Nose relief** adds a small
-Gaussian bump to Iru's analytic face normals; zero restores the smooth face.
+screen color, independent of the painted albedo. **Nose relief** adjusts the small
+nose reflection; zero removes it without changing diffuse face shading.
 **Soft highlights** compresses added light into the remaining color range instead
-of clipping it to white. The nose follows the face's reference coordinates and
-retains its drawable ownership and alpha bounds. These controls update the live
+of clipping it to white. The nose follows its painted highlight mesh's deformation and
+retains the face drawable ownership and alpha bounds. These controls update the live
 model without changing or regenerating its normal-map image.
 
-Sheen uses a broad Blinn-Phong lobe. Iru's upper head receives more sheen than
-the body, with a restrained face response and stronger nose tip. This is a coarse
-material estimate, not a semantic hair mask or anisotropic hair shader.
+**Illustrated materials** uses reviewed hair and face assignments. Hair reflects
+light through GGX with fixed dielectric reflectance 0.046. **Hair roughness**
+defaults to 0.70 and changes reflection width without changing the normal field.
+**Face light relief** defaults to 1. The face uses a fitted height field with
+cheeks, a tapered chin, and a small nose. Local surface slopes produce a light
+gradient and an unlit region under side light. Zero blends the entire face back
+to one diffuse direction. The nose keeps
+its narrow highlight; clothing receives no added sheen in illustrated mode.
+Disable the toggle to compare the previous Blinn-Phong material.
+
+**Face turn angle** rotates the fitted face and nose normals with Iru's head X
+parameter. The default is 20 degrees at the rig's maximum head turn. Zero
+restores the previous directions. This calibration is independent of surface
+relief: a flat face still turns toward or away from a light. Core parameters
+are read on every draw, including frames without a new screen sample. The nose
+bump and reflection use a separate transform from the painted nose mesh. This
+keeps the highlight on the nose when its rig moves farther than the cheek mesh.
+The transform also follows the nose position during pitch and roll; normal
+orientation still uses the calibrated head yaw.
+
+This combines physical hair reflection with artistic diffuse and silhouette
+responses. It is not full PBR. **Hair shadow on face** defaults to zero because
+Iru's artwork already contains painted hair shadows. If enabled, it projects coverage from
+five reviewed foreground hair meshes onto a fitted convex face. The coverage
+pass uses current vertices, atlas alpha, visibility, and render order. Each
+screen emitter projects its own shadow; ambient fill remains visible.
 
 Iru uses the reviewed AI normal map in `src/assets/lighting`. The profile stores
 neutral reference coordinates, texture UVs, and face drawable assignments. The
@@ -60,9 +84,15 @@ Coverage is interpolated across each texel edge without blending encoded IDs.
 Multiply shadows and additive effects keep their authored blend operations.
 Color alpha, Cubism masks, and render order remain SDK-owned.
 
-This is approximate relighting of shaded artwork. Normal vectors remain in the
-neutral coordinate basis; they do not rotate as a true 3D surface would. It does
-not remove baked shadows, reconstruct hidden geometry, or cast new shadows.
+This is approximate relighting of shaded artwork. Hair normals remain in the
+neutral coordinate basis. The fitted face follows head yaw, but pitch, roll,
+and cast-shadow depth do not yet use a full 3D pose. This renderer does
+not remove baked shadows or reconstruct hidden geometry. The optional hair shadows
+use a fitted depth proxy, so large head rotations remain approximate.
+
+In illustrated mode, the nose reflection has a broad angular response inside
+its small face-bound mask. This keeps the accent visible under oblique light
+without adding reflection to the rest of the face. Optional hair shadows block it.
 
 Each model binding owns its GPU buffers and textures. Model replacement and
 unmount dispose it; context restoration rebuilds those resources. Assets and
@@ -94,6 +124,12 @@ pose and one captured environment. It verifies bend, gap, and center-width
 changes through actual GPU pixels, then restores animation and the settings.
 The standalone `/ambient-curved.html` comparison remains available.
 
+`verify-curved-face-live.js` captures both side-light directions at three head
+poses on the live Cubism model. It compares the old face-wide blend against full
+local relief on the same fitted surface, with added hair shadows off. It checks
+alpha parity and the compiled shader, then restores the renderer and animation.
+Its bright test patches are controlled fixtures, not desktop capture samples.
+
 `/concept.html` compares the previous material against nose relief, sheen, soft
 highlights, and exposure before direct light under a fixed warm screen patch.
 `verify-concept.js` checks nose locality at three head angles, unchanged alpha,
@@ -109,7 +145,7 @@ axes. **Show surface normals** displays the known normals without lighting.
 The main window continues to show the Live2D character for comparison.
 
 The preview uses the same applied contact map, screen geometry, lighting mode,
-strength, chroma, sheen, and soft highlights as the stage. It uses fixed gray and omits exposure changes,
+strength, chroma, illustrated material, roughness, sheen, and soft highlights as the stage. It uses fixed gray and omits exposure changes,
 rim, and wrap. The canvas follows the main window's aspect ratio. Its analytic
 normals occupy the same surface plane as Live2D; this is not a depth or
 self-shadowing simulation. The existing test card remains for final-filter checks.
@@ -118,3 +154,8 @@ self-shadowing simulation. The existing test card remains for final-filter check
 The preview has no animation loop; it renders on diagnostics or control changes
 and releases its context on unmount. Its browser tests cover side direction,
 frontal light from curved emitters, shape silhouettes, and the normals view.
+
+`verify-nose-registration-live.js` checks the reflection against the painted
+nose center under two light directions, three horizontal turns, and two vertical
+turns. It checks alpha parity and restores the material, light, pose, and
+animation. The unit fixture records the actual nose vertices at three head angles.

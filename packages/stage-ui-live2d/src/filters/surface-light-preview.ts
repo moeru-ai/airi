@@ -1,6 +1,6 @@
 import type { AmbientLightEnvironment, AmbientLightMaterialOptions, AmbientLightScreenGeometry, ScreenAmbientLightMode } from '@proj-airi/stage-shared/screen-ambient-light'
 
-import { Filter } from '@pixi/core'
+import { Filter, Texture } from '@pixi/core'
 
 import { screenLightCount, screenLightGridSize, surfaceIrradianceShader, writeScreenGeometry, writeScreenLights } from './surface-irradiance'
 
@@ -56,10 +56,18 @@ export class SurfaceLightPreviewFilter extends Filter {
       u_airiEmitters: new Float32Array(screenLightGridSize * 4),
       u_airiStageAspect: 1,
       u_airiStrength: 1,
+      u_airiFaceShadowStrength: 0,
+      u_airiFaceHeight: 0,
+      u_airiFaceShadow: Texture.EMPTY,
+      u_airiRoughness: 0.7,
+      u_airiSkinRelief: 0.45,
       u_airiSheen: 0,
       u_airiAmbient: 1,
       u_airiContrast: 1,
       u_airiSoftHighlights: 0,
+      u_airiIllustrated: 0,
+      u_airiFace: 0,
+      u_airiHair: 1,
       u_airiChroma: 1,
       u_airiDirectional: 1,
       uSphere: 0,
@@ -72,8 +80,11 @@ export class SurfaceLightPreviewFilter extends Filter {
     writeScreenLights(options.environment.contact, this.uniforms.u_airiLights)
     writeScreenGeometry(options.geometry, options.aspect, this.uniforms.u_airiEmitters)
     this.uniforms.u_airiStageAspect = options.aspect
+    this.uniforms.u_airiRoughness = options.material.roughness
+    this.uniforms.u_airiSkinRelief = options.material.skinRelief
     this.uniforms.u_airiSheen = options.material.sheen
     this.uniforms.u_airiSoftHighlights = options.material.softHighlights ? 1 : 0
+    this.uniforms.u_airiIllustrated = options.material.illustrated ? 1 : 0
     this.uniforms.u_airiStrength = options.strength
     this.uniforms.u_airiChroma = options.chroma
     this.uniforms.u_airiDirectional = options.mode === 'window-gradient' ? 1 : 0

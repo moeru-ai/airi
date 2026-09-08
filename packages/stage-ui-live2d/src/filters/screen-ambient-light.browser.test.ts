@@ -376,6 +376,40 @@ describe('screen ambient light filter', () => {
       .toBe(channelAt(without, without.centerColumn, without.middleRow, 0))
   })
 
+  it('adds exterior backlight only beside illuminated edges when bloom is enabled', () => {
+    const options = { behindLuminance: 0.5, backlight: 1, wrapIntensity: 0 }
+    const without = renderWrap(splitMap(black, white), { ...options, bloom: 0 })
+    const withBloom = renderWrap(splitMap(black, white), { ...options, bloom: 1 })
+    const x = withBloom.spriteRight + 3
+    expect(channelAt(without, x, without.middleRow, 3)).toBe(0)
+    expect(channelAt(withBloom, x, withBloom.middleRow, 3)).toBeGreaterThan(0)
+    expect(channelAt(withBloom, withBloom.spriteLeft - 3, withBloom.middleRow, 3)).toBe(0)
+    expect(channelAt(withBloom, withBloom.centerColumn, withBloom.middleRow, 3)).toBe(255)
+  })
+
+  it('fades exterior bloom smoothly at desktop model size', () => {
+    // ROOT CAUSE:
+    // Sparse blur taps produce copies of the silhouette at desktop scale.
+    // Converting low-precision coverage through sRGB then amplifies each step.
+    // The old small fixture did not expose these wide, repeated contours.
+    const scene = renderWrap(uniformMap(white), {
+      canvasSize: 600,
+      behindLuminance: 1,
+      backlight: 1,
+      bloom: 1,
+      wrapIntensity: 0,
+    })
+    const profile = Array.from({ length: 60 }, (_, depth) =>
+      channelAt(scene, scene.spriteRight + 1 + depth, scene.middleRow, 3))
+    expect(profile[0]).toBeGreaterThan(40)
+    expect(profile.at(-1)).toBeLessThanOrEqual(2)
+    for (let depth = 0; depth < profile.length - 1; depth++) {
+      const drop = profile[depth] - profile[depth + 1]
+      expect(drop, `outward alpha drop at ${depth}`).toBeGreaterThanOrEqual(0)
+      expect(drop, `outward alpha drop at ${depth}`).toBeLessThanOrEqual(6)
+    }
+  })
+
   it('wraps a translucent part less when the translucent-wrap option is on', () => {
     // A part drawn with partial alpha already shows the desktop through
     // itself, and the wrap adds that desktop color on top. The option squares
@@ -514,16 +548,18 @@ interface WrapScene {
 function renderWrap(
   contact: AmbientLightMap,
   behind: {
+    canvasSize?: number
     behindLuminance?: number
     backlight?: number
+    bloom?: number
     wrapIntensity?: number
     translucentWrap?: boolean
     /** Alpha of the gray sprite, from 0 to 1. The default is opaque. */
     spriteAlpha?: number
   } = {},
 ): WrapScene {
-  const canvasSize = 100
-  const spriteSize = 60
+  const canvasSize = behind.canvasSize ?? 100
+  const spriteSize = canvasSize * 0.6
   const spriteOffset = (canvasSize - spriteSize) / 2
 
   const source = document.createElement('canvas')
@@ -560,6 +596,7 @@ function renderWrap(
       wrapIntensity: behind.wrapIntensity ?? 0.85,
       wrapDiffuse: 0.07,
       backlight: behind.backlight ?? 0,
+      bloom: behind.bloom ?? 0,
       translucentWrap: behind.translucentWrap ?? false,
     },
   })
