@@ -22,6 +22,18 @@ export interface NormalCapture {
   drawables: NormalDrawable[]
 }
 
+/** A reviewed facial surface shared by paint layers, in neutral image coordinates. */
+export interface ReviewedFaceSurface {
+  center: [number, number]
+  radius: [number, number]
+  /** Optional rig parameter and positive endpoint used to rotate facial normals. */
+  yaw?: { parameter: string, range: number }
+  /** A reviewed painted nose mesh; omit when the rig has no distinct nose. */
+  nose?: { drawable: number, center: [number, number], radius: [number, number], strength: number }
+  /** Reviewed indices belong only to this fingerprinted rig. */
+  drawables: number[]
+}
+
 /** Generated data belongs to the source assets, never to a mutable filename or ZIP encoding. */
 export interface NormalAttachment {
   schema: 1
@@ -34,6 +46,8 @@ export interface NormalAttachment {
   drawables: NormalDrawable[]
   neutral: Blob
   normal: Blob
+  rawNormal?: Blob
+  faceSurface?: ReviewedFaceSurface
   ownership: Blob
   coverage: Blob
   coveredPixels: number
@@ -82,6 +96,21 @@ export function validateNormalBinding(model: Cubism4InternalModel, attachment: N
     || attachment.width < 1 || attachment.width > 2048 || attachment.height < 1 || attachment.height > 2048
     || ids.length !== attachment.drawables.length) {
     throw new Error('The normal attachment does not match this Live2D model.')
+  }
+  const face = attachment.faceSurface
+  if (face && (face.center.length !== 2 || face.radius.length !== 2
+    || !face.center.every(Number.isFinite) || !face.radius.every(value => Number.isFinite(value) && value > 0)
+    || !face.drawables.every(index => Number.isInteger(index) && index >= 0 && index < ids.length))) {
+    throw new Error('The reviewed face surface has invalid geometry or drawable indices.')
+  }
+  if (face?.yaw && (!core.getModel().parameters.ids.includes(face.yaw.parameter) || !Number.isFinite(face.yaw.range) || face.yaw.range <= 0))
+    throw new Error('The reviewed face yaw does not match a rig parameter.')
+  const nose = face?.nose
+  if (nose && (!Number.isInteger(nose.drawable) || !face.drawables.includes(nose.drawable)
+    || nose.center.length !== 2 || nose.radius.length !== 2 || !nose.center.every(Number.isFinite)
+    || !nose.radius.every(value => Number.isFinite(value) && value > 0)
+    || !Number.isFinite(nose.strength) || nose.strength < 0 || nose.strength > 1)) {
+    throw new Error('The reviewed nose has invalid geometry or drawable ownership.')
   }
   for (let i = 0; i < ids.length; i++) {
     const entry = attachment.drawables[i]

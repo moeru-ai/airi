@@ -2,10 +2,15 @@ import type { NormalCapture } from './attachment'
 
 import { Application } from '@pixi/app'
 import { RenderTexture } from '@pixi/core'
+import { extensions } from '@pixi/extensions'
+import { Ticker, TickerPlugin } from '@pixi/ticker'
 import { Cubism4InternalModel, CubismShader_WebGL, Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
 
 import { SurfaceLighting } from '../filters/surface-lighting'
 import { fingerprintModel } from './attachment'
+
+import '../utils/live2d-zip-loader'
+import '../utils/live2d-opfs-registration'
 
 /**
  * Captures a neutral rig in the devtool renderer, never in the live character's
@@ -13,6 +18,10 @@ import { fingerprintModel } from './attachment'
  * so regeneration cannot reuse programs from the previous capture's GL context.
  */
 export async function captureNormalReference(source: string, modelId: string, expectedFingerprint: string): Promise<NormalCapture> {
+  if (new URLSearchParams(location.search).get('synced-leader') === 'true')
+    throw new Error('Capture and review must run in a separate devtool renderer, not the live character window.')
+  extensions.add(TickerPlugin)
+  Live2DModel.registerTicker(Ticker)
   CubismShader_WebGL.deleteInstance()
   const width = 512
   const height = 640

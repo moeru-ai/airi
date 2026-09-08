@@ -10,7 +10,7 @@ export class NoseAttachment {
   private readonly reference = new Matrix()
   private readonly triangle: [number, number, number] = [0, 0, 0]
 
-  constructor(reference: readonly number[], indices: ArrayLike<number>) {
+  constructor(reference: readonly number[], indices: ArrayLike<number>, center: readonly [number, number] = [0.5, 0.2234375]) {
     let area = 0
     let minX = Infinity
     let maxX = -Infinity
@@ -37,15 +37,15 @@ export class NoseAttachment {
     if (!area)
       throw new Error('The reviewed nose mesh must contain a nondegenerate triangle.')
     const [a, b, c] = this.triangle
-    // The fitted bump uses (256,143) in a 512x640 reference. Register that tip
-    // to the center of the painted highlight, rather than paint a second nose.
+    // Iru defaults to (256,143) in its 512x640 reference. Other reviewed rigs
+    // supply their own center; all follow the actual painted nose mesh.
     this.reference.set(
       reference[b] - reference[a],
       reference[b + 1] - reference[a + 1],
       reference[c] - reference[a],
       reference[c + 1] - reference[a + 1],
-      reference[a] + 0.5 - (minX + maxX) / 2,
-      reference[a + 1] + 0.2234375 - (minY + maxY) / 2,
+      reference[a] + center[0] - (minX + maxX) / 2,
+      reference[a + 1] + center[1] - (minY + maxY) / 2,
     )
   }
 

@@ -20,6 +20,17 @@ describe('nose attachment', () => {
     }
   })
 
+  it('registers another reviewed nose center through the same head deformation', () => {
+    const center = [0.42, 0.18] as const
+    const attachment = new NoseAttachment(reference, fixture.indices, center)
+    for (const pose of fixture.poses) {
+      attachment.update(new Float32Array(pose.vertices))
+      const point = attachment.matrix.apply({ x: pose.paintedTip[0], y: pose.paintedTip[1] })
+      expect(Math.abs(point.x - center[0])).toBeLessThan(0.0002)
+      expect(Math.abs(point.y - center[1])).toBeLessThan(0.0002)
+    }
+  })
+
   it('keeps its registration through a translated, rolled and scaled pose', () => {
     const attachment = new NoseAttachment(reference, fixture.indices)
     const vertices = new Float32Array(fixture.poses[1].vertices)
