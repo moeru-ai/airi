@@ -9,7 +9,12 @@ import { useAnnouncements } from '../../../composables/announcements'
 const props = defineProps<{ client: 'web' | 'desktop' }>()
 const { locale, t } = useI18n()
 const { announcements } = useAnnouncements(() => props.client, locale)
-const open = ref(false)
+const open = defineModel<boolean>('open', { default: false })
+const triggerElement = ref<HTMLDivElement>()
+
+// Electron tracks this element with native cursor coordinates. The open model
+// keeps the window interactive while the portaled content is visible.
+defineExpose({ triggerElement })
 const current = ref(0)
 const active = computed(() => announcements.value[current.value])
 
@@ -22,7 +27,7 @@ watch(announcements, (items) => {
 </script>
 
 <template>
-  <div v-if="active" :class="['fixed bottom-10 left-6 z-50', 'pointer-events-auto']">
+  <div v-if="active" ref="triggerElement" :class="['fixed bottom-10 left-6 z-50', 'pointer-events-auto']">
     <PopoverRoot v-model:open="open">
       <PopoverTrigger as-child>
         <Button

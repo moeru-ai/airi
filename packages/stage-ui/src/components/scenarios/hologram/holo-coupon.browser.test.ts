@@ -25,9 +25,9 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-async function mount() {
+async function mount(onOpenChange = (_open: boolean) => {}) {
   return render(HoloCoupon, {
-    props: { client: 'desktop' },
+    props: { 'client': 'desktop', 'onUpdate:open': onOpenChange },
     global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
 }
@@ -36,9 +36,11 @@ describe('cloud announcement display', () => {
   it('uses the generated request and renders plain text with a safe external link', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({ announcements: [announcement] }))
     vi.stubGlobal('fetch', fetch)
-    await mount()
+    const onOpenChange = vi.fn<(open: boolean) => void>()
+    await mount(onOpenChange)
     await page.getByRole('button', { name: 'Open announcements' }).click()
     await expect.element(page.getByRole('heading', { name: 'AIRI update' })).toBeVisible()
+    expect(onOpenChange).toHaveBeenLastCalledWith(true)
     await expect.element(page.getByText('<b>Plain text</b>')).toBeVisible()
     await expect.element(page.getByRole('link', { name: 'Read more' })).toHaveAttribute('rel', 'noopener noreferrer')
     const request = fetch.mock.calls[0]?.[0]
@@ -49,6 +51,19 @@ describe('cloud announcement display', () => {
     expect(request.credentials).toBe('omit')
     await page.getByRole('button', { name: 'Close announcements' }).click()
     await expect.element(page.getByRole('heading', { name: 'AIRI update' })).not.toBeInTheDocument()
+    expect(onOpenChange).toHaveBeenLastCalledWith(false)
+  })
+
+  it('shows announcements when optional protobuf fields are omitted', async () => {
+    // ROOT CAUSE:
+    // Protobuf responses can omit empty strings. Requiring action and expiry
+    // fields discarded valid no-action, non-expiring announcements.
+    const { actionLabel, actionUrl, endsAt, ...content } = announcement
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async () => Response.json({ announcements: [content] })))
+    await mount()
+    await page.getByRole('button', { name: 'Open announcements' }).click()
+    await expect.element(page.getByRole('heading', { name: 'AIRI update' })).toBeVisible()
+    await expect.element(page.getByRole('link', { name: 'Read more' })).not.toBeInTheDocument()
   })
 
   it('clears loaded content on expiry, invalid actions, and failed refreshes', async () => {
