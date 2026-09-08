@@ -137,3 +137,10 @@ websocket-status:
   connected: Connected
   disconnected: No connection
   open-settings: Open connection settings
+
+announcements:
+  title: Announcements
+  open: Open announcements
+  close: Close announcements
+  previous: Previous announcement
+  next: Next announcement

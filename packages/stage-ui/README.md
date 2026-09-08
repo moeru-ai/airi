@@ -64,3 +64,11 @@ pnpm -F @proj-airi/stage-ui run story:dev
 
 1. If a story is bound to a specific component, it can be placed beside the component in the `src` folder. e.g., `MyComponent.story.vue`
 2. If a story is not bound to a specific component, then it should be placed in the `stories` folder. e.g., `MyStory.story.vue`
+
+## Announcements
+
+`HoloCoupon` reads public Cloud announcements for the Web or Electron stage. Pass `client="web"` or `client="desktop"`. It uses the current interface locale and shows a button only while content is active.
+
+Set `VITE_CLOUD_API_URL` to a local Cloud origin for development. The default is `https://cloud.airi.build`. Requests omit credentials. A refresh runs every minute while the component is mounted. Local expiry checks run every second. A failed refresh hides cached content.
+
+Use the generated `@proj-airi/cloud-client` contract. Do not add announcement calls to the TS resource API client. Content is plain text; only HTTPS actions can open a new browser tab. Closing the panel is local and does not record a read receipt.
