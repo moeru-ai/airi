@@ -10,15 +10,51 @@ import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
 import { useProviderStore } from './provider'
 
+const mocks = vi.hoisted(() => ({
+  updateCredits: vi.fn(async () => Response.json({ flux: 0 })),
+}))
+
+vi.mock('../../composables/api', () => ({
+  client: {
+    api: {
+      v1: {
+        flux: { $get: mocks.updateCredits },
+      },
+    },
+  },
+}))
+
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (_key: string, fallback?: string) => fallback ?? _key,
   }),
 }))
 
+/** Creates stable authenticated state for provider-store tests. */
+function createAuthenticatedState(): { session: Session, token: string, user: User } {
+  const user: User = {
+    id: 'user-1',
+    name: 'AIRI User',
+    email: 'user@example.com',
+    emailVerified: true,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  }
+  const session: Session = {
+    id: 'session-1',
+    token: 'server-session-token',
+    userId: user.id,
+    expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  }
+  return { session, token: 'restored-access-token', user }
+}
+
 describe('provider store synchronization boundary', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    mocks.updateCredits.mockClear()
   })
 
   // ROOT CAUSE:
@@ -132,23 +168,7 @@ describe('provider store synchronization boundary', () => {
     expect(store.moduleTranscriptionProvidersMetadata.map(provider => provider.id)).not.toContain(OFFICIAL_TRANSCRIPTION_PROVIDER_ID)
     expect(store.moduleVisionProvidersMetadata.map(provider => provider.id)).not.toContain('vision-official-provider')
 
-    const user: User = {
-      id: 'user-1',
-      name: 'AIRI User',
-      email: 'user@example.com',
-      emailVerified: true,
-      createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-    }
-    const session: Session = {
-      id: 'session-1',
-      token: 'server-session-token',
-      userId: user.id,
-      expiresAt: new Date('2026-12-01T00:00:00.000Z'),
-      createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-    }
-    useAuthStore().$patch({ user, session })
+    useAuthStore().$patch(createAuthenticatedState())
 
     expect(store.moduleChatProvidersMetadata.map(provider => provider.id)).toContain('official-provider')
     expect(store.moduleSpeechProvidersMetadata.map(provider => provider.id)).toContain(OFFICIAL_SPEECH_PROVIDER_ID)
@@ -230,6 +250,7 @@ describe('provider store synchronization boundary', () => {
   // until it settles, so concurrent callers share the same result.
   it('shares concurrent voice catalog requests', async () => {
     const store = useProviderStore()
+    useAuthStore().$patch(createAuthenticatedState())
     let resolveRequest: ((response: Response) => void) | undefined
     const fetchMock = vi.fn(() => new Promise<Response>((resolve) => {
       resolveRequest = resolve
@@ -248,6 +269,49 @@ describe('provider store synchronization boundary', () => {
 
       await expect(Promise.all([first, second])).resolves.toEqual([[], []])
       expect(fetchMock).toHaveBeenCalledTimes(1)
+    }
+    finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3959813216
+  // ROOT CAUSE:
+  //
+  // The speech settings page can request an official voice catalog before the
+  // authenticated session is ready. A tokenless task then occupies the shared
+  // in-flight slot and can absorb the first authenticated retry.
+  //
+  // Before: the provider starts the official request without an authenticated
+  // access token.
+  //
+  // We fixed this at the provider boundary. Authentication-owned providers do
+  // not create an in-flight task until the session and token are both ready.
+  it('does not start auth-owned voice requests before the session has a token', async () => {
+    const store = useProviderStore()
+    const authStore = useAuthStore()
+    const voiceRequests: string[] = []
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/v1/audio/voices')) {
+        voiceRequests.push(url)
+        return Response.json({ recommended: {}, voices: [] })
+      }
+      return Response.json({ flux: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    try {
+      await expect(store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')).resolves.toEqual([])
+      expect(voiceRequests).toHaveLength(0)
+
+      authStore.token = 'restored-access-token'
+      await expect(store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')).resolves.toEqual([])
+      expect(voiceRequests).toHaveLength(0)
+
+      authStore.$patch(createAuthenticatedState())
+      await expect(store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')).resolves.toEqual([])
+      expect(voiceRequests).toHaveLength(1)
     }
     finally {
       vi.unstubAllGlobals()

@@ -225,7 +225,8 @@ export const useSpeechStore = defineStore('speech', () => {
     clearVoiceSelection()
   }
 
-  // Watch for provider changes and load voices
+  // Watch for provider changes, then load the voice catalog. Credential policy
+  // belongs to the provider boundary, so this module stays auth-agnostic.
   watch(activeSpeechProvider, async (newProvider) => {
     if (!newProvider)
       return
@@ -457,6 +458,7 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 }, {
   synced: {
+    actions: ['loadVoicesForProvider'],
     state: true,
   },
 })

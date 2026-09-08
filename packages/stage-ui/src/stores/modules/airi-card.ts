@@ -138,6 +138,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       if (previous)
         await previous.catch(() => {})
       await applyAuthenticationDefaults(authenticated)
+      if (authenticated)
+        await loadAuthenticatedSpeechVoices()
     })()
     pendingAuthenticationSetup = operation
     try {
@@ -165,6 +167,20 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       appliedModules = undefined
       applyActiveCardSettings()
     }
+  }
+
+  /** Loads the effective auth-owned voice catalog after card setup finishes. */
+  async function loadAuthenticatedSpeechVoices(): Promise<void> {
+    const { speech } = useRuntimeModuleStores()
+    const provider = useProviderConfigStore().providers[speech.activeSpeechProvider]
+    if (provider?.configuredBy !== 'authentication')
+      return
+
+    speech.ensureActiveSpeechModel()
+    await speech.loadVoicesForProvider(
+      speech.activeSpeechProvider,
+      speech.activeSpeechModel || undefined,
+    )
   }
 
   /**

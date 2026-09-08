@@ -1,8 +1,11 @@
+import type { Session, User } from 'better-auth'
+
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, providerOfficialSpeech } from '../../libs/providers/providers/official'
+import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { toSignedPercent, useSpeechStore } from './speech'
@@ -18,10 +21,35 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
+/** Configures the authenticated state required by official provider requests. */
+function authenticateOfficialProvider(): void {
+  const user: User = {
+    id: 'user-1',
+    name: 'AIRI User',
+    email: 'user@example.com',
+    emailVerified: true,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  }
+  const session: Session = {
+    id: 'session-1',
+    token: 'server-session-token',
+    userId: user.id,
+    expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  }
+  useAuthStore().$patch({ session, token: 'restored-access-token', user })
+}
+
 describe('speech store helpers', () => {
   beforeEach(() => {
     i18nState.locale.value = 'en-US'
     setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('formats positive percentages with a plus sign', () => {
@@ -363,6 +391,7 @@ describe('speech store helpers', () => {
         recommended: { 'en-US': 'en-US-AvaMultilingualNeural' },
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }) as typeof fetch)
+    authenticateOfficialProvider()
 
     const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
@@ -424,6 +453,7 @@ describe('speech store helpers', () => {
         recommended: { 'zh-CN': 'zh-CN-XiaochenNeural' },
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }) as typeof fetch)
+    authenticateOfficialProvider()
 
     const providersStore = useProviderStore()
     const speechStore = useSpeechStore()

@@ -566,6 +566,9 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   async function listProviderVoices(providerId: string, model?: string) {
+    if (!hasProviderVoiceCatalogAccess(providerId))
+      return []
+
     const definition = getProviderDefinition(providerId)
     const listVoices = definition.extraMethods?.listVoices
     if (!listVoices)
@@ -938,6 +941,14 @@ export const useProviderStore = defineStore('provider', () => {
       return configuredProvider.configuredBy
 
     return getProviderDefinition(providerId).configuredBy ?? 'user'
+  }
+
+  /** Returns whether this session can start a voice-catalog request. */
+  function hasProviderVoiceCatalogAccess(providerId: string): boolean {
+    if (providerConfiguredBy(providerId) !== 'authentication')
+      return true
+
+    return authStore.isAuthenticated && !!authStore.token
   }
 
   function isProviderConfiguredForModule(providerId: string) {
