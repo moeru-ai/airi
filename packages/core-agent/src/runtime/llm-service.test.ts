@@ -976,6 +976,90 @@ describe('streamFrom tool errors', () => {
     expect(onStreamEvent).not.toHaveBeenCalled()
   })
 
+  // ROOT CAUSE:
+  //
+  // Balanced but invalid nested objects caused JSON.parse to scan overlapping suffixes.
+  // The guard now limits total parse work and rejects before it releases unchecked output.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3953824377
+  it.each(['text.delta', 'reasoning.delta'] as const)('bounds invalid nested JSON in %s for Issue #2161', async (type) => {
+    const answer = `${'{"a":'.repeat(512)}x${'}'.repeat(512)}`
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    const onUsage = vi.fn()
+    mockStreamEvents([{ type, delta: answer }, { type: 'step.done' }])
+
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { tools: [createSparkTool()], onStreamEvent, onMessages, onUsage },
+    })).rejects.toThrow('Model output exceeded the JSON inspection work limit.')
+
+    expect(onStreamEvent).not.toHaveBeenCalled()
+    expect(onMessages).not.toHaveBeenCalled()
+    expect(onUsage).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // Exhausted inspection must not release later unchecked tool calls.
+  // Exhaustion rejects the whole buffer, including output in the other channel.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3953824377
+  it.each(['text.delta', 'reasoning.delta'] as const)('withholds later tool JSON after the work limit in %s for Issue #2161', async (type) => {
+    const answer = `${'{"a":'.repeat(512)}x${'}'.repeat(512)}`
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    mockStreamEvents([
+      { type, delta: answer },
+      { type, delta: '{"name":"builtIn_emitSparkCommand","arguments":{}}' },
+      { type: type === 'text.delta' ? 'reasoning.delta' : 'text.delta', delta: 'Also buffered.' },
+    ])
+
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { tools: [createSparkTool()], onStreamEvent, onMessages },
+    })).rejects.toThrow('Model output exceeded the JSON inspection work limit.')
+
+    expect(onStreamEvent).not.toHaveBeenCalled()
+    expect(onMessages).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // Size, depth, and candidate-count limits reject some output that takes linear work.
+  // The budget counts candidate lengths and resets for each channel and step.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3953824377
+  it.each([
+    ['deep valid JSON', `${'{"a":'.repeat(20_000)}{"name":"builtIn_emitSparkCommand","arguments":{}}${'}'.repeat(20_000)}`],
+    ['separate invalid candidates', '{"a":x} '.repeat(2000)],
+    ['nested candidates near the budget', `${'{"a":'.repeat(14)}x${'}'.repeat(14)}`],
+  ])('preserves %s across channels and steps for Issue #2161', async (_, answer) => {
+    const onStreamEvent = vi.fn()
+    mockStreamEvents([
+      { type: 'text.delta', delta: answer },
+      { type: 'reasoning.delta', delta: answer },
+      { type: 'step.done' },
+      { type: 'step.start' },
+      { type: 'text.delta', delta: answer },
+    ])
+
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { tools: [createSparkTool()], onStreamEvent },
+    })
+
+    expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
+      { type: 'text-delta', text: answer },
+      { type: 'reasoning-delta', text: answer },
+      { type: 'text-delta', text: answer },
+      { type: 'finish' },
+    ])
+  })
+
   it('streams ordinary text before the provider finishes the step', async () => {
     let emit: ((event: unknown) => void) | undefined
     let finish: ((steps: unknown[]) => void) | undefined

@@ -835,6 +835,39 @@ describe('isToolRelatedError', () => {
 
   // ROOT CAUSE:
   //
+  // Balanced but invalid nested objects exhausted synchronous parsing work.
+  // This failure rejects without a retry or a tool compatibility downgrade.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3953824377
+  it.each(['text.delta', 'reasoning.delta'] as const)('rejects excessive JSON inspection in %s without a downgrade for Issue #2161', async (type) => {
+    const store = useLLM()
+    const customTool = createSparkTool()
+    const answer = `${'{"a":'.repeat(512)}x${'}'.repeat(512)}`
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    mockStreamEvents([{ type, delta: answer }])
+
+    await expect(store.stream('model-a', provider, [], {
+      tools: [customTool],
+      onStreamEvent,
+      onMessages,
+    })).rejects.toThrow('Model output exceeded the JSON inspection work limit.')
+
+    expect(streamTextMock).toHaveBeenCalledTimes(1)
+    expect(customTool.execute).not.toHaveBeenCalled()
+    expect(onStreamEvent).not.toHaveBeenCalled()
+    expect(onMessages).not.toHaveBeenCalled()
+
+    mockStreamEvents([{ type: 'text.delta', delta: 'A safe answer.' }])
+    await store.stream('model-a', provider, [], { tools: [customTool], onStreamEvent })
+
+    expect(streamTextMock).toHaveBeenCalledTimes(2)
+    expect(streamTextMock.mock.calls[1]?.[0]?.tools?.map(toolNameFrom)).toContain(customTool.function.name)
+    expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: 'A safe answer.' })
+    expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
+  })
+
+  // ROOT CAUSE:
+  //
   // A later JSON call can follow a prefix that already reached the caller.
   // Before the fix, this call bypassed the guard and the stream succeeded.
   // We reject the call without retrying or replaying the visible prefix.

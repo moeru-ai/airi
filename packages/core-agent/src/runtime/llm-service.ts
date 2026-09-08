@@ -175,10 +175,20 @@ function leakedToolCallName(text: string, toolNames: Set<string>): string | unde
     }
   }
 
+  // Allow eight full-channel passes for recovery from malformed prefixes.
+  // A valid object needs one pass, with no extra size or depth limit.
+  let remainingParseWork = text.length * 8
   for (let start = text.indexOf('{'); start >= 0; start = text.indexOf('{', start + 1)) {
     const end = objectEnds[start + 1]
     if (end < 0)
       continue
+
+    // Charge overlapping spans before slicing or parsing them. On exhaustion,
+    // reject the step so unchecked buffered output cannot reach consumers.
+    const candidateLength = end - start + 1
+    if (candidateLength > remainingParseWork)
+      throw new Error('Model output exceeded the JSON inspection work limit.')
+    remainingParseWork -= candidateLength
 
     try {
       const parsed: unknown = JSON.parse(text.slice(start, end + 1))
