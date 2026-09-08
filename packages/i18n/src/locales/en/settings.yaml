@@ -982,7 +982,7 @@ pages:
       empty: No transaction records yet.
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
-      ttsRequests: requests
+      charges: charges
     packages:
       title: Flux Packages
       buy: Charge

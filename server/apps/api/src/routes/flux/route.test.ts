@@ -18,15 +18,18 @@ function createMockFluxTransactionService(): FluxTransactionService {
   return {
     createEntry: vi.fn(),
     createEntries: vi.fn(),
-    getHistory: vi.fn(async (_userId: string, limit: number, offset: number) => ({
-      records: [
+    getHistoryRows: vi.fn(async (_userId: string, limit: number, offset: number) => ({
+      rows: [
         {
-          id: 'tx-1',
-          type: 'credit',
-          amount: 5,
-          description: 'Top up',
-          metadata: { source: 'test' },
-          createdAt: new Date('2026-03-27T10:00:00.000Z'),
+          type: 'single',
+          record: {
+            id: 'tx-1',
+            type: 'credit',
+            amount: 5,
+            description: 'Top up',
+            metadata: { source: 'test' },
+            createdAt: '2026-03-27T10:00:00.000Z',
+          },
         },
       ],
       hasMore: limit === 100 && offset === 0,
@@ -89,16 +92,19 @@ describe('fluxRoutes', () => {
     )
 
     expect(res.status).toBe(200)
-    expect(fluxTransactionService.getHistory).toHaveBeenCalledWith('user-1', 100, 0)
+    expect(fluxTransactionService.getHistoryRows).toHaveBeenCalledWith('user-1', 100, 0)
     expect(await res.json()).toEqual({
-      records: [
+      rows: [
         {
-          id: 'tx-1',
-          type: 'credit',
-          amount: 5,
-          description: 'Top up',
-          metadata: { source: 'test' },
-          createdAt: '2026-03-27T10:00:00.000Z',
+          type: 'single',
+          record: {
+            id: 'tx-1',
+            type: 'credit',
+            amount: 5,
+            description: 'Top up',
+            metadata: { source: 'test' },
+            createdAt: '2026-03-27T10:00:00.000Z',
+          },
         },
       ],
       hasMore: true,

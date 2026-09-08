@@ -12,8 +12,11 @@ npm i @proj-airi/server-shared -D
 ```
 
 ```typescript
-import type { WebSocketEvents } from '@proj-airi/server-shared'
+import type { FluxHistoryPage, WebSocketEvents } from '@proj-airi/server-shared'
 ```
+
+Use `FluxHistoryPage` for the hosted Flux history response. The server groups
+eligible TTS ledger entries. Clients render these rows without new grouping rules.
 
 ## How to use the events in distributed use cases?
 

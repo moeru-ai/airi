@@ -82,6 +82,29 @@ function createPlaybackSpy(options?: { autoEnd?: boolean }) {
 }
 
 describe('createSpeechPipeline', () => {
+  it('keeps the intent conversation on every delayed TTS request', async () => {
+    const { playback } = createPlaybackSpy()
+    const requests: TtsRequest[] = []
+    const pipeline = createSpeechPipeline<string>({
+      segmenter: createSegmenter(['first', 'second']),
+      playback,
+      async tts(request) {
+        requests.push(request)
+        return request.text
+      },
+    })
+    const intentFinished = new Promise<void>((resolve) => {
+      pipeline.on('onIntentEnd', () => resolve())
+    })
+
+    const intent = pipeline.openIntent({ conversationId: 'conversation-at-open' })
+    intent.end()
+    await intentFinished
+
+    expect(requests).toHaveLength(2)
+    expect(requests.every(request => request.conversationId === 'conversation-at-open')).toBe(true)
+  })
+
   it('preserves playback order when TTS completes out of order', async () => {
     const { scheduled, playback } = createPlaybackSpy()
 

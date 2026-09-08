@@ -8,16 +8,23 @@ import { AIRI_CHAT_SESSION_ID_HEADER } from '../../../product-signals/headers'
 
 export const OFFICIAL_ICON = 'i-solar:star-bold-duotone'
 
-export function withCredentials() {
+/**
+ * Adds official-provider authentication and chat ownership headers.
+ *
+ * A supplied conversation ID is a request snapshot. When it is absent, the
+ * wrapper reads the active chat at fetch time for non-speech provider calls.
+ */
+export function withCredentials(conversationId?: string) {
   return (input: RequestInfo | URL, init?: RequestInit) => {
     const headers = new Headers(init?.headers)
     const token = getAuthToken()
     if (token) {
       headers.set('Authorization', `Bearer ${token}`)
     }
-    const chatSession = getActivePinia() ? useChatSessionStore() : null
-    if (chatSession?.activeSessionId)
-      headers.set(AIRI_CHAT_SESSION_ID_HEADER, chatSession.activeSessionId)
+    const chatSession = conversationId == null && getActivePinia() ? useChatSessionStore() : null
+    const requestConversationId = conversationId ?? chatSession?.activeSessionId
+    if (requestConversationId)
+      headers.set(AIRI_CHAT_SESSION_ID_HEADER, requestConversationId)
 
     const requestInit = {
       ...init,

@@ -18,6 +18,7 @@ import {
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
   GEN_AI_ATTR_REQUEST_MODEL,
 } from '../../../utils/observability'
+import { resolveTtsBillingCorrelation } from '../billing/tts-correlation'
 
 const tracer = trace.getTracer('v1-completions')
 
@@ -71,6 +72,7 @@ type TtsTrigger = 'auto' | 'manual'
 interface TtsAnalyticsContext {
   trigger: TtsTrigger
   source: 'audio.speech' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  roundId?: unknown
 }
 
 /**
@@ -215,7 +217,14 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         units: billingUnits,
         currentBalance: flux.flux,
         requestId,
-        metadata: { model: requestModel, costMultiplier: voicePackRequest.costMultiplier },
+        metadata: {
+          model: requestModel,
+          costMultiplier: voicePackRequest.costMultiplier,
+        },
+        correlation: resolveTtsBillingCorrelation({
+          conversationId: input.sessionId,
+          roundId: analytics.roundId,
+        }),
       })
       fluxConsumed = result.fluxDebited
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
@@ -289,7 +298,7 @@ function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext
     || rawSource === 'settings_test'
     ? rawSource
     : 'audio.speech'
-  return { trigger, source }
+  return { trigger, source, roundId: analytics?.round_id }
 }
 
 async function voicePackRequestOptions(

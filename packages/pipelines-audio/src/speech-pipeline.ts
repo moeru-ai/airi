@@ -45,6 +45,7 @@ export interface SpeechPipelineOptions<TAudio> {
 }
 
 interface IntentState {
+  conversationId?: string
   turnId?: string
   intentId: string
   streamId: string
@@ -278,6 +279,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
         }
 
         const request: TtsRequest = {
+          conversationId: intent.conversationId,
           turnId: value.turnId,
           streamId: value.streamId,
           intentId: value.intentId,
@@ -327,6 +329,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
 
   function openIntent(optionsInput?: IntentOptions): IntentHandle {
     const intentId = optionsInput?.intentId ?? createId('intent')
+    const conversationId = optionsInput?.conversationId
     const turnId = optionsInput?.turnId
     const streamId = optionsInput?.streamId ?? createId('stream')
     const priority = priorityResolver.resolve(optionsInput?.priority)
@@ -338,6 +341,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     let sequence = 0
 
     const intent: IntentState = {
+      conversationId,
       turnId,
       intentId,
       streamId,

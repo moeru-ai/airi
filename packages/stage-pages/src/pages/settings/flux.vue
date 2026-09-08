@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FluxHistoryEntry, FluxHistoryPage, FluxHistoryRow } from '@proj-airi/server-shared/types'
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
 import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
@@ -59,18 +60,6 @@ const currencyOptions = computed(() => {
     .map(c => ({ label: c.toUpperCase(), value: c }))
 })
 
-// NOTICE: Manual interface instead of hono InferResponseType because hono client
-// type instantiation hits TS recursion limits ("excessively deep and possibly infinite").
-// Keep this manual shape aligned with the API response.
-interface AuditRecord {
-  id: string
-  type: string
-  amount: number
-  description: string
-  metadata: Record<string, unknown> | null
-  createdAt: string
-}
-
 function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num)
 }
@@ -93,13 +82,13 @@ function fluxBalanceBucket(balance: number | undefined): FluxBalanceBucket {
 }
 
 /** Display amount with sign: debit is negative, credit/initial are positive */
-function displayAmount(record: AuditRecord): string {
+function displayAmount(record: FluxHistoryEntry): string {
   const signed = record.type === 'debit' ? -record.amount : record.amount
   const formatted = formatNumber(Math.abs(signed))
   return signed >= 0 ? `+${formatted}` : `-${formatted}`
 }
 
-function isPositive(record: AuditRecord): boolean {
+function isPositive(record: FluxHistoryEntry): boolean {
   return record.type !== 'debit'
 }
 
@@ -117,7 +106,7 @@ function typeLabel(type: string): string {
   return t(TYPE_LABEL_KEY[type] ?? TYPE_LABEL_KEY.initial)
 }
 
-const auditRecords = ref<AuditRecord[]>([])
+const auditRows = ref<FluxHistoryRow[]>([])
 const auditLoading = ref(false)
 const auditHasMore = ref(false)
 const auditOffset = ref(0)
@@ -152,15 +141,15 @@ async function fetchAuditHistory(loadMore = false) {
       query: { limit: String(AUDIT_PAGE_SIZE), offset: String(offset) },
     })
     if (res.ok) {
-      const data = await res.json() as { records: AuditRecord[], hasMore: boolean }
+      const data = await res.json() as FluxHistoryPage
       if (loadMore) {
-        auditRecords.value.push(...data.records)
+        auditRows.value.push(...data.rows)
       }
       else {
-        auditRecords.value = data.records
+        auditRows.value = data.rows
       }
       auditHasMore.value = data.hasMore
-      auditOffset.value = offset + data.records.length
+      auditOffset.value = offset + data.rows.length
     }
   }
   catch {
@@ -175,22 +164,6 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleString()
 }
 
-// Group consecutive TTS debit records into collapsible rows
-type GroupedRow = {
-  type: 'single'
-  record: AuditRecord
-} | {
-  type: 'group'
-  key: string
-  description: string
-  model: string
-  count: number
-  totalAmount: number
-  firstTime: string
-  lastTime: string
-  records: AuditRecord[]
-}
-
 const expandedGroups = ref<Set<string>>(new Set())
 
 function toggleGroup(key: string) {
@@ -199,49 +172,6 @@ function toggleGroup(key: string) {
   else
     expandedGroups.value.add(key)
 }
-
-const groupedRows = computed<GroupedRow[]>(() => {
-  const rows: GroupedRow[] = []
-  let i = 0
-  const records = auditRecords.value
-
-  while (i < records.length) {
-    const record = records[i]
-    if (record.type === 'debit' && record.description?.startsWith('tts:')) {
-      // Collect consecutive TTS records with the same description
-      const group: AuditRecord[] = [record]
-      while (i + 1 < records.length
-        && records[i + 1].type === 'debit'
-        && records[i + 1].description === record.description) {
-        i++
-        group.push(records[i])
-      }
-
-      if (group.length > 1) {
-        rows.push({
-          type: 'group',
-          key: `tts-group-${record.id}`,
-          description: record.description,
-          model: (record.metadata?.model as string) || '',
-          count: group.length,
-          totalAmount: group.reduce((sum, r) => sum + r.amount, 0),
-          firstTime: group.at(-1)!.createdAt,
-          lastTime: group[0].createdAt,
-          records: group,
-        })
-      }
-      else {
-        rows.push({ type: 'single', record })
-      }
-    }
-    else {
-      rows.push({ type: 'single', record })
-    }
-    i++
-  }
-
-  return rows
-})
 
 async function fetchPackages() {
   try {
@@ -464,11 +394,11 @@ async function handleBuy(stripePriceId: string) {
         </span>
       </div>
 
-      <div v-if="auditLoading && auditRecords.length === 0" text="sm neutral-500" py-4 text-center>
+      <div v-if="auditLoading && auditRows.length === 0" text="sm neutral-500" py-4 text-center>
         {{ t('settings.pages.flux.audit.loading') }}
       </div>
 
-      <div v-else-if="auditRecords.length === 0" text="sm neutral-500" py-4 text-center>
+      <div v-else-if="auditRows.length === 0" text="sm neutral-500" py-4 text-center>
         {{ t('settings.pages.flux.audit.empty') }}
       </div>
 
@@ -492,7 +422,7 @@ async function handleBuy(stripePriceId: string) {
             </tr>
           </thead>
           <tbody>
-            <template v-for="row in groupedRows" :key="row.type === 'single' ? row.record.id : row.key">
+            <template v-for="row in auditRows" :key="row.type === 'single' ? row.record.id : row.key">
               <!-- Single record -->
               <tr
                 v-if="row.type === 'single'"
@@ -520,7 +450,7 @@ async function handleBuy(stripePriceId: string) {
                     ({{ row.record.metadata.promptTokens }}+{{ row.record.metadata.completionTokens }} tokens)
                   </span>
                   <span
-                    v-else-if="row.record.description?.startsWith('tts:') && row.record.metadata?.model"
+                    v-else-if="row.record.description === 'tts_request' && row.record.metadata?.model"
                     ml-1 text="xs neutral-400"
                   >
                     ({{ row.record.metadata.model }})
@@ -536,9 +466,7 @@ async function handleBuy(stripePriceId: string) {
               <!-- Grouped TTS records -->
               <tr
                 v-else
-                :class="['cursor-pointer', 'hover:bg-neutral-50', 'dark:hover:bg-neutral-800/30']"
                 border="b neutral-100 dark:neutral-800/50"
-                @click="toggleGroup(row.key)"
               >
                 <td whitespace-nowrap px-4 py-3 text="neutral-500">
                   {{ formatDate(row.lastTime) }}
@@ -552,27 +480,34 @@ async function handleBuy(stripePriceId: string) {
                   </span>
                 </td>
                 <td px-4 py-3>
-                  <span flex="~ items-center gap-1">
+                  <button
+                    type="button"
+                    :aria-expanded="expandedGroups.has(row.key)"
+                    :aria-controls="`flux-history-${row.entries[0].id}`"
+                    :class="['flex', 'items-center', 'gap-1', 'rounded', 'text-left', 'focus-visible:outline-2', 'focus-visible:outline-primary-500']"
+                    @click="toggleGroup(row.key)"
+                  >
                     <span
                       :class="expandedGroups.has(row.key) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone'"
                       inline-block size-4 text="neutral-400"
                     />
                     {{ row.description }}
                     <span ml-1 text="xs neutral-400">
-                      ({{ row.count }} {{ t('settings.pages.flux.audit.ttsRequests') }})
+                      ({{ row.chargeCount }} {{ t('settings.pages.flux.audit.charges') }})
                     </span>
-                  </span>
+                  </button>
                 </td>
                 <td px-4 py-3 text-right font-mono>
                   <span text="orange-600 dark:orange-400">
-                    -{{ row.totalAmount }}
+                    -{{ formatNumber(row.totalAmount) }}
                   </span>
                 </td>
               </tr>
 
               <!-- Expanded group children -->
               <tr
-                v-for="child in (row.type === 'group' && expandedGroups.has(row.key) ? row.records : [])"
+                v-for="(child, childIndex) in (row.type === 'group' && expandedGroups.has(row.key) ? row.entries : [])"
+                :id="row.type === 'group' && childIndex === 0 ? `flux-history-${row.entries[0].id}` : undefined"
                 :key="child.id"
                 border="b neutral-100 dark:neutral-800/50 last:none" bg="neutral-50/50 dark:neutral-800/20"
               >
@@ -584,7 +519,7 @@ async function handleBuy(stripePriceId: string) {
                   {{ child.description }}
                 </td>
                 <td px-4 py-2 text-right font-mono text="xs orange-500 dark:orange-400">
-                  -{{ child.amount }}
+                  {{ displayAmount(child) }}
                 </td>
               </tr>
             </template>
@@ -593,8 +528,8 @@ async function handleBuy(stripePriceId: string) {
       </div>
 
       <!-- Mobile: card list -->
-      <div v-if="auditRecords.length > 0" flex="~ col gap-2" sm:hidden>
-        <template v-for="row in groupedRows" :key="row.type === 'single' ? row.record.id : row.key">
+      <div v-if="auditRows.length > 0" flex="~ col gap-2" sm:hidden>
+        <template v-for="row in auditRows" :key="row.type === 'single' ? row.record.id : row.key">
           <!-- Single record card -->
           <div
             v-if="row.type === 'single'"
@@ -622,7 +557,7 @@ async function handleBuy(stripePriceId: string) {
                 ({{ row.record.metadata.promptTokens }}+{{ row.record.metadata.completionTokens }} tokens)
               </span>
               <span
-                v-else-if="row.record.description?.startsWith('tts:') && row.record.metadata?.model"
+                v-else-if="row.record.description === 'tts_request' && row.record.metadata?.model"
                 ml-1 text="xs neutral-400"
               >
                 ({{ row.record.metadata.model }})
@@ -636,40 +571,47 @@ async function handleBuy(stripePriceId: string) {
           <!-- Grouped TTS card -->
           <div
             v-else
-            border="1 neutral-200 dark:neutral-800" flex="~ col gap-1.5" cursor-pointer rounded-lg px-3 py-2.5
-            @click="toggleGroup(row.key)"
+            border="1 neutral-200 dark:neutral-800" flex="~ col gap-1.5" rounded-lg px-3 py-2.5
           >
-            <div flex="~ items-center justify-between">
-              <span
-                :class="['inline-block', 'rounded-full', 'px-2', 'py-0.5', 'text-xs', 'font-medium',
-                         'bg-orange-500/10', 'text-orange-600', 'dark:text-orange-400']"
-              >
-                {{ t('settings.pages.flux.audit.typeConsumption') }}
-              </span>
-              <span text-sm font-semibold font-mono text="orange-600 dark:orange-400">
-                -{{ row.totalAmount }}
-              </span>
-            </div>
-            <div flex="~ items-center gap-1" text="sm neutral-600 dark:neutral-300">
-              <span
-                :class="expandedGroups.has(row.key) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone'"
-                inline-block size-4 text="neutral-400"
-              />
-              {{ row.description }}
-              <span text="xs neutral-400">({{ row.count }} {{ t('settings.pages.flux.audit.ttsRequests') }})</span>
-            </div>
-            <div text="xs neutral-400">
-              {{ formatDate(row.lastTime) }}
-            </div>
+            <button
+              type="button"
+              :aria-expanded="expandedGroups.has(row.key)"
+              :aria-controls="`flux-history-mobile-${row.entries[0].id}`"
+              :class="['flex', 'w-full', 'flex-col', 'gap-1.5', 'rounded', 'text-left', 'focus-visible:outline-2', 'focus-visible:outline-primary-500']"
+              @click="toggleGroup(row.key)"
+            >
+              <div flex="~ items-center justify-between" w-full>
+                <span
+                  :class="['inline-block', 'rounded-full', 'px-2', 'py-0.5', 'text-xs', 'font-medium',
+                           'bg-orange-500/10', 'text-orange-600', 'dark:text-orange-400']"
+                >
+                  {{ t('settings.pages.flux.audit.typeConsumption') }}
+                </span>
+                <span text-sm font-semibold font-mono text="orange-600 dark:orange-400">
+                  -{{ formatNumber(row.totalAmount) }}
+                </span>
+              </div>
+              <div flex="~ items-center gap-1" text="sm neutral-600 dark:neutral-300">
+                <span
+                  :class="expandedGroups.has(row.key) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone'"
+                  inline-block size-4 text="neutral-400"
+                />
+                {{ row.description }}
+                <span text="xs neutral-400">({{ row.chargeCount }} {{ t('settings.pages.flux.audit.charges') }})</span>
+              </div>
+              <div text="xs neutral-400">
+                {{ formatDate(row.lastTime) }}
+              </div>
+            </button>
 
             <!-- Expanded children -->
-            <div v-if="row.type === 'group' && expandedGroups.has(row.key)" flex="~ col gap-1" mt-1 border="t neutral-200 dark:neutral-700" pt-2>
+            <div v-if="row.type === 'group' && expandedGroups.has(row.key)" :id="`flux-history-mobile-${row.entries[0].id}`" flex="~ col gap-1" mt-1 border="t neutral-200 dark:neutral-700" pt-2>
               <div
-                v-for="child in row.records" :key="child.id"
+                v-for="child in row.entries" :key="child.id"
                 flex="~ items-center justify-between" text="xs neutral-400"
               >
                 <span>{{ formatDate(child.createdAt) }}</span>
-                <span font-mono>-{{ child.amount }}</span>
+                <span font-mono>{{ displayAmount(child) }}</span>
               </div>
             </div>
           </div>

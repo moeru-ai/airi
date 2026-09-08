@@ -34,14 +34,20 @@ function staticRuntime(unitsPerFlux = 1000, debtTtlSeconds = 60) {
   return vi.fn(async () => ({ unitsPerFlux, debtTtlSeconds }))
 }
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
+
 describe('fluxMeter', () => {
   let redis: ReturnType<typeof createTestRedis>
-  let incrby: ReturnType<typeof vi.spyOn>
   let billing: BillingService
 
   beforeEach(() => {
     redis = createTestRedis()
-    incrby = vi.spyOn(redis, 'incrby')
     billing = createMockBilling()
   })
 
@@ -59,11 +65,33 @@ describe('fluxMeter', () => {
     expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
   })
 
-  it('debits exactly one flux when crossing the threshold', async () => {
+  // https://github.com/moeru-ai/airi/pull/2491#discussion_r3960258136
+  // ROOT CAUSE:
+  //
+  // The meter stored only the numeric residual debt. If round A left 700
+  // units and round B added 400 units, the debit used round B metadata for
+  // all 1,000 settled units.
+  //
+  // The meter now keeps residual ownership. A mixed settlement does not claim
+  // one round. The residual owner becomes round B after the mixed settlement.
+  it('does not assign a mixed threshold crossing to the latest round', async () => {
     const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() })
 
-    await meter.accumulate({ userId: 'u1', units: 700, currentBalance: 10, requestId: 'a' })
-    const result = await meter.accumulate({ userId: 'u1', units: 400, currentBalance: 10, requestId: 'b' })
+    await meter.accumulate({
+      userId: 'u1',
+      units: 700,
+      currentBalance: 10,
+      requestId: 'a',
+      correlation: { conversationId: 'conversation-1', roundId: 'round-a' },
+    })
+    const result = await meter.accumulate({
+      userId: 'u1',
+      units: 400,
+      currentBalance: 10,
+      requestId: 'b',
+      metadata: { model: 'tts-model' },
+      correlation: { conversationId: 'conversation-1', roundId: 'round-b' },
+    })
 
     expect(result.fluxDebited).toBe(1)
     expect(result.debtAfter).toBe(100)
@@ -72,7 +100,35 @@ describe('fluxMeter', () => {
       amount: 1,
       requestId: 'b',
       description: 'tts_request',
+      model: 'tts-model',
     }))
+    expect(billing.consumeFluxForLLM).toHaveBeenCalledWith(expect.not.objectContaining({
+      correlation: expect.anything(),
+    }))
+
+    await meter.accumulate({
+      userId: 'u1',
+      units: 900,
+      currentBalance: 9,
+      requestId: 'c',
+      correlation: { conversationId: 'conversation-1', roundId: 'round-b' },
+    })
+
+    expect(billing.consumeFluxForLLM).toHaveBeenLastCalledWith(expect.objectContaining({
+      amount: 1,
+      requestId: 'c',
+      correlation: { conversationId: 'conversation-1', roundId: 'round-b' },
+    }))
+  })
+
+  it('preserves one round across a threshold crossing', async () => {
+    const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() })
+    const correlation = { conversationId: 'conversation-1', roundId: 'round-1' }
+
+    await meter.accumulate({ userId: 'u1', units: 700, currentBalance: 10, requestId: 'a', correlation })
+    await meter.accumulate({ userId: 'u1', units: 400, currentBalance: 10, requestId: 'b', correlation })
+
+    expect(billing.consumeFluxForLLM).toHaveBeenCalledWith(expect.objectContaining({ correlation }))
   })
 
   it('debits multiple flux when one request crosses several thresholds', async () => {
@@ -157,7 +213,65 @@ describe('fluxMeter', () => {
     // Settlement was rolled back: 2500 units should be fully recovered
     // (500 residual + 2000 rolled back), not 500.
     expect(await meter.peekDebt('u1')).toBe(2500)
-    expect(incrby).toHaveBeenCalledWith(expect.stringContaining('u1'), 2000)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2491#discussion_r3962162510
+  // ROOT CAUSE:
+  //
+  // A failed settlement restored its stale owner after a concurrent request
+  // had already written a different residual owner. The restored mixed debt
+  // could therefore be assigned to only one round.
+  //
+  // The restore script now reads and merges the current owner atomically.
+  it('marks restored debt as mixed when another owner accumulates during billing', async () => {
+    const billingStarted = deferred<void>()
+    const releaseBilling = deferred<void>()
+    const concurrentBilling = createMockBilling()
+    vi.mocked(concurrentBilling.consumeFluxForLLM).mockImplementation(async ({ userId, amount, requestId }) => {
+      if (requestId === 'a') {
+        billingStarted.resolve()
+        await releaseBilling.promise
+        throw new Error('mock billing failure')
+      }
+      return { userId, flux: 100 - amount, charged: amount, requested: amount }
+    })
+    const meter = createFluxMeter(redis, concurrentBilling, { name: 'tts', resolveRuntime: staticRuntime() })
+
+    const firstSettlement = meter.accumulate({
+      userId: 'u1',
+      units: 1000,
+      currentBalance: 10,
+      requestId: 'a',
+      correlation: { conversationId: 'conversation-1', roundId: 'round-a' },
+    })
+    const failedSettlement = expect(firstSettlement).rejects.toThrow('mock billing failure')
+    await billingStarted.promise
+
+    await meter.accumulate({
+      userId: 'u1',
+      units: 500,
+      currentBalance: 10,
+      requestId: 'b',
+      correlation: { conversationId: 'conversation-1', roundId: 'round-b' },
+    })
+    releaseBilling.resolve()
+    await failedSettlement
+
+    await meter.accumulate({
+      userId: 'u1',
+      units: 500,
+      currentBalance: 10,
+      requestId: 'c',
+      correlation: { conversationId: 'conversation-1', roundId: 'round-a' },
+    })
+
+    expect(concurrentBilling.consumeFluxForLLM).toHaveBeenLastCalledWith(expect.objectContaining({
+      amount: 2,
+      requestId: 'c',
+    }))
+    expect(concurrentBilling.consumeFluxForLLM).toHaveBeenLastCalledWith(expect.not.objectContaining({
+      correlation: expect.anything(),
+    }))
   })
 
   // ROOT CAUSE:
@@ -202,7 +316,6 @@ describe('fluxMeter', () => {
     expect(result.balanceAfter).toBe(0)
     // Debt = 500 residual (LUA leftover) + 2000 restored from partial drain.
     expect(await meter.peekDebt('u1')).toBe(2500)
-    expect(incrby).toHaveBeenCalledWith(expect.stringContaining('u1'), 2000)
     expect(fluxUnbilled.add).toHaveBeenCalledWith(2, expect.objectContaining({
       'source': 'tts_meter',
       'meter': 'tts',

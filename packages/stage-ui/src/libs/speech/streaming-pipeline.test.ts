@@ -19,6 +19,8 @@ interface MockServer {
   url: string
   receivedFrames: Array<{ kind: 'text' | 'binary', data: string | Buffer }>
   observedVoiceTypes: string[]
+  observedConversationIds: string[]
+  observedRoundIds: string[]
   /** Resolves when the server has observed a `start` frame from the client. */
   startObserved: Promise<void>
   stop: () => Promise<void>
@@ -27,6 +29,8 @@ interface MockServer {
 async function startMockServer(handler: (ws: import('ws').WebSocket) => void): Promise<MockServer> {
   const receivedFrames: MockServer['receivedFrames'] = []
   const observedVoiceTypes: string[] = []
+  const observedConversationIds: string[] = []
+  const observedRoundIds: string[] = []
   const httpServer = createServer()
   const wss = new WebSocketServer({ server: httpServer })
 
@@ -40,6 +44,12 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
     const voiceType = u.searchParams.get('tts_voice_type')
     if (voiceType != null)
       observedVoiceTypes.push(voiceType)
+    const conversationId = u.searchParams.get('conversation_id')
+    if (conversationId != null)
+      observedConversationIds.push(conversationId)
+    const roundId = u.searchParams.get('round_id')
+    if (roundId != null)
+      observedRoundIds.push(roundId)
 
     ws.on('message', (data, isBinary) => {
       const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer)
@@ -64,6 +74,8 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
     url: `http://127.0.0.1:${port}`,
     receivedFrames,
     observedVoiceTypes,
+    observedConversationIds,
+    observedRoundIds,
     startObserved,
     async stop() {
       wss.close()
@@ -136,6 +148,8 @@ describe('createStreamingTtsPipeline', () => {
       model: 'volcengine/seed-tts-1.0',
       voice: 'mock',
       ttsVoiceType: 'official_selected',
+      conversationId: 'conversation-1',
+      roundId: 'round-1',
       audioContext: makeStubAudioContext(),
       onSentence,
       onError,
@@ -156,6 +170,8 @@ describe('createStreamingTtsPipeline', () => {
     const textFrames = server.receivedFrames.filter(f => f.kind === 'text').map(f => JSON.parse(f.data as string))
     expect(textFrames.map(f => f.event)).toEqual(['start', 'text', 'text', 'finish'])
     expect(server.observedVoiceTypes).toEqual(['official_selected'])
+    expect(server.observedConversationIds).toEqual(['conversation-1'])
+    expect(server.observedRoundIds).toEqual(['round-1'])
     expect(textFrames[1]).toMatchObject({ event: 'text', text: 'hi ' })
     expect(textFrames[2]).toMatchObject({ event: 'text', text: 'there' })
 

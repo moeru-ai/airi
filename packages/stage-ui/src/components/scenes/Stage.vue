@@ -45,6 +45,7 @@ import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatStore } from '../../stores/chat'
+import { useChatSessionStore } from '../../stores/chat/session-store'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProviderConfigStore } from '../../stores/providers/config'
@@ -74,6 +75,7 @@ const tachieSceneRef = ref<InstanceType<typeof TachieScene>>()
 const mmdSceneRef = ref<InstanceType<typeof MMDScene>>()
 
 const settingsStore = useSettings()
+const chatSessionStore = useChatSessionStore()
 const {
   stageModelRenderer,
   stageViewControlsEnabled,
@@ -546,6 +548,8 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
           trigger: 'auto',
           source: 'chat_auto_tts',
           voice_type: resolveStageVoiceType(),
+          ...(request.conversationId != null && { conversation_id: request.conversationId }),
+          ...(request.turnId != null && { round_id: request.turnId }),
         },
       )
 
@@ -768,6 +772,8 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
     model: sessionModel,
     voice: voiceId,
     voiceType: resolveStageVoiceType(),
+    conversationId: chatSessionStore.activeSessionId,
+    roundId: turnId,
     bufferEntireSession,
     extraBody: {
       api_resource_id: apiResourceId,
@@ -806,6 +812,7 @@ function openTtsSession(turnId: string): StageTtsSession {
     playbackManager,
     openIntent: opts => speechRuntimeStore.openIntent(opts),
     intentOptions: () => ({
+      conversationId: chatSessionStore.activeSessionId,
       turnId,
       ownerId: activeCardId.value,
       priority: 'normal',

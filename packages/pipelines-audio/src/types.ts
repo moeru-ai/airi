@@ -26,6 +26,8 @@ export interface TextSegment {
 }
 
 export interface TtsRequest {
+  /** Conversation snapshotted when the owning speech intent opened. */
+  conversationId?: string
   turnId?: string
   streamId: string
   intentId: string
@@ -89,6 +91,8 @@ export interface PlaybackRejectEvent<TAudio> {
 export type IntentBehavior = 'queue' | 'interrupt' | 'replace'
 
 export interface IntentOptions {
+  /** Conversation that owns every TTS request emitted by this intent. */
+  conversationId?: string
   turnId?: string
   intentId?: string
   streamId?: string

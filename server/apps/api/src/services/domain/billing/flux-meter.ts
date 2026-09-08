@@ -2,12 +2,14 @@ import type Redis from 'ioredis'
 
 import type { RevenueMetrics } from '../../../otel'
 import type { BillingService } from './billing-service'
+import type { TtsBillingCorrelation } from './tts-correlation'
 
 import { useLogger } from '@guiiai/logg'
 
 import { createPaymentRequiredError } from '../../../utils/error'
 import { GEN_AI_ATTR_REQUEST_MODEL } from '../../../utils/observability'
-import { userFluxMeterDebtRedisKey } from '../../../utils/redis-keys'
+import { userFluxMeterDebtOwnerRedisKey, userFluxMeterDebtRedisKey } from '../../../utils/redis-keys'
+import { resolveTtsBillingCorrelationToken, serializeTtsBillingCorrelation } from './tts-correlation'
 
 const logger = useLogger('flux-meter')
 
@@ -16,23 +18,82 @@ const logger = useLogger('flux-meter')
 // granularity. We keep unsettled small units in a Redis counter and only debit
 // whole Flux when the counter crosses `unitsPerFlux`. Residual <unitsPerFlux
 // survives via TTL; callers accept that sub-1-Flux dust may expire unbilled.
+const MIXED_OWNER_TOKEN = '__mixed__'
+
 const ACCUMULATE_SCRIPT = `
-local key = KEYS[1]
+local debtKey = KEYS[1]
+local ownerKey = KEYS[2]
 local units = tonumber(ARGV[1])
 local unitsPerFlux = tonumber(ARGV[2])
 local ttl = tonumber(ARGV[3])
+local incomingOwner = ARGV[4]
+local mixedOwner = ARGV[5]
 
-local debt = redis.call('INCRBY', key, units)
-redis.call('EXPIRE', key, ttl)
-
-if debt >= unitsPerFlux then
-  local flux = math.floor(debt / unitsPerFlux)
-  local consumed = flux * unitsPerFlux
-  redis.call('DECRBY', key, consumed)
-  return {flux, debt - consumed}
+local previousDebt = tonumber(redis.call('GET', debtKey) or '0')
+local previousOwner = redis.call('GET', ownerKey) or ''
+local combinedOwner = incomingOwner
+if previousDebt > 0 and (previousOwner == '' or previousOwner ~= incomingOwner) then
+  combinedOwner = mixedOwner
 end
 
-return {0, debt}
+local debt = redis.call('INCRBY', debtKey, units)
+redis.call('EXPIRE', debtKey, ttl)
+local flux = 0
+local debtAfter = debt
+if debt >= unitsPerFlux then
+  flux = math.floor(debt / unitsPerFlux)
+  local consumed = flux * unitsPerFlux
+  redis.call('DECRBY', debtKey, consumed)
+  debtAfter = debt - consumed
+end
+
+local settledOwner = ''
+if flux > 0 then
+  settledOwner = combinedOwner
+end
+
+local residualOwner = combinedOwner
+if debtAfter <= 0 then
+  redis.call('DEL', ownerKey)
+  residualOwner = ''
+else
+  if flux > 0 and units >= debtAfter then
+    residualOwner = incomingOwner
+  end
+
+  if residualOwner == '' then
+    redis.call('DEL', ownerKey)
+  else
+    redis.call('SET', ownerKey, residualOwner, 'EX', ttl)
+  end
+end
+
+return {flux, debtAfter, settledOwner, combinedOwner, residualOwner}
+`
+
+const RESTORE_SCRIPT = `
+local debtKey = KEYS[1]
+local ownerKey = KEYS[2]
+local units = tonumber(ARGV[1])
+local ttl = tonumber(ARGV[2])
+local restoredOwner = ARGV[3]
+local mixedOwner = ARGV[4]
+
+local currentDebt = tonumber(redis.call('GET', debtKey) or '0')
+local currentOwner = redis.call('GET', ownerKey) or ''
+local owner = restoredOwner
+if currentDebt > 0 and (currentOwner == '' or restoredOwner == '' or currentOwner ~= restoredOwner) then
+  owner = mixedOwner
+end
+
+local debt = redis.call('INCRBY', debtKey, units)
+redis.call('EXPIRE', debtKey, ttl)
+if owner == '' then
+  redis.call('DEL', ownerKey)
+else
+  redis.call('SET', ownerKey, owner, 'EX', ttl)
+end
+return debt
 `
 
 interface FluxMeterRuntime {
@@ -63,6 +124,16 @@ interface AccumulateInput {
   currentBalance: number
   requestId: string
   metadata?: Record<string, unknown>
+  /** Validated chat owner for this usage. Omit it for unsafe attribution. */
+  correlation?: TtsBillingCorrelation
+}
+
+interface MeterSettlement {
+  fluxRequested: number
+  debtAfter: number
+  settledOwner: string
+  combinedOwner: string
+  residualOwner: string
 }
 
 interface AccumulateResult {
@@ -102,17 +173,60 @@ export function createFluxMeter(
     return runtime
   }
 
-  async function runScript(key: string, units: number, runtime: FluxMeterRuntime): Promise<[number, number]> {
+  async function runScript(
+    debtKey: string,
+    ownerKey: string,
+    units: number,
+    runtime: FluxMeterRuntime,
+    incomingOwner: string,
+  ): Promise<MeterSettlement> {
     const raw = await redis.eval(
       ACCUMULATE_SCRIPT,
-      1,
-      key,
+      2,
+      debtKey,
+      ownerKey,
       units,
       runtime.unitsPerFlux,
       runtime.debtTtlSeconds,
-    ) as [number | string, number | string]
+      incomingOwner,
+      MIXED_OWNER_TOKEN,
+    ) as [number | string, number | string, string, string, string]
 
-    return [Number(raw[0]), Number(raw[1])]
+    return {
+      fluxRequested: Number(raw[0]),
+      debtAfter: Number(raw[1]),
+      settledOwner: String(raw[2]),
+      combinedOwner: String(raw[3]),
+      residualOwner: String(raw[4]),
+    }
+  }
+
+  async function restoreDebt(
+    debtKey: string,
+    ownerKey: string,
+    units: number,
+    runtime: FluxMeterRuntime,
+    owner: string,
+  ): Promise<number> {
+    const raw = await redis.eval(
+      RESTORE_SCRIPT,
+      2,
+      debtKey,
+      ownerKey,
+      units,
+      runtime.debtTtlSeconds,
+      owner,
+      MIXED_OWNER_TOKEN,
+    )
+    return Number(raw)
+  }
+
+  function combineOwnerTokens(left: string, right: string): string {
+    if (!left)
+      return right
+    if (!right || left !== right)
+      return MIXED_OWNER_TOKEN
+    return left
   }
 
   async function readDebt(userId: string): Promise<number> {
@@ -151,8 +265,11 @@ export function createFluxMeter(
     metrics?.ttsChars.add(input.units, { meter: config.name, model: modelLabel })
 
     const runtime = await getRuntime()
-    const key = userFluxMeterDebtRedisKey(input.userId, config.name)
-    const [fluxRequested, debtAfterSettlement] = await runScript(key, input.units, runtime)
+    const debtKey = userFluxMeterDebtRedisKey(input.userId, config.name)
+    const ownerKey = userFluxMeterDebtOwnerRedisKey(input.userId, config.name)
+    const incomingOwner = input.correlation == null ? '' : serializeTtsBillingCorrelation(input.correlation)
+    const settlement = await runScript(debtKey, ownerKey, input.units, runtime, incomingOwner)
+    const { fluxRequested, debtAfter: debtAfterSettlement } = settlement
 
     if (fluxRequested === 0) {
       logger.withFields({
@@ -166,12 +283,14 @@ export function createFluxMeter(
 
     let result: Awaited<ReturnType<typeof billingService.consumeFluxForLLM>>
     try {
+      const correlation = resolveTtsBillingCorrelationToken(settlement.settledOwner)
       result = await billingService.consumeFluxForLLM({
         userId: input.userId,
         amount: fluxRequested,
         requestId: input.requestId,
         description: `${config.name}_request`,
         ...(typeof input.metadata?.model === 'string' && { model: input.metadata.model }),
+        ...(correlation != null && { correlation }),
       })
     }
     catch (error) {
@@ -181,8 +300,7 @@ export function createFluxMeter(
       // request to retry.
       const restoreUnits = fluxRequested * runtime.unitsPerFlux
       try {
-        await redis.incrby(key, restoreUnits)
-        await redis.expire(key, runtime.debtTtlSeconds)
+        await restoreDebt(debtKey, ownerKey, restoreUnits, runtime, settlement.combinedOwner)
       }
       catch (rollbackError) {
         logger.withError(rollbackError).withFields({
@@ -220,9 +338,9 @@ export function createFluxMeter(
     // the same `fluxUnbilled` counter the streaming/non-streaming chat
     // paths use (different `reason` label).
     //
-    // REVIEW: Settlement (LUA `runScript`) and the `INCRBY` restore below
+    // REVIEW: Settlement and the restore script below
     // are not atomic. A concurrent `accumulate()` could observe the debt
-    // counter mid-window (between DECRBY and the restore INCRBY) and
+    // counter after settlement but before the restore script and
     // mis-bill. In practice the window is small (one in-flight DB tx) and
     // a re-billing attempt would land in the same partial-debit branch,
     // but the right long-term fix is either a short Redis lock keyed by
@@ -242,8 +360,8 @@ export function createFluxMeter(
 
       let debtAfterRestore = debtAfterSettlement
       try {
-        debtAfterRestore = await redis.incrby(key, restoreUnits)
-        await redis.expire(key, runtime.debtTtlSeconds)
+        const restoredOwner = combineOwnerTokens(settlement.residualOwner, settlement.settledOwner)
+        debtAfterRestore = await restoreDebt(debtKey, ownerKey, restoreUnits, runtime, restoredOwner)
       }
       catch (rollbackError) {
         // Log loudly so on-call can reconcile manually; don't shadow the
