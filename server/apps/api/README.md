@@ -16,10 +16,10 @@ auth/OIDC routes.
 
 `src/services/domain/payment` owns pack grant and `payment_order` rows.
 CORE exposes `openPending`, `bindProcessorOrder`, `abandon`, `settle`,
-and `deleteAllForUser`. Checkout and package list live in the Stripe
-adapter on `/api/v1/stripe/*`. CORE never sees a raw processor event.
-The adapter maps the processor result onto a `ClaimReceipt`, then calls
-`settle`.
+and `deleteAllForUser`. Checkout and package list live in each adapter:
+Stripe on `/api/v1/stripe/*`, Steam on `/api/v1/steam/*`. CORE never sees
+a raw processor event. The adapter maps the processor result onto a
+`ClaimReceipt`, then calls `settle`.
 
 ## Run locally
 

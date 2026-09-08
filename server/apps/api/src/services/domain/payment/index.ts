@@ -30,13 +30,13 @@ const logger = useLogger('payment')
  *
  * Call stack:
  *
- * Stripe `POST /checkout`
+ * Stripe `POST /checkout` / Steam `POST /checkout`
  * -> {@link createPaymentService} `openPending`
- * -> Stripe adapter creates the Checkout Session
+ * -> adapter creates the processor checkout
  * -> {@link createPaymentService} `bindProcessorOrder`
  *
- * Stripe `POST /webhook` (after signature verify)
- * -> Stripe adapter maps session to {@link ClaimReceipt}
+ * Stripe `POST /webhook` / Steam `POST /finalize` (after processor confirm)
+ * -> adapter maps the processor result to {@link ClaimReceipt}
  * -> {@link createPaymentService} `settle`
  * -> {@link BillingService.creditFlux}
  */

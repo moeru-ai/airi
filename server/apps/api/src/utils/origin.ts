@@ -86,12 +86,12 @@ export function resolveTrustedRequestOrigin(
 }
 
 /**
- * Resolves the base URL for Stripe redirect targets (`success_url` / `cancel_url` / portal `return_url`).
+ * Resolves the base URL for Stripe and Steam redirect targets.
  *
  * Prefers the request's trusted browser origin so web and mobile users return to the surface they
  * started from. Falls back to the configured web app URL when the request carries no trusted origin —
  * notably the Electron desktop renderer, which loads from `file://` and sends no usable web origin,
- * so Stripe (which only accepts http/https redirect URLs) can still land users on a real page.
+ * so Stripe and Steam (which only accept http/https redirect URLs) can still land users on a real page.
  *
  * Expects:
  * - Same trust inputs as {@link resolveTrustedRequestOrigin}.
