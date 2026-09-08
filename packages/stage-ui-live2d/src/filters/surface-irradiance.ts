@@ -45,7 +45,9 @@ export function writeScreenGeometry(geometry: AmbientLightScreenGeometry, aspect
 const integrate = Array.from({ length: screenLightCount }, (_, i) => {
   const y = (Math.floor(i / screenLightGridSize) + 0.5) / screenLightGridSize * mapSpan - ambientLightMapMargin
   return `
-  irradiance += u_airiLights[${i}] * airiScreenWeight(n, stageUv, ${y.toFixed(8)}, u_airiEmitters[${i % screenLightGridSize}]);
+  weight = airiScreenWeight(n, stageUv, ${y.toFixed(8)}, u_airiEmitters[${i % screenLightGridSize}]);
+  irradiance += u_airiLights[${i}] * weight.x;
+  sheen += u_airiLights[${i}] * weight.y;
   meanRadiance += u_airiLights[${i}] / ${screenLightCount.toFixed(1)};`
 }).join('\n')
 
@@ -59,7 +61,11 @@ export const surfaceIrradianceShader = `
 uniform vec3 u_airiLights[${screenLightCount}];
 uniform float u_airiStageAspect;
 uniform vec4 u_airiEmitters[${screenLightGridSize}];
-float airiScreenWeight(vec3 n, vec2 p, float emitterY, vec4 emitter) {
+uniform float u_airiSheen;
+uniform float u_airiSoftHighlights;
+uniform float u_airiAmbient;
+uniform float u_airiContrast;
+vec2 airiScreenWeight(vec3 n, vec2 p, float emitterY, vec4 emitter) {
   vec3 delta = vec3(emitter.x-(p.x-0.5)*u_airiStageAspect, p.y-emitterY, emitter.y);
   float distanceSquared = dot(delta,delta);
   // A curved tile can intersect the surface plane; zero displacement must
@@ -71,9 +77,16 @@ float airiScreenWeight(vec3 n, vec2 p, float emitterY, vec4 emitter) {
   // Finite tile area softens the near-field quadrature, avoiding a point-light
   // singularity. At distance this converges to area*cos(emitter)/distance^2.
   float solidAngle = area*emitterCosine/(distanceSquared+area/3.14159265);
-  return receiverCosine*solidAngle/3.14159265;
+  // Broad Blinn-Phong reflection, with the camera looking along -Z. Both
+  // cosine factors still reject light arriving through an opaque surface.
+  vec3 halfway = direction + vec3(0.,0.,1.);
+  halfway *= inversesqrt(max(dot(halfway,halfway),1e-8));
+  float reflection = u_airiSheen > 0. ? 2.*pow(max(dot(n,halfway),0.),24.) : 0.;
+  return receiverCosine*solidAngle*vec2(1./3.14159265,reflection);
 }
-vec3 airiSurfaceResponse(vec3 n, vec2 stageUv) {
+vec3 airiSurfaceResponseWithSheen(vec3 n, vec2 stageUv, out vec3 sheen) {
+  sheen = vec3(0.);
+  vec2 weight;
   vec3 irradiance = vec3(0.);
   vec3 meanRadiance = vec3(0.);
   ${integrate}
@@ -82,12 +95,31 @@ vec3 airiSurfaceResponse(vec3 n, vec2 stageUv) {
     float energy = dot(meanRadiance,weights);
     vec3 colorCast = min(meanRadiance/max(energy,0.0005),vec3(1.6));
     float presence = smoothstep(0.,0.04,energy);
+    sheen = vec3(0.);
     return mix(vec3(1.),colorCast,u_airiChroma*min(u_airiStrength,1.)*presence);
   }
   // Screen irradiance adds to the existing ambient exposure, through albedo.
   // A surface facing away from the screen gets no direct light or color cast.
   vec3 diffuse = mix(vec3(dot(irradiance,weights)),irradiance,u_airiChroma);
   return vec3(1.)+2.*u_airiStrength*diffuse;
+}
+vec3 airiSurfaceResponse(vec3 n, vec2 stageUv) {
+  vec3 sheen;
+  return airiSurfaceResponseWithSheen(n,stageUv,sheen);
+}
+vec3 airiSurfaceColor(vec3 n, vec2 stageUv, vec3 color, float materialSheen) {
+  vec3 albedo = pow(color,vec3(mix(1.,u_airiContrast,min(u_airiStrength,1.))));
+  color = albedo*mix(1.,u_airiAmbient,min(u_airiStrength,1.));
+  vec3 sheen;
+  vec3 response = airiSurfaceResponseWithSheen(n,stageUv,sheen);
+  if (u_airiDirectional < 0.5) return clamp(color*response,0.,1.);
+  vec3 reflected = mix(vec3(dot(sheen,vec3(0.2126,0.7152,0.0722))),sheen,u_airiChroma);
+  vec3 added = albedo*(response-1.) + reflected*u_airiSheen*materialSheen*u_airiStrength;
+  if (u_airiSoftHighlights < 0.5) return clamp(color+added,0.,1.);
+  // Keep the unlit artwork exact. Only added energy is compressed, so bright
+  // highlights retain texture detail and the zero-strength result is unchanged.
+  vec3 room = max(vec3(0.),1.-color);
+  return color + room*(1.-exp(-added/max(room,vec3(0.0001))));
 }
 `
 

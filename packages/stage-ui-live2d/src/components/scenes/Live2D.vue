@@ -85,6 +85,9 @@ const {
   screenAmbientLightSquint,
   screenAmbientLightStrength,
   screenAmbientLightTint,
+  screenAmbientLightSheen,
+  screenAmbientLightNose,
+  screenAmbientLightSoftHighlights,
   screenAmbientLightBend,
   screenAmbientLightGap,
   screenAmbientLightFlatRadius,
@@ -98,6 +101,11 @@ const {
   environment: screenAmbientLightEnvironment,
   subject: screenAmbientLightSubject,
 } = storeToRefs(useScreenAmbientLightEnvironment())
+const screenAmbientLightMaterial = computed(() => ({
+  sheen: screenAmbientLightSheen.value,
+  nose: screenAmbientLightNose.value,
+  softHighlights: screenAmbientLightSoftHighlights.value,
+}))
 const screenAmbientLightGeometry = computed(() => ({
   bend: screenAmbientLightBend.value,
   gap: screenAmbientLightGap.value,
@@ -199,6 +207,7 @@ defineExpose({
         :screen-ambient-light-strength="screenAmbientLightStrength"
         :screen-ambient-light-squint="screenAmbientLightSquint"
         :screen-ambient-light-geometry="screenAmbientLightGeometry"
+        :screen-ambient-light-material="screenAmbientLightMaterial"
         @error="emit('error', $event)"
       />
       <Live2DPresenceBubble

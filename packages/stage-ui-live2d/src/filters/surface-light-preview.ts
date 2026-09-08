@@ -1,4 +1,4 @@
-import type { AmbientLightEnvironment, AmbientLightScreenGeometry, ScreenAmbientLightMode } from '@proj-airi/stage-shared/screen-ambient-light'
+import type { AmbientLightEnvironment, AmbientLightMaterialOptions, AmbientLightScreenGeometry, ScreenAmbientLightMode } from '@proj-airi/stage-shared/screen-ambient-light'
 
 import { Filter } from '@pixi/core'
 
@@ -10,6 +10,7 @@ export type SurfaceLightPreviewShape = 'cylinder' | 'sphere'
 /** Inputs shared with the stage; diagnostic shape and normal view stay local. */
 export interface SurfaceLightPreviewOptions {
   environment: AmbientLightEnvironment
+  material: AmbientLightMaterialOptions
   geometry: AmbientLightScreenGeometry
   mode: ScreenAmbientLightMode
   strength: number
@@ -47,7 +48,7 @@ export class SurfaceLightPreviewFilter extends Filter {
         float radial = uSphere > 0.5 ? dot(q,q) : q.x*q.x;
         if (radial > 1. || (uSphere < 0.5 && abs(p.y-0.5) > 0.36)) discard;
         vec3 n = vec3(q.x, uSphere > 0.5 ? q.y : 0., sqrt(max(0.,1.-radial)));
-        vec3 color = uNormals > 0.5 ? n*0.5+0.5 : vec3(0.35)*airiSurfaceResponse(n,p);
+        vec3 color = uNormals > 0.5 ? n*0.5+0.5 : airiSurfaceColor(n,p,vec3(0.35),1.);
         gl_FragColor = vec4(clamp(color,0.,1.),1.);
       }
     `, {
@@ -55,6 +56,10 @@ export class SurfaceLightPreviewFilter extends Filter {
       u_airiEmitters: new Float32Array(screenLightGridSize * 4),
       u_airiStageAspect: 1,
       u_airiStrength: 1,
+      u_airiSheen: 0,
+      u_airiAmbient: 1,
+      u_airiContrast: 1,
+      u_airiSoftHighlights: 0,
       u_airiChroma: 1,
       u_airiDirectional: 1,
       uSphere: 0,
@@ -67,6 +72,8 @@ export class SurfaceLightPreviewFilter extends Filter {
     writeScreenLights(options.environment.contact, this.uniforms.u_airiLights)
     writeScreenGeometry(options.geometry, options.aspect, this.uniforms.u_airiEmitters)
     this.uniforms.u_airiStageAspect = options.aspect
+    this.uniforms.u_airiSheen = options.material.sheen
+    this.uniforms.u_airiSoftHighlights = options.material.softHighlights ? 1 : 0
     this.uniforms.u_airiStrength = options.strength
     this.uniforms.u_airiChroma = options.chroma
     this.uniforms.u_airiDirectional = options.mode === 'window-gradient' ? 1 : 0
