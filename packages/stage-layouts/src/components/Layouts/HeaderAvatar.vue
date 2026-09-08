@@ -15,6 +15,11 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+defineProps<{
+  /** Shows only the account control on the mobile Stage. @default false */
+  compact?: boolean
+}>()
+
 const authStore = useAuthStore()
 const { isAuthenticated, user, credits } = storeToRefs(authStore)
 const { t } = useI18n()
@@ -31,6 +36,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
     <!-- NOTICE: The avatar is stored in the localstorage, it will be shown at the first time of the page load, so we do not need the skeleton loading here -->
     <template v-if="!isAuthenticated">
       <RouterLink
+        v-if="!compact"
         border="2 solid neutral-100/60 dark:neutral-800/30"
         bg="neutral-50/70 dark:neutral-800/70"
         w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
@@ -41,6 +47,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
       </RouterLink>
 
       <button
+        :class="compact ? ['min-h-11 min-w-11 focus-visible:outline-2 focus-visible:outline-primary-500'] : undefined"
         border="2 solid neutral-100/60 dark:neutral-800/30"
         bg="neutral-50/70 dark:neutral-800/70"
         w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
@@ -59,7 +66,8 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
           type="button"
           :aria-label="userName || t('settings.pages.account.title')"
           :class="[
-            'group flex items-center gap-2 rounded-full border-2 p-1 pl-1 pr-3 outline-none backdrop-blur-md',
+            'group flex items-center gap-2 rounded-full border-2 p-1 outline-none backdrop-blur-md',
+            compact ? 'size-11 justify-center focus-visible:ring-2 focus-visible:ring-primary-500' : 'pl-1 pr-3',
             'border-neutral-100/60 bg-neutral-50/70 dark:border-neutral-800/30 dark:bg-neutral-800/70',
             'hover:bg-neutral-100 data-[state=open]:bg-neutral-100',
             'dark:hover:bg-neutral-800 dark:data-[state=open]:bg-neutral-800',
@@ -76,7 +84,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
           />
 
           <span
-            v-if="userName"
+            v-if="userName && !compact"
             :class="[
               'max-w-[100px] hidden truncate text-sm font-medium sm:block',
               'text-neutral-700 dark:text-neutral-200',
@@ -85,6 +93,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
             {{ userName }}
           </span>
           <div
+            v-if="!compact"
             :class="[
               'i-solar:alt-arrow-down-linear text-neutral-400',
               'transition-transform duration-200',

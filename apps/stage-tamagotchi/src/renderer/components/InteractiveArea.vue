@@ -63,7 +63,6 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
 const {
   trackChatMessageDeleted,
   trackChatMessageRetried,
-  trackChatMessagesCleared,
 } = useAnalytics()
 const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 
@@ -255,15 +254,6 @@ async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: n
     args: payload.args,
   })
 }
-
-async function handleCleanupMessages() {
-  const messageCount = messages.value.filter(message => message.role !== 'system').length
-  await chatStore.cleanup(chatSession.activeSessionId)
-  trackChatMessagesCleared({
-    source: 'chat_controls',
-    message_count: messageCount,
-  })
-}
 </script>
 
 <template>
@@ -408,20 +398,6 @@ async function handleCleanupMessages() {
             @click="stopSpeakingFromChat"
           >
             <div class="i-solar:stop-circle-bold-duotone" />
-          </button>
-
-          <button
-            :class="[
-              'max-h-[10lh] min-h-[1lh]',
-            ]"
-            bg="neutral-100 dark:neutral-800"
-            text="lg neutral-500 dark:neutral-400"
-            hover:text="red-500 dark:red-400"
-            flex items-center justify-center rounded-md p-2 outline-none
-            transition-colors transition-transform active:scale-95
-            @click="handleCleanupMessages"
-          >
-            <div class="i-solar:trash-bin-2-bold-duotone" />
           </button>
 
           <!-- Image Journal Deep Link -->

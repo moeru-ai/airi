@@ -1,3 +1,4 @@
+import type { AuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import type { ChatSessionMeta } from '@proj-airi/stage-ui/types/chat-session'
 import type { Component } from 'vue'
 
@@ -6,13 +7,17 @@ import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/M
 import ChatArea from '@proj-airi/stage-layouts/components/Widgets/ChatArea'
 
 import { PiniaColada } from '@pinia/colada'
+import { useThreeViewControl } from '@proj-airi/stage-ui-three'
+import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
+import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
-import { userEvent } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -33,6 +38,8 @@ function createTestI18n() {
 }
 
 async function renderArea(component: Component = InteractiveArea) {
+  useL2dViewControl().viewControlsEnabled.value = false
+  useThreeViewControl().viewControlsEnabled.value = false
   const sessionB: ChatSessionMeta = {
     sessionId: 'session-b',
     userId: 'local',
@@ -71,6 +78,7 @@ async function renderArea(component: Component = InteractiveArea) {
     chat: useChatStore(pinia),
     chatSession: useChatSessionStore(pinia),
     chatStream: useChatStreamStore(pinia),
+    stageModel: useSettingsStageModel(pinia),
     screen,
   }
 }
@@ -102,6 +110,297 @@ async function attachImages(screen: Awaited<ReturnType<typeof renderArea>>['scre
 }
 
 describe('interactive area synchronized state', () => {
+  it('opens mobile settings from an icon-only header and restores focus', async () => {
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const trigger = screen.getByRole('button', { name: 'stage.mobile-tools.title', exact: true })
+    const bounds = trigger.element().getBoundingClientRect()
+    expect(bounds.width).toBeGreaterThanOrEqual(44)
+    expect(bounds.height).toBeGreaterThanOrEqual(44)
+    expect(bounds.right).toBeLessThanOrEqual(390)
+    expect(bounds.left).toBeGreaterThan(300)
+    expect(bounds.top).toBeLessThan(40)
+    expect(trigger.element().textContent?.trim()).toBe('')
+    await expect.element(screen.getByTestId('speech-mute-button')).not.toBeInTheDocument()
+
+    await trigger.click()
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
+    await expect.element(screen.getByText('stage.mobile-tools.sign-in', { exact: true })).toBeVisible()
+    const account = screen.getByRole('button', { name: 'stage.mobile-tools.sign-in stage.mobile-tools.account-description' }).element()
+    const drawerTitle = screen.getByRole('heading', { name: 'stage.mobile-tools.title' }).element()
+    const accountContent = account.querySelector<HTMLElement>('.basic-button-content')
+    // ROOT CAUSE:
+    //
+    // The account row relied on scoped descendant CSS to stretch
+    // BasicButton's content wrapper. The combined browser bundle could leave
+    // that wrapper at its content width, centering the label inward. Comparing
+    // text coordinates was also unstable while the drawer portal animated, so
+    // assert the owned row and content geometry directly.
+    expect(accountContent).not.toBeNull()
+    await expect.poll(() => getComputedStyle(account).paddingLeft).toBe('0px')
+    expect(account.getBoundingClientRect().left).toBe(drawerTitle.getBoundingClientRect().left)
+    expect(accountContent!.getBoundingClientRect().width).toBe(account.clientWidth)
+    expect(account.getBoundingClientRect().height).toBe(56)
+    expect(account.querySelector('[data-avatar-fallback], [data-avatar-image]')).toBeNull()
+    await expect.element(screen.getByText('stage.mobile-tools.cleanup', { exact: true })).not.toBeInTheDocument()
+    await expect.element(screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()
+    const voice = screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })
+    const before = voice.element().getAttribute('aria-checked')
+    await voice.click()
+    await expect.element(voice).toHaveAttribute('aria-checked', before === 'true' ? 'false' : 'true')
+    await expect.element(screen.getByRole('button', { name: 'Close', exact: true })).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(trigger).toHaveFocus()
+  })
+
+  it('removes the clear-messages action from desktop chat surfaces', async () => {
+    for (const component of [InteractiveArea, SharedInteractiveArea, ChatArea]) {
+      const { screen } = await renderArea(component)
+      expect(screen.container.querySelector('[class*="trash-bin-2-bold-duotone"]')).toBeNull()
+      screen.unmount()
+    }
+  })
+
+  it('places the conversation selector opposite settings in the mobile header', async () => {
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const composer = screen.getByTestId('mobile-message-composer').element()
+    const conversations = screen.getByTestId('conversation-selector-button').element()
+    const bounds = conversations.getBoundingClientRect()
+    const settingsBounds = screen.getByTestId('mobile-settings-button').element().getBoundingClientRect()
+    expect(composer.contains(conversations)).toBe(false)
+    expect(bounds.left).toBe(12)
+    expect(bounds.top).toBe(settingsBounds.top)
+    expect(bounds.width).toBe(44)
+    expect(bounds.height).toBe(44)
+    expect(bounds.left).toBe(390 - settingsBounds.right)
+    expect(conversations.textContent?.trim()).toBe('')
+    await screen.getByTestId('conversation-selector-button').click()
+    await expect.element(screen.getByRole('dialog')).toBeVisible()
+  })
+
+  it('uses the full mobile width for chat history after removing the action rail', async () => {
+    // ROOT CAUSE:
+    //
+    // The removed right action rail left a fixed 3.5rem reservation on the
+    // chat history. Long messages and the scrollbar still stopped before the
+    // right edge even though the controls no longer occupied that space.
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const history = screen.container.querySelector<HTMLElement>('.chat-history')
+
+    expect(history).not.toBeNull()
+    expect(history!.getBoundingClientRect().width).toBe(390)
+  })
+
+  it('opens view controls on the stage and closes them from the top right', async () => {
+    await page.viewport(390, 844)
+    const viewControl = useL2dViewControl()
+    viewControl.viewControlsEnabled.value = false
+
+    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
+    stageModel.setStageModelRenderer('live2d')
+
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
+
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
+    await expect.element(screen.getByTestId('mobile-message-composer')).not.toBeVisible()
+    await expect.element(screen.getByTestId('conversation-selector-button')).not.toBeInTheDocument()
+    await expect.element(screen.getByRole('button', { name: 'X', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Y', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Scale', exact: true })).toBeVisible()
+
+    const close = screen.getByTestId('view-controls-close-button').element()
+    // ROOT CAUSE:
+    //
+    // The drawer suppressed focus restoration before emitting the mode change,
+    // but the Stage did not move focus into the newly rendered controls.
+    await expect.element(screen.getByTestId('view-controls-close-button')).toHaveFocus()
+    expect(close.getBoundingClientRect().right).toBe(378)
+    expect(close.getBoundingClientRect().top).toBe(12)
+    const toolbar = screen.getByTestId('view-controls-toolbar').element()
+    // ROOT CAUSE:
+    //
+    // Fixed horizontal padding ignored display cutouts in landscape viewports.
+    // The toolbar now uses the same left and right safe-area minimum as the header.
+    expect(toolbar.classList).toContain('pl-[max(0.75rem,env(safe-area-inset-left))]')
+    expect(toolbar.classList).toContain('pr-[max(0.75rem,env(safe-area-inset-right))]')
+
+    await screen.getByRole('button', { name: 'stage.mobile-tools.close-view', exact: true }).click()
+
+    await expect.element(screen.getByTestId('mobile-message-composer')).toBeVisible()
+    await expect.element(screen.getByTestId('conversation-selector-button')).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'X', exact: true })).not.toBeInTheDocument()
+    // ROOT CAUSE:
+    //
+    // Closing view mode removed its focused header without moving focus to the
+    // newly mounted normal header, so keyboard users fell back to the document body.
+    await expect.element(screen.getByTestId('mobile-settings-button')).toHaveFocus()
+    expect(viewControl.viewControlsEnabled.value).toBe(false)
+  })
+
+  it('keeps a docked input bubble mounted while view controls are open', async () => {
+    // ROOT CAUSE:
+    //
+    // Entering view mode removed the composer subtree. Its dock animation stores
+    // opacity and position on the mounted elements, while the docked state survives.
+    // Recreating the subtree therefore lost the visual state when view mode closed.
+    await page.viewport(390, 844)
+    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
+    stageModel.setStageModelRenderer('live2d')
+    const bubble = screen.getByTestId('mobile-input-bubble').element()
+    const input = screen.getByRole('textbox').element()
+    const icon = bubble.querySelector<HTMLElement>('[aria-hidden="true"]')!
+    const bounds = bubble.getBoundingClientRect()
+    const pointer = {
+      bubbles: true,
+      clientX: bounds.left + bounds.width / 2,
+      clientY: bounds.top + bounds.height / 2,
+      isPrimary: true,
+      pointerId: 1,
+      pointerType: 'touch',
+    }
+    vi.spyOn(bubble, 'setPointerCapture').mockImplementation(() => {})
+
+    bubble.dispatchEvent(new PointerEvent('pointerdown', { ...pointer, button: 0, buttons: 1 }))
+    await new Promise(resolve => setTimeout(resolve, 550))
+    bubble.dispatchEvent(new PointerEvent('pointermove', { ...pointer, buttons: 1, clientY: pointer.clientY - 80 }))
+    bubble.dispatchEvent(new PointerEvent('pointerup', { ...pointer, buttons: 0, clientY: pointer.clientY - 80 }))
+    await expect.poll(() => getComputedStyle(input).opacity).toBe('0')
+    expect(getComputedStyle(icon).opacity).toBe('1')
+
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
+
+    expect(bubble.isConnected).toBe(true)
+    await expect.element(screen.getByTestId('mobile-message-composer')).not.toBeVisible()
+
+    await screen.getByTestId('view-controls-close-button').click()
+
+    expect(screen.getByTestId('mobile-input-bubble').element()).toBe(bubble)
+    expect(getComputedStyle(input).opacity).toBe('0')
+    expect(getComputedStyle(icon).opacity).toBe('1')
+  })
+
+  it('closes view controls with Escape and restores focus', async () => {
+    // ROOT CAUSE:
+    //
+    // Moving view controls out of the dismissible drawer removed its Escape
+    // behavior, leaving keyboard users in the focused Stage mode.
+    await page.viewport(390, 844)
+    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
+    stageModel.setStageModelRenderer('live2d')
+
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
+    await expect.element(screen.getByTestId('view-controls-close-button')).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+
+    await expect.element(screen.getByTestId('mobile-message-composer')).toBeVisible()
+    await expect.element(screen.getByTestId('view-controls-close-button')).not.toBeInTheDocument()
+    await expect.element(screen.getByTestId('mobile-settings-button')).toHaveFocus()
+  })
+
+  it('exits view controls when the active renderer changes', async () => {
+    // ROOT CAUSE:
+    //
+    // Mobile view mode combined both renderer flags. After a renderer switch,
+    // the previous flag kept the chat hidden while the new renderer had no controls.
+    // The active renderer now owns the visible mode, and transitions clear stale flags.
+    await page.viewport(390, 844)
+    const live2dViewControl = useL2dViewControl()
+    const threeViewControl = useThreeViewControl()
+    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
+    stageModel.setStageModelRenderer('live2d')
+
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
+    await expect.element(screen.getByTestId('view-controls-close-button')).toBeVisible()
+
+    stageModel.setStageModelRenderer('vrm')
+
+    await expect.element(screen.getByTestId('mobile-message-composer')).toBeVisible()
+    await expect.element(screen.getByTestId('view-controls-close-button')).not.toBeInTheDocument()
+    expect(live2dViewControl.viewControlsEnabled.value).toBe(false)
+    expect(threeViewControl.viewControlsEnabled.value).toBe(false)
+    await expect.element(screen.getByTestId('mobile-settings-button')).toHaveFocus()
+  })
+
+  it('shows all five mobile view controls for VRM models', async () => {
+    await page.viewport(390, 844)
+    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
+    stageModel.setStageModelRenderer('vrm')
+
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
+
+    await expect.element(screen.getByRole('button', { name: 'X', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Y', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Z', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Dis', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'FOV', exact: true })).toBeVisible()
+
+    await screen.getByTestId('view-controls-close-button').click()
+  })
+
+  it('keeps the empty mobile input compact and aligns the one-line send action', async () => {
+    // ROOT CAUSE:
+    //
+    // The hierarchy redesign removed the input bubble's compact maximum width.
+    // The 40px bubble also top-aligned its 32px textarea while the send action
+    // aligned to the bottom of the same row.
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const composer = screen.getByTestId('mobile-message-composer').element()
+    const bubble = screen.getByTestId('mobile-input-bubble').element()
+    const input = screen.getByRole('textbox').element()
+    const composerStyle = getComputedStyle(composer)
+    const composerContentWidth = composer.clientWidth
+      - Number.parseFloat(composerStyle.paddingLeft)
+      - Number.parseFloat(composerStyle.paddingRight)
+
+    expect(Math.round(bubble.getBoundingClientRect().width)).toBe(Math.round(composerContentWidth * 0.7))
+
+    await userEvent.fill(input, 'hi')
+    const send = composer.querySelector<HTMLButtonElement>('button')
+    expect(send).not.toBeNull()
+    await expect.poll(() => input.getBoundingClientRect().height).toBe(32)
+    expect(send!.getBoundingClientRect().height).toBe(32)
+    expect(input.getBoundingClientRect().top).toBe(send!.getBoundingClientRect().top)
+    expect(input.getBoundingClientRect().bottom).toBe(send!.getBoundingClientRect().bottom)
+  })
+
+  it('closes mobile settings before requesting sign-in', async () => {
+    let openDialogAtSignIn = true
+    const authorize = vi.fn<AuthorizationHandler>(async () => {
+      openDialogAtSignIn = document.querySelector('[role="dialog"][data-state="open"]') !== null
+    })
+    registerAuthorizationHandler(authorize)
+    try {
+      const { screen } = await renderArea(MobileInteractiveArea)
+      await screen.getByTestId('mobile-settings-button').click()
+      await screen.getByRole('button', { name: 'stage.mobile-tools.sign-in stage.mobile-tools.account-description' }).click()
+      await expect.poll(() => authorize.mock.calls.length).toBe(1)
+      expect(openDialogAtSignIn).toBe(false)
+      await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
+    }
+    finally {
+      registerAuthorizationHandler(browserAuthorizationHandler)
+    }
+  })
+
+  it('returns from hearing to mobile settings without stacked dialogs', async () => {
+    const { screen } = await renderArea(MobileInteractiveArea)
+    await screen.getByTestId('mobile-settings-button').click()
+    await screen.getByRole('button', { name: 'stage.mobile-tools.hearing' }).click()
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).toBeVisible()
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
+    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).not.toBeInTheDocument()
+  })
+
   // https://github.com/moeru-ai/airi/pull/2399
   it('keeps the input visible when a short window contains many attachments', async () => {
     // ROOT CAUSE:

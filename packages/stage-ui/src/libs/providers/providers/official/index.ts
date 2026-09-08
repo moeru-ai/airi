@@ -8,13 +8,10 @@ import { z } from 'zod'
 import { getAuthToken } from '../../../../libs/auth'
 import { SERVER_URL } from '../../../../libs/server'
 import { defineProvider } from '../registry'
+import { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from './constants'
 import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICON, withCredentials } from './shared'
 
-export const OFFICIAL_CHAT_PROVIDER_ID = 'official-provider'
-export const OFFICIAL_SPEECH_PROVIDER_ID = 'official-provider-speech'
-export const OFFICIAL_SPEECH_STREAMING_PROVIDER_ID = 'official-provider-speech-streaming'
-export const OFFICIAL_TRANSCRIPTION_PROVIDER_ID = 'official-provider-transcription'
-export const OFFICIAL_VISION_PROVIDER_ID = 'vision-official-provider'
+export { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID, OFFICIAL_VISION_PROVIDER_ID } from './constants'
 
 // Locale → voice id map recommended by the server, keyed by provider id.
 // Populated by each speech provider's listVoices() from the response's

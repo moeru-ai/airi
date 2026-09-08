@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import Header from '@proj-airi/stage-layouts/components/Layouts/Header.vue'
 import InteractiveArea from '@proj-airi/stage-layouts/components/Layouts/InteractiveArea.vue'
-import MobileHeader from '@proj-airi/stage-layouts/components/Layouts/MobileHeader.vue'
 import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/MobileInteractiveArea.vue'
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
@@ -60,7 +59,7 @@ const hearingPipeline = useHearingSpeechInputPipeline()
 const { removeStreamingTranscriptionConsumer, stopStreamingTranscription, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const consciousnessStore = useConsciousnessStore()
-const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
+const { activeProvider: activeChatProvider, activeModel: activeChatModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
 
 /** Identifies this page in the shared streaming transcription session. */
@@ -94,7 +93,12 @@ async function sendVoiceInputTextToChat(text: string | undefined) {
 
     const provider = await consciousnessStore.getChatProviderInstance(providerId)
 
-    await chatStore.ingest(text, { model, chatProvider: provider })
+    await chatStore.ingest(text, {
+      model,
+      chatProvider: provider,
+      temperature: activeTemperature.value,
+      topP: activeTopP.value,
+    })
   }
   catch (error) {
     console.error('Failed to send chat from voice:', error)
@@ -210,7 +214,6 @@ const cursorPosition = computed(() => ({
       <!-- header -->
       <div class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
         <Header class="hidden md:flex" />
-        <MobileHeader class="flex md:hidden" />
       </div>
       <!-- page -->
       <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col">

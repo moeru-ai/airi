@@ -5232,6 +5232,9 @@ importers:
       reka-ui:
         specifier: 'catalog:'
         version: 2.10.3(vue@3.5.41(typescript@6.0.3))
+      vaul-vue:
+        specifier: 'catalog:'
+        version: 0.4.1(reka-ui@2.10.3(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)

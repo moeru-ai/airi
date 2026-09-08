@@ -8,6 +8,7 @@ import type { EnvelopeCrypto } from '../../../utils/envelope-crypto'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { TtsAdapterId, TtsInput } from '../../adapters/tts/types'
 import type { ConcurrencyLedger } from './concurrency-ledger'
+import type { UpstreamAttempt } from './error-mapping'
 import type { LlmRouteContext, LlmRouteRequest, LlmRoutingGroup, LlmUpstream, RouteFailureTriggers, TtsRoutingGroup, TtsUpstream } from './types'
 
 import { Buffer as NodeBuffer } from 'node:buffer'
@@ -24,11 +25,28 @@ import {
   AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL,
 } from '../../../utils/observability'
 import { getAdapter } from '../../adapters/tts'
+import { TtsUpstreamResponseError } from '../../adapters/tts/types'
 import { createConfigLoader } from './config-loader'
 import { mapUpstreamError } from './error-mapping'
 import { createKeyRotator } from './key-rotator'
 
 const UPSTREAM_BODY_SNIPPET_MAX = 256
+
+interface HttpAttemptFailure {
+  keyId: string
+  status: number | 'timeout'
+  bodySnippet?: string
+  errorMessage?: string
+  response?: Response
+}
+
+function toDiagnosticAttempt({ provider, keyId, status, bodySnippet, errorMessage }: HttpAttemptFailure & { provider: string }): UpstreamAttempt {
+  return { provider, keyId, status, bodySnippet, errorMessage }
+}
+
+async function discardUpstreamResponse(response: Response | undefined): Promise<void> {
+  await response?.body?.cancel().catch(() => {})
+}
 
 /**
  * Read at most `maxBytes` from an upstream non-2xx response body for
@@ -214,8 +232,8 @@ function ttsVoicesCacheKey(provider: string, modelName: string): string {
  * Returns:
  * - `route(req)` — picks an upstream + key, fetches the upstream, walks
  *   fallback on non-2xx until one succeeds or every (upstream, key) has
- *   been tried. Returns a `Response` on the first 2xx; throws `ApiError`
- *   per KTD-1 mapping on full exhaustion.
+ *   been tried. Returns a `Response` on the first 2xx or terminal upstream
+ *   HTTP error. Throws `ApiError` when every attempt fails before a response.
  *
  * The router does NOT open its own OTel span — the route handler in U4
  * owns the span. The router only enriches the *active* span with
@@ -243,15 +261,15 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     req: LlmRouteRequest,
     perAttemptTimeoutMs: number,
     fallbackHttpCodes: number[],
-    onAttemptFailure: (failure: { keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }) => void,
+    onAttemptFailure: (failure: HttpAttemptFailure) => void,
   ): Promise<
     | { kind: 'ok', response: Response, attemptIndex: number, upstreamModel: string }
-    | { kind: 'exhausted', failures: Array<{ keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }> }
+    | { kind: 'exhausted', failures: HttpAttemptFailure[] }
   > {
     const provider = deriveProviderTag(upstream.baseURL)
     const rotator = createKeyRotator(upstream, options.envelopeCrypto, req.modelName, options.gatewayMetrics, provider)
 
-    const failures: Array<{ keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }> = []
+    const failures: HttpAttemptFailure[] = []
     let attemptIndex = 0
 
     for (const key of rotator) {
@@ -299,6 +317,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         }
 
         if (response.ok) {
+          await Promise.all(failures.map(failure => discardUpstreamResponse(failure.response)))
           // First 2xx wins. Enrich the active span and return.
           trace.getActiveSpan()?.setAttributes({
             [AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL]: upstream.baseURL,
@@ -311,17 +330,15 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
         const status = response.status
         // NOTICE:
-        // Drain at most UPSTREAM_BODY_SNIPPET_MAX bytes of the failed body
-        // for diagnostic logging (operators need to see the upstream's real
-        // error, not just the status code), then cancel the rest so the
-        // socket can return to the pool. Without the cancel, a 401/429/5xx
-        // fallback storm leaves half-read bodies in flight and exhausts the
-        // connection pool exactly when the upstream is sick.
+        // Read a cloned response for diagnostic logging. The original response
+        // stays unread because it can become the final client response. When a
+        // later fallback wins, this router cancels the discarded response.
         // Source: codex review 2026-05-15 HIGH #2 (cancel) + cause-propagation
         // follow-up 2026-05-16 (snippet).
-        const bodySnippet = await readUpstreamBodySnippet(response)
-        failures.push({ keyId: key.id, status, bodySnippet })
-        onAttemptFailure({ keyId: key.id, status, bodySnippet })
+        const bodySnippet = await readUpstreamBodySnippet(response.clone())
+        const failure = { keyId: key.id, status, bodySnippet, response }
+        failures.push(failure)
+        onAttemptFailure(failure)
         options.gatewayMetrics?.fallbackCount.add(1, {
           provider,
           from_key: key.id,
@@ -345,6 +362,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         // timeout. The router does NOT fall back on caller-abort: there is
         // no longer a client waiting for a response.
         if (req.abortSignal?.aborted) {
+          await Promise.all(failures.map(failure => discardUpstreamResponse(failure.response)))
           logger.withError(err).withFields({ keyId: key.id }).debug('Caller aborted upstream fetch; propagating without fallback')
           throw err
         }
@@ -355,8 +373,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         // ApiError.cause so operators can tell apart "DNS failed" from
         // "attempt-timeout" without re-running the request.
         const errorMessage = errorMessageFromUnknown(err)
-        failures.push({ keyId: key.id, status: 'timeout', errorMessage })
-        onAttemptFailure({ keyId: key.id, status: 'timeout', errorMessage })
+        const failure = { keyId: key.id, status: 'timeout' as const, errorMessage }
+        failures.push(failure)
+        onAttemptFailure(failure)
         options.gatewayMetrics?.fallbackCount.add(1, {
           provider,
           from_key: key.id,
@@ -372,6 +391,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       attemptIndex += 1
     }
 
+    await Promise.all(failures.slice(0, -1).map(failure => discardUpstreamResponse(failure.response)))
     return { kind: 'exhausted', failures }
   }
 
@@ -392,8 +412,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
     const fallbackHttpCodes = llmModel.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
-    const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }> = []
+    const allFailures: Array<HttpAttemptFailure & { provider: string }> = []
     let triedUpstreams = 0
+    let terminalResponse: Response | undefined
 
     async function attemptUpstream(upstream: LlmUpstream, index: number) {
       const provider = deriveProviderTag(upstream.baseURL)
@@ -424,12 +445,13 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       return {
         kind: 'exhausted' as const,
         statuses: result.failures.map(failure => failure.status),
+        response: result.failures.at(-1)?.response,
       }
     }
 
     async function routeGroup(group: LlmRoutingGroup): Promise<
       | { kind: 'ok', response: Response }
-      | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean }
+      | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean, response?: Response }
     > {
       const statuses: Array<number | 'timeout'> = []
       for (let groupCandidateIndex = 0; groupCandidateIndex < group.upstreamIds.length; groupCandidateIndex += 1) {
@@ -447,10 +469,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         statuses.push(...result.statuses)
         const hasNextCandidate = groupCandidateIndex < group.upstreamIds.length - 1
         if (hasNextCandidate && !failuresMatch(result.statuses, group.retryOn))
-          return { kind: 'exhausted', statuses, transitionBlocked: true }
+          return { kind: 'exhausted', statuses, transitionBlocked: true, response: result.response }
+        if (hasNextCandidate)
+          await discardUpstreamResponse(result.response)
       }
 
-      return { kind: 'exhausted', statuses, transitionBlocked: false }
+      return { kind: 'exhausted', statuses, transitionBlocked: false, response: allFailures.at(-1)?.response }
     }
 
     if (llmModel.routing != null) {
@@ -466,8 +490,11 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           || !hasNextGroup
           || !failuresMatch(result.statuses, group.continueOn)
         ) {
+          if (result.response != null)
+            terminalResponse = result.response
           break
         }
+        await discardUpstreamResponse(result.response)
       }
     }
     else {
@@ -475,6 +502,10 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         const result = await attemptUpstream(llmModel.upstreams[index], index)
         if (result.kind === 'ok')
           return result.response
+        if (index < llmModel.upstreams.length - 1)
+          await discardUpstreamResponse(result.response)
+        else if (result.response != null)
+          terminalResponse = result.response
       }
     }
 
@@ -512,6 +543,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       }
     }
 
+    if (terminalResponse != null)
+      return terminalResponse
+
     throw mapUpstreamError(
       lastFailure.status,
       {
@@ -519,15 +553,15 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         triedUpstreams,
         lastStatusCode: lastFailure.status,
       },
-      allFailures,
+      allFailures.map(toDiagnosticAttempt),
     )
   }
 
   /**
    * Run one TTS upstream's key list in order, parallel to {@link dispatchOneUpstream}
    * but delegating actual HTTP to the provider adapter. Adapters surface
-   * upstream non-2xx as `Error & { status: number }`; network failures /
-   * timeouts arrive as plain `Error` with no status.
+   * upstream non-2xx as {@link TtsUpstreamResponseError}; network failures
+   * and timeouts arrive as errors without an upstream response.
    */
   async function dispatchOneTtsUpstream(
     upstream: TtsUpstream,
@@ -539,15 +573,15 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     perAttemptTimeoutMs: number,
     fallbackHttpCodes: number[],
     unspeechBaseURL: string,
-    onAttemptFailure: (failure: { keyId: string, status: number | 'timeout', errorMessage?: string }) => void,
+    onAttemptFailure: (failure: HttpAttemptFailure) => void,
   ): Promise<
     | { kind: 'ok', contentType: string, body: ArrayBuffer | ReadableStream<Uint8Array>, attemptIndex: number }
-    | { kind: 'exhausted', failures: Array<{ keyId: string, status: number | 'timeout', errorMessage?: string }> }
+    | { kind: 'exhausted', failures: HttpAttemptFailure[] }
   > {
     const providerTag = deriveProviderTag(upstream.baseURL)
     const rotator = createKeyRotator(upstream, options.envelopeCrypto, modelName, options.gatewayMetrics, providerTag)
     const adapter = getAdapter(providerId)
-    const failures: Array<{ keyId: string, status: number | 'timeout', errorMessage?: string }> = []
+    const failures: HttpAttemptFailure[] = []
     let attemptIndex = 0
 
     for (const key of rotator) {
@@ -587,12 +621,36 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           [AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID]: key.id,
           [AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH]: attemptIndex,
         })
+        await Promise.all(failures.map(failure => discardUpstreamResponse(failure.response)))
         return { kind: 'ok', contentType: result.contentType, body: result.body, attemptIndex }
       }
       catch (err) {
         if (abortSignal?.aborted) {
+          await Promise.all(failures.map(failure => discardUpstreamResponse(failure.response)))
           logger.withError(err).withFields({ keyId: key.id }).debug('Caller aborted upstream tts fetch; propagating without fallback')
           throw err
+        }
+
+        if (err instanceof TtsUpstreamResponseError) {
+          const failure = { keyId: key.id, status: err.response.status, response: err.response }
+          failures.push(failure)
+          onAttemptFailure(failure)
+          options.gatewayMetrics?.fallbackCount.add(1, {
+            provider: providerTag,
+            from_key: key.id,
+            reason: String(failure.status),
+          })
+          options.gatewayMetrics?.upstreamErrors.add(1, {
+            provider: providerTag,
+            status_code: failure.status,
+          })
+          if (!fallbackHttpCodes.includes(failure.status)) {
+            attemptIndex += 1
+            break
+          }
+          logger.withError(err).withFields({ keyId: key.id, upstream: upstream.baseURL }).warn('Upstream TTS attempt failed')
+          attemptIndex += 1
+          continue
         }
 
         // Adapter contract (see `server/apps/api/src/services/tts-adapters/types.ts`
@@ -613,34 +671,20 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         if (err instanceof ApiError && err.statusCode < 500)
           throw err
 
-        const rawStatus
-          = (err as { status?: unknown }).status
-            ?? (err instanceof ApiError ? err.statusCode : undefined)
-        const failureStatus: number | 'timeout' = typeof rawStatus === 'number' ? rawStatus : 'timeout'
-        // TTS adapters bake the upstream body snippet into err.message
-        // (azure: `azure tts upstream 403: <body>`, cosyvoice / volcengine
-        // analogous), so a single errorMessage carries both the status
-        // and the upstream payload diagnostics.
+        const rawStatus = err instanceof ApiError ? err.statusCode : undefined
+        const failureStatus: number | 'timeout' = rawStatus ?? 'timeout'
         const errorMessage = errorMessageFromUnknown(err)
-        failures.push({ keyId: key.id, status: failureStatus, errorMessage })
-        onAttemptFailure({ keyId: key.id, status: failureStatus, errorMessage })
+        const failure = { keyId: key.id, status: failureStatus, errorMessage }
+        failures.push(failure)
+        onAttemptFailure(failure)
         options.gatewayMetrics?.fallbackCount.add(1, {
           provider: providerTag,
           from_key: key.id,
           reason: String(failureStatus),
         })
-        if (typeof rawStatus === 'number') {
-          options.gatewayMetrics?.upstreamErrors.add(1, {
-            provider: providerTag,
-            status_code: rawStatus,
-          })
-          if (!fallbackHttpCodes.includes(rawStatus)) {
-            // Same key-level policy as chat: stop rotating credentials in this
-            // candidate. The enclosing group separately decides whether another
-            // candidate may be tried.
-            attemptIndex += 1
-            break
-          }
+        if (typeof rawStatus === 'number' && !fallbackHttpCodes.includes(rawStatus)) {
+          attemptIndex += 1
+          break
         }
         logger.withError(err).withFields({ keyId: key.id, upstream: upstream.baseURL }).warn('Upstream TTS attempt failed')
       }
@@ -651,6 +695,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       attemptIndex += 1
     }
 
+    await Promise.all(failures.slice(0, -1).map(failure => discardUpstreamResponse(failure.response)))
     return { kind: 'exhausted', failures }
   }
 
@@ -672,13 +717,13 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     modelName: string,
     attemptUpstream: (upstream: TtsUpstream, index: number) => Promise<
       | { kind: 'ok', response: Response }
-      | { kind: 'exhausted', sawTooManyRequests: boolean, statuses: Array<number | 'timeout'> }
+      | { kind: 'exhausted', sawTooManyRequests: boolean, statuses: Array<number | 'timeout'>, response?: Response }
     >,
     retryOn?: RouteFailureTriggers,
     strategy: 'least-inflight' | 'ordered' = 'least-inflight',
   ): Promise<
     | { kind: 'ok', response: Response }
-    | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean }
+    | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean, response?: Response }
   > {
     async function markSaturated(upstream: TtsUpstream, poolId: string): Promise<void> {
       await ledger.markSaturated(poolId, ttsPoolSaturationTtlSeconds)
@@ -719,6 +764,13 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     let dispatchedAny = false
     let attemptedPools = 0
     const statuses: Array<number | 'timeout'> = []
+    let lastResponse: Response | undefined
+
+    async function discardPreviousPoolResponse(): Promise<void> {
+      await discardUpstreamResponse(lastResponse)
+      lastResponse = undefined
+    }
+
     for (let rankedIndex = 0; rankedIndex < ranked.length; rankedIndex += 1) {
       const { upstream, index, poolId, maxConcurrency } = ranked[rankedIndex]
       const hasNextCandidate = rankedIndex < ranked.length - 1
@@ -726,14 +778,16 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         // Unlimited pool — dispatch without occupying a slot.
         dispatchedAny = true
         attemptedPools += 1
+        await discardPreviousPoolResponse()
         const result = await attemptUpstream(upstream, index)
         if (result.kind === 'ok')
           return result
         statuses.push(...result.statuses)
+        lastResponse = result.response
         if (result.sawTooManyRequests)
           await markSaturated(upstream, poolId)
         if (hasNextCandidate && retryOn != null && !failuresMatch(result.statuses, retryOn))
-          return { kind: 'exhausted', statuses, transitionBlocked: true }
+          return { kind: 'exhausted', statuses, transitionBlocked: true, response: result.response }
         continue
       }
 
@@ -750,14 +804,16 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       dispatchedAny = true
       attemptedPools += 1
       try {
+        await discardPreviousPoolResponse()
         const result = await attemptUpstream(upstream, index)
         if (result.kind === 'ok')
           return result
         statuses.push(...result.statuses)
+        lastResponse = result.response
         if (result.sawTooManyRequests)
           await markSaturated(upstream, poolId)
         if (hasNextCandidate && retryOn != null && !failuresMatch(result.statuses, retryOn))
-          return { kind: 'exhausted', statuses, transitionBlocked: true }
+          return { kind: 'exhausted', statuses, transitionBlocked: true, response: result.response }
       }
       finally {
         await ledger.release(poolId)
@@ -780,6 +836,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       kind: 'exhausted',
       statuses,
       transitionBlocked: attemptedPools !== upstreams.length,
+      response: lastResponse,
     }
   }
 
@@ -804,8 +861,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
     const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
 
-    const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', errorMessage?: string }> = []
+    const allFailures: Array<HttpAttemptFailure & { provider: string }> = []
     let triedUpstreams = 0
+    let terminalResponse: Response | undefined
 
     // tts upstream schema has no per-upstream timeoutMs (see ttsUpstreamSchema);
     // the defaults bucket alone governs per-attempt timeout.
@@ -817,7 +875,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     // so the caller can circuit-break thatpool.
     async function attemptUpstream(upstream: TtsUpstream, index: number): Promise<
       | { kind: 'ok', response: Response }
-      | { kind: 'exhausted', sawTooManyRequests: boolean, statuses: Array<number | 'timeout'> }
+      | { kind: 'exhausted', sawTooManyRequests: boolean, statuses: Array<number | 'timeout'>, response?: Response }
     > {
       const providerTag = deriveProviderTag(upstream.baseURL)
       triedUpstreams += 1
@@ -849,12 +907,13 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         kind: 'exhausted',
         sawTooManyRequests: result.failures.some(f => f.status === 429),
         statuses: result.failures.map(failure => failure.status),
+        response: result.failures.at(-1)?.response,
       }
     }
 
     async function routeGroup(group: TtsRoutingGroup): Promise<
       | { kind: 'ok', response: Response }
-      | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean }
+      | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean, response?: Response }
     > {
       const indexedUpstreams = group.upstreamIds.map((upstreamId) => {
         const index = ttsModel.upstreams.findIndex(upstream => upstream.id === upstreamId)
@@ -892,10 +951,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         statuses.push(...result.statuses)
         const hasNextCandidate = groupCandidateIndex < indexedUpstreams.length - 1
         if (hasNextCandidate && !failuresMatch(result.statuses, group.retryOn))
-          return { kind: 'exhausted', statuses, transitionBlocked: true }
+          return { kind: 'exhausted', statuses, transitionBlocked: true, response: result.response }
+        if (hasNextCandidate)
+          await discardUpstreamResponse(result.response)
       }
 
-      return { kind: 'exhausted', statuses, transitionBlocked: false }
+      return { kind: 'exhausted', statuses, transitionBlocked: false, response: allFailures.at(-1)?.response }
     }
 
     if (ttsModel.routing != null) {
@@ -911,8 +972,11 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           || !hasNextGroup
           || !failuresMatch(result.statuses, group.continueOn)
         ) {
+          if (result.response != null)
+            terminalResponse = result.response
           break
         }
+        await discardUpstreamResponse(result.response)
       }
     }
     else {
@@ -925,12 +989,18 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           const result = await attemptUpstream(ttsModel.upstreams[i], i)
           if (result.kind === 'ok')
             return result.response
+          if (i === ttsModel.upstreams.length - 1 && result.response != null)
+            terminalResponse = result.response
+          else
+            await discardUpstreamResponse(result.response)
         }
       }
       else {
         const result = await routeTtsAcrossPools(ttsModel.upstreams, req.modelName, attemptUpstream)
         if (result.kind === 'ok')
           return result.response
+        if (result.response != null)
+          terminalResponse = result.response
       }
     }
 
@@ -957,6 +1027,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       }
     }
 
+    if (terminalResponse != null)
+      return terminalResponse
+
     throw mapUpstreamError(
       lastFailure.status,
       {
@@ -964,7 +1037,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         triedUpstreams,
         lastStatusCode: lastFailure.status,
       },
-      allFailures,
+      allFailures.map(toDiagnosticAttempt),
     )
   }
 
