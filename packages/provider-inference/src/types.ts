@@ -13,6 +13,7 @@ import type {
 import type { ResponsesOptions } from '@xsai-ext/responses'
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type { MaybePromise } from 'clustr'
+import type { AIChatModelCard } from 'model-bank/types'
 import type { $ZodType } from 'zod/v4/core'
 
 /** Request configuration for the Responses protocol. The caller owns input and tools. */
@@ -121,6 +122,8 @@ export interface ProviderConfigContext<TConfig> extends ProviderContext {
 
 /** Serializable model discovery result returned across renderer boundaries. */
 export interface ProviderModelCatalog {
+  /** Advisory catalog failure. Endpoint discovery can still succeed without metadata. */
+  metadataError?: string
   /** Models discovered for this provider. */
   models: ModelInfo[]
   /** Whether the server exposes this catalog. Absent when discovery did not return an authoritative state. */
@@ -201,7 +204,22 @@ export interface ProviderRuntimeValidator<TConfig> {
   schedule?: ProviderValidatorSchedule
 }
 
+/**
+ * Advisory route metadata. Model-bank contracts retain their original pricing and search semantics.
+ * Reported search abilities do not select an AIRI native tool implementation.
+ */
+export type ModelMetadata
+  = | ({ source: 'model-bank' } & Pick<AIChatModelCard, 'abilities' | 'maxOutput' | 'pricing' | 'settings'>)
+    | {
+      source: 'openrouter'
+      modalities?: { input: string[], output: string[] }
+      supportedParameters?: string[]
+      /** Catalog prices in USD per million tokens. These are not billing quotes. */
+      pricing?: { input: number, output: number }
+    }
+
 export interface ModelInfo {
+  metadata?: ModelMetadata
   id: string
   name: string
   provider: string

@@ -49,6 +49,7 @@
     "clustr": "catalog:",
     "es-toolkit": "catalog:",
     "is-network-error": "catalog:",
+    "model-bank": "catalog:",
     "unspeech": "catalog:xsai",
     "xsschema": "catalog:",
     "zod": "catalog:"

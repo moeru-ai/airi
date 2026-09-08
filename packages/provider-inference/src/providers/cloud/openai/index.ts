@@ -1,16 +1,18 @@
 import type { ChatRequestOptions, GenerationRequest, ResponsesConfig } from '../../../types'
 
 import { createOpenAI } from '@xsai-ext/providers/create'
+import { openaiChatModels } from 'model-bank/openai'
 import { z } from 'zod'
 
-import { openAIProtocols, supportsOpenAIWebSearch, supportsOpenAIWebSearchEndpoint } from '../../../generation'
+import { openAIProtocols, supportsOpenAIWebSearchEndpoint } from '../../../generation'
+import { listModelCatalog } from '../../../model-catalog'
 import { ProviderValidationCheck } from '../../../types'
 import { createOpenAICompatibleValidators } from '../../../validators'
 import { defineProvider } from '../../registry'
 
 const configSchema = z.object({
   api: z.enum(openAIProtocols.supportedProtocols).default(openAIProtocols.defaultProtocol),
-  webSearch: z.boolean().default(true),
+  webSearch: z.boolean().default(false),
   apiKey: z
     .string('API Key'),
   baseUrl: z
@@ -72,7 +74,7 @@ export const providerOpenAI = defineProvider<Config, 'openai'>({
           }
           return {
             protocol: 'responses',
-            webSearch: (config.webSearch ?? true) && supportsOpenAIWebSearch(request.baseURL, model),
+            webSearch: config.webSearch === true && supportsOpenAIWebSearchEndpoint(request.baseURL),
             config: responseConfig,
           }
         }
@@ -82,6 +84,13 @@ export const providerOpenAI = defineProvider<Config, 'openai'>({
         }
       },
     }
+  },
+
+  extraMethods: {
+    listModelCatalog: config => listModelCatalog(
+      { apiKey: config.apiKey, baseURL: config.baseUrl ?? 'https://api.openai.com/v1' },
+      { source: 'model-bank', models: openaiChatModels, providerId: 'openai', baseURL: 'https://api.openai.com/v1' },
+    ),
   },
 
   validationRequiredWhen(config) {

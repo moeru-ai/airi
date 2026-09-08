@@ -46,8 +46,25 @@ const provider = await definition.createProvider({
 
 User-configured providers send Responses requests directly to their configured endpoint with their own API key. They do not require AIRI backend changes or Flux billing. The official provider continues to use Chat Completions; its Responses support is a separate gateway change.
 
-OpenAI has a `webSearch` switch, enabled by default. The selected protocol must be Responses.
-Only known supported model families on the official OpenAI endpoint enable search.
-Custom endpoints and unknown models do not inherit this capability from their API shape.
-Search is optional for each response. Disabling the switch omits the hosted tool.
+OpenAI has a `webSearch` switch, disabled by default. The selected protocol must be Responses.
+Explicitly enabling search sends the hosted tool on the official OpenAI endpoint. The provider validates model support.
+Custom endpoints do not inherit this tool declaration. Model names never determine search support.
 Search uses the configured OpenAI key and does not require an AIRI login or Tavily key.
+
+## Model metadata
+
+OpenAI model discovery uses LobeHub's [`model-bank`](https://github.com/lobehub/lobehub/tree/canary/packages/model-bank) for exact-ID metadata.
+Provider-specific imports avoid loading unrelated catalogs. Upgrade the pinned dependency to refresh this data.
+OpenRouter discovery uses its [Models API](https://openrouter.ai/docs/guides/overview/models).
+The endpoint model list remains authoritative. Catalog entries cannot add models unavailable through that endpoint.
+Custom endpoints receive no metadata from official routes.
+
+`ModelInfo.metadata` discriminates model-bank data from OpenRouter data.
+Model-bank abilities, settings, and pricing use its exported `AIChatModelCard` contract.
+Currency and fixed, tiered, or lookup pricing remain intact. OpenRouter prices use USD per million tokens.
+Catalog prices are advisory data, not Flux billing quotes.
+Neither tool calling nor OpenRouter search parameters imply native search on another route.
+Protocol defaults and native tool declarations remain provider-owned policy.
+
+OpenAI metadata requires no catalog request. OpenRouter public snapshots use no credentials and expire after one hour. Concurrent discovery shares the same snapshot request.
+Generation does not fetch catalogs. Failed metadata requests preserve endpoint models and return `metadataError`.

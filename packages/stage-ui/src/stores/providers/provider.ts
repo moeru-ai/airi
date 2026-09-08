@@ -542,6 +542,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   function normalizeProviderModels(providerId: string, models: Array<{
+    metadata?: ModelInfo['metadata']
     context_length?: number
     contextLength?: number
     deprecated?: boolean
@@ -551,6 +552,7 @@ export const useProviderStore = defineStore('provider', () => {
     name?: string
   }>) {
     return models.map(model => ({
+      metadata: model.metadata,
       id: model.id,
       name: model.name ?? model.display_name ?? model.id,
       provider: providerId,
@@ -725,8 +727,11 @@ export const useProviderStore = defineStore('provider', () => {
 
     try {
       const catalog = await listProviderModels(providerId, config || {})
+      if (catalog.metadataError)
+        console.warn(`Model metadata unavailable for ${providerId}:`, catalog.metadataError)
       const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
         .map(model => ({
+          metadata: model.metadata,
           id: model.id,
           name: model.name,
           description: model.description,
@@ -753,7 +758,7 @@ export const useProviderStore = defineStore('provider', () => {
         }
         // Synced action results pass through structuredClone. Return local
         // catalog values because reading models back from state returns a Vue
-        // proxy and provider-specific metadata is not part of synced state.
+        // proxy. Catalog metadata contains only serializable data.
         return {
           ...catalog,
           models: normalizedModels,
