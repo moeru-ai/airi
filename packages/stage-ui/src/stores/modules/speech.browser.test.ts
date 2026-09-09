@@ -225,11 +225,17 @@ describe('speech synchronization', () => {
       if (name === 'ensureActiveSpeechVoice')
         selections++
     })
+    // Complete provider initialization before delivering a replacement catalog.
+    leader.speechStore.activeSpeechProvider = 'official-provider-speech'
+    await new Promise(resolve => setTimeout(resolve, 100))
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
     leader.speechStore.$patch({
       activeSpeechProvider: 'official-provider-speech',
       activeSpeechVoiceId: '',
-      availableVoices: { 'official-provider-speech': [{ id: 'voice', name: 'Voice', languages: [{ code: 'en-US', title: 'English' }], provider: 'official-provider-speech' }] },
+      availableVoices: { 'official-provider-speech': [
+        { id: 'fallback', name: 'Fallback', languages: [{ code: 'en-US', title: 'English' }], provider: 'official-provider-speech' },
+        { id: 'voice', name: 'Voice', recommendedFor: ['en-US'], languages: [{ code: 'en-US', title: 'English' }], provider: 'official-provider-speech' },
+      ] },
     })
     await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoiceId).toBe('voice'))
     await new Promise(resolve => setTimeout(resolve, 100))

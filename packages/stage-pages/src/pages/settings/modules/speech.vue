@@ -380,17 +380,15 @@ watch(activeSpeechProvider, async (newProvider) => {
     return
 
   speechStore.ensureActiveSpeechModel()
-  await speechStore.loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
   trackOfficialTtsExposure(newProvider, currentTtsModelId())
 
   syncOpenAICompatibleSettings()
 })
 
-watch(activeSpeechModel, async (model) => {
+watch(activeSpeechModel, () => {
   if (!activeSpeechProvider.value)
     return
 
-  await speechStore.loadVoicesForProvider(activeSpeechProvider.value, model || undefined)
   trackOfficialTtsExposure(activeSpeechProvider.value, currentTtsModelId())
 })
 

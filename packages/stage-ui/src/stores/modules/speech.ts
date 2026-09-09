@@ -154,6 +154,9 @@ export const useSpeechStore = defineStore('speech', () => {
 
     const loadSequence = ++voiceLoadSequence
     latestVoiceLoads.set(provider, loadSequence)
+    // A replacement catalog may belong to another model. Do not let auto-pick
+    // choose from the old response while the new request is pending or fails.
+    availableVoices.value = { ...availableVoices.value, [provider]: [] }
     isLoadingSpeechProviderVoices.value = true
     speechProviderError.value = null
 
@@ -264,9 +267,10 @@ export const useSpeechStore = defineStore('speech', () => {
     clearVoiceSelection()
   }
 
-  // Watch for provider changes, then load the voice catalog. Credential policy
+  // Provider and model form the catalog identity, including changes made by cards.
+  // Watch both here so loading does not depend on an open settings page. Credential policy
   // belongs to the provider boundary, so this module stays auth-agnostic.
-  watch(activeSpeechProvider, async (newProvider, _, onCleanup) => {
+  watch([activeSpeechProvider, activeSpeechModel], async ([newProvider, newModel], _, onCleanup) => {
     if (!newProvider)
       return
     let stale = false
@@ -278,7 +282,7 @@ export const useSpeechStore = defineStore('speech', () => {
     await Promise.resolve()
     if (stale)
       return
-    await useSpeechStore(pinia).loadVoicesForProvider(newProvider)
+    await useSpeechStore(pinia).loadVoicesForProvider(newProvider, newModel || undefined)
     // Don't reset voice settings when changing providers to allow for persistence
   }, {
     // REVIEW: should we always load voices on init? What will happen when network is not available?

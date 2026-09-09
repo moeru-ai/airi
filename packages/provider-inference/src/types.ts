@@ -168,6 +168,8 @@ export interface VoiceInfo {
   id: string
   name: string
   provider: string
+  /** Locales for which the server recommends this voice in this catalog response. */
+  recommendedFor?: string[]
   compatibleModels?: string[]
   description?: string
   gender?: string

@@ -10,14 +10,6 @@ import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICO
 
 export { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID, OFFICIAL_VISION_PROVIDER_ID } from './constants'
 
-// Locale → voice id map recommended by the server, keyed by provider id.
-// Populated by each speech provider's listVoices() from the response's
-// `recommended` field so the auto-pick can prefer a curated default per
-// locale. Keyed per provider because the HTTP and streaming providers have
-// independent catalogs and recommendation buckets. Falls back to language +
-// first-voice matching when the server returns no recommendations.
-const recommendedVoicesByProvider: Record<string, Record<string, string>> = {}
-
 // Server-curated default HTTP speech model id, populated by the HTTP speech
 // provider's listModels(). The speech store uses this when it needs to seed an
 // empty/stale model selection, so the UI mirrors `/audio/speech` `model: auto`.
@@ -179,11 +171,6 @@ export const providerOfficialSpeech = defineProvider({
 
       // An aborted response must not replace the current session's recommendations.
       signal?.throwIfAborted()
-      // Refresh the server-side recommendation map. Done here rather than
-      // threading it through the return value because the auto-pick watcher
-      // lives in this module and reads the same singleton.
-      recommendedVoicesByProvider[OFFICIAL_SPEECH_PROVIDER_ID] = (data.recommended && typeof data.recommended === 'object') ? data.recommended : {}
-
       if (!Array.isArray(data.voices))
         throw new Error('audio voices upstream returned malformed body')
 
@@ -191,6 +178,9 @@ export const providerOfficialSpeech = defineProvider({
         // unspeech surfaces gender inside labels rather than as a top-level field.
         const rawGender = typeof v.labels?.gender === 'string' ? (v.labels.gender as string) : undefined
         return {
+          // Keep recommendations in the response so stale catalogs cannot mutate
+          // a separate cache, and synchronized windows retain the same metadata.
+          recommendedFor: Object.entries(data.recommended ?? {}).filter(([, id]) => id === v.id).map(([locale]) => locale),
           id: v.id,
           name: v.name,
           provider: OFFICIAL_SPEECH_PROVIDER_ID,
@@ -297,17 +287,15 @@ export const providerOfficialSpeechStreaming = defineProvider({
 
       // An aborted response must not replace the current session's recommendations.
       signal?.throwIfAborted()
-      // Mirror the HTTP provider: stash the server's per-locale recommendations
-      // so pickOfficialSpeechVoice can select a curated default voice when
-      // the streaming provider becomes active.
-      recommendedVoicesByProvider[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID] = (data.recommended && typeof data.recommended === 'object') ? data.recommended : {}
-
       if (!Array.isArray(data.voices))
         throw new Error('streaming voices upstream returned malformed body')
 
       return data.voices.map((v) => {
         const rawGender = typeof v.labels?.gender === 'string' ? (v.labels.gender as string) : undefined
         return {
+          // Keep recommendations in the response so stale catalogs cannot mutate
+          // a separate cache, and synchronized windows retain the same metadata.
+          recommendedFor: Object.entries(data.recommended ?? {}).filter(([, id]) => id === v.id).map(([locale]) => locale),
           id: v.id,
           name: v.name,
           provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
@@ -451,7 +439,9 @@ export function pickOfficialSpeechVoice(ctx: {
   //   4) any English voice (en-US, then en-*) — broadest comprehensible
   //      fallback when the user's locale has no coverage at all
   //   5) alphabetical first voice, as a last resort
-  const recommendedMap = recommendedVoicesByProvider[provider] ?? {}
+  const recommendedMap = Object.fromEntries(providerVoices.flatMap(voice =>
+    voice.recommendedFor?.map(locale => [locale, voice.id]) ?? [],
+  ))
   const recommendedId = lookupRecommendedVoiceId(targetLocale, recommendedMap)
   const speaksLocale = (v: VoiceInfo, code: string) => (v.languages || []).some(l => l.code === code)
   const match = (recommendedId && providerVoices.find(v => v.id === recommendedId))

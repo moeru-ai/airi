@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
-import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, providerOfficialSpeech } from '../../libs/providers/providers/official'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice, providerOfficialSpeech } from '../../libs/providers/providers/official'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
@@ -569,5 +569,74 @@ describe('vOICEVOX provider defaults', () => {
 
     expect(providerConfigStore.getProviderConfig('voicevox')?.voiceSettings)
       .toEqual({ speed: 1, pitch: 0, intonation: 1, volume: 1 })
+  })
+  // ROOT CAUSE: Model reloads lived in the settings page, so card changes bypassed them.
+  it('refreshes voices when only the active model changes outside settings', async () => {
+    const providers = useProviderStore()
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    speech.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    speech.activeSpeechModel = 'model-a'
+    await new Promise(resolve => setTimeout(resolve, 20))
+    loads.mockClear()
+    speech.activeSpeechModel = 'model-b'
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(loads).toHaveBeenCalledWith(OFFICIAL_SPEECH_PROVIDER_ID, 'model-b', expect.anything())
+  })
+
+  // ROOT CAUSE: The adapter wrote recommendations before the store discarded stale responses.
+  it('rejects old recommendation side effects together with the old catalog', async () => {
+    authenticateOfficialProvider()
+    const speech = useSpeechStore()
+    let finishOld!: (response: Response) => void
+    const oldResponse = new Promise<Response>((resolve) => {
+      finishOld = resolve
+    })
+    const voices = [
+      { id: 'old', name: 'Old', languages: [{ code: 'en-US', title: 'English' }] },
+      { id: 'new', name: 'New', languages: [{ code: 'en-US', title: 'English' }] },
+    ]
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+      if (String(input).includes('model=model-a'))
+        return oldResponse
+      return Response.json({ voices, recommended: { 'en-US': 'new' } })
+    }))
+    const oldLoad = speech.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'model-a')
+    await new Promise(resolve => setTimeout(resolve, 20))
+    await speech.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'model-b')
+    finishOld(Response.json({ voices, recommended: { 'en-US': 'old' } }))
+    await oldLoad
+    expect(pickOfficialSpeechVoice({
+      activeSpeechProvider: OFFICIAL_SPEECH_PROVIDER_ID,
+      activeSpeechVoiceId: '',
+      availableVoices: speech.availableVoices,
+      uiLocale: 'en-US',
+    })).toBe('new')
+  })
+  // ROOT CAUSE: Clearing a card's voice could auto-pick from the previous model while its replacement loaded.
+  it('does not auto-pick from the old model while loading the new catalog', async () => {
+    const providers = useProviderStore()
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    speech.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    speech.activeSpeechModel = 'model-a'
+    await new Promise(resolve => setTimeout(resolve, 20))
+    speech.availableVoices = { [OFFICIAL_SPEECH_PROVIDER_ID]: [
+      { id: 'old', name: 'Old', languages: [], provider: OFFICIAL_SPEECH_PROVIDER_ID, recommendedFor: ['en-US'] },
+    ] }
+    await speech.ensureActiveSpeechVoice()
+    let finish!: () => void
+    loads.mockImplementation(() => new Promise((resolve) => {
+      finish = () => resolve([])
+    }))
+    speech.activeSpeechModel = 'model-b'
+    speech.activeSpeechVoiceId = ''
+    try {
+      await vi.waitFor(() => expect(finish).toBeDefined())
+      expect(speech.activeSpeechVoiceId).toBe('')
+    }
+    finally {
+      finish?.()
+    }
   })
 })
