@@ -67,8 +67,9 @@ const maximumCaptureWidth = 512
  *   Unchanged pixels can be reused to update moving stage geometry and smoothing.
  * - Other platforms sample each delivered video frame once and mask the stage
  *   alpha to prevent its own lighting from feeding back into the capture.
- * - A stream that ends outside this composable disables the feature and reports
- *   the reason through diagnostics.
+ * - A lost native session retries three times without changing the saved
+ *   enabled setting. Disable, configuration changes, and disposal cancel retries.
+ *   Exhausted retries report an error and clear the stale lighting environment.
  */
 export function useScreenAmbientLight(sources: {
   /**
@@ -116,6 +117,7 @@ export function useScreenAmbientLight(sources: {
   const startNative = defineInvoke(eventa, startAmbientCapture)
   const readNative = defineInvoke(eventa, readAmbientCapture)
   const stopNative = defineInvoke(eventa, stopAmbientCapture)
+  let nativeRecoveryAttempts = 0
   let nativeSession: string | undefined
   let nativeFrame: { width: number, height: number, data: Uint8ClampedArray } | undefined
   let nativeTimer: ReturnType<typeof setTimeout> | undefined
@@ -179,8 +181,8 @@ export function useScreenAmbientLight(sources: {
 
       lastCaptureError = errorMessageFrom(error) ?? 'Unknown error'
       console.error(`Failed to start screen ambient light: ${lastCaptureError}`)
+      // Capture availability is runtime state, not a change to user intent.
       publishDiagnostics('error')
-      screenAmbientLightEnabled.value = false
     }
   }, { immediate: true })
 
@@ -346,6 +348,7 @@ export function useScreenAmbientLight(sources: {
   }
 
   function stop() {
+    nativeRecoveryAttempts = 0
     clearTimeout(nativeTimer)
     const session = nativeSession
     nativeSession = undefined
@@ -402,8 +405,11 @@ export function useScreenAmbientLight(sources: {
       const frame = await readNative(session)
       if (version !== startVersion || nativeSession !== session)
         return
-      if (frame)
+      if (frame) {
         nativeFrame = { ...frame, data: new Uint8ClampedArray(frame.data.buffer, frame.data.byteOffset, frame.data.byteLength) }
+        nativeRecoveryAttempts = 0
+        lastCaptureError = undefined
+      }
       // Excluding AIRI means moving it need not produce a new capture frame.
       // Reuse the latest pixels to update stage geometry and finish smoothing.
       if (nativeFrame)
@@ -413,10 +419,32 @@ export function useScreenAmbientLight(sources: {
     catch (error) {
       if (version !== startVersion || nativeSession !== session)
         return
-      lastCaptureError = errorMessageFrom(error) ?? 'Native screen capture failed.'
-      publishDiagnostics('error')
-      screenAmbientLightEnabled.value = false
+      recoverNative(version, error)
     }
+  }
+
+  function recoverNative(version: number, error: unknown) {
+    if (version !== startVersion)
+      return
+    lastCaptureError = errorMessageFrom(error) ?? 'Native screen capture failed.'
+    publishDiagnostics('error')
+    const session = nativeSession
+    nativeSession = undefined
+    nativeFrame = undefined
+    if (session)
+      void stopNative(session).catch(error => console.warn('Failed to stop native screen capture:', errorMessageFrom(error)))
+
+    // Keep the last applied light while the compositor settles. A fresh frame
+    // resets this budget; a successful start alone does not prove capture works.
+    if (nativeRecoveryAttempts >= 3) {
+      ambientLight.reset()
+      return
+    }
+    const delay = 500 * 2 ** nativeRecoveryAttempts++
+    nativeTimer = setTimeout(() => {
+      if (version === startVersion)
+        void start(version).catch(error => recoverNative(version, error))
+    }, delay)
   }
 
   function applyFrame(frame: { width: number, height: number, data: Uint8ClampedArray }, windowExcludedByCapture: boolean) {

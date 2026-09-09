@@ -21,11 +21,17 @@ compiler. Screen Recording permission is still required.
 ## Lifetime and transport
 
 The main process owns one helper per stage window. Reload, renderer crash,
-window close, disable, or a replacement session stops it. Session IDs prevent
+window close, disable, or a replacement session stops it. Same-document
+navigation keeps the session. Session IDs prevent
 stale reads and stops from affecting a replacement. The renderer requests one
 frame at a time at its configured sample rate. The helper retains the latest
 pixel buffer and reports when no fresh frame exists. The renderer can reuse
 unchanged pixels for moving stage geometry and temporal smoothing.
+
+A lost native session retries after 0.5, 1, and 2 seconds. A fresh frame resets
+this budget. The last applied light remains during recovery; exhausted retries
+clear it and report an error. Capture failure never changes the saved enabled
+setting. Disable, configuration changes, and renderer disposal cancel retries.
 
 Stdout uses a kind byte, a little-endian 32-bit payload length, and a payload:
 ready (0), packed RGBA (1), UTF-8 error (2), or unchanged frame (3). Stdin accepts
