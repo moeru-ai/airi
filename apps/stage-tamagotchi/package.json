@@ -189,7 +189,6 @@
     "@types/yauzl": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
     "@vue-macros/volar": "catalog:",
-    "@webgpu/types": "catalog:",
     "builder-util-runtime": "catalog:",
     "cac": "catalog:",
     "crossws": "catalog:",

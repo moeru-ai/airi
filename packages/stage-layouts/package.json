@@ -64,7 +64,6 @@
     "@types/audioworklet": "catalog:",
     "@types/three": "catalog:",
     "@vue/test-utils": "catalog:",
-    "@webgpu/types": "catalog:",
     "jsdom": "catalog:",
     "unplugin-info": "catalog:",
     "vitest": "catalog:vitest",

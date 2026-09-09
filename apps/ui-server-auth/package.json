@@ -71,7 +71,6 @@
     "@vitejs/plugin-vue": "catalog:",
     "@vue-macros/volar": "catalog:",
     "@vueuse/motion": "catalog:",
-    "@webgpu/types": "catalog:",
     "unplugin-info": "catalog:",
     "unplugin-yaml": "catalog:",
     "vite": "catalog:",

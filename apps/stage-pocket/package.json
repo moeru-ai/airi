@@ -136,7 +136,6 @@
     "@vitejs/plugin-vue": "catalog:",
     "@vue-macros/volar": "catalog:",
     "@vueuse/motion": "catalog:",
-    "@webgpu/types": "catalog:",
     "csstype": "catalog:",
     "hfup": "catalog:",
     "less": "catalog:",

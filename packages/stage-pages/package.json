@@ -63,7 +63,6 @@
     "@types/audioworklet": "catalog:",
     "@types/splitpanes": "catalog:",
     "@types/three": "catalog:",
-    "@webgpu/types": "catalog:",
     "unplugin-info": "catalog:",
     "vue-tsc": "catalog:"
   }

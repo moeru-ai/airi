@@ -226,7 +226,6 @@ catalog:
   '@vueuse/core': ^14.4.0
   '@vueuse/motion': ^3.0.3
   '@vueuse/shared': ^14.4.0
-  '@webgpu/types': ^0.1.72
   '@wxt-dev/module-vue': ^1.0.3
   '@xsai-apple-speech/transcription': 0.1.3
   '@xsai-apple-speech/transcription-electron-plugin': 0.1.3
