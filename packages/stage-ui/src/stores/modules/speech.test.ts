@@ -639,4 +639,36 @@ describe('vOICEVOX provider defaults', () => {
       finish?.()
     }
   })
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3963756330
+  // ROOT CAUSE: A background provider's newer request hid the active provider's pending state and error.
+  it('keeps active provider status when another provider finishes first', async () => {
+    const providers = useProviderStore()
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    speech.activeSpeechProvider = 'microsoft-speech'
+    await new Promise(resolve => setTimeout(resolve, 20))
+    let rejectActive!: (error: Error) => void
+    loads.mockImplementation(async (provider) => {
+      if (provider === 'microsoft-speech') {
+        return new Promise((_resolve, reject) => {
+          rejectActive = reject
+        })
+      }
+      return []
+    })
+    const active = speech.loadVoicesForProvider('microsoft-speech')
+    try {
+      await vi.waitFor(() => expect(rejectActive).toBeDefined())
+      await speech.loadVoicesForProvider('speech-noop')
+      expect(speech.isLoadingSpeechProviderVoices).toBe(true)
+      rejectActive(new Error('active provider failed'))
+      await active
+      expect(speech.speechProviderError).toBe('active provider failed')
+      expect(speech.isLoadingSpeechProviderVoices).toBe(false)
+    }
+    finally {
+      rejectActive?.(new Error('test cleanup'))
+      await active
+    }
+  })
 })

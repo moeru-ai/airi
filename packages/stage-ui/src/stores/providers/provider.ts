@@ -177,9 +177,10 @@ export const useProviderStore = defineStore('provider', () => {
       controller.abort()
     authenticatedVoiceControllers.clear()
   }
-  watch(() => [authStore.isAuthenticated, authStore.session?.id, authStore.token], invalidateVoiceSession, { flush: 'sync' })
+  // Compare scalar values, not newly deserialized session or user objects.
+  watch([() => authStore.isAuthenticated, () => authStore.session?.id, () => authStore.token], invalidateVoiceSession, { flush: 'sync' })
   // Token renewal retains request ownership; logout and account changes do not.
-  watch(() => [authStore.isAuthenticated, authStore.session?.id, authStore.user?.id], () => {
+  watch([() => authStore.isAuthenticated, () => authStore.session?.id, () => authStore.user?.id], () => {
     voiceOwnerEpoch++
   }, { flush: 'sync' })
   onScopeDispose(() => {

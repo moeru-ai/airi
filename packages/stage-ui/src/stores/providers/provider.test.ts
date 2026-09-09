@@ -387,4 +387,42 @@ describe('provider store synchronization boundary', () => {
       vi.unstubAllGlobals()
     }
   })
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3963756328
+  // ROOT CAUSE: Deserialized session objects changed identity without changing request ownership.
+  it('keeps the replacement request alive when refresh replaces same-ID session objects', async () => {
+    const store = useProviderStore()
+    const auth = useAuthStore()
+    auth.$patch(createAuthenticatedState())
+    let requests = 0
+    let replacementSignal: AbortSignal | null | undefined
+    let finish!: (response: Response) => void
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (_input, options) => {
+      requests++
+      return new Promise<Response>((resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => reject(options.signal?.reason), { once: true })
+        if (requests === 2) {
+          replacementSignal = options?.signal
+          finish = resolve
+        }
+      })
+    }))
+    const loading = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
+    try {
+      await vi.waitFor(() => expect(requests).toBe(1))
+      auth.token = 'renewed-token'
+      await vi.waitFor(() => expect(requests).toBe(2))
+      const refreshed = createAuthenticatedState()
+      auth.user = refreshed.user
+      auth.session = refreshed.session
+      expect(replacementSignal?.aborted).toBe(false)
+      finish(Response.json({ voices: [{ id: 'renewed', name: 'Renewed', languages: [] }] }))
+      expect((await loading)?.[0]?.id).toBe('renewed')
+      expect(requests).toBe(2)
+    }
+    finally {
+      finish?.(Response.json({ voices: [] }))
+      await loading
+      vi.unstubAllGlobals()
+    }
+  })
 })

@@ -65,8 +65,11 @@ export const useSpeechStore = defineStore('speech', () => {
   const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0, persistenceOptions)
   const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1, persistenceOptions)
   const ssmlEnabled = useLocalStorageManualReset<boolean>('settings/speech/ssml-enabled', false, persistenceOptions)
-  const isLoadingSpeechProviderVoices = refManualReset<boolean>(false)
-  const speechProviderError = refManualReset<string | null>(null)
+  // Each provider owns its latest request status. Settings for the active
+  // provider and background provider editors must not consume each other's IO.
+  const voiceCatalogStatus = refManualReset<Record<string, { loading: boolean, error: string | null }>>(() => ({}))
+  const isLoadingSpeechProviderVoices = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.loading ?? false)
+  const speechProviderError = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.error ?? null)
   const availableVoices = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
 
@@ -113,7 +116,7 @@ export const useSpeechStore = defineStore('speech', () => {
   })
 
   // Only leader loads own these counters. Older responses for a provider cannot
-  // replace its newer catalog, and only the latest load owns global query status.
+  // replace its newer catalog or request status. Other providers are independent.
   let voiceLoadSequence = 0
   const latestVoiceLoads = new Map<string, number>()
 
@@ -157,8 +160,8 @@ export const useSpeechStore = defineStore('speech', () => {
     // A replacement catalog may belong to another model. Do not let auto-pick
     // choose from the old response while the new request is pending or fails.
     availableVoices.value = { ...availableVoices.value, [provider]: [] }
-    isLoadingSpeechProviderVoices.value = true
-    speechProviderError.value = null
+    voiceCatalogStatus.value = { ...voiceCatalogStatus.value, [provider]: { loading: true, error: null } }
+    let loadError: string | null = null
 
     try {
       const voices = await providersStore.listProviderVoices(provider, model, configuration)
@@ -177,13 +180,12 @@ export const useSpeechStore = defineStore('speech', () => {
     }
     catch (error) {
       console.error(`Error fetching voices for ${provider}:`, error)
-      if (loadSequence === voiceLoadSequence)
-        speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
+      loadError = errorMessageFrom(error) ?? 'Unknown error'
       return []
     }
     finally {
-      if (loadSequence === voiceLoadSequence)
-        isLoadingSpeechProviderVoices.value = false
+      if (latestVoiceLoads.get(provider) === loadSequence)
+        voiceCatalogStatus.value = { ...voiceCatalogStatus.value, [provider]: { loading: false, error: loadError } }
     }
   }
 
@@ -482,8 +484,9 @@ export const useSpeechStore = defineStore('speech', () => {
     ssmlEnabled.reset()
     modelSearchQuery.reset()
     availableVoices.reset()
-    speechProviderError.reset()
-    isLoadingSpeechProviderVoices.reset()
+    // In-flight completions cannot repopulate catalogs or status after reset.
+    latestVoiceLoads.clear()
+    voiceCatalogStatus.reset()
   }
 
   return {
@@ -496,6 +499,7 @@ export const useSpeechStore = defineStore('speech', () => {
     pitch,
     rate,
     ssmlEnabled,
+    voiceCatalogStatus,
     isLoadingSpeechProviderVoices,
     speechProviderError,
     availableVoices,
