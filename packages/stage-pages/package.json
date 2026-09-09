@@ -19,6 +19,7 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
+    "test:run": "vitest run",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
@@ -59,11 +60,17 @@
   },
   "devDependencies": {
     "@nekopaw/tempora": "catalog:",
+    "@pinia/colada": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",
     "@types/audioworklet": "catalog:",
     "@types/splitpanes": "catalog:",
     "@types/three": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
+    "@vitest/browser-playwright": "catalog:vitest",
+    "unocss": "catalog:",
     "unplugin-info": "catalog:",
+    "vitest": "catalog:vitest",
+    "vitest-browser-vue": "catalog:",
     "vue-tsc": "catalog:"
   }
 }
