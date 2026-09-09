@@ -1,0 +1,110 @@
+<script setup lang="ts">
+import type { NormalizedRectangle, PixelFrame } from '@proj-airi/stage-shared/screen-ambient-light'
+
+import { ambientLightMapMarginFor } from '@proj-airi/stage-shared/screen-ambient-light'
+import { computed, nextTick, useTemplateRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const props = defineProps<{
+  frame?: PixelFrame
+  excludedRegion?: NormalizedRectangle
+  subjectRegion?: NormalizedRectangle
+}>()
+
+const { t } = useI18n()
+const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
+const excludedRegionStyle = computed(() => {
+  if (!props.excludedRegion)
+    return undefined
+
+  return {
+    left: `${props.excludedRegion.x * 100}%`,
+    top: `${props.excludedRegion.y * 100}%`,
+    width: `${props.excludedRegion.width * 100}%`,
+    height: `${props.excludedRegion.height * 100}%`,
+  }
+})
+// Area that the two light maps cover: the window grown by the same distance on
+// every edge. The wrap and the cast can only use light inside this outline.
+const mapRegionStyle = computed(() => {
+  // The maps follow what was drawn, which is smaller than the window whenever
+  // the window is not the shape of the subject.
+  const region = props.subjectRegion ?? props.excludedRegion
+  const frame = props.frame
+  if (!region || !frame)
+    return undefined
+
+  const margin = ambientLightMapMarginFor(
+    (region.width * frame.width) / Math.max(1, region.height * frame.height),
+  )
+  return {
+    left: `${(region.x - margin.x * region.width) * 100}%`,
+    top: `${(region.y - margin.y * region.height) * 100}%`,
+    width: `${region.width * (1 + 2 * margin.x) * 100}%`,
+    height: `${region.height * (1 + 2 * margin.y) * 100}%`,
+  }
+})
+
+watch(() => props.frame, async (frame) => {
+  if (!frame)
+    return
+
+  await nextTick()
+  const context = canvas.value?.getContext('2d')
+  if (!context)
+    return
+
+  context.putImageData(new ImageData(
+    new Uint8ClampedArray(frame.data),
+    frame.width,
+    frame.height,
+  ), 0, 0)
+}, { immediate: true })
+</script>
+
+<template>
+  <div :class="['grid gap-2']">
+    <div>
+      <div :class="['text-sm font-medium']">
+        {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.preview.title') }}
+      </div>
+      <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+        {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.preview.description') }}
+      </div>
+    </div>
+
+    <div
+      v-if="frame"
+      :class="[
+        'relative overflow-hidden rounded-xl border border-neutral-200 bg-black',
+        'dark:border-neutral-800',
+      ]"
+    >
+      <canvas
+        ref="canvas"
+        :width="frame.width"
+        :height="frame.height"
+        :class="['block h-auto w-full [image-rendering:pixelated]']"
+      />
+      <div
+        v-if="mapRegionStyle"
+        :class="['pointer-events-none absolute border-2 border-amber-400 border-dashed']"
+        :style="mapRegionStyle"
+      />
+      <div
+        v-if="excludedRegionStyle"
+        :class="['pointer-events-none absolute border-2 border-red-500 bg-red-500/15']"
+        :style="excludedRegionStyle"
+      />
+    </div>
+    <div
+      v-else
+      :class="[
+        'grid min-h-32 place-items-center rounded-xl border border-dashed border-neutral-300',
+        'text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400',
+      ]"
+    >
+      {{ t('tamagotchi.settings.devtools.pages.live2d-ambient-light.diagnostics.preview.unavailable') }}
+    </div>
+  </div>
+</template>
