@@ -14,6 +14,7 @@ import { createServer } from 'node:net'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createChromeSessionManager } from './chrome-session-manager'
+import { createTestConfig } from './test-fixtures'
 import { runProcess } from './utils/process'
 
 vi.mock('node:fs/promises', () => ({
@@ -39,7 +40,7 @@ const mockedWriteFile = vi.mocked(writeFile)
 const mockedCreateServer = vi.mocked(createServer)
 
 function makeConfig(): ComputerUseConfig {
-  return {
+  return createTestConfig({
     executor: 'macos-local',
     sessionTag: 'test',
     sessionRoot: '/tmp/test',
@@ -51,10 +52,14 @@ function makeConfig(): ComputerUseConfig {
       screencapture: '/usr/sbin/screencapture',
       open: '/usr/bin/open',
       osascript: '/usr/bin/osascript',
+      pbcopy: 'pbcopy',
+      pbpaste: 'pbpaste',
+      ssh: 'ssh',
+      tar: 'tar',
     },
-    browserDomBridge: { enabled: false },
+    browserDomBridge: { enabled: false, host: '127.0.0.1', port: 8765, requestTimeoutMs: 10_000 },
     openableApps: [],
-  } as unknown as ComputerUseConfig
+  })
 }
 
 function ok(stdout = ''): any {
