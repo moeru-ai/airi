@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type ThemeVariant = 'primary' | 'violet' | 'lime' | 'orange'
+type ThemeVariant = 'primary' | 'violet' | 'lime' | 'orange' | 'red'
 
 const props = withDefaults(defineProps<{
   theme?: ThemeVariant
@@ -50,6 +50,16 @@ const themeClasses: Record<ThemeVariant, {
     ],
     label: [
       'text-orange-500 dark:text-orange-200 font-semibold',
+    ],
+  },
+  red: {
+    container: [
+      'text-red-600/80 dark:text-red-200/80',
+      'bg-red-50/80 dark:bg-red-500/10 backdrop-blur-md',
+      `before:bg-red-500/30 before:content-[''] before:dark:bg-red-300/20`,
+    ],
+    label: [
+      'text-red-600 dark:text-red-300 font-semibold',
     ],
   },
 }

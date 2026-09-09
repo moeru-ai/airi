@@ -80,11 +80,13 @@ dialogs:
     last-submitted-preview: 提交前预览
   signOut:
     title: 退出登录
+    titleReset: 退出并重置
+    description: 结束当前账号会话。
     keep:
-      title: 退出登录
-      description: 此设备上的数据会保留。
+      label: 保留数据
     reset:
-      title: 退出并删除所有数据
+      warning: 无法撤销
+      description: 将删除全部本地数据。
     cancel: 取消
     error: 退出登录失败。
 language:

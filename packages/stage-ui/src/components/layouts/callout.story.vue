@@ -61,7 +61,7 @@ import { Callout } from '@proj-airi/ui'
       id="label-slot"
       title="With Label Slot"
     >
-      <Callout theme="orange">
+      <Callout theme="red">
         <template #label>
           <div flex items-center gap-1 font-normal>
             <div i-solar:danger-circle-bold-duotone text-lg />

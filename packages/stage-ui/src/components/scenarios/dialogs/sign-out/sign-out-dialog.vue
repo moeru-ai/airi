@@ -2,7 +2,7 @@
 import { errorMessageFrom } from '@moeru/std'
 import { BottomDrawer } from '@proj-airi/ui'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
-import { shallowRef, watch } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SignOutBody from './sign-out-body.vue'
@@ -20,15 +20,21 @@ const open = defineModel<boolean>({ default: false })
 const { t } = useI18n()
 const { isDesktop } = useBreakpoints()
 
+const keepData = shallowRef(true)
 const loading = shallowRef(false)
 const errorMessage = shallowRef<string | null>(null)
 
+const title = computed(() => keepData.value
+  ? t('settings.dialogs.signOut.title')
+  : t('settings.dialogs.signOut.titleReset'))
+
 watch(open, (isOpen) => {
-  if (!isOpen)
-    errorMessage.value = null
+  errorMessage.value = null
+  if (isOpen)
+    keepData.value = true
 })
 
-async function runLeave(resetDevice: boolean) {
+async function runLeave() {
   if (loading.value)
     return
 
@@ -38,7 +44,7 @@ async function runLeave(resetDevice: boolean) {
   try {
     // Chat reset keys off the current user id. Wipe after sign-out would hit
     // the anonymous `local` user instead of the account that is leaving.
-    if (resetDevice)
+    if (!keepData.value)
       await useDataMaintenance().deleteAllData()
 
     await signOut()
@@ -58,14 +64,13 @@ async function runLeave(resetDevice: boolean) {
   <BottomDrawer
     v-if="!isDesktop"
     v-model="open"
-    :title="t('settings.dialogs.signOut.title')"
+    :title="title"
   >
     <SignOutBody
+      v-model:keep-data="keepData"
       :loading="loading"
       :error="errorMessage"
-      :cancel-block="true"
-      @sign-out="runLeave(false)"
-      @reset-device="runLeave(true)"
+      @confirm="runLeave"
       @cancel="open = false"
     />
   </BottomDrawer>
@@ -90,15 +95,19 @@ async function runLeave(resetDevice: boolean) {
           'data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow',
         ]"
       >
-        <DialogTitle :class="['mb-5 text-xl font-semibold tracking-tight']">
-          {{ t('settings.dialogs.signOut.title') }}
+        <DialogTitle
+          :class="[
+            'mb-5 text-xl font-semibold tracking-tight',
+            !keepData && 'text-red-600 dark:text-red-300',
+          ]"
+        >
+          {{ title }}
         </DialogTitle>
         <SignOutBody
+          v-model:keep-data="keepData"
           :loading="loading"
           :error="errorMessage"
-          :cancel-block="false"
-          @sign-out="runLeave(false)"
-          @reset-device="runLeave(true)"
+          @confirm="runLeave"
           @cancel="open = false"
         />
       </DialogContent>

@@ -88,11 +88,13 @@ dialogs:
     last-submitted-preview: Last Submitted Payload Preview
   signOut:
     title: Sign out
+    titleReset: Sign out and reset
+    description: End this account session.
     keep:
-      title: Sign out
-      description: Data on this device stays.
+      label: Keep data
     reset:
-      title: Sign out and delete all data
+      warning: This cannot be undone
+      description: All local data will be deleted.
     cancel: Cancel
     error: Sign out failed.
 language:
