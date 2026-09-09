@@ -601,6 +601,28 @@ describe('vOICEVOX provider defaults', () => {
     expect(speech.availableVoices['microsoft-speech']).toEqual([])
   })
 
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3966034981
+  // ROOT CAUSE: Synthesis settings changed the catalog fingerprint and cleared
+  // a valid selection. Each adapter must identify its discovery inputs.
+  it.each(['elevenlabs', 'voicevox', 'microsoft-speech'])('retains %s selection after synthesis settings change', async (provider) => {
+    const voices = [{ id: 'selected', name: 'Selected', languages: [], provider }]
+    vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue(voices)
+    const speech = useSpeechStore()
+    await speech.selectProviderModel(provider, 'model')
+    await vi.waitFor(() => expect(speech.isLoadingSpeechProviderVoices).toBe(false))
+    const config = { apiKey: 'key', baseUrl: 'https://voices.invalid/', region: 'eastasia' }
+    await speech.loadVoiceCatalog(provider, 'model', { definitionId: provider, config })
+    speech.activeSpeechVoiceId = 'selected'
+    await speech.ensureActiveSpeechVoice()
+    await speech.loadVoiceCatalog(provider, 'model', {
+      definitionId: provider,
+      config: { ...config, pitch: 1, speed: 1.2, volume: 0.8, style: 'happy', voiceSettings: { stability: 0.7 } },
+    })
+    expect(speech.activeSpeechVoiceId).toBe('selected')
+    expect(speech.activeSpeechVoice?.id).toBe('selected')
+    expect(speech.configured).toBe(true)
+  })
+
   it('invalidates cached voices when configuration changes or the provider session expires', async () => {
     const providers = useProviderStore()
     const voices = [{ id: 'cached', name: 'Cached', languages: [], provider: 'microsoft-speech' }]

@@ -625,9 +625,11 @@ export const useProviderStore = defineStore('provider', () => {
   /** Captures ownership before hashing so a concurrent owner change cannot relabel an old request. */
   async function getVoiceCatalogIdentity(model: string | undefined, configuration: VoiceCatalogConfiguration): Promise<VoiceCatalogIdentity> {
     const owner = voiceCatalogOwners.value[configuration.definitionId]
-    // Configuration can include megabytes of audio. Only this fixed-size digest
-    // enters replicated speech state; the original remains an RPC argument.
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(configuration.config)))
+    const selectConfig = getProviderDefinition(configuration.definitionId).extraMethods?.voiceCatalogConfig
+    // Discovery inputs belong to the adapter. Synthesis controls must not clear
+    // a voice selection; unknown adapters conservatively retain the full config.
+    const catalogConfig = selectConfig ? selectConfig(configuration.config) : configuration.config
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(catalogConfig)))
     return {
       definitionId: configuration.definitionId,
       model,

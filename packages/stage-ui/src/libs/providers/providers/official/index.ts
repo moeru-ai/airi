@@ -140,6 +140,7 @@ export const providerOfficialSpeech = defineProvider({
         provider: OFFICIAL_SPEECH_PROVIDER_ID,
       }))
     },
+    voiceCatalogConfig: () => ({}),
     listVoices: async (_config, _provider, model, signal): Promise<VoiceInfo[]> => {
       // Voice catalogs are model-scoped on the server side. Pass the active
       // model through so Azure / cosyvoice / future provider voices route to
@@ -251,6 +252,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
   extraMethods: {
     listModelCatalog: listStreamingModelCatalog,
     listModels: async () => (await listStreamingModelCatalog()).models,
+    voiceCatalogConfig: () => ({}),
     listVoices: async (_config, _provider, model, signal): Promise<VoiceInfo[]> => {
       // Streaming voices live behind a dedicated endpoint
       // (`/audio/voices/streaming`) because they come from the
