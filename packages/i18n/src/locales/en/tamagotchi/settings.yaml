@@ -78,13 +78,16 @@ devtools:
         description: Narrow the eyes when the screen brightens faster than the character has adapted to it. A screen that stays bright leaves the eyes open. 0 turns this off.
       main-window-note: Changes appear in the main AIRI window.
       normals:
-        title: Experimental normal generation
+        title: Model lighting
         description: Generate normals locally for the current model. Nothing runs automatically. Regenerate replaces its saved lighting attachment after validation. Original model files stay unchanged.
         model: Current model
         fingerprint: Asset fingerprint
         saved: Saved attachment
         missing: None
         binding: Active binding
+        import: Import lighting ZIP
+        export: Export lighting ZIP
+        portable-note: The ZIP includes maps and their binding, but not the model. Import replaces the current model's saved lighting after validation.
         generate: Generate for current model
         regenerate: Regenerate and overwrite
         refresh: Check saved data
@@ -95,10 +98,11 @@ devtools:
         coverage: Reference coverage
         coverage-note: Green marks visible surfaces with a normal reference. Hidden surfaces use the proxy when animation exposes them. This experiment does not infer separate facial anatomy.
         bindings:
-          iru: Bundled Iru profile
           proxy: Analytic proxy
-          generated: Saved generated normals
+          generated: Saved lighting attachment
         phases:
+          importing: Reading and validating the lighting ZIP…
+          exporting: Packing the saved maps and binding…
           checking: Checking model assets and saved lighting…
           ready: Ready. Generation starts only when you choose Generate or Regenerate.
           capturing: Capturing a separate neutral model and drawable ownership…

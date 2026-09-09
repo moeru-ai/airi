@@ -4,8 +4,10 @@ import type { NormalPipelineStatus } from '@proj-airi/stage-ui-live2d/lighting/c
 import { defineInvoke } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { exportNormalBundle, importNormalBundle } from '@proj-airi/stage-ui-live2d/lighting/bundle'
 import { captureNormalReference } from '@proj-airi/stage-ui-live2d/lighting/capture'
-import { normalCancel, normalCapture, normalChanged, normalCommit, normalStatus, openNormalChannel } from '@proj-airi/stage-ui-live2d/lighting/channel'
+import { normalCancel, normalCapture, normalChanged, normalCommit, normalImport, normalStatus, openNormalChannel } from '@proj-airi/stage-ui-live2d/lighting/channel'
+import { useDownload } from '@proj-airi/stage-ui/composables/download'
 import { useObjectUrl } from '@vueuse/core'
 import { computed, onMounted, onUnmounted, shallowRef } from 'vue'
 
@@ -17,7 +19,7 @@ export function useNormalGeneration() {
   const status = shallowRef<NormalPipelineStatus>()
   const runtime = shallowRef<{ available: boolean, reason?: string }>()
   const error = shallowRef<string>()
-  const phase = shallowRef<'idle' | 'capturing' | 'generating' | 'saving'>('idle')
+  const phase = shallowRef<'idle' | 'capturing' | 'generating' | 'saving' | 'importing' | 'exporting'>('idle')
   const requestCapture = defineInvoke(context, normalCapture)
   const capture = shallowRef<NormalCapture>()
   const generated = shallowRef<Blob>()
@@ -25,34 +27,46 @@ export function useNormalGeneration() {
   const checkRuntime = useElectronEventaInvoke(normalInferenceStatus)
   const requestStatus = defineInvoke(context, normalStatus)
   const requestCommit = defineInvoke(context, normalCommit)
+  const requestImport = defineInvoke(context, normalImport)
   const cancelJob = defineInvoke(context, normalCancel)
   let controller: AbortController | undefined
   let jobId: string | undefined
   let disposed = false
+  let statusRevision = 0
   const stop = context.on(normalChanged, ({ body }) => {
+    if (!body)
+      return
+    statusRevision++
     if (status.value?.fingerprint !== body.fingerprint) {
       capture.value = undefined
       generated.value = undefined
     }
     status.value = body
   })
+  const busy = computed(() => phase.value !== 'idle' || ['capturing', 'generating', 'saving', 'checking'].includes(status.value?.phase ?? ''))
   async function refresh() {
     error.value = undefined
-    try {
-      const [current, available] = await Promise.all([
-        requestStatus(undefined, { signal: AbortSignal.timeout(5000) }),
-        checkRuntime(undefined, { signal: AbortSignal.timeout(5000) }),
-      ])
-      if (!disposed) {
-        status.value = current
-        runtime.value = available
-      }
-    }
-    catch (cause) {
-      if (!disposed)
-        error.value = errorMessageFrom(cause) ?? 'Could not contact the active Live2D model.'
-    }
+    const revision = statusRevision
+    // Import/export require the model channel, not the optional inference worker.
+    await Promise.all([
+      requestStatus(undefined, { signal: AbortSignal.timeout(5000) }).then((current) => {
+        // Runtime probing and model-status broadcasts can finish in either order.
+        if (!disposed && revision === statusRevision)
+          status.value = current
+      }).catch((cause) => {
+        if (!disposed)
+          error.value = errorMessageFrom(cause) ?? 'Could not contact the active Live2D model.'
+      }),
+      checkRuntime(undefined, { signal: AbortSignal.timeout(5000) }).then((available) => {
+        if (!disposed)
+          runtime.value = available
+      }).catch((cause) => {
+        if (!disposed)
+          runtime.value = { available: false, reason: errorMessageFrom(cause) ?? 'Normal generation is unavailable.' }
+      }),
+    ])
   }
+
   async function generate() {
     const current = status.value
     if (!current?.fingerprint || controller)
@@ -96,6 +110,48 @@ export function useNormalGeneration() {
       phase.value = 'idle'
     }
   }
+  async function importBundle(file: File) {
+    const current = status.value
+    if (busy.value || !current?.fingerprint)
+      return
+    phase.value = 'importing'
+    error.value = undefined
+    try {
+      const attachment = await importNormalBundle(file)
+      if (disposed || status.value?.modelId !== current.modelId || status.value?.fingerprint !== current.fingerprint)
+        throw new Error('The active model changed while the ZIP was read. Import it again.')
+      if (attachment.fingerprint !== current.fingerprint)
+        throw new Error('This lighting ZIP belongs to a different model. Load its original model first.')
+      const saved = await requestImport({ modelId: current.modelId, attachment }, { signal: AbortSignal.timeout(30_000) })
+      if (!disposed && status.value?.modelId === current.modelId) {
+        capture.value = undefined
+        generated.value = undefined
+        status.value = saved
+      }
+    }
+    catch (cause) {
+      if (!disposed)
+        error.value = errorMessageFrom(cause) ?? 'Could not import the lighting ZIP.'
+    }
+    finally { phase.value = 'idle' }
+  }
+  async function exportBundle() {
+    const attachment = status.value?.attachment
+    if (busy.value || !attachment)
+      return
+    phase.value = 'exporting'
+    error.value = undefined
+    try {
+      const zip = await exportNormalBundle(attachment)
+      if (!disposed)
+        useDownload(zip, `lighting-${attachment.fingerprint.slice(0, 12)}.zip`).download()
+    }
+    catch (cause) {
+      if (!disposed)
+        error.value = errorMessageFrom(cause) ?? 'Could not export the lighting ZIP.'
+    }
+    finally { phase.value = 'idle' }
+  }
   onMounted(refresh)
   onUnmounted(() => {
     disposed = true
@@ -105,9 +161,8 @@ export function useNormalGeneration() {
     stop()
     close()
   })
-  const busy = computed(() => phase.value !== 'idle' || ['capturing', 'generating', 'saving', 'checking'].includes(status.value?.phase ?? ''))
   const neutralUrl = useObjectUrl(computed(() => capture.value?.neutral ?? status.value?.attachment?.neutral))
   const normalUrl = useObjectUrl(computed(() => generated.value ?? status.value?.attachment?.normal))
   const coverageUrl = useObjectUrl(computed(() => capture.value?.coverage ?? status.value?.attachment?.coverage))
-  return { status, runtime, error, phase, busy, neutralUrl, normalUrl, coverageUrl, refresh, generate, cancel: () => controller?.abort() }
+  return { status, runtime, error, phase, busy, neutralUrl, normalUrl, coverageUrl, refresh, generate, importBundle, exportBundle, cancel: () => controller?.abort() }
 }

@@ -159,3 +159,7 @@ packages/i18n/glossary/glossary.tbx
 
 /airi-docs/
 .worktrees/
+
+# Model-specific lighting stays in local bundles, never in the application.
+/packages/stage-ui-live2d/src/assets/lighting/
+/packages/stage-ui-live2d/src/filters/nose-attachment.fixture.json

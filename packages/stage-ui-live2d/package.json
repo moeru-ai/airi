@@ -36,6 +36,7 @@
     "./utils/live2d-zip-loader": "./src/utils/live2d-zip-loader.ts",
     "./utils/live2d-opfs-registration": "./src/utils/live2d-opfs-registration.ts",
     "./utils/opfs-loader": "./src/utils/opfs-loader.ts",
+    "./lighting/bundle": "./src/lighting/bundle.ts",
     "./lighting/attachment": "./src/lighting/attachment.ts",
     "./lighting/channel": "./src/lighting/channel.ts",
     "./lighting/capture": "./src/lighting/capture.ts"
@@ -74,6 +75,7 @@
     "pixi-filters": "catalog:",
     "pixi-live2d-display": "catalog:",
     "three": "catalog:",
+    "valibot": "catalog:",
     "vue": "catalog:",
     "zod": "catalog:"
   },

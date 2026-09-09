@@ -97,7 +97,7 @@ bright/dark adaptation speeds in
 
 ### Experimental per-model normals
 
-The ambient-light devtool has an **Experimental normal generation** panel.
+The ambient-light devtool has an **Model lighting** panel.
 It checks the active model and existing attachment without running inference.
 **Generate for current model** captures a separate neutral rig, runs local
 Marigold, saves the attachment, and binds it to the live model. **Regenerate and
@@ -109,13 +109,26 @@ Each record stores image blobs and its drawable reference together. A SHA-256
 fingerprint covers the rig bytes and ordered texture contents. Renaming or
 repacking identical assets reuses the attachment. Original model files stay unchanged.
 Loading a model applies an existing compatible attachment but never starts generation.
+
+**Export lighting ZIP** downloads `profile.json`, `normal.png`, `neutral.png`,
+`ownership.png`, and `coverage.png`. It also includes `raw-normal.png` when present.
+The profile retains the fingerprint, drawable topology, generator metadata, and
+reviewed face, nose, yaw, and illustrated material bindings. It contains relative
+image names and excludes model files and machine paths.
+
+On another installation, load the same model and choose **Import lighting ZIP**.
+The devtool validates the schema, image dimensions, fingerprint, and rig topology
+before replacing that model's saved attachment. Import needs no inference runtime.
+A different model is rejected. Moving or renaming identical model assets is valid.
+Keep private bundles outside Git, for example in `lighting-private.local/`.
+
 Closing the devtool cancels its active inference job. Model changes reject stale
 results. Failed inference leaves the previous saved attachment intact.
 
 The capture uses Cubism's alpha and clipping masks to record drawable ownership.
 Visible neutral regions follow their mesh vertices during animation. Newly exposed
 regions use the analytic proxy. This first experiment uses raw Marigold normals;
-it does not infer semantic face/hair assignments or transfer Iru's fitted nose.
+it does not infer semantic face/hair assignments or reviewed nose geometry.
 Reference positions deform, but normal vectors still use the neutral coordinate basis.
 
 The Electron worker uses a host-owned Python process, cached weights, and no shell
@@ -137,7 +150,7 @@ to one diffuse direction. The nose keeps
 its narrow highlight; clothing receives no added sheen in illustrated mode.
 Disable the toggle to compare the previous Blinn-Phong material.
 
-**Face turn angle** rotates the fitted face and nose normals with Iru's head X
+**Face turn angle** rotates the fitted face and nose normals with the attachment's yaw
 parameter. The default is 45 degrees at the rig's maximum head turn. Zero
 restores the previous directions. This calibration is independent of surface
 relief: a flat face still turns toward or away from a light. Core parameters
@@ -150,15 +163,14 @@ orientation still uses the calibrated head yaw.
 This combines physical hair reflection with artistic diffuse and silhouette
 responses. It is not full PBR. **Hair shadow on face** defaults to 0.5 in the saved
 preset; zero retains only the artwork's painted shadows. If enabled, it projects coverage from
-five reviewed foreground hair meshes onto a fitted convex face. The coverage
+the reviewed foreground hair meshes onto a fitted convex face. The coverage
 pass uses current vertices, atlas alpha, visibility, and render order. Each
 screen emitter projects its own shadow; ambient fill remains visible.
 
-Iru uses the reviewed AI normal map in `src/assets/lighting`. The profile stores
-neutral reference coordinates, texture UVs, and face drawable assignments. The
-map loads only when every drawable ID and texture UV matches at Float32
-precision. Other Cubism 4 models use a smooth analytic proxy. They do not inherit
-Iru's facial shape. Cubism 2 keeps its existing final filter.
+No character-specific maps or mesh bindings ship with the renderer. Import a
+standalone lighting ZIP from the desktop Ambient Light devtool. Until a matching
+attachment is installed, each model uses the analytic proxy. Cubism 2 keeps its
+existing final filter.
 
 Normal coordinates follow their original mesh vertices during animation.
 Light directions use current stage positions, recovered from the Cubism
@@ -191,11 +203,11 @@ Run the focused final-filter GPU tests with Vitest using this package's config:
 pnpm exec vitest run --config packages/stage-ui-live2d/vitest.config.ts src/filters/surface-irradiance.test.ts src/filters/surface-irradiance.browser.test.ts src/filters/screen-ambient-light.browser.test.ts src/filters/surface-light-preview.browser.test.ts src/filters/surface-material.browser.test.ts
 ```
 
-For actual Cubism pixel checks, import Iru into an isolated desktop profile and
-evaluate `docs/research/live2d-lighting-experiment/verify-ambient.js` with
-agent-browser. It checks the authored profile on the model with 65 masked drawables,
-alpha parity, zero-strength parity, and opposite light directions at three head
-poses. The source model and Cubism SDK are local inputs, not bundled test assets.
+For actual Cubism checks, use an isolated desktop profile and a local model.
+Import its lighting ZIP in the Ambient Light devtool, export it, then reload the
+model and import the exported ZIP. Check the fingerprint, saved binding, images,
+and rendered character. Import a different model's ZIP and confirm rejection.
+Source models and private lighting bundles are local inputs, not test assets.
 
 The screen geometry follows the area-light irradiance integral described in
 [Physically Based Rendering](https://pbr-book.org/4ed/Radiometry%2C_Spectra%2C_and_Color/Working_with_Radiometric_Integrals).

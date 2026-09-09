@@ -78,13 +78,16 @@ devtools:
         description: 當螢幕變亮的速度快於角色的適應速度時收窄眼睛。持續明亮的螢幕不會讓眼睛保持眯著。設為 0 可關閉。
       main-window-note: 變更會顯示在 AIRI 主視窗中。
       normals:
-        title: 實驗性法線生成
+        title: 模型光照
         description: 在本機為目前模型生成法線，不會自動執行。重新生成會在驗證後覆寫已儲存的光照附件，不會修改原始模型檔案。
         model: 目前模型
         fingerprint: 素材指紋
         saved: 已儲存的附件
         missing: 無
         binding: 目前綁定
+        import: 匯入光照 ZIP
+        export: 匯出光照 ZIP
+        portable-note: ZIP 包含貼圖及其綁定，但不包含模型。匯入會在驗證後取代目前模型已儲存的光照。
         generate: 為目前模型生成
         regenerate: 重新生成並覆寫
         refresh: 檢查已儲存資料
@@ -95,10 +98,11 @@ devtools:
         coverage: 參考覆蓋範圍
         coverage-note: 綠色表示具有法線參考的可見表面。動畫露出隱藏表面時會使用近似法線。此實驗不會另行推算臉部結構。
         bindings:
-          iru: 內建 Iru 設定檔
           proxy: 解析近似法線
-          generated: 已儲存的生成法線
+          generated: 已儲存的光照附件
         phases:
+          importing: 正在讀取並驗證光照 ZIP…
+          exporting: 正在封裝已儲存的貼圖與綁定…
           checking: 正在檢查模型素材與已儲存的光照…
           ready: 就緒。只有按下生成或重新生成才會開始。
           capturing: 正在擷取獨立模型的中立姿勢與網格歸屬…

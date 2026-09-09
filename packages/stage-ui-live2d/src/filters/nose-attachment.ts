@@ -10,7 +10,7 @@ export class NoseAttachment {
   private readonly reference = new Matrix()
   private readonly triangle: [number, number, number] = [0, 0, 0]
 
-  constructor(reference: readonly number[], indices: ArrayLike<number>, center: readonly [number, number] = [0.5, 0.2234375]) {
+  constructor(reference: readonly number[], indices: ArrayLike<number>, center: readonly [number, number]) {
     let area = 0
     let minX = Infinity
     let maxX = -Infinity
@@ -37,8 +37,7 @@ export class NoseAttachment {
     if (!area)
       throw new Error('The reviewed nose mesh must contain a nondegenerate triangle.')
     const [a, b, c] = this.triangle
-    // Iru defaults to (256,143) in its 512x640 reference. Other reviewed rigs
-    // supply their own center; all follow the actual painted nose mesh.
+    // The attachment supplies the reference center; the painted mesh owns motion.
     this.reference.set(
       reference[b] - reference[a],
       reference[b + 1] - reference[a + 1],

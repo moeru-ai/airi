@@ -368,7 +368,6 @@ async function performModelLoad() {
         lighting.setPhotometry(screenAmbientLightFilter.value.exposure)
         lighting.setMaterial(screenAmbientLightMaterial.value)
         lighting.setScreenGeometry(screenAmbientLightGeometry.value)
-        await lighting.load()
         stopNormalPipeline = registerNormalPipeline(live2DModel.internalModel, lighting, modelSrcRef.value, props.modelId ?? 'live2d')
       }
       catch (error) {
