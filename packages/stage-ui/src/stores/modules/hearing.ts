@@ -440,6 +440,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       return false
 
     const validatedConfigKey = JSON.stringify(provider.config)
+    const modelBeforeRefresh = activeTranscriptionModel.value
     const catalog = await providersStore.fetchModelsForProvider(resolvedProviderId)
     const currentProvider = providerStore.getProvider(resolvedProviderId)
     const currentActiveProviderId = resolveProviderCreationId(
@@ -449,10 +450,25 @@ export const useHearingStore = defineStore('hearing-store', () => {
     if (currentActiveProviderId !== resolvedProviderId || JSON.stringify(currentProvider?.config) !== validatedConfigKey)
       return false
 
-    activeTranscriptionModel.value = resolveRefreshedTranscriptionModel(
-      activeTranscriptionModel.value,
-      catalog.models,
+    if (activeTranscriptionModel.value === modelBeforeRefresh) {
+      activeTranscriptionModel.value = resolveRefreshedTranscriptionModel(
+        modelBeforeRefresh,
+        catalog.models,
+      )
+    }
+    return true
+  }
+
+  async function clearActiveTranscriptionModelForProvider(providerId: string) {
+    const resolvedProviderId = resolveProviderCreationId(providerStore.providerCreationResolutions, providerId)
+    const resolvedActiveProviderId = resolveProviderCreationId(
+      providerStore.providerCreationResolutions,
+      activeTranscriptionProvider.value,
     )
+    if (resolvedActiveProviderId !== resolvedProviderId)
+      return false
+
+    activeTranscriptionModel.value = ''
     return true
   }
 
@@ -635,6 +651,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     configured,
 
     transcription,
+    clearActiveTranscriptionModelForProvider,
     reconcileActiveTranscriptionProviderId,
     refreshActiveTranscriptionModelForProvider,
     loadModelsForProvider,
@@ -644,6 +661,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 }, {
   synced: {
     actions: [
+      'clearActiveTranscriptionModelForProvider',
       'reconcileActiveTranscriptionProviderId',
       'refreshActiveTranscriptionModelForProvider',
     ],
