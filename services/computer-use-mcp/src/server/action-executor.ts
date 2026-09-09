@@ -501,27 +501,29 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'type_text': {
-          const hasExplicitCoordinates
+          const explicitCoordinates
             = typeof normalizedAction.input.x === 'number'
               && typeof normalizedAction.input.y === 'number'
+              ? { x: normalizedAction.input.x, y: normalizedAction.input.y }
+              : undefined
 
-          if (hasExplicitCoordinates) {
+          if (explicitCoordinates) {
             const pointerTrace = buildPointerTrace({
               from: runtime.session.getPointerPosition(),
-              to: { x: normalizedAction.input.x, y: normalizedAction.input.y },
+              to: explicitCoordinates,
               bounds: runtime.config.allowedBounds,
             })
             // NOTICE: The preparatory click must succeed before we type.
             // If focus fails the text would go to the wrong element.
             try {
               await runtime.executor.click({
-                x: normalizedAction.input.x,
-                y: normalizedAction.input.y,
+                x: explicitCoordinates.x,
+                y: explicitCoordinates.y,
                 button: 'left',
                 clickCount: 1,
                 pointerTrace,
               })
-              runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
+              runtime.session.setPointerPosition(explicitCoordinates)
               backendResult.focusPointerTrace = pointerTrace
               backendResult.focusDisplayPoint = structuredDisplayPoint
             }
@@ -537,7 +539,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           const runState = runtime.stateManager.getState()
           const lastSnapshot = runState.lastGroundingSnapshot
           const lastClickedId = runState.lastClickedCandidateId
-          if (!hasExplicitCoordinates && lastClickedId && lastSnapshot) {
+          if (!explicitCoordinates && lastClickedId && lastSnapshot) {
             const lastCandidate = lastSnapshot.targetCandidates.find(
               c => c.id === lastClickedId,
             )

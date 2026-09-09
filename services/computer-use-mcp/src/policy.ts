@@ -37,7 +37,7 @@ function getCoordinate(action: ActionInvocation) {
   }
 }
 
-function estimateOperationUnits(action: ActionInvocation) {
+function estimateOperationUnits(action: ActionInvocation): number {
   switch (action.kind) {
     case 'screenshot':
       return 3
@@ -66,6 +66,8 @@ function estimateOperationUnits(action: ActionInvocation) {
       return Math.max(4, Math.ceil(action.input.command.length / 48))
     case 'terminal_reset':
       return 1
+    default:
+      throw new Error('Unsupported action kind')
   }
 }
 

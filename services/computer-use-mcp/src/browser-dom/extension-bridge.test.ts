@@ -316,15 +316,16 @@ describe('browserDomExtensionBridge', () => {
     const result = await createConnectedBridge()
     bridge = result.bridge
     client = result.client
+    const connectedClient = result.client
 
-    client.on('message', (raw) => {
+    connectedClient.on('message', (raw) => {
       const data = JSON.parse(String(raw)) as Record<string, unknown>
       if (typeof data.id !== 'string')
         return
       if (data.action !== 'getActiveTab')
         return
 
-      client.send(JSON.stringify({
+      connectedClient.send(JSON.stringify({
         id: data.id,
         ok: false,
         error: 'unknown action: getActiveTab',
