@@ -37,7 +37,7 @@ function getCoordinate(action: ActionInvocation) {
   }
 }
 
-function estimateOperationUnits(action: ActionInvocation): number {
+function estimateOperationUnits(action: ActionInvocation) {
   switch (action.kind) {
     case 'screenshot':
       return 3
@@ -66,8 +66,6 @@ function estimateOperationUnits(action: ActionInvocation): number {
       return Math.max(4, Math.ceil(action.input.command.length / 48))
     case 'terminal_reset':
       return 1
-    default:
-      throw new Error('Unsupported action kind')
   }
 }
 
@@ -107,7 +105,7 @@ export function evaluateActionPolicy(params: {
   operationUnitsConsumed: number
 }): PolicyDecision {
   const reasons: string[] = []
-  const estimatedOperationUnits = estimateOperationUnits(params.action)
+  const estimatedOperationUnits = estimateOperationUnits(params.action)!
   const mutating = isMutatingAction(params.action)
   let allowed = true
   let requiresApproval = false

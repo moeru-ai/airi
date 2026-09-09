@@ -364,7 +364,7 @@ export function createChromeSessionManager(
           throw new Error('Failed to get Chrome PID after launch')
         }
 
-        const nextSession: ChromeSessionInfo = {
+        session = {
           ensureOutcome,
           wasAlreadyRunning,
           windowId: `${pid}:0:${CHROME_APP_NAME}`,
@@ -374,9 +374,8 @@ export function createChromeSessionManager(
           initialUrl: options?.url,
           createdAt: new Date().toISOString(),
         }
-        session = nextSession
 
-        return nextSession
+        return session!
       }
       catch (error) {
         await findAndTerminateChromeByProfile(activeProfileDir, cdpPort)

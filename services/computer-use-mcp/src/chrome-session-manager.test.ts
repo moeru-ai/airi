@@ -14,7 +14,6 @@ import { createServer } from 'node:net'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createChromeSessionManager } from './chrome-session-manager'
-import { createTestConfig } from './test-fixtures'
 import { runProcess } from './utils/process'
 
 vi.mock('node:fs/promises', () => ({
@@ -40,32 +39,22 @@ const mockedWriteFile = vi.mocked(writeFile)
 const mockedCreateServer = vi.mocked(createServer)
 
 function makeConfig(): ComputerUseConfig {
-  return createTestConfig({
+  return {
     executor: 'macos-local',
     sessionTag: 'test',
     sessionRoot: '/tmp/test',
     screenshotsDir: '/tmp/test/screenshots',
-    auditLogPath: '/tmp/test/audit.jsonl',
     timeoutMs: 5000,
     approvalMode: 'never',
-    browserDomBridge: {
-      enabled: false,
-      host: '127.0.0.1',
-      port: 8765,
-      requestTimeoutMs: 5000,
-    },
-    openableApps: [],
     binaries: {
       swift: '/usr/bin/swift',
       screencapture: '/usr/sbin/screencapture',
       open: '/usr/bin/open',
       osascript: '/usr/bin/osascript',
-      pbcopy: 'pbcopy',
-      pbpaste: 'pbpaste',
-      ssh: 'ssh',
-      tar: 'tar',
     },
-  })
+    browserDomBridge: { enabled: false },
+    openableApps: [],
+  } as unknown as ComputerUseConfig
 }
 
 function ok(stdout = ''): any {
