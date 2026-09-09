@@ -1,3 +1,5 @@
+import type { Session, User } from 'better-auth'
+
 import type { AiriCard } from '../../types/airiCard'
 
 import { PiniaColada } from '@pinia/colada'
@@ -6,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, toRaw } from 'vue'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
+import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
+import { useAuthStore } from '../auth'
 import { useAiriCardStore } from './airi-card'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
@@ -264,6 +268,130 @@ describe('card inheritance with real module stores', () => {
     expect(cards.activeCard?.extensions.airi.modules.consciousness).toEqual({ provider: 'official-provider', model: 'auto' })
     await cards.configureForAuthentication(true)
     expect(useConsciousnessStore().activeModel).toBe('auto')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3959813216
+  // ROOT CAUSE:
+  //
+  // The speech store observed authentication directly. This leaked official
+  // provider policy into a generic module and ran in every renderer.
+  //
+  // Before: an auth snapshot started voice loading before the leader-owned
+  // card setup completed.
+  //
+  // We fixed this by loading auth-owned voices after card setup applies the
+  // effective provider, model, and voice in the synchronization leader.
+  it('loads official voices through authenticated card setup', async () => {
+    const speechStore = useSpeechStore()
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    speechStore.activeSpeechModel = 'auto'
+    await nextTick()
+
+    const voiceRequests: string[] = []
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/v1/audio/voices')) {
+        voiceRequests.push(url)
+        return Response.json({
+          recommended: { 'en-US': 'voice-a' },
+          voices: [{ id: 'voice-a', name: 'Voice A', languages: ['en-US'] }],
+        })
+      }
+      return Response.json({ flux: 0 })
+    }))
+
+    const user: User = {
+      id: 'user-1',
+      name: 'AIRI User',
+      email: 'user@example.com',
+      emailVerified: true,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    }
+    const session: Session = {
+      id: 'session-1',
+      token: 'server-session-token',
+      userId: user.id,
+      expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    }
+    useAuthStore().$patch({ session, token: 'restored-access-token', user })
+    await nextTick()
+    expect(voiceRequests).toHaveLength(0)
+
+    const cards = useAiriCardStore()
+    await cards.initialize()
+    await cards.configureForAuthentication(true)
+
+    await vi.waitFor(() => {
+      expect(voiceRequests).toHaveLength(1)
+      expect(speechStore.activeSpeechVoiceId).toBe('voice-a')
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960117808
+  // ROOT CAUSE:
+  // Authentication setup awaited the optional voice catalog. A pending response
+  // blocked login completion, card edits, and queued logout configuration.
+  // Refresh voices outside the authentication transition's pending operation.
+  it('completes authentication and logout while voice discovery is pending', async () => {
+    const speechStore = useSpeechStore()
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    speechStore.activeSpeechModel = 'auto'
+    await nextTick()
+
+    let finishVoices!: (response: Response) => void
+    const pendingVoices = new Promise<Response>((resolve) => {
+      finishVoices = resolve
+    })
+    const voiceRequests: string[] = []
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/v1/audio/voices')) {
+        voiceRequests.push(url)
+        return pendingVoices
+      }
+      return Response.json({ flux: 0 })
+    }))
+
+    const user: User = {
+      id: 'user-1',
+      name: 'AIRI User',
+      email: 'user@example.com',
+      emailVerified: true,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    }
+    const session: Session = {
+      id: 'session-1',
+      token: 'server-session-token',
+      userId: user.id,
+      expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    }
+    useAuthStore().$patch({ session, token: 'restored-access-token', user })
+    await nextTick()
+    expect(voiceRequests).toHaveLength(0)
+
+    const cards = useAiriCardStore()
+    await cards.initialize()
+    let configured = false
+    const setup = cards.configureForAuthentication(true).then(() => {
+      configured = true
+    })
+    try {
+      await vi.waitFor(() => expect(voiceRequests).toHaveLength(1))
+      await vi.waitFor(() => expect(configured).toBe(true))
+      await cards.addCard(card(), 'import')
+      await cards.configureForAuthentication(false)
+      expect(speechStore.activeSpeechProvider).toBe('speech-noop')
+    }
+    finally {
+      finishVoices(Response.json({ recommended: {}, voices: [] }))
+      await setup
+    }
   })
 
   it('does not write login defaults into empty uploaded-card fields', async () => {

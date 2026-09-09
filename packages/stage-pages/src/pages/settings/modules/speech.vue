@@ -108,7 +108,9 @@ const displayedSpeechSource = computed({
     return activeSpeechProvider.value
   },
   set: (value: string) => {
-    selectSpeechSource(value)
+    void selectSpeechSource(value).catch((error) => {
+      errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+    })
   },
 })
 
@@ -146,7 +148,9 @@ const displayedSpeechModel = computed({
     ? streamingModelOptionId(activeSpeechModel.value)
     : activeSpeechModel.value,
   set: (value: string) => {
-    selectSpeechModel(value)
+    void selectSpeechModel(value).catch((error) => {
+      errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+    })
   },
 })
 
@@ -264,18 +268,6 @@ function withManualPreviewAnalytics<TProviderConfig extends Record<string, unkno
 }
 
 /**
- * Tracks the active TTS provider while preserving the legacy provider-card event.
- */
-function selectSpeechProvider(providerId: string) {
-  trackProviderClick(providerId, 'speech')
-  trackTtsProviderSelected({
-    tts_provider_id: providerId,
-    tts_model_id: currentTtsModelId(),
-    source: 'settings',
-  })
-}
-
-/**
  * Tracks explicit voice selection from catalog or custom input controls.
  */
 async function selectSpeechVoice(voiceId: string | undefined) {
@@ -291,14 +283,23 @@ async function selectSpeechVoice(voiceId: string | undefined) {
   })
 }
 
+/** Persists the selection only after the leader commits its provider and model. */
 async function selectSpeechSource(sourceId: string) {
-  activeSpeechProvider.value = sourceId
-  activeSpeechModel.value = ''
-  activeSpeechVoiceId.value = ''
-  activeSpeechVoice.value = undefined
+  const selection = await speechStore.selectProviderModel(sourceId, '')
+  if (!selection)
+    return
+  const providerId = providerStore.providers[sourceId]?.definitionId || sourceId
+  // Use this command's receipt: another selection can reach the store before
+  // this caller resumes, but must not relabel this analytics event.
+  trackTtsProviderSelected({
+    tts_provider_id: providerId,
+    tts_model_id: selection.model || 'unknown',
+    source: 'settings',
+  })
   await persistSelection()
 }
 
+/** Resolves the displayed model option before committing it in the leader. */
 async function selectSpeechModel(modelOptionId: string) {
   const streamingModelId = modelIdFromStreamingOptionId(modelOptionId)
   const nextProvider = streamingModelId == null
@@ -308,15 +309,7 @@ async function selectSpeechModel(modelOptionId: string) {
     : OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
   const nextModel = streamingModelId ?? modelOptionId
 
-  if (activeSpeechProvider.value !== nextProvider) {
-    activeSpeechProvider.value = nextProvider
-    activeSpeechVoiceId.value = ''
-    activeSpeechVoice.value = undefined
-  }
-
-  activeSpeechModel.value = nextModel
-  activeSpeechVoiceId.value = ''
-  activeSpeechVoice.value = undefined
+  await speechStore.selectProviderModel(nextProvider, nextModel)
   await persistSelection()
 }
 
@@ -339,58 +332,59 @@ function trackOfficialTtsExposure(providerId = activeSpeechProvider.value, model
   })
 }
 
-// Sync OpenAI Compatible model and voice from provider config
-function syncOpenAICompatibleSettings() {
+/** Applies provider defaults in the leader without a follower state proposal. */
+async function syncOpenAICompatibleSettings() {
   if (activeSpeechProvider.value !== 'openai-compatible-audio-speech')
     return
 
   const providerConfig = providerStore.getProviderConfig(activeSpeechProvider.value)
-  // Sync model from provider config (override any existing value from previous provider)
-  if (providerConfig?.model) {
-    activeSpeechModel.value = providerConfig.model as string
-  }
-  else {
-    // If no model in provider config, use default
-    activeSpeechModel.value = 'tts-1'
-  }
-  // Sync voice from provider config (override any existing value from previous provider)
-  // Use updateCustomVoiceName to ensure proper reactivity
-  if (providerConfig?.voice) {
-    activeSpeechVoiceId.value = providerConfig.voice as string
-    updateCustomVoiceName(providerConfig.voice as string)
-  }
-  else {
-    // If no voice in provider config, use default
-    activeSpeechVoiceId.value = 'alloy'
-    updateCustomVoiceName('alloy')
-  }
+  // Empty provider fields select the same OpenAI defaults as the provider form.
+  await speechStore.selectProviderModel(
+    activeSpeechProvider.value,
+    providerConfig?.model as string || 'tts-1',
+    providerConfig?.voice as string || 'alloy',
+  )
 }
 
 onMounted(async () => {
-  await providersStore.loadModelsForConfiguredProviders()
-  speechStore.ensureActiveSpeechModel()
-  await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
-  syncOpenAICompatibleSettings()
-  trackOfficialTtsExposure()
+  try {
+    await providersStore.loadModelsForConfiguredProviders()
+    await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
+    await syncOpenAICompatibleSettings()
+    trackOfficialTtsExposure()
+  }
+  catch (error) {
+    // Closing a renderer rejects pending RPCs even after its page unmounts.
+    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+  }
 })
 
 watch(activeSpeechProvider, async (newProvider) => {
-  await providersStore.loadModelsForConfiguredProviders()
-  if (newProvider !== activeSpeechProvider.value)
-    return
+  try {
+    await providersStore.loadModelsForConfiguredProviders()
+    if (newProvider !== activeSpeechProvider.value)
+      return
 
-  speechStore.ensureActiveSpeechModel()
-  await speechStore.loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
-  trackOfficialTtsExposure(newProvider, currentTtsModelId())
+    // Model discovery can finish after the selection commit. The leader loader
+    // resolves defaults from that catalog before it requests matching voices.
+    await speechStore.loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
+    if (newProvider !== activeSpeechProvider.value)
+      return
+    trackOfficialTtsExposure(newProvider, currentTtsModelId())
 
-  syncOpenAICompatibleSettings()
+    await syncOpenAICompatibleSettings()
+  }
+  catch (error) {
+    // An obsolete provider request must not replace the current form error.
+    if (newProvider === activeSpeechProvider.value)
+      errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+  }
 })
 
-watch(activeSpeechModel, async (model) => {
+watch(activeSpeechModel, () => {
   if (!activeSpeechProvider.value)
     return
 
-  await speechStore.loadVoicesForProvider(activeSpeechProvider.value, model || undefined)
   trackOfficialTtsExposure(activeSpeechProvider.value, currentTtsModelId())
 })
 
@@ -581,10 +575,16 @@ function commitCustomVoiceSelection() {
   selectSpeechVoice(activeSpeechVoiceId.value)
 }
 
-function updateCustomModelName(value: string | undefined) {
-  activeSpeechModel.value = value || ''
-  activeSpeechVoiceId.value = ''
-  void persistSelection()
+/** Routes manual model edits through the same leader commit as listed models. */
+async function updateCustomModelName(value: string | undefined) {
+  errorMessage.value = ''
+  try {
+    await speechStore.selectProviderModel(activeSpeechProvider.value, value || '')
+    await persistSelection()
+  }
+  catch (error) {
+    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+  }
 }
 
 async function handleDeleteProvider(providerId: string) {
@@ -598,6 +598,7 @@ async function handleDeleteProvider(providerId: string) {
 </script>
 
 <template>
+  <ErrorContainer v-if="errorMessage" :error="errorMessage" />
   <div flex="~ col md:row gap-6">
     <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[40%]">
       <div flex="~ col gap-4">
@@ -623,7 +624,7 @@ async function handleDeleteProvider(providerId: string) {
               :value="source.id"
               :title="source.title"
               :description="source.description"
-              @click="selectSpeechProvider(source.providerId || source.id)"
+              @click="trackProviderClick(source.providerId || source.id, 'speech')"
             >
               <template #topRight>
                 <button
@@ -887,9 +888,12 @@ async function handleDeleteProvider(providerId: string) {
                 Model
               </label>
               <select
-                v-model="activeSpeechModel"
-                class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
-                @change="selectSpeechModel(activeSpeechModel)"
+                v-model="displayedSpeechModel"
+                :class="[
+                  'w-full px-3 py-2',
+                  'border border-neutral-300 rounded dark:border-neutral-700',
+                  'bg-white dark:bg-neutral-900',
+                ]"
               >
                 <option value="eleven_monolingual_v1">
                   Monolingual v1

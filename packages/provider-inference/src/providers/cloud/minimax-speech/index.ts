@@ -136,6 +136,7 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
       { id: 'speech-2.8-hd', name: 'Speech 2.8 HD', provider: 'minimax-speech', description: 'High-definition TTS model with natural prosody', deprecated: false },
       { id: 'speech-2.8-turbo', name: 'Speech 2.8 Turbo', provider: 'minimax-speech', description: 'Fast TTS model for low-latency scenarios', deprecated: false },
     ],
+    voiceCatalogConfig: () => ({}),
     listVoices: async () => [
       { id: 'English_Graceful_Lady', name: 'Graceful Lady', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
       { id: 'English_Insightful_Speaker', name: 'Insightful Speaker', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },

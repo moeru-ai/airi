@@ -122,7 +122,7 @@ onMounted(async () => {
 
   // Load voices if provider is configured
   if (providerStore.configuredProviders[props.providerId]) {
-    speechStore.loadVoicesForProvider(props.providerId)
+    await speechStore.loadVoicesForProvider(props.providerId)
   }
 })
 

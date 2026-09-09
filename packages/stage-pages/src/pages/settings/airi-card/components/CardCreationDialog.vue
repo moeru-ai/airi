@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { Card } from '@proj-airi/ccc'
 import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import type { VoiceInfo } from '@proj-airi/stage-ui/stores/providers/provider'
 import type { Ref } from 'vue'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
@@ -11,7 +13,6 @@ import { resolveModuleSelection } from '@proj-airi/stage-ui/services/airi-card-m
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
@@ -62,7 +63,6 @@ const { trackCardEdited } = useAnalytics()
 const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const visionStore = useVisionStore()
-const speechStore = useSpeechStore()
 const providersStore = useProviderStore()
 const displayModelsStore = useDisplayModelsStore()
 
@@ -83,6 +83,7 @@ const selectedVisionModel = ref<string>('')
 const selectedSpeechProvider = ref<string>('')
 const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
+const previewVoices = ref<VoiceInfo[]>([])
 const selectedDisplayModelId = ref<string>('')
 
 // NOTICE:
@@ -213,8 +214,7 @@ const speechVoiceOptions = computed(() => {
   const provider = selectedSpeechProvider.value || speechProvider.value
   if (!provider)
     return withInheritGlobalSetting([], selectedSpeechVoiceId.value)
-  const voices = speechStore.getVoicesForProvider(provider)
-  return withInheritGlobalSetting(voices.map(voice => ({
+  return withInheritGlobalSetting(previewVoices.value.map(voice => ({
     value: voice.id,
     label: voice.name || voice.id,
   })), selectedSpeechVoiceId.value)
@@ -250,7 +250,6 @@ async function loadSelectedModuleOptions() {
 
   const speechProviderId = selectedSpeechProvider.value || speechProvider.value
   if (speechProviderId) {
-    loads.push(speechStore.loadVoicesForProvider(speechProviderId, selectedSpeechModel.value || undefined))
     if (providersStore.supportsModelListing(speechProviderId))
       loads.push(providersStore.fetchModelsForProvider(speechProviderId))
   }
@@ -291,19 +290,17 @@ watch(selectedSpeechProvider, async (newProvider, oldProvider) => {
     selectedSpeechModel.value = ''
     selectedSpeechVoiceId.value = ''
     const provider = newProvider || speechProvider.value
-    await speechStore.loadVoicesForProvider(provider)
     if (provider && providersStore.supportsModelListing(provider))
       await providersStore.fetchModelsForProvider(provider)
   }
 }, { flush: 'sync' })
 
 // Reset voice when speech model changes (different models may have different voices)
-watch(selectedSpeechModel, async (newModel, oldModel) => {
+watch(selectedSpeechModel, (newModel, oldModel) => {
   // Only reset if model actually changed and we're not initializing
   const provider = selectedSpeechProvider.value || speechProvider.value
   if (props.modelValue && !isInitializingModuleSelections && oldModel !== undefined && newModel !== oldModel && provider) {
     selectedSpeechVoiceId.value = ''
-    await speechStore.loadVoicesForProvider(provider, newModel || undefined)
   }
 }, { flush: 'sync' })
 
@@ -347,6 +344,34 @@ async function selectTab(tabId: string) {
   if (tabId === 'modules')
     await loadSelectedModuleOptions()
 }
+
+// Preview discovery never commits runtime speech state. Closing the dialog or
+// changing its selection invalidates the response, including in-flight RPCs.
+watch([
+  () => props.modelValue && activeTab.value === 'modules',
+  () => selectedSpeechProvider.value || speechProvider.value,
+  () => selectedSpeechModel.value || ((selectedSpeechProvider.value || speechProvider.value) === speechProvider.value
+    ? cardStore.moduleDefaults?.speech.model
+    : undefined),
+], async ([open, provider, model], _, onCleanup) => {
+  let current = true
+  onCleanup(() => {
+    current = false
+  })
+  previewVoices.value = []
+  if (!open || !provider)
+    return
+  try {
+    const config = providersStore.getVoiceCatalogConfiguration(provider)
+    const voices = await providersStore.listProviderVoices(provider, model || undefined, config)
+    if (current)
+      previewVoices.value = voices ?? []
+  }
+  catch (error) {
+    if (current)
+      console.error('Failed to load card preview voices:', errorMessageFrom(error))
+  }
+}, { immediate: true })
 
 // Reset active tab when dialog opens
 watch(() => props.modelValue, (isOpen) => {
