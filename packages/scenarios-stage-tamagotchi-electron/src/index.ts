@@ -1,3 +1,5 @@
+export type { SwipeGestureDirection, SwipeGestureInput, SwipeGestureOptions } from './runtime/gestures'
+export { swipe } from './runtime/gestures'
 export { default as demoControlsSettingsChatWebsocketScenario } from './scenarios/demo-controls-settings-chat-websocket/index'
 export { default as demoDismissSurfacesScenario } from './scenarios/demo-dismiss-surfaces'
 export { default as demoHearingDialogScenario } from './scenarios/demo-hearing-dialog'

@@ -4,7 +4,6 @@ import type { Component } from 'vue'
 
 import SharedInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/InteractiveArea'
 import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/MobileInteractiveArea'
-import ChatArea from '@proj-airi/stage-layouts/components/Widgets/ChatArea'
 
 import { PiniaColada } from '@pinia/colada'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
@@ -109,6 +108,62 @@ async function attachImages(screen: Awaited<ReturnType<typeof renderArea>>['scre
   })
 }
 
+function dispatchHorizontalPan(element: HTMLElement, deltaX = 60) {
+  element.dispatchEvent(new WheelEvent('wheel', {
+    bubbles: true,
+    cancelable: true,
+    deltaX,
+    deltaY: 2,
+  }))
+}
+
+async function expectElectronReplyBubble(screen: Awaited<ReturnType<typeof renderArea>>['screen']) {
+  await vi.waitFor(() => {
+    expect(screen.container.querySelector('[data-swipeable]')).not.toBeNull()
+  })
+
+  const input = screen.getByRole('textbox').element() as HTMLTextAreaElement
+  const bubble = input.parentElement
+  const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable]')
+  expect(bubble).not.toBeNull()
+  expect(swipeSurface).not.toBeNull()
+  if (!bubble || !swipeSurface)
+    throw new Error('Expected the message input bubble and a swipe surface.')
+
+  const collapsedHeight = bubble.getBoundingClientRect().height
+  dispatchHorizontalPan(swipeSurface)
+
+  await vi.waitFor(() => {
+    const cancelButton = bubble.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
+    expect(cancelButton?.parentElement?.getAttribute('aria-hidden')).toBe('false')
+    expect(bubble.getBoundingClientRect().height).toBeGreaterThan(collapsedHeight)
+  })
+
+  expect(getComputedStyle(input).backgroundColor).toBe('rgba(0, 0, 0, 0)')
+  expect(getComputedStyle(bubble).backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+
+  const cancelButton = bubble.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
+  const replyTransition = cancelButton?.parentElement?.parentElement
+  expect(replyTransition).not.toBeNull()
+  expect(cancelButton).not.toBeNull()
+  if (!replyTransition || !cancelButton)
+    throw new Error('Expected the reply transition and cancel button.')
+
+  expect(Number.parseFloat(getComputedStyle(replyTransition).transitionDuration)).toBeGreaterThan(0)
+  const expandedHeight = bubble.getBoundingClientRect().height
+  cancelButton.click()
+  await nextTick()
+  expect(cancelButton.parentElement?.getAttribute('aria-hidden')).toBe('true')
+  expect(bubble.getBoundingClientRect().height).toBeGreaterThan(collapsedHeight)
+  expect(bubble.getBoundingClientRect().height).toBeCloseTo(expandedHeight, 0)
+  await new Promise(resolve => setTimeout(resolve, 50))
+  expect(bubble.getBoundingClientRect().height).toBeGreaterThan(collapsedHeight)
+  expect(bubble.getBoundingClientRect().height).toBeLessThan(expandedHeight)
+  await vi.waitFor(() => {
+    expect(bubble.getBoundingClientRect().height).toBeCloseTo(collapsedHeight, 0)
+  })
+}
+
 describe('interactive area synchronized state', () => {
   it('opens mobile settings from an icon-only header and restores focus', async () => {
     await page.viewport(390, 844)
@@ -154,7 +209,7 @@ describe('interactive area synchronized state', () => {
   })
 
   it('removes the clear-messages action from desktop chat surfaces', async () => {
-    for (const component of [InteractiveArea, SharedInteractiveArea, ChatArea]) {
+    for (const component of [InteractiveArea, SharedInteractiveArea]) {
       const { screen } = await renderArea(component)
       expect(screen.container.querySelector('[class*="trash-bin-2-bold-duotone"]')).toBeNull()
       screen.unmount()
@@ -344,12 +399,13 @@ describe('interactive area synchronized state', () => {
     await screen.getByTestId('view-controls-close-button').click()
   })
 
-  it('keeps the empty mobile input compact and aligns the one-line send action', async () => {
+  it('keeps the empty mobile input compact and aligns the send action with its bubble', async () => {
     // ROOT CAUSE:
     //
     // The hierarchy redesign removed the input bubble's compact maximum width.
     // The 40px bubble also top-aligned its 32px textarea while the send action
-    // aligned to the bottom of the same row.
+    // aligned to the bottom of the same row. The reply container now owns the
+    // visible border, so the action aligns with the bubble instead of its inset textarea.
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
     const composer = screen.getByTestId('mobile-message-composer').element()
@@ -363,12 +419,13 @@ describe('interactive area synchronized state', () => {
     expect(Math.round(bubble.getBoundingClientRect().width)).toBe(Math.round(composerContentWidth * 0.7))
 
     await userEvent.fill(input, 'hi')
-    const send = composer.querySelector<HTMLButtonElement>('button')
-    expect(send).not.toBeNull()
+    const send = screen.getByRole('button', { name: 'stage.chat.actions.send' }).element()
     await expect.poll(() => input.getBoundingClientRect().height).toBe(32)
-    expect(send!.getBoundingClientRect().height).toBe(32)
-    expect(input.getBoundingClientRect().top).toBe(send!.getBoundingClientRect().top)
-    expect(input.getBoundingClientRect().bottom).toBe(send!.getBoundingClientRect().bottom)
+    expect(send.getBoundingClientRect().height).toBe(32)
+    expect(bubble.getBoundingClientRect().bottom).toBe(send.getBoundingClientRect().bottom)
+    expect(input.getBoundingClientRect().bottom).toBe(
+      bubble.getBoundingClientRect().bottom - Number.parseFloat(getComputedStyle(bubble).borderBottomWidth),
+    )
   })
 
   it('closes mobile settings before requesting sign-in', async () => {
@@ -399,6 +456,82 @@ describe('interactive area synchronized state', () => {
     await userEvent.keyboard('{Escape}')
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).not.toBeInTheDocument()
+  })
+
+  it('expands the Electron input bubble around a reply preview', async () => {
+    const { chatSession, screen } = await renderArea()
+    chatSession.$patch((state) => {
+      state.sessionMessages['session-b'] = [{ id: 'reply-target', role: 'user', content: 'Reply target' }]
+    })
+
+    await expectElectronReplyBubble(screen)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2489#discussion_r3966523188
+  // ROOT CAUSE:
+  //
+  // Clearing a reply hid the still-mounted preview without moving focus from
+  // its cancel button. Keyboard focus then remained in an aria-hidden subtree.
+  //
+  // Each composer owner now clears the reply and restores focus to its input.
+  it('restores composer focus after a keyboard user cancels a reply', async () => {
+    const { chatSession, screen } = await renderArea()
+    chatSession.$patch((state) => {
+      state.sessionMessages['session-b'] = [{ id: 'reply-target', role: 'user', content: 'Reply target' }]
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable]')).not.toBeNull()
+    })
+    const swipeable = screen.container.querySelector<HTMLElement>('[data-swipeable]')
+    if (!swipeable)
+      throw new Error('Expected a swipeable message.')
+
+    dispatchHorizontalPan(swipeable)
+    await vi.waitFor(() => {
+      const button = screen.container.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
+      expect(button?.parentElement?.getAttribute('aria-hidden')).toBe('false')
+    })
+    const cancelButton = screen.container.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
+    if (!cancelButton)
+      throw new Error('Expected a reply cancel button.')
+    cancelButton.focus()
+    expect(document.activeElement).toBe(cancelButton)
+
+    await userEvent.keyboard('{Enter}')
+
+    await expect.element(screen.getByRole('textbox')).toHaveFocus()
+    expect(cancelButton.closest('[aria-hidden="true"]')).not.toBeNull()
+  })
+
+  it('sends the Electron reply as a native message relation', async () => {
+    const { chat, chatSession, screen } = await renderArea()
+    chatSession.$patch((state) => {
+      state.sessionMessages['session-b'] = [{ id: 'reply-target', role: 'user', content: 'Reply target' }]
+    })
+    const send = vi.spyOn(chat, 'send').mockResolvedValueOnce({ messages: [], sessionId: 'session-b' })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable]')).not.toBeNull()
+    })
+    const swipeRoot = screen.container.querySelector<HTMLElement>('[data-swipeable]')
+    if (!swipeRoot)
+      throw new Error('Expected a message swipe root.')
+
+    dispatchHorizontalPan(swipeRoot)
+    await vi.waitFor(() => {
+      const cancelButton = screen.container.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
+      expect(cancelButton?.parentElement?.getAttribute('aria-hidden')).toBe('false')
+    })
+    await submitDraft(screen, 'My answer')
+
+    await vi.waitFor(() => {
+      expect(send).toHaveBeenCalledWith(expect.objectContaining({
+        sessionId: 'session-b',
+        text: 'My answer',
+        replyToMessageId: 'reply-target',
+      }))
+    })
   })
 
   // https://github.com/moeru-ai/airi/pull/2399
@@ -468,6 +601,122 @@ describe('interactive area synchronized state', () => {
           && element.scrollHeight > element.clientHeight
       })
     expect(scrollOwners).toEqual([viewport])
+  })
+
+  it('keeps the history scrollport behind the floating composer', async () => {
+    const { chatSession, screen } = await renderArea()
+    const layout = screen.getByTestId('chat-viewport-layout').element() as HTMLElement
+    layout.style.height = '320px'
+    layout.style.width = '320px'
+    const history = screen.getByTestId('chat-history-layer').element() as HTMLElement
+    const composer = screen.getByTestId('chat-composer-layer').element() as HTMLElement
+    const viewport = screen.container.querySelector<HTMLElement>('.chat-history-list')
+    expect(viewport).not.toBeNull()
+    if (!viewport)
+      throw new Error('Expected the production chat history viewport.')
+
+    chatSession.$patch((state) => {
+      state.sessionMessages['session-b'] = Array.from({ length: 100 }, (_, index) => ({
+        id: `overlay-message-${index}`,
+        role: 'user',
+        content: `Overlay message ${index}`,
+        createdAt: index,
+      }))
+    })
+
+    await vi.waitFor(() => {
+      expect(viewport.isConnected).toBe(true)
+      expect(viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight)
+      expect(viewport.textContent).toContain('Overlay message 99')
+    })
+
+    const layoutRect = layout.getBoundingClientRect()
+    const historyRect = history.getBoundingClientRect()
+    const composerRect = composer.getBoundingClientRect()
+    expect(historyRect.top).toBeCloseTo(layoutRect.top, 0)
+    expect(historyRect.bottom).toBeCloseTo(layoutRect.bottom, 0)
+    expect(composerRect.top).toBeLessThan(historyRect.bottom)
+
+    await vi.waitFor(() => {
+      const bottomPadding = Number.parseFloat(getComputedStyle(viewport).paddingBottom)
+      const composerSpacerHeight = Number.parseFloat(getComputedStyle(viewport, '::after').height)
+      expect(bottomPadding).toBeCloseTo(16, 0)
+      expect(composerSpacerHeight).toBeGreaterThan(composerRect.height)
+    })
+
+    const collapsedComposerHeight = composer.getBoundingClientRect().height
+    const collapsedComposerSpacerHeight = Number.parseFloat(getComputedStyle(viewport, '::after').height)
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable]')
+    expect(swipeSurface).not.toBeNull()
+    if (!swipeSurface)
+      throw new Error('Expected a message swipe surface.')
+
+    dispatchHorizontalPan(swipeSurface)
+
+    await vi.waitFor(() => {
+      const cancelButton = composer.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
+      expect(cancelButton?.parentElement?.getAttribute('aria-hidden')).toBe('false')
+      expect(composer.getBoundingClientRect().height).toBeGreaterThan(collapsedComposerHeight)
+      expect(Number.parseFloat(getComputedStyle(viewport, '::after').height)).toBeGreaterThan(collapsedComposerSpacerHeight)
+    })
+
+    viewport.scrollTop = 241
+    viewport.dispatchEvent(new Event('scroll'))
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    let messageBehindComposer: HTMLElement | undefined
+    await vi.waitFor(() => {
+      const currentComposerRect = composer.getBoundingClientRect()
+      messageBehindComposer = Array.from(screen.container.querySelectorAll<HTMLElement>('.chat-message-item'))
+        .filter(message => message.textContent?.includes('Overlay message'))
+        .find((message) => {
+          const messageRect = message.getBoundingClientRect()
+          return messageRect.top < currentComposerRect.bottom && messageRect.bottom > currentComposerRect.top
+        })
+      expect(messageBehindComposer).toBeDefined()
+    })
+    if (!messageBehindComposer)
+      throw new Error('Expected a mounted message behind the composer.')
+
+    const targetText = messageBehindComposer.textContent
+    const positionedScrollTop = viewport.scrollTop
+    expect(positionedScrollTop).toBeGreaterThan(0)
+    let targetWasUnmounted = false
+    const targetObserver = new MutationObserver(() => {
+      if (!messageBehindComposer?.isConnected)
+        targetWasUnmounted = true
+    })
+    targetObserver.observe(viewport, { childList: true, subtree: true })
+
+    viewport.scrollTop = positionedScrollTop + 1
+    viewport.dispatchEvent(new Event('scroll'))
+    await new Promise(resolve => setTimeout(resolve, 220))
+
+    expect(messageBehindComposer.isConnected).toBe(true)
+    expect(messageBehindComposer.textContent).toBe(targetText)
+
+    viewport.scrollTop = positionedScrollTop
+    viewport.dispatchEvent(new Event('scroll'))
+    await new Promise(resolve => setTimeout(resolve, 220))
+
+    expect(messageBehindComposer.isConnected).toBe(true)
+    expect(messageBehindComposer.textContent).toBe(targetText)
+
+    viewport.scrollTop = positionedScrollTop - 1
+    viewport.dispatchEvent(new Event('scroll'))
+    await new Promise(resolve => setTimeout(resolve, 220))
+
+    expect(messageBehindComposer.isConnected).toBe(true)
+    expect(messageBehindComposer.textContent).toBe(targetText)
+
+    viewport.scrollTop = positionedScrollTop
+    viewport.dispatchEvent(new Event('scroll'))
+    await new Promise(resolve => setTimeout(resolve, 220))
+    targetObserver.disconnect()
+
+    expect(targetWasUnmounted).toBe(false)
+    expect(messageBehindComposer.isConnected).toBe(true)
+    expect(messageBehindComposer.textContent).toBe(targetText)
   })
 
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743121861
@@ -644,7 +893,7 @@ describe('interactive area synchronized state', () => {
   })
 
   it('does not restore a deleted-session draft in the shared chat widget', async () => {
-    const { chat, screen } = await renderArea(ChatArea)
+    const { chat, screen } = await renderArea(SharedInteractiveArea)
     let rejectSend: ((error: Error) => void) | undefined
     vi.spyOn(chat, 'send').mockImplementationOnce(() => new Promise((_resolve, reject) => {
       rejectSend = reject

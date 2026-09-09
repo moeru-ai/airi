@@ -55,6 +55,8 @@ export interface ChatSendPayload {
   input?: WebSocketEventInputs
   /** Session that owns the new turn. */
   sessionId: string
+  /** Message that the new user turn replies to in the target session. */
+  replyToMessageId?: string
   /** User text for the new turn. */
   text: string
   /** Request-specific tools selected by their model-facing names. */
@@ -339,6 +341,7 @@ export const useChatStore = defineStore('chat', () => {
           id: message.id,
           role: 'user',
           content: messageText,
+          replyToMessageId: message.replyToMessageId,
         })
       }
     },
@@ -414,6 +417,7 @@ export const useChatStore = defineStore('chat', () => {
       chatProvider,
       attachments: payload.attachments,
       input: payload.input,
+      replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,
       temperature: payload.temperature ?? consciousnessStore.activeTemperature,
       topP: payload.topP ?? consciousnessStore.activeTopP,
@@ -469,6 +473,7 @@ export const useChatStore = defineStore('chat', () => {
       return await executeSend({
         sessionId: payload.sessionId,
         text,
+        replyToMessageId: sourceMessage?.replyToMessageId,
         tools: payload.tools ?? sourceMessage?.tools,
       })
     }

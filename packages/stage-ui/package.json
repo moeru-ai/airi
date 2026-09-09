@@ -173,6 +173,7 @@
     "vue-router": "catalog:",
     "vue-sonner": "catalog:",
     "web-haptics": "catalog:",
+    "wheel-gestures": "catalog:",
     "xast-util-to-xml": "catalog:",
     "xastscript": "catalog:",
     "xsschema": "catalog:",

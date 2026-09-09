@@ -878,6 +878,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
             cloudChatId: result.cloudChatId,
             role: message.role as CloudSyncableRole,
             content: text,
+            replyToMessageId: message.replyToMessageId,
             attempts: 0,
             queuedAt: Date.now(),
           }))
@@ -1130,7 +1131,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    *   transparently. UI consumers can watch `outboxPendingCount` to
    *   surface "X syncing".
    */
-  async function pushMessageToCloud(sessionId: string, message: { id: string, role: CloudSyncableRole, content: string }) {
+  async function pushMessageToCloud(sessionId: string, message: { id: string, role: CloudSyncableRole, content: string, replyToMessageId?: string }) {
     const userId = getCurrentUserId()
     if (userId === 'local')
       return
@@ -1141,6 +1142,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       cloudChatId: sessionMetas.value[sessionId]?.cloudChatId,
       role: message.role,
       content: message.content,
+      replyToMessageId: message.replyToMessageId,
       attempts: 0,
       queuedAt: Date.now(),
     }
@@ -1157,7 +1159,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     try {
       await wsClient.sendMessages({
         chatId: entry.cloudChatId,
-        messages: [{ id: entry.messageId, role: entry.role, content: entry.content }],
+        messages: [{ id: entry.messageId, role: entry.role, content: entry.content, replyToMessageId: entry.replyToMessageId }],
       })
       await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, [entry.messageId]))
       await refreshOutboxPendingCount()
@@ -1228,7 +1230,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         try {
           await wsClient.sendMessages({
             chatId: cloudChatId,
-            messages: sessionEntries.map(e => ({ id: e.messageId, role: e.role, content: e.content })),
+            messages: sessionEntries.map(e => ({ id: e.messageId, role: e.role, content: e.content, replyToMessageId: e.replyToMessageId })),
           })
           succeededIds.push(...sessionEntries.map(e => e.messageId))
         }
