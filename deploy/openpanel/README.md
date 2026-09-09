@@ -1,12 +1,12 @@
 # OpenPanel product analytics
 
-AIRI sends product events to a self-hosted OpenPanel project. AI generation events remain in PostHog for AI Analytics.
+AIRI sends product events to a self-hosted OpenPanel project. Langfuse handles AI tracing through the existing server integration.
 
 Use this setup for product events, user profiles, and conversion funnels. It does not migrate historical events, HogQL queries, or saved PostHog dashboards.
 
 ## Client configuration
 
-Keep `VITE_ENABLE_POSTHOG` as the existing build switch for analytics. This preserves release workflows and existing opt-out behavior during the provider change.
+Use `VITE_ENABLE_ANALYTICS` as the build switch for app analytics. Existing user opt-out behavior remains active. The production docs site records page views separately.
 
 Client builds use the public API URL and write client id from `packages/stage-shared/src/analytics/openpanel.ts`.
 The stage apps and auth UI share this configuration. CI variables and Docker build arguments are not required for these values.
@@ -23,7 +23,7 @@ Set these variables through the API deployment platform:
 
 Use a separate server write client in the same project. Keep its secret in the deployment platform's secret store.
 
-All three absent disables server product forwarding. A partial configuration fails startup. Existing `POSTHOG_*` variables now configure AI Analytics only.
+All three absent disables server product forwarding. A partial configuration fails startup.
 
 ## Event behavior
 
@@ -35,7 +35,10 @@ Logged-in events use the stable AIRI user id. Checkout sends the device id to th
 
 Query strings and fragments are removed from automatic page URLs and referrers. This prevents OAuth codes from entering those fields.
 
-PostHog receives `$ai_*` events and identity operations. Automatic PostHog page views, page leaves, autocapture, and replay are disabled in stage clients.
+Per-generation analytics events are removed. Completed `message_round` events retain model, token usage, duration, and round identifiers.
+`message_sent` retains provider selection. `message_round_failed` retains the failure stage and error code.
+Official model tracing, operational metrics, request logs, and billing remain in their existing services.
+No client sends prompts or model responses to OpenPanel.
 
 ## Conversion delivery
 
@@ -68,7 +71,7 @@ AWS Systems Manager manages the host. Public SSH is closed. Automatic snapshot m
 Before merging and releasing:
 
 1. Confirm the public domain, DNS, and HTTPS certificate.
-2. Create the administrator, project, public client, and server client.
+2. Confirm the administrator, project, public client, and server client.
 3. Configure allowed origins and server secrets.
 4. Send a marked browser event and a server event to the deployed API.
 5. Confirm both events and their user association in OpenPanel.

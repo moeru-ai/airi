@@ -4,8 +4,6 @@ import { OpenPanel } from '@openpanel/web'
 import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { OPENPANEL_CONFIG } from '@proj-airi/stage-shared/analytics/openpanel'
 
-import { createPosthogAdapter } from './posthog'
-
 const deviceStorageKey = 'airi:openpanel-device-id'
 
 function loadDeviceId(): string {
@@ -31,13 +29,12 @@ function rotateDeviceId(): string {
   return id
 }
 
-/** Routes product events to OpenPanel and AI events to PostHog. */
+/** Sends product events to OpenPanel under the current consent and identity state. */
 export function createOpenpanelAdapter(options: AnalyticsAdapterOptions): AnalyticsAdapter {
   let enabled = options.enabled
   // Rotate the device on logout. Clearing SDK fields alone reuses its
   // server-derived fingerprint and can link two accounts in one browser.
   let deviceId = enabled ? loadDeviceId() : undefined
-  const ai = createPosthogAdapter(options)
   const panel = new OpenPanel({
     ...OPENPANEL_CONFIG,
     // Consent must drop events. The SDK's disabled option queues them instead.
@@ -64,11 +61,9 @@ export function createOpenpanelAdapter(options: AnalyticsAdapterOptions): Analyt
   })
 
   return {
-    capture(name, properties, captureOptions) {
+    capture(name, properties) {
       if (!enabled)
         return false
-      if (name.startsWith('$ai_'))
-        return ai.capture(name, properties, captureOptions)
 
       // The SDK uses fetch keepalive for normal events, including navigation.
       void panel.track(name, { ...properties, __deviceId: deviceId }).catch(() => console.warn('[analytics] Product event delivery failed'))
@@ -85,7 +80,6 @@ export function createOpenpanelAdapter(options: AnalyticsAdapterOptions): Analyt
       if (!enabled)
         return
       panel.identify({ profileId: userId })
-      ai.identify(userId)
     },
     registerBuildInfo(buildInfo) {
       panel.setGlobalProperties({
@@ -94,17 +88,14 @@ export function createOpenpanelAdapter(options: AnalyticsAdapterOptions): Analyt
         app_commit: buildInfo.commit,
         app_version: buildInfo.version && buildInfo.version !== '0.0.0' ? buildInfo.version : 'dev',
       })
-      ai.registerBuildInfo(buildInfo)
     },
     resetIdentity() {
       panel.clear()
       deviceId = enabled ? rotateDeviceId() : undefined
       panel.setGlobalProperties({ __deviceId: deviceId })
-      ai.resetIdentity()
     },
     setCaptureEnabled(value) {
       enabled = value
-      ai.setCaptureEnabled(value)
       if (!value) {
         panel.clear()
         deviceId = undefined

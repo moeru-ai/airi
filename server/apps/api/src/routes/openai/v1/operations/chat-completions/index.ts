@@ -1,6 +1,6 @@
 import type { CapabilityAliasRoute } from '../../../../../schemas/provider-catalog'
 import type { UsageInfo } from '../../../../../services/domain/billing/billing'
-import type { AiGenerationAppSurface } from '../../../../../services/domain/product-events'
+import type { ChatAppSurface } from '../../analytics'
 import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
 
@@ -22,22 +22,8 @@ export interface ChatCompletionsOperationRequest {
   body: Record<string, unknown>
   sessionId?: string
   roundId?: string
-  appSurface?: AiGenerationAppSurface
+  appSurface?: ChatAppSurface
   abortSignal?: AbortSignal
-}
-
-interface GenerationCaptureInput {
-  deps: V1RouteDeps
-  userId: string
-  requestId: string
-  sessionId?: string
-  roundId?: string
-  appSurface?: AiGenerationAppSurface
-  generationModel: string
-  routeCtxProvider: string
-  usage: UsageInfo
-  durationMs: number
-  stream: boolean
 }
 
 export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.completions'> {
@@ -157,11 +143,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
         durationMs,
         requestId,
         userId: input.userId,
-        sessionId: input.sessionId,
-        roundId: input.roundId,
-        appSurface: input.appSurface,
         requestModel,
-        generationModel: langfuseModel,
         routeCtxProvider: routeCtx.provider,
         billing,
         billingPolicy,
@@ -178,11 +160,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
       durationMs,
       requestId,
       userId: input.userId,
-      sessionId: input.sessionId,
-      roundId: input.roundId,
-      appSurface: input.appSurface,
       requestModel,
-      generationModel: langfuseModel,
       routeCtxProvider: routeCtx.provider,
       billing,
       billingPolicy,
@@ -194,37 +172,6 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
 
 interface ChatModelAliasPlan {
   modelIds: string[]
-}
-
-function captureGeneration(input: GenerationCaptureInput): void {
-  const generationId = input.roundId ?? input.requestId
-  const conversationId = input.sessionId ?? input.requestId
-  const totalTokens = input.usage.promptTokens != null && input.usage.completionTokens != null
-    ? input.usage.promptTokens + input.usage.completionTokens
-    : undefined
-
-  input.deps.productEventService.trackGeneration({
-    userId: input.userId,
-    traceId: conversationId,
-    generationId,
-    model: input.generationModel,
-    provider: input.routeCtxProvider || 'unknown',
-    providerType: 'official',
-    usageSource: input.usage.promptTokens != null || input.usage.completionTokens != null
-      ? 'reported'
-      : 'unavailable',
-    inputTokens: input.usage.promptTokens,
-    outputTokens: input.usage.completionTokens,
-    totalTokens,
-    costUsdSource: 'unavailable',
-    conversationId,
-    conversationIdSource: input.sessionId ? 'client_header' : 'server_request',
-    roundId: generationId,
-    ...(input.appSurface && { appSurface: input.appSurface }),
-    captureSurface: 'server',
-    latencySeconds: input.durationMs / 1000,
-    stream: input.stream,
-  })
 }
 
 async function resolveChatModelAliasPlan(deps: V1RouteDeps, aliasId: string): Promise<ChatModelAliasPlan> {
@@ -323,11 +270,7 @@ function streamChatCompletion(input: {
   durationMs: number
   requestId: string
   userId: string
-  sessionId?: string
-  roundId?: string
-  appSurface?: AiGenerationAppSurface
   requestModel: string
-  generationModel: string
   routeCtxProvider: string
   billing: ChatBilling
   billingPolicy: ChatBillingPolicy
@@ -431,20 +374,6 @@ function streamChatCompletion(input: {
         })
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed, ...usage })
 
-        captureGeneration({
-          deps: input.deps,
-          userId: input.userId,
-          requestId: input.requestId,
-          sessionId: input.sessionId,
-          roundId: input.roundId,
-          appSurface: input.appSurface,
-          generationModel: input.generationModel,
-          routeCtxProvider: input.routeCtxProvider,
-          usage,
-          durationMs: input.durationMs,
-          stream: true,
-        })
-
         // Debit flux via DB transaction (source of truth)
         // NOTICE: streaming response is already sent, so we cannot reject on failure.
         // Log at error level so unpaid usage is visible in monitoring/alerts.
@@ -514,11 +443,7 @@ async function completeNonStreamingChat(input: {
   durationMs: number
   requestId: string
   userId: string
-  sessionId?: string
-  roundId?: string
-  appSurface?: AiGenerationAppSurface
   requestModel: string
-  generationModel: string
   routeCtxProvider: string
   billing: ChatBilling
   billingPolicy: ChatBillingPolicy
@@ -551,20 +476,6 @@ async function completeNonStreamingChat(input: {
     fluxConsumed,
   })
   input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed, ...usage })
-
-  captureGeneration({
-    deps: input.deps,
-    userId: input.userId,
-    requestId: input.requestId,
-    sessionId: input.sessionId,
-    roundId: input.roundId,
-    appSurface: input.appSurface,
-    generationModel: input.generationModel,
-    routeCtxProvider: input.routeCtxProvider,
-    usage,
-    durationMs: input.durationMs,
-    stream: false,
-  })
 
   // Debit flux via DB transaction (source of truth).
   // The upstream call has already happened (cost incurred), so partial

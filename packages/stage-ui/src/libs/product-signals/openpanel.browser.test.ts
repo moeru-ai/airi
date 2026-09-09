@@ -1,30 +1,17 @@
-import posthog from 'posthog-js'
-
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createOpenpanelAdapter } from './openpanel'
-
-vi.mock('posthog-js', () => ({
-  default: {
-    init: vi.fn(),
-    register: vi.fn(),
-    capture: vi.fn(),
-    identify: vi.fn(),
-    reset: vi.fn(),
-    has_opted_out_capturing: vi.fn(() => false),
-    opt_in_capturing: vi.fn(),
-    opt_out_capturing: vi.fn(),
-  },
-}))
 
 afterEach(() => {
   vi.restoreAllMocks()
 })
 
 describe('openPanel browser adapter', () => {
-  it('drops disabled events, isolates logout, and keeps AI events in PostHog', async () => {
+  it('drops disabled events and isolates account identity across logout', async () => {
     const requests: RequestInit[] = []
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+    const destinations: string[] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      destinations.push(String(input))
       if (init)
         requests.push(init)
       return new Response(JSON.stringify({ deviceId: 'server-device', sessionId: 'session-1' }), { status: 200 })
@@ -55,10 +42,6 @@ describe('openPanel browser adapter', () => {
     expect(JSON.parse(String(navigation.body)).payload.properties.__path).toBe(originalUrl.split(/[?#]/, 1)[0])
     expect(requests.some(request => String(request.body).includes('code=private'))).toBe(false)
 
-    adapter.capture('$ai_generation', { model: 'test' })
-    expect(posthog.capture).toHaveBeenCalledWith('$ai_generation', { model: 'test' }, undefined)
-    expect(requests.some(request => String(request.body).includes('$ai_generation'))).toBe(false)
-
     adapter.resetIdentity()
     expect(adapter.getIdentitySnapshot()?.distinctId).not.toBe(firstDevice)
     adapter.identify('bob')
@@ -75,6 +58,8 @@ describe('openPanel browser adapter', () => {
     adapter.capture('enabled_event', {})
     await vi.waitFor(() => expect(requests.some(request => String(request.body).includes('enabled_event'))).toBe(true))
     expect(requests.some(request => String(request.body).includes('disabled_event'))).toBe(false)
+    expect(destinations.every(url => url.startsWith('https://analytics.airi.build/api/'))).toBe(true)
+    expect(requests.every(request => !new Headers(request.headers).has('openpanel-client-secret'))).toBe(true)
     adapter.setCaptureEnabled(false)
   })
 })

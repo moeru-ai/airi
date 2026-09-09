@@ -148,7 +148,6 @@ function createMockLlmRouter(impl?: Partial<LlmRouterService>): LlmRouterService
 function createMockProductEventService(): ProductEventService {
   return {
     track: vi.fn(async () => undefined),
-    trackGeneration: vi.fn(async () => undefined),
   }
 }
 
@@ -912,7 +911,7 @@ describe('v1CompletionsRoutes', () => {
       }
     })
 
-    it('records Langfuse and PostHog generations with authoritative usage and correlation', async () => {
+    it('records Langfuse usage without forwarding generations to product analytics', async () => {
       const llmRouter = createMockLlmRouter({
         route: vi.fn(async (_req, ctx) => {
           if (ctx) {
@@ -962,88 +961,8 @@ describe('v1CompletionsRoutes', () => {
           userId: 'user-1',
         }),
       )
-      expect(productEventService.trackGeneration).toHaveBeenCalledWith({
-        userId: 'user-1',
-        traceId: 'conversation-1',
-        generationId: 'round-1',
-        model: 'openai/gpt-4o-mini',
-        provider: 'openrouter',
-        providerType: 'official',
-        usageSource: 'reported',
-        inputTokens: 1,
-        outputTokens: 2,
-        totalTokens: 3,
-        costUsdSource: 'unavailable',
-        conversationId: 'conversation-1',
-        conversationIdSource: 'client_header',
-        roundId: 'round-1',
-        appSurface: 'electron',
-        captureSurface: 'server',
-        latencySeconds: expect.any(Number),
-        stream: false,
-      })
-    })
-
-    it('uses request-level correlation for server-captured generations without chat headers', async () => {
-      const llmRouter = createMockLlmRouter({
-        route: vi.fn(async (_req, ctx) => {
-          if (ctx) {
-            ctx.provider = 'openrouter'
-            ctx.upstreamModel = 'openai/gpt-4o-mini'
-          }
-          return new Response(JSON.stringify({
-            choices: [],
-            usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
-          }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          })
-        }) as any,
-      })
-      const productEventService = createMockProductEventService()
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockConfigKV(),
-        undefined,
-        undefined,
-        undefined,
-        llmRouter,
-        createMockLlmTracing(),
-        productEventService,
-      )
-
-      await app.fetch(
-        new Request('http://localhost/api/v1/openai/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'chat-auto', messages: [{ role: 'user', content: 'hi' }] }),
-        }),
-        { user: testUser } as any,
-      )
-
-      expect(productEventService.trackGeneration).toHaveBeenCalledWith({
-        userId: 'user-1',
-        traceId: expect.any(String),
-        generationId: expect.any(String),
-        model: 'openai/gpt-4o-mini',
-        provider: 'openrouter',
-        providerType: 'official',
-        usageSource: 'reported',
-        inputTokens: 1,
-        outputTokens: 2,
-        totalTokens: 3,
-        costUsdSource: 'unavailable',
-        conversationId: expect.any(String),
-        conversationIdSource: 'server_request',
-        roundId: expect.any(String),
-        captureSurface: 'server',
-        latencySeconds: expect.any(Number),
-        stream: false,
-      })
-      const generation = vi.mocked(productEventService.trackGeneration).mock.calls[0]?.[0]
-      expect(generation?.traceId).toBe(generation?.conversationId)
-      expect(generation?.roundId).toBe(generation?.generationId)
-      expect(generation).not.toHaveProperty('appSurface')
+      expect(llmTracing.startChatGeneration).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'conversation-1' }))
+      expect(productEventService.track).not.toHaveBeenCalled()
     })
 
     it('should not charge flux when upstream returns error', async () => {

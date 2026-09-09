@@ -355,8 +355,6 @@ catalog:
   popmotion: ^11.0.5
   postcss: ^8.5.26
   postgres: ^3.4.9
-  posthog-js: 1.306.1
-  posthog-node: ^5.50.0
   postprocessing: ^6.39.4
   prismarine-block: ^1.23.0
   prismarine-entity: ^2.6.0

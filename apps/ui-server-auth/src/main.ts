@@ -24,7 +24,7 @@ import 'vue-sonner/style.css'
 import './styles/main.css'
 import 'uno.css'
 
-if (isEnvTruthy(import.meta.env.VITE_ENABLE_POSTHOG)) {
+if (isEnvTruthy(import.meta.env.VITE_ENABLE_ANALYTICS)) {
   void loadAnalyticsAdapter(async () => {
     const { createOpenpanelAdapter } = await import('./modules/analytics-adapters/openpanel')
     return createOpenpanelAdapter()

@@ -85,7 +85,6 @@
     "nprogress": "catalog:",
     "onnxruntime-web": "catalog:",
     "pinia": "catalog:",
-    "posthog-js": "catalog:",
     "rehype-stringify": "catalog:",
     "reka-ui": "catalog:",
     "remark-parse": "catalog:",

@@ -33,7 +33,7 @@ export function createOpenpanelSink(options: { clientId: string, clientSecret: s
           },
         },
       }
-      // OpenPanel does not expose PostHog UUID deduplication. Retrying an
+      // OpenPanel does not deduplicate events by a caller-supplied UUID. Retrying an
       // ambiguous response can count a paid conversion twice.
       const response = await fetch(endpoint, {
         method: 'POST',
