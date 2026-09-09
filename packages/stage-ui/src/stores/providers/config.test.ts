@@ -325,13 +325,14 @@ describe('provider config store', () => {
     expect(mocks.service.deleteRemote).not.toHaveBeenCalled()
   })
 
-  it('uploads a reset as tombstones and does not restore cloud credentials', async () => {
+  it('wipes local providers without tombstoning the cloud replica', async () => {
     // ROOT CAUSE:
     //
-    // Reset cleared local rows and pendingDeletes, then set replicaMerged to
-    // false. The next pull restored the cloud credentials.
+    // Reset called removeProvider for each row. That wrote pendingDeletes
+    // and the replica watcher tombstoned the cloud replica.
     //
-    // Reset now tombstones each user provider. Push sends those deletes.
+    // Reset clears local rows only. The next pull restores.
+    vi.useFakeTimers()
     const store = installStore()
     store.providers[localProvider.id] = { ...localProvider, replicaUpdatedAt: '2026-01-01T00:00:00.000Z' }
     store.providers[officialProvider.id] = { ...officialProvider }
@@ -345,34 +346,26 @@ describe('provider config store', () => {
     authState.isAuthenticated = true
 
     await store.syncProviders()
+    await vi.advanceTimersByTimeAsync(1000)
     store.pendingDeletes['already-gone'] = '2026-01-01T00:00:00.000Z'
     mocks.service.deleteRemote.mockClear()
     mocks.service.upsertRemote.mockClear()
 
     await store.resetProviders()
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(1000)
 
     expect(store.providers[localProvider.id]).toBeUndefined()
     expect(store.providers[officialProvider.id]).toBeUndefined()
-    expect(store.pendingDeletes[localProvider.id]).toBeDefined()
-    expect(store.pendingDeletes['already-gone']).toBe('2026-01-01T00:00:00.000Z')
-    expect(store.pendingDeletes[officialProvider.id]).toBeUndefined()
+    expect(store.pendingDeletes[localProvider.id]).toBeUndefined()
+    expect(store.pendingDeletes['already-gone']).toBeUndefined()
+    expect(mocks.service.deleteRemote).not.toHaveBeenCalled()
+    expect(mocks.service.upsertRemote).not.toHaveBeenCalled()
 
     await store.syncProviders()
 
-    expect(store.providers[localProvider.id]).toBeUndefined()
-    expect(mocks.service.upsertRemote).not.toHaveBeenCalled()
-    expect(mocks.service.deleteRemote).toHaveBeenCalledWith(
-      mocks.client,
-      localProvider.id,
-    )
-    expect(mocks.service.deleteRemote).toHaveBeenCalledWith(
-      mocks.client,
-      'already-gone',
-    )
-    expect(mocks.service.deleteRemote).not.toHaveBeenCalledWith(
-      mocks.client,
-      officialProvider.id,
-    )
+    expect(store.providers[localProvider.id]?.config).toEqual(localProvider.config)
+    expect(mocks.service.deleteRemote).not.toHaveBeenCalled()
   })
 
   it('keeps a local delete through a pull that still returns the live row', async () => {
