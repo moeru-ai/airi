@@ -532,7 +532,10 @@ export const useSpeechStore = defineStore('speech', () => {
     return hasModel && hasVoice
   })
 
-  function resetState() {
+  /** Resets shared settings in the leader and rejects catalog results started before this reset. */
+  async function resetState() {
+    // Invalidate request ownership before the reset publishes new settings.
+    cancelCatalogRequests()
     activeSpeechProvider.reset()
     activeSpeechModel.reset()
     activeSpeechVoiceId.reset()
@@ -542,7 +545,6 @@ export const useSpeechStore = defineStore('speech', () => {
     ssmlEnabled.reset()
     modelSearchQuery.reset()
     availableVoices.reset()
-    cancelCatalogRequests()
   }
 
   return {
@@ -584,7 +586,7 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 }, {
   synced: {
-    actions: ['loadVoiceCatalog', 'ensureActiveSpeechVoice'],
+    actions: ['loadVoiceCatalog', 'ensureActiveSpeechVoice', 'resetState'],
     state: true,
   },
 })

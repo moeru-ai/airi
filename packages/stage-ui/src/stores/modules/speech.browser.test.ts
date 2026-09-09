@@ -292,6 +292,46 @@ describe('speech synchronization', () => {
       await refresh
     }
   })
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964310221
+  // ROOT CAUSE:
+  // A follower reset cleared only its local request map. The leader could then
+  // accept a pending response and restore the catalog after the reset.
+  // The reset must invalidate requests and clear settings in the same leader.
+  it('rejects a pending leader catalog after a follower resets speech settings', async () => {
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const follower = createSyncedContext(namespace, 'follower-only')
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    let finish!: (response: Response) => void
+    const response = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const fetchCatalog = vi.fn<typeof fetch>(() => response)
+    vi.stubGlobal('fetch', fetchCatalog)
+    const pending = leader.speechStore.loadVoiceCatalog('microsoft-speech', undefined, {
+      definitionId: 'microsoft-speech',
+      config: { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/', region: 'eastasia' },
+    })
+    try {
+      await vi.waitFor(() => expect(fetchCatalog).toHaveBeenCalledOnce())
+      await vi.waitFor(() => expect(follower.speechStore.availableVoices['microsoft-speech']).toEqual([]))
+      const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+      await follower.speechStore.resetState()
+      finish(Response.json({ voices: [{ id: 'stale', name: 'Stale', languages: [] }] }))
+      await expect(pending).resolves.toEqual([])
+      expect(leader.speechStore.availableVoices['microsoft-speech']).toBeUndefined()
+      await vi.waitFor(() => expect(follower.speechStore.availableVoices['microsoft-speech']).toBeUndefined())
+      expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
+    }
+    finally {
+      finish(Response.json({ voices: [] }))
+      await pending
+    }
+  })
+
   it('reports a leader provider failure only in the requesting renderer', async () => {
     const namespace = `speech:${crypto.randomUUID()}`
     const leader = createSyncedContext(namespace, 'leader-only')

@@ -57,9 +57,10 @@ export function useDataMaintenance() {
     await providersStore.resetProviderSettings()
   }
 
+  /** Waits for leader-owned resets before reporting module settings as cleared. */
   async function resetModulesSettings() {
     hearingStore.resetState()
-    speechStore.resetState()
+    await speechStore.resetState()
     consciousnessStore.resetState()
     await consciousnessSettingsStore.resetState()
     twitterStore.resetState()
