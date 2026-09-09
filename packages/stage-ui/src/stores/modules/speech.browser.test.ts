@@ -10,6 +10,7 @@ import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
+import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
 import { useSpeechStore } from './speech'
 
@@ -399,6 +400,32 @@ describe('speech synchronization', () => {
       finish(Response.json({ voices: [] }))
       await Promise.all([first, second])
     }
+  })
+
+  it('invalidates completed owned catalogs across renderers without follower proposals', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+      flux: 0,
+      voices: [{ id: 'previous-owner', name: 'Previous owner', languages: [] }],
+    })))
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const follower = createSyncedContext(namespace, 'follower-only')
+    const auth = useAuthStore(leader.pinia)
+    const now = new Date()
+    auth.$patch({
+      token: 'access-token',
+      user: { id: 'owner', name: 'Owner', email: 'owner@example.com', emailVerified: true, createdAt: now, updatedAt: now },
+      session: { id: 'session', userId: 'owner', token: 'session-token', createdAt: now, updatedAt: now, expiresAt: new Date(now.getTime() + 60000) },
+    })
+    await vi.waitFor(() => expect(useAuthStore(follower.pinia).user?.id).toBe('owner'))
+    await leader.speechStore.loadVoicesForProvider('official-provider-speech', 'model-a')
+    await vi.waitFor(() => expect(follower.speechStore.availableVoices['official-provider-speech']?.[0]?.id).toBe('previous-owner'))
+    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+    auth.$patch({ token: null, session: null, user: null })
+    await vi.waitFor(() => expect(follower.speechStore.availableVoices['official-provider-speech']).toEqual([]))
+    expect(leader.speechStore.availableVoices['official-provider-speech']).toEqual([])
+    expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
   })
 
   it('reports a leader provider failure only in the requesting renderer', async () => {

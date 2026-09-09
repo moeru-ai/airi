@@ -43,6 +43,15 @@ export interface VoiceCatalogConfiguration {
   config: Record<string, unknown>
 }
 
+/** Compact freshness metadata replicated with a voice catalog, without request credentials or samples. */
+export interface VoiceCatalogIdentity {
+  definitionId: string
+  model: string | undefined
+  configurationFingerprint: string
+  /** Opaque provider ownership. Token renewal preserves it; an owner change invalidates cached voices. */
+  owner: string | undefined
+}
+
 /** Serializable request and model-discovery state for one provider instance. */
 export interface ProviderRuntimeState {
   validatedCredentialHash?: string
@@ -121,6 +130,18 @@ export const useProviderStore = defineStore('provider', () => {
   const providerDefinitions = Object.fromEntries(
     definedProviders.map(definition => [definition.id, definition]),
   ) as Record<string, ProviderDefinition>
+  // Scalar identity keeps same-session object replacements and token renewal
+  // from invalidating completed catalogs. Consumers do not interpret this key.
+  const catalogOwner = computed(() => JSON.stringify([
+    authStore.isAuthenticated,
+    authStore.session?.id,
+    authStore.user?.id,
+  ]))
+  const voiceCatalogOwners = computed<Record<string, string>>(() => Object.fromEntries(
+    definedProviders
+      .filter(definition => definition.configuredBy === 'authentication')
+      .map(definition => [definition.id, catalogOwner.value]),
+  ))
   const providerValidationIntervalMsById = new Map<string, number>()
   const providerMetadataState = useAsyncState(async () => {
     const metadata = await selectProvidersMetadata(definedProviders, t)
@@ -178,7 +199,7 @@ export const useProviderStore = defineStore('provider', () => {
     authenticatedVoiceControllers.clear()
   }
   // Compare scalar values, not newly deserialized session or user objects.
-  watch([() => authStore.isAuthenticated, () => authStore.session?.id, () => authStore.token], invalidateVoiceSession, { flush: 'sync' })
+  watch([() => authStore.isAuthenticated, () => authStore.session?.id, () => authStore.user?.id, () => authStore.token], invalidateVoiceSession, { flush: 'sync' })
   // Token renewal retains request ownership; logout and account changes do not.
   watch([() => authStore.isAuthenticated, () => authStore.session?.id, () => authStore.user?.id], () => {
     voiceOwnerEpoch++
@@ -598,6 +619,20 @@ export const useProviderStore = defineStore('provider', () => {
     return {
       definitionId: getProviderDefinition(providerId).id,
       config: structuredClone(toRaw(providerConfigStore.getProviderConfig(providerId) ?? {})),
+    }
+  }
+
+  /** Captures ownership before hashing so a concurrent owner change cannot relabel an old request. */
+  async function getVoiceCatalogIdentity(model: string | undefined, configuration: VoiceCatalogConfiguration): Promise<VoiceCatalogIdentity> {
+    const owner = voiceCatalogOwners.value[configuration.definitionId]
+    // Configuration can include megabytes of audio. Only this fixed-size digest
+    // enters replicated speech state; the original remains an RPC argument.
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(configuration.config)))
+    return {
+      definitionId: configuration.definitionId,
+      model,
+      configurationFingerprint: Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join(''),
+      owner,
     }
   }
 
@@ -1088,6 +1123,8 @@ export const useProviderStore = defineStore('provider', () => {
     getDefaultModelForProvider,
     listProviderVoices,
     getVoiceCatalogConfiguration,
+    getVoiceCatalogIdentity,
+    voiceCatalogOwners,
     loadProviderModel,
     loadModelsForConfiguredProviders,
     getProviderInstance,

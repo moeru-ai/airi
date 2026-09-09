@@ -268,18 +268,6 @@ function withManualPreviewAnalytics<TProviderConfig extends Record<string, unkno
 }
 
 /**
- * Tracks the active TTS provider while preserving the legacy provider-card event.
- */
-function selectSpeechProvider(providerId: string) {
-  trackProviderClick(providerId, 'speech')
-  trackTtsProviderSelected({
-    tts_provider_id: providerId,
-    tts_model_id: currentTtsModelId(),
-    source: 'settings',
-  })
-}
-
-/**
  * Tracks explicit voice selection from catalog or custom input controls.
  */
 async function selectSpeechVoice(voiceId: string | undefined) {
@@ -297,7 +285,17 @@ async function selectSpeechVoice(voiceId: string | undefined) {
 
 /** Persists the selection only after the leader commits its provider and model. */
 async function selectSpeechSource(sourceId: string) {
-  await speechStore.selectProviderModel(sourceId, '')
+  const selection = await speechStore.selectProviderModel(sourceId, '')
+  if (!selection)
+    return
+  const providerId = providerStore.providers[sourceId]?.definitionId || sourceId
+  // Use this command's receipt: another selection can reach the store before
+  // this caller resumes, but must not relabel this analytics event.
+  trackTtsProviderSelected({
+    tts_provider_id: providerId,
+    tts_model_id: selection.model || 'unknown',
+    source: 'settings',
+  })
   await persistSelection()
 }
 
@@ -606,7 +604,7 @@ async function handleDeleteProvider(providerId: string) {
               :value="source.id"
               :title="source.title"
               :description="source.description"
-              @click="selectSpeechProvider(source.providerId || source.id)"
+              @click="trackProviderClick(source.providerId || source.id, 'speech')"
             >
               <template #topRight>
                 <button

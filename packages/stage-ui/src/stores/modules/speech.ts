@@ -1,7 +1,7 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type {} from 'pinia-plugin-synced'
 
-import type { VoiceCatalogConfiguration, VoiceInfo } from '../providers/provider'
+import type { VoiceCatalogConfiguration, VoiceCatalogIdentity, VoiceInfo } from '../providers/provider'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
@@ -80,9 +80,8 @@ export const useSpeechStore = defineStore('speech', () => {
   const isLoadingSpeechProviderVoices = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.loading ?? false)
   const speechProviderError = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.error ?? null)
   const availableVoices = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
-  // Replicate the identity with its catalog so a new leader can judge freshness.
-  // Configuration is the provider-owned snapshot already used by the catalog RPC.
-  const voiceCatalogIdentities = refManualReset<Record<string, { model: string | undefined, configuration: VoiceCatalogConfiguration }>>(() => ({}))
+  // Replicate compact freshness metadata so a new leader can judge the catalog.
+  const voiceCatalogIdentities = refManualReset<Record<string, VoiceCatalogIdentity>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
 
   // Computed properties
@@ -235,7 +234,15 @@ export const useSpeechStore = defineStore('speech', () => {
 
     const loadSequence = ++voiceLoadSequence
     latestVoiceLoads.set(provider, loadSequence)
-    const identity = { model, configuration }
+    if (voiceCatalogIdentities.value[provider]?.model !== model) {
+      delete voiceCatalogIdentities.value[provider]
+      availableVoices.value = { ...availableVoices.value, [provider]: [] }
+    }
+    const identity = await providersStore.getVoiceCatalogIdentity(model, configuration)
+    // Hashing yields. Reset, a newer request, or provider ownership changes
+    // during that work must not clear or replace a newer catalog.
+    if (latestVoiceLoads.get(provider) !== loadSequence || identity.owner !== providersStore.voiceCatalogOwners[identity.definitionId])
+      return []
     // Keep valid choices during a refresh. A model or configuration change
     // invalidates them before auto-pick can select from the previous catalog.
     if (!isEqual(voiceCatalogIdentities.value[provider], identity)) {
@@ -246,7 +253,7 @@ export const useSpeechStore = defineStore('speech', () => {
     const voices = await providersStore.listProviderVoices(provider, model, configuration)
     // Undefined is an expired session. A cleared sequence also rejects work
     // from an outgoing leader or a reset, even if its network response arrives.
-    if (latestVoiceLoads.get(provider) !== loadSequence)
+    if (latestVoiceLoads.get(provider) !== loadSequence || identity.owner !== providersStore.voiceCatalogOwners[identity.definitionId])
       return []
     if (voices === undefined) {
       // An expired provider session invalidates cached choices as well.
@@ -268,6 +275,40 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechVoiceId.value = ''
     activeSpeechVoice.value = undefined
   }
+
+  /** Rejects expired recommendations synchronously before any leader consumer can select them. */
+  function discardExpiredVoiceCatalogs() {
+    if (disposed)
+      return
+    for (const [provider, identity] of Object.entries(voiceCatalogIdentities.value)) {
+      if (identity.owner === providersStore.voiceCatalogOwners[identity.definitionId])
+        continue
+      latestVoiceLoads.delete(provider)
+      delete voiceCatalogIdentities.value[provider]
+      availableVoices.value = { ...availableVoices.value, [provider]: [] }
+      if (activeSpeechProvider.value === provider)
+        clearVoiceSelection()
+    }
+  }
+
+  /** Routes provider ownership notifications to the leader's synchronous invalidation. */
+  async function invalidateVoiceCatalogs() {
+    discardExpiredVoiceCatalogs()
+  }
+
+  watch(() => providersStore.voiceCatalogOwners, async () => {
+    // Remote provider snapshots can wake every renderer. Only the exposed
+    // leader action may clear shared catalogs, and repeated calls are harmless.
+    await Promise.resolve()
+    if (disposed)
+      return
+    try {
+      await useSpeechStore(pinia).invalidateVoiceCatalogs()
+    }
+    catch (error) {
+      console.error('Failed to invalidate speech catalogs:', errorMessageFrom(error))
+    }
+  }, { immediate: true })
 
   // Streaming TTS voices are model-scoped: the server only returns recommended
   // voices for an explicit `?model=`. Ensure the active model is a valid
@@ -355,6 +396,7 @@ export const useSpeechStore = defineStore('speech', () => {
       activeSpeechVoiceId.value = voiceId
     // Watchers run after this synchronous state commit. They route discovery
     // through the exposed action without publishing a follower snapshot.
+    return { provider: activeSpeechProvider.value, model: activeSpeechModel.value }
   }
 
   // Provider and model form the catalog identity, including changes made by cards.
@@ -399,6 +441,9 @@ export const useSpeechStore = defineStore('speech', () => {
   async function ensureActiveSpeechVoice() {
     if (disposed)
       return
+    // A selection watcher can run before the ownership watcher reaches its RPC.
+    // Reject expired recommendations at their consumer as well as on notification.
+    discardExpiredVoiceCatalogs()
     const selected = pickOfficialSpeechVoice({
       activeSpeechProvider: activeSpeechProvider.value,
       activeSpeechVoiceId: activeSpeechVoiceId.value,
@@ -616,6 +661,7 @@ export const useSpeechStore = defineStore('speech', () => {
     speech,
     loadVoicesForProvider,
     loadVoiceCatalog,
+    invalidateVoiceCatalogs,
     selectProviderModel,
     ensureActiveSpeechVoice,
     getVoicesForProvider,
@@ -628,7 +674,7 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 }, {
   synced: {
-    actions: ['loadVoiceCatalog', 'selectProviderModel', 'ensureActiveSpeechVoice', 'resetSettings'],
+    actions: ['loadVoiceCatalog', 'invalidateVoiceCatalogs', 'selectProviderModel', 'ensureActiveSpeechVoice', 'resetSettings'],
     state: true,
   },
 })

@@ -416,7 +416,7 @@ describe('speech store helpers', () => {
       await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, speechStore.activeSpeechModel)
 
       expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
-      expect(speechStore.activeSpeechVoiceId).toBe('en-US-AvaMultilingualNeural')
+      await vi.waitFor(() => expect(speechStore.activeSpeechVoiceId).toBe('en-US-AvaMultilingualNeural'))
     }
     finally {
       vi.unstubAllGlobals()
@@ -476,7 +476,7 @@ describe('speech store helpers', () => {
       await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, speechStore.activeSpeechModel)
 
       expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
-      expect(speechStore.activeSpeechVoiceId).toBe('zh-CN-XiaochenNeural')
+      await vi.waitFor(() => expect(speechStore.activeSpeechVoiceId).toBe('zh-CN-XiaochenNeural'))
     }
     finally {
       vi.unstubAllGlobals()
@@ -609,14 +609,91 @@ describe('vOICEVOX provider defaults', () => {
     const original = { definitionId: 'microsoft-speech', config: { baseUrl: 'https://old.invalid/' } }
     const changed = { definitionId: 'microsoft-speech', config: { baseUrl: 'https://new.invalid/' } }
     await speech.loadVoiceCatalog('microsoft-speech', 'model-a', original)
-    loads.mockRejectedValueOnce(new Error('configuration unavailable'))
+    loads.mockRejectedValue(new Error('configuration unavailable'))
     await expect(speech.loadVoiceCatalog('microsoft-speech', 'model-a', changed)).rejects.toThrow('configuration unavailable')
     expect(speech.availableVoices['microsoft-speech']).toEqual([])
+    loads.mockResolvedValue(voices)
     await speech.loadVoiceCatalog('microsoft-speech', 'model-a', changed)
-    loads.mockResolvedValueOnce(undefined)
+    loads.mockResolvedValue(undefined)
     await speech.loadVoiceCatalog('microsoft-speech', 'model-a', changed)
     expect(speech.availableVoices['microsoft-speech']).toEqual([])
     expect(speech.voiceCatalogIdentities['microsoft-speech']).toBeUndefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964866479
+  // ROOT CAUSE: Completed catalogs outlived their owner because only pending
+  // requests observed session invalidation. Logout must invalidate cached data.
+  it('clears completed owned catalogs on logout while preserving user-provider catalogs', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ flux: 0 })))
+    authenticateOfficialProvider()
+    const providers = useProviderStore()
+    const voices = [{ id: 'old-owner', name: 'Old owner', languages: [], provider: OFFICIAL_SPEECH_PROVIDER_ID }]
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue(voices)
+    const speech = useSpeechStore()
+    await speech.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'model-a')
+    await speech.loadVoicesForProvider('microsoft-speech', 'model-a')
+    useAuthStore().$patch({ user: null, session: null, token: null })
+    await vi.waitFor(() => expect(speech.availableVoices[OFFICIAL_SPEECH_PROVIDER_ID]).toEqual([]))
+    expect(speech.availableVoices['microsoft-speech']).toEqual(voices)
+    authenticateOfficialProvider()
+    useAuthStore().user = { ...useAuthStore().user!, id: 'new-owner' }
+    loads.mockRejectedValue(new Error('new account unavailable'))
+    await speech.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'model-a')
+    expect(speech.availableVoices[OFFICIAL_SPEECH_PROVIDER_ID]).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964866488
+  it('retains completed catalogs across token renewal and same-ID session objects', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ flux: 0 })))
+    authenticateOfficialProvider()
+    const providers = useProviderStore()
+    const voices = [{ id: 'retained', name: 'Retained', languages: [], provider: OFFICIAL_SPEECH_PROVIDER_ID }]
+    vi.spyOn(providers, 'listProviderVoices').mockResolvedValue(voices)
+    const speech = useSpeechStore()
+    await speech.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'model-a')
+    const identity = speech.voiceCatalogIdentities[OFFICIAL_SPEECH_PROVIDER_ID]
+    const auth = useAuthStore()
+    auth.$patch({ token: 'renewed-token', user: { ...auth.user! }, session: { ...auth.session! } })
+    await nextTick()
+    await speech.invalidateVoiceCatalogs()
+    expect(speech.availableVoices[OFFICIAL_SPEECH_PROVIDER_ID]).toEqual(voices)
+    expect(speech.voiceCatalogIdentities[OFFICIAL_SPEECH_PROVIDER_ID]).toEqual(identity)
+  })
+
+  it('discards a request reset while its configuration fingerprint is pending', async () => {
+    const providers = useProviderStore()
+    const original = providers.getVoiceCatalogIdentity.bind(providers)
+    let finish!: () => void
+    const barrier = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    vi.spyOn(providers, 'getVoiceCatalogIdentity').mockImplementation(async (model, configuration) => {
+      const identity = await original(model, configuration)
+      if (model === 'delayed')
+        await barrier
+      return identity
+    })
+    const requests = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    const pending = speech.loadVoiceCatalog('microsoft-speech', 'delayed', { definitionId: 'microsoft-speech', config: {} })
+    await speech.resetState()
+    finish()
+    await expect(pending).resolves.toEqual([])
+    expect(requests.mock.calls.some(([, model]) => model === 'delayed')).toBe(false)
+    expect(speech.availableVoices['microsoft-speech']).toBeUndefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964866488
+  it('keeps large provider samples out of replicated speech state', async () => {
+    vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    await speech.loadVoiceCatalog('microsoft-speech', 'model-a', {
+      definitionId: 'microsoft-speech',
+      config: { voiceSample: 'private-sample'.repeat(100000) },
+    })
+    const state = JSON.stringify(speech.$state)
+    expect(state.length).toBeLessThan(2000)
+    expect(state).not.toContain('private-sample')
   })
 
   // ROOT CAUSE: The adapter wrote recommendations before the store discarded stale responses.
