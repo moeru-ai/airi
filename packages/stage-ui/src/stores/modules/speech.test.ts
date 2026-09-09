@@ -517,6 +517,20 @@ describe('single model speech providers', () => {
     expect(speechStore.activeSpeechModel).toBe('default')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967236129
+  // ROOT CAUSE: Single-model defaults overwrote explicit names from the manual field.
+  it('preserves a manually entered model through selection and catalog loading', async () => {
+    const providers = useProviderStore()
+    await providers.initializeProvider('openai-compatible-audio-speech')
+    providers.providerRuntimeState['openai-compatible-audio-speech'].models = [
+      { id: 'discovered', name: 'Discovered', provider: 'openai-compatible-audio-speech' },
+    ]
+    const speech = useSpeechStore()
+    await speech.selectProviderModel('openai-compatible-audio-speech', 'manual-model')
+    await speech.loadVoicesForProvider('openai-compatible-audio-speech', 'manual-model')
+    expect(speech.activeSpeechModel).toBe('manual-model')
+  })
+
   it('keeps the voice when it seeds the model, because voices belong to the provider', async () => {
     const providersStore = useProviderStore()
     const speechStore = useSpeechStore()

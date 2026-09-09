@@ -363,6 +363,9 @@ export const useSpeechStore = defineStore('speech', () => {
   // The voice selection stays as it is. Voices belong to the provider, not to
   // this model, and a provider switch clears both before this runs.
   function ensureSingleOptionSpeechModel() {
+    // An explicit model can be a valid custom endpoint name absent from discovery.
+    if (activeSpeechModel.value)
+      return
     const models = providersStore.getModelsForProvider(activeSpeechProvider.value)
     if (models.length !== 1)
       return
