@@ -20,6 +20,19 @@ const samplingOptions = ambientLightDefaults.sampling
 const centeredWindow = { x: 0.375, y: 0.25, width: 0.25, height: 0.5 }
 
 describe('screen ambient light sampling', () => {
+  it('preserves a small light behind a moving window when native capture excludes that window', () => {
+    // ROOT CAUSE:
+    // Discarding the painted silhouette erased the remaining pixels of small
+    // emitters. Native window exclusion supplies the actual desktop underneath.
+    const frame = createFrame(96, 72, [0, 0, 0, 255])
+    fillPixels(frame, 48, 30, 4, 4, [255, 190, 0, 255])
+    const outside = sampleScreenAmbientLight(frame, { exclude: { x: 0.2, y: 0.2, width: 0.25, height: 0.5 }, displayAspect, windowExcludedByCapture: true }, samplingOptions)
+    const covered = sampleScreenAmbientLight(frame, { exclude: centeredWindow, displayAspect, windowExcludedByCapture: true }, samplingOptions)
+    expect(covered.environment.screen!.radiance).toEqual(outside.environment.screen!.radiance)
+    expect(covered.environment.screen!.radiance.data.some(value => value > 0)).toBe(true)
+    expect(covered.diagnostics.excludedPixelCount).toBe(0)
+  })
+
   it('keeps distant display emission in display coordinates and excludes painted pixels', () => {
     // ROOT CAUSE:
     // The local contact map omitted distant emitters and filled off-display

@@ -16,6 +16,8 @@ import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { defineConfig } from 'electron-vite'
 
+import { buildScreenCapture } from './scripts/build-screen-capture'
+
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
@@ -33,6 +35,7 @@ export default defineConfig({
       },
     },
     plugins: [
+      { name: 'screen-capture-helper', buildStart: () => buildScreenCapture(import.meta.dirname) },
       {
         // To replace `build.rolldownOptions`, as electron-vite still uses the deprecated
         // `rollupOptions`, using `rollupOptions` and `rolldownOptions` at the same

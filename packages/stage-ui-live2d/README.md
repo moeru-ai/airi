@@ -26,7 +26,10 @@ direct surface light, so reducing ambient fill does not dim the added highlights
 boost** amplifies its perceptual color shift while preserving lit luminance.
 Each RGB channel stays at or above the current baseline; neutral light stays neutral.
 The final filter retains silhouette effects. Its rim and inward glow approximate
-backlight scattering. **Backlight bloom** adds an exterior halo; set it to zero
+backlight scattering. **Backlight bloom** blurs a separate light-only surface draw
+into an exterior halo. Normals, material response, shadows, and individual screen
+emitters determine its energy. Unlit artwork and ambient fill contribute none.
+The draw and blur run at half resolution and only when bloom is enabled. Set it to zero
 to preserve the original silhouette alpha. The diagnostic test-card preview remains a flat filter
 reference; inspect the live model to judge surface lighting.
 
@@ -66,17 +69,22 @@ The automatic baseline uses the same time constants with a separate linear mean.
 This increases halo sensitivity after darkness and suppresses it on a sustained
 bright screen. Sustained bright pages also reduce inward silhouette glare. The
 halo gain applies after highlight compression so that strong bloom settings do
-not hide the reduction. Local screen light still supplies all halo energy;
+not hide the reduction. Received surface light supplies the directional model's halo energy;
 black produces none. Camera exposure stays fixed while the automatic baseline
 follows the smoothed screen mean. These timings approximate a visual
 effect, not the full physiology of human dark adaptation.
 
-Desktop capture excludes all nonzero character and bloom alpha on each sample.
-The mask retains 500 ms of coverage in display coordinates, with a two-cell
-margin for resampling. This covers recent poses and window positions while the
-capture catches up. Transparent desktop pixels outside that coverage remain
-available for lighting. Fresh canvas reads require GPU synchronization, so the
-capture interval also controls the cost of this feedback protection.
+On macOS, a ScreenCaptureKit helper excludes the AIRI stage window in the
+compositor. The captured display includes the desktop beneath the character,
+so moving a light behind its silhouette does not discard that light. The
+screen-gap transport supplies spatial falloff; no additional silhouette mask
+or feathering removes incoming light. The helper scales directly to the sample
+grid and retains only the latest frame. This avoids video-canvas downscaling
+and character-alpha GPU readback in the renderer.
+
+Other desktop platforms use the video capture path. It excludes nonzero
+character and bloom alpha, retains 500 ms of coverage, and expands the mask by
+two sample cells. This prevents feedback but cannot recover hidden sources.
 
 The final filter owns the transient history and shares it with the surface
 binding. Render calls advance it without extra timers or capture uploads.

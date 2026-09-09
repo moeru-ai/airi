@@ -364,6 +364,9 @@ vec3 airiEnhanceLightColor(vec3 baseline, vec3 lit, vec3 incident) {
   float amount = clamp(min(limits.r,min(limits.g,limits.b)),0.,1.);
   return clamp(lit+amount*shift,baseline,vec3(1.));
 }
+// The light-only draw reads this before tone mapping. Ambient artwork never
+// contributes; normals, materials, visibility, and emitter geometry do.
+vec3 airiBloomEnergy = vec3(0.);
 vec3 airiSurfaceColor(vec3 n, vec2 stageUv, vec3 color, float materialSheen) {
   if (u_airiStrength <= 0.) return color;
   vec3 albedo = pow(color,vec3(mix(1.,u_airiContrast,min(u_airiStrength,1.))));
@@ -378,6 +381,7 @@ vec3 airiSurfaceColor(vec3 n, vec2 stageUv, vec3 color, float materialSheen) {
   vec3 added = albedo*(response-1.) + reflected*u_airiSheen*materialSheen*u_airiStrength*reflectionScale;
   // Gate by incident light, not albedo: white light on blue hair stays neutral.
   vec3 incident = (response-1.)+reflected*u_airiSheen*materialSheen*u_airiStrength*reflectionScale;
+  airiBloomEnergy = max(added,vec3(0.)) * (u_airiPhotometry > .5 ? mix(1.,u_airiCameraExposure,min(u_airiStrength,1.)) : 1.);
   if (u_airiPhotometry > .5) {
     float exposure = mix(1.,u_airiCameraExposure,min(u_airiStrength,1.));
     color *= exposure;

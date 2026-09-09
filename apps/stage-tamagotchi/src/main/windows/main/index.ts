@@ -31,6 +31,7 @@ import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { setupAmbientCapture } from '../../services/electron/ambient-capture-window'
 import { setupNormalGeneration } from '../../services/electron/live2d-normal-generation'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
@@ -231,6 +232,7 @@ export async function setupMainWindow(params: {
   }
 
   initScreenCaptureForWindow(window)
+  setupAmbientCapture(window)
 
   return window
 }

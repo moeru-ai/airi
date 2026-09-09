@@ -649,6 +649,9 @@ const dropShadowAnimationId = ref(0)
 function updateAmbientLightFilter() {
   const options = screenAmbientLightFilterOptions.value
   const physical = props.screenAmbientLightExposure.enabled && screenAmbientLightMode.value === 'window-gradient' && !!surfaceLighting
+  screenAmbientLightFilter.value.renderSurfaceBloom = surfaceLighting && screenAmbientLightMode.value === 'window-gradient'
+    ? input => surfaceLighting!.renderBloom(input)
+    : undefined
   screenAmbientLightFilter.value.exposure.configure(screenAmbientLightEnvironment.value, props.screenAmbientLightExposure, physical && screenAmbientLightActive.value)
   surfaceLighting?.setExposure(
     physical ? options.baseBrightness : options.baseBrightness + options.exposureRange * screenAmbientLightEnvironment.value.exposure,

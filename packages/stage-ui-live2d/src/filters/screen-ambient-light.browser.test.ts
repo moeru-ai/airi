@@ -33,6 +33,28 @@ const warm: LinearColor = [1, 0.7, 0.4]
 type LinearColor = [number, number, number]
 
 describe('screen ambient light filter', () => {
+  it('uses received surface light for bloom even with no contact backlight', () => {
+    // The supplied texture represents the surface renderer's light-only draw.
+    // Contact-map light must not replace or modulate that independent signal.
+    const options = { bloom: 1, backlight: 0, wrapIntensity: 0, surfaceBloom: true }
+    const darkContact = renderWrap(uniformMap(black), options)
+    const brightContact = renderWrap(uniformMap(white), options)
+    const x = darkContact.spriteRight + 1
+    expect(channelAt(darkContact, x, darkContact.middleRow, 3)).toBeGreaterThan(0)
+    expect(channelAt(brightContact, x, brightContact.middleRow, 3)).toBe(channelAt(darkContact, x, darkContact.middleRow, 3))
+  })
+
+  it('keeps bloom sensitive to incoming energy at the same dark adaptation', () => {
+    // ROOT CAUSE:
+    // sRGB encoding lifted faint halo energy before the shared adaptation gain.
+    // A tenfold emitter change therefore produced nearly the same edge opacity.
+    const options = { backlight: 1, bloom: 1, wrapIntensity: 0, adaptedLevel: 0 }
+    const faint = renderWrap(uniformMap([0.01, 0.01, 0.01]), options)
+    const bright = renderWrap(uniformMap([0.1, 0.1, 0.1]), options)
+    const x = bright.spriteRight + 1
+    expect(channelAt(bright, x, bright.middleRow, 3)).toBeGreaterThan(channelAt(faint, x, faint.middleRow, 3) * 5)
+  })
+
   it('leaves the model unchanged at strength zero', () => {
     const pixels = renderLight({
       environment: environmentWith({ surround: uniformMap(red), contact: uniformMap(red), exposure: 1 }),
@@ -583,6 +605,7 @@ function renderWrap(
     translucentWrap?: boolean
     /** Alpha of the gray sprite, from 0 to 1. The default is opaque. */
     spriteAlpha?: number
+    surfaceBloom?: boolean
   } = {},
 ): WrapScene {
   const canvasSize = behind.canvasSize ?? 100
@@ -608,6 +631,8 @@ function renderWrap(
   const sprite = new Sprite(Texture.from(source))
   sprite.position.set(spriteOffset, spriteOffset)
   const filter = new ScreenAmbientLightFilter()
+  if (behind.surfaceBloom)
+    filter.renderSurfaceBloom = input => input
   if (behind.adaptedLevel !== undefined) {
     const level = behind.adaptedLevel
     filter.exposure.configure(environmentWith({ surround: uniformMap([level, level, level]), contact }), { ...ambientLightDefaults.exposure, enabled: true }, true)

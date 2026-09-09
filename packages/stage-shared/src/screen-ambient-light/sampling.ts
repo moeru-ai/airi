@@ -47,6 +47,8 @@ export interface SampleRegion {
    * never reach the measurement.
    */
   paintedAlpha?: Uint8ClampedArray
+  /** Native capture excludes AIRI before compositing, so pixels under it are measured desktop light. */
+  windowExcludedByCapture?: boolean
   /**
    * Bounds of what the renderer actually drew, in the same units as
    * {@link exclude}. The maps are placed around this rather than around the
@@ -200,7 +202,7 @@ export function sampleScreenAmbientLight(
       // Recent painted coverage can remain outside the current window after
       // it moves. Reject it there too: capture can still contain the old pose.
       const painted = paintedAlpha?.[index]
-      if ((painted !== undefined && painted > 0) || (inside && painted === undefined)) {
+      if (!region.windowExcludedByCapture && ((painted !== undefined && painted > 0) || (inside && painted === undefined))) {
         excludedPixelCount += 1
         continue
       }
@@ -304,7 +306,7 @@ function sampleDisplayEmission(frame: PixelFrame, region: SampleRegion, options:
       const u = (x + 0.5) / frame.width
       const inside = u >= region.exclude.x && u <= region.exclude.x + region.exclude.width
         && v >= region.exclude.y && v <= region.exclude.y + region.exclude.height
-      if (!frame.data[offset + 3] || (region.paintedAlpha ? region.paintedAlpha[index] > 0 : inside))
+      if (!frame.data[offset + 3] || (!region.windowExcludedByCapture && (region.paintedAlpha ? region.paintedAlpha[index] > 0 : inside)))
         continue
       const r = frame.data[offset]
       const g = frame.data[offset + 1]
