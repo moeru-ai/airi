@@ -5,6 +5,9 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    },
     "@proj-airi/electron-vueuse#build": {
       "dependsOn": ["@proj-airi/electron-eventa#build"],
       "outputs": ["dist/**"]
