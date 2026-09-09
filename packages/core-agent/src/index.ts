@@ -3,15 +3,16 @@ export type { ChatHookRegistry } from './contracts/hook-types'
 export type { AgentLLMPort } from './contracts/llm-port'
 export type { AgentSessionPort } from './contracts/session-port'
 export type { AgentForegroundStreamPort } from './contracts/stream-port'
-export { readChatContent, readChatMessages, renderChatContext } from './messages/chat-completions'
+export { chatContentToInputSegments, chatMessagesToTurns, conversationToChatMessages } from './messages/chat-completions'
 export {
   buildContextPromptMessage,
   formatContextPromptText,
 } from './messages/context-prompt'
-
 export type { ContextSnapshot } from './messages/context-prompt'
+
 export { formatTimePrefix } from './messages/datetime-prefix'
-export type { Citation, ContentSegment, ConversationContext, Message as ConversationMessage, ConversationTurn, ProviderContinuation } from './messages/types'
+export { renderConversationPreview } from './messages/preview'
+export type { AgentMessage, AgentMessageByProtocol, AssistantTurn, Citation, ContentSegment, Conversation, GenerationRound, ProviderContinuation, SystemTurn, ToolExecution, ToolInvocation, Turn, UserTurn } from './messages/types'
 export { createChatHooks } from './runtime/agent-hooks'
 export type {
   ChatOrchestratorLifecycleRecord,

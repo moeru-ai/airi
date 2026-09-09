@@ -3,7 +3,7 @@ import type { Tool } from '@xsai/shared-chat'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlicesToolCallResult } from '../types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
-import { readChatContent } from '@proj-airi/core-agent'
+import { chatContentToInputSegments } from '@proj-airi/core-agent'
 
 import { toolNameFrom } from './ai/chat-llm/tool-resolver'
 
@@ -45,19 +45,25 @@ export function replaceToolCallResult(message: ChatAssistantMessage, result: Too
   }
 
   let generationTranscript = message.generationTranscript
-  if (generationTranscript?.messages.some(entry => entry.segments.some(segment => segment.type === 'tool-result' && segment.callId === result.id))) {
-    const replacement = { type: 'tool-result' as const, callId: result.id, content: readChatContent(result.result) }
-    // Native state describes the old result. After a local edit, every adapter
-    // must render the portable turn instead of replaying that state.
-    generationTranscript = {
-      messages: generationTranscript.messages.map((entry) => {
-        if (entry.role !== 'tool')
-          return entry
-        return {
-          ...entry,
-          segments: entry.segments.map(segment => segment.callId === result.id ? replacement : segment),
-        }
-      }),
+  if (generationTranscript) {
+    const changedRound = generationTranscript.rounds.findIndex(round => round.toolInvocations.some(call => call.callId === result.id))
+    if (changedRound >= 0) {
+      // Later native rounds were generated from the old result and cannot be replayed after this edit.
+      generationTranscript = {
+        ...generationTranscript,
+        rounds: generationTranscript.rounds.map((round, index) => index < changedRound
+          ? round
+          : {
+              ...round,
+              continuation: undefined,
+              toolInvocations: round.toolInvocations.map(call => call.callId !== result.id
+                ? call
+                : {
+                    ...call,
+                    execution: { status: result.isError ? 'failed' : 'succeeded', output: chatContentToInputSegments(result.result) },
+                  }),
+            }),
+      }
     }
   }
 

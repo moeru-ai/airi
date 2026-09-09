@@ -1,7 +1,7 @@
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { CommonContentPart, CompletionToolCall, Tool, ToolChoice } from '@xsai/shared-chat'
 
-import type { ConversationContext, ConversationTurn } from '../messages/types'
+import type { AssistantTurn, Conversation } from '../messages/types'
 
 /** Describes whether generation usage came from the provider or a local fallback. */
 export type LlmUsageSource = 'reported' | 'estimated' | 'unavailable'
@@ -30,7 +30,7 @@ export interface StreamOptions {
   /** Provider registry identity used to isolate native continuation data. */
   providerId?: string
   /** Called once with this turn only, after every tool step has settled. */
-  onTranscript?: (turn: ConversationTurn) => void | Promise<void>
+  onTranscript?: (turn: AssistantTurn) => void | Promise<void>
   abortSignal?: AbortSignal
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
@@ -39,7 +39,8 @@ export interface StreamOptions {
   /** Internal correlation kept out of the provider request body. */
   requestCorrelation?: {
     conversationId: string
-    roundId: string
+    turnId: string
+    runId?: string
   }
   /**
    * The temperature parameter controls the randomness of the model's output.
@@ -82,7 +83,7 @@ export type BuiltinToolsResolver = (model: string, chatProvider: GenerationProvi
 export interface StreamFromOptions {
   model: string
   chatProvider: GenerationProvider
-  context: ConversationContext
+  conversation: Conversation
   options?: StreamOptions
   builtinToolsResolver?: BuiltinToolsResolver
 }

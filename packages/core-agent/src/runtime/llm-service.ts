@@ -1,7 +1,7 @@
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool, Usage } from '@xsai/shared-chat'
 
-import type { ConversationContext } from '../messages/types'
+import type { Conversation } from '../messages/types'
 import type { StreamEvent, StreamFromOptions, StreamOptions } from '../types/llm'
 
 import { streamChatCompletions } from './chat-completions'
@@ -40,16 +40,16 @@ async function resolveTools(options?: StreamOptions) {
   return tools ?? []
 }
 
-function startStream(chatProvider: GenerationProvider, model: string, context: ConversationContext, options: StreamOptions | undefined, tools: Tool[] | undefined, onEvent: (event: StreamEvent) => Promise<void>) {
+function startStream(chatProvider: GenerationProvider, model: string, conversation: Conversation, options: StreamOptions | undefined, tools: Tool[] | undefined, onEvent: (event: StreamEvent) => Promise<void>) {
   const request = chatProvider.generation(model)
   const { config } = request
   if (request.protocol === 'responses') {
     const scope = JSON.stringify([options?.providerId, String(config.baseURL), model, options?.requestCorrelation?.conversationId])
-    return streamResponses({ config: request.config, webSearch: request.webSearch, context, scope, options, tools, onEvent })
+    return streamResponses({ config: request.config, webSearch: request.webSearch, conversation, scope, options, tools, onEvent })
   }
   return streamChatCompletions({
     config: request.config,
-    context,
+    conversation,
     options,
     tools,
     onEvent,
@@ -62,7 +62,7 @@ function startStream(chatProvider: GenerationProvider, model: string, context: C
 export async function streamFrom({
   model,
   chatProvider,
-  context,
+  conversation,
   options,
   builtinToolsResolver,
 }: StreamFromOptions) {
@@ -105,7 +105,7 @@ export async function streamFrom({
     }
 
     try {
-      const streamResult = startStream(chatProvider, model, context, options, tools, onEvent)
+      const streamResult = startStream(chatProvider, model, conversation, options, tools, onEvent)
 
       // NOTICE: Consume underlying promises to prevent unhandled rejections from
       // @xsai/stream-text's SSE parser surfacing as faulted app state.

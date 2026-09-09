@@ -2,9 +2,13 @@
 
 `@proj-airi/core-agent` owns scheduling, context composition, tool rounds, and generation events. Stage applications provide persistence and UI through its ports. Provider registration and configuration belong to `provider-inference`. Authentication and Flux billing belong to the gateway.
 
-## Context and protocol projection
+## Conversation and protocol projection
 
-`ConversationContext` contains ordered turns. Each turn contains portable messages with structured segments: text, instructions, domain events, runtime context, media, tool calls, and tool results. A tool result refers to its call by `callId`.
+`Conversation` contains ordered `Turn` values. `UserTurn` owns user content. `SystemTurn` owns instructions or application context. Its authority distinguishes system instructions, developer instructions, and context data. Application context does not gain instruction authority merely because the application supplied it.
+
+`AssistantTurn` owns an ordered `rounds` array. One round represents one model invocation and all tool executions it requested, including parallel calls. Its content references tool invocations; each invocation owns its call and result once. The call id correlates results within that round. A run id refers to a real scheduler execution, not the number of rounds. Imported history has no model-call metadata when that information is unavailable.
+
+`AgentMessage<Protocol>` is the owning SDK's wire message type after projection. It is not a second universal message schema.
 
 `streamFrom` selects the configured provider capability before request projection. The Chat adapter renders Chat Completions messages. The Responses adapter renders native Items directly from the same context. Chat array compatibility cannot change Responses input. Both projections leave the context snapshot unchanged.
 
@@ -12,13 +16,11 @@
 await streamFrom({
   model: 'selected-model',
   chatProvider: selectedProvider,
-  context: {
+  conversation: {
     turns: [{
-      messages: [{
-        id: 'input-1',
-        role: 'user',
-        segments: [{ type: 'text', text: 'Hello' }],
-      }],
+      id: 'input-1',
+      type: 'user',
+      content: [{ type: 'text', text: 'Hello' }],
     }],
   },
 })
@@ -28,9 +30,11 @@ The existing session store uses Chat-shaped UI records. The orchestrator decodes
 
 ## Turn history
 
-After all SDK steps settle, `onTranscript` receives only the new turn. Portable messages preserve intermediate calls and results. Optional continuation data preserves provider fields such as encrypted reasoning, assistant phase, and Chat reasoning fields.
+After all SDK steps settle, `onTranscript` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
 
-The adapter preserves SDK continuation data without parsing nested provider fields through local schemas. It checks the outer array before replay. Its scope contains provider identity, endpoint, model, and conversation. A protocol or scope change projects portable messages. A local tool-result edit invalidates that turn's continuation data. Cancelled or failed generations do not commit a transcript.
+The persisted transcript contains settled rounds. Live deltas still use the existing stream event contract. This change does not add persistence for interrupted executions.
+
+The adapter preserves SDK continuation data without parsing nested provider fields through local schemas. It checks the outer array before replay. Its scope contains provider identity, endpoint, model, and conversation. A protocol or scope change projects round content. Unknown native content records a projection issue without removing the original payload or other readable items. Cross-protocol projection reports that issue instead of silently omitting content. A local tool-result edit invalidates native data for that round and later rounds that used the old result. Cancelled or failed generations do not commit a transcript.
 
 Local history preserves complete turns. Cloud chat sync currently transfers text and does not restore native continuation on another device.
 
@@ -51,7 +55,7 @@ pnpm -F @proj-airi/core-agent exec vitest run src/runtime src/messages src/agent
 
 ## Type boundaries
 
-Message roles constrain their segments. Users cannot invoke tools, and tool messages require correlated results.
+Turn types constrain their content. User and system turns cannot contain execution rounds. Only assistant rounds own tool invocations.
 Files have exactly one source. SDK output and restored continuation enter through protocol boundaries.
 The public stream event union has no `any` branch. Protocol adapters translate SDK events into this contract.
 The scheduler commits a transcript only after transport, local tools, and event consumers complete.

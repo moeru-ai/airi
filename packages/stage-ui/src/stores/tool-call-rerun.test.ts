@@ -48,13 +48,21 @@ describe('replaceToolCallResult', () => {
     // sends the previous result again. Editing a turn must invalidate native
     // state so its adapter renders the updated portable messages.
     const message = assistantMessage({ generationTranscript: {
-      messages: [{ id: 'result', role: 'tool', segments: [{ type: 'tool-result', callId: 'call-weather', content: [{ type: 'text', text: 'old weather' }] }] }],
-      continuation: { protocol: 'responses', scope: 'session', data: [{ type: 'function_call_output', call_id: 'call-weather', output: 'old weather' }] },
+      type: 'assistant',
+      id: 'turn',
+      status: 'completed',
+      rounds: [{
+        id: 'round',
+        content: [{ type: 'tool', invocationId: 'invocation' }],
+        projectionIssues: [],
+        toolInvocations: [{ id: 'invocation', callId: 'call-weather', name: 'weather', arguments: '{}', execution: { status: 'succeeded', output: [{ type: 'text', text: 'old weather' }] } }],
+        continuation: { protocol: 'responses', scope: 'session', data: [{ type: 'function_call_output', call_id: 'call-weather', output: 'old weather' }] },
+      }],
     } })
     const next = replaceToolCallResult(message, { id: 'call-weather', result: 'new weather' })
-    expect(next.generationTranscript?.continuation).toBeUndefined()
-    expect(next.generationTranscript?.messages[0].segments).toEqual([{ type: 'tool-result', callId: 'call-weather', content: [{ type: 'text', text: 'new weather' }] }])
-    expect(message.generationTranscript?.continuation).toBeDefined()
+    expect(next.generationTranscript?.rounds[0].continuation).toBeUndefined()
+    expect(next.generationTranscript?.rounds[0].toolInvocations[0].execution).toEqual({ status: 'succeeded', output: [{ type: 'text', text: 'new weather' }] })
+    expect(message.generationTranscript?.rounds[0].continuation).toBeDefined()
   })
 
   it('replaces stored tool_results by id', () => {

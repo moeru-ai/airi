@@ -2,13 +2,16 @@ import type { ResponsesConfig } from '@proj-airi/provider-inference'
 import type { ItemParam, ResponsesOptions } from '@xsai-ext/responses'
 import type { Tool } from '@xsai/shared-chat'
 
-import type { Citation, ConversationContext, ConversationTurn, InputSegment, Message, MessageSegment } from '../messages/types'
+import type { ProjectionEntry } from '../messages/turns'
+import type { Citation, Conversation, InputSegment, MessageSegment } from '../messages/types'
 import type { StreamEvent, StreamOptions } from '../types/llm'
 
 import { responses } from '@xsai-ext/responses'
 import { stepCountAtLeast } from '@xsai/shared-chat'
 
 import { renderSegmentText } from '../messages/render-context'
+import { projectInput, projectRound } from '../messages/turns'
+import { createAssistantTurn, recordRound } from './generation'
 import { toAiriStreamEvent } from './xsai-events'
 
 type InputContent = Exclude<Extract<ItemParam, { role: 'user' }>['content'], string>
@@ -25,7 +28,7 @@ function inputPart(segment: MessageSegment): InputContent[number] {
   }
 }
 
-function renderMessage(message: Message): ItemParam[] {
+function renderMessage(message: ProjectionEntry): ItemParam[] {
   const items: ItemParam[] = []
   const role = message.role === 'context' || message.role === 'event' || message.role === 'summary' ? 'user' : message.role
   let parts: MessageSegment[] = []
@@ -69,22 +72,23 @@ function renderMessage(message: Message): ItemParam[] {
   return items
 }
 
-function renderContext(context: ConversationContext, scope: string): ItemParam[] {
-  return context.turns.flatMap((turn) => {
-    if (turn.continuation?.protocol === 'responses' && turn.continuation.scope === scope) {
-      if (!Array.isArray(turn.continuation.data))
-        throw new Error('Responses continuation must contain an item array')
-      // The provider owns nested native fields, including tools this adapter does not interpret.
-      // Do not reconstruct SDK output through a partial schema before replay.
-      return turn.continuation.data
-    }
-    // A protocol or scope change intentionally uses portable messages. Native
-    // encrypted reasoning and provider ids cannot cross this ownership boundary.
-    return turn.messages.flatMap(renderMessage)
+function renderConversation(conversation: Conversation, scope: string): ItemParam[] {
+  return conversation.turns.flatMap((turn) => {
+    if (turn.type !== 'assistant')
+      return renderMessage(projectInput(turn))
+    return turn.rounds.flatMap((round) => {
+      const continuation = round.continuation
+      if (continuation?.protocol === 'responses' && continuation.scope === scope) {
+        if (!Array.isArray(continuation.data))
+          throw new Error('Responses continuation must contain an item array')
+        return continuation.data
+      }
+      return projectRound(round).flatMap(renderMessage)
+    })
   })
 }
 
-function readInputContent(content: Extract<ItemParam, { type: 'function_call_output' }>['output']): InputSegment[] {
+function readToolResultContent(content: Extract<ItemParam, { type: 'function_call_output' }>['output']): InputSegment[] {
   if (typeof content === 'string')
     return [{ type: 'text', text: content }]
   return content.map((part) => {
@@ -117,20 +121,22 @@ function readCitations(part: Extract<AssistantContent, { type: 'output_text' }>)
   }))
 }
 
-function readOutput(items: ItemParam[]): Message[] {
-  return items.flatMap<Message>((item, index) => {
+function readOutput(items: ItemParam[]): ProjectionEntry[] {
+  return items.flatMap<ProjectionEntry>((item, index) => {
     const id = `output-${index}`
     if (item.type === 'function_call')
       return [{ id, role: 'assistant', segments: [{ type: 'tool-call', callId: item.call_id, name: item.name, arguments: item.arguments }] }]
     if (item.type === 'function_call_output')
-      return [{ id, role: 'tool', segments: [{ type: 'tool-result', callId: item.call_id, content: readInputContent(item.output) }] }]
+      return [{ id, role: 'tool', segments: [{ type: 'tool-result', callId: item.call_id, content: readToolResultContent(item.output) }] }]
     if (item.type === 'message' && item.role === 'assistant') {
-      const segments: Extract<Message, { role: 'assistant' }>['segments'] = typeof item.content === 'string'
+      const segments: Extract<ProjectionEntry, { role: 'assistant' }>['segments'] = typeof item.content === 'string'
         ? [{ type: 'text', text: item.content }]
         : item.content.map((part) => {
             if (part.type === 'output_text')
               return { type: 'text', text: part.text, citations: readCitations(part) }
-            return { type: 'refusal', text: part.refusal }
+            if (part.type === 'refusal')
+              return { type: 'refusal', text: part.refusal }
+            throw new Error('Unsupported Responses assistant content')
           })
       return [{ id, role: 'assistant', segments }]
     }
@@ -155,19 +161,28 @@ function toolChoice(choice: StreamOptions['toolChoice']): ResponsesOptions['tool
 export function streamResponses(input: {
   config: ResponsesConfig
   webSearch?: boolean
-  context: ConversationContext
+  conversation: Conversation
   scope: string
   options?: StreamOptions
   tools?: Tool[]
   onEvent: (event: StreamEvent) => Promise<void>
 }) {
-  const items = renderContext(input.context, input.scope)
+  const items = renderConversation(input.conversation, input.scope)
+  const turn = createAssistantTurn(input.options?.requestCorrelation?.turnId, input.options?.requestCorrelation?.runId)
+  const starts: number[] = []
   const result = responses({
+    prepareStep: ({ input: current }) => {
+      // SDK callbacks receive snapshots. Retain offsets, not references to those snapshots.
+      starts.push(current.length)
+      return {}
+    },
     ...input.config,
     input: items,
     store: false,
     include: ['reasoning.encrypted_content'],
     abortSignal: input.options?.abortSignal,
+    temperature: input.options?.temperature,
+    topP: input.options?.topP,
     headers: { ...Object.fromEntries(new Headers(input.config.headers)), ...input.options?.headers },
     tools: input.webSearch ? [...(input.tools ?? []), { type: 'web_search' }] : input.tools,
     toolChoice: toolChoice(input.options?.toolChoice),
@@ -194,14 +209,18 @@ export function streamResponses(input: {
       }
     },
   })
-  const transcript = result.input.then(async (finalInput): Promise<ConversationTurn> => {
-    const lastStep = (await result.steps).at(-1)
-    if (lastStep?.finishReason === 'tool-calls' && lastStep.toolResults.length === 0)
-      throw new Error('Responses tool step limit reached')
-    const output = finalInput.slice(items.length)
-    if (!output.length)
-      return { messages: [] }
-    return { messages: readOutput(output), continuation: { protocol: 'responses', scope: input.scope, data: output } }
+  const transcript = Promise.all([result.input, result.steps]).then(([final, steps]) => {
+    for (const [index, step] of steps.entries()) {
+      const start = starts[index]
+      if (start === undefined)
+        throw new Error('Missing SDK model step boundary')
+      const output = final.slice(start, starts[index + 1] ?? final.length)
+      recordRound(turn, { protocol: 'responses', scope: input.scope, data: output }, step, input.config.model, item => readOutput([item]))
+    }
+    const lastStep = steps.at(-1)
+    if ((lastStep?.finishReason === 'tool-calls' || lastStep?.finishReason === 'tool_calls') && lastStep.toolCalls.length > 0 && lastStep.toolResults.length === 0)
+      throw new Error('Generation tool step limit reached')
+    return turn
   })
   return { ...result, transcript }
 }

@@ -1,4 +1,4 @@
-import type { ConversationContext, StreamOptions } from '@proj-airi/core-agent'
+import type { Conversation, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 
 import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
@@ -15,7 +15,7 @@ export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())
 
-  async function stream(model: string, chatProvider: GenerationProvider, context: ConversationContext, options?: StreamOptions) {
+  async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: StreamOptions) {
     const key = modelKey(model, chatProvider)
     const { tools: customTools, ...streamOptions } = options ?? {}
     const builtinToolsResolver = () => resolveLlmTools({ customTools })
@@ -23,7 +23,7 @@ export const useLLM = defineStore('llm', () => {
     const runStream = () => coreStreamFrom({
       model,
       chatProvider,
-      context,
+      conversation: context,
       options: {
         ...streamOptions,
         toolsCompatibility: toolsCompatibility.value,

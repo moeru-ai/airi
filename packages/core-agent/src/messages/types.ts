@@ -1,5 +1,5 @@
 import type { ItemParam } from '@xsai-ext/responses'
-import type { Message as ChatMessage } from '@xsai/shared-chat'
+import type { Message as ChatMessage, CompletionStep } from '@xsai/shared-chat'
 
 /**
  * Provider-ready message payload.
@@ -21,17 +21,72 @@ export interface RawMessage {
   metadata?: Record<string, unknown>
 }
 
-/** Role and content form one contract. Tool results cannot masquerade as instructions. */
-export type Message = {
+/** A conversation keeps authored turns in chronological order. Protocol roles are assigned by adapters. */
+export interface Conversation {
+  turns: Turn[]
+}
+
+/** Each turn owns content with one source and authority. Only assistant turns execute rounds. */
+export type Turn = UserTurn | AssistantTurn | SystemTurn
+
+/** User-authored content and attachments, before provider projection. */
+export interface UserTurn {
+  type: 'user'
   id: string
-  source?: string
-  metadata?: Record<string, unknown>
-} & (
-  | { role: 'user', segments: (InputSegment | ContextSegment)[] }
-  | { role: 'assistant', segments: (SegmentText | SegmentRefusal | SegmentToolCall | ContextSegment)[] }
-  | { role: 'tool', segments: SegmentToolResult[] }
-  | { role: 'system' | 'developer' | 'context' | 'event' | 'summary', segments: (SegmentText | ContextSegment)[] }
-)
+  content: (InputSegment | ContextSegment)[]
+}
+
+/** Context supplied by the application is not automatically a trusted instruction. */
+export interface SystemTurn {
+  type: 'system'
+  id: string
+  authority: 'system' | 'developer' | 'context'
+  content: (SegmentText | ContextSegment)[]
+}
+
+/** One assistant execution. A round is one model invocation plus its tool executions. */
+export interface AssistantTurn {
+  type: 'assistant'
+  id: string
+  /** Supplied by the agent scheduler when this turn belongs to an identified run. */
+  runId?: string
+  status: 'completed' | 'failed' | 'cancelled'
+  rounds: GenerationRound[]
+}
+
+/** Tool references retain output order; calls and results are owned only by toolInvocations. */
+export type RoundContent = SegmentText | SegmentRefusal | ContextSegment | { type: 'tool', invocationId: string }
+
+/** One model invocation and its tool executions, with native data isolated to that invocation. */
+export interface GenerationRound {
+  id: string
+  /** Absent for imported history whose original model invocation is not known. */
+  modelCall?: { model: string, finishReason: CompletionStep['finishReason'], usage?: CompletionStep['usage'] }
+  content: RoundContent[]
+  toolInvocations: ToolInvocation[]
+  /** Provider data belongs to this round and cannot cross the recorded scope. */
+  continuation?: ProviderContinuation
+  /** Unknown native content is saved, but cannot silently disappear on a protocol change. */
+  projectionIssues: string[]
+}
+
+/** A tool call and its execution result have one owner inside a round. */
+export interface ToolInvocation {
+  /** Unique within the owning round; callId is the provider's correlation key. */
+  id: string
+  callId: string
+  name: string
+  arguments: string
+  /** Present only when the executor reports an actual child agent run. */
+  childRunId?: string
+  execution: ToolExecution
+}
+
+/** A missing result is pending, never an empty successful result. */
+export type ToolExecution
+  = { status: 'pending' }
+    | { status: 'succeeded' | 'failed', output: InputSegment[] }
+    | { status: 'cancelled' }
 
 /** Domain data becomes text only inside the selected protocol adapter. */
 export type ContextSegment = SegmentInstruction | SegmentTaggedText | SegmentDomainEvent
@@ -91,6 +146,14 @@ export interface SegmentToolResult {
   content: InputSegment[]
 }
 
+/** Wire messages exist only after projection. Each protocol retains its owning SDK contract. */
+export interface AgentMessageByProtocol {
+  'chat-completions': ChatMessage
+  'responses': ItemParam
+}
+
+export type AgentMessage<Protocol extends keyof AgentMessageByProtocol> = AgentMessageByProtocol[Protocol]
+
 /**
  * Serializable SDK output owned by its protocol adapter.
  * The scope identifies the provider instance, endpoint, model, and conversation.
@@ -98,20 +161,9 @@ export interface SegmentToolResult {
  * Replay preserves provider extensions without parsing or rebuilding their nested payloads.
  */
 export type ProviderContinuation = { scope: string } & (
-  | { protocol: 'chat-completions', data: ChatMessage[] }
-  | { protocol: 'responses', data: ItemParam[] }
+  | { protocol: 'chat-completions', data: AgentMessage<'chat-completions'>[] }
+  | { protocol: 'responses', data: AgentMessage<'responses'>[] }
 )
-
-/** One ordered interaction, including intermediate model messages and tool results. */
-export interface ConversationTurn {
-  messages: Message[]
-  continuation?: ProviderContinuation
-}
-
-/** Provider-independent context. Projection must not mutate this snapshot. */
-export interface ConversationContext {
-  turns: ConversationTurn[]
-}
 
 /**
  * Plain text segment for projected message rendering.

@@ -2,11 +2,12 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { ItemParam } from '@xsai-ext/responses'
 import type { Tool } from '@xsai/shared-chat'
 
-import type { ConversationContext, ConversationTurn } from '../messages/types'
+import type { AssistantTurn, Conversation } from '../messages/types'
 
 import { getDefinedProvider } from '@proj-airi/provider-inference'
 import { describe, expect, it, vi } from 'vitest'
 
+import { readTurns } from '../messages/turns'
 import { streamFrom } from './llm-service'
 
 function sse(events: unknown[]) {
@@ -47,7 +48,7 @@ describe('responses generation', () => {
     await streamFrom({
       model: 'test',
       chatProvider: provider(fetch),
-      context: { turns: [{ messages: [{ id: 'user', role: 'user', segments: [{ type: 'text', text: 'Weather?' }] }] }] },
+      conversation: { turns: readTurns([{ id: 'user', role: 'user', segments: [{ type: 'text', text: 'Weather?' }] }]) },
       options: { tools: [tool], providerId: 'provider/test', onTranscript, onUsage, onStreamEvent },
     })
     expect(execute).toHaveBeenCalledTimes(1)
@@ -61,9 +62,11 @@ describe('responses generation', () => {
         { type: 'function_call_output', call_id: 'call_1', output: 'sunny' },
       ],
     })
-    expect(onTranscript).toHaveBeenCalledWith(expect.objectContaining({
-      continuation: { protocol: 'responses', scope: JSON.stringify(['provider/test', 'https://example.test/v1/', 'test', undefined]), data: [reasoning, call, { type: 'function_call_output', call_id: 'call_1', output: 'sunny', status: 'completed' }, answer] },
-    }))
+    const transcript: AssistantTurn = onTranscript.mock.calls[0][0]
+    expect(transcript.rounds).toHaveLength(2)
+    expect(transcript.rounds[0].continuation?.data).toEqual([reasoning, call, { type: 'function_call_output', call_id: 'call_1', output: 'sunny', status: 'completed' }])
+    expect(transcript.rounds[1].continuation?.data).toEqual([answer])
+    expect(transcript.rounds[0].toolInvocations[0]).toMatchObject({ callId: 'call_1', execution: { status: 'succeeded', output: [{ type: 'text', text: 'sunny' }] } })
     expect(onUsage).toHaveBeenCalledWith({ inputTokens: 20, outputTokens: 10, totalTokens: 30, source: 'reported' })
     expect(onStreamEvent).toHaveBeenCalledWith({ type: 'reasoning-delta', text: 'Checking.' })
     expect(onStreamEvent).toHaveBeenLastCalledWith({ type: 'finish' })
@@ -80,7 +83,7 @@ describe('responses generation', () => {
     await streamFrom({
       model: 'test',
       chatProvider: provider(fetch),
-      context: { turns: [] },
+      conversation: { turns: [] },
       options: { tools: [{ type: 'function', function: { name: 'lookup', description: 'Lookup', parameters: { type: 'object', properties: {} } }, execute: async () => ({ found: true }) }] },
     })
     expect(requests[1]).toMatchObject({ input: [call, { type: 'function_call_output', output: '{"found":true}' }] })
@@ -94,7 +97,7 @@ describe('responses generation', () => {
       expect(request.messages).toBeUndefined()
       return sse(completed([]))
     }
-    await streamFrom({ model: 'test', chatProvider: provider(fetch), context: { turns: [{ messages: [{ id: 'user', role: 'user', segments: [{ type: 'image', url: 'data:image/png;base64,AA==', detail: 'low' }] }] }] }, options: { toolChoice: { type: 'function', function: { name: 'inspect' } } } })
+    await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: readTurns([{ id: 'user', role: 'user', segments: [{ type: 'image', url: 'data:image/png;base64,AA==', detail: 'low' }] }]) }, options: { toolChoice: { type: 'function', function: { name: 'inspect' } } } })
   })
 
   it('does not persist a failed response', async () => {
@@ -102,7 +105,7 @@ describe('responses generation', () => {
     await expect(streamFrom({
       model: 'test',
       chatProvider: provider(async () => sse([{ type: 'response.failed', response: { output: [], error: { message: 'provider failed' } } }])),
-      context: { turns: [] },
+      conversation: { turns: [] },
       options: { onTranscript },
     })).rejects.toThrow('provider failed')
     expect(onTranscript).not.toHaveBeenCalled()
@@ -120,7 +123,7 @@ describe('responses generation', () => {
     await expect(streamFrom({
       model: 'test',
       chatProvider: provider(fetch),
-      context: { turns: [] },
+      conversation: { turns: [] },
       options: {
         abortSignal: abort.signal,
         onStreamEvent: (event) => {
@@ -143,7 +146,7 @@ it('fails instead of storing an unanswered function call at the step limit', asy
       requestCount += 1
       return sse(completed([{ type: 'function_call', id: `fc_${requestCount}`, call_id: `call_${requestCount}`, name: 'repeat', arguments: '{}' }]))
     }),
-    context: { turns: [] },
+    conversation: { turns: [] },
     options: {
       tools: [{ type: 'function', function: { name: 'repeat', parameters: { type: 'object', properties: {} } }, execute }],
       onTranscript,
@@ -159,7 +162,7 @@ it('projects structured context and media directly without Chat compatibility lo
   // The shared Chat sanitizer ran before protocol selection and discarded
   // media when supportsContentArray was false. Each adapter now projects
   // the original context and applies only its own wire constraints.
-  const context: ConversationContext = { turns: [{ messages: [{
+  const context: Conversation = { turns: readTurns([{
     id: 'input',
     role: 'user',
     segments: [
@@ -168,7 +171,7 @@ it('projects structured context and media directly without Chat compatibility lo
       { type: 'file', url: 'https://example.test/report.pdf', name: 'report.pdf' },
       { type: 'domain-event', eventType: 'sensor', payload: { temperature: 21 } },
     ],
-  }] }] }
+  }]) }
   const snapshot = structuredClone(context)
   const fetch = vi.fn<typeof globalThis.fetch>(async (_url, init) => {
     const request = JSON.parse(String(init?.body))
@@ -181,18 +184,18 @@ it('projects structured context and media directly without Chat compatibility lo
     expect(request.messages).toBeUndefined()
     return sse(completed([]))
   })
-  await streamFrom({ model: 'test', chatProvider: provider(fetch), context, options: { supportsContentArray: false } })
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: context, options: { supportsContentArray: false } })
   expect(fetch).toHaveBeenCalledTimes(1)
   expect(context).toEqual(snapshot)
 })
 
 it('uses one context for Chat and Responses while keeping call and result order', async () => {
-  const context: ConversationContext = { turns: [{ messages: [
+  const context: Conversation = { turns: readTurns([
     { id: 'event', role: 'event', segments: [{ type: 'domain-event', eventType: 'clock', payload: { hour: 12 } }] },
     { id: 'call', role: 'assistant', segments: [{ type: 'tool-call', callId: 'call-1', name: 'read', arguments: '{}' }] },
     { id: 'result', role: 'tool', segments: [{ type: 'tool-result', callId: 'call-1', content: [{ type: 'text', text: 'ok' }, { type: 'image', url: 'https://example.test/result.png' }] }] },
     { id: 'refusal', role: 'assistant', segments: [{ type: 'refusal', text: 'Cannot do that.' }] },
-  ] }] }
+  ]) }
   const snapshot = structuredClone(context)
   const requests: Record<string, unknown>[] = []
   const fetch: typeof globalThis.fetch = async (url, init) => {
@@ -201,8 +204,8 @@ it('uses one context for Chat and Responses while keeping call and result order'
       return sse(completed([]))
     return sse([{ choices: [{ index: 0, delta: { content: 'ok' }, finish_reason: 'stop' }] }])
   }
-  await streamFrom({ model: 'test', chatProvider: provider(fetch), context })
-  await streamFrom({ model: 'test', chatProvider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/v1/', fetch } }) }, context })
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: context })
+  await streamFrom({ model: 'test', chatProvider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/v1/', fetch } }) }, conversation: context })
   expect(requests[0].input).toEqual([
     { type: 'message', role: 'user', content: 'Domain event: clock\n{\n  "hour": 12\n}' },
     { type: 'function_call', call_id: 'call-1', name: 'read', arguments: '{}' },
@@ -224,28 +227,28 @@ it('replays native state only for the same provider, endpoint, model and convers
     { type: 'message', role: 'assistant', phase: 'final_answer', content: 'answer' },
   ]
   const requests: { input: ItemParam[] }[] = []
-  let transcript: ConversationTurn | undefined
+  let transcript: AssistantTurn | undefined
   const fetch: typeof globalThis.fetch = async (_url, init) => {
     requests.push(JSON.parse(String(init?.body)))
     return sse(completed(native))
   }
-  const options = { providerId: 'provider-1', requestCorrelation: { conversationId: 'session-1', roundId: 'round-1' } }
-  await streamFrom({ model: 'test', chatProvider: provider(fetch), context: { turns: [] }, options: { ...options, onTranscript: (turn) => {
+  const options = { providerId: 'provider-1', requestCorrelation: { conversationId: 'session-1', turnId: 'round-1' } }
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: [] }, options: { ...options, onTranscript: (turn) => {
     transcript = turn
   } } })
   expect(transcript).toBeDefined()
   if (!transcript)
     throw new Error('Expected a completed transcript')
   const context = { turns: [structuredClone(transcript)] }
-  await streamFrom({ model: 'test', chatProvider: provider(fetch), context, options: { ...options, requestCorrelation: { ...options.requestCorrelation, roundId: 'round-2' } } })
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: context, options: { ...options, requestCorrelation: { ...options.requestCorrelation, turnId: 'round-2' } } })
   expect(requests[1].input).toEqual(native)
   for (const change of [
     { model: 'different', chatProvider: provider(fetch), options },
     { model: 'test', chatProvider: provider(fetch), options: { ...options, providerId: 'provider-2' } },
-    { model: 'test', chatProvider: provider(fetch), options: { ...options, requestCorrelation: { conversationId: 'session-2', roundId: 'round-1' } } },
+    { model: 'test', chatProvider: provider(fetch), options: { ...options, requestCorrelation: { conversationId: 'session-2', turnId: 'round-1' } } },
     { model: 'test', chatProvider: { generation: (model: string) => ({ protocol: 'responses' as const, webSearch: false, config: { model, baseURL: 'https://another.test/v1/', fetch } }) }, options },
   ]) {
-    await streamFrom({ ...change, context })
+    await streamFrom({ ...change, conversation: context })
     expect(requests.at(-1)?.input).toEqual([{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'answer' }] }])
   }
 })
@@ -265,16 +268,16 @@ it('replays unknown provider items without filtering their fields through a part
       ...completed([answer]),
     ])
   }
-  const context: ConversationContext = { turns: [] }
+  const context: Conversation = { turns: [] }
   await streamFrom({
     model: 'test',
     chatProvider: provider(fetch),
-    context,
+    conversation: context,
     options: { onTranscript: (turn) => {
       context.turns.push(turn)
     } },
   })
-  await streamFrom({ model: 'test', chatProvider: provider(fetch), context })
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: context })
   expect(requests[1]).toMatchObject({ input: [native, answer] })
 })
 
@@ -302,7 +305,7 @@ it.each(['openai', 'openai-compatible'] as const)('sends %s BYOK requests direct
     await streamFrom({
       model: 'byok-model',
       chatProvider: instance,
-      context: { turns: [{ messages: [{ id: 'user', role: 'user', segments: [{ type: 'text', text: 'Hello' }] }] }] },
+      conversation: { turns: readTurns([{ id: 'user', role: 'user', segments: [{ type: 'text', text: 'Hello' }] }]) },
     })
     expect(fetchMock).toHaveBeenCalledTimes(1)
   }
@@ -323,11 +326,11 @@ it('runs hosted search and local tools together, then replays native search Item
   const nativeProvider: GenerationProvider = { generation: model => ({ protocol: 'responses', webSearch: true, config: { model, baseURL: 'https://example.test/v1/', fetch } }) }
   const onStreamEvent = vi.fn()
   const execute = vi.fn(async () => 'ok')
-  let transcript: ConversationTurn | undefined
+  let transcript: AssistantTurn | undefined
   await streamFrom({
     model: 'test',
     chatProvider: nativeProvider,
-    context: { turns: [] },
+    conversation: { turns: [] },
     options: {
       onStreamEvent,
       onTranscript: (turn) => {
@@ -344,8 +347,8 @@ it('runs hosted search and local tools together, then replays native search Item
   expect(onStreamEvent).toHaveBeenCalledWith({ type: 'citations', citations: [{ url: 'https://weather.example/report', title: 'Weather report', startIndex: 0, endIndex: 6 }] })
   if (!transcript)
     throw new Error('Expected settled transcript')
-  expect(transcript.messages.at(-1)?.segments[0]).toMatchObject({ type: 'text', text: 'Sunny.', citations: [{ title: 'Weather report' }] })
-  await streamFrom({ model: 'test', chatProvider: nativeProvider, context: { turns: [structuredClone(transcript)] } })
+  expect(transcript.rounds.at(-1)?.content[0]).toMatchObject({ type: 'text', text: 'Sunny.', citations: [{ title: 'Weather report' }] })
+  await streamFrom({ model: 'test', chatProvider: nativeProvider, conversation: { turns: [structuredClone(transcript)] } })
   expect(requests[2].input).toEqual([...requests[1].input, answer])
 })
 
@@ -354,7 +357,7 @@ it('does not send hosted search when disabled', async () => {
     expect(JSON.parse(String(init?.body)).tools).toBeUndefined()
     return sse(completed([]))
   }
-  await streamFrom({ model: 'test', chatProvider: provider(fetch), context: { turns: [] } })
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: [] } })
 })
 
 // https://github.com/moeru-ai/airi/pull/2200
@@ -369,11 +372,81 @@ it('preserves sampling controls when routing through either protocol adapter', a
       ? sse(completed([]))
       : sse([{ choices: [{ index: 0, delta: { content: 'ok' }, finish_reason: 'stop' }] }])
   }
-  const context: ConversationContext = { turns: [] }
+  const context: Conversation = { turns: [] }
   const options = { temperature: 0, topP: 0.8 }
-  await streamFrom({ model: 'test', chatProvider: provider(fetch), context, options })
-  await streamFrom({ model: 'test', chatProvider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/v1/', fetch } }) }, context, options })
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: context, options })
+  await streamFrom({ model: 'test', chatProvider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/v1/', fetch } }) }, conversation: context, options })
   expect(requests).toHaveLength(2)
   expect(requests[0]).toMatchObject({ temperature: 0, top_p: 0.8 })
   expect(requests[1]).toMatchObject({ temperature: 0, top_p: 0.8 })
+})
+
+// https://github.com/moeru-ai/airi/pull/2477
+it('groups parallel tool calls in one round and keeps repeated calls in later rounds distinct', async () => {
+  const gate = Promise.withResolvers<void>()
+  const started: string[] = []
+  const execute = vi.fn<Tool['execute']>(async (input) => {
+    if (typeof input !== 'object' || input === null || !('city' in input) || typeof input.city !== 'string')
+      throw new Error('Expected a city')
+    const city = input.city
+    started.push(city)
+    if (started.length === 2)
+      gate.resolve()
+    await gate.promise
+    return `${city}: sunny`
+  })
+  const call = (id: string, city: string): ItemParam => ({ type: 'function_call', call_id: id, name: 'weather', arguments: JSON.stringify({ city }) })
+  const requests: unknown[] = []
+  const fetch: typeof globalThis.fetch = async (_url, init) => {
+    requests.push(JSON.parse(String(init?.body)))
+    if (requests.length === 1)
+      return sse(completed([call('a', 'Paris'), call('b', 'Tokyo')]))
+    if (requests.length === 2)
+      return sse(completed([call('c', 'London')]))
+    return sse(completed([{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'All sunny.' }] }]))
+  }
+  let transcript: AssistantTurn | undefined
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: [] }, options: {
+    requestCorrelation: { conversationId: 'conversation', turnId: 'turn', runId: 'run' },
+    tools: [{ type: 'function', function: { name: 'weather', parameters: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] } }, execute }],
+    onTranscript: (turn) => { transcript = turn },
+  } })
+  expect(transcript?.id).toBe('turn')
+  expect(transcript?.runId).toBe('run')
+  expect(transcript?.rounds.map(round => round.toolInvocations.length)).toEqual([2, 1, 0])
+  expect(transcript?.rounds[0].toolInvocations.map(call => call.execution)).toEqual([
+    { status: 'succeeded', output: [{ type: 'text', text: 'Paris: sunny' }] },
+    { status: 'succeeded', output: [{ type: 'text', text: 'Tokyo: sunny' }] },
+  ])
+  expect(new Set(transcript?.rounds.flatMap(round => round.toolInvocations.map(call => call.id))).size).toBe(3)
+  expect(execute).toHaveBeenCalledTimes(3)
+})
+
+// https://github.com/moeru-ai/airi/pull/2477
+it('preserves readable content and raw items when another item cannot be projected', async () => {
+  const unknown = { type: 'message', role: 'assistant', content: [{ type: 'future_content', payload: 'opaque' }] }
+  const answer = { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Visible answer' }] }
+  const requests: { input: unknown[] }[] = []
+  const fetch: typeof globalThis.fetch = async (_url, init) => {
+    requests.push(JSON.parse(String(init?.body)))
+    return sse([
+      { type: 'response.output_item.done', item: unknown },
+      { type: 'response.output_item.done', item: answer },
+      { type: 'response.completed', response: { output: [unknown, answer] } },
+    ])
+  }
+  const conversation: Conversation = { turns: [] }
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation, options: { onTranscript: (turn) => {
+    conversation.turns.push(turn)
+  } } })
+  const turn = conversation.turns[0]
+  if (turn.type !== 'assistant')
+    throw new Error('Expected assistant turn')
+  expect(turn.rounds[0].content).toEqual([{ type: 'text', text: 'Visible answer', citations: undefined }])
+  expect(turn.rounds[0].projectionIssues).toEqual(['Unsupported Responses assistant content'])
+  expect(turn.rounds[0].continuation?.data).toEqual([unknown, answer])
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation })
+  expect(requests[1].input).toEqual([unknown, answer])
+  await expect(streamFrom({ model: 'different', chatProvider: provider(fetch), conversation })).rejects.toThrow('cannot be projected')
+  expect(requests).toHaveLength(2)
 })
