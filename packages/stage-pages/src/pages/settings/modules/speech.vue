@@ -564,8 +564,14 @@ function commitCustomVoiceSelection() {
 
 /** Routes manual model edits through the same leader commit as listed models. */
 async function updateCustomModelName(value: string | undefined) {
-  await speechStore.selectProviderModel(activeSpeechProvider.value, value || '')
-  await persistSelection()
+  errorMessage.value = ''
+  try {
+    await speechStore.selectProviderModel(activeSpeechProvider.value, value || '')
+    await persistSelection()
+  }
+  catch (error) {
+    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+  }
 }
 
 async function handleDeleteProvider(providerId: string) {
@@ -579,6 +585,7 @@ async function handleDeleteProvider(providerId: string) {
 </script>
 
 <template>
+  <ErrorContainer v-if="errorMessage" :error="errorMessage" />
   <div flex="~ col md:row gap-6">
     <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[40%]">
       <div flex="~ col gap-4">

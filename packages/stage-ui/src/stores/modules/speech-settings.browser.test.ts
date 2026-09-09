@@ -50,7 +50,7 @@ function mountRenderer(namespace: string, page?: Component) {
     runtime.dispose()
     container.remove()
   })
-  return { pinia, runtime, container, speech: useSpeechStore(pinia) }
+  return { app, pinia, runtime, container, speech: useSpeechStore(pinia) }
 }
 
 afterEach(() => {
@@ -92,4 +92,37 @@ it('reports the committed provider and model after a settings-page click', async
     source: 'settings',
   }))
   expect(follower.speech.activeSpeechProvider).toBe('microsoft-speech')
+})
+
+// https://github.com/moeru-ai/airi/pull/2490#discussion_r3967708960
+// ROOT CAUSE: Manual input bypassed the guarded computed setter. A rejected
+// leader RPC reached Vue's global handler instead of the page error display.
+it('shows a manual model transport failure in the settings page', async () => {
+  localStorage.clear()
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], data: [] })))
+  const namespace = `speech-settings:${crypto.randomUUID()}`
+  const leader = mountRenderer(namespace)
+  await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+  const provider = 'openai-compatible-audio-speech'
+  await useProviderConfigStore(leader.pinia).ensureProvider(provider, provider, { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/' })
+  await useProviderStore(leader.pinia).forceProviderConfigured(provider)
+  await leader.speech.selectProviderModel(provider, 'tts-1')
+  const follower = mountRenderer(namespace, SpeechSettings)
+  await vi.waitFor(() => expect(follower.container.querySelector('input[placeholder="tts-1"]')).not.toBeNull())
+  await new Promise(resolve => setTimeout(resolve, 100))
+  const globalErrors = vi.fn()
+  follower.app.config.errorHandler = globalErrors
+  const postMessage = BroadcastChannel.prototype.postMessage
+  vi.spyOn(BroadcastChannel.prototype, 'postMessage').mockImplementation(function (this: BroadcastChannel, message) {
+    if (JSON.stringify(message).includes('selectProviderModel'))
+      throw new Error('Model selection transport unavailable')
+    postMessage.call(this, message)
+  })
+  const input = follower.container.querySelector<HTMLInputElement>('input[placeholder="tts-1"]')!
+  input.value = 'custom-model'
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  await new Promise(resolve => setTimeout(resolve, 100))
+  expect(globalErrors).not.toHaveBeenCalled()
+  expect(follower.container.textContent).toContain('Model selection transport unavailable')
+  expect(leader.speech.activeSpeechModel).toBe('tts-1')
 })
