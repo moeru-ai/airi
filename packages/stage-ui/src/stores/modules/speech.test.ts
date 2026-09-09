@@ -700,10 +700,7 @@ describe('vOICEVOX provider defaults', () => {
   it('rejects old recommendation side effects together with the old catalog', async () => {
     authenticateOfficialProvider()
     const speech = useSpeechStore()
-    let finishOld!: (response: Response) => void
-    const oldResponse = new Promise<Response>((resolve) => {
-      finishOld = resolve
-    })
+    const { promise: oldResponse, resolve: finishOld } = Promise.withResolvers<Response>()
     const voices = [
       { id: 'old', name: 'Old', languages: [{ code: 'en-US', title: 'English' }] },
       { id: 'new', name: 'New', languages: [{ code: 'en-US', title: 'English' }] },

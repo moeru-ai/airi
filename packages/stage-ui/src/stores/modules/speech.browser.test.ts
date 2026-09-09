@@ -50,6 +50,16 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode) {
   return { pinia, runtime, speechStore }
 }
 
+/** Creates two real renderers and waits until their leader routing agrees. */
+async function createSyncedPair() {
+  const namespace = `speech:${crypto.randomUUID()}`
+  const leader = createSyncedContext(namespace, 'leader-only')
+  await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+  const follower = createSyncedContext(namespace, 'follower-only')
+  await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+  return { leader, follower }
+}
+
 describe('speech synchronization', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -70,11 +80,7 @@ describe('speech synchronization', () => {
   // ROOT CAUSE: A delayed settings proposal carried an old catalog and replaced
   // a completed leader load. Catalog state must have a separate snapshot owner.
   it('preserves a fresh catalog after a delayed follower settings proposal', async () => {
-    const namespace = `speech:${crypto.randomUUID()}`
-    const leader = createSyncedContext(namespace, 'leader-only')
-    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
-    const follower = createSyncedContext(namespace, 'follower-only')
-    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    const { leader, follower } = await createSyncedPair()
     await new Promise(resolve => setTimeout(resolve, 100))
     const postMessage = BroadcastChannel.prototype.postMessage
     const delayed: Array<() => void> = []
@@ -119,10 +125,7 @@ describe('speech synchronization', () => {
     const caller = createSyncedContext(namespace, 'follower-only')
     const other = createSyncedContext(namespace, 'follower-only')
     await vi.waitFor(() => expect(useProviderConfigStore(other.pinia).configs['microsoft-speech']?.apiKey).toBe('key'))
-    let finish!: (response: Response) => void
-    const response = new Promise<Response>((resolve) => {
-      finish = resolve
-    })
+    const { promise: response, resolve: finish } = Promise.withResolvers<Response>()
     const fetchCatalog = vi.fn<typeof fetch>(() => response)
     vi.stubGlobal('fetch', fetchCatalog)
     const pending = other.speechStore.loadVoicesForProvider('microsoft-speech')
@@ -195,10 +198,7 @@ describe('speech synchronization', () => {
     leader.speechStore.activeSpeechVoiceId = 'old'
     await leader.speechStore.ensureActiveSpeechVoice()
     expect(leader.speechStore.configured).toBe(true)
-    let fail!: (error: Error) => void
-    const response = new Promise<Response>((_, reject) => {
-      fail = reject
-    })
+    const { promise: response, reject: fail } = Promise.withResolvers<Response>()
     const fetchCatalog = vi.fn<typeof fetch>(() => response)
     vi.stubGlobal('fetch', fetchCatalog)
     const pending = leader.speechStore.loadVoiceCatalog('microsoft-speech', 'model', {
@@ -231,12 +231,7 @@ describe('speech synchronization', () => {
   // We fixed this by routing the action to the synchronization leader. The
   // leader publishes the result, and the follower only applies that snapshot.
   it('routes voice catalog loading through the leader', async () => {
-    const namespace = `speech:${crypto.randomUUID()}`
-    const leaderContext = createSyncedContext(namespace, 'leader-only')
-    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
-
-    const followerContext = createSyncedContext(namespace, 'follower-only')
-    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    const { leader: leaderContext, follower: followerContext } = await createSyncedPair()
     await new Promise(resolve => setTimeout(resolve, 50))
 
     let leaderLoads = 0
@@ -259,12 +254,7 @@ describe('speech synchronization', () => {
   // action wrapper. A replicated provider change then published follower state.
   // Route watcher requests through the exposed action after store setup.
   it('routes replicated provider watcher loading through the leader', async () => {
-    const namespace = `speech:${crypto.randomUUID()}`
-    const leaderContext = createSyncedContext(namespace, 'leader-only')
-    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
-
-    const followerContext = createSyncedContext(namespace, 'follower-only')
-    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    const { leader: leaderContext, follower: followerContext } = await createSyncedPair()
     await new Promise(resolve => setTimeout(resolve, 50))
 
     leaderContext.speechStore.activeSpeechProvider = ''
@@ -369,10 +359,7 @@ describe('speech synchronization', () => {
       baseUrl: 'https://old.invalid/v1/',
       region: 'eastasia',
     })
-    let finishOld!: (response: Response) => void
-    const oldResponse = new Promise<Response>((resolve) => {
-      finishOld = resolve
-    })
+    const { promise: oldResponse, resolve: finishOld } = Promise.withResolvers<Response>()
     let requests = 0
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => {
       requests++
@@ -440,10 +427,7 @@ describe('speech synchronization', () => {
     await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
     const config = useProviderConfigStore(leader.pinia)
     await config.ensureProvider('microsoft-speech', 'microsoft-speech', { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/', region: 'eastasia' })
-    let finishOld!: (response: Response) => void
-    const oldResponse = new Promise<Response>((resolve) => {
-      finishOld = resolve
-    })
+    const { promise: oldResponse, resolve: finishOld } = Promise.withResolvers<Response>()
     let pause = false
     let catalogVersion = 'cached'
     let requests = 0
@@ -489,17 +473,10 @@ describe('speech synchronization', () => {
   // accept a pending response and restore the catalog after the reset.
   // The reset must invalidate requests and clear settings in the same leader.
   it('rejects a pending leader catalog after a follower resets speech settings', async () => {
-    const namespace = `speech:${crypto.randomUUID()}`
-    const leader = createSyncedContext(namespace, 'leader-only')
-    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
-    const follower = createSyncedContext(namespace, 'follower-only')
-    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    const { leader, follower } = await createSyncedPair()
     await new Promise(resolve => setTimeout(resolve, 100))
 
-    let finish!: (response: Response) => void
-    const response = new Promise<Response>((resolve) => {
-      finish = resolve
-    })
+    const { promise: response, resolve: finish } = Promise.withResolvers<Response>()
     const fetchCatalog = vi.fn<typeof fetch>(() => response)
     vi.stubGlobal('fetch', fetchCatalog)
     const pending = leader.speechStore.loadVoiceCatalog('microsoft-speech', undefined, {
@@ -538,10 +515,7 @@ describe('speech synchronization', () => {
     })
     const follower = createSyncedContext(namespace, 'follower-only')
     await vi.waitFor(() => expect(useProviderConfigStore(follower.pinia).configs['microsoft-speech']?.apiKey).toBe('key'))
-    let finish!: (response: Response) => void
-    const response = new Promise<Response>((resolve) => {
-      finish = resolve
-    })
+    const { promise: response, resolve: finish } = Promise.withResolvers<Response>()
     const fetchCatalog = vi.fn<typeof fetch>(() => response)
     vi.stubGlobal('fetch', fetchCatalog)
     const first = follower.speechStore.loadVoicesForProvider('microsoft-speech')

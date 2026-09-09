@@ -326,10 +326,7 @@ describe('provider store synchronization boundary', () => {
     const store = useProviderStore()
     const auth = useAuthStore()
     auth.$patch(createAuthenticatedState())
-    let finishOld!: (response: Response) => void
-    const oldResponse = new Promise<Response>((resolve) => {
-      finishOld = resolve
-    })
+    const { promise: oldResponse, resolve: finishOld } = Promise.withResolvers<Response>()
     let requests = 0
     let oldSignal: AbortSignal | null | undefined
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (_input, options) => {

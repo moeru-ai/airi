@@ -248,10 +248,7 @@ export const useSpeechStore = defineStore('speech', () => {
     const loadSequence = ++voiceLoadSequence
     latestVoiceLoads.set(provider, loadSequence)
     if (voiceCatalogIdentities.value[provider]?.model !== model) {
-      if (voiceCatalogIdentities.value[provider] && activeSpeechProvider.value === provider)
-        clearVoiceSelection()
-      delete voiceCatalogIdentities.value[provider]
-      availableVoices.value = { ...availableVoices.value, [provider]: [] }
+      discardVoiceCatalog(provider)
     }
     const identity = await providersStore.getVoiceCatalogIdentity(model, configuration)
     // Hashing yields. Reset, a newer request, or provider ownership changes
@@ -261,12 +258,7 @@ export const useSpeechStore = defineStore('speech', () => {
     // Keep valid choices during a refresh. A model or configuration change
     // invalidates them before auto-pick can select from the previous catalog.
     if (!isEqual(voiceCatalogIdentities.value[provider], identity)) {
-      // A selected voice belongs to the previous endpoint, region, and account.
-      // Initial discovery has no previous identity and preserves persisted choices.
-      if (voiceCatalogIdentities.value[provider] && activeSpeechProvider.value === provider)
-        clearVoiceSelection()
-      delete voiceCatalogIdentities.value[provider]
-      availableVoices.value = { ...availableVoices.value, [provider]: [] }
+      discardVoiceCatalog(provider)
     }
 
     const voices = await providersStore.listProviderVoices(provider, model, configuration)
@@ -275,11 +267,10 @@ export const useSpeechStore = defineStore('speech', () => {
     if (latestVoiceLoads.get(provider) !== loadSequence || identity.owner !== providersStore.voiceCatalogOwners[identity.definitionId])
       return []
     if (voices === undefined) {
-      // An expired provider session invalidates cached choices as well.
-      if (activeSpeechProvider.value === provider)
+      // Session expiry also rejects persisted choices without a cached identity.
+      if (!voiceCatalogIdentities.value[provider] && activeSpeechProvider.value === provider)
         clearVoiceSelection()
-      delete voiceCatalogIdentities.value[provider]
-      availableVoices.value = { ...availableVoices.value, [provider]: [] }
+      discardVoiceCatalog(provider)
       return []
     }
     voiceCatalogIdentities.value = { ...voiceCatalogIdentities.value, [provider]: identity }
@@ -297,6 +288,14 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechVoice.value = undefined
   }
 
+  /** Drops catalog metadata and its selected voice together; initial discovery preserves unverified persisted choices. */
+  function discardVoiceCatalog(provider: string) {
+    if (voiceCatalogIdentities.value[provider] && activeSpeechProvider.value === provider)
+      clearVoiceSelection()
+    delete voiceCatalogIdentities.value[provider]
+    availableVoices.value = { ...availableVoices.value, [provider]: [] }
+  }
+
   /** Rejects expired recommendations synchronously before any leader consumer can select them. */
   function discardExpiredVoiceCatalogs() {
     if (disposed)
@@ -305,10 +304,7 @@ export const useSpeechStore = defineStore('speech', () => {
       if (identity.owner === providersStore.voiceCatalogOwners[identity.definitionId])
         continue
       latestVoiceLoads.delete(provider)
-      delete voiceCatalogIdentities.value[provider]
-      availableVoices.value = { ...availableVoices.value, [provider]: [] }
-      if (activeSpeechProvider.value === provider)
-        clearVoiceSelection()
+      discardVoiceCatalog(provider)
     }
   }
 
