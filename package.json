@@ -78,7 +78,6 @@
     "oxc-minify": "catalog:",
     "oxlint": "catalog:",
     "playwright": "catalog:",
-    "posthog-js": "catalog:",
     "publint": "catalog:",
     "rollup": "catalog:",
     "simple-git-hooks": "catalog:",

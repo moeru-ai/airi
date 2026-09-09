@@ -89,8 +89,8 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
           const userId = event.data.object.metadata?.userId
           if (userId) {
             const fluxAmount = Number(event.data.object.metadata?.fluxAmount)
-            const posthogDistinctId = event.data.object.metadata?.posthogDistinctId
-            const posthogSessionId = event.data.object.metadata?.posthogSessionId
+            const openpanelDeviceId = event.data.object.metadata?.openpanelDeviceId
+            const openpanelSessionId = event.data.object.metadata?.openpanelSessionId
             void deps.productEventService?.track({
               userId,
               feature: 'billing',
@@ -104,8 +104,8 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
                 flux_amount: Number.isFinite(fluxAmount) ? fluxAmount : null,
                 stripe_checkout_session_id: event.data.object.id,
                 stripe_customer_id: typeof event.data.object.customer === 'string' ? event.data.object.customer : event.data.object.customer?.id ?? null,
-                ...(posthogDistinctId && { posthog_distinct_id: posthogDistinctId }),
-                ...(posthogSessionId && { posthog_session_id: posthogSessionId }),
+                ...(openpanelDeviceId && { openpanel_device_id: openpanelDeviceId }),
+                ...(openpanelSessionId && { openpanel_session_id: openpanelSessionId }),
               },
             })
           }
@@ -228,6 +228,9 @@ async function handleCheckoutSessionCompleted(
       applied: result.applied,
       balanceAfter: result.balanceAfter,
     }).log('Processed flux credit for one-time payment')
+
+    // Only the transaction that credits this checkout emits its conversion.
+    return { processed: result.applied }
   }
 
   return { processed: true }

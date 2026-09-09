@@ -120,7 +120,6 @@
     "onnxruntime-web": "catalog:",
     "pinia": "catalog:",
     "popmotion": "catalog:",
-    "posthog-js": "catalog:",
     "rehype-stringify": "catalog:",
     "reka-ui": "catalog:",
     "remark-parse": "catalog:",

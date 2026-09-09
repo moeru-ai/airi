@@ -37,7 +37,7 @@ jobs:
       VITE_DISTRIBUTION: steam
       VITE_DISABLE_CUSTOM_PROVIDERS: 'true'
       VITE_DISABLE_FLUX_PURCHASE: 'true'
-      VITE_ENABLE_POSTHOG: 'false'
+      VITE_ENABLE_ANALYTICS: 'false'
     strategy:
       fail-fast: false
       matrix:

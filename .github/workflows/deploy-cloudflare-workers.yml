@@ -69,17 +69,9 @@ jobs:
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
           S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
           S3_REGION: ${{ secrets.S3_REGION }}
-          VITE_ENABLE_POSTHOG: 'true'
+          VITE_ENABLE_ANALYTICS: 'true'
           VITE_SERVER_URL: 'https://api.airi.build'
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
-      - run: |
-          CI=true pnpm install -g @posthog/cli
-          pnpm exec posthog-cli sourcemap inject --directory ./apps/stage-web/dist
-          pnpm exec posthog-cli sourcemap upload --directory ./apps/stage-web/dist
-        env:
-          POSTHOG_CLI_ENV_ID: ${{ secrets.POSTHOG_ENV_ID }}
-          POSTHOG_CLI_TOKEN: ${{ secrets.POSTHOG_TOKEN }}
-        continue-on-error: true
 
       - uses: cloudflare/wrangler-action@v4
         with:
