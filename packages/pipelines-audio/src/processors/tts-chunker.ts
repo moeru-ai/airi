@@ -70,9 +70,23 @@ export async function* chunkTtsInput(
     let value = current.value
 
     if (value.length > 1) {
-      previousValue = value
-      current = await iterator.next()
-      continue
+      // A grapheme cluster spanning multiple UTF-16 code units — e.g. a base
+      // consonant plus its combining vowel/tone in Thai/Lao/Khmer/Devanagari,
+      // or an emoji ZWJ sequence. It is never one of the single-char
+      // punctuation markers below, so treat it as ordinary text. Dropping it
+      // here corrupted space-less scripts: the combining marks were discarded,
+      // leaving bare consonants that reassemble into different words (#2366).
+      //
+      // Exception: `\r\n` is a single grapheme cluster (UAX #29 GB3) but must
+      // still act as a hard boundary like a lone `\n`. Normalize it to `\n` and
+      // fall through to the punctuation handling instead of buffering it.
+      if (value !== '\r\n') {
+        buffer += value
+        previousValue = value
+        current = await iterator.next()
+        continue
+      }
+      value = '\n'
     }
 
     const flush = value === TTS_FLUSH_INSTRUCTION

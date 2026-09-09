@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { isProbablyAngleTag, processNarrative } from './tts-chunker'
+import { chunkTtsInput, isProbablyAngleTag, processNarrative } from './tts-chunker'
 
 describe('tTS Chunker Logic Cleanup', () => {
   describe('isProbablyAngleTag Heuristics', () => {
@@ -88,5 +88,45 @@ describe('tTS Chunker Logic Cleanup', () => {
       expect(isProbablyAngleTag(4, 'café<laugh>')).toBe(true)
       expect(isProbablyAngleTag(6, 'привет<sigh>')).toBe(true)
     })
+  })
+})
+
+describe('chunkTtsInput — space-less / combining scripts (#2366)', () => {
+  async function reconstruct(input: string): Promise<string> {
+    let out = ''
+    for await (const chunk of chunkTtsInput(input))
+      out += chunk.text
+    return out
+  }
+
+  // Chunk boundaries trim surrounding whitespace, so compare with whitespace
+  // removed to assert only that no *characters* were dropped.
+  const stripWs = (s: string) => s.replace(/\s+/g, '')
+
+  it('preserves Thai text with combining vowels and tone marks', async () => {
+    // No spaces between words, and most syllables are multi-code-unit grapheme
+    // clusters (base consonant + combining vowel/tone) — the exact case that
+    // used to be dropped, corrupting the speech text.
+    const input = 'ดึกป่านนี้แล้วยังจะหาเรื่องกินอีกนะคะเนี่ย'
+    expect(await reconstruct(input)).toBe(input)
+  })
+
+  it('preserves Devanagari text with combining matras', async () => {
+    const input = 'नमस्ते दुनिया यह एक छोटा परीक्षण है'
+    expect(stripWs(await reconstruct(input))).toBe(stripWs(input))
+  })
+
+  it('does not drop characters from plain ASCII text', async () => {
+    const input = 'Hello there, this is a normal English sentence.'
+    expect(stripWs(await reconstruct(input))).toBe(stripWs(input))
+  })
+
+  it('treats a CRLF grapheme cluster as a hard boundary', async () => {
+    // `\r\n` is a single grapheme cluster, so it hits the multi-unit branch;
+    // it must still split the chunk like a lone `\n` (not be buffered inline).
+    const chunks: string[] = []
+    for await (const chunk of chunkTtsInput('abc\r\ndef'))
+      chunks.push(chunk.text)
+    expect(chunks).toEqual(['abc', 'def'])
   })
 })
