@@ -19,6 +19,7 @@ const { isDark } = useTheme()
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
 const closeWindow = useElectronEventaInvoke(electronOnboardingClose)
 const { closeOnboardingWindow } = useOnboardingAuthentication({
+  consumeLoginRequest: () => authStore.consumeLoginRequest(),
   closeRequestId,
   closeWindow,
   isAuthenticated,

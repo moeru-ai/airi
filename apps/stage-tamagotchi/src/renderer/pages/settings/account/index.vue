@@ -16,8 +16,10 @@ async function handleLogin() {
 }
 
 async function handleLogout() {
-  await signOut()
+  // Cancel the current browser flow before waiting for server logout. A later
+  // cancellation could otherwise stop a new login started during that wait.
   await logout()
+  await signOut()
   router.push('/settings')
 }
 </script>
