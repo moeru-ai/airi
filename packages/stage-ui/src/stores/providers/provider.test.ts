@@ -130,6 +130,31 @@ describe('provider store synchronization boundary', () => {
 
   // ROOT CAUSE:
   //
+  // Speech settings pages wrote defaults into the computed `configs` map before
+  // provider initialization. The derived entry made `initializeProvider` skip
+  // the source provider record, so later input was not persisted.
+  //
+  // The provider record is now the only existence check. A derived entry cannot
+  // prevent initialization of the persisted source state.
+  // https://github.com/moeru-ai/airi/issues/2449
+  it('creates the provider when only a derived configuration entry exists (Issue #2449)', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+
+    configStore.configs['openai-compatible-audio-speech'] = { model: 'qwen' }
+
+    expect(configStore.getProvider('openai-compatible-audio-speech')).toBeUndefined()
+
+    await store.initializeProvider('openai-compatible-audio-speech')
+
+    expect(configStore.getProvider('openai-compatible-audio-speech')).toMatchObject({
+      id: 'openai-compatible-audio-speech',
+      definitionId: 'openai-compatible-audio-speech',
+    })
+  })
+
+  // ROOT CAUSE:
+  //
   // Module pages treated every credential-free provider as available before
   // configuration. The official providers also have credential-free local
   // definitions, but their availability belongs to the authenticated session.

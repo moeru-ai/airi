@@ -127,14 +127,13 @@ onMounted(async () => {
 })
 
 const debouncedUpdate = useDebounceFn(() => {
-  providers.value[props.providerId] = {
-    ...providers.value[props.providerId],
+  providerStore.patchProviderConfig(props.providerId, {
     // A provider without a credential field keeps no `apiKey` key. The guard in
     // `onMounted` stops the same key arriving by the other path.
     ...(props.hideApiKey ? {} : { apiKey: apiKey.value }),
     baseUrl: baseUrl.value || providerMetadata.value?.defaultConfig.baseUrl || '',
     voiceSettings: { ...voiceSettings.value },
-  }
+  })
 }, 1000)
 
 // Watch all settings and update the provider configuration

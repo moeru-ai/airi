@@ -425,7 +425,7 @@ export const useProviderStore = defineStore('provider', () => {
   // Initialize provider configurations
   async function initializeProvider(providerId: string) {
     await waitForProviderMetadata()
-    if (!providerCredentials.value[providerId]) {
+    if (!providerConfigStore.getProvider(providerId)) {
       const definitionId = getProviderDefinitionId(providerId)
       providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
     }
