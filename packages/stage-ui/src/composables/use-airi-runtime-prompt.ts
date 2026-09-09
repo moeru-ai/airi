@@ -11,8 +11,20 @@ const RUNTIME_PROMPT_KEYS = [
   'base.prompt.suffix',
 ]
 
+export interface UseAiriRuntimePromptOptions {
+  /**
+   * Append the opt-in bilingual subtitle instruction.
+   *
+   * Only the captioned chat boundary should opt in. The spark-notification path
+   * consumes this same prompt but never parses the language tags, so opting it
+   * in would store raw `[EN]`/`[CN]` text for reactions that produce no
+   * subtitle.
+   */
+  bilingual?: boolean
+}
+
 /** Returns the localized emotion and emoji prompt for each model request. */
-export function useAiriRuntimePrompt() {
+export function useAiriRuntimePrompt(options: UseAiriRuntimePromptOptions = {}) {
   const { locale, t, te } = useI18n()
   const bilingual = useSettingsBilingual()
 
@@ -36,7 +48,7 @@ export function useAiriRuntimePrompt() {
     // prompt: several locales have no `base.prompt.emotion` key, and gating on
     // it would silently drop the instruction for them. Appended last so the
     // model reads the emotion rules before the formatting rules.
-    if (bilingual.enabled) {
+    if (options.bilingual && bilingual.enabled) {
       const bilingualPrompt = buildBilingualPrompt({
         ttsLanguage: bilingual.ttsLanguage,
         subtitleLanguages: bilingual.subtitleLanguages,

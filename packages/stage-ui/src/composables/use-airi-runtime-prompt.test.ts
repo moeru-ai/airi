@@ -40,6 +40,16 @@ describe('useAiriRuntimePrompt', () => {
   })
 
   it('leaves the bilingual instruction out while the feature is off', () => {
+    const prompt = useAiriRuntimePrompt({ bilingual: true }).value
+
+    expect(prompt).not.toContain('Respond in English.')
+  })
+
+  // Consumers that never parse the language tags (spark notifications) must not
+  // receive the instruction, or their output is stored with raw [EN]/[CN] tags.
+  it('leaves the bilingual instruction out for consumers that do not opt in', () => {
+    useSettingsBilingual().enabled = true
+
     const prompt = useAiriRuntimePrompt().value
 
     expect(prompt).not.toContain('Respond in English.')
@@ -48,7 +58,7 @@ describe('useAiriRuntimePrompt', () => {
   it('appends the bilingual instruction once the feature is on', () => {
     useSettingsBilingual().enabled = true
 
-    const prompt = useAiriRuntimePrompt().value
+    const prompt = useAiriRuntimePrompt({ bilingual: true }).value
 
     expect(prompt).toContain('Respond in English.')
     expect(prompt).toContain('[EN] <text in English>')
@@ -62,7 +72,7 @@ describe('useAiriRuntimePrompt', () => {
     i18nMock.hasTranslation.mockReturnValue(false)
     useSettingsBilingual().enabled = true
 
-    const prompt = useAiriRuntimePrompt().value
+    const prompt = useAiriRuntimePrompt({ bilingual: true }).value
 
     expect(prompt).toContain('Respond in English.')
     expect(prompt).toContain('[EN] <text in English>')

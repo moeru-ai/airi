@@ -136,7 +136,9 @@ function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): numbe
 export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 export const useChatStore = defineStore('chat', () => {
-  const runtimePrompt = useAiriRuntimePrompt()
+  // The captioned chat is the only consumer that parses the bilingual language
+  // tags, so it is the only one that opts into the instruction.
+  const runtimePrompt = useAiriRuntimePrompt({ bilingual: true })
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()

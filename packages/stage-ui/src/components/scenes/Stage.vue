@@ -745,6 +745,14 @@ let bilingualParser: ReturnType<typeof createBilingualParser> | null = null
  * that followed it. Playback consumes one entry per spoken sentence.
  */
 const bilingualPairs: Array<{ spoken: string, translation: string, label: string }> = []
+
+/**
+ * True when the active streaming model buffers the whole reply into a single
+ * playback item (`bufferEntireSession`). `onStart` then fires once for the
+ * entire reply, so every queued translation belongs to that one item and has to
+ * be shown together instead of only the first sentence's.
+ */
+let bilingualBufferedTurn = false
 let bilingualSpoken = ''
 let bilingualTranslation = ''
 let bilingualTranslationLabel = ''
@@ -775,6 +783,7 @@ function clearBilingualTranslation() {
 function resetBilingualTurn() {
   bilingualParser = null
   bilingualPairs.length = 0
+  bilingualBufferedTurn = false
   bilingualSpoken = ''
   clearBilingualTranslation()
 }
@@ -785,16 +794,20 @@ function resetBilingualTurn() {
  * dumping the whole translation at once.
  */
 function postBilingualTranslationForSentence() {
-  const pair = bilingualPairs.shift()
-  if (!pair?.translation)
+  // A buffered session emits a single playback item for the whole reply, so
+  // every queued translation belongs to this one item. Taking only the first
+  // would drop the rest when the next turn clears the queue.
+  const pairs = bilingualPairs.splice(0, bilingualBufferedTurn ? bilingualPairs.length : 1)
+  const text = pairs.map(pair => pair.translation).filter(Boolean).join(' ')
+  if (!text)
     return
 
   try {
     postCaption({
       operation: 'replace',
       type: 'caption-assistant-translation',
-      label: pair.label,
-      text: pair.translation,
+      label: pairs.at(-1)?.label ?? '',
+      text,
     })
   }
   catch {
@@ -853,10 +866,14 @@ watch(() => bilingualStore.enabled, (enabled) => {
  * The speech settings hold one fixed voice, auto-picked from the UI locale.
  * That voice would read a non-UI language with the wrong phonology — a Chinese
  * voice reads Japanese kanji as Chinese, for example, which is exactly the
- * "reads Japanese with Chinese mixed in" symptom. When the bilingual TTS
- * language differs from the configured voice, pick a voice from the active
+ * "reads Japanese with Chinese mixed in" symptom. When the configured voice
+ * does not speak the bilingual TTS language, pick a voice from the active
  * provider's catalogue that actually speaks it (matched by language-code
  * prefix, e.g. `ja` → `ja-JP`).
+ *
+ * A configured voice that already speaks that language is returned untouched:
+ * replacing it with the first catalogue match would change the character's
+ * voice even though the configuration is valid.
  *
  * Returns `undefined` when bilingual is off, or no matching voice exists, so
  * callers fall back to the configured voice unchanged. A missing match is a
@@ -868,8 +885,13 @@ function resolveBilingualVoice(): VoiceInfo | undefined {
     return undefined
 
   const ttsLang = bilingualStore.ttsLanguage
+  const speaksTtsLanguage = (voice: VoiceInfo) => (voice.languages || []).some(l => l.code.toLowerCase().startsWith(ttsLang))
+
+  if (activeSpeechVoice.value && speaksTtsLanguage(activeSpeechVoice.value))
+    return activeSpeechVoice.value
+
   const providerVoices = speechStore.availableVoices[activeSpeechProvider.value] || []
-  return providerVoices.find(v => (v.languages || []).some(l => l.code.toLowerCase().startsWith(ttsLang)))
+  return providerVoices.find(voice => speaksTtsLanguage(voice))
 }
 
 function stopSpeechOutput(reason: string) {
@@ -923,6 +945,7 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   // (per the wire spec), so chunk-on-sentence-end would drop frames.
   // Buffer the entire session and decode at session.finished instead.
   const bufferEntireSession = apiResourceId.startsWith('seed-tts-2.0') || apiResourceId.startsWith('seed-icl-2.0')
+  bilingualBufferedTurn = bufferEntireSession
   return {
     model: sessionModel,
     voice: voiceId,
