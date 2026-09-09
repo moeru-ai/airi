@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { useProviderConfigStore } from '../providers/config'
 import { useSpeechStore } from './speech'
 
@@ -36,6 +37,7 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode) {
     },
   })
   app
+    .provide(injectKeyPiniaSynced, runtime)
     .use(createI18n({ legacy: false, locale: 'en', messages: { en } }))
     .use(pinia)
     .mount(document.createElement('div'))
@@ -241,5 +243,69 @@ describe('speech synchronization', () => {
     await new Promise(resolve => setTimeout(resolve, 100))
     expect(selections).toBeGreaterThan(0)
     expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
+  })
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964170541
+  // ROOT CAUSE: A replicated loading flag outlived the leader's request after tab closure.
+  it('recovers an interrupted catalog when the surviving renderer becomes leader', async () => {
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const config = useProviderConfigStore(leader.pinia)
+    await config.ensureProvider('microsoft-speech', 'microsoft-speech', { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/', region: 'eastasia' })
+    let finishOld!: (response: Response) => void
+    const oldResponse = new Promise<Response>((resolve) => {
+      finishOld = resolve
+    })
+    let pause = false
+    let requests = 0
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => {
+      requests++
+      if (pause)
+        return oldResponse
+      return Response.json({ voices: [{ id: 'recovered', name: 'Recovered', languages: [] }] })
+    }))
+    const survivor = createSyncedContext(namespace, 'follower-preferred')
+    await vi.waitFor(() => expect(survivor.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    leader.speechStore.activeSpeechProvider = 'microsoft-speech'
+    await vi.waitFor(() => expect(survivor.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('recovered'))
+    await vi.waitFor(() => expect(survivor.speechStore.isLoadingSpeechProviderVoices).toBe(false))
+    pause = true
+    const beforeRefresh = requests
+    const refresh = leader.speechStore.loadVoicesForProvider('microsoft-speech')
+    try {
+      await vi.waitFor(() => expect(requests).toBeGreaterThan(beforeRefresh))
+      await vi.waitFor(() => expect(survivor.speechStore.availableVoices['microsoft-speech']).toEqual([]))
+      pause = false
+      // Dispose the outgoing renderer's store scopes as closing a tab would.
+      const outgoing = syncedContexts.find(context => context.runtime === leader.runtime)!
+      outgoing.app.unmount()
+      disposePinia(outgoing.pinia)
+      outgoing.runtime.dispose()
+      syncedContexts.splice(syncedContexts.indexOf(outgoing), 1)
+      await vi.waitFor(() => expect(survivor.runtime.isLeader()).toBe(true), { timeout: 5000 })
+      await vi.waitFor(() => expect(survivor.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('recovered'), { timeout: 5000 })
+      await vi.waitFor(() => expect(survivor.speechStore.isLoadingSpeechProviderVoices).toBe(false))
+      expect(survivor.pinia.state.value.speech).not.toHaveProperty('voiceCatalogStatus')
+    }
+    finally {
+      finishOld(Response.json({ voices: [] }))
+      await refresh
+    }
+  })
+  it('reports a leader provider failure only in the requesting renderer', async () => {
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const config = useProviderConfigStore(leader.pinia)
+    await config.ensureProvider('microsoft-speech', 'microsoft-speech', { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/', region: 'eastasia' })
+    const follower = createSyncedContext(namespace, 'follower-only')
+    await vi.waitFor(() => expect(useProviderConfigStore(follower.pinia).configs['microsoft-speech']?.apiKey).toBe('key'))
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => {
+      throw new Error('catalog unavailable')
+    }))
+    await expect(follower.speechStore.loadVoicesForProvider('microsoft-speech')).resolves.toEqual([])
+    expect(follower.speechStore.voiceCatalogStatus['microsoft-speech']?.error).toContain('catalog unavailable')
+    expect(follower.speechStore.voiceCatalogStatus['microsoft-speech']?.loading).toBe(false)
+    expect(leader.speechStore.voiceCatalogStatus['microsoft-speech']).toBeUndefined()
   })
 })
