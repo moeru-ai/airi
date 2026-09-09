@@ -40,6 +40,8 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
+import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
+import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
@@ -55,6 +57,12 @@ const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
 const controlsIslandElement = toRef(() => controlsIslandRef.value?.element)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
+// The stage canvas alpha tells the sampler which pixels of the window AIRI
+// paints, so it can read the desktop showing through behind the character.
+useScreenAmbientLight({
+  stageCanvas: () => widgetStageRef.value?.canvasElement(),
+  characterBounds: () => widgetStageRef.value?.characterBounds(),
+})
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
 const stageMounted = computed(() => componentStateStage.value === 'mounted')
@@ -800,7 +808,8 @@ const cursorPosition = computed(() => ({
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
-        <ResourceStatusIsland />
+        <!-- The island paints over the window, so the screen sampler must not read the desktop through it. -->
+        <ResourceStatusIsland :[stageOpaqueAttribute]="true" />
         <WidgetStage
           ref="widgetStageRef"
           v-model:state="componentStateStage"

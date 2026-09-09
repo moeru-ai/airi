@@ -12,6 +12,10 @@ import { useLive2DIdleEyeFocus } from './animation'
 type CubismModel = Cubism4InternalModel['coreModel']
 type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
 
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value))
+}
+
 /** The Pixi internal-model surface that AIRI motion plugins consume. */
 export type PixiLive2DInternalModel = InternalModel & {
   /** Cubism's breath controller, which AIRI removes before it applies its own curve. */
@@ -310,7 +314,6 @@ export function useMotionUpdatePluginAutoEyeBlink(
   const minDelay = 3000
   const maxDelay = 8000
 
-  const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
   const randomBlinkOpenDuration = () => minBlinkOpenDuration + Math.random() * (maxBlinkOpenDuration - minBlinkOpenDuration)
 
   function resetBlinkState() {
@@ -477,6 +480,73 @@ export function useMotionUpdatePluginAutoEyeBlink(
     // Active blink: saved pre-blink values × blinkFactor.
     ctx.model.setParameterValueById('ParamEyeLOpen', clamp01(preBlinkLeft * blinkFactorL * baseLeft))
     ctx.model.setParameterValueById('ParamEyeROpen', clamp01(preBlinkRight * blinkFactorR * baseRight))
+  }
+}
+
+/** Window movement suppresses lighting reactions while the new view settles. */
+function windowPlacement() {
+  if (typeof window === 'undefined')
+    return ''
+  return `${window.screenX},${window.screenY},${window.outerWidth},${window.outerHeight}`
+}
+
+/**
+ * Narrows the eyes after motion and blinking, using the shared exposure meter's
+ * brightness rise. This plugin owns only eye response and release, not light
+ * adaptation. Manual controls registered afterward retain final authority.
+ * Movement suppresses new reactions until the current rise has subsided.
+ */
+export function useMotionUpdatePluginLightSquint(
+  brightnessRise: () => number,
+  amount: () => number,
+  placement: () => string = windowPlacement,
+): MotionManagerPlugin {
+  let lastPlacement = placement()
+  let suppressed = false
+  let level = 0
+  let lastProposed = 0
+  const lastApplied = new Map<string, { base: number, written: number }>()
+
+  return (ctx) => {
+    const currentPlacement = placement()
+    if (currentPlacement !== lastPlacement) {
+      lastPlacement = currentPlacement
+      suppressed = true
+    }
+    const rise = clamp01(brightnessRise())
+    if (rise < 0.01)
+      suppressed = false
+    const strength = clamp01(amount())
+    const proposed = suppressed ? 0 : rise ** 0.6 * strength
+    const dt = Math.min(Math.max(ctx.timeDelta, 0), 0.1)
+    // Only a rising stimulus deepens the squint. Its falling tail must not
+    // repeatedly pull the eyes closed while they recover.
+    if (strength === 0)
+      level = 0
+    else if (proposed > lastProposed && proposed > level)
+      level = proposed
+    else
+      level = Math.max(0, level - (level < 0.12 ? 1.2 : 0.25) * dt)
+    lastProposed = proposed
+
+    for (const id of ['ParamEyeLOpen', 'ParamEyeROpen'] as const) {
+      const current = ctx.model.getParameterValueById(id) as number
+      const applied = lastApplied.get(id)
+      // Models without an eye curve can retain our last output. Reuse its
+      // original base so narrowing cannot compound across frames.
+      const base = applied && current === applied.written ? applied.base : current
+      if (level === 0) {
+        if (applied && current === applied.written)
+          ctx.model.setParameterValueById(id, applied.base)
+        lastApplied.delete(id)
+        continue
+      }
+      // Stay above the blink plugin's 0.15 cutoff, but never open an eye
+      // that a blink or expression has already closed farther.
+      const written = Math.max(Math.min(base, 0.2), clamp01(base * (1 - level)))
+      ctx.model.setParameterValueById(id, written)
+      lastApplied.set(id, { base, written })
+    }
   }
 }
 

@@ -49,6 +49,248 @@ devtools:
   pages:
     context-flow:
       title: Context Flow
+    live2d-ambient-light:
+      title: Live2D Ambient Light
+      description: Tune screen sampling and the Live2D color-light shader
+      controls:
+        title: Light source and output
+      enabled:
+        title: Ambient light
+        description: Apply the ambient-light filter to the active Live2D model.
+      source:
+        title: Light source
+        options:
+          screen-capture: Screen capture
+          forced-color: Forced color
+      mode:
+        title: Lighting mode
+        options:
+          window-gradient: Surface lighting
+          global: Global ambient
+      forced-color:
+        title: Test color
+        description: Apply this color without screen capture.
+      strength:
+        title: Light strength
+        description: Set the overall effect amount. 1 is the designed look, and up to 3 makes the color cast and the light wrap stronger.
+      squint:
+        title: Light squint
+        description: Narrow the eyes when light rises above the adapted level used by bloom. Requires linear screen lighting and adaptive bloom. 0 disables the reaction.
+      main-window-note: Changes appear in the main AIRI window.
+      normals:
+        title: Model lighting
+        description: Generate normals locally for the current model. Nothing runs automatically. Regenerate replaces its saved lighting attachment after validation. Original model files stay unchanged.
+        model: Current model
+        fingerprint: Asset fingerprint
+        saved: Saved attachment
+        missing: None
+        binding: Active binding
+        import: Import lighting ZIP
+        export: Export lighting ZIP
+        portable-note: The ZIP includes maps and their binding, but not the model. Import replaces the current model's saved lighting after validation.
+        generate: Generate for current model
+        regenerate: Regenerate and overwrite
+        refresh: Check saved data
+        cancel: Cancel
+        drawables: drawables
+        neutral: Neutral capture
+        normal: Generated normals
+        coverage: Reference coverage
+        coverage-note: Green marks visible surfaces with a normal reference. Hidden surfaces use the proxy when animation exposes them. This experiment does not infer separate facial anatomy.
+        bindings:
+          proxy: Analytic proxy
+          generated: Saved lighting attachment
+        phases:
+          importing: Reading and validating the lighting ZIP…
+          exporting: Packing the saved maps and binding…
+          checking: Checking model assets and saved lighting…
+          ready: Ready. Generation starts only when you choose Generate or Regenerate.
+          capturing: Capturing a separate neutral model and drawable ownership…
+          generating: Marigold is generating normals on this computer…
+          saving: Checking, saving, and binding the new normal map…
+          error: The last operation failed. See the error below.
+          unloaded: No active Live2D model. Load a model, then check again.
+      geometry:
+        title: Virtual screen shape
+        description: Bend the screen sides forward to light the face. Applies to Surface lighting. Changes appear in the main AIRI window.
+        bend:
+          title: Edge bend
+          description: Set how much the sides curve toward the character. 0 restores the flat screen; 5 is the default curve.
+        gap:
+          title: Screen gap
+          description: Set the screen distance behind the character, as a percentage of character height. Smaller gaps keep light localized; larger gaps spread and mix nearby colors.
+        area-lights:
+          title: Try area light tiles
+          description: Combine screen light in a cached field for smooth, faster lighting. Face motion and nose highlights stay detailed. Turn it off to compare point tiles.
+        flat-width:
+          title: Flat center width
+          description: Set the width that stays flat, as a percentage of character height. The screen curves outside this area.
+      diagnostics:
+        title: Capture diagnostics
+        waiting: Waiting for diagnostics from the main AIRI window.
+        status:
+          disabled: Disabled
+          starting: Starting
+          capturing: Capturing
+          forced-color: Forced color
+          error: Error
+        capture:
+          title: Capture state
+          description: Inspect the selected display, capture dimensions, and exclusion coordinates.
+          display: Display and bounds
+          video-size: Source video
+          sample-size: Sample frame
+          window-bounds: AIRI window bounds
+          excluded-region: Excluded region
+          exposure: Screen exposure
+          behind-luminance: Light behind the character
+          updated: Last update
+        preview:
+          title: Downscaled capture
+          description: The red rectangle marks the AIRI window. The dashed rectangle marks the area that the light maps cover.
+          unavailable: No captured frame is available.
+        pixels:
+          title: Pixel decisions
+          total: Total
+          accepted: Accepted
+          excluded: Painted
+          transparent: Transparent
+          see-through: See-through
+        maps:
+          title: Light maps
+          window: Each map covers the AIRI window and half a window on every side. The outline marks the window.
+          unavailable: No environment is available.
+          target: Measured
+          applied: Applied after smoothing
+          surround:
+            title: Surround map
+            description: Wide blur of the screen around and behind the window. This map drives the color cast over the model.
+          contact:
+            title: Contact map
+            description: Narrow blur of the same content. This map drives the light wrap and the backlight rim.
+      sampling:
+        title: Screen sampling
+        capture-interval:
+          title: Capture interval
+          description: Set the time between screen samples. The capture stream runs at this rate.
+        response-time:
+          title: Response time
+          description: Set how quickly sampled colors adapt to a screen change.
+        sample-width:
+          title: Sample width
+          description: Set the width of the downscaled capture frame. A wider frame puts more detail in the light maps.
+        sample-height:
+          title: Sample height
+          description: Set the height of the downscaled capture frame. A taller frame puts more detail in the light maps.
+      exposure:
+        title: Brightness and eye adaptation
+        adaptive-base:
+          title: Automatic base brightness
+          description: Set ambient fill from the smoothed mean of the full screen. Uses the dark and bright adaptation times below. Disable to use manual Base brightness.
+        dark-base:
+          title: Dark-screen baseline
+          description: Ambient fill when the screen is black, before adding screen light.
+        bright-base:
+          title: Bright-screen baseline
+          description: Ambient fill when the screen is white. Cannot be lower than the dark-screen baseline.
+        base-curve:
+          title: Baseline curve
+          description: 1 is linear. Below 1 raises the baseline sooner in dim scenes; above 1 keeps it darker until the screen brightens.
+        response-curve:
+          title: Dim-light color boost
+          description: Emphasize color from dim, saturated light without increasing lit brightness or darkening the baseline. 0 disables the boost. Neutral light stays unchanged; available color headroom limits the effect.
+        enabled:
+          title: Try linear screen lighting
+          description: 'Surface lighting only. Separate ambient fill, screen emission, and camera exposure. Automatic base brightness can follow the screen mean.'
+        screen-nits:
+          title: Screen white luminance (nits)
+          description: Assumed display brightness. 200 nits is the reference; capture pixels do not measure physical display brightness.
+        compensation:
+          title: Exposure compensation (stops)
+          description: '+1 doubles light before highlight roll-off. Ambient fill uses the automatic baseline when enabled; Exposure range is unused in this trial.'
+        dark-seconds:
+          title: Dark adaptation (seconds)
+          description: Time constant for the baseline to fall and bloom sensitivity to rise after the screen darkens. Larger values respond more slowly.
+        bright-seconds:
+          title: Bright adaptation (seconds)
+          description: Time constant for the baseline to rise and bloom sensitivity to settle after the screen brightens.
+        bloom:
+          title: Adaptive bloom
+          description: Reduce bloom and inward glow on sustained bright pages. Recover sensitivity after darkness. A black light source never creates bloom.
+      shader:
+        title: Shader response
+        sheen:
+          title: Surface sheen
+          description: Add broad reflected highlights. Hair receives more sheen than skin and clothing; 0 disables reflections.
+        roughness:
+          title: Hair roughness
+          description: Spread reflected highlights across the hair in illustrated mode. Higher values soften the reflection without changing surface relief.
+        skin-relief:
+          title: Face light relief
+          description: Add gentle directional shading to the face in illustrated mode. The nose highlight stays separate; 0 keeps diffuse face lighting flat.
+        face-yaw:
+          title: Face turn angle (degrees)
+          description: Turn the fitted face normals with Iru's head. Sets the angle at the maximum head turn. Zero keeps the previous lighting directions.
+        face-shadow:
+          title: Hair shadow on face
+          description: Let foreground hair block direct screen light on the curved face in illustrated mode. The shadow follows hair motion; 0 disables it.
+        nose:
+          title: Nose relief
+          description: Shape the small nose on Iru’s smooth face. Highlights follow the light; 0 restores the original face normals.
+        illustrated:
+          title: Illustrated materials
+          description: Use matte face shading and limit sheen to hair and the nose on models with a reviewed material profile. Disable to compare rounded shading.
+        soft-highlights:
+          title: Soft highlights
+          description: Compress added light to preserve detail in bright areas instead of clipping to white.
+        base-brightness:
+          title: Base brightness
+          description: Set the model brightness over a black screen. The measured screen level raises it.
+        exposure-range:
+          title: Exposure range
+          description: Set how far the measured screen level raises the base brightness.
+        wrap-intensity:
+          title: Light wrap intensity
+          description: Set how strongly the background color bleeds onto the edge of the model.
+        bloom:
+          title: Backlight bloom
+          description: Add a soft halo outside illuminated edges. Light wrap width controls its spread; 0 disables the halo.
+        backlight:
+          title: Backlight
+          description: Set how strongly light from behind the character darkens its interior and lights its whole edge.
+        wrap-diffuse:
+          title: Light wrap width
+          description: Set how far the wrapped background color reaches inside the edge of the model.
+        translucent-wrap:
+          title: Reduce wrap on translucent parts
+          description: Scale the light wrap and rim by the square of the model alpha. Parts drawn with partial alpha already show the desktop through themselves.
+        base-contrast:
+          title: Base contrast
+          description: Set how strongly the model separates light and dark values before sampled light is added.
+        chroma:
+          title: Color cast chroma
+          description: Set how much of the surrounding hue the cast keeps. 0 keeps the model colors. 1 applies the full screen color.
+      surface-preview:
+        title: Surface lighting preview
+        description: Inspect the character’s surface shader on neutral gray shapes. Uses the live screen, geometry, strength, and chroma settings, with fixed exposure and no rim or wrap.
+        cylinder: Cylinder
+        sphere: Sphere
+        normals: Show surface normals
+        mapping: Shapes use known normals on the same surface plane as Live2D, without depth or painted shading. The shape follows the character’s full model bounds and actual position on the display.
+      preview-shader:
+        title: Shader preview
+        description: Run the real shader over a test card, with the live environment and the settings above.
+        window-mapping: The filter takes this canvas as the whole stage window, so the preview is not a pixel-accurate copy of the stage.
+        filtered: Shader output
+        unavailable: The preview needs WebGL, and this window could not create a context.
+        environment:
+          live: Light comes from the latest snapshot that the main AIRI window published.
+          neutral: No snapshot has arrived yet, so the preview uses the neutral environment.
+        regions:
+          title: Test card regions
+          body: The wide body carries a tone ramp from sRGB {low} to {high}. Brightness, contrast, chroma, and headroom show along it.
+          bars: The bars are {first}, {second}, {third}, {fourth}, and {fifth} pixels wide. They show how far the light wrap reaches into a thin shape.
+          patches: The two patches are drawn at {strong} and {weak} alpha, which is what the translucent-wrap option acts on.
     editor:
       title: AIRI Editor
       description: Open the standalone AIRI Editor window

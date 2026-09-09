@@ -1,9 +1,19 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
+import type { Filter } from '@pixi/core'
+import type {
+  AmbientLightEnvironment,
+  AmbientLightExposureOptions,
+  AmbientLightFilterOptions,
+  AmbientLightMaterialOptions,
+  AmbientLightScreenGeometry,
+  ScreenAmbientLightMode,
+} from '@proj-airi/stage-shared/screen-ambient-light'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
+import { ambientLightDefaults, ambientLightNeutralEnvironment } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useTheme } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { animate } from 'animejs'
@@ -11,7 +21,7 @@ import { formatHex } from 'culori'
 import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
-import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
+import { Cubism4InternalModel, Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
 import {
@@ -26,11 +36,15 @@ import {
   useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
+  useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginLipSync,
   useMotionUpdatePluginManualControl,
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
+import { ScreenAmbientLightFilter } from '../../../filters/screen-ambient-light'
+import { SurfaceLighting } from '../../../filters/surface-lighting'
+import { registerNormalPipeline } from '../../../lighting/channel'
 import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
 
 const props = withDefaults(defineProps<{
@@ -54,6 +68,15 @@ const props = withDefaults(defineProps<{
   live2dForceAutoBlinkEnabled?: boolean
   live2dExpressionEnabled?: boolean
   live2dShadowEnabled?: boolean
+  screenAmbientLightActive?: boolean
+  screenAmbientLightFilterOptions?: AmbientLightFilterOptions
+  screenAmbientLightExposure?: AmbientLightExposureOptions
+  screenAmbientLightEnvironment?: AmbientLightEnvironment
+  screenAmbientLightMode?: ScreenAmbientLightMode
+  screenAmbientLightStrength?: number
+  screenAmbientLightSquint?: number
+  screenAmbientLightMaterial?: AmbientLightMaterialOptions
+  screenAmbientLightGeometry?: AmbientLightScreenGeometry
 }>(), {
   mouthOpenSize: 0,
   nowSpeaking: false,
@@ -71,6 +94,15 @@ const props = withDefaults(defineProps<{
   live2dForceAutoBlinkEnabled: false,
   live2dExpressionEnabled: true,
   live2dShadowEnabled: true,
+  screenAmbientLightActive: false,
+  screenAmbientLightExposure: () => ({ ...ambientLightDefaults.exposure }),
+  screenAmbientLightFilterOptions: () => ({ ...ambientLightDefaults.filter }),
+  screenAmbientLightEnvironment: () => ambientLightNeutralEnvironment,
+  screenAmbientLightMode: ambientLightDefaults.mode,
+  screenAmbientLightStrength: ambientLightDefaults.strength,
+  screenAmbientLightSquint: ambientLightDefaults.squint,
+  screenAmbientLightMaterial: () => ({ ...ambientLightDefaults.material }),
+  screenAmbientLightGeometry: () => ({ ...ambientLightDefaults.geometry }),
 })
 
 const emits = defineEmits<{
@@ -111,12 +143,39 @@ const nowSpeaking = toRef(() => props.nowSpeaking)
 const lastUpdateTime = ref(0)
 
 const { isDark: dark } = useTheme()
+
+/** Shadow opacity over a black screen, before the exposure fades it. */
+const dropShadowBaseAlpha = 0.2
+
+/**
+ * Softness of the drop shadow, in pixels.
+ *
+ * At 0 the shadow is a hard copy of the silhouette, offset by its distance. A
+ * dark desktop hides that copy at this opacity, but over a white window it
+ * reads as a second character. It also carries the theme hue: measured over
+ * white, the hard shadow took the band beside the character to red 242.3 while
+ * blue stayed at 252.7, which shows as a cyan edge.
+ */
+const dropShadowBlur = 10
+
+/**
+ * How much a bright screen fades the drop shadow out.
+ *
+ * The shadow separates the character from the desktop, and the light wrap
+ * blends the same edge. A bright desktop is where the shadow is most visible,
+ * so it recedes there and keeps full strength over a dark desktop.
+ */
+const dropShadowExposureFalloff = 0.75
+
 const dropShadowFilter = shallowRef(new DropShadowFilter({
-  alpha: 0.2,
-  blur: 0,
+  alpha: dropShadowBaseAlpha,
+  blur: dropShadowBlur,
   distance: 20,
   rotation: 45,
 }))
+const screenAmbientLightFilter = shallowRef(new ScreenAmbientLightFilter())
+let surfaceLighting: SurfaceLighting | undefined
+let stopNormalPipeline: (() => void) | undefined
 
 let resizeAnimation: ReturnType<typeof animate> | undefined
 
@@ -184,15 +243,20 @@ const live2dAutoBlinkEnabled = toRef(() => props.live2dAutoBlinkEnabled)
 const live2dForceAutoBlinkEnabled = toRef(() => props.live2dForceAutoBlinkEnabled)
 const live2dExpressionEnabled = toRef(() => props.live2dExpressionEnabled)
 const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
+const screenAmbientLightActive = toRef(() => props.screenAmbientLightActive)
+const screenAmbientLightFilterOptions = toRef(() => props.screenAmbientLightFilterOptions)
+const screenAmbientLightEnvironment = toRef(() => props.screenAmbientLightEnvironment)
+const screenAmbientLightMode = toRef(() => props.screenAmbientLightMode)
+const screenAmbientLightMaterial = toRef(() => props.screenAmbientLightMaterial)
+const screenAmbientLightGeometry = toRef(() => props.screenAmbientLightGeometry)
+const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
 
 // --- Expression controller
 const internalModelRef = shallowRef<PixiLive2DInternalModel>()
 const expressionController = useExpressionController({
   internalModel: internalModelRef,
+  modelId: props.modelId,
 })
-// This identity belongs to model.value. It changes only when a model load
-// commits, so expression initialization cannot observe a newer prop by mistake.
-let loadedModelId: string | undefined
 // Saved SDK manager references for runtime expression toggle (restore on disable)
 const savedEyeBlink = shallowRef<any>(null)
 const savedExpressionManager = shallowRef<any>(null)
@@ -243,10 +307,13 @@ async function performModelLoad() {
 
   // REVIEW: here as await until(...) guarded the pixiApp and stage to be valid.
   if (model.value && pixiApp.value?.stage) {
+    stopNormalPipeline?.()
+    stopNormalPipeline = undefined
+    surfaceLighting?.dispose()
+    surfaceLighting = undefined
     // Dispose expression controller before destroying the old model
     expressionController.dispose()
     internalModelRef.value = undefined
-    loadedModelId = undefined
 
     try {
       pixiApp.value.stage.removeChild(model.value)
@@ -257,11 +324,7 @@ async function performModelLoad() {
     }
     model.value = undefined
   }
-  const pendingModel = {
-    id: props.modelId,
-    src: modelSrcRef.value,
-  }
-  if (!pendingModel.src) {
+  if (!modelSrcRef.value) {
     console.warn('No Live2D model source provided.')
     modelLoading.value = false
     componentState.value = 'mounted'
@@ -276,7 +339,7 @@ async function performModelLoad() {
     }
 
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    await Live2DFactory.setupLive2DModel(live2DModel, { url: pendingModel.src, id: pendingModel.id }, { autoInteract: false })
+    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
     availableMotions.value.forEach((motion) => {
       if (motion.motionName in Emotion) {
         motionMap.value[motion.fileName] = motion.motionName
@@ -285,6 +348,33 @@ async function performModelLoad() {
         motionMap.value[motion.fileName] = EmotionNeutralMotionName
       }
     })
+
+    if (live2DModel.internalModel instanceof Cubism4InternalModel) {
+      const lighting = new SurfaceLighting(live2DModel.internalModel, pixiApp.value!.renderer)
+      surfaceLighting = lighting
+      try {
+        lighting.setPhotometry(screenAmbientLightFilter.value.exposure)
+        lighting.setMaterial(screenAmbientLightMaterial.value)
+        lighting.setScreenGeometry(screenAmbientLightGeometry.value)
+        stopNormalPipeline = registerNormalPipeline(live2DModel.internalModel, lighting, modelSrcRef.value, props.modelId ?? 'live2d')
+      }
+      catch (error) {
+        lighting.dispose()
+        surfaceLighting = undefined
+        live2DModel.destroy()
+        throw error
+      }
+    }
+
+    // Loading the authored textures can finish after the scene has unmounted.
+    if (isUnmounted) {
+      stopNormalPipeline?.()
+      stopNormalPipeline = undefined
+      surfaceLighting?.dispose()
+      surfaceLighting = undefined
+      live2DModel.destroy()
+      return
+    }
 
     // --- Scene
 
@@ -385,6 +475,10 @@ async function performModelLoad() {
     // This ensures blink respects expression state (0 × blinkFactor = 0).
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginLightSquint(
+      () => screenAmbientLightFilter.value.exposure.brightnessRise,
+      () => props.screenAmbientLightActive ? props.screenAmbientLightSquint : 0,
+    ), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
@@ -443,7 +537,6 @@ async function performModelLoad() {
     // toggled off at runtime.
     savedEyeBlink.value = internalModel.eyeBlink
     savedExpressionManager.value = motionManager.expressionManager
-    loadedModelId = pendingModel.id
 
     // --- Expression controller initialisation (conditional)
     if (live2dExpressionEnabled.value) {
@@ -473,7 +566,7 @@ async function performModelLoad() {
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
-    await initExpressionController(internalModelRef.value, loadedModelId).catch((err) => {
+    await initExpressionController(internalModelRef.value).catch((err) => {
       console.warn('[Model.vue] Expression controller initialization failed:', err)
     })
   }
@@ -486,7 +579,7 @@ async function performModelLoad() {
  * This is intentionally fire-and-forget from loadModel so that a failure in
  * expression loading does not prevent the model itself from rendering.
  */
-async function initExpressionController(internalModel?: PixiLive2DInternalModel, modelId?: string) {
+async function initExpressionController(internalModel?: PixiLive2DInternalModel) {
   // Dispose any previous state (handles model reloads)
   expressionController.dispose()
 
@@ -510,7 +603,7 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel,
     return response.text()
   }
 
-  await expressionController.initialise(modelId, expressionRefs, readExpFile)
+  await expressionController.initialise(expressionRefs, readExpFile)
 }
 
 async function setMotion(motionName: string, index?: number) {
@@ -533,31 +626,106 @@ async function setMotion(motionName: string, index?: number) {
 const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
-function updateDropShadowFilter() {
-  if (!model.value)
+function updateAmbientLightFilter() {
+  const options = screenAmbientLightFilterOptions.value
+  const physical = props.screenAmbientLightExposure.enabled && screenAmbientLightMode.value === 'window-gradient' && !!surfaceLighting
+  screenAmbientLightFilter.value.renderSurfaceBloom = surfaceLighting && screenAmbientLightMode.value === 'window-gradient'
+    ? input => surfaceLighting!.renderBloom(input)
+    : undefined
+  screenAmbientLightFilter.value.exposure.configure(screenAmbientLightEnvironment.value, props.screenAmbientLightExposure, physical && screenAmbientLightActive.value)
+  surfaceLighting?.setExposure(
+    physical ? options.baseBrightness : options.baseBrightness + options.exposureRange * screenAmbientLightEnvironment.value.exposure,
+    options.baseContrast,
+  )
+  surfaceLighting?.update(
+    screenAmbientLightEnvironment.value,
+    screenAmbientLightActive.value,
+    screenAmbientLightStrength.value,
+    screenAmbientLightFilterOptions.value.chroma,
+    screenAmbientLightMode.value,
+  )
+  if (!screenAmbientLightActive.value)
     return
 
-  if (!live2dShadowEnabled.value) {
-    model.value.filters = []
-    return
-  }
+  screenAmbientLightFilter.value.update({
+    environment: screenAmbientLightEnvironment.value,
+    mode: screenAmbientLightMode.value,
+    strength: screenAmbientLightStrength.value,
+    // Surface shading applies ambient exposure before adding direct light. The
+    // final filter retains silhouette wrap and backlight without dimming the highlights.
+    options: surfaceLighting
+      ? { ...options, chroma: 0, baseBrightness: 1, exposureRange: 0, baseContrast: 1 }
+      : screenAmbientLightFilterOptions.value,
+  })
+}
+
+function updateDropShadow() {
+  // The measured screen level only applies while the ambient light is running.
+  // Without it the shadow keeps one strength, which is the behavior for a stage
+  // that never samples the screen.
+  const exposure = screenAmbientLightActive.value
+    ? screenAmbientLightEnvironment.value.exposure
+    : 0
+  dropShadowFilter.value.alpha = dropShadowBaseAlpha * (1 - dropShadowExposureFalloff * exposure)
 
   if (!dropShadowColorComputer.value)
     return
 
   const color = getComputedStyle(dropShadowColorComputer.value).backgroundColor
   dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
-  model.value.filters = [dropShadowFilter.value]
 }
 
+// The filter array is replaced only when the set of filters changes. The
+// shadow loop below runs every frame, and a fresh array per frame would make
+// Pixi re-evaluate the filter stack for nothing.
+function updateFilterStack() {
+  if (!model.value)
+    return
+
+  const filters: Filter[] = []
+  if (screenAmbientLightActive.value)
+    filters.push(screenAmbientLightFilter.value)
+  if (live2dShadowEnabled.value)
+    filters.push(dropShadowFilter.value)
+
+  const current = model.value.filters ?? []
+  const unchanged = current.length === filters.length
+    && current.every((filter, index) => filter === filters[index])
+  if (!unchanged)
+    model.value.filters = filters
+}
+
+function updateModelFilters() {
+  updateAmbientLightFilter()
+  updateDropShadow()
+  updateFilterStack()
+}
+
+// Geometry follows settings changes, independently of the screen capture cadence.
+watch(screenAmbientLightMaterial, material => surfaceLighting?.setMaterial(material))
+watch(screenAmbientLightGeometry, geometry => surfaceLighting?.setScreenGeometry(geometry))
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
-watch(dark, updateDropShadowFilter, { immediate: true })
-watch([model, themeColorsHue], updateDropShadowFilter)
-watch(live2dShadowEnabled, updateDropShadowFilter)
+watch(dark, updateModelFilters, { immediate: true })
+watch([model, themeColorsHue], updateModelFilters)
+watch([live2dShadowEnabled, screenAmbientLightActive], updateFilterStack)
+watch(
+  [
+    screenAmbientLightActive,
+    screenAmbientLightFilterOptions,
+    () => props.screenAmbientLightExposure,
+    screenAmbientLightEnvironment,
+    screenAmbientLightMode,
+    screenAmbientLightStrength,
+  ],
+  updateModelFilters,
+)
 
 // TODO: This is hacky!
+// The theme hue animates, so the shadow color follows it once per frame. Only
+// the shadow color belongs here. The ambient-light uniforms update on change,
+// and the light maps would otherwise upload on every frame.
 function updateDropShadowFilterLoop() {
-  updateDropShadowFilter()
+  updateDropShadow()
   if (!live2dShadowEnabled.value) {
     dropShadowAnimationId.value = 0
     return
@@ -746,7 +914,7 @@ watch(live2dExpressionEnabled, (enabled) => {
     }
 
     internalModelRef.value = im
-    initExpressionController(im, loadedModelId).catch((err) => {
+    initExpressionController(im).catch((err) => {
       console.warn('[Model.vue] Expression controller initialisation failed:', err)
     })
   }
@@ -773,15 +941,18 @@ onMounted(() => {
 })
 
 onMounted(async () => {
-  updateDropShadowFilter()
+  updateModelFilters()
 })
 
 onUnmounted(() => {
+  stopNormalPipeline?.()
+  stopNormalPipeline = undefined
+  surfaceLighting?.dispose()
+  surfaceLighting = undefined
   isUnmounted = true
   resizeAnimation?.pause()
   disposeShouldUpdateView?.()
   expressionController.dispose()
-  loadedModelId = undefined
 })
 
 function listMotionGroups() {
@@ -789,6 +960,7 @@ function listMotionGroups() {
 }
 
 defineExpose({
+  characterBounds: () => surfaceLighting ? { ...surfaceLighting.characterBounds } : undefined,
   setMotion,
   listMotionGroups,
   modelNormalizeParams,

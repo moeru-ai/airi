@@ -1,0 +1,32 @@
+<script setup lang="ts">
+import Live2DAmbientLightControls from '../../components/Devtools/live2d-ambient-light/controls.vue'
+import Live2DAmbientLightDiagnostics from '../../components/Devtools/live2d-ambient-light/diagnostics.vue'
+import Exposure from '../../components/Devtools/live2d-ambient-light/exposure.vue'
+import Live2DAmbientLightGeometry from '../../components/Devtools/live2d-ambient-light/geometry.vue'
+import NormalGeneration from '../../components/Devtools/live2d-ambient-light/normals.vue'
+import Live2DAmbientLightSampling from '../../components/Devtools/live2d-ambient-light/sampling.vue'
+import Live2DAmbientLightShaderPreview from '../../components/Devtools/live2d-ambient-light/shader-preview.vue'
+import Live2DAmbientLightShader from '../../components/Devtools/live2d-ambient-light/shader.vue'
+import Live2DSurfacePreview from '../../components/Devtools/live2d-ambient-light/surface-preview.vue'
+</script>
+
+<template>
+  <div :class="['grid gap-4 pb-12']">
+    <Live2DAmbientLightControls />
+    <NormalGeneration />
+    <Live2DAmbientLightGeometry />
+    <Live2DSurfacePreview />
+    <Live2DAmbientLightDiagnostics />
+    <Live2DAmbientLightSampling />
+    <Exposure />
+    <Live2DAmbientLightShader />
+    <Live2DAmbientLightShaderPreview />
+  </div>
+</template>
+
+<route lang="yaml">
+meta:
+  layout: settings
+  titleKey: tamagotchi.settings.devtools.pages.live2d-ambient-light.title
+  subtitleKey: tamagotchi.settings.devtools.title
+</route>

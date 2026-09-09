@@ -1,6 +1,7 @@
 import type { ChatSessionsExport } from '../types/chat-session'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
+import { useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { useModelStore } from '@proj-airi/stage-ui-three'
 
@@ -33,6 +34,7 @@ export function useDataMaintenance() {
   const live2dParamsStore = useLive2dParams()
   const live2dSettingsStore = useSettingsLive2d()
   const live2dMagicSettingsStore = useLive2DMotionMagicSettings()
+  const screenAmbientLightSettingsStore = useSettingsScreenAmbientLight()
   const threeStore = useModelStore()
   const hearingStore = useHearingStore()
   const speechStore = useSpeechStore()
@@ -98,6 +100,7 @@ export function useDataMaintenance() {
     live2dParamsStore.resetState()
     live2dSettingsStore.resetState()
     live2dMagicSettingsStore.resetState()
+    screenAmbientLightSettingsStore.resetState()
     threeStore.resetModelStore()
     mcpStore.resetState()
     onboardingStore.resetSetupState()

@@ -11,6 +11,7 @@ import {
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginIdleDisable,
+  useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginManualControl,
 } from './motion-manager'
 
@@ -73,6 +74,54 @@ function createContext(overrides: Partial<MotionManagerPluginContext> = {}): Mot
 }
 
 describe('live2d motion manager plugins', () => {
+  it('squints on a brightness rise without compounding or blocking a blink', () => {
+    let rise = 0
+    const plugin = useMotionUpdatePluginLightSquint(() => rise, () => 1, () => 'still')
+    const ctx = createContext({ timeDelta: 1 / 60 })
+    plugin(ctx)
+    expect(ctx.model.getParameterValueById('ParamEyeLOpen')).toBe(1)
+    rise = 0.8
+    plugin(ctx)
+    const narrowed = ctx.model.getParameterValueById('ParamEyeLOpen')
+    expect(narrowed).toBeGreaterThanOrEqual(0.2)
+    expect(narrowed).toBeLessThan(0.6)
+    plugin(ctx)
+    expect(ctx.model.getParameterValueById('ParamEyeLOpen')).toBeGreaterThanOrEqual(narrowed)
+    ctx.model.setParameterValueById('ParamEyeLOpen', 0)
+    plugin(ctx)
+    expect(ctx.model.getParameterValueById('ParamEyeLOpen')).toBe(0)
+    ctx.model.setParameterValueById('ParamEyeLOpen', 1)
+    rise = 0
+    for (let frame = 0; frame < 300; frame++) plugin(ctx)
+    expect(ctx.model.getParameterValueById('ParamEyeLOpen')).toBe(1)
+    expect(ctx.model.getParameterValueById('ParamEyeROpen')).toBe(1)
+  })
+
+  it('restores eyes when disabled and suppresses a rise caused by moving the window', () => {
+    let rise = 0
+    let amount = 1
+    let placement = 'first'
+    const plugin = useMotionUpdatePluginLightSquint(() => rise, () => amount, () => placement)
+    const ctx = createContext({ timeDelta: 1 / 60 })
+    plugin(ctx)
+    rise = 0.5
+    plugin(ctx)
+    expect(ctx.model.getParameterValueById('ParamEyeLOpen')).toBeLessThan(1)
+    amount = 0
+    plugin(ctx)
+    expect(ctx.model.getParameterValueById('ParamEyeLOpen')).toBe(1)
+    amount = 1
+    placement = 'second'
+    rise = 0.9
+    for (let frame = 0; frame < 60; frame++) plugin(ctx)
+    expect(ctx.model.getParameterValueById('ParamEyeLOpen')).toBe(1)
+    rise = 0
+    plugin(ctx)
+    rise = 0.5
+    plugin(ctx)
+    expect(ctx.model.getParameterValueById('ParamEyeLOpen')).toBeLessThan(1)
+  })
+
   it('keeps SDK breath from changing AIRI-owned idle parameters', () => {
     const updateParameters = vi.fn()
     const internalModel = {
