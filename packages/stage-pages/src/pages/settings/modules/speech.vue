@@ -347,25 +347,38 @@ async function syncOpenAICompatibleSettings() {
 }
 
 onMounted(async () => {
-  await providersStore.loadModelsForConfiguredProviders()
-  await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
-  await syncOpenAICompatibleSettings()
-  trackOfficialTtsExposure()
+  try {
+    await providersStore.loadModelsForConfiguredProviders()
+    await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
+    await syncOpenAICompatibleSettings()
+    trackOfficialTtsExposure()
+  }
+  catch (error) {
+    // Closing a renderer rejects pending RPCs even after its page unmounts.
+    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+  }
 })
 
 watch(activeSpeechProvider, async (newProvider) => {
-  await providersStore.loadModelsForConfiguredProviders()
-  if (newProvider !== activeSpeechProvider.value)
-    return
+  try {
+    await providersStore.loadModelsForConfiguredProviders()
+    if (newProvider !== activeSpeechProvider.value)
+      return
 
-  // Model discovery can finish after the selection commit. The leader loader
-  // resolves defaults from that catalog before it requests matching voices.
-  await speechStore.loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
-  if (newProvider !== activeSpeechProvider.value)
-    return
-  trackOfficialTtsExposure(newProvider, currentTtsModelId())
+    // Model discovery can finish after the selection commit. The leader loader
+    // resolves defaults from that catalog before it requests matching voices.
+    await speechStore.loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
+    if (newProvider !== activeSpeechProvider.value)
+      return
+    trackOfficialTtsExposure(newProvider, currentTtsModelId())
 
-  await syncOpenAICompatibleSettings()
+    await syncOpenAICompatibleSettings()
+  }
+  catch (error) {
+    // An obsolete provider request must not replace the current form error.
+    if (newProvider === activeSpeechProvider.value)
+      errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+  }
 })
 
 watch(activeSpeechModel, () => {

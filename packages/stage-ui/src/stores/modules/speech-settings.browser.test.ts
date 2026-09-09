@@ -61,6 +61,51 @@ afterEach(() => {
   localStorage.clear()
 })
 
+// https://github.com/moeru-ai/airi/actions/runs/34348745853/job/102456521103
+// ROOT CAUSE: Page initialization and provider watchers awaited model RPCs
+// without handling transport disposal. Passing assertions hid a teardown rejection.
+it.each(['mount', 'provider change'])('handles interrupted model discovery after %s', async (trigger) => {
+  localStorage.clear()
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [], flux: 0 })))
+  const namespace = `speech-settings:${crypto.randomUUID()}`
+  const leader = mountRenderer(namespace)
+  await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+  await useProviderConfigStore(leader.pinia).ensureProvider('microsoft-speech', 'microsoft-speech', {
+    apiKey: 'key',
+    baseUrl: 'https://voices.invalid/v1/',
+    region: 'eastasia',
+  })
+  await leader.speech.selectProviderModel('speech-noop', '')
+  let completed = 0
+  useProviderStore(leader.pinia).$onAction(({ name, after }) => {
+    if (name === 'loadModelsForConfiguredProviders')
+      after(() => completed++)
+  })
+  let blocked = 0
+  let interrupt = trigger === 'mount'
+  const postMessage = BroadcastChannel.prototype.postMessage
+  vi.spyOn(BroadcastChannel.prototype, 'postMessage').mockImplementation(function (this: BroadcastChannel, message) {
+    if (interrupt && JSON.stringify(message).includes('loadModelsForConfiguredProviders')) {
+      blocked++
+      return
+    }
+    postMessage.call(this, message)
+  })
+  const follower = mountRenderer(namespace, SpeechSettings)
+  const globalErrors = vi.fn()
+  follower.app.config.errorHandler = globalErrors
+  if (trigger === 'provider change') {
+    await vi.waitFor(() => expect(completed).toBeGreaterThan(0))
+    interrupt = true
+    await leader.speech.selectProviderModel('microsoft-speech', 'v1')
+  }
+  await vi.waitFor(() => expect(blocked).toBeGreaterThan(0))
+  follower.runtime.dispose()
+  await vi.waitFor(() => expect(globalErrors.mock.calls.length > 0 || follower.container.textContent?.includes('Pinia sync runtime was disposed before the RPC completed.')).toBe(true))
+  expect(globalErrors).not.toHaveBeenCalled()
+  await vi.waitFor(() => expect(follower.container.textContent).toContain('Pinia sync runtime was disposed before the RPC completed.'))
+})
+
 // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964866483
 // ROOT CAUSE: The click handler read the old model before the leader RPC
 // committed the provider. Analytics must use the completed selection receipt.
