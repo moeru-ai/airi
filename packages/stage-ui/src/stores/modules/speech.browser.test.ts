@@ -332,6 +332,45 @@ describe('speech synchronization', () => {
     }
   })
 
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964550171
+  // ROOT CAUSE:
+  // A synchronized reset ran only in the leader and left the caller's local
+  // waiters loading. Cancel local waits before awaiting the shared reset.
+  it('settles follower catalog waits on reset before the network responds', async () => {
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    await useProviderConfigStore(leader.pinia).ensureProvider('microsoft-speech', 'microsoft-speech', {
+      apiKey: 'key',
+      baseUrl: 'https://voices.invalid/v1/',
+      region: 'eastasia',
+    })
+    const follower = createSyncedContext(namespace, 'follower-only')
+    await vi.waitFor(() => expect(useProviderConfigStore(follower.pinia).configs['microsoft-speech']?.apiKey).toBe('key'))
+    let finish!: (response: Response) => void
+    const response = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const fetchCatalog = vi.fn<typeof fetch>(() => response)
+    vi.stubGlobal('fetch', fetchCatalog)
+    const first = follower.speechStore.loadVoicesForProvider('microsoft-speech')
+    const second = follower.speechStore.loadVoicesForProvider('microsoft-speech')
+    try {
+      await vi.waitFor(() => expect(fetchCatalog).toHaveBeenCalledOnce())
+      expect(follower.speechStore.voiceCatalogStatus['microsoft-speech']?.loading).toBe(true)
+      await follower.speechStore.resetState()
+      expect(follower.speechStore.voiceCatalogStatus['microsoft-speech']).toBeUndefined()
+      await expect(first).resolves.toEqual([])
+      await expect(second).resolves.toEqual([])
+      await follower.speechStore.resetState()
+      expect(follower.speechStore.voiceCatalogStatus['microsoft-speech']).toBeUndefined()
+    }
+    finally {
+      finish(Response.json({ voices: [] }))
+      await Promise.all([first, second])
+    }
+  })
+
   it('reports a leader provider failure only in the requesting renderer', async () => {
     const namespace = `speech:${crypto.randomUUID()}`
     const leader = createSyncedContext(namespace, 'leader-only')

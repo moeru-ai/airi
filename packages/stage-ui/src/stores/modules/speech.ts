@@ -532,8 +532,14 @@ export const useSpeechStore = defineStore('speech', () => {
     return hasModel && hasVoice
   })
 
-  /** Resets shared settings in the leader and rejects catalog results started before this reset. */
+  /** Releases this caller's waits, then awaits the leader's shared reset. Transport failures propagate to the caller. */
   async function resetState() {
+    cancelCatalogRequests()
+    await useSpeechStore(pinia).resetSettings()
+  }
+
+  /** Resets shared settings in the leader and rejects catalog results started before this reset. */
+  async function resetSettings() {
     // Invalidate request ownership before the reset publishes new settings.
     cancelCatalogRequests()
     activeSpeechProvider.reset()
@@ -583,10 +589,11 @@ export const useSpeechStore = defineStore('speech', () => {
     generateSSML,
     resolveSpeechInput,
     resetState,
+    resetSettings,
   }
 }, {
   synced: {
-    actions: ['loadVoiceCatalog', 'ensureActiveSpeechVoice', 'resetState'],
+    actions: ['loadVoiceCatalog', 'ensureActiveSpeechVoice', 'resetSettings'],
     state: true,
   },
 })
