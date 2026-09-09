@@ -216,7 +216,6 @@
     "@types/ws": "catalog:",
     "@unocss/reset": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
-    "@webgpu/types": "catalog:",
     "clustr": "catalog:",
     "csstype": "catalog:",
     "histoire": "catalog:",
