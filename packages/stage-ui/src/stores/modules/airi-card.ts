@@ -112,7 +112,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     moduleDefaults.value = next
   }
 
-  function writeRuntimeModules(modules: CardModuleDefaults) {
+  /** Applies card speech through the leader command so catalog invalidation precedes its saved voice. */
+  async function writeRuntimeModules(modules: CardModuleDefaults) {
     const { consciousness, vision, speech, stageModel } = useRuntimeModuleStores()
     // Provider changes synchronously clear dependent selections. Assign the
     // resolved model and voice afterwards, including empty values.
@@ -120,9 +121,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     consciousness.activeModel = modules.consciousness.model
     vision.activeProvider = modules.vision.provider
     vision.activeModel = modules.vision.model
-    speech.activeSpeechProvider = modules.speech.provider
-    speech.activeSpeechModel = modules.speech.model
-    speech.activeSpeechVoiceId = modules.speech.voice_id
+    await speech.selectProviderModel(modules.speech.provider, modules.speech.model, modules.speech.voice_id)
     if (modules.displayModelId !== undefined)
       stageModel.stageModelSelected = modules.displayModelId
   }
@@ -161,7 +160,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     rememberInheritedSettings()
     if (!moduleDefaults.value)
       return
-    writeRuntimeModules(moduleDefaults.value)
+    await writeRuntimeModules(moduleDefaults.value)
     try {
       if (authenticated)
         await configureAsDefaultsIfEmpty()
@@ -171,7 +170,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
     finally {
       appliedModules = undefined
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     }
   }
 
@@ -216,7 +215,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // before consumers observe a dangling runtime profile after deletion.
     if (activeCardId.value === id) {
       activeCardId.value = 'default'
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     }
 
     captureAnalyticsEvent('character_deleted', { character_id: id })
@@ -237,7 +236,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const card = newAiriCard(updatedCard)
     cards.value.set(id, card)
     if (id === activeCardId.value)
-      applyActiveCardSettings(card)
+      await applyActiveCardSettings(card)
 
     return true
   }
@@ -274,7 +273,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     await pendingAuthenticationSetup
     const updated = updateActiveCardModules(() => ({ displayModelId }))
     if (updated)
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     return updated
   }
 
@@ -282,7 +281,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     await pendingAuthenticationSetup
     const updated = updateActiveCardModules(() => ({ consciousness }))
     if (updated)
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     return updated
   }
 
@@ -290,7 +289,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     await pendingAuthenticationSetup
     const updated = updateActiveCardModules(() => ({ vision }))
     if (updated)
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     return updated
   }
 
@@ -303,7 +302,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       },
     }))
     if (updated)
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     return updated
   }
 
@@ -330,7 +329,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       speech: modules.speech.provider === providerId ? { ...modules.speech, provider: '', model: '', voice_id: '' } : modules.speech,
     }))
     appliedModules = undefined
-    applyActiveCardSettings()
+    await applyActiveCardSettings()
   }
 
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
@@ -501,7 +500,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!cards.value.has(activeCardId.value))
       activeCardId.value = 'default'
 
-    applyActiveCardSettings()
+    await applyActiveCardSettings()
   }
 
   /**
@@ -514,11 +513,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       return false
 
     activeCardId.value = id
-    applyActiveCardSettings()
+    await applyActiveCardSettings()
     return true
   }
 
-  function applyActiveCardSettings(newCard = activeCard.value) {
+  async function applyActiveCardSettings(newCard = activeCard.value) {
     rememberInheritedSettings()
     const artistry = useArtistryStore()
 
@@ -561,7 +560,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           resolved.speech.voice_id = ''
       }
     }
-    writeRuntimeModules(resolved)
+    await writeRuntimeModules(resolved)
     appliedModules = modules
 
     if (extension.modules?.artistry) {

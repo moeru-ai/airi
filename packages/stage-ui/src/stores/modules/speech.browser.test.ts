@@ -12,6 +12,8 @@ import { createI18n } from 'vue-i18n'
 import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
+import { useProviderStore } from '../providers/provider'
+import { useAiriCardStore } from './airi-card'
 import { useSpeechStore } from './speech'
 
 const syncedContexts: Array<{
@@ -21,7 +23,7 @@ const syncedContexts: Array<{
 }> = []
 
 /** Creates one mounted speech-store renderer with explicit leadership. */
-function createSyncedContext(namespace: string, leadership: LeadershipMode) {
+function createSyncedContext(namespace: string, leadership: LeadershipMode, withCards = false) {
   const pinia = createPinia()
   const runtime = createSyncedPiniaPlugin({
     callTimeout: 1000,
@@ -34,6 +36,8 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode) {
   const app = createApp({
     setup() {
       speechStore = useSpeechStore()
+      if (withCards)
+        useAiriCardStore()
       return () => null
     },
   })
@@ -61,6 +65,89 @@ async function createSyncedPair() {
 }
 
 describe('speech synchronization', () => {
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967949219
+  // ROOT CAUSE: Catalog invalidation erased the voice just applied by a card.
+  // The selection command must discard the old catalog before setting the override.
+  it.each(['microsoft-speech', 'official-provider-speech'])('preserves a card voice while its new %s model catalog loads', async (provider) => {
+    const deferred = Promise.withResolvers<Response>()
+    let pause = false
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => pause
+      ? deferred.promise.then(response => response.clone())
+      : Response.json({ voices: [{ id: 'old', name: 'Old', languages: [] }], data: [] })))
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only', true)
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const follower = createSyncedContext(namespace, 'follower-only', true)
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    if (provider === 'official-provider-speech') {
+      const now = new Date()
+      useAuthStore(leader.pinia).$patch({
+        token: 'access-token',
+        user: { id: 'owner', name: 'Owner', email: 'owner@example.com', emailVerified: true, createdAt: now, updatedAt: now },
+        session: { id: 'session', userId: 'owner', token: 'session-token', createdAt: now, updatedAt: now, expiresAt: new Date(now.getTime() + 60000) },
+      })
+    }
+    await useProviderConfigStore(leader.pinia).ensureProvider(provider, provider, { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/', region: 'eastasia' })
+    await useProviderStore(leader.pinia).forceProviderConfigured(provider)
+    await leader.speechStore.selectProviderModel(provider, 'model-a', 'old')
+    await vi.waitFor(() => expect(leader.speechStore.availableVoices[provider]?.[0]?.id).toBe('old'))
+    await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoice?.id).toBe('old'))
+    const cards = useAiriCardStore(leader.pinia)
+    await cards.initialize()
+    const id = await cards.addCard({
+      name: 'Saved voice',
+      version: '1.0',
+      description: '',
+      extensions: { airi: { modules: { speech: { provider, model: 'model-b', voice_id: 'saved' } } } },
+    }, 'scratch')
+    pause = true
+    try {
+      await cards.activateCard(id)
+      await vi.waitFor(() => expect(leader.speechStore.availableVoices[provider]).toEqual([]))
+      expect(leader.speechStore.activeSpeechVoiceId).toBe('saved')
+      deferred.resolve(Response.json({
+        voices: [{ id: 'recommended', name: 'Recommended', languages: [] }, { id: 'saved', name: 'Saved', languages: [] }],
+        recommended: { en: 'recommended' },
+      }))
+      await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoice?.id).toBe('saved'))
+      expect(follower.speechStore.activeSpeechModel).toBe('model-b')
+      // Consecutive commands must not capture the first card's override as
+      // an inherited default while its leader action yields.
+      await cards.activateCard('default')
+      await Promise.all([cards.activateCard(id), cards.activateCard('default')])
+      expect(leader.speechStore.activeSpeechModel).toBe('model-a')
+      expect(cards.moduleDefaults?.speech.model).toBe('model-a')
+    }
+    finally {
+      deferred.resolve(Response.json({ voices: [] }))
+    }
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967949224
+  // ROOT CAUSE: HTTP discovery returned only models, leaving the server default
+  // in the outgoing renderer instead of the replicated provider catalog.
+  it('replicates the HTTP speech default to the next leader', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+      models: [{ id: 'first', name: 'First' }, { id: 'preferred', name: 'Preferred' }],
+      default: 'preferred',
+      voices: [],
+    })))
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const survivor = createSyncedContext(namespace, 'follower-preferred')
+    const provider = 'official-provider-speech'
+    await useProviderStore(leader.pinia).fetchModelsForProvider(provider)
+    await vi.waitFor(() => expect(useProviderStore(survivor.pinia).getDefaultModelForProvider(provider)).toBe('preferred'))
+    const outgoing = syncedContexts.find(context => context.runtime === leader.runtime)!
+    outgoing.app.unmount()
+    disposePinia(outgoing.pinia)
+    outgoing.runtime.dispose()
+    syncedContexts.splice(syncedContexts.indexOf(outgoing), 1)
+    await vi.waitFor(() => expect(survivor.runtime.isLeader()).toBe(true), { timeout: 5000 })
+    await survivor.speechStore.selectProviderModel(provider, '')
+    expect(survivor.speechStore.activeSpeechModel).toBe('preferred')
+  })
   beforeEach(() => {
     localStorage.clear()
   })

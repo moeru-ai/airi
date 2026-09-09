@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
-import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice, providerOfficialSpeech } from '../../libs/providers/providers/official'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice } from '../../libs/providers/providers/official'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
@@ -283,6 +283,22 @@ describe('speech store helpers', () => {
     expect(speechStore.activeSpeechModel).toBe('volcengine/seed-tts-2.0')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967949224
+  // ROOT CAUSE: The consumer read a realm-local default instead of the received snapshot.
+  it('selects the HTTP default from a provider snapshot', async () => {
+    const providers = useProviderStore()
+    const speech = useSpeechStore()
+    await providers.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+    providers.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID] = {
+      models: ['first', 'snapshot-default'].map(id => ({ id, name: id, provider: OFFICIAL_SPEECH_PROVIDER_ID })),
+      defaultModel: 'snapshot-default',
+      modelStatus: 'ready',
+      modelError: null,
+    }
+    await speech.selectProviderModel(OFFICIAL_SPEECH_PROVIDER_ID, '')
+    expect(speech.activeSpeechModel).toBe('snapshot-default')
+  })
+
   /**
    * @example
    * speechStore.ensureActiveSpeechModel()
@@ -345,11 +361,7 @@ describe('speech store helpers', () => {
     }
     try {
       await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
-      const provider = await providerOfficialSpeech.createProvider({})
-      providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
-        {},
-        provider,
-      )
+      await providersStore.fetchModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
 
       speechStore.ensureActiveSpeechModel()
 
@@ -406,11 +418,7 @@ describe('speech store helpers', () => {
 
     try {
       await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
-      const provider = await providerOfficialSpeech.createProvider({})
-      providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
-        {},
-        provider,
-      )
+      await providersStore.fetchModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
 
       speechStore.ensureActiveSpeechModel()
       await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, speechStore.activeSpeechModel)
@@ -466,11 +474,7 @@ describe('speech store helpers', () => {
 
     try {
       await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
-      const provider = await providerOfficialSpeech.createProvider({})
-      providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
-        {},
-        provider,
-      )
+      await providersStore.fetchModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
 
       speechStore.ensureActiveSpeechModel()
       await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, speechStore.activeSpeechModel)

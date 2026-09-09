@@ -10,15 +10,6 @@ import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICO
 
 export { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID, OFFICIAL_VISION_PROVIDER_ID } from './constants'
 
-// Server-curated default HTTP speech model id, populated by the HTTP speech
-// provider's listModels(). The speech store uses this when it needs to seed an
-// empty/stale model selection, so the UI mirrors `/audio/speech` `model: auto`.
-let defaultSpeechModelId: string | null = null
-
-export function getDefaultSpeechModel(): string | null {
-  return defaultSpeechModelId
-}
-
 const officialConfigSchema = z.object({})
 
 function authHeaders(): Record<string, string> {
@@ -121,8 +112,7 @@ export const providerOfficialSpeech = defineProvider({
   },
   validationRequiredWhen: () => false,
   extraMethods: {
-    listModels: async (): Promise<ModelInfo[]> => {
-      defaultSpeechModelId = null
+    listModelCatalog: async (): Promise<ProviderModelCatalog> => {
       const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models`, { headers: authHeaders() })
       if (!res.ok)
         throw new Error(`audio models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
@@ -131,14 +121,16 @@ export const providerOfficialSpeech = defineProvider({
       if (!Array.isArray(data.models))
         throw new Error('audio models upstream returned malformed body')
 
-      defaultSpeechModelId = typeof data.default === 'string' && data.default.length > 0 ? data.default : null
-
-      return data.models.map(m => ({
-        id: m.id,
-        name: m.name,
-        description: m.description,
-        provider: OFFICIAL_SPEECH_PROVIDER_ID,
-      }))
+      // Replicate the server default with its models so a new leader can select it.
+      return {
+        defaultModel: typeof data.default === 'string' && data.default.length > 0 ? data.default : null,
+        models: data.models.map(m => ({
+          id: m.id,
+          name: m.name,
+          description: m.description,
+          provider: OFFICIAL_SPEECH_PROVIDER_ID,
+        })),
+      }
     },
     voiceCatalogConfig: () => ({}),
     listVoices: async (_config, _provider, model, signal): Promise<VoiceInfo[]> => {

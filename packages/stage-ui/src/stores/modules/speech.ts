@@ -15,7 +15,7 @@ import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
 import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
-import { getDefaultSpeechModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice } from '../../libs/providers/providers/official'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice } from '../../libs/providers/providers/official'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 
@@ -393,7 +393,7 @@ export const useSpeechStore = defineStore('speech', () => {
     if (hasValidSelection)
       return
 
-    const defaultModel = getDefaultSpeechModel()
+    const defaultModel = providersStore.getDefaultModelForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     activeSpeechModel.value = defaultModel && models.some(m => m.id === defaultModel)
       ? defaultModel
       : models[0]?.id ?? ''
@@ -410,8 +410,10 @@ export const useSpeechStore = defineStore('speech', () => {
     if (changed)
       clearVoiceSelection()
     ensureActiveSpeechModel()
+    // Discard the previous model before applying an explicit card voice. The
+    // loader must not treat that new choice as a selection from the old catalog.
     if (voiceCatalogIdentities.value[provider]?.model !== (activeSpeechModel.value || undefined))
-      availableVoices.value = { ...availableVoices.value, [provider]: [] }
+      discardVoiceCatalog(provider)
     if (voiceId !== undefined)
       activeSpeechVoiceId.value = voiceId
     // Watchers run after this synchronous state commit. They route discovery
