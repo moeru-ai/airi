@@ -144,6 +144,51 @@ describe('refreshActiveTranscriptionModelForProvider', () => {
     await expect(hearingStore.refreshActiveTranscriptionModelForProvider(providerId)).resolves.toBe(true)
     expect(hearingStore.activeTranscriptionModel).toBe('model-b')
   })
+
+  // Regression: https://github.com/moeru-ai/airi/pull/2435#discussion_r3939570393
+  it('keeps a model selected while an endpoint refresh is pending for PR #2435', async () => {
+    const providerId = 'funasr-instance'
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://new.example/v1/',
+    })
+
+    const hearingStore = useHearingStore()
+    hearingStore.activeTranscriptionProvider = providerId
+    hearingStore.activeTranscriptionModel = 'model-a'
+
+    let resolveResponse!: (response: Response) => void
+    const fetchMock = vi.fn().mockImplementation(() => new Promise<Response>((resolve) => {
+      resolveResponse = resolve
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const refresh = hearingStore.refreshActiveTranscriptionModelForProvider(providerId)
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
+    hearingStore.activeTranscriptionModel = 'model-c'
+    resolveResponse(new Response(JSON.stringify({
+      data: [{ id: 'model-b' }],
+      object: 'list',
+    }), { headers: { 'Content-Type': 'application/json' }, status: 200 }))
+
+    await expect(refresh).resolves.toBe(true)
+    expect(hearingStore.activeTranscriptionModel).toBe('model-c')
+  })
+})
+
+describe('clearActiveTranscriptionModelForProvider', () => {
+  // Regression: https://github.com/moeru-ai/airi/pull/2435#discussion_r3941982957
+  it('clears a stale model only for the active provider in PR #2435', async () => {
+    const hearingStore = useHearingStore()
+    hearingStore.activeTranscriptionProvider = 'funasr-instance'
+    hearingStore.activeTranscriptionModel = 'model-from-old-endpoint'
+
+    await expect(hearingStore.clearActiveTranscriptionModelForProvider('other-instance')).resolves.toBe(false)
+    expect(hearingStore.activeTranscriptionModel).toBe('model-from-old-endpoint')
+
+    await expect(hearingStore.clearActiveTranscriptionModelForProvider('funasr-instance')).resolves.toBe(true)
+    expect(hearingStore.activeTranscriptionModel).toBe('')
+  })
 })
 
 describe('resolveTranscriptionProviderOptions', () => {

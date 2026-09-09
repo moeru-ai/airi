@@ -476,6 +476,8 @@ async function commitEditedConfig(status: 'configured' | 'bypassed') {
     return
 
   await providerStore.updateProviderConfig(providerId.value, { ...providerConfigEdit.value.config }, status)
+  if (status === 'bypassed')
+    await hearingStore.clearActiveTranscriptionModelForProvider(providerId.value)
 }
 
 function handleSaveAnyway() {
