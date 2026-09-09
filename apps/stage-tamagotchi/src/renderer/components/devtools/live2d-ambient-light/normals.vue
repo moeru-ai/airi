@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Section } from '@proj-airi/stage-ui/components'
 import { Button } from '@proj-airi/ui'
+import { useFileDialog } from '@vueuse/core'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -8,7 +9,12 @@ import { useNormalGeneration } from '../../../composables/use-normal-generation'
 
 const { t } = useI18n()
 const key = 'tamagotchi.settings.devtools.pages.live2d-ambient-light.normals'
-const { status, runtime, error, phase, busy, neutralUrl, normalUrl, coverageUrl, refresh, generate, cancel } = useNormalGeneration()
+const { status, runtime, error, phase, busy, neutralUrl, normalUrl, coverageUrl, refresh, generate, importBundle, exportBundle, cancel } = useNormalGeneration()
+const dialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
+dialog.onChange(async (files) => {
+  if (files?.[0])
+    await importBundle(files[0])
+})
 const previews = computed(() => [
   { name: 'neutral', url: neutralUrl.value },
   { name: 'normal', url: normalUrl.value },
@@ -49,13 +55,22 @@ const displayedPhase = computed(() => phase.value === 'idle' ? status.value?.pha
       <Button variant="primary" :disabled="busy || !runtime?.available || !status?.fingerprint || status.phase === 'unloaded'" @click="generate">
         {{ t(`${key}.${status?.attachment ? 'regenerate' : 'generate'}`) }}
       </Button>
+      <Button :disabled="busy || !status?.fingerprint || status.phase === 'unloaded'" @click="dialog.open()">
+        {{ t(`${key}.import`) }}
+      </Button>
+      <Button :disabled="busy || !status?.attachment" @click="exportBundle">
+        {{ t(`${key}.export`) }}
+      </Button>
       <Button :disabled="busy" @click="refresh">
         {{ t(`${key}.refresh`) }}
       </Button>
-      <Button v-if="phase !== 'idle'" @click="cancel">
+      <Button v-if="phase === 'capturing' || phase === 'generating'" @click="cancel">
         {{ t(`${key}.cancel`) }}
       </Button>
     </div>
+    <p :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+      {{ t(`${key}.portable-note`) }}
+    </p>
     <p v-if="status?.attachment" :class="['text-xs text-neutral-500 dark:text-neutral-400']">
       {{ status.attachment.generator.model }} · {{ status.attachment.generator.device }} · {{ status.attachment.generator.seconds.toFixed(1) }} s · {{ status.attachment.drawables.length }} {{ t(`${key}.drawables`) }}
     </p>

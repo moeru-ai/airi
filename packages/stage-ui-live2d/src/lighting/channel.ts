@@ -13,7 +13,7 @@ export interface NormalPipelineStatus {
   modelId: string
   fingerprint?: string
   phase: 'checking' | 'ready' | 'capturing' | 'generating' | 'saving' | 'error' | 'unloaded'
-  binding: 'iru' | 'proxy' | 'generated'
+  binding: 'proxy' | 'generated'
   attachment?: NormalAttachment
   error?: string
 }
@@ -22,6 +22,7 @@ export const normalStatus = defineInvokeEventa<NormalPipelineStatus>('live2d:nor
 export const normalChanged = defineEventa<NormalPipelineStatus>('live2d:normal:changed')
 export const normalCapture = defineInvokeEventa<{ source: string, modelId: string, fingerprint: string }, { modelId: string, fingerprint: string, jobId: string }>('live2d:normal:capture')
 export const normalCommit = defineInvokeEventa<NormalPipelineStatus, { jobId: string, capture: NormalCapture, normal: Blob, generator: NormalAttachment['generator'] }>('live2d:normal:commit')
+export const normalImport = defineInvokeEventa<NormalPipelineStatus, { modelId: string, attachment: NormalAttachment }>('live2d:normal:import')
 export const normalCancel = defineInvokeEventa<void, { jobId: string }>('live2d:normal:cancel')
 
 /** Each caller owns its channel and must close it on scene/devtool teardown. */
@@ -48,6 +49,40 @@ export function registerNormalPipeline(model: Cubism4InternalModel, lighting: Su
   }
   const stops = [
     defineInvokeHandler(context, normalStatus, () => status),
+    defineInvokeHandler(context, normalImport, async ({ modelId: target, attachment }) => {
+      if (disposed || pending || status.phase === 'checking' || target !== modelId || attachment.fingerprint !== status.fingerprint)
+        throw new Error('The lighting attachment does not belong to the active model, or a job is running.')
+      // The lease excludes competing imports and generation until the atomic save
+      // finishes. Model disposal invalidates live application, never retargets it.
+      const job = { jobId: crypto.randomUUID() }
+      pending = job
+      try {
+        publish({ phase: 'saving', error: undefined })
+        validateNormalBinding(model, attachment)
+        const images = await Promise.all([attachment.normal, attachment.ownership].map(blob => createImageBitmap(blob)))
+        const valid = images.every(image => image.width === attachment.width && image.height === attachment.height)
+        images.forEach(image => image.close())
+        if (!valid)
+          throw new Error('The normal images do not match their binding dimensions.')
+        if (disposed || pending !== job)
+          throw new Error('The model changed before the attachment was saved.')
+        await saveNormalAttachment(attachment)
+        if (disposed || pending !== job)
+          throw new Error('The attachment was saved for the previous model; it was not bound to the new model.')
+        await lighting.applyAttachment(attachment)
+        publish({ attachment, phase: 'ready', binding: lighting.profile })
+        return status
+      }
+      catch (error) {
+        if (!disposed)
+          publish({ phase: 'error', error: errorMessageFrom(error) ?? 'Could not import the lighting attachment.' })
+        throw error
+      }
+      finally {
+        if (pending === job)
+          pending = undefined
+      }
+    }),
     defineInvokeHandler(context, normalCapture, async (request) => {
       if (pending || request.modelId !== modelId || !status.fingerprint || request.fingerprint !== status.fingerprint)
         throw new Error('The model changed or a normal generation job is already running.')

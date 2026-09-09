@@ -10,10 +10,6 @@ import { Matrix } from '@pixi/math'
 import { ambientLightDefaults } from '@proj-airi/stage-shared/screen-ambient-light'
 import { CubismShader_WebGL, fragmentShaderSrcsetupMask } from 'pixi-live2d-display/cubism4'
 
-import iruNormalUrl from '../assets/lighting/iru-normal.png?url'
-import iruOwnershipUrl from '../assets/lighting/iru-ownership.png?url'
-import iruProfile from '../assets/lighting/iru.json'
-
 import { validateNormalBinding } from '../lighting/attachment'
 import { FaceShadow } from './face-shadow'
 import { faceSurfaceShader } from './face-surface'
@@ -23,7 +19,6 @@ import { flatScreenGeometry, referenceLightFrame, screenLightCount, screenLightG
 import { SurfaceLightField } from './surface-light-field'
 
 type Renderer = Cubism4InternalModel['renderer']
-type Profile = typeof iruProfile
 
 const bindings = new WeakMap<Renderer, SurfaceLighting>()
 let installed = false
@@ -94,35 +89,41 @@ if (u_airiEnabled > 0.5 && gl_FragColor.a > 0.0001) {
     vec3 estimate = normalize(texture2D(u_airiNormal,v_airiReference).rgb*2.-1.);
     n = normalize(mix(n,estimate,confidence));
     // The upper head gets a broader sheen than the coat and body. This is a
-    // deliberately coarse material estimate for the reviewed Iru reference.
+    // coarse material estimate; reviewed profiles supply explicit hair ownership.
     materialSheen = mix(1.,0.25,smoothstep(0.30,0.42,v_airiReference.y));
     if (u_airiIllustrated > .5) materialSheen = u_airiHair;
     if (u_airiFace > 0.5) {
-      vec2 face = (v_airiReference-vec2(0.5,0.190625))/vec2(0.0703125,0.06875);
+      vec2 face = (v_airiReference-u_airiGeneratedFace.xy)/u_airiGeneratedFace.zw;
       // The painted nose mesh supplies a separate coordinate frame; it moves
       // farther than Face during turns. Ownership and alpha still bound the
       // correction, and the height gradient supplies relief without paint.
       airiSkinNormal = airiRotateFace(normalize(vec3(face.x*.4,-face.y*.4,1.)));
       airiFaceForward = vec3(u_airiFaceRotation.x,0.,u_airiFaceRotation.y);
-      vec2 nose = (v_airiNoseReference-vec2(0.5,0.2234375))/vec2(0.0045,0.0065);
-      noseTip = exp(-0.5*dot(nose,nose));
+      vec2 nose = vec2(0.);
+      if (u_airiGeneratedNose.z > 0.) {
+        nose = (v_airiNoseReference-u_airiGeneratedNose.xy)/u_airiGeneratedNose.zw;
+        noseTip = exp(-0.5*dot(nose,nose));
+      }
       airiFaceDepth = clamp(sqrt(max(0.,1.-dot(face,face)))+.12*noseTip,0.,1.);
-      vec2 slope = vec2(face.x,-face.y)*0.4 + vec2(nose.x,-nose.y)*noseTip*u_airiNose;
+      vec2 slope = vec2(face.x,-face.y)*0.4 + vec2(nose.x,-nose.y)*noseTip*u_airiGeneratedNoseStrength;
       n = airiRotateFace(normalize(vec3(slope,1.)));
-      materialSheen = 0.12 + 0.8*noseTip*min(u_airiNose,1.);
+      materialSheen = 0.12 + 0.8*noseTip*min(u_airiGeneratedNoseStrength,1.);
       if (u_airiIllustrated > .5) {
         vec2 q=airiFaceCoordinates(v_airiReference);
         vec2 noseQ=airiFaceCoordinates(v_airiNoseReference);
         // Keep diffuse geometry stable when the nose-highlight control changes.
         // At its default strength, reflection and diffuse use the same surface.
-        airiSkinNormal=airiRotateFace(airiFaceNormalAt(q,noseQ,1.));
-        n=airiRotateFace(airiFaceNormalAt(q,noseQ,u_airiNose));
-        vec2 accent = (v_airiNoseReference-vec2(.5,.2234375))/vec2(.0025,.004);
-        materialSheen = 2.*exp(-2.*dot(accent,accent))*min(u_airiNose,1.);
+        airiSkinNormal=airiRotateFace(airiFaceNormalAt(q,noseQ,u_airiGeneratedNose.z > 0. ? 1. : 0.));
+        n=airiRotateFace(airiFaceNormalAt(q,noseQ,u_airiGeneratedNoseStrength));
+        materialSheen = 0.;
+        if (u_airiGeneratedNose.z > 0.) {
+          vec2 accent = (v_airiNoseReference-u_airiGeneratedNose.xy)/(u_airiGeneratedNose.zw*vec2(5./9.,8./13.));
+          materialSheen = 2.*exp(-2.*dot(accent,accent))*min(u_airiGeneratedNoseStrength,1.);
+        }
       }
     }
   }
-  if (u_airiGeneratedFace.z > 0.) {
+  if (u_airiGeneratedFace.z > 0. && u_airiFace < .5) {
     // Paint layers belong to one curved face, independent of their opacity or
     // neutral visibility. The SDK alpha/masks still define every visible edge.
     vec2 q = (v_airiReference-u_airiGeneratedFace.xy)/u_airiGeneratedFace.zw;
@@ -269,15 +270,15 @@ export class SurfaceLighting {
   private readonly clipToStage = new Matrix()
   private readonly modelToStage = new Matrix()
   private readonly drawModel: Renderer['doDrawModel']
-  private readonly faceIndex: number
-  private readonly faceYawIndex: number
+  private faceIndex = -1
+  private illustrated = false
   private readonly generatedNose = new Float32Array(4)
   private generatedNoseStrength = 0
   private generatedYawIndex = -1
   private generatedYawRange = 30
   private readonly generatedFace = new Float32Array(4)
   private readonly faceRotation = new Float32Array([0, 1])
-  private noseIndex: number
+  private noseIndex = -1
   private noseAttachment?: NoseAttachment
   private readonly shadowCasters: (FaceShadowCaster & { index: number })[] = []
   private shadow?: FaceShadow
@@ -306,7 +307,7 @@ export class SurfaceLighting {
   private ambient = 1
   private contrast = 1
   private directional = true
-  profile: 'iru' | 'proxy' | 'generated'
+  profile: 'proxy' | 'generated' = 'proxy'
   /** Only the isolated authoring renderer sets this mode. */
   captureMode = false
 
@@ -314,42 +315,16 @@ export class SurfaceLighting {
     installShaderDispatch()
     const core = model.coreModel
     const ids = core.getDrawableIds()
-    const profile: Profile | undefined = ids.length === iruProfile.drawables.length && ids.every((id, i) => {
-      const candidate = iruProfile.drawables[i]
-      // Compare at the Core buffer precision; JSON bundling can shorten decimals.
-      const uvs = core.getDrawableVertexUvs(i)
-      return id === candidate.id && uvs.length === candidate.atlasUvs.length && uvs.every((v, k) => v === Math.fround(candidate.atlasUvs[k]))
-    })
-      ? iruProfile
-      : undefined
-    this.profile = profile ? 'iru' : 'proxy'
-    // Face flags also cover eyes and mouth details. Only the Face mesh defines
-    // the receiver scale and the foreground/back hair ordering boundary.
-    this.faceIndex = profile ? ids.indexOf('Face') : -1
-    this.faceYawIndex = profile ? core.getParameterIndex('ParamAngleX') : -1
-    // ArtMesh260 is Iru's painted nose highlight. Its deformer moves the nose
-    // farther across the face during turns than the underlying Face mesh.
-    this.noseIndex = profile ? ids.indexOf('ArtMesh260') : -1
-    if (profile)
-      this.noseAttachment = new NoseAttachment(profile.drawables[this.noseIndex].reference, core.getDrawableVertexIndices(this.noseIndex))
-    // Capture generic references before motion begins. Iru uses the reviewed
-    // authoring capture, not the current viewport or an animated pose.
+    // Unsaved models use neutral proxy coordinates. Imported attachments replace
+    // these references only after their asset fingerprint and topology match.
     for (let i = 0; i < ids.length; i++) {
       const vertices = core.getDrawableVertices(i)
-      const authored = profile?.drawables[i]
-      const coordinates = authored ? new Float32Array(authored.reference) : new Float32Array(vertices.length)
-      if (!authored) {
-        for (let j = 0; j < vertices.length; j += 2) {
-          coordinates[j] = (vertices[j] * model.pixelsPerUnit + model.originalWidth / 2) / model.originalWidth
-          coordinates[j + 1] = (-vertices[j + 1] * model.pixelsPerUnit + model.originalHeight / 2) / model.originalHeight
-        }
+      const coordinates = new Float32Array(vertices.length)
+      for (let j = 0; j < vertices.length; j += 2) {
+        coordinates[j] = (vertices[j] * model.pixelsPerUnit + model.originalWidth / 2) / model.originalWidth
+        coordinates[j + 1] = (-vertices[j + 1] * model.pixelsPerUnit + model.originalHeight / 2) / model.originalHeight
       }
-      if (authored?.shadowCaster) {
-        if (core.getDrawableMaskCounts()[i] !== 0)
-          throw new Error('Reviewed face shadow casters must have no clipping masks.')
-        this.shadowCasters.push({ index: i, vertices, uvs: core.getDrawableVertexUvs(i), indices: core.getDrawableVertexIndices(i), texture: null, opacity: 0 })
-      }
-      this.references.set(vertices.byteOffset, { coordinates, index: i, face: authored?.face ?? false, hair: authored?.hair ?? false })
+      this.references.set(vertices.byteOffset, { coordinates, index: i, face: false, hair: false })
     }
     bindings.set(model.renderer, this)
     this.drawModel = model.renderer.doDrawModel
@@ -380,19 +355,6 @@ export class SurfaceLighting {
     this.material = { ...material }
   }
 
-  /** Loads the matching authored maps once; other models use their smooth proxy. */
-  async load() {
-    if (this.profile !== 'iru')
-      return
-    const normal = new Image()
-    const ownership = new Image()
-    normal.src = iruNormalUrl
-    ownership.src = iruOwnershipUrl
-    await Promise.all([normal.decode(), ownership.decode()])
-    if (!this.disposed)
-      this.images = [normal, ownership]
-  }
-
   /** Decodes and validates a replacement before changing the active GPU binding. */
   async applyAttachment(attachment: NormalAttachment) {
     validateNormalBinding(this.model, attachment)
@@ -411,6 +373,13 @@ export class SurfaceLighting {
       this.releaseGpu()
       this.gl = undefined
       this.profile = 'generated'
+      this.illustrated = !!attachment.faceSurface?.illustrated
+      this.faceIndex = attachment.faceSurface?.illustrated?.face ?? -1
+      this.shadowCasters.length = 0
+      for (const index of attachment.faceSurface?.illustrated?.shadowCasters ?? []) {
+        const core = this.model.coreModel
+        this.shadowCasters.push({ index, vertices: core.getDrawableVertices(index), uvs: core.getDrawableVertexUvs(index), indices: core.getDrawableVertexIndices(index), texture: null, opacity: 0 })
+      }
       this.generatedFace.fill(0)
       this.generatedNose.fill(0)
       this.generatedNoseStrength = 0
@@ -433,7 +402,7 @@ export class SurfaceLighting {
       }
       attachment.drawables.forEach((entry, index) => {
         const vertices = this.model.coreModel.getDrawableVertices(index)
-        this.references.set(vertices.byteOffset, { coordinates: new Float32Array(entry.reference), index, face: false, hair: false, generatedFace: attachment.faceSurface?.drawables.includes(index) })
+        this.references.set(vertices.byteOffset, { coordinates: new Float32Array(entry.reference), index, face: this.illustrated && !!attachment.faceSurface?.drawables.includes(index), hair: attachment.faceSurface?.illustrated?.hair.includes(index) ?? false, generatedFace: attachment.faceSurface?.drawables.includes(index) })
       })
       this.images = [images[0], images[1]]
     }
@@ -507,7 +476,7 @@ export class SurfaceLighting {
     gl.uniform1f(locations.hair, reference.hair ? 1 : 0)
     // Only a matched, reviewed profile has reliable material ownership. Other
     // models keep the generic response until they have their own annotations.
-    gl.uniform1f(locations.illustrated, this.material.illustrated && this.profile === 'iru' ? 1 : 0)
+    gl.uniform1f(locations.illustrated, this.material.illustrated && this.illustrated ? 1 : 0)
     gl.uniform1f(locations.owner, reference.index + 1)
     gl.uniform1f(locations.responseCurve, this.exposure.responseCurve)
     gl.uniform1f(locations.photometry, this.exposure.enabled ? 1 : 0)
@@ -560,7 +529,7 @@ export class SurfaceLighting {
 
   private shadowEnabled() {
     return this.active && this.directional && this.strength > 0 && this.material.illustrated
-      && this.material.faceShadow > 0 && this.profile === 'iru'
+      && this.material.faceShadow > 0 && this.illustrated
   }
 
   private prepareDraw() {
@@ -616,10 +585,10 @@ export class SurfaceLighting {
       // its draw loop so the atlas VAO cannot retain Cubism's vertex pointers.
       this.stage.geometry.reset()
     }
-    // Iru's head X spans -30..30 rig units. Read Core on every draw, since
-    // model animation can update more often than the sampled screen lighting.
-    const yawIndex = this.profile === 'generated' ? this.generatedYawIndex : this.faceYawIndex
-    const yawRange = this.profile === 'generated' ? this.generatedYawRange : 30
+    // The attachment owns the rig parameter and endpoint. Read each draw because
+    // animation can advance between screen-light samples.
+    const yawIndex = this.generatedYawIndex
+    const yawRange = this.generatedYawRange
     const headX = yawIndex >= 0 ? this.model.coreModel.getParameterValueByIndex(yawIndex) : 0
     const yaw = Math.max(-1, Math.min(1, headX / yawRange)) * this.material.faceYaw * Math.PI / 180
     this.faceRotation[0] = Math.sin(yaw)

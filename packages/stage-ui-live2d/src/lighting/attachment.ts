@@ -32,6 +32,8 @@ export interface ReviewedFaceSurface {
   nose?: { drawable: number, center: [number, number], radius: [number, number], strength: number }
   /** Reviewed indices belong only to this fingerprinted rig. */
   drawables: number[]
+  /** Reviewed material ownership enables illustrated shading and optional hair shadows. */
+  illustrated?: { face: number, hair: number[], shadowCasters: number[] }
 }
 
 /** Generated data belongs to the source assets, never to a mutable filename or ZIP encoding. */
@@ -105,6 +107,12 @@ export function validateNormalBinding(model: Cubism4InternalModel, attachment: N
   }
   if (face?.yaw && (!core.getModel().parameters.ids.includes(face.yaw.parameter) || !Number.isFinite(face.yaw.range) || face.yaw.range <= 0))
     throw new Error('The reviewed face yaw does not match a rig parameter.')
+  const illustrated = face?.illustrated
+  if (illustrated && (!face.drawables.includes(illustrated.face)
+    || ![...illustrated.hair, ...illustrated.shadowCasters].every(index => Number.isInteger(index) && index >= 0 && index < ids.length)
+    || illustrated.shadowCasters.some(index => core.getDrawableMaskCounts()[index] !== 0))) {
+    throw new Error('The illustrated material binding does not match this model.')
+  }
   const nose = face?.nose
   if (nose && (!Number.isInteger(nose.drawable) || !face.drawables.includes(nose.drawable)
     || nose.center.length !== 2 || nose.radius.length !== 2 || !nose.center.every(Number.isFinite)
