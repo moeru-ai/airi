@@ -6,7 +6,8 @@
       "outputs": ["dist/**"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^typecheck"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/tsconfig.json"]
     },
     "@proj-airi/electron-vueuse#build": {
       "dependsOn": ["@proj-airi/electron-eventa#build"],
