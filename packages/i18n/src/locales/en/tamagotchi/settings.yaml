@@ -73,9 +73,6 @@ devtools:
       strength:
         title: Light strength
         description: Set the overall effect amount. 1 is the designed look, and up to 3 makes the color cast and the light wrap stronger.
-      squint:
-        title: Squint at bright changes
-        description: Narrow the eyes when the screen brightens faster than the character has adapted to it. A screen that stays bright leaves the eyes open. 0 turns this off.
       main-window-note: Changes appear in the main AIRI window.
       normals:
         title: Model lighting
@@ -118,7 +115,7 @@ devtools:
           description: Set how much the sides curve toward the character. 0 restores the flat screen; 5 is the default curve.
         gap:
           title: Screen gap
-          description: Set the distance behind the character, as a percentage of character height. Larger gaps reduce frontal light.
+          description: Set the screen distance behind the character, as a percentage of character height. Smaller gaps keep light localized; larger gaps spread and mix nearby colors.
         area-lights:
           title: Try area light tiles
           description: Combine screen light in a cached field for smooth, faster lighting. Face motion and nose highlights stay detailed. Turn it off to compare point tiles.
@@ -177,11 +174,11 @@ devtools:
           title: Response time
           description: Set how quickly sampled colors adapt to a screen change.
         sample-width:
-          title: Sample size
-          description: Set the width of the downscaled capture frame. A wider frame puts more detail in the light maps. The height follows your display.
-        neutral-color-weight:
-          title: Neutral-color weight
-          description: Set the minimum weight for colors with low saturation. Colored content counts for more than gray.
+          title: Sample width
+          description: Set the width of the downscaled capture frame. A wider frame puts more detail in the light maps.
+        sample-height:
+          title: Sample height
+          description: Set the height of the downscaled capture frame. A taller frame puts more detail in the light maps.
       exposure:
         title: Brightness and eye adaptation
         adaptive-base:
@@ -245,10 +242,10 @@ devtools:
           description: Compress added light to preserve detail in bright areas instead of clipping to white.
         base-brightness:
           title: Base brightness
-          description: Set the model brightness over a black screen. The measured screen level moves it from here.
+          description: Set the model brightness over a black screen. The measured screen level raises it.
         exposure-range:
-          title: Exposure response
-          description: Set how far the measured screen level moves the base brightness. Above 0 a brighter screen brightens the model. Below 0 a brighter screen darkens it, so the light wrap stands out.
+          title: Exposure range
+          description: Set how far the measured screen level raises the base brightness.
         wrap-intensity:
           title: Light wrap intensity
           description: Set how strongly the background color bleeds onto the edge of the model.

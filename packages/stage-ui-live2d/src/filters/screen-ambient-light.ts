@@ -3,7 +3,6 @@ import type {
   AmbientLightEnvironment,
   AmbientLightFilterOptions,
   AmbientLightMap,
-  NormalizedRectangle,
   ScreenAmbientLightMode,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 
@@ -11,15 +10,10 @@ import { ALPHA_MODES, CLEAR_MODES, MIPMAP_MODES, SCALE_MODES, WRAP_MODES } from 
 import { BaseTexture, Filter, Texture } from '@pixi/core'
 import {
   ambientLightDefaults,
+  ambientLightMapMargin,
   ambientLightMapSize,
-  ambientLightNeutralMapMargin,
-  ambientLightPerceptualLevel,
   averageAmbientLightMap,
-  linearToSrgb,
-  relativeLuminance,
-  wholeWindowRectangle,
 } from '@proj-airi/stage-shared/screen-ambient-light'
-import { clamp } from 'es-toolkit'
 
 import { ScreenExposure } from './screen-exposure'
 
@@ -148,17 +142,6 @@ uniform float uChroma;
 uniform float uWrapIntensity;
 uniform float uSurroundPeak;
 uniform float uTranslucentWrap;
-// How far the maps reach past the window on each axis, in units of that axis.
-// The two differ whenever the window is not square and they stand for the same
-// distance on screen. The measurement places the texels with this pair, so the
-// two disagree about every position if they differ.
-uniform vec2 uMapMargin;
-// Where the renderer drew its subject inside the stage window, as x, y, width
-// and height in window units. The measurement places the maps around this
-// rectangle, so reading them anywhere else lands on the wrong texel: a window
-// wider than its subject would otherwise stretch the maps across its empty
-// half.
-uniform highp vec4 uSubjectRect;
 
 const vec3 luminanceWeights = vec3(0.2126, 0.7152, 0.0722);
 
@@ -170,12 +153,16 @@ const float castFloorLuminance = 0.04;
 
 // Largest factor the cast may apply to one channel. Unit luminance divides the
 // light by its luminance, and red carries only 0.21 of the luminance weight,
-// so a pure red screen asks for 4.7x on red, or 2.85x at chroma 0.5. The cap
+// so a pure red screen asks for 4.4x on red, or 2.7x at chroma 0.5. The cap
 // trades luminance for headroom: it holds the hue shift, because the channels
 // the light lacks are still scaled down, but a strongly saturated screen then
 // darkens the model instead of pushing one channel toward white.
 const float castGainLimit = 1.6;
 
+// Mirrors ambientLightMapMargin in @proj-airi/stage-shared/screen-ambient-light.
+// The extraction places the map texels with it and this shader reads them back
+// with it, so the two disagree about every position if they differ.
+const float mapMargin = ${ambientLightMapMargin.toFixed(4)};
 
 vec3 srgbToLinear(vec3 color) {
   vec3 low = color / 12.92;
@@ -245,17 +232,14 @@ void main(void) {
   // of the screen beside the sleeve rather than a color shared by its whole
   // side of the model.
   vec2 windowUv = (outputFrame.xy + frameCoord * outputFrame.zw) / uStageSize;
-  vec2 subjectUv = (windowUv - uSubjectRect.xy) / max(uSubjectRect.zw, vec2(0.0001));
-  vec2 mapUv = (subjectUv + uMapMargin) / (vec2(1.0) + 2.0 * uMapMargin);
+  vec2 mapUv = (windowUv + mapMargin) / (1.0 + 2.0 * mapMargin);
 
   vec3 baseLinear = srgbToLinear(source.rgb / max(source.a,0.0001));
   float effect = min(uStrength, 1.0);
 
-  // The measured screen level moves the base exposure. A positive range
-  // brightens the model with the screen, which is the light the screen throws
-  // on it. A negative range darkens it instead, which keeps the unlit side
-  // dark so that the wrap and the rim read against it. At 0 the model keeps a
-  // constant exposure.
+  // The measured screen level moves the base exposure, because a model that
+  // holds one brightness over a dark desktop reads as pasted on. At
+  // uExposureRange = 0 the model keeps a constant exposure.
   float measuredBase = clamp(uBaseBrightness + uExposureRange * uExposure, 0.0, 1.0);
   float brightness = mix(1.0, measuredBase, effect);
   float contrast = mix(1.0, uBaseContrast, effect);
@@ -348,15 +332,6 @@ void main(void) {
 /** One frame of measurements that the filter turns into shader uniforms. */
 export interface ScreenAmbientLightFilterUpdate {
   environment: AmbientLightEnvironment
-  /**
-   * Where the renderer drew its subject inside the stage window, in window
-   * units. It has to be the rectangle the measurement placed its maps around,
-   * or every lookup lands somewhere the light was never measured.
-   *
-   * Leave it out and the whole window stands in, which is what a stage with
-   * nothing drawn on it reports.
-   */
-  subject?: NormalizedRectangle
   mode: ScreenAmbientLightMode
   strength: number
   options: AmbientLightFilterOptions
@@ -466,8 +441,6 @@ export class ScreenAmbientLightFilter extends Filter {
       uWrapIntensity: ambientLightDefaults.filter.wrapIntensity,
       uSurroundPeak: 1,
       uTranslucentWrap: 0,
-      uMapMargin: new Float32Array([ambientLightNeutralMapMargin.x, ambientLightNeutralMapMargin.y]),
-      uSubjectRect: new Float32Array([0, 0, 1, 1]),
     })
 
     this.surroundTexels = surroundTexels
@@ -503,14 +476,7 @@ export class ScreenAmbientLightFilter extends Filter {
     this.uniforms.uBaseBrightness = clamp(options.baseBrightness, 0, 1)
     this.uniforms.uBaseContrast = clamp(options.baseContrast, 0.5, 2)
     this.uniforms.uExposure = clamp(environment.exposure, 0, 1)
-    this.uniforms.uExposureRange = clamp(options.exposureRange, -1, 1)
-    this.uniforms.uMapMargin[0] = environment.mapMargin.x
-    this.uniforms.uMapMargin[1] = environment.mapMargin.y
-    const subject = next.subject ?? wholeWindowRectangle
-    this.uniforms.uSubjectRect[0] = subject.x
-    this.uniforms.uSubjectRect[1] = subject.y
-    this.uniforms.uSubjectRect[2] = Math.max(subject.width, 0.0001)
-    this.uniforms.uSubjectRect[3] = Math.max(subject.height, 0.0001)
+    this.uniforms.uExposureRange = clamp(options.exposureRange, 0, 1)
     this.uniforms.uChroma = clamp(options.chroma, 0, 1)
     this.uniforms.uWrapIntensity = Math.max(0, options.wrapIntensity)
     this.uniforms.uBacklight = clamp(options.backlight, 0, 2)
@@ -733,13 +699,23 @@ function writeMapTexels(texels: Uint8Array, map: AmbientLightMap) {
 function peakPerceptualLevel(map: AmbientLightMap) {
   let peak = 0
   for (let texel = 0; texel < map.width * map.height; texel += 1) {
-    const offset = texel * 3
-    peak = Math.max(peak, relativeLuminance(map.data[offset], map.data[offset + 1], map.data[offset + 2]))
+    const luminance = map.data[texel * 3] * 0.2126
+      + map.data[texel * 3 + 1] * 0.7152
+      + map.data[texel * 3 + 2] * 0.0722
+    peak = Math.max(peak, luminance)
   }
 
-  return ambientLightPerceptualLevel(peak)
+  return clamp(linearToSrgb(peak), 0, 1)
 }
 
 function toTexel(value: number) {
   return Math.round(clamp(value, 0, 1) * 255)
+}
+
+function linearToSrgb(value: number) {
+  return value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value))
 }

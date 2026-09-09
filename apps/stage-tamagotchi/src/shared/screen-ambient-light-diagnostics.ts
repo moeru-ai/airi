@@ -1,19 +1,23 @@
 import type {
   AmbientLightEnvironment,
   NormalizedRectangle,
-  PixelFrame,
   ScreenAmbientLightSamplingDiagnostics,
   ScreenAmbientLightSource,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 
 export const screenAmbientLightDiagnosticsChannelName = 'airi::screen-ambient-light-diagnostics'
 
-/** A rectangle in display pixels, which is the unit Electron reports bounds in. */
-export interface DisplayPixelRectangle {
+export interface ScreenAmbientLightRectangle {
   x: number
   y: number
   width: number
   height: number
+}
+
+export interface ScreenAmbientLightCaptureFrame {
+  width: number
+  height: number
+  data: Uint8ClampedArray
 }
 
 export type ScreenAmbientLightCaptureStatus
@@ -31,11 +35,11 @@ export interface ScreenAmbientLightDiagnosticsSnapshot {
   error?: string
   display?: {
     id: number
-    bounds: DisplayPixelRectangle
+    bounds: ScreenAmbientLightRectangle
   }
-  windowBounds?: DisplayPixelRectangle
+  windowBounds?: ScreenAmbientLightRectangle
   /** Canvas rectangle in desktop CSS pixels. */
-  stageBounds?: DisplayPixelRectangle
+  stageBounds?: ScreenAmbientLightRectangle
   /** Full drawn character bounds in stage UVs, before viewport clipping, bloom, or controls. */
   characterBounds?: NormalizedRectangle
   /** Size of the frames that the capture stream delivers, after constraints. */
@@ -43,14 +47,8 @@ export interface ScreenAmbientLightDiagnosticsSnapshot {
     width: number
     height: number
   }
-  frame?: PixelFrame
-  excludedRegion?: NormalizedRectangle
-  /**
-   * Bounds of what the renderer drew, on the same frame as
-   * {@link excludedRegion}. The maps are placed around this, so the preview
-   * has to draw their coverage around it too.
-   */
-  subjectRegion?: NormalizedRectangle
+  frame?: ScreenAmbientLightCaptureFrame
+  excludedRegion?: ScreenAmbientLightRectangle
   sampling?: ScreenAmbientLightSamplingDiagnostics & {
     /** Environment measured from this frame, before temporal smoothing. */
     targetEnvironment?: AmbientLightEnvironment

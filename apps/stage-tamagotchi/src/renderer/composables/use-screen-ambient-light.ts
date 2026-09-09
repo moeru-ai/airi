@@ -16,11 +16,9 @@ import {
   sampleScreenAmbientLight,
   smoothAmbientLightEnvironment,
   uniformAmbientLightEnvironment,
-  wholeWindowRectangle,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { until, useBroadcastChannel, useEventListener } from '@vueuse/core'
-import { clamp } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
@@ -54,7 +52,7 @@ const captureOversampling = 4
 const maximumCaptureWidth = 512
 
 /**
- * Captures and samples the display behind the stage window for ambient lighting.
+ * Captures and samples the display behind the Desktop window for Live2D lighting.
  *
  * Capture state lives in this composable. The store receives only the smoothed
  * environment. The lifecycle is:
@@ -86,8 +84,8 @@ export function useScreenAmbientLight(sources: {
     screenAmbientLightCaptureIntervalMs,
     screenAmbientLightEnabled,
     screenAmbientLightForcedColor,
-    screenAmbientLightNeutralColorWeight,
     screenAmbientLightResponseMs,
+    screenAmbientLightSampleHeight,
     screenAmbientLightSampleWidth,
     screenAmbientLightSource,
   } = storeToRefs(settings)
@@ -146,9 +144,6 @@ export function useScreenAmbientLight(sources: {
     const { x, y, width, height } = display.bounds
     return [display.id, x, y, width, height].join(':')
   })
-  const samplingOptions = computed(() => ({
-    neutralColorWeight: screenAmbientLightNeutralColorWeight.value,
-  }))
   const captureFrameRate = computed(() => clamp(1000 / Math.max(1, screenAmbientLightCaptureIntervalMs.value), 1, 30))
   const {
     selectWithSource,
@@ -156,7 +151,7 @@ export function useScreenAmbientLight(sources: {
     requestMacOSPermission,
   } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
 
-  watch([screenAmbientLightEnabled, screenAmbientLightSource, captureTarget, screenAmbientLightSampleWidth, captureFrameRate], async ([enabled, source]) => {
+  watch([screenAmbientLightEnabled, screenAmbientLightSource, captureTarget, screenAmbientLightSampleWidth, screenAmbientLightSampleHeight, captureFrameRate], async ([enabled, source]) => {
     const version = ++startVersion
     stop()
     if (!enabled) {
@@ -180,7 +175,7 @@ export function useScreenAmbientLight(sources: {
         return
 
       lastCaptureError = errorMessageFrom(error) ?? 'Unknown error'
-      console.error(`Failed to start screen ambient light: ${lastCaptureError}`)
+      console.error(`Failed to start Live2D screen ambient light: ${lastCaptureError}`)
       // Capture availability is runtime state, not a change to user intent.
       publishDiagnostics('error')
     }
@@ -201,21 +196,10 @@ export function useScreenAmbientLight(sources: {
       applyForcedColor()
   })
 
-  // The stream rate is the sample rate, so a new interval must reach the track.
-  // A rejected constraint keeps the old rate, which is slower but still correct.
-  watch([captureFrameRate, screenAmbientLightSampleWidth], async ([frameRate]) => {
-    const track = activeStream.value?.getVideoTracks()[0]
-    const display = capturedDisplay.value
-    if (!track || !display)
-      return
-
-    try {
-      await track.applyConstraints(captureConstraints(display.bounds, frameRate))
-    }
-    catch (error) {
-      console.warn(`Failed to update the screen ambient light capture constraints: ${errorMessageFrom(error)}`)
-    }
-  })
+  watch([screenAmbientLightSampleWidth, screenAmbientLightSampleHeight], ([width, height]) => {
+    canvas.width = Math.max(1, Math.round(width))
+    canvas.height = Math.max(1, Math.round(height))
+  }, { immediate: true })
 
   // Navigation stops the native owner before Vue disposes the old page.
   // Invalidate its pending read first so that shutdown cannot persist an error.
@@ -233,14 +217,9 @@ export function useScreenAmbientLight(sources: {
     if (!context)
       throw new Error('Failed to create the screen sampling canvas')
 
-    // Only macOS puts screen capture behind a permission, and the main-process
-    // handler throws on every other platform, which would fail the start and
-    // switch the feature off. Elsewhere the capture begins straight away.
-    if (window.platform === 'darwin') {
-      const permission = await checkMacOSPermission()
-      if (permission === 'not-determined')
-        await requestMacOSPermission()
-    }
+    const permission = await checkMacOSPermission()
+    if (permission === 'not-determined')
+      await requestMacOSPermission()
 
     if (displays.value.length === 0)
       await until(displays).toMatch(currentDisplays => currentDisplays.length > 0)
@@ -257,7 +236,7 @@ export function useScreenAmbientLight(sources: {
     // Keep the display aspect inside the requested sample grid. Native scaling
     // must not letterbox or crop, since every texel maps to display coordinates.
     const aspect = display.bounds.width / display.bounds.height
-    const nativeWidth = Math.max(1, Math.round(screenAmbientLightSampleWidth.value))
+    const nativeWidth = Math.max(1, Math.min(canvas.width, Math.round(canvas.height * aspect)))
     const nativeHeight = Math.max(1, Math.round(nativeWidth / aspect))
     const native = await startNative({ displayId: display.id, width: nativeWidth, height: nativeHeight, frameRate: Math.round(captureFrameRate.value) })
     if (native) {
@@ -276,15 +255,11 @@ export function useScreenAmbientLight(sources: {
       (sources) => {
         const source = sources.find(candidate => candidate.display_id === String(display.id))
           ?? sources.find(candidate => candidate.id.startsWith('screen:'))
-        // Passing an empty id on would fail later inside the main process with
-        // a message that names no cause. On macOS an empty list is what a
-        // missing screen-recording permission looks like from here, so that
-        // platform gets the extra hint.
-        if (!source) {
-          throw new Error(window.platform === 'darwin'
-            ? 'No screen-capture source is available. Check the screen-recording permission for AIRI.'
-            : 'No screen-capture source is available.')
-        }
+        // An empty source list is what a missing macOS screen-recording
+        // permission looks like from here. Passing an empty id on would fail
+        // later inside the main process with a message that names no cause.
+        if (!source)
+          throw new Error('No screen-capture source is available. Check the screen-recording permission for AIRI.')
         return source.id
       },
       async () => await navigator.mediaDevices.getDisplayMedia({
@@ -369,30 +344,10 @@ export function useScreenAmbientLight(sources: {
     ambientLight.reset()
   }
 
-  /**
-   * Sizes the sample canvas so that a frame pixel is square on screen.
-   *
-   * The track already delivers the display aspect, so matching it means the
-   * measurement never stretches the frame. Stretching made the blur oval and
-   * weighed the squashed axis more, which moved the map mean and the exposure
-   * whenever a light moved between the sides and the top.
-   */
-  function followVideoShape() {
-    const width = Math.max(1, Math.round(screenAmbientLightSampleWidth.value))
-    const height = Math.max(1, Math.round(width * video.videoHeight / Math.max(1, video.videoWidth)))
-    if (canvas.width === width && canvas.height === height)
-      return
-
-    canvas.width = width
-    canvas.height = height
-    paintedMask.reset()
-  }
-
   function sample() {
     if (!context || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
       return
 
-    followVideoShape()
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
     applyFrame(context.getImageData(0, 0, canvas.width, canvas.height), false)
   }
@@ -451,10 +406,6 @@ export function useScreenAmbientLight(sources: {
     const display = capturedDisplay.value
     if (!display)
       return
-    if (canvas.width !== frame.width || canvas.height !== frame.height) {
-      canvas.width = frame.width
-      canvas.height = frame.height
-    }
     const now = performance.now()
     const excludedWindow = normalizeWindowBounds(display.bounds, currentWindowBounds())
     const stage = sources.stageCanvas?.()?.getBoundingClientRect()
@@ -462,32 +413,19 @@ export function useScreenAmbientLight(sources: {
     const stageBounds = stage && stage.width > 0 && stage.height > 0
       ? { x: window.x + stage.x, y: window.y + stage.y, width: stage.width, height: stage.height }
       : window
-    const painted = paintedMask.maskFor(excludedWindow, now)
-    const subjectInWindow = painted?.subject ?? wholeWindowRectangle
-    // The mask measures the subject inside the window; the sampler places its
-    // maps on the display, so the rectangle changes frame here.
-    const subjectOnDisplay = {
-      x: excludedWindow.x + subjectInWindow.x * excludedWindow.width,
-      y: excludedWindow.y + subjectInWindow.y * excludedWindow.height,
-      width: subjectInWindow.width * excludedWindow.width,
-      height: subjectInWindow.height * excludedWindow.height,
-    }
     const result = sampleScreenAmbientLight(frame, {
       exclude: excludedWindow,
-      // The mask measures the subject inside the window; the sampler places its
-      // maps on the display, so the rectangle changes frame here.
-      subject: subjectOnDisplay,
-      paintedAlpha: windowExcludedByCapture ? undefined : painted?.alpha,
       stage: normalizeWindowBounds(display.bounds, stageBounds),
       displayAspect: display.bounds.width / Math.max(1, display.bounds.height),
       windowExcludedByCapture,
-    }, samplingOptions.value)
+      paintedAlpha: windowExcludedByCapture ? undefined : paintedMask.maskFor(excludedWindow, now),
+    })
 
     const nextEnvironment = ambientLight.active
       ? smoothAmbientLightEnvironment(ambientLight.environment, result.environment, now - lastSampleTime, screenAmbientLightResponseMs.value)
       : result.environment
     lastSampleTime = now
-    ambientLight.setEnvironment(nextEnvironment, subjectInWindow)
+    ambientLight.setEnvironment(nextEnvironment)
 
     publishDiagnostics('capturing', {
       stageBounds,
@@ -498,7 +436,6 @@ export function useScreenAmbientLight(sources: {
         data: frame.data,
       },
       excludedRegion: excludedWindow,
-      subjectRegion: subjectOnDisplay,
       sampling: {
         ...result.diagnostics,
         targetEnvironment: result.environment,
@@ -511,7 +448,7 @@ export function useScreenAmbientLight(sources: {
     const sample = ambientLightSampleFromHex(screenAmbientLightForcedColor.value)
     if (!sample) {
       lastCaptureError = 'The forced color must use #RRGGBB or #RRGGBBAA format.'
-      console.error(`Failed to apply forced ambient light: ${lastCaptureError}`)
+      console.error(`Failed to apply forced Live2D ambient light: ${lastCaptureError}`)
       ambientLight.reset()
       publishDiagnostics('error')
       return
@@ -544,7 +481,7 @@ export function useScreenAmbientLight(sources: {
 
   function publishDiagnostics(
     status: ScreenAmbientLightCaptureStatus,
-    details: Partial<Pick<ScreenAmbientLightDiagnosticsSnapshot, 'frame' | 'excludedRegion' | 'subjectRegion' | 'sampling' | 'stageBounds'>> = {},
+    details: Partial<Pick<ScreenAmbientLightDiagnosticsSnapshot, 'frame' | 'excludedRegion' | 'sampling' | 'stageBounds'>> = {},
   ) {
     const display = capturedDisplay.value
     const snapshot: ScreenAmbientLightDiagnosticsSnapshot = {
@@ -593,4 +530,8 @@ async function waitForVideo(video: HTMLVideoElement) {
   }
 
   await video.play()
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value))
 }

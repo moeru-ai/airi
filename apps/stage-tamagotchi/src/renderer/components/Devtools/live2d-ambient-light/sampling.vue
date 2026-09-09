@@ -9,8 +9,8 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const {
   screenAmbientLightCaptureIntervalMs,
-  screenAmbientLightNeutralColorWeight,
   screenAmbientLightResponseMs,
+  screenAmbientLightSampleHeight,
   screenAmbientLightSampleWidth,
 } = storeToRefs(useSettingsScreenAmbientLight())
 
@@ -20,10 +20,6 @@ function formatMilliseconds(value: number) {
 
 function formatPixels(value: number) {
   return `${Math.round(value)} px`
-}
-
-function formatPercent(value: number) {
-  return `${Math.round(value * 100)}%`
 }
 </script>
 
@@ -68,15 +64,15 @@ function formatPercent(value: number) {
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-width.description')"
       />
       <FieldRange
-        v-model="screenAmbientLightNeutralColorWeight"
+        v-model="screenAmbientLightSampleHeight"
         as="div"
-        :min="0"
-        :max="1"
-        :step="0.01"
-        :default-value="ambientLightDefaults.sampling.neutralColorWeight"
-        :format-value="formatPercent"
-        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.neutral-color-weight.title')"
-        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.neutral-color-weight.description')"
+        :min="24"
+        :max="192"
+        :step="8"
+        :default-value="ambientLightDefaults.sampleHeight"
+        :format-value="formatPixels"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-height.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.sampling.sample-height.description')"
       />
     </div>
   </Section>

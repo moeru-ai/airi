@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import type { NormalizedRectangle, PixelFrame } from '@proj-airi/stage-shared/screen-ambient-light'
+import type {
+  ScreenAmbientLightCaptureFrame,
+  ScreenAmbientLightRectangle,
+} from '../../../../shared/screen-ambient-light-diagnostics'
 
-import { ambientLightMapMarginFor } from '@proj-airi/stage-shared/screen-ambient-light'
+import { ambientLightMapMargin } from '@proj-airi/stage-shared/screen-ambient-light'
 import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
-  frame?: PixelFrame
-  excludedRegion?: NormalizedRectangle
-  subjectRegion?: NormalizedRectangle
+  frame?: ScreenAmbientLightCaptureFrame
+  excludedRegion?: ScreenAmbientLightRectangle
 }>()
 
 const { t } = useI18n()
@@ -24,24 +26,19 @@ const excludedRegionStyle = computed(() => {
     height: `${props.excludedRegion.height * 100}%`,
   }
 })
-// Area that the two light maps cover: the window grown by the same distance on
+// Area that the two light maps cover: the window grown by half its size on
 // every edge. The wrap and the cast can only use light inside this outline.
 const mapRegionStyle = computed(() => {
-  // The maps follow what was drawn, which is smaller than the window whenever
-  // the window is not the shape of the subject.
-  const region = props.subjectRegion ?? props.excludedRegion
-  const frame = props.frame
-  if (!region || !frame)
+  const region = props.excludedRegion
+  if (!region)
     return undefined
 
-  const margin = ambientLightMapMarginFor(
-    (region.width * frame.width) / Math.max(1, region.height * frame.height),
-  )
+  const span = 1 + 2 * ambientLightMapMargin
   return {
-    left: `${(region.x - margin.x * region.width) * 100}%`,
-    top: `${(region.y - margin.y * region.height) * 100}%`,
-    width: `${region.width * (1 + 2 * margin.x) * 100}%`,
-    height: `${region.height * (1 + 2 * margin.y) * 100}%`,
+    left: `${(region.x - ambientLightMapMargin * region.width) * 100}%`,
+    top: `${(region.y - ambientLightMapMargin * region.height) * 100}%`,
+    width: `${region.width * span * 100}%`,
+    height: `${region.height * span * 100}%`,
   }
 })
 

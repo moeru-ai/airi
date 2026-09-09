@@ -5,7 +5,6 @@ import type {
   AmbientLightEnvironment,
   AmbientLightExposureOptions,
   AmbientLightFilterOptions,
-  NormalizedRectangle,
   AmbientLightMaterialOptions,
   AmbientLightScreenGeometry,
   ScreenAmbientLightMode,
@@ -14,7 +13,7 @@ import type {
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
-import { ambientLightDefaults, ambientLightNeutralEnvironment, ambientLightPerceptualLevel, wholeWindowRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
+import { ambientLightDefaults, ambientLightNeutralEnvironment } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useTheme } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { animate } from 'animejs'
@@ -37,7 +36,6 @@ import {
   useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
-  useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginLipSync,
   useMotionUpdatePluginManualControl,
 } from '../../../composables/live2d'
@@ -73,10 +71,8 @@ const props = withDefaults(defineProps<{
   screenAmbientLightFilterOptions?: AmbientLightFilterOptions
   screenAmbientLightExposure?: AmbientLightExposureOptions
   screenAmbientLightEnvironment?: AmbientLightEnvironment
-  screenAmbientLightSubject?: NormalizedRectangle
   screenAmbientLightMode?: ScreenAmbientLightMode
   screenAmbientLightStrength?: number
-  screenAmbientLightSquint?: number
   screenAmbientLightMaterial?: AmbientLightMaterialOptions
   screenAmbientLightGeometry?: AmbientLightScreenGeometry
 }>(), {
@@ -100,10 +96,8 @@ const props = withDefaults(defineProps<{
   screenAmbientLightExposure: () => ({ ...ambientLightDefaults.exposure }),
   screenAmbientLightFilterOptions: () => ({ ...ambientLightDefaults.filter }),
   screenAmbientLightEnvironment: () => ambientLightNeutralEnvironment,
-  screenAmbientLightSubject: () => wholeWindowRectangle,
   screenAmbientLightMode: ambientLightDefaults.mode,
   screenAmbientLightStrength: ambientLightDefaults.strength,
-  screenAmbientLightSquint: ambientLightDefaults.squint,
   screenAmbientLightMaterial: () => ({ ...ambientLightDefaults.material }),
   screenAmbientLightGeometry: () => ({ ...ambientLightDefaults.geometry }),
 })
@@ -249,21 +243,17 @@ const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
 const screenAmbientLightActive = toRef(() => props.screenAmbientLightActive)
 const screenAmbientLightFilterOptions = toRef(() => props.screenAmbientLightFilterOptions)
 const screenAmbientLightEnvironment = toRef(() => props.screenAmbientLightEnvironment)
-const screenAmbientLightSubject = toRef(() => props.screenAmbientLightSubject)
 const screenAmbientLightMode = toRef(() => props.screenAmbientLightMode)
 const screenAmbientLightMaterial = toRef(() => props.screenAmbientLightMaterial)
 const screenAmbientLightGeometry = toRef(() => props.screenAmbientLightGeometry)
 const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
-const screenAmbientLightSquint = toRef(() => props.screenAmbientLightSquint)
 
 // --- Expression controller
 const internalModelRef = shallowRef<PixiLive2DInternalModel>()
 const expressionController = useExpressionController({
   internalModel: internalModelRef,
+  modelId: props.modelId,
 })
-// This identity belongs to model.value. It changes only when a model load
-// commits, so expression initialization cannot observe a newer prop by mistake.
-let loadedModelId: string | undefined
 // Saved SDK manager references for runtime expression toggle (restore on disable)
 const savedEyeBlink = shallowRef<any>(null)
 const savedExpressionManager = shallowRef<any>(null)
@@ -321,7 +311,6 @@ async function performModelLoad() {
     // Dispose expression controller before destroying the old model
     expressionController.dispose()
     internalModelRef.value = undefined
-    loadedModelId = undefined
 
     try {
       pixiApp.value.stage.removeChild(model.value)
@@ -332,11 +321,7 @@ async function performModelLoad() {
     }
     model.value = undefined
   }
-  const pendingModel = {
-    id: props.modelId,
-    src: modelSrcRef.value,
-  }
-  if (!pendingModel.src) {
+  if (!modelSrcRef.value) {
     console.warn('No Live2D model source provided.')
     modelLoading.value = false
     componentState.value = 'mounted'
@@ -351,7 +336,7 @@ async function performModelLoad() {
     }
 
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    await Live2DFactory.setupLive2DModel(live2DModel, { url: pendingModel.src, id: pendingModel.id }, { autoInteract: false })
+    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
     availableMotions.value.forEach((motion) => {
       if (motion.motionName in Emotion) {
         motionMap.value[motion.fileName] = motion.motionName
@@ -487,17 +472,6 @@ async function performModelLoad() {
     // This ensures blink respects expression state (0 × blinkFactor = 0).
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
-    // After the blink plugin, so that it only narrows the value a blink returns to.
-    // The signal is the light behind the character rather than the screen level,
-    // which is a mean over the whole capture: a bright window opening in a far
-    // corner of the display would otherwise reach the eyes.
-    motionManagerUpdate.register(
-      useMotionUpdatePluginLightSquint(
-        () => ambientLightPerceptualLevel(screenAmbientLightEnvironment.value.behindLuminance),
-        () => (screenAmbientLightActive.value ? screenAmbientLightSquint.value : 0),
-      ),
-      'final',
-    )
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
@@ -556,7 +530,6 @@ async function performModelLoad() {
     // toggled off at runtime.
     savedEyeBlink.value = internalModel.eyeBlink
     savedExpressionManager.value = motionManager.expressionManager
-    loadedModelId = pendingModel.id
 
     // --- Expression controller initialisation (conditional)
     if (live2dExpressionEnabled.value) {
@@ -586,7 +559,7 @@ async function performModelLoad() {
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
-    await initExpressionController(internalModelRef.value, loadedModelId).catch((err) => {
+    await initExpressionController(internalModelRef.value).catch((err) => {
       console.warn('[Model.vue] Expression controller initialization failed:', err)
     })
   }
@@ -599,7 +572,7 @@ async function performModelLoad() {
  * This is intentionally fire-and-forget from loadModel so that a failure in
  * expression loading does not prevent the model itself from rendering.
  */
-async function initExpressionController(internalModel?: PixiLive2DInternalModel, modelId?: string) {
+async function initExpressionController(internalModel?: PixiLive2DInternalModel) {
   // Dispose any previous state (handles model reloads)
   expressionController.dispose()
 
@@ -623,7 +596,7 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel,
     return response.text()
   }
 
-  await expressionController.initialise(modelId, expressionRefs, readExpFile)
+  await expressionController.initialise(expressionRefs, readExpFile)
 }
 
 async function setMotion(motionName: string, index?: number) {
@@ -669,9 +642,6 @@ function updateAmbientLightFilter() {
 
   screenAmbientLightFilter.value.update({
     environment: screenAmbientLightEnvironment.value,
-    // The measurement placed its maps around this rectangle, so the shader has
-    // to read them from it rather than from the whole window.
-    subject: screenAmbientLightSubject.value,
     mode: screenAmbientLightMode.value,
     strength: screenAmbientLightStrength.value,
     // Surface shading applies ambient exposure before adding direct light. The
@@ -937,7 +907,7 @@ watch(live2dExpressionEnabled, (enabled) => {
     }
 
     internalModelRef.value = im
-    initExpressionController(im, loadedModelId).catch((err) => {
+    initExpressionController(im).catch((err) => {
       console.warn('[Model.vue] Expression controller initialisation failed:', err)
     })
   }
@@ -976,7 +946,6 @@ onUnmounted(() => {
   resizeAnimation?.pause()
   disposeShouldUpdateView?.()
   expressionController.dispose()
-  loadedModelId = undefined
 })
 
 function listMotionGroups() {

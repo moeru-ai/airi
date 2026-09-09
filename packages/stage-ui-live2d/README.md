@@ -273,7 +273,10 @@ by default; disable it to compare the point-tile response.
 
 The surface samples an 8 by 8 grid over the full captured display. Capture stores
 this emission separately from the local contact and surround maps used for glow.
-Masked character pixels are excluded; only holes inside the display are filled.
+Native capture excludes the AIRI window and retains the screen beneath it.
+For captures that include AIRI, masked character pixels are excluded and holes
+inside the display are filled. Sampling averages linear RGB without saturation
+weighting; black pixels contribute their actual area.
 No emitting tiles exist beyond the display edge.
 
 The current drawn ArtMesh bounds define the character's center and height before viewport clipping.
@@ -285,6 +288,17 @@ The trial uses the same source-color grid for point and area modes. Adjacent til
 boundaries on the curved screen. Each tile contributes its cosine-weighted
 solid angle, clipped at the receiving normal's horizon. This removes separate
 diffuse lobes from uniform screen regions without blurring the artwork.
+
+Screen gap controls the physical spread. For parallel emitter and receiver
+planes, the transport kernel is `K(r, d) = d² / (π (r² + d²)²)`, where `d` is
+the perpendicular gap and `r` is the offset along the screen. Nearby sources
+remain localized; distant sources blend across a wider region. The polygon
+integral also accounts for tilted surfaces and receiving-horizon clipping.
+
+Finite screen boundaries lose energy without renormalization. Source RGB reaches
+the integral without an extra blur or saturation weighting. The local contact
+and surround blurs remain separate artistic glow inputs. Color boost remains a
+later effect. No independent diffusion coefficient overrides the screen geometry.
 
 `SurfaceLightField` combines diffuse light and broad reflections in a 272 by 288
 atlas. The atlas stores 16 by 16 positions over the full character bounds, 17 by 9 normal samples, and two

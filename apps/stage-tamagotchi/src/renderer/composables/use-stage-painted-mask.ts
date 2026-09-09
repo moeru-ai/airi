@@ -1,7 +1,5 @@
 import type { NormalizedRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
 
-import { wholeWindowRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
-
 /** Capture can lag the canvas: retain recent coverage for half a second. */
 const paintedHistoryMs = 500
 /** Two sample cells cover resampling edges and a changing faint bloom fringe. */
@@ -9,27 +7,6 @@ const paintedMargin = 2
 
 /** Marks a DOM element as something AIRI paints over the stage window. */
 export const stageOpaqueAttribute = 'data-ambient-light-opaque'
-
-/**
- * Alpha above which a pixel counts towards the subject bounds.
- *
- * The softest edges of a character fade to nothing over several pixels, and a
- * grid this coarse turns that fade into one dim cell. Counting those cells
- * would grow the bounds by a cell on every side for no light in return.
- */
-const subjectAlphaFloor = 8
-
-/** What one read of the stage canvas answers with. */
-export interface PaintedRead {
-  /** One alpha byte per pixel of the sample frame, character and overlays alike. */
-  alpha: Uint8ClampedArray
-  /** Bounds of what the renderer drew, in window units, overlays left out. */
-  subject: NormalizedRectangle
-}
-
-function clamp01(value: number) {
-  return Math.min(1, Math.max(0, value))
-}
 
 /**
  * Reports which pixels of the stage window AIRI paints, one alpha byte per
@@ -61,14 +38,13 @@ export function useStagePaintedMask(sources: {
    * The returned binary mask also covers a small resampling/bloom margin.
    * `now` is a monotonic capture timestamp in milliseconds.
    */
-  function maskFor(windowRectangle: NormalizedRectangle, now: number): PaintedRead | undefined {
+  function maskFor(windowRectangle: NormalizedRectangle, now: number): Uint8ClampedArray | undefined {
     followSampleGrid()
-    const read = readPaintedAlpha(windowRectangle)
-    if (!read) {
+    const painted = readPaintedAlpha(windowRectangle)
+    if (!painted) {
       reset()
       return undefined
     }
-    const painted = read.alpha
     const { width, height } = canvas
     for (let i = 0; i < painted.length; i++) {
       if (painted[i] > 0)
@@ -92,7 +68,7 @@ export function useStagePaintedMask(sources: {
         painted[y * width + x] = until > now ? 255 : 0
       }
     }
-    return { alpha: painted, subject: read.subject }
+    return painted
   }
 
   /** Capture stop or display changes invalidate the display-grid history. */
@@ -116,7 +92,7 @@ export function useStagePaintedMask(sources: {
    * Missing either part biases the measurement: the character feeds the filter
    * its own output, and an overlay feeds it AIRI's interface colors.
    */
-  function readPaintedAlpha(windowRectangle: NormalizedRectangle): PaintedRead | undefined {
+  function readPaintedAlpha(windowRectangle: NormalizedRectangle): Uint8ClampedArray | undefined {
     const stageCanvas = sources.stageCanvas?.()
     if (!context || !stageCanvas || stageCanvas.width === 0)
       return undefined
@@ -129,28 +105,16 @@ export function useStagePaintedMask(sources: {
     context.clearRect(0, 0, canvas.width, canvas.height)
     context.drawImage(stageCanvas, left, top, width, height)
 
-    // One read, before the overlays go in. Reading again after them would cost a
-    // second wait for the GPU, and the subject has to be measured without them:
-    // an overlay sits away from the character and would stretch its bounds.
-    const painted = context.getImageData(0, 0, canvas.width, canvas.height).data
-    const alpha = new Uint8ClampedArray(canvas.width * canvas.height)
-    for (let index = 0; index < alpha.length; index += 1)
-      alpha[index] = painted[index * 4 + 3]
-
-    const subject = subjectBoundsOf(alpha, left, top, width, height)
-
-    // The overlays join the mask as rectangles in the array, which needs no
-    // second read. Window coordinates map onto the window inside the grid.
+    // Window coordinates map to the window rectangle inside the sample grid.
     const stageWindow = sources.windowSize()
     const windowWidth = Math.max(1, stageWindow.width)
     const windowHeight = Math.max(1, stageWindow.height)
+    context.fillStyle = '#fff'
     for (const element of document.querySelectorAll(`[${stageOpaqueAttribute}]`)) {
       const bounds = element.getBoundingClientRect()
       if (bounds.width === 0 || bounds.height === 0)
         continue
-
-      fillRectangle(
-        alpha,
+      context.fillRect(
         left + (bounds.left / windowWidth) * width,
         top + (bounds.top / windowHeight) * height,
         (bounds.width / windowWidth) * width,
@@ -158,73 +122,12 @@ export function useStagePaintedMask(sources: {
       )
     }
 
-    return { alpha, subject }
-  }
+    const painted = context.getImageData(0, 0, canvas.width, canvas.height).data
+    const alpha = new Uint8ClampedArray(canvas.width * canvas.height)
+    for (let index = 0; index < alpha.length; index += 1)
+      alpha[index] = painted[index * 4 + 3]
 
-  /**
-   * Bounds of what the renderer drew, in window units, from the alpha alone.
-   *
-   * Reading the canvas rather than asking the renderer keeps this independent
-   * of what is on the stage: a Live2D model, a VRM, or anything else that
-   * leaves pixels behind answers the same way. Nothing drawn returns the whole
-   * window, which is the same rectangle the maps used before they were placed
-   * around the subject.
-   */
-  function subjectBoundsOf(
-    alpha: Uint8ClampedArray,
-    left: number,
-    top: number,
-    width: number,
-    height: number,
-  ): NormalizedRectangle {
-    const startColumn = Math.max(0, Math.floor(left))
-    const startRow = Math.max(0, Math.floor(top))
-    const endColumn = Math.min(canvas.width, Math.ceil(left + width))
-    const endRow = Math.min(canvas.height, Math.ceil(top + height))
-
-    let minColumn = endColumn
-    let minRow = endRow
-    let maxColumn = startColumn
-    let maxRow = startRow
-    for (let row = startRow; row < endRow; row += 1) {
-      for (let column = startColumn; column < endColumn; column += 1) {
-        if (alpha[row * canvas.width + column] <= subjectAlphaFloor)
-          continue
-
-        if (column < minColumn)
-          minColumn = column
-        if (column > maxColumn)
-          maxColumn = column
-        if (row < minRow)
-          minRow = row
-        if (row > maxRow)
-          maxRow = row
-      }
-    }
-
-    if (minColumn > maxColumn || minRow > maxRow)
-      return wholeWindowRectangle
-
-    // The grid samples the window coarsely, so the bounds carry a cell of slack
-    // on every side. Taking the outer edge of the outermost cell keeps the
-    // subject inside its own rectangle.
-    return {
-      x: clamp01((minColumn - left) / Math.max(1, width)),
-      y: clamp01((minRow - top) / Math.max(1, height)),
-      width: clamp01((maxColumn + 1 - minColumn) / Math.max(1, width)),
-      height: clamp01((maxRow + 1 - minRow) / Math.max(1, height)),
-    }
-  }
-
-  function fillRectangle(alpha: Uint8ClampedArray, x: number, y: number, width: number, height: number) {
-    const startColumn = Math.max(0, Math.floor(x))
-    const startRow = Math.max(0, Math.floor(y))
-    const endColumn = Math.min(canvas.width, Math.ceil(x + width))
-    const endRow = Math.min(canvas.height, Math.ceil(y + height))
-    for (let row = startRow; row < endRow; row += 1) {
-      for (let column = startColumn; column < endColumn; column += 1)
-        alpha[row * canvas.width + column] = 255
-    }
+    return alpha
   }
 
   return { maskFor, reset }

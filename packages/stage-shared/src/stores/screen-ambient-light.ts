@@ -1,15 +1,10 @@
-import type {
-  AmbientLightEnvironment,
-  NormalizedRectangle,
-  ScreenAmbientLightMode,
-  ScreenAmbientLightSource,
-} from '../screen-ambient-light'
+import type { AmbientLightEnvironment, ScreenAmbientLightMode, ScreenAmbientLightSource } from '../screen-ambient-light'
 
 import { defineStore } from 'pinia'
 import { shallowRef } from 'vue'
 
 import { useLocalStorageManualReset } from '../composables'
-import { ambientLightDefaults, ambientLightNeutralEnvironment, wholeWindowRectangle } from '../screen-ambient-light'
+import { ambientLightDefaults, ambientLightNeutralEnvironment } from '../screen-ambient-light'
 
 // These describe the screen behind the AIRI window, not one renderer, so they
 // stay out of the Live2D package that owns the only shader reading them today.
@@ -18,7 +13,6 @@ const screenAmbientLightSource = useLocalStorageManualReset<ScreenAmbientLightSo
 const screenAmbientLightForcedColor = useLocalStorageManualReset<string>('settings/screen-ambient-light/forced-color', ambientLightDefaults.forcedColor)
 const screenAmbientLightMode = useLocalStorageManualReset<ScreenAmbientLightMode>('settings/screen-ambient-light/mode', ambientLightDefaults.mode)
 const screenAmbientLightStrength = useLocalStorageManualReset<number>('settings/screen-ambient-light/strength', ambientLightDefaults.strength)
-const screenAmbientLightSquint = useLocalStorageManualReset<number>('settings/screen-ambient-light/squint', ambientLightDefaults.squint)
 const screenAmbientLightAreaLights = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/area-lights', ambientLightDefaults.geometry.areaLights ?? false)
 const screenAmbientLightBend = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-bend', ambientLightDefaults.geometry.bend)
 const screenAmbientLightGap = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-gap', ambientLightDefaults.geometry.gap)
@@ -33,8 +27,8 @@ const screenAmbientLightNose = useLocalStorageManualReset<number>('settings/scre
 const screenAmbientLightSoftHighlights = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/soft-highlights', ambientLightDefaults.material.softHighlights)
 const screenAmbientLightCaptureIntervalMs = useLocalStorageManualReset<number>('settings/screen-ambient-light/capture-interval-ms', ambientLightDefaults.captureIntervalMs)
 const screenAmbientLightSampleWidth = useLocalStorageManualReset<number>('settings/screen-ambient-light/sample-width', ambientLightDefaults.sampleWidth)
+const screenAmbientLightSampleHeight = useLocalStorageManualReset<number>('settings/screen-ambient-light/sample-height', ambientLightDefaults.sampleHeight)
 const screenAmbientLightResponseMs = useLocalStorageManualReset<number>('settings/screen-ambient-light/response-ms', ambientLightDefaults.responseMs)
-const screenAmbientLightNeutralColorWeight = useLocalStorageManualReset<number>('settings/screen-ambient-light/neutral-color-weight', ambientLightDefaults.sampling.neutralColorWeight)
 const screenAmbientLightBaseBrightness = useLocalStorageManualReset<number>('settings/screen-ambient-light/base-brightness', ambientLightDefaults.filter.baseBrightness)
 const screenAmbientLightBaseContrast = useLocalStorageManualReset<number>('settings/screen-ambient-light/base-contrast', ambientLightDefaults.filter.baseContrast)
 const screenAmbientLightExposureRange = useLocalStorageManualReset<number>('settings/screen-ambient-light/exposure-range', ambientLightDefaults.filter.exposureRange)
@@ -75,7 +69,6 @@ function resetState() {
   screenAmbientLightForcedColor.reset()
   screenAmbientLightMode.reset()
   screenAmbientLightStrength.reset()
-  screenAmbientLightSquint.reset()
   screenAmbientLightIllustrated.reset()
   screenAmbientLightFaceShadow.reset()
   screenAmbientLightFaceYaw.reset()
@@ -90,8 +83,8 @@ function resetState() {
   screenAmbientLightFlatRadius.reset()
   screenAmbientLightCaptureIntervalMs.reset()
   screenAmbientLightSampleWidth.reset()
+  screenAmbientLightSampleHeight.reset()
   screenAmbientLightResponseMs.reset()
-  screenAmbientLightNeutralColorWeight.reset()
   screenAmbientLightBaseBrightness.reset()
   screenAmbientLightBaseContrast.reset()
   screenAmbientLightExposureRange.reset()
@@ -121,7 +114,6 @@ export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambien
     screenAmbientLightForcedColor,
     screenAmbientLightMode,
     screenAmbientLightStrength,
-    screenAmbientLightSquint,
     screenAmbientLightIllustrated,
     screenAmbientLightFaceShadow,
     screenAmbientLightFaceYaw,
@@ -136,8 +128,8 @@ export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambien
     screenAmbientLightFlatRadius,
     screenAmbientLightCaptureIntervalMs,
     screenAmbientLightSampleWidth,
+    screenAmbientLightSampleHeight,
     screenAmbientLightResponseMs,
-    screenAmbientLightNeutralColorWeight,
     screenAmbientLightBaseBrightness,
     screenAmbientLightBaseContrast,
     screenAmbientLightExposureRange,
@@ -154,32 +146,20 @@ export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambien
 /** Holds the latest screen-derived environment for the active renderer. */
 export const useScreenAmbientLightEnvironment = defineStore('screen-ambient-light-environment', () => {
   const environment = shallowRef<AmbientLightEnvironment>(ambientLightNeutralEnvironment)
-  /**
-   * Where the renderer drew its subject inside the stage window, in window
-   * units, as the capture measured it.
-   *
-   * The maps are placed around this rectangle, so a renderer has to read the
-   * same one to turn a fragment position into a map position. Publishing it
-   * beside the light keeps the two from drifting apart.
-   */
-  const subject = shallowRef<NormalizedRectangle>(wholeWindowRectangle)
   const active = shallowRef(false)
 
-  function setEnvironment(next: AmbientLightEnvironment, nextSubject: NormalizedRectangle = wholeWindowRectangle) {
+  function setEnvironment(next: AmbientLightEnvironment) {
     environment.value = next
-    subject.value = nextSubject
     active.value = true
   }
 
   function reset() {
     environment.value = ambientLightNeutralEnvironment
-    subject.value = wholeWindowRectangle
     active.value = false
   }
 
   return {
     environment,
-    subject,
     active,
     setEnvironment,
     reset,

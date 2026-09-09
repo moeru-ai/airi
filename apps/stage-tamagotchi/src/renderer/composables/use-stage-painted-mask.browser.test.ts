@@ -1,4 +1,4 @@
-import { ambientLightDefaults, sampleScreenAmbientLight } from '@proj-airi/stage-shared/screen-ambient-light'
+import { sampleScreenAmbientLight } from '@proj-airi/stage-shared/screen-ambient-light'
 import { describe, expect, it } from 'vitest'
 
 import { useStagePaintedMask } from './use-stage-painted-mask'
@@ -26,7 +26,7 @@ function scene() {
     return capture.getImageData(0, 0, 32, 32)
   }
   function peak(image: ImageData, now: number) {
-    const result = sampleScreenAmbientLight(image, { exclude: rectangle, displayAspect: 1, paintedAlpha: mask.maskFor(rectangle, now) }, ambientLightDefaults.sampling)
+    const result = sampleScreenAmbientLight(image, { exclude: rectangle, displayAspect: 1, paintedAlpha: mask.maskFor(rectangle, now) })
     return Math.max(...result.environment.contact.data)
   }
   return { pose, frame, peak, mask, rectangle, context }
@@ -71,7 +71,7 @@ describe('capture feedback exclusion', () => {
         data.set(white ? [255, 255, 255, 255] : [16, 16, 16, 255], (y * 32 + x) * 4)
       }
     }
-    const result = sampleScreenAmbientLight({ width: 32, height: 32, data }, { exclude: moved, paintedAlpha: mask, displayAspect: 1 }, ambientLightDefaults.sampling)
+    const result = sampleScreenAmbientLight({ width: 32, height: 32, data }, { exclude: moved, paintedAlpha: mask, displayAspect: 1 })
     expect(Math.max(...result.environment.contact.data)).toBeLessThan(0.006)
   })
 

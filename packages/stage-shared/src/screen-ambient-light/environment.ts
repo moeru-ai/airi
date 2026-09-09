@@ -70,34 +70,17 @@ export interface AmbientLightExposureOptions {
   brightSeconds: number
 }
 
-export interface AmbientLightSamplingOptions {
-  /**
-   * Weight of a pixel with no saturation, relative to a fully saturated one.
-   *
-   * A desktop is mostly gray, so a plain mean lands near gray and the character
-   * shows no color. A weight below 1 lets colored content count for more.
-   *
-   * @default 0.51
-   */
-  neutralColorWeight: number
-}
-
 export interface AmbientLightFilterOptions {
   /**
-   * Model brightness when the screen is black. The measured screen level moves
-   * it from here by `exposureRange`, in either direction.
+   * Model brightness over a black screen. The measured screen level raises it
+   * by up to `exposureRange`.
    *
    * @default 0.2
    */
   baseBrightness: number
   /**
-   * How far the measured screen level moves the base brightness, and in which
-   * direction.
-   *
-   * Positive brightens the model as the screen brightens, which is the light
-   * the screen throws on it. Negative darkens it instead, which holds the
-   * unlit side dark so that the light wrap keeps its contrast against it. At 0
-   * the model holds one exposure whatever the screen shows.
+   * How much the measured screen level raises the base brightness. At 0 the
+   * model holds one exposure whatever the screen shows.
    *
    * @default 1
    */
@@ -164,78 +147,22 @@ export interface AmbientLightFilterOptions {
  * Texel columns and rows of a light map.
  *
  * The shader reads between texels, so the grid stays coarse. 24 texels over
- * twice the subject is finer than the blur that produces a map.
+ * twice the window is finer than the blur that produces a map.
  */
 export const ambientLightMapSize = 24
 
-/** A rectangle in coordinates where the whole frame spans 0 to 1 on each axis. */
-export interface NormalizedRectangle {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
 /**
- * How far a light map reaches past the subject on every side, in subject
- * heights.
+ * Screen area a light map covers outside the stage window, as a fraction of the
+ * window size on each side. Map uv 0 to 1 spans window uv -0.5 to 1.5.
  *
- * The maps reach past the subject because the light that wraps onto the
- * silhouette comes from beside it. One figure covers both axes because the
- * reach is a distance on screen, not a fraction of each side: a tall subject
- * that reached half its height above and half its width to the left would
- * gather more light from above than from beside, and the mean of the map would
- * report a light that had only moved.
- *
- * The extraction places the texels with {@link ambientLightMapMarginFor} and
- * the shader reads them back with the same pair, so the two disagree about
+ * The maps reach past the window because the light that wraps onto the
+ * silhouette comes from beside it. The extraction places the texels with this
+ * constant and the shader reads them back with it, so the two disagree about
  * every position if they differ.
  */
 export const ambientLightMapMargin = 0.5
 
-/**
- * The whole stage window, which stands in wherever the bounds of what was
- * drawn are unknown.
- *
- * It is frozen and shared because components default to it: a fresh object
- * every time would look like a change to every watcher reading it.
- */
-export const wholeWindowRectangle: Readonly<NormalizedRectangle> = Object.freeze({
-  x: 0,
-  y: 0,
-  width: 1,
-  height: 1,
-})
-
-/**
- * The reach of a light map on each axis, in units of that axis of the window.
- *
- * The two differ whenever the window is not square, and they describe the same
- * distance on screen. Consumers need both: map uv 0 to 1 spans window uv
- * `-x` to `1 + x` across and `-y` to `1 + y` down.
- */
-export interface AmbientLightMapMargin {
-  x: number
-  y: number
-}
-
-/**
- * Reach for one subject, from its width divided by its height.
- *
- * @example
- * ambientLightMapMarginFor(430 / 526)
- * // => { x: 0.6116..., y: 0.5 }
- */
-export function ambientLightMapMarginFor(subjectAspect: number): AmbientLightMapMargin {
-  return { x: ambientLightMapMargin / Math.max(subjectAspect, 0.0001), y: ambientLightMapMargin }
-}
-
-/** The reach for a square subject, which is what a map with no measurement behind it assumes. */
-export const ambientLightNeutralMapMargin: Readonly<AmbientLightMapMargin> = Object.freeze(
-  ambientLightMapMarginFor(1),
-)
-
-/** Screen light over the subject and its margin, as a small color grid. */
+/** Screen light over the stage window and its margin, as a small color grid. */
 export interface AmbientLightMap {
   /** Texel columns and rows. Both are {@link ambientLightMapSize}. */
   width: number
@@ -280,32 +207,26 @@ export function averageAmbientLightMap(map: AmbientLightMap): [number, number, n
 }
 
 /**
- * Mean linear luminance of the texels that cover the subject itself.
+ * Mean linear luminance of the texels that cover the stage window itself.
  *
  * Those texels sit behind the character, so the value says how much light the
  * character stands in front of. The backlight darkens the interior by it.
  */
-export function ambientLightMapInteriorLuminance(
-  map: AmbientLightMap,
-  margin: AmbientLightMapMargin = ambientLightNeutralMapMargin,
-): number {
-  const spanX = 1 + 2 * margin.x
-  const spanY = 1 + 2 * margin.y
-  const startX = margin.x / spanX
-  const endX = (1 + margin.x) / spanX
-  const startY = margin.y / spanY
-  const endY = (1 + margin.y) / spanY
+export function ambientLightMapInteriorLuminance(map: AmbientLightMap): number {
+  const span = 1 + 2 * ambientLightMapMargin
+  const start = ambientLightMapMargin / span
+  const end = (1 + ambientLightMapMargin) / span
 
   let total = 0
   let count = 0
   for (let row = 0; row < map.height; row += 1) {
     const v = (row + 0.5) / map.height
-    if (v < startY || v > endY)
+    if (v < start || v > end)
       continue
 
     for (let column = 0; column < map.width; column += 1) {
       const u = (column + 0.5) / map.width
-      if (u < startX || u > endX)
+      if (u < start || u > end)
         continue
 
       const offset = (row * map.width + column) * 3
@@ -347,7 +268,7 @@ export interface AmbientLightEnvironment {
   exposure: number
   /**
    * Wide blur of the screen, in linear RGB. It drives the color cast over the
-   * whole model, and reaches about a third of the subject height.
+   * whole model, and reaches about a third of the window height.
    */
   surround: AmbientLightMap
   /**
@@ -361,12 +282,6 @@ export interface AmbientLightEnvironment {
    * an outline of its own. Zero switches the darkening off.
    */
   behindLuminance: number
-  /**
-   * The reach the two maps were placed with, which every reader needs to turn a
-   * screen position into a map position. It travels with the maps because it
-   * depends on the shape of the subject they were measured around.
-   */
-  mapMargin: AmbientLightMapMargin
 }
 
 /** Default values for the screen ambient-light sampler, renderer, and devtool. */
@@ -377,27 +292,16 @@ export const ambientLightDefaults = Object.freeze({
   mode: 'window-gradient' as ScreenAmbientLightMode,
   /** Overall amount for surface lighting and silhouette light wrap. */
   strength: 1.16,
-  /**
-   * How far a rise in the measured screen level narrows the eyes, from 0 to 1.
-   * At 0 the eyes never react.
-   *
-   * The renderer drives this from the gap between a fast and a slow follower of
-   * the screen level, not from the level itself, so a desktop that stays bright
-   * leaves the eyes open. See `useMotionUpdatePluginLightSquint`.
-   */
-  squint: 1,
   /** Surface highlights and the reviewed Iru nose correction. */
   material: Object.freeze<AmbientLightMaterialOptions>({ illustrated: true, faceShadow: 0.5, faceYaw: 45, roughness: 0.7, skinRelief: 0.8, sheen: 1.65, nose: 0.15, softHighlights: true }),
   /** Virtual screen shape used by directional Live2D surface lighting. */
   geometry: Object.freeze<AmbientLightScreenGeometry>({ areaLights: true, gap: 0.11, bend: 5, flatRadius: 0.21 }),
   exposure: Object.freeze<AmbientLightExposureOptions>({ adaptiveBase: true, darkBase: 0.11, brightBase: 1, baseCurve: 2, responseCurve: 94, enabled: true, screenNits: 450, compensation: -0.2, adaptiveBloom: true, darkSeconds: 0.5, brightSeconds: 0.2 }),
   captureIntervalMs: 50,
-  /** Capture width in pixels; height follows the display aspect ratio. */
+  /** Dimensions of the downscaled capture frame used to build light maps. */
   sampleWidth: 160,
+  sampleHeight: 120,
   responseMs: 50,
-  sampling: Object.freeze<AmbientLightSamplingOptions>({
-    neutralColorWeight: 0.51,
-  }),
   filter: Object.freeze<AmbientLightFilterOptions>({
     baseBrightness: 0.2,
     exposureRange: 1,
@@ -427,23 +331,11 @@ const neutralAmbientLightLevel = 0.5
  */
 export const ambientLightNeutralEnvironment: Readonly<AmbientLightEnvironment> = Object.freeze({
   exposure: 0.5,
-  mapMargin: ambientLightNeutralMapMargin,
   surround: createAmbientLightMap([neutralAmbientLightLevel, neutralAmbientLightLevel, neutralAmbientLightLevel]),
   contact: createAmbientLightMap([neutralAmbientLightLevel, neutralAmbientLightLevel, neutralAmbientLightLevel]),
   behindLuminance: 0,
 })
 
-/** Relative luminance of a linear RGB color, by the sRGB primaries. */
-export function relativeLuminance(red: number, green: number, blue: number): number {
+function relativeLuminance(red: number, green: number, blue: number) {
   return red * 0.2126 + green * 0.7152 + blue * 0.0722
-}
-
-/** sRGB encoded channel to linear light. Both are 0 to 1. */
-export function srgbToLinear(value: number): number {
-  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
-}
-
-/** Linear light to the sRGB encoding a display and a canvas expect. */
-export function linearToSrgb(value: number): number {
-  return value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055
 }

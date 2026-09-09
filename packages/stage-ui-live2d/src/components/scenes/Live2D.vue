@@ -78,7 +78,6 @@ const {
   screenAmbientLightEnabled,
   screenAmbientLightExposureRange,
   screenAmbientLightMode,
-  screenAmbientLightSquint,
   screenAmbientLightStrength,
   screenAmbientLightIllustrated,
   screenAmbientLightFaceShadow,
@@ -99,7 +98,6 @@ const {
 const {
   active: screenAmbientLightActive,
   environment: screenAmbientLightEnvironment,
-  subject: screenAmbientLightSubject,
 } = storeToRefs(useScreenAmbientLightEnvironment())
 const screenAmbientLightExposure = computed(() => ({
   adaptiveBase: screenAmbientLightAdaptiveBase.value,
@@ -219,10 +217,8 @@ defineExpose({
         :screen-ambient-light-filter-options="screenAmbientLightFilterOptions"
         :screen-ambient-light-exposure="screenAmbientLightExposure"
         :screen-ambient-light-environment="screenAmbientLightEnvironment"
-        :screen-ambient-light-subject="screenAmbientLightSubject"
         :screen-ambient-light-mode="screenAmbientLightMode"
         :screen-ambient-light-strength="screenAmbientLightStrength"
-        :screen-ambient-light-squint="screenAmbientLightSquint"
         :screen-ambient-light-geometry="screenAmbientLightGeometry"
         :screen-ambient-light-material="screenAmbientLightMaterial"
         @error="emit('error', $event)"
