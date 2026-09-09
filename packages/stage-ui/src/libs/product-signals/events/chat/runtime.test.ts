@@ -2,7 +2,7 @@ import type { AnalyticsRecorder } from '../../index'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { aiGenerationEvent, messageSentEvent } from './events'
+import { messageRoundEvent, messageSentEvent } from './events'
 import { createChatAnalyticsHooks } from './runtime'
 
 function createRecorder(): AnalyticsRecorder {
@@ -76,44 +76,34 @@ describe('createChatAnalyticsHooks', () => {
     expect(analytics.recordFirstMessage).toHaveBeenCalledOnce()
   })
 
-  it('records generation usage only for custom providers', () => {
+  it('keeps token usage on completed rounds without a second generation event', () => {
     const analytics = createRecorder()
-    const hooks = createChatAnalyticsHooks({
-      analytics,
-      getSessionMessages: () => [],
-    })
+    const hooks = createChatAnalyticsHooks({ analytics, getSessionMessages: () => [] })
 
-    hooks.onLlmGeneration?.({
+    expect(hooks).not.toHaveProperty('onLlmGeneration')
+    hooks.onMessageRound?.({
       conversationId: 'session-1',
       roundId: 'round-1',
       turnIndex: 1,
       model: 'custom-model',
-      provider: 'custom-provider',
+      durationMs: 120,
+      hasVoice: false,
       inputTokens: 12,
       outputTokens: 8,
       totalTokens: 20,
       usageSource: 'reported',
     })
-    hooks.onLlmGeneration?.({
-      conversationId: 'session-1',
-      roundId: 'round-2',
-      turnIndex: 2,
-      model: 'official-model',
-      provider: 'official-provider-chat',
-      usageSource: 'reported',
-    })
 
     expect(analytics.emit).toHaveBeenCalledTimes(1)
-    expect(analytics.emit).toHaveBeenCalledWith(aiGenerationEvent, {
+    expect(analytics.emit).toHaveBeenCalledWith(messageRoundEvent, expect.objectContaining({
       conversation_id: 'session-1',
       round_id: 'round-1',
-      provider_type: 'custom',
-      provider_id: 'custom-provider',
-      model_id: 'custom-model',
-      usage_source: 'reported',
+      model: 'custom-model',
+      duration_ms: 120,
       input_tokens: 12,
       output_tokens: 8,
       total_tokens: 20,
-    })
+      usage_source: 'reported',
+    }))
   })
 })

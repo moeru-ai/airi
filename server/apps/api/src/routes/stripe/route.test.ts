@@ -296,7 +296,7 @@ describe('stripeRoutes', () => {
       expect(res.status).toBe(503)
     })
 
-    it('stores browser PostHog identity in Stripe checkout metadata', async () => {
+    it('stores browser OpenPanel identity in Stripe checkout metadata', async () => {
       const createSession = vi.fn(async input => ({
         id: 'cs_1',
         url: 'https://checkout.stripe.com/cs_1',
@@ -343,8 +343,8 @@ describe('stripeRoutes', () => {
         body: { stripePriceId: 'price_test_500' },
         request: new Request('http://localhost/api/v1/stripe/checkout', {
           headers: {
-            'x-posthog-distinct-id': 'anon-browser-1',
-            'x-posthog-session-id': 'ph-session-1',
+            'x-openpanel-device-id': 'anon-browser-1',
+            'x-openpanel-session-id': 'ph-session-1',
           },
         }),
       })
@@ -353,16 +353,16 @@ describe('stripeRoutes', () => {
         metadata: {
           userId: 'user-1',
           fluxAmount: '500',
-          posthogDistinctId: 'anon-browser-1',
-          posthogSessionId: 'ph-session-1',
+          openpanelDeviceId: 'anon-browser-1',
+          openpanelSessionId: 'ph-session-1',
         },
       }))
       expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
         userId: 'user-1',
         action: 'checkout_started',
         metadata: expect.objectContaining({
-          posthog_distinct_id: 'anon-browser-1',
-          posthog_session_id: 'ph-session-1',
+          openpanel_device_id: 'anon-browser-1',
+          openpanel_session_id: 'ph-session-1',
         }),
       }))
     })
@@ -535,7 +535,7 @@ describe('stripeRoutes', () => {
       expect(res.status).toBe(503)
     })
 
-    it('records payment completion with Stripe and PostHog identity from checkout metadata', async () => {
+    it('records payment completion with Stripe and OpenPanel identity from checkout metadata', async () => {
       const checkoutEvent = {
         id: 'evt_checkout_completed',
         type: 'checkout.session.completed',
@@ -556,8 +556,8 @@ describe('stripeRoutes', () => {
             metadata: {
               userId: 'user-1',
               fluxAmount: '500',
-              posthogDistinctId: 'anon-browser-1',
-              posthogSessionId: 'ph-session-1',
+              openpanelDeviceId: 'anon-browser-1',
+              openpanelSessionId: 'ph-session-1',
             },
             expires_at: null,
           },
@@ -599,10 +599,14 @@ describe('stripeRoutes', () => {
           flux_amount: 500,
           stripe_checkout_session_id: 'cs_1',
           stripe_customer_id: 'cus_1',
-          posthog_distinct_id: 'anon-browser-1',
-          posthog_session_id: 'ph-session-1',
+          openpanel_device_id: 'anon-browser-1',
+          openpanel_session_id: 'ph-session-1',
         },
       })
+
+      vi.mocked(billingService.creditFluxFromStripeCheckout).mockResolvedValueOnce({ applied: false })
+      await webhook({ signature: 'test_sig', body: '{}' })
+      expect(productEventService.track).toHaveBeenCalledTimes(1)
     })
 
     it('processes subscription lifecycle webhooks without product events', async () => {

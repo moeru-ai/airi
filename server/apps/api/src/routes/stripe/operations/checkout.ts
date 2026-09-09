@@ -33,7 +33,7 @@ export interface CheckoutOperationInput {
   request: Request
 }
 
-interface PosthogIdentityHeaders {
+interface OpenpanelIdentityHeaders {
   distinctId?: string
   sessionId?: string
 }
@@ -80,7 +80,7 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
 
     const paymentMethods = await deps.configKV.getOptional('STRIPE_PAYMENT_METHODS')
     const paymentMethodOptions = await deps.configKV.getOptional('STRIPE_PAYMENT_METHOD_OPTIONS') ?? {}
-    const posthogIdentity = readPosthogIdentityHeaders(input.request)
+    const openpanelIdentity = readOpenpanelIdentityHeaders(input.request)
 
     const sessionParams: CheckoutSessionCreateParams = {
       line_items: [{ price: stripePriceId, quantity: 1 }],
@@ -93,8 +93,8 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
       metadata: {
         userId: input.user.id,
         fluxAmount: String(fluxAmount),
-        ...(posthogIdentity.distinctId && { posthogDistinctId: posthogIdentity.distinctId }),
-        ...(posthogIdentity.sessionId && { posthogSessionId: posthogIdentity.sessionId }),
+        ...(openpanelIdentity.distinctId && { openpanelDeviceId: openpanelIdentity.distinctId }),
+        ...(openpanelIdentity.sessionId && { openpanelSessionId: openpanelIdentity.sessionId }),
       },
     }
 
@@ -142,8 +142,8 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
         flux_amount: fluxAmount,
         amount_total: session.amount_total,
         currency: session.currency,
-        ...(posthogIdentity.distinctId && { posthog_distinct_id: posthogIdentity.distinctId }),
-        ...(posthogIdentity.sessionId && { posthog_session_id: posthogIdentity.sessionId }),
+        ...(openpanelIdentity.distinctId && { openpanel_device_id: openpanelIdentity.distinctId }),
+        ...(openpanelIdentity.sessionId && { openpanel_session_id: openpanelIdentity.sessionId }),
       },
     })
 
@@ -151,9 +151,9 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
   }
 }
 
-function readPosthogIdentityHeaders(request: Request): PosthogIdentityHeaders {
-  const distinctId = readStripeMetadataHeader(request, 'x-posthog-distinct-id')
-  const sessionId = readStripeMetadataHeader(request, 'x-posthog-session-id')
+function readOpenpanelIdentityHeaders(request: Request): OpenpanelIdentityHeaders {
+  const distinctId = readStripeMetadataHeader(request, 'x-openpanel-device-id')
+  const sessionId = readStripeMetadataHeader(request, 'x-openpanel-session-id')
   return {
     ...(distinctId && { distinctId }),
     ...(sessionId && { sessionId }),
