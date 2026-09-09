@@ -26,6 +26,8 @@ import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { resolveModelEndpoint, Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
 import { defineConfig } from 'electron-vite'
 
+import { buildScreenCapture } from './scripts/build-screen-capture'
+
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 const settingsSearch = createSettingsSearch()
@@ -74,6 +76,7 @@ export default defineConfig({
     },
     plugins: [
       ErgosphereMain({ launcher: 'src/launcher/index.ts' }),
+      { name: 'screen-capture-helper', buildStart: () => buildScreenCapture(import.meta.dirname) },
 
       {
         // To replace `build.rolldownOptions`, as electron-vite still uses the deprecated

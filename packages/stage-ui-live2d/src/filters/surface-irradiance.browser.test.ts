@@ -1,5 +1,5 @@
 import { Application } from '@pixi/app'
-import { BatchRenderer, Filter, Texture } from '@pixi/core'
+import { BatchRenderer, Filter, Renderer, Texture } from '@pixi/core'
 import { extensions } from '@pixi/extensions'
 import { Sprite } from '@pixi/sprite'
 import { TickerPlugin } from '@pixi/ticker'
@@ -16,10 +16,10 @@ sprite.height = 1
 
 afterAll(() => app.destroy(true, { children: true }))
 
-function render(normal: number[], column: number, row = 12, position = [0.5, 0.5], geometry = flatScreenGeometry) {
+function render(normal: number[], column: number, row = 12, position = [0.5, 0.5], geometry = flatScreenGeometry, bloomEnergy = false, intensity = 1) {
   const map = { width: 24, height: 24, data: new Float32Array(24 * 24 * 3) }
   for (let y = row - 2; y < row + 2; y++) {
-    for (let x = column - 2; x < column + 2; x++) map.data[(y * 24 + x) * 3] = 1
+    for (let x = column - 2; x < column + 2; x++) map.data[(y * 24 + x) * 3] = intensity
   }
   const lights = new Float32Array(screenLightCount * 3)
   writeScreenLights(map, lights)
@@ -33,10 +33,16 @@ function render(normal: number[], column: number, row = 12, position = [0.5, 0.5
     uniform float u_airiChroma;
     uniform float u_airiDirectional;
     ${surfaceIrradianceShader}
-    void main() { gl_FragColor = vec4(clamp(vec3(0.2)*airiSurfaceResponse(normalize(uNormal),uPosition),0.,1.),1.); }
+    void main() {
+      ${bloomEnergy
+        ? 'airiSurfaceColor(normalize(uNormal),uPosition,vec3(1.),0.); gl_FragColor=vec4(airiBloomEnergy,1.);'
+        : 'gl_FragColor = vec4(clamp(vec3(0.2)*airiSurfaceResponse(normalize(uNormal),uPosition),0.,1.),1.);'}
+    }
   `, { uNormal: normal, uPosition: position, u_airiStrength: 1, u_airiChroma: 1, u_airiDirectional: 1, u_airiLights: lights, u_airiBounds: [0, 0, 1, 1], u_airiScreen: [-0.5, -0.5, 2, 2], u_airiFieldBounds: [0, 0, 1, 1], u_airiStageAspect: 1, u_airiEmitters: emitters })
   sprite.filters = [filter]
   app.renderer.render(app.stage)
+  if (!(app.renderer instanceof Renderer))
+    throw new TypeError('Surface irradiance requires a WebGL renderer')
   const gl = app.renderer.gl
   const pixel = new Uint8Array(4)
   gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel)
@@ -47,6 +53,20 @@ function render(normal: number[], column: number, row = 12, position = [0.5, 0.5
 }
 
 describe('screen plane irradiance', () => {
+  it('provides bloom energy only from light received by the surface', () => {
+    // ROOT CAUSE:
+    // The silhouette halo sampled the desktop independently of surface normals.
+    // Its source must instead share the surface's incident-light calculation.
+    const facing = render([0.9, 0, 0.4], 17, 12, [0.5, 0.5], flatScreenGeometry, true)
+    const away = render([-0.9, 0, 0.4], 17, 12, [0.5, 0.5], flatScreenGeometry, true)
+    const dark = render([0.9, 0, 0.4], 17, 12, [0.5, 0.5], flatScreenGeometry, true, 0)
+    const faint = render([0.9, 0, 0.4], 17, 12, [0.5, 0.5], flatScreenGeometry, true, 0.1)
+    expect(facing[0]).toBeGreaterThan(0)
+    expect(away[0]).toBe(0)
+    expect(dark[0]).toBe(0)
+    expect(facing[0]).toBeGreaterThan(faint[0] * 5)
+  })
+
   it('does not shine through the front of an opaque surface from behind', () => {
     // ROOT CAUSE:
     // The first integration put all screen lights at positive Z, in front of

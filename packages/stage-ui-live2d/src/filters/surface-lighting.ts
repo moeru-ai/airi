@@ -6,6 +6,7 @@ import type { NormalAttachment } from '../lighting/attachment'
 import type { FaceShadowCaster } from './face-shadow'
 import type { SurfaceLightFrame } from './surface-irradiance'
 
+import { RenderTexture } from '@pixi/core'
 import { Matrix } from '@pixi/math'
 import { ambientLightDefaults } from '@proj-airi/stage-shared/screen-ambient-light'
 import { CubismShader_WebGL, fragmentShaderSrcsetupMask } from 'pixi-live2d-display/cubism4'
@@ -30,6 +31,7 @@ varying vec2 v_airiNoseReference;
 uniform float u_airiEnabled;
 uniform float u_airiProfile;
 uniform float u_airiCapture;
+uniform float u_airiBloomCapture;
 uniform vec4 u_airiGeneratedFace;
 uniform vec4 u_airiGeneratedNose;
 uniform float u_airiGeneratedNoseStrength;
@@ -139,6 +141,12 @@ if (u_airiEnabled > 0.5 && gl_FragColor.a > 0.0001) {
   }
   vec3 color = airiLinear(gl_FragColor.rgb/gl_FragColor.a);
   gl_FragColor.rgb = airiSrgb(airiSurfaceColor(n,v_airiStage,color,materialSheen))*gl_FragColor.a;
+  if (u_airiBloomCapture > .5) {
+    // Linear halo opacity keeps faint light faint. A shared RGB divisor keeps
+    // bright emitters in range without changing their hue.
+    float peak = max(airiBloomEnergy.r,max(airiBloomEnergy.g,airiBloomEnergy.b));
+    gl_FragColor.rgb = airiBloomEnergy/(1.+peak)*gl_FragColor.a;
+  }
 }
 if (u_airiCapture > .5) {
   if (gl_FragColor.a <= .05) discard;
@@ -173,7 +181,7 @@ function installShaderDispatch() {
     if (!program)
       return
     const binding = bindings.get(renderer)
-    if (binding?.captureMode && blend !== 0) {
+    if ((binding?.captureMode || binding?.bloomCapture) && blend !== 0) {
       // Painted multiply shadows and additive accents do not own a surface.
       gl.uniform1f(gl.getUniformLocation(program, 'u_airiEnabled'), 0)
       gl.uniform1f(gl.getUniformLocation(program, 'u_airiCapture'), 0)
@@ -215,6 +223,7 @@ interface Locations {
   generatedNoseStrength: WebGLUniformLocation | null
   generatedFace: WebGLUniformLocation | null
   capture: WebGLUniformLocation | null
+  bloomCapture: WebGLUniformLocation | null
   mapSize: WebGLUniformLocation | null
   face: WebGLUniformLocation | null
   faceRotation: WebGLUniformLocation | null
@@ -310,6 +319,59 @@ export class SurfaceLighting {
   profile: 'proxy' | 'generated' = 'proxy'
   /** Only the isolated authoring renderer sets this mode. */
   captureMode = false
+  /** Shader-dispatch phase, scoped to renderBloom and reset before it returns. */
+  bloomCapture = false
+  private bloomTexture?: RenderTexture
+  private readonly drawViewport = new Int32Array(4)
+
+  /**
+   * Draws only received light in the enclosing filter's coordinates. The filter
+   * consumes this texture immediately; the next draw replaces it. The current
+   * pose and prepared lighting are reused without advancing animation.
+   */
+  renderBloom(input: RenderTexture): RenderTexture {
+    const renderer = this.stage
+    const gl = renderer.gl
+    const target = renderer.renderTexture.current
+    const source = renderer.renderTexture.sourceFrame.clone()
+    const destination = renderer.renderTexture.destinationFrame.clone()
+    const framebuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING)
+    const viewport = gl.getParameter(gl.VIEWPORT)
+    // Bloom is blurred at half resolution. Capture at that same resolution to
+    // avoid shading four times as many pixels for a low-frequency result.
+    const resolution = input.resolution * 0.5
+    this.bloomTexture ??= RenderTexture.create({ width: input.width, height: input.height, resolution })
+    if (this.bloomTexture.resolution !== resolution || this.bloomTexture.width !== input.width || this.bloomTexture.height !== input.height) {
+      this.bloomTexture.setResolution(resolution)
+      this.bloomTexture.resize(input.width, input.height)
+    }
+    this.bloomTexture.filterFrame = input.filterFrame
+    try {
+      renderer.renderTexture.bind(this.bloomTexture)
+      renderer.renderTexture.clear([0, 0, 0, 0])
+      // Cubism restores its target after mask draws. Its saved target and GL
+      // viewport must match the original draw, including the filter padding.
+      const captureViewport = Array.from(this.drawViewport, value => Math.round(value * 0.5))
+      gl.viewport(captureViewport[0], captureViewport[1], captureViewport[2], captureViewport[3])
+      this.model.renderer.setRenderState(gl.getParameter(gl.FRAMEBUFFER_BINDING), captureViewport)
+      this.bloomCapture = true
+      renderer.geometry.reset()
+      this.drawModel.call(this.model.renderer)
+    }
+    finally {
+      this.bloomCapture = false
+      // Reset only the caches Cubism changes. A full renderer reset would
+      // discard the enclosing FilterSystem stack while its apply is running.
+      renderer.state.reset()
+      renderer.shader.reset()
+      renderer.geometry.reset()
+      renderer.texture.reset()
+      renderer.renderTexture.bind(target ?? undefined, source, destination)
+      this.model.renderer.setRenderState(framebuffer, viewport)
+      gl.viewport(viewport[0], viewport[1], viewport[2], viewport[3])
+    }
+    return this.bloomTexture
+  }
 
   constructor(private readonly model: Cubism4InternalModel, private readonly stage: PixiRenderer) {
     installShaderDispatch()
@@ -438,7 +500,7 @@ export class SurfaceLighting {
     let locations = this.programs.get(program)
     if (!locations) {
       const uniform = (name: string) => gl.getUniformLocation(program, `u_airi${name}`)
-      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), capture: uniform('Capture'), generatedFace: uniform('GeneratedFace'), generatedNose: uniform('GeneratedNose'), generatedNoseStrength: uniform('GeneratedNoseStrength'), mapSize: uniform('MapSize'), face: uniform('Face'), faceRotation: uniform('FaceRotation'), modelToNose: uniform('ModelToNose'), hair: uniform('Hair'), illustrated: uniform('Illustrated'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), edges: uniform('Edges[0]'), area: uniform('Area'), field: uniform('Field'), fieldEnabled: uniform('FieldEnabled'), fieldMean: uniform('FieldMean'), bounds: uniform('Bounds'), screen: uniform('Screen'), fieldBounds: uniform('FieldBounds'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect'), emitters: uniform('Emitters[0]'), faceShadow: uniform('FaceShadow'), faceShadowStrength: uniform('FaceShadowStrength'), faceHeight: uniform('FaceHeight'), roughness: uniform('Roughness'), skinRelief: uniform('SkinRelief'), sheen: uniform('Sheen'), nose: uniform('Nose'), softHighlights: uniform('SoftHighlights'), responseCurve: uniform('ResponseCurve'), photometry: uniform('Photometry'), lightScale: uniform('LightScale'), cameraExposure: uniform('CameraExposure'), ambient: uniform('Ambient'), contrast: uniform('Contrast') }
+      locations = { attribute: gl.getAttribLocation(program, 'a_airiReference'), enabled: uniform('Enabled'), profile: uniform('Profile'), capture: uniform('Capture'), bloomCapture: uniform('BloomCapture'), generatedFace: uniform('GeneratedFace'), generatedNose: uniform('GeneratedNose'), generatedNoseStrength: uniform('GeneratedNoseStrength'), mapSize: uniform('MapSize'), face: uniform('Face'), faceRotation: uniform('FaceRotation'), modelToNose: uniform('ModelToNose'), hair: uniform('Hair'), illustrated: uniform('Illustrated'), owner: uniform('Owner'), strength: uniform('Strength'), chroma: uniform('Chroma'), directional: uniform('Directional'), normal: uniform('Normal'), ownership: uniform('Ownership'), lights: uniform('Lights[0]'), edges: uniform('Edges[0]'), area: uniform('Area'), field: uniform('Field'), fieldEnabled: uniform('FieldEnabled'), fieldMean: uniform('FieldMean'), bounds: uniform('Bounds'), screen: uniform('Screen'), fieldBounds: uniform('FieldBounds'), clipToStage: uniform('ClipToStage'), aspect: uniform('StageAspect'), emitters: uniform('Emitters[0]'), faceShadow: uniform('FaceShadow'), faceShadowStrength: uniform('FaceShadowStrength'), faceHeight: uniform('FaceHeight'), roughness: uniform('Roughness'), skinRelief: uniform('SkinRelief'), sheen: uniform('Sheen'), nose: uniform('Nose'), softHighlights: uniform('SoftHighlights'), responseCurve: uniform('ResponseCurve'), photometry: uniform('Photometry'), lightScale: uniform('LightScale'), cameraExposure: uniform('CameraExposure'), ambient: uniform('Ambient'), contrast: uniform('Contrast') }
       this.programs.set(program, locations)
     }
     let buffer = this.buffers.get(vertices.byteOffset)
@@ -462,6 +524,7 @@ export class SurfaceLighting {
     gl.uniform1f(locations.enabled, this.active && this.strength > 0 ? 1 : 0)
     gl.uniform1f(locations.profile, this.normal && this.ownership ? 1 : 0)
     gl.uniform1f(locations.capture, this.captureMode ? 1 : 0)
+    gl.uniform1f(locations.bloomCapture, this.bloomCapture ? 1 : 0)
     gl.uniform2f(locations.mapSize, this.images?.[0].width ?? 512, this.images?.[0].height ?? 640)
     gl.uniform1f(locations.face, reference.face ? 1 : 0)
     gl.uniform2fv(locations.faceRotation, this.faceRotation)
@@ -502,7 +565,6 @@ export class SurfaceLighting {
     // Current mesh positions then locate light sources in the stage window;
     // neutral reference UVs are only for normal/material lookup.
     const { width, height } = this.stage.screen
-    this.clipToStage.copyFrom(this.stage.projection.projectionMatrix).invert().scale(1 / width, 1 / height)
     gl.uniformMatrix3fv(locations.clipToStage, false, this.clipToStage.toArray(true))
     const aspect = this.environment?.screen?.aspect ?? width / height
     gl.uniform4fv(locations.bounds, this.boundsUniform)
@@ -533,6 +595,7 @@ export class SurfaceLighting {
   }
 
   private prepareDraw() {
+    this.drawViewport.set(this.stage.gl.getParameter(this.stage.gl.VIEWPORT))
     this.exposure.advance()
     const { width, height } = this.stage.screen
     this.clipToStage.copyFrom(this.stage.projection.projectionMatrix).invert().scale(1 / width, 1 / height)
@@ -664,6 +727,7 @@ export class SurfaceLighting {
 
   /** Releases this model's resources without changing another model's binding. */
   dispose() {
+    this.bloomTexture?.destroy(true)
     this.disposed = true
     this.model.renderer.doDrawModel = this.drawModel
     bindings.delete(this.model.renderer)

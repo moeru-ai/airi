@@ -38,6 +38,7 @@ import { shouldOpenDevTools } from '../../libs/electron/devtools'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createWindowContext } from '../../libs/electron/window-context'
+import { setupAmbientCapture } from '../../services/electron/ambient-capture-window'
 import { setupNormalGeneration } from '../../services/electron/live2d-normal-generation'
 import { setupSettingsPageInvokes } from '../settings/rpc/index.electron'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
@@ -470,6 +471,7 @@ export async function setupMainWindow(params: {
   window.on('closed', () => stopFullscreenGlide())
 
   initScreenCaptureForWindow(window)
+  setupAmbientCapture(window)
 
   return window
 }

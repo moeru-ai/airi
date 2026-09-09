@@ -47,6 +47,8 @@ export interface SampleRegion {
    * never reach the measurement.
    */
   paintedAlpha?: Uint8ClampedArray
+  /** Native capture excludes AIRI before compositing, so pixels under it are measured desktop light. */
+  windowExcludedByCapture?: boolean
   /**
    * Bounds of what the renderer actually drew, in the same units as
    * {@link exclude}. The maps are placed around this rather than around the
@@ -296,7 +298,7 @@ function sampleDisplayEmission(frame: PixelFrame, region: SampleRegion, options:
       const u = (x + 0.5) / frame.width
       const inside = u >= region.exclude.x && u <= region.exclude.x + region.exclude.width
         && v >= region.exclude.y && v <= region.exclude.y + region.exclude.height
-      if (!frame.data[offset + 3] || (region.paintedAlpha ? region.paintedAlpha[index] > 0 : inside))
+      if (!frame.data[offset + 3] || (!region.windowExcludedByCapture && (region.paintedAlpha ? region.paintedAlpha[index] > 0 : inside)))
         continue
       const r = frame.data[offset]
       const g = frame.data[offset + 1]
@@ -502,7 +504,9 @@ function classifyPixel(frame: PixelFrame, region: SampleRegion, x: number, y: nu
   const normalizedY = (y + 0.5) / frame.height
   const inside = normalizedX >= region.exclude.x && normalizedX <= region.exclude.x + region.exclude.width
     && normalizedY >= region.exclude.y && normalizedY <= region.exclude.y + region.exclude.height
-  if (!inside)
+  // A native capture leaves the AIRI window out, so the pixels under it are
+  // the desktop itself.
+  if (!inside || region.windowExcludedByCapture)
     return 'desktop'
 
   const painted = region.paintedAlpha?.[index]

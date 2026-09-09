@@ -7,6 +7,7 @@ import type {
   ScreenAmbientLightDiagnosticsSnapshot,
 } from '../../shared/screen-ambient-light-diagnostics'
 
+import { defineInvoke } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
 import { getElectronEventaContext, useElectronAllDisplays, useElectronWindowBounds } from '@proj-airi/electron-vueuse'
@@ -18,11 +19,12 @@ import {
   wholeWindowRectangle,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
-import { until, useBroadcastChannel, watchDebounced } from '@vueuse/core'
+import { until, useBroadcastChannel, useEventListener, watchDebounced } from '@vueuse/core'
 import { clamp } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
+import { readAmbientCapture, startAmbientCapture, stopAmbientCapture } from '../../shared/screen-ambient-capture'
 import {
   screenAmbientLightDiagnosticsChannelName,
   screenAmbientLightDiagnosticsWatchMs,
@@ -74,8 +76,10 @@ const displaySettleMs = 500
  * - `enabled` or `source` changes stop the current capture and start the next.
  * - The capture stream is constrained to a small frame at the sample rate, so
  *   the renderer never receives full-resolution frames it does not use.
- * - Each delivered frame samples once through `requestVideoFrameCallback`, so
- *   the sample rate equals the stream rate and no timer samples a stale frame.
+ * - macOS pulls the latest compositor frame with the stage window excluded.
+ *   Unchanged pixels can be reused to update moving stage geometry and smoothing.
+ * - Other platforms sample each delivered video frame once and mask the stage
+ *   alpha to prevent its own lighting from feeding back into the capture.
  * - A stream that ends outside this composable disables the feature and reports
  *   the reason through diagnostics.
  */
@@ -121,6 +125,13 @@ export function useScreenAmbientLight(sources: {
   } = useBroadcastChannel<ScreenAmbientLightDiagnosticsChannelEvent, ScreenAmbientLightDiagnosticsChannelEvent>({
     name: screenAmbientLightDiagnosticsChannelName,
   })
+  const eventa = getElectronEventaContext()
+  const startNative = defineInvoke(eventa, startAmbientCapture)
+  const readNative = defineInvoke(eventa, readAmbientCapture)
+  const stopNative = defineInvoke(eventa, stopAmbientCapture)
+  let nativeSession: string | undefined
+  let nativeFrame: { width: number, height: number, data: Uint8ClampedArray } | undefined
+  let nativeTimer: ReturnType<typeof setTimeout> | undefined
   let startVersion = 0
   let frameCallbackHandle = 0
   let lastSampleTime = 0
@@ -216,7 +227,13 @@ export function useScreenAmbientLight(sources: {
 
   // The stream rate is the sample rate, so a new interval must reach the track.
   // A rejected constraint keeps the old rate, which is slower but still correct.
+  // A native session fixes its size and rate when it starts, so it restarts.
   watch([captureFrameRate, screenAmbientLightSampleWidth], async ([frameRate]) => {
+    if (nativeSession) {
+      void restart()
+      return
+    }
+
     const track = activeStream.value?.getVideoTracks()[0]
     const display = capturedDisplay.value
     if (!track || !display)
@@ -228,6 +245,13 @@ export function useScreenAmbientLight(sources: {
     catch (error) {
       console.warn(`Failed to update the screen ambient light capture constraints: ${errorMessageFrom(error)}`)
     }
+  })
+
+  // Navigation stops the native owner before Vue disposes the old page.
+  // Invalidate its pending read first so that shutdown cannot persist an error.
+  useEventListener(window, 'beforeunload', () => {
+    startVersion += 1
+    stop()
   })
 
   onScopeDispose(() => {
@@ -259,6 +283,24 @@ export function useScreenAmbientLight(sources: {
     const display = findDominantDisplayArea(bounds, displays.value)
     if (!display)
       throw new Error('No display is available for screen ambient light')
+
+    // Keep the display aspect inside the requested sample grid. Native scaling
+    // must not letterbox or crop, since every texel maps to display coordinates.
+    const aspect = display.bounds.width / display.bounds.height
+    const nativeWidth = Math.max(1, Math.round(screenAmbientLightSampleWidth.value))
+    const nativeHeight = Math.max(1, Math.round(nativeWidth / aspect))
+    const native = await startNative({ displayId: display.id, width: nativeWidth, height: nativeHeight, frameRate: Math.round(captureFrameRate.value) })
+    if (native) {
+      if (version !== startVersion) {
+        await stopNative(native)
+        return
+      }
+      capturedDisplay.value = display
+      nativeSession = native
+      lastSampleTime = performance.now()
+      await sampleNative(version, native)
+      return
+    }
 
     const stream = await selectWithSource(
       (sources) => {
@@ -350,6 +392,12 @@ export function useScreenAmbientLight(sources: {
   }
 
   function stop() {
+    clearTimeout(nativeTimer)
+    const session = nativeSession
+    nativeSession = undefined
+    nativeFrame = undefined
+    if (session)
+      void stopNative(session).catch(error => console.warn('Failed to stop native screen capture:', errorMessageFrom(error)))
     if (frameCallbackHandle !== 0) {
       video.cancelVideoFrameCallback(frameCallbackHandle)
       frameCallbackHandle = 0
@@ -387,13 +435,45 @@ export function useScreenAmbientLight(sources: {
     if (!context || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
       return
 
+    followVideoShape()
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    applyFrame(context.getImageData(0, 0, canvas.width, canvas.height), false)
+  }
+
+  // Pull only after the previous read and sample finish. The helper keeps one
+  // latest frame, and superseded sessions never publish into the current one.
+  async function sampleNative(version: number, session: string) {
+    const started = performance.now()
+    try {
+      const frame = await readNative(session)
+      if (version !== startVersion || nativeSession !== session)
+        return
+      if (frame)
+        nativeFrame = { ...frame, data: new Uint8ClampedArray(frame.data.buffer, frame.data.byteOffset, frame.data.byteLength) }
+      // Excluding AIRI means moving it need not produce a new capture frame.
+      // Reuse the latest pixels to update stage geometry and finish smoothing.
+      if (nativeFrame)
+        applyFrame(nativeFrame, true)
+      nativeTimer = setTimeout(() => void sampleNative(version, session), Math.max(0, 1000 / captureFrameRate.value - (performance.now() - started)))
+    }
+    catch (error) {
+      if (version !== startVersion || nativeSession !== session)
+        return
+      lastCaptureError = errorMessageFrom(error) ?? 'Native screen capture failed.'
+      publishDiagnostics('error')
+      screenAmbientLightEnabled.value = false
+    }
+  }
+
+  function applyFrame(frame: { width: number, height: number, data: Uint8ClampedArray }, windowExcludedByCapture: boolean) {
     const display = capturedDisplay.value
     if (!display)
       return
-
-    followVideoShape()
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
-    const frame = context.getImageData(0, 0, canvas.width, canvas.height)
+    if (canvas.width !== frame.width || canvas.height !== frame.height) {
+      canvas.width = frame.width
+      canvas.height = frame.height
+      paintedMask.reset()
+    }
     const now = performance.now()
     const excludedWindow = normalizeWindowBounds(display.bounds, currentWindowBounds())
     const stage = sources.stageCanvas?.()?.getBoundingClientRect()
@@ -414,9 +494,10 @@ export function useScreenAmbientLight(sources: {
     const result = sampleScreenAmbientLight(frame, {
       exclude: excludedWindow,
       subject: subjectOnDisplay,
-      paintedAlpha: painted?.alpha,
+      paintedAlpha: windowExcludedByCapture ? undefined : painted?.alpha,
       stage: normalizeWindowBounds(display.bounds, stageBounds),
       displayAspect: display.bounds.width / Math.max(1, display.bounds.height),
+      windowExcludedByCapture,
     }, samplingOptions.value)
 
     const nextEnvironment = ambientLight.active
@@ -506,9 +587,11 @@ export function useScreenAmbientLight(sources: {
         : undefined,
       windowBounds: currentWindowBounds(),
       characterBounds: sources.characterBounds?.(),
-      videoSize: video.videoWidth > 0 && video.videoHeight > 0
-        ? { width: video.videoWidth, height: video.videoHeight }
-        : undefined,
+      videoSize: nativeFrame
+        ? { width: nativeFrame.width, height: nativeFrame.height }
+        : video.videoWidth > 0 && video.videoHeight > 0
+          ? { width: video.videoWidth, height: video.videoHeight }
+          : undefined,
       ...details,
     }
     lastDiagnostics = snapshot
