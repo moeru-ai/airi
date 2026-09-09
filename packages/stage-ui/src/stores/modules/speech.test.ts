@@ -98,8 +98,8 @@ describe('speech store helpers', () => {
   // object. The voice watcher then assigned undefined to an undefined ref.
   // refManualReset reported that no-op assignment as another Pinia mutation.
   //
-  // We fixed this by writing the selected voice only when a matching voice
-  // exists and its identity differs from the current selection.
+  // Catalog refreshes now stay outside the speech settings snapshot. They
+  // must not publish settings when no selected voice needs an update.
   it('does not publish a second mutation for an unresolved voice', async () => {
     const providersStore = useProviderStore()
     vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
@@ -107,7 +107,7 @@ describe('speech store helpers', () => {
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speechStore.activeSpeechVoiceId = 'missing-voice'
     speechStore.activeSpeechVoice = undefined
-    speechStore.availableVoices = {}
+    await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     await nextTick()
     // The startup watcher now enters through the deferred public action.
     await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
@@ -115,10 +115,10 @@ describe('speech store helpers', () => {
     let mutations = 0
     speechStore.$subscribe(() => mutations += 1, { flush: 'sync' })
 
-    speechStore.availableVoices = {}
+    await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     await nextTick()
 
-    expect(mutations).toBe(1)
+    expect(mutations).toBe(0)
   })
 
   // ROOT CAUSE:
@@ -691,7 +691,7 @@ describe('vOICEVOX provider defaults', () => {
       definitionId: 'microsoft-speech',
       config: { voiceSample: 'private-sample'.repeat(100000) },
     })
-    const state = JSON.stringify(speech.$state)
+    const state = JSON.stringify({ settings: speech.$state, identities: speech.voiceCatalogIdentities })
     expect(state.length).toBeLessThan(2000)
     expect(state).not.toContain('private-sample')
   })
@@ -733,9 +733,10 @@ describe('vOICEVOX provider defaults', () => {
     speech.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speech.activeSpeechModel = 'model-a'
     await new Promise(resolve => setTimeout(resolve, 20))
-    speech.availableVoices = { [OFFICIAL_SPEECH_PROVIDER_ID]: [
+    loads.mockResolvedValue([
       { id: 'old', name: 'Old', languages: [], provider: OFFICIAL_SPEECH_PROVIDER_ID, recommendedFor: ['en-US'] },
-    ] }
+    ])
+    await speech.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'model-a')
     await speech.ensureActiveSpeechVoice()
     let finish!: () => void
     loads.mockImplementation(() => new Promise((resolve) => {

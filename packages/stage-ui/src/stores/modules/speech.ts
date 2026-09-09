@@ -52,9 +52,20 @@ const useSpeechCatalogRequests = defineStore('speech-catalog-requests', () => {
   return { status }
 })
 
+// Only speech's leader actions write this store. Settings proposals cannot
+// replace catalogs or roll back the reset generation. A new leader inherits both.
+const useSpeechCatalog = defineStore('speech-catalog', () => {
+  const availableVoices = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
+  const voiceCatalogIdentities = refManualReset<Record<string, VoiceCatalogIdentity>>(() => ({}))
+  const resetGeneration = refManualReset(0)
+  return { availableVoices, voiceCatalogIdentities, resetGeneration }
+}, { synced: { state: true } })
+
 export const useSpeechStore = defineStore('speech', () => {
   const pinia = getActivePinia()
   const runtime = hasInjectionContext() ? inject(injectKeyPiniaSynced, undefined) : undefined
+  const catalog = useSpeechCatalog()
+  const { availableVoices, voiceCatalogIdentities, resetGeneration } = storeToRefs(catalog)
   const catalogRequests = useSpeechCatalogRequests()
   const { status: voiceCatalogStatus } = storeToRefs(catalogRequests)
   const providersStore = useProviderStore()
@@ -79,9 +90,6 @@ export const useSpeechStore = defineStore('speech', () => {
   // provider and background provider editors must not consume each other's IO.
   const isLoadingSpeechProviderVoices = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.loading ?? false)
   const speechProviderError = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.error ?? null)
-  const availableVoices = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
-  // Replicate compact freshness metadata so a new leader can judge the catalog.
-  const voiceCatalogIdentities = refManualReset<Record<string, VoiceCatalogIdentity>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
 
   // Computed properties
@@ -152,7 +160,7 @@ export const useSpeechStore = defineStore('speech', () => {
     try {
       const configuration = providersStore.getVoiceCatalogConfiguration(provider)
       return await Promise.race([
-        useSpeechStore(pinia).loadVoiceCatalog(provider, model, configuration),
+        useSpeechStore(pinia).loadVoiceCatalog(provider, model, configuration, resetGeneration.value),
         interrupted,
       ])
     }
@@ -181,6 +189,10 @@ export const useSpeechStore = defineStore('speech', () => {
     cancelPending.clear()
     voiceCatalogStatus.value = {}
   }
+
+  // Reset snapshots release local RPC waits in every renderer, including
+  // windows that did not initiate the reset. This watcher writes no shared state.
+  watch(resetGeneration, cancelCatalogRequests, { flush: 'sync' })
 
   let observedLeader = runtime?.getLeaderId()
   const stopCoordination = runtime?.onCoordinationChange(({ leaderId }) => {
@@ -215,8 +227,9 @@ export const useSpeechStore = defineStore('speech', () => {
   })
 
   /** Executes a caller's immutable catalog request in the synchronization leader. */
-  async function loadVoiceCatalog(provider: string, model: string | undefined, configuration: VoiceCatalogConfiguration): Promise<VoiceInfo[]> {
-    if (!provider || disposed) {
+  async function loadVoiceCatalog(provider: string, model: string | undefined, configuration: VoiceCatalogConfiguration, generation = resetGeneration.value): Promise<VoiceInfo[]> {
+    // A queued caller request from before reset cannot start new leader work.
+    if (!provider || disposed || generation !== resetGeneration.value) {
       return []
     }
 
@@ -235,6 +248,8 @@ export const useSpeechStore = defineStore('speech', () => {
     const loadSequence = ++voiceLoadSequence
     latestVoiceLoads.set(provider, loadSequence)
     if (voiceCatalogIdentities.value[provider]?.model !== model) {
+      if (voiceCatalogIdentities.value[provider] && activeSpeechProvider.value === provider)
+        clearVoiceSelection()
       delete voiceCatalogIdentities.value[provider]
       availableVoices.value = { ...availableVoices.value, [provider]: [] }
     }
@@ -246,6 +261,10 @@ export const useSpeechStore = defineStore('speech', () => {
     // Keep valid choices during a refresh. A model or configuration change
     // invalidates them before auto-pick can select from the previous catalog.
     if (!isEqual(voiceCatalogIdentities.value[provider], identity)) {
+      // A selected voice belongs to the previous endpoint, region, and account.
+      // Initial discovery has no previous identity and preserves persisted choices.
+      if (voiceCatalogIdentities.value[provider] && activeSpeechProvider.value === provider)
+        clearVoiceSelection()
       delete voiceCatalogIdentities.value[provider]
       availableVoices.value = { ...availableVoices.value, [provider]: [] }
     }
@@ -257,6 +276,8 @@ export const useSpeechStore = defineStore('speech', () => {
       return []
     if (voices === undefined) {
       // An expired provider session invalidates cached choices as well.
+      if (activeSpeechProvider.value === provider)
+        clearVoiceSelection()
       delete voiceCatalogIdentities.value[provider]
       availableVoices.value = { ...availableVoices.value, [provider]: [] }
       return []
@@ -627,8 +648,11 @@ export const useSpeechStore = defineStore('speech', () => {
     rate.reset()
     ssmlEnabled.reset()
     modelSearchQuery.reset()
-    availableVoices.reset()
-    voiceCatalogIdentities.reset()
+    catalog.$patch((state) => {
+      state.availableVoices = {}
+      state.voiceCatalogIdentities = {}
+      state.resetGeneration++
+    })
   }
 
   return {
@@ -644,8 +668,8 @@ export const useSpeechStore = defineStore('speech', () => {
     voiceCatalogStatus: computed(() => voiceCatalogStatus.value),
     isLoadingSpeechProviderVoices,
     speechProviderError,
-    availableVoices,
-    voiceCatalogIdentities,
+    availableVoices: computed(() => availableVoices.value),
+    voiceCatalogIdentities: computed(() => voiceCatalogIdentities.value),
     modelSearchQuery,
 
     // Computed

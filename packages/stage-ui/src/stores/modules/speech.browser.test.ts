@@ -66,6 +66,158 @@ describe('speech synchronization', () => {
     localStorage.clear()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3965793949
+  // ROOT CAUSE: A delayed settings proposal carried an old catalog and replaced
+  // a completed leader load. Catalog state must have a separate snapshot owner.
+  it('preserves a fresh catalog after a delayed follower settings proposal', async () => {
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const follower = createSyncedContext(namespace, 'follower-only')
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await new Promise(resolve => setTimeout(resolve, 100))
+    const postMessage = BroadcastChannel.prototype.postMessage
+    const delayed: Array<() => void> = []
+    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage').mockImplementation(function (this: BroadcastChannel, message) {
+      if (JSON.stringify(message).includes('replaceState')) {
+        const snapshot = structuredClone(message)
+        delayed.push(() => postMessage.call(this, snapshot))
+        return
+      }
+      postMessage.call(this, message)
+    })
+    follower.speechStore.pitch = 15
+    follower.speechStore.ssmlEnabled = true
+    await vi.waitFor(() => expect(delayed.length).toBeGreaterThan(0))
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [{ id: 'fresh', name: 'Fresh', languages: [] }] })))
+    await leader.speechStore.loadVoiceCatalog('microsoft-speech', 'model', {
+      definitionId: 'microsoft-speech',
+      config: { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/', region: 'eastasia' },
+    })
+    await vi.waitFor(() => expect(follower.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('fresh'))
+    traffic.mockRestore()
+    for (const deliver of delayed)
+      deliver()
+    await vi.waitFor(() => expect(leader.speechStore.pitch).toBe(15))
+    expect(leader.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('fresh')
+    expect(leader.speechStore.voiceCatalogIdentities['microsoft-speech']?.model).toBe('model')
+    expect(follower.speechStore.$state).not.toHaveProperty('availableVoices')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3965793956
+  // ROOT CAUSE: Reset canceled the caller and leader, but left a third
+  // renderer waiting. Every renderer must observe the reset generation.
+  it('cancels waits in a third renderer when another follower resets', async () => {
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    await useProviderConfigStore(leader.pinia).ensureProvider('microsoft-speech', 'microsoft-speech', {
+      apiKey: 'key',
+      baseUrl: 'https://voices.invalid/v1/',
+      region: 'eastasia',
+    })
+    const caller = createSyncedContext(namespace, 'follower-only')
+    const other = createSyncedContext(namespace, 'follower-only')
+    await vi.waitFor(() => expect(useProviderConfigStore(other.pinia).configs['microsoft-speech']?.apiKey).toBe('key'))
+    let finish!: (response: Response) => void
+    const response = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const fetchCatalog = vi.fn<typeof fetch>(() => response)
+    vi.stubGlobal('fetch', fetchCatalog)
+    const pending = other.speechStore.loadVoicesForProvider('microsoft-speech')
+    try {
+      await vi.waitFor(() => expect(fetchCatalog).toHaveBeenCalledOnce())
+      await caller.speechStore.resetState()
+      await vi.waitFor(() => expect(other.speechStore.voiceCatalogStatus['microsoft-speech']).toBeUndefined(), { timeout: 400 })
+      await expect(pending).resolves.toEqual([])
+    }
+    finally {
+      finish(Response.json({ voices: [] }))
+      await pending
+    }
+  })
+
+  // ROOT CAUSE: A request can still be in the transport queue during reset.
+  // The captured generation rejects it before the provider starts new IO.
+  it('rejects a pre-reset catalog RPC delivered after reset', async () => {
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    await useProviderConfigStore(leader.pinia).ensureProvider('microsoft-speech', 'microsoft-speech', {
+      apiKey: 'key',
+      baseUrl: 'https://voices.invalid/v1/',
+      region: 'eastasia',
+    })
+    const follower = createSyncedContext(namespace, 'follower-only')
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await vi.waitFor(() => expect(useProviderConfigStore(follower.pinia).configs['microsoft-speech']?.apiKey).toBe('key'))
+    await new Promise(resolve => setTimeout(resolve, 100))
+    const fetchCatalog = vi.fn<typeof fetch>(async () => Response.json({ voices: [] }))
+    vi.stubGlobal('fetch', fetchCatalog)
+    const postMessage = BroadcastChannel.prototype.postMessage
+    const delayed: Array<() => void> = []
+    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage').mockImplementation(function (this: BroadcastChannel, message) {
+      if (JSON.stringify(message).includes('loadVoiceCatalog')) {
+        const snapshot = structuredClone(message)
+        delayed.push(() => postMessage.call(this, snapshot))
+        return
+      }
+      postMessage.call(this, message)
+    })
+    const pending = follower.speechStore.loadVoicesForProvider('microsoft-speech')
+    await vi.waitFor(() => expect(delayed.length).toBeGreaterThan(0))
+    await follower.speechStore.resetState()
+    traffic.mockRestore()
+    for (const deliver of delayed)
+      deliver()
+    await expect(pending).resolves.toEqual([])
+    // Await the same channel's next action so the delayed request has run.
+    await follower.speechStore.ensureActiveSpeechVoice()
+    expect(fetchCatalog).not.toHaveBeenCalled()
+    expect(leader.speechStore.availableVoices['microsoft-speech']).toBeUndefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3965793959
+  // ROOT CAUSE: A new configuration cleared the catalog but kept its selected
+  // voice. Failed replacement IO then left speech configured with a stale voice.
+  it('clears the selected voice before loading a different configuration', async () => {
+    const leader = createSyncedContext(`speech:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    await useProviderConfigStore(leader.pinia).ensureProvider('microsoft-speech', 'microsoft-speech', {
+      apiKey: 'key',
+      baseUrl: 'https://old.invalid/v1/',
+      region: 'eastasia',
+    })
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [{ id: 'old', name: 'Old', languages: [] }] })))
+    await leader.speechStore.selectProviderModel('microsoft-speech', 'model')
+    await vi.waitFor(() => expect(leader.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('old'))
+    leader.speechStore.activeSpeechVoiceId = 'old'
+    await leader.speechStore.ensureActiveSpeechVoice()
+    expect(leader.speechStore.configured).toBe(true)
+    let fail!: (error: Error) => void
+    const response = new Promise<Response>((_, reject) => {
+      fail = reject
+    })
+    const fetchCatalog = vi.fn<typeof fetch>(() => response)
+    vi.stubGlobal('fetch', fetchCatalog)
+    const pending = leader.speechStore.loadVoiceCatalog('microsoft-speech', 'model', {
+      definitionId: 'microsoft-speech',
+      config: { apiKey: 'new-key', baseUrl: 'https://new.invalid/v1/', region: 'westus' },
+    })
+    const rejection = expect(pending).rejects.toThrow('unavailable')
+    try {
+      await vi.waitFor(() => expect(fetchCatalog).toHaveBeenCalledOnce())
+      expect(leader.speechStore.activeSpeechVoiceId).toBe('')
+      expect(leader.speechStore.activeSpeechVoice).toBeUndefined()
+      expect(leader.speechStore.configured).toBe(false)
+    }
+    finally {
+      fail(new Error('unavailable'))
+      await rejection
+    }
+  })
+
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3959813206
   // ROOT CAUSE:
   //
@@ -259,14 +411,22 @@ describe('speech synchronization', () => {
     leader.speechStore.activeSpeechProvider = 'official-provider-speech'
     await new Promise(resolve => setTimeout(resolve, 100))
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
-    leader.speechStore.$patch({
-      activeSpeechProvider: 'official-provider-speech',
-      activeSpeechVoiceId: '',
-      availableVoices: { 'official-provider-speech': [
-        { id: 'fallback', name: 'Fallback', languages: [{ code: 'en-US', title: 'English' }], provider: 'official-provider-speech' },
-        { id: 'voice', name: 'Voice', recommendedFor: ['en-US'], languages: [{ code: 'en-US', title: 'English' }], provider: 'official-provider-speech' },
-      ] },
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+      flux: 0,
+      voices: [
+        { id: 'fallback', name: 'Fallback', languages: [{ code: 'en-US', title: 'English' }] },
+        { id: 'voice', name: 'Voice', languages: [{ code: 'en-US', title: 'English' }] },
+      ],
+      recommended: { 'en-US': 'voice' },
+    })))
+    const now = new Date()
+    useAuthStore(leader.pinia).$patch({
+      token: 'access-token',
+      user: { id: 'owner', name: 'Owner', email: 'owner@example.com', emailVerified: true, createdAt: now, updatedAt: now },
+      session: { id: 'session', userId: 'owner', token: 'session-token', createdAt: now, updatedAt: now, expiresAt: new Date(now.getTime() + 60000) },
     })
+    await vi.waitFor(() => expect(useAuthStore(follower.pinia).isAuthenticated).toBe(true))
+    await leader.speechStore.loadVoicesForProvider('official-provider-speech')
     await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoiceId).toBe('voice'))
     await new Promise(resolve => setTimeout(resolve, 100))
     expect(selections).toBeGreaterThan(0)
