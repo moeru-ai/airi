@@ -1,36 +1,15 @@
-import type { GenerationProvider } from '@proj-airi/provider-inference'
-import type { Tool, Usage } from '@xsai/shared-chat'
+import type { GenerationRequest } from '@proj-airi/provider-inference'
+import type { Usage } from '@xsai/shared-chat'
 
-import type { ConversationContext } from '../messages/types'
 import type { StreamEvent, StreamFromOptions, StreamOptions } from '../types/llm'
 
 import { streamChatCompletions } from './chat-completions'
+import { createContinuationScope } from './request-context'
 import { streamResponses } from './responses'
 
-export function modelKey(model: string, chatProvider: GenerationProvider): string {
-  const { protocol, config } = chatProvider.generation(model)
+/** Builds a compatibility-cache key from the same configuration used by the request. */
+export function modelKey(model: string, { protocol, config }: GenerationRequest): string {
   return `${protocol === 'responses' ? 'responses:' : ''}${config.baseURL}-${model}`
-}
-
-export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: GenerationProvider, options?: StreamOptions): boolean {
-  if (options?.supportsTools !== undefined)
-    return options.supportsTools
-  const key = modelKey(model, chatProvider)
-  return options?.toolsCompatibility?.get(key) !== false
-}
-
-/**
- * Resolve whether the active model+provider currently supports content-part
- * arrays. Defaults to `true` so first-time calls keep multimodal payloads;
- * flips to `false` once {@link isContentArrayRelatedError} has fired on this
- * model key and the caller has cached the degrade in
- * {@link StreamOptions.contentArrayCompatibility}.
- */
-export function streamOptionsContentArrayCompatibilityOk(model: string, chatProvider: GenerationProvider, options?: StreamOptions): boolean {
-  if (options?.supportsContentArray !== undefined)
-    return options.supportsContentArray
-  const key = modelKey(model, chatProvider)
-  return options?.contentArrayCompatibility?.get(key) !== false
 }
 
 async function resolveTools(options?: StreamOptions) {
@@ -40,39 +19,27 @@ async function resolveTools(options?: StreamOptions) {
   return tools ?? []
 }
 
-function startStream(chatProvider: GenerationProvider, model: string, context: ConversationContext, options: StreamOptions | undefined, tools: Tool[] | undefined, onEvent: (event: StreamEvent) => Promise<void>) {
-  const request = chatProvider.generation(model)
-  const { config } = request
-  if (request.protocol === 'responses') {
-    const scope = JSON.stringify([options?.providerId, String(config.baseURL), model, options?.requestCorrelation?.conversationId])
-    return streamResponses({ config: request.config, webSearch: request.webSearch, context, scope, options, tools, onEvent })
-  }
-  return streamChatCompletions({
-    config: request.config,
-    context,
-    options,
-    tools,
-    onEvent,
-    scope: JSON.stringify([options?.providerId, String(config.baseURL), model, options?.requestCorrelation?.conversationId]),
-    supportsContentArray: streamOptionsContentArrayCompatibilityOk(model, chatProvider, options),
-  })
-}
-
-/** Runs the selected protocol adapter and waits for its transcript and event consumers. */
+/** Runs the selected protocol adapter and waits for its generated turn and event consumers. */
 export async function streamFrom({
   model,
   chatProvider,
-  context,
+  conversation,
   options,
   builtinToolsResolver,
 }: StreamFromOptions) {
-  const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, options)
+  // Resolve before async tool loading so all decisions use this request's configuration.
+  const request = chatProvider.generation(model)
+  const key = modelKey(model, request)
+  const supportedTools = options?.supportsTools ?? (options?.toolsCompatibility?.get(key) !== false)
+  const supportsContentArray = options?.supportsContentArray ?? (options?.contentArrayCompatibility?.get(key) !== false)
   const builtinTools = supportedTools
     ? await (builtinToolsResolver?.(model, chatProvider) ?? Promise.resolve([]))
     : []
   const customTools = supportedTools ? await resolveTools(options) : []
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
+
+  const scope = await createContinuationScope(request.config, options)
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
@@ -99,13 +66,15 @@ export async function streamFrom({
       }
       catch (error) {
         rejectOnce(error)
-        if (chatProvider.generation(model).protocol === 'responses')
+        if (request.protocol === 'responses')
           throw error
       }
     }
 
     try {
-      const streamResult = startStream(chatProvider, model, context, options, tools, onEvent)
+      const streamResult = request.protocol === 'responses'
+        ? streamResponses({ config: request.config, webSearch: request.webSearch, conversation, scope, options, tools, onEvent })
+        : streamChatCompletions({ config: request.config, conversation, scope, options, tools, onEvent, supportsContentArray })
 
       // NOTICE: Consume underlying promises to prevent unhandled rejections from
       // @xsai/stream-text's SSE parser surfacing as faulted app state.
@@ -128,14 +97,14 @@ export async function streamFrom({
         // resolved the authoritative full-step lifecycle.
         stepsSettled = true
         try {
-          const transcript = await streamResult.transcript
+          const generatedTurn = await streamResult.generatedTurn
           await options?.onStreamEvent?.({ type: 'finish' })
           if (options?.abortSignal?.aborted)
             throw options.abortSignal.reason
-          await options?.onTranscript?.(transcript)
+          await options?.onGeneratedTurn?.(generatedTurn)
         }
         catch (error) {
-          // Terminal consumers and transcript persistence belong to generation
+          // Terminal consumers and generated turn persistence belong to generation
           // completion. Their failures are not ignorable late provider events.
           if (!settled) {
             settled = true
@@ -176,7 +145,7 @@ export async function streamFrom({
       })
       // `steps` can reject before the success path awaits `messages`.
       // Keep this rejection sink so xsAI cannot create an unhandled rejection.
-      void streamResult.transcript.catch(error => console.error('Stream transcript error:', error))
+      void streamResult.generatedTurn.catch(error => console.error('Stream generated turn error:', error))
       void streamResult.usage.catch(error => console.error('Stream usage error:', error))
       // `steps` and `totalUsage` reject independently when xsAI fails a
       // stream. The success path awaits `totalUsage`, but if `steps` rejects

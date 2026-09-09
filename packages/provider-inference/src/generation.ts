@@ -14,8 +14,11 @@ export const compatibleProtocols = {
 
 /** Provider drafts can contain incomplete URLs. Only the known endpoint advertises hosted search. */
 export function supportsOpenAIWebSearchEndpoint(baseURL: string | URL): boolean {
-  if (!URL.canParse(baseURL))
+  try {
+    const endpoint = new URL(baseURL)
+    return endpoint.origin === 'https://api.openai.com' && /^\/v1\/?$/.test(endpoint.pathname)
+  }
+  catch {
     return false
-  const endpoint = new URL(baseURL)
-  return endpoint.origin === 'https://api.openai.com' && /^\/v1\/?$/.test(endpoint.pathname)
+  }
 }

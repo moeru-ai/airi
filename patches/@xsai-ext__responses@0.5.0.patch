@@ -82,10 +82,10 @@ index c3a04a52394fdd05dad55bb072861c355137d0bd..b83cee8ba936f05f1fcdf52a343aa9c5
 -export type { FullEvent, FullEventType, OpenResponsesOptions, ResponsesOptions, ResponsesResult, StopCondition, StopContext };
 +export type { WebSearchTool, WebSearchCall, ItemParam, FullEvent, FullEventType, OpenResponsesOptions, ResponsesOptions, ResponsesResult, StopCondition, StopContext };
 diff --git a/dist/index.js b/dist/index.js
-index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..b04c931cc4f255c56151894f5461de0a8432efc2 100644
+index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..0f0d70ce0bf4543deb40629a3d55dcd3d1eb5833 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -9,19 +9,6 @@ const normalizeInput = (input) => Array.isArray(input) ? input : [{
+@@ -9,24 +9,31 @@ const normalizeInput = (input) => Array.isArray(input) ? input : [{
    type: "message"
  }];
  
@@ -105,7 +105,32 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..b04c931cc4f255c56151894f5461de0a
  const toFunctionCallOutput = (result) => {
    if (typeof result === "string")
      return result;
-@@ -88,7 +75,7 @@ const responses = (options) => {
+   if (Array.isArray(result) && result.every((item) => item !== null && typeof item === "object" && "type" in item && ["input_file", "input_image", "input_text"].includes(item.type)))
+     return result;
++  // NOTICE:
++  // Shared Chat tools return content parts, while Responses requires input parts.
++  // @xsai/shared-chat executeTool calls this wrapper only for the wire output.
++  // Keep tool events unchanged; remove when upstream converts these parts.
++  if (Array.isArray(result) && result.every((item) => item !== null && typeof item === "object" && (
++    item.type === "text" && typeof item.text === "string"
++    || item.type === "image_url" && typeof item.image_url?.url === "string"
++    || item.type === "file" && item.file !== null && typeof item.file === "object"
++    || item.type === "input_audio" && item.input_audio !== null && typeof item.input_audio === "object"
++  ))) {
++    return result.map((item) => {
++      if (item.type === "text")
++        return { type: "input_text", text: item.text };
++      if (item.type === "image_url")
++        return { type: "input_image", image_url: item.image_url.url, ...(item.image_url.detail === undefined ? {} : { detail: item.image_url.detail }) };
++      if (item.type === "file")
++        return { ...item.file, type: "input_file" };
++      throw new Error("Responses function output does not support Chat audio content");
++    });
++  }
+   return JSON.stringify(result);
+ };
+ const toFunctionTool = (tool) => ({
+@@ -88,7 +95,7 @@ const responses = (options) => {
    const mapFullEvent = (event) => {
      switch (event.type) {
        case "error":
@@ -114,7 +139,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..b04c931cc4f255c56151894f5461de0a
        case "response.completed":
        case "response.failed":
        case "response.incomplete":
-@@ -118,9 +105,11 @@ const responses = (options) => {
+@@ -118,9 +125,11 @@ const responses = (options) => {
          return [{ delta: event.delta, type: "text.delta" }];
        case "response.output_text.done":
          return [{ content: event.text, type: "text.done" }];
@@ -126,7 +151,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..b04c931cc4f255c56151894f5461de0a
        case "response.reasoning.done":
        case "response.reasoning_summary_text.done":
          return [{ content: event.text, type: "reasoning.done" }];
-@@ -145,19 +134,20 @@ const responses = (options) => {
+@@ -145,19 +154,20 @@ const responses = (options) => {
        case "response.refusal.delta":
          textCtrl.current?.enqueue(event.delta);
          break;
@@ -151,7 +176,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..b04c931cc4f255c56151894f5461de0a
      }
    };
    const createReader = async () => {
-@@ -174,6 +164,7 @@ const responses = (options) => {
+@@ -174,6 +184,7 @@ const responses = (options) => {
        input: stepOptions.input,
        model: stepOptions.model,
        onEvent: void 0,
@@ -159,7 +184,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..b04c931cc4f255c56151894f5461de0a
        onFinish: void 0,
        onStepFinish: void 0,
        postToolCall: void 0,
-@@ -183,7 +174,7 @@ const responses = (options) => {
+@@ -183,7 +194,7 @@ const responses = (options) => {
        stream: true,
        streamOptions: options.streamOptions != null ? objCamelToSnake(options.streamOptions) : void 0,
        toolChoice: stepOptions.toolChoice,
@@ -168,7 +193,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..b04c931cc4f255c56151894f5461de0a
      });
      return res.body.pipeThrough(new TextDecoderStream()).pipeThrough(new EventSourceParserStream()).pipeThrough(new JsonMessageTransformStream()).getReader();
    };
-@@ -194,12 +185,11 @@ const responses = (options) => {
+@@ -194,12 +205,11 @@ const responses = (options) => {
        postToolCall: options.postToolCall,
        preToolCall: options.preToolCall,
        toolCall: toToolCall(functionCall),
@@ -182,7 +207,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..b04c931cc4f255c56151894f5461de0a
        output: result,
        status: "completed",
        type: "function_call_output"
-@@ -209,7 +199,12 @@ const responses = (options) => {
+@@ -209,7 +219,12 @@ const responses = (options) => {
    const handleOutputItemDone = (event, step) => {
      if (event.item == null)
        return;
@@ -196,7 +221,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..b04c931cc4f255c56151894f5461de0a
      if (event.item.type === "function_call") {
        step.functionCalls.push(event.item);
        const toolCall = toCompletionToolCall(toToolCall(event.item));
-@@ -222,11 +217,19 @@ const responses = (options) => {
+@@ -222,11 +237,19 @@ const responses = (options) => {
      const functionCalls = [];
      const toolCalls = [];
      const toolResults = [];
@@ -217,7 +242,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..b04c931cc4f255c56151894f5461de0a
        const events = mapFullEvent(event);
        const step = { events, functionCalls, toolCalls};
        switch (event.type) {
-@@ -251,7 +254,7 @@ const responses = (options) => {
+@@ -251,7 +274,7 @@ const responses = (options) => {
              for (const { completionToolCall, completionToolResult, functionCallOutput } of results) {
                toolCalls.push(completionToolCall);
                toolResults.push(completionToolResult);
@@ -226,7 +251,7 @@ index bf8f79fff2289bb8a9d668fbd228ccf54f7d6fa5..b04c931cc4f255c56151894f5461de0a
                events.push({ ...completionToolResult, type: "tool-result.done" });
              }
              if (stepDoneEvent != null)
-@@ -280,11 +283,18 @@ const responses = (options) => {
+@@ -280,11 +303,18 @@ const responses = (options) => {
            break;
        }
        pushStreamingEvent(event);

@@ -2,7 +2,7 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { Tool, ToolChoice } from '@xsai/shared-chat'
 
-import type { ConversationContext } from '../../messages/types'
+import type { Conversation } from '../../messages/types'
 import type { StreamEvent } from '../../types/llm'
 import type { SparkNotifyCommandDraft } from './tools'
 
@@ -138,7 +138,7 @@ export interface SparkNotifyRunRequest {
   /** Resolved model and provider for this run. */
   selectedChat: SparkNotifySelectedChat
   /** Context projected by the host-selected protocol adapter. */
-  context: ConversationContext
+  conversation: Conversation
   /** Tools exposed for this one model call. */
   tools: Tool[]
   /** Tool handling policy for this run. */

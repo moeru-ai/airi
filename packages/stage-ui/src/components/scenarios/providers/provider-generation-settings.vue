@@ -59,17 +59,17 @@ const webSearch = computed(() => {
   return parsed?.success === true && parsed.data === true
 })
 
-function setField(...[key, value]: ['api', string | undefined] | ['webSearch', boolean]) {
+/**
+ * Triggering workflow:
+ * Combobox/Checkbox `update:modelValue` -> {@link setField} -> {@link store.patchProviderConfig}.
+ */
+async function setField(...[key, value]: ['api', string | undefined] | ['webSearch', boolean]) {
   // Clearing the combobox does not select a protocol. Keep the current choice.
   if (value === undefined)
     return
-  // Config references belong to the persisted provider snapshot. Defaults are
-  // presentation-only until the user changes a field, including explicit false.
-  const config = store.getProviderConfig(props.providerId)
-  // The settings page initializes this instance. Ignore a late UI event if the
-  // provider was removed by another window, rather than recreating it.
-  if (config)
-    config[key] = value
+  // Apply only the changed field on the leader. The action ignores a provider
+  // removed by another window before this event arrives.
+  await store.patchProviderConfig(props.providerId, { [key]: value })
 }
 </script>
 

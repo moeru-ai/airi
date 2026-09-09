@@ -18,7 +18,7 @@ const discoveredModelSchema = z.object({
 /**
  * Lists endpoint models, then adds exact-ID metadata from the route's model-bank catalog.
  * Custom endpoints receive no metadata from another route. Credentials only go to the configured endpoint.
- * Model-bank metadata never authorizes generation features. No second catalog request is made.
+ * Catalog enrichment does not select protocols or hosted tools. No second catalog request is made.
  */
 export async function listModelCatalog(
   config: Parameters<typeof listModels>[0],

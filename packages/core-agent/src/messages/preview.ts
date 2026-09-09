@@ -1,8 +1,9 @@
 import type { Message as ChatMessage } from '@xsai/shared-chat'
 
-import type { ConversationContext, MessageSegment } from './types'
+import type { Conversation, MessageSegment } from './types'
 
 import { renderSegmentText } from './render-context'
+import { projectInput } from './turns'
 
 function describeSegment(segment: MessageSegment): string {
   switch (segment.type) {
@@ -20,12 +21,25 @@ function describeSegment(segment: MessageSegment): string {
  * Builds text-only hook and devtools records, excluding native state and media payloads.
  * Media becomes a label, including media in tool results. These records must not feed inference.
  */
-export function renderConversationPreview(context: ConversationContext): ChatMessage[] {
-  return context.turns.flatMap(turn => turn.messages.map((message) => {
-    const content = message.segments.map(describeSegment).join('')
-    // Domain and tool activity is narrated as data for the existing display
-    // consumers. Only protocol adapters assign actual API roles and call ids.
-    const role = message.role === 'system' || message.role === 'developer' || message.role === 'assistant' ? message.role : 'user'
-    return { role, content }
-  }))
+export function renderConversationPreview(context: Conversation): ChatMessage[] {
+  return context.turns.flatMap<ChatMessage>((turn) => {
+    if (turn.type !== 'assistant') {
+      const entry = projectInput(turn)
+      return [{ role: entry.role === 'system' || entry.role === 'developer' ? entry.role : 'user', content: entry.segments.map(describeSegment).join('') }]
+    }
+    return turn.rounds.map(round => ({
+      role: 'assistant',
+      content: round.content.map((part) => {
+        if (part.type !== 'tool')
+          return describeSegment(part)
+        const invocation = round.toolInvocations.find(call => call.id === part.invocationId)
+        if (!invocation)
+          return '[Unknown tool]'
+        const output = invocation.execution.status === 'succeeded' || invocation.execution.status === 'failed'
+          ? invocation.execution.output.map(describeSegment).join('')
+          : `[${invocation.execution.status}]`
+        return `${invocation.name}(${invocation.arguments}): ${output}`
+      }).join(''),
+    }))
+  })
 }

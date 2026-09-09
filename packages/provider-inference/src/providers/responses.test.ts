@@ -76,3 +76,21 @@ it('declares protocol and search settings without rendering a settings page', as
     throw new Error('Expected an object configuration schema')
   expect(custom.shape.webSearch.meta()).toMatchObject({ disabled: true })
 })
+
+// https://github.com/moeru-ai/airi/pull/2477#discussion_r4002606330
+it('omits unsupported reasoning controls for OpenAI models (PR #2477)', async () => {
+  // ROOT CAUSE:
+  //
+  // The provider sent an effort for every model, including unsupported `none`.
+  // Exact catalog effort levels now gate the optional reasoning controls.
+  for (const api of ['responses', 'chat-completions'] as const) {
+    const provider = getGenerationProvider(await providerOpenAI.createProvider({ apiKey: 'test', api }))!
+    for (const reasoning of ['enabled', 'disabled'] as const) {
+      const { config } = provider.generation('gpt-4.1', { reasoning })
+      expect(config).not.toHaveProperty('reasoning')
+      expect(config).not.toHaveProperty('reasoningEffort')
+    }
+    expect(provider.generation('gpt-5', { reasoning: 'disabled' }).config).not.toHaveProperty(api === 'responses' ? 'reasoning' : 'reasoningEffort')
+    expect(provider.generation('gpt-5.1', { reasoning: 'disabled' }).config).toHaveProperty(api === 'responses' ? 'reasoning.effort' : 'reasoningEffort', 'none')
+  }
+})

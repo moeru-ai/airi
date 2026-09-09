@@ -1,9 +1,10 @@
 import type { JsonSchema } from 'xsschema'
 
 import { createSparkCommandTool } from '@proj-airi/core-agent/agents/spark-command'
+import { getDefinedProvider } from '@proj-airi/provider-inference'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { providerAzureOpenAI } from './index'
+const providerAzureOpenAI = getDefinedProvider('azure-openai')!
 
 interface ChatRequestBody {
   tools: Array<{

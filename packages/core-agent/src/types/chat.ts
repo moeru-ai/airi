@@ -1,7 +1,7 @@
 import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@proj-airi/server-shared/types'
 import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
-import type { ConversationTurn } from '../messages/types'
+import type { AssistantTurn } from '../messages/types'
 
 export interface ChatSlicesText {
   type: 'text'
@@ -41,7 +41,7 @@ export interface ChatAssistantMessage extends AssistantMessage {
    */
   providerTranscript?: Message[]
   /** Portable turn history and adapter-owned continuation data. */
-  generationTranscript?: ConversationTurn
+  generationTranscript?: AssistantTurn
   categorization?: {
     speech: string
     reasoning: string

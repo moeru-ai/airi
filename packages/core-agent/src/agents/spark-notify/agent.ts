@@ -2,7 +2,7 @@ import type { ProtocolEvents } from '@proj-airi/plugin-protocol/types'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { ToolChoice } from '@xsai/shared-chat'
 
-import type { Message } from '../../messages/types'
+import type { Turn } from '../../messages/types'
 import type { SparkNotifyCommandDraft } from './tools'
 import type {
   SparkNotifyPlugin,
@@ -202,11 +202,12 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
       ? sessions.flatMap(session => session.tools ?? [])
       : []
 
-    const messages: Message[] = [
+    const turns: Turn[] = [
       {
         id: 'spark-system',
-        role: 'system',
-        segments: [{ type: 'text', text: [
+        type: 'system',
+        authority: 'system',
+        content: [{ type: 'text', text: [
           request.systemPrompt,
           getSparkNotifyHandlingAgentInstruction(getEventSourceKey(request.event)),
           ...(request.control?.messageOverride?.appendSystemInstructions ?? []),
@@ -215,8 +216,8 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
       },
       {
         id: request.event.data.eventId,
-        role: 'user',
-        segments: [{ type: 'text', text: renderSparkNotifyUserMessage(request, userSections) }],
+        type: 'user',
+        content: [{ type: 'text', text: renderSparkNotifyUserMessage(request, userSections) }],
       },
     ]
 
@@ -225,14 +226,14 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
         await session.onEvent?.(event)
     }
 
-    await emit({ type: 'messages-rendered', payload: { eventId: request.event.data.eventId, source: request.event.source, messageCount: messages.length } })
+    await emit({ type: 'messages-rendered', payload: { eventId: request.event.data.eventId, source: request.event.source, messageCount: turns.length } })
     await emit({ type: 'tools-prepared', payload: { eventId: request.event.data.eventId, toolNames: tools.flatMap(tool => tool.function?.name ? [tool.function.name] : []), toolCount: tools.length, supportsTools: policy.supportsTools } })
     await emit({ type: 'model-input', payload: { eventId: request.event.data.eventId, model: request.selectedChat.model, provider: request.selectedChat.providerId, supportsTools: policy.supportsTools, waitForTools: policy.waitForTools } })
 
     let reaction = ''
     await options.runner.run({
       selectedChat: request.selectedChat,
-      context: { turns: [{ messages }] },
+      conversation: { turns },
       tools,
       policy,
       onStreamEvent: async (streamEvent) => {

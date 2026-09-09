@@ -1,4 +1,4 @@
-import type { ConversationContext } from '@proj-airi/core-agent'
+import type { Conversation } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 
 import type { VisionWorkloadId } from './use-vision-workloads'
@@ -61,11 +61,11 @@ export function useVisionInference() {
         }
       : provider
 
-    const context: ConversationContext = { turns: [{ messages: [{
+    const context: Conversation = { turns: [{
       id: 'vision-input',
-      role: 'user',
-      segments: [{ type: 'text', text: prompt }, { type: 'image', url }],
-    }] }] }
+      type: 'user',
+      content: [{ type: 'text', text: prompt }, { type: 'image', url }],
+    }] }
 
     let buffer = ''
     const abortController = new AbortController()

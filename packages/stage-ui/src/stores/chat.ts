@@ -1,4 +1,4 @@
-import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ConversationContext, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { Message } from '@xsai/shared-chat'
@@ -8,7 +8,7 @@ import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } fr
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
-import { createChatOrchestratorRuntime } from '@proj-airi/core-agent'
+import { createChatOrchestratorRuntime, renderConversationPreview } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -204,17 +204,18 @@ export const useChatStore = defineStore('chat', () => {
   async function streamWithStageAdapters(
     model: string,
     chatProvider: GenerationProvider,
-    context: ConversationContext,
+    context: Conversation,
     options?: StreamOptions,
   ) {
-    const messages = context.turns.flatMap(turn => turn.messages)
+    // These metrics count display records; the selected adapter owns wire message counts.
+    const messages = renderConversationPreview(context)
     let llmTextLength = 0
     let llmOutputChunkCount = 0
     const llmOutputChunkLengths: number[] = []
     const headers = { ...options?.headers }
     if (getProviderMode(activeProvider.value) === 'official' && options?.requestCorrelation) {
       headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
-      headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.roundId
+      headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
       headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
     }
 
@@ -230,7 +231,7 @@ export const useChatStore = defineStore('chat', () => {
       [IOAttributes.GenAIRequestModel]: model,
       [IOAttributes.LLMInputMessageCount]: messages.length,
       [IOAttributes.LLMInputUserMessageCount]: messages.filter(message => message.role === 'user').length,
-      [IOAttributes.TurnId]: options?.requestCorrelation?.roundId ?? '',
+      [IOAttributes.TurnId]: options?.requestCorrelation?.turnId ?? '',
     })
     llmSpan.setAttribute(IOAttributes.LLMInputMessageRoles, messages.map(message => message.role))
     const llmRequestTs = performance.now()

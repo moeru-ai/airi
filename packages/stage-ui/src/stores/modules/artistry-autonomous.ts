@@ -2,7 +2,7 @@ import type { Message } from '@xsai/shared-chat'
 
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
-import { readChatMessages, streamFrom } from '@proj-airi/core-agent'
+import { chatMessagesToTurns, streamFrom } from '@proj-airi/core-agent'
 import { artistryGenerateHeadless } from '@proj-airi/stage-shared'
 import { defineStore } from 'pinia'
 import { ref, toRaw } from 'vue'
@@ -177,7 +177,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
       await streamFrom({
         model: modelId,
         chatProvider,
-        context: { turns: [{ messages: readChatMessages(messages) }] },
+        conversation: { turns: chatMessagesToTurns(messages) },
         options: { onStreamEvent: (event) => {
           if (event.type === 'text-delta')
             responseText += event.text

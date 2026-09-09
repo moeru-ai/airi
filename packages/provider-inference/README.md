@@ -64,3 +64,7 @@ Upgrade the pinned model-bank dependency to refresh metadata.
 `ModelInfo.metadata` uses model-bank's exported `AIChatModelCard` contract for abilities, settings, and pricing.
 Currency and fixed, tiered, or lookup pricing remain intact. Catalog prices are advisory data, not Flux billing quotes.
 Reported search abilities do not select a native tool implementation.
+
+OpenAI reasoning controls use the exact model entry and effort levels from the pinned catalog.
+Unsupported effort values are omitted. In particular, models without a `none` effort keep their server default when reasoning is disabled.
+Generation validation uses the configured model before consulting the endpoint model list.

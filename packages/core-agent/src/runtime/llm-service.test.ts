@@ -1,11 +1,11 @@
 import type { GenerationProvider } from '@proj-airi/provider-inference'
-import type { Message, Tool } from '@xsai/shared-chat'
+import type { CompletionStep, Message, Tool } from '@xsai/shared-chat'
 
-import type { ConversationContext } from '../messages/types'
+import type { Conversation } from '../messages/types'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { readChatMessages, renderChatContext } from '../messages/chat-completions'
+import { chatMessagesToTurns, conversationToChatMessages } from '../messages/chat-completions'
 import { isContentArrayRelatedError, streamFrom } from './llm-service'
 
 const { streamTextMock } = vi.hoisted(() => ({
@@ -33,9 +33,36 @@ function createMockStreamResult(
   totalUsage: Promise<{ inputTokens: number, outputTokens: number, totalTokens: number } | undefined> = Promise.resolve(undefined),
   messages: Promise<Message[]> = Promise.resolve([]),
 ) {
+  const completedSteps: CompletionStep[] = []
+  let settledMessages: Promise<Message[]> | undefined
   return {
-    steps,
-    messages,
+    get steps() { return steps.then(original => completedSteps.length ? completedSteps : original) },
+    get messages() {
+      return settledMessages ??= messages.then(async (output) => {
+        const options = streamTextMock.mock.lastCall?.[0]
+        if (!options || output.length === 0)
+          return output
+        const input: Message[] = structuredClone(options.messages)
+        const generated = output.slice(input.length)
+        let step: Message[] = []
+        function finishStep() {
+          if (!step.length)
+            return
+          options.prepareStep?.({ input, model: options.model, stepNumber: 0, steps: [] })
+          input.push(...step)
+          const completion: CompletionStep = { finishReason: 'stop', toolCalls: [], toolResults: [] }
+          completedSteps.push(completion)
+          step = []
+        }
+        for (const entry of generated) {
+          if (entry.role === 'assistant')
+            finishStep()
+          step.push(entry)
+        }
+        finishStep()
+        return output
+      })
+    },
     usage: Promise.resolve(undefined),
     totalUsage,
   }
@@ -47,7 +74,7 @@ describe('streamFrom tool errors', () => {
   })
 
   it('emits the final xsAI messages after all tool rounds finish', async () => {
-    const onTranscript = vi.fn()
+    const onGeneratedTurn = vi.fn()
     const finalMessages: Message[] = [
       { role: 'user', content: 'Check the weather.' },
       {
@@ -73,12 +100,13 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      context: { turns: [{ messages: readChatMessages(finalMessages.slice(0, 1)) }] },
-      options: { onTranscript },
+      conversation: { turns: chatMessagesToTurns(finalMessages.slice(0, 1)) },
+      options: { onGeneratedTurn },
     })
 
-    expect(onTranscript).toHaveBeenCalledTimes(1)
-    expect(onTranscript).toHaveBeenCalledWith(expect.objectContaining({ messages: readChatMessages(finalMessages.slice(1)) }))
+    expect(onGeneratedTurn).toHaveBeenCalledTimes(1)
+    expect(onGeneratedTurn.mock.calls[0][0].rounds).toHaveLength(2)
+    expect(conversationToChatMessages({ turns: [onGeneratedTurn.mock.calls[0][0]] })).toEqual(finalMessages.slice(1))
   })
 
   it('ignores provider errors after steps resolve while final messages are pending', async () => {
@@ -99,12 +127,12 @@ describe('streamFrom tool errors', () => {
     // provider error could then reject a stream whose authoritative steps
     // promise had already resolved.
     //
-    // We mark steps settled before awaiting the final transcript, while still
-    // treating transcript persistence failures as real stream failures.
+    // We mark steps settled before awaiting the final generated turn, while still
+    // treating generated turn persistence failures as real stream failures.
     const pending = streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
     })
 
     await vi.waitFor(() => expect(onEvent).toBeTypeOf('function'))
@@ -125,7 +153,7 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
       options: { onUsage },
     })
 
@@ -148,7 +176,7 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
       options: { onUsage },
     })
 
@@ -165,7 +193,7 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
       options: { onUsage },
     })
 
@@ -181,7 +209,8 @@ describe('streamFrom tool errors', () => {
     }
     process.on('unhandledRejection', onUnhandledRejection)
 
-    streamTextMock.mockReturnValueOnce(createMockStreamResult(
+    // Rejections begin when the SDK starts, after request preparation finishes.
+    streamTextMock.mockImplementationOnce(() => createMockStreamResult(
       Promise.reject(streamError),
       Promise.reject(totalUsageError),
     ))
@@ -190,7 +219,7 @@ describe('streamFrom tool errors', () => {
       await expect(streamFrom({
         model: 'model-a',
         chatProvider: provider,
-        context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
+        conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
       })).rejects.toThrow('provider stream failed')
       await new Promise(resolve => setImmediate(resolve))
       expect(unhandledRejections).toEqual([])
@@ -206,7 +235,7 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
       options: {
         onUsage: () => {
           throw new Error('analytics unavailable')
@@ -258,7 +287,7 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'play chess' }]) }] },
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'play chess' }]) },
       options: {
         tools: [failingTool],
         onStreamEvent: (event) => {
@@ -287,7 +316,7 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      context: { turns: [{ messages: readChatMessages([{ role: 'user', content: 'hello' }]) }] },
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
       options: {
         onStreamEvent: async (event) => {
           if (event.type === 'finish')
@@ -299,8 +328,8 @@ describe('streamFrom tool errors', () => {
 })
 
 describe('chat protocol compatibility', () => {
-  function projectChat(messages: Parameters<typeof readChatMessages>[0], supportsContentArray = true) {
-    return renderChatContext({ turns: [{ messages: readChatMessages(messages) }] }, supportsContentArray)
+  function projectChat(messages: Parameters<typeof chatMessagesToTurns>[0], supportsContentArray = true) {
+    return conversationToChatMessages({ turns: chatMessagesToTurns(messages) }, supportsContentArray)
   }
   it('rewrites internal `error`-role messages as user-role narrations', () => {
     /**
@@ -447,33 +476,33 @@ describe('isContentArrayRelatedError', () => {
 
 it('preserves native Chat reasoning for an unchanged turn and drops it on a model switch', async () => {
   const output: Message[] = [{ role: 'assistant', content: 'answer', reasoning_content: 'provider state' }]
-  const context: ConversationContext = { turns: [] }
+  const context: Conversation = { turns: [] }
   streamTextMock.mockReturnValueOnce(createMockStreamResult(Promise.resolve([]), Promise.resolve(undefined), Promise.resolve(output)))
-  await streamFrom({ model: 'test', chatProvider: provider, context, options: { onTranscript: (turn) => {
+  await streamFrom({ model: 'test', chatProvider: provider, conversation: context, options: { onGeneratedTurn: (turn) => {
     context.turns.push(turn)
   } } })
   streamTextMock.mockReturnValueOnce(createMockStreamResult())
-  await streamFrom({ model: 'test', chatProvider: provider, context })
+  await streamFrom({ model: 'test', chatProvider: provider, conversation: context })
   expect(streamTextMock.mock.lastCall?.[0].messages).toEqual(output)
   streamTextMock.mockReturnValueOnce(createMockStreamResult())
-  await streamFrom({ model: 'another', chatProvider: provider, context })
+  await streamFrom({ model: 'another', chatProvider: provider, conversation: context })
   expect(streamTextMock.mock.lastCall?.[0].messages).toEqual([{ role: 'assistant', content: 'answer' }])
 })
 
-it('does not publish a transcript when the terminal event consumer fails', async () => {
-  const onTranscript = vi.fn()
+it('does not publish a generated turn when the terminal event consumer fails', async () => {
+  const onGeneratedTurn = vi.fn()
   streamTextMock.mockReturnValueOnce(createMockStreamResult())
   await expect(streamFrom({
     model: 'test',
     chatProvider: provider,
-    context: { turns: [] },
+    conversation: { turns: [] },
     options: {
-      onTranscript,
+      onGeneratedTurn,
       onStreamEvent: (event) => {
         if (event.type === 'finish')
           throw new Error('terminal consumer failed')
       },
     },
   })).rejects.toThrow('terminal consumer failed')
-  expect(onTranscript).not.toHaveBeenCalled()
+  expect(onGeneratedTurn).not.toHaveBeenCalled()
 })

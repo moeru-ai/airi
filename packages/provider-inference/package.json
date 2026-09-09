@@ -55,7 +55,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@proj-airi/core-agent": "workspace:^",
     "@types/node": "catalog:",
     "@vitest/browser-playwright": "catalog:vitest",
     "@xsai/generate-speech": "catalog:",

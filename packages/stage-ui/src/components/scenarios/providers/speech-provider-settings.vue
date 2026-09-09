@@ -126,8 +126,13 @@ onMounted(async () => {
   }
 })
 
-const debouncedUpdate = useDebounceFn(() => {
-  providerStore.patchProviderConfig(props.providerId, {
+/**
+ * Triggering workflow:
+ * Settings watchers / {@link handleResetVoiceSettings} -> {@link debouncedUpdate}
+ * -> {@link providerStore.patchProviderConfig} on the leader.
+ */
+const debouncedUpdate = useDebounceFn(async () => {
+  await providerStore.patchProviderConfig(props.providerId, {
     // A provider without a credential field keeps no `apiKey` key. The guard in
     // `onMounted` stops the same key arriving by the other path.
     ...(props.hideApiKey ? {} : { apiKey: apiKey.value }),

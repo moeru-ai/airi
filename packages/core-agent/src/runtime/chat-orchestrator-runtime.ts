@@ -4,13 +4,13 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentLLMPort } from '../contracts/llm-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
-import type { ConversationContext, ConversationTurn } from '../messages/types'
+import type { AssistantTurn, Conversation, Turn } from '../messages/types'
 import type { ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
 
-import { readChatMessages } from '../messages/chat-completions'
+import { chatMessagesToTurns } from '../messages/chat-completions'
 import { formatTimePrefix } from '../messages/datetime-prefix'
 import { renderConversationPreview } from '../messages/preview'
 import { createChatHooks } from './agent-hooks'
@@ -128,6 +128,8 @@ export interface ChatOrchestratorSendOptions {
 }
 
 interface QueuedSend {
+  /** Keep provider identity paired with the client captured at enqueue time. */
+  providerId: string
   sendingMessage: string
   options: ChatOrchestratorSendOptions
   generation: number
@@ -488,21 +490,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return fallbackCreatedAt
   }
 
-  function buildContext(history: ChatHistoryItem[]): ConversationContext {
+  function buildContext(history: ChatHistoryItem[]): Conversation {
     const nowTs = now()
     const messagesById = new Map(history.flatMap(message => message.id ? [[message.id, message] as const] : []))
-    const turns = history.map((message): ConversationTurn => {
+    const turns = history.flatMap((message, historyIndex): Turn[] => {
       if (message.role === 'assistant' && message.generationTranscript)
-        return structuredClone(unwrapMessage(message.generationTranscript))
+        return [structuredClone(unwrapMessage(message.generationTranscript))]
       const source = message.role === 'user'
         ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
         : unwrapMessage(message)
-      // The existing session store uses Chat-shaped records. Decode them at
-      // this storage boundary; request adapters consume only portable context.
-      const messages = readChatMessages(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source])
-      for (const [index, entry] of messages.entries())
-        entry.id = `${message.id ?? 'history'}-${index}`
-      return { messages }
+      return chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
     })
     return { turns }
   }
@@ -513,6 +510,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     generation: number,
     sessionId: string,
     abortSignal: AbortSignal,
+    activeProvider: string,
   ) {
     if (!sendingMessage && !options.attachments?.length)
       return
@@ -582,7 +580,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const hasVoice = options.input?.type === 'input:voice'
       || options.input?.type === 'input:text:voice'
     const sendSource = hasVoice ? 'voice' : 'text'
-    const activeProvider = deps.getActiveProvider?.() ?? ''
     // The user message is the durable start of a round, so its ID also serves
     // as the correlation key for every telemetry milestone emitted by it.
     const correlation: ChatRoundCorrelation = {
@@ -752,19 +749,19 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const context = buildContext(sessionMessagesForSend)
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
-        const systemMessage = context.turns.flatMap(turn => turn.messages).find(message => message.role === 'system')
-        if (systemMessage?.role === 'system')
-          systemMessage.segments.push({ type: 'text', text: `\n\n${systemPromptSupplement}` })
+        const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
+        if (systemMessage?.type === 'system')
+          systemMessage.content.push({ type: 'text', text: `\n\n${systemPromptSupplement}` })
         else
-          context.turns.unshift({ messages: [{ id: 'system-supplement', role: 'system', segments: [{ type: 'text', text: systemPromptSupplement }] }] })
+          context.turns.unshift({ id: 'system-supplement', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPromptSupplement }] })
       }
 
       const contextsSnapshot = deps.context.snapshot()
       const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
       if (entries.length) {
-        const lastMessage = context.turns.at(-1)?.messages.at(-1)
-        if (lastMessage?.role === 'user')
-          lastMessage.segments.push({ type: 'runtime-context', entries })
+        const lastMessage = context.turns.at(-1)
+        if (lastMessage?.type === 'user')
+          lastMessage.content.push({ type: 'runtime-context', entries })
         deps.onLifecycle?.({ phase: 'prompt-context-built', channel: 'chat', sessionId, details: { contexts: contextsSnapshot } })
       }
 
@@ -797,7 +794,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const llmRequestStartedAt = monotonicNow()
       let llmFirstTokenEmitted = false
       let generationUsage: LlmUsage = { source: 'unavailable' }
-      let generationTranscript: ConversationTurn | undefined
+      let generatedTurn: AssistantTurn | undefined
       deps.onLlmRequestStarted?.({
         ...correlation,
         model: options.model,
@@ -809,10 +806,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         headers,
         providerId: activeProvider,
         abortSignal,
-        onTranscript: (transcript) => { generationTranscript = structuredClone(transcript) },
+        onGeneratedTurn: (turn) => { generatedTurn = structuredClone(turn) },
         requestCorrelation: {
           conversationId: correlation.conversationId,
-          roundId: correlation.roundId,
+          turnId: correlation.roundId,
         },
         tools: options.tools,
         temperature: options.temperature,
@@ -917,14 +914,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
 
-      buildingMessage.generationTranscript = generationTranscript
+      buildingMessage.generationTranscript = generatedTurn
       deps.onAssistantResponseRendered?.({
         ...correlation,
         model: options.model,
         latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
       })
 
-      if (!shouldAbort() && (buildingMessage.slices.length > 0 || generationTranscript?.continuation || generationTranscript?.messages.length)) {
+      if (!shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
         deps.session.appendSessionMessage(sessionId, finalAssistant)
         deps.onAssistantMessageAppended?.({
@@ -1018,7 +1015,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   const sendQueue = createQueue<QueuedSend>({
     handlers: [
       async ({ data }) => {
-        const { sendingMessage, options, generation, deferred, sessionId, cancelled } = data
+        const { sendingMessage, options, generation, deferred, sessionId, cancelled, providerId } = data
 
         if (cancelled)
           return
@@ -1031,7 +1028,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         const controller = new AbortController()
         activeSends.set(sessionId, controller)
         try {
-          await performSend(sendingMessage, options, generation, sessionId, controller.signal)
+          await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId)
           deferred.resolve()
         }
         catch (error) {
@@ -1064,6 +1061,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
     return new Promise<void>((resolve, reject) => {
       sendQueue.enqueue({
+        providerId: deps.getActiveProvider?.() ?? '',
         sendingMessage,
         options,
         generation,

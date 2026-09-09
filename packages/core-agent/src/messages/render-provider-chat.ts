@@ -1,8 +1,9 @@
-import type { Message, RawMessage } from './types'
+import type { ProjectionEntry } from './turns'
+import type { RawMessage } from './types'
 
 import { renderSegmentText } from './render-context'
 
-function mapStructuredRole(role: Message['role']): RawMessage['role'] {
+function mapStructuredRole(role: ProjectionEntry['role']): RawMessage['role'] {
   if (role === 'context' || role === 'event' || role === 'summary')
     return 'system'
 
@@ -26,7 +27,7 @@ function mapStructuredRole(role: Message['role']): RawMessage['role'] {
  * - Raw provider chat messages in the same order as the input entries
  */
 export function renderProviderChatMessages(input: {
-  entries: Array<Message | RawMessage>
+  entries: Array<ProjectionEntry | RawMessage>
   mode: 'session-main' | 'session-spark-notify' | 'session-spark-command' | 'eval-debug'
 }): RawMessage[] {
   const attachSourceName = input.mode !== 'session-main'

@@ -2,6 +2,7 @@ import type { ChatRequestOptions, GenerationRequest, ResponsesConfig } from '../
 
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { openaiChatModels } from 'model-bank/openai'
+import { MODEL_REASONING_EXTEND_PARAMS, MODEL_REASONING_PARAM_LEVELS } from 'model-bank/types'
 import { z } from 'zod'
 
 import { openAIProtocols, supportsOpenAIWebSearchEndpoint } from '../../../generation'
@@ -65,13 +66,18 @@ export const providerOpenAI = defineProvider<Config, 'openai'>({
       model: provider.model,
       generation(model: string, options?: ChatRequestOptions): GenerationRequest {
         const request = provider.chat(model)
+        const definition = openaiChatModels.find(entry => entry.id === model)
+        const parameter = MODEL_REASONING_EXTEND_PARAMS.find(key => definition?.settings?.extendParams?.includes(key))
+        const effort = options?.reasoning === 'enabled' ? 'medium' : 'none'
+        const supportedEfforts: readonly string[] | undefined = parameter ? MODEL_REASONING_PARAM_LEVELS[parameter] : undefined
+        // Only send an explicit effort supported by this exact model's catalog entry.
+        // Unknown models use server defaults; older reasoning models cannot disable reasoning.
+        const supportsEffort = options?.reasoning && supportedEfforts?.includes(effort)
         if ((config.api ?? openAIProtocols.defaultProtocol) === 'responses') {
           const responseConfig: ResponsesConfig = { ...request }
-          if (options?.reasoning) {
-            responseConfig.reasoning = options.reasoning === 'enabled'
-              ? { effort: 'medium', summary: 'auto' }
-              : { effort: 'none' }
-          }
+          if (supportsEffort)
+            responseConfig.reasoning = { effort, ...(options?.reasoning === 'enabled' ? { summary: 'auto' as const } : {}) }
+
           return {
             protocol: 'responses',
             webSearch: config.webSearch === true && supportsOpenAIWebSearchEndpoint(request.baseURL),
@@ -80,7 +86,7 @@ export const providerOpenAI = defineProvider<Config, 'openai'>({
         }
         return {
           protocol: 'chat-completions',
-          config: { ...request, ...(options?.reasoning ? { reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none' } : {}) },
+          config: { ...request, ...(supportsEffort ? { reasoningEffort: effort } : {}) },
         }
       },
     }

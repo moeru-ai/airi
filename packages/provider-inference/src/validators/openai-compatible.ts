@@ -11,7 +11,7 @@ import { Mutex } from 'es-toolkit'
 
 import { getGenerationProvider, isModelProvider, ProviderValidationCheck } from '../types'
 
-interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
+interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string, model?: string }> {
   checks?: ProviderValidationCheck[]
   additionalHeaders?: Record<string, string>
   allowValidationWithoutModel?: boolean
@@ -91,6 +91,9 @@ async function pickValidationModel<TConfig extends { apiKey?: string | null, bas
   provider: ProviderInstance,
   providerExtra: ProviderExtraMethods<TConfig> | undefined,
 ): Promise<string | null> {
+  // A configured model expresses the user's protocol choice. Catalog order does not.
+  if ('model' in config && typeof config.model === 'string' && config.model.trim())
+    return config.model.trim()
   try {
     const models = await resolveModels(config, provider, providerExtra)
     const modelId = extractModelId(models.find(model => !shouldSkipModelId(extractModelId(model))))
@@ -101,7 +104,7 @@ async function pickValidationModel<TConfig extends { apiKey?: string | null, bas
   }
 }
 
-export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string }>(
+export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string, model?: string }>(
   options?: OpenAICompatibleValidationOptions<TConfig>,
 ): ProviderDefinition<TConfig>['validators'] {
   const checks = options?.checks ?? [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList]
@@ -141,6 +144,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         const result = responses({
           ...generation.config,
           input: 'ping',
+          maxOutputTokens: 16,
           store: false,
           headers: additionalHeaders,
         })

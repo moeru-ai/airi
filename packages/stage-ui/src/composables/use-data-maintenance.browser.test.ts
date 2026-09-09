@@ -10,6 +10,7 @@ import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { injectKeyPiniaSynced } from '../libs/pinia/synced-context'
+import { useModsServerChannelStore } from '../stores/mods/api/channel-server'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
 import { useDiscordStore } from '../stores/modules/discord'
@@ -28,6 +29,14 @@ function mountMaintenance(namespace: string, leadership: LeadershipMode) {
   const pinia = createPinia()
   const runtime = createSyncedPiniaPlugin({ namespace, leadership })
   pinia.use(runtime.plugin)
+  // https://github.com/moeru-ai/airi/pull/2477
+  // ROOT CAUSE:
+  // Maintenance initializes the module channel. A local server can send events
+  // after this test destroys Pinia. Isolate the transport and close it before teardown.
+  const channel = useModsServerChannelStore(pinia)
+  void channel.initialize({ connector: () => ({
+    connect: () => ({ send: vi.fn(), close: vi.fn() }),
+  }) })
   let maintenance: ReturnType<typeof useDataMaintenance> | undefined
   const app = createApp({
     setup() {
@@ -42,6 +51,7 @@ function mountMaintenance(namespace: string, leadership: LeadershipMode) {
     .mount(document.createElement('div'))
   cleanups.push(() => {
     app.unmount()
+    channel.dispose()
     disposePinia(pinia)
     runtime.dispose()
   })
