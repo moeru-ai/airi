@@ -6,6 +6,7 @@ import { effectScope, nextTick } from 'vue'
 import { useScreenAmbientLight } from './use-screen-ambient-light'
 
 const capture = vi.hoisted(() => ({ start: vi.fn(), read: vi.fn(), stop: vi.fn(async () => {}) }))
+const permission = vi.hoisted(() => ({ check: vi.fn(async () => 'granted'), request: vi.fn(async () => {}) }))
 vi.mock('@moeru/eventa', async (original) => {
   const eventa = await original<typeof import('@moeru/eventa')>()
   return { ...eventa, defineInvoke: (_context: unknown, event: { sendEvent: { id: string } }) => {
@@ -25,12 +26,14 @@ vi.mock('@proj-airi/electron-vueuse', async () => {
   }
 })
 vi.mock('@proj-airi/electron-screen-capture/vue', () => ({
-  useElectronScreenCapture: () => ({ checkMacOSPermission: async () => 'granted', requestMacOSPermission: vi.fn(), selectWithSource: vi.fn() }),
+  useElectronScreenCapture: () => ({ checkMacOSPermission: permission.check, requestMacOSPermission: permission.request, selectWithSource: vi.fn() }),
 }))
 
 const scopes: ReturnType<typeof effectScope>[] = []
 beforeEach(() => {
   vi.stubGlobal('electron', { ipcRenderer: {} })
+  vi.stubGlobal('platform', 'darwin')
+  permission.check.mockResolvedValue('granted')
   setActivePinia(createPinia())
   let session = 0
   capture.start.mockImplementation(async () => `capture-${++session}`)
@@ -54,6 +57,22 @@ function start() {
 }
 
 describe('native capture recovery', () => {
+  it('does not call macOS-only permission RPCs on other platforms', async () => {
+    vi.stubGlobal('platform', 'linux')
+    start()
+    await vi.waitFor(() => expect(capture.start).toHaveBeenCalled())
+    expect(permission.check).not.toHaveBeenCalled()
+    expect(permission.request).not.toHaveBeenCalled()
+  })
+
+  it('requests undetermined screen-recording permission on macOS', async () => {
+    permission.check.mockResolvedValue('not-determined')
+    start()
+    await vi.waitFor(() => expect(capture.start).toHaveBeenCalled())
+    expect(permission.check).toHaveBeenCalled()
+    expect(permission.request).toHaveBeenCalledOnce()
+  })
+
   it('reconnects a lost session without changing the enabled preference', async () => {
     // ROOT CAUSE:
     // A lost native session wrote false into persisted settings. A transient

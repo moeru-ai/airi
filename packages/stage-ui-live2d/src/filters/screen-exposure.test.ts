@@ -14,6 +14,39 @@ function advance(meter: ScreenExposure, from: number, to: number, step = 100) {
 }
 
 describe('screen exposure', () => {
+  it('drives squint from the same adapting brightness meter as bloom', () => {
+    const meter = new ScreenExposure()
+    meter.configure(environment(0.01), options, true, 0)
+    expect(meter.brightnessRise).toBe(0)
+    const darkGain = meter.bloomGain
+    meter.configure(environment(1), options, true, 0)
+    expect(meter.brightnessRise).toBeCloseTo(0.99)
+    expect(meter.bloomGain).toBe(darkGain)
+    advance(meter, 0, 1000)
+    expect(meter.brightnessRise).toBeLessThan(0.99)
+    expect(meter.bloomGain).toBeLessThan(darkGain)
+    advance(meter, 1000, 30000)
+    expect(meter.brightnessRise).toBeLessThan(0.001)
+    meter.configure(environment(0), options, true, 30000)
+    expect(meter.brightnessRise).toBe(0)
+  })
+
+  it('does not replay brightness rises when adaptation starts or resumes', () => {
+    const meter = new ScreenExposure()
+    meter.configure(environment(1), options, true, 0)
+    expect(meter.brightnessRise).toBe(0)
+    meter.configure(environment(0.01), options, true, 0)
+    meter.advance(10000)
+    meter.configure(environment(1), options, true, 20000)
+    expect(meter.brightnessRise).toBe(0)
+    meter.configure(environment(0.01), options, true, 20000)
+    meter.advance(30000)
+    meter.configure(environment(1), { ...options, adaptiveBloom: false }, true, 30000)
+    expect(meter.brightnessRise).toBe(0)
+    meter.configure(environment(1), options, false, 30000)
+    expect(meter.brightnessRise).toBe(0)
+  })
+
   it('maps full-screen mean brightness through a bounded monotonic baseline curve', () => {
     const meter = new ScreenExposure()
     const base = { ...options, adaptiveBase: true, darkBase: 0.2, brightBase: 0.6, baseCurve: 0.5 }

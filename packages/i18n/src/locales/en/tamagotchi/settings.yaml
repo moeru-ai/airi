@@ -73,6 +73,9 @@ devtools:
       strength:
         title: Light strength
         description: Set the overall effect amount. 1 is the designed look, and up to 3 makes the color cast and the light wrap stronger.
+      squint:
+        title: Light squint
+        description: Narrow the eyes when light rises above the adapted level used by bloom. Requires linear screen lighting and adaptive bloom. 0 disables the reaction.
       main-window-note: Changes appear in the main AIRI window.
       normals:
         title: Model lighting

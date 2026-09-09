@@ -17,6 +17,7 @@ const {
   screenAmbientLightMode,
   screenAmbientLightSource,
   screenAmbientLightStrength,
+  screenAmbientLightSquint,
 } = storeToRefs(useSettingsScreenAmbientLight())
 
 const sourceOptions = computed<SelectTabOption<ScreenAmbientLightSource>[]>(() => [
@@ -108,6 +109,17 @@ function formatMultiplier(value: number) {
       :format-value="formatMultiplier"
       :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.strength.title')"
       :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.strength.description')"
+    />
+
+    <FieldRange
+      v-model="screenAmbientLightSquint"
+      :min="0"
+      :max="1"
+      :step="0.01"
+      :default-value="ambientLightDefaults.squint"
+      :format-value="formatMultiplier"
+      :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.squint.title')"
+      :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.squint.description')"
     />
 
     <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">

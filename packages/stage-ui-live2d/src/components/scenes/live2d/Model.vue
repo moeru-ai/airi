@@ -36,6 +36,7 @@ import {
   useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
+  useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginLipSync,
   useMotionUpdatePluginManualControl,
 } from '../../../composables/live2d'
@@ -73,6 +74,7 @@ const props = withDefaults(defineProps<{
   screenAmbientLightEnvironment?: AmbientLightEnvironment
   screenAmbientLightMode?: ScreenAmbientLightMode
   screenAmbientLightStrength?: number
+  screenAmbientLightSquint?: number
   screenAmbientLightMaterial?: AmbientLightMaterialOptions
   screenAmbientLightGeometry?: AmbientLightScreenGeometry
 }>(), {
@@ -98,6 +100,7 @@ const props = withDefaults(defineProps<{
   screenAmbientLightEnvironment: () => ambientLightNeutralEnvironment,
   screenAmbientLightMode: ambientLightDefaults.mode,
   screenAmbientLightStrength: ambientLightDefaults.strength,
+  screenAmbientLightSquint: ambientLightDefaults.squint,
   screenAmbientLightMaterial: () => ({ ...ambientLightDefaults.material }),
   screenAmbientLightGeometry: () => ({ ...ambientLightDefaults.geometry }),
 })
@@ -472,6 +475,10 @@ async function performModelLoad() {
     // This ensures blink respects expression state (0 × blinkFactor = 0).
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginLightSquint(
+      () => screenAmbientLightFilter.value.exposure.brightnessRise,
+      () => props.screenAmbientLightActive ? props.screenAmbientLightSquint : 0,
+    ), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')

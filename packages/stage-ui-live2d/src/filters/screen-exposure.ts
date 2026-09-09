@@ -24,6 +24,17 @@ export class ScreenExposure {
   bloomGain = 1
   glareGain = 1
 
+  /**
+   * Positive brightness change relative to bloom's adapted meter, from 0 to 1.
+   * Eye motion consumes this before artistic bloom gain or camera exposure.
+   * A steady scene, darkness, or disabled adaptation produces no reaction.
+   */
+  get brightnessRise(): number {
+    if (!this.enabled || !this.options.adaptiveBloom)
+      return 0
+    return Math.max(0, 1 - 2 ** (this.adaptedLog - this.targetLog))
+  }
+
   /** Current ambient fill; undefined preserves the manually configured baseline. */
   get baseBrightness(): number | undefined {
     if (!this.enabled || !this.options.adaptiveBase)

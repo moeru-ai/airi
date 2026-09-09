@@ -315,6 +315,12 @@ approximates shadowed area light; it does not repeat the polygon integrals.
 
 The Lambertian area response bypasses the hair's old diffuse shaping curve.
 Exposure, color strength, material masks, and bloom remain outside the cache.
+The **Light squint** control uses the same adapted brightness meter as bloom.
+A rise above that level briefly narrows the eyes. Steady light and darkness do
+not trigger it. It requires linear screen lighting and adaptive bloom; the
+bloom amount does not set the eye response. Existing bright/dark adaptation
+times govern the shared meter. Blinks can still close the eyes, manual controls
+retain priority, and window movement suppresses the current lighting reaction.
 The cache interpolates lighting and can soften small source details. It does not
 reconstruct depth or remove the point approximation from specular light sources.
 

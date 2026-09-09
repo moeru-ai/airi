@@ -292,6 +292,8 @@ export const ambientLightDefaults = Object.freeze({
   mode: 'window-gradient' as ScreenAmbientLightMode,
   /** Overall amount for surface lighting and silhouette light wrap. */
   strength: 1.16,
+  /** Eye reaction to brightness rising above the shared adapted level. Zero disables it. */
+  squint: 1,
   /** Surface highlights and the reviewed Iru nose correction. */
   material: Object.freeze<AmbientLightMaterialOptions>({ illustrated: true, faceShadow: 0.5, faceYaw: 45, roughness: 0.7, skinRelief: 0.8, sheen: 1.65, nose: 0.15, softHighlights: true }),
   /** Virtual screen shape used by directional Live2D surface lighting. */

@@ -13,6 +13,7 @@ const screenAmbientLightSource = useLocalStorageManualReset<ScreenAmbientLightSo
 const screenAmbientLightForcedColor = useLocalStorageManualReset<string>('settings/screen-ambient-light/forced-color', ambientLightDefaults.forcedColor)
 const screenAmbientLightMode = useLocalStorageManualReset<ScreenAmbientLightMode>('settings/screen-ambient-light/mode', ambientLightDefaults.mode)
 const screenAmbientLightStrength = useLocalStorageManualReset<number>('settings/screen-ambient-light/strength', ambientLightDefaults.strength)
+const screenAmbientLightSquint = useLocalStorageManualReset<number>('settings/screen-ambient-light/squint', ambientLightDefaults.squint)
 const screenAmbientLightAreaLights = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/area-lights', ambientLightDefaults.geometry.areaLights ?? false)
 const screenAmbientLightBend = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-bend', ambientLightDefaults.geometry.bend)
 const screenAmbientLightGap = useLocalStorageManualReset<number>('settings/screen-ambient-light/screen-gap', ambientLightDefaults.geometry.gap)
@@ -69,6 +70,7 @@ function resetState() {
   screenAmbientLightForcedColor.reset()
   screenAmbientLightMode.reset()
   screenAmbientLightStrength.reset()
+  screenAmbientLightSquint.reset()
   screenAmbientLightIllustrated.reset()
   screenAmbientLightFaceShadow.reset()
   screenAmbientLightFaceYaw.reset()
@@ -114,6 +116,7 @@ export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambien
     screenAmbientLightForcedColor,
     screenAmbientLightMode,
     screenAmbientLightStrength,
+    screenAmbientLightSquint,
     screenAmbientLightIllustrated,
     screenAmbientLightFaceShadow,
     screenAmbientLightFaceYaw,

@@ -79,6 +79,7 @@ const {
   screenAmbientLightExposureRange,
   screenAmbientLightMode,
   screenAmbientLightStrength,
+  screenAmbientLightSquint,
   screenAmbientLightIllustrated,
   screenAmbientLightFaceShadow,
   screenAmbientLightFaceYaw,
@@ -219,6 +220,7 @@ defineExpose({
         :screen-ambient-light-environment="screenAmbientLightEnvironment"
         :screen-ambient-light-mode="screenAmbientLightMode"
         :screen-ambient-light-strength="screenAmbientLightStrength"
+        :screen-ambient-light-squint="screenAmbientLightSquint"
         :screen-ambient-light-geometry="screenAmbientLightGeometry"
         :screen-ambient-light-material="screenAmbientLightMaterial"
         @error="emit('error', $event)"
