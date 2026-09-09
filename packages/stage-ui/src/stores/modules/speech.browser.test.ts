@@ -212,4 +212,28 @@ describe('speech synchronization', () => {
       await oldLoad
     }
   })
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960674493
+  // ROOT CAUSE: A remote catalog triggered local auto-pick state proposals.
+  it('routes automatic voice selection to the leader without follower proposals', async () => {
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const follower = createSyncedContext(namespace, 'follower-only')
+    await new Promise(resolve => setTimeout(resolve, 100))
+    let selections = 0
+    leader.speechStore.$onAction(({ name }) => {
+      if (name === 'ensureActiveSpeechVoice')
+        selections++
+    })
+    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+    leader.speechStore.$patch({
+      activeSpeechProvider: 'official-provider-speech',
+      activeSpeechVoiceId: '',
+      availableVoices: { 'official-provider-speech': [{ id: 'voice', name: 'Voice', languages: [{ code: 'en-US', title: 'English' }], provider: 'official-provider-speech' }] },
+    })
+    await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoiceId).toBe('voice'))
+    await new Promise(resolve => setTimeout(resolve, 100))
+    expect(selections).toBeGreaterThan(0)
+    expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
+  })
 })

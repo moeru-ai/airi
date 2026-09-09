@@ -168,6 +168,7 @@ export const useProviderStore = defineStore('provider', () => {
   // Authentication epochs are local request ownership, never replicated state.
   // Logout, account changes, and token replacement invalidate old completions.
   let voiceSessionEpoch = 0
+  let voiceOwnerEpoch = 0
   const authenticatedVoiceControllers = new Set<AbortController>()
   /** Ends authentication-owned requests before a new session can create replacements. */
   function invalidateVoiceSession() {
@@ -177,7 +178,14 @@ export const useProviderStore = defineStore('provider', () => {
     authenticatedVoiceControllers.clear()
   }
   watch(() => [authStore.isAuthenticated, authStore.session?.id, authStore.token], invalidateVoiceSession, { flush: 'sync' })
-  onScopeDispose(invalidateVoiceSession)
+  // Token renewal retains request ownership; logout and account changes do not.
+  watch(() => [authStore.isAuthenticated, authStore.session?.id, authStore.user?.id], () => {
+    voiceOwnerEpoch++
+  }, { flush: 'sync' })
+  onScopeDispose(() => {
+    voiceOwnerEpoch++
+    invalidateVoiceSession()
+  })
   const providerRevalidationLoops = new Map<string, { pause: () => void, resume: () => void }>()
 
   // Server-driven availability overrides for providers whose visibility can
@@ -603,6 +611,7 @@ export const useProviderStore = defineStore('provider', () => {
       return []
 
     const config = request.config
+    const ownerEpoch = voiceOwnerEpoch
     const sessionEpoch = definition.configuredBy === 'authentication' ? voiceSessionEpoch : undefined
     const requestKey = JSON.stringify([providerId, request.definitionId, model ?? null, config, sessionEpoch])
     const pending = providerVoiceListInFlight.get(requestKey)
@@ -637,11 +646,18 @@ export const useProviderStore = defineStore('provider', () => {
           await disposeTemporaryProvider(provider)
       }
     })()
-    providerVoiceListInFlight.set(requestKey, task)
-
-    return task.finally(() => {
+    const result = task.finally(() => {
       providerVoiceListInFlight.delete(requestKey)
+    }).then((voices) => {
+      // A token-only transition has no login hook to replace the aborted load.
+      // Retry under the current token, but never carry work into another session
+      // or revive requests after this store is disposed.
+      if (voices === undefined && ownerEpoch === voiceOwnerEpoch && hasProviderVoiceCatalogAccess(request.definitionId))
+        return listProviderVoices(providerId, model, request)
+      return voices
     })
+    providerVoiceListInFlight.set(requestKey, result)
+    return result
   }
 
   async function loadProviderModel(

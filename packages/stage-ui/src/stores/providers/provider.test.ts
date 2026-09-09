@@ -358,4 +358,33 @@ describe('provider store synchronization boundary', () => {
       vi.unstubAllGlobals()
     }
   })
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960674489
+  // ROOT CAUSE: Token rotation aborted discovery without a new login hook.
+  it('restarts an interrupted catalog after token rotation in the same session', async () => {
+    const store = useProviderStore()
+    const auth = useAuthStore()
+    auth.$patch(createAuthenticatedState())
+    let requests = 0
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (_input, options) => {
+      requests++
+      if (requests === 1) {
+        return new Promise<Response>((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => reject(options.signal?.reason), { once: true })
+        })
+      }
+      return Response.json({ recommended: {}, voices: [{ id: 'rotated', name: 'Rotated', languages: [] }] })
+    }))
+    try {
+      const loading = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
+      await vi.waitFor(() => expect(requests).toBe(1))
+      const duplicate = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
+      auth.token = 'rotated-token'
+      expect((await loading)?.[0]?.id).toBe('rotated')
+      expect((await duplicate)?.[0]?.id).toBe('rotated')
+      expect(requests).toBe(2)
+    }
+    finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })

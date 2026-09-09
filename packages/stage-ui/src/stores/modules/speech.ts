@@ -14,7 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
-import { getDefaultSpeechModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
+import { getDefaultSpeechModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice } from '../../libs/providers/providers/official'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 
@@ -289,14 +289,30 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechProvider.value = 'speech-noop'
   }
 
-  setupOfficialSpeechAutoPick({
-    activeSpeechProvider,
-    activeSpeechVoiceId,
-    availableVoices,
-    uiLocale: locale,
-  })
+  // Snapshots may wake every renderer. Only the leader may apply the selection
+  // and its derived voice object; the action is idempotent for repeated calls.
+  watch([activeSpeechProvider, activeSpeechVoiceId, availableVoices], async () => {
+    await Promise.resolve()
+    try {
+      await useSpeechStore(pinia).ensureActiveSpeechVoice()
+    }
+    catch (error) {
+      console.error('Failed to route speech voice selection:', errorMessageFrom(error))
+    }
+  }, { immediate: true, deep: true })
 
-  watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
+  /** Applies official recommendations and the matching voice object in the leader. */
+  async function ensureActiveSpeechVoice() {
+    const selected = pickOfficialSpeechVoice({
+      activeSpeechProvider: activeSpeechProvider.value,
+      activeSpeechVoiceId: activeSpeechVoiceId.value,
+      availableVoices: availableVoices.value,
+      uiLocale: locale.value,
+    })
+    if (selected)
+      activeSpeechVoiceId.value = selected
+    const voiceId = activeSpeechVoiceId.value
+    const voices = availableVoices.value
     if (!voiceId)
       return
 
@@ -320,10 +336,7 @@ export const useSpeechStore = defineStore('speech', () => {
       return
 
     activeSpeechVoice.value = nextVoice
-  }, {
-    immediate: true,
-    deep: true,
-  })
+  }
 
   /**
    * Generate speech using the specified provider and settings
@@ -497,6 +510,7 @@ export const useSpeechStore = defineStore('speech', () => {
     speech,
     loadVoicesForProvider,
     loadVoiceCatalog,
+    ensureActiveSpeechVoice,
     getVoicesForProvider,
     ensureStreamingDefaultModel,
     ensureActiveSpeechModel,
@@ -506,7 +520,7 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 }, {
   synced: {
-    actions: ['loadVoiceCatalog'],
+    actions: ['loadVoiceCatalog', 'ensureActiveSpeechVoice'],
     state: true,
   },
 })

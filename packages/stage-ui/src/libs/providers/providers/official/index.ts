@@ -1,8 +1,5 @@
-import type { Ref, WatchSource } from 'vue'
-
 import type { ModelInfo, ProviderModelCatalog, VoiceInfo } from '../../types'
 
-import { watch } from 'vue'
 import { z } from 'zod'
 
 import { getAuthToken } from '../../../../libs/auth'
@@ -301,7 +298,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
       // An aborted response must not replace the current session's recommendations.
       signal?.throwIfAborted()
       // Mirror the HTTP provider: stash the server's per-locale recommendations
-      // so setupOfficialSpeechAutoPick can seed a curated default voice when
+      // so pickOfficialSpeechVoice can select a curated default voice when
       // the streaming provider becomes active.
       recommendedVoicesByProvider[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID] = (data.recommended && typeof data.recommended === 'object') ? data.recommended : {}
 
@@ -420,51 +417,48 @@ const AUTO_PICK_PROVIDER_IDS = new Set([OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SP
 // the user. The target locale is derived from the UI locale on each run — we
 // don't persist it, since that was the root of the cross-provider filter
 // drift bug.
-export function setupOfficialSpeechAutoPick(ctx: {
-  activeSpeechProvider: Ref<string>
-  activeSpeechVoiceId: Ref<string>
-  availableVoices: Ref<Record<string, VoiceInfo[]>>
-  uiLocale: WatchSource<string> | Ref<string>
+/** Selects from the catalog and recommendations loaded in this renderer; valid selections stay unchanged. */
+export function pickOfficialSpeechVoice(ctx: {
+  activeSpeechProvider: string
+  activeSpeechVoiceId: string
+  availableVoices: Record<string, VoiceInfo[]>
+  uiLocale: string
 }) {
-  watch([ctx.availableVoices, ctx.activeSpeechProvider], ([voices, provider]) => {
-    if (!AUTO_PICK_PROVIDER_IDS.has(provider))
-      return
+  const voices = ctx.availableVoices
+  const provider = ctx.activeSpeechProvider
+  if (!AUTO_PICK_PROVIDER_IDS.has(provider))
+    return
 
-    const providerVoices = voices[provider]
-    if (!providerVoices?.length)
-      return
-    if (ctx.activeSpeechVoiceId.value && providerVoices.some(v => v.id === ctx.activeSpeechVoiceId.value))
-      return
+  const providerVoices = voices[provider]
+  if (!providerVoices?.length)
+    return
+  if (ctx.activeSpeechVoiceId && providerVoices.some(v => v.id === ctx.activeSpeechVoiceId))
+    return
 
-    const localeCodes = Array.from(new Set(
-      providerVoices.flatMap(v => (v.languages || []).map(l => l.code).filter(Boolean)),
-    )).sort()
+  const localeCodes = Array.from(new Set(
+    providerVoices.flatMap(v => (v.languages || []).map(l => l.code).filter(Boolean)),
+  )).sort()
 
-    const uiLocaleValue = typeof ctx.uiLocale === 'function'
-      ? (ctx.uiLocale as () => string)()
-      : (ctx.uiLocale as Ref<string>).value
-    const targetLocale = pickLocaleForUi(uiLocaleValue, localeCodes)
+  const targetLocale = pickLocaleForUi(ctx.uiLocale, localeCodes)
 
-    // Pick a default voice with a layered fallback so auto-pick never dumps
-    // the user into an unrelated voice (e.g. the alphabetically-first af-ZA
-    // voice when nothing matches):
-    //   1) server-recommended voice for the exact locale, then the same
-    //      language prefix
-    //   2) any other server-recommended voice for the same model
-    //   3) first voice speaking the exact target locale
-    //   4) any English voice (en-US, then en-*) — broadest comprehensible
-    //      fallback when the user's locale has no coverage at all
-    //   5) alphabetical first voice, as a last resort
-    const recommendedMap = recommendedVoicesByProvider[provider] ?? {}
-    const recommendedId = lookupRecommendedVoiceId(targetLocale, recommendedMap)
-    const speaksLocale = (v: VoiceInfo, code: string) => (v.languages || []).some(l => l.code === code)
-    const match = (recommendedId && providerVoices.find(v => v.id === recommendedId))
-      || findRecommendedVoice(providerVoices, recommendedMap)
-      || providerVoices.find(v => speaksLocale(v, targetLocale))
-      || providerVoices.find(v => speaksLocale(v, 'en-US'))
-      || providerVoices.find(v => (v.languages || []).some(l => l.code.toLowerCase().startsWith('en')))
-      || providerVoices[0]
-    if (match)
-      ctx.activeSpeechVoiceId.value = match.id
-  }, { deep: true, immediate: true })
+  // Pick a default voice with a layered fallback so auto-pick never dumps
+  // the user into an unrelated voice (e.g. the alphabetically-first af-ZA
+  // voice when nothing matches):
+  //   1) server-recommended voice for the exact locale, then the same
+  //      language prefix
+  //   2) any other server-recommended voice for the same model
+  //   3) first voice speaking the exact target locale
+  //   4) any English voice (en-US, then en-*) — broadest comprehensible
+  //      fallback when the user's locale has no coverage at all
+  //   5) alphabetical first voice, as a last resort
+  const recommendedMap = recommendedVoicesByProvider[provider] ?? {}
+  const recommendedId = lookupRecommendedVoiceId(targetLocale, recommendedMap)
+  const speaksLocale = (v: VoiceInfo, code: string) => (v.languages || []).some(l => l.code === code)
+  const match = (recommendedId && providerVoices.find(v => v.id === recommendedId))
+    || findRecommendedVoice(providerVoices, recommendedMap)
+    || providerVoices.find(v => speaksLocale(v, targetLocale))
+    || providerVoices.find(v => speaksLocale(v, 'en-US'))
+    || providerVoices.find(v => (v.languages || []).some(l => l.code.toLowerCase().startsWith('en')))
+    || providerVoices[0]
+  return match?.id
 }
