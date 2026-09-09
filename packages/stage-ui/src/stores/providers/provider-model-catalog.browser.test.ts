@@ -160,4 +160,39 @@ describe('provider model catalog synchronization', () => {
     expect(leaderContext.providerConfigStore.getProviderConfig(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)?.model).toBe('volcengine/seed-tts-1.0')
     await vi.waitFor(() => expect(followerContext.providerConfigStore.getProviderConfig(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)?.model).toBe('volcengine/seed-tts-1.0'))
   })
+
+  // https://github.com/moeru-ai/airi/issues/2447
+  // ROOT CAUSE:
+  //
+  // The speech settings page used its replicated provider configuration as a
+  // full replacement payload. A follower can keep an older snapshot while the
+  // leader receives a newer model selection.
+  //
+  // Before: a follower voice-settings update restored its stale model value.
+  //
+  // We fixed this by sending fields as a leader-merged patch. The leader keeps
+  // configuration fields that the follower did not change.
+  it('merges a follower settings patch with the current leader configuration', async () => {
+    const namespace = `provider-config-patch:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    await followerContext.providerStore.initializeProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    await leaderContext.providerConfigStore.setProviderModel(
+      OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+      'volcengine/seed-tts-1.0',
+    )
+    await followerContext.providerConfigStore.patchProviderConfig(
+      OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+      { voiceSettings: { speed: 1.25 } },
+    )
+
+    await vi.waitFor(() => expect(leaderContext.providerConfigStore.getProviderConfig(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)).toEqual(expect.objectContaining({
+      model: 'volcengine/seed-tts-1.0',
+      voiceSettings: { speed: 1.25 },
+    })))
+  })
 })
