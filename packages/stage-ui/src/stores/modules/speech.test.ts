@@ -584,6 +584,41 @@ describe('vOICEVOX provider defaults', () => {
     expect(loads).toHaveBeenCalledWith(OFFICIAL_SPEECH_PROVIDER_ID, 'model-b', expect.anything())
   })
 
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964660980
+  // ROOT CAUSE: Every refresh cleared the catalog, even when its identity did
+  // not change. A temporary failure then removed valid cached choices.
+  it('retains the same catalog on refresh failure but clears it for a different model', async () => {
+    const providers = useProviderStore()
+    const voices = [{ id: 'cached', name: 'Cached', languages: [], provider: 'microsoft-speech' }]
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue(voices)
+    const speech = useSpeechStore()
+    await speech.loadVoicesForProvider('microsoft-speech', 'model-a')
+    loads.mockRejectedValue(new Error('temporary outage'))
+    await speech.loadVoicesForProvider('microsoft-speech', 'model-a')
+    expect(speech.availableVoices['microsoft-speech']).toEqual(voices)
+    expect(speech.voiceCatalogStatus['microsoft-speech']?.error).toBe('temporary outage')
+    await speech.loadVoicesForProvider('microsoft-speech', 'model-b')
+    expect(speech.availableVoices['microsoft-speech']).toEqual([])
+  })
+
+  it('invalidates cached voices when configuration changes or the provider session expires', async () => {
+    const providers = useProviderStore()
+    const voices = [{ id: 'cached', name: 'Cached', languages: [], provider: 'microsoft-speech' }]
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue(voices)
+    const speech = useSpeechStore()
+    const original = { definitionId: 'microsoft-speech', config: { baseUrl: 'https://old.invalid/' } }
+    const changed = { definitionId: 'microsoft-speech', config: { baseUrl: 'https://new.invalid/' } }
+    await speech.loadVoiceCatalog('microsoft-speech', 'model-a', original)
+    loads.mockRejectedValueOnce(new Error('configuration unavailable'))
+    await expect(speech.loadVoiceCatalog('microsoft-speech', 'model-a', changed)).rejects.toThrow('configuration unavailable')
+    expect(speech.availableVoices['microsoft-speech']).toEqual([])
+    await speech.loadVoiceCatalog('microsoft-speech', 'model-a', changed)
+    loads.mockResolvedValueOnce(undefined)
+    await speech.loadVoiceCatalog('microsoft-speech', 'model-a', changed)
+    expect(speech.availableVoices['microsoft-speech']).toEqual([])
+    expect(speech.voiceCatalogIdentities['microsoft-speech']).toBeUndefined()
+  })
+
   // ROOT CAUSE: The adapter wrote recommendations before the store discarded stale responses.
   it('rejects old recommendation side effects together with the old catalog', async () => {
     authenticateOfficialProvider()

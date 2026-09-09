@@ -134,6 +134,33 @@ describe('speech synchronization', () => {
     expect(proposals).toHaveLength(0)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964660976
+  // ROOT CAUSE: A follower selection proposed a full snapshot containing the
+  // previous catalog while an independent RPC loaded its replacement.
+  it('commits follower provider and model selection without stale snapshot proposals', async () => {
+    const namespace = `speech:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    await useProviderConfigStore(leader.pinia).ensureProvider('microsoft-speech', 'microsoft-speech', {
+      apiKey: 'key',
+      baseUrl: 'https://voices.invalid/v1/',
+      region: 'eastasia',
+    })
+    const follower = createSyncedContext(namespace, 'follower-only')
+    await vi.waitFor(() => expect(useProviderConfigStore(follower.pinia).configs['microsoft-speech']?.apiKey).toBe('key'))
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [{ id: 'fresh', name: 'Fresh', languages: [] }] })))
+    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+    await follower.speechStore.selectProviderModel('microsoft-speech', 'model-a')
+    expect(follower.speechStore.activeSpeechModel).toBe('model-a')
+    await vi.waitFor(() => expect(follower.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('fresh'))
+    expect(leader.speechStore.activeSpeechModel).toBe('model-a')
+    await follower.speechStore.selectProviderModel('microsoft-speech', 'model-b')
+    expect(follower.speechStore.activeSpeechModel).toBe('model-b')
+    await vi.waitFor(() => expect(follower.speechStore.voiceCatalogIdentities['microsoft-speech']?.model).toBe('model-b'))
+    expect(follower.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('fresh')
+    expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960349403
   // ROOT CAUSE:
   // Configuration proposals and voice RPCs use independent queues. Capture
@@ -257,25 +284,28 @@ describe('speech synchronization', () => {
       finishOld = resolve
     })
     let pause = false
+    let catalogVersion = 'cached'
     let requests = 0
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => {
       requests++
       if (pause)
         return oldResponse
-      return Response.json({ voices: [{ id: 'recovered', name: 'Recovered', languages: [] }] })
+      return Response.json({ voices: [{ id: catalogVersion, name: catalogVersion, languages: [] }] })
     }))
     const survivor = createSyncedContext(namespace, 'follower-preferred')
     await vi.waitFor(() => expect(survivor.runtime.getLeaderId()).toBe(leader.runtime.participantId))
     leader.speechStore.activeSpeechProvider = 'microsoft-speech'
-    await vi.waitFor(() => expect(survivor.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('recovered'))
+    await vi.waitFor(() => expect(survivor.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('cached'))
     await vi.waitFor(() => expect(survivor.speechStore.isLoadingSpeechProviderVoices).toBe(false))
     pause = true
     const beforeRefresh = requests
     const refresh = leader.speechStore.loadVoicesForProvider('microsoft-speech')
     try {
       await vi.waitFor(() => expect(requests).toBeGreaterThan(beforeRefresh))
-      await vi.waitFor(() => expect(survivor.speechStore.availableVoices['microsoft-speech']).toEqual([]))
+      // Same-identity refreshes preserve the last successful catalog during IO.
+      expect(survivor.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('cached')
       pause = false
+      catalogVersion = 'recovered'
       // Dispose the outgoing renderer's store scopes as closing a tab would.
       const outgoing = syncedContexts.find(context => context.runtime === leader.runtime)!
       outgoing.app.unmount()

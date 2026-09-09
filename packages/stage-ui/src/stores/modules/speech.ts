@@ -80,6 +80,9 @@ export const useSpeechStore = defineStore('speech', () => {
   const isLoadingSpeechProviderVoices = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.loading ?? false)
   const speechProviderError = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.error ?? null)
   const availableVoices = refManualReset<Record<string, VoiceInfo[]>>(() => ({}))
+  // Replicate the identity with its catalog so a new leader can judge freshness.
+  // Configuration is the provider-owned snapshot already used by the catalog RPC.
+  const voiceCatalogIdentities = refManualReset<Record<string, { model: string | undefined, configuration: VoiceCatalogConfiguration }>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
 
   // Computed properties
@@ -232,15 +235,26 @@ export const useSpeechStore = defineStore('speech', () => {
 
     const loadSequence = ++voiceLoadSequence
     latestVoiceLoads.set(provider, loadSequence)
-    // A replacement catalog may belong to another model. Do not let auto-pick
-    // choose from the old response while the new request is pending or fails.
-    availableVoices.value = { ...availableVoices.value, [provider]: [] }
+    const identity = { model, configuration }
+    // Keep valid choices during a refresh. A model or configuration change
+    // invalidates them before auto-pick can select from the previous catalog.
+    if (!isEqual(voiceCatalogIdentities.value[provider], identity)) {
+      delete voiceCatalogIdentities.value[provider]
+      availableVoices.value = { ...availableVoices.value, [provider]: [] }
+    }
 
     const voices = await providersStore.listProviderVoices(provider, model, configuration)
     // Undefined is an expired session. A cleared sequence also rejects work
     // from an outgoing leader or a reset, even if its network response arrives.
-    if (voices === undefined || latestVoiceLoads.get(provider) !== loadSequence)
+    if (latestVoiceLoads.get(provider) !== loadSequence)
       return []
+    if (voices === undefined) {
+      // An expired provider session invalidates cached choices as well.
+      delete voiceCatalogIdentities.value[provider]
+      availableVoices.value = { ...availableVoices.value, [provider]: [] }
+      return []
+    }
+    voiceCatalogIdentities.value = { ...voiceCatalogIdentities.value, [provider]: identity }
     availableVoices.value = { ...availableVoices.value, [provider]: voices }
     return voices
   }
@@ -323,6 +337,24 @@ export const useSpeechStore = defineStore('speech', () => {
       ? defaultModel
       : models[0]?.id ?? ''
     clearVoiceSelection()
+  }
+
+  /** Commits an explicit selection in the leader before watchers request its catalog. An omitted voice preserves an unchanged selection. */
+  async function selectProviderModel(provider: string, model: string, voiceId?: string) {
+    if (disposed)
+      return
+    const changed = activeSpeechProvider.value !== provider || activeSpeechModel.value !== model
+    activeSpeechProvider.value = provider
+    activeSpeechModel.value = model
+    if (changed)
+      clearVoiceSelection()
+    ensureActiveSpeechModel()
+    if (voiceCatalogIdentities.value[provider]?.model !== (activeSpeechModel.value || undefined))
+      availableVoices.value = { ...availableVoices.value, [provider]: [] }
+    if (voiceId !== undefined)
+      activeSpeechVoiceId.value = voiceId
+    // Watchers run after this synchronous state commit. They route discovery
+    // through the exposed action without publishing a follower snapshot.
   }
 
   // Provider and model form the catalog identity, including changes made by cards.
@@ -551,6 +583,7 @@ export const useSpeechStore = defineStore('speech', () => {
     ssmlEnabled.reset()
     modelSearchQuery.reset()
     availableVoices.reset()
+    voiceCatalogIdentities.reset()
   }
 
   return {
@@ -567,6 +600,7 @@ export const useSpeechStore = defineStore('speech', () => {
     isLoadingSpeechProviderVoices,
     speechProviderError,
     availableVoices,
+    voiceCatalogIdentities,
     modelSearchQuery,
 
     // Computed
@@ -582,6 +616,7 @@ export const useSpeechStore = defineStore('speech', () => {
     speech,
     loadVoicesForProvider,
     loadVoiceCatalog,
+    selectProviderModel,
     ensureActiveSpeechVoice,
     getVoicesForProvider,
     ensureStreamingDefaultModel,
@@ -593,7 +628,7 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 }, {
   synced: {
-    actions: ['loadVoiceCatalog', 'ensureActiveSpeechVoice', 'resetSettings'],
+    actions: ['loadVoiceCatalog', 'selectProviderModel', 'ensureActiveSpeechVoice', 'resetSettings'],
     state: true,
   },
 })
