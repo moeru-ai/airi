@@ -77,7 +77,7 @@ describe('onboarding store', () => {
   // https://github.com/moeru-ai/airi/pull/1900
   it('requires onboarding when startup credentials have no validated provider', () => {
     const providerStore = useProviderConfigStore()
-    vi.spyOn(providerStore, 'getProviderConfig').mockImplementation(providerId => providerId === 'azure-openai' ? { apiKey: 'sk-x', baseUrl: '' } : undefined)
+    vi.spyOn(providerStore, 'getProviderConfig').mockImplementation(providerId => providerId === 'azure-openai' ? { apiKey: 'sk-x', baseUrl: '' } : {})
 
     const store = useOnboardingStore()
 

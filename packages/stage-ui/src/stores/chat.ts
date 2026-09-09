@@ -28,7 +28,8 @@ import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
-import { createMinecraftContext, createRuntimePromptContext } from './chat/context-providers'
+import { useAuthStore } from './auth'
+import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -141,6 +142,7 @@ export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 export const useChatStore = defineStore('chat', () => {
   const runtimePrompt = useAiriRuntimePrompt()
+  const authStore = useAuthStore()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
@@ -286,7 +288,15 @@ export const useChatStore = defineStore('chat', () => {
     },
     context: {
       ingest: envelope => chatContext.ingestContextMessage(envelope),
-      snapshot: () => chatContext.getContextsSnapshot(),
+      snapshot: () => {
+        const snapshot = { ...chatContext.getContextsSnapshot() }
+        // Account data belongs to this request, not the persistent context registry.
+        // A signed-out request therefore cannot inherit the previous account snapshot.
+        const account = createUserAccountContext(authStore)
+        if (account)
+          snapshot[account.contextId] = [account]
+        return snapshot
+      },
     },
     foregroundStream: {
       patch: (message) => {
