@@ -2,6 +2,8 @@
  * Cosine-weighted solid angle of a one-sided convex screen tile. The receiver
  * clips the polygon at its normal's horizon before integrating spherical edges.
  * Corners use receiver-relative coordinates; output is irradiance divided by PI.
+ * Screen gap controls the spread through solid angle and distance. Do not blur
+ * source RGB before this integral: that would apply the spread a second time.
  */
 export const screenAreaLightShader = `
 vec3 airiAreaEdge(vec3 a, vec3 b) {
