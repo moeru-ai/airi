@@ -307,8 +307,34 @@ export const useChatStore = defineStore('chat', () => {
    */
   let bilingualReply: { id?: string, instructed: boolean, languages: string[], ttsLanguage: string } | undefined
 
-  /** Settings the reply was produced with, captured the first time it is seen. */
+  /**
+   * Records the settings the turn being composed asks for.
+   *
+   * Composing the prompt is the moment the instruction is decided, and the only
+   * one where the settings are known to match the request. Capturing at the first
+   * streamed token instead would follow a change made while the model is still
+   * thinking: the reply was asked for tags in one language and would be projected
+   * with another, or left with its tags when the feature was switched off.
+   */
+  function rememberBilingualRequest() {
+    bilingualReply = {
+      instructed: bilingualStore.enabled,
+      languages: bilingualStore.subtitleLanguages,
+      ttsLanguage: bilingualStore.ttsLanguage,
+    }
+  }
+
+  /** Settings the reply was produced with, captured when its request was composed. */
   function settingsOfBilingualReply(replyId: string | undefined) {
+    // The request that produced this reply recorded the settings; adopting the
+    // reply id is all it takes to hand them to every later patch of that reply.
+    if (bilingualReply && bilingualReply.id === undefined) {
+      bilingualReply.id = replyId
+      return bilingualReply
+    }
+
+    // Nothing was recorded for this reply, so the caller did not come through the
+    // request path: the settings as they are now are the best available answer.
     // A reply without an id is the same reply, not a new one.
     if (!bilingualReply || (replyId !== undefined && bilingualReply.id !== replyId)) {
       bilingualReply = {
@@ -424,7 +450,14 @@ export const useChatStore = defineStore('chat', () => {
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
-      () => createRuntimePromptContext(runtimePrompt.value),
+      () => {
+        // Composing the prompt is what decides whether this turn asks for
+        // bilingual output, and it runs once per send, before the model is
+        // called: record it here so the reply is projected with the settings it
+        // was actually produced with.
+        rememberBilingualRequest()
+        return createRuntimePromptContext(runtimePrompt.value)
+      },
       createMinecraftContext,
     ],
     createId: nanoid,

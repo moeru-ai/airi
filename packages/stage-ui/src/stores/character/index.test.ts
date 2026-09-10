@@ -7,13 +7,14 @@ import { useSettingsBilingual } from '../settings/bilingual'
 
 const mocks = vi.hoisted(() => ({
   spoken: [] as string[],
-  pairs: [] as Array<{ turnId: string, spoken: string, translation: string, label: string }>,
+  /** Everything the store broadcasts: a reaction's announcement, then its pairs. */
+  pairs: [] as Array<{ kind: string, turnId: string, [key: string]: unknown }>,
 }))
 
 vi.mock('../../composables/use-spark-translation-channel', () => ({
   useSparkTranslationChannel: () => ({
-    post: (pair: { turnId: string, spoken: string, translation: string, label: string }) => {
-      mocks.pairs.push(pair)
+    post: (event: { kind: string, turnId: string, [key: string]: unknown }) => {
+      mocks.pairs.push(event)
     },
   }),
 }))
@@ -102,6 +103,7 @@ describe('useCharacterStore spark reactions', () => {
     expect(mocks.spoken.join('')).toBe('Hello there.')
     await vi.waitFor(() => expect(mocks.pairs).toEqual([
       {
+        kind: 'pair',
         turnId: 'spark:spark-1',
         spoken: 'Hello there.',
         translation: '你好。',
@@ -120,8 +122,8 @@ describe('useCharacterStore spark reactions', () => {
     store.onSparkNotifyReactionStreamEnd('spark-3', '[EN]First.[CN]第一句。[EN]Second.[CN]第二句。')
 
     await vi.waitFor(() => expect(mocks.pairs).toEqual([
-      { turnId: 'spark:spark-3', spoken: 'First.', translation: '第一句。', label: '中文' },
-      { turnId: 'spark:spark-3', spoken: 'Second.', translation: '第二句。', label: '中文' },
+      { kind: 'pair', turnId: 'spark:spark-3', spoken: 'First.', translation: '第一句。', label: '中文' },
+      { kind: 'pair', turnId: 'spark:spark-3', spoken: 'Second.', translation: '第二句。', label: '中文' },
     ]))
   })
 
@@ -164,6 +166,19 @@ describe('useCharacterStore spark reactions', () => {
     store.onSparkNotifyReactionStreamEnd('spark-5', '[EN]Hello there.[CN]你好。')
 
     expect(store.reactions.at(-1)?.message).toBe('Hello there.')
+  })
+
+  // The window that plays the reaction picks its voice from this, so it has to
+  // arrive before the reaction speaks: resolving the voice there reads the
+  // settings again, which by then may already have changed.
+  it('announces the language a requested reaction is spoken in', () => {
+    const store = useCharacterStore()
+
+    store.prepareSparkNotifyReaction('spark-7')
+
+    expect(mocks.pairs).toEqual([
+      { kind: 'turn', turnId: 'spark:spark-7', ttsLanguage: 'en' },
+    ])
   })
 
   // The request is composed before the model answers, so the settings recorded

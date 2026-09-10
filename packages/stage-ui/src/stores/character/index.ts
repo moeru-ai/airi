@@ -66,7 +66,7 @@ export const useCharacterStore = defineStore('character', () => {
   const streamingReactions = ref<Map<string, StreamingReactionState>>(new Map())
   const speechRuntimeStore = useSpeechRuntimeStore()
   const bilingualStore = useSettingsBilingual()
-  const { post: postSparkPair } = useSparkTranslationChannel()
+  const { post: postSparkEvent } = useSparkTranslationChannel()
 
   /**
    * Bilingual settings each reaction will be produced with, keyed by spark event
@@ -82,9 +82,29 @@ export const useCharacterStore = defineStore('character', () => {
 
   /** Records the settings the reaction about to be requested will be split with. */
   function prepareSparkNotifyReaction(sparkEventId: string) {
-    pendingSparkSettings.set(sparkEventId, bilingualStore.enabled
-      ? { languages: bilingualStore.subtitleLanguages, ttsLanguage: bilingualStore.ttsLanguage }
-      : null)
+    if (!bilingualStore.enabled) {
+      pendingSparkSettings.set(sparkEventId, null)
+      return
+    }
+
+    pendingSparkSettings.set(sparkEventId, {
+      languages: bilingualStore.subtitleLanguages,
+      ttsLanguage: bilingualStore.ttsLanguage,
+    })
+
+    // The window that plays the reaction picks a voice for the language it is
+    // spoken in, and it has to do that now: by the time the first sentence
+    // plays, the user may already have changed the settings.
+    try {
+      postSparkEvent({
+        kind: 'turn',
+        turnId: `${SPARK_TURN_ID_PREFIX}${sparkEventId}`,
+        ttsLanguage: bilingualStore.ttsLanguage,
+      })
+    }
+    catch {
+      // BroadcastChannel may be closed - don't break the reaction
+    }
   }
 
   /**
@@ -169,7 +189,7 @@ export const useCharacterStore = defineStore('character', () => {
           },
           onPair: (pair) => {
             try {
-              postSparkPair({ turnId, ...pair })
+              postSparkEvent({ kind: 'pair', turnId, ...pair })
             }
             catch {
               // BroadcastChannel may be closed - don't break the reaction

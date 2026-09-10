@@ -959,21 +959,27 @@ function openBilingualTurn(turnId: string): BilingualTurn | null {
 const { data: sparkPair } = useSparkTranslationChannel()
 
 // A reaction is split in the window that ran the model and spoken by the one
-// hosting the speech pipeline, so its pairs arrive here and join the same queue
-// a chat turn's pairs go into.
-watch(sparkPair, (pair) => {
-  if (!pair)
+// hosting the speech pipeline. What that window produces arrives here in order:
+// the language the reaction speaks, then its sentence pairs, which join the same
+// queue a chat turn's pairs go into.
+watch(sparkPair, (event) => {
+  if (!event)
     return
+
+  if (event.kind === 'turn') {
+    seedBilingualVoice(event.turnId, event.ttsLanguage)
+    return
+  }
 
   // A reaction interrupts whatever is on screen, so the previous reaction's line
   // and its leftover queue go instead of lingering until they expire.
-  if (pair.turnId !== bilingualTurnOnScreen) {
+  if (event.turnId !== bilingualTurnOnScreen) {
     clearBilingualTurn(bilingualTurnOnScreen)
-    bilingualTurnOnScreen = pair.turnId
+    bilingualTurnOnScreen = event.turnId
     clearBilingualTranslation()
   }
 
-  queueBilingualPair(pair.turnId, pair)
+  queueBilingualPair(event.turnId, event)
 })
 
 // Switching the feature off mid-reply has to remove the translated line at
@@ -1013,8 +1019,17 @@ function resolveBilingualVoice(): VoiceInfo | undefined {
   if (!bilingualStore.enabled)
     return undefined
 
-  const ttsLang = bilingualStore.ttsLanguage
-  const speaksTtsLanguage = (voice: VoiceInfo) => (voice.languages || []).some(l => l.code.toLowerCase().startsWith(ttsLang))
+  return resolveBilingualVoiceFor(bilingualStore.ttsLanguage)
+}
+
+/**
+ * Voice that speaks `ttsLanguage`, or `undefined` when none does.
+ *
+ * Returns `undefined` rather than falling back to another language, because the
+ * caller already has the configured voice to fall back to.
+ */
+function resolveBilingualVoiceFor(ttsLanguage: string): VoiceInfo | undefined {
+  const speaksTtsLanguage = (voice: VoiceInfo) => (voice.languages || []).some(l => l.code.toLowerCase().startsWith(ttsLanguage))
 
   if (activeSpeechVoice.value && speaksTtsLanguage(activeSpeechVoice.value))
     return activeSpeechVoice.value
@@ -1040,6 +1055,19 @@ function bilingualVoiceForTurn(turnId: string | undefined): VoiceInfo | undefine
     bilingualVoicesByTurn.set(turnId, resolveBilingualVoice())
 
   return bilingualVoicesByTurn.get(turnId)
+}
+
+/**
+ * Records the voice a reaction plays with, from the language its request was
+ * composed with.
+ *
+ * The window that composes the reaction is the only one that knows that
+ * language, so it hands it over: resolving from the settings here would follow a
+ * change made while the model was still thinking, and the reaction would be read
+ * with a voice for another language.
+ */
+function seedBilingualVoice(turnId: string, ttsLanguage: string) {
+  bilingualVoicesByTurn.set(turnId, resolveBilingualVoiceFor(ttsLanguage))
 }
 
 function stopSpeechOutput(reason: string) {
