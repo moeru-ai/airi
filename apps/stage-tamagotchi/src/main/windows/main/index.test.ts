@@ -4,6 +4,7 @@ import { setupMainWindow } from './index'
 
 const mocks = vi.hoisted(() => {
   const updateConfig = vi.fn()
+  const getConfig = vi.fn()
   const actualBounds = { x: 0, y: 0, width: 450, height: 600 }
   const commandLineSwitches = new Map<string, string>()
   const windowEventHandlers = new Map<string, () => void>()
@@ -24,7 +25,7 @@ const mocks = vi.hoisted(() => {
     show = vi.fn()
   }
 
-  return { actualBounds, commandLineSwitches, FakeBrowserWindow, updateConfig, windowEventHandlers }
+  return { actualBounds, commandLineSwitches, FakeBrowserWindow, getConfig, updateConfig, windowEventHandlers }
 })
 
 vi.mock('@electron-toolkit/utils', () => ({ is: { dev: false } }))
@@ -58,9 +59,7 @@ vi.mock('../../libs/electron/location', () => ({
 vi.mock('../../libs/electron/persistence', () => ({
   createConfig: vi.fn(() => ({
     setup: vi.fn(),
-    get: vi.fn(() => ({
-      windows: [{ title: 'AIRI', tag: 'main', x: 120, y: 80, width: 450, height: 600 }],
-    })),
+    get: mocks.getConfig,
     update: mocks.updateConfig,
   })),
 }))
@@ -92,6 +91,9 @@ function createSetupMainWindowParams(): SetupMainWindowParams {
 describe('setupMainWindow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.getConfig.mockReturnValue({
+      windows: [{ title: 'AIRI', tag: 'main', x: 120, y: 80, width: 450, height: 600 }],
+    })
     mocks.commandLineSwitches.clear()
     mocks.windowEventHandlers.clear()
     Object.assign(mocks.actualBounds, { x: 0, y: 0, width: 450, height: 600 })
@@ -134,6 +136,48 @@ describe('setupMainWindow', () => {
 
     expect(mocks.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
       windows: [expect.objectContaining({ x: 120, y: 80, width: 640, height: 720 })],
+    }))
+  })
+  // https://github.com/moeru-ai/airi/pull/2203#discussion_r3948519794
+  it('preserves saved coordinates during native Wayland move events for Issue #2181', async () => {
+    // ROOT CAUSE:
+    // Wayland move events saved compositor coordinates over the reusable X11 position.
+    // Both event handlers must preserve the saved position on native Wayland.
+    await setupMainWindow(createSetupMainWindowParams())
+    Object.assign(mocks.actualBounds, { x: 0, y: 0 })
+
+    mocks.windowEventHandlers.get('move')?.()
+
+    expect(mocks.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      windows: [expect.objectContaining({ x: 120, y: 80 })],
+    }))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2203#discussion_r3946256444
+  it('omits coordinates for a new native Wayland profile for Issue #2181', async () => {
+    // ROOT CAUSE:
+    // The first save ignored the position policy and stored compositor coordinates.
+    // A new profile must save the size without inventing a reusable position.
+    mocks.getConfig.mockReturnValue({ windows: [] })
+    await setupMainWindow(createSetupMainWindowParams())
+
+    mocks.windowEventHandlers.get('resize')?.()
+
+    expect(mocks.updateConfig).toHaveBeenCalledWith({
+      windows: [{ title: 'AIRI', tag: 'main', width: 450, height: 600 }],
+    })
+  })
+
+  it('saves coordinates during XWayland move events', async () => {
+    mocks.commandLineSwitches.set('ozone-platform', 'x11')
+    await setupMainWindow(createSetupMainWindowParams())
+    mocks.updateConfig.mockClear()
+    Object.assign(mocks.actualBounds, { x: 200, y: 300 })
+
+    mocks.windowEventHandlers.get('move')?.()
+
+    expect(mocks.updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      windows: [expect.objectContaining({ x: 200, y: 300 })],
     }))
   })
 })

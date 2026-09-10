@@ -288,6 +288,29 @@ describe('restoreWindowBounds', () => {
     })).toEqual({ x: 0, y: 300, width: 450, height: 600 })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2203#discussion_r3901489267
+  it('preserves a window across connected displays for Issue #2181', () => {
+    // ROOT CAUSE:
+    // Single-display clamping moved a saved window even when the whole window remained visible.
+    // Restore must consider the union of the available work areas.
+    const savedBounds = { x: 1200, y: 100, width: 450, height: 600 }
+    expect(restoreWindowBounds({
+      savedBounds,
+      workAreas: [primaryWorkArea, { x: 1440, y: 25, width: 1440, height: 875 }],
+      matchingWorkArea: primaryWorkArea,
+      fallbackWorkArea: primaryWorkArea,
+    })).toEqual(savedBounds)
+  })
+
+  it('does not treat a gap between displays as visible desktop', () => {
+    expect(restoreWindowBounds({
+      savedBounds: { x: 1200, y: 100, width: 450, height: 600 },
+      workAreas: [primaryWorkArea, { x: 1500, y: 25, width: 1440, height: 875 }],
+      matchingWorkArea: primaryWorkArea,
+      fallbackWorkArea: primaryWorkArea,
+    })).toEqual({ x: 990, y: 100, width: 450, height: 600 })
+  })
+
   it('uses the fallback work area when the saved display is unavailable', () => {
     expect(restoreWindowBounds({
       savedBounds: { x: 5000, y: 5000, width: 450, height: 600 },

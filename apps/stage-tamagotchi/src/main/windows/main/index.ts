@@ -90,9 +90,12 @@ export async function setupMainWindow(params: {
   function restoreMainWindowBounds(savedBounds: Rectangle): Rectangle {
     const fallbackWorkArea = screen.getPrimaryDisplay().workArea
     let matchingWorkArea: Rectangle | undefined
+    let workAreas: Rectangle[] = []
 
     try {
-      const intersectsCurrentDisplay = screen.getAllDisplays().some(display => rectanglesOverlap(savedBounds, display.bounds))
+      const displays = screen.getAllDisplays()
+      workAreas = displays.map(display => display.workArea)
+      const intersectsCurrentDisplay = displays.some(display => rectanglesOverlap(savedBounds, display.bounds))
       if (intersectsCurrentDisplay)
         matchingWorkArea = screen.getDisplayMatching(savedBounds).workArea
     }
@@ -100,7 +103,7 @@ export async function setupMainWindow(params: {
       console.warn('failed to find the display for saved main window bounds, using the primary display:', error)
     }
 
-    return restoreWindowBounds({ savedBounds, matchingWorkArea, fallbackWorkArea })
+    return restoreWindowBounds({ savedBounds, matchingWorkArea, fallbackWorkArea, workAreas })
   }
 
   const initialMainWindowBounds = savedMainWindowBounds
@@ -158,8 +161,7 @@ export async function setupMainWindow(params: {
       config.windows.push({
         title: 'AIRI',
         tag: 'main',
-        x: bounds.x,
-        y: bounds.y,
+        ...(!preserveSavedPosition ? { x: bounds.x, y: bounds.y } : {}),
         width: bounds.width,
         height: bounds.height,
       })
@@ -167,7 +169,7 @@ export async function setupMainWindow(params: {
     else {
       const mainWindowConfig = defu(config.windows[existingConfigIndex], { title: 'AIRI', tag: 'main' })
 
-      if (!preserveSavedPosition || typeof mainWindowConfig.x !== 'number' || typeof mainWindowConfig.y !== 'number') {
+      if (!preserveSavedPosition) {
         mainWindowConfig.x = bounds.x
         mainWindowConfig.y = bounds.y
       }
@@ -187,12 +189,12 @@ export async function setupMainWindow(params: {
   })
 
   // NOTICE:
-  // Native Wayland does not expose reusable absolute window coordinates, so resize events retain the last saved position.
+  // Native Wayland does not expose reusable absolute window coordinates, so move and resize events retain the last saved position.
   // Electron returns compositor-selected x/y from getBounds(), which would erase a valid X11/XWayland placement.
   // Source: https://www.electronjs.org/docs/latest/api/browser-window#winsetpositionx-y-animate-macos
   // Remove when Electron can round-trip absolute window coordinates under native Wayland.
   window.on('resize', () => persistWindowBounds(window.getBounds(), isNativeWayland))
-  window.on('move', () => persistWindowBounds(window.getBounds()))
+  window.on('move', () => persistWindowBounds(window.getBounds(), isNativeWayland))
   if (savedMainWindowBounds && !isNativeWayland)
     persistWindowBounds(window.getBounds())
   window.on('close', (event) => {
