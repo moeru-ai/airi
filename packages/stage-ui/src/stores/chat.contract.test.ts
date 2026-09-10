@@ -16,6 +16,7 @@ import {
 } from '../libs/product-signals/headers'
 import { useChatStore } from './chat'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
+import { useSettingsBilingual } from './settings/bilingual'
 
 vi.hoisted(() => {
   ;(globalThis as any).window = {
@@ -373,6 +374,36 @@ describe('chat store contract', () => {
 
     expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'enabled' })
     await settings.setReasoning(false)
+  })
+
+  // A reply is tagged in the languages its request was composed with, and both
+  // the projection and the Stage hooks read those from the request. A change
+  // made while the model is still answering therefore has to wait for the next
+  // turn: applying it to the reply in flight would strip the spoken language
+  // instead of the translation, and split it for a language never asked for.
+  it('keeps a reply on the bilingual settings its request was composed with', async () => {
+    const bilingual = useSettingsBilingual()
+    bilingual.enabled = true
+    bilingual.ttsLanguage = 'en'
+    bilingual.translationLanguage = 'zh'
+
+    let requestDuringReply: { instructed: boolean, languages: string[], ttsLanguage: string } | undefined
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: StreamOptions) => {
+      bilingual.ttsLanguage = 'ja'
+      bilingual.translationLanguage = 'en'
+      requestDuringReply = useChatStore().getBilingualRequestSettings()
+      await options.onStreamEvent?.({ type: 'text-delta', text: '[EN]Hello there.[CN]你好。' })
+      await options.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'say hello' })
+
+    expect(requestDuringReply).toMatchObject({ instructed: true, languages: ['en', 'zh'], ttsLanguage: 'en' })
+    expect(store.getBilingualRequestSettings()).toMatchObject({ languages: ['en', 'zh'], ttsLanguage: 'en' })
+    expect(sessionMessages['session-1']?.find(message => message.role === 'assistant')?.content).toBe('Hello there.')
+
+    bilingual.enabled = false
   })
 
   it('passes a native reply relation to the chat runtime', async () => {

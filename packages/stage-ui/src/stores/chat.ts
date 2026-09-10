@@ -49,6 +49,18 @@ interface ForkOptions {
   hidden?: boolean
 }
 
+/** Settings one chat request asked the model to produce. */
+interface BilingualRequestSettings {
+  /** Whether the request asked for bilingual output at all. */
+  instructed: boolean
+  /** Languages the reply is tagged in, the spoken one first. */
+  languages: string[]
+  /** Language the spoken half is in. */
+  ttsLanguage: string
+  /** Reply the settings were handed to; adopted on its first projection. */
+  id?: string
+}
+
 /** A serializable chat request that any application context can send to the leader. */
 export interface ChatSendPayload {
   /** Image attachments for the new user message. */
@@ -293,19 +305,19 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * Bilingual settings of the reply that is streaming now.
+   * Bilingual settings of the reply that is streaming now, captured while its
+   * request was composed.
    *
-   * A reply is tagged in the languages its request was composed with. Reading
-   * the settings again while it streams would follow a change made mid-reply:
-   * switching the spoken language would keep the translation line instead, and
-   * turning subtitles off would leave the raw tags in the history. The reply is
-   * captured the first time it is seen, so a change applies from the next turn
-   * on. One slot is enough because the chat holds one foreground reply.
-   *
-   * `instructed` records whether the request actually asked for bilingual output,
-   * so a reply that merely happens to contain brackets is left alone.
+   * A reply is tagged in the languages its request was composed with, and
+   * composing the prompt is the only moment those are known to match it: reading
+   * the settings again while it streams would follow a change made mid-reply.
+   * The projection would then keep the translation line instead of the spoken
+   * one, and the Stage hooks — which read this after composing and after an await
+   * of their own — would split the reply for a language it was never asked for,
+   * and read it with a voice to match. A change therefore applies from the next
+   * turn on. One slot is enough because the chat holds one foreground reply.
    */
-  let bilingualReply: { id?: string, instructed: boolean, languages: string[], ttsLanguage: string } | undefined
+  let bilingualRequest: BilingualRequestSettings | undefined
 
   /**
    * Records the settings the turn being composed asks for.
@@ -317,7 +329,7 @@ export const useChatStore = defineStore('chat', () => {
    * with another, or left with its tags when the feature was switched off.
    */
   function rememberBilingualRequest() {
-    bilingualReply = {
+    bilingualRequest = {
       instructed: bilingualStore.enabled,
       languages: bilingualStore.subtitleLanguages,
       ttsLanguage: bilingualStore.ttsLanguage,
@@ -328,16 +340,16 @@ export const useChatStore = defineStore('chat', () => {
   function settingsOfBilingualReply(replyId: string | undefined) {
     // The request that produced this reply recorded the settings; adopting the
     // reply id is all it takes to hand them to every later patch of that reply.
-    if (bilingualReply && bilingualReply.id === undefined) {
-      bilingualReply.id = replyId
-      return bilingualReply
+    if (bilingualRequest && bilingualRequest.id === undefined) {
+      bilingualRequest.id = replyId
+      return bilingualRequest
     }
 
     // Nothing was recorded for this reply, so the caller did not come through the
     // request path: the settings as they are now are the best available answer.
     // A reply without an id is the same reply, not a new one.
-    if (!bilingualReply || (replyId !== undefined && bilingualReply.id !== replyId)) {
-      bilingualReply = {
+    if (!bilingualRequest || (replyId !== undefined && bilingualRequest.id !== replyId)) {
+      bilingualRequest = {
         id: replyId,
         instructed: bilingualStore.enabled,
         languages: bilingualStore.subtitleLanguages,
@@ -345,7 +357,20 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
 
-    return bilingualReply
+    return bilingualRequest
+  }
+
+  /**
+   * Settings the request being composed asked for, or `undefined` when none was
+   * recorded.
+   *
+   * Consumers that parse the tagged reply outside the projection read this — the
+   * Stage hooks that split it for speech and captions — so they work on the
+   * languages the request was composed with instead of the ones in effect when
+   * they happen to run.
+   */
+  function getBilingualRequestSettings() {
+    return bilingualRequest
   }
 
   /**
@@ -700,6 +725,7 @@ export const useChatStore = defineStore('chat', () => {
     send,
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
+    getBilingualRequestSettings,
 
     clearHooks: runtime.hooks.clearHooks,
 

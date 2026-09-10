@@ -175,7 +175,7 @@ function onVRMInteract(target: VrmInteractionTarget) {
   vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
 }
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+const { getBilingualRequestSettings, onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
@@ -945,12 +945,17 @@ function publishBilingualTranslation(turnId: string, itemText?: string) {
  * hooks were reset with, which is also what playback items are matched against.
  */
 function openBilingualTurn(turnId: string): BilingualTurn | null {
-  if (!bilingualStore.enabled)
+  // The languages come from the request that asked for the reply, not from the
+  // settings in effect now: this runs after the prompt was composed and after an
+  // await, so a change made in between would split — and below, speak — a
+  // language the model was never asked for.
+  const request = getBilingualRequestSettings()
+  if (!request?.instructed)
     return null
 
   return createBilingualTurn({
-    languages: bilingualStore.subtitleLanguages,
-    ttsLanguage: bilingualStore.ttsLanguage,
+    languages: request.languages,
+    ttsLanguage: request.ttsLanguage,
     onSpoken: text => currentSession?.appendText(text),
     onPair: pair => queueBilingualPair(turnId, pair),
   })
@@ -1149,11 +1154,14 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
 }
 
 function openTtsSession(turnId: string): StageTtsSession {
-  // A turn speaks one language from here to its end — the one its split starts
-  // with — so its voice is fixed at the same moment, before any audio is asked
+  // A turn speaks one language from here to its end — the one its request asked
+  // for — so its voice is fixed at the same moment, before any audio is asked
   // for. Resolving it per segment instead would follow a settings change made
-  // mid-reply and give the rest of the turn a voice for another language.
-  bilingualVoicesByTurn.set(turnId, resolveBilingualVoice())
+  // mid-reply and give the rest of the turn a voice for another language, and
+  // resolving it from the settings while the turn is being set up would do the
+  // same to the language the split speaks.
+  const request = getBilingualRequestSettings()
+  bilingualVoicesByTurn.set(turnId, request?.instructed ? resolveBilingualVoiceFor(request.ttsLanguage) : undefined)
 
   // A session must only clear the module-level `currentSession` if it IS that session. The previous
   // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
