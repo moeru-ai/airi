@@ -1,48 +1,44 @@
 <script setup lang="ts">
+import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { CharacterSwitcherDrawer, ChatHistory } from '@proj-airi/stage-ui/components'
+import { ChatReplyPreview, ChatSessionsDrawer, useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea, useTheme } from '@proj-airi/ui'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
+import { BasicButton, BasicTextarea } from '@proj-airi/ui'
 import { onLongPress, useEventListener, usePointerSwipe } from '@vueuse/core'
 import { animate, spring } from 'animejs'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
 
-import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
-import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
-import ActionAbout from './InteractiveArea/Actions/About.vue'
+import ViewControls from './InteractiveArea/Actions/ViewControls.vue'
+import MobileSettingsDrawer from './mobile-settings-drawer.vue'
+import MobileHeader from './MobileHeader.vue'
 
 import { useMobileInteractiveAreaLayout } from '../../composables/use-mobile-interactive-area-layout'
 import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
-import { BackgroundDialogPicker } from '../Backgrounds'
 
 const emit = defineEmits<{
   /** Reports the stable height and offset that keep the Stage in the same screen position. */
   stageViewportChange: [viewport: { height: number, offsetTop: number }]
 }>()
 
-const { isDark, toggleDark } = useTheme()
 const chatOrchestrator = useChatStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
-const { cleanupMessages } = useChatMaintenanceStore()
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
@@ -55,11 +51,26 @@ const isActiveSessionSending = computed(() => (
 const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
   ? activeStreamingMessage.value
   : streamingMessage.value)
-const { trackChatMessageDeleted, trackChatMessagesCleared } = useAnalytics()
+const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
+const composer = useChatComposer({
+  activeSessionId,
+  send: submission => chatOrchestrator.send({
+    sessionId: submission.sessionId,
+    text: submission.text,
+    replyToMessageId: submission.replyToMessageId,
+  }),
+})
+const {
+  clearReplyForMessage,
+  draft: messageInput,
+  isComposing,
+  replyTarget,
+  selectReply,
+} = composer
 
-async function handleDeleteMessage(index: number) {
-  const message = messages.value[index]
+async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
+  const { index, message } = payload
   await chatSession.deleteMessage({
     sessionId: activeSessionId.value,
     messageId: message?.id,
@@ -69,23 +80,12 @@ async function handleDeleteMessage(index: number) {
     source: 'history',
     message_role: message?.role ?? 'unknown',
   })
+  clearReplyForMessage(message)
 }
 
-function handleCleanupMessages() {
-  const messageCount = messages.value.filter(message => message.role !== 'system').length
-  cleanupMessages()
-  trackChatMessagesCleared({
-    source: 'chat_controls',
-    message_count: messageCount,
-  })
-}
-
-const messageInput = shallowRef('')
-const isComposing = shallowRef(false)
 const inputBubbleDocked = shallowRef(false)
 const inputBubbleDragging = shallowRef(false)
 const inputBubbleAnimating = shallowRef(false)
-const backgroundDialogOpen = shallowRef(false)
 const sessionsDrawerOpen = shallowRef(false)
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
@@ -123,7 +123,7 @@ const mobileInteractiveAreaClass = [
 ]
 const chatHistoryClass = [
   'pointer-events-auto relative z-20',
-  'max-w-[calc(100%_-_3.5rem)] w-full self-start pb-3 pl-3',
+  'w-full self-start px-3 pb-3',
 ]
 const controlsIslandClass = computed(() => [
   'absolute right-0 translate-y-[-100%]',
@@ -136,14 +136,72 @@ const controlsIslandClass = computed(() => [
   ],
 ])
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
-const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
-const { viewControlsEnabled: threeViewCtrlEnabled } = useThreeViewControl()
+const { stageModelRenderer } = storeToRefs(useSettingsStageModel())
+const l2dViewControl = useL2dViewControl()
+const threeViewControl = useThreeViewControl()
+const viewControlsAvailable = computed(() => stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'vrm')
+const viewControlsEnabled = computed(() => {
+  if (stageModelRenderer.value === 'live2d')
+    return l2dViewControl.viewControlsEnabled.value
+  if (stageModelRenderer.value === 'vrm')
+    return threeViewControl.viewControlsEnabled.value
+  return false
+})
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(settingsAudioDevice)
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
+
+async function openViewControls() {
+  closeViewControls()
+
+  if (stageModelRenderer.value === 'live2d')
+    l2dViewControl.viewControlsEnabled.value = true
+  else if (stageModelRenderer.value === 'vrm')
+    threeViewControl.viewControlsEnabled.value = true
+
+  await nextTick()
+  mobileInteractiveArea.value
+    ?.querySelector<HTMLButtonElement>('[data-testid="view-controls-close-button"]')
+    ?.focus()
+}
+
+function closeViewControls() {
+  l2dViewControl.viewControlsEnabled.value = false
+  threeViewControl.viewControlsEnabled.value = false
+}
+
+async function exitViewControls() {
+  closeViewControls()
+  await nextTick()
+  mobileInteractiveArea.value
+    ?.querySelector<HTMLButtonElement>('[data-testid="mobile-settings-button"]')
+    ?.focus()
+}
+
+watch(stageModelRenderer, (renderer) => {
+  const exitsViewControls = (renderer !== 'live2d' && l2dViewControl.viewControlsEnabled.value)
+    || (renderer !== 'vrm' && threeViewControl.viewControlsEnabled.value)
+  if (exitsViewControls) {
+    void exitViewControls()
+    return
+  }
+
+  if (renderer !== 'live2d')
+    l2dViewControl.viewControlsEnabled.value = false
+  if (renderer !== 'vrm')
+    threeViewControl.viewControlsEnabled.value = false
+}, { immediate: true })
+
+function handleViewControlsKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !viewControlsEnabled.value)
+    return
+
+  event.preventDefault()
+  void exitViewControls()
+}
 
 function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -163,7 +221,7 @@ const messageInputPointerEventsClass = computed(() => {
   return 'pointer-events-auto'
 })
 
-const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(
+useTranscriptions(
   {
     messageInputRef: messageInput,
     sendMessage: handleSend,
@@ -171,7 +229,13 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription } =
   },
 )
 const { showStopSpeakingButton, speechMuted, stopSpeakingFromChat, toggleSpeechMuted } = useStopSpeakingButton()
-const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
+const characterVoiceEnabled = computed({
+  get: () => !speechMuted.value,
+  set: (value) => {
+    if (value === speechMuted.value)
+      toggleSpeechMuted()
+  },
+})
 
 let suppressNextInputBubbleClick = false
 
@@ -317,6 +381,21 @@ async function handleInputBubbleClick() {
   inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!.focus()
 }
 
+async function handleReplyMessage(payload: ChatHistoryReplyPayload) {
+  if (inputBubbleDocked.value)
+    await setInputBubbleDocked(false)
+
+  selectReply(payload)
+  await nextTick()
+  inputBubble.value?.querySelector<HTMLTextAreaElement>('textarea')?.focus()
+}
+
+async function handleCancelReply() {
+  composer.clearReply()
+  await nextTick()
+  inputBubble.value?.querySelector<HTMLTextAreaElement>('textarea')?.focus()
+}
+
 async function handleInputBubblePointerCancel() {
   inputBubbleDragging.value = false
   await resetInputBubblePosition()
@@ -335,30 +414,7 @@ async function handleSubmit() {
 }
 
 async function handleSend() {
-  if (!messageInput.value.trim() || isComposing.value) {
-    return
-  }
-
-  const textToSend = messageInput.value
-  const targetSessionId = chatSession.activeSessionId
-  messageInput.value = ''
-
-  try {
-    await chatOrchestrator.send({
-      sessionId: targetSessionId,
-      text: textToSend,
-    })
-  }
-  catch (error) {
-    const errorMessage = errorMessageFrom(error) ?? String(error)
-    const wasCancelledForDeletedSession
-      = errorMessage.includes('Chat session was reset before send could start')
-        || errorMessage.includes('Chat session was removed before send completed')
-    if (!wasCancelledForDeletedSession && chatSession.activeSessionId === targetSessionId) {
-      const currentDraft = messageInput.value
-      messageInput.value = currentDraft ? `${textToSend}\n${currentDraft}` : textToSend
-    }
-  }
+  await composer.submit()
 }
 
 function teardownAnalyzer() {
@@ -398,8 +454,48 @@ onUnmounted(() => {
     data-testid="mobile-interactive-area"
     :class="mobileInteractiveAreaClass"
     :style="mobileInteractiveAreaStyle"
+    @keydown="handleViewControlsKeydown"
   >
-    <BackgroundDialogPicker v-model="backgroundDialogOpen" class="pointer-events-auto" />
+    <MobileHeader v-if="!viewControlsEnabled">
+      <BasicButton
+        size="unset"
+        data-testid="conversation-selector-button"
+        :class="[
+          'pointer-events-auto size-11 shrink-0 rounded-full backdrop-blur-md',
+          'bg-neutral-50/70 text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300',
+          'focus-visible:outline-2 focus-visible:outline-primary-500',
+        ]"
+        :title="t('stage.chat.sessions.title')"
+        :aria-label="t('stage.chat.sessions.title')"
+        aria-haspopup="dialog"
+        :aria-expanded="sessionsDrawerOpen"
+        @click="sessionsDrawerOpen = true"
+      >
+        <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-6']" />
+      </BasicButton>
+      <CharacterSwitcherDrawer />
+      <MobileSettingsDrawer
+        v-model:character-voice-enabled="characterVoiceEnabled"
+        :view-controls-available="viewControlsAvailable"
+        @open-view-controls="openViewControls"
+      />
+    </MobileHeader>
+    <MobileHeader v-else>
+      <BasicButton
+        size="unset"
+        data-testid="view-controls-close-button"
+        :title="t('stage.mobile-tools.close-view')"
+        :aria-label="t('stage.mobile-tools.close-view')"
+        :class="[
+          'pointer-events-auto ml-auto size-11 rounded-full backdrop-blur-md',
+          'bg-neutral-50/70 text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300',
+          'focus-visible:outline-2 focus-visible:outline-primary-500',
+        ]"
+        @click="exitViewControls"
+      >
+        <span aria-hidden="true" :class="['i-solar:close-circle-outline size-6']" />
+      </BasicButton>
+    </MobileHeader>
     <div
       :class="[
         'min-h-0 flex flex-1 flex-col justify-end overflow-hidden',
@@ -408,7 +504,7 @@ onUnmounted(() => {
       <KeepAlive>
         <Transition name="fade">
           <ChatHistory
-            v-if="!threeViewCtrlEnabled && !l2dViewCtrlEnabled"
+            v-if="!viewControlsEnabled"
             variant="mobile"
             :messages="historyMessages"
             :sending="isActiveSessionSending"
@@ -416,13 +512,15 @@ onUnmounted(() => {
             class="chat-history"
             :style="chatHistoryStyle"
             :class="chatHistoryClass"
-            @delete-message="handleDeleteMessage($event.index)"
+            @delete-message="handleDeleteMessage"
+            @reply-message="handleReplyMessage"
             @tool-call-rerun="rerunToolCall"
           />
         </Transition>
       </KeepAlive>
     </div>
     <div
+      v-show="!viewControlsEnabled"
       ref="interactionControls"
       data-testid="mobile-interaction-controls"
       :class="[
@@ -451,84 +549,7 @@ onUnmounted(() => {
             data-testid="mobile-input-bubble-dock-target"
             class="invisible size-10 shrink-0 self-end"
           />
-          <ActionAbout />
-          <div flex="~ col" items-end gap-1>
-            <button
-              data-testid="conversation-selector-button"
-              border="2 solid neutral-100/60 dark:neutral-800/30"
-              bg="neutral-50/70 dark:neutral-800/70"
-              w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
-              :title="t('stage.chat.sessions.title')"
-              :aria-label="t('stage.chat.sessions.title')"
-              @click="sessionsDrawerOpen = true"
-            >
-              <div i-solar:chat-line-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
-            </button>
-            <button
-              data-testid="speech-mute-button"
-              :class="[
-                'w-fit flex items-center self-end justify-center rounded-xl border-2 border-solid p-2 backdrop-blur-md',
-                'border-neutral-100/60 text-neutral-500 transition-colors active:scale-95 dark:border-neutral-800/30 dark:text-neutral-400',
-                speechMuted
-                  ? 'bg-primary-100/80 text-primary-600 dark:bg-primary-900/60 dark:text-primary-300'
-                  : 'bg-neutral-50/70 hover:text-primary-500 dark:bg-neutral-800/70 dark:hover:text-primary-400',
-              ]"
-              :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
-              :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
-              :aria-pressed="speechMuted"
-              @click="toggleSpeechMuted"
-            >
-              <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone size-5" />
-              <div v-else class="i-solar:volume-loud-bold-duotone size-5" />
-            </button>
-          </div>
           <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
-          <HearingConfigDialog
-            v-model:enabled="enabled"
-            :transcription="isListening"
-            :toggle-transcription="toggleTranscription"
-            :granted="true"
-          >
-            <button
-              border="2 solid neutral-100/60 dark:neutral-800/30"
-              bg="neutral-50/70 dark:neutral-800/70"
-              w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
-              title="Hearing"
-            >
-              <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="enabled" size-5 :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
-                <div v-else i-solar:microphone-3-outline size-5 text="neutral-500 dark:neutral-400" />
-              </Transition>
-            </button>
-          </HearingConfigDialog>
-          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Theme" @click="toggleDark()">
-            <Transition name="fade" mode="out-in">
-              <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-500 dark:neutral-400" />
-              <div v-else i-solar:sun-2-outline size-5 text="neutral-500 dark:neutral-400" />
-            </Transition>
-          </button>
-          <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Background" @click="backgroundDialogOpen = true">
-            <div i-solar:gallery-wide-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
-          </button>
-          <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Language">
-            <div i-solar:earth-outline size-5 text="neutral-500 dark:neutral-400" />
-          </button> -->
-          <RouterLink to="/settings" border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Settings">
-            <div i-solar:settings-outline size-5 text="neutral-500 dark:neutral-400" />
-          </RouterLink>
-          <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Model">
-            <div i-solar:face-scan-circle-outline size-5 text="neutral-500 dark:neutral-400" />
-          </button> -->
-          <button
-            border="2 solid neutral-100/60 dark:neutral-800/30"
-            bg="neutral-50/70 dark:neutral-800/70"
-            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
-            title="Cleanup Messages"
-            @click="handleCleanupMessages"
-          >
-            <div class="i-solar:trash-bin-2-bold-duotone" />
-          </button>
-          <ViewControls />
         </div>
       </div>
       <div
@@ -536,7 +557,7 @@ onUnmounted(() => {
         data-testid="mobile-message-composer"
         :class="[
           'max-h-100dvh max-w-100dvw w-full',
-          'flex gap-1 px-3 pt-2',
+          'flex gap-2 px-3 pt-2',
         ]"
         :style="messageComposerStyle"
       >
@@ -545,32 +566,42 @@ onUnmounted(() => {
           data-testid="mobile-input-bubble"
           :data-dragging="inputBubbleDragging"
           :class="[
-            'group relative mx-auto min-h-10 flex origin-center',
+            'group relative mx-auto min-h-10 flex flex-col justify-end origin-center overflow-hidden',
             'touch-none select-none focus-within:touch-auto focus-within:select-text',
+            'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 backdrop-blur-md',
+            'dark:border-neutral-700/60 dark:bg-neutral-950/80',
             inputBubbleDragging || inputBubbleAnimating
               ? 'transition-none'
               : 'transition-[max-width] duration-320 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]',
             inputBubbleDocked
               ? [
-                'h-10 max-w-10 w-10 cursor-pointer rounded-xl border-2 border-solid backdrop-blur-md',
+                'h-10 max-w-10 w-10 cursor-pointer rounded-xl',
                 'border-neutral-100/60 bg-neutral-50/70 dark:border-neutral-800/30 dark:bg-neutral-800/70',
               ]
-              : 'max-w-[70%] w-full focus-within:max-w-full',
+              : 'max-w-[70%] w-full rounded-[1lh] focus-within:max-w-full',
           ]"
           @click="handleInputBubbleClick"
           @contextmenu="handleInputBubbleContextMenu"
           @pointerdown="handleInputBubblePointerDown"
         >
+          <ChatReplyPreview
+            :target="replyTarget"
+            :class="['w-full']"
+            @cancel="handleCancelReply"
+          />
           <!-- Android handles touch from the scrollable textarea, so it needs touch-none to keep the bubble drag active. -->
           <BasicTextarea
             v-model="messageInput"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            :spellcheck="false"
             :placeholder="t('stage.message')"
             :class="[
               'font-cute',
               'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full touch-none resize-none overflow-y-scroll scrollbar-none',
-              'border-2 border-solid px-4 py-0.5 outline-none backdrop-blur-md',
+              'border-2 border-solid border-transparent bg-transparent px-4 py-0.5 outline-none',
               'text-neutral-500 dark:text-neutral-100',
-              'rounded-[1lh] border-neutral-200/60 bg-neutral-100/80 dark:border-neutral-700/60 dark:bg-neutral-950/80',
               'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
               'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
               'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
@@ -606,6 +637,7 @@ onUnmounted(() => {
         </button>
         <button
           v-if="messageInput.trim() || isComposing"
+          :aria-label="t('stage.chat.actions.send')"
           w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]" aspect-square flex items-center self-end justify-center rounded-full outline-none backdrop-blur-md
           text="neutral-500 hover:neutral-600 dark:neutral-900 dark:hover:neutral-800"
           bg="primary-50/80 dark:neutral-100/80 hover:neutral-50"
@@ -615,6 +647,17 @@ onUnmounted(() => {
           <div i-solar:arrow-up-outline />
         </button>
       </div>
+    </div>
+    <div
+      v-show="viewControlsEnabled"
+      data-testid="view-controls-toolbar"
+      :class="[
+        'pointer-events-auto fixed inset-x-0 z-30',
+        'pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]',
+        'bottom-[max(1rem,env(safe-area-inset-bottom))]',
+      ]"
+    >
+      <ViewControls variant="mobile-stage" />
     </div>
   </div>
 </template>

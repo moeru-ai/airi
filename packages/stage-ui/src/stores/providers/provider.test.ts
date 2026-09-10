@@ -10,15 +10,51 @@ import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
 import { useProviderStore } from './provider'
 
+const mocks = vi.hoisted(() => ({
+  updateCredits: vi.fn(async () => Response.json({ flux: 0 })),
+}))
+
+vi.mock('../../composables/api', () => ({
+  client: {
+    api: {
+      v1: {
+        flux: { $get: mocks.updateCredits },
+      },
+    },
+  },
+}))
+
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (_key: string, fallback?: string) => fallback ?? _key,
   }),
 }))
 
+/** Creates stable authenticated state for provider-store tests. */
+function createAuthenticatedState(): { session: Session, token: string, user: User } {
+  const user: User = {
+    id: 'user-1',
+    name: 'AIRI User',
+    email: 'user@example.com',
+    emailVerified: true,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  }
+  const session: Session = {
+    id: 'session-1',
+    token: 'server-session-token',
+    userId: user.id,
+    expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  }
+  return { session, token: 'restored-access-token', user }
+}
+
 describe('provider store synchronization boundary', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    mocks.updateCredits.mockClear()
   })
 
   // ROOT CAUSE:
@@ -34,6 +70,7 @@ describe('provider store synchronization boundary', () => {
     const store = useProviderStore()
     const runtimeState = {
       models: [],
+      defaultModel: null,
       modelStatus: 'ready' as const,
       modelError: null,
     }
@@ -93,6 +130,31 @@ describe('provider store synchronization boundary', () => {
 
   // ROOT CAUSE:
   //
+  // Speech settings pages wrote defaults into the computed `configs` map before
+  // provider initialization. The derived entry made `initializeProvider` skip
+  // the source provider record, so later input was not persisted.
+  //
+  // The provider record is now the only existence check. A derived entry cannot
+  // prevent initialization of the persisted source state.
+  // https://github.com/moeru-ai/airi/issues/2449
+  it('creates the provider when only a derived configuration entry exists (Issue #2449)', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+
+    configStore.configs['openai-compatible-audio-speech'] = { model: 'qwen' }
+
+    expect(configStore.getProvider('openai-compatible-audio-speech')).toBeUndefined()
+
+    await store.initializeProvider('openai-compatible-audio-speech')
+
+    expect(configStore.getProvider('openai-compatible-audio-speech')).toMatchObject({
+      id: 'openai-compatible-audio-speech',
+      definitionId: 'openai-compatible-audio-speech',
+    })
+  })
+
+  // ROOT CAUSE:
+  //
   // Module pages treated every credential-free provider as available before
   // configuration. The official providers also have credential-free local
   // definitions, but their availability belongs to the authenticated session.
@@ -131,23 +193,7 @@ describe('provider store synchronization boundary', () => {
     expect(store.moduleTranscriptionProvidersMetadata.map(provider => provider.id)).not.toContain(OFFICIAL_TRANSCRIPTION_PROVIDER_ID)
     expect(store.moduleVisionProvidersMetadata.map(provider => provider.id)).not.toContain('vision-official-provider')
 
-    const user: User = {
-      id: 'user-1',
-      name: 'AIRI User',
-      email: 'user@example.com',
-      emailVerified: true,
-      createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-    }
-    const session: Session = {
-      id: 'session-1',
-      token: 'server-session-token',
-      userId: user.id,
-      expiresAt: new Date('2026-12-01T00:00:00.000Z'),
-      createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-    }
-    useAuthStore().$patch({ user, session })
+    useAuthStore().$patch(createAuthenticatedState())
 
     expect(store.moduleChatProvidersMetadata.map(provider => provider.id)).toContain('official-provider')
     expect(store.moduleSpeechProvidersMetadata.map(provider => provider.id)).toContain(OFFICIAL_SPEECH_PROVIDER_ID)
@@ -205,6 +251,7 @@ describe('provider store synchronization boundary', () => {
 
     store.providerRuntimeState['official-provider'] = {
       models: [],
+      defaultModel: null,
       modelStatus: 'loading',
       modelError: null,
     }
@@ -228,6 +275,7 @@ describe('provider store synchronization boundary', () => {
   // until it settles, so concurrent callers share the same result.
   it('shares concurrent voice catalog requests', async () => {
     const store = useProviderStore()
+    useAuthStore().$patch(createAuthenticatedState())
     let resolveRequest: ((response: Response) => void) | undefined
     const fetchMock = vi.fn(() => new Promise<Response>((resolve) => {
       resolveRequest = resolve
@@ -248,6 +296,154 @@ describe('provider store synchronization boundary', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
     }
     finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3959813216
+  // ROOT CAUSE:
+  //
+  // The speech settings page can request an official voice catalog before the
+  // authenticated session is ready. A tokenless task then occupies the shared
+  // in-flight slot and can absorb the first authenticated retry.
+  //
+  // Before: the provider starts the official request without an authenticated
+  // access token.
+  //
+  // We fixed this at the provider boundary. Authentication-owned providers do
+  // not create an in-flight task until the session and token are both ready.
+  it('does not start auth-owned voice requests before the session has a token', async () => {
+    const store = useProviderStore()
+    const authStore = useAuthStore()
+    const voiceRequests: string[] = []
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input)
+      if (url.includes('/api/v1/audio/voices')) {
+        voiceRequests.push(url)
+        return Response.json({ recommended: {}, voices: [] })
+      }
+      return Response.json({ flux: 0 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    try {
+      await expect(store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')).resolves.toEqual([])
+      expect(voiceRequests).toHaveLength(0)
+
+      authStore.token = 'restored-access-token'
+      await expect(store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')).resolves.toEqual([])
+      expect(voiceRequests).toHaveLength(0)
+
+      authStore.$patch(createAuthenticatedState())
+      await expect(store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')).resolves.toEqual([])
+      expect(voiceRequests).toHaveLength(1)
+    }
+    finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960349395
+  // ROOT CAUSE:
+  // A detached catalog task survived logout and occupied the next session's
+  // in-flight slot. Session changes must isolate requests and stale errors.
+  it.each([200, 401])('discards the previous session voice response with status %i', async (status) => {
+    const store = useProviderStore()
+    const auth = useAuthStore()
+    auth.$patch(createAuthenticatedState())
+    const { promise: oldResponse, resolve: finishOld } = Promise.withResolvers<Response>()
+    let requests = 0
+    let oldSignal: AbortSignal | null | undefined
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (_input, options) => {
+      requests++
+      if (requests === 1) {
+        oldSignal = options?.signal
+        return oldResponse
+      }
+      return Response.json({ recommended: {}, voices: [{ id: 'new-voice', name: 'New voice', languages: [] }] })
+    }))
+    const oldLoad = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
+    try {
+      await vi.waitFor(() => expect(requests).toBe(1))
+      auth.$patch({ user: null, session: null, token: null })
+      expect(oldSignal?.aborted).toBe(true)
+      auth.$patch({ ...createAuthenticatedState(), token: 'new-access-token' })
+      const newLoad = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
+      await vi.waitFor(() => expect(requests).toBe(2))
+      expect((await newLoad)?.[0]?.id).toBe('new-voice')
+      finishOld(Response.json({ recommended: {}, voices: [{ id: 'old-voice', name: 'Old voice', languages: [] }] }, { status }))
+      await expect(oldLoad).resolves.toBeUndefined()
+    }
+    finally {
+      finishOld(Response.json({ voices: [], recommended: {} }))
+      await oldLoad.catch(() => {})
+      vi.unstubAllGlobals()
+    }
+  })
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960674489
+  // ROOT CAUSE: Token rotation aborted discovery without a new login hook.
+  it('restarts an interrupted catalog after token rotation in the same session', async () => {
+    const store = useProviderStore()
+    const auth = useAuthStore()
+    auth.$patch(createAuthenticatedState())
+    let requests = 0
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (_input, options) => {
+      requests++
+      if (requests === 1) {
+        return new Promise<Response>((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => reject(options.signal?.reason), { once: true })
+        })
+      }
+      return Response.json({ recommended: {}, voices: [{ id: 'rotated', name: 'Rotated', languages: [] }] })
+    }))
+    try {
+      const loading = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
+      await vi.waitFor(() => expect(requests).toBe(1))
+      const duplicate = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
+      auth.token = 'rotated-token'
+      expect((await loading)?.[0]?.id).toBe('rotated')
+      expect((await duplicate)?.[0]?.id).toBe('rotated')
+      expect(requests).toBe(2)
+    }
+    finally {
+      vi.unstubAllGlobals()
+    }
+  })
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3963756328
+  // ROOT CAUSE: Deserialized session objects changed identity without changing request ownership.
+  it('keeps the replacement request alive when refresh replaces same-ID session objects', async () => {
+    const store = useProviderStore()
+    const auth = useAuthStore()
+    auth.$patch(createAuthenticatedState())
+    let requests = 0
+    let replacementSignal: AbortSignal | null | undefined
+    let finish!: (response: Response) => void
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (_input, options) => {
+      requests++
+      return new Promise<Response>((resolve, reject) => {
+        options?.signal?.addEventListener('abort', () => reject(options.signal?.reason), { once: true })
+        if (requests === 2) {
+          replacementSignal = options?.signal
+          finish = resolve
+        }
+      })
+    }))
+    const loading = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
+    try {
+      await vi.waitFor(() => expect(requests).toBe(1))
+      auth.token = 'renewed-token'
+      await vi.waitFor(() => expect(requests).toBe(2))
+      const refreshed = createAuthenticatedState()
+      auth.user = refreshed.user
+      auth.session = refreshed.session
+      expect(replacementSignal?.aborted).toBe(false)
+      finish(Response.json({ voices: [{ id: 'renewed', name: 'Renewed', languages: [] }] }))
+      expect((await loading)?.[0]?.id).toBe('renewed')
+      expect(requests).toBe(2)
+    }
+    finally {
+      finish?.(Response.json({ voices: [] }))
+      await loading
       vi.unstubAllGlobals()
     }
   })

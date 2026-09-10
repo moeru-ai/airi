@@ -6,6 +6,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import { useCharacterNotebookStore, useCharacterStore } from '../'
+import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prompt'
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
@@ -19,6 +20,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const characterStore = useCharacterStore()
   const notebookStore = useCharacterNotebookStore()
   const { systemPrompt } = storeToRefs(characterStore)
+  const runtimePrompt = useAiriRuntimePrompt()
   const modsServerChannelStore = useModsServerChannelStore()
 
   const processing = ref(false)
@@ -133,6 +135,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
           provider,
         },
         systemPrompt: systemPrompt.value,
+        runtimePrompt: runtimePrompt.value,
         control,
       })
       if (!result.commands.length)

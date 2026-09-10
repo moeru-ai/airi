@@ -28,6 +28,7 @@ describe('createStageTamagotchiScenarioContext', () => {
     expect(context.settingsWindow.goToRoute).toEqual(expect.any(Function))
     expect(context.dialogs.dismiss).toEqual(expect.any(Function))
     expect(context.drawers.swipeDown).toEqual(expect.any(Function))
+    expect(context.gestures.swipe).toEqual(expect.any(Function))
   })
 })
 

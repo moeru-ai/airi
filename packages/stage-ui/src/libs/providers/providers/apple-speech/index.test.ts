@@ -61,6 +61,10 @@ describe('apple speech transcription provider', () => {
     expect(mocks.dispose).toHaveBeenCalledOnce()
   })
 
+  it('exposes its Hearing settings view through the provider definition', () => {
+    expect(providerAppleSpeechTranscription.views?.hearing).toBeTypeOf('function')
+  })
+
   it('converts PCM16 input and emits AIRI transcript snapshots', async () => {
     const writtenSamples: Float32Array[] = []
     const finalResult: TranscriptionResult = {

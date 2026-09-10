@@ -8,9 +8,9 @@ import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
-import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/analytics'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/product-signals'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -31,8 +31,8 @@ import './styles/main.css'
 import 'uno.css'
 
 configureAnalyticsAdapter(async (options) => {
-  const { createPosthogAdapter } = await import('@proj-airi/stage-ui/libs/analytics/posthog')
-  return createPosthogAdapter(options)
+  const { createOpenpanelAdapter } = await import('@proj-airi/stage-ui/libs/product-signals/openpanel')
+  return createOpenpanelAdapter(options)
 })
 registerAuthorizationHandler(browserAuthorizationHandler)
 

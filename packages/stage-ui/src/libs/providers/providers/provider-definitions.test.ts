@@ -1,11 +1,11 @@
-import type { ComposerTranslation } from 'vue-i18n'
+import type { ProviderTranslator } from '@proj-airi/provider-inference'
 
-import { describe, expect, it } from 'vitest'
+import type { StageProviderId } from './registry'
+
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import { z } from 'zod'
 
 import { providerAliyunNlsTranscription } from './aliyun-nls'
-import { providerBrowserWebSpeechApi } from './browser-web-speech-api'
-import { providerElevenLabs } from './elevenlabs'
 import {
   providerAppLocalAudioSpeech,
   providerAppLocalAudioTranscription,
@@ -13,13 +13,30 @@ import {
   providerBrowserLocalAudioTranscription,
 } from './local-audio'
 import { getDefinedProvider } from './registry'
-import { providerSpeechNoop } from './speech-noop'
 
 import './index'
 
-const translate = ((key: string) => key) as unknown as ComposerTranslation
+const translate = ((key: string) => key) as ProviderTranslator
+
+function getRequiredProvider(id: string) {
+  const provider = getDefinedProvider(id)
+  if (!provider)
+    throw new Error(`Provider definition "${id}" is not registered.`)
+
+  return provider
+}
 
 describe('migrated provider definitions', () => {
+  it('exposes a closed provider id union to stage-ui consumers', () => {
+    expectTypeOf<'openai'>().toExtend<StageProviderId>()
+    expectTypeOf<'official-provider'>().toExtend<StageProviderId>()
+    expectTypeOf<string>().not.toExtend<StageProviderId>()
+  })
+
+  it('returns no definition for an unknown runtime provider id', () => {
+    expect(getDefinedProvider('unknown-provider')).toBeUndefined()
+  })
+
   it('registers every provider that moved out of the legacy store', () => {
     const providerIds = [
       'speech-noop',
@@ -57,7 +74,8 @@ describe('migrated provider definitions', () => {
   })
 
   it('creates the no-op speech provider through ProviderDefinition', async () => {
-    const provider = await providerSpeechNoop.createProvider({})
+    const definition = getRequiredProvider('speech-noop')
+    const provider = await definition.createProvider({})
 
     expect(provider).toHaveProperty('speech')
     expect('speech' in provider && provider.speech('unused')).toMatchObject({
@@ -111,7 +129,8 @@ describe('migrated provider definitions', () => {
   })
 
   it('describes Web Speech API streaming support without runtime state', async () => {
-    const defaults = z.parse(await providerBrowserWebSpeechApi.createProviderConfig({ t: translate }), {})
+    const definition = getRequiredProvider('browser-web-speech-api')
+    const defaults = z.parse(await definition.createProviderConfig({ t: translate }), {})
 
     expect(defaults).toEqual({
       language: 'en-US',
@@ -119,19 +138,20 @@ describe('migrated provider definitions', () => {
       interimResults: true,
       maxAlternatives: 1,
     })
-    expect(providerBrowserWebSpeechApi.capabilities?.transcription).toEqual({
+    expect(definition.capabilities?.transcription).toEqual({
       protocol: 'http',
       generateOutput: false,
       streamOutput: true,
       streamInput: true,
     })
-    expect(await providerBrowserWebSpeechApi.isAvailableBy?.()).toBe(false)
+    expect(await definition.isAvailableBy?.()).toBe(false)
   })
 
   it('keeps ElevenLabs configuration and model discovery in the definition', async () => {
-    const defaults = z.parse(await providerElevenLabs.createProviderConfig({ t: translate }), { apiKey: 'test' })
-    const provider = await providerElevenLabs.createProvider(defaults)
-    const models = await providerElevenLabs.extraMethods?.listModels?.(defaults, provider)
+    const definition = getRequiredProvider('elevenlabs')
+    const defaults = z.parse(await definition.createProviderConfig({ t: translate }), { apiKey: 'test' })
+    const provider = await definition.createProvider(defaults)
+    const models = await definition.extraMethods?.listModels?.(defaults, provider)
 
     expect(defaults).toMatchObject({
       baseUrl: 'https://unspeech.hyp3r.link/v1/',

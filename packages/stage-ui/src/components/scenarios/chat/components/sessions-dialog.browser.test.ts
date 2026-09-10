@@ -2,10 +2,14 @@ import type { ChatSessionMeta } from '../../../../types/chat-session'
 
 import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
+import { page } from 'vitest/browser'
 import { defineComponent, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import SessionsDialog from './sessions-dialog.vue'
+
+import '@unocss/reset/tailwind.css'
+import 'virtual:uno.css'
 
 function createTestI18n() {
   return createI18n({
@@ -20,6 +24,9 @@ function createTestI18n() {
               'new': 'New chat',
               'empty': 'No chats',
               'delete': 'Delete',
+              'current': 'Current',
+              'cancel': 'Cancel',
+              'confirm-delete': 'Delete this conversation and its messages?',
               'cloud-badge': 'Cloud synced',
             },
           },
@@ -42,7 +49,7 @@ function sessionMeta(sessionId: string, updatedAt: number): ChatSessionMeta {
 function createHarness(rows = [
   { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, updatedAtLabel: 'now' },
   { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, updatedAtLabel: 'yesterday' },
-]) {
+], isDesktop = false) {
   return defineComponent({
     name: 'SessionsDialogHarness',
     components: { SessionsDialog },
@@ -56,15 +63,15 @@ function createHarness(rows = [
         deleted,
         selected,
         rows,
+        isDesktop,
       }
     },
     template: `
       <SessionsDialog
         :open="true"
         :rows="rows"
-        :is-desktop="false"
+        :is-desktop="isDesktop"
         :is-creating-session="false"
-        mobile-padding-bottom="24px"
         @new-session="created += 1"
         @select-session="selected = $event"
         @delete-session="deleted = $event"
@@ -77,7 +84,37 @@ function createHarness(rows = [
 }
 
 describe('sessions dialog actions', () => {
+  it('keeps the current marker and deletion confirmation usable at 320 pixels', async () => {
+    await page.viewport(320, 740)
+    const screen = await render(createHarness(), { global: { plugins: [createTestI18n()] } })
+    await expect.poll(() => screen.getByRole('dialog').element().getBoundingClientRect().height).toBeGreaterThanOrEqual(370)
+    const current = screen.getByRole('button', { name: /^First chat/ })
+    await expect.element(current).toHaveAttribute('aria-current', 'true')
+    const remove = screen.getByRole('button', { name: 'Delete: Second chat' })
+    expect(remove.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(44)
+    expect(remove.element().getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
+    await remove.click()
+    await expect.element(screen.getByRole('status')).toHaveTextContent('Delete this conversation and its messages?')
+    await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('none')
+    await screen.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await expect.element(remove).toHaveFocus()
+    await expect.element(screen.getByRole('status')).not.toBeInTheDocument()
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320)
+    expect(document.querySelector('[data-vaul-handle]')).not.toBeNull()
+  })
+
+  it('keeps the desktop surface centered and its list actions accessible', async () => {
+    await page.viewport(1280, 900)
+    const screen = await render(createHarness(undefined, true), { global: { plugins: [createTestI18n()] } })
+    const dialog = screen.getByRole('dialog').element()
+    await expect.poll(() => Math.round(dialog.getBoundingClientRect().x + dialog.getBoundingClientRect().width / 2)).toBe(640)
+    expect(document.querySelector('[data-vaul-handle]')).toBeNull()
+    await screen.getByRole('button', { name: /^Second chat/ }).click()
+    await expect.element(screen.getByLabelText('selected-session-id')).toHaveTextContent('session-two')
+  })
+
   it('constrains long mobile session lists to a scrollable viewport', async () => {
+    await page.viewport(390, 844)
     const rows = Array.from({ length: 30 }, (_, index) => ({
       meta: sessionMeta(`session-${index}`, 30 - index),
       preview: `Chat ${index}`,
@@ -107,8 +144,8 @@ describe('sessions dialog actions', () => {
     //
     // Vaul handled every pointer release on DrawerContent, including releases
     // from its action buttons, and unmounted the sheet before `click` ran.
-    // The replacement uses a Reka dialog surface whose buttons emit one action
-    // each without a competing gesture-release lifecycle.
+    // The shared drawer restricts dragging to its handle. List actions must
+    // still emit once without a competing gesture-release lifecycle.
     const screen = await render(createHarness(), {
       global: {
         plugins: [createTestI18n()],
@@ -121,10 +158,12 @@ describe('sessions dialog actions', () => {
     await expect.element(screen.getByLabelText('created-session-count')).toHaveTextContent('1')
 
     await screen.getByRole('button', { name: 'Delete: Second chat' }).click()
+    await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('none')
+    await screen.getByRole('button', { name: 'Delete', exact: true }).click()
     await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('session-two')
     await expect.element(screen.getByLabelText('selected-session-id')).toHaveTextContent('none')
 
-    await screen.getByRole('button', { name: 'First chat now' }).click()
+    await screen.getByRole('button', { name: /^First chat/ }).click()
     await expect.element(screen.getByLabelText('selected-session-id')).toHaveTextContent('session-one')
   })
 })

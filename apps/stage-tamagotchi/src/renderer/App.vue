@@ -7,8 +7,8 @@ import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/com
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
-import { initializeAnalytics } from '@proj-airi/stage-ui/libs/analytics'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -19,7 +19,6 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { configureAsDefaultsIfEmpty, unconfigureAuthenticationProviders } from '@proj-airi/stage-ui/stores/modules/default'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
@@ -142,8 +141,7 @@ function createFullStageRuntime() {
     if (!syncedPinia.isLeader())
       return
 
-    if (await unconfigureAuthenticationProviders())
-      await cardStore.persistActiveCardModuleSelections()
+    await cardStore.configureForAuthentication(false)
   }
 
   function registerAuthenticatedSetup() {
@@ -151,8 +149,7 @@ function createFullStageRuntime() {
       if (!syncedPinia.isLeader())
         return
 
-      if (await configureAsDefaultsIfEmpty())
-        await cardStore.persistActiveCardModuleSelections()
+      await cardStore.configureForAuthentication(true)
       await onboardingStore.closeAfterAuthentication()
     })
     stopLoggedOutSetup ??= authStore.onLogout(removeAuthenticationProviderConfiguration)
