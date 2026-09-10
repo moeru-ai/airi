@@ -13,6 +13,7 @@ import { useAnnouncements } from '../../../composables/announcements'
 const announcement = {
   id: 'notice-1',
   locale: 'en',
+  layout: 'portrait',
   title: 'AIRI update',
   body: '<b>Plain text</b>',
   actionLabel: 'Read more',
@@ -33,6 +34,22 @@ async function mount(onOpenChange = (_open: boolean) => {}) {
 }
 
 describe('cloud announcement display', () => {
+  it('advances automatically while publication expiry checks continue', async () => {
+    // ROOT CAUSE:
+    // The expiry clock updates the list every second. Watching that list with
+    // Embla's shallow ref restarted autoplay before its five-second interval.
+    // Watch the playback decision so unchanged eligibility keeps the timer.
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async () => Response.json({ announcements: [
+      announcement,
+      { ...announcement, id: 'notice-2', title: 'Second announcement' },
+    ] })))
+    await mount()
+    await page.getByRole('button', { name: 'Open announcements' }).click()
+    await expect.element(page.getByRole('heading', { name: 'AIRI update' })).toBeVisible()
+    await page.getByRole('button', { name: 'Open announcements' }).hover()
+    await expect.element(page.getByRole('heading', { name: 'Second announcement' }), { timeout: 8000 }).toBeVisible()
+  }, 15000)
+
   it('cycles across multiple announcements and keeps text when a cover cannot load', async () => {
     const entries = [
       { ...announcement, coverUrl: '/v1/announcements/notice-1/cover?revision=2' },
@@ -42,12 +59,18 @@ describe('cloud announcement display', () => {
     await mount()
     await page.getByRole('button', { name: 'Open announcements' }).click()
     await expect.element(page.getByRole('heading', { name: 'AIRI update' })).toBeVisible()
-    await page.getByRole('button', { name: 'Next announcement' }).click()
+    await page.getByRole('button', { name: 'Second announcement', exact: true }).click()
     await expect.element(page.getByRole('heading', { name: 'Second announcement' })).toBeVisible()
-    await page.getByRole('button', { name: 'Next announcement' }).click()
+    await page.getByRole('button', { name: 'AIRI update', exact: true }).click()
     await expect.element(page.getByRole('heading', { name: 'AIRI update' })).toBeVisible()
-    await page.getByRole('button', { name: 'Previous announcement' }).click()
+    await page.getByRole('button', { name: 'Second announcement', exact: true }).click()
     await expect.element(page.getByRole('heading', { name: 'Second announcement' })).toBeVisible()
+    await page.getByRole('button', { name: 'AIRI update', exact: true }).click()
+    await expect.element(page.getByRole('button', { name: 'AIRI update', exact: true })).toHaveAttribute('aria-current', 'true')
+    await expect.element(page.getByRole('heading', { name: 'Second announcement' })).not.toBeInTheDocument()
+    await page.getByRole('button', { name: 'Close announcements' }).click()
+    await page.getByRole('button', { name: 'Open announcements' }).click()
+    await expect.element(page.getByRole('heading', { name: 'AIRI update' })).toBeVisible()
   })
 
   it('resolves cover paths against Cloud and rejects an unrelated image origin', async () => {
@@ -66,7 +89,7 @@ describe('cloud announcement display', () => {
     finally { scope.stop() }
   })
 
-  it('uses the generated request and renders plain text with a safe external link', async () => {
+  it('uses the generated request and renders plain text without an action button', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({ announcements: [announcement] }))
     vi.stubGlobal('fetch', fetch)
     const onOpenChange = vi.fn<(open: boolean) => void>()
@@ -75,7 +98,7 @@ describe('cloud announcement display', () => {
     await expect.element(page.getByRole('heading', { name: 'AIRI update' })).toBeVisible()
     expect(onOpenChange).toHaveBeenLastCalledWith(true)
     await expect.element(page.getByText('<b>Plain text</b>')).toBeVisible()
-    await expect.element(page.getByRole('link', { name: 'Read more' })).toHaveAttribute('rel', 'noopener noreferrer')
+    await expect.element(page.getByRole('link', { name: 'Read more' })).not.toBeInTheDocument()
     const request = fetch.mock.calls[0]?.[0]
     expect(request).toBeInstanceOf(Request)
     if (!(request instanceof Request))

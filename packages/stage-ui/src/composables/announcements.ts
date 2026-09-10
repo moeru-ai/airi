@@ -2,12 +2,13 @@ import type { MaybeRefOrGetter } from 'vue'
 
 import { announcementServiceListAnnouncements } from '@proj-airi/cloud-client'
 import { useIntervalFn, useNow } from '@vueuse/core'
-import { array, isoTimestamp, nonEmpty, object, optional, parse, pipe, string } from 'valibot'
+import { array, isoTimestamp, nonEmpty, object, optional, parse, picklist, pipe, string } from 'valibot'
 import { computed, onScopeDispose, ref, toValue, watch } from 'vue'
 
 const contentSchema = object({
   id: pipe(string(), nonEmpty()),
   locale: pipe(string(), nonEmpty()),
+  layout: picklist(['portrait', 'landscape']),
   title: pipe(string(), nonEmpty()),
   body: pipe(string(), nonEmpty()),
   coverUrl: optional(string(), ''),
