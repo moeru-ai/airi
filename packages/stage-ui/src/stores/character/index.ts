@@ -40,6 +40,12 @@ interface StreamingReactionState {
    * only while bilingual subtitles are on.
    */
   bilingualTurn?: BilingualTurn
+  /**
+   * Languages the split and the recorded text use. Captured together with the
+   * split, so a settings change before the reaction ends cannot record text in
+   * a language the speech engine was never given.
+   */
+  bilingualSettings?: { languages: string[], ttsLanguage: string }
 }
 
 const MAX_REACTIONS = 200
@@ -110,15 +116,20 @@ export const useCharacterStore = defineStore('character', () => {
       // shown in the caption line, and the translation has no chat bubble of
       // its own to render in.
       let bilingualTurn: BilingualTurn | undefined
+      let bilingualSettings: { languages: string[], ttsLanguage: string } | undefined
       if (bilingualStore.enabled) {
         const turnId = `${SPARK_TURN_ID_PREFIX}${sparkEventId}`
+        bilingualSettings = {
+          languages: bilingualStore.subtitleLanguages,
+          ttsLanguage: bilingualStore.ttsLanguage,
+        }
 
         // The pairs are broadcast instead of captioned here: the model finishes
         // long before the audio does, and only the window hosting the speech
         // pipeline knows which sentence is being spoken right now.
         bilingualTurn = createBilingualTurn({
-          languages: bilingualStore.subtitleLanguages,
-          ttsLanguage: bilingualStore.ttsLanguage,
+          languages: bilingualSettings.languages,
+          ttsLanguage: bilingualSettings.ttsLanguage,
           onSpoken: (text) => {
             intent.writeLiteral(text)
             newReaction.message += text
@@ -150,7 +161,7 @@ export const useCharacterStore = defineStore('character', () => {
         },
       })
 
-      streamingReactions.value.set(sparkEventId, { reaction: newReaction, intent, parser, bilingualTurn })
+      streamingReactions.value.set(sparkEventId, { reaction: newReaction, intent, parser, bilingualTurn, bilingualSettings })
     }
 
     const state = streamingReactions.value.get(sparkEventId)!
@@ -169,8 +180,10 @@ export const useCharacterStore = defineStore('character', () => {
     // Reactions are handed back to the module that requested them, so the
     // stored text must not keep the `[EN]`/`[CN]` control tags. Recording stays
     // synchronous: the caller reads it back as soon as the agent turn resolves.
-    const text = state.bilingualTurn
-      ? projectBilingualText(fullText, bilingualStore.subtitleLanguages, bilingualStore.ttsLanguage)
+    // The languages come from the split, not from the settings as they are now:
+    // the reaction was spoken in the former, so the stored text has to match.
+    const text = state.bilingualSettings
+      ? projectBilingualText(fullText, state.bilingualSettings.languages, state.bilingualSettings.ttsLanguage)
       : fullText
 
     state.reaction.message = text

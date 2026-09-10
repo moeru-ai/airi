@@ -30,7 +30,7 @@ import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useAuthStore } from './auth'
-import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext, RUNTIME_PROMPT_CONTEXT_ID } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -301,8 +301,11 @@ export const useChatStore = defineStore('chat', () => {
    * turning subtitles off would leave the raw tags in the history. The reply is
    * captured the first time it is seen, so a change applies from the next turn
    * on. One slot is enough because the chat holds one foreground reply.
+   *
+   * `instructed` records whether the request actually asked for bilingual output,
+   * so a reply that merely happens to contain brackets is left alone.
    */
-  let bilingualReply: { id?: string, languages: string[], ttsLanguage: string } | undefined
+  let bilingualReply: { id?: string, instructed: boolean, languages: string[], ttsLanguage: string } | undefined
 
   /** Settings the reply was produced with, captured the first time it is seen. */
   function settingsOfBilingualReply(replyId: string | undefined) {
@@ -310,6 +313,7 @@ export const useChatStore = defineStore('chat', () => {
     if (!bilingualReply || (replyId !== undefined && bilingualReply.id !== replyId)) {
       bilingualReply = {
         id: replyId,
+        instructed: bilingualStore.enabled,
         languages: bilingualStore.subtitleLanguages,
         ttsLanguage: bilingualStore.ttsLanguage,
       }
@@ -324,14 +328,18 @@ export const useChatStore = defineStore('chat', () => {
    * chat bubble, the stored history and every later model turn must only see
    * the spoken language.
    *
-   * Only the model was asked to tag its output, and only text that carries a tag
-   * needs projecting, so a message the user wrote is returned untouched.
+   * Only a reply that was asked for bilingual output is rewritten: the model
+   * only emits these tags on request, and text that carries a bracket for any
+   * other reason would lose everything after it.
    */
   function projectBilingualMessage<T extends { id?: string, role?: unknown, content?: unknown, slices?: unknown, providerTranscript?: unknown }>(message: T): T {
     if (message.role !== 'assistant' || typeof message.content !== 'string' || !message.content.includes('['))
       return message
 
-    const { languages, ttsLanguage } = settingsOfBilingualReply(message.id)
+    const { instructed, languages, ttsLanguage } = settingsOfBilingualReply(message.id)
+    if (!instructed)
+      return message
+
     const project = (text: string) => projectBilingualText(text, languages, ttsLanguage)
     const slices = Array.isArray(message.slices)
       ? message.slices.map(slice => slice && typeof slice === 'object' && 'type' in slice && slice.type === 'text' && 'text' in slice && typeof slice.text === 'string'
@@ -375,6 +383,13 @@ export const useChatStore = defineStore('chat', () => {
         const account = createUserAccountContext(authStore)
         if (account)
           snapshot[account.contextId] = [account]
+        // The registry keeps the last ingest per context, and a provider that
+        // returns nothing leaves it alone: a prompt that has become empty would
+        // otherwise be replayed from its last non-empty copy. This is how a
+        // bilingual instruction outlived the feature being switched off, and the
+        // tags then reached the speech engine with nothing left to parse them.
+        if (!runtimePrompt.value)
+          delete snapshot[RUNTIME_PROMPT_CONTEXT_ID]
         return snapshot
       },
     },

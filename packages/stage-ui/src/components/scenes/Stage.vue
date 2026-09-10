@@ -529,8 +529,8 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
     }
     // Multilingual engines (OpenAI-compatible) read the TTS language natively,
     // so only the per-language voice swap applies to the locale-picked providers.
-    else if (bilingualStore.enabled) {
-      const bilingualVoice = resolveBilingualVoice()
+    else {
+      const bilingualVoice = bilingualVoiceForTurn(request.turnId)
       if (bilingualVoice)
         voice = bilingualVoice
     }
@@ -769,6 +769,14 @@ const bilingualBufferedTurns = new Set<string>()
  * soon as it arrives instead of being dropped.
  */
 const bilingualWaitingTurns = new Set<string>()
+/**
+ * Voice each turn synthesises with, captured when the turn starts.
+ *
+ * A turn keeps the language it started with, so its voice has to be fixed too:
+ * a chat turn is captured at its session, anything without one at its first
+ * request.
+ */
+const bilingualVoicesByTurn = new Map<string, VoiceInfo | undefined>()
 
 /** Queues a finished sentence pair and publishes it if playback is waiting. */
 function queueBilingualPair(turnId: string, pair: BilingualPair) {
@@ -795,11 +803,12 @@ function clearBilingualTranslation() {
   }
 }
 
-/** Drops everything queued for one turn. */
+/** Drops everything recorded for one turn. */
 function clearBilingualTurn(turnId: string) {
   bilingualPairsByTurn.delete(turnId)
   bilingualBufferedTurns.delete(turnId)
   bilingualWaitingTurns.delete(turnId)
+  bilingualVoicesByTurn.delete(turnId)
 }
 
 function resetBilingualTurn(turnId: string) {
@@ -1002,6 +1011,25 @@ function resolveBilingualVoice(): VoiceInfo | undefined {
   return providerVoices.find(voice => speaksTtsLanguage(voice))
 }
 
+/**
+ * Voice one turn synthesises with.
+ *
+ * A turn speaks the language its split started with, so its voice has to stay
+ * put: resolving again per segment would give the rest of a reply a different
+ * voice — or a different language — as soon as the settings change. A chat turn
+ * is captured when its session opens; a turn without one (a reaction) the first
+ * time it asks for audio, and a request without a turn falls back to settings.
+ */
+function bilingualVoiceForTurn(turnId: string | undefined): VoiceInfo | undefined {
+  if (!turnId)
+    return resolveBilingualVoice()
+
+  if (!bilingualVoicesByTurn.has(turnId))
+    bilingualVoicesByTurn.set(turnId, resolveBilingualVoice())
+
+  return bilingualVoicesByTurn.get(turnId)
+}
+
 function stopSpeechOutput(reason: string) {
   currentSession?.cancel(reason)
   currentSession = null
@@ -1035,8 +1063,9 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   // case, which is the right behaviour for the rest of the providers too.
   // When bilingual output is on, prefer a voice that actually speaks the TTS
   // language so Japanese (etc.) is not read with the locale-picked voice's
-  // phonology — see `resolveBilingualVoice`.
-  const voiceId = resolveBilingualVoice()?.id || activeSpeechVoice.value?.id
+  // phonology — see `resolveBilingualVoice`. The session reads the voice its
+  // turn was opened with, so a later settings change cannot swap it mid-turn.
+  const voiceId = bilingualVoicesByTurn.get(turnId)?.id || activeSpeechVoice.value?.id
   if (!voiceId)
     return null
   // Resolve the concrete streaming model id. The active speech model is only
@@ -1080,6 +1109,12 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
 }
 
 function openTtsSession(turnId: string): StageTtsSession {
+  // A turn speaks one language from here to its end — the one its split starts
+  // with — so its voice is fixed at the same moment, before any audio is asked
+  // for. Resolving it per segment instead would follow a settings change made
+  // mid-reply and give the rest of the turn a voice for another language.
+  bilingualVoicesByTurn.set(turnId, resolveBilingualVoice())
+
   // A session must only clear the module-level `currentSession` if it IS that session. The previous
   // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
   // are not assigned to `currentSession` (e.g. one-off read-aloud sessions): one of those finishing

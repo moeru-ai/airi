@@ -1,3 +1,3 @@
 export { createMinecraftContext } from './minecraft'
-export { createRuntimePromptContext } from './runtime-prompt'
+export { createRuntimePromptContext, RUNTIME_PROMPT_CONTEXT_ID } from './runtime-prompt'
 export { createUserAccountContext } from './user-account'

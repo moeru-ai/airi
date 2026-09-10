@@ -60,28 +60,24 @@ describe('createBilingualParser', () => {
     expect(captured).toEqual([{ code: 'en', text: '[note] hello' }])
   })
 
-  // The prompt shows one spelling per language, but models answer with ISO
-  // codes, locales and English names. An unrecognised tag is kept as literal
-  // text, which puts the tag itself — and the wrong language — on the speech
-  // engine.
-  it('accepts the spellings models actually emit', () => {
-    for (const tag of ['ZH', 'zh', 'ZH-CN', 'zh_Hans', 'CHINESE', '中文']) {
-      const captured = collect(['en', 'zh'], [`[EN] Hello[${tag}] 你好`])
-
-      expect(captured, tag).toEqual([
-        { code: 'en', text: ' Hello' },
-        { code: 'zh', text: ' 你好' },
-      ])
-    }
-  })
-
-  it('routes a tag written as a locale to its base language', () => {
-    const captured = collect(['en', 'ja'], ['[EN] Hello[ja-JP] こんにちは'])
+  it('accepts the catalogue tag in either letter case', () => {
+    const captured = collect(['en', 'zh'], ['[en] Hello[cn] 你好'])
 
     expect(captured).toEqual([
       { code: 'en', text: ' Hello' },
-      { code: 'ja', text: ' こんにちは' },
+      { code: 'zh', text: ' 你好' },
     ])
+  })
+
+  // One spelling per language: the tag the prompt teaches. A model that invents
+  // another one keeps it as literal text, so the mistake is visible in the
+  // caption instead of moving the segment to a line nothing was asked for.
+  it('keeps a tag outside the catalogue as literal text', () => {
+    for (const tag of ['ZH', 'ZH-CN', 'CHINESE', '中文']) {
+      const captured = collect(['en', 'zh'], [`[EN] Hello[${tag}] 你好`])
+
+      expect(captured, tag).toEqual([{ code: 'en', text: ` Hello[${tag}] 你好` }])
+    }
   })
 
   it('leaves a tag for an unconfigured language as literal text', () => {

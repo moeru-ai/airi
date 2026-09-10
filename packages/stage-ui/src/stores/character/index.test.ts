@@ -153,6 +153,19 @@ describe('useCharacterStore spark reactions', () => {
     expect(recorded).not.toContain('[CN]')
   })
 
+  // The split runs with the settings the reaction started with, so the recorded
+  // text is projected with those too. Reading the settings at the end would keep
+  // the wrong language, or leave the tags in, once they change mid-reaction.
+  it('records the reaction in the languages the split started with', () => {
+    const store = useCharacterStore()
+
+    store.onSparkNotifyReactionStreamEvent('spark-5', '[EN]Hello there.[CN]你好。')
+    useSettingsBilingual().ttsLanguage = 'zh'
+    store.onSparkNotifyReactionStreamEnd('spark-5', '[EN]Hello there.[CN]你好。')
+
+    expect(store.reactions.at(-1)?.message).toBe('Hello there.')
+  })
+
   it('leaves the reaction untouched while bilingual subtitles are off', () => {
     useSettingsBilingual().enabled = false
 

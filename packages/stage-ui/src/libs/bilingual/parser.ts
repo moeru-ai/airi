@@ -1,13 +1,13 @@
 import type { BilingualLanguage } from './languages'
 
-import { resolveBilingualLanguage, resolveBilingualLanguageByTag } from './languages'
+import { resolveBilingualLanguage } from './languages'
 
 /**
  * Longest run the parser holds back while deciding whether a `[` opened a
- * language tag. Generous enough for tags such as `[ZH-HANS]` and `[JAPANESE]`;
- * anything longer is treated as literal text.
+ * language tag. Catalogue tags are two letters, so this is generous; anything
+ * longer is treated as literal text.
  */
-const MAX_TAG_LENGTH = 16
+const MAX_TAG_LENGTH = 12
 
 export interface BilingualParserOptions {
   /**
@@ -53,18 +53,15 @@ export function createBilingualParser(options: BilingualParserOptions): Bilingua
 
   /** Consumes `pending` as a language tag. Returns false when it is not one. */
   function tryConsumeTag(): boolean {
-    const matched = resolveBilingualLanguageByTag(pending.slice(1, -1))
+    // One spelling per language, the one the prompt teaches, compared without
+    // case. Anything else stays literal text: an invented tag is read aloud
+    // instead of moving the text to a line nothing is listening for.
+    const raw = pending.slice(1, -1).trim().toUpperCase()
+    const matched = languages.find(language => language.tag === raw)
     if (!matched)
       return false
 
-    // Only the languages this parser was configured for can receive text. A tag
-    // for any other language stays literal instead of switching to a language
-    // nothing is listening for.
-    const target = languages.find(language => language.code === matched.code)
-    if (!target)
-      return false
-
-    current = target
+    current = matched
     return true
   }
 

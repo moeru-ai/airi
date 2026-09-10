@@ -126,6 +126,7 @@ vi.mock('./chat/context-providers', () => ({
   createMinecraftContext: () => createMinecraftContextMock(),
   createRuntimePromptContext: (prompt: string) => createRuntimePromptContextMock(prompt),
   createUserAccountContext: () => createUserAccountContextMock(),
+  RUNTIME_PROMPT_CONTEXT_ID: 'system:airi-runtime-prompt',
 }))
 
 vi.mock('vue-i18n', () => ({
