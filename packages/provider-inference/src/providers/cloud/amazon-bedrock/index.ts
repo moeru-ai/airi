@@ -108,6 +108,7 @@ function createBedrockConverseProvider(config: {
           inferenceConfig: {
             maxTokens: body.max_tokens || 4096,
             ...(body.temperature !== undefined && { temperature: body.temperature }),
+            ...(body.top_p !== undefined && { topP: body.top_p }),
           },
         }
         if (system)

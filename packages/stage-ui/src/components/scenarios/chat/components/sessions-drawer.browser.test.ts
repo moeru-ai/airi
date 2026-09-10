@@ -11,6 +11,9 @@ import SessionsDrawer from './sessions-drawer.vue'
 import { useChatStore } from '../../../../stores/chat'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 
+import '@unocss/reset/tailwind.css'
+import 'virtual:uno.css'
+
 function createTestI18n() {
   return createI18n({
     legacy: false,
@@ -26,6 +29,9 @@ function createTestI18n() {
               'new': 'New chat',
               'empty': 'No chats',
               'delete': 'Delete',
+              'current': 'Current',
+              'cancel': 'Cancel',
+              'confirm-delete': 'Delete this conversation and its messages?',
               'cloud-badge': 'Cloud synced',
             },
           },
@@ -97,9 +103,10 @@ describe('sessions drawer orchestration', () => {
     await screen.rerender({ modelValue: true })
 
     await screen.getByRole('button', { name: 'Delete: Chat B' }).click()
+    await screen.getByRole('button', { name: 'Delete', exact: true }).click()
     await vi.waitFor(() => expect(chat.deleteSession).toHaveBeenCalledWith('session-b'))
 
-    await screen.getByRole('button', { name: /^Chat C / }).click()
+    await screen.getByRole('button', { name: /^Chat C/ }).click()
     expect(chatSession.activeSessionId).toBe('session-c')
 
     resolveDelete?.()
@@ -137,7 +144,7 @@ describe('sessions drawer orchestration', () => {
     await screen.getByRole('button', { name: 'New chat' }).click()
     await vi.waitFor(() => expect(chatSession.createSession).toHaveBeenCalledWith('default', { setActive: false }))
 
-    await screen.getByRole('button', { name: /^Chat C / }).click()
+    await screen.getByRole('button', { name: /^Chat C/ }).click()
     expect(chatSession.activeSessionId).toBe('session-c')
 
     resolveCreate?.('session-new')
