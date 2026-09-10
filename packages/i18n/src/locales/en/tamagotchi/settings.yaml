@@ -319,7 +319,7 @@ devtools:
       metrics:
         fps:
           label: FPS
-          description: Frames per second during the last 10 seconds.
+          description: Animation frame rate during the last 10 seconds. Each sample is 1000 divided by the frame interval in milliseconds.
         frame-duration:
           label: Frame time (ms)
           description: Time between animation frames during the last 10 seconds.
@@ -335,6 +335,14 @@ devtools:
         title: Last recording
         duration: Duration {duration} ms
         limit: Recording stops after 60 seconds.
+      history:
+        title: FPS history
+        latest: Latest
+        minimum: Min
+        maximum: Max
+        seconds-ago: '-{seconds} s'
+        end: 0 s
+        empty: No FPS samples. Enable FPS to collect samples.
       overlay:
         title: Performance
         move: Move performance overlay
