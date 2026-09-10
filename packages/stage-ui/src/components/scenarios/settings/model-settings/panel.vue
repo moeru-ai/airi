@@ -4,6 +4,7 @@ import type {
   StageViewPatch,
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
+import type { Live2DExpressionSettingsCommand } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 
 import type { DisplayModel } from '../../../../stores/display-models'
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
@@ -37,6 +38,7 @@ interface ModelSettingsPanelProps {
 
 interface ModelSettingsPanelEmits {
   extractColorsFromModel: []
+  live2dExpressionCommand: [command: Live2DExpressionSettingsCommand]
   patchGodotViewState: [patch: StageViewPatch]
 }
 
@@ -110,6 +112,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
         :palette="palette"
         :runtime-snapshot="runtimeSnapshot"
         @extract-colors-from-model="emit('extractColorsFromModel')"
+        @live2d-expression-command="emit('live2dExpressionCommand', $event)"
       />
       <VRM
         v-if="effectiveRenderer === 'vrm'"

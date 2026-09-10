@@ -129,6 +129,8 @@ catalog:
   '@moeru/three-mmd-physics-ammo': 0.2.0-beta.2
   '@napi-rs/image': ^1.14.0
   '@nekopaw/tempora': 0.4.0-alpha.1
+  '@openpanel/sdk': 1.3.1
+  '@openpanel/web': 1.4.1
   '@opentelemetry/api': ^1.9.1
   '@opentelemetry/api-logs': ^0.221.0
   '@opentelemetry/auto-instrumentations-node': ^0.79.0
@@ -224,7 +226,6 @@ catalog:
   '@vueuse/core': ^14.4.0
   '@vueuse/motion': ^3.0.3
   '@vueuse/shared': ^14.4.0
-  '@webgpu/types': ^0.1.72
   '@wxt-dev/module-vue': ^1.0.3
   '@xsai-apple-speech/transcription': 0.1.3
   '@xsai-apple-speech/transcription-electron-plugin': 0.1.3
@@ -353,8 +354,6 @@ catalog:
   popmotion: ^11.0.5
   postcss: ^8.5.26
   postgres: ^3.4.9
-  posthog-js: 1.306.1
-  posthog-node: ^5.50.0
   postprocessing: ^6.39.4
   prismarine-block: ^1.23.0
   prismarine-entity: ^2.6.0
@@ -436,6 +435,7 @@ catalog:
   wavefile: ^11.0.0
   web-haptics: ^0.0.6
   whatwg-mimetype: ^5.0.0
+  wheel-gestures: ^2.2.48
   wlipsync: ^1.3.1
   workbox-window: ^7.4.1
   ws: ^8.21.3

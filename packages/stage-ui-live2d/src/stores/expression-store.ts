@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -71,6 +71,35 @@ export interface ExpressionToolResult {
   available?: string[]
 }
 
+/** Controls which Live2D expressions the model exposes to LLM tools. */
+export type Live2DExpressionLlmMode = 'all' | 'none' | 'custom'
+
+/** A serializable expression group used by model settings in another renderer. */
+export interface Live2DExpressionSettingsGroupSnapshot {
+  /** Expression name declared by the loaded model. */
+  name: string
+  /** Whether the owning renderer currently applies this expression. */
+  active: boolean
+  /** Whether custom LLM exposure includes this expression. */
+  exposedToLlm: boolean
+}
+
+/** The serializable settings state owned by the renderer that loaded the Live2D model. */
+export interface Live2DExpressionSettingsSnapshot {
+  /** Expression groups discovered by the owning renderer. */
+  groups: Live2DExpressionSettingsGroupSnapshot[]
+  /** Current LLM exposure policy. */
+  llmMode: Live2DExpressionLlmMode
+}
+
+/** A settings operation sent to the renderer that owns the Live2D model. */
+export type Live2DExpressionSettingsCommand
+  = | { type: 'toggle', name: string }
+    | { type: 'set-llm-mode', mode: Live2DExpressionLlmMode }
+    | { type: 'set-llm-exposed', name: string, exposed: boolean }
+    | { type: 'save-defaults' }
+    | { type: 'reset-all' }
+
 // ---------------------------------------------------------------------------
 // Persistence helpers  (localStorage – no extra dependency needed)
 // ---------------------------------------------------------------------------
@@ -120,7 +149,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
   const expressionGroups = ref<Map<string, ExpressionGroupDefinition>>(new Map())
 
   /** LLM exposure mode: 'all' exposes everything, 'none' exposes nothing, 'custom' uses per-group map. */
-  const llmMode = ref<'all' | 'none' | 'custom'>('none')
+  const llmMode = ref<Live2DExpressionLlmMode>('none')
 
   /** Per-group LLM exposure flags (only used when llmMode === 'custom'). */
   const llmExposed = ref<Map<string, boolean>>(new Map())
@@ -149,6 +178,25 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
   function allNames(): string[] {
     return Array.from(expressions.value.keys())
   }
+
+  function isGroupActive(group: ExpressionGroupDefinition): boolean {
+    return group.parameters.some((parameter) => {
+      if (parameter.value === 0)
+        return false
+
+      const entry = expressions.value.get(parameter.parameterId)
+      return entry != null && entry.currentValue === parameter.value
+    })
+  }
+
+  const settingsSnapshot = computed<Live2DExpressionSettingsSnapshot>(() => ({
+    groups: Array.from(expressionGroups.value.values(), group => ({
+      name: group.name,
+      active: isGroupActive(group),
+      exposedToLlm: llmExposed.value.get(group.name) ?? false,
+    })),
+    llmMode: llmMode.value,
+  }))
 
   // ---- public API ----------------------------------------------------------
 
@@ -290,12 +338,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
       // A group is "active" when at least one of its non-zero (activation)
       // params is currently set to the exp3 value.  Zero-valued params are
       // "reset" instructions and are excluded from the active check.
-      const isActive = resolved.group.parameters.some((p) => {
-        if (p.value === 0)
-          return false
-        const entry = expressions.value.get(p.parameterId)
-        return entry && entry.currentValue === p.value
-      })
+      const isActive = isGroupActive(resolved.group)
       const states: ExpressionState[] = []
       for (const param of resolved.group.parameters) {
         const entry = expressions.value.get(param.parameterId)
@@ -360,7 +403,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
 
   // ---- LLM exposure --------------------------------------------------------
 
-  function setLlmMode(mode: 'all' | 'none' | 'custom') {
+  function setLlmMode(mode: Live2DExpressionLlmMode) {
     llmMode.value = mode
   }
 
@@ -375,6 +418,24 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
     if (llmMode.value === 'none')
       return false
     return llmExposed.value.get(name) ?? false
+  }
+
+  /** Applies a settings command in the renderer that owns the Live2D runtime. */
+  function applySettingsCommand(command: Live2DExpressionSettingsCommand): ExpressionToolResult | void {
+    switch (command.type) {
+      case 'toggle':
+        return toggle(command.name)
+      case 'set-llm-mode':
+        setLlmMode(command.mode)
+        return
+      case 'set-llm-exposed':
+        setLlmExposed(command.name, command.exposed)
+        return
+      case 'save-defaults':
+        return saveDefaults()
+      case 'reset-all':
+        return resetAll()
+    }
   }
 
   // ---- private -------------------------------------------------------------
@@ -405,6 +466,7 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
     expressionGroups,
     llmMode,
     llmExposed,
+    settingsSnapshot,
 
     // Actions
     registerExpressions,
@@ -418,5 +480,6 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
     setLlmMode,
     setLlmExposed,
     isExposedToLlm,
+    applySettingsCommand,
   }
 })

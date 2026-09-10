@@ -80,6 +80,22 @@ describe('isCloudSyncableMessage', () => {
 })
 
 describe('wireMessageToLocal', () => {
+  it('preserves a native reply relation from the wire message', () => {
+    const local = wireMessageToLocal(makeWire({
+      id: 'user-reply',
+      role: 'user',
+      content: 'My follow-up',
+      replyToMessageId: 'assistant-1',
+      seq: 2,
+    }))
+
+    expect(local).toMatchObject({
+      id: 'user-reply',
+      content: 'My follow-up',
+      replyToMessageId: 'assistant-1',
+    })
+  })
+
   /**
    * @example
    * Server pushes an assistant wire message; local shape needs slices and

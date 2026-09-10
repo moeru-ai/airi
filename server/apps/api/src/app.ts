@@ -60,7 +60,7 @@ import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
-import { createPosthogSink } from './services/adapters/posthog'
+import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
 import { createCharacterService } from './services/domain/characters'
@@ -529,27 +529,21 @@ export async function createApp() {
     build: ({ dependsOn }) => createConfigKVService(createConfigKVStore(dependsOn.db, dependsOn.redis)),
   })
 
-  const posthogSink = injeca.provide('services:posthogSink', {
-    dependsOn: { env: parsedEnv, lifecycle },
-    // POSTHOG_PROJECT_KEY defaults to the shared project key, so the falsy
-    // branch is only reachable via the documented off-switch: setting the
-    // env var to an empty string (valibot defaults don't apply to '').
+  const openpanelSink = injeca.provide('services:openpanelSink', {
+    dependsOn: { env: parsedEnv },
     build: ({ dependsOn }) => {
-      if (!dependsOn.env.POSTHOG_PROJECT_KEY)
+      const { OPENPANEL_API_URL: apiUrl, OPENPANEL_CLIENT_ID: clientId, OPENPANEL_CLIENT_SECRET: clientSecret } = dependsOn.env
+      if (!apiUrl && !clientId && !clientSecret)
         return null
-
-      const sink = createPosthogSink({
-        projectKey: dependsOn.env.POSTHOG_PROJECT_KEY,
-        host: dependsOn.env.POSTHOG_API_HOST,
-      })
-      dependsOn.lifecycle.appHooks.onStop(() => sink.shutdown())
-      return sink
+      if (!apiUrl || !clientId || !clientSecret)
+        throw new Error('OpenPanel requires API URL, client id, and client secret')
+      return createOpenpanelSink({ apiUrl, clientId, clientSecret })
     },
   })
 
   const productEventService = injeca.provide('services:productEvents', {
-    dependsOn: { posthogSink },
-    build: ({ dependsOn }) => createProductEventService(dependsOn.posthogSink),
+    dependsOn: { openpanelSink },
+    build: ({ dependsOn }) => createProductEventService(dependsOn.openpanelSink),
   })
 
   const characterService = injeca.provide('services:characters', {

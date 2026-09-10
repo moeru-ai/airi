@@ -160,6 +160,7 @@ export const providerGoogleGeminiAudioSpeech = defineProvider<GoogleGeminiSpeech
       description: 'Gemini API text-to-speech model',
       capabilities: ['text-to-speech'],
     })),
+    voiceCatalogConfig: () => ({}),
     listVoices: async () => googleGeminiTtsVoices.map(([id, style]) => ({
       id,
       name: id,

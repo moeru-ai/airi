@@ -43,6 +43,7 @@ vi.mock('pinia', () => ({
 
 vi.mock('reka-ui', () => ({
   TooltipContent: { template: '<div><slot /></div>', inheritAttrs: false },
+  TooltipPortal: { template: '<div><slot /></div>' },
   TooltipProvider: { template: '<div><slot /></div>' },
   TooltipRoot: { template: '<div><slot /></div>' },
   TooltipTrigger: { template: '<div><slot /></div>' },
