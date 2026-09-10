@@ -184,9 +184,13 @@ describe('interactive area synchronized state', () => {
 
   it('centers the mobile textarea when no reply preview is visible', async () => {
     // ROOT CAUSE:
-    // The 40px bubble has spare height around its 32px textarea and borders.
-    // Bottom alignment put all spare height above the textarea. Center alignment
-    // divides that space equally without reserving space for a hidden reply.
+    //
+    // Without a reply preview, the 40px bubble has spare height around its
+    // 32px textarea and borders. Before the fix, justify-end put all spare
+    // height above the textarea: 6px above and 2px below.
+    //
+    // We fixed this with justify-center. The empty and single-line textarea
+    // now has 4px on each side, and multiline input stays centered.
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
     const bubble = screen.getByTestId('mobile-input-bubble').element()
