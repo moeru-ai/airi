@@ -566,7 +566,7 @@ onUnmounted(() => {
           data-testid="mobile-input-bubble"
           :data-dragging="inputBubbleDragging"
           :class="[
-            'group relative mx-auto min-h-10 flex flex-col justify-end origin-center overflow-hidden',
+            'group relative mx-auto min-h-10 flex flex-col justify-center origin-center overflow-hidden',
             'touch-none select-none focus-within:touch-auto focus-within:select-text',
             'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 backdrop-blur-md',
             'dark:border-neutral-700/60 dark:bg-neutral-950/80',

@@ -182,6 +182,26 @@ describe('interactive area synchronized state', () => {
     await page.viewport(1280, 720)
   })
 
+  it('centers the mobile textarea when no reply preview is visible', async () => {
+    // ROOT CAUSE:
+    // The 40px bubble has spare height around its 32px textarea and borders.
+    // Bottom alignment put all spare height above the textarea. Center alignment
+    // divides that space equally without reserving space for a hidden reply.
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const bubble = screen.getByTestId('mobile-input-bubble').element()
+    const input = screen.getByRole('textbox')
+
+    for (const draft of ['', 'Hello', 'First line\nSecond line', '']) {
+      await input.fill(draft)
+      await expect.poll(() => {
+        const outer = bubble.getBoundingClientRect()
+        const inner = input.element().getBoundingClientRect()
+        return Math.abs((inner.top - outer.top) - (outer.bottom - inner.bottom))
+      }).toBeLessThanOrEqual(1)
+    }
+  })
+
   it('opens mobile settings from an icon-only header and restores focus', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
@@ -440,9 +460,9 @@ describe('interactive area synchronized state', () => {
     await expect.poll(() => input.getBoundingClientRect().height).toBe(32)
     expect(send.getBoundingClientRect().height).toBe(32)
     expect(bubble.getBoundingClientRect().bottom).toBe(send.getBoundingClientRect().bottom)
-    expect(input.getBoundingClientRect().bottom).toBe(
-      bubble.getBoundingClientRect().bottom - Number.parseFloat(getComputedStyle(bubble).borderBottomWidth),
-    )
+    const bubbleBounds = bubble.getBoundingClientRect()
+    const inputBounds = input.getBoundingClientRect()
+    expect(inputBounds.top - bubbleBounds.top).toBe(bubbleBounds.bottom - inputBounds.bottom)
   })
 
   it('closes mobile settings before requesting sign-in', async () => {
