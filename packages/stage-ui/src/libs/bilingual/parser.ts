@@ -1,13 +1,13 @@
 import type { BilingualLanguage } from './languages'
 
-import { resolveBilingualLanguage } from './languages'
+import { resolveBilingualLanguage, resolveBilingualLanguageByTag } from './languages'
 
 /**
  * Longest run the parser holds back while deciding whether a `[` opened a
- * language tag. Generous enough for tags such as `[ZH-HANS]`; anything longer
- * is treated as literal text.
+ * language tag. Generous enough for tags such as `[ZH-HANS]` and `[JAPANESE]`;
+ * anything longer is treated as literal text.
  */
-const MAX_TAG_LENGTH = 12
+const MAX_TAG_LENGTH = 16
 
 export interface BilingualParserOptions {
   /**
@@ -53,12 +53,18 @@ export function createBilingualParser(options: BilingualParserOptions): Bilingua
 
   /** Consumes `pending` as a language tag. Returns false when it is not one. */
   function tryConsumeTag(): boolean {
-    const raw = pending.slice(1, -1).trim().toUpperCase()
-    const matched = languages.find(language => language.tag === raw)
+    const matched = resolveBilingualLanguageByTag(pending.slice(1, -1))
     if (!matched)
       return false
 
-    current = matched
+    // Only the languages this parser was configured for can receive text. A tag
+    // for any other language stays literal instead of switching to a language
+    // nothing is listening for.
+    const target = languages.find(language => language.code === matched.code)
+    if (!target)
+      return false
+
+    current = target
     return true
   }
 
@@ -131,4 +137,33 @@ export function createBilingualParser(options: BilingualParserOptions): Bilingua
       readingTag = false
     },
   }
+}
+
+/**
+ * Reduces tagged model output to a single language, dropping every tag.
+ *
+ * Use when:
+ * - Content that is never parsed for captions has to stay free of the
+ *   `[EN]`/`[CN]` control tags: the chat bubble, the stored history and the
+ *   history sent back to the model.
+ *
+ * Returns:
+ * - The text of `keep` only. Text before the first tag belongs to the first
+ *   configured language, matching the parser's own fallback.
+ */
+export function projectBilingualText(text: string, languages: string[], keep: string): string {
+  let out = ''
+
+  const parser = createBilingualParser({
+    languages,
+    onText: (language, chunk) => {
+      if (language.code === keep)
+        out += chunk
+    },
+  })
+
+  parser.push(text)
+  parser.end()
+
+  return out
 }

@@ -17,6 +17,7 @@ import { shallowRef, toRaw } from 'vue'
 import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { projectBilingualText } from '../libs/bilingual/parser'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
@@ -37,6 +38,7 @@ import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useWebSearchStore } from './modules/web-search'
+import { useSettingsBilingual } from './settings/bilingual'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -136,9 +138,11 @@ function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): numbe
 export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 export const useChatStore = defineStore('chat', () => {
-  // The captioned chat is the only consumer that parses the bilingual language
-  // tags, so it is the only one that opts into the instruction.
+  // Captioned chat splits the bilingual language tags before the text is spoken
+  // and stored, so it opts into the instruction. Spark reactions do the same;
+  // consumers that never parse it must not opt in.
   const runtimePrompt = useAiriRuntimePrompt({ bilingual: true })
+  const bilingualStore = useSettingsBilingual()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
@@ -261,7 +265,12 @@ export const useChatStore = defineStore('chat', () => {
   function syncRuntimeState(state: ChatOrchestratorRuntimeState) {
     sending.value = state.sending
     activeSendSessionId.value = state.activeSendSessionId
+    // The live bubble is the copy the UI prefers over `streamingMessage`, so it
+    // has to be projected too or the reply shows the control tags and the
+    // translation while it is still streaming.
     activeStreamingMessage.value = state.activeStreamingMessage
+      ? projectBilingualMessage(state.activeStreamingMessage)
+      : state.activeStreamingMessage
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
 
@@ -275,11 +284,31 @@ export const useChatStore = defineStore('chat', () => {
     ownedActiveTurnSpan = undefined
   }
 
+  /**
+   * Drops the `[EN]`/`[CN]` control tags the bilingual prompt makes the model
+   * emit. The Stage caption layer parses them for speech and subtitles, but the
+   * chat bubble, the stored history and every later model turn must only see
+   * the spoken language.
+   */
+  function projectBilingualMessage<T extends { content?: unknown, slices?: unknown }>(message: T): T {
+    if (!bilingualStore.enabled || typeof message.content !== 'string' || !message.content.includes('['))
+      return message
+
+    const project = (text: string) => projectBilingualText(text, bilingualStore.subtitleLanguages, bilingualStore.ttsLanguage)
+    const slices = Array.isArray(message.slices)
+      ? message.slices.map(slice => slice && typeof slice === 'object' && 'type' in slice && slice.type === 'text' && 'text' in slice && typeof slice.text === 'string'
+        ? { ...slice, text: project(slice.text) }
+        : slice)
+      : message.slices
+
+    return { ...message, content: project(message.content), slices } as T
+  }
+
   const runtime = createChatOrchestratorRuntime({
     session: {
       ensureSession: sessionId => chatSession.ensureSession(sessionId),
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
-      appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
+      appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, projectBilingualMessage(message)),
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
     },
     context: {
@@ -288,7 +317,7 @@ export const useChatStore = defineStore('chat', () => {
     },
     foregroundStream: {
       patch: (message) => {
-        streamingMessage.value = message
+        streamingMessage.value = projectBilingualMessage(message)
       },
       reset: () => {
         streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }

@@ -40,3 +40,54 @@ export function resolveBilingualLanguage(value: string | undefined | null): Bili
 
   return BILINGUAL_LANGUAGES.find(language => language.code === value)
 }
+
+/**
+ * Spellings models actually emit for each catalogue entry.
+ *
+ * The prompt shows exactly one tag per language, but models freely answer with
+ * ISO codes, locales or English names. Anything missing here is treated as
+ * literal text, which puts both the tag and the wrong language on the speech
+ * engine.
+ */
+const TAG_ALIASES: Record<string, BilingualLanguageCode> = {
+  EN: 'en',
+  ENG: 'en',
+  ENGLISH: 'en',
+
+  CN: 'zh',
+  ZH: 'zh',
+  CHI: 'zh',
+  ZHO: 'zh',
+  CHINESE: 'zh',
+  中文: 'zh',
+  汉语: 'zh',
+
+  JA: 'ja',
+  JP: 'ja',
+  JPN: 'ja',
+  JAPANESE: 'ja',
+  日本語: 'ja',
+}
+
+/**
+ * Resolves a language tag as the model wrote it, i.e. the inside of `[ZH]`.
+ *
+ * Locales such as `zh-Hans` or `en_US` are accepted by falling back to the part
+ * before the first separator, so a model that ignores the prompt's spelling
+ * still gets its segments routed instead of read aloud.
+ *
+ * Returns `undefined` when the tag matches no catalogue entry.
+ */
+export function resolveBilingualLanguageByTag(value: string): BilingualLanguage | undefined {
+  const tag = value.trim().toUpperCase()
+  if (!tag)
+    return undefined
+
+  for (const candidate of [tag, tag.split(/[-_\s]/)[0]]) {
+    const code = TAG_ALIASES[candidate]
+    if (code)
+      return BILINGUAL_LANGUAGES.find(language => language.code === code)
+  }
+
+  return undefined
+}

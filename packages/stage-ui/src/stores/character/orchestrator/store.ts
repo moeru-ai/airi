@@ -20,7 +20,10 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const characterStore = useCharacterStore()
   const notebookStore = useCharacterNotebookStore()
   const { systemPrompt } = storeToRefs(characterStore)
-  const runtimePrompt = useAiriRuntimePrompt()
+  // Spark reactions are spoken and captioned like chat replies, so they receive
+  // the bilingual instruction too: the character store splits the tags before
+  // the text reaches the speech engine.
+  const runtimePrompt = useAiriRuntimePrompt({ bilingual: true })
   const modsServerChannelStore = useModsServerChannelStore()
 
   const processing = ref(false)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { createBilingualParser } from './parser'
+import { createBilingualParser, projectBilingualText } from './parser'
 
 interface CapturedChunk {
   code: string
@@ -60,6 +60,36 @@ describe('createBilingualParser', () => {
     expect(captured).toEqual([{ code: 'en', text: '[note] hello' }])
   })
 
+  // The prompt shows one spelling per language, but models answer with ISO
+  // codes, locales and English names. An unrecognised tag is kept as literal
+  // text, which puts the tag itself — and the wrong language — on the speech
+  // engine.
+  it('accepts the spellings models actually emit', () => {
+    for (const tag of ['ZH', 'zh', 'ZH-CN', 'zh_Hans', 'CHINESE', '中文']) {
+      const captured = collect(['en', 'zh'], [`[EN] Hello[${tag}] 你好`])
+
+      expect(captured, tag).toEqual([
+        { code: 'en', text: ' Hello' },
+        { code: 'zh', text: ' 你好' },
+      ])
+    }
+  })
+
+  it('routes a tag written as a locale to its base language', () => {
+    const captured = collect(['en', 'ja'], ['[EN] Hello[ja-JP] こんにちは'])
+
+    expect(captured).toEqual([
+      { code: 'en', text: ' Hello' },
+      { code: 'ja', text: ' こんにちは' },
+    ])
+  })
+
+  it('leaves a tag for an unconfigured language as literal text', () => {
+    const captured = collect(['en', 'zh'], ['[EN] Hello[JA] こんにちは'])
+
+    expect(captured).toEqual([{ code: 'en', text: ' Hello[JA] こんにちは' }])
+  })
+
   it('flushes a trailing unfinished tag as literal text', () => {
     const captured = collect(['en', 'zh'], ['Hi [CN'])
 
@@ -80,5 +110,25 @@ describe('createBilingualParser', () => {
     parser.end()
 
     expect(captured).toEqual([])
+  })
+})
+
+describe('projectBilingualText', () => {
+  // Stored chat history is never parsed for captions, so it must not keep the
+  // control tags.
+  it('keeps only the requested language and drops every tag', () => {
+    const projected = projectBilingualText('[EN] Hello\n[CN] 你好', ['en', 'zh'], 'en')
+
+    expect(projected).toBe(' Hello\n')
+    expect(projected).not.toContain('[EN]')
+    expect(projected).not.toContain('[CN]')
+  })
+
+  it('keeps the translation when that is the requested language', () => {
+    expect(projectBilingualText('[EN] Hello\n[CN] 你好', ['en', 'zh'], 'zh')).toBe(' 你好')
+  })
+
+  it('leaves untagged text untouched', () => {
+    expect(projectBilingualText('Hello there', ['en', 'zh'], 'en')).toBe('Hello there')
   })
 })

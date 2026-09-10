@@ -7,6 +7,7 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
+import type { BilingualPair, BilingualTurn } from '../../libs/bilingual/turn'
 import type { VoiceInfo } from '../../libs/providers/types'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
 
@@ -35,9 +36,10 @@ import StageRenderError from './stage-render-error.vue'
 import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
+import { useSparkTranslationChannel } from '../../composables/use-spark-translation-channel'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
-import { createBilingualParser } from '../../libs/bilingual/parser'
+import { createBilingualTurn } from '../../libs/bilingual/turn'
 import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
@@ -46,6 +48,7 @@ import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../service
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
+import { SPARK_TURN_ID_PREFIX } from '../../stores/character'
 import { useChatStore } from '../../stores/chat'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
@@ -636,8 +639,11 @@ bindSpeakingStateToPlaybackManager(playbackManager, {
     }
     // Show the translation that belongs to this very sentence, so the two
     // lines advance together instead of dumping the translation at once.
-    if (bilingualStore.enabled)
-      postBilingualTranslationForSentence()
+    if (bilingualStore.enabled) {
+      const turnId = bilingualTurnOfItem(item)
+      if (turnId)
+        publishBilingualTranslation(turnId, item.text)
+    }
     try {
       postPresent({ type: 'assistant-append', text: item.text })
     }
@@ -738,40 +744,49 @@ let currentSession: StageTtsSession | null = null
 // language to a different consumer. The spoken language keeps the normal path
 // through the TTS session; its translation is held back until playback reaches
 // the sentence it belongs to, so the overlay shows both lines in step.
-let bilingualParser: ReturnType<typeof createBilingualParser> | null = null
+let bilingualTurn: BilingualTurn | null = null
+/** Turn the chat hooks are currently feeding, so its items can be recognised. */
+let bilingualTurnId = ''
 
 /**
  * Sentences the model has finished, in order, each paired with the translation
  * that followed it. Playback consumes one entry per spoken sentence.
+ *
+ * Keyed by turn because a spark reaction plays as its own turn and must not
+ * consume a translation queued for a chat sentence.
  */
-const bilingualPairs: Array<{ spoken: string, translation: string, label: string }> = []
-
+const bilingualPairsByTurn = new Map<string, BilingualPair[]>()
 /**
- * True when the active streaming model buffers the whole reply into a single
- * playback item (`bufferEntireSession`). `onStart` then fires once for the
- * entire reply, so every queued translation belongs to that one item and has to
- * be shown together instead of only the first sentence's.
+ * Turns whose streaming model buffers the whole reply into a single playback
+ * item (`bufferEntireSession`). `onStart` then fires once for the entire reply,
+ * so every queued translation belongs to that one item and has to be shown
+ * together instead of only the first sentence's.
  */
-let bilingualBufferedTurn = false
-let bilingualSpoken = ''
-let bilingualTranslation = ''
-let bilingualTranslationLabel = ''
+const bilingualBufferedTurns = new Set<string>()
+/**
+ * Turns whose playback started before their translation was queued. The spoken
+ * text reaches TTS before the pair closes, so the translation is published as
+ * soon as it arrives instead of being dropped.
+ */
+const bilingualWaitingTurns = new Set<string>()
 
-/** Closes the sentence being accumulated and queues it for playback. */
-function flushBilingualPair() {
-  const spoken = bilingualSpoken.trim()
-  if (spoken)
-    bilingualPairs.push({ spoken, translation: bilingualTranslation.trim(), label: bilingualTranslationLabel })
+/** Queues a finished sentence pair and publishes it if playback is waiting. */
+function queueBilingualPair(turnId: string, pair: BilingualPair) {
+  // The feature can be switched off mid-reply. Speech keeps running so the
+  // language tags are still stripped, but nothing more is captioned.
+  if (!bilingualStore.enabled)
+    return
 
-  bilingualSpoken = ''
-  bilingualTranslation = ''
-  bilingualTranslationLabel = ''
+  const pairs = bilingualPairsByTurn.get(turnId) ?? []
+  pairs.push(pair)
+  bilingualPairsByTurn.set(turnId, pairs)
+
+  // Playback may already have started while this pair was still open.
+  if (bilingualWaitingTurns.has(turnId))
+    publishBilingualTranslation(turnId)
 }
 
 function clearBilingualTranslation() {
-  bilingualTranslation = ''
-  bilingualTranslationLabel = ''
-
   try {
     postCaption({ type: 'caption-assistant-translation', text: '' })
   }
@@ -780,12 +795,60 @@ function clearBilingualTranslation() {
   }
 }
 
-function resetBilingualTurn() {
-  bilingualParser = null
-  bilingualPairs.length = 0
-  bilingualBufferedTurn = false
-  bilingualSpoken = ''
+function resetBilingualTurn(turnId = '') {
+  bilingualTurn = null
+  bilingualTurnId = turnId
+  bilingualPairsByTurn.delete(turnId)
+  bilingualBufferedTurns.delete(turnId)
+  bilingualWaitingTurns.delete(turnId)
   clearBilingualTranslation()
+}
+
+/**
+ * Turn a playback item reads its translation from, or '' when it has none.
+ *
+ * A spark reaction plays as its own turn, so it belongs to the pairs its window
+ * broadcast. Anything else is a chat item and only belongs to the turn the chat
+ * hooks are feeding — an interrupting intent must not consume a translation
+ * queued for a sentence still being spoken.
+ *
+ * A turn that never queued anything has nothing to consume either, which is why
+ * an unrecognised item reports no turn.
+ */
+function bilingualTurnOfItem(item: { turnId?: string }): string {
+  if (item.turnId?.startsWith(SPARK_TURN_ID_PREFIX))
+    return item.turnId
+
+  if (!bilingualTurnId)
+    return ''
+
+  if (!item.turnId)
+    return bilingualTurnId
+
+  return item.turnId === bilingualTurnId ? item.turnId : ''
+}
+
+/**
+ * Index of the pair whose spoken text a playback item is reading.
+ *
+ * The parser pairs by language switch while the speech engine segments by
+ * punctuation, so the two rarely line up one to one: one pair can cover several
+ * playback items, and one item can be a fragment of a pair. Matching on the
+ * text keeps the translation on the sentence actually being spoken instead of
+ * trusting the queue to be in the same order.
+ */
+function findBilingualPairIndex(pairs: BilingualPair[], itemText: string): number {
+  const spoken = itemText.trim()
+  if (!spoken)
+    return -1
+
+  return pairs.findIndex((pair) => {
+    const candidate = pair.spoken.trim()
+    if (!candidate)
+      return false
+
+    return candidate === spoken || candidate.includes(spoken) || spoken.includes(candidate)
+  })
 }
 
 /**
@@ -793,12 +856,39 @@ function resetBilingualTurn() {
  * previous line so the two lines stay paired sentence by sentence instead of
  * dumping the whole translation at once.
  */
-function postBilingualTranslationForSentence() {
+function publishBilingualTranslation(turnId: string, itemText?: string) {
+  const pairs = bilingualPairsByTurn.get(turnId)
+
+  if (!pairs?.length) {
+    // The spoken text reaches TTS before its translation closes, so playback
+    // can start with an empty queue. Wait for the pair instead of dropping it.
+    bilingualWaitingTurns.add(turnId)
+    return
+  }
+
+  if (itemText) {
+    const index = findBilingualPairIndex(pairs, itemText)
+
+    if (index < 0) {
+      // Either this item is a fragment of the pair already on screen, or the
+      // pair it belongs to has not closed yet. Wait for that pair instead of
+      // pairing this sentence with a translation of another one.
+      bilingualWaitingTurns.add(turnId)
+      return
+    }
+
+    // Pairs the playback already passed are dropped rather than shown late.
+    if (index > 0)
+      pairs.splice(0, index)
+  }
+
+  bilingualWaitingTurns.delete(turnId)
+
   // A buffered session emits a single playback item for the whole reply, so
   // every queued translation belongs to this one item. Taking only the first
   // would drop the rest when the next turn clears the queue.
-  const pairs = bilingualPairs.splice(0, bilingualBufferedTurn ? bilingualPairs.length : 1)
-  const text = pairs.map(pair => pair.translation).filter(Boolean).join(' ')
+  const consumed = pairs.splice(0, bilingualBufferedTurns.has(turnId) ? pairs.length : 1)
+  const text = consumed.map(pair => pair.translation).filter(Boolean).join(' ')
   if (!text)
     return
 
@@ -806,7 +896,7 @@ function postBilingualTranslationForSentence() {
     postCaption({
       operation: 'replace',
       type: 'caption-assistant-translation',
-      label: pairs.at(-1)?.label ?? '',
+      label: consumed.at(-1)?.label ?? '',
       text,
     })
   }
@@ -815,37 +905,46 @@ function postBilingualTranslationForSentence() {
   }
 }
 
-function openBilingualParser() {
+/**
+ * Splits one chat turn's output into spoken text and sentence pairs.
+ *
+ * The spoken language keeps the normal path into the TTS session; each pair is
+ * queued for playback to publish.
+ */
+function openBilingualTurn(turnId: string): BilingualTurn | null {
   if (!bilingualStore.enabled)
     return null
 
-  const ttsLanguage = bilingualStore.ttsLanguage
+  bilingualTurnId = turnId
 
-  return createBilingualParser({
+  return createBilingualTurn({
     languages: bilingualStore.subtitleLanguages,
-    onText: (language, text) => {
-      if (language.code === ttsLanguage) {
-        // Output is interleaved, so returning to the spoken language means the
-        // previous sentence and its translation are both complete.
-        if (bilingualTranslation)
-          flushBilingualPair()
-
-        bilingualSpoken += text
-        currentSession?.appendText(text)
-        return
-      }
-
-      // The feature can be switched off mid-reply. The parser keeps running so
-      // the language tags are still stripped before speech, but nothing is
-      // captioned from that point on.
-      if (!bilingualStore.enabled)
-        return
-
-      bilingualTranslation += text
-      bilingualTranslationLabel = language.display
-    },
+    ttsLanguage: bilingualStore.ttsLanguage,
+    onSpoken: text => currentSession?.appendText(text),
+    onPair: pair => queueBilingualPair(turnId, pair),
   })
 }
+
+const { data: sparkPair } = useSparkTranslationChannel()
+/** Spark turn whose translation is on screen, so a new one can replace it. */
+let sparkTurnOnScreen = ''
+
+// A reaction is split in the window that ran the model and spoken by the one
+// hosting the speech pipeline, so its pairs arrive here and join the same queue
+// a chat turn's pairs go into.
+watch(sparkPair, (pair) => {
+  if (!pair)
+    return
+
+  // A reaction interrupts whatever is on screen, so a line left over from the
+  // previous one goes instead of lingering until it expires.
+  if (pair.turnId !== sparkTurnOnScreen) {
+    sparkTurnOnScreen = pair.turnId
+    clearBilingualTranslation()
+  }
+
+  queueBilingualPair(pair.turnId, pair)
+})
 
 // Switching the feature off mid-reply has to remove the translated line at
 // once, rather than leaving it until the next message or its expiry.
@@ -945,7 +1044,8 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   // (per the wire spec), so chunk-on-sentence-end would drop frames.
   // Buffer the entire session and decode at session.finished instead.
   const bufferEntireSession = apiResourceId.startsWith('seed-tts-2.0') || apiResourceId.startsWith('seed-icl-2.0')
-  bilingualBufferedTurn = bufferEntireSession
+  if (bufferEntireSession)
+    bilingualBufferedTurns.add(turnId)
   return {
     model: sessionModel,
     voice: voiceId,
@@ -1029,7 +1129,7 @@ watch(speechMuted, (muted) => {
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
-  resetBilingualTurn()
+  resetBilingualTurn(context.turnId)
 
   currentSession?.cancel('new-message')
   currentSession = null
@@ -1040,7 +1140,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   setupAnalyser()
   await setupLipSync()
   currentSession = openTtsSession(context.turnId)
-  bilingualParser = openBilingualParser()
+  bilingualTurn = openBilingualTurn(context.turnId)
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {
@@ -1048,10 +1148,10 @@ chatHookCleanups.push(onBeforeSend(async () => {
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal) => {
-  // While bilingual output is on, the parser decides what reaches the speech
+  // While bilingual output is on, the turn decides what reaches the speech
   // engine: only the spoken language, with the language tags stripped.
-  if (bilingualParser) {
-    bilingualParser.push(literal)
+  if (bilingualTurn) {
+    bilingualTurn.push(literal)
     return
   }
 
@@ -1070,8 +1170,8 @@ chatHookCleanups.push(onTokenSpecial(async (special, context) => {
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
-  bilingualParser?.end()
-  flushBilingualPair()
+  // Closes the trailing sentence, so its pair is queued too.
+  bilingualTurn?.end()
   currentSession?.finishInput()
 }))
 

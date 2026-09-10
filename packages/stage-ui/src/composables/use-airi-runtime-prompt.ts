@@ -15,10 +15,10 @@ export interface UseAiriRuntimePromptOptions {
   /**
    * Append the opt-in bilingual subtitle instruction.
    *
-   * Only the captioned chat boundary should opt in. The spark-notification path
-   * consumes this same prompt but never parses the language tags, so opting it
-   * in would store raw `[EN]`/`[CN]` text for reactions that produce no
-   * subtitle.
+   * Only consumers that split the tagged output may opt in. The captioned chat
+   * and spark reactions both run it through the bilingual parser before the
+   * text is spoken or stored, so the `[EN]`/`[CN]` control tags never survive.
+   * Any other consumer would keep those tags in text nothing ever parses.
    */
   bilingual?: boolean
 }
