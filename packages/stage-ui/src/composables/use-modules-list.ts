@@ -127,7 +127,7 @@ export function useModulesList() {
       description: t('settings.pages.modules.messaging-discord.description'),
       icon: 'i-simple-icons:discord',
       to: '/settings/modules/messaging-discord',
-      configured: discordStore.configured,
+      configured: discordStore.connected,
       category: 'messaging',
     },
     {
