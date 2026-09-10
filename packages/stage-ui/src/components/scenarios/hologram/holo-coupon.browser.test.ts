@@ -2,10 +2,11 @@ import en from '@proj-airi/i18n/locales/en'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 import { effectScope } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import AnnouncementCarousel from './announcement-carousel.vue'
 import HoloCoupon from './holo-coupon.vue'
 
 import { useAnnouncements } from '../../../composables/announcements'
@@ -37,6 +38,49 @@ async function mount(onOpenChange = (_open: boolean) => {}) {
 }
 
 describe('cloud announcement display', () => {
+  // https://github.com/moeru-ai/airi/pull/2484#discussion_r3980949680
+  it('preserves the selected announcement when earlier entries disappear', async () => {
+    // ROOT CAUSE:
+    // A numeric selection points to another item when an earlier entry expires.
+    // Preserve the announcement ID and resolve its new position after updates.
+    const first = { ...announcement, layout: 'portrait' as const, coverUrl: '' }
+    const second = { ...first, id: 'notice-2', title: 'Second announcement' }
+    const third = { ...first, id: 'notice-3', title: 'Third announcement' }
+    const screen = await render(AnnouncementCarousel, {
+      props: { items: [first, second, third], mobile: true },
+      global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
+    })
+    await page.getByRole('button', { name: second.title, exact: true }).click()
+    await expect.element(page.getByRole('heading', { name: second.title })).toBeVisible()
+    await screen.rerender({ items: [second, third] })
+    await expect.element(page.getByRole('heading', { name: second.title })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: second.title, exact: true })).toHaveAttribute('aria-current', 'true')
+    await screen.rerender({ items: [third, second] })
+    await expect.element(page.getByRole('heading', { name: second.title })).toBeVisible()
+    await screen.rerender({ items: [third] })
+    await expect.element(page.getByRole('heading', { name: third.title })).toBeVisible()
+  })
+
+  it('opens the mobile drawer and restores the selected announcement after closing', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async () => Response.json({ announcements: [
+      announcement,
+      { ...announcement, id: 'notice-2', layout: 'landscape', title: 'Second announcement' },
+    ] })))
+    await render(HoloCoupon, {
+      props: { client: 'web', presentation: 'drawer' },
+      global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
+    })
+    await page.getByRole('button', { name: 'Open announcements' }).click()
+    await expect.element(page.getByRole('dialog', { name: 'Announcements', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Second announcement', exact: true }).click()
+    await expect.element(page.getByRole('heading', { name: 'Second announcement' })).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
+    await page.getByRole('button', { name: 'Open announcements' }).click()
+    await expect.element(page.getByRole('heading', { name: 'Second announcement' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Second announcement', exact: true })).toHaveAttribute('aria-current', 'true')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2484
   it('keeps controls in one row when Cloud returns 100 announcements', async () => {
     // ROOT CAUSE:

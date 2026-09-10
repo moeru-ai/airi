@@ -1,3 +1,4 @@
+import type { InferOutput } from 'valibot'
 import type { MaybeRefOrGetter } from 'vue'
 
 import { announcementServiceListAnnouncements } from '@proj-airi/cloud-client'
@@ -17,6 +18,9 @@ const contentSchema = object({
   startsAt: pipe(string(), isoTimestamp()),
   endsAt: optional(string(), ''),
 })
+
+/** Public announcement content after validation at the Cloud response boundary. */
+export type AnnouncementContent = InferOutput<typeof contentSchema>
 
 /**
  * Reads public announcements for one mounted stage. Locale changes abort the
