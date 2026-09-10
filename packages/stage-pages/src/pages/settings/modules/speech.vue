@@ -406,7 +406,7 @@ async function generateTestSpeech() {
 
   const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, any>
   if (!provider) {
-    console.error('Failed to initialize speech provider')
+    errorMessage.value = 'Failed to initialize speech provider'
     return
   }
 
@@ -416,7 +416,8 @@ async function generateTestSpeech() {
   let model = activeSpeechModel.value
   let voice = activeSpeechVoice.value
 
-  if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+  if (activeSpeechProvider.value === 'openai-compatible-audio-speech'
+    || activeSpeechProvider.value === 'openrouter-audio-speech') {
     if (!model && providerConfig?.model) {
       model = providerConfig.model as string
     }
@@ -434,12 +435,12 @@ async function generateTestSpeech() {
   }
 
   if (!model) {
-    console.error('No model selected')
+    errorMessage.value = 'No TTS model selected. Enter a model id such as fish-audio/s2-pro.'
     return
   }
 
   if (!voice) {
-    console.error('No voice selected')
+    errorMessage.value = 'No voice id. Paste a Fish Audio voice code or an OpenAI voice name.'
     return
   }
 
@@ -684,7 +685,7 @@ async function handleDeleteProvider(providerId: string) {
           </div>
 
           <!-- Manual input for OpenAI Compatible -->
-          <div v-if="activeSpeechProvider === 'openai-compatible-audio-speech'">
+          <div v-if="activeSpeechProvider === 'openai-compatible-audio-speech' || activeSpeechProvider === 'openrouter-audio-speech'">
             <FieldInput
               :model-value="activeSpeechModel || ''"
               label="Model"

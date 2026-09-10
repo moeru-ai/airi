@@ -44,6 +44,13 @@ const availableProviders = computed(() => [
           icon: 'i-solar:gallery-round-bold-duotone',
           configRoute: '/settings/providers/artistry/nanobanana',
         },
+        {
+          id: 'openai-compatible-images',
+          name: 'OpenAI Compatible',
+          description: 'Endpoint + API key + model for /v1/images/generations',
+          icon: 'i-lobe-icons:openai',
+          configRoute: '/settings/providers/artistry/openai-compatible-images',
+        },
       ]),
 ])
 </script>

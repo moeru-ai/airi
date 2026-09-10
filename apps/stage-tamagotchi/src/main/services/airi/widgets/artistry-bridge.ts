@@ -17,6 +17,7 @@ import { injeca } from 'injeca'
 
 import { ComfyUIProvider } from './providers/comfyui'
 import { NanoBananaProvider } from './providers/nanobanana'
+import { OpenAICompatibleImagesProvider } from './providers/openai-compatible-images'
 import { ReplicateProvider } from './providers/replicate'
 
 const log = useLogg('artistry-bridge').useGlobalConfig()
@@ -103,6 +104,7 @@ export const artistryProviders = new Map<string, ArtistryProvider>()
 artistryProviders.set('comfyui', new ComfyUIProvider())
 artistryProviders.set('replicate', new ReplicateProvider())
 artistryProviders.set('nanobanana', new NanoBananaProvider())
+artistryProviders.set('openai-compatible-images', new OpenAICompatibleImagesProvider())
 
 // Deduplication map for headless requests
 const pendingHeadlessRequests = new Map<string, Promise<{ imageUrl?: string, base64?: string, error?: string }>>()
@@ -477,6 +479,9 @@ export async function setupArtistryBridge(params: {
           nanobananaApiKey: '',
           nanobananaModel: 'gemini-3.1-flash-image-preview',
           nanobananaResolution: '1K',
+          openaiCompatibleImagesApiKey: '',
+          openaiCompatibleImagesBaseUrl: 'https://openrouter.ai/api/v1/',
+          openaiCompatibleImagesModel: 'google/gemini-2.5-flash-image',
         },
       })
 

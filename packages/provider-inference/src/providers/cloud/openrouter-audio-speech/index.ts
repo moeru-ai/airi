@@ -3,6 +3,8 @@ import { z } from 'zod'
 
 import { defineProvider } from '../../registry'
 import { OPENROUTER_ATTRIBUTION_HEADERS } from '../openrouter-ai'
+import { createAudioProvider } from '../openai-audio'
+import { isChatAudioModel } from '../speech-fetch'
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1/'
 const DEFAULT_MODEL = 'openai/gpt-audio-mini'
@@ -89,7 +91,7 @@ function decodeBase64Pcm(chunks: string[]) {
   return bytes
 }
 
-function createAudioFetch(apiKey: string, baseUrl: string, model: string) {
+function createChatAudioFetch(apiKey: string, baseUrl: string, model: string) {
   return async (_input: RequestInfo | URL, init?: RequestInit) => {
     if (!init?.body || typeof init.body !== 'string')
       throw new Error('Invalid request body')
@@ -135,14 +137,19 @@ export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfi
   createProvider(config) {
     const apiKey = config.apiKey.trim()
     const baseUrl = normalizeBaseUrl(config.baseUrl)
+    const speechProvider = createAudioProvider({ apiKey, baseUrl })
     return {
       speech: (model?: string) => {
         const resolvedModel = model || DEFAULT_MODEL
-        return {
-          baseURL: baseUrl,
-          model: resolvedModel,
-          fetch: createAudioFetch(apiKey, baseUrl, resolvedModel),
+        if (isChatAudioModel(resolvedModel)) {
+          return {
+            baseURL: baseUrl,
+            model: resolvedModel,
+            fetch: createChatAudioFetch(apiKey, baseUrl, resolvedModel),
+          }
         }
+
+        return speechProvider.speech(resolvedModel)
       },
     }
   },
@@ -176,7 +183,7 @@ export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfi
         const data = await response.json() as {
           data?: Array<{ id: string, name?: string, description?: string, context_length?: number }>
         }
-        return (data.data ?? []).map(model => ({
+        const models = (data.data ?? []).map(model => ({
           id: model.id,
           name: model.name || model.id,
           provider: 'openrouter-audio-speech',
@@ -184,6 +191,25 @@ export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfi
           contextLength: model.context_length || 0,
           deprecated: false,
         }))
+
+        const extras = [
+          'fish-audio/s2-pro',
+          'fish-audio/s2.1-pro',
+          'fish-audio/s2.1-pro-free',
+        ]
+        for (const id of extras) {
+          if (!models.some(model => model.id === id)) {
+            models.push({
+              id,
+              name: id,
+              provider: 'openrouter-audio-speech',
+              description: 'Fish Audio TTS (OpenRouter /audio/speech)',
+              contextLength: 0,
+              deprecated: false,
+            })
+          }
+        }
+        return models
       }
       catch (error) {
         console.error('Failed to fetch OpenRouter audio models:', error)

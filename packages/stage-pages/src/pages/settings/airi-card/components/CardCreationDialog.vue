@@ -230,6 +230,7 @@ const artistryProviderOptions = computed(() => {
       : [
           { value: 'replicate', label: 'Replicate' },
           { value: 'nanobanana', label: 'Nano Banana' },
+          { value: 'openai-compatible-images', label: 'OpenAI Compatible' },
         ]),
   ], selectedArtistryProvider.value)
 })

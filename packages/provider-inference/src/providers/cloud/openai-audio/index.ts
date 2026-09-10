@@ -5,6 +5,7 @@ import { listModels } from '@xsai/model'
 import { z } from 'zod'
 
 import { defineProvider } from '../../registry'
+import { fetchSpeechAudio } from '../speech-fetch'
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1/'
 
@@ -43,8 +44,20 @@ function normalizeBaseUrl(baseUrl: string | undefined) {
   return value && !value.endsWith('/') ? `${value}/` : value
 }
 
-function createAudioProvider(config: AudioConfig) {
-  return createOpenAI(config.apiKey.trim(), normalizeBaseUrl(config.baseUrl))
+export function createAudioProvider(config: AudioConfig) {
+  const apiKey = config.apiKey.trim()
+  const baseUrl = normalizeBaseUrl(config.baseUrl)
+  const provider = createOpenAI(apiKey, baseUrl)
+  const originalSpeech = provider.speech.bind(provider)
+  provider.speech = (model: string, extraOptions?: Record<string, unknown>) => ({
+    ...originalSpeech(model),
+    ...extraOptions,
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => fetchSpeechAudio(input, init, {
+      apiKey,
+      openRouter: baseUrl.includes('openrouter.ai'),
+    }),
+  })
+  return provider
 }
 
 function createTranscriptionProvider(config: AudioConfig) {
@@ -213,10 +226,9 @@ export const providerOpenAICompatibleAudioSpeech = defineProvider<OpenAICompatib
       if (!apiKey || !baseUrl)
         return []
 
-      const models = await listModels({ apiKey, baseURL: baseUrl })
-      return models
-        .filter(model => model.id.toLowerCase().includes('tts'))
-        .map(model => ({
+      try {
+        const models = await listModels({ apiKey, baseURL: baseUrl })
+        return models.map(model => ({
           id: model.id,
           name: model.id,
           provider: 'openai-compatible-audio-speech',
@@ -224,6 +236,10 @@ export const providerOpenAICompatibleAudioSpeech = defineProvider<OpenAICompatib
           contextLength: 0,
           deprecated: false,
         }))
+      }
+      catch {
+        return []
+      }
     },
   },
 })
@@ -263,6 +279,5 @@ export const providerOpenAICompatibleAudioTranscription = defineProvider<OpenAIC
   createProvider: createTranscriptionProvider,
   validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
   validators: createAudioValidators<OpenAICompatibleAudioConfig>(),
-  // Transcription model names are not reliably available from /v1/models.
   extraMethods: { listModels: async () => [] },
 })

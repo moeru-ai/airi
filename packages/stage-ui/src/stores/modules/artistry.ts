@@ -84,6 +84,17 @@ export const useArtistryStore = defineStore('artistry', () => {
     '1K',
     persistenceOptions,
   )
+  const openaiCompatibleImagesApiKey = useLocalStorageManualReset<string>('artistry-openai-compatible-images-api-key', '', persistenceOptions)
+  const openaiCompatibleImagesBaseUrl = useLocalStorageManualReset<string>(
+    'artistry-openai-compatible-images-base-url',
+    'https://openrouter.ai/api/v1/',
+    persistenceOptions,
+  )
+  const openaiCompatibleImagesModel = useLocalStorageManualReset<string>(
+    'artistry-openai-compatible-images-model',
+    'google/gemini-2.5-flash-image',
+    persistenceOptions,
+  )
 
   /**
    * Resets active settings to match current global user preferences.
@@ -116,6 +127,9 @@ export const useArtistryStore = defineStore('artistry', () => {
     nanobananaApiKey.reset()
     nanobananaModel.reset()
     nanobananaResolution.reset()
+    openaiCompatibleImagesApiKey.reset()
+    openaiCompatibleImagesBaseUrl.reset()
+    openaiCompatibleImagesModel.reset()
 
     // Sync active state
     resetToGlobal()
@@ -148,6 +162,10 @@ export const useArtistryStore = defineStore('artistry', () => {
       return !!nanobananaApiKey.value
     }
 
+    if (activeProvider.value === 'openai-compatible-images') {
+      return !!openaiCompatibleImagesApiKey.value && !!openaiCompatibleImagesBaseUrl.value
+    }
+
     return true
   })
 
@@ -162,6 +180,9 @@ export const useArtistryStore = defineStore('artistry', () => {
     nanobananaApiKey: nanobananaApiKey.value,
     nanobananaModel: nanobananaModel.value,
     nanobananaResolution: nanobananaResolution.value,
+    openaiCompatibleImagesApiKey: openaiCompatibleImagesApiKey.value,
+    openaiCompatibleImagesBaseUrl: openaiCompatibleImagesBaseUrl.value,
+    openaiCompatibleImagesModel: openaiCompatibleImagesModel.value,
   }))
 
   return {
@@ -194,6 +215,9 @@ export const useArtistryStore = defineStore('artistry', () => {
     nanobananaApiKey,
     nanobananaModel,
     nanobananaResolution,
+    openaiCompatibleImagesApiKey,
+    openaiCompatibleImagesBaseUrl,
+    openaiCompatibleImagesModel,
 
     resetToGlobal,
     resetState,

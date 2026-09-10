@@ -104,6 +104,21 @@ const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>((): Provider
             deployment: 'cloud',
             iconImage: undefined,
           },
+          {
+            id: 'openai-compatible-images',
+            category: 'artistry',
+            icon: 'i-lobe-icons:openai',
+            iconColor: 'i-lobe-icons:openai-color',
+            name: 'OpenAI Compatible',
+            localizedName: 'OpenAI Compatible',
+            description: 'Any OpenAI-compatible images endpoint (URL + API key + model).',
+            localizedDescription: 'Any OpenAI-compatible images endpoint (URL + API key + model).',
+            configured: !!artistryStore.openaiCompatibleImagesApiKey,
+            to: '/settings/providers/artistry/openai-compatible-images',
+            pricing: 'paid',
+            deployment: 'cloud',
+            iconImage: undefined,
+          },
         ] satisfies ProviderSourceCard[])),
   ]
 })

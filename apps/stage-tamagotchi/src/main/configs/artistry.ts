@@ -15,6 +15,9 @@ export const artistryConfigSchema = object({
     nanobananaApiKey: optional(string(), ''),
     nanobananaModel: optional(string(), 'gemini-3.1-flash-image-preview'),
     nanobananaResolution: optional(string(), '1K'),
+    openaiCompatibleImagesApiKey: optional(string(), ''),
+    openaiCompatibleImagesBaseUrl: optional(string(), 'https://openrouter.ai/api/v1/'),
+    openaiCompatibleImagesModel: optional(string(), 'google/gemini-2.5-flash-image'),
   }), {}),
 })
 
