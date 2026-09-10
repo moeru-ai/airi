@@ -145,6 +145,9 @@ definitions:
       coverUrl:
         type: string
         description: Empty or a Cloud-relative path. Reading checks publication before redirecting.
+      layout:
+        type: string
+        description: 'Operator-selected template: portrait shows text beside the cover; landscape reveals text on hover.'
   v1ListAnnouncementsResponse:
     type: object
     properties:

@@ -48,6 +48,10 @@ export type V1Announcement = {
      * Empty or a Cloud-relative path. Reading checks publication before redirecting.
      */
     coverUrl?: string;
+    /**
+     * Operator-selected template: portrait shows text beside the cover; landscape reveals text on hover.
+     */
+    layout?: string;
 };
 
 export type V1ListAnnouncementsResponse = {
