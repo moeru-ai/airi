@@ -55,7 +55,7 @@ function getReplyIconStyle(swipe: SwipeableSlotProps) {
     <Swipeable
       v-slot="swipe"
       :enabled="replyEnabled"
-      :input="variant === 'mobile' ? 'pointer' : 'wheel'"
+      :input="variant === 'mobile' ? 'touch' : 'wheel'"
       @commit="emit('reply')"
       @threshold-enter="triggerHaptic('medium')"
     >

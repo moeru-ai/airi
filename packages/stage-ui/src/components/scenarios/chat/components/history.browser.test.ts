@@ -98,6 +98,24 @@ function dispatchTouchPointer(element: EventTarget, type: 'pointerdown' | 'point
   }))
 }
 
+function dispatchTouchEvent(element: HTMLElement, type: 'touchstart' | 'touchmove' | 'touchend' | 'touchcancel', clientX: number) {
+  const touch = new Touch({
+    clientX,
+    clientY: 60,
+    identifier: 1,
+    target: element,
+  })
+  const activeTouches = type === 'touchend' || type === 'touchcancel' ? [] : [touch]
+
+  element.dispatchEvent(new TouchEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    changedTouches: [touch],
+    targetTouches: activeTouches,
+    touches: activeTouches,
+  }))
+}
+
 describe('chat history', () => {
   it('renders a stored reply relation inside the message bubble', async () => {
     const screen = await render(ChatHistory, {
@@ -1074,10 +1092,14 @@ describe('chat history', () => {
     if (!swipeSurface)
       throw new Error('Expected a mobile message swipe surface.')
 
-    dispatchPointerSwipe(swipeSurface, 40, 100, 'touch')
+    dispatchTouchEvent(swipeSurface, 'touchstart', 40)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 100)
+    dispatchTouchEvent(swipeSurface, 'touchend', 100)
     expect(screen.emitted('replyMessage')).toBeUndefined()
 
-    dispatchPointerSwipe(swipeSurface, 100, 40, 'touch')
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40)
+    dispatchTouchEvent(swipeSurface, 'touchend', 40)
 
     await vi.waitFor(() => {
       expect(screen.emitted('replyMessage')).toEqual([[
@@ -1089,7 +1111,72 @@ describe('chat history', () => {
     })
   })
 
-  it('returns a message to rest when the pointer gesture is cancelled', async () => {
+  // https://github.com/moeru-ai/airi/pull/2489
+  // ROOT CAUSE:
+  //
+  // Mobile Safari can dispatch lostpointercapture after a swipe surface captures
+  // the active touch pointer. The pointer handler treated this event as a hard
+  // cancellation and ignored all later movement from the same physical touch.
+  //
+  // The mobile gesture now follows the Touch Events stream. Pointer capture loss
+  // does not terminate that stream, and touchcancel remains the cancellation signal.
+  it('continues a mobile swipe after pointer capture is lost as reported in PR #2489', async () => {
+    const message: ChatHistoryItem = {
+      id: 'lost-pointer-capture-target',
+      role: 'user',
+      content: 'Continue this swipe',
+    }
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [message],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull()
+    })
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!swipeSurface)
+      throw new Error('Expected a mobile message swipe surface.')
+
+    dispatchTouchPointer(swipeSurface, 'pointerdown', 100)
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100)
+    dispatchTouchPointer(swipeSurface, 'pointermove', 84)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 84)
+    swipeSurface.dispatchEvent(new PointerEvent('lostpointercapture', {
+      bubbles: true,
+      pointerId: 1,
+      pointerType: 'touch',
+    }))
+    dispatchTouchPointer(swipeSurface, 'pointermove', 40)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40)
+    swipeSurface.dispatchEvent(new PointerEvent('pointerup', {
+      bubbles: true,
+      buttons: 0,
+      clientX: 40,
+      clientY: 60,
+      isPrimary: true,
+      pointerId: 1,
+      pointerType: 'touch',
+    }))
+    dispatchTouchEvent(swipeSurface, 'touchend', 40)
+
+    await vi.waitFor(() => {
+      expect(screen.emitted('replyMessage')).toEqual([[
+        {
+          message,
+          label: 'You',
+        },
+      ]])
+    })
+  })
+
+  it('returns a message to rest when the touch gesture is cancelled', async () => {
     const message: ChatHistoryItem = { id: 'cancel-target', role: 'user', content: 'Cancel swipe' }
     const screen = await render(ChatHistory, {
       props: {
@@ -1109,37 +1196,13 @@ describe('chat history', () => {
     if (!swipeSurface)
       throw new Error('Expected a message swipe surface.')
 
-    swipeSurface.dispatchEvent(new PointerEvent('pointerdown', {
-      bubbles: true,
-      buttons: 1,
-      clientX: 100,
-      clientY: 60,
-      isPrimary: true,
-      pointerId: 1,
-      pointerType: 'mouse',
-    }))
-    swipeSurface.dispatchEvent(new PointerEvent('pointermove', {
-      bubbles: true,
-      buttons: 1,
-      clientX: 40,
-      clientY: 62,
-      isPrimary: true,
-      pointerId: 1,
-      pointerType: 'mouse',
-    }))
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40)
     await vi.waitFor(() => {
       expect(swipeSurface.dataset.swipeActive).toBe('true')
     })
 
-    swipeSurface.dispatchEvent(new PointerEvent('pointercancel', {
-      bubbles: true,
-      buttons: 0,
-      clientX: 40,
-      clientY: 62,
-      isPrimary: true,
-      pointerId: 1,
-      pointerType: 'mouse',
-    }))
+    dispatchTouchEvent(swipeSurface, 'touchcancel', 40)
 
     await vi.waitFor(() => {
       expect(swipeSurface.dataset.swipeActive).toBe('false')
