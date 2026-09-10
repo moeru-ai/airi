@@ -174,6 +174,26 @@ describe('refreshActiveTranscriptionModelForProvider', () => {
     await expect(refresh).resolves.toBe(true)
     expect(hearingStore.activeTranscriptionModel).toBe('model-c')
   })
+
+  it('clears an old-endpoint model when the replacement catalog request fails', async () => {
+    const providerId = 'funasr-instance'
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://new.example/v1/',
+    })
+
+    const hearingStore = useHearingStore()
+    hearingStore.activeTranscriptionProvider = providerId
+    hearingStore.activeTranscriptionModel = 'model-from-old-endpoint'
+    hearingStore.activeCustomModelName = 'model-from-old-endpoint'
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('catalog unavailable')))
+
+    await expect(hearingStore.refreshActiveTranscriptionModelForProvider(providerId, {
+      baseUrl: 'http://old.example/v1/',
+    })).resolves.toBe(true)
+    expect(hearingStore.activeTranscriptionModel).toBe('')
+    expect(hearingStore.activeCustomModelName).toBe('')
+  })
 })
 
 describe('clearActiveTranscriptionModelForProvider', () => {
@@ -182,12 +202,33 @@ describe('clearActiveTranscriptionModelForProvider', () => {
     const hearingStore = useHearingStore()
     hearingStore.activeTranscriptionProvider = 'funasr-instance'
     hearingStore.activeTranscriptionModel = 'model-from-old-endpoint'
+    hearingStore.activeCustomModelName = 'model-from-old-endpoint'
 
     await expect(hearingStore.clearActiveTranscriptionModelForProvider('other-instance')).resolves.toBe(false)
     expect(hearingStore.activeTranscriptionModel).toBe('model-from-old-endpoint')
+    expect(hearingStore.activeCustomModelName).toBe('model-from-old-endpoint')
 
     await expect(hearingStore.clearActiveTranscriptionModelForProvider('funasr-instance')).resolves.toBe(true)
     expect(hearingStore.activeTranscriptionModel).toBe('')
+    expect(hearingStore.activeCustomModelName).toBe('')
+  })
+
+  it('preserves model input made while a bypass save is pending', async () => {
+    const hearingStore = useHearingStore()
+    hearingStore.activeTranscriptionProvider = 'funasr-instance'
+    hearingStore.activeTranscriptionModel = 'model-from-old-endpoint'
+    hearingStore.activeCustomModelName = 'model-from-old-endpoint'
+
+    hearingStore.activeTranscriptionModel = 'new-manual-model'
+    hearingStore.activeCustomModelName = 'new-manual-model'
+    await expect(hearingStore.clearActiveTranscriptionModelForProvider(
+      'funasr-instance',
+      'model-from-old-endpoint',
+      'model-from-old-endpoint',
+    )).resolves.toBe(true)
+
+    expect(hearingStore.activeTranscriptionModel).toBe('new-manual-model')
+    expect(hearingStore.activeCustomModelName).toBe('new-manual-model')
   })
 })
 

@@ -213,9 +213,11 @@ describe('hearing provider reconciliation synchronization', () => {
 
     leaderHearingStore.activeTranscriptionProvider = providerId
     leaderHearingStore.activeTranscriptionModel = 'model-from-old-endpoint'
+    leaderHearingStore.activeCustomModelName = 'model-from-old-endpoint'
     await vi.waitFor(() => {
       expect(followerHearingStore.activeTranscriptionProvider).toBe(providerId)
       expect(followerHearingStore.activeTranscriptionModel).toBe('model-from-old-endpoint')
+      expect(followerHearingStore.activeCustomModelName).toBe('model-from-old-endpoint')
     })
 
     setActivePinia(followerContext.pinia)
@@ -224,7 +226,47 @@ describe('hearing provider reconciliation synchronization', () => {
     await vi.waitFor(() => {
       expect(leaderHearingStore.activeTranscriptionModel).toBe('')
       expect(followerHearingStore.activeTranscriptionModel).toBe('')
+      expect(leaderHearingStore.activeCustomModelName).toBe('')
+      expect(followerHearingStore.activeCustomModelName).toBe('')
     })
     expect(leaderActions).toContain('clearActiveTranscriptionModelForProvider')
+  })
+
+  it('preserves a synchronized model entered while a bypass save is pending', async () => {
+    const { useHearingStore } = await import('./hearing')
+    const namespace = `hearing-model-clear-race:${crypto.randomUUID()}`
+    const providerId = 'funasr-instance'
+
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderHearingStore = useHearingStore()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerHearingStore = useHearingStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    leaderHearingStore.activeTranscriptionProvider = providerId
+    leaderHearingStore.activeTranscriptionModel = 'model-from-old-endpoint'
+    leaderHearingStore.activeCustomModelName = 'model-from-old-endpoint'
+    await vi.waitFor(() => expect(followerHearingStore.activeCustomModelName).toBe('model-from-old-endpoint'))
+
+    followerHearingStore.activeTranscriptionModel = 'new-manual-model'
+    followerHearingStore.activeCustomModelName = 'new-manual-model'
+    await vi.waitFor(() => expect(leaderHearingStore.activeCustomModelName).toBe('new-manual-model'))
+
+    await expect(followerHearingStore.clearActiveTranscriptionModelForProvider(
+      providerId,
+      'model-from-old-endpoint',
+      'model-from-old-endpoint',
+    )).resolves.toBe(true)
+
+    await vi.waitFor(() => {
+      expect(leaderHearingStore.activeTranscriptionModel).toBe('new-manual-model')
+      expect(followerHearingStore.activeTranscriptionModel).toBe('new-manual-model')
+      expect(leaderHearingStore.activeCustomModelName).toBe('new-manual-model')
+      expect(followerHearingStore.activeCustomModelName).toBe('new-manual-model')
+    })
   })
 })

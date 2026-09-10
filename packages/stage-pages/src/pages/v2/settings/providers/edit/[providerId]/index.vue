@@ -382,9 +382,12 @@ async function runValidation() {
     const validatedConfig = isEdited.value && providerConfigEdit.value
       ? { ...providerConfigEdit.value.config }
       : undefined
+    const previousConfig = validatedConfig
+      ? merge({}, providerConfig.value.config ?? emptyProviderConfigValues)
+      : undefined
     const didCommit = await providerStore.finishProviderValidationAndUpdateConfig(validationProviderId, validationToken, validatedConfig)
     if (didCommit && validatedConfig)
-      await hearingStore.refreshActiveTranscriptionModelForProvider(validationProviderId)
+      await hearingStore.refreshActiveTranscriptionModelForProvider(validationProviderId, previousConfig)
     validationStatusRestorer.clear(validationToken)
   }
   catch (error) {
@@ -475,9 +478,16 @@ async function commitEditedConfig(status: 'configured' | 'bypassed') {
   if (!providerConfigEdit.value)
     return
 
+  const modelBeforeCommit = hearingStore.activeTranscriptionModel
+  const customModelBeforeCommit = hearingStore.activeCustomModelName
   await providerStore.updateProviderConfig(providerId.value, { ...providerConfigEdit.value.config }, status)
-  if (status === 'bypassed')
-    await hearingStore.clearActiveTranscriptionModelForProvider(providerId.value)
+  if (status === 'bypassed') {
+    await hearingStore.clearActiveTranscriptionModelForProvider(
+      providerId.value,
+      modelBeforeCommit,
+      customModelBeforeCommit,
+    )
+  }
 }
 
 function handleSaveAnyway() {

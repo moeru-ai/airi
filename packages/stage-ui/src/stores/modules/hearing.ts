@@ -426,7 +426,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
     return []
   }
 
-  async function refreshActiveTranscriptionModelForProvider(providerId: string) {
+  async function refreshActiveTranscriptionModelForProvider(
+    providerId: string,
+    previousConfig?: Record<string, unknown>,
+  ) {
     const resolvedProviderId = resolveProviderCreationId(providerStore.providerCreationResolutions, providerId)
     const resolvedActiveProviderId = resolveProviderCreationId(
       providerStore.providerCreationResolutions,
@@ -441,6 +444,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     const validatedConfigKey = JSON.stringify(provider.config)
     const modelBeforeRefresh = activeTranscriptionModel.value
+    const customModelBeforeRefresh = activeCustomModelName.value
+    const configurationChanged = previousConfig !== undefined
+      && JSON.stringify(previousConfig) !== validatedConfigKey
     const catalog = await providersStore.fetchModelsForProvider(resolvedProviderId)
     const currentProvider = providerStore.getProvider(resolvedProviderId)
     const currentActiveProviderId = resolveProviderCreationId(
@@ -451,15 +457,20 @@ export const useHearingStore = defineStore('hearing-store', () => {
       return false
 
     if (activeTranscriptionModel.value === modelBeforeRefresh) {
-      activeTranscriptionModel.value = resolveRefreshedTranscriptionModel(
-        modelBeforeRefresh,
-        catalog.models,
-      )
+      activeTranscriptionModel.value = configurationChanged && catalog.models.length === 0
+        ? ''
+        : resolveRefreshedTranscriptionModel(modelBeforeRefresh, catalog.models)
     }
+    if (configurationChanged && catalog.models.length === 0 && activeCustomModelName.value === customModelBeforeRefresh)
+      activeCustomModelName.value = ''
     return true
   }
 
-  async function clearActiveTranscriptionModelForProvider(providerId: string) {
+  async function clearActiveTranscriptionModelForProvider(
+    providerId: string,
+    expectedModel = activeTranscriptionModel.value,
+    expectedCustomModel = activeCustomModelName.value,
+  ) {
     const resolvedProviderId = resolveProviderCreationId(providerStore.providerCreationResolutions, providerId)
     const resolvedActiveProviderId = resolveProviderCreationId(
       providerStore.providerCreationResolutions,
@@ -468,7 +479,11 @@ export const useHearingStore = defineStore('hearing-store', () => {
     if (resolvedActiveProviderId !== resolvedProviderId)
       return false
 
-    activeTranscriptionModel.value = ''
+    providersStore.invalidateModelRequestForProvider(resolvedProviderId)
+    if (activeTranscriptionModel.value === expectedModel)
+      activeTranscriptionModel.value = ''
+    if (activeCustomModelName.value === expectedCustomModel)
+      activeCustomModelName.value = ''
     return true
   }
 
