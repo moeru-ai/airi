@@ -68,7 +68,7 @@ devtools:
       metrics:
         fps:
           label: FPS
-          description: 最近 10 秒内的每秒帧数。
+          description: 最近 10 秒内的动画帧率。每个样本为 1000 除以帧间隔（毫秒）。
         frame-duration:
           label: 帧时间（毫秒）
           description: 最近 10 秒内动画帧之间的时间。
@@ -84,6 +84,14 @@ devtools:
         title: 上次录制
         duration: 时长 {duration} 毫秒
         limit: 录制会在 60 秒后停止。
+      history:
+        title: FPS 历史
+        latest: 最新
+        minimum: 最低
+        maximum: 最高
+        seconds-ago: '-{seconds} 秒'
+        end: 0 秒
+        empty: 暂无 FPS 样本，请启用 FPS 采集。
       overlay:
         title: 性能
         move: 移动性能浮窗
