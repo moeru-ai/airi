@@ -2,7 +2,7 @@ import type { ChatHistoryItem } from '../../../../types/chat'
 
 import en from '@proj-airi/i18n/locales/en'
 
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
@@ -10,6 +10,12 @@ import { createI18n } from 'vue-i18n'
 import ChatHistory from './history.vue'
 
 import { getChatHistoryItemKey } from '../utils'
+
+const triggerHaptic = vi.fn()
+
+vi.mock('web-haptics/vue', () => ({
+  useWebHaptics: () => ({ trigger: triggerHaptic }),
+}))
 
 function createEnglishI18n() {
   return createI18n({
@@ -98,10 +104,15 @@ function dispatchTouchPointer(element: EventTarget, type: 'pointerdown' | 'point
   }))
 }
 
-function dispatchTouchEvent(element: HTMLElement, type: 'touchstart' | 'touchmove' | 'touchend' | 'touchcancel', clientX: number) {
+function dispatchTouchEvent(
+  element: HTMLElement,
+  type: 'touchstart' | 'touchmove' | 'touchend' | 'touchcancel',
+  clientX: number,
+  clientY = 60,
+) {
   const touch = new Touch({
     clientX,
-    clientY: 60,
+    clientY,
     identifier: 1,
     target: element,
   })
@@ -117,6 +128,10 @@ function dispatchTouchEvent(element: HTMLElement, type: 'touchstart' | 'touchmov
 }
 
 describe('chat history', () => {
+  beforeEach(() => {
+    triggerHaptic.mockClear()
+  })
+
   it('renders a stored reply relation inside the message bubble', async () => {
     const screen = await render(ChatHistory, {
       props: {
@@ -1111,6 +1126,147 @@ describe('chat history', () => {
     })
   })
 
+  // ROOT CAUSE:
+  //
+  // The touch recognizer discarded movement below its intent threshold. It also
+  // compared horizontal and vertical travel again on every move. A message first
+  // jumped to the threshold, then snapped to rest when a confirmed swipe returned
+  // through the small vertical drift accumulated earlier in the gesture.
+  //
+  // The message now follows directed touch travel before intent is confirmed. Once
+  // horizontal intent is confirmed, that decision lasts until the touch ends.
+  it('keeps a mobile message attached to the finger before and after the intent threshold', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'continuous-touch-target', role: 'user', content: 'Follow my finger' }],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull()
+    })
+    const swipeRoot = screen.container.querySelector<HTMLElement>('[data-swipeable]')
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!swipeRoot || !swipeSurface)
+      throw new Error('Expected a mobile message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100, 60)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 96, 61)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 4), 3)
+    expect(swipeSurface.dataset.swipeActive).toBe('false')
+
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40, 70)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    expect(swipeSurface.dataset.swipeActive).toBe('true')
+
+    dispatchTouchEvent(swipeSurface, 'touchmove', 92, 70)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 8), 3)
+    expect(swipeSurface.dataset.swipeActive).toBe('true')
+
+    dispatchTouchEvent(swipeSurface, 'touchcancel', 92, 70)
+  })
+
+  // ROOT CAUSE:
+  //
+  // Pending touch movement updated both the visual offset and threshold state.
+  // A diagonal vertical scroll could therefore trigger reply haptics before the
+  // recognizer locked the gesture to the vertical axis.
+  //
+  // Pending movement now updates only the visual offset. Threshold effects start
+  // after the recognizer confirms horizontal intent.
+  it('does not trigger reply haptics for a diagonal mobile scroll', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'diagonal-scroll-target', role: 'user', content: 'Scroll target' }],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull()
+    })
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!swipeSurface)
+      throw new Error('Expected a mobile message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100, 60)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40, 130)
+
+    expect(triggerHaptic).not.toHaveBeenCalled()
+    expect(swipeSurface.dataset.swipeActive).toBe('false')
+
+    dispatchTouchEvent(swipeSurface, 'touchend', 40, 130)
+    expect(screen.emitted('replyMessage')).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  //
+  // An initial horizontal move opposite the reply direction locked the touch as
+  // vertical. Later movement in the reply direction was then ignored.
+  //
+  // Opposite horizontal movement now stays pending, so the same touch can reverse
+  // direction and establish horizontal reply intent.
+  it('allows a mobile touch to reverse from the opposite horizontal direction', async () => {
+    const message: ChatHistoryItem = {
+      id: 'reversing-touch-target',
+      role: 'user',
+      content: 'Reverse target',
+    }
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [message],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull()
+    })
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!swipeSurface)
+      throw new Error('Expected a mobile message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100, 60)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 96, 61)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    expect(getTranslateX(swipeSurface)).toBeLessThan(0)
+
+    dispatchTouchEvent(swipeSurface, 'touchmove', 112, 61)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    expect(triggerHaptic).not.toHaveBeenCalled()
+    expect(swipeSurface.dataset.swipeActive).toBe('false')
+    expect(getTranslateX(swipeSurface)).toBe(0)
+
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40, 62)
+    dispatchTouchEvent(swipeSurface, 'touchend', 40, 62)
+
+    expect(triggerHaptic).toHaveBeenCalledExactlyOnceWith('medium')
+    expect(screen.emitted('replyMessage')).toEqual([[
+      {
+        message,
+        label: 'You',
+      },
+    ]])
+  })
+
   // https://github.com/moeru-ai/airi/pull/2489
   // ROOT CAUSE:
   //
@@ -1291,7 +1447,7 @@ describe('chat history', () => {
     expect(screen.container.querySelector('.i-solar\\:reply-bold-duotone')).toBeNull()
   })
 
-  it('cancels mobile press feedback when a swipe starts', async () => {
+  it('blends mobile press feedback into a swipe', async () => {
     const screen = await render(ChatHistory, {
       props: {
         messages: [{ id: 'press-target', role: 'user', content: 'Press target' }],
@@ -1307,20 +1463,34 @@ describe('chat history', () => {
       expect(screen.container.querySelector('[data-pressing]')).not.toBeNull()
     })
     const trigger = screen.container.querySelector<HTMLElement>('[data-pressing]')
-    if (!trigger)
+    const swipeRoot = screen.container.querySelector<HTMLElement>('[data-swipeable]')
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!trigger || !swipeRoot || !swipeSurface)
       throw new Error('Expected a chat action menu trigger.')
 
     dispatchTouchPointer(trigger, 'pointerdown', 100)
+    dispatchTouchEvent(trigger, 'touchstart', 100)
     await vi.waitFor(() => {
       expect(trigger.dataset.pressing).toBe('true')
     })
 
-    // The swipe surface captures a confirmed horizontal gesture after this
-    // movement. Press feedback observes the same travel at window level.
+    dispatchTouchPointer(window, 'pointermove', 96)
+    dispatchTouchEvent(trigger, 'touchmove', 96)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    expect(trigger.dataset.pressing).toBe('true')
+    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 4), 3)
+
+    // Press feedback releases after this movement while the same touch stream
+    // continues to drive the surrounding swipe surface.
     dispatchTouchPointer(window, 'pointermove', 80)
+    dispatchTouchEvent(trigger, 'touchmove', 80)
     await vi.waitFor(() => {
       expect(trigger.dataset.pressing).toBe('false')
+      expect(swipeSurface.dataset.swipeActive).toBe('true')
     })
+
+    dispatchTouchEvent(trigger, 'touchcancel', 80)
   })
 
   it('does not apply mobile press feedback to a desktop message', async () => {
