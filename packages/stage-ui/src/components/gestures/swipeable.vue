@@ -79,16 +79,11 @@ function mapGestureDistance(distance: number) {
   return resistanceLength * -Math.expm1(-distance / resistanceLength)
 }
 
-function setGestureDistance(distance: number) {
+function setVisualDistance(distance: number) {
   const positiveDistance = Math.max(0, distance)
   const visibleDistance = mapGestureDistance(positiveDistance)
   const direction = props.direction === 'left' ? -1 : 1
   pendingPositionX = direction * visibleDistance
-
-  const crossed = positiveDistance >= props.threshold
-  if (crossed && !thresholdCrossed.value)
-    emit('thresholdEnter')
-  thresholdCrossed.value = crossed
 
   if (positionFrame !== undefined)
     return
@@ -97,6 +92,16 @@ function setGestureDistance(distance: number) {
     position.x = pendingPositionX
     positionFrame = undefined
   })
+}
+
+function setGestureDistance(distance: number) {
+  const positiveDistance = Math.max(0, distance)
+  setVisualDistance(positiveDistance)
+
+  const crossed = positiveDistance >= props.threshold
+  if (crossed && !thresholdCrossed.value)
+    emit('thresholdEnter')
+  thresholdCrossed.value = crossed
 }
 
 function animatePositionToRest() {
@@ -149,7 +154,7 @@ function updateTouchSwipe() {
     // still active. startDistance decides intent; it is not a visual dead zone.
     if (distance > 0) {
       returnAnimation?.cancel()
-      setGestureDistance(distance)
+      setVisualDistance(distance)
     }
 
     if (Math.max(absoluteDeltaX, deltaY) < props.startDistance)

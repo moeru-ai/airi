@@ -2,7 +2,7 @@ import type { ChatHistoryItem } from '../../../../types/chat'
 
 import en from '@proj-airi/i18n/locales/en'
 
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
@@ -10,6 +10,12 @@ import { createI18n } from 'vue-i18n'
 import ChatHistory from './history.vue'
 
 import { getChatHistoryItemKey } from '../utils'
+
+const triggerHaptic = vi.fn()
+
+vi.mock('web-haptics/vue', () => ({
+  useWebHaptics: () => ({ trigger: triggerHaptic }),
+}))
 
 function createEnglishI18n() {
   return createI18n({
@@ -122,6 +128,10 @@ function dispatchTouchEvent(
 }
 
 describe('chat history', () => {
+  beforeEach(() => {
+    triggerHaptic.mockClear()
+  })
+
   it('renders a stored reply relation inside the message bubble', async () => {
     const screen = await render(ChatHistory, {
       props: {
@@ -1163,6 +1173,43 @@ describe('chat history', () => {
     expect(swipeSurface.dataset.swipeActive).toBe('true')
 
     dispatchTouchEvent(swipeSurface, 'touchcancel', 92, 70)
+  })
+
+  // ROOT CAUSE:
+  //
+  // Pending touch movement updated both the visual offset and threshold state.
+  // A diagonal vertical scroll could therefore trigger reply haptics before the
+  // recognizer locked the gesture to the vertical axis.
+  //
+  // Pending movement now updates only the visual offset. Threshold effects start
+  // after the recognizer confirms horizontal intent.
+  it('does not trigger reply haptics for a diagonal mobile scroll', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'diagonal-scroll-target', role: 'user', content: 'Scroll target' }],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull()
+    })
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!swipeSurface)
+      throw new Error('Expected a mobile message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100, 60)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40, 130)
+
+    expect(triggerHaptic).not.toHaveBeenCalled()
+    expect(swipeSurface.dataset.swipeActive).toBe('false')
+
+    dispatchTouchEvent(swipeSurface, 'touchend', 40, 130)
+    expect(screen.emitted('replyMessage')).toBeUndefined()
   })
 
   // https://github.com/moeru-ai/airi/pull/2489
