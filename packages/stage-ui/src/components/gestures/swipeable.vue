@@ -152,10 +152,8 @@ function updateTouchSwipe() {
   if (touchIntent === 'pending') {
     // Keep the message under the finger while the nested press animation is
     // still active. startDistance decides intent; it is not a visual dead zone.
-    if (distance > 0) {
-      returnAnimation?.cancel()
-      setVisualDistance(distance)
-    }
+    returnAnimation?.cancel()
+    setVisualDistance(distance)
 
     if (Math.max(absoluteDeltaX, deltaY) < props.startDistance)
       return

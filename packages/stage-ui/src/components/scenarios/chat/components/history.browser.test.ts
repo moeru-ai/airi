@@ -1244,10 +1244,16 @@ describe('chat history', () => {
       throw new Error('Expected a mobile message swipe surface.')
 
     dispatchTouchEvent(swipeSurface, 'touchstart', 100, 60)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 96, 61)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    expect(getTranslateX(swipeSurface)).toBeLessThan(0)
+
     dispatchTouchEvent(swipeSurface, 'touchmove', 112, 61)
+    await new Promise(resolve => requestAnimationFrame(resolve))
 
     expect(triggerHaptic).not.toHaveBeenCalled()
     expect(swipeSurface.dataset.swipeActive).toBe('false')
+    expect(getTranslateX(swipeSurface)).toBe(0)
 
     dispatchTouchEvent(swipeSurface, 'touchmove', 40, 62)
     dispatchTouchEvent(swipeSurface, 'touchend', 40, 62)
