@@ -1212,6 +1212,55 @@ describe('chat history', () => {
     expect(screen.emitted('replyMessage')).toBeUndefined()
   })
 
+  // ROOT CAUSE:
+  //
+  // An initial horizontal move opposite the reply direction locked the touch as
+  // vertical. Later movement in the reply direction was then ignored.
+  //
+  // Opposite horizontal movement now stays pending, so the same touch can reverse
+  // direction and establish horizontal reply intent.
+  it('allows a mobile touch to reverse from the opposite horizontal direction', async () => {
+    const message: ChatHistoryItem = {
+      id: 'reversing-touch-target',
+      role: 'user',
+      content: 'Reverse target',
+    }
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [message],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull()
+    })
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!swipeSurface)
+      throw new Error('Expected a mobile message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100, 60)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 112, 61)
+
+    expect(triggerHaptic).not.toHaveBeenCalled()
+    expect(swipeSurface.dataset.swipeActive).toBe('false')
+
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40, 62)
+    dispatchTouchEvent(swipeSurface, 'touchend', 40, 62)
+
+    expect(triggerHaptic).toHaveBeenCalledExactlyOnceWith('medium')
+    expect(screen.emitted('replyMessage')).toEqual([[
+      {
+        message,
+        label: 'You',
+      },
+    ]])
+  })
+
   // https://github.com/moeru-ai/airi/pull/2489
   // ROOT CAUSE:
   //

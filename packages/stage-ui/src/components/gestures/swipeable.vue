@@ -160,11 +160,14 @@ function updateTouchSwipe() {
     if (Math.max(absoluteDeltaX, deltaY) < props.startDistance)
       return
 
-    if (distance <= 0 || deltaY >= absoluteDeltaX) {
+    if (deltaY >= absoluteDeltaX) {
       touchIntent = 'vertical'
       animatePositionToRest()
       return
     }
+
+    if (distance <= 0)
+      return
 
     touchIntent = 'horizontal'
     active.value = true
