@@ -7,6 +7,7 @@ interface CharacterCapabilityBaseConfig {
 export interface CharacterCapabilityConfig extends CharacterCapabilityBaseConfig {
   llm: {
     temperature: number
+    topP?: number
     model: string
   }
   tts: {

@@ -99,6 +99,12 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     return essentialProviderIds.some(providerId => providerStore.configuredProviders[providerId])
   })
 
+  // Persisted provider status ('configured') is restored synchronously from
+  // localStorage by useProviderConfigStore, so this snapshot is available at
+  // store creation. It is intentionally NOT reactive: providers configured
+  // during the onboarding flow itself must not close the dialog mid-flow.
+  const hadEssentialProviderConfiguredAtStartup = hasEssentialProviderConfigured.value
+
   // Fallback for app startup timing:
   // If configured state has not been revalidated yet, infer "configured"
   // from persisted essential credentials.
@@ -120,6 +126,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     && !authStore.token
     && !hasSkippedSetup.value
     && !hasCompletedSetup.value
+    && !hadEssentialProviderConfiguredAtStartup
     && !skipOnboardingPath.includes(document.location.pathname),
   )
 

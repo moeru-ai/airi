@@ -26,7 +26,7 @@ export default {
   Layout,
   enhanceApp({ app, siteData }) {
     if (!import.meta.env.SSR && import.meta.env.PROD) {
-      import('../modules/posthog')
+      import('../modules/openpanel')
     }
 
     const i18n = createI18n({

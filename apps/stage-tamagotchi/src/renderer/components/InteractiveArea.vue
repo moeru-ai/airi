@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/components'
+import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
+import type { ChatSendPayload } from '@proj-airi/stage-ui/stores/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import { errorMessageFrom } from '@moeru/std'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { ChatReplyPreview, useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -16,10 +18,11 @@ import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import ChatImageAttachmentPreview from './chat-image-attachment-preview.vue'
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
@@ -27,10 +30,8 @@ import { useHearingInputChannel } from '../composables/use-hearing-input-channel
 import { artistryToolReferences, widgetToolReferences } from '../stores/tools'
 
 const router = useRouter()
-const messageInput = ref('')
-useHearingInputChannel(messageInput)
+const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
 const lastEnterTime = ref(0)
-const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -43,9 +44,41 @@ const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
+
+type ChatImageAttachment = NonNullable<ChatSendPayload['attachments']>[number]
+
+interface ImageComposerAttachment extends ChatImageAttachment {
+  file: File
+  previewId: string
+}
+
+const composer = useChatComposer<ImageComposerAttachment>({
+  activeSessionId,
+  send: submission => chatStore.send({
+    sessionId: submission.sessionId,
+    text: submission.text,
+    replyToMessageId: submission.replyToMessageId,
+    attachments: submission.attachments.map(attachment => ({
+      type: attachment.type,
+      data: attachment.data,
+      mimeType: attachment.mimeType,
+    })),
+    tools: artistryToolReferences,
+  }),
+})
+const {
+  addAttachments,
+  attachments,
+  clearReplyForMessage,
+  draft: messageInput,
+  isComposing,
+  removeAttachment,
+  replyTarget,
+  selectReply,
+} = composer
+useHearingInputChannel(messageInput)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
-const isComposing = ref(false)
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
@@ -79,50 +112,7 @@ function navigateToImageJournal() {
 }
 
 async function handleSend() {
-  if (isComposing.value) {
-    return
-  }
-
-  if (!messageInput.value.trim() && !attachments.value.length) {
-    return
-  }
-
-  const textToSend = messageInput.value
-  const attachmentsToSend = attachments.value.map(att => ({ ...att }))
-  // The active session can change while the cross-window request is pending.
-  // Keep one correlation key for both the send and its failure recovery.
-  const targetSessionId = chatSession.activeSessionId
-
-  // optimistic clear
-  messageInput.value = ''
-  attachments.value = []
-
-  try {
-    await chatStore.send({
-      sessionId: targetSessionId,
-      text: textToSend,
-      attachments: attachmentsToSend,
-      tools: artistryToolReferences,
-    })
-
-    attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
-  }
-  catch (error) {
-    const errorMessage = errorMessageFrom(error) ?? String(error)
-    const wasCancelledForDeletedSession
-      = errorMessage.includes('Chat session was reset before send could start')
-        || errorMessage.includes('Chat session was removed before send completed')
-    if (!wasCancelledForDeletedSession && chatSession.activeSessionId === targetSessionId) {
-      const currentDraft = messageInput.value
-      messageInput.value = currentDraft ? `${textToSend}\n${currentDraft}` : textToSend
-      attachments.value = [...attachmentsToSend, ...attachments.value]
-    }
-    else {
-      // This window no longer owns a visible attachment preview, so its Blob
-      // URLs must be released instead of surviving until the window closes.
-      attachmentsToSend.forEach(attachment => URL.revokeObjectURL(attachment.url))
-    }
-  }
+  await composer.submit()
 }
 
 function sendFromKeyboard() {
@@ -185,24 +175,17 @@ async function handleFilePaste(files: File[]) {
       reader.onload = (e) => {
         const base64Data = (e.target?.result as string)?.split(',')[1]
         if (base64Data) {
-          attachments.value.push({
-            type: 'image' as const,
+          addAttachments({
+            type: 'image',
             data: base64Data,
             mimeType: file.type,
-            url: URL.createObjectURL(file),
+            file,
+            previewId: crypto.randomUUID(),
           })
         }
       }
       reader.readAsDataURL(file)
     }
-  }
-}
-
-function removeAttachment(index: number) {
-  const attachment = attachments.value[index]
-  if (attachment) {
-    URL.revokeObjectURL(attachment.url)
-    attachments.value.splice(index, 1)
   }
 }
 
@@ -217,8 +200,8 @@ const visibleStreamingMessage = computed(() => activeSendSessionId.value === act
   ? activeStreamingMessage.value
   : streamingMessage.value)
 
-async function handleDeleteMessage(index: number) {
-  const message = messages.value[index]
+async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
+  const { index, message } = payload
   await chatSession.deleteMessage({
     sessionId: chatSession.activeSessionId,
     index,
@@ -227,6 +210,19 @@ async function handleDeleteMessage(index: number) {
     source: 'history',
     message_role: message?.role ?? 'unknown',
   })
+  clearReplyForMessage(message)
+}
+
+async function handleReplyMessage(payload: ChatHistoryReplyPayload) {
+  selectReply(payload)
+  await nextTick()
+  messageComposer.value?.querySelector('textarea')?.focus()
+}
+
+async function handleCancelReply() {
+  composer.clearReply()
+  await nextTick()
+  messageComposer.value?.querySelector('textarea')?.focus()
 }
 
 onMounted(() => {
@@ -258,14 +254,16 @@ async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: n
 
 <template>
   <ChatViewportLayout>
-    <template #history>
+    <template #history="{ tailInset }">
       <ChatHistory
         :messages="historyMessages"
         :assistant-label="assistantLabel"
         :sending="isActiveSessionSending"
         :streaming-message="visibleStreamingMessage"
+        :tail-inset="tailInset"
         :tool-call-renderers="toolCallRenderers"
-        @delete-message="handleDeleteMessage($event.index)"
+        @delete-message="handleDeleteMessage"
+        @reply-message="handleReplyMessage"
         @retry-message="handleRetryMessage($event.index)"
         @tool-call-rerun="handleToolCallRerun"
       />
@@ -273,6 +271,7 @@ async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: n
 
     <template #composer>
       <div
+        ref="message-composer"
         :class="[
           'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden',
         ]"
@@ -319,18 +318,12 @@ async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: n
               'flex flex-nowrap gap-2 overflow-x-auto border-t border-primary-100 p-2 scrollbar-none',
             ]"
           >
-            <div v-for="(attachment, index) in attachments" :key="index" class="relative shrink-0">
-              <img :src="attachment.url" :class="['h-20 w-20 rounded-md object-cover']">
-              <button
-                :class="[
-                  'absolute right-1 top-1 h-5 w-5 flex items-center justify-center rounded-full',
-                  'bg-red-500 text-xs text-white',
-                ]"
-                @click="removeAttachment(index)"
-              >
-                &times;
-              </button>
-            </div>
+            <ChatImageAttachmentPreview
+              v-for="(attachment, index) in attachments"
+              :key="attachment.previewId"
+              :file="attachment.file"
+              @remove="removeAttachment(index)"
+            />
           </div>
         </div>
         <div :class="['flex shrink-0 items-center justify-end gap-2 py-1']">
@@ -436,22 +429,33 @@ async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: n
             @change="handleFileSelect"
           >
         </div>
-        <BasicTextarea
-          v-model="messageInput"
-          :submit-on-enter="false"
-          :placeholder="t('stage.message')"
-          class="ph-no-capture [scrollbar-gutter:stable]"
-          text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
-          border="solid 2 primary-200/20 dark:primary-400/20"
-          bg="primary-100/50 dark:primary-900/70"
-          max-h="[10lh]" min-h="[1lh]"
-          w-full shrink-0 resize-none overflow-y-auto rounded-xl p-2 font-medium outline-none
-          transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
-          @compositionstart="isComposing = true"
-          @compositionend="isComposing = false"
-          @keydown="handleMessageInputKeydown"
-          @paste-file="handleFilePaste"
-        />
+        <div
+          :class="[
+            'w-full shrink-0 overflow-hidden rounded-xl border-2 border-solid',
+            'border-primary-200/20 bg-primary-100/50 backdrop-blur-md',
+            'dark:border-primary-400/20 dark:bg-primary-900/70',
+          ]"
+        >
+          <ChatReplyPreview
+            :target="replyTarget"
+            @cancel="handleCancelReply"
+          />
+          <BasicTextarea
+            v-model="messageInput"
+            :submit-on-enter="false"
+            :placeholder="t('stage.message')"
+            class="ph-no-capture [scrollbar-gutter:stable]"
+            text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
+            bg="transparent"
+            max-h="[10lh]" min-h="[1lh]"
+            w-full resize-none overflow-y-auto border-2 border-transparent border-solid p-2 font-medium outline-none
+            transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
+            @compositionstart="isComposing = true"
+            @compositionend="isComposing = false"
+            @keydown="handleMessageInputKeydown"
+            @paste-file="handleFilePaste"
+          />
+        </div>
       </div>
     </template>
   </ChatViewportLayout>

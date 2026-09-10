@@ -21,12 +21,18 @@ mobile-tools:
   hearing: 听觉
 chat:
   actions:
+    reply: 回复
     retry: 重试
+    send: 发送消息
   message:
     character-name:
       airi: AIRI
       core-system: 核心系统
       you: 你
+  reply:
+    cancel: 取消回复
+    message: 消息
+    replying-to: 回复 {name}
   reasoning: 思考
   sessions:
     title: 对话

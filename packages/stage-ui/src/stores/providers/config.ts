@@ -154,6 +154,24 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   /**
+   * Applies configuration fields to an existing provider record.
+   *
+   * The caller must initialize the provider before this action runs. A new
+   * configuration object makes persistence and state replication observable.
+   */
+  function patchProviderConfig(providerId: string, config: Record<string, unknown>) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return false
+
+    providers.value[providerId] = {
+      ...provider,
+      config: { ...provider.config, ...config },
+    }
+    return true
+  }
+
+  /**
    * Updates the selected model in the leader-owned provider snapshot.
    *
    * Follower renderers must await this action instead of mutating replicated
@@ -288,6 +306,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     markProviderAdded,
     unmarkProviderAdded,
     setProviderStatus,
+    patchProviderConfig,
     setProviderModel,
     setProviderModelIfUnset,
     fetchProviders,
