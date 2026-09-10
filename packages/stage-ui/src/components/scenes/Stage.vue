@@ -795,12 +795,21 @@ function clearBilingualTranslation() {
   }
 }
 
-function resetBilingualTurn(turnId = '') {
-  bilingualTurn = null
-  bilingualTurnId = turnId
+/** Drops everything queued for one turn. */
+function clearBilingualTurn(turnId: string) {
   bilingualPairsByTurn.delete(turnId)
   bilingualBufferedTurns.delete(turnId)
   bilingualWaitingTurns.delete(turnId)
+}
+
+function resetBilingualTurn(turnId: string) {
+  bilingualTurn = null
+  // A new turn arrives with its own id, so the turn that just ended is keyed by
+  // the previous one: clearing only the new id keeps every finished turn in
+  // these collections for the life of the session.
+  clearBilingualTurn(bilingualTurnId)
+  clearBilingualTurn(turnId)
+  bilingualTurnId = turnId
   clearBilingualTranslation()
 }
 
@@ -909,13 +918,12 @@ function publishBilingualTranslation(turnId: string, itemText?: string) {
  * Splits one chat turn's output into spoken text and sentence pairs.
  *
  * The spoken language keeps the normal path into the TTS session; each pair is
- * queued for playback to publish.
+ * queued for playback to publish. The turn they belong to is the one the chat
+ * hooks were reset with, which is also what playback items are matched against.
  */
 function openBilingualTurn(turnId: string): BilingualTurn | null {
   if (!bilingualStore.enabled)
     return null
-
-  bilingualTurnId = turnId
 
   return createBilingualTurn({
     languages: bilingualStore.subtitleLanguages,
@@ -936,9 +944,10 @@ watch(sparkPair, (pair) => {
   if (!pair)
     return
 
-  // A reaction interrupts whatever is on screen, so a line left over from the
-  // previous one goes instead of lingering until it expires.
+  // A reaction interrupts whatever is on screen, so the previous reaction's line
+  // and its leftover queue go instead of lingering until they expire.
   if (pair.turnId !== sparkTurnOnScreen) {
+    clearBilingualTurn(sparkTurnOnScreen)
     sparkTurnOnScreen = pair.turnId
     clearBilingualTranslation()
   }

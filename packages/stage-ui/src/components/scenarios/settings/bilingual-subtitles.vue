@@ -35,7 +35,7 @@ const promptPreview = computed(() => buildBilingualPrompt({
 </script>
 
 <template>
-  <div flex="~ col gap-4">
+  <div class="flex flex-col gap-4">
     <CheckBar
       v-model="enabled"
       :text="t('settings.pages.bilingual.enable.title')"
@@ -44,7 +44,7 @@ const promptPreview = computed(() => buildBilingualPrompt({
       icon-off="i-solar:close-circle-bold-duotone text-neutral-400 dark:text-neutral-600"
     />
 
-    <div v-if="enabled" flex="~ col gap-4" rounded-xl bg="neutral-50 dark:neutral-800" p-4>
+    <div v-if="enabled" :class="['flex flex-col gap-4', 'rounded-xl p-4', 'bg-neutral-50 dark:bg-neutral-800']">
       <FieldSelect
         v-model="ttsLanguage"
         :label="t('settings.pages.bilingual.tts-language.title')"
@@ -67,10 +67,10 @@ const promptPreview = computed(() => buildBilingualPrompt({
         :label="t('settings.pages.bilingual.preview.title')"
         theme="violet"
       >
-        <p mb-2 text-xs>
+        <p class="mb-2 text-xs">
           {{ t('settings.pages.bilingual.preview.description') }}
         </p>
-        <pre whitespace-pre-wrap text-xs leading-relaxed>{{ promptPreview }}</pre>
+        <pre class="whitespace-pre-wrap text-xs leading-relaxed">{{ promptPreview }}</pre>
       </Callout>
     </div>
   </div>

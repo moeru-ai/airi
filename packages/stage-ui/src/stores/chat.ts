@@ -285,23 +285,70 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
+   * Bilingual settings of the reply that is streaming now.
+   *
+   * A reply is tagged in the languages its request was composed with. Reading
+   * the settings again while it streams would follow a change made mid-reply:
+   * switching the spoken language would keep the translation line instead, and
+   * turning subtitles off would leave the raw tags in the history. The reply is
+   * captured the first time it is seen, so a change applies from the next turn
+   * on. One slot is enough because the chat holds one foreground reply.
+   */
+  let bilingualReply: { id?: string, languages: string[], ttsLanguage: string } | undefined
+
+  /** Settings the reply was produced with, captured the first time it is seen. */
+  function settingsOfBilingualReply(replyId: string | undefined) {
+    // A reply without an id is the same reply, not a new one.
+    if (!bilingualReply || (replyId !== undefined && bilingualReply.id !== replyId)) {
+      bilingualReply = {
+        id: replyId,
+        languages: bilingualStore.subtitleLanguages,
+        ttsLanguage: bilingualStore.ttsLanguage,
+      }
+    }
+
+    return bilingualReply
+  }
+
+  /**
    * Drops the `[EN]`/`[CN]` control tags the bilingual prompt makes the model
    * emit. The Stage caption layer parses them for speech and subtitles, but the
    * chat bubble, the stored history and every later model turn must only see
    * the spoken language.
+   *
+   * Only the model was asked to tag its output, and only text that carries a tag
+   * needs projecting, so a message the user wrote is returned untouched.
    */
-  function projectBilingualMessage<T extends { content?: unknown, slices?: unknown }>(message: T): T {
-    if (!bilingualStore.enabled || typeof message.content !== 'string' || !message.content.includes('['))
+  function projectBilingualMessage<T extends { id?: string, role?: unknown, content?: unknown, slices?: unknown, providerTranscript?: unknown }>(message: T): T {
+    if (message.role !== 'assistant' || typeof message.content !== 'string' || !message.content.includes('['))
       return message
 
-    const project = (text: string) => projectBilingualText(text, bilingualStore.subtitleLanguages, bilingualStore.ttsLanguage)
+    const { languages, ttsLanguage } = settingsOfBilingualReply(message.id)
+    const project = (text: string) => projectBilingualText(text, languages, ttsLanguage)
     const slices = Array.isArray(message.slices)
       ? message.slices.map(slice => slice && typeof slice === 'object' && 'type' in slice && slice.type === 'text' && 'text' in slice && typeof slice.text === 'string'
           ? { ...slice, text: project(slice.text) }
           : slice)
       : message.slices
 
-    return { ...message, content: project(message.content), slices } as T
+    // A tool round keeps what the provider exchanged as `providerTranscript`, and
+    // the next request is built from that instead of from `content`. Only the
+    // assistant's own entries carry tags; tool results are tool output.
+    const providerTranscript = Array.isArray(message.providerTranscript)
+      ? message.providerTranscript.map((entry) => {
+          if (!entry || typeof entry !== 'object' || !('role' in entry) || entry.role !== 'assistant' || !('content' in entry) || typeof entry.content !== 'string')
+            return entry
+
+          return { ...entry, content: project(entry.content) }
+        })
+      : undefined
+
+    return {
+      ...message,
+      content: project(message.content),
+      slices,
+      ...(providerTranscript ? { providerTranscript } : {}),
+    } as T
   }
 
   const runtime = createChatOrchestratorRuntime({
