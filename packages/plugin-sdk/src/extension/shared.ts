@@ -99,8 +99,6 @@ export interface ExtensionSetupContext {
 export interface Extension {
   /** Stable extension id from the manifest/package. */
   id: string
-  /** Optional extension package version. */
-  version?: string
   /** Runs extension initialization. */
   setup: (ctx: ExtensionSetupContext) => Promise<void> | void
 }

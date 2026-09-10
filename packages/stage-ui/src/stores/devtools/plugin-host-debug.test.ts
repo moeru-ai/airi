@@ -1,4 +1,4 @@
-import type { PluginHostDebugSnapshot, PluginRegistrySnapshot } from './plugin-host-debug'
+import type { ExtensionDirectoryImportPrepareResult, PluginHostDebugSnapshot, PluginRegistrySnapshot } from './plugin-host-debug'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -37,6 +37,9 @@ function createBridge(registry: PluginRegistrySnapshot) {
   }
 
   return {
+    prepareDirectoryImport: vi.fn(async (): Promise<ExtensionDirectoryImportPrepareResult> => ({ status: 'cancelled' })),
+    commitDirectoryImport: vi.fn(async () => registry),
+    cancelDirectoryImport: vi.fn(async () => {}),
     list: vi.fn(async () => registry),
     setEnabled: vi.fn(async () => registry),
     setAutoReload: vi.fn(async () => registry),
@@ -131,5 +134,53 @@ describe.each([
     expect(store.registry).toEqual(savedRegistry)
     expect(store.error).toBe('Runtime operation failed.')
     expect(store.loading).toBe(false)
+  })
+})
+
+describe('extension folder import', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('returns a reviewed plan without changing the registry', async () => {
+    const registry = createRegistry(false, false)
+    const bridge = createBridge(registry)
+    bridge.prepareDirectoryImport.mockResolvedValueOnce({
+      status: 'ready',
+      plan: {
+        planId: 'plan-1',
+        sourcePath: '/selected/example-extension',
+        extensionId: 'example-extension',
+        version: '1.0.0',
+        runtimes: ['electron'],
+        entrypoints: { electron: './extension.mjs' },
+        permissions: [],
+        kits: [],
+        fileCount: 2,
+        totalBytes: 128,
+        fingerprint: 'fingerprint',
+        createdAt: 1,
+      },
+    })
+    const store = usePluginHostInspectorStore()
+    store.setBridge(bridge)
+
+    const result = await store.prepareDirectoryImport()
+
+    expect(result).toMatchObject({ status: 'ready', plan: { extensionId: 'example-extension' } })
+    expect(store.registry).toBeUndefined()
+  })
+
+  it('stores the disabled registry snapshot after commit and refreshes inspection', async () => {
+    const registry = createRegistry(false, false)
+    const bridge = createBridge(registry)
+    const store = usePluginHostInspectorStore()
+    store.setBridge(bridge)
+
+    await store.commitDirectoryImport({ planId: 'plan-1' })
+
+    expect(bridge.commitDirectoryImport).toHaveBeenCalledExactlyOnceWith({ planId: 'plan-1' })
+    expect(bridge.inspect).toHaveBeenCalledOnce()
+    expect(store.registry).toEqual(registry)
   })
 })

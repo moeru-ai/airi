@@ -13,7 +13,7 @@ import type {
   ExtensionHostInstallContext,
   ExtensionHostOptions,
   ExtensionHostPermissionRequest,
-  ExtensionManifestV1,
+  ExtensionManifestV2,
   ExtensionStartOptions,
   HostDataRecord,
   HostDataValue,
@@ -86,7 +86,7 @@ export interface ExtensionSession {
     sessionId: string
   }
   /** Manifest used to start this extension. */
-  manifest: ExtensionManifestV1
+  manifest: ExtensionManifestV2
   /** Working directory used to resolve relative manifest entrypoints. */
   cwd?: string
   /** Runtime used to choose manifest entrypoints. */
@@ -234,7 +234,7 @@ export class ExtensionHost {
 
   async startExtension(
     extension: Extension,
-    options: { manifest: ExtensionManifestV1, cwd?: string, runtime?: PluginRuntime },
+    options: { manifest: ExtensionManifestV2, cwd?: string, runtime?: PluginRuntime },
   ) {
     if (extension.id !== options.manifest.id) {
       throw new Error(`Extension entrypoint id \`${extension.id}\` must match manifest id \`${options.manifest.id}\`.`)
@@ -243,7 +243,7 @@ export class ExtensionHost {
     const sessionIdentity = this.extensionSessionService.nextSessionIdentity()
     const extensionIdentity = {
       id: extension.id,
-      version: extension.version,
+      version: options.manifest.version,
       sessionId: sessionIdentity.sessionId,
     }
     const persistedGrant = this.persistedPermissionGrants.get(extension.id)
@@ -774,7 +774,7 @@ export class ExtensionHost {
     return binding
   }
 
-  async start(manifest: ExtensionManifestV1, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
+  async start(manifest: ExtensionManifestV2, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
     const extension = await this.loader.loadExtensionFor(manifest, {
       cwd: options.cwd,
       runtime: options.runtime,

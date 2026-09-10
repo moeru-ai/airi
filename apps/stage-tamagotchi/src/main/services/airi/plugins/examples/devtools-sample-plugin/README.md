@@ -1,10 +1,10 @@
-# Devtools Sample Plugin
+# Devtools Sample Extension
 
 This sample extension is for validating extension host behavior in the **Extension Host Inspector** page.
 
 ## Files
 
-- `extension.airi.json`: extension manifest (`ExtensionManifestV1`)
+- `extension.airi.json`: extension manifest (`ExtensionManifestV2`)
 - `devtools-sample-plugin.mjs`: extension implementation
 
 The manifest declares the extension entrypoint used by the host inspector sample.
@@ -12,14 +12,11 @@ The manifest declares the extension entrypoint used by the host inspector sample
 ## How to use
 
 1. Open `/devtools/plugin-host` in Stage Tamagotchi.
-2. Note the `registry.root` path from the page.
-3. Copy both files into that `registry.root` directory.
-4. In Extension Host Inspector:
-   - click `Refresh`
-   - find `devtools-sample-plugin`
-   - click `Enable`
-   - click `Load` (or `Load Enabled`)
+2. Click `Import Folder` and select this sample directory.
+3. Review the package facts and click `Import Extension`.
+4. Find `devtools-sample-plugin` and click `Enable and Load`.
 5. Confirm:
+   - the import starts in the disabled and unloaded state
    - extension appears as `loaded`
    - session phase becomes `ready`
    - capability list is visible

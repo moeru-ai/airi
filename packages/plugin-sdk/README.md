@@ -2,6 +2,38 @@
 
 Runtime-agnostic SDK for AIRI extensions.
 
+## Extension Manifest
+
+Each installable Extension package has an `extension.airi.json` file at its root. The current Host accepts only Manifest v2:
+
+```json
+{
+  "manifestVersion": 2,
+  "kind": "manifest.extension.airi.moeru.ai",
+  "id": "example-extension",
+  "version": "1.0.0",
+  "engines": {
+    "airi": "*",
+    "runtimes": ["electron"]
+  },
+  "entrypoints": {
+    "electron": "./extension.mjs"
+  },
+  "permissions": {},
+  "kits": {
+    "uses": [
+      {
+        "id": "dev.airi.example",
+        "version": "^1.0.0",
+        "optional": true
+      }
+    ]
+  }
+}
+```
+
+Manifest parsing is strict. Unknown fields, unsafe ids, empty entrypoints, and missing runtime entrypoints fail validation. The manifest owns the Extension version used by the Host session. `defineExtension(...)` owns runtime setup and must use the same Extension id.
+
 ## Kit API Naming
 
 Kits should hide transport details from extension authors. A normal extension should use a kit as a normal API object directly from setup:

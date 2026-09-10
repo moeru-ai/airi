@@ -15,16 +15,19 @@ import {
   finite,
   lazy,
   literal,
+  minLength,
   minValue,
   null_,
   number,
-  object,
   optional,
   picklist,
   pipe,
   record,
+  regex,
   safeInteger,
+  strictObject,
   string,
+  trim,
   union,
 } from 'valibot'
 
@@ -202,15 +205,61 @@ export const nonNegativeIntegerSchema = pipe(number(), safeInteger(), minValue(0
 export type ExtensionIdentity = ProtocolExtensionIdentity
 
 /**
- * Describes a version-1 extension manifest consumed by `ExtensionHost`.
+ * Declares one Kit that an Extension provides.
  *
- * Extension manifests are the install/session-level package description. Module
- * registration happens later during `defineExtension({ setup })`.
+ * The Host uses this declaration for conflict detection before it loads code.
  */
-export interface ExtensionManifestV1 {
-  /** Manifest schema version expected by the current host implementation. */
-  apiVersion: 'v1'
-  /** Runtime-specific extension entrypoints that the host can resolve and import. */
+export interface ExtensionProvidedKitDeclaration {
+  /** Stable Kit contract identifier. */
+  id: string
+  /** Exact version that the Provider implements. */
+  version: string
+  /** Transport boundary that the Provider permits. */
+  exposure: 'local-only' | 'remote-observable' | 'remote-callable'
+}
+
+/**
+ * Declares one Kit that an Extension consumes.
+ *
+ * Required declarations participate in activation planning. Optional declarations
+ * let an Extension start before a Provider is available.
+ */
+export interface ExtensionUsedKitDeclaration {
+  /** Stable Kit contract identifier. */
+  id: string
+  /** Version range accepted by the Consumer. */
+  version: string
+  /** Whether the Extension can start without this Kit. @default false */
+  optional?: boolean
+}
+
+/** Describes the Kit contracts that an Extension provides or consumes. */
+export interface ExtensionKitManifest {
+  provides?: ExtensionProvidedKitDeclaration[]
+  uses?: ExtensionUsedKitDeclaration[]
+}
+
+/**
+ * Describes a version-2 Extension manifest consumed by `ExtensionHost`.
+ *
+ * The manifest is the package contract for discovery, import, compatibility,
+ * permissions, and activation planning. Runtime registration happens later.
+ */
+export interface ExtensionManifestV2 {
+  /** Manifest schema version expected by the current Host. */
+  manifestVersion: 2
+  /** Manifest kind discriminator used to identify AIRI Extension manifests. */
+  kind: 'manifest.extension.airi.moeru.ai'
+  /** Stable Extension identifier used for installation and session identity. */
+  id: string
+  /** Extension package version. */
+  version: string
+  /** AIRI compatibility range and supported runtimes. */
+  engines: {
+    airi: string
+    runtimes: PluginRuntime[]
+  }
+  /** Runtime-specific Extension entrypoints that the Host can resolve and import. */
   entrypoints: {
     /** Fallback entrypoint used when no runtime-specific path is provided. */
     default?: string
@@ -221,12 +270,10 @@ export interface ExtensionManifestV1 {
     /** Web-specific entrypoint path. */
     web?: string
   }
-  /** Stable extension id used for identity generation and display. */
-  id: string
-  /** Manifest kind discriminator used to identify AIRI extension manifests. */
-  kind: 'manifest.extension.airi.moeru.ai'
-  /** Package/session permission ceiling that module permissions are capped by. */
+  /** Package and session permission ceiling that Module permissions cannot exceed. */
   permissions: ModulePermissionDeclaration
+  /** Kit contracts used to build the static activation plan. */
+  kits?: ExtensionKitManifest
 }
 
 /**
@@ -259,78 +306,110 @@ export type ModulePermissionGrant = ProtocolModulePermissionGrant
 
 const localizableSchema = union([
   string(),
-  object({
+  strictObject({
     fallback: optional(string()),
     key: string(),
     params: optional(record(string(), union([string(), number(), boolean()]))),
   }),
 ])
 
-const permissionDeclarationSchema = object({
-  apis: optional(array(object({
-    actions: array(picklist(['invoke', 'emit'])),
-    key: string(),
-    label: optional(localizableSchema),
-    reason: optional(localizableSchema),
-    required: optional(boolean()),
+const permissionSpecFields = {
+  key: pipe(string(), trim(), minLength(1)),
+  label: optional(localizableSchema),
+  reason: optional(localizableSchema),
+  required: optional(boolean()),
+  metadata: optional(hostDataRecordSchema),
+}
+
+const permissionDeclarationSchema = strictObject({
+  apis: optional(array(strictObject({
+    ...permissionSpecFields,
+    actions: pipe(array(picklist(['invoke', 'emit'])), minLength(1)),
   }))),
-  capabilities: optional(array(object({
-    actions: array(picklist(['wait', 'snapshot'])),
-    key: string(),
-    label: optional(localizableSchema),
-    reason: optional(localizableSchema),
-    required: optional(boolean()),
+  capabilities: optional(array(strictObject({
+    ...permissionSpecFields,
+    actions: pipe(array(picklist(['wait', 'snapshot'])), minLength(1)),
   }))),
-  pipelines: optional(array(object({
-    actions: array(picklist(['hook', 'process', 'emit', 'manage'])),
-    key: string(),
-    label: optional(localizableSchema),
-    reason: optional(localizableSchema),
-    required: optional(boolean()),
+  pipelines: optional(array(strictObject({
+    ...permissionSpecFields,
+    actions: pipe(array(picklist(['hook', 'process', 'emit', 'manage'])), minLength(1)),
   }))),
-  processors: optional(array(object({
-    actions: array(picklist(['register', 'execute', 'manage'])),
-    key: string(),
-    label: optional(localizableSchema),
-    reason: optional(localizableSchema),
-    required: optional(boolean()),
+  processors: optional(array(strictObject({
+    ...permissionSpecFields,
+    actions: pipe(array(picklist(['register', 'execute', 'manage'])), minLength(1)),
   }))),
-  resources: optional(array(object({
-    actions: array(picklist(['read', 'write', 'subscribe'])),
-    key: string(),
-    label: optional(localizableSchema),
-    reason: optional(localizableSchema),
-    required: optional(boolean()),
+  resources: optional(array(strictObject({
+    ...permissionSpecFields,
+    actions: pipe(array(picklist(['read', 'write', 'subscribe'])), minLength(1)),
   }))),
 })
 
-const manifestEntrypointsSchema = object({
-  default: optional(string()),
-  electron: optional(string()),
-  node: optional(string()),
-  web: optional(string()),
+const manifestEntrypointSchema = pipe(string(), trim(), minLength(1))
+const extensionIdSchema = pipe(
+  string(),
+  trim(),
+  minLength(1),
+  regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/, 'Use a file-safe lowercase Extension id.'),
+)
+const manifestEntrypointsSchema = pipe(
+  strictObject({
+    default: optional(manifestEntrypointSchema),
+    electron: optional(manifestEntrypointSchema),
+    node: optional(manifestEntrypointSchema),
+    web: optional(manifestEntrypointSchema),
+  }),
+  check(
+    entrypoints => Object.values(entrypoints).some(Boolean),
+    'Define at least one Extension entrypoint.',
+  ),
+)
+
+const providedKitDeclarationSchema = strictObject({
+  id: pipe(string(), trim(), minLength(1)),
+  version: pipe(string(), trim(), minLength(1)),
+  exposure: picklist(['local-only', 'remote-observable', 'remote-callable']),
+})
+
+const usedKitDeclarationSchema = strictObject({
+  id: pipe(string(), trim(), minLength(1)),
+  version: pipe(string(), trim(), minLength(1)),
+  optional: optional(boolean()),
+})
+
+const extensionKitManifestSchema = strictObject({
+  provides: optional(array(providedKitDeclarationSchema)),
+  uses: optional(array(usedKitDeclarationSchema)),
 })
 
 /**
- * Validates a version-1 extension manifest.
+ * Validates and normalizes a version-2 Extension manifest.
  *
- * Use when:
- * - Parsing `extension.airi.json` before loading an extension into the host
- *
- * Expects:
- * - Inputs use `id`, not legacy plugin `name`
- * - `permissions` describes the extension-level install/session ceiling
- *
- * Returns:
- * - A Valibot schema for the AIRI extension manifest format
+ * Unknown fields fail validation. The schema also requires an entrypoint for
+ * every declared runtime unless the manifest defines a default entrypoint.
  */
-export const extensionManifestV1Schema = object({
-  apiVersion: literal('v1'),
-  entrypoints: manifestEntrypointsSchema,
-  id: string(),
-  kind: literal('manifest.extension.airi.moeru.ai'),
-  permissions: permissionDeclarationSchema,
-})
+export const extensionManifestV2Schema = pipe(
+  strictObject({
+    manifestVersion: literal(2),
+    kind: literal('manifest.extension.airi.moeru.ai'),
+    id: extensionIdSchema,
+    version: pipe(string(), trim(), minLength(1)),
+    engines: strictObject({
+      airi: pipe(string(), trim(), minLength(1)),
+      runtimes: pipe(
+        array(pluginRuntimeSchema),
+        minLength(1),
+        check(runtimes => new Set(runtimes).size === runtimes.length, 'Declare each Extension runtime once.'),
+      ),
+    }),
+    entrypoints: manifestEntrypointsSchema,
+    permissions: permissionDeclarationSchema,
+    kits: optional(extensionKitManifestSchema),
+  }),
+  check(
+    manifest => manifest.engines.runtimes.every(runtime => manifest.entrypoints[runtime] || manifest.entrypoints.default),
+    'Define an entrypoint for every declared runtime.',
+  ),
+)
 
 /**
  * Installs one generic host feature into `ExtensionHost`.
@@ -391,7 +470,7 @@ export interface ExtensionHostOptions {
   /** Callback that decides the granted permission set for one extension session. */
   permissionResolver?: (payload: {
     identity: ExtensionIdentity
-    manifest: ExtensionManifestV1
+    manifest: ExtensionManifestV2
     persisted?: ModulePermissionGrant
     requested: ModulePermissionDeclaration
   }) => ModulePermissionGrant | Promise<ModulePermissionGrant>
