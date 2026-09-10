@@ -71,4 +71,38 @@ describe('useBlink', () => {
     blink.update(vrm, 0.016, { suppress: true })
     expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('blink', 0)
   })
+
+  it('does not reveal a partially closed lid when suppression ends during a blink cycle', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0) // nextBlinkTime = 1s
+
+    const vrm = createMockVRMCore()
+    const blink = useBlink()
+
+    // Advance to just before the first blink (0.992s < 1s)
+    for (let i = 0; i < 62; i++)
+      blink.update(vrm, 0.016)
+
+    // Blink starts under suppression (e.g. emote is active)
+    blink.update(vrm, 0.016, { suppress: true })
+    expect(lastBlinkValue(vrm)).toBe(0)
+
+    // Advance halfway into the blink cycle under suppression (progress ~ 0.5, peak sine = 1.0)
+    blink.update(vrm, 0.084, { suppress: true })
+    expect(lastBlinkValue(vrm)).toBe(0)
+
+    // Emote ends mid-cycle (suppress released while progress is ~0.58)
+    // The hidden cycle must continue holding 0 instead of popping to sine value.
+    blink.update(vrm, 0.016, { suppress: false })
+    expect(lastBlinkValue(vrm)).toBe(0)
+
+    // Complete the remainder of the 0.2s cycle unsuppressed
+    for (let i = 0; i < 8; i++)
+      blink.update(vrm, 0.016)
+    expect(lastBlinkValue(vrm)).toBe(0)
+
+    // Next scheduled blink (after 1s) runs normally and produces real sine values
+    for (let i = 0; i < 64; i++)
+      blink.update(vrm, 0.016)
+    expect(lastBlinkValue(vrm)).toBeGreaterThan(0)
+  })
 })

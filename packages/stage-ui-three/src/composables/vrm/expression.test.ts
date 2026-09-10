@@ -71,7 +71,7 @@ describe('useVRMEmote', () => {
     expect(vrm.expressionManager?.setValue).not.toHaveBeenCalledWith('blink', expect.anything())
   })
 
-  it('keeps the state machine advancing during lip sync while yielding viseme morphs', () => {
+  it('keeps the state machine advancing during lip sync and blends deferred visemes when speech ends', () => {
     const vrm = createMockVRMCore()
     const emote = useVRMEmote(vrm)
 
@@ -87,7 +87,22 @@ describe('useVRMEmote', () => {
 
     vi.mocked(vrm.expressionManager!.setValue).mockClear()
 
-    // Lip sync released: hold reasserts the viseme weight again.
+    // Lip sync released: deferred visemes start blending smoothly instead of jumping immediately to target weight.
+    emote.update(0.016, { skipVisemes: false })
+    expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('aa', expect.any(Number))
+    const firstFrameValue = vi.mocked(vrm.expressionManager!.setValue).mock.calls.find(call => call[0] === 'aa')?.[1]
+    expect(firstFrameValue).toBeGreaterThan(0)
+    expect(firstFrameValue).toBeLessThan(0.2)
+    expect(emote.isVisemeTransitioning.value).toBe(true)
+
+    // Run out the remainder of the blend duration (0.4s for happy)
+    emote.update(0.4, { skipVisemes: false })
+    expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('aa', 0.2)
+    expect(emote.isVisemeTransitioning.value).toBe(false)
+
+    vi.mocked(vrm.expressionManager!.setValue).mockClear()
+
+    // Subsequent frames hold the target weight
     emote.update(0.016, { skipVisemes: false })
     expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('aa', 0.2)
   })

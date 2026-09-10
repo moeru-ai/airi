@@ -16,9 +16,14 @@ export function useVRMEmote(vrm: VRMCore) {
   const currentEmotion = ref<string | null>(null)
   const isTransitioning = ref(false)
   const transitionProgress = ref(0)
+  const isVisemeTransitioning = ref(false)
+  const visemeTransitionProgress = ref(0)
+  const visemeStartValues = ref(new Map<string, number>())
+  const visemeBlendDuration = ref(0.3)
   const currentExpressionValues = ref(new Map<string, number>())
   const targetExpressionValues = ref(new Map<string, number>())
   const resetTimeout = ref<number>()
+  let wasSkippingVisemes = false
 
   // Utility functions
   const lerp = (start: number, end: number, t: number): number => {
@@ -128,6 +133,10 @@ export function useVRMEmote(vrm: VRMCore) {
     currentEmotion.value = emotionName
     isTransitioning.value = true
     transitionProgress.value = 0
+    isVisemeTransitioning.value = false
+    visemeTransitionProgress.value = 0
+    visemeStartValues.value.clear()
+    wasSkippingVisemes = false
 
     // Store current expression values as starting point BEFORE resetting,
     // so the lerp transition starts from the actual displayed values
@@ -188,7 +197,7 @@ export function useVRMEmote(vrm: VRMCore) {
 
     // When transitioning (e.g. returning to neutral), remain active while non-zero
     // expression weights are still fading out to prevent procedural blink conflicts.
-    if (isTransitioning.value) {
+    if (isTransitioning.value || isVisemeTransitioning.value) {
       return Array.from(currentExpressionValues.value.values()).some(val => val > 0.001)
     }
 
@@ -202,9 +211,72 @@ export function useVRMEmote(vrm: VRMCore) {
     // While lip sync owns the mouth, viseme writes are skipped but the
     // transition and reset lifecycle keep advancing, so emotions triggered
     // during speech are not lost.
-    const skip = options?.skipVisemes
+    const isSkipping = Boolean(options?.skipVisemes)
+    const skip = isSkipping
       ? (name: string) => VISEME_NAMES.has(name.toLowerCase())
       : () => false
+
+    if (isSkipping) {
+      wasSkippingVisemes = true
+      isVisemeTransitioning.value = false
+      visemeStartValues.value.clear()
+    }
+    else if (wasSkippingVisemes) {
+      // Speech has ended and lip sync relinquished mouth ownership.
+      // If any target viseme differs from its current displayed weight,
+      // blend it smoothly into the emotion pose instead of snapping at once.
+      wasSkippingVisemes = false
+      visemeStartValues.value.clear()
+      if (vrm.expressionManager) {
+        for (const [exprName, targetValue] of targetExpressionValues.value) {
+          if (!VISEME_NAMES.has(exprName.toLowerCase()))
+            continue
+          const currentValue = vrm.expressionManager.getValue(exprName) || 0
+          if (Math.abs(targetValue - currentValue) > 0.001) {
+            visemeStartValues.value.set(exprName, currentValue)
+          }
+        }
+      }
+      if (visemeStartValues.value.size > 0) {
+        isVisemeTransitioning.value = true
+        visemeTransitionProgress.value = 0
+        const emotionState = emotionStates.get(currentEmotion.value)
+        visemeBlendDuration.value = emotionState?.blendDuration || 0.3
+      }
+    }
+
+    if (isVisemeTransitioning.value) {
+      visemeTransitionProgress.value += deltaTime / visemeBlendDuration.value
+      const isVisemeSettling = visemeTransitionProgress.value >= 1.0
+      if (isVisemeSettling) {
+        visemeTransitionProgress.value = 1.0
+        isVisemeTransitioning.value = false
+      }
+
+      for (const [exprName, startValue] of visemeStartValues.value) {
+        const targetValue = targetExpressionValues.value.get(exprName) ?? 0
+        const currentValue = isVisemeSettling
+          ? targetValue
+          : lerp(
+              startValue,
+              targetValue,
+              easeInOutCubic(visemeTransitionProgress.value),
+            )
+        vrm.expressionManager?.setValue(exprName, currentValue)
+        currentExpressionValues.value.set(exprName, currentValue)
+      }
+
+      if (isVisemeSettling && !isTransitioning.value && currentEmotion.value === 'neutral') {
+        currentEmotion.value = null
+        currentExpressionValues.value.clear()
+        targetExpressionValues.value.clear()
+        visemeStartValues.value.clear()
+        return
+      }
+    }
+
+    if (!currentEmotion.value)
+      return
 
     if (isTransitioning.value) {
       const emotionState = emotionStates.get(currentEmotion.value)!
@@ -221,6 +293,8 @@ export function useVRMEmote(vrm: VRMCore) {
       for (const [exprName, targetValue] of targetExpressionValues.value) {
         if (skip(exprName))
           continue
+        if (isVisemeTransitioning.value && VISEME_NAMES.has(exprName.toLowerCase()))
+          continue
         const startValue = currentExpressionValues.value.get(exprName) || 0
         const currentValue = isSettling
           ? targetValue
@@ -234,16 +308,18 @@ export function useVRMEmote(vrm: VRMCore) {
 
       // Once the neutral transition completes and terminal weights are written,
       // clear targets and reset currentEmotion to release morph ownership.
-      if (isSettling && currentEmotion.value === 'neutral') {
+      if (isSettling && !isVisemeTransitioning.value && currentEmotion.value === 'neutral') {
         currentEmotion.value = null
         currentExpressionValues.value.clear()
         targetExpressionValues.value.clear()
       }
     }
-    else {
+    else if (currentEmotion.value) {
       // Hold target expression values across render frames so other updates don't clear them
       for (const [exprName, targetValue] of targetExpressionValues.value) {
         if (skip(exprName))
+          continue
+        if (isVisemeTransitioning.value && VISEME_NAMES.has(exprName.toLowerCase()))
           continue
         vrm.expressionManager?.setValue(exprName, targetValue)
       }
@@ -266,6 +342,7 @@ export function useVRMEmote(vrm: VRMCore) {
   return {
     currentEmotion,
     isTransitioning,
+    isVisemeTransitioning,
     isEmoteActive,
     setEmotion,
     setEmotionWithResetAfter,

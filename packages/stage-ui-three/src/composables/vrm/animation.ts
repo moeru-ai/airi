@@ -93,6 +93,7 @@ export function useBlink() {
    */
   const isBlinking = ref(false)
   const blinkProgress = ref(0)
+  const isCycleSuppressed = ref(false)
   const timeSinceLastBlink = ref(0)
   const BLINK_DURATION = 0.2 // Duration of a single blink in seconds
   const MIN_BLINK_INTERVAL = 1 // Minimum time between blinks
@@ -110,17 +111,22 @@ export function useBlink() {
     if (!isBlinking.value && timeSinceLastBlink.value >= nextBlinkTime.value) {
       isBlinking.value = true
       blinkProgress.value = 0
+      isCycleSuppressed.value = Boolean(options?.suppress)
     }
 
     // Handle blinking animation
     if (isBlinking.value) {
       blinkProgress.value += delta / BLINK_DURATION
+      if (options?.suppress)
+        isCycleSuppressed.value = true
 
       // Calculate blink value using sine curve for smooth animation.
       // While an emote owns the eye area, the controller keeps advancing so a
-      // blink interrupted mid-cycle cannot leave the lid stuck closed; the
-      // morph is held at 0 instead of the sine value.
-      const blinkValue = options?.suppress ? 0 : Math.sin(Math.PI * blinkProgress.value)
+      // blink interrupted mid-cycle cannot leave the lid stuck closed.
+      // If the cycle started under suppression or was suppressed mid-blink,
+      // hold the morph at 0 until the cycle completes so releasing suppression
+      // cannot pop the eyelid into a partially closed pose.
+      const blinkValue = isCycleSuppressed.value ? 0 : Math.sin(Math.PI * blinkProgress.value)
 
       // Apply blink expression
       vrm.expressionManager.setValue('blink', blinkValue)
@@ -128,6 +134,7 @@ export function useBlink() {
       // Reset blink when animation is complete
       if (blinkProgress.value >= 1) {
         isBlinking.value = false
+        isCycleSuppressed.value = false
         timeSinceLastBlink.value = 0
         vrm.expressionManager.setValue('blink', 0) // Reset blink value to 0
         nextBlinkTime.value = Math.random() * (MAX_BLINK_INTERVAL - MIN_BLINK_INTERVAL) + MIN_BLINK_INTERVAL
