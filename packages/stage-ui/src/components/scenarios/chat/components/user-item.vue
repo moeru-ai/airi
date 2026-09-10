@@ -53,7 +53,7 @@ const containerClasses = computed(() => [
 
 const boxClasses = computed(() => [
   props.variant === 'mobile'
-    ? ['px-2 pt-2 pb-1 text-sm', 'bg-neutral-100/60 backdrop-blur-xl dark:bg-neutral-800/60']
+    ? ['px-2 py-1.5 text-sm', 'bg-neutral-100/60 backdrop-blur-xl dark:bg-neutral-800/60']
     : ['px-3 pt-3 pb-2', 'bg-neutral-100/80 dark:bg-neutral-800/80'],
 ])
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
