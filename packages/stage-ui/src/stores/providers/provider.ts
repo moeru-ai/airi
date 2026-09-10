@@ -733,6 +733,26 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   // Function to fetch models for a specific provider
+  function invalidateModelRequestForProvider(providerId: string) {
+    const runtimeState = providerRuntimeState.value[providerId]
+    if (!providerModelRequests.has(providerId) && runtimeState?.modelStatus !== 'loading')
+      return false
+
+    providerModelRequestVersions.set(providerId, ++nextProviderModelRequestVersion)
+    providerModelRequests.delete(providerId)
+    if (runtimeState?.modelStatus === 'loading') {
+      providerRuntimeState.value = {
+        ...providerRuntimeState.value,
+        [providerId]: {
+          ...runtimeState,
+          modelStatus: 'idle',
+          modelError: null,
+        },
+      }
+    }
+    return true
+  }
+
   async function fetchModelsForProvider(providerId: string): Promise<ProviderModelCatalogResult> {
     const definition = findProviderDefinition(providerId)
     if (!definition)
@@ -1193,6 +1213,7 @@ export const useProviderStore = defineStore('provider', () => {
     refreshModelsForChangedCredentials,
     isLoadingModels,
     modelLoadError,
+    invalidateModelRequestForProvider,
     fetchModelsForProvider,
     getModelsForProvider,
     getDefaultModelForProvider,
@@ -1233,6 +1254,7 @@ export const useProviderStore = defineStore('provider', () => {
       'fetchModelsForProvider',
       'forceProviderConfigured',
       'initializeProvider',
+      'invalidateModelRequestForProvider',
       'listProviderVoices',
       'loadModelsForConfiguredProviders',
       'loadProviderModel',

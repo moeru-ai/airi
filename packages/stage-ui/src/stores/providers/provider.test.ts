@@ -435,6 +435,38 @@ describe('provider store synchronization boundary', () => {
     ])
   })
 
+  it('settles loading when a catalog request is invalidated without a replacement', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const providerId = 'funasr-instance'
+    configStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://first.example/v1/',
+    })
+
+    let resolveResponse!: (response: Response) => void
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => {
+      resolveResponse = resolve
+    })))
+
+    const request = store.fetchModelsForProvider(providerId)
+    await vi.waitFor(() => expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('loading'))
+
+    configStore.providers[providerId]!.config = {
+      baseUrl: 'http://second.example/v1/',
+    }
+    expect(store.invalidateModelRequestForProvider(providerId)).toBe(true)
+    expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('idle')
+
+    resolveResponse(new Response(JSON.stringify({
+      data: [{ id: 'model-from-old-endpoint' }],
+      object: 'list',
+    }), { headers: { 'Content-Type': 'application/json' }, status: 200 }))
+    await request
+
+    expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('idle')
+    expect(store.getModelsForProvider(providerId)).toEqual([])
+  })
+
   it('shares concurrent model catalog requests for the same provider credentials', async () => {
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
