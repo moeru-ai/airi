@@ -166,6 +166,21 @@ describe('useCharacterStore spark reactions', () => {
     expect(store.reactions.at(-1)?.message).toBe('Hello there.')
   })
 
+  // The request is composed before the model answers, so the settings recorded
+  // then are the ones the reply was asked for. A change made while the model is
+  // still thinking must not leave the tagged text unparsed.
+  it('splits with the settings the request was composed with', () => {
+    const store = useCharacterStore()
+
+    store.prepareSparkNotifyReaction('spark-6')
+    useSettingsBilingual().enabled = false
+    store.onSparkNotifyReactionStreamEvent('spark-6', '[EN]Hello there.[CN]你好。')
+    store.onSparkNotifyReactionStreamEnd('spark-6', '[EN]Hello there.[CN]你好。')
+
+    expect(mocks.spoken.join('')).toBe('Hello there.')
+    expect(store.reactions.at(-1)?.message).toBe('Hello there.')
+  })
+
   it('leaves the reaction untouched while bilingual subtitles are off', () => {
     useSettingsBilingual().enabled = false
 

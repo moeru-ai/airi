@@ -367,6 +367,22 @@ export const useChatStore = defineStore('chat', () => {
     } as T
   }
 
+  /**
+   * Drops the control tags from one reply's raw text.
+   *
+   * The runtime hands the text of a reply to several consumers on its own — the
+   * assistant-message hooks, the turn-ready callback — next to the message
+   * object. Those need the same projection as the message itself, or the tags
+   * travel to whatever reads them.
+   */
+  function projectBilingualReplyText(text: string, replyId?: string) {
+    const { instructed, languages, ttsLanguage } = settingsOfBilingualReply(replyId)
+    if (!instructed || !text.includes('['))
+      return text
+
+    return projectBilingualText(text, languages, ttsLanguage)
+  }
+
   const runtime = createChatOrchestratorRuntime({
     session: {
       ensureSession: sessionId => chatSession.ensureSession(sessionId),
@@ -440,10 +456,13 @@ export const useChatStore = defineStore('chat', () => {
     },
     onAssistantMessageAppended: ({ sessionId, message }) => {
       if (isCloudSyncableMessage(message) && message.id) {
+        // The runtime hands out its own message object, which still carries the
+        // tags: another client reads this copy, so project it first.
+        const projected = projectBilingualMessage(message)
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,
           role: 'assistant',
-          content: extractMessageText(message),
+          content: extractMessageText(projected),
         })
       }
     },
@@ -455,7 +474,7 @@ export const useChatStore = defineStore('chat', () => {
     onAssistantTurnReady: ({ messageText, sessionMessages }) => {
       const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry
       if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
-        void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
+        void artistryAutonomousStore.runArtistTask(projectBilingualReplyText(messageText), toProviderHistory(sessionMessages))
     },
   })
 
@@ -670,8 +689,20 @@ export const useChatStore = defineStore('chat', () => {
     onTokenSpecial: runtime.hooks.onTokenSpecial,
     onStreamEnd: runtime.hooks.onStreamEnd,
     onAssistantResponseEnd: runtime.hooks.onAssistantResponseEnd,
-    onAssistantMessage: runtime.hooks.onAssistantMessage,
-    onChatTurnComplete: runtime.hooks.onChatTurnComplete,
+    // These two hand out the runtime's own message object and the untouched reply
+    // text, and the mods context bridge forwards them to other modules. Project
+    // at registration, which is a boundary this store owns, so every subscriber
+    // sees the text the user sees.
+    onAssistantMessage: (callback: Parameters<typeof runtime.hooks.onAssistantMessage>[0]) =>
+      runtime.hooks.onAssistantMessage((message, messageText, context) =>
+        callback(projectBilingualMessage(message), projectBilingualReplyText(messageText, message.id), context)),
+    onChatTurnComplete: (callback: Parameters<typeof runtime.hooks.onChatTurnComplete>[0]) =>
+      runtime.hooks.onChatTurnComplete((chat, context) =>
+        callback({
+          ...chat,
+          output: projectBilingualMessage(chat.output),
+          outputText: projectBilingualReplyText(chat.outputText, chat.output.id),
+        }, context)),
   }
 }, {
   synced: {

@@ -130,6 +130,11 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     processing.value = true
 
     try {
+      // The request is composed with the settings as they are right now, so
+      // record them: the reply has to be split with the same ones even if the
+      // user changes them while the model is still thinking.
+      characterStore.prepareSparkNotifyReaction(event.data.id)
+
       const result = await sparkNotifyAgent.handle({
         event,
         selectedChat: {

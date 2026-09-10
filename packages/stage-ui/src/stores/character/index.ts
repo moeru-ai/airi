@@ -68,6 +68,43 @@ export const useCharacterStore = defineStore('character', () => {
   const bilingualStore = useSettingsBilingual()
   const { post: postSparkPair } = useSparkTranslationChannel()
 
+  /**
+   * Bilingual settings each reaction will be produced with, keyed by spark event
+   * id.
+   *
+   * Recorded when the request is composed, because that is the moment the model
+   * is asked to tag its output. Capturing at the first streamed delta instead
+   * would miss a change made while the model is still thinking, and the reply
+   * would then be read out with its tags intact. `null` records a request that
+   * was not asked for bilingual output.
+   */
+  const pendingSparkSettings = new Map<string, { languages: string[], ttsLanguage: string } | null>()
+
+  /** Records the settings the reaction about to be requested will be split with. */
+  function prepareSparkNotifyReaction(sparkEventId: string) {
+    pendingSparkSettings.set(sparkEventId, bilingualStore.enabled
+      ? { languages: bilingualStore.subtitleLanguages, ttsLanguage: bilingualStore.ttsLanguage }
+      : null)
+  }
+
+  /**
+   * Settings the reaction is split and projected with, or `undefined` when the
+   * request was not asked for bilingual output.
+   */
+  function takeSparkSettings(sparkEventId: string) {
+    if (pendingSparkSettings.has(sparkEventId)) {
+      const prepared = pendingSparkSettings.get(sparkEventId)
+      pendingSparkSettings.delete(sparkEventId)
+      return prepared ?? undefined
+    }
+
+    // Nothing was prepared, so the caller did not come through the request path:
+    // the settings as they are now are the best available answer.
+    return bilingualStore.enabled
+      ? { languages: bilingualStore.subtitleLanguages, ttsLanguage: bilingualStore.ttsLanguage }
+      : undefined
+  }
+
   async function emitTextOutput(text: string) {
     const intent = speechRuntimeStore.openIntent({
       ownerId: ownerId.value,
@@ -116,13 +153,9 @@ export const useCharacterStore = defineStore('character', () => {
       // shown in the caption line, and the translation has no chat bubble of
       // its own to render in.
       let bilingualTurn: BilingualTurn | undefined
-      let bilingualSettings: { languages: string[], ttsLanguage: string } | undefined
-      if (bilingualStore.enabled) {
+      const bilingualSettings = takeSparkSettings(sparkEventId)
+      if (bilingualSettings) {
         const turnId = `${SPARK_TURN_ID_PREFIX}${sparkEventId}`
-        bilingualSettings = {
-          languages: bilingualStore.subtitleLanguages,
-          ttsLanguage: bilingualStore.ttsLanguage,
-        }
 
         // The pairs are broadcast instead of captioned here: the model finishes
         // long before the audio does, and only the window hosting the speech
@@ -173,6 +206,9 @@ export const useCharacterStore = defineStore('character', () => {
   }
 
   function onSparkNotifyReactionStreamEnd(sparkEventId: string, fullText: string, options?: { metadata?: Record<string, unknown> }) {
+    // A prepared reaction that never streamed still releases its slot here.
+    pendingSparkSettings.delete(sparkEventId)
+
     const state = streamingReactions.value.get(sparkEventId)
     if (!state)
       return
@@ -226,6 +262,7 @@ export const useCharacterStore = defineStore('character', () => {
     systemPrompt,
 
     recordSparkNotifyReaction,
+    prepareSparkNotifyReaction,
     onSparkNotifyReactionStreamEvent,
     onSparkNotifyReactionStreamEnd,
     clearReactions,

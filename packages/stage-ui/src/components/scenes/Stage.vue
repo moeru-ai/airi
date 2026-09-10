@@ -777,6 +777,12 @@ const bilingualWaitingTurns = new Set<string>()
  * request.
  */
 const bilingualVoicesByTurn = new Map<string, VoiceInfo | undefined>()
+/**
+ * Turn whose translation is on screen. Playback of another turn takes the line
+ * over and clears it first, instead of leaving the previous turn's line up until
+ * the new translation arrives.
+ */
+let bilingualTurnOnScreen = ''
 
 /** Queues a finished sentence pair and publishes it if playback is waiting. */
 function queueBilingualPair(turnId: string, pair: BilingualPair) {
@@ -875,6 +881,14 @@ function findBilingualPairIndex(pairs: BilingualPair[], itemText: string): numbe
  * dumping the whole translation at once.
  */
 function publishBilingualTranslation(turnId: string, itemText?: string) {
+  // Playback moved to another turn: the line on screen belongs to the turn it
+  // left, so it goes now. A reaction speaks before its translation arrives, and
+  // the previous line would otherwise stay up through the new speech.
+  if (turnId !== bilingualTurnOnScreen) {
+    bilingualTurnOnScreen = turnId
+    clearBilingualTranslation()
+  }
+
   const pairs = bilingualPairsByTurn.get(turnId)
 
   if (!pairs?.length) {
@@ -943,8 +957,6 @@ function openBilingualTurn(turnId: string): BilingualTurn | null {
 }
 
 const { data: sparkPair } = useSparkTranslationChannel()
-/** Spark turn whose translation is on screen, so a new one can replace it. */
-let sparkTurnOnScreen = ''
 
 // A reaction is split in the window that ran the model and spoken by the one
 // hosting the speech pipeline, so its pairs arrive here and join the same queue
@@ -955,9 +967,9 @@ watch(sparkPair, (pair) => {
 
   // A reaction interrupts whatever is on screen, so the previous reaction's line
   // and its leftover queue go instead of lingering until they expire.
-  if (pair.turnId !== sparkTurnOnScreen) {
-    clearBilingualTurn(sparkTurnOnScreen)
-    sparkTurnOnScreen = pair.turnId
+  if (pair.turnId !== bilingualTurnOnScreen) {
+    clearBilingualTurn(bilingualTurnOnScreen)
+    bilingualTurnOnScreen = pair.turnId
     clearBilingualTranslation()
   }
 
