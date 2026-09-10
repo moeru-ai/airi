@@ -17,7 +17,13 @@ export default defineConfig({
     vue(),
     UnoCss({
       ...unoConfig,
-      // Config discovery shallowly replaces content, which would drop this scan.
+      // NOTICE:
+      // Disable config discovery to preserve the initial stylesheet scan below.
+      // The discovered config replaces inline content through a shallow merge.
+      // Source: loadConfig in node_modules/@unocss/config/dist/index.mjs uses
+      // Object.assign(defaults, inlineConfig, result.config ?? {}).
+      // When discovery preserves inline content.filesystem, remove configFile: false
+      // and the explicit unoConfig import and spreads. Verify the shuffled browser suite.
       configFile: false,
       // Generate the initial stylesheet before parallel browser files mount.
       // Late utility extraction can resize controls during layout assertions.
