@@ -1,7 +1,8 @@
 import type { ChatSessionsExport } from '../types/chat-session'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { useSettingsLive2d } from '@proj-airi/stage-ui-live2d/composables/live2d'
+import { useLive2dParams } from '@proj-airi/stage-ui-live2d/stores/model-parameters'
 import { useModelStore } from '@proj-airi/stage-ui-three'
 
 import { useLive2DMotionMagicSettings } from '../features/motions/live2d'
@@ -57,16 +58,24 @@ export function useDataMaintenance() {
     await providersStore.resetProviderSettings()
   }
 
+  /** Attempts every independent reset and reports the first failure only after all operations settle. */
   async function resetModulesSettings() {
-    hearingStore.resetState()
-    speechStore.resetState()
-    consciousnessStore.resetState()
-    await consciousnessSettingsStore.resetState()
-    twitterStore.resetState()
-    webSearchStore.resetState()
-    discordStore.resetState()
-    factorioStore.resetState()
-    minecraftStore.resetState()
+    // Schedule each reset separately so both synchronous errors and rejected
+    // leader RPCs leave the other modules free to finish their cleanup.
+    const results = await Promise.allSettled([
+      () => hearingStore.resetState(),
+      () => speechStore.resetState(),
+      () => consciousnessStore.resetState(),
+      () => consciousnessSettingsStore.resetState(),
+      () => twitterStore.resetState(),
+      () => webSearchStore.resetState(),
+      () => discordStore.resetState(),
+      () => factorioStore.resetState(),
+      () => minecraftStore.resetState(),
+    ].map(reset => Promise.resolve().then(reset)))
+    const failure = results.find(result => result.status === 'rejected')
+    if (failure)
+      throw failure.reason
   }
 
   function deleteAllChatSessions() {

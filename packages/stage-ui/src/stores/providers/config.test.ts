@@ -875,4 +875,25 @@ describe('provider config store', () => {
     )
     expect(mocks.service.deleteRemote).toHaveBeenCalledWith(mocks.client, remoteProvider.id)
   })
+
+  it('patches configuration through the owning provider record', () => {
+    const store = installStore()
+    store.providers[localProvider.id] = {
+      ...localProvider,
+      config: { baseUrl: 'https://example.com/v1/' },
+    }
+
+    expect(store.patchProviderConfig(localProvider.id, { apiKey: 'sk-test' })).toBe(true)
+    expect(store.getProviderConfig(localProvider.id)).toEqual({
+      apiKey: 'sk-test',
+      baseUrl: 'https://example.com/v1/',
+    })
+  })
+
+  it('does not create an incomplete provider while patching configuration', () => {
+    const store = installStore()
+
+    expect(store.patchProviderConfig('missing-provider', { apiKey: 'sk-test' })).toBe(false)
+    expect(store.getProvider('missing-provider')).toBeUndefined()
+  })
 })

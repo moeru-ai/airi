@@ -264,6 +264,12 @@ catalogs:
     '@nekopaw/tempora':
       specifier: 0.4.0-alpha.1
       version: 0.4.0-alpha.1
+    '@openpanel/sdk':
+      specifier: 1.3.1
+      version: 1.3.1
+    '@openpanel/web':
+      specifier: 1.4.1
+      version: 1.4.1
     '@opentelemetry/api':
       specifier: ^1.9.1
       version: 1.9.1
@@ -546,9 +552,6 @@ catalogs:
     '@vueuse/shared':
       specifier: ^14.4.0
       version: 14.4.0
-    '@webgpu/types':
-      specifier: ^0.1.72
-      version: 0.1.72
     '@wxt-dev/module-vue':
       specifier: ^1.0.3
       version: 1.0.3
@@ -927,12 +930,6 @@ catalogs:
     postgres:
       specifier: ^3.4.9
       version: 3.4.9
-    posthog-js:
-      specifier: 1.306.1
-      version: 1.306.1
-    posthog-node:
-      specifier: ^5.50.0
-      version: 5.50.0
     postprocessing:
       specifier: ^6.39.4
       version: 6.39.4
@@ -1176,6 +1173,9 @@ catalogs:
     whatwg-mimetype:
       specifier: ^5.0.0
       version: 5.0.0
+    wheel-gestures:
+      specifier: ^2.2.48
+      version: 2.2.48
     wlipsync:
       specifier: ^1.3.1
       version: 1.3.1
@@ -1329,9 +1329,6 @@ importers:
       playwright:
         specifier: 'catalog:'
         version: 1.62.1
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       publint:
         specifier: 'catalog:'
         version: 0.3.24
@@ -1648,9 +1645,6 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       rehype-stringify:
         specifier: 'catalog:'
         version: 10.0.1
@@ -1799,9 +1793,6 @@ importers:
       '@vueuse/motion':
         specifier: 'catalog:'
         version: 3.0.3(magicast@0.5.4)(vue@3.5.41(typescript@6.0.3))
-      '@webgpu/types':
-        specifier: 'catalog:'
-        version: 0.1.72
       csstype:
         specifier: 'catalog:'
         version: 3.2.3
@@ -2093,9 +2084,6 @@ importers:
       popmotion:
         specifier: 'catalog:'
         version: 11.0.5
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       rehype-stringify:
         specifier: 'catalog:'
         version: 10.0.1
@@ -2286,9 +2274,6 @@ importers:
       '@vue-macros/volar':
         specifier: 'catalog:'
         version: 3.1.4(typescript@6.0.3)(vue-tsc@3.3.11(typescript@6.0.3))(vue@3.5.41(typescript@6.0.3))
-      '@webgpu/types':
-        specifier: 'catalog:'
-        version: 0.1.72
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.7.0(supports-color@10.2.2)
@@ -2569,9 +2554,6 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       rehype-stringify:
         specifier: 'catalog:'
         version: 10.0.1
@@ -2720,9 +2702,6 @@ importers:
       '@vueuse/motion':
         specifier: 'catalog:'
         version: 3.0.3(magicast@0.5.4)(vue@3.5.41(typescript@6.0.3))
-      '@webgpu/types':
-        specifier: 'catalog:'
-        version: 0.1.72
       csstype:
         specifier: 'catalog:'
         version: 3.2.3
@@ -2783,6 +2762,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@openpanel/web':
+        specifier: 'catalog:'
+        version: 1.4.1
       '@proj-airi/font-chillroundm':
         specifier: workspace:^
         version: link:../../packages/font-chillroundm
@@ -2837,9 +2819,6 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       uuid:
         specifier: 'catalog:'
         version: 14.0.2
@@ -2925,9 +2904,6 @@ importers:
       '@vueuse/motion':
         specifier: 'catalog:'
         version: 3.0.3(magicast@0.5.4)(vue@3.5.41(typescript@6.0.3))
-      '@webgpu/types':
-        specifier: 'catalog:'
-        version: 0.1.72
       unplugin-info:
         specifier: 'catalog:'
         version: 1.3.2(@nuxt/kit@3.21.11(magicast@0.5.4))(esbuild@0.28.2)(rollup@4.62.5)(supports-color@10.2.2)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
@@ -2970,6 +2946,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@openpanel/web':
+        specifier: 'catalog:'
+        version: 1.4.1
       '@proj-airi/chromatic':
         specifier: 'catalog:'
         version: 1.1.4
@@ -3000,9 +2979,6 @@ importers:
       pathe:
         specifier: 'catalog:'
         version: 2.0.3
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       reka-ui:
         specifier: 'catalog:'
         version: 2.10.3(vue@3.5.41(typescript@6.0.3))
@@ -4149,9 +4125,6 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       reka-ui:
         specifier: 'catalog:'
         version: 2.10.3(vue@3.5.41(typescript@6.0.3))
@@ -4186,9 +4159,6 @@ importers:
       '@vue/test-utils':
         specifier: 'catalog:'
         version: 2.4.11(@vue/compiler-dom@3.5.41)(@vue/server-renderer@3.5.41)(vue@3.5.41(typescript@6.0.3))
-      '@webgpu/types':
-        specifier: 'catalog:'
-        version: 0.1.72
       jsdom:
         specifier: 'catalog:'
         version: 30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3)
@@ -4279,9 +4249,6 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       reka-ui:
         specifier: 'catalog:'
         version: 2.10.3(vue@3.5.41(typescript@6.0.3))
@@ -4313,6 +4280,9 @@ importers:
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
+      '@pinia/colada':
+        specifier: 'catalog:'
+        version: 1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared
@@ -4325,12 +4295,24 @@ importers:
       '@types/three':
         specifier: 'catalog:'
         version: 0.185.4
-      '@webgpu/types':
+      '@vitejs/plugin-vue':
         specifier: 'catalog:'
-        version: 0.1.72
+        version: 6.0.8(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue@3.5.41(typescript@6.0.3))
+      '@vitest/browser-playwright':
+        specifier: catalog:vitest
+        version: 4.1.11(bufferutil@4.1.0)(playwright@1.62.1)(utf-8-validate@5.0.10)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vitest@4.1.11)
+      unocss:
+        specifier: 'catalog:'
+        version: 66.7.5(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       unplugin-info:
         specifier: 'catalog:'
         version: 1.3.2(@nuxt/kit@3.21.11(magicast@0.5.4))(esbuild@0.28.2)(rollup@4.62.5)(supports-color@10.2.2)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+      vitest:
+        specifier: catalog:vitest
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+      vitest-browser-vue:
+        specifier: 'catalog:'
+        version: 2.1.0(@vue/compiler-dom@3.5.41)(@vue/server-renderer@3.5.41)(vitest@4.1.11)(vue@3.5.41(typescript@6.0.3))
       vue-tsc:
         specifier: 'catalog:'
         version: 3.3.11(typescript@6.0.3)
@@ -4349,9 +4331,6 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       valibot:
         specifier: 'catalog:'
         version: 1.4.2(typescript@6.0.3)
@@ -4395,6 +4374,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@openpanel/web':
+        specifier: 'catalog:'
+        version: 1.4.1
       '@opentelemetry/api':
         specifier: 'catalog:'
         version: 1.9.1
@@ -4620,9 +4602,6 @@ importers:
       pinia-plugin-synced:
         specifier: 'catalog:'
         version: 0.1.4(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
-      posthog-js:
-        specifier: 'catalog:'
-        version: 1.306.1
       rehype-katex:
         specifier: 'catalog:'
         version: 7.0.1
@@ -4689,6 +4668,9 @@ importers:
       web-haptics:
         specifier: 'catalog:'
         version: 0.0.6(vue@3.5.41(typescript@6.0.3))
+      wheel-gestures:
+        specifier: 'catalog:'
+        version: 2.2.48
       xast-util-to-xml:
         specifier: 'catalog:'
         version: 4.0.0
@@ -4807,9 +4789,6 @@ importers:
       '@vitejs/plugin-vue':
         specifier: 'catalog:'
         version: 6.0.8(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue@3.5.41(typescript@6.0.3))
-      '@webgpu/types':
-        specifier: 'catalog:'
-        version: 0.1.72
       clustr:
         specifier: 'catalog:'
         version: 1.0.2
@@ -5232,6 +5211,9 @@ importers:
       reka-ui:
         specifier: 'catalog:'
         version: 2.10.3(vue@3.5.41(typescript@6.0.3))
+      vaul-vue:
+        specifier: 'catalog:'
+        version: 0.4.1(reka-ui@2.10.3(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)
@@ -5565,6 +5547,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@openpanel/sdk':
+        specifier: 'catalog:'
+        version: 1.3.1
       '@opentelemetry/api':
         specifier: 'catalog:'
         version: 1.9.1
@@ -5655,9 +5640,6 @@ importers:
       pg:
         specifier: 'catalog:'
         version: 8.23.0
-      posthog-node:
-        specifier: 'catalog:'
-        version: 5.50.0(rxjs@7.8.2)
       stripe:
         specifier: 'catalog:'
         version: 22.5.0(@types/node@26.2.0)
@@ -8655,6 +8637,12 @@ packages:
   '@one-ini/wasm@0.1.1':
     resolution: {integrity: sha512-XuySG1E38YScSJoMlqovLru4KTUNSjgVTIjyh7qMX6aNN5HY5Ct5LhRJdxO79JtTzKfzV/bnWpz+zquYrISsvw==}
 
+  '@openpanel/sdk@1.3.1':
+    resolution: {integrity: sha512-mQ5xaBUGXnyRg3qYxwnbVaUYyW7w8u+munrWk/ClnqxEeR2j+FYPiA6noHbHMCFC2aZutYD5OoRzEvw3FBNFxw==}
+
+  '@openpanel/web@1.4.1':
+    resolution: {integrity: sha512-DgUWeocZw+b57YiJjefZPg+6sceR7TdOF8x7Ut75lu3CwcwqGi5jZNPXjikNemGL37aNWXCB4buhcoNan2j7RA==}
+
   '@opentelemetry/api-logs@0.221.0':
     resolution: {integrity: sha512-OlanaW1vv7ufTqQ3/fPLI4arGt5ZoM+P8abOMki6uEYnpRazepSWDwDnnw+la7kE26SHVC18//SMccrDvLKOXQ==}
     engines: {node: '>=8.0.0'}
@@ -10542,15 +10530,6 @@ packages:
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
 
-  '@posthog/core@1.48.8':
-    resolution: {integrity: sha512-LAOBOjMQrQmgcbZxnubl74l2GQd5OWqxCJJ8mzcWdZRWbfO6Y/A6E3fqWjDtm68hY4LxC/bbopG60cxZW8cfWw==}
-
-  '@posthog/core@1.7.1':
-    resolution: {integrity: sha512-kjK0eFMIpKo9GXIbts8VtAknsoZ18oZorANdtuTj1CbgS28t4ZVq//HAWhnxEuXRTrtkd+SUJ6Ux3j2Af8NCuA==}
-
-  '@posthog/types@1.405.1':
-    resolution: {integrity: sha512-JvaR4ChUKUk7qSTG58vKN2Br6es9riFF5mvlu7YGcwbB476vfyTO0o/TBh+zE88QhsfxnE5Tr/jKxI+e1v3Q5A==}
-
   '@prisma/client@5.22.0':
     resolution: {integrity: sha512-M0SVXfyHnQREBKxCgyo7sffrKttwE6R8PMq330MIUF0pTwjUhLbW84pFDlf06B27XyCR++VtjugEnIHdr07SVA==}
     engines: {node: '>=16.13'}
@@ -10926,6 +10905,12 @@ packages:
     resolution: {integrity: sha512-/gDJaRs4gl0NPIwqCz+6PkpmhhjRAD2j6P4rSNHBzUkO3naEx2mIU0pRle1vUNRQ7mE/+8OOeXLTv/J56FKiQg==}
     cpu: [x64]
     os: [win32]
+
+  '@rrweb/types@2.0.0-alpha.20':
+    resolution: {integrity: sha512-RbnDgKxA/odwB1R4gF7eUUj+rdSrq6ROQJsnMw7MIsGzlbSYvJeZN8YY4XqU0G6sKJvXI6bSzk7w/G94jNwzhw==}
+
+  '@rrweb/utils@2.1.1':
+    resolution: {integrity: sha512-x2SgJAD3YJ9eVcLZ5l6OqWMtczdA3VfS5XqPeqpZdQgV9oh6Id5GK2cDN4bimnkqryOcIJdz8cTvV0yNvqQ+nA==}
 
   '@sapphire/async-queue@1.5.5':
     resolution: {integrity: sha512-cvGzxbba6sav2zZkH8GPf2oGk9yYoD5qrNWdu9fRehifgnFZJMV+nuy2nON2roRO4yQQ+v7MK/Pktl/HgfsUXg==}
@@ -11305,6 +11290,9 @@ packages:
 
   '@types/cors@2.8.19':
     resolution: {integrity: sha512-mFNylyeyqN93lfe/9CSxOGREz8cpzAhH+E93xJ4xWQf62V8sQ/24reV2nyzUWM6H6Xji+GGHpkbLe7pVoUEskg==}
+
+  '@types/css-font-loading-module@0.0.7':
+    resolution: {integrity: sha512-nl09VhutdjINdWyXxHWN/w9zlNCfr60JUqJbd24YXUuCwgeL0TpFSdElCwb6cxfB6ybE19Gjj4g0jsgkXxKv1Q==}
 
   '@types/culori@4.0.1':
     resolution: {integrity: sha512-43M51r/22CjhbOXyGT361GZ9vncSVQ39u62x5eJdBQFviI8zWp2X5jzqg7k4M6PVgDQAClpy2bUe2dtwEgEDVQ==}
@@ -12272,9 +12260,6 @@ packages:
   '@webext-core/match-patterns@2.0.0':
     resolution: {integrity: sha512-EsyMMKfQuSE4rWCjP/TifwvUWlhC/OhiGn5OK3p9F0d57UmtLib0nzguzPKyxM1/kZV7SkE+jYXkE8gsdPRLmw==}
 
-  '@webgpu/types@0.1.72':
-    resolution: {integrity: sha512-0cF7RFM2edNoiIS1ODJp0/Gzv4/xSXhwoR0YCza+OWpJWtn4wmo9DvK91aLlH9+uUnwIriP7ZiC3WitmyhuzBw==}
-
   '@wxt-dev/browser@0.2.7':
     resolution: {integrity: sha512-Dr3h3qS25Wah4LjoCSw5uazD+547Q0dLnxaRjkkLauus008daHAulgNKTU4HkojaS9QBdo3xUlwUYPTBCQb+XQ==}
 
@@ -12427,6 +12412,9 @@ packages:
 
   '@xsai/utils-chat@0.5.0':
     resolution: {integrity: sha512-z6HZHngL1q9Uasc8L0uQkeGXc7UzqY5LSTc2eYW7EjEgFK4WjGt7iTo0TM+p/ruoQHKy8AAigMkmUQcuGvwPlA==}
+
+  '@xstate/fsm@1.6.5':
+    resolution: {integrity: sha512-b5o1I6aLNeYlU/3CPlj/Z91ybk1gUsKT+5NAJI+2W4UjvS5KLG28K9v5UvNoFVjHV8PajVZ00RH3vnjyQO7ZAw==}
 
   '@yuku-codegen/binding-android-arm64@0.8.7':
     resolution: {integrity: sha512-C/0zV5IhgVdYhGJTwrY0v8dknxlhiKwtVJkMUaexu9/QvRmzlV4vfU3hZlUSgqc2BxQHntL1mCVbDq8j0FRFDw==}
@@ -13521,9 +13509,6 @@ packages:
   core-js-compat@3.50.0:
     resolution: {integrity: sha512-XGpFGbMLHwSt74YLTKho7Ib242qi6O8MSX+sRokV4oz7iKXvQWGYZthjIhjRGMxjzVkAubBO512dKGYcefmX3Q==}
     engines: {node: '>=6.4.0'}
-
-  core-js@3.50.0:
-    resolution: {integrity: sha512-BRWgOLKkFeCgRudR6zrs8p9XJZcE14grzKMMssoYrk6krtuEZ7MTKPIY5RzOnqsEKIR9kst7wNzphttraT+Yqw==}
 
   core-util-is@1.0.2:
     resolution: {integrity: sha512-3lqz5YjWTYnW6dlDa5TLaTCcShfar1e40rmcJVwCBJC6mWlFuj0eCHIElmG1g5kyuJ/GD+8Wn4FFCcz4gJPfaQ==}
@@ -14850,9 +14835,6 @@ packages:
   fetch-blob@3.2.0:
     resolution: {integrity: sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ==}
     engines: {node: ^12.20 || >= 14.13}
-
-  fflate@0.4.9:
-    resolution: {integrity: sha512-zdxgIEddhfsyCaWpJ2SdXEP8ZMrKJ6+5jl4OupODcywU0IhRk6gdXuVGcPICyfx2H97hVK7xmJtRLPjkxAX8Vw==}
 
   fflate@0.6.11:
     resolution: {integrity: sha512-3JyEFWGjFn7zHmoa9+zG1BmW7X2okcmAB+0Cnu9UFbVs/jCBnl2A8o065ZlXiw145K3eBM3uLuzrYXC0RK7eDg==}
@@ -16545,6 +16527,9 @@ packages:
     resolution: {integrity: sha512-KZxYo1BUkWD2TVFLr0MQoM8vUUigWD3LlD83a/75BqC+4qE0Hb1Vo5v1FgcfaNXvfXzr+5EhQ6ing/CaBijTlw==}
     engines: {node: '>= 18'}
 
+  mitt@3.0.1:
+    resolution: {integrity: sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==}
+
   mkcert@3.2.0:
     resolution: {integrity: sha512-026Eivq9RoOjOuLJGzbhGwXUAjBxRX11Z7Jbm4/7lqT/Av+XNy9SPrJte6+UpEt7i+W3e/HZYxQqlQcqXZWSzg==}
     engines: {node: '>=16'}
@@ -17263,18 +17248,6 @@ packages:
     resolution: {integrity: sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw==}
     engines: {node: '>=12'}
 
-  posthog-js@1.306.1:
-    resolution: {integrity: sha512-wO7bliv/5tlAlfoKCUzwkGXZVNexk0dHigMf9tNp0q1rzs62wThogREY7Tz7h/iWKYiuXy1RumtVlTmHuBXa1w==}
-
-  posthog-node@5.50.0:
-    resolution: {integrity: sha512-7trcTN4EcPBiYAI1nnD1rk+VB+OcjgN0Mdnp7kOK09PTCSW0LCAUVAYj3FD7u8Ne5zYCnW/ESv6k3VU7sOsL5w==}
-    engines: {node: ^20.20.0 || >=22.22.0}
-    peerDependencies:
-      rxjs: ^7.0.0
-    peerDependenciesMeta:
-      rxjs:
-        optional: true
-
   postject@1.0.0-alpha.6:
     resolution: {integrity: sha512-b9Eb8h2eVqNE8edvKdwqkrY6O7kAwmI8kcnBv1NScolYJbo59XUF0noFq+lxbC1yN20bmC0WBEbDC5H/7ASb0A==}
     engines: {node: '>=14.0.0'}
@@ -17295,14 +17268,6 @@ packages:
   powershell-utils@0.2.0:
     resolution: {integrity: sha512-ZlsFlG7MtSFCoc5xreOvBAozCJ6Pf06opgJjh9ONEv418xpZSAzNjstD36C6+JwOnfSqOW/9uDkqKjezTdxZhw==}
     engines: {node: '>=20'}
-
-  preact@10.29.8:
-    resolution: {integrity: sha512-ej2aVZ+vZ8WO7tvlQWRM9N63A0KzF9q4mWJfDUHgYaIofWY9hu74QdnQrjoPMmZi2/nZ5gN0bJCQF49xQqx09Q==}
-    peerDependencies:
-      preact-render-to-string: '>=5'
-    peerDependenciesMeta:
-      preact-render-to-string:
-        optional: true
 
   prebuild-install@7.1.3:
     resolution: {integrity: sha512-8Mf2cbV7x1cXPUILADGI3wuhfqWvtiLA1iclTDbFRZkgRQS0NqsPZphna9V+HyTEadheuPmjaJMsbzKQFOzLug==}
@@ -17841,6 +17806,15 @@ packages:
   router@2.2.0:
     resolution: {integrity: sha512-nLTrUKm2UyiL7rlhapu/Zl45FwNgkZGaCpZbIHajDYgwlJCOzLSk+cIPAnsEqV955GjILJnKbdQC1nVPz+gAYQ==}
     engines: {node: '>= 18'}
+
+  rrdom@2.1.1:
+    resolution: {integrity: sha512-VBkTF3bGNqcZjqnbo/gKi9GVQPIxiG0dofw7CQdAZQFQ2juJdt2YKIf3oS9QudL8HTpGh9bz5TUN+3amBn1Geg==}
+
+  rrweb-snapshot@2.1.1:
+    resolution: {integrity: sha512-al4Kx7Am7YlIn/5Yb2EMr7cdmjGiK+cLhdilJEXqkFXgpnys8t/yMJumXy2Ormgirpg3MBnFha0GTgny+iIL2w==}
+
+  rrweb@2.0.0-alpha.20:
+    resolution: {integrity: sha512-CZKDlm+j1VA50Ko3gnMbpvguCAleljsTNXPnVk9aeNP8o6T6kolRbISHyDZpqZ4G+bdDLlQOignPP3jEsXs8Gg==}
 
   run-applescript@7.1.0:
     resolution: {integrity: sha512-DPe5pVFaAsinSaV6QjQ6gdiedWDcRCbUuiQfQa2wmWV7+xC9bGulGI8+TdRmoFkAPaBXk8CrAbnlY2ISniJ47Q==}
@@ -19597,9 +19571,6 @@ packages:
     resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
     engines: {node: '>= 8'}
 
-  web-vitals@4.2.4:
-    resolution: {integrity: sha512-r4DIlprAGwJ7YM11VZp4R884m0Vmgr6EAKe3P+kO0PPj3Unqyvv59rczf6UiGcb9Z8QxZVcqKNwv/g0WNdWwsw==}
-
   webcrypto-core@1.9.2:
     resolution: {integrity: sha512-gsXecm82UQNlTBURJGuqOWy1Ww08S3kZUcr3aOJS02Pk0xLtkfeUAVC0u0xhgdonFme80edSJUIJyuvL/7250Q==}
 
@@ -19642,6 +19613,10 @@ packages:
 
   whatwg-url@5.0.0:
     resolution: {integrity: sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==}
+
+  wheel-gestures@2.2.48:
+    resolution: {integrity: sha512-f+Gy33Oa5Z14XY9679Zze+7VFhbsQfBFXodnU2x589l4kxGM9L5Y8zETTmcMR5pWOPQyRv4Z0lNax6xCO0NSlA==}
+    engines: {node: '>=18'}
 
   which@1.3.1:
     resolution: {integrity: sha512-HxJdYWq1MTIQbJ3nw0cqssHoTNU267KlrDuGZ1WYlxDStUtKUhOaJmh112/TZmHxxUfuJqPXSOm7tDyas0OSIQ==}
@@ -23106,6 +23081,14 @@ snapshots:
 
   '@one-ini/wasm@0.1.1': {}
 
+  '@openpanel/sdk@1.3.1': {}
+
+  '@openpanel/web@1.4.1':
+    dependencies:
+      '@openpanel/sdk': 1.3.1
+      '@rrweb/types': 2.0.0-alpha.20
+      rrweb: 2.0.0-alpha.20
+
   '@opentelemetry/api-logs@0.221.0':
     dependencies:
       '@opentelemetry/api': 1.9.1
@@ -24671,16 +24654,6 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
-  '@posthog/core@1.48.8':
-    dependencies:
-      '@posthog/types': 1.405.1
-
-  '@posthog/core@1.7.1':
-    dependencies:
-      cross-spawn: 7.0.6
-
-  '@posthog/types@1.405.1': {}
-
   '@prisma/client@5.22.0': {}
 
   '@proj-airi/chromatic@1.1.4':
@@ -24943,6 +24916,10 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.62.5':
     optional: true
+
+  '@rrweb/types@2.0.0-alpha.20': {}
+
+  '@rrweb/utils@2.1.1': {}
 
   '@sapphire/async-queue@1.5.5': {}
 
@@ -25305,6 +25282,8 @@ snapshots:
   '@types/cors@2.8.19':
     dependencies:
       '@types/node': 26.2.0
+
+  '@types/css-font-loading-module@0.0.7': {}
 
   '@types/culori@4.0.1': {}
 
@@ -26663,8 +26642,6 @@ snapshots:
 
   '@webext-core/match-patterns@2.0.0': {}
 
-  '@webgpu/types@0.1.72': {}
-
   '@wxt-dev/browser@0.2.7':
     dependencies:
       '@types/filesystem': 0.0.36
@@ -26906,6 +26883,8 @@ snapshots:
   '@xsai/utils-chat@0.5.0':
     dependencies:
       '@xsai/shared-chat': 0.5.0
+
+  '@xstate/fsm@1.6.5': {}
 
   '@yuku-codegen/binding-android-arm64@0.8.7':
     optional: true
@@ -27884,8 +27863,6 @@ snapshots:
   core-js-compat@3.50.0:
     dependencies:
       browserslist: 4.28.8
-
-  core-js@3.50.0: {}
 
   core-util-is@1.0.2: {}
 
@@ -29343,8 +29320,6 @@ snapshots:
     dependencies:
       node-domexception: 1.0.0
       web-streams-polyfill: 3.3.3
-
-  fflate@0.4.9: {}
 
   fflate@0.6.11: {}
 
@@ -31554,6 +31529,8 @@ snapshots:
     dependencies:
       minipass: 7.1.3
 
+  mitt@3.0.1: {}
+
   mkcert@3.2.0:
     dependencies:
       commander: 11.1.0
@@ -32426,22 +32403,6 @@ snapshots:
 
   postgres@3.4.9: {}
 
-  posthog-js@1.306.1:
-    dependencies:
-      '@posthog/core': 1.7.1
-      core-js: 3.50.0
-      fflate: 0.4.9
-      preact: 10.29.8
-      web-vitals: 4.2.4
-    transitivePeerDependencies:
-      - preact-render-to-string
-
-  posthog-node@5.50.0(rxjs@7.8.2):
-    dependencies:
-      '@posthog/core': 1.48.8
-    optionalDependencies:
-      rxjs: 7.8.2
-
   postject@1.0.0-alpha.6:
     dependencies:
       commander: 9.5.0
@@ -32456,8 +32417,6 @@ snapshots:
   powershell-utils@0.1.0: {}
 
   powershell-utils@0.2.0: {}
-
-  preact@10.29.8: {}
 
   prebuild-install@7.1.3:
     dependencies:
@@ -33170,6 +33129,25 @@ snapshots:
       path-to-regexp: 8.4.2
     transitivePeerDependencies:
       - supports-color
+
+  rrdom@2.1.1:
+    dependencies:
+      rrweb-snapshot: 2.1.1
+
+  rrweb-snapshot@2.1.1:
+    dependencies:
+      postcss: 8.5.26
+
+  rrweb@2.0.0-alpha.20:
+    dependencies:
+      '@rrweb/types': 2.0.0-alpha.20
+      '@rrweb/utils': 2.1.1
+      '@types/css-font-loading-module': 0.0.7
+      '@xstate/fsm': 1.6.5
+      base64-arraybuffer: 1.0.2
+      mitt: 3.0.1
+      rrdom: 2.1.1
+      rrweb-snapshot: 2.1.1
 
   run-applescript@7.1.0: {}
 
@@ -35074,8 +35052,6 @@ snapshots:
 
   web-streams-polyfill@3.3.3: {}
 
-  web-vitals@4.2.4: {}
-
   webcrypto-core@1.9.2:
     dependencies:
       '@peculiar/asn1-schema': 2.9.4
@@ -35132,6 +35108,8 @@ snapshots:
     dependencies:
       tr46: 0.0.3
       webidl-conversions: 3.0.1
+
+  wheel-gestures@2.2.48: {}
 
   which@1.3.1:
     dependencies:

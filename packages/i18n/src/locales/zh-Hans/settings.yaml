@@ -399,9 +399,10 @@ pages:
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
       modules_info: >-
-        为此角色卡配置模块。如未设置，将使用默认模块配置。
+        配置此角色卡的模块。空字段将继承全局设置。
       use_default: 使用默认
       use_default_not_configured: 使用默认（未配置）
+      inherit_global_settings: 继承全局设置
       fields_info:
         subtitle: >-
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
@@ -421,6 +422,7 @@ pages:
         consciousness_model: 为这个角色选择 AI 模型。
         speech_model: 为此角色指定语音合成模型与音色。
       errors:
+        model_required: 请为指定的提供商选择模型，不能继承其他提供商的模型。
         name: 错误：你必须提供一个有效的名称！
         version: '错误：版本号无效！'
         description: '错误：你必须为此卡片提供描述。'
@@ -660,6 +662,10 @@ pages:
             search_results: 找到 {count} / {total} 个模型
             show_less: 显示更多
             show_more: 收起
+            temperature_label: 温度
+            temperature_description: 控制模型输出的随机性。较低的温度（例如 0.2）会使输出更精确和确定；较高的温度（例如 1.0）会增加创造力和多样性。
+            top_p_label: Top P
+            top_p_description: 控制模型输出的多样性（核采样）。较低的值（例如 0.2）会将输出限制在概率较高的词汇；较高的值（例如 1.0）则会包含更广泛的可能性。
             subtitle: 选择一个默认模型
             title: 模型
           model-options:
@@ -1559,6 +1565,13 @@ pages:
               markdown-stress:
                 title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
+              plugin-host:
+                actions:
+                  enable-and-load: 启用并加载
+                  disable-and-unload: 停用并卸载
+                errors:
+                  enable-and-load: '启用并加载插件 {extensionId} 失败。'
+                  disable-and-unload: '停用并卸载插件 {extensionId} 失败。'
               use-magic-keys:
                 title: useMagicKeys 工具
                 description: 测试快捷键

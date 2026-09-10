@@ -282,10 +282,10 @@ onMounted(async () => {
 
   await creditsRefresh.catch(() => undefined)
 
-  // PostHog funnel step 1: pricing surface view. Today this is an in-app
+  // OpenPanel funnel step 1: pricing surface view. Today this is an in-app
   // settings page (already-authenticated users); when we add a public
   // pricing landing page the entry-surface label changes but the event stays the
-  // same, so the funnel definition in PostHog doesn't need re-wiring.
+  // same, so the funnel definition in OpenPanel doesn't need re-wiring.
   if (!fluxPurchaseDisabled) {
     trackPaywallSeen({
       entry_surface: 'settings_flux',
@@ -308,7 +308,7 @@ async function handleBuy(stripePriceId: string) {
   loadingPriceId.value = stripePriceId
   checkoutReturnMessageActive.value = false
   message.value = null
-  // PostHog funnel step 2: user picked a plan. price_minor_unit lives on
+  // OpenPanel funnel step 2: user picked a plan. price_minor_unit lives on
   // the Stripe webhook (server-side `payment_completed`); we deliberately
   // don't send a formatted-string price from the SPA so funnels don't get
   // poisoned by currency-formatting drift.
@@ -330,9 +330,8 @@ async function handleBuy(stripePriceId: string) {
     }
     const data = await res.json()
     if (data.url) {
-      // PostHog funnel step 3: about to redirect to Stripe. Capture before
-      // the page nav so the event is sent (PostHog's beforeunload handler
-      // would otherwise race the navigation).
+      // Start capture before redirecting to Stripe so fetch keepalive can
+      // finish delivery after the page unloads.
       trackCheckoutStarted(stripePriceId, {
         currency: selectedCurrency.value,
         entry_surface: 'settings_flux',

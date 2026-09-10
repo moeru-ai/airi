@@ -192,6 +192,70 @@ describe('createChatOrchestratorRuntime', () => {
 
   // ROOT CAUSE:
   //
+  // The composer encoded a reply as localized Markdown inside the user text.
+  // The stored message therefore lost the relation to the replied message.
+  //
+  // We fixed this by storing the reply message id and projecting its text only
+  // for the provider request.
+  it('stores a native reply relation without changing the user text', async () => {
+    const harness = createHarness()
+    harness.sessionMessages['session-1']?.push({
+      role: 'assistant',
+      content: 'Earlier answer',
+      slices: [{ type: 'text', text: 'Earlier answer' }],
+      tool_results: [],
+      id: 'assistant-earlier',
+    })
+
+    await harness.runtime.ingest('My follow-up', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      replyToMessageId: 'assistant-earlier',
+    })
+
+    const storedUserMessage = harness.sessionMessages['session-1']?.find(message => message.id === 'user-id')
+    const providerMessages = harness.stream.mock.calls[0]?.[2]
+    const providerUserMessage = providerMessages?.at(-1)
+
+    expect(storedUserMessage).toMatchObject({
+      role: 'user',
+      content: 'My follow-up',
+      replyToMessageId: 'assistant-earlier',
+    })
+    expect(providerUserMessage).toMatchObject({
+      role: 'user',
+      content: '[2026-04-25 18:47] [Replying to: Earlier answer]\nMy follow-up',
+    })
+    expect(providerUserMessage).not.toHaveProperty('replyToMessageId')
+  })
+
+  it('limits repeated reply text in the provider prompt', async () => {
+    const harness = createHarness()
+    harness.sessionMessages['session-1']?.push({
+      role: 'assistant',
+      content: 'a'.repeat(600),
+      slices: [{ type: 'text', text: 'a'.repeat(600) }],
+      tool_results: [],
+      id: 'assistant-long-reply',
+    })
+
+    await harness.runtime.ingest('My follow-up', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      replyToMessageId: 'assistant-long-reply',
+    })
+
+    const providerMessages = harness.stream.mock.calls[0]?.[2]
+    const providerUserMessage = providerMessages?.at(-1)
+
+    expect(providerUserMessage).toMatchObject({
+      role: 'user',
+      content: `[2026-04-25 18:47] [Replying to: ${'a'.repeat(479)}…]\nMy follow-up`,
+    })
+  })
+
+  // ROOT CAUSE:
+  //
   // xsAI kept the assistant tool call and tool result in its private message copy.
   // AIRI stored only UI slices, then removed those slices from the next provider request.
   //
@@ -727,6 +791,92 @@ describe('createChatOrchestratorRuntime', () => {
 
     await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
     await firstSend
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2489#discussion_r3967818108
+  // ROOT CAUSE:
+  //
+  // A queued send kept the reply target captured by the composer. Deleting that
+  // target did not change the session generation, so the queued message stored a
+  // dangling relation and projected the missing id into the provider prompt.
+  //
+  // The send must revalidate the relation against current session history after
+  // asynchronous composition and immediately before append.
+  it('drops a queued reply relation when its target is deleted before append', async () => {
+    const harness = createHarness()
+    let queuedSendContext: ChatHistoryItem | undefined
+    let releaseQueuedComposition: (() => void) | undefined
+    harness.runtime.hooks.onBeforeMessageComposed(async (message, context) => {
+      if (message !== 'send without stale reply')
+        return
+
+      queuedSendContext = context.message
+      await new Promise<void>((resolve) => {
+        releaseQueuedComposition = resolve
+      })
+    })
+    harness.sessionMessages['session-1']?.push({
+      role: 'assistant',
+      content: 'Reply target',
+      slices: [{ type: 'text', text: 'Reply target' }],
+      tool_results: [],
+      id: 'deleted-reply-target',
+    })
+    let releaseFirstSend: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await new Promise<void>((resolve) => {
+        releaseFirstSend = resolve
+      })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const firstSend = harness.runtime.ingest('hold queue', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    const queuedReply = harness.runtime.ingest('send without stale reply', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      replyToMessageId: 'deleted-reply-target',
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+    await vi.waitFor(() => {
+      expect(harness.runtime.getPendingQueuedSendCount()).toBe(1)
+    })
+    releaseFirstSend?.()
+    await vi.waitFor(() => {
+      expect(releaseQueuedComposition).toBeTypeOf('function')
+    })
+
+    const sessionMessages = harness.sessionMessages['session-1']
+    if (!sessionMessages)
+      throw new Error('Expected the active test session to exist')
+
+    harness.sessionMessages['session-1'] = sessionMessages
+      .filter(message => message.id !== 'deleted-reply-target')
+    releaseQueuedComposition?.()
+
+    await firstSend
+    await queuedReply
+
+    const storedReply = harness.sessionMessages['session-1']
+      ?.find(message => message.role === 'user' && message.content === 'send without stale reply')
+    const providerUserMessage = harness.stream.mock.calls[1]?.[2].at(-1)
+    const syncedUserMessage = (harness.userAppended.at(-1) as { message?: ChatHistoryItem } | undefined)?.message
+
+    expect(storedReply).toBeDefined()
+    expect(storedReply).not.toHaveProperty('replyToMessageId')
+    expect(providerUserMessage).toMatchObject({
+      role: 'user',
+      content: '[2026-04-25 18:47] send without stale reply',
+    })
+    expect(syncedUserMessage).toBeDefined()
+    expect(syncedUserMessage).not.toHaveProperty('replyToMessageId')
+    expect(queuedSendContext).toBeDefined()
+    expect(queuedSendContext).not.toHaveProperty('replyToMessageId')
   })
 
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3714754876

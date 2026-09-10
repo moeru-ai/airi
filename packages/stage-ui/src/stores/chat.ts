@@ -28,7 +28,8 @@ import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
-import { createMinecraftContext, createRuntimePromptContext } from './chat/context-providers'
+import { useAuthStore } from './auth'
+import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -54,10 +55,16 @@ export interface ChatSendPayload {
   input?: WebSocketEventInputs
   /** Session that owns the new turn. */
   sessionId: string
+  /** Message that the new user turn replies to in the target session. */
+  replyToMessageId?: string
   /** User text for the new turn. */
   text: string
   /** Request-specific tools selected by their model-facing names. */
   tools?: ChatToolReference[]
+  /** Request-specific temperature override. */
+  temperature?: number
+  /** Request-specific top_p override. */
+  topP?: number
 }
 
 /** The durable messages appended while one chat request executes. */
@@ -137,6 +144,7 @@ export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 export const useChatStore = defineStore('chat', () => {
   const runtimePrompt = useAiriRuntimePrompt()
+  const authStore = useAuthStore()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
@@ -282,7 +290,15 @@ export const useChatStore = defineStore('chat', () => {
     },
     context: {
       ingest: envelope => chatContext.ingestContextMessage(envelope),
-      snapshot: () => chatContext.getContextsSnapshot(),
+      snapshot: () => {
+        const snapshot = { ...chatContext.getContextsSnapshot() }
+        // Account data belongs to this request, not the persistent context registry.
+        // A signed-out request therefore cannot inherit the previous account snapshot.
+        const account = createUserAccountContext(authStore)
+        if (account)
+          snapshot[account.contextId] = [account]
+        return snapshot
+      },
     },
     foregroundStream: {
       patch: (message) => {
@@ -325,6 +341,7 @@ export const useChatStore = defineStore('chat', () => {
           id: message.id,
           role: 'user',
           content: messageText,
+          replyToMessageId: message.replyToMessageId,
         })
       }
     },
@@ -400,7 +417,10 @@ export const useChatStore = defineStore('chat', () => {
       chatProvider,
       attachments: payload.attachments,
       input: payload.input,
+      replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,
+      temperature: payload.temperature ?? consciousnessStore.activeTemperature,
+      topP: payload.topP ?? consciousnessStore.activeTopP,
       // Resolve this function after the request reaches the per-session queue.
       // The history then contains tool names from every earlier queued turn.
       tools: async () => {
@@ -453,6 +473,7 @@ export const useChatStore = defineStore('chat', () => {
       return await executeSend({
         sessionId: payload.sessionId,
         text,
+        replyToMessageId: sourceMessage?.replyToMessageId,
         tools: payload.tools ?? sourceMessage?.tools,
       })
     }
