@@ -46,32 +46,6 @@ export type MotionManagerPluginContext = MotionManagerUpdateContext & {
 
 export type MotionManagerPlugin = (ctx: MotionManagerPluginContext) => void
 
-/**
- * Final-stage plugins whose registration order defines parameter ownership.
- * Later plugins take precedence when multiple plugins write the same Live2D
- * parameter; in particular, lip sync follows manual control so speech owns
- * `ParamMouthOpenY` while active.
- */
-export interface Live2DFinalMotionPlugins {
-  expression: MotionManagerPlugin
-  autoEyeBlink: MotionManagerPlugin
-  manualControl: MotionManagerPlugin
-  lipSync: MotionManagerPlugin
-  breathControl: MotionManagerPlugin
-}
-
-/** Registers the final-stage plugins in their shared parameter-precedence order. */
-export function registerLive2DFinalMotionPlugins(
-  register: (plugin: MotionManagerPlugin, stage: 'final') => void,
-  plugins: Live2DFinalMotionPlugins,
-) {
-  register(plugins.expression, 'final')
-  register(plugins.autoEyeBlink, 'final')
-  register(plugins.manualControl, 'final')
-  register(plugins.lipSync, 'final')
-  register(plugins.breathControl, 'final')
-}
-
 export interface UseLive2DMotionManagerUpdateOptions {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']

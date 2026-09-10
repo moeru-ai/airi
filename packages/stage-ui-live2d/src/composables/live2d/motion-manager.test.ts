@@ -8,11 +8,9 @@ import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
 import { createLive2DMotionSpring } from './motion-control-spring'
 import {
   disableLive2DSdkBreath,
-  registerLive2DFinalMotionPlugins,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginIdleDisable,
-  useMotionUpdatePluginLipSync,
   useMotionUpdatePluginManualControl,
 } from './motion-manager'
 
@@ -323,43 +321,5 @@ describe('live2d motion manager plugins', () => {
     }), createLive2DMotionSpring())(context)
 
     expect(context.model.setParameterValueById).not.toHaveBeenCalled()
-  })
-
-  it('keeps lip sync in control of the mouth while speech is active', () => {
-    // ROOT CAUSE:
-    //
-    // MAGIC applies its pose through manual control, which can write
-    // ParamMouthOpenY in the same final stage as lip sync. Registering manual
-    // control after lip sync replaced the speech-driven value with MAGIC's
-    // mouth value in every frame.
-    //
-    // We fixed this by sharing the production registration path with this
-    // regression test and placing lip sync after manual control.
-    const context = createContext({ timeDelta: 1 / 60 })
-    const manualControl = useMotionUpdatePluginManualControl(ref({
-      active: true,
-      ownerId: 'stage:live2d-motion-magic',
-      pose: {
-        ...neutralLive2DMotionControlPose,
-        mouthOpen: 0,
-      },
-      dynamics: { follow: 0.6, inertia: 0.35 },
-    }), createLive2DMotionSpring())
-    const lipSync = useMotionUpdatePluginLipSync(ref(0.8), ref(true))
-
-    const finalPlugins: Array<(typeof manualControl)> = []
-    registerLive2DFinalMotionPlugins(
-      plugin => finalPlugins.push(plugin),
-      {
-        expression: () => {},
-        autoEyeBlink: () => {},
-        manualControl,
-        lipSync,
-        breathControl: () => {},
-      },
-    )
-    finalPlugins.forEach(plugin => plugin(context))
-
-    expect(context.model.getParameterValueById('ParamMouthOpenY')).toBe(0.8)
   })
 })
