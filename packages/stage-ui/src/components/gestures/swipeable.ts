@@ -1,5 +1,5 @@
 /** Input source that can drive Swipeable. */
-export type SwipeableInput = 'pointer' | 'wheel'
+export type SwipeableInput = 'touch' | 'wheel'
 
 /** Horizontal direction that selects the action. */
 export type SwipeableDirection = 'left' | 'right'
@@ -8,11 +8,11 @@ export type SwipeableDirection = 'left' | 'right'
 export interface SwipeableProps {
   /** Enables gesture recognition. @default true */
   enabled?: boolean
-  /** Selects touch/pointer dragging or desktop horizontal-wheel input. @default 'pointer' */
+  /** Selects touch dragging or desktop horizontal-wheel input. @default 'touch' */
   input?: SwipeableInput
   /** Selects the horizontal direction that commits the action. @default 'left' */
   direction?: SwipeableDirection
-  /** Ignores pointer or wheel jitter below this distance, in pixels. @default 8 */
+  /** Ignores touch or wheel jitter below this distance, in pixels. @default 8 */
   startDistance?: number
   /** Commits the action when the directed distance reaches this value, in pixels. @default 48 */
   threshold?: number
