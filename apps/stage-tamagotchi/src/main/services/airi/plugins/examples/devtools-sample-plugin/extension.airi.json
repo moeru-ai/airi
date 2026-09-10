@@ -1,32 +1,47 @@
 {
-  "apiVersion": "v1",
+  "manifestVersion": 2,
   "kind": "manifest.extension.airi.moeru.ai",
   "id": "devtools-sample-plugin",
+  "version": "1.0.0",
+  "engines": {
+    "airi": "*",
+    "runtimes": [
+      "electron"
+    ]
+  },
+  "entrypoints": {
+    "electron": "./devtools-sample-plugin.mjs"
+  },
   "permissions": {
     "apis": [
       {
         "key": "proj-airi:plugin-sdk:apis:protocol:capabilities:wait",
-        "actions": ["invoke"]
+        "actions": [
+          "invoke"
+        ]
       },
       {
         "key": "proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers",
-        "actions": ["invoke"]
+        "actions": [
+          "invoke"
+        ]
       }
     ],
     "resources": [
       {
         "key": "proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers",
-        "actions": ["read"]
+        "actions": [
+          "read"
+        ]
       }
     ],
     "capabilities": [
       {
         "key": "proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers",
-        "actions": ["wait"]
+        "actions": [
+          "wait"
+        ]
       }
     ]
-  },
-  "entrypoints": {
-    "electron": "./devtools-sample-plugin.mjs"
   }
 }

@@ -2,7 +2,7 @@ import type { ExtensionHostService, SetupExtensionHostOptions } from './types'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { app, ipcMain } from 'electron'
+import { app, dialog, ipcMain } from 'electron'
 
 import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
 import {
@@ -11,10 +11,13 @@ import {
   pluginProtocolListProvidersEventName,
 } from '../../../../shared/eventa/plugin/capabilities'
 import {
+  electronPluginCancelDirectoryImport,
+  electronPluginCommitDirectoryImport,
   electronPluginInspect,
   electronPluginList,
   electronPluginLoad,
   electronPluginLoadEnabled,
+  electronPluginPrepareDirectoryImport,
   electronPluginSetAutoReload,
   electronPluginSetEnabled,
   electronPluginUnload,
@@ -51,6 +54,29 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
 
   defineInvokeHandler(context, electronPluginList, async () => {
     return await hostService.list()
+  })
+
+  defineInvokeHandler(context, electronPluginPrepareDirectoryImport, async () => {
+    const selection = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+    })
+    const sourcePath = selection.filePaths[0]
+    if (selection.canceled || !sourcePath) {
+      return { status: 'cancelled' as const }
+    }
+
+    return {
+      status: 'ready' as const,
+      plan: await hostService.prepareDirectoryImport(sourcePath),
+    }
+  })
+
+  defineInvokeHandler(context, electronPluginCommitDirectoryImport, async ({ planId }) => {
+    return await hostService.commitDirectoryImport(planId)
+  })
+
+  defineInvokeHandler(context, electronPluginCancelDirectoryImport, async ({ planId }) => {
+    hostService.cancelDirectoryImport(planId)
   })
 
   defineInvokeHandler(context, electronPluginSetEnabled, async (payload) => {

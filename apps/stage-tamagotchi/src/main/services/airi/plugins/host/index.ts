@@ -1,6 +1,7 @@
 import type { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
 
 import type {
+  ExtensionDirectoryImportPlan,
   PluginHostDebugSnapshot,
   PluginRegistrySnapshot,
 } from '../../../../../shared/eventa/plugin/host'
@@ -22,6 +23,7 @@ import { createExtensionAssetService } from '../features/static-assets'
 import { createBuiltInExtensionKitRuntime } from '../kits'
 import { createExtensionHostConfigStore } from './config'
 import { buildPluginHostDebugSnapshot } from './debug'
+import { ExtensionDirectoryImporter } from './directory-import'
 import {
   buildPluginRegistrySnapshot,
   createExtensionHostRegistry,
@@ -69,6 +71,15 @@ function createElectronExtensionAssetCookieAdapter() {
 export interface ExtensionHostServiceInternal extends ExtensionHostService {
   /** Tamagotchi-owned extension tool registry used by IPC tool bridges. */
   tools: TamagotchiToolRegistry
+
+  /** Reads and validates one selected folder without executing Extension code. */
+  prepareDirectoryImport: (sourcePath: string) => Promise<ExtensionDirectoryImportPlan>
+
+  /** Copies one reviewed folder into the managed registry and keeps it disabled. */
+  commitDirectoryImport: (planId: string) => Promise<PluginRegistrySnapshot>
+
+  /** Removes one pending folder import plan. */
+  cancelDirectoryImport: (planId: string) => void
 
   /**
    * Lists the current extension registry snapshot.
@@ -239,6 +250,10 @@ export async function setupExtensionHostServiceInternal(
 
   // extension registry
   const extensionRegistry = createExtensionHostRegistry({ extensionsRoot, log })
+  const directoryImporter = new ExtensionDirectoryImporter(
+    extensionsRoot,
+    extensionId => Boolean(extensionRegistry.findManifestEntry(extensionId)),
+  )
 
   await extensionRegistry.refresh()
   log.withFields({ count: extensionRegistry.listEntries().length }).log('extension manifests loaded')
@@ -439,6 +454,31 @@ export async function setupExtensionHostServiceInternal(
     // to this host service and passing it into kit registration as a dependency.
     tools: builtInKitRuntime.tools,
     manifests: extensionRegistry.listManifests(),
+    async prepareDirectoryImport(sourcePath) {
+      await refreshManifests()
+      return await directoryImporter.prepare(sourcePath)
+    },
+    async commitDirectoryImport(planId) {
+      await refreshManifests()
+      const imported = await directoryImporter.commit(planId)
+      await refreshManifests()
+
+      const config = getConfig()
+      extensionConfig.update({
+        enabled: config.enabled.filter(extensionId => extensionId !== imported.extensionId),
+        autoReload: config.autoReload.filter(extensionId => extensionId !== imported.extensionId),
+        known: {
+          ...config.known,
+          [imported.extensionId]: { path: imported.manifestPath },
+        },
+      })
+
+      autoReloadFeature.sync()
+      return listSnapshot()
+    },
+    cancelDirectoryImport(planId) {
+      directoryImporter.cancel(planId)
+    },
     async list() {
       await refreshManifests()
       autoReloadFeature.sync()
@@ -518,6 +558,7 @@ export async function setupExtensionHostServiceInternal(
       return extensionAssetService.getBaseUrl() ?? ''
     },
     async dispose() {
+      directoryImporter.dispose()
       autoReloadFeature.dispose()
       builtInKitRuntime.dispose()
 

@@ -1,5 +1,5 @@
 import type { Extension } from '../../../../extension'
-import type { ExtensionLoadOptions, ExtensionManifestV1 } from '../../../shared/types'
+import type { ExtensionLoadOptions, ExtensionManifestV2 } from '../../../shared/types'
 
 import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
@@ -50,7 +50,7 @@ export class FileSystemLoader {
    * 2) `entrypoints.default`
    * 3) `entrypoints.electron` (legacy fallback for current local extension manifests)
    */
-  resolveEntrypointFor(manifest: ExtensionManifestV1, options?: ExtensionLoadOptions) {
+  resolveEntrypointFor(manifest: ExtensionManifestV2, options?: ExtensionLoadOptions) {
     const runtime = options?.runtime ?? 'electron'
     const root = options?.cwd ?? cwd()
     const entrypoint
@@ -69,7 +69,7 @@ export class FileSystemLoader {
     return isAbsolute(entrypoint) ? entrypoint : join(root, entrypoint)
   }
 
-  async loadExtensionFor(manifest: ExtensionManifestV1, options?: ExtensionLoadOptions) {
+  async loadExtensionFor(manifest: ExtensionManifestV2, options?: ExtensionLoadOptions) {
     const entrypoint = this.resolveEntrypointFor(manifest, options)
     const extensionModule = await import(entrypoint)
     return coerceExtensionFromModule(extensionModule)

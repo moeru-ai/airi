@@ -84,6 +84,49 @@ export interface PluginRegistrySnapshot {
   plugins: PluginManifestSummary[]
 }
 
+/** One permission shown before an Extension folder is imported. */
+export interface ExtensionDirectoryImportPermissionSummary {
+  area: 'apis' | 'capabilities' | 'pipelines' | 'processors' | 'resources'
+  key: string
+  actions: string[]
+  required: boolean
+}
+
+/** One Kit contract shown before an Extension folder is imported. */
+export interface ExtensionDirectoryImportKitSummary {
+  direction: 'provides' | 'uses'
+  id: string
+  version: string
+  optional?: boolean
+  exposure?: 'local-only' | 'remote-observable' | 'remote-callable'
+}
+
+/**
+ * Immutable package facts returned by the main process before folder import.
+ *
+ * The plan expires after a short time. The renderer sends only `planId` when
+ * the user confirms the import.
+ */
+export interface ExtensionDirectoryImportPlan {
+  planId: string
+  sourcePath: string
+  extensionId: string
+  version: string
+  runtimes: Array<'electron' | 'node' | 'web'>
+  entrypoints: Record<string, string | undefined>
+  permissions: ExtensionDirectoryImportPermissionSummary[]
+  kits: ExtensionDirectoryImportKitSummary[]
+  fileCount: number
+  totalBytes: number
+  fingerprint: string
+  createdAt: number
+}
+
+/** Result of opening the native Extension folder picker. */
+export type ExtensionDirectoryImportPrepareResult
+  = | { status: 'cancelled' }
+    | { status: 'ready', plan: ExtensionDirectoryImportPlan }
+
 /**
  * Active plugin session summary.
  *
@@ -193,3 +236,6 @@ export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapsh
 export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:electron:plugins:load')
 export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:electron:plugins:unload')
 export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:electron:plugins:inspect')
+export const electronPluginPrepareDirectoryImport = defineInvokeEventa<ExtensionDirectoryImportPrepareResult>('eventa:invoke:electron:plugins:import-directory:prepare')
+export const electronPluginCommitDirectoryImport = defineInvokeEventa<PluginRegistrySnapshot, { planId: string }>('eventa:invoke:electron:plugins:import-directory:commit')
+export const electronPluginCancelDirectoryImport = defineInvokeEventa<void, { planId: string }>('eventa:invoke:electron:plugins:import-directory:cancel')

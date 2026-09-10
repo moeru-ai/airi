@@ -17,6 +17,40 @@ export interface PluginRegistrySnapshot {
   plugins: PluginManifestSummary[]
 }
 
+export interface ExtensionDirectoryImportPermissionSummary {
+  area: 'apis' | 'capabilities' | 'pipelines' | 'processors' | 'resources'
+  key: string
+  actions: string[]
+  required: boolean
+}
+
+export interface ExtensionDirectoryImportKitSummary {
+  direction: 'provides' | 'uses'
+  id: string
+  version: string
+  optional?: boolean
+  exposure?: 'local-only' | 'remote-observable' | 'remote-callable'
+}
+
+export interface ExtensionDirectoryImportPlan {
+  planId: string
+  sourcePath: string
+  extensionId: string
+  version: string
+  runtimes: Array<'electron' | 'node' | 'web'>
+  entrypoints: Record<string, string | undefined>
+  permissions: ExtensionDirectoryImportPermissionSummary[]
+  kits: ExtensionDirectoryImportKitSummary[]
+  fileCount: number
+  totalBytes: number
+  fingerprint: string
+  createdAt: number
+}
+
+export type ExtensionDirectoryImportPrepareResult
+  = | { status: 'cancelled' }
+    | { status: 'ready', plan: ExtensionDirectoryImportPlan }
+
 // TODO: Replace with re-export of CapabilityDescriptor from
 // @proj-airi/plugin-sdk once stage-ui can depend on the SDK.
 export interface PluginCapabilityState {
@@ -69,6 +103,9 @@ export interface PluginHostDebugSnapshot {
 }
 
 interface PluginHostDebugBridge {
+  prepareDirectoryImport: () => Promise<ExtensionDirectoryImportPrepareResult>
+  commitDirectoryImport: (payload: { planId: string }) => Promise<PluginRegistrySnapshot>
+  cancelDirectoryImport: (payload: { planId: string }) => Promise<void>
   list: () => Promise<PluginRegistrySnapshot>
   setEnabled: (payload: { extensionId: string, enabled: boolean, path?: string }) => Promise<PluginRegistrySnapshot>
   setAutoReload: (payload: { extensionId: string, enabled: boolean }) => Promise<PluginRegistrySnapshot>
@@ -161,6 +198,21 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     return nextRegistry
   }
 
+  async function prepareDirectoryImport() {
+    return await withBridge(activeBridge => activeBridge.prepareDirectoryImport())
+  }
+
+  async function commitDirectoryImport(payload: { planId: string }) {
+    const nextRegistry = await withBridge(activeBridge => activeBridge.commitDirectoryImport(payload))
+    assignRegistry(nextRegistry)
+    await refreshInspection()
+    return nextRegistry
+  }
+
+  async function cancelDirectoryImport(payload: { planId: string }) {
+    await withBridge(activeBridge => activeBridge.cancelDirectoryImport(payload))
+  }
+
   async function refreshInspection() {
     const snapshot = await withBridge(activeBridge => activeBridge.inspect())
     assignInspection(snapshot)
@@ -243,6 +295,9 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
 
     setBridge,
     clearError,
+    prepareDirectoryImport,
+    commitDirectoryImport,
+    cancelDirectoryImport,
     refreshRegistry,
     refreshInspection,
     refreshAll,
