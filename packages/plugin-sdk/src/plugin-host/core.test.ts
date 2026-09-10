@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
 import { defineExtension } from '../extension'
-import { defineKit } from '../kit'
+import { defineKit, defineKitContract } from '../kit'
 
 describe('extension manifest schema', () => {
   it('accepts extension.airi.json v2 manifests', () => {
@@ -132,6 +132,220 @@ describe('extension manifest schema', () => {
 })
 
 describe('for ExtensionHost', () => {
+  it('runs an Extension-hosted Kit through Provider and Consumer Extension lifecycles', async () => {
+    interface AgentActivityClient {
+      notify: (input: { kind: 'needs-input' | 'completed', summary: string }) => {
+        consumerExtensionId: string
+        kind: 'needs-input' | 'completed'
+        summary: string
+      }
+    }
+
+    const host = new ExtensionHost()
+    const calls: Array<ReturnType<AgentActivityClient['notify']>> = []
+    const agentActivityKit = defineKitContract<AgentActivityClient>({
+      id: 'dev.airi.agent-activity',
+      version: '1.0.0',
+    })
+    const providerKit = defineKit<AgentActivityClient>({
+      ...agentActivityKit,
+      allowedExposePolicies: ['local-only'],
+      defaultExposePolicy: 'local-only',
+      createClient(runtime) {
+        return {
+          notify(input) {
+            const call = {
+              consumerExtensionId: runtime.extensionId,
+              ...input,
+            }
+            calls.push(call)
+            return call
+          },
+        }
+      },
+    })
+    const provider = defineExtension({
+      id: 'agent-activity-provider',
+      setup(ctx) {
+        ctx.kits.provide(providerKit)
+      },
+    })
+    const availability: boolean[] = []
+    let activityClient: AgentActivityClient | undefined
+    const consumer = defineExtension({
+      id: 'agent-activity-consumer',
+      async setup(ctx) {
+        ctx.kits.watch(agentActivityKit, (state) => {
+          availability.push(state.available)
+        })
+        const activity = await ctx.kits.use(agentActivityKit)
+        activityClient = activity
+        activity.notify({ kind: 'needs-input', summary: 'Choose a model.' })
+        activity.notify({ kind: 'completed', summary: 'Build finished.' })
+      },
+    })
+
+    const providerSession = await host.startExtension(provider, {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai' as const,
+        id: 'agent-activity-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: {
+          provides: [{ id: agentActivityKit.id, version: agentActivityKit.version, exposure: 'local-only' }],
+        },
+      },
+    })
+
+    expect(host.getKit(agentActivityKit.id)).toEqual({
+      kitId: agentActivityKit.id,
+      version: agentActivityKit.version,
+      runtimes: ['electron'],
+      capabilities: [],
+    })
+
+    await host.startExtension(consumer, {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai' as const,
+        id: 'agent-activity-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: {
+          apis: [{ key: agentActivityKit.id, actions: ['invoke'] }],
+        },
+        kits: {
+          uses: [{ id: agentActivityKit.id, version: agentActivityKit.version }],
+        },
+      },
+    })
+
+    expect(calls).toEqual([
+      {
+        consumerExtensionId: 'agent-activity-consumer',
+        kind: 'needs-input',
+        summary: 'Choose a model.',
+      },
+      {
+        consumerExtensionId: 'agent-activity-consumer',
+        kind: 'completed',
+        summary: 'Build finished.',
+      },
+    ])
+    expect(availability).toEqual([true])
+
+    const consumerSession = host.listSessions().find(session => session.extension.id === consumer.id)
+    if (!consumerSession) {
+      throw new Error('Expected the Consumer Extension session to remain active.')
+    }
+
+    await host.stop(providerSession.id)
+
+    expect(() => activityClient?.notify({ kind: 'completed', summary: 'Late call.' })).toThrow(
+      'Cannot perform',
+    )
+    expect(host.getKit(agentActivityKit.id)).toBeUndefined()
+
+    const missing = await host.startExtension(defineExtension({
+      id: 'agent-activity-late-consumer',
+      async setup(ctx) {
+        const result = await ctx.kits.tryUse(agentActivityKit)
+        expect(result.ok).toBe(false)
+        if (!result.ok) {
+          expect(result.reason).toBe('missing-kit')
+        }
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai' as const,
+        id: 'agent-activity-late-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: {
+          apis: [{ key: agentActivityKit.id, actions: ['invoke'] }],
+        },
+        kits: {
+          uses: [{ id: agentActivityKit.id, version: agentActivityKit.version }],
+        },
+      },
+    })
+
+    expect(host.getSession(consumerSession.id)?.phase).toBe('ready')
+    expect(missing.phase).toBe('ready')
+    expect(availability).toEqual([true, false])
+  })
+
+  it('rejects an Extension-hosted Kit that is absent from the Provider manifest', async () => {
+    const host = new ExtensionHost()
+    const providerKit = defineKit({
+      id: 'dev.airi.undeclared',
+      version: '1.0.0',
+      createClient: () => ({ ping: () => 'pong' }),
+    })
+
+    await expect(host.startExtension(defineExtension({
+      id: 'undeclared-kit-provider',
+      setup(ctx) {
+        ctx.kits.provide(providerKit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai' as const,
+        id: 'undeclared-kit-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+      },
+    })).rejects.toThrow('cannot provide undeclared Kit `dev.airi.undeclared`')
+
+    expect(host.listSessions()).toEqual([])
+  })
+
+  it('rejects a second active Provider for the same Extension-hosted Kit', async () => {
+    const host = new ExtensionHost()
+    const providerKit = defineKit({
+      id: 'dev.airi.single-provider',
+      version: '1.0.0',
+      createClient: () => ({ ping: () => 'pong' }),
+    })
+    const manifestFor = (id: string): ExtensionManifestV2 => ({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id,
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      entrypoints: { electron: './provider.mjs' },
+      permissions: {},
+      kits: {
+        provides: [{ id: providerKit.id, version: providerKit.version, exposure: 'local-only' }],
+      },
+    })
+    const providerFor = (id: string) => defineExtension({
+      id,
+      setup(ctx) {
+        ctx.kits.provide(providerKit)
+      },
+    })
+
+    const first = await host.startExtension(providerFor('first-kit-provider'), {
+      manifest: manifestFor('first-kit-provider'),
+    })
+
+    await expect(host.startExtension(providerFor('second-kit-provider'), {
+      manifest: manifestFor('second-kit-provider'),
+    })).rejects.toThrow('already has an active Provider')
+
+    expect(host.listSessions().map(session => session.id)).toEqual([first.id])
+  })
+
   it('runs extension setup and registers multiple module sessions', async () => {
     const host = new ExtensionHost()
     const extension = defineExtension({

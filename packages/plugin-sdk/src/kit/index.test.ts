@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest'
 
 import { DisposableStore } from '../extension/disposable'
-import { defineKit, kitUseFailure } from './index'
+import { defineKit, defineKitContract, kitUseFailure } from './index'
 
 describe('defineKit', () => {
+  it('defines a Consumer contract without a Provider implementation', () => {
+    const contract = defineKitContract<{ ping: () => string }>({
+      id: 'kit.contract',
+      version: '1.0.0',
+    })
+
+    expect(contract).toEqual({
+      id: 'kit.contract',
+      version: '1.0.0',
+    })
+    expect(contract).not.toHaveProperty('createClient')
+  })
+
   it('defines a typed kit reference with expose policy metadata', () => {
     const kit = defineKit({
       id: 'kit.test',

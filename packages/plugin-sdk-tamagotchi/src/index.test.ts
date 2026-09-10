@@ -2,7 +2,7 @@ import type {
   ExtensionModuleRef,
   KitAvailability,
   KitClientRuntime,
-  KitRef,
+  KitContract,
   KitUseResult,
 } from '@proj-airi/plugin-sdk'
 import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
@@ -81,9 +81,9 @@ function createGameletModuleRef(input: {
   const module: ExtensionModuleRef = {
     id: input.id,
     kits: {
-      async use<TClient>(kit: KitRef<TClient>): Promise<TClient> {
+      async use<TClient>(kit: KitContract<TClient>): Promise<TClient> {
         useKit(kit)
-        if (kit !== gameletKit) {
+        if (kit.id !== gameletKit.id) {
           throw new Error(`Unexpected kit requested: ${kit.id}`)
         }
 
@@ -95,7 +95,7 @@ function createGameletModuleRef(input: {
           gamelets: input.gamelets,
         })) as TClient
       },
-      async tryUse<TClient>(kit: KitRef<TClient>): Promise<KitUseResult<TClient>> {
+      async tryUse<TClient>(kit: KitContract<TClient>): Promise<KitUseResult<TClient>> {
         return {
           ok: false,
           reason: 'missing-kit',
@@ -103,7 +103,7 @@ function createGameletModuleRef(input: {
         }
       },
       watch<TClient>(
-        _kit: KitRef<TClient>,
+        _kit: KitContract<TClient>,
         _callback: (availability: KitAvailability<TClient>) => void | Promise<void>,
       ) {
         return { dispose: vi.fn() }
@@ -128,9 +128,9 @@ function createToolModuleRef(input: {
   const module: ExtensionModuleRef = {
     id: input.id,
     kits: {
-      async use<TClient>(kit: KitRef<TClient>): Promise<TClient> {
+      async use<TClient>(kit: KitContract<TClient>): Promise<TClient> {
         useKit(kit)
-        if (kit !== toolKit) {
+        if (kit.id !== toolKit.id) {
           throw new Error(`Unexpected kit requested: ${kit.id}`)
         }
 
@@ -142,7 +142,7 @@ function createToolModuleRef(input: {
           registerToolsetPrompt: input.registerToolsetPrompt,
         })) as TClient
       },
-      async tryUse<TClient>(kit: KitRef<TClient>): Promise<KitUseResult<TClient>> {
+      async tryUse<TClient>(kit: KitContract<TClient>): Promise<KitUseResult<TClient>> {
         return {
           ok: false,
           reason: 'missing-kit',
@@ -150,7 +150,7 @@ function createToolModuleRef(input: {
         }
       },
       watch<TClient>(
-        _kit: KitRef<TClient>,
+        _kit: KitContract<TClient>,
         _callback: (availability: KitAvailability<TClient>) => void | Promise<void>,
       ) {
         return { dispose: vi.fn() }

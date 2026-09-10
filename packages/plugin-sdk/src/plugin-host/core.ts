@@ -1,11 +1,12 @@
 import type {
   Extension,
+  ExtensionKitConsumer,
   ExtensionKitRegistry,
   ExtensionModuleContext,
   ExtensionSetupContext,
   RegisterExtensionModuleInput,
 } from '../extension/shared'
-import type { KitAvailability, KitRef, KitUseResult } from '../kit'
+import type { KitAvailability, KitContract, KitRef, KitUseResult } from '../kit'
 import type { AnnounceBindingInput, UpdateBindingInput } from '../plugin/apis/client/bindings'
 import type { BindingRecord, KitCapabilityDescriptor, KitDescriptor } from './shared'
 import type {
@@ -133,6 +134,13 @@ interface ExtensionModuleResourceTracker {
   bindingIds: Set<string>
 }
 
+interface RegisteredKitApi {
+  kit: KitRef<unknown>
+  clientRevokers: Set<() => void>
+  ownerSessionId?: string
+  ownerExtensionId?: string
+}
+
 function omitModuleId<C extends HostDataRecord>(input: BoundUpdateBindingInput<C>) {
   return {
     state: input.state,
@@ -208,7 +216,7 @@ export class ExtensionHost {
   private readonly runtime: PluginRuntime
   private readonly dependencies = new DependencyService()
   private readonly kits = new KitRegistryService()
-  private readonly kitApis = new Map<string, KitRef<unknown>>()
+  private readonly kitApis = new Map<string, RegisteredKitApi>()
   private readonly kitApiWatchers = new Map<string, Set<() => Promise<void>>>()
   private readonly modules = new KitApiBindingRegistryService()
   private readonly extensionModuleResources = new Map<string, ExtensionModuleResourceTracker>()
@@ -334,15 +342,82 @@ export class ExtensionHost {
   }
 
   registerKitApi<TClient>(kit: KitRef<TClient>) {
-    this.kitApis.set(kit.id, kit as KitRef<unknown>)
+    if (this.kitApis.has(kit.id)) {
+      throw new Error(`Kit API \`${kit.id}\` already has an active Provider.`)
+    }
+
+    this.kitApis.set(kit.id, {
+      kit: kit as KitRef<unknown>,
+      clientRevokers: new Set(),
+    })
     void this.notifyKitApiWatchers(kit.id)
     return kit
   }
 
   unregisterKitApi(kitId: string) {
+    const registration = this.kitApis.get(kitId)
     const deleted = this.kitApis.delete(kitId)
+    for (const revoke of registration?.clientRevokers ?? []) {
+      revoke()
+    }
+    registration?.clientRevokers.clear()
     void this.notifyKitApiWatchers(kitId)
     return deleted
+  }
+
+  private provideExtensionKit<TClient>(session: ExtensionSession, kit: KitRef<TClient>) {
+    const declaration = session.manifest.kits?.provides?.find(candidate => candidate.id === kit.id)
+    if (!declaration) {
+      throw new Error(`Extension \`${session.extension.id}\` cannot provide undeclared Kit \`${kit.id}\`.`)
+    }
+
+    if (declaration.version !== kit.version) {
+      throw new Error(
+        `Extension \`${session.extension.id}\` declares Kit \`${kit.id}\` at version \`${declaration.version}\`, but provides \`${kit.version}\`.`,
+      )
+    }
+
+    const allowedExposePolicies = kit.allowedExposePolicies ?? [kit.defaultExposePolicy ?? 'local-only']
+    if (!allowedExposePolicies.includes(declaration.exposure)) {
+      throw new Error(
+        `Extension \`${session.extension.id}\` cannot expose Kit \`${kit.id}\` as \`${declaration.exposure}\`.`,
+      )
+    }
+
+    if (this.kitApis.has(kit.id) || this.kits.has(kit.id)) {
+      throw new Error(`Kit API \`${kit.id}\` already has an active Provider.`)
+    }
+
+    this.kits.register({
+      kitId: kit.id,
+      version: kit.version,
+      runtimes: session.manifest.engines.runtimes,
+      capabilities: [],
+    })
+    const registration: RegisteredKitApi = {
+      kit: kit as KitRef<unknown>,
+      clientRevokers: new Set(),
+      ownerSessionId: session.id,
+      ownerExtensionId: session.extension.id,
+    }
+    this.kitApis.set(kit.id, registration)
+    void this.notifyKitApiWatchers(kit.id)
+
+    return session.subscriptions.add({
+      dispose: async () => {
+        if (this.kitApis.get(kit.id) !== registration) {
+          return
+        }
+
+        this.kitApis.delete(kit.id)
+        this.kits.remove(kit.id)
+        for (const revoke of registration.clientRevokers) {
+          revoke()
+        }
+        registration.clientRevokers.clear()
+        await this.notifyKitApiWatchers(kit.id)
+      },
+    })
   }
 
   private async cleanupExtensionSessionModules(session: ExtensionSession) {
@@ -404,13 +479,28 @@ export class ExtensionHost {
 
   private resolveKitApi<TClient>(
     session: ExtensionSession,
-    kit: KitRef<TClient>,
+    kit: KitContract<TClient>,
     subscriptions: DisposableStore,
     moduleId?: string,
   ): KitUseResult<TClient> {
-    const registered = this.kitApis.get(kit.id) as KitRef<TClient> | undefined
+    const registered = this.kitApis.get(kit.id)
     if (!registered) {
       return kitUseFailure(kit, 'missing-kit')
+    }
+
+    if (registered.kit.version !== kit.version) {
+      return kitUseFailure(kit, 'incompatible-version')
+    }
+
+    if (registered.ownerSessionId) {
+      const declaration = session.manifest.kits?.uses?.find(candidate => candidate.id === kit.id)
+      if (!declaration) {
+        return kitUseFailure(kit, 'permission-denied')
+      }
+
+      if (declaration.version !== registered.kit.version) {
+        return kitUseFailure(kit, 'incompatible-version')
+      }
     }
 
     const grant = moduleId
@@ -421,20 +511,36 @@ export class ExtensionHost {
       return kitUseFailure(kit, 'permission-denied')
     }
 
-    return {
-      ok: true,
-      client: registered.createClient({
-        extensionId: session.extension.id,
-        sessionId: session.id,
-        moduleId,
-        subscriptions,
-      }),
+    const client = (registered.kit as KitRef<TClient>).createClient({
+      extensionId: session.extension.id,
+      sessionId: session.id,
+      moduleId,
+      subscriptions,
+    })
+    if (!registered.ownerSessionId || ((typeof client !== 'object' || client === null) && typeof client !== 'function')) {
+      return { ok: true, client }
     }
+
+    const revocable = Proxy.revocable(client as object, {})
+    let revoked = false
+    const revoke = () => {
+      if (revoked) {
+        return
+      }
+
+      revoked = true
+      registered.clientRevokers.delete(revoke)
+      revocable.revoke()
+    }
+    registered.clientRevokers.add(revoke)
+    subscriptions.add({ dispose: revoke })
+
+    return { ok: true, client: revocable.proxy as TClient }
   }
 
-  private createKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitRegistry {
+  private createKitConsumer(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitConsumer {
     return {
-      use: async <TClient>(kit: KitRef<TClient>) => {
+      use: async <TClient>(kit: KitRef<TClient> | KitContract<TClient>) => {
         const result = this.resolveKitApi(session, kit, subscriptions, moduleId)
         if (result.ok) {
           return result.client
@@ -442,10 +548,10 @@ export class ExtensionHost {
         const failure = result as Extract<KitUseResult<TClient>, { ok: false }>
         throw failure.error
       },
-      tryUse: async <TClient>(kit: KitRef<TClient>) => {
+      tryUse: async <TClient>(kit: KitRef<TClient> | KitContract<TClient>) => {
         return this.resolveKitApi(session, kit, subscriptions, moduleId)
       },
-      watch: <TClient>(kit: KitRef<TClient>, callback: (availability: KitAvailability<TClient>) => void | Promise<void>) => {
+      watch: <TClient>(kit: KitRef<TClient> | KitContract<TClient>, callback: (availability: KitAvailability<TClient>) => void | Promise<void>) => {
         const watchers = this.kitApiWatchers.get(kit.id) ?? new Set()
         let disposed = false
         const watcher = async () => {
@@ -483,11 +589,14 @@ export class ExtensionHost {
   }
 
   private createExtensionKitRegistry(session: ExtensionSession): ExtensionKitRegistry {
-    return this.createKitRegistry(session, session.subscriptions)
+    return {
+      ...this.createKitConsumer(session, session.subscriptions),
+      provide: <TClient>(kit: KitRef<TClient>) => this.provideExtensionKit(session, kit),
+    }
   }
 
   private createModuleKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId: string): ExtensionModuleContext['kits'] {
-    return this.createKitRegistry(session, subscriptions, moduleId)
+    return this.createKitConsumer(session, subscriptions, moduleId)
   }
 
   private assertExtensionPermission(

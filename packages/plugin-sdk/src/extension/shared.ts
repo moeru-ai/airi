@@ -5,7 +5,7 @@ import type {
   ModulePermissionGrant,
 } from '@proj-airi/plugin-protocol/types'
 
-import type { KitAvailability, KitRef, KitUseResult } from '../kit'
+import type { KitAvailability, KitContract, KitRef, KitUseResult } from '../kit'
 import type { Disposable, DisposableStore } from './disposable'
 
 /**
@@ -28,13 +28,21 @@ export interface RegisterExtensionModuleInput {
 /**
  * Minimal kit client registry exposed to extension setup and optional module scopes.
  */
-export interface ExtensionKitRegistry {
-  use: <TClient>(kit: KitRef<TClient>) => Promise<TClient>
-  tryUse: <TClient>(kit: KitRef<TClient>) => Promise<KitUseResult<TClient>>
+export interface ExtensionKitConsumer {
+  use: <TClient>(kit: KitRef<TClient> | KitContract<TClient>) => Promise<TClient>
+  tryUse: <TClient>(kit: KitRef<TClient> | KitContract<TClient>) => Promise<KitUseResult<TClient>>
   watch: <TClient>(
-    kit: KitRef<TClient>,
+    kit: KitRef<TClient> | KitContract<TClient>,
     callback: (availability: KitAvailability<TClient>) => void | Promise<void>,
   ) => Disposable
+}
+
+/**
+ * Kit access exposed to an Extension setup session.
+ */
+export interface ExtensionKitRegistry extends ExtensionKitConsumer {
+  /** Registers a Kit implementation owned by the current Extension session. */
+  provide: <TClient>(kit: KitRef<TClient>) => Disposable
 }
 
 /**
@@ -48,7 +56,7 @@ export interface ExtensionModuleContext {
   /** Effective grant after applying the extension-level permission ceiling. */
   permissions: ModulePermissionGrant
   /** Module-scoped kit access for attribution and optional lifecycle cleanup. */
-  kits: ExtensionKitRegistry
+  kits: ExtensionKitConsumer
   /** Cleanup callbacks owned by this module. */
   subscriptions: DisposableStore
   /** Disposes module-owned resources. */
@@ -62,7 +70,7 @@ export interface ExtensionModuleRef {
   /** Stable module id within the current extension session. */
   id: string
   /** Module-scoped kit access for attribution and optional lifecycle cleanup. */
-  kits: ExtensionKitRegistry
+  kits: ExtensionKitConsumer
   /** Cleanup callbacks owned by this module. */
   subscriptions: DisposableStore
   /** Disposes module-owned resources. */

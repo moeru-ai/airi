@@ -34,6 +34,53 @@ Each installable Extension package has an `extension.airi.json` file at its root
 
 Manifest parsing is strict. Unknown fields, unsafe ids, empty entrypoints, and missing runtime entrypoints fail validation. The manifest owns the Extension version used by the Host session. `defineExtension(...)` owns runtime setup and must use the same Extension id.
 
+## Extension-hosted Kits
+
+A Provider Extension registers a Kit implementation during `setup`. Its manifest must declare the same Kit id, version, and exposure policy.
+
+```ts
+const agentActivityKit = defineKit({
+  id: 'dev.airi.agent-activity',
+  version: '1.0.0',
+  allowedExposePolicies: ['local-only'],
+  createClient(runtime) {
+    return {
+      notify(input) {
+        return { consumerExtensionId: runtime.extensionId, ...input }
+      },
+    }
+  },
+})
+
+export default defineExtension({
+  id: 'agent-activity-provider',
+  setup(ctx) {
+    ctx.kits.provide(agentActivityKit)
+  },
+})
+```
+
+A Consumer Extension imports or defines the shared typed contract. The Consumer manifest declares the Kit in `kits.uses` and requests `apis.invoke` permission.
+
+```ts
+const agentActivityKit = defineKitContract<AgentActivityClient>({
+  id: 'dev.airi.agent-activity',
+  version: '1.0.0',
+})
+
+export default defineExtension({
+  id: 'agent-activity-consumer',
+  async setup(ctx) {
+    const activity = await ctx.kits.use(agentActivityKit)
+    activity.notify({ kind: 'completed', summary: 'Build finished.' })
+  },
+})
+```
+
+The Host permits one active Provider for each Kit id. Provider unload removes the registration, revokes issued object clients, and updates Kit watchers.
+
+The desktop example is in `apps/stage-tamagotchi/src/main/services/airi/plugins/examples/devtools-extension-hosted-kit`.
+
 ## Kit API Naming
 
 Kits should hide transport details from extension authors. A normal extension should use a kit as a normal API object directly from setup:
