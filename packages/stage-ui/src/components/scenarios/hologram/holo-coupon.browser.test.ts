@@ -10,6 +10,9 @@ import HoloCoupon from './holo-coupon.vue'
 
 import { useAnnouncements } from '../../../composables/announcements'
 
+import '@unocss/reset/tailwind.css'
+import 'virtual:uno.css'
+
 const announcement = {
   id: 'notice-1',
   locale: 'en',
@@ -34,6 +37,26 @@ async function mount(onOpenChange = (_open: boolean) => {}) {
 }
 
 describe('cloud announcement display', () => {
+  // https://github.com/moeru-ai/airi/pull/2484
+  it('keeps controls in one row when Cloud returns 100 announcements', async () => {
+    // ROOT CAUSE:
+    // Wrapped indicators covered the fixed-height card text with up to 100 buttons.
+    // Horizontal scrolling keeps every indicator reachable in one row.
+    const entries = Array.from({ length: 100 }, (_, index) => ({
+      ...announcement,
+      id: `notice-${index}`,
+      title: `Announcement ${index + 1}`,
+    }))
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async () => Response.json({ announcements: entries })))
+    await mount()
+    await page.getByRole('button', { name: 'Open announcements' }).click()
+    await expect.element(page.getByText('1/100', { exact: true })).toBeVisible()
+    const controls = page.getByText('1/100', { exact: true }).element().parentElement!
+    expect(controls.getBoundingClientRect().height).toBeLessThanOrEqual(32)
+    await page.getByRole('button', { name: 'Announcement 100', exact: true }).click()
+    await expect.element(page.getByRole('heading', { name: 'Announcement 100', exact: true })).toBeVisible()
+  })
+
   it('advances automatically while publication expiry checks continue', async () => {
     // ROOT CAUSE:
     // The expiry clock updates the list every second. Watching that list with

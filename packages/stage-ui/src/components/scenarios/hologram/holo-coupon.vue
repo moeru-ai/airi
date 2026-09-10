@@ -2,6 +2,7 @@
 import useEmblaCarousel from 'embla-carousel-vue'
 
 import { Button } from '@proj-airi/ui'
+import { useMediaQuery } from '@vueuse/core'
 import { PopoverClose, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -23,6 +24,8 @@ const current = ref(0)
 const failedCovers = ref(new Set<string>())
 const active = computed(() => announcements.value[current.value])
 const [_emblaRef, emblaApi] = useEmblaCarousel({ loop: true })
+// Touch readers cannot keep hover active while reading or scrolling.
+const canAutoplay = useMediaQuery('(hover: hover) and (pointer: fine)')
 const hovered = ref(false)
 const focused = ref(false)
 let autoplayTimer: ReturnType<typeof setInterval> | undefined
@@ -44,7 +47,7 @@ function stopAutoplay() {
 
 // Expiry updates the announcement list each second. Watch the playback decision
 // so those updates do not restart the five-second timer.
-const autoplayEnabled = computed(() => open.value && !hovered.value && !focused.value
+const autoplayEnabled = computed(() => canAutoplay.value && open.value && !hovered.value && !focused.value
   && !!emblaApi.value && announcements.value.length > 1)
 watch(autoplayEnabled, (enabled) => {
   stopAutoplay()
@@ -176,13 +179,13 @@ onBeforeUnmount(stopAutoplay)
                 </article>
               </div>
             </div>
-            <div v-if="announcements.length > 1" :class="['absolute bottom-2 right-3 z-30 flex items-center gap-2']">
-              <span :class="['text-[11px] text-white/60 font-600']">{{ current + 1 }}/{{ announcements.length }}</span>
-              <div :class="['flex flex-wrap items-center justify-center']">
+            <div v-if="announcements.length > 1" :class="['absolute bottom-2 inset-x-3 z-30 flex items-center justify-end gap-2']">
+              <span :class="['shrink-0 text-[11px] text-white/60 font-600']">{{ current + 1 }}/{{ announcements.length }}</span>
+              <div :class="['min-w-0 flex items-center overflow-x-auto']">
                 <button
                   v-for="(item, index) in announcements" :key="item.id"
                   type="button" :aria-label="item.title" :aria-current="index === current ? 'true' : undefined"
-                  :class="['h-6 min-w-6 flex items-center justify-center rounded-full', 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-200']"
+                  :class="['h-6 min-w-6 flex shrink-0 items-center justify-center rounded-full', 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-200']"
                   @click="emblaApi?.goTo(index)"
                 >
                   <span :class="['h-2.5 rounded-full transition-all', index === current ? 'w-5 bg-white' : 'w-2.5 bg-white/30']" />
