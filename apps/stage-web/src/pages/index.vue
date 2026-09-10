@@ -235,14 +235,18 @@ const cursorPosition = computed(() => ({
         </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
       </div>
-      <HoloCoupon client="web" />
+      <HoloCoupon v-if="!isMobile" client="web" />
     </div>
     <Teleport to="body">
       <MobileInteractiveArea
         v-if="isMobile"
         @settings-open="handleSettingsOpen"
         @stage-viewport-change="stageViewport = $event"
-      />
+      >
+        <template #header-actions>
+          <HoloCoupon client="web" presentation="drawer" />
+        </template>
+      </MobileInteractiveArea>
     </Teleport>
   </BackgroundProvider>
 </template>
