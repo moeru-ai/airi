@@ -98,10 +98,15 @@ function dispatchTouchPointer(element: EventTarget, type: 'pointerdown' | 'point
   }))
 }
 
-function dispatchTouchEvent(element: HTMLElement, type: 'touchstart' | 'touchmove' | 'touchend' | 'touchcancel', clientX: number) {
+function dispatchTouchEvent(
+  element: HTMLElement,
+  type: 'touchstart' | 'touchmove' | 'touchend' | 'touchcancel',
+  clientX: number,
+  clientY = 60,
+) {
   const touch = new Touch({
     clientX,
-    clientY: 60,
+    clientY,
     identifier: 1,
     target: element,
   })
@@ -1111,6 +1116,55 @@ describe('chat history', () => {
     })
   })
 
+  // ROOT CAUSE:
+  //
+  // The touch recognizer discarded movement below its intent threshold. It also
+  // compared horizontal and vertical travel again on every move. A message first
+  // jumped to the threshold, then snapped to rest when a confirmed swipe returned
+  // through the small vertical drift accumulated earlier in the gesture.
+  //
+  // The message now follows directed touch travel before intent is confirmed. Once
+  // horizontal intent is confirmed, that decision lasts until the touch ends.
+  it('keeps a mobile message attached to the finger before and after the intent threshold', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'continuous-touch-target', role: 'user', content: 'Follow my finger' }],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull()
+    })
+    const swipeRoot = screen.container.querySelector<HTMLElement>('[data-swipeable]')
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!swipeRoot || !swipeSurface)
+      throw new Error('Expected a mobile message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100, 60)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 96, 61)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 4), 3)
+    expect(swipeSurface.dataset.swipeActive).toBe('false')
+
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40, 70)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    expect(swipeSurface.dataset.swipeActive).toBe('true')
+
+    dispatchTouchEvent(swipeSurface, 'touchmove', 92, 70)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 8), 3)
+    expect(swipeSurface.dataset.swipeActive).toBe('true')
+
+    dispatchTouchEvent(swipeSurface, 'touchcancel', 92, 70)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2489
   // ROOT CAUSE:
   //
@@ -1291,7 +1345,7 @@ describe('chat history', () => {
     expect(screen.container.querySelector('.i-solar\\:reply-bold-duotone')).toBeNull()
   })
 
-  it('cancels mobile press feedback when a swipe starts', async () => {
+  it('blends mobile press feedback into a swipe', async () => {
     const screen = await render(ChatHistory, {
       props: {
         messages: [{ id: 'press-target', role: 'user', content: 'Press target' }],
@@ -1307,20 +1361,34 @@ describe('chat history', () => {
       expect(screen.container.querySelector('[data-pressing]')).not.toBeNull()
     })
     const trigger = screen.container.querySelector<HTMLElement>('[data-pressing]')
-    if (!trigger)
+    const swipeRoot = screen.container.querySelector<HTMLElement>('[data-swipeable]')
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!trigger || !swipeRoot || !swipeSurface)
       throw new Error('Expected a chat action menu trigger.')
 
     dispatchTouchPointer(trigger, 'pointerdown', 100)
+    dispatchTouchEvent(trigger, 'touchstart', 100)
     await vi.waitFor(() => {
       expect(trigger.dataset.pressing).toBe('true')
     })
 
-    // The swipe surface captures a confirmed horizontal gesture after this
-    // movement. Press feedback observes the same travel at window level.
+    dispatchTouchPointer(window, 'pointermove', 96)
+    dispatchTouchEvent(trigger, 'touchmove', 96)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    expect(trigger.dataset.pressing).toBe('true')
+    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 4), 3)
+
+    // Press feedback releases after this movement while the same touch stream
+    // continues to drive the surrounding swipe surface.
     dispatchTouchPointer(window, 'pointermove', 80)
+    dispatchTouchEvent(trigger, 'touchmove', 80)
     await vi.waitFor(() => {
       expect(trigger.dataset.pressing).toBe('false')
+      expect(swipeSurface.dataset.swipeActive).toBe('true')
     })
+
+    dispatchTouchEvent(trigger, 'touchcancel', 80)
   })
 
   it('does not apply mobile press feedback to a desktop message', async () => {
