@@ -297,8 +297,8 @@ export const useChatStore = defineStore('chat', () => {
     const project = (text: string) => projectBilingualText(text, bilingualStore.subtitleLanguages, bilingualStore.ttsLanguage)
     const slices = Array.isArray(message.slices)
       ? message.slices.map(slice => slice && typeof slice === 'object' && 'type' in slice && slice.type === 'text' && 'text' in slice && typeof slice.text === 'string'
-        ? { ...slice, text: project(slice.text) }
-        : slice)
+          ? { ...slice, text: project(slice.text) }
+          : slice)
       : message.slices
 
     return { ...message, content: project(message.content), slices } as T
