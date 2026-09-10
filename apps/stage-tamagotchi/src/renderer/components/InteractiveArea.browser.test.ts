@@ -13,8 +13,8 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
-import { createPinia } from 'pinia'
-import { describe, expect, it, vi } from 'vitest'
+import { createPinia, disposePinia } from 'pinia'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page, userEvent } from 'vitest/browser'
 import { nextTick } from 'vue'
@@ -53,6 +53,7 @@ async function renderArea(component: Component = InteractiveArea) {
     updatedAt: 2,
   }
   const pinia = createPinia()
+  onTestFinished(() => disposePinia(pinia))
   pinia.state.value = {
     'chat-session-selection': { activeSessionId: 'session-b' },
     'chat-session': {
@@ -70,9 +71,21 @@ async function renderArea(component: Component = InteractiveArea) {
   await router.push('/')
   await router.isReady()
 
+  // These surfaces fill an app window. An auto-sized host lets percentage heights
+  // depend on the composer that ResizeObserver is measuring.
+  const container = document.createElement('div')
+  container.style.cssText = 'position: relative; width: 100vw; height: 100vh;'
+  document.body.appendChild(container)
+  onTestFinished(() => container.remove())
+
   const screen = await render(component, {
+    container,
+    baseElement: document.body,
     global: { plugins: [pinia, PiniaColada, createTestI18n(), router] },
   })
+  onTestFinished(() => screen.unmount())
+  await expect.element(screen.getByRole('textbox')).toBeVisible()
+
   return {
     chat: useChatStore(pinia),
     chatSession: useChatSessionStore(pinia),
@@ -165,6 +178,10 @@ async function expectElectronReplyBubble(screen: Awaited<ReturnType<typeof rende
 }
 
 describe('interactive area synchronized state', () => {
+  beforeEach(async () => {
+    await page.viewport(1280, 720)
+  })
+
   it('opens mobile settings from an icon-only header and restores focus', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
@@ -603,7 +620,15 @@ describe('interactive area synchronized state', () => {
     expect(scrollOwners).toEqual([viewport])
   })
 
-  it('keeps the history scrollport behind the floating composer', async () => {
+  // https://github.com/moeru-ai/airi/actions/runs/34448585692/job/102804067154
+  // ROOT CAUSE:
+  //
+  // The test scrolled as soon as the reply started to expand. Each later resize
+  // queued a tail scroll, which could unmount the message selected by the test.
+  // Virtua then retried that tail scroll when older rows were first measured.
+  // Wait for the transition, measurements, and pending scroll before the jitter.
+  // A slower transition exposes this race without depending on CI load.
+  it.each(['200ms', '1s'])('keeps the history scrollport behind the floating composer (%s reply)', async (duration) => {
     const { chatSession, screen } = await renderArea()
     const layout = screen.getByTestId('chat-viewport-layout').element() as HTMLElement
     layout.style.height = '320px'
@@ -644,6 +669,11 @@ describe('interactive area synchronized state', () => {
       expect(composerSpacerHeight).toBeGreaterThan(composerRect.height)
     })
 
+    const replyTransition = composer.querySelector<HTMLElement>('[aria-label="stage.chat.reply.cancel"]')?.parentElement?.parentElement
+    if (!replyTransition)
+      throw new Error('Expected the reply transition.')
+    replyTransition.style.transitionDuration = duration
+
     const collapsedComposerHeight = composer.getBoundingClientRect().height
     const collapsedComposerSpacerHeight = Number.parseFloat(getComputedStyle(viewport, '::after').height)
     const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable]')
@@ -660,9 +690,29 @@ describe('interactive area synchronized state', () => {
       expect(Number.parseFloat(getComputedStyle(viewport, '::after').height)).toBeGreaterThan(collapsedComposerSpacerHeight)
     })
 
+    // Wait for the real transition and its ResizeObserver-driven tail scroll.
+    await Promise.all(replyTransition.getAnimations().map(animation => animation.finished))
+    await expect.poll(() => Number.parseFloat(getComputedStyle(layout).getPropertyValue('--chat-composer-height')))
+      .toBeCloseTo(composer.getBoundingClientRect().height, 0)
+
+    // Virtua's createScrollScheduler (virtua/src/core/driver.ts) retries on
+    // measurements until 150ms pass. Require a quiet 200ms window before mounting
+    // unmeasured older rows, which would otherwise restart that tail scroll.
+    await vi.waitFor(async () => {
+      const tailPosition = viewport.scrollTop
+      const measuredScrollHeight = viewport.scrollHeight
+      await new Promise(resolve => setTimeout(resolve, 200))
+      expect(viewport.scrollTop).toBe(tailPosition)
+      expect(viewport.scrollHeight).toBe(measuredScrollHeight)
+    })
+
+    // A vertical wheel expresses reader intent and stops automatic tail following.
+    viewport.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: -241 }))
     viewport.scrollTop = 241
     viewport.dispatchEvent(new Event('scroll'))
-    await new Promise(resolve => setTimeout(resolve, 50))
+    await expect.poll(() => viewport.scrollTop).toBe(241)
+    // scrollTop changes before Virtua replaces the mounted tail with this range.
+    await expect.element(screen.getByText('Overlay message 99', { exact: true })).not.toBeInTheDocument()
 
     let messageBehindComposer: HTMLElement | undefined
     await vi.waitFor(() => {
@@ -680,17 +730,19 @@ describe('interactive area synchronized state', () => {
 
     const targetText = messageBehindComposer.textContent
     const positionedScrollTop = viewport.scrollTop
-    expect(positionedScrollTop).toBeGreaterThan(0)
+    expect(positionedScrollTop).toBe(241)
     let targetWasUnmounted = false
     const targetObserver = new MutationObserver(() => {
       if (!messageBehindComposer?.isConnected)
         targetWasUnmounted = true
     })
     targetObserver.observe(viewport, { childList: true, subtree: true })
+    onTestFinished(() => targetObserver.disconnect())
 
     viewport.scrollTop = positionedScrollTop + 1
     viewport.dispatchEvent(new Event('scroll'))
     await new Promise(resolve => setTimeout(resolve, 220))
+    expect(viewport.scrollTop).toBe(positionedScrollTop + 1)
 
     expect(messageBehindComposer.isConnected).toBe(true)
     expect(messageBehindComposer.textContent).toBe(targetText)
@@ -698,6 +750,7 @@ describe('interactive area synchronized state', () => {
     viewport.scrollTop = positionedScrollTop
     viewport.dispatchEvent(new Event('scroll'))
     await new Promise(resolve => setTimeout(resolve, 220))
+    expect(viewport.scrollTop).toBe(positionedScrollTop)
 
     expect(messageBehindComposer.isConnected).toBe(true)
     expect(messageBehindComposer.textContent).toBe(targetText)
@@ -705,6 +758,7 @@ describe('interactive area synchronized state', () => {
     viewport.scrollTop = positionedScrollTop - 1
     viewport.dispatchEvent(new Event('scroll'))
     await new Promise(resolve => setTimeout(resolve, 220))
+    expect(viewport.scrollTop).toBe(positionedScrollTop - 1)
 
     expect(messageBehindComposer.isConnected).toBe(true)
     expect(messageBehindComposer.textContent).toBe(targetText)
@@ -712,6 +766,7 @@ describe('interactive area synchronized state', () => {
     viewport.scrollTop = positionedScrollTop
     viewport.dispatchEvent(new Event('scroll'))
     await new Promise(resolve => setTimeout(resolve, 220))
+    expect(viewport.scrollTop).toBe(positionedScrollTop)
     targetObserver.disconnect()
 
     expect(targetWasUnmounted).toBe(false)

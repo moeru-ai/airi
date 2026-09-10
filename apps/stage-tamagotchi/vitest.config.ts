@@ -8,12 +8,29 @@ import { playwright } from '@vitest/browser-playwright'
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
+import unoConfig from './uno.config'
+
 export default defineConfig({
   root: import.meta.dirname,
   plugins: [
     Info(),
     vue(),
-    UnoCss(),
+    UnoCss({
+      ...unoConfig,
+      // Config discovery shallowly replaces content, which would drop this scan.
+      configFile: false,
+      // Generate the initial stylesheet before parallel browser files mount.
+      // Late utility extraction can resize controls during layout assertions.
+      content: {
+        ...unoConfig.content,
+        filesystem: [
+          `${import.meta.dirname}/src/**/*.vue`,
+          `${import.meta.dirname}/../../packages/stage-layouts/src/**/*.vue`,
+          `${import.meta.dirname}/../../packages/stage-ui/src/**/*.vue`,
+          `${import.meta.dirname}/../../packages/ui/src/**/*.vue`,
+        ],
+      },
+    }),
   ],
   test: {
     env: loadEnv('test', cwd(), ''),
