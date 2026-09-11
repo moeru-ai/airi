@@ -13,7 +13,9 @@ const props = withDefaults(defineProps<{
   items: AnnouncementContent[]
   /** Mobile readers keep text visible and select slides manually. @default false */
   mobile?: boolean
-}>(), { mobile: false })
+  /** Keyboard-opened panels stay on the selected announcement until closed. @default false */
+  paused?: boolean
+}>(), { mobile: false, paused: false })
 const { locale, t } = useI18n()
 const { titleClass, descriptionClass, metaClass } = usePromoBannerLayout(locale)
 // The parent retains the selected ID while the panel is closed. Its position is
@@ -45,7 +47,7 @@ function stopAutoplay() {
 
 // Expiry updates the announcement list each second. Watch the playback decision
 // so those updates do not restart the five-second timer.
-const autoplayEnabled = computed(() => canAutoplay.value && !props.mobile && !hovered.value && !focused.value
+const autoplayEnabled = computed(() => canAutoplay.value && !props.paused && !props.mobile && !hovered.value && !focused.value
   && !!emblaApi.value && props.items.length > 1)
 watch(autoplayEnabled, (enabled) => {
   stopAutoplay()
@@ -117,6 +119,7 @@ onBeforeUnmount(stopAutoplay)
             ]"
           >
             <img
+              v-if="index === current"
               :key="item.coverUrl" :src="item.coverUrl" :alt="t('stage.announcements.cover')"
               referrerpolicy="no-referrer"
               :class="['h-full w-full object-contain']"

@@ -15,7 +15,7 @@ interface Props {
 const props = defineProps<Props>()
 
 defineSlots<{
-  default: () => unknown
+  default: (props: { isLeft: boolean }) => unknown
 }>()
 
 const displays = useElectronAllDisplays()
@@ -131,5 +131,5 @@ provide(controlsIslandPlacementKey, placement)
 </script>
 
 <template>
-  <slot />
+  <slot :is-left="isLeft" />
 </template>

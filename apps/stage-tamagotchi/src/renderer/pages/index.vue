@@ -7,6 +7,7 @@ import { electron } from '@proj-airi/electron-eventa'
 import {
   useElectronEventaInvoke,
   useElectronMouseAroundWindowBorder,
+  useElectronMouseInElement,
   useElectronMouseInWindow,
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
@@ -851,8 +852,8 @@ const cursorPosition = computed(() => ({
           so that the screen sampler does not read AIRI's own colors as desktop
           light. ResourceStatusIsland marks its pill itself, because its root
           spans the whole stage width. Tooltips and dialogs need none: reka-ui
-          portals them to the body and the mask finds them there. HoloCoupon
-          never renders (v-if="false").
+          portals them to the body and the mask finds them there. The announcement
+          trigger and card are also portaled to the body.
         -->
         <ResourceStatusIsland />
         <WidgetStage
@@ -863,8 +864,11 @@ const cursorPosition = computed(() => ({
           :cursor-position="cursorPosition"
           :paused="stagePaused"
         />
-        <HoloCoupon ref="announcementsRef" v-model:open="announcementsOpen" client="desktop" />
-        <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
+        <ControlsIslandRoot v-slot="{ isLeft }" :frozen="controlsIslandInteractionActive || announcementsOpen">
+          <HoloCoupon
+            ref="announcementsRef" v-model:open="announcementsOpen" client="desktop"
+            :trigger-side="isLeft ? 'right' : 'left'"
+          />
           <ControlsIsland
             ref="controlsIslandRef"
             :[stageOpaqueAttribute]="true"
