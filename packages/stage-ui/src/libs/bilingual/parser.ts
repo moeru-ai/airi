@@ -174,7 +174,19 @@ export function projectBilingualText(text: string, languages: string[], keep: st
  * until the next patch resolves it. The finished reply never goes through this:
  * there a `[` with no closing bracket is a real character and is kept.
  */
-export function trimIncompleteBilingualTag(text: string): string {
+export function trimIncompleteBilingualTag(text: string, languages: string[]): string {
   const open = text.lastIndexOf('[')
-  return open >= 0 && !text.includes(']', open) ? text.slice(0, open) : text
+  if (open < 0 || text.includes(']', open))
+    return text
+
+  // Only a candidate that can still grow into one of the configured tags is
+  // held back. An ordinary bracket — an array index, a markdown link — is part
+  // of the text being read: it reaches the bubble half-written while it
+  // streams, and cutting at it would hide the rest of the sentence until the
+  // closing bracket arrives, or for good when it never does.
+  const candidate = text.slice(open + 1).toLowerCase()
+
+  return languages.some(language => language.toLowerCase().startsWith(candidate))
+    ? text.slice(0, open)
+    : text
 }

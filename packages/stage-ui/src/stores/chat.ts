@@ -377,7 +377,7 @@ export const useChatStore = defineStore('chat', () => {
     // bracket off the bubble; the next patch carries the rest. The finished
     // reply is not held — there a `[` is a real character.
     const hold = options?.live === true
-    const project = (text: string) => projectBilingualText(hold ? trimIncompleteBilingualTag(text) : text, languages, ttsLanguage)
+    const project = (text: string) => projectBilingualText(hold ? trimIncompleteBilingualTag(text, languages) : text, languages, ttsLanguage)
     const slices = Array.isArray(message.slices)
       ? message.slices.map(slice => slice && typeof slice === 'object' && 'type' in slice && slice.type === 'text' && 'text' in slice && typeof slice.text === 'string'
           ? { ...slice, text: project(slice.text) }

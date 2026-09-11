@@ -128,12 +128,20 @@ describe('trimIncompleteBilingualTag', () => {
   // tag into the bubble; trimming keeps the bracket off the screen until the
   // next patch resolves it.
   it('cuts a tag candidate the stream has not finished', () => {
-    expect(trimIncompleteBilingualTag('Hello [')).toBe('Hello ')
-    expect(trimIncompleteBilingualTag('Hello [EN')).toBe('Hello ')
+    expect(trimIncompleteBilingualTag('Hello [', ['en', 'zh'])).toBe('Hello ')
+    expect(trimIncompleteBilingualTag('Hello [EN', ['en', 'zh'])).toBe('Hello ')
   })
 
   it('keeps text whose brackets are all closed', () => {
-    expect(trimIncompleteBilingualTag('[EN] Hello [CN] 你好')).toBe('[EN] Hello [CN] 你好')
-    expect(trimIncompleteBilingualTag('Hello [note]')).toBe('Hello [note]')
+    expect(trimIncompleteBilingualTag('[EN] Hello [CN] 你好', ['en', 'zh'])).toBe('[EN] Hello [CN] 你好')
+    expect(trimIncompleteBilingualTag('Hello [note]', ['en', 'zh'])).toBe('Hello [note]')
+  })
+
+  // An ordinary bracket is not a tag. An array index or a markdown link reaches
+  // the bubble half-written while it streams, and cutting at the bracket would
+  // hide the rest of the sentence until — or unless — the closing bracket comes.
+  it('keeps a bracket that cannot become a configured tag', () => {
+    expect(trimIncompleteBilingualTag('Use items[index', ['en', 'zh'])).toBe('Use items[index')
+    expect(trimIncompleteBilingualTag('See [the docs](http', ['en', 'zh'])).toBe('See [the docs](http')
   })
 })
