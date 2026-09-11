@@ -152,10 +152,18 @@ interface ExtensionModuleResourceTracker {
   bindingIds: Set<string>
 }
 
+type RegisteredKitKind = 'extension-hosted' | 'host-provided'
+
+type RegisteredKitMethodHandler = (
+  input: unknown,
+  context: KitCallContext,
+) => unknown | Promise<unknown>
+
 interface RegisteredKitApi {
+  kind: RegisteredKitKind
   kit: ConsumableKit
   clientRevokers: Set<KitClientRevoker>
-  provider?: KitProvider<KitContract>
+  providerMethods?: ReadonlyMap<string, RegisteredKitMethodHandler>
   eventSubscribers: Map<string, Set<RegisteredKitEventSubscriber>>
   ownerSessionId?: string
   ownerExtensionId?: string
@@ -210,6 +218,68 @@ function cloneKitValue(value: unknown, source: string): KitValue {
 
 function isKitContract(kit: ConsumableKit): kit is KitContract {
   return 'methods' in kit && 'events' in kit
+}
+
+/** Captures a stable Host-owned handler table without retaining Provider accessors. */
+function captureKitProviderMethods<TContract extends KitContract>(
+  kit: TContract,
+  provider: KitProvider<TContract>,
+): ReadonlyMap<string, RegisteredKitMethodHandler> {
+  if (!provider) {
+    throw new TypeError(`Kit \`${kit.id}\` Provider methods must be an object.`)
+  }
+
+  let methods: unknown
+  try {
+    methods = provider.methods
+  }
+  catch (error) {
+    throw new TypeError(
+      `Kit \`${kit.id}\` Provider methods could not be read: ${errorMessageFromValue(error)}`,
+    )
+  }
+  if (!methods || typeof methods !== 'object' || Array.isArray(methods)) {
+    throw new TypeError(`Kit \`${kit.id}\` Provider methods must be an object.`)
+  }
+
+  let enumerableMethodNames: string[]
+  try {
+    enumerableMethodNames = Object.keys(methods)
+  }
+  catch (error) {
+    throw new TypeError(
+      `Kit \`${kit.id}\` Provider methods could not be inspected: ${errorMessageFromValue(error)}`,
+    )
+  }
+
+  const declaredMethodNames = Object.keys(kit.methods)
+  const handlers = new Map<string, RegisteredKitMethodHandler>()
+  for (const methodName of declaredMethodNames) {
+    let ownsMethod: boolean
+    let handler: unknown
+    try {
+      ownsMethod = Object.hasOwn(methods, methodName)
+      handler = ownsMethod ? Reflect.get(methods, methodName, methods) : undefined
+    }
+    catch (error) {
+      throw new TypeError(
+        `Kit \`${kit.id}\` Provider method \`${methodName}\` could not be read: ${errorMessageFromValue(error)}`,
+      )
+    }
+
+    if (!ownsMethod || typeof handler !== 'function') {
+      throw new TypeError(`Kit \`${kit.id}\` Provider does not implement method \`${methodName}\`.`)
+    }
+    handlers.set(methodName, handler as RegisteredKitMethodHandler)
+  }
+
+  for (const methodName of enumerableMethodNames) {
+    if (!Object.hasOwn(kit.methods, methodName)) {
+      throw new TypeError(`Kit \`${kit.id}\` Provider implements undeclared method \`${methodName}\`.`)
+    }
+  }
+
+  return handlers
 }
 
 function hasSameKitContractSurface(consumer: KitContract, provider: KitContract) {
@@ -505,6 +575,7 @@ export class ExtensionHost {
     }
 
     this.kitApis.set(kit.id, {
+      kind: 'host-provided',
       kit: kit as KitRef<unknown>,
       clientRevokers: new Set(),
       eventSubscribers: new Map(),
@@ -559,26 +630,13 @@ export class ExtensionHost {
       throw new Error(`Kit API \`${kit.id}\` already has an active Provider.`)
     }
 
-    if (!provider || !provider.methods || typeof provider.methods !== 'object' || Array.isArray(provider.methods)) {
-      throw new TypeError(`Kit \`${kit.id}\` Provider methods must be an object.`)
-    }
-
-    const methodNames = Object.keys(kit.methods)
-    for (const methodName of methodNames) {
-      if (!Object.hasOwn(provider.methods, methodName) || typeof provider.methods[methodName] !== 'function') {
-        throw new TypeError(`Kit \`${kit.id}\` Provider does not implement method \`${methodName}\`.`)
-      }
-    }
-    for (const methodName of Object.keys(provider.methods)) {
-      if (!Object.hasOwn(kit.methods, methodName)) {
-        throw new TypeError(`Kit \`${kit.id}\` Provider implements undeclared method \`${methodName}\`.`)
-      }
-    }
+    const providerMethods = captureKitProviderMethods(kit, provider)
 
     const registration: RegisteredKitApi = {
+      kind: 'extension-hosted',
       kit,
       clientRevokers: new Set(),
-      provider: provider as KitProvider<KitContract>,
+      providerMethods,
       eventSubscribers: new Map(),
       ownerSessionId: session.id,
       ownerExtensionId: session.extension.id,
@@ -842,7 +900,7 @@ export class ExtensionHost {
           throw new Error(`Kit \`${contract.id}\` Provider is not available.`)
         }
 
-        const handler = registration.provider?.methods[methodName]
+        const handler = registration.providerMethods?.get(methodName)
         if (!handler) {
           throw new Error(`Kit \`${contract.id}\` Provider does not implement method \`${methodName}\`.`)
         }
@@ -898,6 +956,11 @@ export class ExtensionHost {
       return kitUseFailure(kit, 'incompatible-version')
     }
 
+    const requestedKind: RegisteredKitKind = isKitContract(kit) ? 'extension-hosted' : 'host-provided'
+    if (registered.kind !== requestedKind) {
+      return kitUseFailure(kit, 'incompatible-version')
+    }
+
     if (!this.isKitRegistrationCurrent(kit.id, registered)) {
       return kitUseFailure(kit, 'missing-kit')
     }
@@ -921,7 +984,7 @@ export class ExtensionHost {
       return kitUseFailure(kit, 'permission-denied')
     }
 
-    if (!registered.ownerSessionId) {
+    if (registered.kind === 'host-provided') {
       if (isKitContract(registered.kit)) {
         return kitUseFailure(kit, 'incompatible-version')
       }
@@ -935,7 +998,7 @@ export class ExtensionHost {
     if (
       !isKitContract(kit)
       || !isKitContract(registered.kit)
-      || !registered.provider
+      || !registered.providerMethods
       || !hasSameKitContractSurface(kit, registered.kit)
     ) {
       return kitUseFailure(kit, 'incompatible-version')

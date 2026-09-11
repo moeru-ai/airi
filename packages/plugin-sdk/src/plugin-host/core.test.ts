@@ -310,6 +310,190 @@ describe('for ExtensionHost', () => {
     })
   }
 
+  it('captures Provider method handlers during registration', async () => {
+    const host = new ExtensionHost()
+    const kit = createActivityKit()
+    const rawFailure = { capability: () => 'Provider capability' }
+    let getterReads = 0
+    const methods = Object.defineProperty({}, 'getCurrentActivity', {
+      enumerable: true,
+      get() {
+        getterReads += 1
+        if (getterReads > 1) {
+          throw rawFailure
+        }
+        return () => ({
+          agentId: 'codex',
+          state: 'completed' as const,
+          summary: 'Done.',
+        })
+      },
+    })
+    const provider = defineExtension({
+      id: 'accessor-provider',
+      setup(ctx) {
+        Reflect.apply(ctx.kits.provide, ctx.kits, [kit, { methods }])
+      },
+    })
+    await host.startExtension(provider, {
+      manifest: createTestManifest(provider.id, {
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      }),
+    })
+
+    let observedSummary: string | undefined
+    const consumer = defineExtension({
+      id: 'accessor-consumer',
+      async setup(ctx) {
+        const client = await ctx.kits.use(kit)
+        observedSummary = (await client.getCurrentActivity()).summary
+      },
+    })
+    await host.startExtension(consumer, {
+      manifest: createTestManifest(consumer.id, {
+        invokedKitIds: [kit.id],
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      }),
+    })
+
+    // ROOT CAUSE:
+    //
+    // Registration validated an accessor result but retained the Provider's
+    // methods object. A later lookup could throw a raw object into Consumer
+    // code instead of calling the validated handler.
+    expect(getterReads).toBe(1)
+    expect(observedSummary).toBe('Done.')
+  })
+
+  it('normalizes Provider method accessor failures during registration', async () => {
+    const host = new ExtensionHost()
+    const kit = createActivityKit()
+    const rawFailure = { capability: () => 'Provider capability' }
+    const methods = Object.defineProperty({}, 'getCurrentActivity', {
+      enumerable: true,
+      get() {
+        throw rawFailure
+      },
+    })
+    const provider = defineExtension({
+      id: 'failing-accessor-provider',
+      setup(ctx) {
+        Reflect.apply(ctx.kits.provide, ctx.kits, [kit, { methods }])
+      },
+    })
+
+    let observedError: unknown
+    try {
+      await host.startExtension(provider, {
+        manifest: createTestManifest(provider.id, {
+          kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+        }),
+      })
+    }
+    catch (error) {
+      observedError = error
+    }
+
+    expect(observedError).toBeInstanceOf(Error)
+    expect(observedError).not.toBe(rawFailure)
+  })
+
+  it('rejects an Extension Kit contract that collides with a Host Kit reference', async () => {
+    const host = new ExtensionHost()
+    const kit = createActivityKit()
+    const createClient = vi.fn(() => ({ hostOnly: () => 'host' }))
+    host.registerKitApi(defineKit({
+      id: kit.id,
+      version: kit.version,
+      createClient,
+    }))
+
+    let tryUseReason: string | undefined
+    let useError: unknown
+    let watchReason: string | undefined
+    const consumer = defineExtension({
+      id: 'host-kind-mismatch-consumer',
+      async setup(ctx) {
+        const result = await ctx.kits.tryUse(kit)
+        if (!result.ok) {
+          tryUseReason = result.reason
+        }
+        try {
+          await ctx.kits.use(kit)
+        }
+        catch (error) {
+          useError = error
+        }
+        ctx.kits.watch(kit, (availability) => {
+          if (!availability.available) {
+            watchReason = availability.reason
+          }
+        })
+      },
+    })
+    await host.startExtension(consumer, {
+      manifest: createTestManifest(consumer.id, {
+        invokedKitIds: [kit.id],
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      }),
+    })
+
+    await vi.waitFor(() => expect(watchReason).toBe('incompatible-version'))
+    expect(tryUseReason).toBe('incompatible-version')
+    expect(useError).toMatchObject({ reason: 'incompatible-version' })
+    expect(createClient).not.toHaveBeenCalled()
+  })
+
+  it('rejects a Host Kit reference that collides with an Extension Kit contract', async () => {
+    const host = new ExtensionHost()
+    const kit = createActivityKit()
+    const provider = defineExtension({
+      id: 'extension-kind-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity: () => ({
+              agentId: 'codex',
+              state: 'completed' as const,
+              summary: 'Done.',
+            }),
+          },
+        })
+      },
+    })
+    await host.startExtension(provider, {
+      manifest: createTestManifest(provider.id, {
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      }),
+    })
+    const createClient = vi.fn(() => ({ hostOnly: () => 'host' }))
+    const collidingHostKit = defineKit({
+      id: kit.id,
+      version: kit.version,
+      createClient,
+    })
+
+    let tryUseReason: string | undefined
+    const consumer = defineExtension({
+      id: 'extension-kind-mismatch-consumer',
+      async setup(ctx) {
+        const result = await ctx.kits.tryUse(collidingHostKit)
+        if (!result.ok) {
+          tryUseReason = result.reason
+        }
+      },
+    })
+    await host.startExtension(consumer, {
+      manifest: createTestManifest(consumer.id, {
+        invokedKitIds: [kit.id],
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      }),
+    })
+
+    expect(tryUseReason).toBe('incompatible-version')
+    expect(createClient).not.toHaveBeenCalled()
+  })
+
   it('publishes an Extension-hosted Kit only after Provider setup succeeds', async () => {
     const host = new ExtensionHost()
     const kit = createActivityKit()
