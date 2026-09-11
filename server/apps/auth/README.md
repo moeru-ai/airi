@@ -47,6 +47,13 @@ application token, and Caddy rejects that path at the public edge.
 Set `AUTH_GOOGLE_NATIVE_CLIENT_IDS` to a comma-separated list of additional Google OAuth client IDs.
 For Android Credential Manager, include the Web client ID passed as `serverClientId`.
 
+- For the standalone Auth process, set the variable in `server/apps/auth/.env.local`.
+- For `pnpm dev:backend`, set it in `server/apps/api/.env.local`.
+  Compose loads `server/apps/api/.env` and `.env.local` into the Auth container, in that order.
+  It does not load `server/apps/auth/.env.local`.
+  Run `pnpm dev:backend` again after edits so Compose recreates the container with the updated values.
+- For Railway, set it in the Auth service variables for the target environment.
+
 ```dotenv
 AUTH_GOOGLE_NATIVE_CLIENT_IDS=123456789-native.apps.googleusercontent.com
 ```

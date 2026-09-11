@@ -16,6 +16,16 @@ describe('native Google audiences', () => {
     expect(googleClientIds('existing-browser-client', clients)).toEqual(['existing-browser-client', nativeId])
   })
 
+  // https://github.com/moeru-ai/airi/pull/2518#discussion_r3986076852
+  // ROOT CAUSE:
+  // The required dash rejected legacy Google client IDs during environment parsing.
+  // An optional suffix accepts both forms without changing the audience hostname.
+  it('accepts legacy Google client IDs alongside modern audiences', () => {
+    const legacyId = '123456789.apps.googleusercontent.com'
+    const clients = parse(GoogleNativeClientIdsSchema, ` ${legacyId}, ${nativeId}, ${legacyId} `)
+    expect(googleClientIds('browser-client', clients)).toEqual(['browser-client', legacyId, nativeId])
+  })
+
   it('keeps browser authorization on the original client when native audiences are enabled', async () => {
     const provider = google({
       clientId: googleClientIds('browser-client', [nativeId]),
@@ -38,7 +48,15 @@ describe('native Google audiences', () => {
     expect(googleClientIds('browser', parse(GoogleNativeClientIdsSchema, ' , '))).toBe('browser')
   })
 
-  it.each(['*', 'https://example.com', '123-abc.apps.googleusercontent.com.evil.test', 'not-a-client'])('rejects invalid audience %s', (value) => {
+  it.each([
+    '*',
+    'https://example.com',
+    '123-abc.apps.googleusercontent.com.evil.test',
+    '123.apps.googleusercontent.com.evil.test',
+    '123-.apps.googleusercontent.com',
+    '*.apps.googleusercontent.com',
+    'not-a-client',
+  ])('rejects invalid audience %s', (value) => {
     expect(() => parse(GoogleNativeClientIdsSchema, value)).toThrow()
   })
 })
