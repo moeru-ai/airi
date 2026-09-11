@@ -126,9 +126,14 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
 
   const files: Array<{ path: string, relativePath: string, size: number }> = []
   const directories = ['.']
+  const pendingDirectories = [sourceRealPath]
   let entryCount = 0
   let totalBytes = 0
-  const walk = async (directory: string): Promise<void> => {
+  while (pendingDirectories.length > 0) {
+    const directory = pendingDirectories.pop()
+    if (!directory) {
+      continue
+    }
     const entries = await opendir(directory)
     for await (const entry of entries) {
       entryCount += 1
@@ -144,7 +149,7 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
       }
       if (stats.isDirectory()) {
         directories.push(relativePath)
-        await walk(path)
+        pendingDirectories.push(path)
         continue
       }
       if (!stats.isFile()) {
@@ -157,7 +162,6 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
       files.push({ path, relativePath, size: stats.size })
     }
   }
-  await walk(sourceRealPath)
 
   directories.sort()
   files.sort((left, right) => left.relativePath.localeCompare(right.relativePath))
