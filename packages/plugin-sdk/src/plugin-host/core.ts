@@ -138,10 +138,12 @@ interface ExtensionModuleResourceTracker {
 
 interface RegisteredKitApi {
   kit: KitRef<unknown>
-  clientRevokers: Set<() => void>
+  clientRevokers: Set<KitClientRevoker>
   ownerSessionId?: string
   ownerExtensionId?: string
 }
+
+type KitClientRevoker = () => Promise<void>
 
 function omitModuleId<C extends HostDataRecord>(input: BoundUpdateBindingInput<C>) {
   return {
@@ -191,14 +193,17 @@ function cloneBindingRecord<C extends HostDataRecord>(module: BindingRecord<C>):
 }
 
 /** Wraps one Provider client object graph in a shared revocation boundary. */
-function createRevocableKitClient<TClient extends object>(client: TClient): { client: TClient, revoke: () => void } {
+function createRevocableKitClient<TClient extends object>(
+  client: TClient,
+  isProviderAvailable: () => boolean,
+): { client: TClient, revoke: () => void } {
   let revoked = false
   const objectFacades = new WeakMap<object, object>()
   const sourcesByFacade = new WeakMap<object, object>()
   const methodFacades = new WeakMap<object, WeakMap<object, (...args: unknown[]) => unknown>>()
 
   const assertClientAvailable = () => {
-    if (revoked) {
+    if (revoked || !isProviderAvailable()) {
       throw new TypeError('Cannot perform an operation on a revoked Kit client.')
     }
   }
@@ -241,6 +246,7 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
       const settlement = new Promise<unknown>((resolve, reject) => {
         queueMicrotask(() => {
           try {
+            assertClientAvailable()
             Reflect.apply(then, value, [resolve, reject])
           }
           catch (error) {
@@ -441,15 +447,48 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
   }
 }
 
-function createTrackedClientRevoker(revokers: Set<() => void>, releaseClient: () => void) {
-  let release: (() => void) | undefined = releaseClient
-  const revoke = () => {
+function createTrackedClientRevoker(
+  revokers: Set<KitClientRevoker>,
+  releaseClient: () => void | Promise<void>,
+): KitClientRevoker {
+  let release: (() => void | Promise<void>) | undefined = releaseClient
+  let pendingRelease: Promise<void> | undefined
+  const revoke = async () => {
     revokers.delete(revoke)
-    const releaseOnce = release
-    release = undefined
-    releaseOnce?.()
+    if (!pendingRelease && release) {
+      const releaseOnce = release
+      release = undefined
+      try {
+        pendingRelease = Promise.resolve(releaseOnce())
+      }
+      catch (error) {
+        pendingRelease = Promise.reject(error)
+      }
+    }
+
+    const currentRelease = pendingRelease
+    if (!currentRelease) {
+      return
+    }
+    try {
+      await currentRelease
+    }
+    finally {
+      if (pendingRelease === currentRelease) {
+        pendingRelease = undefined
+      }
+    }
   }
   return revoke
+}
+
+async function disposeKitClients(revokers: Set<KitClientRevoker>) {
+  const clientDisposables = new DisposableStore()
+  for (const revoke of revokers) {
+    clientDisposables.add({ dispose: revoke })
+  }
+  revokers.clear()
+  await clientDisposables.dispose()
 }
 
 /**
@@ -669,14 +708,17 @@ export class ExtensionHost {
     return kit
   }
 
-  unregisterKitApi(kitId: string) {
+  async unregisterKitApi(kitId: string) {
     const registration = this.kitApis.get(kitId)
     const deleted = this.kitApis.delete(kitId)
-    for (const revoke of registration?.clientRevokers ?? []) {
-      revoke()
+    try {
+      if (registration) {
+        await disposeKitClients(registration.clientRevokers)
+      }
     }
-    registration?.clientRevokers.clear()
-    this.notifyKitApiWatchers(kitId)
+    finally {
+      this.notifyKitApiWatchers(kitId)
+    }
     return deleted
   }
 
@@ -730,12 +772,13 @@ export class ExtensionHost {
           this.kitApis.delete(kit.id)
           this.kits.remove(kit.id)
         }
-        for (const revoke of registration.clientRevokers) {
-          revoke()
+        try {
+          await disposeKitClients(registration.clientRevokers)
         }
-        registration.clientRevokers.clear()
-        if (isActive) {
-          this.notifyKitApiWatchers(kit.id)
+        finally {
+          if (isActive) {
+            this.notifyKitApiWatchers(kit.id)
+          }
         }
       },
     })
@@ -825,12 +868,12 @@ export class ExtensionHost {
     }
   }
 
-  private resolveKitApi<TClient>(
+  private async resolveKitApi<TClient>(
     session: ExtensionSession,
     kit: KitContract<TClient>,
     subscriptions: DisposableStore,
     moduleId?: string,
-  ): KitUseResult<TClient> {
+  ): Promise<KitUseResult<TClient>> {
     const registered = this.kitApis.get(kit.id)
     if (!registered) {
       return kitUseFailure(kit, 'missing-kit')
@@ -859,29 +902,52 @@ export class ExtensionHost {
       return kitUseFailure(kit, 'permission-denied')
     }
 
-    const client = (registered.kit as KitRef<TClient>).createClient({
-      extensionId: session.extension.id,
-      sessionId: session.id,
-      moduleId,
-      subscriptions,
-    })
-    if (!registered.ownerSessionId || ((typeof client !== 'object' || client === null) && typeof client !== 'function')) {
+    const clientSubscriptions = registered.ownerSessionId ? new DisposableStore() : subscriptions
+    let client: TClient
+    try {
+      client = (registered.kit as KitRef<TClient>).createClient({
+        extensionId: session.extension.id,
+        sessionId: session.id,
+        moduleId,
+        subscriptions: clientSubscriptions,
+      })
+    }
+    catch (error) {
+      if (clientSubscriptions !== subscriptions) {
+        try {
+          await clientSubscriptions.dispose()
+        }
+        catch (cleanupError) {
+          throw new AggregateError([error, cleanupError], 'Kit client creation and cleanup both failed.')
+        }
+      }
+      throw error
+    }
+
+    const providerSessionId = registered.ownerSessionId
+    if (!providerSessionId) {
       return { ok: true, client }
     }
 
-    const revocable = createRevocableKitClient(client as object)
-    const revocableClient = revocable.client
-    const revoke = createTrackedClientRevoker(registered.clientRevokers, revocable.revoke)
+    const objectClient = (typeof client === 'object' && client !== null) || typeof client === 'function'
+      ? createRevocableKitClient(client as object, () => {
+          return this.extensionSessionService.get(providerSessionId)?.phase === 'ready'
+        })
+      : undefined
+    const revoke = createTrackedClientRevoker(registered.clientRevokers, async () => {
+      objectClient?.revoke()
+      await clientSubscriptions.dispose()
+    })
     registered.clientRevokers.add(revoke)
     subscriptions.add({ dispose: revoke })
 
-    return { ok: true, client: revocableClient as TClient }
+    return { ok: true, client: (objectClient?.client ?? client) as TClient }
   }
 
   private createKitConsumer(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitConsumer {
     return {
       use: async <TClient>(kit: KitRef<TClient> | KitContract<TClient>) => {
-        const result = this.resolveKitApi(session, kit, subscriptions, moduleId)
+        const result = await this.resolveKitApi(session, kit, subscriptions, moduleId)
         if (result.ok) {
           return result.client
         }
@@ -889,7 +955,7 @@ export class ExtensionHost {
         throw failure.error
       },
       tryUse: async <TClient>(kit: KitRef<TClient> | KitContract<TClient>) => {
-        return this.resolveKitApi(session, kit, subscriptions, moduleId)
+        return await this.resolveKitApi(session, kit, subscriptions, moduleId)
       },
       watch: <TClient>(kit: KitRef<TClient> | KitContract<TClient>, callback: (availability: KitAvailability<TClient>) => void | Promise<void>) => {
         const watchers = this.kitApiWatchers.get(kit.id) ?? new Set()
@@ -907,7 +973,7 @@ export class ExtensionHost {
               return
             }
 
-            const result = this.resolveKitApi(session, kit, subscriptions, moduleId)
+            const result = await this.resolveKitApi(session, kit, subscriptions, moduleId)
             const availability: KitAvailability<TClient> = result.ok
               ? { available: true, kit, client: result.client }
               : {

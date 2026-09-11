@@ -861,6 +861,80 @@ describe('for ExtensionHost', () => {
     await expect(pendingRead).rejects.toThrow('revoked')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986773584
+  it('does not invoke a deferred Provider thenable after unload starts', async () => {
+    interface ThenableClient {
+      read: () => PromiseLike<string>
+    }
+
+    let thenCalls = 0
+    const deferredResult: PromiseLike<string> = {
+      // oxlint-disable-next-line unicorn/no-thenable -- This fixture reproduces a Provider-defined thenable boundary.
+      then(resolve) {
+        thenCalls += 1
+        return Promise.resolve('late result').then(resolve)
+      },
+    }
+    const host = new ExtensionHost()
+    const kit = defineKit<ThenableClient>({
+      id: 'kit.extension-deferred-thenable',
+      version: '1.0.0',
+      createClient: () => ({ read: () => deferredResult }),
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'deferred-thenable-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'deferred-thenable-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    let client: ThenableClient | undefined
+    await host.startExtension(defineExtension({
+      id: 'deferred-thenable-consumer',
+      async setup(ctx) {
+        client = await ctx.kits.use(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'deferred-thenable-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    const thenableClient = client
+    if (!thenableClient) {
+      throw new Error('Expected the Consumer to receive a deferred-thenable Kit client.')
+    }
+
+    // ROOT CAUSE:
+    //
+    // Thenable adoption ran in a microtask. Provider unload could begin before
+    // that microtask, but the raw Provider `then` method was still invoked.
+    const pendingRead = Promise.resolve(thenableClient.read())
+    const expectedRejection = expect(pendingRead).rejects.toThrow('revoked')
+    await host.stop(providerSession.id)
+
+    await expectedRejection
+    expect(thenCalls).toBe(0)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986172728
   it('preserves callable Kit client properties through revocation', async () => {
     interface CallableClient {
@@ -1102,6 +1176,82 @@ describe('for ExtensionHost', () => {
 
     expect(() => thrownValue.capability.read()).toThrow('revoked')
     expect(() => rejectedValue.capability.read()).toThrow('revoked')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986773576
+  it('disposes each Kit client scope when either owner unloads', async () => {
+    interface ScopedClient {
+      read: () => string
+    }
+
+    let cleanupCalls = 0
+    const host = new ExtensionHost()
+    const kit = defineKit<ScopedClient>({
+      id: 'kit.extension-client-scope',
+      version: '1.0.0',
+      createClient(runtime) {
+        runtime.subscriptions.add({
+          dispose: async () => {
+            await Promise.resolve()
+            cleanupCalls += 1
+          },
+        })
+        return { read: () => 'ready' }
+      },
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'client-scope-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'client-scope-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    const startConsumer = async (id: string) => {
+      return host.startExtension(defineExtension({
+        id,
+        async setup(ctx) {
+          await ctx.kits.use(kit)
+        },
+      }), {
+        manifest: {
+          manifestVersion: 2,
+          kind: 'manifest.extension.airi.moeru.ai',
+          id,
+          version: '1.0.0',
+          engines: { airi: '*', runtimes: ['electron'] },
+          entrypoints: { electron: './consumer.mjs' },
+          permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+          kits: { uses: [{ id: kit.id, version: kit.version }] },
+        },
+      })
+    }
+
+    // ROOT CAUSE:
+    //
+    // `createClient` received the Consumer's full subscription store. The
+    // Provider could revoke the client, but it could not dispose resources
+    // created for that client until the Consumer also unloaded.
+    const firstConsumer = await startConsumer('client-scope-consumer-first')
+    await host.stop(firstConsumer.id)
+    expect(cleanupCalls).toBe(1)
+
+    const secondConsumer = await startConsumer('client-scope-consumer-second')
+    await host.stop(providerSession.id)
+    expect(cleanupCalls).toBe(2)
+
+    await host.stop(secondConsumer.id)
+    expect(cleanupCalls).toBe(2)
   })
 
   it('isolates Consumer watcher failures while a Provider unloads', async () => {
