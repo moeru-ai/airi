@@ -481,7 +481,6 @@ function bindManagedVrmInstanceRenderLoop() {
       activeVrm?.lookAt?.update?.(delta)
     })
     const isEmoteActive = vrmEmote.value?.isEmoteActive?.value ?? false
-    const isLipSyncActive = vrmLipSync.isLipSyncActive?.value ?? false
 
     const blinkAndSaccadeMs = measureFrameStep(tracingEnabled, () => {
       // The blink controller always advances so an emote starting mid-blink
@@ -492,6 +491,12 @@ function bindManagedVrmInstanceRenderLoop() {
     const lipSyncMs = measureFrameStep(tracingEnabled, () => {
       vrmLipSync.update(activeVrm, delta)
     })
+    // Read after lipSyncMs, not before: vrmLipSync.update() is what flips
+    // this flag for the current frame. Reading it earlier in the frame would
+    // hand the emote a stale value from the previous frame, letting it
+    // overwrite the mouth morph lip sync just wrote on the first frame of an
+    // utterance.
+    const isLipSyncActive = vrmLipSync.isLipSyncActive?.value ?? false
     const emoteMs = measureFrameStep(tracingEnabled, () => {
       // Runs after lip sync: while speech is active the emote yields viseme
       // mouth morphs (skipVisemes), and once lip sync falls silent the emote
