@@ -16,6 +16,7 @@ import { Buffer as NodeBuffer } from 'node:buffer'
 import { useLogger } from '@guiiai/logg'
 import { trace } from '@opentelemetry/api'
 
+import { cacheRevision, publishCache } from '../../../libs/revision-cache'
 import { ApiError, createServiceUnavailableError } from '../../../utils/error'
 import { errorMessageFromUnknown } from '../../../utils/error-message'
 import {
@@ -1056,6 +1057,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
    * JSON and bypass the cache (no upstream call to amortize).
    */
   async function listTtsVoices(modelName: string) {
+    const revision = await cacheRevision(options.redis, 'tts:voices:revision')
     const slice = await configLoader.getModelConfig('tts', modelName)
     if (slice.kind !== 'tts')
       throw new Error(`Expected tts model slice for ${modelName}, got ${slice.kind}`)
@@ -1079,7 +1081,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       }
     }
 
-    const existingLoad = ttsVoiceCatalogLoads.get(cacheKey)
+    const existingLoad = ttsVoiceCatalogLoads.get(`${cacheKey}:${revision}`)
     if (existingLoad != null)
       return existingLoad
 
@@ -1112,7 +1114,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         // the next admin reconfigure would have to wait out the TTL even after
         // fixing credentials.
         const ttl = options.ttsVoiceCacheTtlSeconds ?? ttsVoicesCacheTtl(slice.model.provider)
-        await options.redis.set(cacheKey, JSON.stringify(voices), 'EX', ttl)
+        await publishCache(options.redis, cacheKey, 'tts:voices:revision', revision, JSON.stringify(voices), ttl)
           .catch((err) => {
             logger.withError(err).withFields({ cacheKey }).warn('failed to write tts voices cache')
           })
@@ -1123,10 +1125,10 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         plaintext?.fill(0)
       }
     })().finally(() => {
-      ttsVoiceCatalogLoads.delete(cacheKey)
+      ttsVoiceCatalogLoads.delete(`${cacheKey}:${revision}`)
     })
 
-    ttsVoiceCatalogLoads.set(cacheKey, load)
+    ttsVoiceCatalogLoads.set(`${cacheKey}:${revision}`, load)
     return load
   }
 
@@ -1137,6 +1139,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
    * picker fetches without waiting for the 6h TTL.
    */
   async function invalidateTtsVoicesCache(): Promise<void> {
+    await options.redis.incr('tts:voices:revision')
     // SCAN avoids blocking redis on a large keyspace; production deployments
     // can have voice catalogs from many models. Using a stream keeps memory
     // bounded.
@@ -1145,6 +1148,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     let queued = 0
     for await (const keys of stream as AsyncIterable<string[]>) {
       for (const key of keys) {
+        if (key === 'tts:voices:revision')
+          continue
         pipeline.del(key)
         queued += 1
       }

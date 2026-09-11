@@ -24,7 +24,6 @@ function createMockConfigKV(overrides: Record<string, number> = {}): ReturnType<
 describe('billingService', () => {
   let db: Database
   let redis: ReturnType<typeof createTestRedis>
-  let set: ReturnType<typeof vi.spyOn>
   let billingService: ReturnType<typeof createBillingService>
 
   beforeAll(async () => {
@@ -39,7 +38,6 @@ describe('billingService', () => {
 
   beforeEach(async () => {
     redis = createTestRedis()
-    set = vi.spyOn(redis, 'set')
     billingService = createBillingService(db, redis, createMockConfigKV())
 
     await db.delete(schema.fluxTransaction)
@@ -93,8 +91,8 @@ describe('billingService', () => {
       const [sessionRecord] = await db.select().from(schema.stripeCheckoutSession).where(eq(schema.stripeCheckoutSession.stripeSessionId, 'sess-billing-1'))
       expect(sessionRecord?.fluxCredited).toBe(true)
 
-      // Verify Redis cache updated
-      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '50')
+      // The next balance read reloads the committed database value.
+      await expect(redis.get(`${userFluxRedisKey('user-billing-1')}:revision`)).resolves.toBe('1')
     })
 
     it('is idempotent when the checkout session was already credited', async () => {
@@ -164,8 +162,8 @@ describe('billingService', () => {
         source: 'llm.request',
       })
 
-      // Verify Redis cache updated
-      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '70')
+      // The next balance read reloads the committed database value.
+      await expect(redis.get(`${userFluxRedisKey('user-billing-1')}:revision`)).resolves.toBe('1')
     })
 
     // ROOT CAUSE:
@@ -216,7 +214,7 @@ describe('billingService', () => {
 
       // Redis cache reflects the zero balance, so the next pre-flight gate
       // (`flux < fallbackRate`) rejects immediately.
-      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '0')
+      await expect(redis.get(`${userFluxRedisKey('user-billing-1')}:revision`)).resolves.toBe('1')
     })
 
     it('throws 402 when balance is already zero (no ledger row, no balance change)', async () => {
@@ -398,7 +396,6 @@ describe('billingService', () => {
     it('initializes a user_flux row when none exists and invalidates the Redis cache', async () => {
       // Pre-warm the cache with a stale value to prove setFlux drops it.
       await redis.set(userFluxRedisKey('user-billing-1'), '999')
-      const del = vi.spyOn(redis, 'del')
 
       const result = await billingService.setFlux({
         userId: 'user-billing-1',
@@ -410,7 +407,7 @@ describe('billingService', () => {
       expect(result.balanceBefore).toBe(0)
       expect(result.balanceAfter).toBe(42)
       // Invalidate, not write: next getFlux miss reloads truth from Postgres.
-      expect(del).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'))
+      await expect(redis.get(`${userFluxRedisKey('user-billing-1')}:revision`)).resolves.toBe('1')
       expect(await redis.get(userFluxRedisKey('user-billing-1'))).toBeNull()
     })
   })

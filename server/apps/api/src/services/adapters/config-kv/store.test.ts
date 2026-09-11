@@ -25,11 +25,11 @@ describe('configKV store', () => {
   it('falls back to PostgreSQL and fills Redis for 300 seconds', async () => {
     await db.insert(configKV).values({ key: 'FLUX_PER_REQUEST', value: '8' })
     const redis = createTestRedis()
-    const set = vi.spyOn(redis, 'set')
     const store = createConfigKVStore(db, redis)
 
     await expect(store.getRaw('FLUX_PER_REQUEST')).resolves.toBe('8')
-    expect(set).toHaveBeenCalledWith('cache:config:FLUX_PER_REQUEST', '8', 'EX', 300)
+    await expect(redis.get('cache:config:FLUX_PER_REQUEST')).resolves.toBe('8')
+    await expect(redis.ttl('cache:config:FLUX_PER_REQUEST')).resolves.toBeGreaterThan(290)
   })
 
   it('fails when Redis reads fail', async () => {
@@ -53,7 +53,7 @@ describe('configKV store', () => {
   it('fails when Redis cannot store a PostgreSQL value', async () => {
     await db.insert(configKV).values({ key: 'FLUX_PER_REQUEST', value: '9' })
     const redis = createTestRedis()
-    vi.spyOn(redis, 'set').mockRejectedValueOnce(new Error('redis offline'))
+    vi.spyOn(redis, 'eval').mockRejectedValueOnce(new Error('redis offline'))
     const store = createConfigKVStore(db, redis)
 
     await expect(store.getRaw('FLUX_PER_REQUEST')).rejects.toThrow('redis offline')
@@ -62,18 +62,17 @@ describe('configKV store', () => {
   it('deletes the derived cache entry during invalidation', async () => {
     const redis = createTestRedis()
     await redis.set('cache:config:LLM_ROUTER_CONFIG', '{}')
-    const del = vi.spyOn(redis, 'del')
     const store = createConfigKVStore(db, redis)
 
     await store.invalidateCache('LLM_ROUTER_CONFIG')
 
-    expect(del).toHaveBeenCalledWith('cache:config:LLM_ROUTER_CONFIG')
+    await expect(redis.get('cache:config:LLM_ROUTER_CONFIG:revision')).resolves.toBe('1')
     await expect(redis.get('cache:config:LLM_ROUTER_CONFIG')).resolves.toBeNull()
   })
 
   it('fails invalidation when Redis cannot delete the derived value', async () => {
     const redis = createTestRedis()
-    vi.spyOn(redis, 'del').mockRejectedValueOnce(new Error('redis offline'))
+    vi.spyOn(redis, 'eval').mockRejectedValueOnce(new Error('redis offline'))
     const store = createConfigKVStore(db, redis)
 
     await expect(store.invalidateCache('LLM_ROUTER_CONFIG')).rejects.toThrow('redis offline')
@@ -82,12 +81,11 @@ describe('configKV store', () => {
   it('removes a stale cache entry when a fresh database read is missing', async () => {
     const redis = createTestRedis()
     await redis.set('cache:config:FLUX_PER_REQUEST', '20')
-    const del = vi.spyOn(redis, 'del')
     const store = createConfigKVStore(db, redis)
 
     await expect(store.getFreshRaw('FLUX_PER_REQUEST')).resolves.toBeNull()
 
-    expect(del).toHaveBeenCalledWith('cache:config:FLUX_PER_REQUEST')
+    await expect(redis.get('cache:config:FLUX_PER_REQUEST:revision')).resolves.toBe('1')
     await expect(redis.get('cache:config:FLUX_PER_REQUEST')).resolves.toBeNull()
   })
 })

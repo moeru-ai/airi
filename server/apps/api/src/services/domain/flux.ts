@@ -6,6 +6,7 @@ import type { ConfigKVService } from '../adapters/config-kv'
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
 
+import { cacheRevision, invalidateCache, publishCache } from '../../libs/revision-cache'
 import { userFluxRedisKey } from '../../utils/redis-keys'
 
 import * as schema from '../../schemas/flux'
@@ -26,6 +27,9 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       if (cached !== null) {
         return { userId, flux: Number.parseInt(cached, 10) }
       }
+
+      const cacheKey = userFluxRedisKey(userId)
+      const revision = await cacheRevision(redis, `${cacheKey}:revision`)
 
       // 2. Cache miss — load from DB
       let record = await db.query.userFlux.findFirst({
@@ -74,7 +78,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       }
 
       // 3. Populate Redis cache
-      await redis.set(userFluxRedisKey(userId), String(record.flux))
+      await publishCache(redis, cacheKey, `${cacheKey}:revision`, revision, String(record.flux), 300)
 
       return record
     },
@@ -116,7 +120,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
 
       // Drop the cached balance so any in-flight read does not see a
       // ghost balance for the soft-deleted user.
-      await redis.del(userFluxRedisKey(userId))
+      await invalidateCache(redis, userFluxRedisKey(userId))
 
       logger
         .withFields({ userId, clearedFlux: result[0]?.flux ?? 0 })

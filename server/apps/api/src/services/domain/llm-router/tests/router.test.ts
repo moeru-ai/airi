@@ -12,6 +12,7 @@ import { randomBytes } from 'node:crypto'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { createTestRedis } from '../../../../libs/tests/redis'
 import { createEnvelopeCrypto } from '../../../../utils/envelope-crypto'
 import { ApiError } from '../../../../utils/error'
 import { createLlmRouterService } from '../router'
@@ -23,13 +24,7 @@ import { createLlmRouterService } from '../router'
  * checker is happy without spinning a real client.
  */
 function makeRedisStub(): Redis {
-  async function* emptyScan(): AsyncGenerator<string[]> {}
-  return {
-    get: vi.fn(async () => null),
-    set: vi.fn(async () => 'OK'),
-    scanStream: vi.fn(() => emptyScan()),
-    pipeline: vi.fn(() => ({ del: vi.fn(), exec: vi.fn(async () => []) })),
-  } as unknown as Redis
+  return createTestRedis()
 }
 
 function freshMasterKey(): Buffer {
@@ -1089,6 +1084,27 @@ describe('createLlmRouterService', () => {
         status_code: 451,
         surface: 'tts',
       })
+    })
+
+    it('rejects an old catalog response after invalidation', async () => {
+      const { config, crypto } = makeTtsConfig({
+        upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1'], adapterParams: { region: 'eastasia' } }],
+      })
+      const response = Promise.withResolvers<Response>()
+      const started = Promise.withResolvers<void>()
+      const fetchImpl = vi.fn(() => {
+        started.resolve()
+        return response.promise
+      })
+      const redis = createTestRedis()
+      const router = createLlmRouterService({ configKV: makeConfigKV(config), envelopeCrypto: crypto, gatewayMetrics: null, fetchImpl, redis, concurrencyLedger: makeLedger() })
+      const pending = router.listTtsVoices('tts-test')
+      await started.promise
+      // ROOT CAUSE: the old fetch could repopulate a catalog after its Redis entry was deleted.
+      await router.invalidateTtsVoicesCache()
+      response.resolve(happyResponse({ voices: [{ id: 'old-voice', name: 'Old voice' }] }))
+      await pending
+      await expect(redis.keys('tts:voices:*')).resolves.toEqual(['tts:voices:revision'])
     })
 
     it('listTtsVoices deduplicates concurrent cold-cache upstream fetches per model', async () => {
