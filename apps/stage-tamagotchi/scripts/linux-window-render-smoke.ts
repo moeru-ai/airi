@@ -32,7 +32,7 @@ import { fileURLToPath } from 'node:url'
 
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 
-import { CdpClient, findAvailablePort, findDebugTarget, sleep, waitForRemoteDebug } from './lib/remote-debug'
+import { CdpClient, findAvailablePort, findDebugTarget, isRecord, sleep, waitForRemoteDebug } from './lib/remote-debug'
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repoDir = resolve(packageDir, '../..')
@@ -208,7 +208,7 @@ async function main() {
       throw new Error(`RENDER_CHECK_FAILED: #app root has no children (appRootChildCount=${check.appRootChildCount}). The window likely came up blank.`)
 
     const screenshot = await client.send('Page.captureScreenshot', { format: 'png' })
-    const screenshotData = screenshot.data
+    const screenshotData = isRecord(screenshot.result) ? screenshot.result.data : undefined
     if (typeof screenshotData !== 'string' || screenshotData.length === 0)
       throw new Error('RENDER_CHECK_FAILED: Page.captureScreenshot returned no image data')
     await writeFile(screenshotPath, Buffer.from(screenshotData, 'base64'))
