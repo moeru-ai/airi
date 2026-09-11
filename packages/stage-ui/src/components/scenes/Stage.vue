@@ -1124,6 +1124,15 @@ watch(() => bilingualStore.enabled, (enabled) => {
   if (enabled)
     return
 
+  // Subtitles hidden mid-reply. Speech keeps running (the in-flight parser is
+  // kept above so language tags are still stripped), but the buffered pairs and
+  // the waiting flag must go: re-enabling them later would otherwise publish a
+  // pair spoken before they came back as the translation of a sentence still
+  // playing, leaving two pairs pointing at different speech.
+  for (const state of bilingualTurns.values()) {
+    state.pairs.length = 0
+    state.waiting = false
+  }
   clearBilingualTranslation()
 })
 
