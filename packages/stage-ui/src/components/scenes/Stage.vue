@@ -608,6 +608,12 @@ speechPipeline.on('onSpecial', (segment) => {
 
 speechPipeline.on('onTurnEnd', (turnId) => {
   streamingControl.completeTurn(turnId)
+
+  // A reaction's voice outlives its stream: the text it handed over keeps being
+  // spoken after the reaction stops producing output. The playback of this turn
+  // is over now, so nothing can read that voice or its leftover queue again.
+  if (turnId.startsWith(SPARK_TURN_ID_PREFIX))
+    clearBilingualTurn(turnId)
 })
 
 speechPipeline.on('onTurnCancel', ({ turnId }) => {
@@ -786,6 +792,15 @@ const bilingualTurns = new Map<string, BilingualTurnState>()
  * the new translation arrives.
  */
 let bilingualTurnOnScreen = ''
+
+/**
+ * Reaction whose record nothing has released yet.
+ *
+ * A reaction keeps its voice until its playback ends, so one that never spoke
+ * has no event left to release it. The next reaction is composed only once the
+ * previous one is over, so it releases that one instead.
+ */
+let lastComposedSparkTurnId = ''
 
 /** State of one turn, created on first use. */
 function bilingualTurnState(turnId: string): BilingualTurnState {
@@ -997,19 +1012,26 @@ watch(sparkPair, (event) => {
     return
 
   if (event.kind === 'turn') {
+    // The previous reaction is over by the time a new one is composed, so this
+    // is the last moment its voice is still reachable: one that never spoke gets
+    // no `onTurnEnd`, and without this its record stays for the session.
+    if (lastComposedSparkTurnId && lastComposedSparkTurnId !== bilingualTurnOnScreen)
+      clearBilingualTurn(lastComposedSparkTurnId)
+    lastComposedSparkTurnId = event.turnId
+
     seedBilingualVoice(event.turnId, event.ttsLanguage)
     return
   }
 
-  // The turn of a reaction that ended without speaking: nothing was queued for
-  // it, so the voice it reserved is the only thing left behind. One that did
-  // speak keeps its voice until playback moves on, which the pairs below and the
-  // next turn's reset already take care of.
-  if (event.kind === 'turn-end') {
-    if (!bilingualTurns.get(event.turnId)?.pairs.length)
-      clearBilingualTurn(event.turnId)
+  // The reaction stopped producing output, not speech: the text it already
+  // handed over is still being spoken, and an empty queue says nothing about
+  // that — pairs are dropped the moment the feature is switched off, while the
+  // speech keeps running. Releasing the voice here would leave
+  // `bilingualVoiceForTurn` to resolve the rest of the reaction from the
+  // settings as they are now, so it is kept until this turn's playback ends and
+  // `onTurnEnd` releases it.
+  if (event.kind === 'turn-end')
     return
-  }
 
   // A reaction interrupts whatever is on screen, so the previous reaction's line
   // and its leftover queue go instead of lingering until they expire.
