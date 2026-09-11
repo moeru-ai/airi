@@ -12,7 +12,7 @@ export interface SwipeableProps {
   input?: SwipeableInput
   /** Selects the horizontal direction that commits the action. @default 'left' */
   direction?: SwipeableDirection
-  /** Ignores touch or wheel jitter below this distance, in pixels. @default 8 */
+  /** Locks touch or wheel intent after this travel distance, in pixels. @default 8 */
   startDistance?: number
   /** Commits the action when the directed distance reaches this value, in pixels. @default 48 */
   threshold?: number
