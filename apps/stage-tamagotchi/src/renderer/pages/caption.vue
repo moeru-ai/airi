@@ -128,7 +128,12 @@ onUnmounted(() => {
         >
           <span
             v-if="captionLabelByType[type]"
-            class="mr-2 rounded bg-black/25 px-1.5 py-0.5 align-middle text-[0.7rem] font-semibold tracking-wide"
+            :class="[
+              'mr-2',
+              'rounded bg-black/25 px-1.5 py-0.5',
+              'align-middle',
+              'text-[0.7rem] font-semibold tracking-wide',
+            ]"
           >{{ captionLabelByType[type] }}</span>
           <PoppinText
             :text="captionTextByType[type]"
