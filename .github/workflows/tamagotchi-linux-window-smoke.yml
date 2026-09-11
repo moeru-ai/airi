@@ -1,0 +1,145 @@
+name: Tamagotchi Linux Window Smoke
+
+# Compiling stage-tamagotchi on Linux (see the `build-test` job in ci.yml)
+# only proves the code type-checks and bundles. It never launches the app,
+# so regressions in the Ozone/X11 vs Wayland switches
+# (src/main/libs/electron/linux-command-line-switches.ts), the frameless
+# transparent window config, or GPU init under a headless display have
+# historically only surfaced when a contributor happened to run the app on
+# their own Linux desktop. These jobs launch the real built app under a
+# real (headless) display server and assert the main window renders.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+  schedule:
+    # Wayland coverage runs nightly rather than per-PR: it depends on a
+    # nested compositor (weston) that is not representative of a real user
+    # compositor and adds CI flakiness risk disproportionate to how often
+    # the Wayland-only branch actually changes.
+    - cron: '0 18 * * *'
+
+jobs:
+  x11-window-render:
+    name: X11 window render (Xvfb)
+    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'moeru-ai:i18n/')) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install Electron runtime + Xvfb dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            xvfb \
+            libgtk-3-0 \
+            libnotify4 \
+            libnss3 \
+            libxss1 \
+            libxtst6 \
+            libatspi2.0-0 \
+            libdrm2 \
+            libgbm1 \
+            libasound2t64
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+      - run: pnpm -F @proj-airi/stage-tamagotchi run build
+
+      - name: Run window-render smoke under Xvfb
+        env:
+          # CI runners cannot set up the setuid chrome-sandbox helper;
+          # disable Chromium's OS sandbox instead of chasing SUID errors
+          # that are unrelated to the app-level `webPreferences.sandbox`
+          # setting already used for the renderer.
+          ELECTRON_DISABLE_SANDBOX: '1'
+        run: xvfb-run -a pnpm -F @proj-airi/stage-tamagotchi run smoke:linux-window-render
+
+      - name: Upload main window screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-window-render-smoke-x11
+          path: .temp/linux-window-render-smoke-*/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  wayland-window-render:
+    name: Wayland window render (weston headless)
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install Electron runtime + Weston dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            weston \
+            libgtk-3-0 \
+            libnotify4 \
+            libnss3 \
+            libxss1 \
+            libxtst6 \
+            libatspi2.0-0 \
+            libdrm2 \
+            libgbm1 \
+            libasound2t64
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+      - run: pnpm -F @proj-airi/stage-tamagotchi run build
+
+      - name: Start headless Weston compositor
+        run: |
+          export XDG_RUNTIME_DIR="${RUNNER_TEMP}/xdg-runtime"
+          mkdir -p "${XDG_RUNTIME_DIR}"
+          chmod 0700 "${XDG_RUNTIME_DIR}"
+          echo "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" >> "$GITHUB_ENV"
+
+          weston --backend=headless-backend.so --socket=wayland-1 --idle-time=0 &
+          echo "WESTON_PID=$!" >> "$GITHUB_ENV"
+
+          for _ in $(seq 1 50); do
+            [ -S "${XDG_RUNTIME_DIR}/wayland-1" ] && exit 0
+            sleep 0.2
+          done
+          echo "weston did not create its wayland-1 socket in time" >&2
+          exit 1
+
+      - name: Run window-render smoke against the Wayland Ozone backend
+        env:
+          ELECTRON_DISABLE_SANDBOX: '1'
+          XDG_SESSION_TYPE: wayland
+          WAYLAND_DISPLAY: wayland-1
+        run: pnpm -F @proj-airi/stage-tamagotchi run smoke:linux-window-render
+
+      - name: Stop Weston
+        if: always()
+        run: kill "${WESTON_PID}" 2>/dev/null || true
+
+      - name: Upload main window screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-window-render-smoke-wayland
+          path: .temp/linux-window-render-smoke-*/
+          if-no-files-found: ignore
+          retention-days: 14
