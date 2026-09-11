@@ -133,17 +133,29 @@ export const useCharacterStore = defineStore('character', () => {
    * Drops a reaction that will not be produced.
    *
    * Composing or running it failed, so nothing streams and nothing speaks for
-   * it: what its request reserved goes, along with the turn it had announced.
+   * it: what its request reserved goes, along with the turn it had announced. A
+   * reaction that had already streamed left a speech intent open, and dropping
+   * the state alone would leave the pipeline waiting for text that never comes —
+   * while the next attempt reuses that intent id.
    */
   function abandonSparkNotifyReaction(sparkEventId: string) {
+    const state = streamingReactions.value.get(sparkEventId)
     // A request that asked for bilingual output is what announced the turn, and
     // its settings are still here when the reaction never started, or on the
     // streaming state when it did.
-    const announced = streamingReactions.value.get(sparkEventId)?.bilingualSettings
+    const announced = state?.bilingualSettings
       ?? pendingSparkSettings.get(sparkEventId)
 
     pendingSparkSettings.delete(sparkEventId)
     streamingReactions.value.delete(sparkEventId)
+
+    if (state) {
+      state.intent.cancel('spark-notify-failed')
+      // Closing the split lets the markers it still holds settle, instead of
+      // leaving their loop pending. Anything they deliver now is dropped: the
+      // state above is gone, which is what the pair broadcast checks.
+      void state.parser.end()
+    }
 
     if (announced)
       releaseSparkTurn(sparkEventId)
@@ -219,6 +231,11 @@ export const useCharacterStore = defineStore('character', () => {
             newReaction.message += text
           },
           onPair: (pair) => {
+            // An abandoned reaction keeps no state, and a pair broadcast after
+            // that would caption a turn the other window has already released.
+            if (!streamingReactions.value.has(sparkEventId))
+              return
+
             postSparkEventSafely({ kind: 'pair', turnId, ...pair })
           },
         })

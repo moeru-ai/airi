@@ -7,6 +7,8 @@ import { useSettingsBilingual } from '../settings/bilingual'
 
 const mocks = vi.hoisted(() => ({
   spoken: [] as string[],
+  /** Reason each speech intent was cancelled with. */
+  cancelled: [] as (string | undefined)[],
   /** Everything the store broadcasts: a reaction's announcement, pairs, its end. */
   events: [] as Array<{ kind: string, turnId: string, [key: string]: unknown }>,
 }))
@@ -38,6 +40,9 @@ vi.mock('../speech-runtime', () => ({
       writeSpecial: () => {},
       writeFlush: () => {},
       end: () => {},
+      cancel: (reason?: string) => {
+        mocks.cancelled.push(reason)
+      },
     }),
   }),
 }))
@@ -92,6 +97,7 @@ describe('useCharacterStore spark reactions', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     mocks.spoken.length = 0
+    mocks.cancelled.length = 0
     mocks.events.length = 0
     setCharacterLlmMarkerParserFactoryForTest(markerParser as unknown as Parameters<typeof setCharacterLlmMarkerParserFactoryForTest>[0])
 
@@ -256,5 +262,19 @@ describe('useCharacterStore spark reactions', () => {
       { kind: 'turn', turnId: 'spark:spark-10', ttsLanguage: 'en' },
       { kind: 'turn-end', turnId: 'spark:spark-10' },
     ])
+  })
+
+  // A reaction that had already streamed opened a speech intent. Dropping the
+  // state alone would leave that intent open — the pipeline would wait for text
+  // that never comes, and the next attempt reuses its id.
+  it('cancels the speech intent of a reaction abandoned while streaming', () => {
+    const store = useCharacterStore()
+
+    store.prepareSparkNotifyReaction('spark-11')
+    store.onSparkNotifyReactionStreamEvent('spark-11', '[EN]Hello')
+    store.abandonSparkNotifyReaction('spark-11')
+
+    expect(mocks.cancelled).toEqual(['spark-notify-failed'])
+    expect(broadcastKinds()).toEqual(['turn', 'turn-end'])
   })
 })
