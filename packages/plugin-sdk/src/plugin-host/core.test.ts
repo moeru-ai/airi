@@ -414,6 +414,79 @@ describe('for ExtensionHost', () => {
     expect(client.read()).toBe('ready')
   })
 
+  it('revokes capabilities reached through a Kit client prototype', async () => {
+    interface PrototypeClient {
+      read: () => string
+    }
+
+    class PrototypeClientImplementation implements PrototypeClient {
+      read() {
+        return 'ready'
+      }
+    }
+
+    const host = new ExtensionHost()
+    const kit = defineKit<PrototypeClient>({
+      id: 'kit.extension-prototype-client',
+      version: '1.0.0',
+      createClient: () => new PrototypeClientImplementation(),
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'prototype-client-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'prototype-client-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    let client: PrototypeClient | undefined
+    await host.startExtension(defineExtension({
+      id: 'prototype-client-consumer',
+      async setup(ctx) {
+        client = await ctx.kits.use(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'prototype-client-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    if (!client) {
+      throw new Error('Expected the Consumer to receive a prototype Kit client.')
+    }
+
+    // ROOT CAUSE:
+    //
+    // The first recursive membrane reused the Provider prototype as the
+    // facade prototype. Object.getPrototypeOf therefore exposed raw methods
+    // that remained callable after unload. Prototype objects now pass through
+    // the same revocation membrane as properties and method results.
+    const prototype = Object.getPrototypeOf(client) as PrototypeClient
+    const read = prototype.read
+    expect(read()).toBe('ready')
+
+    await host.stop(providerSession.id)
+
+    expect(() => read()).toThrow('revoked')
+  })
+
   it('preserves enumerable properties on values returned by Kit clients', async () => {
     interface ReceiptClient {
       notify: () => Promise<{ kind: string, summary: string }>
@@ -536,6 +609,67 @@ describe('for ExtensionHost', () => {
     await host.stop(providerSession.id)
     expect(host.getSession(providerSession.id)).toBeUndefined()
     expect(observed).toEqual([true, false])
+  })
+
+  it('does not wait for Consumer watchers during Provider startup or unload', async () => {
+    const host = new ExtensionHost()
+    const kit = defineKit({
+      id: 'kit.extension-pending-watcher',
+      version: '1.0.0',
+      createClient: () => ({ ping: () => 'pong' }),
+    })
+    const pending = new Promise<void>(() => {})
+    const observed: boolean[] = []
+    await host.startExtension(defineExtension({
+      id: 'pending-watcher-consumer',
+      setup(ctx) {
+        ctx.kits.watch(kit, () => pending)
+        ctx.kits.watch(kit, (availability) => {
+          observed.push(availability.available)
+        })
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'pending-watcher-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+    await vi.waitFor(() => expect(observed).toEqual([false]))
+
+    // ROOT CAUSE:
+    //
+    // Provider publication and teardown awaited each Consumer watcher in
+    // sequence. A callback that never settled blocked the Provider lifecycle
+    // and prevented later Consumers from observing the availability change.
+    // Watchers now run in isolated asynchronous tasks.
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'pending-watcher-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'pending-watcher-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+    await vi.waitFor(() => expect(observed).toEqual([false, true]))
+
+    await host.stop(providerSession.id)
+    expect(host.getSession(providerSession.id)).toBeUndefined()
+    await vi.waitFor(() => expect(observed).toEqual([false, true, false]))
   })
 
   it('removes Provider-owned Kits when another Extension disposable fails', async () => {

@@ -292,10 +292,13 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
         // Facade properties remain configurable so non-configurable Provider
         // properties do not impose their proxy invariants on wrapped values.
         if ('value' in descriptor) {
+          const value = typeof descriptor.value === 'function'
+            ? wrapMethod(descriptor.value, source)
+            : wrapValue(descriptor.value)
           return {
             configurable: true,
             enumerable: descriptor.enumerable,
-            value: wrapValue(descriptor.value),
+            value,
             writable: descriptor.writable,
           }
         }
@@ -306,6 +309,11 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
           get: descriptor.get ? wrapMethod(descriptor.get, source) : undefined,
           set: descriptor.set ? wrapMethod(descriptor.set, source) : undefined,
         }
+      },
+      getPrototypeOf() {
+        assertClientAvailable()
+        const prototype = Reflect.getPrototypeOf(source)
+        return prototype ? wrapObject(prototype) : null
       },
       has(_target, property) {
         assertClientAvailable()
@@ -516,7 +524,7 @@ export class ExtensionHost {
       kit: kit as KitRef<unknown>,
       clientRevokers: new Set(),
     })
-    void this.notifyKitApiWatchers(kit.id)
+    this.notifyKitApiWatchers(kit.id)
     return kit
   }
 
@@ -527,7 +535,7 @@ export class ExtensionHost {
       revoke()
     }
     registration?.clientRevokers.clear()
-    void this.notifyKitApiWatchers(kitId)
+    this.notifyKitApiWatchers(kitId)
     return deleted
   }
 
@@ -586,7 +594,7 @@ export class ExtensionHost {
         }
         registration.clientRevokers.clear()
         if (isActive) {
-          await this.notifyKitApiWatchers(kit.id)
+          this.notifyKitApiWatchers(kit.id)
         }
       },
     })
@@ -605,7 +613,7 @@ export class ExtensionHost {
         capabilities: [],
       })
       this.kitApis.set(registration.kit.id, registration)
-      await this.notifyKitApiWatchers(registration.kit.id)
+      this.notifyKitApiWatchers(registration.kit.id)
     }
   }
 
@@ -655,14 +663,14 @@ export class ExtensionHost {
     this.extensionModuleResources.delete(key)
   }
 
-  private async notifyKitApiWatchers(kitId: string) {
+  private notifyKitApiWatchers(kitId: string) {
     const watchers = this.kitApiWatchers.get(kitId)
     if (!watchers?.size) {
       return
     }
 
     for (const watcher of watchers) {
-      await this.runKitApiWatcher(watcher)
+      void this.runKitApiWatcher(watcher)
     }
   }
 
