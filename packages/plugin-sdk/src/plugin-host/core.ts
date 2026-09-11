@@ -216,7 +216,16 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
 
   const wrapValue = (value: unknown): unknown => {
     if (value instanceof Promise) {
-      return value.then(resolved => wrapValue(resolved))
+      return value.then(
+        (resolved) => {
+          assertClientAvailable()
+          return wrapValue(resolved)
+        },
+        (error) => {
+          assertClientAvailable()
+          throw error
+        },
+      )
     }
     if (!isObjectValue(value)) {
       return value

@@ -114,7 +114,6 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
   async function commitDirectoryImport(payload: { planId: string }) {
     const nextRegistry = await withBridge(activeBridge => activeBridge.commitDirectoryImport(payload))
     assignRegistry(nextRegistry)
-    await refreshInspection()
     return nextRegistry
   }
 

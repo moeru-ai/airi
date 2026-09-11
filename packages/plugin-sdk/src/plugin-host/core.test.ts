@@ -552,6 +552,72 @@ describe('for ExtensionHost', () => {
     expect(JSON.stringify(receipt)).toBe('{"kind":"needs-input","summary":"Choose a model."}')
   })
 
+  it('rejects in-flight Kit results after the Provider unloads', async () => {
+    interface PendingClient {
+      read: () => Promise<string>
+    }
+
+    const result = Promise.withResolvers<string>()
+    const host = new ExtensionHost()
+    const kit = defineKit<PendingClient>({
+      id: 'kit.extension-pending-result',
+      version: '1.0.0',
+      createClient: () => ({ read: () => result.promise }),
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'pending-result-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'pending-result-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    let client: PendingClient | undefined
+    await host.startExtension(defineExtension({
+      id: 'pending-result-consumer',
+      async setup(ctx) {
+        client = await ctx.kits.use(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'pending-result-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    if (!client) {
+      throw new Error('Expected the Consumer to receive a pending-result Kit client.')
+    }
+
+    // ROOT CAUSE:
+    //
+    // The membrane checked revocation when the Provider method was invoked,
+    // but a pending Promise could settle after unload and still deliver its
+    // value. Promise fulfillment and rejection now cross the same revocation
+    // check as synchronous results.
+    const pendingRead = client.read()
+    await host.stop(providerSession.id)
+    result.resolve('late result')
+
+    await expect(pendingRead).rejects.toThrow('revoked')
+  })
+
   it('isolates Consumer watcher failures while a Provider unloads', async () => {
     const host = new ExtensionHost()
     const kit = defineKit({

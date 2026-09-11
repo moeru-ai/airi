@@ -10,9 +10,10 @@ import type {
 
 import { Buffer } from 'node:buffer'
 import { createHash, randomUUID } from 'node:crypto'
-import { createReadStream } from 'node:fs'
-import { cp, lstat, mkdir, opendir, readFile, realpath, rename, rm } from 'node:fs/promises'
+import { createReadStream, createWriteStream } from 'node:fs'
+import { chmod, lstat, mkdir, opendir, readFile, realpath, rename, rm } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { pipeline } from 'node:stream/promises'
 
 import { parseExtensionManifest } from '@proj-airi/plugin-sdk/plugin-host'
 
@@ -251,6 +252,84 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
   }
 }
 
+/** Copies an untrusted package while enforcing the same resource limits as inspection. */
+async function copyExtensionDirectory(sourceRoot: string, destinationRoot: string): Promise<void> {
+  const sourceStats = await lstat(sourceRoot)
+  if (sourceStats.isSymbolicLink() || !sourceStats.isDirectory()) {
+    throw new Error(`Extension source must be a regular directory: ${sourceRoot}`)
+  }
+
+  await mkdir(destinationRoot)
+  const pendingDirectories = [{ source: sourceRoot, destination: destinationRoot }]
+  let entryCount = 0
+  let totalBytes = 0
+
+  while (pendingDirectories.length > 0) {
+    const directory = pendingDirectories.pop()
+    if (!directory) {
+      continue
+    }
+
+    const entries = await opendir(directory.source)
+    for await (const entry of entries) {
+      entryCount += 1
+      if (entryCount > extensionPackageLimits.entries) {
+        throw new Error(`Extension package exceeds the ${extensionPackageLimits.entries} entry limit.`)
+      }
+
+      const sourcePath = join(directory.source, entry.name)
+      const destinationPath = join(directory.destination, entry.name)
+      const relativePath = relative(sourceRoot, sourcePath)
+      const stats = await lstat(sourcePath)
+      if (stats.isSymbolicLink()) {
+        throw new Error(`Extension packages cannot contain symbolic links: ${relativePath}`)
+      }
+      if (stats.isDirectory()) {
+        await mkdir(destinationPath)
+        pendingDirectories.push({ source: sourcePath, destination: destinationPath })
+        continue
+      }
+      if (!stats.isFile()) {
+        throw new Error(`Extension packages can contain only files and directories: ${relativePath}`)
+      }
+      if (totalBytes + stats.size > extensionPackageLimits.totalBytes) {
+        throw new Error('Extension package exceeds the 512 MiB size limit.')
+      }
+
+      const isManifest = relativePath === extensionManifestFileName
+      if (isManifest && stats.size > extensionPackageLimits.manifestBytes) {
+        throw new Error('Extension manifest exceeds the 1 MiB size limit.')
+      }
+
+      let copiedBytes = 0
+      await pipeline(
+        createReadStream(sourcePath),
+        async function* enforceCopyLimits(chunks) {
+          for await (const chunk of chunks) {
+            const contents = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+            copiedBytes += contents.byteLength
+            totalBytes += contents.byteLength
+            if (totalBytes > extensionPackageLimits.totalBytes) {
+              throw new Error('Extension package exceeds the 512 MiB size limit.')
+            }
+            if (isManifest && copiedBytes > extensionPackageLimits.manifestBytes) {
+              throw new Error('Extension manifest exceeds the 1 MiB size limit.')
+            }
+            yield contents
+          }
+        },
+        createWriteStream(destinationPath, { flags: 'wx' }),
+      )
+      if (copiedBytes !== stats.size) {
+        throw new Error('Extension package changed during copy. Select the folder again.')
+      }
+      // Stats.mode also contains file-type bits. Only permission bits belong
+      // in chmod, which keeps executable entrypoints and bundled tools usable.
+      await chmod(destinationPath, stats.mode & 0o777)
+    }
+  }
+}
+
 /**
  * Owns the prepare, review, and atomic commit lifecycle for folder imports.
  *
@@ -337,13 +416,7 @@ export class ExtensionDirectoryImporter {
     const destination = join(this.extensionsRoot, inspected.manifest.id)
 
     try {
-      await cp(inspected.sourcePath, stagingPath, {
-        recursive: true,
-        force: false,
-        errorOnExist: true,
-        dereference: false,
-        verbatimSymlinks: true,
-      })
+      await copyExtensionDirectory(inspected.sourcePath, stagingPath)
       const staged = await inspectExtensionDirectory(stagingPath)
       if (staged.manifest.id !== inspected.manifest.id || staged.fingerprint !== inspected.fingerprint) {
         throw new Error('Extension copy does not match the reviewed package.')

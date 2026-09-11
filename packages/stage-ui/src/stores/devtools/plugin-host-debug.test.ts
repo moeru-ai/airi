@@ -171,16 +171,23 @@ describe('extension folder import', () => {
     expect(store.registry).toBeUndefined()
   })
 
-  it('stores the disabled registry snapshot after commit and refreshes inspection', async () => {
+  it('stores the committed registry without requiring a follow-up inspection', async () => {
     const registry = createRegistry(false, false)
     const bridge = createBridge(registry)
+    bridge.inspect.mockRejectedValueOnce(new Error('Inspection refresh failed.'))
     const store = usePluginHostInspectorStore()
     store.setBridge(bridge)
 
-    await store.commitDirectoryImport({ planId: 'plan-1' })
+    // ROOT CAUSE:
+    //
+    // The Extension was already installed when a follow-up inspection could
+    // reject the commit action. The UI then kept a consumed confirmation plan
+    // and reported failure. A disabled import changes only the registry, so
+    // the commit snapshot is sufficient for this action.
+    await expect(store.commitDirectoryImport({ planId: 'plan-1' })).resolves.toEqual(registry)
 
     expect(bridge.commitDirectoryImport).toHaveBeenCalledExactlyOnceWith({ planId: 'plan-1' })
-    expect(bridge.inspect).toHaveBeenCalledOnce()
+    expect(bridge.inspect).not.toHaveBeenCalled()
     expect(store.registry).toEqual(registry)
   })
 })

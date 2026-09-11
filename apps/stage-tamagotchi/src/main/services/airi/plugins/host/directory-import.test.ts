@@ -125,6 +125,35 @@ describe('extension directory importer', () => {
     await expect(importer.commit(plan.planId)).rejects.toThrow('source changed after review')
   })
 
+  it('enforces package limits when the source grows after commit validation', async () => {
+    let manifestReads = 0
+    fileSystemState.afterRead = async (path) => {
+      if (!path.endsWith(join('source', 'extension.airi.json'))) {
+        return
+      }
+      manifestReads += 1
+      if (manifestReads !== 2) {
+        return
+      }
+
+      const oversizedAsset = join(sourceRoot, 'replacement.asset')
+      await writeFile(oversizedAsset, '')
+      await truncate(oversizedAsset, 512 * 1024 * 1024 + 1)
+    }
+    const plan = await importer.prepare(sourceRoot)
+
+    // ROOT CAUSE:
+    //
+    // Commit validated the source and then delegated the copy to fs.cp. A
+    // source change in that interval could add an unbounded file before the
+    // staged inspection ran. The copy now counts entries and streamed bytes
+    // before they reach the managed staging directory.
+    await expect(importer.commit(plan.planId)).rejects.toThrow('exceeds the 512 MiB size limit')
+    await expect(readFile(join(extensionsRoot, 'example-extension', 'extension.airi.json')))
+      .rejects
+      .toMatchObject({ code: 'ENOENT' })
+  })
+
   it('binds the reviewed manifest to the package fingerprint', async () => {
     await writeFile(join(sourceRoot, 'replacement.mjs'), 'export default { id: "replacement-extension", setup() {} }')
 
