@@ -814,6 +814,15 @@ interface BilingualTurnState {
    * as it arrives instead of being dropped.
    */
   waiting?: boolean
+  /**
+   * Spoken text of the pair whose translation is on screen.
+   *
+   * The speech engine segments by punctuation while the parser pairs by language
+   * switch, so one pair often covers several playback items. A fragment that no
+   * longer matches a queued pair is a continuation of this sentence, not one
+   * still waiting for its translation.
+   */
+  spokenOnScreen?: string
 }
 
 const bilingualTurns = new Map<string, BilingualTurnState>()
@@ -924,6 +933,22 @@ function findBilingualPairIndex(pairs: BilingualPair[], itemText: string): numbe
 }
 
 /**
+ * Whether a playback item is a piece of the sentence already on screen.
+ *
+ * The speech engine splits one sentence into several items, so the item after the
+ * first matches nothing left in the queue. Matching it against the sentence on
+ * screen keeps it from being mistaken for one still waiting to be paired.
+ */
+function isFragmentOfSpokenOnScreen(sentence: string | undefined, itemText: string): boolean {
+  const spoken = (sentence ?? '').trim()
+  const fragment = itemText.trim()
+  if (!spoken || !fragment)
+    return false
+
+  return spoken === fragment || spoken.includes(fragment) || fragment.includes(spoken)
+}
+
+/**
  * Shows the translation of the sentence playback just started. It replaces the
  * previous line so the two lines stay paired sentence by sentence instead of
  * dumping the whole translation at once.
@@ -957,8 +982,14 @@ function publishBilingualTranslation(turnId: string, itemText?: string) {
     const index = findBilingualPairIndex(state.pairs, itemText)
 
     if (index < 0) {
-      // Either this item is a fragment of the pair already on screen, or the
-      // pair it belongs to has not closed yet. Wait for that pair instead of
+      // A fragment of the sentence already on screen: its translation is up
+      // there and this item is only the rest of it being spoken. Waiting here
+      // would publish the *next* sentence's translation as soon as that pair
+      // closes, while the fragments of this one are still playing.
+      if (isFragmentOfSpokenOnScreen(state.spokenOnScreen, itemText))
+        return
+
+      // The pair it belongs to has not closed yet. Wait for that pair instead of
       // pairing this sentence with a translation of another one.
       state.waiting = true
       return
@@ -975,6 +1006,9 @@ function publishBilingualTranslation(turnId: string, itemText?: string) {
   // every queued translation belongs to this one item. Taking only the first
   // would drop the rest when the next turn clears the queue.
   const consumed = state.pairs.splice(0, state.buffered ? state.pairs.length : 1)
+  // Kept so the fragments this pair gets split into can be told apart from a
+  // sentence whose translation has not arrived yet.
+  state.spokenOnScreen = consumed.map(pair => pair.spoken).filter(Boolean).join(' ')
   const text = consumed.map(pair => pair.translation).filter(Boolean).join(' ')
   if (!text)
     return
@@ -1130,8 +1164,16 @@ function bilingualVoiceForTurn(turnId: string | undefined): VoiceInfo | undefine
   if (!turnId)
     return bilingualStore.enabled ? resolveBilingualVoiceFor(bilingualStore.ttsLanguage) : undefined
 
-  return keptBilingualVoice(turnId)
-    ?? seedBilingualVoice(turnId, bilingualStore.enabled ? bilingualStore.ttsLanguage : undefined)
+  const state = bilingualTurnState(turnId)
+
+  // A decision that still stands is honoured as it was made, including the one
+  // to keep the configured voice: a provider may simply list no voice for the
+  // language. Re-resolving here would read that `undefined` as missing and
+  // follow a later settings change for every remaining segment.
+  if (state.voiceChosen && state.voiceProvider === activeSpeechProvider.value)
+    return state.voice
+
+  return seedBilingualVoice(turnId, bilingualStore.enabled ? bilingualStore.ttsLanguage : undefined)
 }
 
 /**
