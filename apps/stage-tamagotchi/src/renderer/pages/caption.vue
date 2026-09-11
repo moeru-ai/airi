@@ -98,7 +98,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="pointer-events-none relative h-full w-full flex items-end justify-center">
+  <div
+    :class="[
+      'pointer-events-none relative h-full w-full',
+      'flex items-end justify-center',
+    ]"
+  >
     <div
       :class="[
         shouldFadeOnCursorWithin ? 'op-0' : 'op-100',
@@ -108,21 +113,51 @@ onUnmounted(() => {
     >
       <div
         v-show="!attached"
-        class="[-webkit-app-region:drag] absolute left-1/2 h-[14px] w-[36px] border border-[rgba(125,125,125,0.35)] rounded-[10px] bg-[rgba(125,125,125,0.28)] backdrop-blur-[6px] -top-2 -translate-x-1/2"
+        :class="[
+          '[-webkit-app-region:drag] absolute -top-2 left-1/2 -translate-x-1/2',
+          'h-[14px] w-[36px] rounded-[10px]',
+          'border border-[rgba(125,125,125,0.35)] bg-[rgba(125,125,125,0.28)]',
+          'backdrop-blur-[6px]',
+        ]"
         title="Drag to move"
       >
-        <div class="absolute left-1/2 top-1/2 h-[3px] w-4 rounded-full bg-[rgba(255,255,255,0.85)] -translate-x-1/2 -translate-y-1/2" />
+        <div
+          :class="[
+            'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+            'h-[3px] w-4 rounded-full',
+            'bg-[rgba(255,255,255,0.85)]',
+          ]"
+        />
       </div>
 
-      <div class="max-w-[80vw] flex flex-col gap-1">
+      <div
+        :class="[
+          'max-w-[80vw]',
+          'flex flex-col gap-1',
+        ]"
+      >
         <div
           v-for="type in captionTypes"
           v-show="captionTextByType[type].length > 0"
           :key="type"
           :class="[
-            type === 'caption-speaker' ? 'rounded-md px-2 py-1 text-[1.1rem] text-neutral-50 font-medium text-shadow-lg text-shadow-color-neutral-900/60' : '',
-            type === 'caption-assistant' ? 'rounded-md px-2 py-1 text-[1.35rem] text-primary-50 font-semibold text-stroke-4 text-stroke-primary-300/50 text-shadow-lg text-shadow-color-primary-700/50' : '',
-            type === 'caption-assistant-translation' ? 'rounded-md px-2 py-1 text-[1.05rem] text-neutral-100/90 font-medium text-shadow-lg text-shadow-color-neutral-900/60' : '',
+            'rounded-md px-2 py-1',
+            type === 'caption-speaker' ? [
+              'text-[1.1rem] font-medium',
+              'text-neutral-50',
+              'text-shadow-lg text-shadow-color-neutral-900/60',
+            ] : [],
+            type === 'caption-assistant' ? [
+              'text-[1.35rem] font-semibold',
+              'text-primary-50',
+              'text-stroke-4 text-stroke-primary-300/50',
+              'text-shadow-lg text-shadow-color-primary-700/50',
+            ] : [],
+            type === 'caption-assistant-translation' ? [
+              'text-[1.05rem] font-medium',
+              'text-neutral-100/90',
+              'text-shadow-lg text-shadow-color-neutral-900/60',
+            ] : [],
           ]"
           :style="type === 'caption-assistant' ? { paintOrder: 'stroke fill' } : undefined"
         >
@@ -152,11 +187,19 @@ onUnmounted(() => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-50"
     >
-      <div v-if="isAroundWindowBorderFor250Ms" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
+      <div
+        v-if="isAroundWindowBorderFor250Ms"
+        :class="[
+          'pointer-events-none absolute left-0 top-0 z-999',
+          'h-full w-full',
+        ]"
+      >
         <div
           :class="[
             'b-primary/50',
-            'h-full w-full animate-flash animate-duration-3s animate-count-infinite b-4 rounded-2xl',
+            'h-full w-full',
+            'animate-flash animate-duration-3s animate-count-infinite',
+            'b-4 rounded-2xl',
           ]"
         />
       </div>
