@@ -21,6 +21,7 @@ import { app, session as electronSession } from 'electron'
 import { createExtensionAutoReloadFeature } from '../features/auto-reload'
 import { createExtensionAssetService } from '../features/static-assets'
 import { createBuiltInExtensionKitRuntime } from '../kits'
+import { createExtensionActivationPlan } from './activation-plan'
 import { createExtensionHostConfigStore } from './config'
 import { buildPluginHostDebugSnapshot } from './debug'
 import { ExtensionDirectoryImporter } from './directory-import'
@@ -444,15 +445,13 @@ export async function setupExtensionHostServiceInternal(
 
   const loadEnabledExtensions = async () => {
     const config = getConfig()
-    for (const entry of extensionRegistry.listEntries()) {
+    const candidates = extensionRegistry.listEntries().filter((entry) => {
       const extensionId = manifestIdOf(entry.manifest)
-      if (!config.enabled.includes(extensionId)) {
-        continue
-      }
-      if (loaded.has(extensionId)) {
-        continue
-      }
+      return config.enabled.includes(extensionId) && !loaded.has(extensionId)
+    })
 
+    for (const entry of createExtensionActivationPlan(candidates)) {
+      const extensionId = manifestIdOf(entry.manifest)
       try {
         await loadExtensionById(extensionId)
       }

@@ -157,6 +157,24 @@ describe('extension manifest schema', () => {
 })
 
 describe('for ExtensionHost', () => {
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986343873
+  it('rejects a missing required Kit before importing the Extension entrypoint', async () => {
+    const host = new ExtensionHost()
+
+    await expect(host.start({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'required-kit-import-consumer',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      entrypoints: { electron: './missing-consumer-entrypoint.mjs' },
+      permissions: { apis: [{ key: 'kit.required-before-import', actions: ['invoke'] }] },
+      kits: { uses: [{ id: 'kit.required-before-import', version: '1.0.0' }] },
+    })).rejects.toThrow('requires Kit `kit.required-before-import` at version `1.0.0`')
+
+    expect(host.listSessions()).toEqual([])
+  })
+
   // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986172725
   it('rejects a missing required Kit before Extension setup', async () => {
     const host = new ExtensionHost()
@@ -1061,6 +1079,68 @@ describe('for ExtensionHost', () => {
 
     releaseFirstDelivery.resolve()
     await vi.waitFor(() => expect(observed).toEqual([true, false]))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986343869
+  it('discards stale Kit availability while an earlier delivery is pending', async () => {
+    const host = new ExtensionHost()
+    const kit = defineKit({
+      id: 'kit.extension-stale-watcher',
+      version: '1.0.0',
+      createClient: () => ({ ping: () => 'pong' }),
+    })
+    const firstDeliveryStarted = Promise.withResolvers<void>()
+    const releaseFirstDelivery = Promise.withResolvers<void>()
+    const observed: boolean[] = []
+    await host.startExtension(defineExtension({
+      id: 'stale-watcher-consumer',
+      setup(ctx) {
+        let deliveryCount = 0
+        ctx.kits.watch(kit, async (availability) => {
+          deliveryCount += 1
+          if (deliveryCount === 1) {
+            firstDeliveryStarted.resolve()
+            await releaseFirstDelivery.promise
+          }
+          observed.push(availability.available)
+        })
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'stale-watcher-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version, optional: true }] },
+      },
+    })
+    await firstDeliveryStarted.promise
+
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'stale-watcher-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'stale-watcher-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+    await host.stop(providerSession.id)
+    releaseFirstDelivery.resolve()
+
+    await vi.waitFor(() => expect(observed.length).toBeGreaterThanOrEqual(2))
+    expect(observed).not.toContain(true)
   })
 
   it('removes Provider-owned Kits when another Extension disposable fails', async () => {

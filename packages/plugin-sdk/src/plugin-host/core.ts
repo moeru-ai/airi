@@ -822,25 +822,29 @@ export class ExtensionHost {
       watch: <TClient>(kit: KitRef<TClient> | KitContract<TClient>, callback: (availability: KitAvailability<TClient>) => void | Promise<void>) => {
         const watchers = this.kitApiWatchers.get(kit.id) ?? new Set()
         let disposed = false
+        let latestDeliveryId = 0
         let deliveryQueue = Promise.resolve()
         const watcher = async () => {
           if (disposed) {
             return
           }
 
-          const result = this.resolveKitApi(session, kit, subscriptions, moduleId)
-          const availability: KitAvailability<TClient> = result.ok
-            ? { available: true, kit, client: result.client }
-            : {
-                available: false,
-                kit,
-                reason: (result as Extract<KitUseResult<TClient>, { ok: false }>).reason,
-                error: (result as Extract<KitUseResult<TClient>, { ok: false }>).error,
-              }
+          const deliveryId = ++latestDeliveryId
           const delivery = deliveryQueue.then(async () => {
-            if (!disposed) {
-              await callback(availability)
+            if (disposed || deliveryId !== latestDeliveryId) {
+              return
             }
+
+            const result = this.resolveKitApi(session, kit, subscriptions, moduleId)
+            const availability: KitAvailability<TClient> = result.ok
+              ? { available: true, kit, client: result.client }
+              : {
+                  available: false,
+                  kit,
+                  reason: (result as Extract<KitUseResult<TClient>, { ok: false }>).reason,
+                  error: (result as Extract<KitUseResult<TClient>, { ok: false }>).error,
+                }
+            await callback(availability)
           })
           deliveryQueue = delivery.catch(() => {})
           await delivery
@@ -1184,6 +1188,7 @@ export class ExtensionHost {
   async start(manifest: ExtensionManifestV2, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
     const runtime = options.runtime ?? this.runtime
     this.assertManifestCompatibility(manifest, runtime)
+    this.assertRequiredKitsAvailable(manifest)
     const extension = await this.loader.loadExtensionFor(manifest, {
       cwd: options.cwd,
       runtime,
