@@ -6,6 +6,7 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { toProviderConfigSnapshot } from '@proj-airi/stage-ui/libs/providers/config'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
@@ -74,15 +75,18 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   )
 }
 
-onMounted(async () => {
+async function loadVoicesWhenConfigured() {
   const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
+  const configSnapshot = toProviderConfigSnapshot(providerConfig)
+  if ((await providersStore.validateProviderConfig(providerId, configSnapshot)).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
     console.error('Failed to validate provider config', providerConfig)
   }
-})
+}
+
+onMounted(loadVoicesWhenConfigured)
 
 watch(pitch, async () => {
   const providerConfig = providerStore.getProviderConfig(providerId)
@@ -119,15 +123,7 @@ watch(useSpeakerBoost, async () => {
   providerConfig.useSpeakerBoost = useSpeakerBoost.value
 })
 
-watch(providers, async () => {
-  const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
-    await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
-  }
-}, {
+watch(providers, loadVoicesWhenConfigured, {
   immediate: true,
 })
 </script>

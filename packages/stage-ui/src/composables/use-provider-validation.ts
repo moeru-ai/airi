@@ -4,12 +4,12 @@ import type { ProviderMode } from './use-analytics'
 
 import { errorMessageFrom } from '@moeru/std'
 import { computedAsync, useDebounceFn } from '@vueuse/core'
-import { cloneDeep } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import { toProviderConfigSnapshot } from '../libs/providers/config'
 import { selectProviderMetadata } from '../libs/providers/metadata'
 import { useProviderConfigStore } from '../stores/providers/config'
 import { useProviderStore } from '../stores/providers/provider'
@@ -106,7 +106,7 @@ export function useProviderValidation(providerId: string) {
    * nested values as proxies, so this copy must be deep.
    */
   function configToValidate(): Record<string, any> {
-    const config = cloneDeep(credentials.value)
+    const config = toProviderConfigSnapshot(credentials.value) as Record<string, any>
     if (config.apiKey)
       config.apiKey = config.apiKey.trim()
     if (config.baseUrl)
