@@ -131,6 +131,27 @@ describe('ark chat provider definitions', () => {
 
 describe('ark live model refresh', () => {
   // https://github.com/moeru-ai/airi/issues/2138
+  // ROOT CAUSE:
+  //
+  // If the endpoint ships a new coding-plan model, the UI still hides it.
+  // Users wait for the next client release before the model appears.
+  // This happens because ark-shared listModels returned only the static
+  // array and never called the live /models endpoint.
+  //
+  // <before-patch>
+  // listModels: async (_config, _provider, contextOptions) => models.map(...)
+  // The static array was the full result. No fetch ran.
+  // </before-patch>
+  //
+  // We fixed this by merging live /models results after the static catalog.
+  // Static entries keep their metadata and win on duplicate ids. Unknown
+  // live ids are appended. No API key means no fetch. Any endpoint failure,
+  // timeout, or stall falls back to the static catalog, so one slow provider
+  // never blocks the providers after it.
+  // <after-patch>
+  // listModels({ apiKey, baseURL: baseUrl, abortSignal: controller.signal })
+  // with a 5000ms AbortController timeout, then merge into staticModels.
+  // </after-patch>
   const fetchMock = vi.fn()
 
   beforeEach(() => {
@@ -181,6 +202,37 @@ describe('ark live model refresh', () => {
     const listedModels = await listVolcengineModels('test-key')
     expect(listedModels.map(model => model.id)).toHaveLength(10)
     expect(listedModels[0]?.id).toBe('volcengine-coding-plan/ark-code-latest')
+  })
+
+  it('issue #2138 falls back to the static catalog when the live endpoint stalls', async () => {
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockImplementation((_input: unknown, init?: { signal?: AbortSignal }) => new Promise<never>((_resolve, reject) => {
+        const signal = init?.signal
+        if (signal?.aborted) {
+          reject(new DOMException('Aborted', 'AbortError'))
+          return
+        }
+        signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+      }))
+      const pending = listVolcengineModels('test-key')
+      await vi.advanceTimersByTimeAsync(100)
+      expect(fetchMock).toHaveBeenCalledOnce()
+      await vi.advanceTimersByTimeAsync(6000)
+      const listedModels = await pending
+      expect(listedModels.map(model => model.id)).toHaveLength(10)
+      expect(listedModels[0]?.id).toBe('volcengine-coding-plan/ark-code-latest')
+      const signal = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.signal
+      expect(signal?.aborted).toBe(true)
+
+      fetchMock.mockResolvedValue(new Response(JSON.stringify({ data: [{ id: 'doubao-seed-3-0-code' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      const recovered = await listVolcengineModels('test-key')
+      expect(recovered.map(model => model.id)).toContain('volcengine-coding-plan/doubao-seed-3-0-code')
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    }
+    finally {
+      vi.useRealTimers()
+    }
   })
 
   it('issue #2138 performs no fetch without an API key', async () => {

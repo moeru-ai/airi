@@ -141,11 +141,21 @@ export function createArkChatProviderDefinition<const TId extends string>(option
         }
 
         let liveModels: unknown
+        // Bound the live refresh so a slow endpoint cannot block model loading.
+        // listModels runs while the UI loads provider models. An unbounded wait
+        // stalls this provider and delays every provider after it. The timeout
+        // aborts the request and the catch below falls back to staticModels.
+        const liveRefreshTimeoutMs = 5000
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), liveRefreshTimeoutMs)
         try {
-          liveModels = await listModels({ apiKey, baseURL: baseUrl })
+          liveModels = await listModels({ apiKey, baseURL: baseUrl, abortSignal: controller.signal })
         }
         catch {
           return staticModels
+        }
+        finally {
+          clearTimeout(timeout)
         }
         if (!Array.isArray(liveModels)) {
           return staticModels
