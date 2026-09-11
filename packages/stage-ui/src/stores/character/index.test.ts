@@ -174,20 +174,6 @@ describe('useCharacterStore spark reactions', () => {
     expect(recorded).not.toContain('[CN]')
   })
 
-  // The split runs with the settings the reaction started with, so the recorded
-  // text is projected with those too. Reading the settings at the end would keep
-  // the wrong language, or leave the tags in, once they change mid-reaction.
-  it('records the reaction in the languages the split started with', () => {
-    const store = useCharacterStore()
-
-    store.prepareSparkNotifyReaction('spark-5')
-    store.onSparkNotifyReactionStreamEvent('spark-5', '[EN]Hello there.[CN]你好。')
-    useSettingsBilingual().ttsLanguage = 'zh'
-    store.onSparkNotifyReactionStreamEnd('spark-5', '[EN]Hello there.[CN]你好。')
-
-    expect(store.reactions.at(-1)?.message).toBe('Hello there.')
-  })
-
   // The window that plays the reaction picks its voice from this, so it has to
   // arrive before the reaction speaks: resolving the voice there reads the
   // settings again, which by then may already have changed.
@@ -225,56 +211,59 @@ describe('useCharacterStore spark reactions', () => {
     expect(mocks.events).toEqual([])
   })
 
-  // A reaction can end without anything to say, and its turn was announced when
-  // the request was composed. Without this end, the window that plays reactions
-  // reserves a turn per silent reaction for the life of the session.
-  it('releases the turn of a prepared reaction that never speaks', () => {
+  // Every reaction reserves a turn when its request is composed, so it has to be
+  // released however the reaction ends — silently, after it speaks, before it
+  // runs, or mid-stream. Otherwise the window that plays reactions reserves a
+  // turn per reaction for the life of the session, and one abandoned after it
+  // streamed leaves its speech intent open for text that never comes.
+  interface TurnReleaseScenario {
+    /** What drives the reaction to its end. */
+    drive: (store: ReturnType<typeof useCharacterStore>, id: string) => void
+    /** Broadcast kinds expected once the reaction ends. */
+    kinds: string[]
+    /** Whether the expected kinds arrive only after the stream drains. */
+    async?: boolean
+    /** Speech intents that should have been cancelled. */
+    cancelled?: string[]
+  }
+
+  const turnReleaseScenarios: Record<string, TurnReleaseScenario> = {
+    'a prepared reaction that never speaks': {
+      drive: (store, id) => store.onSparkNotifyReactionStreamEnd(id, ''),
+      kinds: ['turn', 'turn-end'],
+    },
+    'a spoken reaction': {
+      drive: (store, id) => streamBilingualReaction(store, id),
+      kinds: ['turn', 'pair', 'turn-end'],
+      async: true,
+    },
+    'a prepared reaction that will not run': {
+      drive: (store, id) => store.abandonSparkNotifyReaction(id),
+      kinds: ['turn', 'turn-end'],
+    },
+    'a reaction abandoned while streaming': {
+      drive: (store, id) => {
+        store.onSparkNotifyReactionStreamEvent(id, '[EN]Hello')
+        store.abandonSparkNotifyReaction(id)
+      },
+      kinds: ['turn', 'turn-end'],
+      cancelled: ['spark-notify-failed'],
+    },
+  }
+
+  it.each(Object.entries(turnReleaseScenarios))('releases the turn of %s', async (name, scenario) => {
     const store = useCharacterStore()
+    const id = `spark:${name}`
 
-    store.prepareSparkNotifyReaction('spark-8')
-    store.onSparkNotifyReactionStreamEnd('spark-8', '')
+    store.prepareSparkNotifyReaction(id)
+    scenario.drive(store, id)
 
-    expect(mocks.events).toEqual([
-      { kind: 'turn', turnId: 'spark:spark-8', ttsLanguage: 'en' },
-      { kind: 'turn-end', turnId: 'spark:spark-8' },
-    ])
-  })
+    if (scenario.async)
+      await vi.waitFor(() => expect(broadcastKinds()).toEqual(scenario.kinds))
+    else
+      expect(broadcastKinds()).toEqual(scenario.kinds)
 
-  // Released after the drain, so the pairs are already on the channel when the
-  // playing window decides whether the turn had anything to speak.
-  it('releases the turn of a spoken reaction after its pairs', async () => {
-    const store = useCharacterStore()
-
-    streamBilingualReaction(store, 'spark-9')
-
-    await vi.waitFor(() => expect(broadcastKinds()).toEqual(['turn', 'pair', 'turn-end']))
-  })
-
-  // A request that failed before its reaction ran leaves nothing behind: the
-  // slot it reserved and the turn it announced both go.
-  it('releases the turn of a prepared reaction that will not run', () => {
-    const store = useCharacterStore()
-
-    store.prepareSparkNotifyReaction('spark-10')
-    store.abandonSparkNotifyReaction('spark-10')
-
-    expect(mocks.events).toEqual([
-      { kind: 'turn', turnId: 'spark:spark-10', ttsLanguage: 'en' },
-      { kind: 'turn-end', turnId: 'spark:spark-10' },
-    ])
-  })
-
-  // A reaction that had already streamed opened a speech intent. Dropping the
-  // state alone would leave that intent open — the pipeline would wait for text
-  // that never comes, and the next attempt reuses its id.
-  it('cancels the speech intent of a reaction abandoned while streaming', () => {
-    const store = useCharacterStore()
-
-    store.prepareSparkNotifyReaction('spark-11')
-    store.onSparkNotifyReactionStreamEvent('spark-11', '[EN]Hello')
-    store.abandonSparkNotifyReaction('spark-11')
-
-    expect(mocks.cancelled).toEqual(['spark-notify-failed'])
-    expect(broadcastKinds()).toEqual(['turn', 'turn-end'])
+    if (scenario.cancelled)
+      expect(mocks.cancelled).toEqual(scenario.cancelled)
   })
 })

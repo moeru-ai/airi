@@ -164,3 +164,17 @@ export function projectBilingualText(text: string, languages: string[], keep: st
 
   return out
 }
+
+/**
+ * Cuts an unfinished tag candidate off the end of streamed text.
+ *
+ * A provider may deliver `[EN]` in several pieces, so a patch of a reply that is
+ * still streaming can end inside a candidate — `[`, `[EN`. Projecting such a
+ * patch flushes the candidate as literal text, and the bubble shows a bracket
+ * until the next patch resolves it. The finished reply never goes through this:
+ * there a `[` with no closing bracket is a real character and is kept.
+ */
+export function trimIncompleteBilingualTag(text: string): string {
+  const open = text.lastIndexOf('[')
+  return open >= 0 && !text.includes(']', open) ? text.slice(0, open) : text
+}

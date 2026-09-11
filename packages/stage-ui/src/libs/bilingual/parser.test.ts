@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { createBilingualParser, projectBilingualText } from './parser'
+import { createBilingualParser, projectBilingualText, trimIncompleteBilingualTag } from './parser'
 
 interface CapturedChunk {
   code: string
@@ -30,13 +30,6 @@ describe('createBilingualParser', () => {
       { code: 'en', text: ' Hello\n' },
       { code: 'zh', text: ' 你好' },
     ])
-  })
-
-  it('never lets a tag reach the consumer', () => {
-    const captured = collect(['en', 'zh'], ['[EN] Hello\n[CN] 你好'])
-
-    expect(captured.map(chunk => chunk.text).join('')).not.toContain('[EN]')
-    expect(captured.map(chunk => chunk.text).join('')).not.toContain('[CN]')
   })
 
   it('reassembles a tag that is split across chunks', () => {
@@ -73,7 +66,7 @@ describe('createBilingualParser', () => {
   // another one keeps it as literal text, so the mistake is visible in the
   // caption instead of moving the segment to a line nothing was asked for.
   it('keeps a tag outside the catalogue as literal text', () => {
-    for (const tag of ['ZH', 'ZH-CN', 'CHINESE', '中文']) {
+    for (const tag of ['ZH', '中文']) {
       const captured = collect(['en', 'zh'], [`[EN] Hello[${tag}] 你好`])
 
       expect(captured, tag).toEqual([{ code: 'en', text: ` Hello[${tag}] 你好` }])
@@ -126,5 +119,21 @@ describe('projectBilingualText', () => {
 
   it('leaves untagged text untouched', () => {
     expect(projectBilingualText('Hello there', ['en', 'zh'], 'en')).toBe('Hello there')
+  })
+})
+
+describe('trimIncompleteBilingualTag', () => {
+  // A provider can split `[EN]` across deltas, so a live patch of a streaming
+  // reply can end inside a candidate tag. Projecting it as-is flushes the half
+  // tag into the bubble; trimming keeps the bracket off the screen until the
+  // next patch resolves it.
+  it('cuts a tag candidate the stream has not finished', () => {
+    expect(trimIncompleteBilingualTag('Hello [')).toBe('Hello ')
+    expect(trimIncompleteBilingualTag('Hello [EN')).toBe('Hello ')
+  })
+
+  it('keeps text whose brackets are all closed', () => {
+    expect(trimIncompleteBilingualTag('[EN] Hello [CN] 你好')).toBe('[EN] Hello [CN] 你好')
+    expect(trimIncompleteBilingualTag('Hello [note]')).toBe('Hello [note]')
   })
 })

@@ -406,6 +406,34 @@ describe('chat store contract', () => {
     bilingual.enabled = false
   })
 
+  // A provider may split `[CN]` across deltas, so a live patch can end inside a
+  // tag candidate. The bubble holds it back instead of flashing a bracket; the
+  // finished reply keeps it, because there a bracket is a real character.
+  it('holds back an unfinished tag in the live bubble of a streaming reply', async () => {
+    const bilingual = useSettingsBilingual()
+    bilingual.enabled = true
+    bilingual.ttsLanguage = 'en'
+    bilingual.translationLanguage = 'zh'
+
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'text-delta', text: '[EN]Hello there. ' })
+      await options.onStreamEvent?.({ type: 'text-delta', text: '[CN' })
+
+      await vi.waitFor(() => {
+        const content = useChatStore().activeStreamingMessage?.content ?? ''
+        expect(content).toContain('Hello there')
+        expect(content).not.toMatch(/\[[^\]]*$/)
+      })
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'say hello' })
+
+    expect(sessionMessages['session-1']?.find(message => message.role === 'assistant')?.content).toBe('Hello there. [CN')
+
+    bilingual.enabled = false
+  })
+
   it('passes a native reply relation to the chat runtime', async () => {
     sessionMessages['session-1'] = [
       { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },

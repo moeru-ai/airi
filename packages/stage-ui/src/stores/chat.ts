@@ -17,7 +17,7 @@ import { shallowRef, toRaw } from 'vue'
 import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
-import { projectBilingualText } from '../libs/bilingual/parser'
+import { projectBilingualText, trimIncompleteBilingualTag } from '../libs/bilingual/parser'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
@@ -287,7 +287,7 @@ export const useChatStore = defineStore('chat', () => {
     // has to be projected too or the reply shows the control tags and the
     // translation while it is still streaming.
     activeStreamingMessage.value = state.activeStreamingMessage
-      ? projectBilingualMessage(state.activeStreamingMessage)
+      ? projectBilingualMessage(state.activeStreamingMessage, { live: true })
       : state.activeStreamingMessage
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
@@ -364,7 +364,7 @@ export const useChatStore = defineStore('chat', () => {
    * only emits these tags on request, and text that carries a bracket for any
    * other reason would lose everything after it.
    */
-  function projectBilingualMessage<T extends { role?: unknown, content?: unknown, slices?: unknown, providerTranscript?: unknown }>(message: T): T {
+  function projectBilingualMessage<T extends { role?: unknown, content?: unknown, slices?: unknown, providerTranscript?: unknown }>(message: T, options?: { live?: boolean }): T {
     if (message.role !== 'assistant' || typeof message.content !== 'string' || !message.content.includes('['))
       return message
 
@@ -372,7 +372,12 @@ export const useChatStore = defineStore('chat', () => {
     if (!instructed)
       return message
 
-    const project = (text: string) => projectBilingualText(text, languages, ttsLanguage)
+    // A patch of a reply that is still streaming can end inside a tag the
+    // provider has only delivered half of. Holding that candidate back keeps the
+    // bracket off the bubble; the next patch carries the rest. The finished
+    // reply is not held — there a `[` is a real character.
+    const hold = options?.live === true
+    const project = (text: string) => projectBilingualText(hold ? trimIncompleteBilingualTag(text) : text, languages, ttsLanguage)
     const slices = Array.isArray(message.slices)
       ? message.slices.map(slice => slice && typeof slice === 'object' && 'type' in slice && slice.type === 'text' && 'text' in slice && typeof slice.text === 'string'
           ? { ...slice, text: project(slice.text) }
@@ -443,7 +448,7 @@ export const useChatStore = defineStore('chat', () => {
     },
     foregroundStream: {
       patch: (message) => {
-        streamingMessage.value = projectBilingualMessage(message)
+        streamingMessage.value = projectBilingualMessage(message, { live: true })
       },
       reset: () => {
         streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
