@@ -15,11 +15,11 @@ import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstanc
 
 import { errorMessageFrom } from '@moeru/std'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
-import { computedAsync, useIntervalFn } from '@vueuse/core'
+import { computedAsync, useAsyncState, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
 import { uniqBy } from 'es-toolkit'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, onScopeDispose, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -31,15 +31,32 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
+import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
 import { normalizeProviderConfigDefaults } from './config-defaults'
 
 export type { ModelInfo, VoiceInfo } from '../../libs/providers/types'
 
+/** Request-local provider configuration carried across the leader RPC boundary. */
+export interface VoiceCatalogConfiguration {
+  definitionId: string
+  config: Record<string, unknown>
+}
+
+/** Compact freshness metadata replicated with a voice catalog, without request credentials or samples. */
+export interface VoiceCatalogIdentity {
+  definitionId: string
+  model: string | undefined
+  configurationFingerprint: string
+  /** Opaque provider ownership. Token renewal preserves it; an owner change invalidates cached voices. */
+  owner: string | undefined
+}
+
 /** Serializable request and model-discovery state for one provider instance. */
 export interface ProviderRuntimeState {
   validatedCredentialHash?: string
   models: ModelInfo[]
+  defaultModel: string | null
   modelStatus: 'idle' | 'loading' | 'ready' | 'error'
   modelError: string | null
 }
@@ -86,6 +103,7 @@ const useProviderStateStore = defineStore('provider-state', () => {
  * configuration remains in {@link useProviderConfigStore}.
  */
 export const useProviderStore = defineStore('provider', () => {
+  const authStore = useAuthStore()
   const providerConfigStore = useProviderConfigStore()
   const providerStateStore = useProviderStateStore()
   const providerCredentials = computed(() => providerConfigStore.configs)
@@ -112,28 +130,54 @@ export const useProviderStore = defineStore('provider', () => {
   const providerDefinitions = Object.fromEntries(
     definedProviders.map(definition => [definition.id, definition]),
   ) as Record<string, ProviderDefinition>
-  const providerMetadata = selectProvidersMetadata(definedProviders, t)
-
+  // Scalar identity keeps same-session object replacements and token renewal
+  // from invalidating completed catalogs. Consumers do not interpret this key.
+  const catalogOwner = computed(() => JSON.stringify([
+    authStore.isAuthenticated,
+    authStore.session?.id,
+    authStore.user?.id,
+  ]))
+  const voiceCatalogOwners = computed<Record<string, string>>(() => Object.fromEntries(
+    definedProviders
+      .filter(definition => definition.configuredBy === 'authentication')
+      .map(definition => [definition.id, catalogOwner.value]),
+  ))
   const providerValidationIntervalMsById = new Map<string, number>()
-  for (const definition of definedProviders) {
-    const intervalMs = getProviderValidationIntervalMs({
-      definition,
-      contextOptions: { t },
-    })
-    if (intervalMs && intervalMs > 0) {
+  const providerMetadataState = useAsyncState(async () => {
+    const metadata = await selectProvidersMetadata(definedProviders, t)
+
+    await Promise.all(definedProviders.map(async (definition) => {
+      const intervalMs = await getProviderValidationIntervalMs({
+        definition,
+        contextOptions: { t },
+      })
+      if (!intervalMs || intervalMs <= 0)
+        return
+
       providerValidationIntervalMsById.set(definition.id, intervalMs)
       providerValidationIntervalMsById.set(`${VISION_PROVIDER_ID_PREFIX}${definition.id}`, intervalMs)
-    }
-  }
+    }))
 
-  for (const definition of definedProviders.filter(definition => providerMetadata[definition.id]?.category === 'chat')) {
-    const id = `${VISION_PROVIDER_ID_PREFIX}${definition.id}`
-    providerMetadata[id] = selectProviderMetadata(definition, t, {
-      id,
-      to: `/settings/providers/vision/${definition.id}`,
-      category: 'vision',
-      tasks: Array.from(new Set([...definition.tasks, 'vision', 'image-understanding'])),
-    })
+    await Promise.all(definedProviders
+      .filter(definition => metadata[definition.id]?.category === 'chat')
+      .map(async (definition) => {
+        const id = `${VISION_PROVIDER_ID_PREFIX}${definition.id}`
+        metadata[id] = await selectProviderMetadata(definition, t, {
+          id,
+          to: `/settings/providers/vision/${definition.id}`,
+          category: 'vision',
+          tasks: Array.from(new Set([...definition.tasks, 'vision', 'image-understanding'])),
+        })
+      }))
+
+    return metadata
+  }, {})
+  const providerMetadata = providerMetadataState.state
+
+  async function waitForProviderMetadata() {
+    await providerMetadataState
+    if (providerMetadataState.error.value)
+      throw providerMetadataState.error.value
   }
 
   const providerRuntimeState = computed({
@@ -141,7 +185,29 @@ export const useProviderStore = defineStore('provider', () => {
     set: value => providerStateStore.runtime = value,
   })
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
-  const providerVoiceListInFlight = new Map<string, Promise<VoiceInfo[]>>()
+  const providerVoiceListInFlight = new Map<string, Promise<VoiceInfo[] | undefined>>()
+  // Authentication epochs are local request ownership, never replicated state.
+  // Logout, account changes, and token replacement invalidate old completions.
+  let voiceSessionEpoch = 0
+  let voiceOwnerEpoch = 0
+  const authenticatedVoiceControllers = new Set<AbortController>()
+  /** Ends authentication-owned requests before a new session can create replacements. */
+  function invalidateVoiceSession() {
+    voiceSessionEpoch++
+    for (const controller of authenticatedVoiceControllers)
+      controller.abort()
+    authenticatedVoiceControllers.clear()
+  }
+  // Compare scalar values, not newly deserialized session or user objects.
+  watch([() => authStore.isAuthenticated, () => authStore.session?.id, () => authStore.user?.id, () => authStore.token], invalidateVoiceSession, { flush: 'sync' })
+  // Token renewal retains request ownership; logout and account changes do not.
+  watch([() => authStore.isAuthenticated, () => authStore.session?.id, () => authStore.user?.id], () => {
+    voiceOwnerEpoch++
+  }, { flush: 'sync' })
+  onScopeDispose(() => {
+    voiceOwnerEpoch++
+    invalidateVoiceSession()
+  })
   const providerRevalidationLoops = new Map<string, { pause: () => void, resume: () => void }>()
 
   // Server-driven availability overrides for providers whose visibility can
@@ -200,9 +266,10 @@ export const useProviderStore = defineStore('provider', () => {
     config: Record<string, unknown>,
     options: { onlyChatPingCheck?: boolean, skipChatPingCheck?: boolean } = {},
   ) {
+    await waitForProviderMetadata()
     const definition = getProviderDefinition(providerId)
     const schemaDefaults = getDefaultProviderConfig(providerId)
-    const plan = getValidatorsOfProvider({
+    const plan = await getValidatorsOfProvider({
       definition,
       config,
       schemaDefaults,
@@ -243,12 +310,13 @@ export const useProviderStore = defineStore('provider', () => {
     }
   }
 
-  function hasManualProviderValidators(providerId: string) {
+  async function hasManualProviderValidators(providerId: string) {
     const definition = findProviderDefinition(providerId)
     if (!definition || definition.disableChatPingCheckUI)
       return false
-    return (definition.validators?.validateProvider ?? [])
-      .some(createValidator => createValidator({ t }).id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+    const validators = await Promise.all((definition.validators?.validateProvider ?? [])
+      .map(createValidator => createValidator({ t })))
+    return validators.some(validator => validator.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
   }
 
   function supportsModelListing(providerId: string) {
@@ -257,6 +325,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Configuration validation functions
   async function validateProvider(providerId: string, options: { force?: boolean } = {}): Promise<boolean> {
+    await waitForProviderMetadata()
     const definition = findProviderDefinition(providerId)
     if (!definition)
       return false
@@ -333,8 +402,8 @@ export const useProviderStore = defineStore('provider', () => {
 
   function getDefaultProviderConfig(providerId: string) {
     const definitionId = getProviderDefinitionId(providerId)
-    const defaultOptions = providerMetadata[providerId]?.defaultConfig
-      ?? providerMetadata[definitionId]?.defaultConfig
+    const defaultOptions = providerMetadata.value[providerId]?.defaultConfig
+      ?? providerMetadata.value[definitionId]?.defaultConfig
       ?? {}
     return {
       ...defaultOptions,
@@ -346,6 +415,7 @@ export const useProviderStore = defineStore('provider', () => {
     if (!providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId] = {
         models: [],
+        defaultModel: null,
         modelStatus: 'idle',
         modelError: null,
       }
@@ -353,8 +423,9 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   // Initialize provider configurations
-  function initializeProvider(providerId: string) {
-    if (!providerCredentials.value[providerId]) {
+  async function initializeProvider(providerId: string) {
+    await waitForProviderMetadata()
+    if (!providerConfigStore.getProvider(providerId)) {
       const definitionId = getProviderDefinitionId(providerId)
       providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
     }
@@ -370,7 +441,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   function reconcileUnlistedProviders() {
-    for (const providerId of Object.keys(providerMetadata)) {
+    for (const providerId of Object.keys(providerMetadata.value)) {
       if (shouldListProvider(providerId))
         continue
       stopRevalidationLoop(providerId)
@@ -384,7 +455,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   function startPeriodicRuntimeValidation() {
     for (const [providerId, intervalMs] of providerValidationIntervalMsById.entries()) {
-      if (!providerMetadata[providerId] || intervalMs <= 0)
+      if (!providerMetadata.value[providerId] || intervalMs <= 0)
         continue
 
       if (!shouldListProvider(providerId))
@@ -404,7 +475,8 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Update configuration status for listed providers only.
   async function updateConfigurationStatus() {
-    await Promise.all(Object.entries(providerMetadata)
+    await waitForProviderMetadata()
+    await Promise.all(Object.entries(providerMetadata.value)
       .filter(([providerId]) => shouldListProvider(providerId) || providerId === 'browser-web-speech-api')
       .map(async ([providerId]) => {
         try {
@@ -509,55 +581,121 @@ export const useProviderStore = defineStore('provider', () => {
     const definition = getProviderDefinition(providerId)
     const provider = await definition.createProvider(config)
     try {
+      if (definition.extraMethods?.listModelCatalog) {
+        const catalog = await definition.extraMethods.listModelCatalog(config, provider, { t })
+        return {
+          ...catalog,
+          models: normalizeProviderModels(providerId, catalog.models),
+        }
+      }
+
       if (definition.extraMethods?.listModels) {
         const models = await definition.extraMethods.listModels(config, provider, { t })
-        return normalizeProviderModels(providerId, models)
+        return { models: normalizeProviderModels(providerId, models) }
       }
 
       if (isModelProvider(provider))
-        return normalizeProviderModels(providerId, await listModels(provider.model()))
+        return { models: normalizeProviderModels(providerId, await listModels(provider.model())) }
 
       const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
       const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
       if (!baseUrl)
-        return []
+        return { models: [] }
 
-      return normalizeProviderModels(providerId, await listModels({
-        baseURL: baseUrl,
-        ...(apiKey ? { apiKey } : {}),
-      }))
+      return {
+        models: normalizeProviderModels(providerId, await listModels({
+          baseURL: baseUrl,
+          ...(apiKey ? { apiKey } : {}),
+        })),
+      }
     }
     finally {
       await disposeTemporaryProvider(provider)
     }
   }
 
-  async function listProviderVoices(providerId: string, model?: string) {
-    const definition = getProviderDefinition(providerId)
+  /** Captures caller configuration so voice RPCs do not depend on snapshot delivery order. */
+  function getVoiceCatalogConfiguration(providerId: string): VoiceCatalogConfiguration {
+    return {
+      definitionId: getProviderDefinition(providerId).id,
+      config: structuredClone(toRaw(providerConfigStore.getProviderConfig(providerId) ?? {})),
+    }
+  }
+
+  /** Captures ownership before hashing so a concurrent owner change cannot relabel an old request. */
+  async function getVoiceCatalogIdentity(model: string | undefined, configuration: VoiceCatalogConfiguration): Promise<VoiceCatalogIdentity> {
+    const owner = voiceCatalogOwners.value[configuration.definitionId]
+    const selectConfig = getProviderDefinition(configuration.definitionId).extraMethods?.voiceCatalogConfig
+    // Discovery inputs belong to the adapter. Synthesis controls must not clear
+    // a voice selection; unknown adapters conservatively retain the full config.
+    const catalogConfig = selectConfig ? selectConfig(configuration.config) : configuration.config
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(catalogConfig)))
+    return {
+      definitionId: configuration.definitionId,
+      model,
+      configurationFingerprint: Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join(''),
+      owner,
+    }
+  }
+
+  /** Returns undefined when an authentication transition invalidates this request. */
+  async function listProviderVoices(providerId: string, model?: string, configuration?: VoiceCatalogConfiguration): Promise<VoiceInfo[] | undefined> {
+    const request = configuration ?? getVoiceCatalogConfiguration(providerId)
+    const definition = getProviderDefinition(request.definitionId)
+    if (!hasProviderVoiceCatalogAccess(request.definitionId))
+      return []
     const listVoices = definition.extraMethods?.listVoices
     if (!listVoices)
       return []
 
-    const config = providerConfigStore.getProviderConfig(providerId) ?? {}
-    const requestKey = JSON.stringify([providerId, model ?? null, config])
+    const config = request.config
+    const ownerEpoch = voiceOwnerEpoch
+    const sessionEpoch = definition.configuredBy === 'authentication' ? voiceSessionEpoch : undefined
+    const requestKey = JSON.stringify([providerId, request.definitionId, model ?? null, config, sessionEpoch])
     const pending = providerVoiceListInFlight.get(requestKey)
     if (pending)
       return pending
 
     const task = (async () => {
-      const provider = await definition.createProvider(config)
+      const controller = sessionEpoch === undefined ? undefined : new AbortController()
+      if (controller)
+        authenticatedVoiceControllers.add(controller)
+      let provider: ProviderInstance | undefined
       try {
-        return await listVoices(config, provider, model)
+        provider = await definition.createProvider(config)
+        // Provider creation can yield across logout before the network call starts.
+        if (sessionEpoch !== undefined && sessionEpoch !== voiceSessionEpoch)
+          return undefined
+        const voices = await listVoices(config, provider, model, controller?.signal)
+        if (sessionEpoch !== undefined && sessionEpoch !== voiceSessionEpoch)
+          return undefined
+        return voices
+      }
+      catch (error) {
+        // An expired session's 401 must not replace the new session's catalog error.
+        if (sessionEpoch !== undefined && sessionEpoch !== voiceSessionEpoch)
+          return undefined
+        throw error
       }
       finally {
-        await disposeTemporaryProvider(provider)
+        if (controller)
+          authenticatedVoiceControllers.delete(controller)
+        if (provider)
+          await disposeTemporaryProvider(provider)
       }
     })()
-    providerVoiceListInFlight.set(requestKey, task)
-
-    return task.finally(() => {
+    const result = task.finally(() => {
       providerVoiceListInFlight.delete(requestKey)
+    }).then((voices) => {
+      // A token-only transition has no login hook to replace the aborted load.
+      // Retry under the current token, but never carry work into another session
+      // or revive requests after this store is disposed.
+      if (voices === undefined && ownerEpoch === voiceOwnerEpoch && hasProviderVoiceCatalogAccess(request.definitionId))
+        return listProviderVoices(providerId, model, request)
+      return voices
     })
+    providerVoiceListInFlight.set(requestKey, result)
+    return result
   }
 
   async function loadProviderModel(
@@ -582,11 +720,11 @@ export const useProviderStore = defineStore('provider', () => {
   async function fetchModelsForProvider(providerId: string) {
     const definition = findProviderDefinition(providerId)
     if (!definition)
-      return []
+      return { models: [] }
 
     const config = providerCredentials.value[providerId]
     if (!config && definition.requiresCredentials !== false)
-      return []
+      return { models: [] }
 
     initializeProviderRuntimeState(providerId)
     providerRuntimeState.value = {
@@ -599,8 +737,8 @@ export const useProviderStore = defineStore('provider', () => {
     }
 
     try {
-      const models = await listProviderModels(providerId, config || {})
-      const normalizedModels = uniqBy(models.filter(model => !!model.id), m => m.id)
+      const catalog = await listProviderModels(providerId, config || {})
+      const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
         .map(model => ({
           id: model.id,
           name: model.name,
@@ -621,15 +759,20 @@ export const useProviderStore = defineStore('provider', () => {
           [providerId]: {
             ...currentRuntimeState,
             models: normalizedModels,
+            defaultModel: catalog.defaultModel ?? null,
             modelStatus: 'ready',
             modelError: null,
           },
         }
-        // Synced action results pass through structuredClone. Return the local
-        // array because reading the same array from state returns a Vue proxy.
-        return normalizedModels
+        // Synced action results pass through structuredClone. Return local
+        // catalog values because reading models back from state returns a Vue
+        // proxy and provider-specific metadata is not part of synced state.
+        return {
+          ...catalog,
+          models: normalizedModels,
+        }
       }
-      return []
+      return { models: [] }
     }
     catch (error) {
       console.error(`Error fetching models for ${providerId}:`, error)
@@ -644,7 +787,9 @@ export const useProviderStore = defineStore('provider', () => {
           },
         }
       }
-      return []
+      const lastKnownAvailable = providerAvailabilityOverrides.value[providerId]
+        ?? (providerConfigStore.configuredProviders[providerId] ? true : undefined)
+      return { models: [], lastKnownAvailable }
     }
   }
 
@@ -652,6 +797,10 @@ export const useProviderStore = defineStore('provider', () => {
   function getModelsForProvider(providerId: string) {
     return providerRuntimeState.value[providerId]?.models ?? emptyProviderModels
   }
+
+  const getDefaultModelForProvider = computed(() => (providerId: string) => {
+    return providerRuntimeState.value[providerId]?.defaultModel ?? null
+  })
 
   // Load models for all configured providers
   async function loadModelsForConfiguredProviders() {
@@ -689,8 +838,8 @@ export const useProviderStore = defineStore('provider', () => {
 
   function projectProvider(providerId: string): ProviderMetadata | undefined {
     const configuredProvider = providerConfigStore.providers[providerId]
-    const metadata = providerMetadata[providerId]
-      ?? providerMetadata[configuredProvider?.definitionId ?? '']
+    const metadata = providerMetadata.value[providerId]
+      ?? providerMetadata.value[configuredProvider?.definitionId ?? '']
 
     if (!metadata)
       return undefined
@@ -711,13 +860,20 @@ export const useProviderStore = defineStore('provider', () => {
   // Get all provider metadata in registry order for the settings page.
   const allProvidersMetadata = computed(() => {
     const definitions = definedProviders
-      .filter(d => providerMetadata[d.id])
+      .filter(d => providerMetadata.value[d.id])
       .map(d => projectProvider(d.id))
       .filter(metadata => metadata !== undefined)
+    // Vision providers reuse chat definitions under separate instance ids.
+    // Include these generated definitions before configured custom instances.
+    const visionDefinitions = definedProviders
+      .filter(definition => providerMetadata.value[definition.id]?.category === 'chat')
+      .map(definition => projectProvider(`${VISION_PROVIDER_ID_PREFIX}${definition.id}`))
+      .filter(metadata => metadata !== undefined)
+    const definitionIds = new Set([...definitions, ...visionDefinitions].map(metadata => metadata.id))
 
     const configuredInstances: ProviderMetadata[] = []
     for (const providerId of Object.keys(providerConfigStore.providers)) {
-      if (providerMetadata[providerId])
+      if (definitionIds.has(providerId))
         continue
 
       const metadata = projectProvider(providerId)
@@ -725,7 +881,7 @@ export const useProviderStore = defineStore('provider', () => {
         configuredInstances.push(metadata)
     }
 
-    return [...definitions, ...configuredInstances]
+    return [...definitions, ...visionDefinitions, ...configuredInstances]
   })
 
   function getTranscriptionFeatures(providerId: string) {
@@ -749,6 +905,7 @@ export const useProviderStore = defineStore('provider', () => {
   | TranscriptionProvider
   | TranscriptionProviderWithExtraOptions,
   >(providerId: string): Promise<R> {
+    await waitForProviderMetadata()
     const cached = providerInstanceCache.get(providerId) as R | undefined
     if (cached)
       return cached
@@ -875,6 +1032,65 @@ export const useProviderStore = defineStore('provider', () => {
     return !!addedProviders.value[providerId] || isProviderConfigDirty(providerId)
   }
 
+  function isProviderAvailableWithoutConfiguration(providerId: string) {
+    return providerConfiguredBy(providerId) !== 'authentication'
+      && getProviderDefinition(providerId).requiresCredentials === false
+  }
+
+  function providerConfiguredBy(providerId: string) {
+    const configuredProvider = providerConfigStore.providers[providerId]
+    if (configuredProvider)
+      return configuredProvider.configuredBy
+
+    return getProviderDefinition(providerId).configuredBy ?? 'user'
+  }
+
+  /** Returns whether this session can start a voice-catalog request. */
+  function hasProviderVoiceCatalogAccess(providerId: string): boolean {
+    if (providerConfiguredBy(providerId) !== 'authentication')
+      return true
+
+    return authStore.isAuthenticated && !!authStore.token
+  }
+
+  function isProviderConfiguredForModule(providerId: string) {
+    return providerConfigStore.configuredProviders[providerId]
+      && (providerConfiguredBy(providerId) !== 'authentication' || authStore.isAuthenticated)
+  }
+
+  // Authentication-owned providers do not require a user-supplied API key,
+  // but they do require an authenticated session. Browser and local providers
+  // remain available without a persisted configuration record.
+  const moduleChatProvidersMetadata = computed(() => {
+    return allChatProvidersMetadata.value.filter(metadata =>
+      isProviderConfiguredForModule(metadata.id)
+      || (providerConfiguredBy(metadata.id) !== 'authentication' && shouldListProvider(metadata.id))
+      || isProviderAvailableWithoutConfiguration(metadata.id),
+    )
+  })
+
+  const moduleSpeechProvidersMetadata = computed(() => {
+    return allAudioSpeechProvidersMetadata.value.filter(metadata =>
+      isProviderConfiguredForModule(metadata.id)
+      || isProviderAvailableWithoutConfiguration(metadata.id),
+    )
+  })
+
+  const moduleTranscriptionProvidersMetadata = computed(() => {
+    return allAudioTranscriptionProvidersMetadata.value.filter(metadata =>
+      isProviderConfiguredForModule(metadata.id)
+      || isProviderAvailableWithoutConfiguration(metadata.id),
+    )
+  })
+
+  const moduleVisionProvidersMetadata = computed(() => {
+    return allVisionProvidersMetadata.value.filter(metadata =>
+      isProviderConfiguredForModule(metadata.id)
+      || (providerConfiguredBy(metadata.id) !== 'authentication' && shouldListProvider(metadata.id))
+      || isProviderAvailableWithoutConfiguration(metadata.id),
+    )
+  })
+
   const persistedProvidersMetadata = computed(() => {
     return availableProvidersMetadata.value.filter(metadata => shouldListProvider(metadata.id))
   })
@@ -906,7 +1122,11 @@ export const useProviderStore = defineStore('provider', () => {
     modelLoadError,
     fetchModelsForProvider,
     getModelsForProvider,
+    getDefaultModelForProvider,
     listProviderVoices,
+    getVoiceCatalogConfiguration,
+    getVoiceCatalogIdentity,
+    voiceCatalogOwners,
     loadProviderModel,
     loadModelsForConfiguredProviders,
     getProviderInstance,
@@ -925,6 +1145,10 @@ export const useProviderStore = defineStore('provider', () => {
     configuredSpeechProvidersMetadata,
     configuredTranscriptionProvidersMetadata,
     configuredVisionProvidersMetadata,
+    moduleChatProvidersMetadata,
+    moduleSpeechProvidersMetadata,
+    moduleTranscriptionProvidersMetadata,
+    moduleVisionProvidersMetadata,
     persistedChatProvidersMetadata,
     persistedVisionProvidersMetadata,
   }

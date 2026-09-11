@@ -22,6 +22,7 @@ import icon from '../../resources/icon.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
+import { resolveIsWayland } from './app/ozone'
 import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
@@ -29,6 +30,7 @@ import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/
 import { resolveLinuxCommandLineSwitches } from './libs/electron/linux-command-line-switches'
 import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
+import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
@@ -37,7 +39,7 @@ import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
-import { setupMediaPermissionHandlers } from './services/electron/media-permissions'
+import { setupPermissionHandlers } from './services/electron/media-permissions'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -80,6 +82,21 @@ if (isLinux) {
     else
       app.commandLine.appendSwitch(commandLineSwitch.name)
   }
+  else {
+    // NOTICE:
+    // Vulkan must only be enabled on non-Wayland sessions, otherwise GPU
+    // initialization fails or rendering glitches appear.
+    // Root cause: Vulkan is incompatible with '--ozone-platform=wayland' in
+    // Chromium's surface factory; the Wayland Ozone backend cannot present
+    // Vulkan surfaces.
+    // Source: Chromium Ozone/Wayland surface factory; workaround tracked via
+    // https://github.com/electron/electron/issues/41763 (WebGPU on Linux).
+    // Removal condition: when Chromium/Electron supports Vulkan with the Wayland
+    // Ozone backend, drop the isWayland guard and always push 'Vulkan'.
+    enabledFeatures.push('Vulkan')
+  }
+
+  app.commandLine.appendSwitch('enable-features', enabledFeatures.join(','))
 }
 
 app.dock?.setIcon(icon)
@@ -102,7 +119,7 @@ app.whenReady().then(async () => {
     return
   }
 
-  setupMediaPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
+  setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
   // Initialize file logger and register the hook
   fileLogger = await setupFileLogger()
@@ -152,6 +169,11 @@ app.whenReady().then(async () => {
     build: async () => setupGodotStageManager(),
   })
 
+  const appleSpeechTranscription = injeca.provide('modules:apple-speech-transcription', {
+    dependsOn: { lifecycle },
+    build: ({ dependsOn }) => setupAppleSpeechTranscriptionService(dependsOn),
+  })
+
   const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
     build: async () => setupMcpStdioManager(),
   })
@@ -168,7 +190,7 @@ app.whenReady().then(async () => {
 
   const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
 
-  // BeatSync will create a background window to capture and process audio.
+  // Beat Sync uses a background renderer because Web Audio processing needs a DOM runtime.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
 
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
@@ -213,7 +235,7 @@ app.whenReady().then(async () => {
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager },
+    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, appleSpeechTranscription },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {

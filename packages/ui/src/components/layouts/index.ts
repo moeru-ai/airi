@@ -1,4 +1,6 @@
+export { default as BottomDrawer } from './bottom-drawer.vue'
 export { default as Collapsible } from './collapsible.vue'
 export { default as Screen } from './screen.vue'
+export { default as ScrollableArea } from './scrollable-area.vue'
 export { default as Skeleton } from './skeleton.vue'
 export { default as Truncatable } from './truncatable.vue'

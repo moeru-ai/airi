@@ -26,19 +26,17 @@ jobs:
     runs-on: macos-26
     env:
       PRODUCT_NAME: 'AIRI'
-      VITE_ENABLE_POSTHOG: 'true'
+      VITE_ENABLE_ANALYTICS: 'true'
       UPLOAD_TESTFLIGHT: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.testflight) }}
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/setup@v2
         with:
-          run_install: false
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@26.7.0
+          cache: true
+          install: false
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages

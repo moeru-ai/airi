@@ -6,7 +6,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldCheckbox } from '@proj-airi/ui'
+import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -18,7 +18,7 @@ const airiCardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const consciousnessSettingsStore = useConsciousnessSettingsStore()
 const { configuredProviders } = storeToRefs(providerStore)
-const { persistedChatProvidersMetadata } = storeToRefs(providersStore)
+const { moduleChatProvidersMetadata } = storeToRefs(providersStore)
 const { reasoning } = storeToRefs(consciousnessSettingsStore)
 const {
   activeProvider,
@@ -29,6 +29,8 @@ const {
   providerModels,
   isLoadingActiveProviderModels,
   activeProviderModelError,
+  activeTemperature,
+  activeTopP,
 } = storeToRefs(consciousnessStore)
 
 const { t } = useI18n()
@@ -40,28 +42,26 @@ watch(activeProvider, async (provider) => {
   await consciousnessStore.loadModelsForProvider(provider)
 }, { immediate: true })
 
-watch([activeProvider, activeModel], ([provider, model]) => {
-  void airiCardStore.updateActiveCardConsciousness({ provider, model })
-})
+async function persistSelection() {
+  await airiCardStore.updateActiveCardConsciousness({ provider: activeProvider.value, model: activeModel.value })
+}
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
 }
 
-function selectModel(modelId: string) {
+async function selectModel(modelId: string) {
   const previousModelId = activeModel.value
   activeModel.value = modelId
+  await persistSelection()
 
   if (previousModelId !== modelId)
     trackModelSwitched(previousModelId || 'none', modelId)
 }
 
-function handleDeleteProvider(providerId: string) {
-  if (activeProvider.value === providerId) {
-    activeProvider.value = ''
-    activeModel.value = ''
-  }
-  providersStore.deleteProvider(providerId)
+async function handleDeleteProvider(providerId: string) {
+  await airiCardStore.clearProviderSelections(providerId)
+  await providersStore.deleteProvider(providerId)
 }
 
 async function updateReasoning(value: boolean) {
@@ -88,13 +88,13 @@ async function updateReasoning(value: boolean) {
           See also: https://stackoverflow.com/a/33737340
         -->
           <fieldset
-            v-if="persistedChatProvidersMetadata.length > 0"
+            v-if="moduleChatProvidersMetadata.length > 0"
             flex="~ row gap-4"
             min-w-0 overflow-x-auto scroll-smooth
             role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in persistedChatProvidersMetadata"
+              v-for="metadata in moduleChatProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeProvider"
@@ -102,6 +102,7 @@ async function updateReasoning(value: boolean) {
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
+              @update:model-value="persistSelection"
               @click="trackProviderClick(metadata.id, 'consciousness')"
             >
               <template v-if="!metadata.id.startsWith('official-provider')" #topRight>
@@ -192,6 +193,7 @@ async function updateReasoning(value: boolean) {
               v-model="activeModel" type="text"
               class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
               :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+              @input="persistSelection"
             >
           </div>
         </template>
@@ -283,6 +285,7 @@ async function updateReasoning(value: boolean) {
             v-model="activeModel" type="text"
             class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
             :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+            @input="persistSelection"
           >
         </div>
       </div>
@@ -302,6 +305,29 @@ async function updateReasoning(value: boolean) {
         @update:model-value="updateReasoning"
       />
     </section>
+  </div>
+
+  <div v-if="activeProvider" :class="['bg-neutral-50 dark:bg-[rgba(0,0,0,0.3)]', 'rounded-xl', 'p-4', 'flex flex-col gap-4', 'mt-4']">
+    <div :class="['flex flex-col gap-4']">
+      <FieldRange
+        v-model="activeTemperature"
+        :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.temperature_label')"
+        :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.temperature_description')"
+        :min="0"
+        :max="2"
+        :step="0.1"
+        :format-value="value => value.toFixed(1)"
+      />
+      <FieldRange
+        v-model="activeTopP"
+        :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.top_p_label')"
+        :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.top_p_description')"
+        :min="0"
+        :max="1"
+        :step="0.1"
+        :format-value="value => value.toFixed(1)"
+      />
+    </div>
   </div>
 
   <div

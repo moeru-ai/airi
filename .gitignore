@@ -51,6 +51,8 @@ coverage/
 # Build
 out/
 bundle/
+flatpak/
+flatpak-repo/
 .flatpak-builder/
 .flatpak-repo/
 *.flatpak
@@ -156,3 +158,4 @@ __screenshots__
 packages/i18n/glossary/glossary.tbx
 
 /airi-docs/
+.worktrees/

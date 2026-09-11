@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/api-server",
   "type": "module",
-  "version": "0.12.0-beta.1",
+  "version": "0.12.0-beta.5",
   "private": true,
   "exports": {
     "./app-type": "./src/app-type.ts"
@@ -18,6 +18,7 @@
   "dependencies": {
     "@dotenvx/dotenvx": "catalog:",
     "@electric-sql/pglite": "catalog:",
+    "@electric-sql/pglite-pgvector": "catalog:",
     "@guiiai/logg": "catalog:",
     "@hono/node-server": "catalog:",
     "@hono/node-ws": "catalog:",
@@ -26,6 +27,7 @@
     "@langfuse/tracing": "catalog:",
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
+    "@openpanel/sdk": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",
     "@opentelemetry/exporter-logs-otlp-proto": "catalog:",
@@ -56,7 +58,6 @@
     "nanoid": "catalog:",
     "ofetch": "catalog:",
     "pg": "catalog:",
-    "posthog-node": "catalog:",
     "stripe": "catalog:",
     "unspeech": "catalog:xsai",
     "valibot": "catalog:",

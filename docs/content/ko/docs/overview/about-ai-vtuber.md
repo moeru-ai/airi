@@ -1,5 +1,5 @@
 ---
-title: AI VTuber 란
+title: AI VTuber란
 ---
 
 LLM이 생성한 문서이지만, 일본어 TTS 모듈과 서비스에 관한 유용한 자료가 담겨 있습니다:

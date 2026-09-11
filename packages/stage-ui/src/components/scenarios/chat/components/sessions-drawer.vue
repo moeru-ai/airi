@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { ChatSessionMeta } from '../../../../types/chat-session'
+import type { SessionRow } from './sessions-list.vue'
 
-import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SessionsDialog from './sessions-dialog.vue'
@@ -20,8 +20,7 @@ import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
 
 const { isDesktop } = useBreakpoints()
-const screenSafeArea = useScreenSafeArea()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const chatSession = useChatSessionStore()
 const chat = useChatStore()
@@ -34,16 +33,6 @@ const { trackChatSessionSelected, trackChatSessionStarted } = useAnalytics()
 // Creating includes persistence and cloud reconciliation, so prevent a
 // second click from creating an orphan session while the first is pending.
 const isCreatingSession = ref(false)
-
-useResizeObserver(document.documentElement, () => screenSafeArea.update())
-onMounted(() => screenSafeArea.update())
-
-interface SessionRow {
-  meta: ChatSessionMeta
-  preview: string
-  isActive: boolean
-  updatedAtLabel: string
-}
 
 // Keep another account's sessions hidden while an account swap rehydrates.
 const ownedSessions = computed(() => {
@@ -91,7 +80,7 @@ const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
  * // => '5 minutes ago'
  */
 function formatUpdatedAt(ts: number): string {
-  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+  const formatter = new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' })
   const delta = ts - Date.now()
   const abs = Math.abs(delta)
   for (const [unit, ms] of RELATIVE_UNITS) {
@@ -113,11 +102,6 @@ const rows = computed<SessionRow[]>(() => {
     }))
   list.sort((a, b) => b.meta.updatedAt - a.meta.updatedAt)
   return list
-})
-
-const mobilePaddingBottom = computed(() => {
-  const safeAreaBottom = Number.parseFloat(screenSafeArea.bottom.value.replace('px', ''))
-  return `${Math.max(safeAreaBottom, 24)}px`
 })
 
 async function selectSession(sessionId: string) {
@@ -188,7 +172,6 @@ watch(showDialog, async (open) => {
     :rows="rows"
     :is-desktop="isDesktop"
     :is-creating-session="isCreatingSession"
-    :mobile-padding-bottom="mobilePaddingBottom"
     @new-session="startNewSession"
     @select-session="selectSession"
     @delete-session="chat.deleteSession"

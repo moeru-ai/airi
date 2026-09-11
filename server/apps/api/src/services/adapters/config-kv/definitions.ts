@@ -156,7 +156,10 @@ export const streamingTtsUpstreamSchema = object({
     })),
     [],
   ),
-  defaultModel: optional(string()),
+  defaultModel: optional(pipe(
+    string(),
+    nonEmpty('UNSPEECH_UPSTREAM.streaming.defaultModel must not be empty'),
+  )),
 })
 
 export const unspeechUpstreamSchema = object({

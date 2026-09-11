@@ -2,7 +2,7 @@ import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamE
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
-import type {} from 'pinia-plugin-synced'
+import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } from '../types/chat'
 import type { ToolCallRerunPayload } from './tool-call-rerun'
@@ -15,19 +15,21 @@ import { defineStore, storeToRefs } from 'pinia'
 import { shallowRef, toRaw } from 'vue'
 
 import { getConversationAnalyticsSurface } from '../composables'
+import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
-} from '../libs/analytics-headers'
-import { createChatAnalyticsHooks, getProviderMode } from '../libs/analytics/events/chat'
-import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+} from '../libs/product-signals/headers'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
-import { createMinecraftContext } from './chat/context-providers'
+import { useAuthStore } from './auth'
+import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -53,10 +55,16 @@ export interface ChatSendPayload {
   input?: WebSocketEventInputs
   /** Session that owns the new turn. */
   sessionId: string
+  /** Message that the new user turn replies to in the target session. */
+  replyToMessageId?: string
   /** User text for the new turn. */
   text: string
   /** Request-specific tools selected by their model-facing names. */
   tools?: ChatToolReference[]
+  /** Request-specific temperature override. */
+  temperature?: number
+  /** Request-specific top_p override. */
+  topP?: number
 }
 
 /** The durable messages appended while one chat request executes. */
@@ -135,6 +143,8 @@ function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): numbe
 export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 export const useChatStore = defineStore('chat', () => {
+  const runtimePrompt = useAiriRuntimePrompt()
+  const authStore = useAuthStore()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
@@ -160,9 +170,36 @@ export const useChatStore = defineStore('chat', () => {
   const activeStreamingMessage = shallowRef<StreamingAssistantMessage>()
   const pendingQueuedSendCount = shallowRef(0)
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
+  let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks({
     getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId),
   })
+
+  /**
+   * Initializes chat state and binds local consumers to synchronized leadership.
+   * A promoted renderer restarts the leader-owned cloud consumer.
+   */
+  async function initialize(syncedPinia: SyncedPiniaRuntime) {
+    stopLeadershipListener ??= syncedPinia.onLeadershipChange((isLeader) => {
+      if (!isLeader) {
+        chatSession.dispose()
+        return
+      }
+
+      void chatSession.ensureCurrentSession().catch((error) => {
+        console.error('[chat] Failed to start chat consumers after leader promotion:', error)
+      })
+    })
+
+    await chatSession.initialize()
+  }
+
+  /** Stops chat consumers that belong to this window. */
+  function dispose() {
+    stopLeadershipListener?.()
+    stopLeadershipListener = undefined
+    chatSession.dispose()
+  }
 
   async function streamWithStageAdapters(
     model: string,
@@ -253,7 +290,15 @@ export const useChatStore = defineStore('chat', () => {
     },
     context: {
       ingest: envelope => chatContext.ingestContextMessage(envelope),
-      snapshot: () => chatContext.getContextsSnapshot(),
+      snapshot: () => {
+        const snapshot = { ...chatContext.getContextsSnapshot() }
+        // Account data belongs to this request, not the persistent context registry.
+        // A signed-out request therefore cannot inherit the previous account snapshot.
+        const account = createUserAccountContext(authStore)
+        if (account)
+          snapshot[account.contextId] = [account]
+        return snapshot
+      },
     },
     foregroundStream: {
       patch: (message) => {
@@ -270,6 +315,7 @@ export const useChatStore = defineStore('chat', () => {
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
+      () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,
     ],
     createId: nanoid,
@@ -295,6 +341,7 @@ export const useChatStore = defineStore('chat', () => {
           id: message.id,
           role: 'user',
           content: messageText,
+          replyToMessageId: message.replyToMessageId,
         })
       }
     },
@@ -370,7 +417,10 @@ export const useChatStore = defineStore('chat', () => {
       chatProvider,
       attachments: payload.attachments,
       input: payload.input,
+      replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,
+      temperature: payload.temperature ?? consciousnessStore.activeTemperature,
+      topP: payload.topP ?? consciousnessStore.activeTopP,
       // Resolve this function after the request reaches the per-session queue.
       // The history then contains tool names from every earlier queued turn.
       tools: async () => {
@@ -423,6 +473,7 @@ export const useChatStore = defineStore('chat', () => {
       return await executeSend({
         sessionId: payload.sessionId,
         text,
+        replyToMessageId: sourceMessage?.replyToMessageId,
         tools: payload.tools ?? sourceMessage?.tools,
       })
     }
@@ -493,6 +544,8 @@ export const useChatStore = defineStore('chat', () => {
     activeStreamingMessage,
     pendingQueuedSendCount,
 
+    initialize,
+    dispose,
     cleanup,
     deleteSession,
     ingest,

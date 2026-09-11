@@ -1,12 +1,11 @@
+import type { ChatRequestOptions } from '@proj-airi/provider-inference'
 import type { ChatProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { JsonSchema } from 'xsschema'
 
-import type { ChatRequestOptions } from '../../types'
-
+import { getDefinedProvider } from '@proj-airi/provider-inference'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createSparkCommandTool } from '../../../../tools/character/orchestrator/spark-command'
-import { providerOpenRouterAI } from './index'
 
 interface ChatRequestBody {
   tools: Array<{
@@ -36,8 +35,12 @@ describe('providerOpenRouterAI tool schemas', () => {
     vi.unstubAllGlobals()
   })
 
-  it('maps AIRI reasoning modes to OpenRouter request fields', () => {
-    const provider = providerOpenRouterAI.createProvider({
+  it('maps AIRI reasoning modes to OpenRouter request fields', async () => {
+    const providerDefinition = getDefinedProvider('openrouter-ai')
+    if (!providerDefinition)
+      throw new Error('OpenRouter provider definition is not registered.')
+
+    const provider = await providerDefinition.createProvider({
       apiKey: 'test-key',
     }) as ChatProviderWithExtraOptions<string, ChatRequestOptions>
 
@@ -56,7 +59,11 @@ describe('providerOpenRouterAI tool schemas', () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}'))
     vi.stubGlobal('fetch', fetchMock)
 
-    const provider = providerOpenRouterAI.createProvider({
+    const providerDefinition = getDefinedProvider('openrouter-ai')
+    if (!providerDefinition)
+      throw new Error('OpenRouter provider definition is not registered.')
+
+    const provider = await providerDefinition.createProvider({
       apiKey: 'test-key',
     })
     if (!('chat' in provider))

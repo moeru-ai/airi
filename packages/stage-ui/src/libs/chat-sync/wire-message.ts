@@ -104,6 +104,7 @@ export function wireMessageToLocal(wire: WireMessage): ChatHistoryItem {
       return Object.assign(assistant, {
         id: wire.id,
         createdAt: wire.createdAt,
+        ...(wire.replyToMessageId ? { replyToMessageId: wire.replyToMessageId } : {}),
       })
     }
     case 'user':
@@ -112,6 +113,7 @@ export function wireMessageToLocal(wire: WireMessage): ChatHistoryItem {
         content: wire.content,
         id: wire.id,
         createdAt: wire.createdAt,
+        ...(wire.replyToMessageId ? { replyToMessageId: wire.replyToMessageId } : {}),
       }
     case 'system':
       return {
@@ -119,6 +121,7 @@ export function wireMessageToLocal(wire: WireMessage): ChatHistoryItem {
         content: wire.content,
         id: wire.id,
         createdAt: wire.createdAt,
+        ...(wire.replyToMessageId ? { replyToMessageId: wire.replyToMessageId } : {}),
       }
     case 'error':
       return {
@@ -126,6 +129,7 @@ export function wireMessageToLocal(wire: WireMessage): ChatHistoryItem {
         content: wire.content,
         id: wire.id,
         createdAt: wire.createdAt,
+        ...(wire.replyToMessageId ? { replyToMessageId: wire.replyToMessageId } : {}),
       }
     case 'tool':
       // Tool messages require a `tool_call_id` we cannot reconstruct from
@@ -136,6 +140,7 @@ export function wireMessageToLocal(wire: WireMessage): ChatHistoryItem {
         content: wire.content || '[tool message: cannot reconstruct without tool_call_id]',
         id: wire.id,
         createdAt: wire.createdAt,
+        ...(wire.replyToMessageId ? { replyToMessageId: wire.replyToMessageId } : {}),
       }
   }
 }

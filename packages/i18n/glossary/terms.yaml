@@ -161,6 +161,17 @@
       status: preferred
       context: Live2D Settings
 
+- id: magic-motion
+  subject: rendering
+  translatable: false
+  definition: A motion generator that fits VAR or AR-HMM models to a reference dataset.
+  note: Keep the name uppercase in every language.
+  terms:
+    - text: MAGIC
+      part-of-speech: proper noun
+      status: preferred
+      context: MAGIC motion driver
+
 - id: vrm
   subject: rendering
   translatable: false

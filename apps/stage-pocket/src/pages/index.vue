@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import Header from '@proj-airi/stage-layouts/components/Layouts/Header.vue'
 import InteractiveArea from '@proj-airi/stage-layouts/components/Layouts/InteractiveArea.vue'
-import MobileHeader from '@proj-airi/stage-layouts/components/Layouts/MobileHeader.vue'
 import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/MobileInteractiveArea.vue'
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
@@ -18,7 +17,7 @@ import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/module
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
 import WebSocketStatusButton from '../components/websocket-status-button.vue'
 
@@ -31,6 +30,16 @@ function handleSettingsOpen(open: boolean) {
 const positionCursor = useMouse()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
+const stageViewport = shallowRef({ height: 0, offsetTop: 0 })
+const stageSurfaceStyle = computed(() => isMobile.value
+  ? {
+      position: 'fixed' as const,
+      inset: '0',
+      height: stageViewport.value.height > 0 ? `${stageViewport.value.height}px` : '100dvh',
+      transform: `translate3d(0, ${stageViewport.value.offsetTop}px, 0)`,
+      willChange: 'transform',
+    }
+  : undefined)
 
 const backgroundStore = useBackgroundStore()
 const { selectedOption, sampledColor } = storeToRefs(backgroundStore)
@@ -48,7 +57,7 @@ const hearingPipeline = useHearingSpeechInputPipeline()
 const { removeStreamingTranscriptionConsumer, transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const consciousnessStore = useConsciousnessStore()
-const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
+const { activeProvider: activeChatProvider, activeModel: activeChatModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
 
 /** Identifies this page in the shared streaming transcription session. */
@@ -82,7 +91,12 @@ async function sendVoiceInputTextToChat(text: string | undefined) {
 
     const provider = await consciousnessStore.getChatProviderInstance(providerId)
 
-    await chatStore.ingest(text, { model, chatProvider: provider })
+    await chatStore.ingest(text, {
+      model,
+      chatProvider: provider,
+      temperature: activeTemperature.value,
+      topP: activeTopP.value,
+    })
   }
   catch (error) {
     console.error('Failed to send chat from voice:', error)
@@ -178,13 +192,18 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
     ref="backgroundSurface"
     class="widgets top-widgets"
     :background="selectedOption"
+    :style="stageSurfaceStyle"
     :top-color="sampledColor"
   >
-    <div flex="~ col" relative z-2 h-100dvh w-100vw of-hidden py-safe>
+    <div
+      :class="[
+        'relative z-2 h-full w-100vw overflow-hidden pt-safe md:h-100dvh',
+        'flex flex-col',
+      ]"
+    >
       <!-- header -->
       <div class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
         <Header class="hidden md:flex" />
-        <MobileHeader class="flex md:hidden" />
       </div>
       <!-- page -->
       <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col" min-h-0>
@@ -208,13 +227,19 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           />
         </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
-        <MobileInteractiveArea v-if="isMobile" @settings-open="handleSettingsOpen">
-          <template v-if="IS_DEV" #status>
-            <WebSocketStatusButton />
-          </template>
-        </MobileInteractiveArea>
       </div>
     </div>
+    <Teleport to="body">
+      <MobileInteractiveArea
+        v-if="isMobile"
+        @settings-open="handleSettingsOpen"
+        @stage-viewport-change="stageViewport = $event"
+      >
+        <template v-if="IS_DEV" #status>
+          <WebSocketStatusButton />
+        </template>
+      </MobileInteractiveArea>
+    </Teleport>
   </BackgroundProvider>
 </template>
 

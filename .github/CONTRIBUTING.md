@@ -174,6 +174,20 @@ pnpm dev:tamagotchi
 > nr dev:tamagotchi
 > ```
 
+> [!NOTE]
+>
+> The `dev` and `start` scripts run `install-electron` before `electron-vite`.
+>
+> Electron 42 removed the `postinstall` script. The `electron` package now downloads its binary
+> when you first run its `bin` entry. `electron-vite` reads `node_modules/electron/path.txt`
+> directly, so it never starts that download. A fresh install therefore fails with
+> `Error: Electron uninstall`.
+>
+> `install-electron` runs the same code as the removed `postinstall` script. It returns
+> immediately when the binary is already present.
+>
+> Remove this step after `electron-vite` supports the lazy download.
+
 ### Stage Web (Browser version for [airi.moeru.ai](https://airi.moeru.ai))
 
 ```shell

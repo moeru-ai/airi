@@ -97,7 +97,7 @@ export default defineConfig({
         chunkFileNames: (chunkInfo) => {
           const containsAnalyticsModule = chunkInfo.moduleIds.some((moduleId) => {
             const normalizedModuleId = moduleId.replaceAll('\\', '/').toLowerCase()
-            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('posthog')
+            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('openpanel')
           })
 
           // Only analytics/provider chunks receive the manual neutral mapping;
@@ -234,8 +234,9 @@ export default defineConfig({
       fullInstall: true,
     }),
 
-    // https://github.com/webfansplz/vite-plugin-vue-devtools
-    VueDevTools(),
+    // Browser tests mount short-lived apps. A delayed DevTools setup can run
+    // after the test app is gone, so only load this plugin for the real app.
+    ...(env.VITEST ? [] : [VueDevTools()]),
 
     DownloadLive2DSDK(),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),

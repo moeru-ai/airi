@@ -3,7 +3,7 @@ title: DevLog @ 2025.10.20
 category: DevLog
 date: 2025-10-20
 excerpt: |
-  Tauri에서 Electron 으로의 마이그레이션, 새 Live2D 모델, 그리고 여러 오픈소스 프로젝트 업데이트까지 AIRI 프로젝트의 최근 진행 상황을 나눕니다.
+  Tauri에서 Electron으로의 마이그레이션, 새 Live2D 모델, 그리고 여러 오픈소스 프로젝트 업데이트까지 AIRI 프로젝트의 최근 진행 상황을 나눕니다.
 preview-cover:
 # TODO
 ---
@@ -12,7 +12,7 @@ preview-cover:
 
 요즘 AI 트레이딩 봇이 엄청 뜨겁죠. 저희도 비슷한 연구를 나눌 게 있는데, 우선 개발 이야기부터 시작하겠습니다...
 
-## Tauri에서 Electron 으로의 마이그레이션
+## Tauri에서 Electron으로의 마이그레이션
 
 며칠 전 Tauri가 다시 화제가 됐죠. 저희는 3월에 일찌감치 도입했고 플러그인 설계가 마음에 들어서 crate도 잔뜩 감쌌습니다. 6월에 드디어 v0.7.2를 릴리스했지만, 모두가 원하던 음성 대화를 제공하려고 3개월을 고생했습니다... 3개월요... Tauri의 WebKit과 지독히 까다로운 Web Audio API, DevTools와 씨름하면서... 9월까지 계속요...
 
@@ -50,7 +50,7 @@ Controls Island
 
 ## Velin: Vue로 프롬프트 작성하기
 
- >"[Vue](https://velin-dev.netlify.app/#/) 로 프롬프트를 작성할 수 있습니다"!
+ >"[Vue](https://velin-dev.netlify.app/#/)로 프롬프트를 작성할 수 있습니다"!
 
 5월에 저희 프롬프트 라이브러리를 소개했던 걸 기억하시나요? RainbowBird의 노력과 기여 덕분에 Velin이 이제 정식으로 Moeru AI의 일부가 됐습니다! AIRI의 거의 모든 프롬프트가 Velin으로 돌아가는데, 크로스 플랫폼 걱정은 마세요. Velin은 Node.js 환경에서도 잘 동작합니다!
 
@@ -60,7 +60,7 @@ Controls Island
 
 >"Events are all you need"
 
-Vercel AI SDK와 비슷한 방식으로 브라우저에서 순수 로컬 추론을 할 수 있게 해 주는 프로젝트 [netlify](https://velin-dev.netlify.app/#/) 를 소개한 적이 있습니다.
+Vercel AI SDK와 비슷한 방식으로 브라우저에서 순수 로컬 추론을 할 수 있게 해 주는 프로젝트 [netlify](https://velin-dev.netlify.app/#/)를 소개한 적이 있습니다.
 
 이런 로컬 추론은 전부 Web Worker / worker_threads 에서만 돌 수 있고, 이들은 이벤트로 통신합니다. Electron IPC도 마찬가지인데, 저희는 그게 충분히 우아하지 않다고 느꼈습니다. RainbowBird 덕분에 이제 이벤트 기반 IPC/RPC 구현을 이끄는 라이브러리 eventa가 생겼습니다. [Eventa](https://github.com/moeru-ai/eventa)도 이제 정식으로 Moeru AI의 일부입니다!
 

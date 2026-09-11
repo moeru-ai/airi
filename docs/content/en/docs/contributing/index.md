@@ -13,9 +13,8 @@ This section is for contributors who want to change source code, documentation, 
 
 - [Git](https://git-scm.com/downloads)
 - [mise](https://mise.jdx.dev/installing-mise.html), or another version manager that reads `.tool-versions`
-- [Corepack](https://github.com/nodejs/corepack), which is included with recent Node.js releases
 
-The repository pins Node.js in [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions) (currently 24.13.0). Install that pinned version after cloning instead of relying on the version supplied by a system package manager.
+The repository pins Node.js and pnpm in [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions). The `packageManager` field in [`package.json`](https://github.com/moeru-ai/airi/blob/main/package.json) also specifies the pnpm version. After you clone the repository, install these versions with mise.
 
 <details>
 <summary>Windows setup</summary>
@@ -63,6 +62,12 @@ The repository pins Node.js in [`.tool-versions`](https://github.com/moeru-ai/ai
 Skip this section if you have not cloned the repository yet.
 :::
 
+If the `upstream` remote is not configured, add the Project AIRI repository before you fetch changes:
+
+```shell
+git remote add upstream https://github.com/moeru-ai/airi.git
+```
+
 Fetch upstream changes and rebase your local `main` branch:
 
 ```shell
@@ -97,16 +102,30 @@ git switch -c <your-branch-name>
 
 ## Install dependencies
 
-From the repository root, install the Node.js version recorded in `.tool-versions`, verify it, enable Corepack, and install dependencies:
+From the repository root, install the tools recorded in `.tool-versions`:
 
 ```shell
 mise install
+```
+
+Check the Node.js and pnpm versions:
+
+```shell
 mise exec -- node --version
-mise exec -- corepack enable
+mise exec -- pnpm --version
+```
+
+The reported versions must match `.tool-versions`. The pnpm version must also match the `packageManager` field in `package.json`.
+
+mise installs pnpm directly, so this setup does not require Corepack. [Node.js 25 and later do not bundle Corepack](https://github.com/nodejs/corepack#how-to-install).
+
+Install the project dependencies:
+
+```shell
 mise exec -- pnpm install
 ```
 
-The reported Node.js version must match `.tool-versions`. The remaining examples assume that [mise is activated for your shell](https://mise.jdx.dev/dev-tools/shims.html); otherwise, run package-manager commands through `mise exec --`, for example `mise exec -- pnpm typecheck`.
+The remaining examples assume that [mise is activated for your shell](https://mise.jdx.dev/dev-tools/shims.html). Otherwise, run package-manager commands through `mise exec --`, for example `mise exec -- pnpm typecheck`.
 
 ::: tip
 You can optionally install [@antfu/ni](https://github.com/antfu-collective/ni) to simplify package-manager commands:
@@ -156,14 +175,6 @@ git push -u origin <your-branch-name>
 ```
 
 Your branch should now be available on GitHub.
-
-::: tip
-If this is your first contribution, add the Project AIRI repository as the `upstream` remote:
-
-```shell
-git remote add upstream https://github.com/moeru-ai/airi.git
-```
-:::
 
 ## Create a pull request
 

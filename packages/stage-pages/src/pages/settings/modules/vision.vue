@@ -17,7 +17,7 @@ const airiCardStore = useAiriCardStore()
 const visionStore = useVisionStore()
 const visionProcessingStore = useVisionProcessingStore()
 const { configuredProviders } = storeToRefs(providerStore)
-const { persistedVisionProvidersMetadata } = storeToRefs(providersStore)
+const { moduleVisionProvidersMetadata } = storeToRefs(providersStore)
 const {
   activeProvider,
   activeModel,
@@ -41,31 +41,30 @@ const {
 const { t } = useI18n()
 const { trackProviderClick } = useAnalytics()
 
-watch(activeProvider, async (provider, oldProvider) => {
+watch(activeProvider, async (provider) => {
   if (!provider)
     return
-
-  if (oldProvider !== undefined && oldProvider !== provider) {
-    visionStore.resetModelSelection()
-  }
 
   await visionStore.loadModelsForProvider(provider)
 }, { immediate: true })
 
-watch([activeProvider, activeModel], ([provider, model]) => {
-  void airiCardStore.updateActiveCardVision({ provider, model })
-})
+async function selectProvider(provider: string) {
+  activeProvider.value = provider
+  visionStore.resetModelSelection()
+  await persistSelection()
+}
+
+async function persistSelection() {
+  await airiCardStore.updateActiveCardVision({ provider: activeProvider.value, model: activeModel.value })
+}
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
 }
 
-function handleDeleteProvider(providerId: string) {
-  if (activeProvider.value === providerId) {
-    activeProvider.value = ''
-    activeModel.value = ''
-  }
-  providersStore.deleteProvider(providerId)
+async function handleDeleteProvider(providerId: string) {
+  await airiCardStore.clearProviderSelections(providerId)
+  await providersStore.deleteProvider(providerId)
 }
 
 const formattedLastCapture = computed(() => formatRelativeTime(lastCaptureAt.value))
@@ -106,19 +105,20 @@ function formatRelativeTime(timestamp: number | null) {
         </div>
         <div :class="['max-w-full']">
           <fieldset
-            v-if="persistedVisionProvidersMetadata.length > 0"
+            v-if="moduleVisionProvidersMetadata.length > 0"
             :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'overflow-x-auto', 'scroll-smooth']"
             role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in persistedVisionProvidersMetadata"
+              v-for="metadata in moduleVisionProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
-              v-model="activeProvider"
+              :model-value="activeProvider"
               name="provider"
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
+              @update:model-value="selectProvider"
               @click="trackProviderClick(metadata.id, 'vision')"
             >
               <template v-if="canDeleteProvider(metadata.id)" #topRight>
@@ -275,6 +275,7 @@ function formatRelativeTime(timestamp: number | null) {
             :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
             :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
             expanded-class="mb-12"
+            @update:model-value="persistSelection"
             @update:custom-value="updateCustomModelName"
           />
         </template>
@@ -336,6 +337,7 @@ function formatRelativeTime(timestamp: number | null) {
               'dark:bg-neutral-900',
             ]"
             :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+            @input="persistSelection"
           >
         </div>
       </div>
