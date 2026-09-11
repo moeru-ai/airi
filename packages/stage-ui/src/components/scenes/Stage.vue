@@ -803,6 +803,14 @@ interface BilingualTurnState {
    */
   voiceProvider?: string
   /**
+   * Language the voice was picked for, from the request that composed the turn.
+   *
+   * The parser keeps emitting the text it prepared in this language, so a later
+   * resolve forced by a provider change has to ask for the same one rather than
+   * for whatever the settings name by then.
+   */
+  voiceLanguage?: string
+  /**
    * Streaming provider that buffers the whole reply into one playback item
    * (`bufferEntireSession`). Its `onStart` fires once for everything, so every
    * queued translation belongs to that item and has to be shown together.
@@ -1173,7 +1181,15 @@ function bilingualVoiceForTurn(turnId: string | undefined): VoiceInfo | undefine
   if (state.voiceChosen && state.voiceProvider === activeSpeechProvider.value)
     return state.voice
 
-  return seedBilingualVoice(turnId, bilingualStore.enabled ? bilingualStore.ttsLanguage : undefined)
+  // The provider moved on, so the voice has to be picked again — for the
+  // language this turn was asked for, not for the one the settings name now.
+  // The parser keeps emitting the text it prepared, and a voice for another
+  // language would read it wrong.
+  const language = state.voiceChosen
+    ? state.voiceLanguage
+    : bilingualStore.enabled ? bilingualStore.ttsLanguage : undefined
+
+  return seedBilingualVoice(turnId, language)
 }
 
 /**
@@ -1190,6 +1206,7 @@ function seedBilingualVoice(turnId: string, ttsLanguage?: string): VoiceInfo | u
   state.voice = ttsLanguage ? resolveBilingualVoiceFor(ttsLanguage) : undefined
   state.voiceChosen = true
   state.voiceProvider = activeSpeechProvider.value
+  state.voiceLanguage = ttsLanguage
   return state.voice
 }
 
