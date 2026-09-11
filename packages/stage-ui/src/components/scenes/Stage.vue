@@ -896,6 +896,13 @@ function publishBilingualTranslation(turnId: string, itemText?: string) {
   // left, so it goes now. A reaction speaks before its translation arrives, and
   // the previous line would otherwise stay up through the new speech.
   if (turnId !== bilingualTurnOnScreen) {
+    // Nothing queued for the turn playback just left can be shown any more, and
+    // the next transfer only clears whichever turn it finds on screen — this
+    // one — so a record left behind is never reachable again. A spark turn that
+    // stayed in the map while a chat turn played would otherwise survive every
+    // later transfer, one more entry per alternation.
+    if (bilingualTurnOnScreen)
+      clearBilingualTurn(bilingualTurnOnScreen)
     bilingualTurnOnScreen = turnId
     clearBilingualTranslation()
   }
@@ -934,6 +941,18 @@ function publishBilingualTranslation(turnId: string, itemText?: string) {
   const text = consumed.map(pair => pair.translation).filter(Boolean).join(' ')
   if (!text)
     return
+
+  // Both lines are published together and from the same pairs. The spoken line
+  // replaces itself as well: `onStart` appends it, so leaving it alone stacks
+  // every sentence spoken inside the caption's window under the single
+  // translation that replaced itself.
+  //
+  // Publishing it here rather than replacing it in `onStart` keeps a reply the
+  // model never tagged on the normal append path — with no pair to consume,
+  // there is nothing to pair the line with.
+  const spoken = consumed.map(pair => pair.spoken).filter(Boolean).join(' ')
+  if (spoken)
+    postCaptionSafely({ operation: 'replace', type: 'caption-assistant', text: spoken })
 
   postCaptionSafely({
     operation: 'replace',
