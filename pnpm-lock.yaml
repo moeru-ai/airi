@@ -3846,10 +3846,16 @@ importers:
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
+      semver:
+        specifier: 'catalog:'
+        version: 7.8.5
       valibot:
         specifier: 'catalog:'
         version: 1.4.2(typescript@6.0.3)
     devDependencies:
+      '@types/semver':
+        specifier: 'catalog:'
+        version: 7.8.0
       es-toolkit:
         specifier: 'catalog:'
         version: 1.51.0

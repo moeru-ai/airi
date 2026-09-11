@@ -7,6 +7,8 @@ import type { GenericSchema } from 'valibot'
 
 import type { KitDescriptor } from './kits'
 
+import semver from 'semver'
+
 import { isPlainObject } from 'es-toolkit'
 import {
   array,
@@ -345,6 +347,18 @@ const permissionDeclarationSchema = strictObject({
 })
 
 const manifestEntrypointSchema = pipe(string(), trim(), minLength(1))
+const exactSemanticVersionSchema = pipe(
+  string(),
+  trim(),
+  minLength(1),
+  check(version => semver.valid(version) === version, 'Use an exact semantic version such as 1.0.0.'),
+)
+const semanticVersionRangeSchema = pipe(
+  string(),
+  trim(),
+  minLength(1),
+  check(version => semver.validRange(version) !== null, 'Use a valid semantic version range.'),
+)
 const extensionIdSchema = pipe(
   string(),
   trim(),
@@ -366,13 +380,13 @@ const manifestEntrypointsSchema = pipe(
 
 const providedKitDeclarationSchema = strictObject({
   id: pipe(string(), trim(), minLength(1)),
-  version: pipe(string(), trim(), minLength(1)),
+  version: exactSemanticVersionSchema,
   exposure: picklist(['local-only', 'remote-observable', 'remote-callable']),
 })
 
 const usedKitDeclarationSchema = strictObject({
   id: pipe(string(), trim(), minLength(1)),
-  version: pipe(string(), trim(), minLength(1)),
+  version: exactSemanticVersionSchema,
   optional: optional(boolean()),
 })
 
@@ -394,7 +408,7 @@ export const extensionManifestV2Schema = pipe(
     id: extensionIdSchema,
     version: pipe(string(), trim(), minLength(1)),
     engines: strictObject({
-      airi: pipe(string(), trim(), minLength(1)),
+      airi: semanticVersionRangeSchema,
       runtimes: pipe(
         array(pluginRuntimeSchema),
         minLength(1),
@@ -465,6 +479,8 @@ export interface ExtensionHostInstallContext {
  * - The host bootstrap options consumed by {@link import('../core').ExtensionHost}
  */
 export interface ExtensionHostOptions {
+  /** Running AIRI version used to enforce `engines.airi` before setup. */
+  airiVersion?: string
   /** Installable host features that can register kits, resources, and capabilities. @default [] */
   contributions?: ExtensionHostContribution[]
   /** Callback that decides the granted permission set for one extension session. */

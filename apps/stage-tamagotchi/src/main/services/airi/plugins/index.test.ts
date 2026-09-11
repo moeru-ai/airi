@@ -43,6 +43,7 @@ import { widgetPluginKitDescriptor } from './kits/widget'
 
 const appMock = vi.hoisted(() => ({
   getPath: vi.fn(),
+  getVersion: vi.fn(() => '0.12.0-beta.5'),
 }))
 const dialogMock = vi.hoisted(() => ({
   showOpenDialog: vi.fn(),

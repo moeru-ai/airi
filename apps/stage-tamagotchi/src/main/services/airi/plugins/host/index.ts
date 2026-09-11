@@ -244,7 +244,10 @@ export async function setupExtensionHostServiceInternal(
 
   // Kit API, Host
   const builtInKitRuntime = createBuiltInExtensionKitRuntime(options)
-  const host = new ExtensionHost({ runtime: 'electron' })
+  const host = new ExtensionHost({
+    airiVersion: app.getVersion(),
+    runtime: 'electron',
+  })
   log.withFields({ extensionsRoot }).log('loading extension manifests')
   builtInKitRuntime.registerHostKits(host)
 

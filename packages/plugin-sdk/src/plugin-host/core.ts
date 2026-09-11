@@ -23,6 +23,8 @@ import type {
   PluginRuntime,
 } from './shared/types'
 
+import semver from 'semver'
+
 import { DisposableStore } from '../extension/disposable'
 import { kitUseFailure } from '../kit'
 import {
@@ -217,10 +219,12 @@ export class ExtensionHost {
   private readonly dependencies = new DependencyService()
   private readonly kits = new KitRegistryService()
   private readonly kitApis = new Map<string, RegisteredKitApi>()
+  private readonly pendingExtensionKitApis = new Map<string, RegisteredKitApi>()
   private readonly kitApiWatchers = new Map<string, Set<() => Promise<void>>>()
   private readonly modules = new KitApiBindingRegistryService()
   private readonly extensionModuleResources = new Map<string, ExtensionModuleResourceTracker>()
   private readonly permissions = new PermissionService()
+  private readonly airiVersion?: string
   private readonly permissionResolver?: ExtensionHostOptions['permissionResolver']
   private readonly persistedPermissionGrants = new Map<string, ModulePermissionGrant>()
   private readonly resources = new ResourceService()
@@ -230,6 +234,10 @@ export class ExtensionHost {
   constructor(options: ExtensionHostOptions = {}) {
     this.loader = new FileSystemLoader()
     this.runtime = options.runtime ?? 'electron'
+    if (options.airiVersion && !semver.valid(options.airiVersion)) {
+      throw new Error(`AIRI version must be a valid semantic version: ${options.airiVersion}`)
+    }
+    this.airiVersion = options.airiVersion
     this.permissionResolver = options.permissionResolver
     this.resources.setValue(protocolListProvidersEventName, [] as Array<{ name: string }>)
     this.markCapabilityReady(protocolListProvidersEventName, { source: 'plugin-host' })
@@ -240,10 +248,24 @@ export class ExtensionHost {
     }
   }
 
+  private assertManifestCompatibility(manifest: ExtensionManifestV2, runtime: PluginRuntime) {
+    if (!manifest.engines.runtimes.includes(runtime)) {
+      throw new Error(`Extension \`${manifest.id}\` does not support runtime \`${runtime}\`.`)
+    }
+    if (this.airiVersion && !semver.satisfies(this.airiVersion, manifest.engines.airi, { includePrerelease: true })) {
+      throw new Error(
+        `Extension \`${manifest.id}\` requires AIRI \`${manifest.engines.airi}\`, but the running version is \`${this.airiVersion}\`.`,
+      )
+    }
+  }
+
   async startExtension(
     extension: Extension,
     options: { manifest: ExtensionManifestV2, cwd?: string, runtime?: PluginRuntime },
   ) {
+    const runtime = options.runtime ?? this.runtime
+    this.assertManifestCompatibility(options.manifest, runtime)
+
     if (extension.id !== options.manifest.id) {
       throw new Error(`Extension entrypoint id \`${extension.id}\` must match manifest id \`${options.manifest.id}\`.`)
     }
@@ -272,7 +294,7 @@ export class ExtensionHost {
       extension: extensionIdentity,
       manifest: options.manifest,
       cwd: options.cwd,
-      runtime: options.runtime,
+      runtime,
       entrypoint: extension,
       phase: 'setting-up',
       modules: new Map(),
@@ -326,6 +348,7 @@ export class ExtensionHost {
     try {
       await extension.setup(ctx)
       session.phase = 'ready'
+      await this.publishExtensionKits(session)
       return session
     }
     catch (error) {
@@ -342,7 +365,7 @@ export class ExtensionHost {
   }
 
   registerKitApi<TClient>(kit: KitRef<TClient>) {
-    if (this.kitApis.has(kit.id)) {
+    if (this.kitApis.has(kit.id) || this.pendingExtensionKitApis.has(kit.id)) {
       throw new Error(`Kit API \`${kit.id}\` already has an active Provider.`)
     }
 
@@ -366,6 +389,10 @@ export class ExtensionHost {
   }
 
   private provideExtensionKit<TClient>(session: ExtensionSession, kit: KitRef<TClient>) {
+    if (session.phase !== 'setting-up') {
+      throw new Error(`Extension \`${session.extension.id}\` can provide Kits only during setup.`)
+    }
+
     const declaration = session.manifest.kits?.provides?.find(candidate => candidate.id === kit.id)
     if (!declaration) {
       throw new Error(`Extension \`${session.extension.id}\` cannot provide undeclared Kit \`${kit.id}\`.`)
@@ -384,40 +411,59 @@ export class ExtensionHost {
       )
     }
 
-    if (this.kitApis.has(kit.id) || this.kits.has(kit.id)) {
+    if (this.kitApis.has(kit.id) || this.pendingExtensionKitApis.has(kit.id) || this.kits.has(kit.id)) {
       throw new Error(`Kit API \`${kit.id}\` already has an active Provider.`)
     }
 
-    this.kits.register({
-      kitId: kit.id,
-      version: kit.version,
-      runtimes: session.manifest.engines.runtimes,
-      capabilities: [],
-    })
     const registration: RegisteredKitApi = {
       kit: kit as KitRef<unknown>,
       clientRevokers: new Set(),
       ownerSessionId: session.id,
       ownerExtensionId: session.extension.id,
     }
-    this.kitApis.set(kit.id, registration)
-    void this.notifyKitApiWatchers(kit.id)
+    this.pendingExtensionKitApis.set(kit.id, registration)
 
     return session.subscriptions.add({
       dispose: async () => {
-        if (this.kitApis.get(kit.id) !== registration) {
+        const isPending = this.pendingExtensionKitApis.get(kit.id) === registration
+        const isActive = this.kitApis.get(kit.id) === registration
+        if (!isPending && !isActive) {
           return
         }
 
-        this.kitApis.delete(kit.id)
-        this.kits.remove(kit.id)
+        if (isPending) {
+          this.pendingExtensionKitApis.delete(kit.id)
+        }
+        if (isActive) {
+          this.kitApis.delete(kit.id)
+          this.kits.remove(kit.id)
+        }
         for (const revoke of registration.clientRevokers) {
           revoke()
         }
         registration.clientRevokers.clear()
-        await this.notifyKitApiWatchers(kit.id)
+        if (isActive) {
+          await this.notifyKitApiWatchers(kit.id)
+        }
       },
     })
+  }
+
+  private async publishExtensionKits(session: ExtensionSession) {
+    const registrations = [...this.pendingExtensionKitApis.values()]
+      .filter(registration => registration.ownerSessionId === session.id)
+
+    for (const registration of registrations) {
+      this.pendingExtensionKitApis.delete(registration.kit.id)
+      this.kits.register({
+        kitId: registration.kit.id,
+        version: registration.kit.version,
+        runtimes: session.manifest.engines.runtimes,
+        capabilities: [],
+      })
+      this.kitApis.set(registration.kit.id, registration)
+      await this.notifyKitApiWatchers(registration.kit.id)
+    }
   }
 
   private async cleanupExtensionSessionModules(session: ExtensionSession) {
@@ -473,7 +519,17 @@ export class ExtensionHost {
     }
 
     for (const watcher of watchers) {
+      await this.runKitApiWatcher(watcher)
+    }
+  }
+
+  private async runKitApiWatcher(watcher: () => Promise<void>) {
+    try {
       await watcher()
+    }
+    catch {
+      // A Consumer owns its callback. Its failure must not interrupt Provider
+      // publication, teardown, or notifications for other Consumers.
     }
   }
 
@@ -521,8 +577,50 @@ export class ExtensionHost {
       return { ok: true, client }
     }
 
-    const revocable = Proxy.revocable(client as object, {})
     let revoked = false
+    let exposedClient: object
+    const methodWrappers = new WeakMap<object, (...args: unknown[]) => unknown>()
+    const assertClientAvailable = () => {
+      if (revoked) {
+        throw new TypeError('Cannot perform an operation on a revoked Kit client.')
+      }
+    }
+    const revocable = Proxy.revocable(client as object, {
+      apply(target, _thisArgument, argumentsList) {
+        assertClientAvailable()
+        if (typeof target !== 'function') {
+          throw new TypeError('Kit client is not callable.')
+        }
+        return Reflect.apply(target, target, argumentsList)
+      },
+      get(target, property) {
+        assertClientAvailable()
+        const value = Reflect.get(target, property, target)
+        if (value === target) {
+          return exposedClient
+        }
+        if (typeof value !== 'function') {
+          return value
+        }
+
+        const cached = methodWrappers.get(value)
+        if (cached) {
+          return cached
+        }
+        const wrapped = (...args: unknown[]) => {
+          assertClientAvailable()
+          const result = Reflect.apply(value, target, args)
+          return result === target ? exposedClient : result
+        }
+        methodWrappers.set(value, wrapped)
+        return wrapped
+      },
+      set(target, property, value) {
+        assertClientAvailable()
+        return Reflect.set(target, property, value === exposedClient ? target : value, target)
+      },
+    })
+    exposedClient = revocable.proxy
     const revoke = () => {
       if (revoked) {
         return
@@ -535,7 +633,7 @@ export class ExtensionHost {
     registered.clientRevokers.add(revoke)
     subscriptions.add({ dispose: revoke })
 
-    return { ok: true, client: revocable.proxy as TClient }
+    return { ok: true, client: exposedClient as TClient }
   }
 
   private createKitConsumer(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitConsumer {
@@ -570,7 +668,7 @@ export class ExtensionHost {
         }
         watchers.add(watcher)
         this.kitApiWatchers.set(kit.id, watchers)
-        void watcher()
+        void this.runKitApiWatcher(watcher)
         return subscriptions.add({
           dispose: () => {
             if (disposed) {
@@ -696,6 +794,9 @@ export class ExtensionHost {
   }
 
   registerKit(kit: KitDescriptor) {
+    if (this.pendingExtensionKitApis.has(kit.kitId)) {
+      throw new Error(`Kit \`${kit.kitId}\` already has a pending Extension Provider.`)
+    }
     return this.kits.register(kit)
   }
 
@@ -885,6 +986,7 @@ export class ExtensionHost {
 
   async start(manifest: ExtensionManifestV2, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
     const runtime = options.runtime ?? this.runtime
+    this.assertManifestCompatibility(manifest, runtime)
     const extension = await this.loader.loadExtensionFor(manifest, {
       cwd: options.cwd,
       runtime,

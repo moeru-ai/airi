@@ -24,7 +24,7 @@ Each installable Extension package has an `extension.airi.json` file at its root
     "uses": [
       {
         "id": "dev.airi.example",
-        "version": "^1.0.0",
+        "version": "1.0.0",
         "optional": true
       }
     ]
