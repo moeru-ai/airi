@@ -19,6 +19,8 @@ export interface UseAiriRuntimePromptOptions {
    * and spark reactions both run it through the bilingual parser before the
    * text is spoken or stored, so the `[EN]`/`[CN]` control tags never survive.
    * Any other consumer would keep those tags in text nothing ever parses.
+   *
+   * @default false
    */
   bilingual?: boolean
 }
