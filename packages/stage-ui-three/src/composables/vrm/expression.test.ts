@@ -71,6 +71,33 @@ describe('useVRMEmote', () => {
     expect(vrm.expressionManager?.setValue).not.toHaveBeenCalledWith('blink', expect.anything())
   })
 
+  it('does not mark the emote active for a mouth-only (viseme-only) custom state', () => {
+    // ROOT CAUSE:
+    //
+    // isEmoteActive treated any nonzero target as an eye conflict, so
+    // VRMModel suppressed procedural blinking for the entire hold period
+    // of *any* emotion — including a custom state added via
+    // addEmotionState whose targets are only viseme mouth morphs and
+    // never touch the eye region. That left the model unable to blink
+    // naturally while such a state was held, despite no real conflict.
+    //
+    // We fixed this by only counting non-viseme target names as
+    // eye-affecting for isEmoteActive.
+    const vrm = createMockVRMCore()
+    const emote = useVRMEmote(vrm)
+
+    emote.addEmotionState('mouth-shape', {
+      expression: [{ name: 'aa', value: 0.5 }],
+      blendDuration: 0.2,
+    })
+
+    emote.setEmotion('mouth-shape', 1)
+    emote.update(0.2) // Settle the transition
+
+    expect(emote.currentEmotion.value).toBe('mouth-shape')
+    expect(emote.isEmoteActive.value).toBe(false)
+  })
+
   it('still zeroes a morph after its emotion state is removed before the reset settles', () => {
     // ROOT CAUSE:
     //

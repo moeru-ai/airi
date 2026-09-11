@@ -204,11 +204,19 @@ export function useVRMEmote(vrm: VRMCore) {
     }, ms) as unknown as number
   }
 
+  // isEmoteActive's only consumer (VRMModel.vue) uses it to suppress
+  // procedural blinking, which only matters for morphs that actually
+  // deform the eye region. Viseme mouth morphs (aa/ee/ih/oh/ou) never do,
+  // so an emotion state driving only visemes — e.g. a custom mouth-only
+  // state added via addEmotionState — must not suppress blinking just
+  // because those (mouth-only) targets are nonzero.
+  const hasNonzeroEyeAffectingTarget = (values: Map<string, number>): boolean =>
+    Array.from(values.entries()).some(([name, val]) => val > 0.001 && !VISEME_NAMES.has(name.toLowerCase()))
+
   const isEmoteActive = computed(() => {
-    // Check if the current emotion targets any supported morph with a non-zero weight
     const hasActiveTarget = currentEmotion.value !== null
       && currentEmotion.value !== 'neutral'
-      && Array.from(targetExpressionValues.value.values()).some(val => val > 0.001)
+      && hasNonzeroEyeAffectingTarget(targetExpressionValues.value)
 
     if (hasActiveTarget)
       return true
@@ -216,7 +224,7 @@ export function useVRMEmote(vrm: VRMCore) {
     // When transitioning (e.g. returning to neutral), remain active while non-zero
     // expression weights are still fading out to prevent procedural blink conflicts.
     if (isTransitioning.value || isVisemeTransitioning.value) {
-      return Array.from(currentExpressionValues.value.values()).some(val => val > 0.001)
+      return hasNonzeroEyeAffectingTarget(currentExpressionValues.value)
     }
 
     return false
