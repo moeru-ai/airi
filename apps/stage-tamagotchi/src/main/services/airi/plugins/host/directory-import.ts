@@ -11,7 +11,7 @@ import type {
 import { Buffer } from 'node:buffer'
 import { createHash, randomUUID } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
-import { chmod, lstat, mkdir, opendir, readFile, realpath, rename, rm } from 'node:fs/promises'
+import { chmod, lstat, mkdir, open, opendir, realpath, rename, rm } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 
@@ -115,6 +115,37 @@ async function assertRegularFile(path: string, label: string): Promise<Stats> {
   return stats
 }
 
+async function readManifestSnapshot(path: string, expectedSize: number): Promise<Buffer> {
+  const handle = await open(path, 'r')
+  try {
+    // One extra byte distinguishes the maximum valid manifest from a file
+    // that grew past the limit after the directory walk.
+    const buffer = Buffer.allocUnsafe(extensionPackageLimits.manifestBytes + 1)
+    let bytesRead = 0
+    while (bytesRead < buffer.byteLength) {
+      const result = await handle.read(buffer, bytesRead, buffer.byteLength - bytesRead, bytesRead)
+      if (result.bytesRead === 0) {
+        break
+      }
+      bytesRead += result.bytesRead
+    }
+
+    if (bytesRead > extensionPackageLimits.manifestBytes) {
+      throw new Error('Extension manifest exceeds the 1 MiB size limit.')
+    }
+
+    const finalStats = await handle.stat()
+    if (!finalStats.isFile() || finalStats.size !== expectedSize || bytesRead !== expectedSize) {
+      throw new Error('Extension package changed during inspection. Select the folder again.')
+    }
+
+    return buffer.subarray(0, bytesRead)
+  }
+  finally {
+    await handle.close()
+  }
+}
+
 async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedExtensionDirectory> {
   const sourceStats = await lstat(sourcePath)
   if (sourceStats.isSymbolicLink() || !sourceStats.isDirectory()) {
@@ -177,11 +208,9 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
   }
 
   // The manifest remains the only retained byte snapshot because the preview
-  // and fingerprint must describe the same manifest contents.
-  const manifestContents = await readFile(manifestFile.path)
-  if (manifestContents.byteLength !== manifestFile.size) {
-    throw new Error('Extension package changed during inspection. Select the folder again.')
-  }
+  // and fingerprint must describe the same manifest contents. The stable file
+  // handle limits the allocation even if another process grows the path.
+  const manifestContents = await readManifestSnapshot(manifestFile.path, manifestFile.size)
 
   let rawManifest: unknown
   try {

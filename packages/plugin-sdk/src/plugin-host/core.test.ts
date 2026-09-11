@@ -157,6 +157,66 @@ describe('extension manifest schema', () => {
 })
 
 describe('for ExtensionHost', () => {
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986172725
+  it('rejects a missing required Kit before Extension setup', async () => {
+    const host = new ExtensionHost()
+    let setupCalls = 0
+    const extension = defineExtension({
+      id: 'required-kit-consumer',
+      setup() {
+        setupCalls += 1
+      },
+    })
+
+    await expect(host.startExtension(extension, {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: extension.id,
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: 'kit.required', actions: ['invoke'] }] },
+        kits: { uses: [{ id: 'kit.required', version: '1.0.0' }] },
+      },
+    })).rejects.toThrow('requires Kit `kit.required` at version `1.0.0`')
+
+    expect(setupCalls).toBe(0)
+    expect(host.listSessions()).toEqual([])
+  })
+
+  it('rejects an incompatible required Kit before Extension setup', async () => {
+    const host = new ExtensionHost()
+    host.registerKitApi(defineKit({
+      id: 'kit.required-version',
+      version: '2.0.0',
+      createClient: () => ({ ping: () => 'pong' }),
+    }))
+    let setupCalls = 0
+    const extension = defineExtension({
+      id: 'required-kit-version-consumer',
+      setup() {
+        setupCalls += 1
+      },
+    })
+
+    await expect(host.startExtension(extension, {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: extension.id,
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: 'kit.required-version', actions: ['invoke'] }] },
+        kits: { uses: [{ id: 'kit.required-version', version: '1.0.0' }] },
+      },
+    })).rejects.toThrow('requires Kit `kit.required-version` at version `1.0.0`')
+
+    expect(setupCalls).toBe(0)
+    expect(host.listSessions()).toEqual([])
+  })
+
   it('publishes an Extension-hosted Kit only after Provider setup succeeds', async () => {
     const host = new ExtensionHost()
     const kit = defineKit({
@@ -193,7 +253,7 @@ describe('for ExtensionHost', () => {
         engines: { airi: '*', runtimes: ['electron'] },
         entrypoints: { electron: './consumer.mjs' },
         permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
+        kits: { uses: [{ id: kit.id, version: kit.version, optional: true }] },
       },
     })
     await vi.waitFor(() => expect(observed).toEqual([false]))
@@ -618,6 +678,70 @@ describe('for ExtensionHost', () => {
     await expect(pendingRead).rejects.toThrow('revoked')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986172728
+  it('preserves callable Kit client properties through revocation', async () => {
+    interface CallableClient {
+      (): string
+      status: string
+    }
+
+    const host = new ExtensionHost()
+    const kit = defineKit<CallableClient>({
+      id: 'kit.extension-callable-client',
+      version: '1.0.0',
+      createClient: () => Object.assign(() => 'pong', { status: 'ready' }),
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'callable-client-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'callable-client-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    let client: CallableClient | undefined
+    await host.startExtension(defineExtension({
+      id: 'callable-client-consumer',
+      async setup(ctx) {
+        client = await ctx.kits.use(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'callable-client-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    const callableClient = client
+    if (!callableClient) {
+      throw new Error('Expected the Consumer to receive a callable Kit client.')
+    }
+
+    expect(callableClient()).toBe('pong')
+    expect(callableClient.status).toBe('ready')
+
+    await host.stop(providerSession.id)
+
+    expect(() => callableClient()).toThrow('revoked')
+    expect(() => callableClient.status).toThrow('revoked')
+  })
+
   it('isolates Consumer watcher failures while a Provider unloads', async () => {
     const host = new ExtensionHost()
     const kit = defineKit({
@@ -703,7 +827,7 @@ describe('for ExtensionHost', () => {
         engines: { airi: '*', runtimes: ['electron'] },
         entrypoints: { electron: './consumer.mjs' },
         permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
+        kits: { uses: [{ id: kit.id, version: kit.version, optional: true }] },
       },
     })
     await vi.waitFor(() => expect(observed).toEqual([false]))
@@ -736,6 +860,71 @@ describe('for ExtensionHost', () => {
     await host.stop(providerSession.id)
     expect(host.getSession(providerSession.id)).toBeUndefined()
     await vi.waitFor(() => expect(observed).toEqual([false, true, false]))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986172732
+  it('serializes availability deliveries for each Kit watcher', async () => {
+    const host = new ExtensionHost()
+    const kit = defineKit({
+      id: 'kit.extension-ordered-watcher',
+      version: '1.0.0',
+      createClient: () => ({ ping: () => 'pong' }),
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'ordered-watcher-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'ordered-watcher-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+    const firstDeliveryStarted = Promise.withResolvers<void>()
+    const releaseFirstDelivery = Promise.withResolvers<void>()
+    const observed: boolean[] = []
+    await host.startExtension(defineExtension({
+      id: 'ordered-watcher-consumer',
+      setup(ctx) {
+        ctx.kits.watch(kit, async (availability) => {
+          if (availability.available) {
+            firstDeliveryStarted.resolve()
+            await releaseFirstDelivery.promise
+          }
+          observed.push(availability.available)
+        })
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'ordered-watcher-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+    await firstDeliveryStarted.promise
+
+    // ROOT CAUSE:
+    //
+    // Each availability change started a separate callback task. A slow true
+    // delivery could finish after a newer false delivery and restore stale
+    // Consumer state. Each watcher now owns an ordered delivery queue.
+    await host.stop(providerSession.id)
+    expect(observed).toEqual([])
+
+    releaseFirstDelivery.resolve()
+    await vi.waitFor(() => expect(observed).toEqual([true, false]))
   })
 
   it('removes Provider-owned Kits when another Extension disposable fails', async () => {
@@ -934,7 +1123,7 @@ describe('for ExtensionHost', () => {
           apis: [{ key: agentActivityKit.id, actions: ['invoke'] }],
         },
         kits: {
-          uses: [{ id: agentActivityKit.id, version: agentActivityKit.version }],
+          uses: [{ id: agentActivityKit.id, version: agentActivityKit.version, optional: true }],
         },
       },
     })
@@ -1504,7 +1693,7 @@ describe('for ExtensionHost', () => {
 
     host.registerKitApi(kit)
 
-    expect(observed).toEqual([false, true])
+    await vi.waitFor(() => expect(observed).toEqual([false, true]))
   })
 
   it('disposes extension-scoped kit availability watchers with the extension session', async () => {

@@ -245,40 +245,35 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
       return cached
     }
 
-    const wrapped = (...args: unknown[]) => {
+    const callableTarget = (...args: unknown[]) => {
       assertClientAvailable()
       if (typeof method !== 'function') {
         throw new TypeError('Kit client method is not callable.')
       }
       return wrapValue(Reflect.apply(method, receiver, args.map(unwrapValue)))
     }
+    const wrapped = createFacade(method, callableTarget) as (...args: unknown[]) => unknown
     wrappersByReceiver.set(receiver, wrapped)
     sourcesByFacade.set(wrapped, method)
     return wrapped
   }
 
-  function wrapObject(source: object): object {
-    if (typeof source === 'function') {
-      return wrapMethod(source, source)
-    }
-
-    const cached = objectFacades.get(source)
-    if (cached) {
-      return cached
-    }
-
-    // The proxy targets a separate facade so frozen Provider objects cannot
-    // impose proxy invariants on wrapped methods. All state remains on source.
-    const facade = Array.isArray(source)
-      ? []
-      : Object.create(Reflect.getPrototypeOf(source)) as object
-    const proxy = new Proxy(facade, {
-      deleteProperty(_target, property) {
+  function createFacade(source: object, target: object): object {
+    return new Proxy(target, {
+      deleteProperty(facade, property) {
         assertClientAvailable()
+        const targetDescriptor = Reflect.getOwnPropertyDescriptor(facade, property)
+        if (targetDescriptor && !targetDescriptor.configurable) {
+          return false
+        }
         return Reflect.deleteProperty(source, property)
       },
-      get(_target, property) {
+      get(facade, property) {
         assertClientAvailable()
+        const targetDescriptor = Reflect.getOwnPropertyDescriptor(facade, property)
+        if (targetDescriptor && !targetDescriptor.configurable) {
+          return Reflect.get(facade, property, facade)
+        }
         const value = Reflect.get(source, property, source)
         if (typeof value === 'function') {
           return wrapMethod(value, source)
@@ -287,6 +282,11 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
       },
       getOwnPropertyDescriptor(target, property) {
         assertClientAvailable()
+
+        const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, property)
+        if (targetDescriptor && !targetDescriptor.configurable) {
+          return targetDescriptor
+        }
 
         if (Array.isArray(source) && property === 'length') {
           Reflect.set(target, property, source.length)
@@ -328,15 +328,37 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
         assertClientAvailable()
         return Reflect.has(source, property)
       },
-      ownKeys() {
+      ownKeys(target) {
         assertClientAvailable()
-        return Reflect.ownKeys(source)
+        return [...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(source)])]
       },
-      set(_target, property, value) {
+      set(target, property, value) {
         assertClientAvailable()
+        const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, property)
+        if (targetDescriptor && !targetDescriptor.configurable && !targetDescriptor.writable) {
+          return false
+        }
         return Reflect.set(source, property, unwrapValue(value), source)
       },
     })
+  }
+
+  function wrapObject(source: object): object {
+    if (typeof source === 'function') {
+      return wrapMethod(source, source)
+    }
+
+    const cached = objectFacades.get(source)
+    if (cached) {
+      return cached
+    }
+
+    // The proxy targets a separate facade so frozen Provider objects cannot
+    // impose proxy invariants on wrapped methods. All state remains on source.
+    const facade = Array.isArray(source)
+      ? []
+      : Object.create(Reflect.getPrototypeOf(source)) as object
+    const proxy = createFacade(source, facade)
     objectFacades.set(source, proxy)
     sourcesByFacade.set(proxy, source)
     return proxy
@@ -419,6 +441,26 @@ export class ExtensionHost {
     }
   }
 
+  private assertRequiredKitsAvailable(manifest: ExtensionManifestV2) {
+    for (const declaration of manifest.kits?.uses ?? []) {
+      if (declaration.optional) {
+        continue
+      }
+
+      const registration = this.kitApis.get(declaration.id)
+      if (!registration) {
+        throw new Error(
+          `Extension \`${manifest.id}\` requires Kit \`${declaration.id}\` at version \`${declaration.version}\`, but no active Provider is available.`,
+        )
+      }
+      if (registration.kit.version !== declaration.version) {
+        throw new Error(
+          `Extension \`${manifest.id}\` requires Kit \`${declaration.id}\` at version \`${declaration.version}\`, but the active Provider implements \`${registration.kit.version}\`.`,
+        )
+      }
+    }
+  }
+
   async startExtension(
     extension: Extension,
     options: { manifest: ExtensionManifestV2, cwd?: string, runtime?: PluginRuntime },
@@ -429,6 +471,7 @@ export class ExtensionHost {
     if (extension.id !== options.manifest.id) {
       throw new Error(`Extension entrypoint id \`${extension.id}\` must match manifest id \`${options.manifest.id}\`.`)
     }
+    this.assertRequiredKitsAvailable(options.manifest)
 
     const sessionIdentity = this.extensionSessionService.nextSessionIdentity()
     const extensionIdentity = {
@@ -764,19 +807,28 @@ export class ExtensionHost {
       watch: <TClient>(kit: KitRef<TClient> | KitContract<TClient>, callback: (availability: KitAvailability<TClient>) => void | Promise<void>) => {
         const watchers = this.kitApiWatchers.get(kit.id) ?? new Set()
         let disposed = false
+        let deliveryQueue = Promise.resolve()
         const watcher = async () => {
           if (disposed) {
             return
           }
 
           const result = this.resolveKitApi(session, kit, subscriptions, moduleId)
-          if (result.ok) {
-            await callback({ available: true, kit, client: result.client })
-            return
-          }
-
-          const failure = result as Extract<KitUseResult<TClient>, { ok: false }>
-          await callback({ available: false, kit, reason: failure.reason, error: failure.error })
+          const availability: KitAvailability<TClient> = result.ok
+            ? { available: true, kit, client: result.client }
+            : {
+                available: false,
+                kit,
+                reason: (result as Extract<KitUseResult<TClient>, { ok: false }>).reason,
+                error: (result as Extract<KitUseResult<TClient>, { ok: false }>).error,
+              }
+          const delivery = deliveryQueue.then(async () => {
+            if (!disposed) {
+              await callback(availability)
+            }
+          })
+          deliveryQueue = delivery.catch(() => {})
+          await delivery
         }
         watchers.add(watcher)
         this.kitApiWatchers.set(kit.id, watchers)

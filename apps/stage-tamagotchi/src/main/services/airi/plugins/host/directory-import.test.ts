@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ExtensionDirectoryImporter } from './directory-import'
 
 const fileSystemState = vi.hoisted(() => ({
+  beforeRead: undefined as undefined | ((path: string) => Promise<void>),
   afterRead: undefined as undefined | ((path: string) => Promise<void>),
   readPaths: [] as string[],
 }))
@@ -15,10 +16,23 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   const fileSystem = await importOriginal<typeof import('node:fs/promises')>()
   return {
     ...fileSystem,
+    open: async (...args: Parameters<typeof fileSystem.open>) => {
+      const path = String(args[0])
+      await fileSystemState.beforeRead?.(path)
+      const handle = await fileSystem.open(...args)
+      const close = handle.close.bind(handle)
+      handle.close = async () => {
+        await close()
+        fileSystemState.readPaths.push(path)
+        await fileSystemState.afterRead?.(path)
+      }
+      return handle
+    },
     readFile: async (
       path: Parameters<typeof fileSystem.readFile>[0],
       options?: Parameters<typeof fileSystem.readFile>[1],
     ) => {
+      await fileSystemState.beforeRead?.(String(path))
       const contents = await fileSystem.readFile(path)
       fileSystemState.readPaths.push(String(path))
       await fileSystemState.afterRead?.(String(path))
@@ -34,6 +48,7 @@ describe('extension directory importer', () => {
   let importer: ExtensionDirectoryImporter
 
   beforeEach(async () => {
+    fileSystemState.beforeRead = undefined
     fileSystemState.afterRead = undefined
     fileSystemState.readPaths = []
     testRoot = await mkdtemp(join(tmpdir(), 'airi-extension-import-'))
@@ -116,6 +131,24 @@ describe('extension directory importer', () => {
     // large folder could exhaust the Electron main process heap. Inspection
     // now checks package limits before content reads and streams each asset.
     await expect(importer.prepare(sourceRoot)).rejects.toThrow('exceeds the 512 MiB size limit')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986172719
+  it('bounds a manifest that grows after the directory walk', async () => {
+    fileSystemState.beforeRead = async (path) => {
+      if (!path.endsWith(join('source', 'extension.airi.json'))) {
+        return
+      }
+      fileSystemState.beforeRead = undefined
+      await truncate(path, 1024 * 1024 + 1)
+    }
+
+    // ROOT CAUSE:
+    //
+    // Inspection checked the manifest size from lstat, then used an unbounded
+    // readFile call. A concurrent writer could grow the file before that read
+    // and make Electron allocate more than the manifest limit.
+    await expect(importer.prepare(sourceRoot)).rejects.toThrow('manifest exceeds the 1 MiB size limit')
   })
 
   it('rejects a changed source after review', async () => {
