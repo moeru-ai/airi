@@ -53,8 +53,6 @@ import {
   METRIC_STRIPE_CHECKOUT_COMPLETED,
   METRIC_STRIPE_CHECKOUT_CREATED,
   METRIC_STRIPE_EVENTS,
-  METRIC_STRIPE_PAYMENT_FAILED,
-  METRIC_STRIPE_SUBSCRIPTION_EVENT,
   METRIC_USER_LOGIN,
   METRIC_USER_REGISTERED,
   METRIC_WS_CONNECTIONS_ACTIVE,
@@ -112,8 +110,6 @@ export interface EngagementMetrics {
 export interface RevenueMetrics {
   stripeCheckoutCreated: Counter
   stripeCheckoutCompleted: Counter
-  stripePaymentFailed: Counter
-  stripeSubscriptionEvent: Counter
   stripeEvents: Counter
   stripeRevenue: Counter
   fluxInsufficientBalance: Counter
@@ -354,12 +350,6 @@ export function initOtel(env: Env): OtelInstance | null {
     stripeCheckoutCompleted: meter.createCounter(METRIC_STRIPE_CHECKOUT_COMPLETED, {
       description: 'Number of Stripe checkout sessions completed',
     }),
-    stripePaymentFailed: meter.createCounter(METRIC_STRIPE_PAYMENT_FAILED, {
-      description: 'Number of failed Stripe payments',
-    }),
-    stripeSubscriptionEvent: meter.createCounter(METRIC_STRIPE_SUBSCRIPTION_EVENT, {
-      description: 'Number of Stripe subscription lifecycle events',
-    }),
     stripeEvents: meter.createCounter(METRIC_STRIPE_EVENTS, {
       description: 'Number of Stripe webhook events processed',
     }),
@@ -503,8 +493,6 @@ export function initOtel(env: Env): OtelInstance | null {
     engagement.wsMessagesReceived,
     revenue.stripeCheckoutCreated,
     revenue.stripeCheckoutCompleted,
-    revenue.stripePaymentFailed,
-    revenue.stripeSubscriptionEvent,
     revenue.stripeEvents,
     revenue.stripeRevenue,
     revenue.fluxInsufficientBalance,

@@ -92,6 +92,46 @@ describe('configKVService', () => {
       })
   })
 
+  it('rejects FLUX_PACKS with duplicate keys', async () => {
+    store._store.set('FLUX_PACKS', JSON.stringify([
+      { key: 'starter', name: 'Starter', fluxAmount: 100, processors: { stripe: { priceId: 'price_a' } } },
+      { key: 'starter', name: 'Starter 2', fluxAmount: 200, processors: { stripe: { priceId: 'price_b' } } },
+    ]))
+
+    await expect(service.getOptional('FLUX_PACKS'))
+      .rejects
+      .toMatchObject({
+        statusCode: 503,
+        errorCode: 'CONFIG_INVALID',
+      })
+  })
+
+  it('rejects FLUX_PACKS with duplicate Stripe price ids', async () => {
+    store._store.set('FLUX_PACKS', JSON.stringify([
+      { key: 'starter', name: 'Starter', fluxAmount: 100, processors: { stripe: { priceId: 'price_shared' } } },
+      { key: 'plus', name: 'Plus', fluxAmount: 500, processors: { stripe: { priceId: 'price_shared' } } },
+    ]))
+
+    await expect(service.getOptional('FLUX_PACKS'))
+      .rejects
+      .toMatchObject({
+        statusCode: 503,
+        errorCode: 'CONFIG_INVALID',
+      })
+  })
+
+  it('accepts FLUX_PACKS that omit Stripe when keys are unique', async () => {
+    store._store.set('FLUX_PACKS', JSON.stringify([
+      { key: 'starter', name: 'Starter', fluxAmount: 100 },
+      { key: 'plus', name: 'Plus', fluxAmount: 500, processors: { stripe: { priceId: 'price_plus' } } },
+    ]))
+
+    await expect(service.getOptional('FLUX_PACKS')).resolves.toEqual([
+      { key: 'starter', name: 'Starter', fluxAmount: 100, recommended: false, processors: {} },
+      { key: 'plus', name: 'Plus', fluxAmount: 500, recommended: false, processors: { stripe: { priceId: 'price_plus' } } },
+    ])
+  })
+
   // https://github.com/moeru-ai/airi/pull/2445#discussion_r3913931906
   // ROOT CAUSE:
   //
@@ -342,10 +382,10 @@ describe('configKVService', () => {
   })
 
   it('refresh should bypass the ordinary store read', async () => {
-    store._store.set('STRIPE_FLUX_PRODUCT_ID', JSON.stringify('prod_abc123'))
+    store._store.set('FLUX_PER_REQUEST', '9')
 
-    await expect(service.refresh('STRIPE_FLUX_PRODUCT_ID')).resolves.toBe('prod_abc123')
-    expect(store.getFreshRaw).toHaveBeenCalledWith('STRIPE_FLUX_PRODUCT_ID')
+    await expect(service.refresh('FLUX_PER_REQUEST')).resolves.toBe(9)
+    expect(store.getFreshRaw).toHaveBeenCalledWith('FLUX_PER_REQUEST')
     expect(store.getRaw).not.toHaveBeenCalled()
   })
 })

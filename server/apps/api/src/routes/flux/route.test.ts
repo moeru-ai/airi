@@ -11,7 +11,6 @@ import { ApiError } from '../../utils/error'
 function createMockFluxService(): FluxService {
   return {
     getFlux: vi.fn(async (userId: string) => ({ userId, flux: 42 })),
-    updateStripeCustomerId: vi.fn(),
   } as any
 }
 
