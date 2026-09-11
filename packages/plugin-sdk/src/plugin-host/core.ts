@@ -884,15 +884,16 @@ export class ExtensionHost {
   }
 
   async start(manifest: ExtensionManifestV2, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
+    const runtime = options.runtime ?? this.runtime
     const extension = await this.loader.loadExtensionFor(manifest, {
       cwd: options.cwd,
-      runtime: options.runtime,
+      runtime,
     })
 
     const session = await this.startExtension(extension, {
       manifest,
       cwd: options.cwd,
-      runtime: options.runtime,
+      runtime,
     })
 
     return session

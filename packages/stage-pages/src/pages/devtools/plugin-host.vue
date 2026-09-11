@@ -3,7 +3,7 @@ import type {
   ExtensionDirectoryImportPlan,
   PluginHostSessionSummary,
   PluginManifestSummary,
-} from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
+} from '@proj-airi/stage-shared/plugin-host'
 
 import { errorMessageFrom } from '@moeru/std'
 import { Section } from '@proj-airi/stage-ui/components'

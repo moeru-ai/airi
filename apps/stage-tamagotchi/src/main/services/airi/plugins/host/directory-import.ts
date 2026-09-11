@@ -115,23 +115,7 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
   const manifestPath = join(sourceRealPath, extensionManifestFileName)
   await assertRegularFile(manifestPath, 'Extension manifest')
 
-  let rawManifest: unknown
-  try {
-    rawManifest = JSON.parse(await readFile(manifestPath, 'utf8')) as unknown
-  }
-  catch (error) {
-    if (error instanceof SyntaxError) {
-      throw new Error(`Extension manifest is not valid JSON: ${error.message}`)
-    }
-    throw error
-  }
-
-  const parsedManifest = parseExtensionManifest(rawManifest)
-  if (!parsedManifest.success) {
-    throw new Error(`Extension manifest is invalid: ${formatManifestDiagnostics(parsedManifest.diagnostics)}`)
-  }
-
-  const files: Array<{ path: string, relativePath: string, size: number }> = []
+  const files: Array<{ path: string, relativePath: string }> = []
   const directories = ['.']
   const walk = async (directory: string): Promise<void> => {
     const entries = await readdir(directory, { withFileTypes: true })
@@ -151,10 +135,46 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
       if (!stats.isFile()) {
         throw new Error(`Extension packages can contain only files and directories: ${relativePath}`)
       }
-      files.push({ path, relativePath, size: stats.size })
+      files.push({ path, relativePath })
     }
   }
   await walk(sourceRealPath)
+
+  directories.sort()
+  files.sort((left, right) => left.relativePath.localeCompare(right.relativePath))
+
+  // Each file contributes one immutable byte snapshot to both validation and
+  // the fingerprint. In particular, the manifest must not be parsed from one
+  // read and fingerprinted from a later read.
+  const fileSnapshots = []
+  for (const file of files) {
+    fileSnapshots.push({
+      ...file,
+      contents: await readFile(file.path),
+    })
+  }
+
+  const manifestRelativePath = relative(sourceRealPath, manifestPath)
+  const manifestSnapshot = fileSnapshots.find(file => file.relativePath === manifestRelativePath)
+  if (!manifestSnapshot) {
+    throw new Error(`Extension manifest does not exist: ${manifestPath}`)
+  }
+
+  let rawManifest: unknown
+  try {
+    rawManifest = JSON.parse(manifestSnapshot.contents.toString('utf8')) as unknown
+  }
+  catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(`Extension manifest is not valid JSON: ${error.message}`)
+    }
+    throw error
+  }
+
+  const parsedManifest = parseExtensionManifest(rawManifest)
+  if (!parsedManifest.success) {
+    throw new Error(`Extension manifest is invalid: ${formatManifestDiagnostics(parsedManifest.diagnostics)}`)
+  }
 
   for (const entrypoint of Object.values(parsedManifest.manifest.entrypoints)) {
     if (!entrypoint) {
@@ -174,23 +194,21 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
     }
   }
 
-  directories.sort()
-  files.sort((left, right) => left.relativePath.localeCompare(right.relativePath))
   const fingerprint = createHash('sha256')
   for (const directory of directories) {
     fingerprint.update(`directory\0${directory}\0`)
   }
-  for (const file of files) {
-    fingerprint.update(`file\0${file.relativePath}\0${file.size}\0`)
-    fingerprint.update(await readFile(file.path))
+  for (const file of fileSnapshots) {
+    fingerprint.update(`file\0${file.relativePath}\0${file.contents.byteLength}\0`)
+    fingerprint.update(file.contents)
     fingerprint.update('\0')
   }
 
   return {
     sourcePath: sourceRealPath,
     manifest: parsedManifest.manifest,
-    fileCount: files.length,
-    totalBytes: files.reduce((total, file) => total + file.size, 0),
+    fileCount: fileSnapshots.length,
+    totalBytes: fileSnapshots.reduce((total, file) => total + file.contents.byteLength, 0),
     fingerprint: fingerprint.digest('hex'),
   }
 }

@@ -1,4 +1,4 @@
-import type { ExtensionDirectoryImportPrepareResult, PluginHostDebugSnapshot, PluginRegistrySnapshot } from './plugin-host-debug'
+import type { ExtensionDirectoryImportPrepareResult, PluginHostDebugSnapshot, PluginRegistrySnapshot } from '@proj-airi/stage-shared/plugin-host'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'

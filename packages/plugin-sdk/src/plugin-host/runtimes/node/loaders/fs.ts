@@ -48,21 +48,22 @@ export class FileSystemLoader {
    * Resolution order:
    * 1) `entrypoints.<runtime>`
    * 2) `entrypoints.default`
-   * 3) `entrypoints.electron` (legacy fallback for current local extension manifests)
    */
   resolveEntrypointFor(manifest: ExtensionManifestV2, options?: ExtensionLoadOptions) {
     const runtime = options?.runtime ?? 'electron'
+    if (!manifest.engines.runtimes.includes(runtime)) {
+      throw new Error(`Extension \`${manifest.id}\` does not support runtime \`${runtime}\`.`)
+    }
+
     const root = options?.cwd ?? cwd()
     const entrypoint
       = manifest.entrypoints[runtime]
         ?? manifest.entrypoints.default
-        ?? manifest.entrypoints.electron
 
     if (!entrypoint) {
       throw new Error(''
         + `Extension entrypoint is required for runtime \`${runtime}\`. `
-        + 'Define one of `entrypoints.<runtime>`, `entrypoints.default`, '
-        + 'or `entrypoints.electron` in the extension manifest.',
+        + 'Define `entrypoints.<runtime>` or `entrypoints.default` in the extension manifest.',
       )
     }
 

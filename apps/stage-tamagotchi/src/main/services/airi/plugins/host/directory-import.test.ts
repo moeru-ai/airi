@@ -2,9 +2,28 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ExtensionDirectoryImporter } from './directory-import'
+
+const fileSystemState = vi.hoisted(() => ({
+  afterRead: undefined as undefined | ((path: string) => Promise<void>),
+}))
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const fileSystem = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...fileSystem,
+    readFile: async (
+      path: Parameters<typeof fileSystem.readFile>[0],
+      options?: Parameters<typeof fileSystem.readFile>[1],
+    ) => {
+      const contents = await fileSystem.readFile(path)
+      await fileSystemState.afterRead?.(String(path))
+      return typeof options === 'string' ? contents.toString(options) : contents
+    },
+  }
+})
 
 describe('extension directory importer', () => {
   let testRoot: string
@@ -13,6 +32,7 @@ describe('extension directory importer', () => {
   let importer: ExtensionDirectoryImporter
 
   beforeEach(async () => {
+    fileSystemState.afterRead = undefined
     testRoot = await mkdtemp(join(tmpdir(), 'airi-extension-import-'))
     extensionsRoot = join(testRoot, 'managed', 'extensions', 'v1')
     sourceRoot = join(testRoot, 'source')
@@ -84,6 +104,29 @@ describe('extension directory importer', () => {
     const plan = await importer.prepare(sourceRoot)
     await writeFile(join(sourceRoot, 'extension.mjs'), 'export default { changed: true }')
 
+    await expect(importer.commit(plan.planId)).rejects.toThrow('source changed after review')
+  })
+
+  it('binds the reviewed manifest to the package fingerprint', async () => {
+    await writeFile(join(sourceRoot, 'replacement.mjs'), 'export default { id: "replacement-extension", setup() {} }')
+
+    // ROOT CAUSE:
+    //
+    // Prepare parsed the manifest, then read it again while fingerprinting the
+    // package. A replacement between those reads paired the old preview with
+    // the new manifest fingerprint, so commit accepted content the user did
+    // not review.
+    fileSystemState.afterRead = async (path) => {
+      if (!path.endsWith(join('source', 'extension.airi.json'))) {
+        return
+      }
+      fileSystemState.afterRead = undefined
+      await writeExtensionPackage(sourceRoot, { entrypoint: './replacement.mjs' })
+    }
+
+    const plan = await importer.prepare(sourceRoot)
+
+    expect(plan.entrypoints.electron).toBe('./extension.mjs')
     await expect(importer.commit(plan.planId)).rejects.toThrow('source changed after review')
   })
 

@@ -1194,7 +1194,7 @@ describe('for FileSystemLoader', () => {
     expect(host.listModules().map(module => module.id)).toEqual(['stoppable-extension-module'])
   })
 
-  it('should resolve runtime-specific extension entrypoint with node fallback', async () => {
+  it('should load a runtime-specific extension entrypoint', async () => {
     const host = new FileSystemLoader()
 
     const extension = await host.loadExtensionFor({
@@ -1202,7 +1202,7 @@ describe('for FileSystemLoader', () => {
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
       version: '1.0.0',
-      engines: { airi: '*', runtimes: ['electron'] },
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
       entrypoints: {
         node: join(import.meta.dirname, 'testdata', 'test-define-extension-entrypoint.ts'),
@@ -1230,14 +1230,14 @@ describe('for FileSystemLoader', () => {
     }, { cwd: '', runtime: 'electron' })).rejects.toThrow('Failed to resolve extension module. The entrypoint must export defineExtension(...).')
   })
 
-  it('should resolve entrypoint by runtime then default then electron', () => {
+  it('should resolve entrypoint by runtime then default', () => {
     const host = new FileSystemLoader()
     const baseManifest = {
       manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
       version: '1.0.0',
-      engines: { airi: '*', runtimes: ['electron'] },
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
     } satisfies Omit<ExtensionManifestV2, 'entrypoints'>
 
@@ -1256,13 +1256,6 @@ describe('for FileSystemLoader', () => {
         electron: './electron-entry.ts',
       },
     }
-    const electronFallbackManifest = {
-      ...baseManifest,
-      entrypoints: {
-        electron: './electron-entry.ts',
-      },
-    }
-
     expect(host.resolveEntrypointFor(runtimeEntryManifest, {
       cwd: '/tmp/extension',
       runtime: 'node',
@@ -1272,11 +1265,31 @@ describe('for FileSystemLoader', () => {
       cwd: '/tmp/extension',
       runtime: 'node',
     })).toBe('/tmp/extension/default-entry.ts')
+  })
 
-    expect(host.resolveEntrypointFor(electronFallbackManifest, {
+  it('should reject a runtime that the extension does not support', () => {
+    const host = new FileSystemLoader()
+
+    // ROOT CAUSE:
+    //
+    // Entrypoint resolution ignored engines.runtimes. A host could therefore
+    // execute a default or runtime-named entrypoint even when the manifest
+    // explicitly excluded the active runtime.
+    expect(() => host.resolveEntrypointFor({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai' as const,
+      id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['web'] },
+      permissions: testPermissions,
+      entrypoints: {
+        default: './default-entry.ts',
+        electron: './electron-entry.ts',
+      },
+    }, {
       cwd: '/tmp/extension',
-      runtime: 'node',
-    })).toBe('/tmp/extension/electron-entry.ts')
+      runtime: 'electron',
+    })).toThrow('does not support runtime `electron`')
   })
 
   it('should preserve absolute runtime entrypoints', () => {
@@ -1287,7 +1300,7 @@ describe('for FileSystemLoader', () => {
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
       version: '1.0.0',
-      engines: { airi: '*', runtimes: ['electron'] },
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
       entrypoints: {
         node: '/opt/extensions/entry.ts',
@@ -1306,7 +1319,7 @@ describe('for FileSystemLoader', () => {
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
       version: '1.0.0',
-      engines: { airi: '*', runtimes: ['electron'] },
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
       entrypoints: {},
     }, { runtime: 'node' })).toThrow('Extension entrypoint is required for runtime `node`.')
@@ -1314,6 +1327,25 @@ describe('for FileSystemLoader', () => {
 })
 
 describe('for migrated extension testdata', () => {
+  it('uses the host runtime when a start call does not override it', async () => {
+    const host = new ExtensionHost({ runtime: 'node' })
+
+    const session = await host.start({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai' as const,
+      id: 'test-plugin',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['node'] },
+      permissions: {},
+      entrypoints: {
+        node: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
+      },
+    }, { cwd: '' })
+
+    expect(session.runtime).toBe('node')
+    await host.stop(session.id)
+  })
+
   it('starts the normal defineExtension fixture', async () => {
     const host = new ExtensionHost()
 

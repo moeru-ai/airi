@@ -1,8 +1,10 @@
+import type { OpenDialogOptions } from 'electron'
+
 import type { ExtensionHostService, SetupExtensionHostOptions } from './types'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { app, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 
 import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
 import {
@@ -56,10 +58,16 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
     return await hostService.list()
   })
 
-  defineInvokeHandler(context, electronPluginPrepareDirectoryImport, async () => {
-    const selection = await dialog.showOpenDialog({
+  defineInvokeHandler(context, electronPluginPrepareDirectoryImport, async (_, invokeOptions) => {
+    const dialogOptions: OpenDialogOptions = {
       properties: ['openDirectory'],
-    })
+    }
+    const ownerWindow = invokeOptions?.raw?.ipcMainEvent
+      ? BrowserWindow.fromWebContents(invokeOptions.raw.ipcMainEvent.sender)
+      : null
+    const selection = ownerWindow
+      ? await dialog.showOpenDialog(ownerWindow, dialogOptions)
+      : await dialog.showOpenDialog(dialogOptions)
     const sourcePath = selection.filePaths[0]
     if (selection.canceled || !sourcePath) {
       return { status: 'cancelled' as const }

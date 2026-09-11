@@ -1,6 +1,25 @@
-import type { PluginCapabilityState } from './capabilities'
+import type {
+  ExtensionDirectoryImportPrepareResult,
+  PluginHostDebugSnapshot,
+  PluginRegistrySnapshot,
+} from '@proj-airi/stage-shared/plugin-host'
 
 import { defineInvokeEventa } from '@moeru/eventa'
+
+export type {
+  ExtensionDirectoryImportKitSummary,
+  ExtensionDirectoryImportPermissionSummary,
+  ExtensionDirectoryImportPlan,
+  ExtensionDirectoryImportPrepareResult,
+  PluginCapabilityState,
+  PluginHostDebugSnapshot,
+  PluginHostKitCapabilitySummary,
+  PluginHostKitSummary,
+  PluginHostModuleSummary,
+  PluginHostSessionSummary,
+  PluginManifestSummary,
+  PluginRegistrySnapshot,
+} from '@proj-airi/stage-shared/plugin-host'
 
 /**
  * Window sizing metadata forwarded through plugin widget payloads.
@@ -43,190 +62,6 @@ export interface PluginModuleWidgetPayload {
   componentProps?: Record<string, any>
   payload?: Record<string, any>
   windowSize?: PluginModuleWidgetWindowSize
-}
-
-/**
- * Renderer-facing plugin manifest summary.
- *
- * Use when:
- * - Listing discovered plugins in devtools or settings surfaces
- *
- * Expects:
- * - `path` points to the manifest file on disk
- *
- * Returns:
- * - N/A
- */
-export interface PluginManifestSummary {
-  extensionId: string
-  entrypoints: Record<string, string | undefined>
-  path: string
-  enabled: boolean
-  autoReload: boolean
-  loaded: boolean
-  isNew: boolean
-}
-
-/**
- * Snapshot of the current plugin manifest registry.
- *
- * Use when:
- * - Renderer code needs the latest enabled and loaded plugin list
- *
- * Expects:
- * - `plugins` is a stable snapshot derived from the current registry state
- *
- * Returns:
- * - N/A
- */
-export interface PluginRegistrySnapshot {
-  root: string
-  plugins: PluginManifestSummary[]
-}
-
-/** One permission shown before an Extension folder is imported. */
-export interface ExtensionDirectoryImportPermissionSummary {
-  area: 'apis' | 'capabilities' | 'pipelines' | 'processors' | 'resources'
-  key: string
-  actions: string[]
-  required: boolean
-}
-
-/** One Kit contract shown before an Extension folder is imported. */
-export interface ExtensionDirectoryImportKitSummary {
-  direction: 'provides' | 'uses'
-  id: string
-  version: string
-  optional?: boolean
-  exposure?: 'local-only' | 'remote-observable' | 'remote-callable'
-}
-
-/**
- * Immutable package facts returned by the main process before folder import.
- *
- * The plan expires after a short time. The renderer sends only `planId` when
- * the user confirms the import.
- */
-export interface ExtensionDirectoryImportPlan {
-  planId: string
-  sourcePath: string
-  extensionId: string
-  version: string
-  runtimes: Array<'electron' | 'node' | 'web'>
-  entrypoints: Record<string, string | undefined>
-  permissions: ExtensionDirectoryImportPermissionSummary[]
-  kits: ExtensionDirectoryImportKitSummary[]
-  fileCount: number
-  totalBytes: number
-  fingerprint: string
-  createdAt: number
-}
-
-/** Result of opening the native Extension folder picker. */
-export type ExtensionDirectoryImportPrepareResult
-  = | { status: 'cancelled' }
-    | { status: 'ready', plan: ExtensionDirectoryImportPlan }
-
-/**
- * Active plugin session summary.
- *
- * Use when:
- * - Inspecting the live plugin host runtime state
- *
- * Expects:
- * - `id` stays stable for the lifetime of one started plugin session
- *
- * Returns:
- * - N/A
- */
-export interface PluginHostSessionSummary {
-  id: string
-  extensionId: string
-  phase: string
-  runtime: 'electron' | 'node' | 'web'
-  moduleId: string
-}
-
-/**
- * Capability summary exposed by one registered kit.
- *
- * Use when:
- * - Renderer tooling needs to show what actions a kit supports
- *
- * Expects:
- * - `actions` contains unique action identifiers
- *
- * Returns:
- * - N/A
- */
-export interface PluginHostKitCapabilitySummary {
-  key: string
-  actions: string[]
-}
-
-/**
- * Registered kit summary exposed by the plugin host.
- *
- * Use when:
- * - Inspecting kit registration state from renderer tooling
- *
- * Expects:
- * - `capabilities` matches the installed kit descriptor state
- *
- * Returns:
- * - N/A
- */
-export interface PluginHostKitSummary {
-  kitId: string
-  version: string
-  capabilities: PluginHostKitCapabilitySummary[]
-  runtimes: Array<'electron' | 'node' | 'web'>
-}
-
-/**
- * Registered plugin module binding summary.
- *
- * Use when:
- * - Inspecting plugin modules and deriving renderer-side extension UI state
- *
- * Expects:
- * - `config` is JSON-compatible and structured-clone-safe
- *
- * Returns:
- * - N/A
- */
-export interface PluginHostModuleSummary {
-  moduleId: string
-  ownerSessionId: string
-  ownerExtensionId: string
-  kitId: string
-  kitModuleType: string
-  state: 'announced' | 'active' | 'degraded' | 'withdrawn'
-  runtime: 'electron' | 'node' | 'web'
-  revision: number
-  updatedAt: number
-  config: Record<string, unknown>
-}
-
-/**
- * Full plugin host inspection snapshot.
- *
- * Use when:
- * - Renderer devtools need registry, session, kit, and module state together
- *
- * Expects:
- * - All arrays are snapshots captured at `refreshedAt`
- *
- * Returns:
- * - N/A
- */
-export interface PluginHostDebugSnapshot {
-  registry: PluginRegistrySnapshot
-  sessions: PluginHostSessionSummary[]
-  kits: PluginHostKitSummary[]
-  modules: PluginHostModuleSummary[]
-  capabilities: PluginCapabilityState[]
-  refreshedAt: number
 }
 
 export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')

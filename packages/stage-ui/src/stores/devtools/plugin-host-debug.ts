@@ -1,106 +1,15 @@
+import type {
+  ExtensionDirectoryImportPrepareResult,
+  PluginCapabilityState,
+  PluginHostDebugSnapshot,
+  PluginHostKitSummary,
+  PluginHostSessionSummary,
+  PluginRegistrySnapshot,
+} from '@proj-airi/stage-shared/plugin-host'
+
 import { errorMessageFrom } from '@moeru/std'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-
-export interface PluginManifestSummary {
-  extensionId: string
-  entrypoints: Record<string, string | undefined>
-  path: string
-  enabled: boolean
-  autoReload: boolean
-  loaded: boolean
-  isNew: boolean
-}
-
-export interface PluginRegistrySnapshot {
-  root: string
-  plugins: PluginManifestSummary[]
-}
-
-export interface ExtensionDirectoryImportPermissionSummary {
-  area: 'apis' | 'capabilities' | 'pipelines' | 'processors' | 'resources'
-  key: string
-  actions: string[]
-  required: boolean
-}
-
-export interface ExtensionDirectoryImportKitSummary {
-  direction: 'provides' | 'uses'
-  id: string
-  version: string
-  optional?: boolean
-  exposure?: 'local-only' | 'remote-observable' | 'remote-callable'
-}
-
-export interface ExtensionDirectoryImportPlan {
-  planId: string
-  sourcePath: string
-  extensionId: string
-  version: string
-  runtimes: Array<'electron' | 'node' | 'web'>
-  entrypoints: Record<string, string | undefined>
-  permissions: ExtensionDirectoryImportPermissionSummary[]
-  kits: ExtensionDirectoryImportKitSummary[]
-  fileCount: number
-  totalBytes: number
-  fingerprint: string
-  createdAt: number
-}
-
-export type ExtensionDirectoryImportPrepareResult
-  = | { status: 'cancelled' }
-    | { status: 'ready', plan: ExtensionDirectoryImportPlan }
-
-// TODO: Replace with re-export of CapabilityDescriptor from
-// @proj-airi/plugin-sdk once stage-ui can depend on the SDK.
-export interface PluginCapabilityState {
-  key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  metadata?: Record<string, unknown>
-  updatedAt: number
-}
-
-export interface PluginHostSessionSummary {
-  id: string
-  extensionId: string
-  phase: string
-  runtime: 'electron' | 'node' | 'web'
-  moduleId: string
-}
-
-export interface PluginHostKitCapabilitySummary {
-  key: string
-  actions: string[]
-}
-
-export interface PluginHostKitSummary {
-  kitId: string
-  version: string
-  capabilities: PluginHostKitCapabilitySummary[]
-  runtimes: Array<'electron' | 'node' | 'web'>
-}
-
-export interface PluginHostModuleSummary {
-  moduleId: string
-  ownerSessionId: string
-  ownerExtensionId: string
-  kitId: string
-  kitModuleType: string
-  state: 'announced' | 'active' | 'degraded' | 'withdrawn'
-  runtime: 'electron' | 'node' | 'web'
-  revision: number
-  updatedAt: number
-  config: Record<string, unknown>
-}
-
-export interface PluginHostDebugSnapshot {
-  registry: PluginRegistrySnapshot
-  sessions: PluginHostSessionSummary[]
-  kits: PluginHostKitSummary[]
-  modules: PluginHostModuleSummary[]
-  capabilities: PluginCapabilityState[]
-  refreshedAt: number
-}
 
 interface PluginHostDebugBridge {
   prepareDirectoryImport: () => Promise<ExtensionDirectoryImportPrepareResult>

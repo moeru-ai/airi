@@ -47,6 +47,9 @@ const appMock = vi.hoisted(() => ({
 const dialogMock = vi.hoisted(() => ({
   showOpenDialog: vi.fn(),
 }))
+const browserWindowMock = vi.hoisted(() => ({
+  fromWebContents: vi.fn(),
+}))
 const protocolMock = vi.hoisted(() => ({
   handle: vi.fn(),
 }))
@@ -64,6 +67,7 @@ const contextState = vi.hoisted(() => ({
 
 vi.mock('electron', () => ({
   app: appMock,
+  BrowserWindow: browserWindowMock,
   dialog: dialogMock,
   ipcMain: {},
   protocol: protocolMock,
@@ -458,6 +462,26 @@ describe('setupExtensionHost', () => {
       }),
     ])
     expect(await readFile(join(pluginsDir, 'imported-extension', 'extension.mjs'), 'utf8')).toContain('defineExtension')
+  })
+
+  it('opens the Extension folder picker for the invoking window', async () => {
+    const sender = { id: 42 }
+    const ownerWindow = { id: 7 }
+    browserWindowMock.fromWebContents.mockReturnValue(ownerWindow)
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] })
+    await setupExtensionHost()
+
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    await Reflect.apply(invokePrepare, undefined, [undefined, {
+      raw: {
+        ipcMainEvent: { sender },
+      },
+    }])
+
+    expect(browserWindowMock.fromWebContents).toHaveBeenCalledExactlyOnceWith(sender)
+    expect(dialogMock.showOpenDialog).toHaveBeenCalledExactlyOnceWith(ownerWindow, {
+      properties: ['openDirectory'],
+    })
   })
 
   it('treats closing the Extension folder picker as cancellation', async () => {
