@@ -414,6 +414,71 @@ describe('for ExtensionHost', () => {
     expect(client.read()).toBe('ready')
   })
 
+  it('preserves enumerable properties on values returned by Kit clients', async () => {
+    interface ReceiptClient {
+      notify: () => Promise<{ kind: string, summary: string }>
+    }
+
+    const host = new ExtensionHost()
+    const kit = defineKit<ReceiptClient>({
+      id: 'kit.extension-enumerable-result',
+      version: '1.0.0',
+      createClient: () => ({
+        notify: async () => ({ kind: 'needs-input', summary: 'Choose a model.' }),
+      }),
+    })
+    await host.startExtension(defineExtension({
+      id: 'enumerable-result-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'enumerable-result-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    let client: ReceiptClient | undefined
+    await host.startExtension(defineExtension({
+      id: 'enumerable-result-consumer',
+      async setup(ctx) {
+        client = await ctx.kits.use(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'enumerable-result-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    if (!client) {
+      throw new Error('Expected the Consumer to receive a receipt Kit client.')
+    }
+
+    // ROOT CAUSE:
+    //
+    // The first recursive membrane forwarded property reads through an empty
+    // facade but did not expose the source object's own keys. Promise results
+    // therefore appeared empty to deep equality and JSON serialization.
+    // The facade now reflects enumerable source property descriptors.
+    const receipt = await client.notify()
+    expect(receipt).toEqual({ kind: 'needs-input', summary: 'Choose a model.' })
+    expect(JSON.stringify(receipt)).toBe('{"kind":"needs-input","summary":"Choose a model."}')
+  })
+
   it('isolates Consumer watcher failures while a Provider unloads', async () => {
     const host = new ExtensionHost()
     const kit = defineKit({

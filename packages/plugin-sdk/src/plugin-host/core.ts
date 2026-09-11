@@ -276,9 +276,44 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
         }
         return wrapValue(value)
       },
+      getOwnPropertyDescriptor(target, property) {
+        assertClientAvailable()
+
+        if (Array.isArray(source) && property === 'length') {
+          Reflect.set(target, property, source.length)
+          return Reflect.getOwnPropertyDescriptor(target, property)
+        }
+
+        const descriptor = Reflect.getOwnPropertyDescriptor(source, property)
+        if (!descriptor) {
+          return undefined
+        }
+
+        // Facade properties remain configurable so non-configurable Provider
+        // properties do not impose their proxy invariants on wrapped values.
+        if ('value' in descriptor) {
+          return {
+            configurable: true,
+            enumerable: descriptor.enumerable,
+            value: wrapValue(descriptor.value),
+            writable: descriptor.writable,
+          }
+        }
+
+        return {
+          configurable: true,
+          enumerable: descriptor.enumerable,
+          get: descriptor.get ? wrapMethod(descriptor.get, source) : undefined,
+          set: descriptor.set ? wrapMethod(descriptor.set, source) : undefined,
+        }
+      },
       has(_target, property) {
         assertClientAvailable()
         return Reflect.has(source, property)
+      },
+      ownKeys() {
+        assertClientAvailable()
+        return Reflect.ownKeys(source)
       },
       set(_target, property, value) {
         assertClientAvailable()
