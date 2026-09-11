@@ -327,6 +327,48 @@ describe('for ExtensionHost', () => {
     await vi.waitFor(() => expect(observed).toEqual([false, true]))
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986898770
+  it('rejects a Provider that omits a declared Kit before becoming ready', async () => {
+    const host = new ExtensionHost()
+    const providedKit = defineKit({
+      id: 'kit.extension-complete-provider-present',
+      version: '1.0.0',
+      createClient: () => ({ read: () => 'ready' }),
+    })
+    const missingKitId = 'kit.extension-complete-provider-missing'
+
+    await expect(host.startExtension(defineExtension({
+      id: 'complete-provider',
+      setup(ctx) {
+        ctx.kits.provide(providedKit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'complete-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: {
+          provides: [
+            { id: providedKit.id, version: providedKit.version, exposure: 'local-only' },
+            { id: missingKitId, version: '1.0.0', exposure: 'local-only' },
+          ],
+        },
+      },
+    })).rejects.toThrow(`did not provide declared Kit \`${missingKitId}\``)
+
+    // ROOT CAUSE:
+    //
+    // Publication iterated only the registrations that setup created. It did
+    // not compare them with every Provider declaration before marking ready.
+    expect(host.getKit(providedKit.id)).toBeUndefined()
+    expect(host.getKit(missingKitId)).toBeUndefined()
+    expect(host.listSessions()).toEqual([])
+  })
+
   it('preserves class receivers for revocable Extension-hosted Kit clients', async () => {
     interface StatefulClient {
       read: () => string
@@ -1176,6 +1218,88 @@ describe('for ExtensionHost', () => {
 
     expect(() => thrownValue.capability.read()).toThrow('revoked')
     expect(() => rejectedValue.capability.read()).toThrow('revoked')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986898765
+  it('revokes Provider capabilities delivered through Consumer callbacks', async () => {
+    interface CallbackCapability {
+      read: () => string
+    }
+    interface CallbackClient {
+      subscribe: (callback: (capability: CallbackCapability) => void) => void
+    }
+
+    let deliver: ((capability: CallbackCapability) => void) | undefined
+    const host = new ExtensionHost()
+    const kit = defineKit<CallbackClient>({
+      id: 'kit.extension-callback-payload',
+      version: '1.0.0',
+      createClient: () => ({
+        subscribe(callback) {
+          deliver = callback
+        },
+      }),
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'callback-payload-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'callback-payload-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    let client: CallbackClient | undefined
+    let deliveredCapability: CallbackCapability | undefined
+    await host.startExtension(defineExtension({
+      id: 'callback-payload-consumer',
+      async setup(ctx) {
+        client = await ctx.kits.use(kit)
+        client.subscribe((capability) => {
+          deliveredCapability = capability
+        })
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'callback-payload-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    const retainedCallback = deliver
+    if (!retainedCallback) {
+      throw new Error('Expected the Provider to retain the Consumer callback.')
+    }
+    retainedCallback({ read: () => 'ready' })
+    const capability = deliveredCapability
+    if (!capability) {
+      throw new Error('Expected the Consumer callback to receive a capability.')
+    }
+    expect(capability.read()).toBe('ready')
+
+    // ROOT CAUSE:
+    //
+    // Consumer callbacks crossed into Provider code unchanged. Objects passed
+    // back through them therefore escaped the Provider revocation membrane.
+    await host.stop(providerSession.id)
+
+    expect(() => capability.read()).toThrow('revoked')
+    expect(() => retainedCallback({ read: () => 'late' })).toThrow('revoked')
   })
 
   // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986773576

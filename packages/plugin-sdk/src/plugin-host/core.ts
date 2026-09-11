@@ -201,6 +201,7 @@ function createRevocableKitClient<TClient extends object>(
   const objectFacades = new WeakMap<object, object>()
   const sourcesByFacade = new WeakMap<object, object>()
   const methodFacades = new WeakMap<object, WeakMap<object, (...args: unknown[]) => unknown>>()
+  const consumerCallbackFacades = new WeakMap<object, object>()
 
   const assertClientAvailable = () => {
     if (revoked || !isProviderAvailable()) {
@@ -268,6 +269,42 @@ function createRevocableKitClient<TClient extends object>(
     return wrapObject(value)
   }
 
+  const wrapConsumerCallback = (callback: object): object => {
+    if (typeof callback !== 'function') {
+      return callback
+    }
+
+    const cached = consumerCallbackFacades.get(callback)
+    if (cached) {
+      return cached
+    }
+
+    const wrapped = new Proxy(callback, {
+      apply(target, thisArg, args) {
+        assertClientAvailable()
+        return unwrapValue(Reflect.apply(target, wrapValue(thisArg), args.map(wrapValue)))
+      },
+      construct(target, args, newTarget) {
+        assertClientAvailable()
+        return unwrapValue(Reflect.construct(target, args.map(wrapValue), newTarget)) as object
+      },
+    })
+    consumerCallbackFacades.set(callback, wrapped)
+    return wrapped
+  }
+
+  const prepareArgument = (value: unknown): unknown => {
+    if (!isObjectValue(value)) {
+      return value
+    }
+
+    const providerSource = sourcesByFacade.get(value)
+    if (providerSource) {
+      return providerSource
+    }
+    return typeof value === 'function' ? wrapConsumerCallback(value) : value
+  }
+
   const wrapMethod = (method: object, receiver: object) => {
     let wrappersByReceiver = methodFacades.get(method)
     if (!wrappersByReceiver) {
@@ -286,7 +323,7 @@ function createRevocableKitClient<TClient extends object>(
         throw new TypeError('Kit client method is not callable.')
       }
       try {
-        return wrapValue(Reflect.apply(method, receiver, args.map(unwrapValue)))
+        return wrapValue(Reflect.apply(method, receiver, args.map(prepareArgument)))
       }
       catch (error) {
         throw wrapThrownValue(error)
@@ -326,7 +363,7 @@ function createRevocableKitClient<TClient extends object>(
           throw new TypeError('Kit client constructor target is not constructible.')
         }
         try {
-          return wrapObject(Reflect.construct(source, args.map(unwrapValue), sourceNewTarget))
+          return wrapObject(Reflect.construct(source, args.map(prepareArgument), sourceNewTarget))
         }
         catch (error) {
           throw wrapThrownValue(error)
@@ -413,7 +450,7 @@ function createRevocableKitClient<TClient extends object>(
         if (targetDescriptor && !targetDescriptor.configurable && !targetDescriptor.writable) {
           return false
         }
-        return Reflect.set(source, property, unwrapValue(value), source)
+        return Reflect.set(source, property, prepareArgument(value), source)
       },
     })
   }
@@ -678,6 +715,7 @@ export class ExtensionHost {
 
     try {
       await extension.setup(ctx)
+      this.assertDeclaredKitsProvided(session)
       session.phase = 'ready'
       await this.publishExtensionKits(session)
       return session
@@ -798,6 +836,22 @@ export class ExtensionHost {
       })
       this.kitApis.set(registration.kit.id, registration)
       this.notifyKitApiWatchers(registration.kit.id)
+    }
+  }
+
+  private assertDeclaredKitsProvided(session: ExtensionSession) {
+    const providedKitIds = new Set(
+      [...this.pendingExtensionKitApis.values()]
+        .filter(registration => registration.ownerSessionId === session.id)
+        .map(registration => registration.kit.id),
+    )
+
+    for (const declaration of session.manifest.kits?.provides ?? []) {
+      if (!providedKitIds.has(declaration.id)) {
+        throw new Error(
+          `Extension \`${session.extension.id}\` did not provide declared Kit \`${declaration.id}\`.`,
+        )
+      }
     }
   }
 
