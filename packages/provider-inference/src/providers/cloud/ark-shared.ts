@@ -1,6 +1,7 @@
 import type { ChatRequestOptions, ModelInfo } from '../../types'
 
 import { createOpenAI } from '@xsai-ext/providers/create'
+import { listModels } from '@xsai/model'
 import { z } from 'zod'
 
 import { ProviderValidationCheck } from '../../types'
@@ -33,12 +34,21 @@ interface ArkProviderDefinitionOptions<TId extends string = string> {
   icon: string
   iconColor?: string
   models: ArkModelSpec[]
+  refreshModelsFromEndpoint?: boolean
 }
 
 function stripModelPrefix(modelId: string, modelPrefix: string) {
   return modelId.startsWith(modelPrefix)
     ? modelId.slice(modelPrefix.length)
     : modelId
+}
+
+function extractLiveModelId(model: unknown): string {
+  if (typeof model === 'string')
+    return model
+  if (model && typeof (model as { id?: unknown }).id === 'string')
+    return (model as { id: string }).id
+  return ''
 }
 
 export function createArkChatProviderDefinition<const TId extends string>(options: ArkProviderDefinitionOptions<TId>) {
@@ -54,6 +64,7 @@ export function createArkChatProviderDefinition<const TId extends string>(option
     icon,
     iconColor,
     models,
+    refreshModelsFromEndpoint,
   } = options
 
   return defineProvider({
@@ -98,23 +109,63 @@ export function createArkChatProviderDefinition<const TId extends string>(option
     },
 
     extraMethods: {
-      listModels: async (_config, _provider, contextOptions) => models.map((model) => {
-        const modelInfo: ModelInfo = {
-          id: `${modelPrefix}${model.id}`,
-          name: model.id,
-          provider: id,
+      listModels: async (config, _provider, contextOptions) => {
+        const staticModels = models.map((model) => {
+          const modelInfo: ModelInfo = {
+            id: `${modelPrefix}${model.id}`,
+            name: model.id,
+            provider: id,
+          }
+          if (model.contextLength !== undefined) {
+            modelInfo.contextLength = model.contextLength
+          }
+          if (model.deprecated !== undefined) {
+            modelInfo.deprecated = model.deprecated
+          }
+          if (model.descriptionKey !== undefined && contextOptions) {
+            modelInfo.description = contextOptions.t(model.descriptionKey)
+          }
+          return modelInfo
+        })
+
+        // Refresh the static catalog with models the endpoint actually serves,
+        // so newly released coding-plan models appear without a client update.
+        // Opt-in per provider: only definitions that set refreshModelsFromEndpoint
+        // perform live calls. Any endpoint failure keeps the static catalog untouched.
+        const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+        const baseUrl = typeof config.baseUrl === 'string' && config.baseUrl.trim()
+          ? config.baseUrl.trim()
+          : defaultBaseUrl
+        if (!refreshModelsFromEndpoint || !apiKey) {
+          return staticModels
         }
-        if (model.contextLength !== undefined) {
-          modelInfo.contextLength = model.contextLength
+
+        let liveModels: unknown
+        try {
+          liveModels = await listModels({ apiKey, baseURL: baseUrl })
         }
-        if (model.deprecated !== undefined) {
-          modelInfo.deprecated = model.deprecated
+        catch {
+          return staticModels
         }
-        if (model.descriptionKey !== undefined && contextOptions) {
-          modelInfo.description = contextOptions.t(model.descriptionKey)
+        if (!Array.isArray(liveModels)) {
+          return staticModels
         }
-        return modelInfo
-      }),
+
+        const knownIds = new Set(staticModels.map(model => model.id))
+        for (const liveModel of liveModels) {
+          const rawId = extractLiveModelId(liveModel).trim()
+          if (!rawId) {
+            continue
+          }
+          const liveId = rawId.startsWith(modelPrefix) ? rawId : `${modelPrefix}${rawId}`
+          if (knownIds.has(liveId)) {
+            continue
+          }
+          knownIds.add(liveId)
+          staticModels.push({ id: liveId, name: rawId, provider: id })
+        }
+        return staticModels
+      },
     },
     validationRequiredWhen(config) {
       return !!config.apiKey?.trim()

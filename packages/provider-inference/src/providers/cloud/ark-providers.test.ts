@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parse } from 'zod/v4/core'
 
 import { createProviderRegistry } from '../registry'
@@ -22,6 +22,11 @@ describe('ark chat provider definitions', () => {
   beforeEach(() => {
     vi.resetModules()
     createOpenAIMock.mockClear()
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network unavailable')))
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('lists prefixed models and strips the prefix before chat requests', async () => {
@@ -121,5 +126,86 @@ describe('ark chat provider definitions', () => {
       'byteplus-coding-plan/kimi-k2.5',
       'byteplus-coding-plan/gpt-oss-120b',
     ])
+  })
+})
+
+describe('ark live model refresh', () => {
+  // https://github.com/moeru-ai/airi/issues/2138
+  const fetchMock = vi.fn()
+
+  beforeEach(() => {
+    fetchMock.mockReset()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  async function listVolcengineModels(apiKey: string) {
+    const provider = createProviderRegistry([providerVolcengineCodingPlan]).get('volcengine-coding-plan')
+    if (!provider)
+      throw new Error('Volcengine coding plan provider must be registered')
+    const schema = await provider.createProviderConfig({ t: input => input })
+    const parsedConfig = parse(schema, { apiKey })
+    const providerInstance = await provider.createProvider(parsedConfig)
+    return provider!.extraMethods!.listModels!(parsedConfig, providerInstance, { t: input => input })
+  }
+
+  it('issue #2138 merges live endpoint models after the static catalog', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ data: [
+      { id: 'doubao-seed-2.1-turbo' },
+      { id: 'doubao-seed-3-0-code' },
+    ] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    const listedModels = await listVolcengineModels('test-key')
+    const ids = listedModels.map(model => model.id)
+    expect(ids.slice(0, 10)).toEqual([
+      'volcengine-coding-plan/ark-code-latest',
+      'volcengine-coding-plan/doubao-seed-2.1-turbo',
+      'volcengine-coding-plan/doubao-seed-2.0-lite',
+      'volcengine-coding-plan/minimax-m3',
+      'volcengine-coding-plan/kimi-k2.7-code',
+      'volcengine-coding-plan/glm-5.3',
+      'volcengine-coding-plan/deepseek-v4-flash',
+      'volcengine-coding-plan/deepseek-v4-pro',
+      'volcengine-coding-plan/doubao-seed-2.0-code',
+      'volcengine-coding-plan/doubao-seed-2.0-pro',
+    ])
+    expect(ids).toContain('volcengine-coding-plan/doubao-seed-3-0-code')
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('https://ark.cn-beijing.volces.com/api/coding/v3/models')
+  })
+
+  it('issue #2138 falls back to the static catalog when the endpoint is unreachable', async () => {
+    fetchMock.mockRejectedValue(new Error('network unavailable'))
+    const listedModels = await listVolcengineModels('test-key')
+    expect(listedModels.map(model => model.id)).toHaveLength(10)
+    expect(listedModels[0]?.id).toBe('volcengine-coding-plan/ark-code-latest')
+  })
+
+  it('issue #2138 performs no fetch without an API key', async () => {
+    const listedModels = await listVolcengineModels('')
+    expect(listedModels.map(model => model.id)).toHaveLength(10)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('issue #2138 keeps non-opted-in ark providers static without fetching', async () => {
+    fetchMock.mockRejectedValue(new Error('must not fetch'))
+    const provider = createProviderRegistry([providerBytePlusCodingPlan]).get('byteplus-coding-plan')
+    if (!provider)
+      throw new Error('BytePlus coding plan provider must be registered')
+    const schema = await provider.createProviderConfig({ t: input => input })
+    const parsedConfig = parse(schema, { apiKey: 'test-key' })
+    const providerInstance = await provider.createProvider(parsedConfig)
+    const listedModels = await provider!.extraMethods!.listModels!(parsedConfig, providerInstance, { t: input => input })
+    expect(listedModels.map(model => model.id)).toEqual([
+      'byteplus-coding-plan/dola-seed-2.0-pro',
+      'byteplus-coding-plan/dola-seed-2.0-lite',
+      'byteplus-coding-plan/bytedance-seed-code',
+      'byteplus-coding-plan/glm-4.7',
+      'byteplus-coding-plan/kimi-k2.5',
+      'byteplus-coding-plan/gpt-oss-120b',
+    ])
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
