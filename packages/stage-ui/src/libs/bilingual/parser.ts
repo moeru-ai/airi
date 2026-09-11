@@ -186,7 +186,15 @@ export function trimIncompleteBilingualTag(text: string, languages: string[]): s
   // closing bracket arrives, or for good when it never does.
   const candidate = text.slice(open + 1).toLowerCase()
 
-  return languages.some(language => language.toLowerCase().startsWith(candidate))
+  // The candidate is the start of a tag, so match it against the tags the model
+  // is asked to emit — not the persisted codes. `zh` does not start with `c`, so
+  // matching on the code would let a split `[CN` reach the bubble as literal
+  // text, even though `CN` is the Chinese tag the parser accepts.
+  const tags = languages
+    .map(code => resolveBilingualLanguage(code)?.tag.toLowerCase())
+    .filter((tag): tag is string => tag != null)
+
+  return tags.some(tag => tag.startsWith(candidate))
     ? text.slice(0, open)
     : text
 }

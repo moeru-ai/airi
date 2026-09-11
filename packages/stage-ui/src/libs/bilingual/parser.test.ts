@@ -130,6 +130,10 @@ describe('trimIncompleteBilingualTag', () => {
   it('cuts a tag candidate the stream has not finished', () => {
     expect(trimIncompleteBilingualTag('Hello [', ['en', 'zh'])).toBe('Hello ')
     expect(trimIncompleteBilingualTag('Hello [EN', ['en', 'zh'])).toBe('Hello ')
+    // Chinese is tagged `CN`, not `ZH`: matching the code would let a split
+    // `[CN` reach the bubble as literal text.
+    expect(trimIncompleteBilingualTag('你好 [C', ['en', 'zh'])).toBe('你好 ')
+    expect(trimIncompleteBilingualTag('你好 [CN', ['en', 'zh'])).toBe('你好 ')
   })
 
   it('keeps text whose brackets are all closed', () => {
