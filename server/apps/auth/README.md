@@ -42,6 +42,20 @@ pnpm dev:backend
 stay on its private network. The internal `/internal/*` boundary has no
 application token, and Caddy rejects that path at the public edge.
 
+## Native Google sign-in
+
+Set `AUTH_GOOGLE_NATIVE_CLIENT_IDS` to a comma-separated list of additional Google OAuth client IDs.
+For Android Credential Manager, include the Web client ID passed as `serverClientId`.
+
+```dotenv
+AUTH_GOOGLE_NATIVE_CLIENT_IDS=123456789-native.apps.googleusercontent.com
+```
+
+The original `AUTH_GOOGLE_CLIENT_ID` stays first in the provider configuration.
+Browser authorization still uses that client and `AUTH_GOOGLE_CLIENT_SECRET`.
+Native ID tokens can use any configured audience. Better Auth checks the token signature, issuer, expiry, and supplied nonce.
+Omit the new variable to keep the existing configuration. No database migration is required.
+
 ## Railway
 
 Deploy this as the Auth Railway service with Config File Path
