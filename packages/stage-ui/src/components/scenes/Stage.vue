@@ -618,6 +618,11 @@ speechPipeline.on('onTurnEnd', (turnId) => {
 
 speechPipeline.on('onTurnCancel', ({ turnId }) => {
   streamingControl.cancelTurn(turnId)
+
+  // Same release as `onTurnEnd`: an abandoned reaction still holds the voice it
+  // was composed with, and nothing reads it once its turn is gone.
+  if (turnId.startsWith(SPARK_TURN_ID_PREFIX))
+    clearBilingualTurn(turnId)
 })
 
 function resetSpeakingState() {
@@ -792,15 +797,6 @@ const bilingualTurns = new Map<string, BilingualTurnState>()
  * the new translation arrives.
  */
 let bilingualTurnOnScreen = ''
-
-/**
- * Reaction whose record nothing has released yet.
- *
- * A reaction keeps its voice until its playback ends, so one that never spoke
- * has no event left to release it. The next reaction is composed only once the
- * previous one is over, so it releases that one instead.
- */
-let lastComposedSparkTurnId = ''
 
 /** State of one turn, created on first use. */
 function bilingualTurnState(turnId: string): BilingualTurnState {
@@ -1012,13 +1008,6 @@ watch(sparkPair, (event) => {
     return
 
   if (event.kind === 'turn') {
-    // The previous reaction is over by the time a new one is composed, so this
-    // is the last moment its voice is still reachable: one that never spoke gets
-    // no `onTurnEnd`, and without this its record stays for the session.
-    if (lastComposedSparkTurnId && lastComposedSparkTurnId !== bilingualTurnOnScreen)
-      clearBilingualTurn(lastComposedSparkTurnId)
-    lastComposedSparkTurnId = event.turnId
-
     seedBilingualVoice(event.turnId, event.ttsLanguage)
     return
   }
