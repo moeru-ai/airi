@@ -215,8 +215,23 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
   }
 
   const wrapValue = (value: unknown): unknown => {
-    if (value instanceof Promise) {
-      return value.then(
+    if (!isObjectValue(value)) {
+      return value
+    }
+
+    const then: unknown = Reflect.get(value, 'then', value)
+    if (typeof then === 'function') {
+      const settlement = new Promise<unknown>((resolve, reject) => {
+        queueMicrotask(() => {
+          try {
+            Reflect.apply(then, value, [resolve, reject])
+          }
+          catch (error) {
+            reject(error)
+          }
+        })
+      })
+      return settlement.then(
         (resolved) => {
           assertClientAvailable()
           return wrapValue(resolved)
@@ -226,9 +241,6 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
           throw error
         },
       )
-    }
-    if (!isObjectValue(value)) {
-      return value
     }
     return wrapObject(value)
   }
@@ -270,6 +282,9 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
       },
       get(facade, property) {
         assertClientAvailable()
+        if (Array.isArray(source) && property === 'length') {
+          return Reflect.get(source, property, source)
+        }
         const targetDescriptor = Reflect.getOwnPropertyDescriptor(facade, property)
         if (targetDescriptor && !targetDescriptor.configurable) {
           return Reflect.get(facade, property, facade)

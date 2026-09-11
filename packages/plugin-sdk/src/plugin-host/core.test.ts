@@ -612,6 +612,72 @@ describe('for ExtensionHost', () => {
     expect(JSON.stringify(receipt)).toBe('{"kind":"needs-input","summary":"Choose a model."}')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986266802
+  it('preserves array length on values returned by Kit clients', async () => {
+    interface ArrayClient {
+      list: () => string[]
+    }
+
+    const host = new ExtensionHost()
+    const kit = defineKit<ArrayClient>({
+      id: 'kit.extension-array-result',
+      version: '1.0.0',
+      createClient: () => ({ list: () => ['first', 'second'] }),
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'array-result-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'array-result-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    let client: ArrayClient | undefined
+    await host.startExtension(defineExtension({
+      id: 'array-result-consumer',
+      async setup(ctx) {
+        client = await ctx.kits.use(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'array-result-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    const arrayClient = client
+    if (!arrayClient) {
+      throw new Error('Expected the Consumer to receive an array-result Kit client.')
+    }
+
+    // ROOT CAUSE:
+    //
+    // The array facade has its own non-configurable length. Ordinary property
+    // access returned that initial zero instead of the source array length.
+    const items = arrayClient.list()
+    expect(items.length).toBe(2)
+    expect(items).toEqual(['first', 'second'])
+
+    await host.stop(providerSession.id)
+    expect(() => items.length).toThrow('revoked')
+  })
+
   it('rejects in-flight Kit results after the Provider unloads', async () => {
     interface PendingClient {
       read: () => Promise<string>
@@ -672,6 +738,76 @@ describe('for ExtensionHost', () => {
     // value. Promise fulfillment and rejection now cross the same revocation
     // check as synchronous results.
     const pendingRead = client.read()
+    await host.stop(providerSession.id)
+    result.resolve('late result')
+
+    await expect(pendingRead).rejects.toThrow('revoked')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986266811
+  it('rejects in-flight thenable results after the Provider unloads', async () => {
+    interface ThenableClient {
+      read: () => PromiseLike<string>
+    }
+
+    const result = Promise.withResolvers<string>()
+    const lateResult: PromiseLike<string> = {
+      // oxlint-disable-next-line unicorn/no-thenable -- This fixture reproduces a Provider-defined thenable boundary.
+      then: result.promise.then.bind(result.promise),
+    }
+    const host = new ExtensionHost()
+    const kit = defineKit<ThenableClient>({
+      id: 'kit.extension-thenable-result',
+      version: '1.0.0',
+      createClient: () => ({ read: () => lateResult }),
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'thenable-result-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'thenable-result-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    let client: ThenableClient | undefined
+    await host.startExtension(defineExtension({
+      id: 'thenable-result-consumer',
+      async setup(ctx) {
+        client = await ctx.kits.use(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'thenable-result-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    const thenableClient = client
+    if (!thenableClient) {
+      throw new Error('Expected the Consumer to receive a thenable-result Kit client.')
+    }
+
+    // ROOT CAUSE:
+    //
+    // The membrane recognized only native Promises. Custom and cross-realm
+    // thenables could therefore settle after unload without a revocation check.
+    const pendingRead = Promise.resolve(thenableClient.read())
     await host.stop(providerSession.id)
     result.resolve('late result')
 
