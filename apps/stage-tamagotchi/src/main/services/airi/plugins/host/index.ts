@@ -385,14 +385,32 @@ export async function setupExtensionHostServiceInternal(
       return
     }
 
-    await host.stop(sessionId)
+    const cleanupErrors: unknown[] = []
+    try {
+      await host.stop(sessionId)
+    }
+    catch (error) {
+      cleanupErrors.push(error)
+    }
     loadedSessionIds.delete(extensionId)
     loaded.delete(extensionId)
 
     clearModuleAssetSessionCacheByOwnerSessionId(sessionId)
-    await extensionAssetService.revokeByOwnerSessionId(sessionId)
+    try {
+      await extensionAssetService.revokeByOwnerSessionId(sessionId)
+    }
+    catch (error) {
+      cleanupErrors.push(error)
+    }
 
     log.withFields({ extensionId, sessionId }).log('extension unloaded')
+
+    if (cleanupErrors.length === 1) {
+      throw cleanupErrors[0]
+    }
+    if (cleanupErrors.length > 1) {
+      throw new AggregateError(cleanupErrors, `Extension ${extensionId} had multiple unload failures.`)
+    }
   }
 
   const resolveAutoReloadWatchPaths = (extensionId: string) => {

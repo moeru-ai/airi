@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, symlink, truncate, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -8,6 +8,7 @@ import { ExtensionDirectoryImporter } from './directory-import'
 
 const fileSystemState = vi.hoisted(() => ({
   afterRead: undefined as undefined | ((path: string) => Promise<void>),
+  readPaths: [] as string[],
 }))
 
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -19,6 +20,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
       options?: Parameters<typeof fileSystem.readFile>[1],
     ) => {
       const contents = await fileSystem.readFile(path)
+      fileSystemState.readPaths.push(String(path))
       await fileSystemState.afterRead?.(String(path))
       return typeof options === 'string' ? contents.toString(options) : contents
     },
@@ -33,6 +35,7 @@ describe('extension directory importer', () => {
 
   beforeEach(async () => {
     fileSystemState.afterRead = undefined
+    fileSystemState.readPaths = []
     testRoot = await mkdtemp(join(tmpdir(), 'airi-extension-import-'))
     extensionsRoot = join(testRoot, 'managed', 'extensions', 'v1')
     sourceRoot = join(testRoot, 'source')
@@ -57,6 +60,8 @@ describe('extension directory importer', () => {
       runtimes: ['electron'],
       fileCount: 2,
     })
+    expect(fileSystemState.readPaths).toHaveLength(1)
+    expect(fileSystemState.readPaths[0]).toMatch(/extension\.airi\.json$/)
     await expect(readFile(markerPath)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
@@ -98,6 +103,19 @@ describe('extension directory importer', () => {
     await symlink(join(sourceRoot, 'extension.mjs'), join(sourceRoot, 'nested', 'linked.mjs'))
 
     await expect(importer.prepare(sourceRoot)).rejects.toThrow('cannot contain symbolic links')
+  })
+
+  it('rejects packages that exceed the import size limit before reading their contents', async () => {
+    const oversizedAsset = join(sourceRoot, 'oversized.asset')
+    await writeFile(oversizedAsset, '')
+    await truncate(oversizedAsset, 512 * 1024 * 1024 + 1)
+
+    // ROOT CAUSE:
+    //
+    // Inspection retained every file Buffer before showing the review. A
+    // large folder could exhaust the Electron main process heap. Inspection
+    // now checks package limits before content reads and streams each asset.
+    await expect(importer.prepare(sourceRoot)).rejects.toThrow('exceeds the 512 MiB size limit')
   })
 
   it('rejects a changed source after review', async () => {

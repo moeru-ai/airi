@@ -289,6 +289,131 @@ describe('for ExtensionHost', () => {
     expect(() => read()).toThrow('revoked')
   })
 
+  it('revokes nested Extension-hosted Kit capabilities after the Provider unloads', async () => {
+    interface NestedClient {
+      api: {
+        read: () => string
+      }
+    }
+
+    const host = new ExtensionHost()
+    const kit = defineKit<NestedClient>({
+      id: 'kit.extension-nested-client',
+      version: '1.0.0',
+      createClient: () => ({ api: { read: () => 'ready' } }),
+    })
+    let client: NestedClient | undefined
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'nested-client-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'nested-client-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+    await host.startExtension(defineExtension({
+      id: 'nested-client-consumer',
+      async setup(ctx) {
+        client = await ctx.kits.use(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'nested-client-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    if (!client) {
+      throw new Error('Expected the Consumer to receive a nested Kit client.')
+    }
+    const api = client.api
+    expect(api.read()).toBe('ready')
+
+    // ROOT CAUSE:
+    //
+    // The first revocation wrapper guarded only the top-level client. Nested
+    // API objects escaped the boundary and stayed callable after unload.
+    // The client membrane now wraps the full reachable capability graph.
+    await host.stop(providerSession.id)
+
+    expect(() => api.read()).toThrow('revoked')
+  })
+
+  it('reads methods from frozen Extension-hosted Kit clients', async () => {
+    interface FrozenClient {
+      read: () => string
+    }
+
+    const host = new ExtensionHost()
+    const kit = defineKit<FrozenClient>({
+      id: 'kit.extension-frozen-client',
+      version: '1.0.0',
+      createClient: () => Object.freeze({ read: () => 'ready' }),
+    })
+    await host.startExtension(defineExtension({
+      id: 'frozen-client-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'frozen-client-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    let client: FrozenClient | undefined
+    await host.startExtension(defineExtension({
+      id: 'frozen-client-consumer',
+      async setup(ctx) {
+        client = await ctx.kits.use(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'frozen-client-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    if (!client) {
+      throw new Error('Expected the Consumer to receive a frozen Kit client.')
+    }
+
+    // ROOT CAUSE:
+    //
+    // Wrapping the Provider object itself violated proxy invariants when a
+    // frozen property returned a method wrapper. A separate facade now owns
+    // the proxy invariants while reads still resolve against the Provider.
+    expect(client.read()).toBe('ready')
+  })
+
   it('isolates Consumer watcher failures while a Provider unloads', async () => {
     const host = new ExtensionHost()
     const kit = defineKit({
@@ -346,6 +471,49 @@ describe('for ExtensionHost', () => {
     await host.stop(providerSession.id)
     expect(host.getSession(providerSession.id)).toBeUndefined()
     expect(observed).toEqual([true, false])
+  })
+
+  it('removes Provider-owned Kits when another Extension disposable fails', async () => {
+    const host = new ExtensionHost()
+    const kit = defineKit({
+      id: 'kit.extension-failing-disposable',
+      version: '1.0.0',
+      createClient: () => ({ read: () => 'ready' }),
+    })
+    const manifest: ExtensionManifestV2 = {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'failing-disposable-provider',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      entrypoints: { electron: './provider.mjs' },
+      permissions: {},
+      kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+    }
+    const provider = defineExtension({
+      id: manifest.id,
+      setup(ctx) {
+        ctx.kits.provide(kit)
+        ctx.subscriptions.add({
+          dispose() {
+            throw new Error('Extension cleanup failed.')
+          },
+        })
+      },
+    })
+    const providerSession = await host.startExtension(provider, { manifest })
+
+    // ROOT CAUSE:
+    //
+    // DisposableStore stopped at the first rejection. A later Host-owned Kit
+    // cleanup never ran, so the stopped session kept its Provider registered.
+    // Disposal now attempts every resource and removes the session before it
+    // reports collected cleanup errors.
+    await expect(host.stop(providerSession.id)).rejects.toThrow('Extension cleanup failed.')
+
+    expect(host.getSession(providerSession.id)).toBeUndefined()
+    expect(host.getKit(kit.id)).toBeUndefined()
+    await expect(host.startExtension(provider, { manifest })).resolves.toMatchObject({ phase: 'ready' })
   })
 
   it('rejects an incompatible AIRI version before importing the entrypoint', async () => {

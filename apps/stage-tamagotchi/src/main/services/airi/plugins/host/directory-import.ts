@@ -8,8 +8,10 @@ import type {
   ExtensionDirectoryImportPlan,
 } from '../../../../../shared/eventa/plugin/host'
 
+import { Buffer } from 'node:buffer'
 import { createHash, randomUUID } from 'node:crypto'
-import { cp, lstat, mkdir, readdir, readFile, realpath, rename, rm } from 'node:fs/promises'
+import { createReadStream } from 'node:fs'
+import { cp, lstat, mkdir, opendir, readFile, realpath, rename, rm } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 import { parseExtensionManifest } from '@proj-airi/plugin-sdk/plugin-host'
@@ -17,6 +19,13 @@ import { parseExtensionManifest } from '@proj-airi/plugin-sdk/plugin-host'
 import { extensionManifestFileName } from './registry'
 
 const importPlanTtlMs = 10 * 60 * 1000
+
+/** Bounds inspection work for an untrusted Extension folder. */
+const extensionPackageLimits = Object.freeze({
+  entries: 10_000,
+  manifestBytes: 1024 * 1024,
+  totalBytes: 512 * 1024 * 1024,
+})
 
 interface InspectedExtensionDirectory {
   sourcePath: string
@@ -115,11 +124,17 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
   const manifestPath = join(sourceRealPath, extensionManifestFileName)
   await assertRegularFile(manifestPath, 'Extension manifest')
 
-  const files: Array<{ path: string, relativePath: string }> = []
+  const files: Array<{ path: string, relativePath: string, size: number }> = []
   const directories = ['.']
+  let entryCount = 0
+  let totalBytes = 0
   const walk = async (directory: string): Promise<void> => {
-    const entries = await readdir(directory, { withFileTypes: true })
-    for (const entry of entries) {
+    const entries = await opendir(directory)
+    for await (const entry of entries) {
+      entryCount += 1
+      if (entryCount > extensionPackageLimits.entries) {
+        throw new Error(`Extension package exceeds the ${extensionPackageLimits.entries} entry limit.`)
+      }
       const path = join(directory, entry.name)
       const stats = await lstat(path)
       const relativePath = relative(sourceRealPath, path)
@@ -135,7 +150,11 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
       if (!stats.isFile()) {
         throw new Error(`Extension packages can contain only files and directories: ${relativePath}`)
       }
-      files.push({ path, relativePath })
+      totalBytes += stats.size
+      if (totalBytes > extensionPackageLimits.totalBytes) {
+        throw new Error('Extension package exceeds the 512 MiB size limit.')
+      }
+      files.push({ path, relativePath, size: stats.size })
     }
   }
   await walk(sourceRealPath)
@@ -143,26 +162,25 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
   directories.sort()
   files.sort((left, right) => left.relativePath.localeCompare(right.relativePath))
 
-  // Each file contributes one immutable byte snapshot to both validation and
-  // the fingerprint. In particular, the manifest must not be parsed from one
-  // read and fingerprinted from a later read.
-  const fileSnapshots = []
-  for (const file of files) {
-    fileSnapshots.push({
-      ...file,
-      contents: await readFile(file.path),
-    })
+  const manifestRelativePath = relative(sourceRealPath, manifestPath)
+  const manifestFile = files.find(file => file.relativePath === manifestRelativePath)
+  if (!manifestFile) {
+    throw new Error(`Extension manifest does not exist: ${manifestPath}`)
+  }
+  if (manifestFile.size > extensionPackageLimits.manifestBytes) {
+    throw new Error('Extension manifest exceeds the 1 MiB size limit.')
   }
 
-  const manifestRelativePath = relative(sourceRealPath, manifestPath)
-  const manifestSnapshot = fileSnapshots.find(file => file.relativePath === manifestRelativePath)
-  if (!manifestSnapshot) {
-    throw new Error(`Extension manifest does not exist: ${manifestPath}`)
+  // The manifest remains the only retained byte snapshot because the preview
+  // and fingerprint must describe the same manifest contents.
+  const manifestContents = await readFile(manifestFile.path)
+  if (manifestContents.byteLength !== manifestFile.size) {
+    throw new Error('Extension package changed during inspection. Select the folder again.')
   }
 
   let rawManifest: unknown
   try {
-    rawManifest = JSON.parse(manifestSnapshot.contents.toString('utf8')) as unknown
+    rawManifest = JSON.parse(manifestContents.toString('utf8')) as unknown
   }
   catch (error) {
     if (error instanceof SyntaxError) {
@@ -198,17 +216,33 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
   for (const directory of directories) {
     fingerprint.update(`directory\0${directory}\0`)
   }
-  for (const file of fileSnapshots) {
-    fingerprint.update(`file\0${file.relativePath}\0${file.contents.byteLength}\0`)
-    fingerprint.update(file.contents)
+  for (const file of files) {
+    fingerprint.update(`file\0${file.relativePath}\0${file.size}\0`)
+    if (file.relativePath === manifestRelativePath) {
+      fingerprint.update(manifestContents)
+    }
+    else {
+      let bytesRead = 0
+      for await (const chunk of createReadStream(file.path)) {
+        const contents = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+        bytesRead += contents.byteLength
+        if (bytesRead > file.size) {
+          throw new Error('Extension package changed during inspection. Select the folder again.')
+        }
+        fingerprint.update(contents)
+      }
+      if (bytesRead !== file.size) {
+        throw new Error('Extension package changed during inspection. Select the folder again.')
+      }
+    }
     fingerprint.update('\0')
   }
 
   return {
     sourcePath: sourceRealPath,
     manifest: parsedManifest.manifest,
-    fileCount: fileSnapshots.length,
-    totalBytes: fileSnapshots.reduce((total, file) => total + file.contents.byteLength, 0),
+    fileCount: files.length,
+    totalBytes,
     fingerprint: fingerprint.digest('hex'),
   }
 }

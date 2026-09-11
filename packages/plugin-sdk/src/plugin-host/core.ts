@@ -190,6 +190,114 @@ function cloneBindingRecord<C extends HostDataRecord>(module: BindingRecord<C>):
   }
 }
 
+/** Wraps one Provider client object graph in a shared revocation boundary. */
+function createRevocableKitClient<TClient extends object>(client: TClient): { client: TClient, revoke: () => void } {
+  let revoked = false
+  const objectFacades = new WeakMap<object, object>()
+  const sourcesByFacade = new WeakMap<object, object>()
+  const methodFacades = new WeakMap<object, WeakMap<object, (...args: unknown[]) => unknown>>()
+
+  const assertClientAvailable = () => {
+    if (revoked) {
+      throw new TypeError('Cannot perform an operation on a revoked Kit client.')
+    }
+  }
+
+  const isObjectValue = (value: unknown): value is object => {
+    return (typeof value === 'object' && value !== null) || typeof value === 'function'
+  }
+
+  const unwrapValue = (value: unknown) => {
+    if (!isObjectValue(value)) {
+      return value
+    }
+    return sourcesByFacade.get(value) ?? value
+  }
+
+  const wrapValue = (value: unknown): unknown => {
+    if (value instanceof Promise) {
+      return value.then(resolved => wrapValue(resolved))
+    }
+    if (!isObjectValue(value)) {
+      return value
+    }
+    return wrapObject(value)
+  }
+
+  const wrapMethod = (method: object, receiver: object) => {
+    let wrappersByReceiver = methodFacades.get(method)
+    if (!wrappersByReceiver) {
+      wrappersByReceiver = new WeakMap()
+      methodFacades.set(method, wrappersByReceiver)
+    }
+
+    const cached = wrappersByReceiver.get(receiver)
+    if (cached) {
+      return cached
+    }
+
+    const wrapped = (...args: unknown[]) => {
+      assertClientAvailable()
+      if (typeof method !== 'function') {
+        throw new TypeError('Kit client method is not callable.')
+      }
+      return wrapValue(Reflect.apply(method, receiver, args.map(unwrapValue)))
+    }
+    wrappersByReceiver.set(receiver, wrapped)
+    sourcesByFacade.set(wrapped, method)
+    return wrapped
+  }
+
+  function wrapObject(source: object): object {
+    if (typeof source === 'function') {
+      return wrapMethod(source, source)
+    }
+
+    const cached = objectFacades.get(source)
+    if (cached) {
+      return cached
+    }
+
+    // The proxy targets a separate facade so frozen Provider objects cannot
+    // impose proxy invariants on wrapped methods. All state remains on source.
+    const facade = Array.isArray(source)
+      ? []
+      : Object.create(Reflect.getPrototypeOf(source)) as object
+    const proxy = new Proxy(facade, {
+      deleteProperty(_target, property) {
+        assertClientAvailable()
+        return Reflect.deleteProperty(source, property)
+      },
+      get(_target, property) {
+        assertClientAvailable()
+        const value = Reflect.get(source, property, source)
+        if (typeof value === 'function') {
+          return wrapMethod(value, source)
+        }
+        return wrapValue(value)
+      },
+      has(_target, property) {
+        assertClientAvailable()
+        return Reflect.has(source, property)
+      },
+      set(_target, property, value) {
+        assertClientAvailable()
+        return Reflect.set(source, property, unwrapValue(value), source)
+      },
+    })
+    objectFacades.set(source, proxy)
+    sourcesByFacade.set(proxy, source)
+    return proxy
+  }
+
+  return {
+    client: wrapObject(client) as TClient,
+    revoke: () => {
+      revoked = true
+    },
+  }
+}
+
 /**
  * Orchestrates extension loading, setup sessions, bindings, resources, and permissions.
  *
@@ -577,63 +685,15 @@ export class ExtensionHost {
       return { ok: true, client }
     }
 
-    let revoked = false
-    let exposedClient: object
-    const methodWrappers = new WeakMap<object, (...args: unknown[]) => unknown>()
-    const assertClientAvailable = () => {
-      if (revoked) {
-        throw new TypeError('Cannot perform an operation on a revoked Kit client.')
-      }
-    }
-    const revocable = Proxy.revocable(client as object, {
-      apply(target, _thisArgument, argumentsList) {
-        assertClientAvailable()
-        if (typeof target !== 'function') {
-          throw new TypeError('Kit client is not callable.')
-        }
-        return Reflect.apply(target, target, argumentsList)
-      },
-      get(target, property) {
-        assertClientAvailable()
-        const value = Reflect.get(target, property, target)
-        if (value === target) {
-          return exposedClient
-        }
-        if (typeof value !== 'function') {
-          return value
-        }
-
-        const cached = methodWrappers.get(value)
-        if (cached) {
-          return cached
-        }
-        const wrapped = (...args: unknown[]) => {
-          assertClientAvailable()
-          const result = Reflect.apply(value, target, args)
-          return result === target ? exposedClient : result
-        }
-        methodWrappers.set(value, wrapped)
-        return wrapped
-      },
-      set(target, property, value) {
-        assertClientAvailable()
-        return Reflect.set(target, property, value === exposedClient ? target : value, target)
-      },
-    })
-    exposedClient = revocable.proxy
+    const revocable = createRevocableKitClient(client as object)
     const revoke = () => {
-      if (revoked) {
-        return
-      }
-
-      revoked = true
       registered.clientRevokers.delete(revoke)
       revocable.revoke()
     }
     registered.clientRevokers.add(revoke)
     subscriptions.add({ dispose: revoke })
 
-    return { ok: true, client: exposedClient as TClient }
+    return { ok: true, client: revocable.client as TClient }
   }
 
   private createKitConsumer(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitConsumer {
@@ -754,13 +814,31 @@ export class ExtensionHost {
   private async cleanupExtensionSession(session: ExtensionSession) {
     session.phase = 'stopped'
 
-    for (const module of this.modules.listByOwner(session.id)) {
-      this.modules.withdraw(session.id, session.extension.id, module.moduleId)
-      this.modules.unbind(session.id, session.extension.id, module.moduleId)
+    const errors: unknown[] = []
+    try {
+      for (const module of this.modules.listByOwner(session.id)) {
+        this.modules.withdraw(session.id, session.extension.id, module.moduleId)
+        this.modules.unbind(session.id, session.extension.id, module.moduleId)
+      }
+      await this.cleanupExtensionSessionModules(session)
     }
-    await this.cleanupExtensionSessionModules(session)
-    await session.subscriptions.dispose()
+    catch (error) {
+      errors.push(error)
+    }
+    try {
+      await session.subscriptions.dispose()
+    }
+    catch (error) {
+      errors.push(error)
+    }
     this.extensionSessionService.remove(session.id)
+
+    if (errors.length === 1) {
+      throw errors[0]
+    }
+    if (errors.length > 1) {
+      throw new AggregateError(errors, `Extension session ${session.id} had multiple cleanup failures.`)
+    }
   }
 
   private getModuleOrThrow(moduleId: string) {

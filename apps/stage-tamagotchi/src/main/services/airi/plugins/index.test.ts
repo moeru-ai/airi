@@ -728,6 +728,55 @@ describe('setupExtensionHost', () => {
     ]))
   })
 
+  it('clears loaded bookkeeping when Extension cleanup reports an error', async () => {
+    const pluginDir = join(pluginsDir, 'test-unload-cleanup-error')
+    await mkdir(pluginDir, { recursive: true })
+    const pluginSdkUrl = pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href
+    await writeEntrypoint({
+      dir: pluginDir,
+      name: 'extension.ts',
+      contents: [
+        `import { defineExtension } from ${JSON.stringify(pluginSdkUrl)}`,
+        '',
+        'export default defineExtension({',
+        '  id: \'test-unload-cleanup-error\',',
+        '  setup(ctx) {',
+        '    ctx.subscriptions.add({',
+        '      dispose() { throw new Error(\'Extension cleanup failed.\') },',
+        '    })',
+        '  },',
+        '})',
+      ].join('\n'),
+    })
+    await writeManifest({
+      dir: pluginDir,
+      name: 'test-unload-cleanup-error',
+      entrypoint: './extension.ts',
+    })
+    await setupExtensionHost()
+
+    expect(contextState.lastContext).toBeDefined()
+    const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
+    const invokeUnload = defineInvoke(contextState.lastContext!, electronPluginUnload)
+    const invokeList = defineInvoke(contextState.lastContext!, electronPluginList)
+
+    await invokeLoad({ extensionId: 'test-unload-cleanup-error' })
+
+    // ROOT CAUSE:
+    //
+    // A rejected Extension cleanup stopped Electron bookkeeping after the
+    // Host had already removed the session. The stale loaded flag then made a
+    // later load return early. Unload now clears every Host-owned record before
+    // it reports the Extension error.
+    await expect(invokeUnload({ extensionId: 'test-unload-cleanup-error' })).rejects.toThrow('Extension cleanup failed.')
+
+    const snapshot = await invokeList()
+    expect(snapshot.plugins).toEqual(expect.arrayContaining([
+      expect.objectContaining({ extensionId: 'test-unload-cleanup-error', loaded: false }),
+    ]))
+    await expect(invokeLoad({ extensionId: 'test-unload-cleanup-error' })).resolves.toEqual(expect.anything())
+  })
+
   it('reloads a loaded plugin when auto-reload is enabled and entrypoint changes', async () => {
     const pluginDir = join(pluginsDir, 'test-auto-reload-reload')
     await mkdir(pluginDir, { recursive: true })
