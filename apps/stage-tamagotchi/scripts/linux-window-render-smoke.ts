@@ -4,9 +4,9 @@
  *
  * This exists because Linux desktop breakage (frameless/transparent window
  * config, the Ozone/X11 vs Wayland command-line switches in
- * `src/main/libs/electron/linux-command-line-switches.ts`, GPU sandboxing
- * under Xvfb) has historically only surfaced when a contributor happened to
- * run the app on their own Linux desktop. CI only compiled the app; nothing
+ * `src/main/index.ts` and `src/main/app/ozone.ts`, GPU sandboxing under
+ * Xvfb) has historically only surfaced when a contributor happened to run
+ * the app on their own Linux desktop. CI only compiled the app; nothing
  * launched it. Run this under `xvfb-run` in CI so it exercises the same
  * X11/Ozone code path most Linux users hit through XWayland.
  *
@@ -15,7 +15,10 @@
  * platform executor (only `macos-local` and a remote SSH-bound
  * `linux-x11` runner exist today) that a plain CI runner cannot satisfy.
  * The bar here is lower and cheaper to keep green: did a window appear and
- * did the renderer mount real DOM.
+ * did the renderer mount real DOM. It also confirms the native
+ * `BrowserWindow` itself became visible, not only that its renderer
+ * mounted — a hidden window (`show: false`, `ready-to-show` never firing)
+ * still exposes a CDP target and would otherwise pass the DOM check alone.
  */
 
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
@@ -70,7 +73,7 @@ async function ensureSmokePrerequisites() {
   ].join(' '))
 }
 
-function startStage(debugPort: number): ChildProcessWithoutNullStreams {
+function startStage(debugPort: number, inspectPort: number): ChildProcessWithoutNullStreams {
   return spawn('pnpm', ['-F', '@proj-airi/stage-tamagotchi', 'start'], {
     cwd: repoDir,
     detached: true,
@@ -80,6 +83,14 @@ function startStage(debugPort: number): ChildProcessWithoutNullStreams {
       APP_REMOTE_DEBUG_PORT: String(debugPort),
       APP_REMOTE_DEBUG_NO_OPEN: 'true',
       APP_USER_DATA_PATH: userDataDir,
+      // electron-vite's `preview` command runs in production mode, where it
+      // ignores its own V8_INSPECTOR_PORT convenience env var (that's gated
+      // to dev mode). ELECTRON_CLI_ARGS is not gated, so use it to pass
+      // Electron's native `--inspect` flag through instead. This opens a
+      // Node inspector on the main process, letting the smoke check below
+      // read real BrowserWindow state (isVisible()) rather than only the
+      // renderer's DOM.
+      ELECTRON_CLI_ARGS: JSON.stringify([`--inspect=${inspectPort}`]),
     },
     stdio: 'pipe',
   })
@@ -133,22 +144,37 @@ async function findMainWindowTarget(debugPort: number) {
   )
 }
 
+async function findMainProcessInspectorTarget(inspectPort: number) {
+  // Node's inspector HTTP API exposes exactly one target for the process
+  // it's attached to; unlike Electron's Chrome DevTools endpoint, its
+  // `/json/version` response carries no webSocketDebuggerUrl, so this reads
+  // `/json/list` instead of using waitForRemoteDebug.
+  return await findDebugTarget(inspectPort, 'main process inspector target', () => true)
+}
+
 interface RenderCheck {
   readyState: DocumentReadyState
   appRootChildCount: number
   bodyTextLength: number
 }
 
+interface MainWindowVisibilityCheck {
+  found: boolean
+  isVisible: boolean
+}
+
 async function main() {
   let stageProcess: ChildProcessWithoutNullStreams | undefined
   let client: CdpClient | undefined
+  let inspectorClient: CdpClient | undefined
 
   try {
     await ensureSmokePrerequisites()
     await mkdir(reportDir, { recursive: true })
 
     const debugPort = await findAvailablePort()
-    stageProcess = startStage(debugPort)
+    const inspectPort = await findAvailablePort()
+    stageProcess = startStage(debugPort, inspectPort)
     const stageExited = rejectWhenStageExits(stageProcess)
 
     await Promise.race([waitForRemoteDebug(debugPort), stageExited]).catch((error) => {
@@ -187,14 +213,42 @@ async function main() {
       throw new Error('RENDER_CHECK_FAILED: Page.captureScreenshot returned no image data')
     await writeFile(screenshotPath, Buffer.from(screenshotData, 'base64'))
 
+    // The renderer checks above pass even for a hidden window (show: false,
+    // ready-to-show never firing): CDP still exposes and can screenshot a
+    // renderer that is attached to a native window the user never sees.
+    // Ask the main process itself, over its Node inspector, whether the
+    // BrowserWindow actually became visible.
+    const inspectorTarget = await Promise.race([findMainProcessInspectorTarget(inspectPort), stageExited]).catch((error) => {
+      throw new Error(`APP_START_FAILED: ${errorMessageFromValue(error)}`)
+    })
+    if (!inspectorTarget.webSocketDebuggerUrl)
+      throw new Error('APP_START_FAILED: main process inspector target missing webSocketDebuggerUrl')
+
+    inspectorClient = await CdpClient.connect(inspectorTarget.webSocketDebuggerUrl)
+    const visibility = await inspectorClient.evaluate<MainWindowVisibilityCheck>(`(async () => {
+      const { BrowserWindow } = await import('electron')
+      const window = BrowserWindow.getAllWindows().find((candidate) => candidate.getTitle() === 'AIRI')
+      return {
+        found: Boolean(window),
+        isVisible: window ? window.isVisible() : false,
+      }
+    })()`)
+
+    if (!visibility.found)
+      throw new Error('RENDER_CHECK_FAILED: no BrowserWindow titled \'AIRI\' exists in the main process')
+    if (!visibility.isVisible)
+      throw new Error('RENDER_CHECK_FAILED: the AIRI BrowserWindow exists but BrowserWindow.isVisible() is false')
+
     console.info(JSON.stringify({
       ok: true,
       reportDir,
       screenshotPath,
       check,
+      visibility,
     }, null, 2))
   }
   finally {
+    inspectorClient?.close()
     client?.close()
     await stopStage(stageProcess)
   }

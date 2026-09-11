@@ -27,7 +27,6 @@ import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
-import { resolveLinuxCommandLineSwitches } from './libs/electron/linux-command-line-switches'
 import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
@@ -72,15 +71,46 @@ if (appUserDataPath) {
   app.setPath('userData', appUserDataPath)
 }
 
-// See linux-command-line-switches.ts for why each switch is needed; the
-// session-type branching lives there so it can be unit tested without an
-// Electron runtime or a real display server.
+// Thanks to [@blurymind](https://github.com/blurymind),
+//
+// When running Electron on Linux, navigator.gpu.requestAdapter() fails.
+// In order to enable WebGPU and process the shaders fast enough, we need the following
+// command line switches to be set.
+//
+// https://github.com/electron/electron/issues/41763#issuecomment-2051725363
+// https://github.com/electron/electron/issues/41763#issuecomment-3143338995
 if (isLinux) {
-  for (const commandLineSwitch of resolveLinuxCommandLineSwitches(env)) {
-    if (commandLineSwitch.value)
-      app.commandLine.appendSwitch(commandLineSwitch.name, commandLineSwitch.value)
-    else
-      app.commandLine.appendSwitch(commandLineSwitch.name)
+  // NOTICE:
+  // All enabled features must be joined into a single comma-separated string
+  // instead of calling appendSwitch('enable-features', ...) once per feature.
+  // Root cause: Chromium's commandLine stores switches by key, so each
+  // appendSwitch('enable-features', ...) call overwrites the previous value and
+  // only the last feature survives.
+  // Source: Chromium base::CommandLine behavior; see
+  // https://github.com/electron/electron/issues/41763 for the WebGPU setup this supports.
+  // Removal condition: never for the join itself; this block can be deleted once
+  // WebGPU works on Linux Electron without manual feature switches.
+  const enabledFeatures = [
+    'SharedArrayBuffer',
+  ]
+
+  app.commandLine.appendSwitch('enable-unsafe-webgpu')
+
+  // Check explicit command-line switches before falling back to session environment variables.
+  // When running with XWayland (e.g. '--ozone-platform=x11'), session variables like WAYLAND_DISPLAY
+  // are still inherited from the Wayland desktop, but Chromium uses the explicitly specified Ozone backend.
+  // Treat explicit 'auto' as an unresolved platform selection and resolve using session environment variables.
+  const isWayland = resolveIsWayland({
+    explicitOzonePlatform: app.commandLine.getSwitchValue('ozone-platform'),
+    ozonePlatformHint: app.commandLine.getSwitchValue('ozone-platform-hint'),
+    env,
+  })
+
+  if (isWayland) {
+    enabledFeatures.push('GlobalShortcutsPortal', 'UseOzonePlatform', 'WaylandWindowDecorations')
+    if (!app.commandLine.hasSwitch('ozone-platform-hint')) {
+      app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
+    }
   }
   else {
     // NOTICE:
