@@ -795,6 +795,14 @@ interface BilingualTurnState {
   /** Set once the voice was chosen: a turn keeps the language it started with. */
   voiceChosen?: boolean
   /**
+   * Provider the voice was picked from.
+   *
+   * A voice id only means something to the provider that listed it. The active
+   * provider can change between the request and the synthesis, and replaying the
+   * old id against the new one makes that provider drop the segment.
+   */
+  voiceProvider?: string
+  /**
    * Streaming provider that buffers the whole reply into one playback item
    * (`bufferEntireSession`). Its `onStart` fires once for everything, so every
    * queued translation belongs to that item and has to be shown together.
@@ -1103,14 +1111,27 @@ function resolveBilingualVoiceFor(ttsLanguage: string): VoiceInfo | undefined {
  * is seeded when its request is composed, a chat turn when its session opens,
  * and a request without a turn asks the settings themselves.
  */
+/**
+ * Voice a turn kept from the request that composed it, or `undefined` when it has
+ * none — or when the provider that voice was picked from is no longer the active
+ * one, which leaves its id meaningless to the provider that would synthesise it.
+ * A turn whose provider moved on re-resolves instead: keeping the language is
+ * worth nothing if the request is dropped.
+ */
+function keptBilingualVoice(turnId: string): VoiceInfo | undefined {
+  const state = bilingualTurns.get(turnId)
+  if (!state?.voiceChosen || state.voiceProvider !== activeSpeechProvider.value)
+    return undefined
+
+  return state.voice
+}
+
 function bilingualVoiceForTurn(turnId: string | undefined): VoiceInfo | undefined {
   if (!turnId)
     return bilingualStore.enabled ? resolveBilingualVoiceFor(bilingualStore.ttsLanguage) : undefined
 
-  const state = bilingualTurnState(turnId)
-  return state.voiceChosen
-    ? state.voice
-    : seedBilingualVoice(turnId, bilingualStore.enabled ? bilingualStore.ttsLanguage : undefined)
+  return keptBilingualVoice(turnId)
+    ?? seedBilingualVoice(turnId, bilingualStore.enabled ? bilingualStore.ttsLanguage : undefined)
 }
 
 /**
@@ -1126,6 +1147,7 @@ function seedBilingualVoice(turnId: string, ttsLanguage?: string): VoiceInfo | u
   const state = bilingualTurnState(turnId)
   state.voice = ttsLanguage ? resolveBilingualVoiceFor(ttsLanguage) : undefined
   state.voiceChosen = true
+  state.voiceProvider = activeSpeechProvider.value
   return state.voice
 }
 
@@ -1164,7 +1186,7 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   // language so Japanese (etc.) is not read with the locale-picked voice's
   // phonology — see `resolveBilingualVoiceFor`. The session reads the voice its
   // turn was opened with, so a later settings change cannot swap it mid-turn.
-  const voiceId = bilingualTurns.get(turnId)?.voice?.id || activeSpeechVoice.value?.id
+  const voiceId = keptBilingualVoice(turnId)?.id || activeSpeechVoice.value?.id
   if (!voiceId)
     return null
   // Resolve the concrete streaming model id. The active speech model is only
