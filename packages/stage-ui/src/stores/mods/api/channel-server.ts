@@ -302,21 +302,29 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     if (!client.value && !initializing.value)
       void initialize()
 
-    if (client.value && connected.value) {
-      client.value.send(data as WebSocketEvent)
-    }
-    else {
-      pendingSend.value.push(data as WebSocketEvent)
-    }
+    // `Client.send()` returns false when the transport is not yet `ready` —
+    // e.g. still in the better-ws prepare phase, which is the case right after
+    // `module:authenticated` even though `connected` is already true. Keep any
+    // such message queued so the `onReady` flush delivers it, instead of
+    // dropping it silently (which lost the stage's consumer registration on a
+    // fresh load until the first reconnect).
+    if (client.value && connected.value && client.value.send(data as WebSocketEvent))
+      return
+
+    pendingSend.value.push(data as WebSocketEvent)
   }
 
   function flush() {
-    if (client.value && connected.value) {
-      for (const update of pendingSend.value) {
-        client.value.send(update)
-      }
+    if (!client.value || !connected.value)
+      return
 
-      pendingSend.value = []
+    const pending = pendingSend.value
+    pendingSend.value = []
+    for (const update of pending) {
+      // Re-queue anything the transport still refuses (not `ready` yet) so a
+      // later flush can deliver it, rather than clearing it unconditionally.
+      if (!client.value.send(update))
+        pendingSend.value.push(update)
     }
   }
 
