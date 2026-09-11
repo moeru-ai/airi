@@ -202,6 +202,30 @@ describe('useCharacterStore spark reactions', () => {
     ])
   })
 
+  // A non-bilingual reaction announces its turn and releases it when done, so its
+  // id leaves the announced set. Otherwise a re-scheduled event sharing the id
+  // (the orchestrator retries or re-dispatches) would be dropped by the
+  // idempotency guard before the model is asked again.
+  it('releases a non-bilingual turn so its id can be re-prepared', async () => {
+    const store = useCharacterStore()
+    useSettingsBilingual().enabled = false
+
+    store.prepareSparkNotifyReaction('spark-9')
+    store.onSparkNotifyReactionStreamEvent('spark-9', 'Hi.')
+    store.onSparkNotifyReactionStreamEnd('spark-9', 'Hi.')
+
+    // The turn is released only after the stream drains, which clears its id from
+    // the announced set. Wait for that before re-preparing.
+    await vi.waitFor(() => expect(broadcastKinds()).toEqual(['turn', 'turn-end']))
+
+    store.prepareSparkNotifyReaction('spark-9')
+
+    expect(mocks.events.filter(event => event.kind === 'turn')).toEqual([
+      { kind: 'turn', turnId: 'spark:spark-9', ttsLanguage: undefined },
+      { kind: 'turn', turnId: 'spark:spark-9', ttsLanguage: undefined },
+    ])
+  })
+
   // The request is composed before the model answers, so the settings recorded
   // then are the ones the reply was asked for. A change made while the model is
   // still thinking must not leave the tagged text unparsed.
@@ -217,17 +241,19 @@ describe('useCharacterStore spark reactions', () => {
     expect(store.reactions.at(-1)?.message).toBe('Hello there.')
   })
 
-  it('leaves the reaction untouched while bilingual subtitles are off', () => {
+  it('leaves the reaction untouched while bilingual subtitles are off', async () => {
     useSettingsBilingual().enabled = false
 
     streamBilingualReaction(useCharacterStore())
 
     expect(mocks.spoken.join('')).toBe('[EN]Hello there.[CN]你好。')
     // The reaction still announces its turn so the player holds the configured
-    // voice; with no language, it does not split the tagged line.
-    expect(mocks.events).toEqual([
+    // voice, and releases it when done: with no language, it does not split the
+    // tagged line. The release lands after the stream drains.
+    await vi.waitFor(() => expect(mocks.events).toEqual([
       { kind: 'turn', turnId: 'spark:spark-1', ttsLanguage: undefined },
-    ])
+      { kind: 'turn-end', turnId: 'spark:spark-1' },
+    ]))
   })
 
   // Every reaction reserves a turn when its request is composed, so it has to be

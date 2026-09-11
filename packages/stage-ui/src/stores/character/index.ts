@@ -155,11 +155,12 @@ export const useCharacterStore = defineStore('character', () => {
    */
   function abandonSparkNotifyReaction(sparkEventId: string) {
     const state = streamingReactions.value.get(sparkEventId)
-    // A request that asked for bilingual output is what announced the turn, and
-    // its settings are still here when the reaction never started, or on the
-    // streaming state when it did.
-    const announced = state?.bilingualSettings
+    // A reaction that announced a turn is what has one to release, whether it
+    // asked for bilingual output or not: its id stays in the announced set until
+    // then, so a re-scheduled event with the same id would be dropped.
+    const announcedBySettings = state?.bilingualSettings
       ?? pendingSparkSettings.get(sparkEventId)
+    const turnAnnounced = announcedSparkTurns.has(sparkEventId)
 
     pendingSparkSettings.delete(sparkEventId)
     streamingReactions.value.delete(sparkEventId)
@@ -172,7 +173,7 @@ export const useCharacterStore = defineStore('character', () => {
       void state.parser.end()
     }
 
-    if (announced)
+    if (announcedBySettings || turnAnnounced)
       releaseSparkTurn(sparkEventId)
   }
 
@@ -284,14 +285,18 @@ export const useCharacterStore = defineStore('character', () => {
   }
 
   function onSparkNotifyReactionStreamEnd(sparkEventId: string, fullText: string, options?: { metadata?: Record<string, unknown> }) {
-    // A request that was asked for bilingual output releases its slot here, and
-    // its turn with it: no pair follows a reaction that never streamed.
+    // Every reaction that was prepared announced its turn, so it has one to
+    // release here — bilingual or not. A non-bilingual reaction that kept its
+    // turn reserved would leak it, and its id would stay in the announced set so
+    // a re-scheduled event with the same id would be treated as already prepared
+    // and dropped before the model is even asked.
+    const announced = announcedSparkTurns.has(sparkEventId)
     const prepared = pendingSparkSettings.has(sparkEventId)
     pendingSparkSettings.delete(sparkEventId)
 
     const state = streamingReactions.value.get(sparkEventId)
     if (!state) {
-      if (prepared)
+      if (announced || prepared)
         releaseSparkTurn(sparkEventId)
       return
     }
@@ -320,7 +325,7 @@ export const useCharacterStore = defineStore('character', () => {
       // Released after the drain so the pairs above are already broadcast: the
       // window that plays the reaction keeps the turn of one that spoke, and
       // drops the one of a reaction that ended without anything to speak.
-      if (state.bilingualSettings)
+      if (announced)
         releaseSparkTurn(sparkEventId)
     })
   }
