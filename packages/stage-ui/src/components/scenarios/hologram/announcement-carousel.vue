@@ -11,7 +11,7 @@ import { usePromoBannerLayout } from './use-promo-banner-layout'
 
 const props = withDefaults(defineProps<{
   items: AnnouncementContent[]
-  /** Drawer readers keep text visible and select slides manually. @default false */
+  /** Mobile readers keep text visible and select slides manually. @default false */
   mobile?: boolean
 }>(), { mobile: false })
 const { locale, t } = useI18n()
@@ -86,7 +86,7 @@ onBeforeUnmount(stopAutoplay)
 
 <template>
   <div
-    :class="['overflow-hidden rounded-3xl bg-neutral-900/86 text-white shadow-xl', 'border border-white/8 backdrop-blur-xl']"
+    :class="['overflow-hidden rounded-3xl text-white']"
     @mouseenter="hovered = true"
     @mouseleave="hovered = false"
     @click="focused = $event.detail === 0"
@@ -164,7 +164,7 @@ onBeforeUnmount(stopAutoplay)
 </template>
 
 <style scoped>
-/* Only the selected mobile slide determines the drawer height. Offscreen slides
+/* Only the selected mobile slide determines the panel height. Offscreen slides
    keep their width for Embla navigation without leaving blank space below it. */
 .announcement-slide[data-mobile='true'][aria-hidden='true'] {
   height: 0;

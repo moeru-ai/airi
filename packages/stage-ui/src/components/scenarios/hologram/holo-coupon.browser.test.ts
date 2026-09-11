@@ -61,17 +61,25 @@ describe('cloud announcement display', () => {
     await expect.element(page.getByRole('heading', { name: third.title })).toBeVisible()
   })
 
-  it('opens the mobile drawer and restores the selected announcement after closing', async () => {
+  it('opens the mobile card and restores the selected announcement after closing', async () => {
     vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async () => Response.json({ announcements: [
       announcement,
       { ...announcement, id: 'notice-2', layout: 'landscape', title: 'Second announcement' },
     ] })))
     await render(HoloCoupon, {
-      props: { client: 'web', presentation: 'drawer' },
+      props: { client: 'web', presentation: 'header' },
       global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
     })
     await page.getByRole('button', { name: 'Open announcements' }).click()
-    await expect.element(page.getByRole('dialog', { name: 'Announcements', exact: true })).toBeVisible()
+    await expect.element(page.getByRole('dialog', { name: 'Open announcements', exact: true })).toBeVisible()
+    const panel = page.getByRole('dialog', { name: 'Open announcements', exact: true }).element()
+    expect(getComputedStyle(panel).animationName).toContain('announcement-expand')
+    await Promise.all(panel.getAnimations().map(animation => animation.finished))
+    const bounds = panel.getBoundingClientRect()
+    const close = page.getByRole('button', { name: 'Close announcements' }).element().getBoundingClientRect()
+    expect(close.top).toBeGreaterThanOrEqual(bounds.top)
+    expect(close.right).toBeLessThanOrEqual(bounds.right)
+    expect(close.bottom).toBeLessThanOrEqual(bounds.bottom)
     await page.getByRole('button', { name: 'Second announcement', exact: true }).click()
     await expect.element(page.getByRole('heading', { name: 'Second announcement' })).toBeVisible()
     await userEvent.keyboard('{Escape}')

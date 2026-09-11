@@ -244,7 +244,7 @@ const cursorPosition = computed(() => ({
         @stage-viewport-change="stageViewport = $event"
       >
         <template #header-actions>
-          <HoloCoupon client="web" presentation="drawer" />
+          <HoloCoupon client="web" presentation="header" />
         </template>
       </MobileInteractiveArea>
     </Teleport>
