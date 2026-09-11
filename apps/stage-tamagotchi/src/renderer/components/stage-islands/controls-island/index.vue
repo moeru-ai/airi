@@ -4,7 +4,7 @@ import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInEl
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ScrollableArea, useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn, useMousePressed } from '@vueuse/core'
+import { refDebounced, useEventListener, useIntervalFn, useMousePressed } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -104,7 +104,26 @@ defineExpose({
   set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
 })
 
-const { isOutside } = useElectronMouseInElement(islandElement)
+// `isOutside` from useElectronMouseInElement is driven by Electron's
+// screen.getCursorScreenPoint(), polled from the main process. Under a
+// native Wayland session (e.g. KWin/KDE), Chromium's Ozone/Wayland backend
+// cannot query the absolute cursor position the way X11 allows, so that
+// value can come back stuck away from the real pointer position. Since it
+// only ever reports the cursor as further outside than it really is (never
+// falsely "inside"), OR it with real DOM hover state on the island itself:
+// the island definitely receives pointer events while the user is actually
+// over it (they just clicked it to get here), so this keeps the menu open
+// whenever either signal agrees the pointer is on the island.
+// https://github.com/moeru-ai/airi/issues/2521
+const { isOutside: isOutsideByCursor } = useElectronMouseInElement(islandElement)
+const isPointerOverIsland = ref(false)
+useEventListener(islandElement, 'pointerenter', () => {
+  isPointerOverIsland.value = true
+})
+useEventListener(islandElement, 'pointerleave', () => {
+  isPointerOverIsland.value = false
+})
+const isOutside = computed(() => isOutsideByCursor.value && !isPointerOverIsland.value)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
 watch(isOutsideAfter2seconds, (outside) => {
