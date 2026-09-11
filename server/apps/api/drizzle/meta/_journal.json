@@ -162,6 +162,13 @@
       "when": 1786957404391,
       "tag": "0022_worthless_shriek",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788518448053,
+      "tag": "0023_premium_frog_thor",
+      "breakpoints": true
     }
   ]
 }
