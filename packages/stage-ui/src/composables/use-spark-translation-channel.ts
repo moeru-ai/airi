@@ -15,8 +15,14 @@ interface SparkTurnEvent {
   kind: 'turn'
   /** Speech turn the reaction will play as, e.g. `spark:<event id>`. */
   turnId: string
-  /** Language the reaction is spoken in, chosen when its request was composed. */
-  ttsLanguage: string
+  /**
+   * Language the reaction is spoken in, chosen when its request was composed.
+   *
+   * `undefined` for a reaction requested without bilingual: it is monolingual,
+   * so its playback keeps the configured voice rather than one picked for a
+   * language the request never asked for.
+   */
+  ttsLanguage?: string
 }
 
 /**

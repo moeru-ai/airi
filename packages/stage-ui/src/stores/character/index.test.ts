@@ -187,6 +187,21 @@ describe('useCharacterStore spark reactions', () => {
     ])
   })
 
+  // A reaction composed without bilingual stays monolingual, so its playback has
+  // to keep the configured voice even if the user switches bilingual on before
+  // it speaks. Announcing no language lets the player hold that decision instead
+  // of re-resolving from the settings as they are now.
+  it('announces no language for a reaction requested without bilingual', () => {
+    const store = useCharacterStore()
+    useSettingsBilingual().enabled = false
+
+    store.prepareSparkNotifyReaction('spark-8')
+
+    expect(mocks.events).toEqual([
+      { kind: 'turn', turnId: 'spark:spark-8', ttsLanguage: undefined },
+    ])
+  })
+
   // The request is composed before the model answers, so the settings recorded
   // then are the ones the reply was asked for. A change made while the model is
   // still thinking must not leave the tagged text unparsed.
@@ -208,7 +223,11 @@ describe('useCharacterStore spark reactions', () => {
     streamBilingualReaction(useCharacterStore())
 
     expect(mocks.spoken.join('')).toBe('[EN]Hello there.[CN]你好。')
-    expect(mocks.events).toEqual([])
+    // The reaction still announces its turn so the player holds the configured
+    // voice; with no language, it does not split the tagged line.
+    expect(mocks.events).toEqual([
+      { kind: 'turn', turnId: 'spark:spark-1', ttsLanguage: undefined },
+    ])
   })
 
   // Every reaction reserves a turn when its request is composed, so it has to be

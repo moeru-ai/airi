@@ -82,6 +82,14 @@ export const useCharacterStore = defineStore('character', () => {
    */
   const pendingSparkSettings = new Map<string, { languages: string[], ttsLanguage: string }>()
 
+  /**
+   * Turn ids whose voice decision has already been announced. The store is asked
+   * to compose the request and the reaction then runs, so `prepareSparkNotifyReaction`
+   * is called for the same event twice: announcing its turn twice would have the
+   * window that plays it seed the voice and reserve the turn twice.
+   */
+  const announcedSparkTurns = new Set<string>()
+
   /** Speech turn a reaction plays as. */
   function sparkTurnId(sparkEventId: string) {
     return `${SPARK_TURN_ID_PREFIX}${sparkEventId}`
@@ -99,20 +107,26 @@ export const useCharacterStore = defineStore('character', () => {
 
   /** Records the settings the reaction about to be requested will be split with. */
   function prepareSparkNotifyReaction(sparkEventId: string) {
+    if (announcedSparkTurns.has(sparkEventId))
+      return
+    announcedSparkTurns.add(sparkEventId)
+
+    // The voice decision is captured now, while the request is composed: a
+    // reaction asked for without bilingual is monolingual, so its playback keeps
+    // the configured voice even if the user switches bilingual on before it
+    // speaks. Without this, `bilingualVoiceForTurn` re-resolves from the live
+    // settings and would read an English reply in a Japanese voice.
+    postSparkEventSafely({
+      kind: 'turn',
+      turnId: sparkTurnId(sparkEventId),
+      ttsLanguage: bilingualStore.enabled ? bilingualStore.ttsLanguage : undefined,
+    })
+
     if (!bilingualStore.enabled)
       return
 
     pendingSparkSettings.set(sparkEventId, {
       languages: bilingualStore.subtitleLanguages,
-      ttsLanguage: bilingualStore.ttsLanguage,
-    })
-
-    // The window that plays the reaction picks a voice for the language it is
-    // spoken in, and it has to do that now: by the time the first sentence
-    // plays, the user may already have changed the settings.
-    postSparkEventSafely({
-      kind: 'turn',
-      turnId: sparkTurnId(sparkEventId),
       ttsLanguage: bilingualStore.ttsLanguage,
     })
   }
@@ -126,6 +140,7 @@ export const useCharacterStore = defineStore('character', () => {
    * reservation until playback moves on, which that window decides on its own.
    */
   function releaseSparkTurn(sparkEventId: string) {
+    announcedSparkTurns.delete(sparkEventId)
     postSparkEventSafely({ kind: 'turn-end', turnId: sparkTurnId(sparkEventId) })
   }
 
