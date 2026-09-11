@@ -1,3 +1,4 @@
+import type { KitClientOf } from '../kit'
 import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/types'
 
 import { join } from 'node:path'
@@ -7,7 +8,12 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
 import { defineExtension } from '../extension'
-import { defineKit, defineKitContract } from '../kit'
+import {
+  defineKit,
+  defineKitContract,
+  defineKitEvent,
+  defineKitMethod,
+} from '../kit'
 
 describe('extension manifest schema', () => {
   it('accepts extension.airi.json v2 manifests', () => {
@@ -264,19 +270,63 @@ describe('for ExtensionHost', () => {
     expect(host.listSessions()).toEqual([])
   })
 
+  const createTestManifest = (
+    id: string,
+    options: {
+      kits?: ExtensionManifestV2['kits']
+      invokedKitIds?: string[]
+    } = {},
+  ): ExtensionManifestV2 => ({
+    manifestVersion: 2,
+    kind: 'manifest.extension.airi.moeru.ai',
+    id,
+    version: '1.0.0',
+    engines: { airi: '*', runtimes: ['electron'] },
+    entrypoints: { electron: `./${id}.mjs` },
+    permissions: {
+      apis: options.invokedKitIds?.map(key => ({ key, actions: ['invoke'] })) ?? [],
+    },
+    kits: options.kits,
+  })
+
+  const createActivityKit = () => {
+    interface AgentActivity {
+      agentId: string
+      state: 'waiting-for-user' | 'completed'
+      summary: string
+    }
+
+    return defineKitContract({
+      id: 'dev.airi.agent-activity',
+      version: '1.0.0',
+      allowedExposePolicies: ['local-only'],
+      defaultExposePolicy: 'local-only',
+      methods: {
+        getCurrentActivity: defineKitMethod<undefined, AgentActivity>(),
+      },
+      events: {
+        activityChanged: defineKitEvent<AgentActivity>(),
+      },
+    })
+  }
+
   it('publishes an Extension-hosted Kit only after Provider setup succeeds', async () => {
     const host = new ExtensionHost()
-    const kit = defineKit({
-      id: 'kit.extension-delayed-provider',
-      version: '1.0.0',
-      createClient: () => ({ ping: () => 'pong' }),
-    })
+    const kit = createActivityKit()
     const setupGate = Promise.withResolvers<void>()
     const provided = Promise.withResolvers<void>()
     const provider = defineExtension({
       id: 'delayed-provider',
       async setup(ctx) {
-        ctx.kits.provide(kit)
+        ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity: () => ({
+              agentId: 'codex',
+              state: 'completed' as const,
+              summary: 'Ready.',
+            }),
+          },
+        })
         provided.resolve()
         await setupGate.promise
       },
@@ -292,30 +342,17 @@ describe('for ExtensionHost', () => {
     })
 
     await host.startExtension(consumer, {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'delayed-provider-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+      manifest: createTestManifest(consumer.id, {
+        invokedKitIds: [kit.id],
         kits: { uses: [{ id: kit.id, version: kit.version, optional: true }] },
-      },
+      }),
     })
     await vi.waitFor(() => expect(observed).toEqual([false]))
 
     const providerStart = host.startExtension(provider, {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'delayed-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
+      manifest: createTestManifest(provider.id, {
         kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
+      }),
     })
     await provided.promise
 
@@ -327,1134 +364,261 @@ describe('for ExtensionHost', () => {
     await vi.waitFor(() => expect(observed).toEqual([false, true]))
   })
 
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986898770
   it('rejects a Provider that omits a declared Kit before becoming ready', async () => {
     const host = new ExtensionHost()
-    const providedKit = defineKit({
-      id: 'kit.extension-complete-provider-present',
-      version: '1.0.0',
-      createClient: () => ({ read: () => 'ready' }),
-    })
-    const missingKitId = 'kit.extension-complete-provider-missing'
+    const kit = createActivityKit()
 
     await expect(host.startExtension(defineExtension({
-      id: 'complete-provider',
-      setup(ctx) {
-        ctx.kits.provide(providedKit)
-      },
+      id: 'incomplete-provider',
+      setup() {},
     }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'complete-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: {
-          provides: [
-            { id: providedKit.id, version: providedKit.version, exposure: 'local-only' },
-            { id: missingKitId, version: '1.0.0', exposure: 'local-only' },
-          ],
-        },
-      },
-    })).rejects.toThrow(`did not provide declared Kit \`${missingKitId}\``)
+      manifest: createTestManifest('incomplete-provider', {
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      }),
+    })).rejects.toThrow(`did not provide declared Kit \`${kit.id}\``)
 
-    // ROOT CAUSE:
-    //
-    // Publication iterated only the registrations that setup created. It did
-    // not compare them with every Provider declaration before marking ready.
-    expect(host.getKit(providedKit.id)).toBeUndefined()
-    expect(host.getKit(missingKitId)).toBeUndefined()
-    expect(host.listSessions()).toEqual([])
+    expect(host.getKit(kit.id)).toBeUndefined()
   })
 
-  it('preserves class receivers for revocable Extension-hosted Kit clients', async () => {
-    interface StatefulClient {
-      read: () => string
-    }
-
-    class StatefulClientImplementation implements StatefulClient {
-      readonly #value = 'ready'
-
-      read() {
-        return this.#value
-      }
-    }
-
+  it('rejects a Provider that omits a declared Kit method', async () => {
     const host = new ExtensionHost()
-    const kit = defineKit<StatefulClient>({
-      id: 'kit.extension-class-client',
-      version: '1.0.0',
-      createClient: () => new StatefulClientImplementation(),
-    })
+    const kit = createActivityKit()
     const provider = defineExtension({
-      id: 'class-client-provider',
+      id: 'incomplete-method-provider',
       setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    })
-    let client: StatefulClient | undefined
-    const consumer = defineExtension({
-      id: 'class-client-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
+        Reflect.apply(ctx.kits.provide, ctx.kits, [kit, { methods: {} }])
       },
     })
 
-    const providerSession = await host.startExtension(provider, {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'class-client-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
+    await expect(host.startExtension(provider, {
+      manifest: createTestManifest(provider.id, {
         kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      }),
+    })).rejects.toThrow('does not implement method `getCurrentActivity`')
+
+    expect(host.getKit(kit.id)).toBeUndefined()
+  })
+
+  it('routes Kit methods and events through the Host-created client', async () => {
+    const host = new ExtensionHost()
+    const kit = createActivityKit()
+    const providerActivity = {
+      agentId: 'codex',
+      state: 'waiting-for-user' as const,
+      summary: 'Choose a model.',
+    }
+    let releaseClientResources = 0
+    let emitActivity: ((activity: typeof providerActivity) => void) | undefined
+    const provider = defineExtension({
+      id: 'agent-activity-provider',
+      setup(ctx) {
+        const handle = ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity(_input, call) {
+              call.subscriptions.add({
+                dispose() {
+                  releaseClientResources += 1
+                },
+              })
+              return providerActivity
+            },
+          },
+        })
+        emitActivity = activity => handle.emit('activityChanged', activity)
+      },
+    })
+    const providerSession = await host.startExtension(provider, {
+      manifest: createTestManifest(provider.id, {
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      }),
+    })
+
+    let client: KitClientOf<typeof kit> | undefined
+    const observed: Array<{ agentId: string, state: string, summary: string }> = []
+    const consumer = defineExtension({
+      id: 'agent-activity-consumer',
+      async setup(ctx) {
+        const resolvedClient = await ctx.kits.use(kit)
+        client = resolvedClient
+        observed.push(await resolvedClient.getCurrentActivity())
+        ctx.subscriptions.add(resolvedClient.activityChanged.subscribe((activity) => {
+          observed.push(activity)
+        }))
+      },
+    })
+    const consumerSession = await host.startExtension(consumer, {
+      manifest: createTestManifest(consumer.id, {
+        invokedKitIds: [kit.id],
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      }),
+    })
+
+    providerActivity.summary = 'Provider mutated its source object.'
+    expect(observed[0]?.summary).toBe('Choose a model.')
+    const activityClient = client
+    if (!activityClient) {
+      throw new Error('Expected the Consumer to receive an activity client.')
+    }
+    expect(() => Reflect.apply(activityClient.activityChanged.subscribe, activityClient.activityChanged, [undefined]))
+      .toThrow('listener must be a function')
+
+    const publish = emitActivity
+    if (!publish) {
+      throw new Error('Expected the Provider to expose its event publisher.')
+    }
+    publish({
+      agentId: 'codex',
+      state: 'waiting-for-user',
+      summary: 'Input is still required.',
+    })
+    await vi.waitFor(() => expect(observed).toHaveLength(2))
+
+    await host.stop(providerSession.id)
+    expect(releaseClientResources).toBe(1)
+    await expect(activityClient.getCurrentActivity()).rejects.toThrow('Provider is not available')
+    expect(() => publish(providerActivity)).toThrow('Provider is not available')
+
+    await host.stop(consumerSession.id)
+  })
+
+  it('rejects required-Kit preflight while the Provider is stopping', async () => {
+    const host = new ExtensionHost()
+    const kit = createActivityKit()
+    const releaseCleanup = Promise.withResolvers<void>()
+    const provider = defineExtension({
+      id: 'stopping-preflight-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity: () => ({
+              agentId: 'codex',
+              state: 'completed' as const,
+              summary: 'Done.',
+            }),
+          },
+        })
+        ctx.subscriptions.add({ dispose: () => releaseCleanup.promise })
+      },
+    })
+    const providerSession = await host.startExtension(provider, {
+      manifest: createTestManifest(provider.id, {
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      }),
+    })
+
+    const stopping = host.stop(providerSession.id)
+    expect(host.getSession(providerSession.id)?.phase).toBe('stopped')
+
+    await expect(host.start({
+      ...createTestManifest('stopping-preflight-consumer', {
+        invokedKitIds: [kit.id],
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      }),
+      entrypoints: { electron: './must-not-import.mjs' },
+    })).rejects.toThrow(`requires Kit \`${kit.id}\``)
+
+    releaseCleanup.resolve()
+    await stopping
+  })
+
+  it('rechecks Provider state after asynchronous Kit resolution', async () => {
+    const host = new ExtensionHost()
+    const kit = createActivityKit()
+    const releaseCleanup = Promise.withResolvers<void>()
+    const provider = defineExtension({
+      id: 'resolution-race-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity: () => ({
+              agentId: 'codex',
+              state: 'completed' as const,
+              summary: 'Done.',
+            }),
+          },
+        })
+        ctx.subscriptions.add({ dispose: () => releaseCleanup.promise })
+      },
+    })
+    const providerSession = await host.startExtension(provider, {
+      manifest: createTestManifest(provider.id, {
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      }),
+    })
+    let tryUse: (() => Promise<unknown>) | undefined
+    const consumer = defineExtension({
+      id: 'resolution-race-consumer',
+      setup(ctx) {
+        tryUse = () => ctx.kits.tryUse(kit)
       },
     })
     await host.startExtension(consumer, {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'class-client-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    if (!client) {
-      throw new Error('Expected the Consumer to receive a Kit client.')
-    }
-    expect(client.read()).toBe('ready')
-    const read = client.read
-
-    await host.stop(providerSession.id)
-
-    expect(() => read()).toThrow('revoked')
-  })
-
-  it('revokes nested Extension-hosted Kit capabilities after the Provider unloads', async () => {
-    interface NestedClient {
-      api: {
-        read: () => string
-      }
-    }
-
-    const host = new ExtensionHost()
-    const kit = defineKit<NestedClient>({
-      id: 'kit.extension-nested-client',
-      version: '1.0.0',
-      createClient: () => ({ api: { read: () => 'ready' } }),
-    })
-    let client: NestedClient | undefined
-    const providerSession = await host.startExtension(defineExtension({
-      id: 'nested-client-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'nested-client-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-    await host.startExtension(defineExtension({
-      id: 'nested-client-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'nested-client-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    if (!client) {
-      throw new Error('Expected the Consumer to receive a nested Kit client.')
-    }
-    const api = client.api
-    expect(api.read()).toBe('ready')
-
-    // ROOT CAUSE:
-    //
-    // The first revocation wrapper guarded only the top-level client. Nested
-    // API objects escaped the boundary and stayed callable after unload.
-    // The client membrane now wraps the full reachable capability graph.
-    await host.stop(providerSession.id)
-
-    expect(() => api.read()).toThrow('revoked')
-  })
-
-  it('reads methods from frozen Extension-hosted Kit clients', async () => {
-    interface FrozenClient {
-      read: () => string
-    }
-
-    const host = new ExtensionHost()
-    const kit = defineKit<FrozenClient>({
-      id: 'kit.extension-frozen-client',
-      version: '1.0.0',
-      createClient: () => Object.freeze({ read: () => 'ready' }),
-    })
-    await host.startExtension(defineExtension({
-      id: 'frozen-client-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'frozen-client-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-
-    let client: FrozenClient | undefined
-    await host.startExtension(defineExtension({
-      id: 'frozen-client-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'frozen-client-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    if (!client) {
-      throw new Error('Expected the Consumer to receive a frozen Kit client.')
-    }
-
-    // ROOT CAUSE:
-    //
-    // Wrapping the Provider object itself violated proxy invariants when a
-    // frozen property returned a method wrapper. A separate facade now owns
-    // the proxy invariants while reads still resolve against the Provider.
-    expect(client.read()).toBe('ready')
-  })
-
-  it('revokes capabilities reached through a Kit client prototype', async () => {
-    interface PrototypeClient {
-      read: () => string
-    }
-
-    class PrototypeClientImplementation implements PrototypeClient {
-      read() {
-        return 'ready'
-      }
-    }
-
-    const host = new ExtensionHost()
-    const kit = defineKit<PrototypeClient>({
-      id: 'kit.extension-prototype-client',
-      version: '1.0.0',
-      createClient: () => new PrototypeClientImplementation(),
-    })
-    const providerSession = await host.startExtension(defineExtension({
-      id: 'prototype-client-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'prototype-client-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-
-    let client: PrototypeClient | undefined
-    await host.startExtension(defineExtension({
-      id: 'prototype-client-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'prototype-client-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    if (!client) {
-      throw new Error('Expected the Consumer to receive a prototype Kit client.')
-    }
-
-    // ROOT CAUSE:
-    //
-    // The first recursive membrane reused the Provider prototype as the
-    // facade prototype. Object.getPrototypeOf therefore exposed raw methods
-    // that remained callable after unload. Prototype objects now pass through
-    // the same revocation membrane as properties and method results.
-    const prototype = Object.getPrototypeOf(client) as PrototypeClient
-    const read = prototype.read
-    expect(read()).toBe('ready')
-
-    await host.stop(providerSession.id)
-
-    expect(() => read()).toThrow('revoked')
-  })
-
-  it('preserves enumerable properties on values returned by Kit clients', async () => {
-    interface ReceiptClient {
-      notify: () => Promise<{ kind: string, summary: string }>
-    }
-
-    const host = new ExtensionHost()
-    const kit = defineKit<ReceiptClient>({
-      id: 'kit.extension-enumerable-result',
-      version: '1.0.0',
-      createClient: () => ({
-        notify: async () => ({ kind: 'needs-input', summary: 'Choose a model.' }),
+      manifest: createTestManifest(consumer.id, {
+        invokedKitIds: [kit.id],
+        kits: { uses: [{ id: kit.id, version: kit.version, optional: true }] },
       }),
     })
-    await host.startExtension(defineExtension({
-      id: 'enumerable-result-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'enumerable-result-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
 
-    let client: ReceiptClient | undefined
-    await host.startExtension(defineExtension({
-      id: 'enumerable-result-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'enumerable-result-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    if (!client) {
-      throw new Error('Expected the Consumer to receive a receipt Kit client.')
+    const resolve = tryUse
+    if (!resolve) {
+      throw new Error('Expected the Consumer to expose Kit resolution.')
     }
+    const pendingResult = resolve()
+    const stopping = host.stop(providerSession.id)
 
-    // ROOT CAUSE:
-    //
-    // The first recursive membrane forwarded property reads through an empty
-    // facade but did not expose the source object's own keys. Promise results
-    // therefore appeared empty to deep equality and JSON serialization.
-    // The facade now reflects enumerable source property descriptors.
-    const receipt = await client.notify()
-    expect(receipt).toEqual({ kind: 'needs-input', summary: 'Choose a model.' })
-    expect(JSON.stringify(receipt)).toBe('{"kind":"needs-input","summary":"Choose a model."}')
+    await expect(pendingResult).resolves.toMatchObject({ ok: false, reason: 'missing-kit' })
+
+    releaseCleanup.resolve()
+    await stopping
   })
 
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986266802
-  it('preserves array length on values returned by Kit clients', async () => {
-    interface ArrayClient {
-      list: () => string[]
-    }
-
+  it('disposes each Extension Kit client scope when either owner unloads', async () => {
     const host = new ExtensionHost()
-    const kit = defineKit<ArrayClient>({
-      id: 'kit.extension-array-result',
-      version: '1.0.0',
-      createClient: () => ({ list: () => ['first', 'second'] }),
-    })
-    const providerSession = await host.startExtension(defineExtension({
-      id: 'array-result-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'array-result-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-
-    let client: ArrayClient | undefined
-    await host.startExtension(defineExtension({
-      id: 'array-result-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'array-result-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    const arrayClient = client
-    if (!arrayClient) {
-      throw new Error('Expected the Consumer to receive an array-result Kit client.')
-    }
-
-    // ROOT CAUSE:
-    //
-    // The array facade has its own non-configurable length. Ordinary property
-    // access returned that initial zero instead of the source array length.
-    const items = arrayClient.list()
-    expect(items.length).toBe(2)
-    expect(items).toEqual(['first', 'second'])
-
-    await host.stop(providerSession.id)
-    expect(() => items.length).toThrow('revoked')
-  })
-
-  it('rejects in-flight Kit results after the Provider unloads', async () => {
-    interface PendingClient {
-      read: () => Promise<string>
-    }
-
-    const result = Promise.withResolvers<string>()
-    const host = new ExtensionHost()
-    const kit = defineKit<PendingClient>({
-      id: 'kit.extension-pending-result',
-      version: '1.0.0',
-      createClient: () => ({ read: () => result.promise }),
-    })
-    const providerSession = await host.startExtension(defineExtension({
-      id: 'pending-result-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'pending-result-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-
-    let client: PendingClient | undefined
-    await host.startExtension(defineExtension({
-      id: 'pending-result-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'pending-result-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    if (!client) {
-      throw new Error('Expected the Consumer to receive a pending-result Kit client.')
-    }
-
-    // ROOT CAUSE:
-    //
-    // The membrane checked revocation when the Provider method was invoked,
-    // but a pending Promise could settle after unload and still deliver its
-    // value. Promise fulfillment and rejection now cross the same revocation
-    // check as synchronous results.
-    const pendingRead = client.read()
-    await host.stop(providerSession.id)
-    result.resolve('late result')
-
-    await expect(pendingRead).rejects.toThrow('revoked')
-  })
-
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986266811
-  it('rejects in-flight thenable results after the Provider unloads', async () => {
-    interface ThenableClient {
-      read: () => PromiseLike<string>
-    }
-
-    const result = Promise.withResolvers<string>()
-    const lateResult: PromiseLike<string> = {
-      // oxlint-disable-next-line unicorn/no-thenable -- This fixture reproduces a Provider-defined thenable boundary.
-      then: result.promise.then.bind(result.promise),
-    }
-    const host = new ExtensionHost()
-    const kit = defineKit<ThenableClient>({
-      id: 'kit.extension-thenable-result',
-      version: '1.0.0',
-      createClient: () => ({ read: () => lateResult }),
-    })
-    const providerSession = await host.startExtension(defineExtension({
-      id: 'thenable-result-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'thenable-result-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-
-    let client: ThenableClient | undefined
-    await host.startExtension(defineExtension({
-      id: 'thenable-result-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'thenable-result-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    const thenableClient = client
-    if (!thenableClient) {
-      throw new Error('Expected the Consumer to receive a thenable-result Kit client.')
-    }
-
-    // ROOT CAUSE:
-    //
-    // The membrane recognized only native Promises. Custom and cross-realm
-    // thenables could therefore settle after unload without a revocation check.
-    const pendingRead = Promise.resolve(thenableClient.read())
-    await host.stop(providerSession.id)
-    result.resolve('late result')
-
-    await expect(pendingRead).rejects.toThrow('revoked')
-  })
-
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986773584
-  it('does not invoke a deferred Provider thenable after unload starts', async () => {
-    interface ThenableClient {
-      read: () => PromiseLike<string>
-    }
-
-    let thenCalls = 0
-    const deferredResult: PromiseLike<string> = {
-      // oxlint-disable-next-line unicorn/no-thenable -- This fixture reproduces a Provider-defined thenable boundary.
-      then(resolve) {
-        thenCalls += 1
-        return Promise.resolve('late result').then(resolve)
-      },
-    }
-    const host = new ExtensionHost()
-    const kit = defineKit<ThenableClient>({
-      id: 'kit.extension-deferred-thenable',
-      version: '1.0.0',
-      createClient: () => ({ read: () => deferredResult }),
-    })
-    const providerSession = await host.startExtension(defineExtension({
-      id: 'deferred-thenable-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'deferred-thenable-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-
-    let client: ThenableClient | undefined
-    await host.startExtension(defineExtension({
-      id: 'deferred-thenable-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'deferred-thenable-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    const thenableClient = client
-    if (!thenableClient) {
-      throw new Error('Expected the Consumer to receive a deferred-thenable Kit client.')
-    }
-
-    // ROOT CAUSE:
-    //
-    // Thenable adoption ran in a microtask. Provider unload could begin before
-    // that microtask, but the raw Provider `then` method was still invoked.
-    const pendingRead = Promise.resolve(thenableClient.read())
-    const expectedRejection = expect(pendingRead).rejects.toThrow('revoked')
-    await host.stop(providerSession.id)
-
-    await expectedRejection
-    expect(thenCalls).toBe(0)
-  })
-
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986172728
-  it('preserves callable Kit client properties through revocation', async () => {
-    interface CallableClient {
-      (): string
-      status: string
-    }
-
-    const host = new ExtensionHost()
-    const kit = defineKit<CallableClient>({
-      id: 'kit.extension-callable-client',
-      version: '1.0.0',
-      createClient: () => Object.assign(() => 'pong', { status: 'ready' }),
-    })
-    const providerSession = await host.startExtension(defineExtension({
-      id: 'callable-client-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'callable-client-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-
-    let client: CallableClient | undefined
-    await host.startExtension(defineExtension({
-      id: 'callable-client-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'callable-client-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    const callableClient = client
-    if (!callableClient) {
-      throw new Error('Expected the Consumer to receive a callable Kit client.')
-    }
-
-    expect(callableClient()).toBe('pong')
-    expect(callableClient.status).toBe('ready')
-
-    await host.stop(providerSession.id)
-
-    expect(() => callableClient()).toThrow('revoked')
-    expect(() => callableClient.status).toThrow('revoked')
-  })
-
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986658599
-  it('preserves constructible Kit clients through revocation', async () => {
-    interface ConstructedCapability {
-      read: () => string
-    }
-    interface ConstructibleClient {
-      new (value: string): ConstructedCapability
-    }
-
-    class ProviderCapability implements ConstructedCapability {
-      constructor(private readonly value: string) {}
-
-      read() {
-        return this.value
-      }
-    }
-
-    const host = new ExtensionHost()
-    const kit = defineKit<ConstructibleClient>({
-      id: 'kit.extension-constructible-client',
-      version: '1.0.0',
-      createClient: () => ProviderCapability,
-    })
-    const providerSession = await host.startExtension(defineExtension({
-      id: 'constructible-client-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'constructible-client-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-
-    let client: ConstructibleClient | undefined
-    await host.startExtension(defineExtension({
-      id: 'constructible-client-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'constructible-client-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    const ClientConstructor = client
-    if (!ClientConstructor) {
-      throw new Error('Expected the Consumer to receive a constructible Kit client.')
-    }
-
-    // ROOT CAUSE:
-    //
-    // The callable facade used an arrow function target. Proxy construction
-    // therefore failed before it could reach the Provider constructor.
-    const capability = new ClientConstructor('ready')
-    expect(capability.read()).toBe('ready')
-    expect(capability).toBeInstanceOf(ClientConstructor)
-
-    await host.stop(providerSession.id)
-
-    expect(() => new ClientConstructor('late')).toThrow('revoked')
-    expect(() => capability.read()).toThrow('revoked')
-  })
-
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986658606
-  it('revokes capabilities carried by thrown and rejected Kit values', async () => {
-    interface FailureValue {
-      capability: {
-        read: () => string
-      }
-    }
-    interface FailingClient {
-      rejectCapability: () => Promise<never>
-      throwCapability: () => never
-    }
-
-    const createFailure = (): FailureValue => ({
-      capability: { read: () => 'ready' },
-    })
-    const host = new ExtensionHost()
-    const kit = defineKit<FailingClient>({
-      id: 'kit.extension-failure-value',
-      version: '1.0.0',
-      createClient: () => ({
-        rejectCapability: () => Promise.reject(createFailure()),
-        throwCapability: () => {
-          throw createFailure()
-        },
-      }),
-    })
-    const providerSession = await host.startExtension(defineExtension({
-      id: 'failure-value-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'failure-value-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-
-    let client: FailingClient | undefined
-    await host.startExtension(defineExtension({
-      id: 'failure-value-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'failure-value-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    const failingClient = client
-    if (!failingClient) {
-      throw new Error('Expected the Consumer to receive a failing Kit client.')
-    }
-
-    let thrownValue: FailureValue | undefined
-    try {
-      failingClient.throwCapability()
-    }
-    catch (error) {
-      thrownValue = error as FailureValue
-    }
-
-    let rejectedValue: FailureValue | undefined
-    try {
-      await failingClient.rejectCapability()
-    }
-    catch (error) {
-      rejectedValue = error as FailureValue
-    }
-
-    if (!thrownValue || !rejectedValue) {
-      throw new Error('Expected the Kit client to return both failure values.')
-    }
-    expect(thrownValue.capability.read()).toBe('ready')
-    expect(rejectedValue.capability.read()).toBe('ready')
-
-    // ROOT CAUSE:
-    //
-    // Object-valued failures crossed the membrane unchanged. Consumers could
-    // retain capabilities from them and call those capabilities after unload.
-    await host.stop(providerSession.id)
-
-    expect(() => thrownValue.capability.read()).toThrow('revoked')
-    expect(() => rejectedValue.capability.read()).toThrow('revoked')
-  })
-
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986898765
-  it('revokes Provider capabilities delivered through Consumer callbacks', async () => {
-    interface CallbackCapability {
-      read: () => string
-    }
-    interface CallbackClient {
-      subscribe: (callback: (capability: CallbackCapability) => void) => void
-    }
-
-    let deliver: ((capability: CallbackCapability) => void) | undefined
-    const host = new ExtensionHost()
-    const kit = defineKit<CallbackClient>({
-      id: 'kit.extension-callback-payload',
-      version: '1.0.0',
-      createClient: () => ({
-        subscribe(callback) {
-          deliver = callback
-        },
-      }),
-    })
-    const providerSession = await host.startExtension(defineExtension({
-      id: 'callback-payload-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'callback-payload-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-
-    let client: CallbackClient | undefined
-    let deliveredCapability: CallbackCapability | undefined
-    await host.startExtension(defineExtension({
-      id: 'callback-payload-consumer',
-      async setup(ctx) {
-        client = await ctx.kits.use(kit)
-        client.subscribe((capability) => {
-          deliveredCapability = capability
-        })
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'callback-payload-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    const retainedCallback = deliver
-    if (!retainedCallback) {
-      throw new Error('Expected the Provider to retain the Consumer callback.')
-    }
-    retainedCallback({ read: () => 'ready' })
-    const capability = deliveredCapability
-    if (!capability) {
-      throw new Error('Expected the Consumer callback to receive a capability.')
-    }
-    expect(capability.read()).toBe('ready')
-
-    // ROOT CAUSE:
-    //
-    // Consumer callbacks crossed into Provider code unchanged. Objects passed
-    // back through them therefore escaped the Provider revocation membrane.
-    await host.stop(providerSession.id)
-
-    expect(() => capability.read()).toThrow('revoked')
-    expect(() => retainedCallback({ read: () => 'late' })).toThrow('revoked')
-  })
-
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3987021623
-  it('revokes Provider capabilities delivered through nested Consumer callbacks', async () => {
-    interface NestedCallbackCapability {
-      read: () => string
-    }
-    interface NestedCallbackClient {
-      subscribe: (options: {
-        handlers: Array<{
-          onData: (capability: NestedCallbackCapability) => void
-        }>
-      }) => void
-    }
-
-    let deliver: ((capability: NestedCallbackCapability) => void) | undefined
-    const host = new ExtensionHost()
-    const kit = defineKit<NestedCallbackClient>({
-      id: 'kit.extension-nested-callback-payload',
-      version: '1.0.0',
-      createClient: () => ({
-        subscribe(options) {
-          deliver = options.handlers[0]?.onData
-        },
-      }),
-    })
-    const providerSession = await host.startExtension(defineExtension({
-      id: 'nested-callback-payload-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'nested-callback-payload-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-
-    let deliveredCapability: NestedCallbackCapability | undefined
-    await host.startExtension(defineExtension({
-      id: 'nested-callback-payload-consumer',
-      async setup(ctx) {
-        const client = await ctx.kits.use(kit)
-        client.subscribe({
-          handlers: [{
-            onData(capability) {
-              deliveredCapability = capability
-            },
-          }],
-        })
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'nested-callback-payload-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    const retainedCallback = deliver
-    if (!retainedCallback) {
-      throw new Error('Expected the Provider to retain the nested Consumer callback.')
-    }
-    retainedCallback({ read: () => 'ready' })
-    const capability = deliveredCapability
-    if (!capability) {
-      throw new Error('Expected the nested Consumer callback to receive a capability.')
-    }
-    expect(capability.read()).toBe('ready')
-
-    // ROOT CAUSE:
-    //
-    // Only top-level function arguments entered the callback proxy. Objects
-    // and arrays passed their nested callbacks directly into Provider code.
-    await host.stop(providerSession.id)
-
-    expect(() => capability.read()).toThrow('revoked')
-    expect(() => retainedCallback({ read: () => 'late' })).toThrow('revoked')
-  })
-
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986773576
-  it('disposes each Kit client scope when either owner unloads', async () => {
-    interface ScopedClient {
-      read: () => string
-    }
-
+    const kit = createActivityKit()
     let cleanupCalls = 0
-    const host = new ExtensionHost()
-    const kit = defineKit<ScopedClient>({
-      id: 'kit.extension-client-scope',
-      version: '1.0.0',
-      createClient(runtime) {
-        runtime.subscriptions.add({
-          dispose: async () => {
-            await Promise.resolve()
-            cleanupCalls += 1
-          },
-        })
-        return { read: () => 'ready' }
-      },
-    })
-    const providerSession = await host.startExtension(defineExtension({
+    const provider = defineExtension({
       id: 'client-scope-provider',
       setup(ctx) {
-        ctx.kits.provide(kit)
+        ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity: (_input, call) => {
+              call.subscriptions.add({
+                dispose: async () => {
+                  await Promise.resolve()
+                  cleanupCalls += 1
+                },
+              })
+              return {
+                agentId: 'codex',
+                state: 'completed' as const,
+                summary: 'Done.',
+              }
+            },
+          },
+        })
       },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'client-scope-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
+    })
+    const providerSession = await host.startExtension(provider, {
+      manifest: createTestManifest(provider.id, {
         kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
+      }),
     })
 
     const startConsumer = async (id: string) => {
       return host.startExtension(defineExtension({
         id,
         async setup(ctx) {
-          await ctx.kits.use(kit)
+          const client = await ctx.kits.use(kit)
+          await client.getCurrentActivity()
         },
       }), {
-        manifest: {
-          manifestVersion: 2,
-          kind: 'manifest.extension.airi.moeru.ai',
-          id,
-          version: '1.0.0',
-          engines: { airi: '*', runtimes: ['electron'] },
-          entrypoints: { electron: './consumer.mjs' },
-          permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        manifest: createTestManifest(id, {
+          invokedKitIds: [kit.id],
           kits: { uses: [{ id: kit.id, version: kit.version }] },
-        },
+        }),
       })
     }
 
-    // ROOT CAUSE:
-    //
-    // `createClient` received the Consumer's full subscription store. The
-    // Provider could revoke the client, but it could not dispose resources
-    // created for that client until the Consumer also unloaded.
     const firstConsumer = await startConsumer('client-scope-consumer-first')
     await host.stop(firstConsumer.id)
     expect(cleanupCalls).toBe(1)
@@ -1469,15 +633,19 @@ describe('for ExtensionHost', () => {
 
   it('isolates Consumer watcher failures while a Provider unloads', async () => {
     const host = new ExtensionHost()
-    const kit = defineKit({
-      id: 'kit.extension-watcher-isolation',
-      version: '1.0.0',
-      createClient: () => ({ ping: () => 'pong' }),
-    })
+    const kit = createActivityKit()
     const provider = defineExtension({
       id: 'watcher-isolation-provider',
       setup(ctx) {
-        ctx.kits.provide(kit)
+        ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity: () => ({
+              agentId: 'codex',
+              state: 'completed' as const,
+              summary: 'Done.',
+            }),
+          },
+        })
       },
     })
     const observed: boolean[] = []
@@ -1494,30 +662,16 @@ describe('for ExtensionHost', () => {
         })
       },
     })
-
     const providerSession = await host.startExtension(provider, {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'watcher-isolation-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
+      manifest: createTestManifest(provider.id, {
         kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
+      }),
     })
     await host.startExtension(consumer, {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'watcher-isolation-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+      manifest: createTestManifest(consumer.id, {
+        invokedKitIds: [kit.id],
         kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
+      }),
     })
     await vi.waitFor(() => expect(observed).toEqual([true]))
 
@@ -1526,105 +680,12 @@ describe('for ExtensionHost', () => {
     expect(observed).toEqual([true, false])
   })
 
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3987021629
-  it('rejects Kit resolution and availability after Provider teardown starts', async () => {
-    const host = new ExtensionHost()
-    const releaseProviderCleanup = Promise.withResolvers<void>()
-    let providerSessionId: string | undefined
-    let stopProvider: Promise<unknown> | undefined
-    const createClient = vi.fn(() => {
-      if (!providerSessionId) {
-        throw new Error('Expected the Provider session to be ready before client creation.')
-      }
-      if (!stopProvider) {
-        stopProvider = host.stop(providerSessionId)
-      }
-      return { read: () => 'ready' }
-    })
-    const kit = defineKit({
-      id: 'kit.extension-provider-teardown-resolution',
-      version: '1.0.0',
-      createClient,
-    })
-    const providerSession = await host.startExtension(defineExtension({
-      id: 'provider-teardown-resolution-provider',
-      setup(ctx) {
-        ctx.kits.provide(kit)
-        ctx.subscriptions.add({
-          dispose: () => releaseProviderCleanup.promise,
-        })
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'provider-teardown-resolution-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
-    })
-    providerSessionId = providerSession.id
-    let tryUse: (() => Promise<unknown>) | undefined
-    const observed: boolean[] = []
-    await host.startExtension(defineExtension({
-      id: 'provider-teardown-resolution-consumer',
-      setup(ctx) {
-        tryUse = async () => await ctx.kits.tryUse(kit)
-        ctx.kits.watch(kit, (availability) => {
-          observed.push(availability.available)
-        })
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'provider-teardown-resolution-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
-        kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
-    })
-
-    await vi.waitFor(() => expect(observed).toEqual([false]))
-    expect(host.getSession(providerSession.id)?.phase).toBe('stopped')
-    expect(createClient).toHaveBeenCalledTimes(1)
-
-    const useDuringTeardown = tryUse
-    if (!useDuringTeardown) {
-      throw new Error('Expected the Consumer to expose Kit resolution.')
-    }
-    const result = await useDuringTeardown()
-    expect(result).toMatchObject({ ok: false, reason: 'missing-kit' })
-    expect(createClient).toHaveBeenCalledTimes(1)
-
-    // ROOT CAUSE:
-    //
-    // The active registration outlived the Provider's ready phase while its
-    // cleanup awaited another disposable. Resolution therefore created and
-    // announced an already-revoked client during teardown.
-    const providerCleanup = stopProvider
-    if (!providerCleanup) {
-      throw new Error('Expected Kit client creation to start Provider teardown.')
-    }
-    releaseProviderCleanup.resolve()
-    await providerCleanup
-  })
-
   it('does not wait for Consumer watchers during Provider startup or unload', async () => {
     const host = new ExtensionHost()
-    const kit = defineKit({
-      id: 'kit.extension-pending-watcher',
-      version: '1.0.0',
-      createClient: () => ({ ping: () => 'pong' }),
-    })
+    const kit = createActivityKit()
     const pending = new Promise<void>(() => {})
     const observed: boolean[] = []
-    await host.startExtension(defineExtension({
+    const consumer = defineExtension({
       id: 'pending-watcher-consumer',
       setup(ctx) {
         ctx.kits.watch(kit, () => pending)
@@ -1632,42 +693,33 @@ describe('for ExtensionHost', () => {
           observed.push(availability.available)
         })
       },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'pending-watcher-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+    })
+    await host.startExtension(consumer, {
+      manifest: createTestManifest(consumer.id, {
+        invokedKitIds: [kit.id],
         kits: { uses: [{ id: kit.id, version: kit.version, optional: true }] },
-      },
+      }),
     })
     await vi.waitFor(() => expect(observed).toEqual([false]))
 
-    // ROOT CAUSE:
-    //
-    // Provider publication and teardown awaited each Consumer watcher in
-    // sequence. A callback that never settled blocked the Provider lifecycle
-    // and prevented later Consumers from observing the availability change.
-    // Watchers now run in isolated asynchronous tasks.
-    const providerSession = await host.startExtension(defineExtension({
+    const provider = defineExtension({
       id: 'pending-watcher-provider',
       setup(ctx) {
-        ctx.kits.provide(kit)
+        ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity: () => ({
+              agentId: 'codex',
+              state: 'completed' as const,
+              summary: 'Done.',
+            }),
+          },
+        })
       },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'pending-watcher-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
+    })
+    const providerSession = await host.startExtension(provider, {
+      manifest: createTestManifest(provider.id, {
         kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
+      }),
     })
     await vi.waitFor(() => expect(observed).toEqual([false, true]))
 
@@ -1676,35 +728,32 @@ describe('for ExtensionHost', () => {
     await vi.waitFor(() => expect(observed).toEqual([false, true, false]))
   })
 
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986172732
   it('serializes availability deliveries for each Kit watcher', async () => {
     const host = new ExtensionHost()
-    const kit = defineKit({
-      id: 'kit.extension-ordered-watcher',
-      version: '1.0.0',
-      createClient: () => ({ ping: () => 'pong' }),
-    })
-    const providerSession = await host.startExtension(defineExtension({
+    const kit = createActivityKit()
+    const provider = defineExtension({
       id: 'ordered-watcher-provider',
       setup(ctx) {
-        ctx.kits.provide(kit)
+        ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity: () => ({
+              agentId: 'codex',
+              state: 'completed' as const,
+              summary: 'Done.',
+            }),
+          },
+        })
       },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'ordered-watcher-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
+    })
+    const providerSession = await host.startExtension(provider, {
+      manifest: createTestManifest(provider.id, {
         kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
+      }),
     })
     const firstDeliveryStarted = Promise.withResolvers<void>()
     const releaseFirstDelivery = Promise.withResolvers<void>()
     const observed: boolean[] = []
-    await host.startExtension(defineExtension({
+    const consumer = defineExtension({
       id: 'ordered-watcher-consumer',
       setup(ctx) {
         ctx.kits.watch(kit, async (availability) => {
@@ -1715,25 +764,15 @@ describe('for ExtensionHost', () => {
           observed.push(availability.available)
         })
       },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'ordered-watcher-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+    })
+    await host.startExtension(consumer, {
+      manifest: createTestManifest(consumer.id, {
+        invokedKitIds: [kit.id],
         kits: { uses: [{ id: kit.id, version: kit.version }] },
-      },
+      }),
     })
     await firstDeliveryStarted.promise
 
-    // ROOT CAUSE:
-    //
-    // Each availability change started a separate callback task. A slow true
-    // delivery could finish after a newer false delivery and restore stale
-    // Consumer state. Each watcher now owns an ordered delivery queue.
     await host.stop(providerSession.id)
     expect(observed).toEqual([])
 
@@ -1741,18 +780,13 @@ describe('for ExtensionHost', () => {
     await vi.waitFor(() => expect(observed).toEqual([true, false]))
   })
 
-  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986343869
   it('discards stale Kit availability while an earlier delivery is pending', async () => {
     const host = new ExtensionHost()
-    const kit = defineKit({
-      id: 'kit.extension-stale-watcher',
-      version: '1.0.0',
-      createClient: () => ({ ping: () => 'pong' }),
-    })
+    const kit = createActivityKit()
     const firstDeliveryStarted = Promise.withResolvers<void>()
     const releaseFirstDelivery = Promise.withResolvers<void>()
     const observed: boolean[] = []
-    await host.startExtension(defineExtension({
+    const consumer = defineExtension({
       id: 'stale-watcher-consumer',
       setup(ctx) {
         let deliveryCount = 0
@@ -1765,36 +799,33 @@ describe('for ExtensionHost', () => {
           observed.push(availability.available)
         })
       },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'stale-watcher-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+    })
+    await host.startExtension(consumer, {
+      manifest: createTestManifest(consumer.id, {
+        invokedKitIds: [kit.id],
         kits: { uses: [{ id: kit.id, version: kit.version, optional: true }] },
-      },
+      }),
     })
     await firstDeliveryStarted.promise
 
-    const providerSession = await host.startExtension(defineExtension({
+    const provider = defineExtension({
       id: 'stale-watcher-provider',
       setup(ctx) {
-        ctx.kits.provide(kit)
+        ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity: () => ({
+              agentId: 'codex',
+              state: 'completed' as const,
+              summary: 'Done.',
+            }),
+          },
+        })
       },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai',
-        id: 'stale-watcher-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
+    })
+    const providerSession = await host.startExtension(provider, {
+      manifest: createTestManifest(provider.id, {
         kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-      },
+      }),
     })
     await host.stop(providerSession.id)
     releaseFirstDelivery.resolve()
@@ -1803,27 +834,172 @@ describe('for ExtensionHost', () => {
     expect(observed).not.toContain(true)
   })
 
+  it('rejects values that cannot cross the Kit protocol seam', async () => {
+    const host = new ExtensionHost()
+    const kit = defineKitContract({
+      id: 'dev.airi.echo',
+      version: '1.0.0',
+      methods: {
+        echo: defineKitMethod<{ value: string }, { value: string }>(),
+      },
+      events: {},
+    })
+    const provider = defineExtension({
+      id: 'echo-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit, {
+          methods: {
+            echo: input => input,
+          },
+        })
+      },
+    })
+    await host.startExtension(provider, {
+      manifest: createTestManifest(provider.id, {
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      }),
+    })
+
+    const consumer = defineExtension({
+      id: 'echo-consumer',
+      async setup(ctx) {
+        const client = await ctx.kits.use(kit)
+        const echo = Reflect.get(client, 'echo') as (input: unknown) => Promise<unknown>
+        await expect(echo({ callback: () => 'raw capability' })).rejects.toThrow('must be a KitValue')
+      },
+    })
+    await host.startExtension(consumer, {
+      manifest: createTestManifest(consumer.id, {
+        invokedKitIds: [kit.id],
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      }),
+    })
+  })
+
+  it('rejects Provider outputs and events that contain JavaScript capabilities', async () => {
+    const host = new ExtensionHost()
+    const kit = defineKitContract({
+      id: 'dev.airi.invalid-output',
+      version: '1.0.0',
+      methods: {
+        read: defineKitMethod<undefined, { value: string }>(),
+      },
+      events: {
+        changed: defineKitEvent<{ value: string }>(),
+      },
+    })
+    let publishInvalid: (() => void) | undefined
+    const provider = defineExtension({
+      id: 'invalid-output-provider',
+      setup(ctx) {
+        const invalidMethod = () => () => 'raw capability'
+        const handle = Reflect.apply(ctx.kits.provide, ctx.kits, [kit, {
+          methods: { read: invalidMethod },
+        }])
+        publishInvalid = () => {
+          Reflect.apply(handle.emit, handle, ['changed', { callback: () => 'raw capability' }])
+        }
+      },
+    })
+    await host.startExtension(provider, {
+      manifest: createTestManifest(provider.id, {
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      }),
+    })
+
+    const consumer = defineExtension({
+      id: 'invalid-output-consumer',
+      async setup(ctx) {
+        const client = await ctx.kits.use(kit)
+        await expect(client.read()).rejects.toThrow('output must be a KitValue')
+      },
+    })
+    await host.startExtension(consumer, {
+      manifest: createTestManifest(consumer.id, {
+        invokedKitIds: [kit.id],
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      }),
+    })
+
+    const publish = publishInvalid
+    if (!publish) {
+      throw new Error('Expected the Provider to expose an event publisher.')
+    }
+    expect(publish).toThrow('payload must be a KitValue')
+  })
+
+  it('rejects an Extension-hosted Kit that is absent from the Provider manifest', async () => {
+    const host = new ExtensionHost()
+    const kit = createActivityKit()
+
+    await expect(host.startExtension(defineExtension({
+      id: 'undeclared-kit-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity: () => ({
+              agentId: 'codex',
+              state: 'completed' as const,
+              summary: 'Done.',
+            }),
+          },
+        })
+      },
+    }), {
+      manifest: createTestManifest('undeclared-kit-provider'),
+    })).rejects.toThrow(`cannot provide undeclared Kit \`${kit.id}\``)
+  })
+
+  it('rejects a second active Provider for the same Extension-hosted Kit', async () => {
+    const host = new ExtensionHost()
+    const kit = createActivityKit()
+    const manifestFor = (id: string) => createTestManifest(id, {
+      kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+    })
+    const providerFor = (id: string) => defineExtension({
+      id,
+      setup(ctx) {
+        ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity: () => ({
+              agentId: 'codex',
+              state: 'completed' as const,
+              summary: 'Done.',
+            }),
+          },
+        })
+      },
+    })
+
+    const first = await host.startExtension(providerFor('first-kit-provider'), {
+      manifest: manifestFor('first-kit-provider'),
+    })
+
+    await expect(host.startExtension(providerFor('second-kit-provider'), {
+      manifest: manifestFor('second-kit-provider'),
+    })).rejects.toThrow('already has an active Provider')
+
+    expect(host.listSessions().map(session => session.id)).toEqual([first.id])
+  })
+
   it('removes Provider-owned Kits when another Extension disposable fails', async () => {
     const host = new ExtensionHost()
-    const kit = defineKit({
-      id: 'kit.extension-failing-disposable',
-      version: '1.0.0',
-      createClient: () => ({ read: () => 'ready' }),
-    })
-    const manifest: ExtensionManifestV2 = {
-      manifestVersion: 2,
-      kind: 'manifest.extension.airi.moeru.ai',
-      id: 'failing-disposable-provider',
-      version: '1.0.0',
-      engines: { airi: '*', runtimes: ['electron'] },
-      entrypoints: { electron: './provider.mjs' },
-      permissions: {},
+    const kit = createActivityKit()
+    const manifest = createTestManifest('failing-disposable-provider', {
       kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
-    }
+    })
     const provider = defineExtension({
       id: manifest.id,
       setup(ctx) {
-        ctx.kits.provide(kit)
+        ctx.kits.provide(kit, {
+          methods: {
+            getCurrentActivity: () => ({
+              agentId: 'codex',
+              state: 'completed' as const,
+              summary: 'Done.',
+            }),
+          },
+        })
         ctx.subscriptions.add({
           dispose() {
             throw new Error('Extension cleanup failed.')
@@ -1833,12 +1009,6 @@ describe('for ExtensionHost', () => {
     })
     const providerSession = await host.startExtension(provider, { manifest })
 
-    // ROOT CAUSE:
-    //
-    // DisposableStore stopped at the first rejection. A later Host-owned Kit
-    // cleanup never ran, so the stopped session kept its Provider registered.
-    // Disposal now attempts every resource and removes the session before it
-    // reports collected cleanup errors.
     await expect(host.stop(providerSession.id)).rejects.toThrow('Extension cleanup failed.')
 
     expect(host.getSession(providerSession.id)).toBeUndefined()
@@ -1858,220 +1028,6 @@ describe('for ExtensionHost', () => {
       permissions: {},
       entrypoints: { node: './missing-entrypoint.mjs' },
     })).rejects.toThrow('requires AIRI `>=99.0.0`')
-  })
-
-  it('runs an Extension-hosted Kit through Provider and Consumer Extension lifecycles', async () => {
-    interface AgentActivityClient {
-      notify: (input: { kind: 'needs-input' | 'completed', summary: string }) => {
-        consumerExtensionId: string
-        kind: 'needs-input' | 'completed'
-        summary: string
-      }
-    }
-
-    const host = new ExtensionHost()
-    const calls: Array<ReturnType<AgentActivityClient['notify']>> = []
-    const agentActivityKit = defineKitContract<AgentActivityClient>({
-      id: 'dev.airi.agent-activity',
-      version: '1.0.0',
-    })
-    const providerKit = defineKit<AgentActivityClient>({
-      ...agentActivityKit,
-      allowedExposePolicies: ['local-only'],
-      defaultExposePolicy: 'local-only',
-      createClient(runtime) {
-        return {
-          notify(input) {
-            const call = {
-              consumerExtensionId: runtime.extensionId,
-              ...input,
-            }
-            calls.push(call)
-            return call
-          },
-        }
-      },
-    })
-    const provider = defineExtension({
-      id: 'agent-activity-provider',
-      setup(ctx) {
-        ctx.kits.provide(providerKit)
-      },
-    })
-    const availability: boolean[] = []
-    let activityClient: AgentActivityClient | undefined
-    const consumer = defineExtension({
-      id: 'agent-activity-consumer',
-      async setup(ctx) {
-        ctx.kits.watch(agentActivityKit, (state) => {
-          availability.push(state.available)
-        })
-        const activity = await ctx.kits.use(agentActivityKit)
-        activityClient = activity
-        activity.notify({ kind: 'needs-input', summary: 'Choose a model.' })
-        activity.notify({ kind: 'completed', summary: 'Build finished.' })
-      },
-    })
-
-    const providerSession = await host.startExtension(provider, {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai' as const,
-        id: 'agent-activity-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-        kits: {
-          provides: [{ id: agentActivityKit.id, version: agentActivityKit.version, exposure: 'local-only' }],
-        },
-      },
-    })
-
-    expect(host.getKit(agentActivityKit.id)).toEqual({
-      kitId: agentActivityKit.id,
-      version: agentActivityKit.version,
-      runtimes: ['electron'],
-      capabilities: [],
-    })
-
-    await host.startExtension(consumer, {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai' as const,
-        id: 'agent-activity-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: {
-          apis: [{ key: agentActivityKit.id, actions: ['invoke'] }],
-        },
-        kits: {
-          uses: [{ id: agentActivityKit.id, version: agentActivityKit.version }],
-        },
-      },
-    })
-
-    expect(calls).toEqual([
-      {
-        consumerExtensionId: 'agent-activity-consumer',
-        kind: 'needs-input',
-        summary: 'Choose a model.',
-      },
-      {
-        consumerExtensionId: 'agent-activity-consumer',
-        kind: 'completed',
-        summary: 'Build finished.',
-      },
-    ])
-    expect(availability).toEqual([true])
-
-    const consumerSession = host.listSessions().find(session => session.extension.id === consumer.id)
-    if (!consumerSession) {
-      throw new Error('Expected the Consumer Extension session to remain active.')
-    }
-
-    await host.stop(providerSession.id)
-
-    expect(() => activityClient?.notify({ kind: 'completed', summary: 'Late call.' })).toThrow(
-      'Cannot perform',
-    )
-    expect(host.getKit(agentActivityKit.id)).toBeUndefined()
-
-    const missing = await host.startExtension(defineExtension({
-      id: 'agent-activity-late-consumer',
-      async setup(ctx) {
-        const result = await ctx.kits.tryUse(agentActivityKit)
-        expect(result.ok).toBe(false)
-        if (!result.ok) {
-          expect(result.reason).toBe('missing-kit')
-        }
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai' as const,
-        id: 'agent-activity-late-consumer',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './consumer.mjs' },
-        permissions: {
-          apis: [{ key: agentActivityKit.id, actions: ['invoke'] }],
-        },
-        kits: {
-          uses: [{ id: agentActivityKit.id, version: agentActivityKit.version, optional: true }],
-        },
-      },
-    })
-
-    expect(host.getSession(consumerSession.id)?.phase).toBe('ready')
-    expect(missing.phase).toBe('ready')
-    expect(availability).toEqual([true, false])
-  })
-
-  it('rejects an Extension-hosted Kit that is absent from the Provider manifest', async () => {
-    const host = new ExtensionHost()
-    const providerKit = defineKit({
-      id: 'dev.airi.undeclared',
-      version: '1.0.0',
-      createClient: () => ({ ping: () => 'pong' }),
-    })
-
-    await expect(host.startExtension(defineExtension({
-      id: 'undeclared-kit-provider',
-      setup(ctx) {
-        ctx.kits.provide(providerKit)
-      },
-    }), {
-      manifest: {
-        manifestVersion: 2,
-        kind: 'manifest.extension.airi.moeru.ai' as const,
-        id: 'undeclared-kit-provider',
-        version: '1.0.0',
-        engines: { airi: '*', runtimes: ['electron'] },
-        entrypoints: { electron: './provider.mjs' },
-        permissions: {},
-      },
-    })).rejects.toThrow('cannot provide undeclared Kit `dev.airi.undeclared`')
-
-    expect(host.listSessions()).toEqual([])
-  })
-
-  it('rejects a second active Provider for the same Extension-hosted Kit', async () => {
-    const host = new ExtensionHost()
-    const providerKit = defineKit({
-      id: 'dev.airi.single-provider',
-      version: '1.0.0',
-      createClient: () => ({ ping: () => 'pong' }),
-    })
-    const manifestFor = (id: string): ExtensionManifestV2 => ({
-      manifestVersion: 2,
-      kind: 'manifest.extension.airi.moeru.ai',
-      id,
-      version: '1.0.0',
-      engines: { airi: '*', runtimes: ['electron'] },
-      entrypoints: { electron: './provider.mjs' },
-      permissions: {},
-      kits: {
-        provides: [{ id: providerKit.id, version: providerKit.version, exposure: 'local-only' }],
-      },
-    })
-    const providerFor = (id: string) => defineExtension({
-      id,
-      setup(ctx) {
-        ctx.kits.provide(providerKit)
-      },
-    })
-
-    const first = await host.startExtension(providerFor('first-kit-provider'), {
-      manifest: manifestFor('first-kit-provider'),
-    })
-
-    await expect(host.startExtension(providerFor('second-kit-provider'), {
-      manifest: manifestFor('second-kit-provider'),
-    })).rejects.toThrow('already has an active Provider')
-
-    expect(host.listSessions().map(session => session.id)).toEqual([first.id])
   })
 
   it('runs extension setup and registers multiple module sessions', async () => {

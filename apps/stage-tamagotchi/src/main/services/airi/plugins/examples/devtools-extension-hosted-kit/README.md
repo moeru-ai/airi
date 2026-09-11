@@ -3,7 +3,7 @@
 This example contains two independent Extensions:
 
 - `provider` owns the `dev.airi.agent-activity` Kit implementation.
-- `consumer` declares the Kit dependency and sends one task reminder.
+- `consumer` reads the current activity and reacts to later activity events.
 
 The Kit uses the `local-only` exposure policy. The Host allows one active Provider for this Kit id.
 
@@ -18,7 +18,7 @@ The `.mjs` files represent bundled Extension output. They have no workspace pack
 5. Enable and load `devtools-agent-activity-consumer`.
 6. Read the main-process console.
 
-The Provider logs the reminder. The Consumer logs the returned receipt.
+The Provider logs the current activity. The Consumer logs one AIRI reaction for the current activity and one reaction for the completion event.
 
 Disable and unload the Provider after both Extensions are ready. The Consumer then logs that the Kit is unavailable.
 
@@ -28,4 +28,6 @@ Disable and unload the Provider after both Extensions are ready. The Consumer th
 - The Consumer must declare the Kit in `kits.uses`.
 - The Consumer must have `apis.invoke` permission for the Kit id.
 - A second active Provider for the same Kit id fails during setup.
-- Provider unload revokes issued client objects and changes Kit availability.
+- The Host creates the Consumer client from the shared method and event contract.
+- Method outputs and event payloads contain only structured Kit data.
+- Provider unload closes subscriptions and changes Kit availability.

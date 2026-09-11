@@ -1,6 +1,16 @@
 const agentActivityKit = {
   id: 'dev.airi.agent-activity',
   version: '1.0.0',
+  methods: {
+    getCurrentActivity: { kind: 'method' },
+  },
+  events: {
+    activityChanged: { kind: 'event' },
+  },
+}
+
+function reactWithAiri(activity) {
+  console.info('[devtools-agent-activity-consumer] AIRI reaction', activity)
 }
 
 export default {
@@ -12,11 +22,14 @@ export default {
       })
     })
 
-    const agentActivity = await ctx.kits.use(agentActivityKit)
-    const receipt = agentActivity.notify({
-      kind: 'needs-input',
-      summary: 'Choose a model for the example task.',
-    })
-    console.info('[devtools-agent-activity-consumer] receipt', receipt)
+    const activityClient = await ctx.kits.use(agentActivityKit)
+    ctx.subscriptions.add(
+      activityClient.activityChanged.subscribe((activity) => {
+        reactWithAiri(activity)
+      }),
+    )
+
+    const currentActivity = await activityClient.getCurrentActivity()
+    reactWithAiri(currentActivity)
   },
 }

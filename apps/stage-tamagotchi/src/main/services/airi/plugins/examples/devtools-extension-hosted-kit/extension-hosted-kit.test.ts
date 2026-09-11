@@ -49,21 +49,32 @@ describe('extension-hosted Kit example', () => {
     expect(providerSession.phase).toBe('ready')
     expect(consumerSession.phase).toBe('ready')
     expect(consoleInfo).toHaveBeenCalledWith(
-      '[devtools-agent-activity-provider] notify',
+      '[devtools-agent-activity-provider] current activity',
       {
+        agentId: 'codex',
         consumerExtensionId: 'devtools-agent-activity-consumer',
         kind: 'needs-input',
         summary: 'Choose a model for the example task.',
       },
     )
     expect(consoleInfo).toHaveBeenCalledWith(
-      '[devtools-agent-activity-consumer] receipt',
+      '[devtools-agent-activity-consumer] AIRI reaction',
       {
+        agentId: 'codex',
         consumerExtensionId: 'devtools-agent-activity-consumer',
         kind: 'needs-input',
         summary: 'Choose a model for the example task.',
       },
     )
+    await vi.waitFor(() => expect(consoleInfo).toHaveBeenCalledWith(
+      '[devtools-agent-activity-consumer] AIRI reaction',
+      {
+        agentId: 'codex',
+        consumerExtensionId: 'devtools-agent-activity-consumer',
+        kind: 'completed',
+        summary: 'The example task is complete.',
+      },
+    ))
 
     await host.stop(providerSession.id)
 

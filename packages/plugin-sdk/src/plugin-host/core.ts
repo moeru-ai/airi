@@ -6,7 +6,19 @@ import type {
   ExtensionSetupContext,
   RegisterExtensionModuleInput,
 } from '../extension/shared'
-import type { KitAvailability, KitContract, KitRef, KitUseResult } from '../kit'
+import type {
+  ConsumableKit,
+  KitAvailability,
+  KitCallContext,
+  KitClientOf,
+  KitContract,
+  KitContractClient,
+  KitProvider,
+  KitProviderHandle,
+  KitRef,
+  KitUseResult,
+  KitValue,
+} from '../kit'
 import type { AnnounceBindingInput, UpdateBindingInput } from '../plugin/apis/client/bindings'
 import type { BindingRecord, KitCapabilityDescriptor, KitDescriptor } from './shared'
 import type {
@@ -25,8 +37,10 @@ import type {
 
 import semver from 'semver'
 
+import { safeParse } from 'valibot'
+
 import { DisposableStore } from '../extension/disposable'
-import { kitUseFailure } from '../kit'
+import { defineKitContract, kitUseFailure } from '../kit'
 import {
   getKitBindingResourceKey,
   pluginBindingApiActivateEventName,
@@ -37,6 +51,7 @@ import {
 import {
   protocolListProvidersEventName,
 } from '../plugin/apis/protocol/resources/providers'
+import { errorMessageFromValue } from '../utils/error-message'
 import { FileSystemLoader } from './runtimes/node/loaders'
 import {
   DependencyService,
@@ -46,6 +61,7 @@ import {
   PermissionService,
   ResourceService,
 } from './runtimes/shared'
+import { hostDataValueSchema } from './shared/types'
 
 /**
  * Extension host lifecycle overview.
@@ -137,17 +153,26 @@ interface ExtensionModuleResourceTracker {
 }
 
 interface RegisteredKitApi {
-  kit: KitRef<unknown>
+  kit: ConsumableKit
   clientRevokers: Set<KitClientRevoker>
+  provider?: KitProvider<KitContract>
+  eventSubscribers: Map<string, Set<RegisteredKitEventSubscriber>>
   ownerSessionId?: string
   ownerExtensionId?: string
 }
 
+interface RegisteredKitEventSubscriber {
+  consumerSessionId: string
+  disposed: boolean
+  deliveryQueue: Promise<void>
+  listener: (payload: KitValue) => void | Promise<void>
+}
+
 type KitClientRevoker = () => Promise<void>
 
-type ResolvedKitApiResult<TClient> = Extract<KitUseResult<TClient>, { ok: false }> | {
+type ResolvedKitApiResult<TKit extends ConsumableKit> = Extract<KitUseResult<TKit>, { ok: false }> | {
   ok: true
-  client: TClient
+  client: KitClientOf<TKit>
   registration: RegisteredKitApi
   release?: KitClientRevoker
 }
@@ -173,6 +198,32 @@ function cloneHostDataValue<T extends HostDataValue>(value: T): T {
   return value
 }
 
+/** Copies one validated Kit payload so neither Extension shares object identity. */
+function cloneKitValue(value: unknown, source: string): KitValue {
+  const result = safeParse(hostDataValueSchema, value)
+  if (!result.success) {
+    throw new TypeError(`${source} must be a KitValue.`)
+  }
+
+  return cloneHostDataValue(result.output)
+}
+
+function isKitContract(kit: ConsumableKit): kit is KitContract {
+  return 'methods' in kit && 'events' in kit
+}
+
+function hasSameKitContractSurface(consumer: KitContract, provider: KitContract) {
+  const consumerMethods = Object.keys(consumer.methods).sort()
+  const providerMethods = Object.keys(provider.methods).sort()
+  const consumerEvents = Object.keys(consumer.events).sort()
+  const providerEvents = Object.keys(provider.events).sort()
+
+  return consumerMethods.length === providerMethods.length
+    && consumerMethods.every((name, index) => name === providerMethods[index])
+    && consumerEvents.length === providerEvents.length
+    && consumerEvents.every((name, index) => name === providerEvents[index])
+}
+
 function cloneHostDataRecord<T extends HostDataRecord>(record: T): T {
   return cloneHostDataValue(record)
 }
@@ -196,416 +247,6 @@ function cloneBindingRecord<C extends HostDataRecord>(module: BindingRecord<C>):
   return {
     ...module,
     config: cloneHostDataRecord(module.config),
-  }
-}
-
-/** Wraps one Provider client object graph in a shared revocation boundary. */
-function createRevocableKitClient<TClient extends object>(
-  client: TClient,
-  isProviderAvailable: () => boolean,
-): { client: TClient, revoke: () => void } {
-  let revoked = false
-  const objectFacades = new WeakMap<object, object>()
-  const sourcesByFacade = new WeakMap<object, object>()
-  const methodFacades = new WeakMap<object, WeakMap<object, (...args: unknown[]) => unknown>>()
-  const consumerCallbackFacades = new WeakMap<object, object>()
-  const consumerObjectFacades = new WeakMap<object, object>()
-  const consumerSourcesByFacade = new WeakMap<object, object>()
-
-  const assertClientAvailable = () => {
-    if (revoked || !isProviderAvailable()) {
-      throw new TypeError('Cannot perform an operation on a revoked Kit client.')
-    }
-  }
-
-  const isObjectValue = (value: unknown): value is object => {
-    return (typeof value === 'object' && value !== null) || typeof value === 'function'
-  }
-
-  const unwrapValue = (value: unknown) => {
-    if (!isObjectValue(value)) {
-      return value
-    }
-    return sourcesByFacade.get(value) ?? value
-  }
-
-  const isConstructible = (value: object) => {
-    if (typeof value !== 'function') {
-      return false
-    }
-    try {
-      Reflect.construct(Object, [], value)
-      return true
-    }
-    catch {
-      return false
-    }
-  }
-
-  const wrapThrownValue = (value: unknown): unknown => {
-    return isObjectValue(value) ? wrapObject(value) : value
-  }
-
-  const wrapValue = (value: unknown): unknown => {
-    if (!isObjectValue(value)) {
-      return value
-    }
-
-    const then: unknown = Reflect.get(value, 'then', value)
-    if (typeof then === 'function') {
-      const settlement = new Promise<unknown>((resolve, reject) => {
-        queueMicrotask(() => {
-          try {
-            assertClientAvailable()
-            Reflect.apply(then, value, [resolve, reject])
-          }
-          catch (error) {
-            reject(error)
-          }
-        })
-      })
-      return settlement.then(
-        (resolved) => {
-          assertClientAvailable()
-          return wrapValue(resolved)
-        },
-        (error) => {
-          assertClientAvailable()
-          throw wrapThrownValue(error)
-        },
-      )
-    }
-    return wrapObject(value)
-  }
-
-  function wrapConsumerCallback<TCallback extends object>(callback: TCallback): TCallback {
-    if (typeof callback !== 'function') {
-      return callback
-    }
-
-    const cached = consumerCallbackFacades.get(callback)
-    if (cached) {
-      return cached as TCallback
-    }
-
-    const wrapped = new Proxy(callback, {
-      apply(target, thisArg, args) {
-        assertClientAvailable()
-        return prepareArgument(Reflect.apply(target, prepareCallbackValue(thisArg), args.map(prepareCallbackValue)))
-      },
-      construct(target, args, newTarget) {
-        assertClientAvailable()
-        const result = prepareArgument(Reflect.construct(target, args.map(prepareCallbackValue), newTarget))
-        if (!isObjectValue(result)) {
-          throw new TypeError('Kit Consumer callback constructor returned a non-object value.')
-        }
-        return result
-      },
-    })
-    consumerCallbackFacades.set(callback, wrapped)
-    consumerSourcesByFacade.set(wrapped, callback)
-    return wrapped as TCallback
-  }
-
-  function prepareArgument(value: unknown): unknown {
-    if (!isObjectValue(value)) {
-      return value
-    }
-
-    const providerSource = sourcesByFacade.get(value)
-    if (providerSource) {
-      return providerSource
-    }
-    if (consumerSourcesByFacade.has(value)) {
-      return value
-    }
-    return typeof value === 'function' ? wrapConsumerCallback(value) : wrapConsumerObject(value)
-  }
-
-  function prepareCallbackValue(value: unknown): unknown {
-    if (!isObjectValue(value)) {
-      return value
-    }
-
-    const consumerSource = consumerSourcesByFacade.get(value)
-    if (consumerSource) {
-      return consumerSource
-    }
-    if (consumerCallbackFacades.has(value) || consumerObjectFacades.has(value)) {
-      return value
-    }
-    return wrapValue(value)
-  }
-
-  function wrapConsumerObject(source: object): object {
-    if (typeof source === 'function') {
-      return wrapConsumerCallback(source)
-    }
-
-    const cached = consumerObjectFacades.get(source)
-    if (cached) {
-      return cached
-    }
-
-    // Provider code receives a separate facade so callbacks nested in frozen
-    // Consumer objects still cross the same revocation boundary.
-    const facade = Array.isArray(source)
-      ? []
-      : Object.create(Reflect.getPrototypeOf(source)) as object
-    const proxy = new Proxy(facade, {
-      deleteProperty(target, property) {
-        assertClientAvailable()
-        const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, property)
-        if (targetDescriptor && !targetDescriptor.configurable) {
-          return false
-        }
-        return Reflect.deleteProperty(source, property)
-      },
-      get(target, property) {
-        assertClientAvailable()
-        if (Array.isArray(source) && property === 'length') {
-          return Reflect.get(source, property, source)
-        }
-        const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, property)
-        if (targetDescriptor && !targetDescriptor.configurable) {
-          return Reflect.get(target, property, target)
-        }
-        return prepareArgument(Reflect.get(source, property, source))
-      },
-      getOwnPropertyDescriptor(target, property) {
-        assertClientAvailable()
-        const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, property)
-        if (targetDescriptor && !targetDescriptor.configurable) {
-          return targetDescriptor
-        }
-
-        if (Array.isArray(source) && property === 'length') {
-          Reflect.set(target, property, source.length)
-          return Reflect.getOwnPropertyDescriptor(target, property)
-        }
-
-        const descriptor = Reflect.getOwnPropertyDescriptor(source, property)
-        if (!descriptor) {
-          return undefined
-        }
-        if ('value' in descriptor) {
-          return {
-            configurable: true,
-            enumerable: descriptor.enumerable,
-            value: prepareArgument(descriptor.value),
-            writable: descriptor.writable,
-          }
-        }
-        return {
-          configurable: true,
-          enumerable: descriptor.enumerable,
-          get: descriptor.get ? wrapConsumerCallback(descriptor.get) : undefined,
-          set: descriptor.set ? wrapConsumerCallback(descriptor.set) : undefined,
-        }
-      },
-      getPrototypeOf() {
-        assertClientAvailable()
-        const prototype = Reflect.getPrototypeOf(source)
-        return prototype ? wrapConsumerObject(prototype) : null
-      },
-      has(_target, property) {
-        assertClientAvailable()
-        return Reflect.has(source, property)
-      },
-      ownKeys(target) {
-        assertClientAvailable()
-        return [...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(source)])]
-      },
-      set(target, property, value) {
-        assertClientAvailable()
-        const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, property)
-        if (targetDescriptor && !targetDescriptor.configurable && !targetDescriptor.writable) {
-          return false
-        }
-        return Reflect.set(source, property, prepareCallbackValue(value), source)
-      },
-    })
-    consumerObjectFacades.set(source, proxy)
-    consumerSourcesByFacade.set(proxy, source)
-    return proxy
-  }
-
-  const wrapMethod = (method: object, receiver: object) => {
-    let wrappersByReceiver = methodFacades.get(method)
-    if (!wrappersByReceiver) {
-      wrappersByReceiver = new WeakMap()
-      methodFacades.set(method, wrappersByReceiver)
-    }
-
-    const cached = wrappersByReceiver.get(receiver)
-    if (cached) {
-      return cached
-    }
-
-    const invoke = (args: unknown[]) => {
-      assertClientAvailable()
-      if (typeof method !== 'function') {
-        throw new TypeError('Kit client method is not callable.')
-      }
-      try {
-        return wrapValue(Reflect.apply(method, receiver, args.map(prepareArgument)))
-      }
-      catch (error) {
-        throw wrapThrownValue(error)
-      }
-    }
-    const constructibleTarget = function (...args: unknown[]) {
-      return invoke(args)
-    }
-    let callableTarget: (...args: unknown[]) => unknown
-    if (isConstructible(method)) {
-      // NOTICE:
-      // A constructible Proxy target normally has a fixed `prototype` property.
-      // That property would hide the Provider constructor's wrapped prototype.
-      // A bound function stays constructible without imposing that invariant.
-      // Remove this only when the facade can preserve both Proxy invariants and the Provider prototype.
-      // oxlint-disable-next-line no-extra-bind
-      callableTarget = constructibleTarget.bind(undefined)
-    }
-    else {
-      callableTarget = (...args: unknown[]) => invoke(args)
-    }
-    const wrapped = createFacade(method, callableTarget) as (...args: unknown[]) => unknown
-    wrappersByReceiver.set(receiver, wrapped)
-    sourcesByFacade.set(wrapped, method)
-    return wrapped
-  }
-
-  function createFacade(source: object, target: object): object {
-    return new Proxy(target, {
-      construct(_target, args, newTarget) {
-        assertClientAvailable()
-        if (typeof source !== 'function') {
-          throw new TypeError('Kit client method is not constructible.')
-        }
-        const sourceNewTarget = unwrapValue(newTarget)
-        if (typeof sourceNewTarget !== 'function') {
-          throw new TypeError('Kit client constructor target is not constructible.')
-        }
-        try {
-          return wrapObject(Reflect.construct(source, args.map(prepareArgument), sourceNewTarget))
-        }
-        catch (error) {
-          throw wrapThrownValue(error)
-        }
-      },
-      deleteProperty(facade, property) {
-        assertClientAvailable()
-        const targetDescriptor = Reflect.getOwnPropertyDescriptor(facade, property)
-        if (targetDescriptor && !targetDescriptor.configurable) {
-          return false
-        }
-        return Reflect.deleteProperty(source, property)
-      },
-      get(facade, property) {
-        assertClientAvailable()
-        if (Array.isArray(source) && property === 'length') {
-          return Reflect.get(source, property, source)
-        }
-        const targetDescriptor = Reflect.getOwnPropertyDescriptor(facade, property)
-        if (targetDescriptor && !targetDescriptor.configurable) {
-          return Reflect.get(facade, property, facade)
-        }
-        const value = Reflect.get(source, property, source)
-        if (typeof value === 'function') {
-          return wrapMethod(value, source)
-        }
-        return wrapValue(value)
-      },
-      getOwnPropertyDescriptor(target, property) {
-        assertClientAvailable()
-
-        const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, property)
-        if (targetDescriptor && !targetDescriptor.configurable) {
-          return targetDescriptor
-        }
-
-        if (Array.isArray(source) && property === 'length') {
-          Reflect.set(target, property, source.length)
-          return Reflect.getOwnPropertyDescriptor(target, property)
-        }
-
-        const descriptor = Reflect.getOwnPropertyDescriptor(source, property)
-        if (!descriptor) {
-          return undefined
-        }
-
-        // Facade properties remain configurable so non-configurable Provider
-        // properties do not impose their proxy invariants on wrapped values.
-        if ('value' in descriptor) {
-          const value = typeof descriptor.value === 'function'
-            ? wrapMethod(descriptor.value, source)
-            : wrapValue(descriptor.value)
-          return {
-            configurable: true,
-            enumerable: descriptor.enumerable,
-            value,
-            writable: descriptor.writable,
-          }
-        }
-
-        return {
-          configurable: true,
-          enumerable: descriptor.enumerable,
-          get: descriptor.get ? wrapMethod(descriptor.get, source) : undefined,
-          set: descriptor.set ? wrapMethod(descriptor.set, source) : undefined,
-        }
-      },
-      getPrototypeOf() {
-        assertClientAvailable()
-        const prototype = Reflect.getPrototypeOf(source)
-        return prototype ? wrapObject(prototype) : null
-      },
-      has(_target, property) {
-        assertClientAvailable()
-        return Reflect.has(source, property)
-      },
-      ownKeys(target) {
-        assertClientAvailable()
-        return [...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(source)])]
-      },
-      set(target, property, value) {
-        assertClientAvailable()
-        const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, property)
-        if (targetDescriptor && !targetDescriptor.configurable && !targetDescriptor.writable) {
-          return false
-        }
-        return Reflect.set(source, property, prepareArgument(value), source)
-      },
-    })
-  }
-
-  function wrapObject(source: object): object {
-    if (typeof source === 'function') {
-      return wrapMethod(source, source)
-    }
-
-    const cached = objectFacades.get(source)
-    if (cached) {
-      return cached
-    }
-
-    // The proxy targets a separate facade so frozen Provider objects cannot
-    // impose proxy invariants on wrapped methods. All state remains on source.
-    const facade = Array.isArray(source)
-      ? []
-      : Object.create(Reflect.getPrototypeOf(source)) as object
-    const proxy = createFacade(source, facade)
-    objectFacades.set(source, proxy)
-    sourcesByFacade.set(proxy, source)
-    return proxy
-  }
-
-  return {
-    client: wrapObject(client) as TClient,
-    revoke: () => {
-      revoked = true
-    },
   }
 }
 
@@ -729,7 +370,7 @@ export class ExtensionHost {
       }
 
       const registration = this.kitApis.get(declaration.id)
-      if (!registration) {
+      if (!registration || !this.isKitRegistrationCurrent(declaration.id, registration)) {
         throw new Error(
           `Extension \`${manifest.id}\` requires Kit \`${declaration.id}\` at version \`${declaration.version}\`, but no active Provider is available.`,
         )
@@ -866,6 +507,7 @@ export class ExtensionHost {
     this.kitApis.set(kit.id, {
       kit: kit as KitRef<unknown>,
       clientRevokers: new Set(),
+      eventSubscribers: new Map(),
     })
     this.notifyKitApiWatchers(kit.id)
     return kit
@@ -885,7 +527,12 @@ export class ExtensionHost {
     return deleted
   }
 
-  private provideExtensionKit<TClient>(session: ExtensionSession, kit: KitRef<TClient>) {
+  private provideExtensionKit<TContract extends KitContract>(
+    session: ExtensionSession,
+    kit: TContract,
+    provider: KitProvider<TContract>,
+  ): KitProviderHandle<TContract> {
+    defineKitContract(kit)
     if (session.phase !== 'setting-up') {
       throw new Error(`Extension \`${session.extension.id}\` can provide Kits only during setup.`)
     }
@@ -912,15 +559,33 @@ export class ExtensionHost {
       throw new Error(`Kit API \`${kit.id}\` already has an active Provider.`)
     }
 
+    if (!provider || !provider.methods || typeof provider.methods !== 'object' || Array.isArray(provider.methods)) {
+      throw new TypeError(`Kit \`${kit.id}\` Provider methods must be an object.`)
+    }
+
+    const methodNames = Object.keys(kit.methods)
+    for (const methodName of methodNames) {
+      if (!Object.hasOwn(provider.methods, methodName) || typeof provider.methods[methodName] !== 'function') {
+        throw new TypeError(`Kit \`${kit.id}\` Provider does not implement method \`${methodName}\`.`)
+      }
+    }
+    for (const methodName of Object.keys(provider.methods)) {
+      if (!Object.hasOwn(kit.methods, methodName)) {
+        throw new TypeError(`Kit \`${kit.id}\` Provider implements undeclared method \`${methodName}\`.`)
+      }
+    }
+
     const registration: RegisteredKitApi = {
-      kit: kit as KitRef<unknown>,
+      kit,
       clientRevokers: new Set(),
+      provider: provider as KitProvider<KitContract>,
+      eventSubscribers: new Map(),
       ownerSessionId: session.id,
       ownerExtensionId: session.extension.id,
     }
     this.pendingExtensionKitApis.set(kit.id, registration)
 
-    return session.subscriptions.add({
+    const disposable = session.subscriptions.add({
       dispose: async () => {
         const isPending = this.pendingExtensionKitApis.get(kit.id) === registration
         const isActive = this.kitApis.get(kit.id) === registration
@@ -939,12 +604,20 @@ export class ExtensionHost {
           await disposeKitClients(registration.clientRevokers)
         }
         finally {
+          registration.eventSubscribers.clear()
           if (isActive) {
             this.notifyKitApiWatchers(kit.id)
           }
         }
       },
     })
+
+    return {
+      dispose: disposable.dispose,
+      emit: (event, payload) => {
+        this.emitKitEvent(registration, event, payload)
+      },
+    }
   }
 
   private async publishExtensionKits(session: ExtensionSession) {
@@ -1058,12 +731,164 @@ export class ExtensionHost {
     return this.kitApis.get(kitId) === registration && this.isKitRegistrationReady(registration)
   }
 
-  private async resolveKitApi<TClient>(
+  private createKitCallContext(
     session: ExtensionSession,
-    kit: KitContract<TClient>,
     subscriptions: DisposableStore,
     moduleId?: string,
-  ): Promise<ResolvedKitApiResult<TClient>> {
+  ): KitCallContext {
+    return {
+      consumerExtensionId: session.extension.id,
+      consumerSessionId: session.id,
+      consumerModuleId: moduleId,
+      subscriptions,
+    }
+  }
+
+  private createHostKitClientRuntime(
+    session: ExtensionSession,
+    subscriptions: DisposableStore,
+    moduleId?: string,
+  ) {
+    return {
+      extensionId: session.extension.id,
+      sessionId: session.id,
+      moduleId,
+      subscriptions,
+    }
+  }
+
+  private subscribeKitEvent(
+    registration: RegisteredKitApi,
+    eventName: string,
+    session: ExtensionSession,
+    subscriptions: DisposableStore,
+    listener: (payload: KitValue) => void | Promise<void>,
+  ) {
+    if (typeof listener !== 'function') {
+      throw new TypeError(`Kit event \`${registration.kit.id}.${eventName}\` listener must be a function.`)
+    }
+    if (!isKitContract(registration.kit) || !Object.hasOwn(registration.kit.events, eventName)) {
+      throw new Error(`Kit \`${registration.kit.id}\` does not declare event \`${eventName}\`.`)
+    }
+    if (!this.isKitRegistrationCurrent(registration.kit.id, registration)) {
+      throw new Error(`Kit \`${registration.kit.id}\` Provider is not available.`)
+    }
+
+    const subscribers = registration.eventSubscribers.get(eventName) ?? new Set()
+    const subscriber: RegisteredKitEventSubscriber = {
+      consumerSessionId: session.id,
+      disposed: false,
+      deliveryQueue: Promise.resolve(),
+      listener,
+    }
+    subscribers.add(subscriber)
+    registration.eventSubscribers.set(eventName, subscribers)
+
+    const subscription = {
+      dispose: () => {
+        if (subscriber.disposed) {
+          return
+        }
+
+        subscriber.disposed = true
+        subscribers.delete(subscriber)
+        if (subscribers.size === 0) {
+          registration.eventSubscribers.delete(eventName)
+        }
+      },
+    }
+    subscriptions.add(subscription)
+    return subscription
+  }
+
+  private emitKitEvent(
+    registration: RegisteredKitApi,
+    eventName: string,
+    payload: unknown,
+  ) {
+    if (!isKitContract(registration.kit) || !Object.hasOwn(registration.kit.events, eventName)) {
+      throw new Error(`Kit \`${registration.kit.id}\` does not declare event \`${eventName}\`.`)
+    }
+    if (!this.isKitRegistrationCurrent(registration.kit.id, registration)) {
+      throw new Error(`Kit \`${registration.kit.id}\` Provider is not available.`)
+    }
+
+    const eventPayload = cloneKitValue(payload, `Kit event \`${registration.kit.id}.${eventName}\` payload`)
+    for (const subscriber of registration.eventSubscribers.get(eventName) ?? []) {
+      const delivery = subscriber.deliveryQueue.then(async () => {
+        if (subscriber.disposed || !this.isKitRegistrationCurrent(registration.kit.id, registration)) {
+          return
+        }
+
+        await subscriber.listener(cloneHostDataValue(eventPayload))
+      })
+      subscriber.deliveryQueue = delivery.catch(() => {})
+    }
+  }
+
+  private createExtensionKitClient<TContract extends KitContract>(
+    contract: TContract,
+    registration: RegisteredKitApi,
+    session: ExtensionSession,
+    subscriptions: DisposableStore,
+    moduleId?: string,
+  ): KitContractClient<TContract> {
+    const client = Object.create(null) as Record<string, unknown>
+    const callContext = this.createKitCallContext(session, subscriptions, moduleId)
+
+    for (const methodName of Object.keys(contract.methods)) {
+      client[methodName] = async (input?: unknown) => {
+        if (!this.isKitRegistrationCurrent(contract.id, registration)) {
+          throw new Error(`Kit \`${contract.id}\` Provider is not available.`)
+        }
+
+        const handler = registration.provider?.methods[methodName]
+        if (!handler) {
+          throw new Error(`Kit \`${contract.id}\` Provider does not implement method \`${methodName}\`.`)
+        }
+
+        const providerInput = input === undefined
+          ? undefined
+          : cloneKitValue(input, `Kit method \`${contract.id}.${methodName}\` input`)
+        let output: unknown
+        try {
+          output = await handler(providerInput, callContext)
+        }
+        catch (error) {
+          throw new Error(
+            `Kit method \`${contract.id}.${methodName}\` failed: ${errorMessageFromValue(error)}`,
+          )
+        }
+
+        if (!this.isKitRegistrationCurrent(contract.id, registration)) {
+          throw new Error(`Kit \`${contract.id}\` Provider stopped before method \`${methodName}\` completed.`)
+        }
+
+        return cloneKitValue(output, `Kit method \`${contract.id}.${methodName}\` output`)
+      }
+    }
+
+    for (const eventName of Object.keys(contract.events)) {
+      client[eventName] = {
+        subscribe: (listener: (payload: KitValue) => void | Promise<void>) => {
+          return this.subscribeKitEvent(registration, eventName, session, subscriptions, listener)
+        },
+      }
+    }
+
+    return client as KitContractClient<TContract>
+  }
+
+  private async resolveKitApi<TKit extends ConsumableKit>(
+    session: ExtensionSession,
+    kit: TKit,
+    subscriptions: DisposableStore,
+    moduleId?: string,
+  ): Promise<ResolvedKitApiResult<TKit>> {
+    if (isKitContract(kit)) {
+      defineKitContract(kit)
+    }
+
     const registered = this.kitApis.get(kit.id)
     if (!registered) {
       return kitUseFailure(kit, 'missing-kit')
@@ -1096,73 +921,86 @@ export class ExtensionHost {
       return kitUseFailure(kit, 'permission-denied')
     }
 
-    const clientSubscriptions = registered.ownerSessionId ? new DisposableStore() : subscriptions
-    let client: TClient
-    try {
-      client = (registered.kit as KitRef<TClient>).createClient({
-        extensionId: session.extension.id,
-        sessionId: session.id,
-        moduleId,
-        subscriptions: clientSubscriptions,
-      })
-    }
-    catch (error) {
-      if (clientSubscriptions !== subscriptions) {
-        try {
-          await clientSubscriptions.dispose()
-        }
-        catch (cleanupError) {
-          throw new AggregateError([error, cleanupError], 'Kit client creation and cleanup both failed.')
-        }
+    if (!registered.ownerSessionId) {
+      if (isKitContract(registered.kit)) {
+        return kitUseFailure(kit, 'incompatible-version')
       }
-      throw error
-    }
 
-    const providerSessionId = registered.ownerSessionId
-    if (!providerSessionId) {
+      const client = registered.kit.createClient(
+        this.createHostKitClientRuntime(session, subscriptions, moduleId),
+      ) as KitClientOf<TKit>
       return { ok: true, client, registration: registered }
     }
 
-    if (!this.isKitRegistrationCurrent(kit.id, registered)) {
-      await clientSubscriptions.dispose()
-      return kitUseFailure(kit, 'missing-kit')
+    if (
+      !isKitContract(kit)
+      || !isKitContract(registered.kit)
+      || !registered.provider
+      || !hasSameKitContractSurface(kit, registered.kit)
+    ) {
+      return kitUseFailure(kit, 'incompatible-version')
     }
 
-    const objectClient = (typeof client === 'object' && client !== null) || typeof client === 'function'
-      ? createRevocableKitClient(client as object, () => {
-          return this.isKitRegistrationCurrent(kit.id, registered)
-        })
-      : undefined
+    const clientSubscriptions = new DisposableStore()
+    const client = this.createExtensionKitClient(
+      kit,
+      registered,
+      session,
+      clientSubscriptions,
+      moduleId,
+    ) as KitClientOf<TKit>
     const revoke = createTrackedClientRevoker(registered.clientRevokers, async () => {
-      objectClient?.revoke()
       await clientSubscriptions.dispose()
     })
     registered.clientRevokers.add(revoke)
     subscriptions.add({ dispose: revoke })
 
+    if (!this.isKitRegistrationCurrent(kit.id, registered)) {
+      await revoke()
+      return kitUseFailure(kit, 'missing-kit')
+    }
+
     return {
       ok: true,
-      client: (objectClient?.client ?? client) as TClient,
+      client,
       registration: registered,
       release: revoke,
     }
   }
 
+  private async recheckKitResult<TKit extends ConsumableKit>(
+    kit: TKit,
+    result: ResolvedKitApiResult<TKit>,
+  ): Promise<ResolvedKitApiResult<TKit>> {
+    if (!result.ok || this.isKitRegistrationCurrent(kit.id, result.registration)) {
+      return result
+    }
+
+    await result.release?.()
+    return kitUseFailure(kit, 'missing-kit')
+  }
+
   private createKitConsumer(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitConsumer {
     return {
-      use: async <TClient>(kit: KitRef<TClient> | KitContract<TClient>) => {
-        const result = await this.resolveKitApi(session, kit, subscriptions, moduleId)
+      use: async <TKit extends ConsumableKit>(kit: TKit) => {
+        const result = await this.recheckKitResult(
+          kit,
+          await this.resolveKitApi(session, kit, subscriptions, moduleId),
+        )
         if (result.ok) {
           return result.client
         }
-        const failure = result as Extract<KitUseResult<TClient>, { ok: false }>
-        throw failure.error
+
+        throw result.error
       },
-      tryUse: async <TClient>(kit: KitRef<TClient> | KitContract<TClient>) => {
-        const result = await this.resolveKitApi(session, kit, subscriptions, moduleId)
+      tryUse: async <TKit extends ConsumableKit>(kit: TKit) => {
+        const result = await this.recheckKitResult(
+          kit,
+          await this.resolveKitApi(session, kit, subscriptions, moduleId),
+        )
         return result.ok ? { ok: true, client: result.client } : result
       },
-      watch: <TClient>(kit: KitRef<TClient> | KitContract<TClient>, callback: (availability: KitAvailability<TClient>) => void | Promise<void>) => {
+      watch: <TKit extends ConsumableKit>(kit: TKit, callback: (availability: KitAvailability<TKit>) => void | Promise<void>) => {
         const watchers = this.kitApiWatchers.get(kit.id) ?? new Set()
         let disposed = false
         let latestDeliveryId = 0
@@ -1178,18 +1016,17 @@ export class ExtensionHost {
               return
             }
 
-            let result = await this.resolveKitApi(session, kit, subscriptions, moduleId)
-            if (result.ok && !this.isKitRegistrationCurrent(kit.id, result.registration)) {
-              await result.release?.()
-              result = kitUseFailure(kit, 'missing-kit')
-            }
-            const availability: KitAvailability<TClient> = result.ok
+            const result = await this.recheckKitResult(
+              kit,
+              await this.resolveKitApi(session, kit, subscriptions, moduleId),
+            )
+            const availability: KitAvailability<TKit> = result.ok
               ? { available: true, kit, client: result.client }
               : {
                   available: false,
                   kit,
-                  reason: (result as Extract<KitUseResult<TClient>, { ok: false }>).reason,
-                  error: (result as Extract<KitUseResult<TClient>, { ok: false }>).error,
+                  reason: result.reason,
+                  error: result.error,
                 }
             await callback(availability)
           })
@@ -1219,7 +1056,9 @@ export class ExtensionHost {
   private createExtensionKitRegistry(session: ExtensionSession): ExtensionKitRegistry {
     return {
       ...this.createKitConsumer(session, session.subscriptions),
-      provide: <TClient>(kit: KitRef<TClient>) => this.provideExtensionKit(session, kit),
+      provide: <TContract extends KitContract>(contract: TContract, provider: KitProvider<TContract>) => {
+        return this.provideExtensionKit(session, contract, provider)
+      },
     }
   }
 

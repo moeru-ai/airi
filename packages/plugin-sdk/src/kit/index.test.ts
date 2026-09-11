@@ -1,23 +1,68 @@
 import { describe, expect, it } from 'vitest'
 
 import { DisposableStore } from '../extension/disposable'
-import { defineKit, defineKitContract, kitUseFailure } from './index'
+import {
+  defineKit,
+  defineKitContract,
+  defineKitEvent,
+  defineKitMethod,
+  kitUseFailure,
+} from './index'
 
 describe('defineKit', () => {
-  it('defines a Consumer contract without a Provider implementation', () => {
-    const contract = defineKitContract<{ ping: () => string }>({
+  it('defines methods and events without a Provider implementation', () => {
+    interface PingResult { message: string }
+
+    const contract = defineKitContract({
       id: 'kit.contract',
       version: '1.0.0',
+      methods: {
+        ping: defineKitMethod<undefined, PingResult>(),
+      },
+      events: {
+        changed: defineKitEvent<PingResult>(),
+      },
     })
 
     expect(contract).toEqual({
       id: 'kit.contract',
       version: '1.0.0',
+      methods: {
+        ping: { kind: 'method' },
+      },
+      events: {
+        changed: { kind: 'event' },
+      },
     })
     expect(contract).not.toHaveProperty('createClient')
   })
 
-  it('defines a typed kit reference with expose policy metadata', () => {
+  it('rejects a name shared by a method and event', () => {
+    expect(() => defineKitContract({
+      id: 'kit.duplicate-member',
+      version: '1.0.0',
+      methods: {
+        changed: defineKitMethod<undefined, null>(),
+      },
+      events: {
+        changed: defineKitEvent<null>(),
+      },
+    })).toThrow('declares `changed` as both a method and an event')
+  })
+
+  it('rejects a method named then because Kit clients resolve through promises', () => {
+    const reservedMethodName = ['th', 'en'].join('')
+    expect(() => defineKitContract({
+      id: 'kit.thenable',
+      version: '1.0.0',
+      methods: {
+        [reservedMethodName]: defineKitMethod<undefined, null>(),
+      },
+      events: {},
+    })).toThrow('cannot declare reserved method `then`')
+  })
+
+  it('defines a typed host Kit reference with expose policy metadata', () => {
     const kit = defineKit({
       id: 'kit.test',
       version: '1.0.0',
@@ -38,7 +83,7 @@ describe('defineKit', () => {
     }).identity).toBe('extension-a:module-a')
   })
 
-  it('creates typed kit use failures', () => {
+  it('creates typed Kit use failures', () => {
     const kit = defineKit({
       id: 'kit.missing',
       version: '1.0.0',
@@ -49,7 +94,7 @@ describe('defineKit', () => {
 
     expect(result.ok).toBe(false)
     if (result.ok) {
-      throw new Error('Expected kit use to fail.')
+      throw new Error('Expected Kit use to fail.')
     }
     expect(result.reason).toBe('missing-kit')
     expect(result.error.message).toContain('kit.missing')
