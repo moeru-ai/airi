@@ -1302,6 +1302,95 @@ describe('for ExtensionHost', () => {
     expect(() => retainedCallback({ read: () => 'late' })).toThrow('revoked')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3987021623
+  it('revokes Provider capabilities delivered through nested Consumer callbacks', async () => {
+    interface NestedCallbackCapability {
+      read: () => string
+    }
+    interface NestedCallbackClient {
+      subscribe: (options: {
+        handlers: Array<{
+          onData: (capability: NestedCallbackCapability) => void
+        }>
+      }) => void
+    }
+
+    let deliver: ((capability: NestedCallbackCapability) => void) | undefined
+    const host = new ExtensionHost()
+    const kit = defineKit<NestedCallbackClient>({
+      id: 'kit.extension-nested-callback-payload',
+      version: '1.0.0',
+      createClient: () => ({
+        subscribe(options) {
+          deliver = options.handlers[0]?.onData
+        },
+      }),
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'nested-callback-payload-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'nested-callback-payload-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    let deliveredCapability: NestedCallbackCapability | undefined
+    await host.startExtension(defineExtension({
+      id: 'nested-callback-payload-consumer',
+      async setup(ctx) {
+        const client = await ctx.kits.use(kit)
+        client.subscribe({
+          handlers: [{
+            onData(capability) {
+              deliveredCapability = capability
+            },
+          }],
+        })
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'nested-callback-payload-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    const retainedCallback = deliver
+    if (!retainedCallback) {
+      throw new Error('Expected the Provider to retain the nested Consumer callback.')
+    }
+    retainedCallback({ read: () => 'ready' })
+    const capability = deliveredCapability
+    if (!capability) {
+      throw new Error('Expected the nested Consumer callback to receive a capability.')
+    }
+    expect(capability.read()).toBe('ready')
+
+    // ROOT CAUSE:
+    //
+    // Only top-level function arguments entered the callback proxy. Objects
+    // and arrays passed their nested callbacks directly into Provider code.
+    await host.stop(providerSession.id)
+
+    expect(() => capability.read()).toThrow('revoked')
+    expect(() => retainedCallback({ read: () => 'late' })).toThrow('revoked')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986773576
   it('disposes each Kit client scope when either owner unloads', async () => {
     interface ScopedClient {
@@ -1435,6 +1524,95 @@ describe('for ExtensionHost', () => {
     await host.stop(providerSession.id)
     expect(host.getSession(providerSession.id)).toBeUndefined()
     expect(observed).toEqual([true, false])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3987021629
+  it('rejects Kit resolution and availability after Provider teardown starts', async () => {
+    const host = new ExtensionHost()
+    const releaseProviderCleanup = Promise.withResolvers<void>()
+    let providerSessionId: string | undefined
+    let stopProvider: Promise<unknown> | undefined
+    const createClient = vi.fn(() => {
+      if (!providerSessionId) {
+        throw new Error('Expected the Provider session to be ready before client creation.')
+      }
+      if (!stopProvider) {
+        stopProvider = host.stop(providerSessionId)
+      }
+      return { read: () => 'ready' }
+    })
+    const kit = defineKit({
+      id: 'kit.extension-provider-teardown-resolution',
+      version: '1.0.0',
+      createClient,
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'provider-teardown-resolution-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+        ctx.subscriptions.add({
+          dispose: () => releaseProviderCleanup.promise,
+        })
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'provider-teardown-resolution-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+    providerSessionId = providerSession.id
+    let tryUse: (() => Promise<unknown>) | undefined
+    const observed: boolean[] = []
+    await host.startExtension(defineExtension({
+      id: 'provider-teardown-resolution-consumer',
+      setup(ctx) {
+        tryUse = async () => await ctx.kits.tryUse(kit)
+        ctx.kits.watch(kit, (availability) => {
+          observed.push(availability.available)
+        })
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'provider-teardown-resolution-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    await vi.waitFor(() => expect(observed).toEqual([false]))
+    expect(host.getSession(providerSession.id)?.phase).toBe('stopped')
+    expect(createClient).toHaveBeenCalledTimes(1)
+
+    const useDuringTeardown = tryUse
+    if (!useDuringTeardown) {
+      throw new Error('Expected the Consumer to expose Kit resolution.')
+    }
+    const result = await useDuringTeardown()
+    expect(result).toMatchObject({ ok: false, reason: 'missing-kit' })
+    expect(createClient).toHaveBeenCalledTimes(1)
+
+    // ROOT CAUSE:
+    //
+    // The active registration outlived the Provider's ready phase while its
+    // cleanup awaited another disposable. Resolution therefore created and
+    // announced an already-revoked client during teardown.
+    const providerCleanup = stopProvider
+    if (!providerCleanup) {
+      throw new Error('Expected Kit client creation to start Provider teardown.')
+    }
+    releaseProviderCleanup.resolve()
+    await providerCleanup
   })
 
   it('does not wait for Consumer watchers during Provider startup or unload', async () => {

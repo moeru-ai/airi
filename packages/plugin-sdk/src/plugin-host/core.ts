@@ -145,6 +145,13 @@ interface RegisteredKitApi {
 
 type KitClientRevoker = () => Promise<void>
 
+type ResolvedKitApiResult<TClient> = Extract<KitUseResult<TClient>, { ok: false }> | {
+  ok: true
+  client: TClient
+  registration: RegisteredKitApi
+  release?: KitClientRevoker
+}
+
 function omitModuleId<C extends HostDataRecord>(input: BoundUpdateBindingInput<C>) {
   return {
     state: input.state,
@@ -202,6 +209,8 @@ function createRevocableKitClient<TClient extends object>(
   const sourcesByFacade = new WeakMap<object, object>()
   const methodFacades = new WeakMap<object, WeakMap<object, (...args: unknown[]) => unknown>>()
   const consumerCallbackFacades = new WeakMap<object, object>()
+  const consumerObjectFacades = new WeakMap<object, object>()
+  const consumerSourcesByFacade = new WeakMap<object, object>()
 
   const assertClientAvailable = () => {
     if (revoked || !isProviderAvailable()) {
@@ -269,31 +278,36 @@ function createRevocableKitClient<TClient extends object>(
     return wrapObject(value)
   }
 
-  const wrapConsumerCallback = (callback: object): object => {
+  function wrapConsumerCallback<TCallback extends object>(callback: TCallback): TCallback {
     if (typeof callback !== 'function') {
       return callback
     }
 
     const cached = consumerCallbackFacades.get(callback)
     if (cached) {
-      return cached
+      return cached as TCallback
     }
 
     const wrapped = new Proxy(callback, {
       apply(target, thisArg, args) {
         assertClientAvailable()
-        return unwrapValue(Reflect.apply(target, wrapValue(thisArg), args.map(wrapValue)))
+        return prepareArgument(Reflect.apply(target, prepareCallbackValue(thisArg), args.map(prepareCallbackValue)))
       },
       construct(target, args, newTarget) {
         assertClientAvailable()
-        return unwrapValue(Reflect.construct(target, args.map(wrapValue), newTarget)) as object
+        const result = prepareArgument(Reflect.construct(target, args.map(prepareCallbackValue), newTarget))
+        if (!isObjectValue(result)) {
+          throw new TypeError('Kit Consumer callback constructor returned a non-object value.')
+        }
+        return result
       },
     })
     consumerCallbackFacades.set(callback, wrapped)
-    return wrapped
+    consumerSourcesByFacade.set(wrapped, callback)
+    return wrapped as TCallback
   }
 
-  const prepareArgument = (value: unknown): unknown => {
+  function prepareArgument(value: unknown): unknown {
     if (!isObjectValue(value)) {
       return value
     }
@@ -302,7 +316,118 @@ function createRevocableKitClient<TClient extends object>(
     if (providerSource) {
       return providerSource
     }
-    return typeof value === 'function' ? wrapConsumerCallback(value) : value
+    if (consumerSourcesByFacade.has(value)) {
+      return value
+    }
+    return typeof value === 'function' ? wrapConsumerCallback(value) : wrapConsumerObject(value)
+  }
+
+  function prepareCallbackValue(value: unknown): unknown {
+    if (!isObjectValue(value)) {
+      return value
+    }
+
+    const consumerSource = consumerSourcesByFacade.get(value)
+    if (consumerSource) {
+      return consumerSource
+    }
+    if (consumerCallbackFacades.has(value) || consumerObjectFacades.has(value)) {
+      return value
+    }
+    return wrapValue(value)
+  }
+
+  function wrapConsumerObject(source: object): object {
+    if (typeof source === 'function') {
+      return wrapConsumerCallback(source)
+    }
+
+    const cached = consumerObjectFacades.get(source)
+    if (cached) {
+      return cached
+    }
+
+    // Provider code receives a separate facade so callbacks nested in frozen
+    // Consumer objects still cross the same revocation boundary.
+    const facade = Array.isArray(source)
+      ? []
+      : Object.create(Reflect.getPrototypeOf(source)) as object
+    const proxy = new Proxy(facade, {
+      deleteProperty(target, property) {
+        assertClientAvailable()
+        const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, property)
+        if (targetDescriptor && !targetDescriptor.configurable) {
+          return false
+        }
+        return Reflect.deleteProperty(source, property)
+      },
+      get(target, property) {
+        assertClientAvailable()
+        if (Array.isArray(source) && property === 'length') {
+          return Reflect.get(source, property, source)
+        }
+        const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, property)
+        if (targetDescriptor && !targetDescriptor.configurable) {
+          return Reflect.get(target, property, target)
+        }
+        return prepareArgument(Reflect.get(source, property, source))
+      },
+      getOwnPropertyDescriptor(target, property) {
+        assertClientAvailable()
+        const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, property)
+        if (targetDescriptor && !targetDescriptor.configurable) {
+          return targetDescriptor
+        }
+
+        if (Array.isArray(source) && property === 'length') {
+          Reflect.set(target, property, source.length)
+          return Reflect.getOwnPropertyDescriptor(target, property)
+        }
+
+        const descriptor = Reflect.getOwnPropertyDescriptor(source, property)
+        if (!descriptor) {
+          return undefined
+        }
+        if ('value' in descriptor) {
+          return {
+            configurable: true,
+            enumerable: descriptor.enumerable,
+            value: prepareArgument(descriptor.value),
+            writable: descriptor.writable,
+          }
+        }
+        return {
+          configurable: true,
+          enumerable: descriptor.enumerable,
+          get: descriptor.get ? wrapConsumerCallback(descriptor.get) : undefined,
+          set: descriptor.set ? wrapConsumerCallback(descriptor.set) : undefined,
+        }
+      },
+      getPrototypeOf() {
+        assertClientAvailable()
+        const prototype = Reflect.getPrototypeOf(source)
+        return prototype ? wrapConsumerObject(prototype) : null
+      },
+      has(_target, property) {
+        assertClientAvailable()
+        return Reflect.has(source, property)
+      },
+      ownKeys(target) {
+        assertClientAvailable()
+        return [...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(source)])]
+      },
+      set(target, property, value) {
+        assertClientAvailable()
+        const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, property)
+        if (targetDescriptor && !targetDescriptor.configurable && !targetDescriptor.writable) {
+          return false
+        }
+        return Reflect.set(source, property, prepareCallbackValue(value), source)
+      },
+    })
+    consumerObjectFacades.set(source, proxy)
+    consumerSourcesByFacade.set(proxy, source)
+    return proxy
   }
 
   const wrapMethod = (method: object, receiver: object) => {
@@ -922,12 +1047,23 @@ export class ExtensionHost {
     }
   }
 
+  private isKitRegistrationReady(registration: RegisteredKitApi) {
+    if (!registration.ownerSessionId) {
+      return true
+    }
+    return this.extensionSessionService.get(registration.ownerSessionId)?.phase === 'ready'
+  }
+
+  private isKitRegistrationCurrent(kitId: string, registration: RegisteredKitApi) {
+    return this.kitApis.get(kitId) === registration && this.isKitRegistrationReady(registration)
+  }
+
   private async resolveKitApi<TClient>(
     session: ExtensionSession,
     kit: KitContract<TClient>,
     subscriptions: DisposableStore,
     moduleId?: string,
-  ): Promise<KitUseResult<TClient>> {
+  ): Promise<ResolvedKitApiResult<TClient>> {
     const registered = this.kitApis.get(kit.id)
     if (!registered) {
       return kitUseFailure(kit, 'missing-kit')
@@ -935,6 +1071,10 @@ export class ExtensionHost {
 
     if (registered.kit.version !== kit.version) {
       return kitUseFailure(kit, 'incompatible-version')
+    }
+
+    if (!this.isKitRegistrationCurrent(kit.id, registered)) {
+      return kitUseFailure(kit, 'missing-kit')
     }
 
     if (registered.ownerSessionId) {
@@ -980,12 +1120,17 @@ export class ExtensionHost {
 
     const providerSessionId = registered.ownerSessionId
     if (!providerSessionId) {
-      return { ok: true, client }
+      return { ok: true, client, registration: registered }
+    }
+
+    if (!this.isKitRegistrationCurrent(kit.id, registered)) {
+      await clientSubscriptions.dispose()
+      return kitUseFailure(kit, 'missing-kit')
     }
 
     const objectClient = (typeof client === 'object' && client !== null) || typeof client === 'function'
       ? createRevocableKitClient(client as object, () => {
-          return this.extensionSessionService.get(providerSessionId)?.phase === 'ready'
+          return this.isKitRegistrationCurrent(kit.id, registered)
         })
       : undefined
     const revoke = createTrackedClientRevoker(registered.clientRevokers, async () => {
@@ -995,7 +1140,12 @@ export class ExtensionHost {
     registered.clientRevokers.add(revoke)
     subscriptions.add({ dispose: revoke })
 
-    return { ok: true, client: (objectClient?.client ?? client) as TClient }
+    return {
+      ok: true,
+      client: (objectClient?.client ?? client) as TClient,
+      registration: registered,
+      release: revoke,
+    }
   }
 
   private createKitConsumer(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitConsumer {
@@ -1009,7 +1159,8 @@ export class ExtensionHost {
         throw failure.error
       },
       tryUse: async <TClient>(kit: KitRef<TClient> | KitContract<TClient>) => {
-        return await this.resolveKitApi(session, kit, subscriptions, moduleId)
+        const result = await this.resolveKitApi(session, kit, subscriptions, moduleId)
+        return result.ok ? { ok: true, client: result.client } : result
       },
       watch: <TClient>(kit: KitRef<TClient> | KitContract<TClient>, callback: (availability: KitAvailability<TClient>) => void | Promise<void>) => {
         const watchers = this.kitApiWatchers.get(kit.id) ?? new Set()
@@ -1027,7 +1178,11 @@ export class ExtensionHost {
               return
             }
 
-            const result = await this.resolveKitApi(session, kit, subscriptions, moduleId)
+            let result = await this.resolveKitApi(session, kit, subscriptions, moduleId)
+            if (result.ok && !this.isKitRegistrationCurrent(kit.id, result.registration)) {
+              await result.release?.()
+              result = kitUseFailure(kit, 'missing-kit')
+            }
             const availability: KitAvailability<TClient> = result.ok
               ? { available: true, kit, client: result.client }
               : {
