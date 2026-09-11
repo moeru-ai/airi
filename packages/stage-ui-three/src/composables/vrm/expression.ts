@@ -24,6 +24,14 @@ export function useVRMEmote(vrm: VRMCore) {
   const targetExpressionValues = ref(new Map<string, number>())
   const resetTimeout = ref<number>()
   let wasSkippingVisemes = false
+  // Morph names captured while entering an emotion, kept until the neutral
+  // transition fully settles. ownedExpressionNames() only reflects emotion
+  // states registered *right now*, so if a caller calls removeEmotionState
+  // (or replaces a state) for the departing emotion before its scheduled
+  // reset fires, its morph would otherwise drop out of tracking and never
+  // get the terminal zero write — leaving the avatar stuck in that
+  // expression. This set survives such mutations across emotionStates.
+  const trackedExpressionNames = new Set<string>()
 
   // Utility functions
   const lerp = (start: number, end: number, t: number): number => {
@@ -149,13 +157,23 @@ export function useVRMEmote(vrm: VRMCore) {
       // transition starts from the actual displayed values instead of
       // snapping to 0 first (fixes #590). Unrelated expressions (blink,
       // animation-driven morphs) are left to their own controllers.
+      //
+      // Union with trackedExpressionNames rather than using
+      // ownedExpressionNames() alone: a still-pending morph from an
+      // emotion state removed since it was entered must keep being driven
+      // toward 0, even though it is no longer "owned" by any registered
+      // state.
       const expressionNames = Object.keys(vrm.expressionManager.expressionMap)
-      for (const name of ownedExpressionNames(expressionNames)) {
+      const namesToCapture = new Set([...ownedExpressionNames(expressionNames), ...trackedExpressionNames])
+      for (const name of namesToCapture) {
         const currentValue = vrm.expressionManager.getValue(name) || 0
         currentExpressionValues.value.set(name, currentValue)
         // Default target is 0 for owned expressions not in the target emotion
         targetExpressionValues.value.set(name, 0)
       }
+      trackedExpressionNames.clear()
+      for (const name of namesToCapture)
+        trackedExpressionNames.add(name)
     }
 
     // Override target values for specified expressions in the emotion state
@@ -271,6 +289,7 @@ export function useVRMEmote(vrm: VRMCore) {
         currentExpressionValues.value.clear()
         targetExpressionValues.value.clear()
         visemeStartValues.value.clear()
+        trackedExpressionNames.clear()
         return
       }
     }
@@ -312,6 +331,7 @@ export function useVRMEmote(vrm: VRMCore) {
         currentEmotion.value = null
         currentExpressionValues.value.clear()
         targetExpressionValues.value.clear()
+        trackedExpressionNames.clear()
       }
     }
     else if (currentEmotion.value) {

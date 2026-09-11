@@ -71,6 +71,38 @@ describe('useVRMEmote', () => {
     expect(vrm.expressionManager?.setValue).not.toHaveBeenCalledWith('blink', expect.anything())
   })
 
+  it('still zeroes a morph after its emotion state is removed before the reset settles', () => {
+    // ROOT CAUSE:
+    //
+    // The neutral transition captured which morphs to zero via
+    // ownedExpressionNames(), recomputed from the *current* emotionStates
+    // map every time setEmotion() ran. If a caller removed (or replaced)
+    // the departing emotion's state — e.g. removeEmotionState('happy') —
+    // before the scheduled reset fired, that morph silently dropped out of
+    // ownership and the neutral transition never wrote it back to 0,
+    // leaving the avatar stuck showing the removed expression forever.
+    //
+    // We fixed this by tracking active morph names in a set that survives
+    // emotionStates mutations, cleared only once the neutral transition
+    // fully settles.
+    const vrm = createMockVRMCore()
+    const emote = useVRMEmote(vrm)
+
+    emote.setEmotion('happy', 1)
+    emote.update(0.4) // Settle happy: 'happy' and 'aa' held at 0.7 / 0.2
+
+    emote.removeEmotionState('happy')
+
+    emote.setEmotion('neutral')
+    vi.mocked(vrm.expressionManager!.setValue).mockClear()
+
+    emote.update(1.0) // > 0.6s blend duration for neutral
+    expect(emote.currentEmotion.value).toBeNull()
+    expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('happy', 0)
+    expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('aa', 0)
+    expect(vrm.expressionManager?.setValue).toHaveBeenCalledWith('neutral', 1)
+  })
+
   it('keeps the state machine advancing during lip sync and blends deferred visemes when speech ends', () => {
     const vrm = createMockVRMCore()
     const emote = useVRMEmote(vrm)
