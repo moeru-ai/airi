@@ -214,6 +214,23 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
     return sourcesByFacade.get(value) ?? value
   }
 
+  const isConstructible = (value: object) => {
+    if (typeof value !== 'function') {
+      return false
+    }
+    try {
+      Reflect.construct(Object, [], value)
+      return true
+    }
+    catch {
+      return false
+    }
+  }
+
+  const wrapThrownValue = (value: unknown): unknown => {
+    return isObjectValue(value) ? wrapObject(value) : value
+  }
+
   const wrapValue = (value: unknown): unknown => {
     if (!isObjectValue(value)) {
       return value
@@ -238,7 +255,7 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
         },
         (error) => {
           assertClientAvailable()
-          throw error
+          throw wrapThrownValue(error)
         },
       )
     }
@@ -257,12 +274,33 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
       return cached
     }
 
-    const callableTarget = (...args: unknown[]) => {
+    const invoke = (args: unknown[]) => {
       assertClientAvailable()
       if (typeof method !== 'function') {
         throw new TypeError('Kit client method is not callable.')
       }
-      return wrapValue(Reflect.apply(method, receiver, args.map(unwrapValue)))
+      try {
+        return wrapValue(Reflect.apply(method, receiver, args.map(unwrapValue)))
+      }
+      catch (error) {
+        throw wrapThrownValue(error)
+      }
+    }
+    const constructibleTarget = function (...args: unknown[]) {
+      return invoke(args)
+    }
+    let callableTarget: (...args: unknown[]) => unknown
+    if (isConstructible(method)) {
+      // NOTICE:
+      // A constructible Proxy target normally has a fixed `prototype` property.
+      // That property would hide the Provider constructor's wrapped prototype.
+      // A bound function stays constructible without imposing that invariant.
+      // Remove this only when the facade can preserve both Proxy invariants and the Provider prototype.
+      // oxlint-disable-next-line no-extra-bind
+      callableTarget = constructibleTarget.bind(undefined)
+    }
+    else {
+      callableTarget = (...args: unknown[]) => invoke(args)
     }
     const wrapped = createFacade(method, callableTarget) as (...args: unknown[]) => unknown
     wrappersByReceiver.set(receiver, wrapped)
@@ -272,6 +310,22 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
 
   function createFacade(source: object, target: object): object {
     return new Proxy(target, {
+      construct(_target, args, newTarget) {
+        assertClientAvailable()
+        if (typeof source !== 'function') {
+          throw new TypeError('Kit client method is not constructible.')
+        }
+        const sourceNewTarget = unwrapValue(newTarget)
+        if (typeof sourceNewTarget !== 'function') {
+          throw new TypeError('Kit client constructor target is not constructible.')
+        }
+        try {
+          return wrapObject(Reflect.construct(source, args.map(unwrapValue), sourceNewTarget))
+        }
+        catch (error) {
+          throw wrapThrownValue(error)
+        }
+      },
       deleteProperty(facade, property) {
         assertClientAvailable()
         const targetDescriptor = Reflect.getOwnPropertyDescriptor(facade, property)

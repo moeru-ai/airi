@@ -925,6 +925,185 @@ describe('for ExtensionHost', () => {
     expect(() => callableClient.status).toThrow('revoked')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986658599
+  it('preserves constructible Kit clients through revocation', async () => {
+    interface ConstructedCapability {
+      read: () => string
+    }
+    interface ConstructibleClient {
+      new (value: string): ConstructedCapability
+    }
+
+    class ProviderCapability implements ConstructedCapability {
+      constructor(private readonly value: string) {}
+
+      read() {
+        return this.value
+      }
+    }
+
+    const host = new ExtensionHost()
+    const kit = defineKit<ConstructibleClient>({
+      id: 'kit.extension-constructible-client',
+      version: '1.0.0',
+      createClient: () => ProviderCapability,
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'constructible-client-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'constructible-client-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    let client: ConstructibleClient | undefined
+    await host.startExtension(defineExtension({
+      id: 'constructible-client-consumer',
+      async setup(ctx) {
+        client = await ctx.kits.use(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'constructible-client-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    const ClientConstructor = client
+    if (!ClientConstructor) {
+      throw new Error('Expected the Consumer to receive a constructible Kit client.')
+    }
+
+    // ROOT CAUSE:
+    //
+    // The callable facade used an arrow function target. Proxy construction
+    // therefore failed before it could reach the Provider constructor.
+    const capability = new ClientConstructor('ready')
+    expect(capability.read()).toBe('ready')
+    expect(capability).toBeInstanceOf(ClientConstructor)
+
+    await host.stop(providerSession.id)
+
+    expect(() => new ClientConstructor('late')).toThrow('revoked')
+    expect(() => capability.read()).toThrow('revoked')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986658606
+  it('revokes capabilities carried by thrown and rejected Kit values', async () => {
+    interface FailureValue {
+      capability: {
+        read: () => string
+      }
+    }
+    interface FailingClient {
+      rejectCapability: () => Promise<never>
+      throwCapability: () => never
+    }
+
+    const createFailure = (): FailureValue => ({
+      capability: { read: () => 'ready' },
+    })
+    const host = new ExtensionHost()
+    const kit = defineKit<FailingClient>({
+      id: 'kit.extension-failure-value',
+      version: '1.0.0',
+      createClient: () => ({
+        rejectCapability: () => Promise.reject(createFailure()),
+        throwCapability: () => {
+          throw createFailure()
+        },
+      }),
+    })
+    const providerSession = await host.startExtension(defineExtension({
+      id: 'failure-value-provider',
+      setup(ctx) {
+        ctx.kits.provide(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'failure-value-provider',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './provider.mjs' },
+        permissions: {},
+        kits: { provides: [{ id: kit.id, version: kit.version, exposure: 'local-only' }] },
+      },
+    })
+
+    let client: FailingClient | undefined
+    await host.startExtension(defineExtension({
+      id: 'failure-value-consumer',
+      async setup(ctx) {
+        client = await ctx.kits.use(kit)
+      },
+    }), {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: 'failure-value-consumer',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        entrypoints: { electron: './consumer.mjs' },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        kits: { uses: [{ id: kit.id, version: kit.version }] },
+      },
+    })
+
+    const failingClient = client
+    if (!failingClient) {
+      throw new Error('Expected the Consumer to receive a failing Kit client.')
+    }
+
+    let thrownValue: FailureValue | undefined
+    try {
+      failingClient.throwCapability()
+    }
+    catch (error) {
+      thrownValue = error as FailureValue
+    }
+
+    let rejectedValue: FailureValue | undefined
+    try {
+      await failingClient.rejectCapability()
+    }
+    catch (error) {
+      rejectedValue = error as FailureValue
+    }
+
+    if (!thrownValue || !rejectedValue) {
+      throw new Error('Expected the Kit client to return both failure values.')
+    }
+    expect(thrownValue.capability.read()).toBe('ready')
+    expect(rejectedValue.capability.read()).toBe('ready')
+
+    // ROOT CAUSE:
+    //
+    // Object-valued failures crossed the membrane unchanged. Consumers could
+    // retain capabilities from them and call those capabilities after unload.
+    await host.stop(providerSession.id)
+
+    expect(() => thrownValue.capability.read()).toThrow('revoked')
+    expect(() => rejectedValue.capability.read()).toThrow('revoked')
+  })
+
   it('isolates Consumer watcher failures while a Provider unloads', async () => {
     const host = new ExtensionHost()
     const kit = defineKit({
