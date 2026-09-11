@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SwipeableProps, SwipeableSlotProps } from './swipeable'
 
-import { useEventListener, usePreferredReducedMotion } from '@vueuse/core'
+import { usePreferredReducedMotion, useSwipe } from '@vueuse/core'
 import { animate } from 'animejs'
 import { clamp } from 'es-toolkit'
 import { computed, onUnmounted, reactive, shallowRef, useTemplateRef, watch } from 'vue'
@@ -11,7 +11,7 @@ import { useSwipeGesture } from './use-swipe-gesture'
 const props = withDefaults(defineProps<SwipeableProps>(), {
   direction: 'left',
   enabled: true,
-  input: 'pointer',
+  input: 'touch',
   startDistance: 8,
   threshold: 48,
 })
@@ -32,6 +32,15 @@ const { state: wheelGesture } = useSwipeGesture(rootRef, {
     && !event.ctrlKey
     && event.deltaMode === WheelEvent.DOM_DELTA_PIXEL,
 })
+const {
+  lengthX: touchDistanceX,
+  lengthY: touchDistanceY,
+} = useSwipe(rootRef, {
+  threshold: 0,
+  onSwipeStart: beginTouchSwipe,
+  onSwipe: updateTouchSwipe,
+  onSwipeEnd: finishTouchSwipe,
+})
 const position = reactive({ x: 0 })
 const active = shallowRef(false)
 const thresholdCrossed = shallowRef(false)
@@ -45,9 +54,9 @@ const slotProps = computed<SwipeableSlotProps>(() => ({
 }))
 
 let returnAnimation: ReturnType<typeof animate> | undefined
-let activePointerId: number | undefined
-let pointerStartX = 0
-let pointerStartY = 0
+// Touch travel stays pending while tap feedback and swipe movement overlap. Once
+// an axis is clear, its intent remains locked until touchend or touchcancel.
+let touchIntent: 'pending' | 'horizontal' | 'vertical' = 'pending'
 let wheelDistance = 0
 let wheelIntent: 'pending' | 'horizontal' | 'vertical' = 'pending'
 let wheelSessionActive = false
@@ -70,16 +79,11 @@ function mapGestureDistance(distance: number) {
   return resistanceLength * -Math.expm1(-distance / resistanceLength)
 }
 
-function setGestureDistance(distance: number) {
+function setVisualDistance(distance: number) {
   const positiveDistance = Math.max(0, distance)
   const visibleDistance = mapGestureDistance(positiveDistance)
   const direction = props.direction === 'left' ? -1 : 1
   pendingPositionX = direction * visibleDistance
-
-  const crossed = positiveDistance >= props.threshold
-  if (crossed && !thresholdCrossed.value)
-    emit('thresholdEnter')
-  thresholdCrossed.value = crossed
 
   if (positionFrame !== undefined)
     return
@@ -88,6 +92,16 @@ function setGestureDistance(distance: number) {
     position.x = pendingPositionX
     positionFrame = undefined
   })
+}
+
+function setGestureDistance(distance: number) {
+  const positiveDistance = Math.max(0, distance)
+  setVisualDistance(positiveDistance)
+
+  const crossed = positiveDistance >= props.threshold
+  if (crossed && !thresholdCrossed.value)
+    emit('thresholdEnter')
+  thresholdCrossed.value = crossed
 }
 
 function animatePositionToRest() {
@@ -116,60 +130,64 @@ function resetPosition() {
   animatePositionToRest()
 }
 
-function beginPointerSwipe(event: PointerEvent) {
-  if (!props.enabled || props.input !== 'pointer')
+function beginTouchSwipe() {
+  if (!props.enabled || props.input !== 'touch')
     return
 
-  if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0))
-    return
-
-  activePointerId = event.pointerId
-  pointerStartX = event.clientX
-  pointerStartY = event.clientY
-  returnAnimation?.cancel()
+  touchIntent = 'pending'
 }
 
-function updatePointerSwipe(event: PointerEvent) {
-  if (event.pointerId !== activePointerId)
+function updateTouchSwipe() {
+  if (!props.enabled || props.input !== 'touch')
     return
 
-  const deltaX = pointerStartX - event.clientX
-  const deltaY = Math.abs(event.clientY - pointerStartY)
+  if (touchIntent === 'vertical')
+    return
+
+  const deltaX = touchDistanceX.value
+  const deltaY = Math.abs(touchDistanceY.value)
   const distance = directedDistance(deltaX)
-  if (Math.max(Math.abs(deltaX), deltaY) < props.startDistance)
-    return
+  const absoluteDeltaX = Math.abs(deltaX)
 
-  if (distance <= 0 || deltaY >= distance) {
-    setGestureDistance(0)
-    return
+  if (touchIntent === 'pending') {
+    // Keep the message under the finger while the nested press animation is
+    // still active. startDistance decides intent; it is not a visual dead zone.
+    returnAnimation?.cancel()
+    setVisualDistance(distance)
+
+    if (Math.max(absoluteDeltaX, deltaY) < props.startDistance)
+      return
+
+    if (deltaY >= absoluteDeltaX) {
+      touchIntent = 'vertical'
+      animatePositionToRest()
+      return
+    }
+
+    if (distance <= 0)
+      return
+
+    touchIntent = 'horizontal'
+    active.value = true
   }
-
-  // The nested action menu must receive the first move before this ancestor
-  // captures the pointer. Reka uses that move to cancel its long-press timer.
-  if (!active.value && event.isTrusted)
-    rootRef.value?.setPointerCapture(event.pointerId)
 
   returnAnimation?.cancel()
   active.value = true
   setGestureDistance(distance)
 }
 
-function finishPointerSwipe(event: PointerEvent) {
-  if (event.pointerId !== activePointerId)
+function finishTouchSwipe(event: TouchEvent) {
+  if (props.input !== 'touch')
     return
 
-  activePointerId = undefined
-  if (props.enabled && thresholdCrossed.value)
+  const shouldCommit = event.type === 'touchend'
+    && touchIntent === 'horizontal'
+    && props.enabled
+    && thresholdCrossed.value
+  touchIntent = 'pending'
+  resetPosition()
+  if (shouldCommit)
     emit('commit')
-  resetPosition()
-}
-
-function cancelPointerSwipe(event: PointerEvent) {
-  if (event.pointerId !== activePointerId)
-    return
-
-  activePointerId = undefined
-  resetPosition()
 }
 
 function finishWheelSwipe() {
@@ -188,7 +206,7 @@ function finishWheelSwipe() {
 }
 
 function cancelGesture() {
-  activePointerId = undefined
+  touchIntent = 'pending'
   wheelIntent = 'pending'
   wheelSessionActive = false
   wheelDistance = 0
@@ -259,10 +277,6 @@ function updateWheelSwipe(state: NonNullable<typeof wheelGesture.value>) {
   setGestureDistance(wheelDistance)
 }
 
-useEventListener(rootRef, 'pointerdown', beginPointerSwipe, { passive: true })
-useEventListener(rootRef, 'pointermove', updatePointerSwipe, { passive: true })
-useEventListener(rootRef, 'pointerup', finishPointerSwipe, { passive: true })
-useEventListener(rootRef, ['pointercancel', 'lostpointercapture'], cancelPointerSwipe, { passive: true })
 watch(wheelGesture, (state) => {
   if (state)
     updateWheelSwipe(state)
@@ -283,7 +297,7 @@ onUnmounted(() => {
     data-swipeable
     :data-swipe-active="active"
     :style="{
-      touchAction: enabled && input === 'pointer' ? 'pan-y' : undefined,
+      touchAction: enabled && input === 'touch' ? 'pan-y' : undefined,
     }"
     :class="['relative']"
   >
