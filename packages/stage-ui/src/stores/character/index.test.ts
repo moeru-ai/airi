@@ -7,14 +7,24 @@ import { useSettingsBilingual } from '../settings/bilingual'
 
 const mocks = vi.hoisted(() => ({
   spoken: [] as string[],
-  /** Everything the store broadcasts: a reaction's announcement, then its pairs. */
-  pairs: [] as Array<{ kind: string, turnId: string, [key: string]: unknown }>,
+  /** Everything the store broadcasts: a reaction's announcement, pairs, its end. */
+  events: [] as Array<{ kind: string, turnId: string, [key: string]: unknown }>,
 }))
+
+/** Kinds the store broadcast, in order. */
+function broadcastKinds() {
+  return mocks.events.map(event => event.kind)
+}
+
+/** Only the sentence pairs among them. */
+function broadcastPairs() {
+  return mocks.events.filter(event => event.kind === 'pair')
+}
 
 vi.mock('../../composables/use-spark-translation-channel', () => ({
   useSparkTranslationChannel: () => ({
     post: (event: { kind: string, turnId: string, [key: string]: unknown }) => {
-      mocks.pairs.push(event)
+      mocks.events.push(event)
     },
   }),
 }))
@@ -71,6 +81,7 @@ function drainingMarkerParser(options: { onLiteral?: (literal: string) => void |
 
 /** Feeds one reaction in three chunks so a tag is split across chunk bounds. */
 function streamBilingualReaction(store: ReturnType<typeof useCharacterStore>, sparkEventId = 'spark-1') {
+  store.prepareSparkNotifyReaction(sparkEventId)
   store.onSparkNotifyReactionStreamEvent(sparkEventId, '[EN]Hello the')
   store.onSparkNotifyReactionStreamEvent(sparkEventId, 're.[CN]你好')
   store.onSparkNotifyReactionStreamEvent(sparkEventId, '。')
@@ -81,7 +92,7 @@ describe('useCharacterStore spark reactions', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     mocks.spoken.length = 0
-    mocks.pairs.length = 0
+    mocks.events.length = 0
     setCharacterLlmMarkerParserFactoryForTest(markerParser as unknown as Parameters<typeof setCharacterLlmMarkerParserFactoryForTest>[0])
 
     const bilingual = useSettingsBilingual()
@@ -101,7 +112,7 @@ describe('useCharacterStore spark reactions', () => {
     streamBilingualReaction(useCharacterStore())
 
     expect(mocks.spoken.join('')).toBe('Hello there.')
-    await vi.waitFor(() => expect(mocks.pairs).toEqual([
+    await vi.waitFor(() => expect(broadcastPairs()).toEqual([
       {
         kind: 'pair',
         turnId: 'spark:spark-1',
@@ -115,13 +126,14 @@ describe('useCharacterStore spark reactions', () => {
   it('broadcasts one pair per sentence', async () => {
     const store = useCharacterStore()
 
+    store.prepareSparkNotifyReaction('spark-3')
     store.onSparkNotifyReactionStreamEvent('spark-3', '[EN]First.')
     store.onSparkNotifyReactionStreamEvent('spark-3', '[CN]第一句。')
     store.onSparkNotifyReactionStreamEvent('spark-3', '[EN]Second.')
     store.onSparkNotifyReactionStreamEvent('spark-3', '[CN]第二句。')
     store.onSparkNotifyReactionStreamEnd('spark-3', '[EN]First.[CN]第一句。[EN]Second.[CN]第二句。')
 
-    await vi.waitFor(() => expect(mocks.pairs).toEqual([
+    await vi.waitFor(() => expect(broadcastPairs()).toEqual([
       { kind: 'pair', turnId: 'spark:spark-3', spoken: 'First.', translation: '第一句。', label: '中文' },
       { kind: 'pair', turnId: 'spark:spark-3', spoken: 'Second.', translation: '第二句。', label: '中文' },
     ]))
@@ -134,11 +146,12 @@ describe('useCharacterStore spark reactions', () => {
     setCharacterLlmMarkerParserFactoryForTest(drainingMarkerParser as unknown as Parameters<typeof setCharacterLlmMarkerParserFactoryForTest>[0])
 
     const store = useCharacterStore()
+    store.prepareSparkNotifyReaction('spark-4')
     store.onSparkNotifyReactionStreamEvent('spark-4', '[EN]Hello there.[CN]你好。')
     store.onSparkNotifyReactionStreamEnd('spark-4', '[EN]Hello there.[CN]你好。')
 
-    await vi.waitFor(() => expect(mocks.pairs).toHaveLength(1))
-    expect(mocks.pairs[0]).toMatchObject({
+    await vi.waitFor(() => expect(broadcastPairs()).toHaveLength(1))
+    expect(broadcastPairs()[0]).toMatchObject({
       turnId: 'spark:spark-4',
       spoken: 'Hello there.',
       translation: '你好。',
@@ -161,6 +174,7 @@ describe('useCharacterStore spark reactions', () => {
   it('records the reaction in the languages the split started with', () => {
     const store = useCharacterStore()
 
+    store.prepareSparkNotifyReaction('spark-5')
     store.onSparkNotifyReactionStreamEvent('spark-5', '[EN]Hello there.[CN]你好。')
     useSettingsBilingual().ttsLanguage = 'zh'
     store.onSparkNotifyReactionStreamEnd('spark-5', '[EN]Hello there.[CN]你好。')
@@ -176,7 +190,7 @@ describe('useCharacterStore spark reactions', () => {
 
     store.prepareSparkNotifyReaction('spark-7')
 
-    expect(mocks.pairs).toEqual([
+    expect(mocks.events).toEqual([
       { kind: 'turn', turnId: 'spark:spark-7', ttsLanguage: 'en' },
     ])
   })
@@ -202,6 +216,45 @@ describe('useCharacterStore spark reactions', () => {
     streamBilingualReaction(useCharacterStore())
 
     expect(mocks.spoken.join('')).toBe('[EN]Hello there.[CN]你好。')
-    expect(mocks.pairs).toEqual([])
+    expect(mocks.events).toEqual([])
+  })
+
+  // A reaction can end without anything to say, and its turn was announced when
+  // the request was composed. Without this end, the window that plays reactions
+  // reserves a turn per silent reaction for the life of the session.
+  it('releases the turn of a prepared reaction that never speaks', () => {
+    const store = useCharacterStore()
+
+    store.prepareSparkNotifyReaction('spark-8')
+    store.onSparkNotifyReactionStreamEnd('spark-8', '')
+
+    expect(mocks.events).toEqual([
+      { kind: 'turn', turnId: 'spark:spark-8', ttsLanguage: 'en' },
+      { kind: 'turn-end', turnId: 'spark:spark-8' },
+    ])
+  })
+
+  // Released after the drain, so the pairs are already on the channel when the
+  // playing window decides whether the turn had anything to speak.
+  it('releases the turn of a spoken reaction after its pairs', async () => {
+    const store = useCharacterStore()
+
+    streamBilingualReaction(store, 'spark-9')
+
+    await vi.waitFor(() => expect(broadcastKinds()).toEqual(['turn', 'pair', 'turn-end']))
+  })
+
+  // A request that failed before its reaction ran leaves nothing behind: the
+  // slot it reserved and the turn it announced both go.
+  it('releases the turn of a prepared reaction that will not run', () => {
+    const store = useCharacterStore()
+
+    store.prepareSparkNotifyReaction('spark-10')
+    store.abandonSparkNotifyReaction('spark-10')
+
+    expect(mocks.events).toEqual([
+      { kind: 'turn', turnId: 'spark:spark-10', ttsLanguage: 'en' },
+      { kind: 'turn-end', turnId: 'spark:spark-10' },
+    ])
   })
 })

@@ -19,7 +19,22 @@ interface SparkTurnEvent {
   ttsLanguage: string
 }
 
-export type SparkTranslationEvent = SparkPairEvent | SparkTurnEvent
+/**
+ * A spark turn that is over.
+ *
+ * Sent for every announced turn, including one whose reaction ended without
+ * speaking: the window that plays reactions reserves state per turn, and a turn
+ * with nothing to play would otherwise be reserved for the life of the session.
+ * A turn that did speak keeps its reservation until playback moves on, which is
+ * what the receiving side decides on.
+ */
+interface SparkTurnEndEvent {
+  kind: 'turn-end'
+  /** Speech turn that ended, e.g. `spark:<event id>`. */
+  turnId: string
+}
+
+export type SparkTranslationEvent = SparkPairEvent | SparkTurnEvent | SparkTurnEndEvent
 
 /**
  * Carries a spark reaction to the window that plays it.

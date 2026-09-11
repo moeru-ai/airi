@@ -211,6 +211,35 @@ describe('store character-orchestrator', () => {
     expect(mockOnSparkNotifyReactionStreamEnd).toHaveBeenCalledTimes(1)
   })
 
+  // A run that fails never reaches its end, so nothing streams and nothing speaks
+  // for the turn the request announced. The orchestrator is what knows the run
+  // failed, so it releases that turn instead of leaving it reserved.
+  it('releases the turn of a spark:notify whose run fails', async () => {
+    const failingStream = vi.fn()
+    mockedStore(useLLM, pinia).stream = failingStream
+    failingStream.mockRejectedValue(new Error('model unavailable'))
+
+    const abandon = vi.fn()
+    mockedStore(useCharacterStore, pinia).abandonSparkNotifyReaction = abandon
+
+    const store = useCharacterOrchestratorStore(pinia)
+    const event: WebSocketEventOf<'spark:notify'> = {
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: {
+        id: nanoid(),
+        eventId: nanoid(),
+        kind: 'alarm',
+        urgency: 'immediate',
+        headline: 'Hit by zombie',
+        destinations: ['character'],
+      },
+    }
+
+    await expect(store.handleSparkNotify(event)).rejects.toThrow('model unavailable')
+    expect(abandon).toHaveBeenCalledWith(event.data.id)
+  })
+
   it('supports forcing text-only spark:notify responses', async () => {
     const mockStream = vi.fn()
     mockedStore(useLLM, pinia).stream = mockStream

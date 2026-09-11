@@ -1,5 +1,6 @@
 import type { IntentHandle } from '@proj-airi/pipelines-audio'
 
+import type { SparkTranslationEvent } from '../../composables/use-spark-translation-channel'
 import type { BilingualTurn } from '../../libs/bilingual/turn'
 
 import { nanoid } from 'nanoid'
@@ -43,7 +44,9 @@ interface StreamingReactionState {
   /**
    * Languages the split and the recorded text use. Captured together with the
    * split, so a settings change before the reaction ends cannot record text in
-   * a language the speech engine was never given.
+   * a language the speech engine was never given. Present only for a request
+   * that asked for bilingual output, which is also the only kind that announced
+   * a turn to release when the reaction ends.
    */
   bilingualSettings?: { languages: string[], ttsLanguage: string }
 }
@@ -70,22 +73,34 @@ export const useCharacterStore = defineStore('character', () => {
 
   /**
    * Bilingual settings each reaction will be produced with, keyed by spark event
-   * id.
+   * id. A request that was not asked for bilingual output leaves no entry.
    *
    * Recorded when the request is composed, because that is the moment the model
    * is asked to tag its output. Capturing at the first streamed delta instead
    * would miss a change made while the model is still thinking, and the reply
-   * would then be read out with its tags intact. `null` records a request that
-   * was not asked for bilingual output.
+   * would then be read out with its tags intact.
    */
-  const pendingSparkSettings = new Map<string, { languages: string[], ttsLanguage: string } | null>()
+  const pendingSparkSettings = new Map<string, { languages: string[], ttsLanguage: string }>()
+
+  /** Speech turn a reaction plays as. */
+  function sparkTurnId(sparkEventId: string) {
+    return `${SPARK_TURN_ID_PREFIX}${sparkEventId}`
+  }
+
+  /** Broadcasts one event, tolerating a channel that is already closed. */
+  function postSparkEventSafely(event: SparkTranslationEvent) {
+    try {
+      postSparkEvent(event)
+    }
+    catch {
+      // BroadcastChannel may be closed - don't break the reaction
+    }
+  }
 
   /** Records the settings the reaction about to be requested will be split with. */
   function prepareSparkNotifyReaction(sparkEventId: string) {
-    if (!bilingualStore.enabled) {
-      pendingSparkSettings.set(sparkEventId, null)
+    if (!bilingualStore.enabled)
       return
-    }
 
     pendingSparkSettings.set(sparkEventId, {
       languages: bilingualStore.subtitleLanguages,
@@ -95,34 +110,50 @@ export const useCharacterStore = defineStore('character', () => {
     // The window that plays the reaction picks a voice for the language it is
     // spoken in, and it has to do that now: by the time the first sentence
     // plays, the user may already have changed the settings.
-    try {
-      postSparkEvent({
-        kind: 'turn',
-        turnId: `${SPARK_TURN_ID_PREFIX}${sparkEventId}`,
-        ttsLanguage: bilingualStore.ttsLanguage,
-      })
-    }
-    catch {
-      // BroadcastChannel may be closed - don't break the reaction
-    }
+    postSparkEventSafely({
+      kind: 'turn',
+      turnId: sparkTurnId(sparkEventId),
+      ttsLanguage: bilingualStore.ttsLanguage,
+    })
   }
 
   /**
-   * Settings the reaction is split and projected with, or `undefined` when the
-   * request was not asked for bilingual output.
+   * Releases the turn a reaction plays as.
+   *
+   * The window that plays reactions reserves its state per turn, and a turn is
+   * named nowhere else: one whose reaction ended without speaking would stay
+   * reserved for the life of the session. A turn that did speak keeps its
+   * reservation until playback moves on, which that window decides on its own.
    */
-  function takeSparkSettings(sparkEventId: string) {
-    if (pendingSparkSettings.has(sparkEventId)) {
-      const prepared = pendingSparkSettings.get(sparkEventId)
-      pendingSparkSettings.delete(sparkEventId)
-      return prepared ?? undefined
-    }
+  function releaseSparkTurn(sparkEventId: string) {
+    postSparkEventSafely({ kind: 'turn-end', turnId: sparkTurnId(sparkEventId) })
+  }
 
-    // Nothing was prepared, so the caller did not come through the request path:
-    // the settings as they are now are the best available answer.
-    return bilingualStore.enabled
-      ? { languages: bilingualStore.subtitleLanguages, ttsLanguage: bilingualStore.ttsLanguage }
-      : undefined
+  /**
+   * Drops a reaction that will not be produced.
+   *
+   * Composing or running it failed, so nothing streams and nothing speaks for
+   * it: what its request reserved goes, along with the turn it had announced.
+   */
+  function abandonSparkNotifyReaction(sparkEventId: string) {
+    // A request that asked for bilingual output is what announced the turn, and
+    // its settings are still here when the reaction never started, or on the
+    // streaming state when it did.
+    const announced = streamingReactions.value.get(sparkEventId)?.bilingualSettings
+      ?? pendingSparkSettings.get(sparkEventId)
+
+    pendingSparkSettings.delete(sparkEventId)
+    streamingReactions.value.delete(sparkEventId)
+
+    if (announced)
+      releaseSparkTurn(sparkEventId)
+  }
+
+  /** Settings the reaction is split and projected with. Taken once, by the split. */
+  function takeSparkSettings(sparkEventId: string) {
+    const settings = pendingSparkSettings.get(sparkEventId)
+    pendingSparkSettings.delete(sparkEventId)
+    return settings
   }
 
   async function emitTextOutput(text: string) {
@@ -161,8 +192,8 @@ export const useCharacterStore = defineStore('character', () => {
       }) satisfies CharacterSparkNotifyReaction
 
       const intent = speechRuntimeStore.openIntent({
-        turnId: `${SPARK_TURN_ID_PREFIX}${sparkEventId}`,
-        intentId: `${SPARK_TURN_ID_PREFIX}${sparkEventId}`,
+        turnId: sparkTurnId(sparkEventId),
+        intentId: sparkTurnId(sparkEventId),
         ownerId: ownerId.value,
         priority: 'high',
         behavior: 'interrupt',
@@ -175,7 +206,7 @@ export const useCharacterStore = defineStore('character', () => {
       let bilingualTurn: BilingualTurn | undefined
       const bilingualSettings = takeSparkSettings(sparkEventId)
       if (bilingualSettings) {
-        const turnId = `${SPARK_TURN_ID_PREFIX}${sparkEventId}`
+        const turnId = sparkTurnId(sparkEventId)
 
         // The pairs are broadcast instead of captioned here: the model finishes
         // long before the audio does, and only the window hosting the speech
@@ -188,12 +219,7 @@ export const useCharacterStore = defineStore('character', () => {
             newReaction.message += text
           },
           onPair: (pair) => {
-            try {
-              postSparkEvent({ kind: 'pair', turnId, ...pair })
-            }
-            catch {
-              // BroadcastChannel may be closed - don't break the reaction
-            }
+            postSparkEventSafely({ kind: 'pair', turnId, ...pair })
           },
         })
       }
@@ -226,12 +252,17 @@ export const useCharacterStore = defineStore('character', () => {
   }
 
   function onSparkNotifyReactionStreamEnd(sparkEventId: string, fullText: string, options?: { metadata?: Record<string, unknown> }) {
-    // A prepared reaction that never streamed still releases its slot here.
+    // A request that was asked for bilingual output releases its slot here, and
+    // its turn with it: no pair follows a reaction that never streamed.
+    const prepared = pendingSparkSettings.has(sparkEventId)
     pendingSparkSettings.delete(sparkEventId)
 
     const state = streamingReactions.value.get(sparkEventId)
-    if (!state)
+    if (!state) {
+      if (prepared)
+        releaseSparkTurn(sparkEventId)
       return
+    }
 
     // Reactions are handed back to the module that requested them, so the
     // stored text must not keep the `[EN]`/`[CN]` control tags. Recording stays
@@ -253,6 +284,12 @@ export const useCharacterStore = defineStore('character', () => {
       state.intent.writeFlush()
       state.intent.end()
       streamingReactions.value.delete(sparkEventId)
+
+      // Released after the drain so the pairs above are already broadcast: the
+      // window that plays the reaction keeps the turn of one that spoke, and
+      // drops the one of a reaction that ended without anything to speak.
+      if (state.bilingualSettings)
+        releaseSparkTurn(sparkEventId)
     })
   }
 
@@ -285,6 +322,7 @@ export const useCharacterStore = defineStore('character', () => {
     prepareSparkNotifyReaction,
     onSparkNotifyReactionStreamEvent,
     onSparkNotifyReactionStreamEnd,
+    abandonSparkNotifyReaction,
     clearReactions,
 
     emitTextOutput,

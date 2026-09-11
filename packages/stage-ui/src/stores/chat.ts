@@ -57,8 +57,6 @@ interface BilingualRequestSettings {
   languages: string[]
   /** Language the spoken half is in. */
   ttsLanguage: string
-  /** Reply the settings were handed to; adopted on its first projection. */
-  id?: string
 }
 
 /** A serializable chat request that any application context can send to the leader. */
@@ -319,6 +317,15 @@ export const useChatStore = defineStore('chat', () => {
    */
   let bilingualRequest: BilingualRequestSettings | undefined
 
+  /** Settings the store describes right now. */
+  function currentBilingualSettings(): BilingualRequestSettings {
+    return {
+      instructed: bilingualStore.enabled,
+      languages: bilingualStore.subtitleLanguages,
+      ttsLanguage: bilingualStore.ttsLanguage,
+    }
+  }
+
   /**
    * Records the settings the turn being composed asks for.
    *
@@ -329,47 +336,21 @@ export const useChatStore = defineStore('chat', () => {
    * with another, or left with its tags when the feature was switched off.
    */
   function rememberBilingualRequest() {
-    bilingualRequest = {
-      instructed: bilingualStore.enabled,
-      languages: bilingualStore.subtitleLanguages,
-      ttsLanguage: bilingualStore.ttsLanguage,
-    }
-  }
-
-  /** Settings the reply was produced with, captured when its request was composed. */
-  function settingsOfBilingualReply(replyId: string | undefined) {
-    // The request that produced this reply recorded the settings; adopting the
-    // reply id is all it takes to hand them to every later patch of that reply.
-    if (bilingualRequest && bilingualRequest.id === undefined) {
-      bilingualRequest.id = replyId
-      return bilingualRequest
-    }
-
-    // Nothing was recorded for this reply, so the caller did not come through the
-    // request path: the settings as they are now are the best available answer.
-    // A reply without an id is the same reply, not a new one.
-    if (!bilingualRequest || (replyId !== undefined && bilingualRequest.id !== replyId)) {
-      bilingualRequest = {
-        id: replyId,
-        instructed: bilingualStore.enabled,
-        languages: bilingualStore.subtitleLanguages,
-        ttsLanguage: bilingualStore.ttsLanguage,
-      }
-    }
-
-    return bilingualRequest
+    bilingualRequest = currentBilingualSettings()
   }
 
   /**
-   * Settings the request being composed asked for, or `undefined` when none was
-   * recorded.
+   * Settings the reply being projected was produced with.
    *
-   * Consumers that parse the tagged reply outside the projection read this — the
-   * Stage hooks that split it for speech and captions — so they work on the
-   * languages the request was composed with instead of the ones in effect when
-   * they happen to run.
+   * Read by the projection and by the consumers that parse the tagged reply on
+   * their own — the Stage hooks that split it for speech and captions — so all of
+   * them work on the languages the reply was produced with, not the ones in
+   * effect when they happen to run. A projection that arrives before any request
+   * was composed falls back to the settings as they are now, which is the best
+   * answer available without a request to match.
    */
   function getBilingualRequestSettings() {
+    bilingualRequest ??= currentBilingualSettings()
     return bilingualRequest
   }
 
@@ -383,11 +364,11 @@ export const useChatStore = defineStore('chat', () => {
    * only emits these tags on request, and text that carries a bracket for any
    * other reason would lose everything after it.
    */
-  function projectBilingualMessage<T extends { id?: string, role?: unknown, content?: unknown, slices?: unknown, providerTranscript?: unknown }>(message: T): T {
+  function projectBilingualMessage<T extends { role?: unknown, content?: unknown, slices?: unknown, providerTranscript?: unknown }>(message: T): T {
     if (message.role !== 'assistant' || typeof message.content !== 'string' || !message.content.includes('['))
       return message
 
-    const { instructed, languages, ttsLanguage } = settingsOfBilingualReply(message.id)
+    const { instructed, languages, ttsLanguage } = getBilingualRequestSettings()
     if (!instructed)
       return message
 
@@ -426,8 +407,8 @@ export const useChatStore = defineStore('chat', () => {
    * object. Those need the same projection as the message itself, or the tags
    * travel to whatever reads them.
    */
-  function projectBilingualReplyText(text: string, replyId?: string) {
-    const { instructed, languages, ttsLanguage } = settingsOfBilingualReply(replyId)
+  function projectBilingualReplyText(text: string) {
+    const { instructed, languages, ttsLanguage } = getBilingualRequestSettings()
     if (!instructed || !text.includes('['))
       return text
 
@@ -754,13 +735,13 @@ export const useChatStore = defineStore('chat', () => {
     // sees the text the user sees.
     onAssistantMessage: (callback: Parameters<typeof runtime.hooks.onAssistantMessage>[0]) =>
       runtime.hooks.onAssistantMessage((message, messageText, context) =>
-        callback(projectBilingualMessage(message), projectBilingualReplyText(messageText, message.id), context)),
+        callback(projectBilingualMessage(message), projectBilingualReplyText(messageText), context)),
     onChatTurnComplete: (callback: Parameters<typeof runtime.hooks.onChatTurnComplete>[0]) =>
       runtime.hooks.onChatTurnComplete((chat, context) =>
         callback({
           ...chat,
           output: projectBilingualMessage(chat.output),
-          outputText: projectBilingualReplyText(chat.outputText, chat.output.id),
+          outputText: projectBilingualReplyText(chat.outputText),
         }, context)),
   }
 }, {

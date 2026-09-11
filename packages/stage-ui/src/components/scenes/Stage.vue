@@ -749,40 +749,55 @@ let bilingualTurn: BilingualTurn | null = null
 let bilingualTurnId = ''
 
 /**
- * Sentences the model has finished, in order, each paired with the translation
- * that followed it. Playback consumes one entry per spoken sentence.
+ * Everything the caption layer keeps for one turn.
  *
- * Keyed by turn because a spark reaction plays as its own turn and must not
- * consume a translation queued for a chat sentence.
+ * One record per turn because its parts share a lifetime: the sentences queued
+ * for it, the voice it speaks with, and whether it is waiting for a translation
+ * or buffers the whole reply into a single playback item all go together.
  */
-const bilingualPairsByTurn = new Map<string, BilingualPair[]>()
-/**
- * Turns whose streaming model buffers the whole reply into a single playback
- * item (`bufferEntireSession`). `onStart` then fires once for the entire reply,
- * so every queued translation belongs to that one item and has to be shown
- * together instead of only the first sentence's.
- */
-const bilingualBufferedTurns = new Set<string>()
-/**
- * Turns whose playback started before their translation was queued. The spoken
- * text reaches TTS before the pair closes, so the translation is published as
- * soon as it arrives instead of being dropped.
- */
-const bilingualWaitingTurns = new Set<string>()
-/**
- * Voice each turn synthesises with, captured when the turn starts.
- *
- * A turn keeps the language it started with, so its voice has to be fixed too:
- * a chat turn is captured at its session, anything without one at its first
- * request.
- */
-const bilingualVoicesByTurn = new Map<string, VoiceInfo | undefined>()
+interface BilingualTurnState {
+  /**
+   * Sentences the model has finished, in order, each paired with the translation
+   * that followed it. Playback consumes one entry per spoken sentence.
+   */
+  pairs: BilingualPair[]
+  /** Voice the turn synthesises with, `undefined` for the configured one. */
+  voice?: VoiceInfo
+  /** Set once the voice was chosen: a turn keeps the language it started with. */
+  voiceChosen?: boolean
+  /**
+   * Streaming provider that buffers the whole reply into one playback item
+   * (`bufferEntireSession`). Its `onStart` fires once for everything, so every
+   * queued translation belongs to that item and has to be shown together.
+   */
+  buffered?: boolean
+  /**
+   * Playback started before this turn's translation was queued. The spoken text
+   * reaches TTS before the pair closes, so the translation is published as soon
+   * as it arrives instead of being dropped.
+   */
+  waiting?: boolean
+}
+
+const bilingualTurns = new Map<string, BilingualTurnState>()
 /**
  * Turn whose translation is on screen. Playback of another turn takes the line
  * over and clears it first, instead of leaving the previous turn's line up until
  * the new translation arrives.
  */
 let bilingualTurnOnScreen = ''
+
+/** State of one turn, created on first use. */
+function bilingualTurnState(turnId: string): BilingualTurnState {
+  const state = bilingualTurns.get(turnId) ?? { pairs: [] }
+  bilingualTurns.set(turnId, state)
+  return state
+}
+
+/** Drops everything recorded for one turn. */
+function clearBilingualTurn(turnId: string) {
+  bilingualTurns.delete(turnId)
+}
 
 /** Queues a finished sentence pair and publishes it if playback is waiting. */
 function queueBilingualPair(turnId: string, pair: BilingualPair) {
@@ -791,37 +806,33 @@ function queueBilingualPair(turnId: string, pair: BilingualPair) {
   if (!bilingualStore.enabled)
     return
 
-  const pairs = bilingualPairsByTurn.get(turnId) ?? []
-  pairs.push(pair)
-  bilingualPairsByTurn.set(turnId, pairs)
+  const state = bilingualTurnState(turnId)
+  state.pairs.push(pair)
 
   // Playback may already have started while this pair was still open.
-  if (bilingualWaitingTurns.has(turnId))
+  if (state.waiting)
     publishBilingualTranslation(turnId)
 }
 
-function clearBilingualTranslation() {
+/** Publishes one caption event, tolerating a channel that is already closed. */
+function postCaptionSafely(event: CaptionChannelEvent) {
   try {
-    postCaption({ type: 'caption-assistant-translation', text: '' })
+    postCaption(event)
   }
   catch {
     // BroadcastChannel may be closed - don't break playback
   }
 }
 
-/** Drops everything recorded for one turn. */
-function clearBilingualTurn(turnId: string) {
-  bilingualPairsByTurn.delete(turnId)
-  bilingualBufferedTurns.delete(turnId)
-  bilingualWaitingTurns.delete(turnId)
-  bilingualVoicesByTurn.delete(turnId)
+function clearBilingualTranslation() {
+  postCaptionSafely({ type: 'caption-assistant-translation', text: '' })
 }
 
 function resetBilingualTurn(turnId: string) {
   bilingualTurn = null
   // A new turn arrives with its own id, so the turn that just ended is keyed by
-  // the previous one: clearing only the new id keeps every finished turn in
-  // these collections for the life of the session.
+  // the previous one: clearing only the new id leaves every finished turn in
+  // the map for the life of the session.
   clearBilingualTurn(bilingualTurnId)
   clearBilingualTurn(turnId)
   bilingualTurnId = turnId
@@ -889,52 +900,47 @@ function publishBilingualTranslation(turnId: string, itemText?: string) {
     clearBilingualTranslation()
   }
 
-  const pairs = bilingualPairsByTurn.get(turnId)
+  const state = bilingualTurns.get(turnId)
 
-  if (!pairs?.length) {
+  if (!state?.pairs.length) {
     // The spoken text reaches TTS before its translation closes, so playback
     // can start with an empty queue. Wait for the pair instead of dropping it.
-    bilingualWaitingTurns.add(turnId)
+    bilingualTurnState(turnId).waiting = true
     return
   }
 
   if (itemText) {
-    const index = findBilingualPairIndex(pairs, itemText)
+    const index = findBilingualPairIndex(state.pairs, itemText)
 
     if (index < 0) {
       // Either this item is a fragment of the pair already on screen, or the
       // pair it belongs to has not closed yet. Wait for that pair instead of
       // pairing this sentence with a translation of another one.
-      bilingualWaitingTurns.add(turnId)
+      state.waiting = true
       return
     }
 
     // Pairs the playback already passed are dropped rather than shown late.
     if (index > 0)
-      pairs.splice(0, index)
+      state.pairs.splice(0, index)
   }
 
-  bilingualWaitingTurns.delete(turnId)
+  state.waiting = false
 
   // A buffered session emits a single playback item for the whole reply, so
   // every queued translation belongs to this one item. Taking only the first
   // would drop the rest when the next turn clears the queue.
-  const consumed = pairs.splice(0, bilingualBufferedTurns.has(turnId) ? pairs.length : 1)
+  const consumed = state.pairs.splice(0, state.buffered ? state.pairs.length : 1)
   const text = consumed.map(pair => pair.translation).filter(Boolean).join(' ')
   if (!text)
     return
 
-  try {
-    postCaption({
-      operation: 'replace',
-      type: 'caption-assistant-translation',
-      label: consumed.at(-1)?.label ?? '',
-      text,
-    })
-  }
-  catch {
-    // BroadcastChannel may be closed - don't break playback
-  }
+  postCaptionSafely({
+    operation: 'replace',
+    type: 'caption-assistant-translation',
+    label: consumed.at(-1)?.label ?? '',
+    text,
+  })
 }
 
 /**
@@ -976,6 +982,16 @@ watch(sparkPair, (event) => {
     return
   }
 
+  // The turn of a reaction that ended without speaking: nothing was queued for
+  // it, so the voice it reserved is the only thing left behind. One that did
+  // speak keeps its voice until playback moves on, which the pairs below and the
+  // next turn's reset already take care of.
+  if (event.kind === 'turn-end') {
+    if (!bilingualTurns.get(event.turnId)?.pairs.length)
+      clearBilingualTurn(event.turnId)
+    return
+  }
+
   // A reaction interrupts whatever is on screen, so the previous reaction's line
   // and its leftover queue go instead of lingering until they expire.
   if (event.turnId !== bilingualTurnOnScreen) {
@@ -1001,37 +1017,19 @@ watch(() => bilingualStore.enabled, (enabled) => {
 })
 
 /**
- * Voice that should read the spoken line while bilingual output is on.
- *
- * The speech settings hold one fixed voice, auto-picked from the UI locale.
- * That voice would read a non-UI language with the wrong phonology — a Chinese
- * voice reads Japanese kanji as Chinese, for example, which is exactly the
- * "reads Japanese with Chinese mixed in" symptom. When the configured voice
- * does not speak the bilingual TTS language, pick a voice from the active
- * provider's catalogue that actually speaks it (matched by language-code
- * prefix, e.g. `ja` → `ja-JP`).
- *
- * A configured voice that already speaks that language is returned untouched:
- * replacing it with the first catalogue match would change the character's
- * voice even though the configuration is valid.
- *
- * Returns `undefined` when bilingual is off, or no matching voice exists, so
- * callers fall back to the configured voice unchanged. A missing match is a
- * provider limitation, not a regression: the user needs a provider that ships
- * that language.
- */
-function resolveBilingualVoice(): VoiceInfo | undefined {
-  if (!bilingualStore.enabled)
-    return undefined
-
-  return resolveBilingualVoiceFor(bilingualStore.ttsLanguage)
-}
-
-/**
  * Voice that speaks `ttsLanguage`, or `undefined` when none does.
  *
- * Returns `undefined` rather than falling back to another language, because the
- * caller already has the configured voice to fall back to.
+ * The speech settings hold one fixed voice, auto-picked from the UI locale. That
+ * voice would read a non-UI language with the wrong phonology — a Chinese voice
+ * reads Japanese kanji as Chinese, for example, which is exactly the "reads
+ * Japanese with Chinese mixed in" symptom — so the active provider's catalogue is
+ * searched for one that speaks the language, matched by code prefix (`ja` →
+ * `ja-JP`).
+ *
+ * A configured voice that already speaks it is returned untouched: replacing it
+ * with the first catalogue match would change the character's voice even though
+ * the configuration is valid. No match is a provider limitation, not a
+ * regression, and `undefined` means the caller keeps the configured voice.
  */
 function resolveBilingualVoiceFor(ttsLanguage: string): VoiceInfo | undefined {
   const speaksTtsLanguage = (voice: VoiceInfo) => (voice.languages || []).some(l => l.code.toLowerCase().startsWith(ttsLanguage))
@@ -1044,35 +1042,38 @@ function resolveBilingualVoiceFor(ttsLanguage: string): VoiceInfo | undefined {
 }
 
 /**
- * Voice one turn synthesises with.
+ * Voice one turn synthesises with, or `undefined` for the configured one.
  *
  * A turn speaks the language its split started with, so its voice has to stay
  * put: resolving again per segment would give the rest of a reply a different
- * voice — or a different language — as soon as the settings change. A chat turn
- * is captured when its session opens; a turn without one (a reaction) the first
- * time it asks for audio, and a request without a turn falls back to settings.
+ * voice — or a different language — as soon as the settings change. A reaction
+ * is seeded when its request is composed, a chat turn when its session opens,
+ * and a request without a turn asks the settings themselves.
  */
 function bilingualVoiceForTurn(turnId: string | undefined): VoiceInfo | undefined {
   if (!turnId)
-    return resolveBilingualVoice()
+    return bilingualStore.enabled ? resolveBilingualVoiceFor(bilingualStore.ttsLanguage) : undefined
 
-  if (!bilingualVoicesByTurn.has(turnId))
-    bilingualVoicesByTurn.set(turnId, resolveBilingualVoice())
-
-  return bilingualVoicesByTurn.get(turnId)
+  const state = bilingualTurnState(turnId)
+  return state.voiceChosen
+    ? state.voice
+    : seedBilingualVoice(turnId, bilingualStore.enabled ? bilingualStore.ttsLanguage : undefined)
 }
 
 /**
- * Records the voice a reaction plays with, from the language its request was
- * composed with.
+ * Records the voice a turn plays with, from the language its request asked for:
+ * `undefined` keeps the configured voice.
  *
- * The window that composes the reaction is the only one that knows that
- * language, so it hands it over: resolving from the settings here would follow a
- * change made while the model was still thinking, and the reaction would be read
- * with a voice for another language.
+ * The window that composes a reaction is the only one that knows that language,
+ * so it hands it over. Resolving from the settings there instead would follow a
+ * change made while the model was still thinking, and read the reply in another
+ * language.
  */
-function seedBilingualVoice(turnId: string, ttsLanguage: string) {
-  bilingualVoicesByTurn.set(turnId, resolveBilingualVoiceFor(ttsLanguage))
+function seedBilingualVoice(turnId: string, ttsLanguage?: string): VoiceInfo | undefined {
+  const state = bilingualTurnState(turnId)
+  state.voice = ttsLanguage ? resolveBilingualVoiceFor(ttsLanguage) : undefined
+  state.voiceChosen = true
+  return state.voice
 }
 
 function stopSpeechOutput(reason: string) {
@@ -1108,9 +1109,9 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   // case, which is the right behaviour for the rest of the providers too.
   // When bilingual output is on, prefer a voice that actually speaks the TTS
   // language so Japanese (etc.) is not read with the locale-picked voice's
-  // phonology — see `resolveBilingualVoice`. The session reads the voice its
+  // phonology — see `resolveBilingualVoiceFor`. The session reads the voice its
   // turn was opened with, so a later settings change cannot swap it mid-turn.
-  const voiceId = bilingualVoicesByTurn.get(turnId)?.id || activeSpeechVoice.value?.id
+  const voiceId = bilingualTurns.get(turnId)?.voice?.id || activeSpeechVoice.value?.id
   if (!voiceId)
     return null
   // Resolve the concrete streaming model id. The active speech model is only
@@ -1128,7 +1129,7 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   // Buffer the entire session and decode at session.finished instead.
   const bufferEntireSession = apiResourceId.startsWith('seed-tts-2.0') || apiResourceId.startsWith('seed-icl-2.0')
   if (bufferEntireSession)
-    bilingualBufferedTurns.add(turnId)
+    bilingualTurnState(turnId).buffered = true
   return {
     model: sessionModel,
     voice: voiceId,
@@ -1161,7 +1162,7 @@ function openTtsSession(turnId: string): StageTtsSession {
   // resolving it from the settings while the turn is being set up would do the
   // same to the language the split speaks.
   const request = getBilingualRequestSettings()
-  bilingualVoicesByTurn.set(turnId, request?.instructed ? resolveBilingualVoiceFor(request.ttsLanguage) : undefined)
+  seedBilingualVoice(turnId, request?.instructed ? request.ttsLanguage : undefined)
 
   // A session must only clear the module-level `currentSession` if it IS that session. The previous
   // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that

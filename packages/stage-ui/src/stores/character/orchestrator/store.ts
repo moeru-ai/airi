@@ -158,6 +158,13 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
       return result
     }
+    catch (error) {
+      // The reaction never reached its end, so nothing streams and nothing speaks
+      // for it: what its request reserved is released here instead, and `tick`
+      // still sees the failure to schedule its retry.
+      characterStore.abandonSparkNotifyReaction(event.data.id)
+      throw error
+    }
     finally {
       processing.value = false
     }
