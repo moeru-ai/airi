@@ -817,8 +817,11 @@ const cursorPosition = computed(() => ({
           :cursor-position="cursorPosition"
           :paused="stagePaused"
         />
-        <HoloCoupon ref="announcementsRef" v-model:open="announcementsOpen" client="desktop" />
-        <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
+        <ControlsIslandRoot v-slot="{ isLeft }" :frozen="controlsIslandInteractionActive || announcementsOpen">
+          <HoloCoupon
+            ref="announcementsRef" v-model:open="announcementsOpen" client="desktop"
+            :trigger-side="isLeft ? 'right' : 'left'"
+          />
           <ControlsIsland
             ref="controlsIslandRef"
             @interaction-change="controlsIslandInteractionActive = $event"

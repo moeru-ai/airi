@@ -12,11 +12,15 @@ const props = withDefaults(defineProps<{
   client: 'web' | 'desktop'
   /** The header anchors the card above mobile content; desktop uses a floating trigger. @default 'popover' */
   presentation?: 'popover' | 'header'
-}>(), { presentation: 'popover' })
+  /** Electron places the bell opposite its controls dock. @default 'left' */
+  triggerSide?: 'left' | 'right'
+}>(), { presentation: 'popover', triggerSide: 'left' })
 const { locale, t } = useI18n()
 const { announcements } = useAnnouncements(() => props.client, locale)
 const open = defineModel<boolean>('open', { default: false })
 const selectedId = ref('')
+// Keep a keyboard-opened reading session paused, including focus on the close button.
+const keyboardOpened = ref(false)
 const triggerElement = ref<HTMLDivElement>()
 
 // Electron tracks the floating trigger with native cursor coordinates and keeps
@@ -34,10 +38,10 @@ watch(announcements, (items) => {
   <Teleport v-if="announcements.length" to="body" :disabled="presentation === 'header'">
     <div
       ref="triggerElement"
-      :class="presentation === 'header' ? ['pointer-events-auto inline-flex'] : ['fixed bottom-10 left-6 z-50 pointer-events-auto']"
+      :class="presentation === 'header' ? ['pointer-events-auto inline-flex'] : ['fixed bottom-10 z-50 pointer-events-auto', triggerSide === 'left' ? 'left-6' : 'right-6']"
     >
       <PopoverRoot v-model:open="open">
-        <PopoverTrigger as-child>
+        <PopoverTrigger as-child @click="keyboardOpened = $event.detail === 0">
           <BasicButton
             v-if="presentation === 'header'"
             size="unset" :aria-label="t('stage.announcements.open')" :title="t('stage.announcements.open')"
@@ -58,14 +62,13 @@ watch(announcements, (items) => {
         <PopoverPortal>
           <PopoverContent
             :side="presentation === 'header' ? 'bottom' : 'top'"
-            :align="presentation === 'header' ? 'end' : 'start'" :side-offset="12"
+            :align="presentation === 'header' || triggerSide === 'right' ? 'end' : 'start'" :side-offset="12"
             :aria-label="t('stage.announcements.title')"
             :class="[
               'announcement-island relative z-60 w-108 rounded-3xl outline-none',
               'border border-white/8 bg-neutral-900/86 shadow-xl backdrop-blur-xl',
               presentation === 'header' ? 'max-w-[calc(100vw-5rem)]' : 'max-w-[calc(100vw-3rem)]',
             ]"
-            @open-auto-focus.prevent
           >
             <PopoverClose as-child>
               <button
@@ -80,7 +83,7 @@ watch(announcements, (items) => {
               </button>
             </PopoverClose>
             <div :class="['announcement-content max-h-[var(--reka-popover-content-available-height)] overflow-y-auto rounded-3xl']">
-              <AnnouncementCarousel v-model:selected-id="selectedId" :items="announcements" :mobile="presentation === 'header'" />
+              <AnnouncementCarousel v-model:selected-id="selectedId" :items="announcements" :mobile="presentation === 'header'" :paused="keyboardOpened" />
             </div>
           </PopoverContent>
         </PopoverPortal>

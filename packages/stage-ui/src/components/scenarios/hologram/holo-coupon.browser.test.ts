@@ -38,6 +38,46 @@ async function mount(onOpenChange = (_open: boolean) => {}) {
 }
 
 describe('cloud announcement display', () => {
+  // https://github.com/moeru-ai/airi/pull/2484#discussion_r3981688745
+  it('keeps the selected announcement while a keyboard reader opens the panel', async () => {
+    // ROOT CAUSE:
+    // Focus stayed on the external trigger, outside the carousel pause boundary.
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async () => Response.json({ announcements: [
+      announcement,
+      { ...announcement, id: 'notice-2', title: 'Second announcement' },
+    ] })))
+    await mount()
+    await expect.element(page.getByRole('button', { name: 'Open announcements' })).toBeVisible()
+    page.getByRole('button', { name: 'Open announcements' }).element().focus()
+    await userEvent.keyboard('{Enter}')
+    await expect.element(page.getByRole('heading', { name: 'AIRI update' })).toBeVisible()
+    await page.getByRole('button', { name: 'Open announcements' }).hover()
+    await new Promise(resolve => setTimeout(resolve, 6500))
+    expect(page.getByRole('button', { name: 'AIRI update', exact: true }).element().getAttribute('aria-current')).toBe('true')
+  }, 15000)
+
+  // https://github.com/moeru-ai/airi/pull/2484#discussion_r3981688762
+  it('loads only the selected cover in a large carousel', async () => {
+    // ROOT CAUSE:
+    // Hidden slides mounted eager image sources for every published cover.
+    const items = Array.from({ length: 100 }, (_, index) => ({
+      ...announcement,
+      id: `notice-${index}`,
+      title: `Announcement ${index + 1}`,
+      layout: 'portrait' as const,
+      coverUrl: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>',
+    }))
+    await render(AnnouncementCarousel, {
+      props: { items, mobile: true },
+      global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
+    })
+    expect(document.querySelectorAll('.announcement-slide img')).toHaveLength(1)
+    await page.getByRole('button', { name: 'Announcement 100', exact: true }).click()
+    await expect.element(page.getByRole('heading', { name: 'Announcement 100', exact: true })).toBeVisible()
+    expect(document.querySelectorAll('.announcement-slide img')).toHaveLength(1)
+    expect(document.querySelector('.announcement-slide[aria-hidden="false"] img')).not.toBeNull()
+  })
+
   // https://github.com/moeru-ai/airi/pull/2484#discussion_r3980949680
   it('preserves the selected announcement when earlier entries disappear', async () => {
     // ROOT CAUSE:
