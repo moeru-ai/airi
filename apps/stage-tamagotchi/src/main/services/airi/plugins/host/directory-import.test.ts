@@ -85,11 +85,16 @@ describe('extension directory importer', () => {
 
     const result = await importer.commit(plan.planId)
 
-    expect(result).toEqual({
-      extensionId: 'example-extension',
-      manifestPath: join(extensionsRoot, 'example-extension', 'extension.airi.json'),
+    expect(result).toMatchObject({
+      manifest: expect.objectContaining({
+        id: 'example-extension',
+        version: '1.0.0',
+      }),
+      path: join(extensionsRoot, 'example-extension', 'extension.airi.json'),
+      rootDir: join(extensionsRoot, 'example-extension'),
+      version: '1.0.0',
     })
-    expect(await readFile(result.manifestPath, 'utf8')).toContain('example-extension')
+    expect(await readFile(result.path, 'utf8')).toContain('example-extension')
     expect(await readFile(join(sourceRoot, 'extension.airi.json'), 'utf8')).toContain('example-extension')
     await expect(importer.commit(plan.planId)).rejects.toThrow('missing or was already used')
   })

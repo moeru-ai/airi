@@ -7,6 +7,7 @@ import type {
   ExtensionDirectoryImportPermissionSummary,
   ExtensionDirectoryImportPlan,
 } from '../../../../../shared/eventa/plugin/host'
+import type { ManifestEntry } from '../types'
 
 import { Buffer } from 'node:buffer'
 import { createHash, randomUUID } from 'node:crypto'
@@ -398,8 +399,8 @@ export class ExtensionDirectoryImporter {
     return structuredClone(preview)
   }
 
-  /** Publishes a prepared package and returns its final manifest path. */
-  async commit(planId: string): Promise<{ extensionId: string, manifestPath: string }> {
+  /** Publishes a prepared package and returns its validated committed registry entry. */
+  async commit(planId: string): Promise<ManifestEntry> {
     const result = this.commitQueue.then(() => this.commitPreparedPlan(planId))
     this.commitQueue = result.then(() => undefined, () => undefined)
     return await result
@@ -422,7 +423,7 @@ export class ExtensionDirectoryImporter {
     }
   }
 
-  private async commitPreparedPlan(planId: string): Promise<{ extensionId: string, manifestPath: string }> {
+  private async commitPreparedPlan(planId: string): Promise<ManifestEntry> {
     const storedPlan = this.plans.get(planId)
     if (!storedPlan) {
       throw new Error('Extension import plan is missing or was already used.')
@@ -454,8 +455,10 @@ export class ExtensionDirectoryImporter {
       await rename(stagingPath, destination)
       this.plans.delete(planId)
       return {
-        extensionId: inspected.manifest.id,
-        manifestPath: join(destination, extensionManifestFileName),
+        manifest: staged.manifest,
+        path: join(destination, extensionManifestFileName),
+        rootDir: destination,
+        version: staged.manifest.version,
       }
     }
     catch (error) {

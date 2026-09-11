@@ -481,15 +481,15 @@ export async function setupExtensionHostServiceInternal(
     async commitDirectoryImport(planId) {
       await refreshManifests()
       const imported = await directoryImporter.commit(planId)
-      await refreshManifests()
+      extensionRegistry.recordCommittedEntry(imported)
 
       const config = getConfig()
       extensionConfig.update({
-        enabled: config.enabled.filter(extensionId => extensionId !== imported.extensionId),
-        autoReload: config.autoReload.filter(extensionId => extensionId !== imported.extensionId),
+        enabled: config.enabled.filter(extensionId => extensionId !== imported.manifest.id),
+        autoReload: config.autoReload.filter(extensionId => extensionId !== imported.manifest.id),
         known: {
           ...config.known,
-          [imported.extensionId]: { path: imported.manifestPath },
+          [imported.manifest.id]: { path: imported.path },
         },
       })
 

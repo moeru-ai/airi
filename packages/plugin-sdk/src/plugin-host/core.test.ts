@@ -175,6 +175,35 @@ describe('for ExtensionHost', () => {
     expect(host.listSessions()).toEqual([])
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986478776
+  it('rejects a duplicate provided Kit before importing the Extension entrypoint', async () => {
+    const host = new ExtensionHost()
+    host.registerKitApi(defineKit({
+      id: 'kit.duplicate-before-import',
+      version: '1.0.0',
+      createClient: () => ({ ping: () => 'pong' }),
+    }))
+
+    await expect(host.start({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'duplicate-provider-import',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      entrypoints: { electron: './missing-provider-entrypoint.mjs' },
+      permissions: {},
+      kits: {
+        provides: [{
+          id: 'kit.duplicate-before-import',
+          version: '1.0.0',
+          exposure: 'local-only',
+        }],
+      },
+    })).rejects.toThrow('Kit API `kit.duplicate-before-import` already has an active Provider.')
+
+    expect(host.listSessions()).toEqual([])
+  })
+
   // https://github.com/moeru-ai/airi/pull/2506#discussion_r3986172725
   it('rejects a missing required Kit before Extension setup', async () => {
     const host = new ExtensionHost()

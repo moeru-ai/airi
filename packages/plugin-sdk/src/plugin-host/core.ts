@@ -387,6 +387,17 @@ function createRevocableKitClient<TClient extends object>(client: TClient): { cl
   }
 }
 
+function createTrackedClientRevoker(revokers: Set<() => void>, releaseClient: () => void) {
+  let release: (() => void) | undefined = releaseClient
+  const revoke = () => {
+    revokers.delete(revoke)
+    const releaseOnce = release
+    release = undefined
+    releaseOnce?.()
+  }
+  return revoke
+}
+
 /**
  * Orchestrates extension loading, setup sessions, bindings, resources, and permissions.
  *
@@ -476,12 +487,21 @@ export class ExtensionHost {
     }
   }
 
+  private assertProvidedKitSlotsAvailable(manifest: ExtensionManifestV2) {
+    for (const declaration of manifest.kits?.provides ?? []) {
+      if (this.kitApis.has(declaration.id) || this.pendingExtensionKitApis.has(declaration.id) || this.kits.has(declaration.id)) {
+        throw new Error(`Kit API \`${declaration.id}\` already has an active Provider.`)
+      }
+    }
+  }
+
   async startExtension(
     extension: Extension,
     options: { manifest: ExtensionManifestV2, cwd?: string, runtime?: PluginRuntime },
   ) {
     const runtime = options.runtime ?? this.runtime
     this.assertManifestCompatibility(options.manifest, runtime)
+    this.assertProvidedKitSlotsAvailable(options.manifest)
 
     if (extension.id !== options.manifest.id) {
       throw new Error(`Extension entrypoint id \`${extension.id}\` must match manifest id \`${options.manifest.id}\`.`)
@@ -796,14 +816,12 @@ export class ExtensionHost {
     }
 
     const revocable = createRevocableKitClient(client as object)
-    const revoke = () => {
-      registered.clientRevokers.delete(revoke)
-      revocable.revoke()
-    }
+    const revocableClient = revocable.client
+    const revoke = createTrackedClientRevoker(registered.clientRevokers, revocable.revoke)
     registered.clientRevokers.add(revoke)
     subscriptions.add({ dispose: revoke })
 
-    return { ok: true, client: revocable.client as TClient }
+    return { ok: true, client: revocableClient as TClient }
   }
 
   private createKitConsumer(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitConsumer {
@@ -1188,6 +1206,7 @@ export class ExtensionHost {
   async start(manifest: ExtensionManifestV2, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
     const runtime = options.runtime ?? this.runtime
     this.assertManifestCompatibility(manifest, runtime)
+    this.assertProvidedKitSlotsAvailable(manifest)
     this.assertRequiredKitsAvailable(manifest)
     const extension = await this.loader.loadExtensionFor(manifest, {
       cwd: options.cwd,
