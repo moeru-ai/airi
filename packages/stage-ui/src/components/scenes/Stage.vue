@@ -920,11 +920,19 @@ function bilingualTurnOfItem(item: { turnId?: string }): string {
 /**
  * Index of the pair whose spoken text a playback item is reading.
  *
- * The parser pairs by language switch while the speech engine segments by
- * punctuation, so the two rarely line up one to one: one pair can cover several
- * playback items, and one item can be a fragment of a pair. Matching on the
- * text keeps the translation on the sentence actually being spoken instead of
- * trusting the queue to be in the same order.
+ * Pairs are queued in the order the model emitted them and spoken in that same
+ * order, so each one is tried from the front and the first that fits wins; a
+ * pair the queue has passed is never paired again.
+ *
+ * Only the ends are compared — the item starts the pair's sentence, or the pair
+ * starts the item's. A sentence that merely appears *inside* a pair's text does
+ * not belong to it: a pair whose request failed stays queued, and a later
+ * sentence that happens to read as a slice of it would otherwise be shown with
+ * the translation of a sentence nobody heard.
+ *
+ * Fragments that follow the first one are not matched here. Speech splits a
+ * sentence after its first item, and those tail items are recognised against
+ * the sentence already on screen instead.
  */
 function findBilingualPairIndex(pairs: BilingualPair[], itemText: string): number {
   const spoken = itemText.trim()
@@ -936,7 +944,7 @@ function findBilingualPairIndex(pairs: BilingualPair[], itemText: string): numbe
     if (!candidate)
       return false
 
-    return candidate === spoken || candidate.includes(spoken) || spoken.includes(candidate)
+    return candidate === spoken || candidate.startsWith(spoken) || spoken.startsWith(candidate)
   })
 }
 
