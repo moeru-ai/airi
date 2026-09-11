@@ -1,6 +1,13 @@
 catalogMode: prefer
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
+  # NOTICE:
+  # electron-builder 26.16.1 fixes macOS signing on the current GitHub runner.
+  # Remove these exact exceptions after the 72-hour release-age window expires.
+  - app-builder-lib@26.16.1
+  - dmg-builder@26.16.1
+  - electron-builder-squirrel-windows@26.16.1
+  - electron-builder@26.16.1
   - '@moeru/*'
   - '@proj-airi/*'
   - '@vishot/*'
@@ -277,7 +284,7 @@ catalog:
   drizzle-orm: ^0.45.2
   drizzle-valibot: ^0.4.2
   electron: ^43.4.1
-  electron-builder: ^26.15.3
+  electron-builder: ^26.16.1
   electron-click-drag-plugin: ^2.0.2
   electron-updater: ^6.8.9
   electron-vite: ^5.0.0
