@@ -52,12 +52,7 @@ export async function createVerifier(options: VerifierOptions) {
   for (const app of options.apps) {
     verifiers.set(app.bundleId, new SignedDataVerifier(
       rootCertificates,
-      // NOTICE:
-      // Keep OCSP / expiration online checks off. Apple CA OCSP can be slow, and
-      // this path sits on the purchase critical path.
-      // Refresh root certs manually via server/apps/api/assets/apple-root-ca/README.md.
-      // Removal condition: enable when an offline CRL/OCSP cache is available.
-      false,
+      true,
       STOREKIT_ENVIRONMENTS[options.env],
       app.bundleId,
       app.appAppleId,
