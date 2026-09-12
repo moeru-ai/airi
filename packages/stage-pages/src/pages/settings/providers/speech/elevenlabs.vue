@@ -12,7 +12,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const providerId = 'elevenlabs'
@@ -86,8 +86,6 @@ async function loadVoicesWhenConfigured() {
   }
 }
 
-onMounted(loadVoicesWhenConfigured)
-
 watch(pitch, async () => {
   const providerConfig = providerStore.getProviderConfig(providerId)
   providerConfig.pitch = pitch.value
@@ -123,7 +121,7 @@ watch(useSpeakerBoost, async () => {
   providerConfig.useSpeakerBoost = useSpeakerBoost.value
 })
 
-watch(providers, loadVoicesWhenConfigured, {
+watch(() => providers.value[providerId]?.apiKey, loadVoicesWhenConfigured, {
   immediate: true,
 })
 </script>

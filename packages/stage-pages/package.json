@@ -67,6 +67,7 @@
     "@types/three": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
     "@vitest/browser-playwright": "catalog:vitest",
+    "pinia-plugin-synced": "catalog:",
     "unocss": "catalog:",
     "unplugin-info": "catalog:",
     "vitest": "catalog:vitest",
