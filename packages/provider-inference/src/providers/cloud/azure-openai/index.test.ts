@@ -1,10 +1,9 @@
-import type { ChatRequestOptions } from '@proj-airi/provider-inference'
-import type { ChatProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { JsonSchema } from 'xsschema'
 
 import { createSparkCommandTool } from '@proj-airi/core-agent/agents/spark-command'
-import { getDefinedProvider } from '@proj-airi/provider-inference'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { providerAzureOpenAI } from './index'
 
 interface ChatRequestBody {
   tools: Array<{
@@ -29,56 +28,37 @@ function getArraySchema(schema?: JsonSchema): JsonSchema | undefined {
   return schema.anyOf?.filter(isJsonSchema).find(candidate => candidate.type === 'array')
 }
 
-describe('providerOpenRouterAI tool schemas', () => {
+describe('providerAzureOpenAI tool schemas', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('maps AIRI reasoning modes to OpenRouter request fields', async () => {
-    const providerDefinition = getDefinedProvider('openrouter-ai')
-    if (!providerDefinition)
-      throw new Error('OpenRouter provider definition is not registered.')
-
-    const provider = await providerDefinition.createProvider({
-      apiKey: 'test-key',
-    }) as ChatProviderWithExtraOptions<string, ChatRequestOptions>
-
-    expect(provider.chat('openai/gpt-test', { reasoning: 'disabled' })).toMatchObject({
-      reasoning: { effort: 'none' },
-    })
-    expect(provider.chat('openai/gpt-test', { reasoning: 'enabled' })).toMatchObject({
-      reasoning: { effort: 'medium' },
-    })
-  })
-
-  it('keeps the canonical nullable anyOf when it sends a chat request', async () => {
+  // https://github.com/moeru-ai/airi/pull/2330#discussion_r3819919459
+  it('converts every nullable scalar anyOf before it sends a chat request (PR #2330 review)', async () => {
     const tools = await createSparkCommandTool({
       sendSparkCommand: () => undefined,
     })
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}'))
     vi.stubGlobal('fetch', fetchMock)
 
-    const providerDefinition = getDefinedProvider('openrouter-ai')
-    if (!providerDefinition)
-      throw new Error('OpenRouter provider definition is not registered.')
-
-    const provider = await providerDefinition.createProvider({
+    const provider = await providerAzureOpenAI.createProvider({
       apiKey: 'test-key',
+      baseUrl: 'https://example.openai.azure.com/openai/',
     })
     if (!('chat' in provider))
-      throw new Error('OpenRouter did not create a chat provider.')
+      throw new Error('Azure OpenAI did not create a chat provider.')
 
-    const providerFetch = provider.chat('google/gemini-test').fetch
+    const providerFetch = provider.chat('test-deployment').fetch
     if (!providerFetch)
-      throw new Error('OpenRouter did not create a fetch adapter.')
+      throw new Error('Azure OpenAI did not create a fetch adapter.')
 
-    await providerFetch(new URL('https://openrouter.ai/api/v1/chat/completions'), {
+    await providerFetch(new URL('https://example.openai.azure.com/openai/v1/chat/completions'), {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-test',
+        model: 'test-deployment',
         messages: [],
         tools,
       }),
@@ -86,7 +66,7 @@ describe('providerOpenRouterAI tool schemas', () => {
 
     const requestBody = fetchMock.mock.calls[0]?.[1]?.body
     if (typeof requestBody !== 'string')
-      throw new Error('OpenRouter did not send a JSON request body.')
+      throw new Error('Azure OpenAI did not send a JSON request body.')
 
     const body = JSON.parse(requestBody) as ChatRequestBody
     const sparkTool = body.tools.find(tool => tool.function.name === 'builtIn_emitSparkCommand')
@@ -96,12 +76,14 @@ describe('providerOpenRouterAI tool schemas', () => {
     const metadataItem = metadata?.items as JsonSchema
     const metadataValue = metadataItem.properties?.value as JsonSchema
 
-    expect(metadataValue.type).toBeUndefined()
-    expect(metadataValue.anyOf).toEqual([
-      { type: 'string' },
-      { type: 'number' },
-      { type: 'boolean' },
-      { type: 'null' },
-    ])
+    // ROOT CAUSE:
+    //
+    // The provider-neutral spark schema keeps this value as a nullable `anyOf`.
+    // Azure OpenAI rejects that schema before generation and disables all tools.
+    //
+    // We fixed this in the Azure request adapter. It converts the union only for
+    // Azure OpenAI and leaves the canonical tool schema unchanged.
+    expect(metadataValue.type).toEqual(['string', 'number', 'boolean', 'null'])
+    expect(metadataValue.anyOf).toBeUndefined()
   })
 })
