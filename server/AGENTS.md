@@ -12,7 +12,7 @@
 
 ## Architecture decisions
 
-- Put server ADRs directly in `server/docs/ai/`, relative to the repository root.
+- Put server ADRs in `server/docs/ai/adr/`, relative to the repository root.
 - Include ADRs in the related commits and pull requests in this repository.
 - Create or update the ADR before you change a server boundary.
 - A server boundary includes an HTTP contract, provider contract, persistence model, or cross-module lifecycle.

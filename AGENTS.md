@@ -93,8 +93,8 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 
 ## Architecture decisions
 
-- Put project-wide and client ADRs directly in `docs/ai/`.
-- Put hosted backend ADRs directly in `server/docs/ai/`.
+- Put project-wide and client ADRs in `docs/ai/adr/`.
+- Put hosted backend ADRs in `server/docs/ai/adr/`.
 - Both paths are relative to the repository root.
 - Keep ADRs in this repository and include them in the related commits and pull requests.
 
