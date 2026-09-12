@@ -233,6 +233,7 @@ export async function buildApp(deps: AppDeps) {
       trigger: c.req.query('tts_trigger') === 'auto' ? 'auto' : 'manual',
       source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
       voiceType: parseTtsVoiceType(c.req.query('tts_voice_type')),
+      roundId: parseTtsCorrelationId(c.req.query('round_id')),
     })
   }))
 
@@ -425,6 +426,11 @@ function parseTtsSource(
     default:
       return fallback
   }
+}
+
+function parseTtsCorrelationId(value: string | undefined): string | undefined {
+  const id = value?.trim()
+  return id && id.length <= 128 ? id : undefined
 }
 
 /**

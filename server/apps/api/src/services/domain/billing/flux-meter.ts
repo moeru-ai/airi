@@ -172,6 +172,8 @@ export function createFluxMeter(
         requestId: input.requestId,
         description: `${config.name}_request`,
         ...(typeof input.metadata?.model === 'string' && { model: input.metadata.model }),
+        ...(typeof input.metadata?.conversationId === 'string' && { conversationId: input.metadata.conversationId }),
+        ...(typeof input.metadata?.roundId === 'string' && { roundId: input.metadata.roundId }),
       })
     }
     catch (error) {

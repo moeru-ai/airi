@@ -134,6 +134,8 @@ describe('billingService', () => {
         amount: 30,
         requestId: 'req-1',
         description: 'gpt-4',
+        conversationId: 'conversation-1',
+        roundId: 'round-1',
         promptTokens: 120,
         completionTokens: 80,
       })
@@ -159,6 +161,8 @@ describe('billingService', () => {
         description: 'gpt-4',
       })
       expect(txRecord?.metadata).toMatchObject({
+        conversationId: 'conversation-1',
+        roundId: 'round-1',
         promptTokens: 120,
         completionTokens: 80,
         source: 'llm.request',

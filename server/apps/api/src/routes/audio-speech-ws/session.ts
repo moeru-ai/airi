@@ -59,6 +59,8 @@ export interface AudioSpeechSessionAnalytics {
   trigger?: StreamingTtsTrigger
   source?: StreamingTtsSource
   voiceType?: StreamingTtsVoiceType
+  /** Chat round that owns this session. Groups its ledger entries in Flux history. */
+  roundId?: string
 }
 
 /**
@@ -78,7 +80,7 @@ export interface AudioSpeechSessionAnalytics {
 export function createSessionState(
   userId: string,
   opts: AudioSpeechWsHandlersOptions,
-  _analyticsInput: AudioSpeechSessionAnalytics = {},
+  analyticsInput: AudioSpeechSessionAnalytics = {},
 ): AudioSpeechSessionState {
   const requestId = nanoid()
   const startedAt = Date.now()
@@ -458,7 +460,10 @@ export function createSessionState(
           units,
           currentBalance: flux.flux,
           requestId,
-          metadata: { model: modelLabel },
+          metadata: {
+            model: modelLabel,
+            ...(analyticsInput.roundId != null && { roundId: analyticsInput.roundId }),
+          },
         }))
       fluxConsumed = result.fluxDebited
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
