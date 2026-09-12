@@ -3,7 +3,7 @@ import type { JsonSchema } from 'xsschema'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { describe, expect, it, vi } from 'vitest'
 
-import { createSparkCommandTool } from './spark-command'
+import { createSparkCommandTool } from './tools'
 
 function isJsonSchema(value: JsonSchema | boolean | undefined): value is JsonSchema {
   return Boolean(value && typeof value === 'object')
@@ -48,7 +48,7 @@ function findObjectSchema(schema: JsonSchema | undefined, predicate: (schema: Js
   return undefined
 }
 
-describe('tools/character/orchestrator/spark-command', () => {
+describe('agents/spark-command/tools', () => {
   it('emits a strict parameter schema', async () => {
     const tools = await createSparkCommandTool({
       sendSparkCommand: () => undefined,
