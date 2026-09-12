@@ -1,22 +1,52 @@
+character-switcher:
+  title: Переключить персонажа
+  manage: Управлять персонажами
+  empty: Пока нет персонажей
+  failed: Не удалось переключить персонажа. Попробуйте еще раз.
+mobile-tools:
+  sign-in: Войти в AIRI
+  account-description: Учётная запись и настройки
+  sound: Звук
+  character-voice: Голос персонажа
+  title: Настройки
+  appearance: Внешний вид
+  dark-mode: Тёмный режим
+  application: Приложение
+  more: Ещё
+  background: Фон
+  settings: Все настройки
+  about: Подробнее
+  view: Вид
+  close-view: Сохранить и закрыть управление видом
+  hearing: Слух
 chat:
   actions:
+    reply: Ответить
     retry: Повторить
+    send: Отправить сообщение
   message:
     character-name:
       airi: AIRI
       core-system: Core система
       you: Ты
+  reply:
+    cancel: Отменить ответ
+    message: Сообщение
+    replying-to: Ответить на {name}
   reasoning: Причина
   sessions:
     title: Диалоги
-    new: + Новый
+    new: Новый диалог
+    current: Текущая
+    confirm-delete: Удалить этот диалог и его сообщения?
+    cancel: Отменить
     empty: Диалогов пока нет
     cloud-badge: Синхронизировано с облаком
     new-chat-fallback: Новый чат
     delete: Удалить диалог
 render-error:
   title: '{renderer} не удалось отобразить эту модель'
-  description: Модель выбрана, но сцена не смогла её отобразить.
+  description: Модель выбрана, но в Стадии не удалось ее отобразить.
   report-description: |-
     {renderer} не удалось отобразить выбранную модель.
     ID модели: {modelId}
@@ -28,8 +58,8 @@ send-mode:
   ctrl-enter: Ctrl + Enter
   double-enter: Двойной Enter
 speech-output:
-  mute: Отключить озвучивание
-  unmute: Включить озвучивание
+  mute: Отключить звук
+  unmute: Включить звук
 operations:
   load-models: Загрузить модели
   load-models-status:
