@@ -15,7 +15,11 @@ import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
+import AlibabaCloudModelStudioPage from './alibaba-cloud-model-studio.vue'
+import DeepgramTtsPage from './deepgram-tts.vue'
 import ElevenLabsPage from './elevenlabs.vue'
+import KokoroLocalPage from './kokoro-local.vue'
+import Player2SpeechPage from './player2-speech.vue'
 import VolcenginePage from './volcengine.vue'
 
 import 'virtual:uno.css'
@@ -95,11 +99,11 @@ afterEach(() => {
   localStorage.clear()
 })
 
-describe('elevenLabs settings synchronization', () => {
+describe('speech provider settings synchronization', () => {
   // https://github.com/moeru-ai/airi/issues/2523
   // ROOT CAUSE:
   //
-  // The settings watcher sent a reactive provider configuration through the
+  // Provider settings sent a reactive provider configuration through the
   // synchronized validation action. BroadcastChannel rejected that argument
   // before the leader could validate it, so the watcher skipped voice discovery.
   // Watching the complete provider snapshot also repeated discovery when an
@@ -189,5 +193,116 @@ describe('elevenLabs settings synchronization', () => {
     await vi.waitFor(() => expect(leaderConfig.getProviderConfig('volcengine')?.audio).toEqual({ speedRatio: 1.25 }))
     await new Promise(resolve => setTimeout(resolve, 600))
     expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2523
+  it('loads Deepgram voices after follower credential changes (Issue #2523)', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({
+      voices: [{ id: 'deepgram-voice', name: 'Deepgram Voice' }],
+    }))
+    vi.stubGlobal('fetch', fetch)
+
+    const namespace = `deepgram:${crypto.randomUUID()}`
+    const leader = mountLeader(namespace)
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const leaderConfig = useProviderConfigStore(leader.pinia)
+    await leaderConfig.ensureProvider('deepgram-tts', 'deepgram-tts', {
+      apiKey: '',
+      baseUrl: 'https://voices.invalid/v1/',
+    })
+
+    const follower = createSyncedPinia(namespace, 'follower-only')
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await mountFollower(DeepgramTtsPage, follower.pinia, follower.runtime)
+
+    const followerConfig = useProviderConfigStore(follower.pinia)
+    await vi.waitFor(() => expect(followerConfig.getProviderConfig('deepgram-tts')?.apiKey).toBe(''))
+    await followerConfig.patchProviderConfig('deepgram-tts', { apiKey: 'test-key' })
+    await vi.waitFor(() => expect(leader.speechStore.availableVoices['deepgram-tts']?.[0]?.id).toBe('deepgram-voice'))
+    await vi.waitFor(() => expect(useSpeechStore(follower.pinia).availableVoices['deepgram-tts']?.[0]?.id).toBe('deepgram-voice'))
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2523
+  it('loads Alibaba Cloud voices after follower credential changes (Issue #2523)', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({
+      voices: [{ id: 'alibaba-voice', name: 'Alibaba Voice' }],
+    }))
+    vi.stubGlobal('fetch', fetch)
+
+    const namespace = `alibaba:${crypto.randomUUID()}`
+    const leader = mountLeader(namespace)
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const leaderConfig = useProviderConfigStore(leader.pinia)
+    await leaderConfig.ensureProvider('alibaba-cloud-model-studio', 'alibaba-cloud-model-studio', {
+      apiKey: '',
+      baseUrl: 'https://voices.invalid/v1/',
+    })
+
+    const follower = createSyncedPinia(namespace, 'follower-only')
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await mountFollower(AlibabaCloudModelStudioPage, follower.pinia, follower.runtime)
+
+    const followerConfig = useProviderConfigStore(follower.pinia)
+    await vi.waitFor(() => expect(followerConfig.getProviderConfig('alibaba-cloud-model-studio')?.apiKey).toBe(''))
+    await followerConfig.patchProviderConfig('alibaba-cloud-model-studio', { apiKey: 'test-key' })
+    await vi.waitFor(() => expect(leader.speechStore.availableVoices['alibaba-cloud-model-studio']?.[0]?.id).toBe('alibaba-voice'))
+    await vi.waitFor(() => expect(useSpeechStore(follower.pinia).availableVoices['alibaba-cloud-model-studio']?.[0]?.id).toBe('alibaba-voice'))
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2523
+  it('loads Player2 voices when its page mounts in a follower (Issue #2523)', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/tts/voices')) {
+        return Response.json({
+          voices: [{
+            gender: 'female',
+            id: 'player2-voice',
+            language: 'american_english',
+            name: 'Player2 Voice',
+          }],
+        })
+      }
+      return new Response(null, { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetch)
+
+    const namespace = `player2:${crypto.randomUUID()}`
+    const leader = mountLeader(namespace)
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const leaderConfig = useProviderConfigStore(leader.pinia)
+    await leaderConfig.ensureProvider('player2-speech', 'player2-speech', {
+      baseUrl: 'https://player2.invalid/v1/',
+    })
+
+    const follower = createSyncedPinia(namespace, 'follower-only')
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await mountFollower(Player2SpeechPage, follower.pinia, follower.runtime)
+
+    await vi.waitFor(() => expect(leader.speechStore.availableVoices['player2-speech']?.[0]?.id).toBe('player2-voice'))
+    await vi.waitFor(() => expect(useSpeechStore(follower.pinia).availableVoices['player2-speech']?.[0]?.id).toBe('player2-voice'))
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2523
+  it('validates Kokoro configuration when its page mounts in a follower (Issue #2523)', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const namespace = `kokoro:${crypto.randomUUID()}`
+    const leader = mountLeader(namespace)
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const leaderConfig = useProviderConfigStore(leader.pinia)
+    await leaderConfig.ensureProvider('kokoro-local', 'kokoro-local', {
+      model: 'unsupported-model',
+    })
+
+    const follower = createSyncedPinia(namespace, 'follower-only')
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await expect(mountFollower(KokoroLocalPage, follower.pinia, follower.runtime)).resolves.toBeUndefined()
+    await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith(
+      'Failed to validate Kokoro provider config',
+      expect.objectContaining({ model: 'unsupported-model' }),
+      expect.objectContaining({ valid: false }),
+    ))
   })
 })

@@ -6,6 +6,7 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { toProviderConfigSnapshot } from '@proj-airi/stage-ui/libs/providers/config'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
@@ -122,10 +123,11 @@ onMounted(async () => {
       config.model = getDefaultKokoroModel(hasWebGPU.value)
     }
 
-    const validationResult = await providersStore.validateProviderConfig(providerId, config)
+    const configSnapshot = toProviderConfigSnapshot(config)
+    const validationResult = await providersStore.validateProviderConfig(providerId, configSnapshot)
     if (validationResult.valid) {
       // Load the initial model
-      await providersStore.loadProviderModel(providerId, config)
+      await providersStore.loadProviderModel(providerId, configSnapshot)
 
       await speechStore.loadVoicesForProvider(providerId)
     }
@@ -145,11 +147,12 @@ watch(model, async (newValue) => {
       voicesLoading.value = true
 
       const config = providerStore.getProviderConfig(providerId)
-      const validationResult = await providersStore.validateProviderConfig(providerId, config)
+      const configSnapshot = toProviderConfigSnapshot(config)
+      const validationResult = await providersStore.validateProviderConfig(providerId, configSnapshot)
 
       if (validationResult.valid) {
         // Load the model using the capability with progress tracking
-        await providersStore.loadProviderModel(providerId, config)
+        await providersStore.loadProviderModel(providerId, configSnapshot)
 
         // Then reload voices
         await speechStore.loadVoicesForProvider(providerId)
