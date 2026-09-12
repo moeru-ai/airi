@@ -137,7 +137,6 @@ describe('stripeRoutes', () => {
       const res = await app.request('/api/v1/stripe/packages')
       expect(res.status).toBe(200)
       expect(await res.json()).toEqual([{
-        packKey: 'price_test_500',
         stripePriceId: 'price_test_500',
         label: '500 Flux',
         defaultCurrency: 'usd',
@@ -153,7 +152,7 @@ describe('stripeRoutes', () => {
       const res = await app.request('/api/v1/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packKey: 'price_starter' }),
+        body: JSON.stringify({ stripePriceId: 'price_starter' }),
       })
       expect(res.status).toBe(401)
     })
@@ -228,7 +227,7 @@ describe('stripeRoutes', () => {
             currency: 'usd',
             metadata: {
               payment_order_id: 'po_1',
-              packKey: 'price_starter',
+              stripePriceId: 'price_starter',
               openpanelDeviceId: 'anon-browser-1',
               openpanelSessionId: 'ph-session-1',
             },
@@ -263,7 +262,7 @@ describe('stripeRoutes', () => {
         action: 'payment_completed',
         metadata: expect.objectContaining({
           openpanel_device_id: 'anon-browser-1',
-          pack_key: 'price_starter',
+          stripe_price_id: 'price_starter',
         }),
       }))
     })

@@ -35,18 +35,14 @@ export function createCheckoutOperation(
     if (!parsed.success)
       throw createBadRequestError('Invalid checkout request', 'INVALID_REQUEST', parsed.issues)
 
-    const { currency } = parsed.output
-    const packKey = parsed.output.packKey ?? parsed.output.stripePriceId
-    if (!packKey)
-      throw createBadRequestError('Invalid checkout request', 'INVALID_REQUEST')
-
-    const price = await priceCatalog.findActivePrice(fluxProductId, packKey)
+    const { stripePriceId, currency } = parsed.output
+    const price = await priceCatalog.findActivePrice(fluxProductId, stripePriceId)
     if (!price)
-      throw createBadRequestError('Invalid price', 'INVALID_PACKAGE', { packKey })
+      throw createBadRequestError('Invalid price', 'INVALID_PACKAGE', { stripePriceId })
 
     const fluxAmount = Number(price.metadata.fluxAmount)
     if (!Number.isFinite(fluxAmount) || fluxAmount <= 0)
-      throw createBadRequestError('Price is missing fluxAmount metadata', 'INVALID_PACKAGE', { packKey })
+      throw createBadRequestError('Price is missing fluxAmount metadata', 'INVALID_PACKAGE', { stripePriceId })
 
     const redirectBase = resolveCheckoutRedirectBase(request, env.ADDITIONAL_TRUSTED_ORIGINS, env.WEB_APP_URL)
     const openpanelIdentity = readOpenpanelIdentityHeaders(request)
@@ -54,13 +50,13 @@ export function createCheckoutOperation(
     const order = await payment.openPending({
       userId: user.id,
       processor: 'stripe',
-      packKey,
+      packKey: stripePriceId,
       fluxAmount,
       currency,
     })
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
-      line_items: [{ price: packKey, quantity: 1 }],
+      line_items: [{ price: stripePriceId, quantity: 1 }],
       mode: 'payment',
       allow_promotion_codes: true,
       success_url: `${redirectBase}/settings/flux?success=true`,
@@ -70,7 +66,7 @@ export function createCheckoutOperation(
       metadata: {
         payment_order_id: order.id,
         userId: user.id,
-        packKey,
+        stripePriceId,
         fluxAmount: String(fluxAmount),
         ...(openpanelIdentity.distinctId && { openpanelDeviceId: openpanelIdentity.distinctId }),
         ...(openpanelIdentity.sessionId && { openpanelSessionId: openpanelIdentity.sessionId }),
@@ -118,7 +114,7 @@ export function createCheckoutOperation(
       eventId: order.id,
       source: 'stripe.checkout',
       metadata: {
-        pack_key: packKey,
+        stripe_price_id: stripePriceId,
         flux_amount: fluxAmount,
         amount_total: session.amount_total,
         currency: session.currency,

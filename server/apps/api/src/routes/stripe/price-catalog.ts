@@ -31,8 +31,6 @@ export interface StripePriceCatalog {
 }
 
 export interface StripePackage {
-  packKey: string
-  // NOTICE: compatibility copy of packKey for previous-version clients.
   stripePriceId: string
   label: string
   defaultCurrency: string
@@ -104,7 +102,6 @@ export async function listStripePackages(catalog: StripePriceCatalog, productId:
       currencies[currency] = formatPrice(option.unitAmount, currency)
 
     return {
-      packKey: price.id,
       stripePriceId: price.id,
       label: `${price.metadata.fluxAmount ?? '?'} Flux`,
       defaultCurrency: price.currency,

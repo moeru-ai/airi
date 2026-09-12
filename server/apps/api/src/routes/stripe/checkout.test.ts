@@ -51,8 +51,8 @@ function createProductConfigKV(): ConfigKVService {
 function createCatalog(price: CachedPrice | null = starterPrice): StripePriceCatalog {
   return {
     getActivePrices: vi.fn(async () => price ? [price] : []),
-    findActivePrice: vi.fn(async (_productId: string, packKey: string) => {
-      if (price && price.id === packKey)
+    findActivePrice: vi.fn(async (_productId: string, stripePriceId: string) => {
+      if (price && price.id === stripePriceId)
         return price
       return null
     }),
@@ -108,7 +108,7 @@ describe('stripe checkout', () => {
       expect(order?.packKey).toBe('price_starter')
       expect(order?.fluxAmount).toBe(500)
       expect(params.metadata?.payment_order_id).toBe(order?.id)
-      expect(params.metadata?.packKey).toBe('price_starter')
+      expect(params.metadata?.stripePriceId).toBe('price_starter')
       expect(params.metadata?.fluxAmount).toBe('500')
 
       return {
@@ -123,7 +123,7 @@ describe('stripe checkout', () => {
 
     const result = await checkout(
       testUser,
-      { packKey: 'price_starter', currency: 'usd' },
+      { stripePriceId: 'price_starter', currency: 'usd' },
       new Request('http://localhost/api/v1/stripe/checkout'),
     )
 
@@ -136,26 +136,6 @@ describe('stripe checkout', () => {
     expect(order?.currency).toBe('usd')
   })
 
-  it('accepts stripePriceId as the pack key', async () => {
-    const create = vi.fn(async () => ({
-      id: 'cs_test_price',
-      url: 'https://checkout.stripe.test/cs_test_price',
-      amount_total: 500,
-      currency: 'usd',
-    }))
-    const checkout = createCheckout(payment, { checkout: { sessions: { create } } })
-
-    await checkout(
-      testUser,
-      { stripePriceId: 'price_starter' },
-      new Request('http://localhost/api/v1/stripe/checkout'),
-    )
-
-    const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
-    expect(order?.packKey).toBe('price_starter')
-    expect(create).toHaveBeenCalled()
-  })
-
   it('rejects a price that is not on the configured product', async () => {
     const checkout = createCheckout(
       payment,
@@ -165,7 +145,7 @@ describe('stripe checkout', () => {
 
     await expect(checkout(
       testUser,
-      { packKey: 'price_other' },
+      { stripePriceId: 'price_other' },
       new Request('http://localhost/api/v1/stripe/checkout'),
     )).rejects.toMatchObject({
       statusCode: 400,
@@ -182,7 +162,7 @@ describe('stripe checkout', () => {
 
     await expect(checkout(
       testUser,
-      { packKey: 'price_starter' },
+      { stripePriceId: 'price_starter' },
       new Request('http://localhost/api/v1/stripe/checkout'),
     )).rejects.toMatchObject({
       statusCode: 400,
@@ -218,7 +198,7 @@ describe('stripe checkout', () => {
 
     await checkout(
       testUser,
-      { packKey: 'price_starter' },
+      { stripePriceId: 'price_starter' },
       new Request('http://localhost/api/v1/stripe/checkout'),
     )
 
@@ -243,7 +223,7 @@ describe('stripe checkout', () => {
 
     await checkout(
       testUser,
-      { packKey: 'price_starter' },
+      { stripePriceId: 'price_starter' },
       new Request('http://localhost/api/v1/stripe/checkout', {
         headers: {
           'x-openpanel-device-id': 'anon-browser-1',
@@ -262,7 +242,7 @@ describe('stripe checkout', () => {
       action: 'checkout_started',
       metadata: expect.objectContaining({
         openpanel_device_id: 'anon-browser-1',
-        pack_key: 'price_starter',
+        stripe_price_id: 'price_starter',
       }),
     }))
   })
@@ -289,7 +269,7 @@ describe('stripe checkout', () => {
 
     await checkout(
       testUser,
-      { packKey: 'price_starter' },
+      { stripePriceId: 'price_starter' },
       new Request('http://localhost/api/v1/stripe/checkout'),
     )
 
@@ -304,7 +284,7 @@ describe('stripe checkout', () => {
 
     await expect(checkout(
       testUser,
-      { packKey: 'price_starter' },
+      { stripePriceId: 'price_starter' },
       new Request('http://localhost/api/v1/stripe/checkout'),
     )).rejects.toThrow('stripe down')
 
@@ -324,7 +304,7 @@ describe('stripe checkout', () => {
 
     await expect(checkout(
       testUser,
-      { packKey: 'price_starter' },
+      { stripePriceId: 'price_starter' },
       new Request('http://localhost/api/v1/stripe/checkout'),
     )).rejects.toMatchObject({
       statusCode: 503,

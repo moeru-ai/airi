@@ -43,7 +43,6 @@ describe('listStripePackages', () => {
     )
 
     await expect(listStripePackages(catalog, productId)).resolves.toEqual([{
-      packKey: 'price_starter',
       stripePriceId: 'price_starter',
       label: '500 Flux',
       defaultCurrency: 'usd',
