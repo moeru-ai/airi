@@ -1,21 +1,30 @@
 <script setup lang="ts">
 import type {
+  ExtensionDirectoryImportPlan,
   PluginHostSessionSummary,
   PluginManifestSummary,
-} from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
+} from '@proj-airi/stage-shared/plugin-host'
 
 import { errorMessageFrom } from '@moeru/std'
 import { Section } from '@proj-airi/stage-ui/components'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { Button, Callout, GhostButton, Input } from '@proj-airi/ui'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
 const store = usePluginHostInspectorStore()
 const { t } = useI18n()
-const filter = ref('')
-const selectedExtensionId = ref('')
+const filter = shallowRef('')
+const selectedExtensionId = shallowRef('')
+const importPlan = shallowRef<ExtensionDirectoryImportPlan>()
+
+const importEntrypoints = computed(() => {
+  if (!importPlan.value) {
+    return []
+  }
+  return Object.entries(importPlan.value.entrypoints).filter((entry): entry is [string, string] => Boolean(entry[1]))
+})
 
 const discoveredPlugins = computed(() => {
   const query = filter.value.trim().toLowerCase()
@@ -107,6 +116,58 @@ async function loadEnabled() {
   catch (error) {
     toast.error(errorMessageFrom(error) ?? 'Failed to load enabled plugins.')
   }
+}
+
+async function prepareDirectoryImport() {
+  try {
+    const result = await store.prepareDirectoryImport()
+    if (result.status === 'ready') {
+      importPlan.value = result.plan
+    }
+  }
+  catch (error) {
+    toast.error(errorMessageFrom(error) ?? t('settings.pages.system.sections.section.developer.sections.section.plugin-host.errors.prepare-import'))
+  }
+}
+
+async function commitDirectoryImport() {
+  if (!importPlan.value) {
+    return
+  }
+
+  const plan = importPlan.value
+  try {
+    await store.commitDirectoryImport({ planId: plan.planId })
+    importPlan.value = undefined
+    toast.success(t('settings.pages.system.sections.section.developer.sections.section.plugin-host.import.imported', { extensionId: plan.extensionId }))
+  }
+  catch (error) {
+    toast.error(errorMessageFrom(error) ?? t('settings.pages.system.sections.section.developer.sections.section.plugin-host.errors.commit-import', { extensionId: plan.extensionId }))
+  }
+}
+
+async function cancelDirectoryImport() {
+  if (!importPlan.value) {
+    return
+  }
+
+  try {
+    await store.cancelDirectoryImport({ planId: importPlan.value.planId })
+    importPlan.value = undefined
+  }
+  catch (error) {
+    toast.error(errorMessageFrom(error) ?? t('settings.pages.system.sections.section.developer.sections.section.plugin-host.errors.cancel-import'))
+  }
+}
+
+function formatBytes(value: number): string {
+  if (value < 1024) {
+    return `${value} B`
+  }
+  if (value < 1024 * 1024) {
+    return `${(value / 1024).toFixed(1)} KB`
+  }
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`
 }
 
 async function setAutoReload(plugin: PluginManifestSummary, enabled: boolean) {
@@ -269,7 +330,116 @@ onMounted(async () => {
         :loading="store.loading"
         @click="loadEnabled"
       />
+      <Button
+        :label="t('settings.pages.system.sections.section.developer.sections.section.plugin-host.actions.import-folder')"
+        icon="i-solar:folder-with-files-bold-duotone"
+        size="sm"
+        :loading="store.loading"
+        @click="prepareDirectoryImport"
+      />
     </div>
+
+    <Section
+      v-if="importPlan"
+      :title="t('settings.pages.system.sections.section.developer.sections.section.plugin-host.import.title')"
+      icon="i-solar:folder-check-bold-duotone"
+      inner-class="gap-3"
+    >
+      <Callout
+        theme="orange"
+        :label="`${importPlan.extensionId} · ${importPlan.version}`"
+        :description="t('settings.pages.system.sections.section.developer.sections.section.plugin-host.import.description')"
+      />
+
+      <dl :class="['grid', 'gap-3', 'rounded-xl', 'border', 'border-neutral-300', 'bg-white/70', 'p-4', 'text-sm', 'dark:border-neutral-800', 'dark:bg-neutral-950/60', 'md:grid-cols-2']">
+        <div :class="['min-w-0']">
+          <dt :class="['text-xs', 'font-medium', 'uppercase', 'opacity-60']">
+            {{ t('settings.pages.system.sections.section.developer.sections.section.plugin-host.import.source') }}
+          </dt>
+          <dd :class="['mt-1', 'break-all', 'font-mono', 'text-xs']">
+            {{ importPlan.sourcePath }}
+          </dd>
+        </div>
+        <div>
+          <dt :class="['text-xs', 'font-medium', 'uppercase', 'opacity-60']">
+            {{ t('settings.pages.system.sections.section.developer.sections.section.plugin-host.import.runtimes') }}
+          </dt>
+          <dd :class="['mt-1']">
+            {{ importPlan.runtimes.join(', ') }}
+          </dd>
+        </div>
+        <div :class="['min-w-0']">
+          <dt :class="['text-xs', 'font-medium', 'uppercase', 'opacity-60']">
+            {{ t('settings.pages.system.sections.section.developer.sections.section.plugin-host.import.entrypoints') }}
+          </dt>
+          <dd :class="['mt-1', 'grid', 'gap-1']">
+            <div
+              v-for="[runtime, entrypoint] in importEntrypoints"
+              :key="runtime"
+              :class="['break-all', 'font-mono', 'text-xs']"
+            >
+              {{ runtime }} · {{ entrypoint }}
+            </div>
+          </dd>
+        </div>
+        <div>
+          <dt :class="['text-xs', 'font-medium', 'uppercase', 'opacity-60']">
+            {{ t('settings.pages.system.sections.section.developer.sections.section.plugin-host.import.package-size') }}
+          </dt>
+          <dd :class="['mt-1']">
+            {{ t('settings.pages.system.sections.section.developer.sections.section.plugin-host.import.package-size-value', { fileCount: importPlan.fileCount, totalBytes: formatBytes(importPlan.totalBytes) }) }}
+          </dd>
+        </div>
+      </dl>
+
+      <div :class="['grid', 'gap-3', 'lg:grid-cols-2']">
+        <div :class="['rounded-xl', 'border', 'border-neutral-300', 'p-4', 'dark:border-neutral-800']">
+          <div :class="['mb-2', 'text-sm', 'font-semibold']">
+            {{ t('settings.pages.system.sections.section.developer.sections.section.plugin-host.import.permissions') }}
+          </div>
+          <div v-if="importPlan.permissions.length === 0" :class="['text-sm', 'opacity-60']">
+            {{ t('settings.pages.system.sections.section.developer.sections.section.plugin-host.import.no-permissions') }}
+          </div>
+          <ul v-else :class="['grid', 'gap-2']">
+            <li v-for="permission in importPlan.permissions" :key="`${permission.area}:${permission.key}`" :class="['text-xs']">
+              <span :class="['font-mono']">{{ permission.area }} · {{ permission.key }}</span>
+              <span :class="['ml-2', 'opacity-60']">{{ permission.actions.join(', ') }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <div :class="['rounded-xl', 'border', 'border-neutral-300', 'p-4', 'dark:border-neutral-800']">
+          <div :class="['mb-2', 'text-sm', 'font-semibold']">
+            {{ t('settings.pages.system.sections.section.developer.sections.section.plugin-host.import.kits') }}
+          </div>
+          <div v-if="importPlan.kits.length === 0" :class="['text-sm', 'opacity-60']">
+            {{ t('settings.pages.system.sections.section.developer.sections.section.plugin-host.import.no-kits') }}
+          </div>
+          <ul v-else :class="['grid', 'gap-2']">
+            <li v-for="kit in importPlan.kits" :key="`${kit.direction}:${kit.id}`" :class="['text-xs']">
+              <span :class="['font-mono']">{{ kit.direction }} · {{ kit.id }}@{{ kit.version }}</span>
+              <span v-if="kit.exposure" :class="['ml-2', 'opacity-60']">{{ kit.exposure }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div :class="['flex', 'flex-wrap', 'justify-end', 'gap-2']">
+        <GhostButton
+          size="sm"
+          :label="t('settings.pages.system.sections.section.developer.sections.section.plugin-host.actions.cancel-import')"
+          :disabled="store.loading"
+          @click="cancelDirectoryImport"
+        />
+        <Button
+          size="sm"
+          :label="t('settings.pages.system.sections.section.developer.sections.section.plugin-host.actions.confirm-import')"
+          icon="i-solar:import-bold-duotone"
+          :loading="store.loading"
+          @click="commitDirectoryImport"
+        />
+      </div>
+    </Section>
 
     <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2']">
       <Input

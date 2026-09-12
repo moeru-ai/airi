@@ -1565,9 +1565,28 @@ pages:
                 actions:
                   enable-and-load: 启用并加载
                   disable-and-unload: 停用并卸载
+                  import-folder: 从文件夹导入
+                  confirm-import: 导入扩展
+                  cancel-import: 取消
                 errors:
                   enable-and-load: '启用并加载插件 {extensionId} 失败。'
                   disable-and-unload: '停用并卸载插件 {extensionId} 失败。'
+                  prepare-import: 无法检查扩展文件夹。
+                  commit-import: '无法导入扩展 {extensionId}。'
+                  cancel-import: 无法取消扩展导入。
+                import:
+                  title: 确认导入扩展
+                  description: 导入后，扩展会保持停用且未加载。
+                  source: 来源文件夹
+                  runtimes: 运行环境
+                  entrypoints: 入口文件
+                  package-size: 扩展包
+                  package-size-value: '{fileCount} 个文件 · {totalBytes}'
+                  permissions: 权限
+                  kits: Kit
+                  no-permissions: 未声明权限。
+                  no-kits: 未声明 Kit。
+                  imported: '已导入扩展 {extensionId}。'
               use-magic-keys:
                 title: useMagicKeys 工具
                 description: 测试快捷键

@@ -1650,9 +1650,28 @@ pages:
                 actions:
                   enable-and-load: Enable and Load
                   disable-and-unload: Disable and Unload
+                  import-folder: Import Folder
+                  confirm-import: Import Extension
+                  cancel-import: Cancel
                 errors:
                   enable-and-load: 'Failed to enable and load plugin {extensionId}.'
                   disable-and-unload: 'Failed to disable and unload plugin {extensionId}.'
+                  prepare-import: Failed to inspect the Extension folder.
+                  commit-import: 'Failed to import Extension {extensionId}.'
+                  cancel-import: Failed to cancel the Extension import.
+                import:
+                  title: Review Extension Import
+                  description: The Extension stays disabled and unloaded after import.
+                  source: Source folder
+                  runtimes: Runtimes
+                  entrypoints: Entrypoints
+                  package-size: Package
+                  package-size-value: '{fileCount} files · {totalBytes}'
+                  permissions: Permissions
+                  kits: Kits
+                  no-permissions: No permissions declared.
+                  no-kits: No Kits declared.
+                  imported: 'Imported Extension {extensionId}.'
               use-magic-keys:
                 title: useMagicKeys Tool
                 description: Test shortcuts

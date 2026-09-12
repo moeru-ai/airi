@@ -51,10 +51,13 @@ import {
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa/plugin/capabilities'
 import {
+  electronPluginCancelDirectoryImport,
+  electronPluginCommitDirectoryImport,
   electronPluginInspect,
   electronPluginList,
   electronPluginLoad,
   electronPluginLoadEnabled,
+  electronPluginPrepareDirectoryImport,
   electronPluginSetAutoReload,
   electronPluginSetEnabled,
   electronPluginUnload,
@@ -158,6 +161,9 @@ function createFullStageRuntime() {
   const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
   const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
   const listPlugins = useElectronEventaInvoke(electronPluginList)
+  const preparePluginDirectoryImport = useElectronEventaInvoke(electronPluginPrepareDirectoryImport)
+  const commitPluginDirectoryImport = useElectronEventaInvoke(electronPluginCommitDirectoryImport)
+  const cancelPluginDirectoryImport = useElectronEventaInvoke(electronPluginCancelDirectoryImport)
   const setPluginEnabled = useElectronEventaInvoke(electronPluginSetEnabled)
   const setPluginAutoReload = useElectronEventaInvoke(electronPluginSetAutoReload)
   const loadEnabledPlugins = useElectronEventaInvoke(electronPluginLoadEnabled)
@@ -193,6 +199,9 @@ function createFullStageRuntime() {
 
   // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
   pluginHostInspectorStore.setBridge({
+    prepareDirectoryImport: () => preparePluginDirectoryImport(),
+    commitDirectoryImport: payload => commitPluginDirectoryImport(payload),
+    cancelDirectoryImport: payload => cancelPluginDirectoryImport(payload),
     list: () => listPlugins(),
     setEnabled: async (payload) => {
       const result = await setPluginEnabled(payload)

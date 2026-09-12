@@ -1,6 +1,7 @@
 import type { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
 
 import type {
+  ExtensionDirectoryImportPlan,
   PluginHostDebugSnapshot,
   PluginRegistrySnapshot,
 } from '../../../../../shared/eventa/plugin/host'
@@ -20,8 +21,10 @@ import { app, session as electronSession } from 'electron'
 import { createExtensionAutoReloadFeature } from '../features/auto-reload'
 import { createExtensionAssetService } from '../features/static-assets'
 import { createBuiltInExtensionKitRuntime } from '../kits'
+import { createExtensionActivationPlan } from './activation-plan'
 import { createExtensionHostConfigStore } from './config'
 import { buildPluginHostDebugSnapshot } from './debug'
+import { ExtensionDirectoryImporter } from './directory-import'
 import {
   buildPluginRegistrySnapshot,
   createExtensionHostRegistry,
@@ -69,6 +72,15 @@ function createElectronExtensionAssetCookieAdapter() {
 export interface ExtensionHostServiceInternal extends ExtensionHostService {
   /** Tamagotchi-owned extension tool registry used by IPC tool bridges. */
   tools: TamagotchiToolRegistry
+
+  /** Reads and validates one selected folder without executing Extension code. */
+  prepareDirectoryImport: (sourcePath: string) => Promise<ExtensionDirectoryImportPlan>
+
+  /** Copies one reviewed folder into the managed registry and keeps it disabled. */
+  commitDirectoryImport: (planId: string) => Promise<PluginRegistrySnapshot>
+
+  /** Removes one pending folder import plan. */
+  cancelDirectoryImport: (planId: string) => void
 
   /**
    * Lists the current extension registry snapshot.
@@ -233,12 +245,19 @@ export async function setupExtensionHostServiceInternal(
 
   // Kit API, Host
   const builtInKitRuntime = createBuiltInExtensionKitRuntime(options)
-  const host = new ExtensionHost({ runtime: 'electron' })
+  const host = new ExtensionHost({
+    airiVersion: app.getVersion(),
+    runtime: 'electron',
+  })
   log.withFields({ extensionsRoot }).log('loading extension manifests')
   builtInKitRuntime.registerHostKits(host)
 
   // extension registry
   const extensionRegistry = createExtensionHostRegistry({ extensionsRoot, log })
+  const directoryImporter = new ExtensionDirectoryImporter(
+    extensionsRoot,
+    extensionId => Boolean(extensionRegistry.findManifestEntry(extensionId)),
+  )
 
   await extensionRegistry.refresh()
   log.withFields({ count: extensionRegistry.listEntries().length }).log('extension manifests loaded')
@@ -367,14 +386,32 @@ export async function setupExtensionHostServiceInternal(
       return
     }
 
-    await host.stop(sessionId)
+    const cleanupErrors: unknown[] = []
+    try {
+      await host.stop(sessionId)
+    }
+    catch (error) {
+      cleanupErrors.push(error)
+    }
     loadedSessionIds.delete(extensionId)
     loaded.delete(extensionId)
 
     clearModuleAssetSessionCacheByOwnerSessionId(sessionId)
-    await extensionAssetService.revokeByOwnerSessionId(sessionId)
+    try {
+      await extensionAssetService.revokeByOwnerSessionId(sessionId)
+    }
+    catch (error) {
+      cleanupErrors.push(error)
+    }
 
     log.withFields({ extensionId, sessionId }).log('extension unloaded')
+
+    if (cleanupErrors.length === 1) {
+      throw cleanupErrors[0]
+    }
+    if (cleanupErrors.length > 1) {
+      throw new AggregateError(cleanupErrors, `Extension ${extensionId} had multiple unload failures.`)
+    }
   }
 
   const resolveAutoReloadWatchPaths = (extensionId: string) => {
@@ -408,15 +445,13 @@ export async function setupExtensionHostServiceInternal(
 
   const loadEnabledExtensions = async () => {
     const config = getConfig()
-    for (const entry of extensionRegistry.listEntries()) {
+    const candidates = extensionRegistry.listEntries().filter((entry) => {
       const extensionId = manifestIdOf(entry.manifest)
-      if (!config.enabled.includes(extensionId)) {
-        continue
-      }
-      if (loaded.has(extensionId)) {
-        continue
-      }
+      return config.enabled.includes(extensionId) && !loaded.has(extensionId)
+    })
 
+    for (const entry of createExtensionActivationPlan(candidates)) {
+      const extensionId = manifestIdOf(entry.manifest)
       try {
         await loadExtensionById(extensionId)
       }
@@ -439,6 +474,31 @@ export async function setupExtensionHostServiceInternal(
     // to this host service and passing it into kit registration as a dependency.
     tools: builtInKitRuntime.tools,
     manifests: extensionRegistry.listManifests(),
+    async prepareDirectoryImport(sourcePath) {
+      await refreshManifests()
+      return await directoryImporter.prepare(sourcePath)
+    },
+    async commitDirectoryImport(planId) {
+      await refreshManifests()
+      const imported = await directoryImporter.commit(planId)
+      extensionRegistry.recordCommittedEntry(imported)
+
+      const config = getConfig()
+      extensionConfig.update({
+        enabled: config.enabled.filter(extensionId => extensionId !== imported.manifest.id),
+        autoReload: config.autoReload.filter(extensionId => extensionId !== imported.manifest.id),
+        known: {
+          ...config.known,
+          [imported.manifest.id]: { path: imported.path },
+        },
+      })
+
+      autoReloadFeature.sync()
+      return listSnapshot()
+    },
+    cancelDirectoryImport(planId) {
+      directoryImporter.cancel(planId)
+    },
     async list() {
       await refreshManifests()
       autoReloadFeature.sync()
@@ -518,6 +578,7 @@ export async function setupExtensionHostServiceInternal(
       return extensionAssetService.getBaseUrl() ?? ''
     },
     async dispose() {
+      directoryImporter.dispose()
       autoReloadFeature.dispose()
       builtInKitRuntime.dispose()
 

@@ -5,7 +5,15 @@ import type {
   ModulePermissionGrant,
 } from '@proj-airi/plugin-protocol/types'
 
-import type { KitAvailability, KitRef, KitUseResult } from '../kit'
+import type {
+  ConsumableKit,
+  KitAvailability,
+  KitClientOf,
+  KitContract,
+  KitProvider,
+  KitProviderHandle,
+  KitUseResult,
+} from '../kit'
 import type { Disposable, DisposableStore } from './disposable'
 
 /**
@@ -28,13 +36,24 @@ export interface RegisterExtensionModuleInput {
 /**
  * Minimal kit client registry exposed to extension setup and optional module scopes.
  */
-export interface ExtensionKitRegistry {
-  use: <TClient>(kit: KitRef<TClient>) => Promise<TClient>
-  tryUse: <TClient>(kit: KitRef<TClient>) => Promise<KitUseResult<TClient>>
-  watch: <TClient>(
-    kit: KitRef<TClient>,
-    callback: (availability: KitAvailability<TClient>) => void | Promise<void>,
+export interface ExtensionKitConsumer {
+  use: <TKit extends ConsumableKit>(kit: TKit) => Promise<KitClientOf<TKit>>
+  tryUse: <TKit extends ConsumableKit>(kit: TKit) => Promise<KitUseResult<TKit>>
+  watch: <TKit extends ConsumableKit>(
+    kit: TKit,
+    callback: (availability: KitAvailability<TKit>) => void | Promise<void>,
   ) => Disposable
+}
+
+/**
+ * Kit access exposed to an Extension setup session.
+ */
+export interface ExtensionKitRegistry extends ExtensionKitConsumer {
+  /** Registers method handlers for a Kit contract owned by the current Extension session. */
+  provide: <TContract extends KitContract>(
+    contract: TContract,
+    provider: KitProvider<TContract>,
+  ) => KitProviderHandle<TContract>
 }
 
 /**
@@ -48,7 +67,7 @@ export interface ExtensionModuleContext {
   /** Effective grant after applying the extension-level permission ceiling. */
   permissions: ModulePermissionGrant
   /** Module-scoped kit access for attribution and optional lifecycle cleanup. */
-  kits: ExtensionKitRegistry
+  kits: ExtensionKitConsumer
   /** Cleanup callbacks owned by this module. */
   subscriptions: DisposableStore
   /** Disposes module-owned resources. */
@@ -62,7 +81,7 @@ export interface ExtensionModuleRef {
   /** Stable module id within the current extension session. */
   id: string
   /** Module-scoped kit access for attribution and optional lifecycle cleanup. */
-  kits: ExtensionKitRegistry
+  kits: ExtensionKitConsumer
   /** Cleanup callbacks owned by this module. */
   subscriptions: DisposableStore
   /** Disposes module-owned resources. */
@@ -99,8 +118,6 @@ export interface ExtensionSetupContext {
 export interface Extension {
   /** Stable extension id from the manifest/package. */
   id: string
-  /** Optional extension package version. */
-  version?: string
   /** Runs extension initialization. */
   setup: (ctx: ExtensionSetupContext) => Promise<void> | void
 }

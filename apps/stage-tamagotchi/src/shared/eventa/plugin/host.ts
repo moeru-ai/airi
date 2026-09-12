@@ -1,6 +1,25 @@
-import type { PluginCapabilityState } from './capabilities'
+import type {
+  ExtensionDirectoryImportPrepareResult,
+  PluginHostDebugSnapshot,
+  PluginRegistrySnapshot,
+} from '@proj-airi/stage-shared/plugin-host'
 
 import { defineInvokeEventa } from '@moeru/eventa'
+
+export type {
+  ExtensionDirectoryImportKitSummary,
+  ExtensionDirectoryImportPermissionSummary,
+  ExtensionDirectoryImportPlan,
+  ExtensionDirectoryImportPrepareResult,
+  PluginCapabilityState,
+  PluginHostDebugSnapshot,
+  PluginHostKitCapabilitySummary,
+  PluginHostKitSummary,
+  PluginHostModuleSummary,
+  PluginHostSessionSummary,
+  PluginManifestSummary,
+  PluginRegistrySnapshot,
+} from '@proj-airi/stage-shared/plugin-host'
 
 /**
  * Window sizing metadata forwarded through plugin widget payloads.
@@ -45,147 +64,6 @@ export interface PluginModuleWidgetPayload {
   windowSize?: PluginModuleWidgetWindowSize
 }
 
-/**
- * Renderer-facing plugin manifest summary.
- *
- * Use when:
- * - Listing discovered plugins in devtools or settings surfaces
- *
- * Expects:
- * - `path` points to the manifest file on disk
- *
- * Returns:
- * - N/A
- */
-export interface PluginManifestSummary {
-  extensionId: string
-  entrypoints: Record<string, string | undefined>
-  path: string
-  enabled: boolean
-  autoReload: boolean
-  loaded: boolean
-  isNew: boolean
-}
-
-/**
- * Snapshot of the current plugin manifest registry.
- *
- * Use when:
- * - Renderer code needs the latest enabled and loaded plugin list
- *
- * Expects:
- * - `plugins` is a stable snapshot derived from the current registry state
- *
- * Returns:
- * - N/A
- */
-export interface PluginRegistrySnapshot {
-  root: string
-  plugins: PluginManifestSummary[]
-}
-
-/**
- * Active plugin session summary.
- *
- * Use when:
- * - Inspecting the live plugin host runtime state
- *
- * Expects:
- * - `id` stays stable for the lifetime of one started plugin session
- *
- * Returns:
- * - N/A
- */
-export interface PluginHostSessionSummary {
-  id: string
-  extensionId: string
-  phase: string
-  runtime: 'electron' | 'node' | 'web'
-  moduleId: string
-}
-
-/**
- * Capability summary exposed by one registered kit.
- *
- * Use when:
- * - Renderer tooling needs to show what actions a kit supports
- *
- * Expects:
- * - `actions` contains unique action identifiers
- *
- * Returns:
- * - N/A
- */
-export interface PluginHostKitCapabilitySummary {
-  key: string
-  actions: string[]
-}
-
-/**
- * Registered kit summary exposed by the plugin host.
- *
- * Use when:
- * - Inspecting kit registration state from renderer tooling
- *
- * Expects:
- * - `capabilities` matches the installed kit descriptor state
- *
- * Returns:
- * - N/A
- */
-export interface PluginHostKitSummary {
-  kitId: string
-  version: string
-  capabilities: PluginHostKitCapabilitySummary[]
-  runtimes: Array<'electron' | 'node' | 'web'>
-}
-
-/**
- * Registered plugin module binding summary.
- *
- * Use when:
- * - Inspecting plugin modules and deriving renderer-side extension UI state
- *
- * Expects:
- * - `config` is JSON-compatible and structured-clone-safe
- *
- * Returns:
- * - N/A
- */
-export interface PluginHostModuleSummary {
-  moduleId: string
-  ownerSessionId: string
-  ownerExtensionId: string
-  kitId: string
-  kitModuleType: string
-  state: 'announced' | 'active' | 'degraded' | 'withdrawn'
-  runtime: 'electron' | 'node' | 'web'
-  revision: number
-  updatedAt: number
-  config: Record<string, unknown>
-}
-
-/**
- * Full plugin host inspection snapshot.
- *
- * Use when:
- * - Renderer devtools need registry, session, kit, and module state together
- *
- * Expects:
- * - All arrays are snapshots captured at `refreshedAt`
- *
- * Returns:
- * - N/A
- */
-export interface PluginHostDebugSnapshot {
-  registry: PluginRegistrySnapshot
-  sessions: PluginHostSessionSummary[]
-  kits: PluginHostKitSummary[]
-  modules: PluginHostModuleSummary[]
-  capabilities: PluginCapabilityState[]
-  refreshedAt: number
-}
-
 export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
 export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
 export const electronPluginSetAutoReload = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string, enabled: boolean }>('eventa:invoke:electron:plugins:set-auto-reload')
@@ -193,3 +71,6 @@ export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapsh
 export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:electron:plugins:load')
 export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:electron:plugins:unload')
 export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:electron:plugins:inspect')
+export const electronPluginPrepareDirectoryImport = defineInvokeEventa<ExtensionDirectoryImportPrepareResult>('eventa:invoke:electron:plugins:import-directory:prepare')
+export const electronPluginCommitDirectoryImport = defineInvokeEventa<PluginRegistrySnapshot, { planId: string }>('eventa:invoke:electron:plugins:import-directory:commit')
+export const electronPluginCancelDirectoryImport = defineInvokeEventa<void, { planId: string }>('eventa:invoke:electron:plugins:import-directory:cancel')

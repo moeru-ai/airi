@@ -1,7 +1,7 @@
 import type { Dirent } from 'node:fs'
 
 import type { useLogg } from '@guiiai/logg'
-import type { ExtensionManifestV1 } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionManifestV2 } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type {
   PluginManifestSummary,
@@ -12,16 +12,11 @@ import type { ExtensionConfig, ManifestEntry } from '../types'
 import { mkdir, readdir, readFile, realpath, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 
-import { extensionManifestV1Schema } from '@proj-airi/plugin-sdk/plugin-host'
-import { safeParse } from 'valibot'
+import { parseExtensionManifest } from '@proj-airi/plugin-sdk/plugin-host'
 
 export const extensionManifestFileName = 'extension.airi.json'
 
-function isExtensionManifestV1(value: unknown): value is ExtensionManifestV1 {
-  return safeParse(extensionManifestV1Schema, value).success
-}
-
-export function manifestIdOf(manifest: ExtensionManifestV1) {
+export function manifestIdOf(manifest: ExtensionManifestV2) {
   return manifest.id
 }
 
@@ -54,10 +49,10 @@ async function realPathOf(entry: Dirent<string>, options?: { cwd?: string }): Pr
  * Expects:
  * - Root directory may not exist yet
  * - Each plugin is nested under its own child directory
- * - Each extension directory may include `extension.airi.json` and optional `package.json`
+ * - Each extension directory includes `extension.airi.json`
  *
  * Returns:
- * - Array of validated manifest entries with resolved paths and version metadata
+ * - Array of validated manifest entries with resolved paths
  */
 export async function loadManifestsFrom(
   dir: string,
@@ -129,30 +124,20 @@ export async function loadManifestsFrom(
   for (const manifestPath of manifestPaths) {
     try {
       const raw = await readFile(manifestPath.path, 'utf-8')
-      const parsed = JSON.parse(raw) as unknown
-      if (!isExtensionManifestV1(parsed)) {
-        log.warn('invalid extension manifest schema', { path: manifestPath.path })
+      const parsed = parseExtensionManifest(JSON.parse(raw) as unknown)
+      if (!parsed.success) {
+        log.withFields({
+          path: manifestPath.path,
+          diagnostics: parsed.diagnostics,
+        }).warn('invalid extension manifest schema')
         continue
       }
 
-      let version = '0.0.0'
-      try {
-        const packageJsonRaw = await readFile(join(manifestPath.rootDir, 'package.json'), 'utf-8')
-        const packageJson = JSON.parse(packageJsonRaw) as Record<string, unknown>
-        if (typeof packageJson.version === 'string' && packageJson.version.trim()) {
-          version = packageJson.version.trim()
-        }
-      }
-      catch {
-        // Ignore package.json read failures; extension manifests without package metadata
-        // still load with a deterministic fallback version.
-      }
-
       manifests.push({
-        manifest: parsed,
+        manifest: parsed.manifest,
         path: manifestPath.path,
         rootDir: manifestPath.rootDir,
-        version,
+        version: parsed.manifest.version,
       })
     }
     catch (error) {
@@ -264,7 +249,7 @@ function appendCacheBustKey(entrypoint: string, cacheBustKey: string): string {
 export function createManifestForLoad(
   entry: ManifestEntry,
   options: { cacheBustKey?: string },
-): ExtensionManifestV1 {
+): ExtensionManifestV2 {
   const loadManifest = entry.manifest
   if (!options.cacheBustKey) {
     return loadManifest
@@ -288,7 +273,8 @@ export function createManifestForLoad(
  * - Looking up manifests by extension id during load or inspect operations
  *
  * Expects:
- * - `refresh()` is called before consumers read entries or manifests
+ * - `refresh()` is called before consumers read discovered entries or manifests
+ * - A completed import records its validated entry without another filesystem scan
  * - `extensionsRoot` points at the extension manifest root under user data
  *
  * Returns:
@@ -297,8 +283,10 @@ export function createManifestForLoad(
 export interface ExtensionHostRegistry {
   getRoot: () => string
   refresh: () => Promise<ManifestEntry[]>
+  /** Adds the validated entry returned by a completed import transaction. */
+  recordCommittedEntry: (entry: ManifestEntry) => ManifestEntry
   listEntries: () => ManifestEntry[]
-  listManifests: () => ExtensionManifestV1[]
+  listManifests: () => ExtensionManifestV2[]
   findManifestEntry: (extensionId: string) => ManifestEntry | undefined
   getManifestEntryByExtensionId: () => Map<string, ManifestEntry>
 }
@@ -320,24 +308,36 @@ export function createExtensionHostRegistry(options: {
   log: ReturnType<typeof useLogg>
 }): ExtensionHostRegistry {
   let entries: ManifestEntry[] = []
-  let manifests: ExtensionManifestV1[] = []
+  let manifests: ExtensionManifestV2[] = []
   let manifestEntryByExtensionId = new Map<string, ManifestEntry>()
+
+  const replaceEntries = (nextEntries: ManifestEntry[]) => {
+    entries = nextEntries
+    manifestEntryByExtensionId = new Map()
+    for (const entry of entries) {
+      const id = manifestIdOf(entry.manifest)
+      if (!manifestEntryByExtensionId.has(id)) {
+        manifestEntryByExtensionId.set(id, entry)
+      }
+    }
+    manifests = entries.map(entry => entry.manifest)
+  }
 
   return {
     getRoot() {
       return options.extensionsRoot
     },
     async refresh() {
-      entries = await loadManifestsFrom(options.extensionsRoot, options.log)
-      manifestEntryByExtensionId = new Map()
-      for (const entry of entries) {
-        const id = manifestIdOf(entry.manifest)
-        if (!manifestEntryByExtensionId.has(id)) {
-          manifestEntryByExtensionId.set(id, entry)
-        }
-      }
-      manifests = entries.map(entry => entry.manifest)
+      replaceEntries(await loadManifestsFrom(options.extensionsRoot, options.log))
       return entries
+    },
+    recordCommittedEntry(entry) {
+      const extensionId = manifestIdOf(entry.manifest)
+      replaceEntries([
+        ...entries.filter(candidate => manifestIdOf(candidate.manifest) !== extensionId),
+        entry,
+      ])
+      return entry
     },
     listEntries() {
       return entries
