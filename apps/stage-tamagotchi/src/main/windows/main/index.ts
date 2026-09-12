@@ -21,17 +21,19 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { defu } from 'defu'
-import { BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, screen } from 'electron'
 import { isLinux, isMacOS } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronStartDraggingWindow } from '../../../shared/eventa'
+import { resolveIsWayland } from '../../app/ozone'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
+import { rectanglesOverlap, restoreWindowBounds } from '../shared/display'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
@@ -74,13 +76,46 @@ export async function setupMainWindow(params: {
   setupConfig()
 
   const mainWindowConfig = getConfig().windows?.find(w => w.title === 'AIRI' && w.tag === 'main')
+  const mainWindowWidth = Math.max(1, mainWindowConfig?.width ?? 450)
+  const mainWindowHeight = Math.max(1, mainWindowConfig?.height ?? 600)
+  const savedMainWindowBounds = typeof mainWindowConfig?.x === 'number' && typeof mainWindowConfig?.y === 'number'
+    ? {
+        x: mainWindowConfig.x,
+        y: mainWindowConfig.y,
+        width: mainWindowWidth,
+        height: mainWindowHeight,
+      }
+    : undefined
+
+  function restoreMainWindowBounds(savedBounds: Rectangle): Rectangle {
+    const fallbackWorkArea = screen.getPrimaryDisplay().workArea
+    let matchingWorkArea: Rectangle | undefined
+    let workAreas: Rectangle[] = []
+
+    try {
+      const displays = screen.getAllDisplays()
+      workAreas = displays.map(display => display.workArea)
+      const intersectsCurrentDisplay = displays.some(display => rectanglesOverlap(savedBounds, display.bounds))
+      if (intersectsCurrentDisplay)
+        matchingWorkArea = screen.getDisplayMatching(savedBounds).workArea
+    }
+    catch (error) {
+      console.warn('failed to find the display for saved main window bounds, using the primary display:', error)
+    }
+
+    return restoreWindowBounds({ savedBounds, matchingWorkArea, fallbackWorkArea, workAreas })
+  }
+
+  const initialMainWindowBounds = savedMainWindowBounds
+    ? restoreMainWindowBounds(savedMainWindowBounds)
+    : undefined
 
   const window = new BrowserWindow({
     title: 'AIRI',
-    width: mainWindowConfig?.width ?? 450.0,
-    height: mainWindowConfig?.height ?? 600.0,
-    x: mainWindowConfig?.x,
-    y: mainWindowConfig?.y,
+    width: initialMainWindowBounds?.width ?? mainWindowWidth,
+    height: initialMainWindowBounds?.height ?? mainWindowHeight,
+    x: initialMainWindowBounds?.x,
+    y: initialMainWindowBounds?.y,
     show: false,
     icon,
     webPreferences: {
@@ -114,7 +149,7 @@ export async function setupMainWindow(params: {
     }
   }
 
-  function handleNewBounds(newBounds: Rectangle) {
+  function persistWindowBounds(bounds: Rectangle, preserveSavedPosition = false) {
     const config = getConfig()
     if (!config.windows || !Array.isArray(config.windows)) {
       config.windows = []
@@ -126,19 +161,20 @@ export async function setupMainWindow(params: {
       config.windows.push({
         title: 'AIRI',
         tag: 'main',
-        x: newBounds.x,
-        y: newBounds.y,
-        width: newBounds.width,
-        height: newBounds.height,
+        ...(!preserveSavedPosition ? { x: bounds.x, y: bounds.y } : {}),
+        width: bounds.width,
+        height: bounds.height,
       })
     }
     else {
       const mainWindowConfig = defu(config.windows[existingConfigIndex], { title: 'AIRI', tag: 'main' })
 
-      mainWindowConfig.x = newBounds.x
-      mainWindowConfig.y = newBounds.y
-      mainWindowConfig.width = newBounds.width
-      mainWindowConfig.height = newBounds.height
+      if (!preserveSavedPosition) {
+        mainWindowConfig.x = bounds.x
+        mainWindowConfig.y = bounds.y
+      }
+      mainWindowConfig.width = bounds.width
+      mainWindowConfig.height = bounds.height
 
       config.windows[existingConfigIndex] = mainWindowConfig
     }
@@ -146,8 +182,21 @@ export async function setupMainWindow(params: {
     updateConfig(config)
   }
 
-  window.on('resize', () => handleNewBounds(window.getBounds()))
-  window.on('move', () => handleNewBounds(window.getBounds()))
+  const isNativeWayland = isLinux && resolveIsWayland({
+    explicitOzonePlatform: app.commandLine.getSwitchValue('ozone-platform'),
+    ozonePlatformHint: app.commandLine.getSwitchValue('ozone-platform-hint'),
+    env,
+  })
+
+  // NOTICE:
+  // Native Wayland does not expose reusable absolute window coordinates, so move and resize events retain the last saved position.
+  // Electron returns compositor-selected x/y from getBounds(), which would erase a valid X11/XWayland placement.
+  // Source: https://www.electronjs.org/docs/latest/api/browser-window#winsetpositionx-y-animate-macos
+  // Remove when Electron can round-trip absolute window coordinates under native Wayland.
+  window.on('resize', () => persistWindowBounds(window.getBounds(), isNativeWayland))
+  window.on('move', () => persistWindowBounds(window.getBounds(), isNativeWayland))
+  if (savedMainWindowBounds && !isNativeWayland)
+    persistWindowBounds(window.getBounds())
   window.on('close', (event) => {
     if (allowClose) {
       return
