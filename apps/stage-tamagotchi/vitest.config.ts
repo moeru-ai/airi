@@ -4,6 +4,7 @@ import vue from '@vitejs/plugin-vue'
 import UnoCss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
 
+import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { playwright } from '@vitest/browser-playwright'
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
@@ -53,10 +54,12 @@ export default defineConfig({
       },
       {
         extends: true,
+        plugins: [DownloadLive2DSDK()],
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],
           exclude: ['**/node_modules/**', '**/.git/**'],
+          setupFiles: ['@proj-airi/stage-ui-live2d/testing/setup-browser'],
           browser: {
             enabled: true,
             headless: true,

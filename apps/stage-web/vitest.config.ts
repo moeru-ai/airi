@@ -22,7 +22,7 @@ export default defineConfig({
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],
-          setupFiles: ['./src/test/setup-live2d.browser.ts'],
+          setupFiles: ['@proj-airi/stage-ui-live2d/testing/setup-browser'],
           browser: {
             enabled: true,
             headless: true,
