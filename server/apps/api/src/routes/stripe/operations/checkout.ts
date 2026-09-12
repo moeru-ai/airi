@@ -2,24 +2,21 @@ import type Stripe from 'stripe'
 
 import type { Env } from '../../../libs/env'
 import type { RevenueMetrics } from '../../../otel'
-import type { ConfigDefinitions, ConfigKVService } from '../../../services/adapters/config-kv'
+import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { PaymentService } from '../../../services/domain/payment'
 import type { ProductEventService } from '../../../services/domain/product-events'
+import type { StripePriceCatalog } from '../price-catalog'
 
-import { boolean, object, parse, picklist, safeParse } from 'valibot'
+import { safeParse } from 'valibot'
 
 import { createBadRequestError, createServiceUnavailableError } from '../../../utils/error'
 import { resolveCheckoutRedirectBase } from '../../../utils/origin'
 import { CheckoutBodySchema } from '../schema'
 
-/**
- * Opens a pending order through Payment CORE, then creates a Stripe Checkout Session.
- *
- * `{ packKey }` and previous-version `{ stripePriceId }` resolve a Flux pack.
- */
 export function createCheckoutOperation(
   payment: PaymentService,
   stripe: Stripe | null,
+  priceCatalog: StripePriceCatalog | null,
   configKV: ConfigKVService,
   env: Env,
   metrics: RevenueMetrics | null,
@@ -30,25 +27,22 @@ export function createCheckoutOperation(
     body: unknown,
     request: Request,
   ): Promise<{ url: string }> => {
-    if (!stripe)
+    const fluxProductId = await configKV.getOptional('STRIPE_FLUX_PRODUCT_ID')
+    if (!stripe || !priceCatalog || !fluxProductId)
       throw createServiceUnavailableError('Stripe is not configured', 'STRIPE_NOT_CONFIGURED')
 
     const parsed = safeParse(CheckoutBodySchema, body)
     if (!parsed.success)
       throw createBadRequestError('Invalid checkout request', 'INVALID_REQUEST', parsed.issues)
 
-    const { packKey, stripePriceId, currency } = parsed.output
-    const packs = await configKV.getOptional('FLUX_PACKS') ?? []
-    const pack = resolveStripeCheckoutPack(packs, packKey, stripePriceId)
-    if (!pack)
-      throw createBadRequestError('Invalid pack', 'INVALID_PACKAGE', { packKey })
-    const priceId = pack.processors.stripe?.priceId
-    if (!priceId)
-      throw createServiceUnavailableError('Stripe pack mapping is missing', 'STRIPE_PACK_NOT_MAPPED', { packKey: pack.key })
+    const { stripePriceId, currency } = parsed.output
+    const price = await priceCatalog.findActivePrice(fluxProductId, stripePriceId)
+    if (!price)
+      throw createBadRequestError('Invalid price', 'INVALID_PACKAGE', { stripePriceId })
 
-    const price = parse(object({ active: boolean(), type: picklist(['one_time', 'recurring']) }), await stripe.prices.retrieve(priceId))
-    if (!price.active || price.type !== 'one_time')
-      throw createBadRequestError('Stripe price is not available for one-time purchases', 'INVALID_PACKAGE')
+    const fluxAmount = Number(price.metadata.fluxAmount)
+    if (!Number.isFinite(fluxAmount) || fluxAmount <= 0)
+      throw createBadRequestError('Price is missing fluxAmount metadata', 'INVALID_PACKAGE', { stripePriceId })
 
     const redirectBase = resolveCheckoutRedirectBase(request, env.ADDITIONAL_TRUSTED_ORIGINS, env.WEB_APP_URL)
     const openpanelIdentity = readOpenpanelIdentityHeaders(request)
@@ -56,13 +50,13 @@ export function createCheckoutOperation(
     const order = await payment.openPending({
       userId: user.id,
       processor: 'stripe',
-      packKey: pack.key,
-      fluxAmount: pack.fluxAmount,
+      packKey: stripePriceId,
+      fluxAmount,
       currency,
     })
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: stripePriceId, quantity: 1 }],
       mode: 'payment',
       allow_promotion_codes: true,
       success_url: `${redirectBase}/settings/flux?success=true`,
@@ -72,8 +66,8 @@ export function createCheckoutOperation(
       metadata: {
         payment_order_id: order.id,
         userId: user.id,
-        packKey: pack.key,
-        fluxAmount: String(pack.fluxAmount),
+        stripePriceId,
+        fluxAmount: String(fluxAmount),
         ...(openpanelIdentity.distinctId && { openpanelDeviceId: openpanelIdentity.distinctId }),
         ...(openpanelIdentity.sessionId && { openpanelSessionId: openpanelIdentity.sessionId }),
       },
@@ -120,8 +114,8 @@ export function createCheckoutOperation(
       eventId: order.id,
       source: 'stripe.checkout',
       metadata: {
-        pack_key: pack.key,
-        flux_amount: pack.fluxAmount,
+        stripe_price_id: stripePriceId,
+        flux_amount: fluxAmount,
         amount_total: session.amount_total,
         currency: session.currency,
         ...(openpanelIdentity.distinctId && { openpanel_device_id: openpanelIdentity.distinctId }),
@@ -131,18 +125,6 @@ export function createCheckoutOperation(
 
     return { url: session.url }
   }
-}
-
-function resolveStripeCheckoutPack(
-  packs: ConfigDefinitions['FLUX_PACKS'],
-  packKey: string | undefined,
-  stripePriceId: string | undefined,
-) {
-  if (packKey)
-    return packs.find(item => item.key === packKey)
-  if (stripePriceId)
-    return packs.find(item => item.processors.stripe?.priceId === stripePriceId)
-  return undefined
 }
 
 function readOpenpanelIdentityHeaders(request: Request) {

@@ -1,85 +1,126 @@
 import type Redis from 'ioredis'
 import type Stripe from 'stripe'
 
-import type { ConfigDefinitions } from '../../services/adapters/config-kv'
-
 import { useLogger } from '@guiiai/logg'
-import { array, boolean, object, record, safeParse, string } from 'valibot'
 
 import { formatPrice } from '../../utils/format-price'
 import { redisKeyFrom } from '../../utils/redis-keys'
 
-const logger = useLogger('stripe.catalog')
+const logger = useLogger('stripe')
 
-/** Display prices stay 5 minutes old. */
+const PRICES_CACHE_KEY = redisKeyFrom('cache', 'stripe', 'prices')
 const PRICES_CACHE_TTL_SEC = 5 * 60
-const PRICES_CACHE_KEY = redisKeyFrom('cache', 'stripe', 'prices', 'v2')
 
-const packageSchema = object({
-  packKey: string(),
-  stripePriceId: string(),
-  label: string(),
-  defaultCurrency: string(),
-  currencies: record(string(), string()),
-  recommended: boolean(),
-})
-const cacheSchema = object({ cacheKey: string(), items: array(packageSchema) })
+interface CachedCurrencyOption {
+  unitAmount: number | null
+}
 
-export async function listStripePackages(
-  stripe: Stripe | null,
-  redis: Redis,
-  packs: ConfigDefinitions['FLUX_PACKS'],
-) {
-  if (!stripe)
-    return []
+export interface CachedPrice {
+  id: string
+  unitAmount: number | null
+  currency: string
+  product: string
+  active: boolean
+  metadata: Record<string, string>
+  currencyOptions: Record<string, CachedCurrencyOption>
+}
 
-  const cacheKey = JSON.stringify(packs)
-  const cached = await redis.get(PRICES_CACHE_KEY)
-  if (cached) {
-    try {
-      const parsed = safeParse(cacheSchema, JSON.parse(cached))
-      if (parsed.success && parsed.output.cacheKey === cacheKey)
-        return parsed.output.items
-    }
-    catch { /* corrupted cache, refetch */ }
+export interface StripePriceCatalog {
+  getActivePrices: (productId: string) => Promise<CachedPrice[]>
+  findActivePrice: (productId: string, stripePriceId: string) => Promise<CachedPrice | null>
+}
+
+export interface StripePackage {
+  stripePriceId: string
+  label: string
+  defaultCurrency: string
+  currencies: Record<string, string>
+  recommended: boolean
+}
+
+export function createStripePriceCatalog(stripe: Stripe, redis: Redis): StripePriceCatalog {
+  return {
+    async getActivePrices(productId: string): Promise<CachedPrice[]> {
+      const cached = await redis.get(PRICES_CACHE_KEY)
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached) as { productId: string, prices: CachedPrice[] }
+          if (parsed.productId === productId)
+            return parsed.prices
+        }
+        catch { /* corrupted cache, refetch */ }
+      }
+
+      let result: Stripe.ApiList<Stripe.Price>
+      try {
+        result = await stripe.prices.list({ product: productId, active: true, expand: ['data.currency_options'] })
+      }
+      catch (err) {
+        logger.withError(err).warn('Failed to fetch prices from Stripe')
+        return []
+      }
+
+      const prices = result.data
+        .sort((a, b) => (a.unit_amount ?? 0) - (b.unit_amount ?? 0))
+        .map(toCachedPrice)
+
+      await redis.set(PRICES_CACHE_KEY, JSON.stringify({ productId, prices }), 'EX', PRICES_CACHE_TTL_SEC)
+      return prices
+    },
+
+    async findActivePrice(productId: string, stripePriceId: string): Promise<CachedPrice | null> {
+      const cachedPrices = await this.getActivePrices(productId)
+      const cached = cachedPrices.find(p => p.id === stripePriceId)
+      if (cached)
+        return cached
+
+      let fetched: Stripe.Price
+      try {
+        fetched = await stripe.prices.retrieve(stripePriceId)
+      }
+      catch {
+        return null
+      }
+
+      const fetchedProductId = typeof fetched.product === 'string' ? fetched.product : fetched.product.id
+      if (!fetched.active || fetchedProductId !== productId)
+        return null
+
+      await redis.del(PRICES_CACHE_KEY)
+      return toCachedPrice(fetched)
+    },
   }
+}
 
-  const items = []
-  let complete = true
-  for (const pack of packs) {
-    const priceId = pack.processors.stripe?.priceId
-    if (!priceId)
-      continue
-
-    let price: Stripe.Price
-    try {
-      price = await stripe.prices.retrieve(priceId, { expand: ['currency_options'] })
-    }
-    catch (error) {
-      complete = false
-      logger.withError(error).withFields({ priceId, packKey: pack.key }).warn('Stripe price lookup skipped')
-      continue
-    }
-
+export async function listStripePackages(catalog: StripePriceCatalog, productId: string): Promise<StripePackage[]> {
+  const prices = await catalog.getActivePrices(productId)
+  return prices.map((price) => {
     const currencies: Record<string, string> = {
-      [price.currency]: formatPrice(price.unit_amount, price.currency),
+      [price.currency]: formatPrice(price.unitAmount, price.currency),
     }
-    for (const [currency, option] of Object.entries(price.currency_options ?? {})) {
-      currencies[currency] = formatPrice(option.unit_amount, currency)
-    }
+    for (const [currency, option] of Object.entries(price.currencyOptions))
+      currencies[currency] = formatPrice(option.unitAmount, currency)
 
-    items.push({
-      packKey: pack.key,
-      stripePriceId: priceId,
-      label: pack.name,
+    return {
+      stripePriceId: price.id,
+      label: `${price.metadata.fluxAmount ?? '?'} Flux`,
       defaultCurrency: price.currency,
       currencies,
-      recommended: pack.recommended,
-    })
-  }
+      recommended: price.metadata.recommended === 'true',
+    }
+  })
+}
 
-  // A transient provider failure must not hide a pack for the full cache TTL.
-  if (complete)
-    await redis.set(PRICES_CACHE_KEY, JSON.stringify({ cacheKey, items }), 'EX', PRICES_CACHE_TTL_SEC)
-  return items
+function toCachedPrice(price: Stripe.Price): CachedPrice {
+  return {
+    id: price.id,
+    unitAmount: price.unit_amount,
+    currency: price.currency,
+    product: typeof price.product === 'string' ? price.product : price.product.id,
+    active: price.active,
+    metadata: price.metadata,
+    currencyOptions: Object.fromEntries(
+      Object.entries(price.currency_options ?? {}).map(([currency, option]) => [currency, { unitAmount: option.unit_amount }]),
+    ),
+  }
 }

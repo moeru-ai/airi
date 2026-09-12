@@ -56,7 +56,7 @@ async function resolvePaymentOrderId(
   const metadata = legacy.metadata
     ? parse(object({
         fluxAmount: optional(pipe(string(), regex(/^[1-9]\d*$/), transform(Number), safeInteger())),
-        packKey: optional(string()),
+        stripePriceId: optional(string()),
       }), JSON.parse(legacy.metadata))
     : undefined
   await db.insert(paymentSchema.paymentOrder).values({
@@ -66,7 +66,7 @@ async function resolvePaymentOrderId(
     processorOrderId: legacy.stripeSessionId,
     status: legacy.fluxCredited ? 'paid' : legacy.status === 'expired' ? 'expired' : 'pending',
     fluxAmount: metadata?.fluxAmount,
-    packKey: metadata?.packKey,
+    packKey: metadata?.stripePriceId,
     amount: legacy.amountTotal,
     currency: legacy.currency,
     creditedAt: legacy.fluxCredited ? legacy.updatedAt : null,
@@ -147,7 +147,7 @@ export function createWebhookOperation(
               amount_total: session.amount_total ?? null,
               currency: session.currency ?? null,
               flux_amount: result.fluxAmount,
-              pack_key: session.metadata?.packKey ?? null,
+              stripe_price_id: session.metadata?.stripePriceId ?? null,
               stripe_checkout_session_id: session.id,
               stripe_customer_id: typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null,
               ...(openpanelDeviceId && { openpanel_device_id: openpanelDeviceId }),
