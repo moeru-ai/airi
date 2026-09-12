@@ -1,0 +1,192 @@
+swagger: "2.0"
+info:
+  title: api/proto/cloud/v1/announcement.proto
+  version: version not set
+tags:
+  - name: AnnouncementService
+  - name: WalletService
+consumes:
+  - application/json
+produces:
+  - application/json
+paths:
+  /v1/announcements:
+    get:
+      operationId: AnnouncementService_ListAnnouncements
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1ListAnnouncementsResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: client
+          description: 'A concrete client: web, desktop, or mobile.'
+          in: query
+          required: false
+          type: string
+        - name: locale
+          description: A language tag. Selection uses exact locale, base language, then English.
+          in: query
+          required: false
+          type: string
+        - name: limit
+          description: Zero uses 20. Maximum 100.
+          in: query
+          required: false
+          type: integer
+          format: int32
+        - name: offset
+          in: query
+          required: false
+          type: integer
+          format: int32
+      tags:
+        - AnnouncementService
+  /v1/wallet:
+    get:
+      operationId: WalletService_GetWallet
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1Wallet'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      tags:
+        - WalletService
+  /v1/wallet/transactions:
+    get:
+      operationId: WalletService_ListWalletTransactions
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/v1ListWalletTransactionsResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          type: integer
+          format: int32
+        - name: offset
+          in: query
+          required: false
+          type: integer
+          format: int32
+      tags:
+        - WalletService
+definitions:
+  protobufAny:
+    type: object
+    properties:
+      '@type':
+        type: string
+    additionalProperties: {}
+  protobufNullValue:
+    type: string
+    enum:
+      - NULL_VALUE
+    default: NULL_VALUE
+    description: |-
+      `NullValue` is a singleton enumeration to represent the null value for the
+      `Value` type union.
+
+      The JSON representation for `NullValue` is JSON `null`.
+
+       - NULL_VALUE: Null value.
+  rpcStatus:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
+      details:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/protobufAny'
+  v1Announcement:
+    type: object
+    properties:
+      id:
+        type: string
+      locale:
+        type: string
+      title:
+        type: string
+      body:
+        type: string
+        description: Plain text. Never render this value as HTML.
+      actionLabel:
+        type: string
+      actionUrl:
+        type: string
+        description: Empty or an absolute HTTPS URL.
+      priority:
+        type: integer
+        format: int32
+      startsAt:
+        type: string
+      endsAt:
+        type: string
+        description: Empty means no expiry. The end time is exclusive.
+      coverUrl:
+        type: string
+        description: Empty or a Cloud-relative path. Reading checks publication before redirecting.
+      layout:
+        type: string
+        description: 'Operator-selected template: portrait shows text beside the cover; landscape reveals text on hover.'
+  v1ListAnnouncementsResponse:
+    type: object
+    properties:
+      announcements:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v1Announcement'
+  v1ListWalletTransactionsResponse:
+    type: object
+    properties:
+      entries:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/v1WalletTransaction'
+      hasMore:
+        type: boolean
+  v1Wallet:
+    type: object
+    properties:
+      userId:
+        type: string
+      flux:
+        type: string
+        format: int64
+  v1WalletTransaction:
+    type: object
+    properties:
+      id:
+        type: string
+      type:
+        type: string
+      amount:
+        type: string
+        format: int64
+      description:
+        type: string
+      metadata:
+        type: object
+      createdAt:
+        type: string

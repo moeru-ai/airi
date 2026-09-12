@@ -64,3 +64,15 @@ pnpm -F @proj-airi/stage-ui run story:dev
 
 1. If a story is bound to a specific component, it can be placed beside the component in the `src` folder. e.g., `MyComponent.story.vue`
 2. If a story is not bound to a specific component, then it should be placed in the `stories` folder. e.g., `MyStory.story.vue`
+
+## Announcements
+
+`HoloCoupon` reads public Cloud announcements for the Web or Electron stage. Pass `client="web"` or `client="desktop"`. It uses the current interface locale and shows a bell button only while content is active. Desktop stages use the floating popover. Mobile Web passes `presentation="header"` through the mobile header action slot. Both surfaces expand the card from the bell and collapse it back to the same anchor. The close button stays inside the card. Reduced motion disables this transition.
+
+Set `VITE_CLOUD_API_URL` to a local Cloud origin for development. The default is `https://cloud.airi.build`. Requests omit credentials. A refresh runs every minute while the component is mounted. Local expiry checks run every second. A failed refresh hides cached content.
+
+Use the generated `@proj-airi/cloud-client` contract. Do not add announcement calls to the TS resource API client. Content is plain text. The card has no action button. Closing the panel is local and does not record a read receipt.
+
+Each announcement can include one cover image. The operator selects a portrait or landscape template in Admin. Portrait cards show text beside the cover. Covers fit inside their frames without cropping or repeating, with a soft background around unused space. Desktop landscape cards reveal text on hover or keyboard focus. Mobile landscape cards show the image above the text. The mobile panel follows the selected card height; offscreen cards do not add blank space. Carousel dots scroll horizontally in one row and select any active announcement. The selected announcement stays selected by ID when other entries expire or move; removing it selects the first remaining entry. Touch devices and mobile panels disable autoplay so reading or scrolling does not change the selected card. Cover paths resolve against the configured Cloud origin; image failures preserve the text. Cloud checks publication before redirecting to private storage.
+
+Keyboard-opened announcement panels pause autoplay until closed. Only the selected slide mounts its cover. Electron places the bell opposite the controls dock and freezes that dock while the announcement is open.

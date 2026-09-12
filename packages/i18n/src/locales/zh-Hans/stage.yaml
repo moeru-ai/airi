@@ -137,3 +137,11 @@ websocket-status:
   connected: 已连接
   disconnected: 无网络连接
   open-settings: 打开连接设置
+
+announcements:
+  cover: 公告封面
+  title: 公告
+  open: 打开公告
+  close: 关闭公告
+  previous: 上一条公告
+  next: 下一条公告
