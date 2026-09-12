@@ -161,3 +161,19 @@ describe('createConfigLoader', () => {
     }
   })
 })
+
+it('reloads when a source read finishes after invalidation', async () => {
+  const old = makeConfig()
+  const fresh = makeConfig()
+  fresh.defaults.perAttemptTimeoutMs = 1234
+  const pending = Promise.withResolvers<RouterConfig>()
+  const configKV = makeMockConfigKV(fresh)
+  vi.mocked(configKV.getOptional).mockImplementationOnce(() => pending.promise)
+  const loader = createConfigLoader({ configKV })
+  const first = loader.getModelConfig('llm', 'openai/gpt-5-mini')
+  loader.invalidate()
+  pending.resolve(old)
+  const result = await first
+  expect(result.defaults.perAttemptTimeoutMs).toBe(1234)
+  expect((await loader.getModelConfig('llm', 'openai/gpt-5-mini')).defaults.perAttemptTimeoutMs).toBe(1234)
+})

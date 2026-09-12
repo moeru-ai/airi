@@ -25,7 +25,6 @@ describe('fluxService (DB-backed)', () => {
   let db: Database
   let redis: ReturnType<typeof createTestRedis>
   let get: ReturnType<typeof vi.spyOn>
-  let set: ReturnType<typeof vi.spyOn>
   let service: ReturnType<typeof createFluxService>
   let testUser: any
 
@@ -43,7 +42,6 @@ describe('fluxService (DB-backed)', () => {
   beforeEach(async () => {
     redis = createTestRedis()
     get = vi.spyOn(redis, 'get')
-    set = vi.spyOn(redis, 'set')
     service = createFluxService(db, redis, createMockConfigKV())
 
     // Clean up flux-related tables
@@ -54,7 +52,7 @@ describe('fluxService (DB-backed)', () => {
   it('getFlux should initialize new user with INITIAL_USER_FLUX and populate Redis', async () => {
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(100)
-    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '100')
+    await expect(redis.get(userFluxRedisKey(testUser.id))).resolves.toBe('100')
   })
 
   it('getFlux should write a transaction entry on initialization', async () => {
@@ -74,7 +72,7 @@ describe('fluxService (DB-backed)', () => {
     await service.getFlux(testUser.id)
     await service.getFlux(testUser.id)
     // Second call hits Redis cache
-    expect(get).toHaveBeenCalledTimes(2)
+    expect(get.mock.calls.filter(([key]: readonly unknown[]) => key === userFluxRedisKey(testUser.id))).toHaveLength(2)
   })
 
   it('getFlux should load from DB when Redis cache misses', async () => {
@@ -83,7 +81,7 @@ describe('fluxService (DB-backed)', () => {
 
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(42)
-    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '42')
+    await expect(redis.get(userFluxRedisKey(testUser.id))).resolves.toBe('42')
   })
 
   it('updateStripeCustomerId should update DB only', async () => {

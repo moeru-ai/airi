@@ -5,6 +5,7 @@ import type { ConfigKey } from './definitions'
 
 import { eq } from 'drizzle-orm'
 
+import { cacheRevision, invalidateCache, publishCache } from '../../../libs/revision-cache'
 import { configKV } from '../../../schemas/config-kv'
 import { CONFIG_KV_CACHE_TTL_SECONDS, configKVCacheKey } from './contracts'
 
@@ -38,12 +39,13 @@ export function createConfigKVStore<TSchema extends Record<string, unknown>>(
     return rows[0]?.value ?? null
   }
 
-  async function cacheValue(key: ConfigKey, value: string): Promise<void> {
-    await redis.set(configKVCacheKey(key), value, 'EX', cacheTtlSeconds)
+  async function cacheValue(key: ConfigKey, value: string, revision: string): Promise<void> {
+    const cacheKey = configKVCacheKey(key)
+    await publishCache(redis, cacheKey, `${cacheKey}:revision`, revision, value, cacheTtlSeconds)
   }
 
   async function deleteCachedValue(key: ConfigKey): Promise<void> {
-    await redis.del(configKVCacheKey(key))
+    await invalidateCache(redis, configKVCacheKey(key))
   }
 
   return {
@@ -52,16 +54,18 @@ export function createConfigKVStore<TSchema extends Record<string, unknown>>(
       if (cached !== null)
         return cached
 
+      const revision = await cacheRevision(redis, `${configKVCacheKey(key)}:revision`)
       const value = await readDatabase(key)
       if (value !== null)
-        await cacheValue(key, value)
+        await cacheValue(key, value, revision)
       return value
     },
 
     async getFreshRaw(key: ConfigKey): Promise<string | null> {
+      const revision = await cacheRevision(redis, `${configKVCacheKey(key)}:revision`)
       const value = await readDatabase(key)
       if (value !== null) {
-        await cacheValue(key, value)
+        await cacheValue(key, value, revision)
       }
       else {
         await deleteCachedValue(key)

@@ -57,9 +57,11 @@ export function createConfigLoader(options: ConfigLoaderOptions) {
   const ttlMs = options.ttlMs ?? DEFAULT_CACHE_TTL_MS
   const now = options.now ?? Date.now
 
+  let generation = 0
   let cached: { value: RouterConfig, loadedAt: number } | null = null
 
   async function loadFresh(): Promise<RouterConfig> {
+    const startedGeneration = generation
     const value = await options.configKV.getOptional('LLM_ROUTER_CONFIG')
     if (value == null) {
       throw createServiceUnavailableError(
@@ -67,6 +69,8 @@ export function createConfigLoader(options: ConfigLoaderOptions) {
         'CONFIG_NOT_SET',
       )
     }
+    if (startedGeneration !== generation)
+      return loadFresh()
     cached = { value, loadedAt: now() }
     return value
   }
@@ -102,6 +106,7 @@ export function createConfigLoader(options: ConfigLoaderOptions) {
   }
 
   function invalidate(): void {
+    generation += 1
     cached = null
   }
 

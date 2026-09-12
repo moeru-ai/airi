@@ -7,6 +7,7 @@ import type { ConfigKVService } from '../../adapters/config-kv'
 import { useLogger } from '@guiiai/logg'
 import { and, eq } from 'drizzle-orm'
 
+import { invalidateCache } from '../../../libs/revision-cache'
 import { createPaymentRequiredError } from '../../../utils/error'
 import { userFluxRedisKey } from '../../../utils/redis-keys'
 
@@ -23,15 +24,15 @@ export function createBillingService(
   metrics?: RevenueMetrics | null,
 ) {
   /**
-   * Update Redis cache after a successful DB transaction.
-   * Best-effort: cache loss is harmless since DB is the source of truth.
+   * Invalidate the derived balance after a successful database transaction.
+   * Do not turn a committed credit into a failed operation that callers retry.
    */
-  async function updateRedisCache(userId: string, balance: number): Promise<void> {
+  async function invalidateBalanceCache(userId: string): Promise<void> {
     try {
-      await redis.set(userFluxRedisKey(userId), String(balance))
+      await invalidateCache(redis, userFluxRedisKey(userId))
     }
     catch {
-      logger.withFields({ userId }).warn('Failed to update Redis cache after balance change')
+      logger.withFields({ userId }).warn('Failed to invalidate Redis cache after balance change')
     }
   }
 
@@ -155,7 +156,7 @@ export function createBillingService(
     })
 
     if (!result.idempotent) {
-      await updateRedisCache(input.userId, result.flux)
+      await invalidateBalanceCache(input.userId)
     }
 
     logger.withFields({
@@ -308,7 +309,7 @@ export function createBillingService(
         return txResult
       }
 
-      await updateRedisCache(input.userId, txResult.balanceAfter)
+      await invalidateBalanceCache(input.userId)
       metrics?.fluxCredited.add(input.amount, { source: input.source, type: ledgerType })
 
       logger.withFields({ userId: input.userId, amount: input.amount, balance: txResult.balanceAfter }).log('Credited flux')
@@ -375,18 +376,9 @@ export function createBillingService(
         return { balanceBefore, balanceAfter, fluxTransactionId: insertedTx!.id }
       })
 
-      // NOTICE:
-      // Invalidate (DEL) rather than write (SET) the cache. An admin override
-      // is a "truth changed" event, so we drop the key and let the next
-      // getFlux miss reload from Postgres — mirrors FluxService.deleteAllForUser.
-      // Writing the new value instead would have setFlux contribute its own
-      // post-commit SET to the existing cross-operation cache-write race that
-      // credit/debit already have (a slower concurrent SET can land last and
-      // clobber it); DEL keeps setFlux from adding to that and defers to truth.
-      // Best-effort: a failed DEL only leaves a stale cache entry that the next
-      // mutation or TTL-less overwrite corrects; Postgres stays authoritative.
+      // The revision blocks in-flight reads from repopulating the old balance.
       try {
-        await redis.del(userFluxRedisKey(input.userId))
+        await invalidateCache(redis, userFluxRedisKey(input.userId))
       }
       catch {
         logger.withFields({ userId: input.userId }).warn('Failed to invalidate flux cache after setFlux')
@@ -472,7 +464,7 @@ export function createBillingService(
       })
 
       if (txResult.applied && txResult.balanceAfter != null) {
-        await updateRedisCache(input.userId, txResult.balanceAfter)
+        await invalidateBalanceCache(input.userId)
         metrics?.fluxCredited.add(input.fluxAmount, { source: 'stripe.checkout', type: 'credit' })
       }
 
@@ -547,7 +539,7 @@ export function createBillingService(
       })
 
       if (txResult.applied && txResult.balanceAfter != null) {
-        await updateRedisCache(input.userId, txResult.balanceAfter)
+        await invalidateBalanceCache(input.userId)
         metrics?.fluxCredited.add(input.fluxAmount, { source: 'stripe.invoice', type: 'credit' })
       }
 
