@@ -129,7 +129,14 @@ async function revokeGoogleToken(token: string, fetchRequest: typeof fetch): Pro
   })
 }
 
+/** Revokes retained Google API credentials while allowing ID-token-only accounts to be deleted. */
 async function revokeGoogleAuthorization(account: SocialAccount, fetchRequest: typeof fetch): Promise<void> {
+  // Native Google sign-in can retain only an identity, without OAuth API tokens.
+  // There is no saved credential to revoke in that case. This does not imply
+  // that Google consent was revoked, and must not block AIRI account deletion.
+  if (!account.accessToken && !account.refreshToken)
+    return
+
   const { token, tokenType } = revocationToken(account)
   const result = await revokeGoogleToken(token, fetchRequest)
 

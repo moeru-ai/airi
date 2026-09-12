@@ -63,6 +63,11 @@ Browser authorization still uses that client and `AUTH_GOOGLE_CLIENT_SECRET`.
 Native ID tokens can use any configured audience. Better Auth checks the token signature, issuer, expiry, and supplied nonce.
 Omit the new variable to keep the existing configuration. No database migration is required.
 
+Google ID token sign-in can create an account without a Google access or refresh token.
+Account deletion continues when neither token is stored, because AIRI has no Google API credential to revoke.
+This does not revoke consent in the user's Google Account.
+If either token is stored, Auth must complete its existing revocation policy before it deletes AIRI data.
+
 ## Railway
 
 Deploy this as the Auth Railway service with Config File Path
