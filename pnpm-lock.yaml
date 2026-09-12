@@ -1194,6 +1194,9 @@ catalogs:
     xastscript:
       specifier: ^4.0.0
       version: 4.0.0
+    xsai-chromium-prompt:
+      specifier: ^0.2.2
+      version: 0.2.2
     xsschema:
       specifier: 0.5.0
       version: 0.5.0
@@ -4273,6 +4276,9 @@ importers:
       vue-sonner:
         specifier: 'catalog:'
         version: 2.0.9(@nuxt/kit@3.21.11(magicast@0.5.4))(vue@3.5.41(typescript@6.0.3))
+      xsai-chromium-prompt:
+        specifier: 'catalog:'
+        version: 0.2.2
       xsschema:
         specifier: 'catalog:'
         version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
@@ -4680,6 +4686,9 @@ importers:
       xastscript:
         specifier: 'catalog:'
         version: 4.0.0
+      xsai-chromium-prompt:
+        specifier: 'catalog:'
+        version: 0.2.2
       xsschema:
         specifier: 'catalog:'
         version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
@@ -19800,6 +19809,9 @@ packages:
   xmlhttprequest-ssl@2.1.2:
     resolution: {integrity: sha512-TEU+nJVUUnA4CYJFLvK5X9AOeH4KvDvhIfm0vV1GaQRtchnG0hgK5p8hw/xjv8cunWYCsiPCSDzObPyhEwq3KQ==}
     engines: {node: '>=0.4.0'}
+
+  xsai-chromium-prompt@0.2.2:
+    resolution: {integrity: sha512-XL7s/L9WhxRMUl3DOCq1F+WkL2QanfgT8N3A/8g1/5E1wsL8vmOWnBCOW6p7gpwDLHZ+/kNT7SXenk6ILwCNNw==}
 
   xsschema@0.5.0:
     resolution: {integrity: sha512-7hZNbGQmZTL5qVg8VwA8Ad/r9fFPFNdCoWQRfisN/3p/+riicAZSspLi0/wAz3KJ2v8lhZMyl2BkEMSGfsF2HA==}
@@ -35377,6 +35389,14 @@ snapshots:
   xmlchars@2.2.0: {}
 
   xmlhttprequest-ssl@2.1.2: {}
+
+  xsai-chromium-prompt@0.2.2:
+    dependencies:
+      '@xsai-ext/providers': 0.5.0
+      '@xsai/generate-text': 0.5.0
+      '@xsai/shared': 0.5.0
+      '@xsai/shared-chat': 0.5.0
+      '@xsai/stream-text': 0.5.0
 
   xsschema@0.5.0(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3):
     optionalDependencies:
