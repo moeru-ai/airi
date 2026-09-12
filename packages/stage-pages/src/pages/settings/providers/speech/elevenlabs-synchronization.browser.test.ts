@@ -1,5 +1,5 @@
 import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
-import type { App } from 'vue'
+import type { App, Component } from 'vue'
 
 import en from '@proj-airi/i18n/locales/en'
 
@@ -16,6 +16,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import ElevenLabsPage from './elevenlabs.vue'
+import VolcenginePage from './volcengine.vue'
 
 import 'virtual:uno.css'
 
@@ -61,6 +62,28 @@ function mountLeader(namespace: string) {
   return { pinia, runtime, speechStore }
 }
 
+async function mountFollower(component: Component, pinia: ReturnType<typeof createPinia>, runtime: SyncedPiniaRuntime) {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/', component: { template: '<div />' } }],
+  })
+  await router.push('/')
+  await render(component, {
+    global: {
+      plugins: [
+        pinia,
+        PiniaColada,
+        createI18n({ legacy: false, locale: 'en', messages: { en } }),
+        router,
+      ],
+      provide: {
+        [injectKeyPiniaSynced as symbol]: runtime,
+      },
+      directives: { motion: {} },
+    },
+  })
+}
+
 afterEach(() => {
   for (const { app, pinia, runtime } of contexts) {
     app?.unmount()
@@ -82,8 +105,8 @@ describe('elevenLabs settings synchronization', () => {
   // Watching the complete provider snapshot also repeated discovery when an
   // equivalent snapshot returned from the leader.
   //
-  // The watcher now sends a plain snapshot and reacts only to API-key changes.
-  it('loads voices once after a follower API-key update (Issue #2523)', async () => {
+  // The watcher now sends a plain snapshot and debounces catalog credential changes.
+  it('debounces follower credential changes and reloads for a new base URL (Issue #2523)', async () => {
     localStorage.clear()
     const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({
       voices: [{
@@ -105,35 +128,66 @@ describe('elevenLabs settings synchronization', () => {
 
     const follower = createSyncedPinia(namespace, 'follower-only')
     await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
-    const router = createRouter({
-      history: createMemoryHistory(),
-      routes: [{ path: '/', component: { template: '<div />' } }],
-    })
-    await router.push('/')
-    await render(ElevenLabsPage, {
-      global: {
-        plugins: [
-          follower.pinia,
-          PiniaColada,
-          createI18n({ legacy: false, locale: 'en', messages: { en } }),
-          router,
-        ],
-        provide: {
-          [injectKeyPiniaSynced as symbol]: follower.runtime,
-        },
-        directives: { motion: {} },
-      },
-    })
+    await mountFollower(ElevenLabsPage, follower.pinia, follower.runtime)
 
     const followerConfig = useProviderConfigStore(follower.pinia)
     await vi.waitFor(() => expect(followerConfig.getProviderConfig('elevenlabs')?.apiKey).toBe(''))
+    await followerConfig.patchProviderConfig('elevenlabs', { apiKey: 't' })
+    await followerConfig.patchProviderConfig('elevenlabs', { apiKey: 'test' })
     await followerConfig.patchProviderConfig('elevenlabs', { apiKey: 'test-key' })
     await vi.waitFor(() => expect(leader.speechStore.availableVoices.elevenlabs?.[0]?.id).toBe('test-voice'))
     await vi.waitFor(() => expect(useSpeechStore(follower.pinia).availableVoices.elevenlabs?.[0]?.id).toBe('test-voice'))
+    expect(fetch).toHaveBeenCalledTimes(1)
+
+    await followerConfig.patchProviderConfig('elevenlabs', { baseUrl: 'https://voices-two.invalid/v1/' })
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
 
     await followerConfig.patchProviderConfig('elevenlabs', { model: 'test-model' })
     await vi.waitFor(() => expect(leaderConfig.getProviderConfig('elevenlabs')?.model).toBe('test-model'))
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    await new Promise(resolve => setTimeout(resolve, 600))
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2523
+  it('loads Volcengine voices after follower credential changes (Issue #2523)', async () => {
+    localStorage.clear()
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({
+      voices: [{
+        id: 'volcengine-voice',
+        name: 'Volcengine Voice',
+        preview_audio_url: 'https://voices.invalid/volcengine.mp3',
+      }],
+    }))
+    vi.stubGlobal('fetch', fetch)
+
+    const namespace = `volcengine:${crypto.randomUUID()}`
+    const leader = mountLeader(namespace)
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const leaderConfig = useProviderConfigStore(leader.pinia)
+    await leaderConfig.ensureProvider('volcengine', 'volcengine', {
+      apiKey: '',
+      app: { appId: '' },
+      baseUrl: 'https://voices.invalid/v1/',
+    })
+
+    const follower = createSyncedPinia(namespace, 'follower-only')
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await mountFollower(VolcenginePage, follower.pinia, follower.runtime)
+
+    const followerConfig = useProviderConfigStore(follower.pinia)
+    await vi.waitFor(() => expect(followerConfig.getProviderConfig('volcengine')?.apiKey).toBe(''))
+    await followerConfig.patchProviderConfig('volcengine', { apiKey: 'test-key' })
+    await followerConfig.patchProviderConfig('volcengine', { app: { appId: 'test-app' } })
+    await vi.waitFor(() => expect(leader.speechStore.availableVoices.volcengine?.[0]?.id).toBe('volcengine-voice'))
+    await vi.waitFor(() => expect(useSpeechStore(follower.pinia).availableVoices.volcengine?.[0]?.id).toBe('volcengine-voice'))
     expect(fetch).toHaveBeenCalledTimes(1)
+
+    await followerConfig.patchProviderConfig('volcengine', { baseUrl: 'https://voices-two.invalid/v1/' })
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
+
+    await followerConfig.patchProviderConfig('volcengine', { audio: { speedRatio: 1.25 } })
+    await vi.waitFor(() => expect(leaderConfig.getProviderConfig('volcengine')?.audio).toEqual({ speedRatio: 1.25 }))
+    await new Promise(resolve => setTimeout(resolve, 600))
+    expect(fetch).toHaveBeenCalledTimes(2)
   })
 })

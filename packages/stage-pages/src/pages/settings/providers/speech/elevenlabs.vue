@@ -11,6 +11,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
+import { watchDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -121,7 +122,11 @@ watch(useSpeakerBoost, async () => {
   providerConfig.useSpeakerBoost = useSpeakerBoost.value
 })
 
-watch(() => providers.value[providerId]?.apiKey, loadVoicesWhenConfigured, {
+watchDebounced([
+  () => providers.value[providerId]?.apiKey,
+  () => providers.value[providerId]?.baseUrl,
+], loadVoicesWhenConfigured, {
+  debounce: 500,
   immediate: true,
 })
 </script>
