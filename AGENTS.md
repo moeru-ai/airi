@@ -91,6 +91,13 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 
 ## Before You Start
 
+## Architecture decisions
+
+- Put project-wide and client ADRs directly in `docs/ai/`.
+- Put hosted backend ADRs directly in `server/docs/ai/`.
+- Both paths are relative to the repository root.
+- Keep ADRs in this repository and include them in the related commits and pull requests.
+
 ## Enforced Repository Skills
 
 - For testing, Vitest, regression reproduction, mocks, or test import-boundary work, always use [`enforce-rules-for-vitest` skill](.agents/skills/enforce-rules-for-vitest/SKILL.md).
