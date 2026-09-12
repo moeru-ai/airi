@@ -9,12 +9,12 @@ import { minLength, object, pipe, safeParse, string } from 'valibot'
 
 import { createBadRequestError } from '../../../utils/error'
 import {
+  evidenceReceiptFromTransaction,
   findLiveAccount,
   grantableConsumableTransaction,
-  requireVerifier,
   resolveAppleIapPack,
-  settleConsumable,
 } from '../evidence'
+import { requireVerifier } from '../verifier'
 
 const logger = useLogger('apple-iap')
 
@@ -79,7 +79,14 @@ export function createNotificationsOperation(
       return { received: true }
     }
 
-    await settleConsumable(payment, payload, fields, account.userId, pack)
+    const result = await payment.settle(evidenceReceiptFromTransaction(payload, fields, account.userId, pack))
+    logger.withFields({
+      userId: account.userId,
+      transactionId: fields.transactionId,
+      productId: fields.productId,
+      applied: result.applied,
+      balanceAfter: result.applied ? result.balanceAfter : undefined,
+    }).log('Processed Apple IAP pack transaction')
     return { received: true }
   }
 }

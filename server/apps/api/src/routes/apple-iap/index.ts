@@ -14,14 +14,7 @@ import { createNotificationsOperation } from './operations/notifications'
 import { createTransactionsOperation } from './operations/transactions'
 
 /**
- * Creates Apple IAP HTTP routes for Flux purchase.
- *
- * Paths stay on `/api/v1/apple-iap`. Device JWS and Notifications V2 both
- * map onto Payment CORE `settle`.
- *
- * `POST /account-token` — mint or return the stored `appAccountToken` (auth required).
- * `POST /transactions` — client posts StoreKit 2 JWS (auth required).
- * `POST /notifications` — App Store Server Notifications V2 (no auth).
+ * Device JWS and Notifications V2 both map onto Payment CORE `settle`.
  *
  * Native finish policy:
  * - 2xx / 400: client finishes the StoreKit transaction.

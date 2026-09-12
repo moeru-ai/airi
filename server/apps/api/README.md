@@ -25,8 +25,9 @@ Prices from Stripe. `GET /packages` returns `stripePriceId`. Checkout accepts
 `stripePriceId`. Label, flux amount, and display prices come from Price
 metadata and Stripe amounts.
 Apple IAP lives on `/api/v1/apple-iap/*`. The channel verifies StoreKit 2
-JWS proof, resolves the pack from `FLUX_PACKS` and `APPLE_FLUX_PACKS`,
-then settles an `EvidenceReceipt`.
+JWS proof from every app in `APPLE_IAP_APPS`, resolves the pack from
+`productId` through `APPLE_FLUX_PACKS` and `FLUX_PACKS`, then settles an
+`EvidenceReceipt`.
 
 ## Run locally
 

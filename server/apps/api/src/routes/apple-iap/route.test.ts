@@ -46,7 +46,8 @@ const starterPack: ConfigDefinitions['FLUX_PACKS'][number] = {
 }
 
 const starterApplePacks: ConfigDefinitions['APPLE_FLUX_PACKS'] = {
-  starter: 'ai.moeru.airi.flux.500',
+  'ai.moeru.airi.flux.500': 'starter',
+  'ai.moeru.airi.lite.flux.500': 'starter',
 }
 
 function createPacksConfigKV(
@@ -215,6 +216,32 @@ describe('apple-iap routes', () => {
       packKey: 'starter',
       fluxAmount: 500,
       customerId: storedToken,
+    }))
+  })
+
+  it('grants the same pack for a second App Store product id', async () => {
+    await seedAppleAccount(testUser.id)
+    verifier = createMockVerifier({
+      verifyTransaction: vi.fn(async () => ({
+        ...verifiedTransaction,
+        transactionId: 'txn_lite',
+        productId: 'ai.moeru.airi.lite.flux.500',
+      })),
+    })
+    const app = createTestApp(payment, verifier, db)
+    const res = await post(app, '/transactions', { signedTransaction: 'jws' }, testUser)
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      kind: 'pack',
+      applied: true,
+      transactionId: 'txn_lite',
+      balanceAfter: 500,
+    })
+    expect(payment.settle).toHaveBeenCalledWith(expect.objectContaining({
+      packKey: 'starter',
+      fluxAmount: 500,
+      processorOrderId: 'txn_lite',
     }))
   })
 

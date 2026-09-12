@@ -3,17 +3,20 @@ import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { PaymentService } from '../../../services/domain/payment'
 import type { Verifier } from '../verifier'
 
+import { useLogger } from '@guiiai/logg'
 import { minLength, object, pipe, safeParse, string } from 'valibot'
 
 import { createBadRequestError, createForbiddenError } from '../../../utils/error'
 import {
   APPLE_IAP_PROCESSOR,
+  evidenceReceiptFromTransaction,
   findLiveAccount,
   grantableConsumableTransaction,
-  requireVerifier,
   resolveAppleIapPack,
-  settleConsumable,
 } from '../evidence'
+import { requireVerifier } from '../verifier'
+
+const logger = useLogger('apple-iap')
 
 const SubmitTransactionBodySchema = object({
   signedTransaction: pipe(string(), minLength(1, 'signedTransaction is required')),
@@ -54,7 +57,14 @@ export function createTransactionsOperation(
       })
     }
 
-    const result = await settleConsumable(payment, payload, fields, userId, pack)
+    const result = await payment.settle(evidenceReceiptFromTransaction(payload, fields, userId, pack))
+    logger.withFields({
+      userId,
+      transactionId: fields.transactionId,
+      productId: fields.productId,
+      applied: result.applied,
+      balanceAfter: result.applied ? result.balanceAfter : undefined,
+    }).log('Processed Apple IAP pack transaction')
 
     return {
       kind: 'pack' as const,

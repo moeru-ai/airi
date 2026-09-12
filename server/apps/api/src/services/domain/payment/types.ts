@@ -27,7 +27,7 @@ export interface ClaimReceipt {
  */
 export interface EvidenceReceipt {
   kind: 'evidence'
-  processor: 'apple_iap'
+  processor: string
   processorOrderId: string
   userId: string
   packKey: string

@@ -2,7 +2,8 @@ import type { Database } from '../../../libs/db'
 import type { Verifier } from '../verifier'
 
 import { createInternalError } from '../../../utils/error'
-import { APPLE_IAP_PROCESSOR, findLiveAccount, requireVerifier } from '../evidence'
+import { APPLE_IAP_PROCESSOR, findLiveAccount } from '../evidence'
+import { requireVerifier } from '../verifier'
 
 import * as schema from '../../../schemas/payment'
 

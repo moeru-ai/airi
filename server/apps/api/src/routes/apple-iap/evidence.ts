@@ -2,58 +2,26 @@ import type { JWSTransactionDecodedPayload } from '@apple/app-store-server-libra
 
 import type { Database } from '../../libs/db'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
-import type { EvidenceReceipt, PaymentService } from '../../services/domain/payment'
-import type { Verifier } from './verifier'
+import type { EvidenceReceipt } from '../../services/domain/payment'
 
 import { Type } from '@apple/app-store-server-library'
-import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
-
-import { createServiceUnavailableError } from '../../utils/error'
 
 import * as schema from '../../schemas/payment'
 
-const logger = useLogger('apple-iap')
-
 export const APPLE_IAP_PROCESSOR = 'apple_iap' as const
-export const APPLE_IAP_PROVIDER = APPLE_IAP_PROCESSOR
 
-interface GrantableFields {
+/** Fields consumed after StoreKit 2 JWS verification. */
+export interface GrantableFields {
   transactionId: string
   productId: string
   appAccountToken: string
 }
 
-export function requireVerifier(verifier: Verifier | null): Verifier {
-  if (!verifier)
-    throw createServiceUnavailableError('Apple IAP is not configured', 'APPLE_IAP_DISABLED')
-  return verifier
-}
-
-export async function findLiveAccount(
-  db: Database,
-  identity: { userId: string } | { token: string },
-) {
-  const identityClause = 'userId' in identity
-    ? eq(schema.paymentCustomer.userId, identity.userId)
-    : eq(schema.paymentCustomer.customerId, identity.token.toLowerCase())
-
-  const [account] = await db
-    .select({
-      userId: schema.paymentCustomer.userId,
-      customerId: schema.paymentCustomer.customerId,
-    })
-    .from(schema.paymentCustomer)
-    .where(and(
-      eq(schema.paymentCustomer.processor, APPLE_IAP_PROCESSOR),
-      identityClause,
-      isNull(schema.paymentCustomer.deletedAt),
-    ))
-    .limit(1)
-
-  return account
-}
-
+/**
+ * Returns grantable fields, or a reason the payload cannot become evidence.
+ * Apple omits `appAccountToken` when the app did not set it at purchase.
+ */
 export function grantableConsumableTransaction(payload: JWSTransactionDecodedPayload) {
   if (!payload.transactionId)
     return { ok: false as const, code: 'MISSING_TRANSACTION_ID', message: 'Transaction payload missing transactionId' }
@@ -66,7 +34,6 @@ export function grantableConsumableTransaction(payload: JWSTransactionDecodedPay
       message: 'Transaction payload missing originalTransactionId',
     }
   }
-  // Apple omits appAccountToken when the app did not set it at purchase.
   if (!payload.appAccountToken) {
     return {
       ok: false as const,
@@ -102,18 +69,39 @@ export function grantableConsumableTransaction(payload: JWSTransactionDecodedPay
 export async function resolveAppleIapPack(configKV: ConfigKVService, productId: string) {
   const packs = await configKV.getOptional('FLUX_PACKS') ?? []
   const applePacks = await configKV.getOptional('APPLE_FLUX_PACKS') ?? {}
-  const packKey = Object.entries(applePacks).find(([, mappedId]) => mappedId === productId)?.[0]
+  const packKey = applePacks[productId]
   if (!packKey)
     return undefined
   return packs.find(item => item.key === packKey)
 }
 
-/**
- * Maps a verified StoreKit 2 transaction onto a CORE evidence receipt.
- * The channel supplies `userId` after it resolves `appAccountToken`,
- * and `packKey` / `fluxAmount` after it resolves `FLUX_PACKS`.
- */
-function evidenceReceiptFromTransaction(
+/** Live `payment_customer` for this Apple `appAccountToken`. */
+export async function findLiveAccount(
+  db: Database,
+  identity: { userId: string } | { token: string },
+) {
+  const identityClause = 'userId' in identity
+    ? eq(schema.paymentCustomer.userId, identity.userId)
+    : eq(schema.paymentCustomer.customerId, identity.token.toLowerCase())
+
+  const [account] = await db
+    .select({
+      userId: schema.paymentCustomer.userId,
+      customerId: schema.paymentCustomer.customerId,
+    })
+    .from(schema.paymentCustomer)
+    .where(and(
+      eq(schema.paymentCustomer.processor, APPLE_IAP_PROCESSOR),
+      identityClause,
+      isNull(schema.paymentCustomer.deletedAt),
+    ))
+    .limit(1)
+
+  return account
+}
+
+/** Maps a verified consumable onto an evidence receipt. Pack and user are resolved by the caller. */
+export function evidenceReceiptFromTransaction(
   payload: JWSTransactionDecodedPayload,
   fields: GrantableFields,
   userId: string,
@@ -141,24 +129,4 @@ function evidenceReceiptFromTransaction(
       webOrderLineItemId: payload.webOrderLineItemId,
     },
   }
-}
-
-export async function settleConsumable(
-  payment: PaymentService,
-  payload: JWSTransactionDecodedPayload,
-  fields: GrantableFields,
-  userId: string,
-  pack: { key: string, fluxAmount: number },
-) {
-  const result = await payment.settle(evidenceReceiptFromTransaction(payload, fields, userId, pack))
-
-  logger.withFields({
-    userId,
-    transactionId: fields.transactionId,
-    productId: fields.productId,
-    applied: result.applied,
-    balanceAfter: result.applied ? result.balanceAfter : undefined,
-  }).log('Processed Apple IAP pack transaction')
-
-  return result
 }

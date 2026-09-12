@@ -599,13 +599,12 @@ export async function createApp() {
   const appleIapVerifier = injeca.provide('services:appleIapVerifier', {
     dependsOn: { env: parsedEnv },
     build: async ({ dependsOn }) => {
-      if (!dependsOn.env.APPLE_BUNDLE_ID)
+      if (dependsOn.env.APPLE_IAP_APPS.length === 0)
         return null
       try {
         return await createAppleIapVerifier({
-          bundleId: dependsOn.env.APPLE_BUNDLE_ID,
+          apps: dependsOn.env.APPLE_IAP_APPS,
           env: dependsOn.env.APPLE_IAP_ENV,
-          appAppleId: dependsOn.env.APPLE_APP_APPLE_ID,
         })
       }
       catch (error) {

@@ -13,23 +13,17 @@ import {
   VerificationStatus,
 } from '@apple/app-store-server-library'
 import { useLogger } from '@guiiai/logg'
+import { decodeJwt } from 'jose'
 
-import { createBadRequestError, createInternalError } from '../../utils/error'
+import { ApiError, createBadRequestError, createInternalError, createServiceUnavailableError } from '../../utils/error'
 
 const logger = useLogger('apple-iap.verifier')
 
 export type StoreKitEnv = 'sandbox' | 'production' | 'xcode'
 
 export interface VerifierOptions {
-  /** App Store bundle identifier, for example `ai.moeru.airi-pocket`. */
-  bundleId: string
-  /** Target App Store environment for payload cross-checks. */
+  apps: Array<{ bundleId: string, appAppleId?: number }>
   env: StoreKitEnv
-  /**
-   * App Store Connect numeric app id.
-   * Required for production verification in `@apple/app-store-server-library`.
-   */
-  appAppleId?: number
 }
 
 const ROOT_CA_DIR = fileURLToPath(new URL('../../../assets/apple-root-ca', import.meta.url))
@@ -42,33 +36,45 @@ const STOREKIT_ENVIRONMENTS: Record<StoreKitEnv, Environment> = {
 }
 
 /**
- * Creates an Apple IAP StoreKit 2 JWS verifier.
+ * Creates StoreKit 2 JWS verifiers for every trusted app.
  *
- * Channel routes call this after they receive a client JWS or a
- * Notifications V2 signedPayload. Payment CORE never sees the raw signed string.
+ * Apple's library binds one bundle id per verifier. This facade peeks at the
+ * unverified payload only to pick the matching verifier. Trust comes from the
+ * second pass, which checks the signature, bundle id, and environment.
  */
 export async function createVerifier(options: VerifierOptions) {
+  if (options.env === 'production' && options.apps.some(app => app.appAppleId == null))
+    throw new Error('Each APPLE_IAP_APPS entry needs an App Store Connect id when APPLE_IAP_ENV is production')
+
   const rootCertificates = await loadAppleRootCertificates()
+  const verifiers = new Map<string, SignedDataVerifier>()
 
-  if (options.env === 'production' && options.appAppleId == null)
-    throw new Error('APPLE_APP_APPLE_ID is required when APPLE_IAP_ENV is production')
+  for (const app of options.apps) {
+    verifiers.set(app.bundleId, new SignedDataVerifier(
+      rootCertificates,
+      // NOTICE:
+      // Keep OCSP / expiration online checks off. Apple CA OCSP can be slow, and
+      // this path sits on the purchase critical path.
+      // Refresh root certs manually via server/apps/api/assets/apple-root-ca/README.md.
+      // Removal condition: enable when an offline CRL/OCSP cache is available.
+      false,
+      STOREKIT_ENVIRONMENTS[options.env],
+      app.bundleId,
+      app.appAppleId,
+    ))
+  }
 
-  const verifier = new SignedDataVerifier(
-    rootCertificates,
-    // NOTICE:
-    // Keep OCSP / expiration online checks off. Apple CA OCSP can be slow, and
-    // this path sits on the purchase critical path.
-    // Refresh root certs manually via server/apps/api/assets/apple-root-ca/README.md.
-    // Removal condition: enable when an offline CRL/OCSP cache is available.
-    false,
-    STOREKIT_ENVIRONMENTS[options.env],
-    options.bundleId,
-    options.appAppleId,
-  )
+  function verifierFor(jws: string, kind: 'transaction' | 'notification'): SignedDataVerifier {
+    const bundleId = peekBundleId(jws, kind)
+    const selected = bundleId ? verifiers.get(bundleId) : undefined
+    if (!selected)
+      throw createBadRequestError('Bundle identifier mismatch', 'BUNDLE_MISMATCH')
+    return selected
+  }
 
   async function verifyTransaction(jws: string): Promise<JWSTransactionDecodedPayload> {
     try {
-      return await verifier.verifyAndDecodeTransaction(jws)
+      return await verifierFor(jws, 'transaction').verifyAndDecodeTransaction(jws)
     }
     catch (error) {
       return mapVerificationError(error, 'transaction')
@@ -77,7 +83,7 @@ export async function createVerifier(options: VerifierOptions) {
 
   async function verifyNotification(signedPayload: string): Promise<ResponseBodyV2DecodedPayload> {
     try {
-      return await verifier.verifyAndDecodeNotification(signedPayload)
+      return await verifierFor(signedPayload, 'notification').verifyAndDecodeNotification(signedPayload)
     }
     catch (error) {
       return mapVerificationError(error, 'notification')
@@ -87,7 +93,39 @@ export async function createVerifier(options: VerifierOptions) {
   return { verifyTransaction, verifyNotification }
 }
 
+function peekBundleId(jws: string, kind: 'transaction' | 'notification'): string | undefined {
+  try {
+    const payload = decodeJwt(jws)
+    if (kind === 'transaction')
+      return readStringField(payload, 'bundleId')
+
+    for (const key of ['data', 'summary', 'externalPurchaseToken', 'appData']) {
+      const bundleId = readStringField(payload[key], 'bundleId')
+      if (bundleId)
+        return bundleId
+    }
+
+    return undefined
+  }
+  catch {
+    throw createBadRequestError(`Signed ${kind} failed verification`, 'JWS_VERIFICATION_FAILED')
+  }
+}
+
+function readStringField(value: unknown, key: string): string | undefined {
+  if (!isRecord(value))
+    return undefined
+  const field = value[key]
+  return typeof field === 'string' && field !== '' ? field : undefined
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+}
+
 function mapVerificationError(error: unknown, kind: 'transaction' | 'notification'): never {
+  if (error instanceof ApiError)
+    throw error
   if (error instanceof VerificationException) {
     if (error.status === VerificationStatus.INVALID_APP_IDENTIFIER)
       throw createBadRequestError('Bundle identifier mismatch', 'BUNDLE_MISMATCH')
@@ -107,6 +145,12 @@ function mapVerificationError(error: unknown, kind: 'transaction' | 'notificatio
 }
 
 export type Verifier = Awaited<ReturnType<typeof createVerifier>>
+
+export function requireVerifier(verifier: Verifier | null): Verifier {
+  if (!verifier)
+    throw createServiceUnavailableError('Apple IAP is not configured', 'APPLE_IAP_DISABLED')
+  return verifier
+}
 
 async function loadAppleRootCertificates(): Promise<Buffer[]> {
   return Promise.all(

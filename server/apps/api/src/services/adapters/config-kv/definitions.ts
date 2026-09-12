@@ -254,16 +254,11 @@ export const configEntrySchemas = {
     fluxAmount: pipe(number(), minValue(1, 'FLUX_PACKS[].fluxAmount must be >= 1')),
     recommended: optional(boolean(), false),
   })), []),
-  // Maps FLUX_PACKS[].key onto an App Store product id.
-  APPLE_FLUX_PACKS: optional(pipe(
-    record(
-      pipe(string(), nonEmpty('APPLE_FLUX_PACKS keys must not be empty')),
-      pipe(string(), nonEmpty('APPLE_FLUX_PACKS values must not be empty')),
-    ),
-    check((mapping) => {
-      const productIds = Object.values(mapping)
-      return new Set(productIds).size === productIds.length
-    }, 'APPLE_FLUX_PACKS product ids must be unique'),
+  // Maps an App Store product id onto FLUX_PACKS[].key.
+  // The same pack key can appear on more than one SKU (AIRI and AIRI Lite).
+  APPLE_FLUX_PACKS: optional(record(
+    pipe(string(), nonEmpty('APPLE_FLUX_PACKS product ids must not be empty')),
+    pipe(string(), nonEmpty('APPLE_FLUX_PACKS pack keys must not be empty')),
   ), {}),
   // No default — absent means top-up is not available yet
   STRIPE_FLUX_PRODUCT_ID: optional(string()),

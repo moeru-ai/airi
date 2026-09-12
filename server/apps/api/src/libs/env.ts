@@ -18,6 +18,25 @@ const AdditionalTrustedOriginsSchema = pipe(
   transform(origins => [...new Set(origins)]),
 )
 
+// Comma-separated `bundleId` or `bundleId:appAppleId`. Production needs an id on every entry.
+const AppleIapAppsSchema = pipe(
+  string(),
+  transform(raw => raw.split(',').map(entry => entry.trim()).filter(Boolean)),
+  transform(entries => entries.map((entry) => {
+    const separator = entry.lastIndexOf(':')
+    if (separator === -1)
+      return { bundleId: entry }
+    return {
+      bundleId: entry.slice(0, separator),
+      appAppleId: Number(entry.slice(separator + 1)),
+    }
+  })),
+  check(
+    apps => new Set(apps.map(app => app.bundleId)).size === apps.length,
+    'APPLE_IAP_APPS bundle ids must be unique',
+  ),
+)
+
 function optionalIntegerFromString(defaultValue: number, envKey: string, minimum: number) {
   return optional(
     pipe(
@@ -53,18 +72,10 @@ const EnvSchema = object({
   ),
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
 
-  // Apple In-App Purchase (StoreKit 2). When APPLE_BUNDLE_ID is
-  // unset, apple-iap routes stay mounted but return 503 APPLE_IAP_DISABLED.
-  APPLE_BUNDLE_ID: optional(string()),
+  // Apple In-App Purchase (StoreKit 2). Empty or unset keeps the routes
+  // mounted and returns 503 APPLE_IAP_DISABLED.
+  APPLE_IAP_APPS: optional(AppleIapAppsSchema, ''),
   APPLE_IAP_ENV: optional(picklist(['sandbox', 'production', 'xcode']), 'sandbox'),
-  // App Store Connect numeric app id. Required when APPLE_IAP_ENV is production.
-  APPLE_APP_APPLE_ID: optional(pipe(
-    string(),
-    nonEmpty('APPLE_APP_APPLE_ID must not be empty when set'),
-    transform(input => Number(input)),
-    integer('APPLE_APP_APPLE_ID must be an integer'),
-    minValue(1, 'APPLE_APP_APPLE_ID must be at least 1'),
-  )),
 
   AUTH_SERVER_INTERNAL_URL: optional(string()),
   AUTH_SERVER_URL: optional(string(), 'http://localhost:3000'),
