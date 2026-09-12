@@ -247,8 +247,7 @@ export const configEntrySchemas = {
   // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
   // 24h gives users a long-enough window for accumulated dust to settle naturally.
   TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
-  // One-time Flux packs. Display prices are preformatted strings keyed by
-  // currency. Processor ids map each pack onto Stripe.
+  // One-time Flux packs. Channel SKUs live in sibling mapping keys.
   FLUX_PACKS: optional(array(object({
     key: pipe(string(), nonEmpty('FLUX_PACKS[].key must not be empty')),
     name: pipe(string(), nonEmpty('FLUX_PACKS[].name must not be empty')),
@@ -258,11 +257,19 @@ export const configEntrySchemas = {
       stripe: optional(object({
         priceId: pipe(string(), nonEmpty('FLUX_PACKS[].processors.stripe.priceId must not be empty')),
       })),
-      appleIap: optional(object({
-        productId: pipe(string(), nonEmpty('FLUX_PACKS[].processors.appleIap.productId must not be empty')),
-      })),
     }), {}),
   })), []),
+  // Maps FLUX_PACKS[].key onto an App Store product id.
+  APPLE_FLUX_PACKS: optional(pipe(
+    record(
+      pipe(string(), nonEmpty('APPLE_FLUX_PACKS keys must not be empty')),
+      pipe(string(), nonEmpty('APPLE_FLUX_PACKS values must not be empty')),
+    ),
+    check((mapping) => {
+      const productIds = Object.values(mapping)
+      return new Set(productIds).size === productIds.length
+    }, 'APPLE_FLUX_PACKS product ids must be unique'),
+  ), {}),
   // No default — absent lets Stripe auto-select payment methods via Dashboard config
   STRIPE_PAYMENT_METHODS: optional(array(string())),
   STRIPE_PAYMENT_METHOD_OPTIONS: optional(record(string(), any()), {}),

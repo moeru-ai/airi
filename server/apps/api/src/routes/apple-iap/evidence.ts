@@ -101,7 +101,11 @@ export function grantableConsumableTransaction(payload: JWSTransactionDecodedPay
 
 export async function resolveAppleIapPack(configKV: ConfigKVService, productId: string) {
   const packs = await configKV.getOptional('FLUX_PACKS') ?? []
-  return packs.find(item => item.processors?.appleIap?.productId === productId)
+  const applePacks = await configKV.getOptional('APPLE_FLUX_PACKS') ?? {}
+  const packKey = Object.entries(applePacks).find(([, mappedId]) => mappedId === productId)?.[0]
+  if (!packKey)
+    return undefined
+  return packs.find(item => item.key === packKey)
 }
 
 /**

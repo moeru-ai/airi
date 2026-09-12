@@ -43,14 +43,23 @@ const starterPack: ConfigDefinitions['FLUX_PACKS'][number] = {
   name: '500 Flux',
   fluxAmount: 500,
   recommended: false,
-  processors: { appleIap: { productId: 'ai.moeru.airi.flux.500' } },
+  processors: {},
 }
 
-function createPacksConfigKV(packs: ConfigDefinitions['FLUX_PACKS'] = [starterPack]): ConfigKVService {
+const starterApplePacks: ConfigDefinitions['APPLE_FLUX_PACKS'] = {
+  starter: 'ai.moeru.airi.flux.500',
+}
+
+function createPacksConfigKV(
+  packs: ConfigDefinitions['FLUX_PACKS'] = [starterPack],
+  applePacks: ConfigDefinitions['APPLE_FLUX_PACKS'] = starterApplePacks,
+): ConfigKVService {
   return {
     getOptional: vi.fn(async (key: string) => {
       if (key === 'FLUX_PACKS')
         return packs
+      if (key === 'APPLE_FLUX_PACKS')
+        return applePacks
       return null
     }),
     getOrThrow: vi.fn(),
