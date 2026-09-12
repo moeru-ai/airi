@@ -10,6 +10,7 @@ import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
+import { toProviderConfigSnapshot } from '../../libs/providers/config'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
@@ -65,6 +66,50 @@ async function createSyncedPair() {
 }
 
 describe('speech synchronization', () => {
+  // https://github.com/moeru-ai/airi/issues/2523
+  // ROOT CAUSE:
+  //
+  // The ElevenLabs settings watcher passed its live reactive configuration to
+  // a leader-routed validation action. BroadcastChannel tried to clone that
+  // proxy before the action ran and rejected the call with DataCloneError.
+  // The rejected watcher then skipped voice discovery.
+  //
+  // We fixed this by taking a deep plain snapshot before the synchronized call.
+  it('validates ElevenLabs and loads voices from a follower renderer', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+      voices: [{
+        id: 'test-voice',
+        name: 'Test Voice',
+        preview_audio_url: 'https://voices.invalid/preview.mp3',
+      }],
+    })))
+    const { leader, follower } = await createSyncedPair()
+    const leaderConfig = useProviderConfigStore(leader.pinia)
+    await leaderConfig.ensureProvider('elevenlabs', 'elevenlabs', {
+      apiKey: '',
+      baseUrl: 'https://voices.invalid/v1/',
+    })
+
+    const followerConfig = useProviderConfigStore(follower.pinia)
+    await vi.waitFor(() => expect(followerConfig.getProviderConfig('elevenlabs')?.apiKey).toBe(''))
+    await followerConfig.patchProviderConfig('elevenlabs', { apiKey: 'test-key' })
+    await vi.waitFor(() => expect(leaderConfig.getProviderConfig('elevenlabs')?.apiKey).toBe('test-key'))
+
+    const liveConfig = followerConfig.getProviderConfig('elevenlabs')
+    const snapshot = toProviderConfigSnapshot(liveConfig)
+    const validation = await useProviderStore(follower.pinia).validateProviderConfig('elevenlabs', snapshot)
+    const voices = await follower.speechStore.loadVoicesForProvider('elevenlabs')
+
+    expect(validation.valid).toBe(true)
+    expect(voices).toEqual([expect.objectContaining({
+      id: 'test-voice',
+      name: 'Test Voice',
+      provider: 'elevenlabs',
+    })])
+    await vi.waitFor(() => expect(leader.speechStore.availableVoices.elevenlabs).toEqual(voices))
+    await vi.waitFor(() => expect(follower.speechStore.availableVoices.elevenlabs).toEqual(voices))
+  })
+
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967949219
   // ROOT CAUSE: Catalog invalidation erased the voice just applied by a card.
   // The selection command must discard the old catalog before setting the override.
