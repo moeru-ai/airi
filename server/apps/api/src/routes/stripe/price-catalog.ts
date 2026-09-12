@@ -4,6 +4,7 @@ import type Stripe from 'stripe'
 import type { ConfigDefinitions } from '../../services/adapters/config-kv'
 
 import { useLogger } from '@guiiai/logg'
+import { array, boolean, object, record, safeParse, string } from 'valibot'
 
 import { formatPrice } from '../../utils/format-price'
 import { redisKeyFrom } from '../../utils/redis-keys'
@@ -14,39 +15,37 @@ const logger = useLogger('stripe.catalog')
 const PRICES_CACHE_TTL_SEC = 5 * 60
 const PRICES_CACHE_KEY = redisKeyFrom('cache', 'stripe', 'prices', 'v2')
 
-interface StripePackListItem {
-  packKey: string
-  // NOTICE:
-  // Previous-version clients read this field and POST it to checkout.
-  // If this field is missing, those clients send `{ currency }` and checkout rejects the request.
-  // Remove this field and the prices:v2 cache key after previous-version clients ship packKey.
-  stripePriceId: string
-  label: string
-  defaultCurrency: string
-  currencies: Record<string, string>
-  recommended: boolean
-}
+const packageSchema = object({
+  packKey: string(),
+  stripePriceId: string(),
+  label: string(),
+  defaultCurrency: string(),
+  currencies: record(string(), string()),
+  recommended: boolean(),
+})
+const cacheSchema = object({ cacheKey: string(), items: array(packageSchema) })
 
 export async function listStripePackages(
   stripe: Stripe | null,
   redis: Redis,
   packs: ConfigDefinitions['FLUX_PACKS'],
-): Promise<StripePackListItem[]> {
+) {
   if (!stripe)
     return []
 
-  const cacheKey = packs.map(pack => pack.processors.stripe?.priceId ?? '').join(',')
+  const cacheKey = JSON.stringify(packs)
   const cached = await redis.get(PRICES_CACHE_KEY)
   if (cached) {
     try {
-      const parsed = JSON.parse(cached) as { cacheKey: string, items: StripePackListItem[] }
-      if (parsed.cacheKey === cacheKey)
-        return parsed.items
+      const parsed = safeParse(cacheSchema, JSON.parse(cached))
+      if (parsed.success && parsed.output.cacheKey === cacheKey)
+        return parsed.output.items
     }
     catch { /* corrupted cache, refetch */ }
   }
 
-  const items: StripePackListItem[] = []
+  const items = []
+  let complete = true
   for (const pack of packs) {
     const priceId = pack.processors.stripe?.priceId
     if (!priceId)
@@ -57,6 +56,7 @@ export async function listStripePackages(
       price = await stripe.prices.retrieve(priceId, { expand: ['currency_options'] })
     }
     catch (error) {
+      complete = false
       logger.withError(error).withFields({ priceId, packKey: pack.key }).warn('Stripe price lookup skipped')
       continue
     }
@@ -78,6 +78,8 @@ export async function listStripePackages(
     })
   }
 
-  await redis.set(PRICES_CACHE_KEY, JSON.stringify({ cacheKey, items }), 'EX', PRICES_CACHE_TTL_SEC)
+  // A transient provider failure must not hide a pack for the full cache TTL.
+  if (complete)
+    await redis.set(PRICES_CACHE_KEY, JSON.stringify({ cacheKey, items }), 'EX', PRICES_CACHE_TTL_SEC)
   return items
 }

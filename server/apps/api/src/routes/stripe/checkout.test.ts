@@ -46,13 +46,13 @@ function createPacksConfigKV(packs: ConfigDefinitions['FLUX_PACKS']): ConfigKVSe
 
 function createCheckout(
   payment: ReturnType<typeof createPaymentService>,
-  stripe: { checkout: { sessions: { create: ReturnType<typeof vi.fn> } } },
+  stripe: { checkout: { sessions: { create: ReturnType<typeof vi.fn> } }, prices?: { retrieve: ReturnType<typeof vi.fn> } },
   packs: ConfigDefinitions['FLUX_PACKS'] = [starterPack],
   productEventService: { track: ReturnType<typeof vi.fn> } | null = null,
 ) {
   return createCheckoutOperation(
     payment,
-    stripe as never,
+    { prices: { retrieve: vi.fn(async () => ({ active: true, type: 'one_time' })) }, ...stripe } as never,
     createPacksConfigKV(packs),
     testEnv,
     null,
@@ -281,5 +281,12 @@ describe('stripe checkout', () => {
 
     const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
     expect(order?.status).toBe('canceled')
+  })
+  it('rejects inactive prices before creating a payment order', async () => {
+    const create = vi.fn()
+    const checkout = createCheckout(payment, { checkout: { sessions: { create } }, prices: { retrieve: vi.fn(async () => ({ active: false, type: 'one_time' })) } })
+    await expect(checkout(testUser, { packKey: 'starter' }, new Request('http://localhost/api/v1/stripe/checkout'))).rejects.toMatchObject({ statusCode: 400 })
+    expect(await db.select().from(schema.paymentOrder)).toHaveLength(0)
+    expect(create).not.toHaveBeenCalled()
   })
 })

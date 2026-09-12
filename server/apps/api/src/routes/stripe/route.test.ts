@@ -304,6 +304,7 @@ describe('stripeRoutes', () => {
               data: {
                 object: {
                   id: 'cs_foreign',
+                  payment_status: 'paid',
                   mode: 'payment',
                   status: 'complete',
                   metadata: {},

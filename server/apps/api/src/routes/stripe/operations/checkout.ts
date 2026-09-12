@@ -6,7 +6,7 @@ import type { ConfigDefinitions, ConfigKVService } from '../../../services/adapt
 import type { PaymentService } from '../../../services/domain/payment'
 import type { ProductEventService } from '../../../services/domain/product-events'
 
-import { safeParse } from 'valibot'
+import { boolean, object, parse, picklist, safeParse } from 'valibot'
 
 import { createBadRequestError, createServiceUnavailableError } from '../../../utils/error'
 import { resolveCheckoutRedirectBase } from '../../../utils/origin'
@@ -45,6 +45,10 @@ export function createCheckoutOperation(
     const priceId = pack.processors.stripe?.priceId
     if (!priceId)
       throw createServiceUnavailableError('Stripe pack mapping is missing', 'STRIPE_PACK_NOT_MAPPED', { packKey: pack.key })
+
+    const price = parse(object({ active: boolean(), type: picklist(['one_time', 'recurring']) }), await stripe.prices.retrieve(priceId))
+    if (!price.active || price.type !== 'one_time')
+      throw createBadRequestError('Stripe price is not available for one-time purchases', 'INVALID_PACKAGE')
 
     const redirectBase = resolveCheckoutRedirectBase(request, env.ADDITIONAL_TRUSTED_ORIGINS, env.WEB_APP_URL)
     const openpanelIdentity = readOpenpanelIdentityHeaders(request)

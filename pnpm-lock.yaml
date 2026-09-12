@@ -3917,6 +3917,9 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
+      '@proj-airi/core-agent':
+        specifier: workspace:^
+        version: link:../core-agent
       '@types/node':
         specifier: 'catalog:'
         version: 26.2.0

@@ -1,6 +1,6 @@
 import type { InferOutput } from 'valibot'
 
-import { any, array, boolean, check, minValue, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
+import { any, array, boolean, check, minValue, nonEmpty, number, object, optional, picklist, pipe, record, regex, safeInteger, string } from 'valibot'
 
 /**
  * LLM/TTS router config tree. Single composite entry under configKV holds the
@@ -239,7 +239,7 @@ export const llmRouterConfigSchema = object({
 const fluxPackSchema = object({
   key: pipe(string(), nonEmpty('FLUX_PACKS[].key must not be empty')),
   name: pipe(string(), nonEmpty('FLUX_PACKS[].name must not be empty')),
-  fluxAmount: pipe(number(), minValue(1, 'FLUX_PACKS[].fluxAmount must be >= 1')),
+  fluxAmount: pipe(number(), minValue(1, 'FLUX_PACKS[].fluxAmount must be >= 1'), safeInteger()),
   recommended: optional(boolean(), false),
   processors: optional(object({
     stripe: optional(object({
