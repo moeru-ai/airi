@@ -2,6 +2,7 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
+import { useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -18,12 +19,22 @@ import ChatContainer from '../Widgets/ChatContainer.vue'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 
 const { isReady } = useDeferredMount()
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(useChatStore())
+const chatOrchestrator = useChatStore()
+const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
 const { activeSessionId, messages } = storeToRefs(useChatSessionStore())
 const { streamingMessage } = storeToRefs(useChatStreamStore())
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 
 const isLoading = ref(true)
+const composer = useChatComposer({
+  activeSessionId,
+  send: submission => chatOrchestrator.send({
+    sessionId: submission.sessionId,
+    text: submission.text,
+    replyToMessageId: submission.replyToMessageId,
+  }),
+})
+const { clearReplyForMessage, selectReply } = composer
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const isActiveSessionSending = computed(() => (
   (sending.value && activeSendSessionId.value === activeSessionId.value)
@@ -35,8 +46,8 @@ const visibleStreamingMessage = computed(() => activeSendSessionId.value === act
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 
-async function handleDeleteMessage(index: number) {
-  const message = messages.value[index]
+async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
+  const { index, message } = payload
   await useChatSessionStore().deleteMessage({
     sessionId: activeSessionId.value,
     messageId: message?.id,
@@ -46,6 +57,7 @@ async function handleDeleteMessage(index: number) {
     source: 'history',
     message_role: message?.role ?? 'unknown',
   })
+  clearReplyForMessage(message)
 }
 </script>
 
@@ -68,12 +80,13 @@ async function handleDeleteMessage(index: number) {
             :streaming-message="visibleStreamingMessage"
             h-full
             variant="desktop"
-            @delete-message="handleDeleteMessage($event.index)"
+            @delete-message="handleDeleteMessage"
+            @reply-message="selectReply"
             @tool-call-rerun="rerunToolCall"
             @vue:mounted="isLoading = false"
           />
         </div>
-        <ChatArea />
+        <ChatArea :composer="composer" />
       </ChatContainer>
     </div>
 

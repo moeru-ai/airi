@@ -30,7 +30,6 @@ function createTestDeps() {
     providerCatalogService: {} as never,
     productEventService: {
       track: vi.fn(async () => undefined),
-      trackGeneration: vi.fn(async () => undefined),
     } as never,
     configKV: { getOrThrow: vi.fn() } as never,
     redis: redis as never,

@@ -253,11 +253,6 @@ export const configEntrySchemas = {
     name: pipe(string(), nonEmpty('FLUX_PACKS[].name must not be empty')),
     fluxAmount: pipe(number(), minValue(1, 'FLUX_PACKS[].fluxAmount must be >= 1')),
     recommended: optional(boolean(), false),
-    processors: optional(object({
-      stripe: optional(object({
-        priceId: pipe(string(), nonEmpty('FLUX_PACKS[].processors.stripe.priceId must not be empty')),
-      })),
-    }), {}),
   })), []),
   // Maps FLUX_PACKS[].key onto an App Store product id.
   APPLE_FLUX_PACKS: optional(pipe(
@@ -270,6 +265,8 @@ export const configEntrySchemas = {
       return new Set(productIds).size === productIds.length
     }, 'APPLE_FLUX_PACKS product ids must be unique'),
   ), {}),
+  // No default — absent means top-up is not available yet
+  STRIPE_FLUX_PRODUCT_ID: optional(string()),
   // No default — absent lets Stripe auto-select payment methods via Dashboard config
   STRIPE_PAYMENT_METHODS: optional(array(string())),
   STRIPE_PAYMENT_METHOD_OPTIONS: optional(record(string(), any()), {}),

@@ -49,7 +49,6 @@ const ioTracerMocks = vi.hoisted(() => {
 const llmStreamMock = vi.fn()
 const trackFirstMessageMock = vi.fn()
 const chatAnalyticsMocks = vi.hoisted(() => ({
-  trackAiGeneration: vi.fn(),
   trackMessageRound: vi.fn(),
   trackMessageRoundFailed: vi.fn(),
   trackMessageSent: vi.fn(),
@@ -64,6 +63,7 @@ const ingestContextMessageMock = vi.fn()
 const getContextsSnapshotMock = vi.fn()
 const createRuntimePromptContextMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
+const createUserAccountContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
@@ -98,9 +98,6 @@ vi.mock('../libs/product-signals', () => ({
   getAnalytics: () => ({
     emit: (event: { name: string }, properties: unknown) => {
       switch (event.name) {
-        case '$ai_generation':
-          chatAnalyticsMocks.trackAiGeneration(properties)
-          break
         case 'message_round':
           chatAnalyticsMocks.trackMessageRound(properties)
           break
@@ -128,6 +125,7 @@ vi.mock('../composables/use-io-tracer', () => ({
 vi.mock('./chat/context-providers', () => ({
   createMinecraftContext: () => createMinecraftContextMock(),
   createRuntimePromptContext: (prompt: string) => createRuntimePromptContextMock(prompt),
+  createUserAccountContext: () => createUserAccountContextMock(),
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -250,6 +248,7 @@ describe('chat store contract', () => {
     ingestContextMessageMock.mockReset()
     getContextsSnapshotMock.mockReset()
     getContextsSnapshotMock.mockReturnValue({})
+    createUserAccountContextMock.mockReset().mockReturnValue(null)
     createRuntimePromptContextMock.mockReset()
     createRuntimePromptContextMock.mockReturnValue(undefined)
     createMinecraftContextMock.mockReset()
@@ -375,6 +374,28 @@ describe('chat store contract', () => {
     await settings.setReasoning(false)
   })
 
+  it('passes a native reply relation to the chat runtime', async () => {
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      { role: 'assistant', content: 'Earlier answer', slices: [], tool_results: [], id: 'assistant-1' },
+    ]
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+    const store = useChatStore()
+
+    await store.send({
+      sessionId: 'session-1',
+      text: 'My follow-up',
+      replyToMessageId: 'assistant-1',
+    })
+
+    expect(sessionMessages['session-1']?.find(message => message.role === 'user')).toMatchObject({
+      content: 'My follow-up',
+      replyToMessageId: 'assistant-1',
+    })
+  })
+
   // https://github.com/moeru-ai/airi/issues/2085
   it('hydrates the target session before sending for Issue #2085', async () => {
     // ROOT CAUSE:
@@ -447,7 +468,7 @@ describe('chat store contract', () => {
     expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledWith(expect.objectContaining(correlation))
   })
 
-  it('captures custom-provider usage once and leaves official generation capture to the server', async () => {
+  it('keeps custom and official provider usage in completed message rounds', async () => {
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
       await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
@@ -465,26 +486,26 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })
 
-    expect(chatAnalyticsMocks.trackAiGeneration).toHaveBeenCalledWith({
-      conversation_id: 'session-1',
-      round_id: expect.any(String),
-      provider_type: 'custom',
-      provider_id: 'mock-provider',
-      model_id: 'gpt-test',
+    expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledTimes(1)
+    expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledWith(expect.objectContaining({
+      model: 'gpt-test',
       usage_source: 'reported',
       input_tokens: 12,
       output_tokens: 8,
       total_tokens: 20,
-    })
+    }))
 
-    chatAnalyticsMocks.trackAiGeneration.mockClear()
     activeProviderRef.value = 'official-provider'
     await store.ingest('official turn', {
       model: 'chat-auto',
       chatProvider: provider,
     })
 
-    expect(chatAnalyticsMocks.trackAiGeneration).not.toHaveBeenCalled()
+    expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledTimes(2)
+    expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenLastCalledWith(expect.objectContaining({
+      model: 'chat-auto',
+      total_tokens: 20,
+    }))
     expect(llmStreamMock.mock.calls[1]?.[3]?.headers).toEqual({
       [AIRI_CHAT_APP_SURFACE_HEADER]: 'web',
       [AIRI_CHAT_SESSION_ID_HEADER]: 'session-1',
@@ -522,7 +543,7 @@ describe('chat store contract', () => {
   // ROOT CAUSE:
   //
   // One successful send emitted both the canonical message/latency events
-  // and four generic aliases, multiplying PostHog volume without adding a
+  // and four generic aliases, multiplying event volume without adding a
   // distinct product decision.
   it('does not emit redundant generic chat aliases for a successful send', async () => {
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
@@ -836,6 +857,36 @@ describe('chat store contract', () => {
     expect(contextMessageContent[1]).toMatchObject({
       text: expect.stringContaining('- system:minecraft: player is near spawn'),
     })
+  })
+
+  it('adds account context only to the signed-in request without retaining it in the registry', async () => {
+    const account = {
+      id: 'account',
+      contextId: 'system:user-account',
+      strategy: 'replace-self',
+      text: 'Account display name: "Alice". Edit it at /settings/account.',
+      createdAt: 123,
+    }
+    const registry = {}
+    getContextsSnapshotMock.mockReturnValue(registry)
+    createUserAccountContextMock.mockReturnValue(account)
+    const prompts: string[] = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: ChatProvider, messages: Message[], options: StreamOptions) => {
+      prompts.push(JSON.stringify(messages))
+      await options.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+    const store = useChatStore()
+    await store.ingest('hello', { model: 'gpt-test', chatProvider: provider })
+    expect(prompts[0]).toContain('Alice')
+    expect(prompts[0]).toContain('/settings/account')
+    expect(registry).toEqual({})
+    expect(ingestContextMessageMock).not.toHaveBeenCalledWith(account)
+
+    createUserAccountContextMock.mockReturnValue(null)
+    await store.ingest('hello again', { model: 'gpt-test', chatProvider: provider })
+    expect(prompts[1]).not.toContain('system:user-account')
+    expect(prompts[1]).not.toContain('Alice')
+    expect(prompts[1]).not.toContain('/settings/account')
   })
 
   it('rejects cancelled queued sends before they start', async () => {

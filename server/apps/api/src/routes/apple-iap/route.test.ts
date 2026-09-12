@@ -43,7 +43,6 @@ const starterPack: ConfigDefinitions['FLUX_PACKS'][number] = {
   name: '500 Flux',
   fluxAmount: 500,
   recommended: false,
-  processors: {},
 }
 
 const starterApplePacks: ConfigDefinitions['APPLE_FLUX_PACKS'] = {

@@ -23,6 +23,10 @@
     "./agents/spark-notify": {
       "types": "./dist/agents/spark-notify/index.d.mts",
       "default": "./dist/agents/spark-notify/index.mjs"
+    },
+    "./agents/spark-command": {
+      "types": "./dist/agents/spark-command/index.d.mts",
+      "default": "./dist/agents/spark-command/index.mjs"
     }
   },
   "main": "./dist/index.mjs",

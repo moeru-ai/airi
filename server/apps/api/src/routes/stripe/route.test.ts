@@ -19,6 +19,18 @@ function unusedWebhookDb(): Database {
   } as unknown as Database
 }
 
+function webhookDbWithoutOrder(): Database {
+  return {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [],
+        }),
+      }),
+    }),
+  } as unknown as Database
+}
+
 function createMockPayment(overrides: Partial<PaymentService> = {}): PaymentService {
   return {
     openPending: vi.fn(async () => ({ id: 'po_mock' })),
@@ -33,15 +45,8 @@ function createMockPayment(overrides: Partial<PaymentService> = {}): PaymentServ
 function createMockConfigKV(overrides: Partial<ConfigKVService> = {}): ConfigKVService {
   return {
     getOptional: vi.fn(async (key: string) => {
-      if (key === 'FLUX_PACKS') {
-        return [{
-          key: 'starter',
-          name: '500 Flux',
-          fluxAmount: 500,
-          recommended: false,
-          processors: { stripe: { priceId: 'price_test_500' } },
-        }]
-      }
+      if (key === 'STRIPE_FLUX_PRODUCT_ID')
+        return 'prod_flux'
       return null
     }),
     getOrThrow: vi.fn(),
@@ -66,7 +71,7 @@ function createTestApp(
   payment: PaymentService,
   envOverrides: Record<string, any> = {},
   stripe: any = {
-    prices: { retrieve: vi.fn() },
+    prices: { list: vi.fn(async () => ({ data: [] })), retrieve: vi.fn() },
     checkout: { sessions: { create: vi.fn() } },
     webhooks: { constructEvent: vi.fn() },
   },
@@ -110,14 +115,19 @@ function createTestApp(
 
 describe('stripeRoutes', () => {
   describe('gET /api/v1/stripe/packages', () => {
-    it('returns ConfigKV packs with Stripe display prices', async () => {
+    it('returns Stripe product prices as Flux packages', async () => {
       const stripe = {
         prices: {
-          retrieve: vi.fn(async () => ({
-            id: 'price_test_500',
-            currency: 'usd',
-            unit_amount: 500,
-            currency_options: {},
+          list: vi.fn(async () => ({
+            data: [{
+              id: 'price_test_500',
+              currency: 'usd',
+              unit_amount: 500,
+              product: 'prod_flux',
+              active: true,
+              metadata: { fluxAmount: '500' },
+              currency_options: {},
+            }],
           })),
         },
         webhooks: { constructEvent: vi.fn() },
@@ -127,7 +137,7 @@ describe('stripeRoutes', () => {
       const res = await app.request('/api/v1/stripe/packages')
       expect(res.status).toBe(200)
       expect(await res.json()).toEqual([{
-        packKey: 'starter',
+        stripePriceId: 'price_test_500',
         label: '500 Flux',
         defaultCurrency: 'usd',
         currencies: { usd: '$5.00' },
@@ -142,7 +152,7 @@ describe('stripeRoutes', () => {
       const res = await app.request('/api/v1/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packKey: 'starter' }),
+        body: JSON.stringify({ stripePriceId: 'price_starter' }),
       })
       expect(res.status).toBe(401)
     })
@@ -217,9 +227,9 @@ describe('stripeRoutes', () => {
             currency: 'usd',
             metadata: {
               payment_order_id: 'po_1',
-              packKey: 'starter',
-              posthogDistinctId: 'anon-browser-1',
-              posthogSessionId: 'ph-session-1',
+              stripePriceId: 'price_starter',
+              openpanelDeviceId: 'anon-browser-1',
+              openpanelSessionId: 'ph-session-1',
             },
           },
         },
@@ -251,8 +261,8 @@ describe('stripeRoutes', () => {
       expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
         action: 'payment_completed',
         metadata: expect.objectContaining({
-          posthog_distinct_id: 'anon-browser-1',
-          pack_key: 'starter',
+          openpanel_device_id: 'anon-browser-1',
+          stripe_price_id: 'price_starter',
         }),
       }))
     })
@@ -277,6 +287,37 @@ describe('stripeRoutes', () => {
       )
 
       await webhook('test_sig', '{}')
+      expect(payment.settle).not.toHaveBeenCalled()
+    })
+
+    it('acknowledges a checkout session that is not an AIRI order', async () => {
+      const payment = createMockPayment()
+      const webhook = createWebhookOperation(
+        {
+          webhooks: {
+            constructEvent: vi.fn(() => ({
+              id: 'evt_foreign',
+              type: 'checkout.session.completed',
+              data: {
+                object: {
+                  id: 'cs_foreign',
+                  payment_status: 'paid',
+                  mode: 'payment',
+                  status: 'complete',
+                  metadata: {},
+                },
+              },
+            })),
+          },
+        } as any,
+        'whsec_test',
+        payment,
+        webhookDbWithoutOrder(),
+        null,
+        null,
+      )
+
+      await expect(webhook('test_sig', '{}')).resolves.toEqual({ received: true })
       expect(payment.settle).not.toHaveBeenCalled()
     })
   })

@@ -21,12 +21,18 @@ mobile-tools:
   hearing: Hearing
 chat:
   actions:
+    reply: Reply
     retry: Retry
+    send: Send message
   message:
     character-name:
       airi: AIRI
       core-system: Core System
       you: You
+  reply:
+    cancel: Cancel reply
+    message: Message
+    replying-to: Replying to {name}
   reasoning: Reasoning
   sessions:
     title: Conversations
