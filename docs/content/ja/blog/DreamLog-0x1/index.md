@@ -1,6 +1,7 @@
 ---
 title: 'DreamLog 0x1'
 description: 'Project AIRI の舞台裏ストーリー！'
+category: DreamLog
 date: '2025-06-16'
 excerpt: 'Project AIRI の舞台裏ストーリー！なぜ私たちがこのようなプロジェクトを作りたかったのか？'
 preview-cover:

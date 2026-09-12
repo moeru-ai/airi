@@ -23,12 +23,15 @@ watchPostEffect(() => {
 /**
  * Wraps the theme switch in a View Transition so the browser cross-fades the
  * whole page snapshots, keeping every element in sync. Falls back to an
- * instant switch where `startViewTransition` is unsupported (e.g. Firefox).
+ * instant switch where `startViewTransition` is unsupported (e.g. older
+ * Firefox) or the user prefers reduced motion.
  */
 function onToggle(value: boolean) {
   if (value === isDark.value)
     return
-  if (typeof document !== 'undefined' && 'startViewTransition' in document) {
+  const prefersReducedMotion = typeof matchMedia !== 'undefined'
+    && matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (!prefersReducedMotion && typeof document !== 'undefined' && 'startViewTransition' in document) {
     document.startViewTransition(() => {
       isDark.value = value
     })

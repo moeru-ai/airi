@@ -98,7 +98,7 @@ sudo apt install -y websockify novnc
 
 이미지와 어노테이션 데이터를 모은 뒤에는 [YOLO 공식 형식](https://docs.ultralytics.com/datasets/detect/)에 맞춰 데이터셋을 정리하고, [Ultralytics Hub](https://www.ultralytics.com/hub)에 업로드해 결과를 확인합니다:
 
-![Ultralytics Hub](/en/blog/DevLog-2025.08.26/assets/factorio-ultralytics-hub-preview.jpg)
+![Ultralytics Hub](/en/blog/DevLog-2025.08.26/assets/factorio-ultralytics-hub-preview.avif)
 
 꽤 괜찮아 보이죠? 학습을 시작해 봅시다!
 
