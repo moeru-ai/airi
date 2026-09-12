@@ -1,6 +1,6 @@
 import type { InferOutput } from 'valibot'
 
-import { any, array, boolean, check, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
+import { any, array, boolean, check, minValue, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
 
 /**
  * LLM/TTS router config tree. Single composite entry under configKV holds the
@@ -247,6 +247,19 @@ export const configEntrySchemas = {
   // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
   // 24h gives users a long-enough window for accumulated dust to settle naturally.
   TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
+  // One-time Flux packs. Channel SKUs live in sibling mapping keys.
+  FLUX_PACKS: optional(array(object({
+    key: pipe(string(), nonEmpty('FLUX_PACKS[].key must not be empty')),
+    name: pipe(string(), nonEmpty('FLUX_PACKS[].name must not be empty')),
+    fluxAmount: pipe(number(), minValue(1, 'FLUX_PACKS[].fluxAmount must be >= 1')),
+    recommended: optional(boolean(), false),
+  })), []),
+  // Maps an App Store product id onto FLUX_PACKS[].key.
+  // The same pack key can appear on more than one SKU (AIRI and AIRI Lite).
+  APPLE_FLUX_PACKS: optional(record(
+    pipe(string(), nonEmpty('APPLE_FLUX_PACKS product ids must not be empty')),
+    pipe(string(), nonEmpty('APPLE_FLUX_PACKS pack keys must not be empty')),
+  ), {}),
   // No default — absent means top-up is not available yet
   STRIPE_FLUX_PRODUCT_ID: optional(string()),
   // No default — absent lets Stripe auto-select payment methods via Dashboard config
