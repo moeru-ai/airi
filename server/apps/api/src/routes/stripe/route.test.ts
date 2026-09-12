@@ -45,15 +45,8 @@ function createMockPayment(overrides: Partial<PaymentService> = {}): PaymentServ
 function createMockConfigKV(overrides: Partial<ConfigKVService> = {}): ConfigKVService {
   return {
     getOptional: vi.fn(async (key: string) => {
-      if (key === 'FLUX_PACKS') {
-        return [{
-          key: 'starter',
-          name: '500 Flux',
-          fluxAmount: 500,
-          recommended: false,
-          processors: { stripe: { priceId: 'price_test_500' } },
-        }]
-      }
+      if (key === 'STRIPE_FLUX_PRODUCT_ID')
+        return 'prod_flux'
       return null
     }),
     getOrThrow: vi.fn(),
@@ -78,7 +71,7 @@ function createTestApp(
   payment: PaymentService,
   envOverrides: Record<string, any> = {},
   stripe: any = {
-    prices: { retrieve: vi.fn() },
+    prices: { list: vi.fn(async () => ({ data: [] })), retrieve: vi.fn() },
     checkout: { sessions: { create: vi.fn() } },
     webhooks: { constructEvent: vi.fn() },
   },
@@ -122,14 +115,19 @@ function createTestApp(
 
 describe('stripeRoutes', () => {
   describe('gET /api/v1/stripe/packages', () => {
-    it('returns ConfigKV packs with Stripe display prices', async () => {
+    it('returns Stripe product prices as Flux packages', async () => {
       const stripe = {
         prices: {
-          retrieve: vi.fn(async () => ({
-            id: 'price_test_500',
-            currency: 'usd',
-            unit_amount: 500,
-            currency_options: {},
+          list: vi.fn(async () => ({
+            data: [{
+              id: 'price_test_500',
+              currency: 'usd',
+              unit_amount: 500,
+              product: 'prod_flux',
+              active: true,
+              metadata: { fluxAmount: '500' },
+              currency_options: {},
+            }],
           })),
         },
         webhooks: { constructEvent: vi.fn() },
@@ -139,7 +137,7 @@ describe('stripeRoutes', () => {
       const res = await app.request('/api/v1/stripe/packages')
       expect(res.status).toBe(200)
       expect(await res.json()).toEqual([{
-        packKey: 'starter',
+        packKey: 'price_test_500',
         stripePriceId: 'price_test_500',
         label: '500 Flux',
         defaultCurrency: 'usd',
@@ -155,7 +153,7 @@ describe('stripeRoutes', () => {
       const res = await app.request('/api/v1/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packKey: 'starter' }),
+        body: JSON.stringify({ packKey: 'price_starter' }),
       })
       expect(res.status).toBe(401)
     })
@@ -230,7 +228,7 @@ describe('stripeRoutes', () => {
             currency: 'usd',
             metadata: {
               payment_order_id: 'po_1',
-              packKey: 'starter',
+              packKey: 'price_starter',
               openpanelDeviceId: 'anon-browser-1',
               openpanelSessionId: 'ph-session-1',
             },
@@ -265,7 +263,7 @@ describe('stripeRoutes', () => {
         action: 'payment_completed',
         metadata: expect.objectContaining({
           openpanel_device_id: 'anon-browser-1',
-          pack_key: 'starter',
+          pack_key: 'price_starter',
         }),
       }))
     })

@@ -1,5 +1,6 @@
 import type { Database } from '../../libs/db'
-import type { ConfigDefinitions, ConfigKVService } from '../../services/adapters/config-kv'
+import type { ConfigKVService } from '../../services/adapters/config-kv'
+import type { CachedPrice, StripePriceCatalog } from './price-catalog'
 
 import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,12 +13,15 @@ import { createCheckoutOperation } from './operations/checkout'
 
 import * as schema from '../../schemas'
 
-const starterPack: ConfigDefinitions['FLUX_PACKS'][number] = {
-  key: 'starter',
-  name: '500 Flux',
-  fluxAmount: 500,
-  recommended: false,
-  processors: { stripe: { priceId: 'price_starter' } },
+const productId = 'prod_flux'
+const starterPrice: CachedPrice = {
+  id: 'price_starter',
+  unitAmount: 500,
+  currency: 'usd',
+  product: productId,
+  active: true,
+  metadata: { fluxAmount: '500' },
+  currencyOptions: {},
 }
 
 const testEnv = {
@@ -26,15 +30,15 @@ const testEnv = {
   API_SERVER_URL: 'http://localhost:8787',
   WEB_APP_URL: 'https://airi.moeru.ai',
   ADDITIONAL_TRUSTED_ORIGINS: [],
-} as any
+} as never
 
 const testUser = { id: 'user-pay-1', name: 'Pay User', email: 'pay@example.com' }
 
-function createPacksConfigKV(packs: ConfigDefinitions['FLUX_PACKS']): ConfigKVService {
+function createProductConfigKV(): ConfigKVService {
   return {
     getOptional: vi.fn(async (key: string) => {
-      if (key === 'FLUX_PACKS')
-        return packs
+      if (key === 'STRIPE_FLUX_PRODUCT_ID')
+        return productId
       return null
     }),
     getOrThrow: vi.fn(),
@@ -44,16 +48,28 @@ function createPacksConfigKV(packs: ConfigDefinitions['FLUX_PACKS']): ConfigKVSe
   } as ConfigKVService
 }
 
+function createCatalog(price: CachedPrice | null = starterPrice): StripePriceCatalog {
+  return {
+    getActivePrices: vi.fn(async () => price ? [price] : []),
+    findActivePrice: vi.fn(async (_productId: string, packKey: string) => {
+      if (price && price.id === packKey)
+        return price
+      return null
+    }),
+  }
+}
+
 function createCheckout(
   payment: ReturnType<typeof createPaymentService>,
-  stripe: { checkout: { sessions: { create: ReturnType<typeof vi.fn> } }, prices?: { retrieve: ReturnType<typeof vi.fn> } },
-  packs: ConfigDefinitions['FLUX_PACKS'] = [starterPack],
+  stripe: { checkout: { sessions: { create: ReturnType<typeof vi.fn> } } },
+  catalog: StripePriceCatalog = createCatalog(),
   productEventService: { track: ReturnType<typeof vi.fn> } | null = null,
 ) {
   return createCheckoutOperation(
     payment,
-    { prices: { retrieve: vi.fn(async () => ({ active: true, type: 'one_time' })) }, ...stripe } as never,
-    createPacksConfigKV(packs),
+    stripe as never,
+    catalog,
+    createProductConfigKV(),
     testEnv,
     null,
     productEventService as never,
@@ -75,7 +91,7 @@ describe('stripe checkout', () => {
 
   beforeEach(async () => {
     const redis = createTestRedis()
-    const billing = createBillingService(db, redis, createPacksConfigKV([starterPack]))
+    const billing = createBillingService(db, redis, createProductConfigKV())
     payment = createPaymentService(db, billing)
 
     await db.delete(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
@@ -89,9 +105,11 @@ describe('stripe checkout', () => {
       const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
       expect(order?.status).toBe('pending')
       expect(order?.processorOrderId).toBeNull()
-      expect(order?.packKey).toBe('starter')
+      expect(order?.packKey).toBe('price_starter')
       expect(order?.fluxAmount).toBe(500)
       expect(params.metadata?.payment_order_id).toBe(order?.id)
+      expect(params.metadata?.packKey).toBe('price_starter')
+      expect(params.metadata?.fluxAmount).toBe('500')
 
       return {
         id: 'cs_test_1',
@@ -105,7 +123,7 @@ describe('stripe checkout', () => {
 
     const result = await checkout(
       testUser,
-      { packKey: 'starter', currency: 'usd' },
+      { packKey: 'price_starter', currency: 'usd' },
       new Request('http://localhost/api/v1/stripe/checkout'),
     )
 
@@ -118,14 +136,13 @@ describe('stripe checkout', () => {
     expect(order?.currency).toBe('usd')
   })
 
-  it('resolves previous-version stripePriceId onto a pack snapshot', async () => {
+  it('accepts stripePriceId as the pack key', async () => {
     const create = vi.fn(async () => ({
       id: 'cs_test_price',
       url: 'https://checkout.stripe.test/cs_test_price',
       amount_total: 500,
       currency: 'usd',
     }))
-
     const checkout = createCheckout(payment, { checkout: { sessions: { create } } })
 
     await checkout(
@@ -135,9 +152,43 @@ describe('stripe checkout', () => {
     )
 
     const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
-    expect(order?.packKey).toBe('starter')
-    expect(order?.fluxAmount).toBe(500)
+    expect(order?.packKey).toBe('price_starter')
     expect(create).toHaveBeenCalled()
+  })
+
+  it('rejects a price that is not on the configured product', async () => {
+    const checkout = createCheckout(
+      payment,
+      { checkout: { sessions: { create: vi.fn() } } },
+      createCatalog(null),
+    )
+
+    await expect(checkout(
+      testUser,
+      { packKey: 'price_other' },
+      new Request('http://localhost/api/v1/stripe/checkout'),
+    )).rejects.toMatchObject({
+      statusCode: 400,
+      errorCode: 'INVALID_PACKAGE',
+    })
+  })
+
+  it('rejects a price without fluxAmount metadata', async () => {
+    const checkout = createCheckout(
+      payment,
+      { checkout: { sessions: { create: vi.fn() } } },
+      createCatalog({ ...starterPrice, metadata: {} }),
+    )
+
+    await expect(checkout(
+      testUser,
+      { packKey: 'price_starter' },
+      new Request('http://localhost/api/v1/stripe/checkout'),
+    )).rejects.toMatchObject({
+      statusCode: 400,
+      errorCode: 'INVALID_PACKAGE',
+    })
+    expect(await db.select().from(schema.paymentOrder)).toHaveLength(0)
   })
 
   it('credits Flux when settle runs before the session id is bound', async () => {
@@ -167,7 +218,7 @@ describe('stripe checkout', () => {
 
     await checkout(
       testUser,
-      { packKey: 'starter' },
+      { packKey: 'price_starter' },
       new Request('http://localhost/api/v1/stripe/checkout'),
     )
 
@@ -188,11 +239,11 @@ describe('stripe checkout', () => {
     }))
     const productEventService = { track: vi.fn() }
 
-    const checkout = createCheckout(payment, { checkout: { sessions: { create } } }, [starterPack], productEventService)
+    const checkout = createCheckout(payment, { checkout: { sessions: { create } } }, createCatalog(), productEventService)
 
     await checkout(
       testUser,
-      { packKey: 'starter' },
+      { packKey: 'price_starter' },
       new Request('http://localhost/api/v1/stripe/checkout', {
         headers: {
           'x-openpanel-device-id': 'anon-browser-1',
@@ -211,6 +262,7 @@ describe('stripe checkout', () => {
       action: 'checkout_started',
       metadata: expect.objectContaining({
         openpanel_device_id: 'anon-browser-1',
+        pack_key: 'price_starter',
       }),
     }))
   })
@@ -237,7 +289,7 @@ describe('stripe checkout', () => {
 
     await checkout(
       testUser,
-      { packKey: 'starter' },
+      { packKey: 'price_starter' },
       new Request('http://localhost/api/v1/stripe/checkout'),
     )
 
@@ -252,7 +304,7 @@ describe('stripe checkout', () => {
 
     await expect(checkout(
       testUser,
-      { packKey: 'starter' },
+      { packKey: 'price_starter' },
       new Request('http://localhost/api/v1/stripe/checkout'),
     )).rejects.toThrow('stripe down')
 
@@ -272,7 +324,7 @@ describe('stripe checkout', () => {
 
     await expect(checkout(
       testUser,
-      { packKey: 'starter' },
+      { packKey: 'price_starter' },
       new Request('http://localhost/api/v1/stripe/checkout'),
     )).rejects.toMatchObject({
       statusCode: 503,
@@ -281,12 +333,5 @@ describe('stripe checkout', () => {
 
     const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
     expect(order?.status).toBe('canceled')
-  })
-  it('rejects inactive prices before creating a payment order', async () => {
-    const create = vi.fn()
-    const checkout = createCheckout(payment, { checkout: { sessions: { create } }, prices: { retrieve: vi.fn(async () => ({ active: false, type: 'one_time' })) } })
-    await expect(checkout(testUser, { packKey: 'starter' }, new Request('http://localhost/api/v1/stripe/checkout'))).rejects.toMatchObject({ statusCode: 400 })
-    expect(await db.select().from(schema.paymentOrder)).toHaveLength(0)
-    expect(create).not.toHaveBeenCalled()
   })
 })

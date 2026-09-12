@@ -15,11 +15,13 @@ auth/OIDC routes.
 ## Payment
 
 `src/services/domain/payment` owns pack grant and `payment_order` rows.
-CORE exposes `openPending`, `bindProcessorOrder`, `abandon`, `settle`,
-and `deleteAllForUser`. Checkout and package list live in the Stripe
-adapter on `/api/v1/stripe/*`. CORE never sees a raw processor event.
-The adapter maps the processor result onto a `ClaimReceipt`, then calls
-`settle`.
+Checkout and package list live in the Stripe adapter on `/api/v1/stripe/*`.
+ConfigKV stores `STRIPE_FLUX_PRODUCT_ID`. The adapter lists that product's
+Prices from Stripe. `GET /packages` returns `packKey`. `stripePriceId` is a
+compatibility copy of the same Stripe Price id for previous-version clients.
+Checkout accepts `packKey`. Checkout also accepts `stripePriceId`. Label,
+flux amount, and display prices come from Price metadata and Stripe amounts.
+The adapter maps a verified session onto a `ClaimReceipt`, then calls `settle`.
 
 ## Run locally
 

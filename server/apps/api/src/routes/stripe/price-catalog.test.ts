@@ -1,35 +1,49 @@
-import type { ConfigDefinitions } from '../../services/adapters/config-kv'
+import type Stripe from 'stripe'
 
 import { describe, expect, it, vi } from 'vitest'
 
 import { createTestRedis } from '../../libs/tests/redis'
-import { listStripePackages } from './price-catalog'
+import { createStripePriceCatalog, listStripePackages } from './price-catalog'
 
-const starterPack: ConfigDefinitions['FLUX_PACKS'][number] = {
-  key: 'starter',
-  name: '500 Flux',
-  fluxAmount: 500,
-  recommended: true,
-  processors: { stripe: { priceId: 'price_starter' } },
+const productId = 'prod_flux'
+
+function createStripe(overrides: {
+  list?: ReturnType<typeof vi.fn>
+  retrieve?: ReturnType<typeof vi.fn>
+} = {}) {
+  return {
+    prices: {
+      list: overrides.list ?? vi.fn(async () => ({ data: [] })),
+      retrieve: overrides.retrieve ?? vi.fn(),
+    },
+  } as unknown as Stripe
 }
 
-function createStripe(retrieve: ReturnType<typeof vi.fn>) {
+function listedPrice(overrides: Partial<Stripe.Price> = {}): Stripe.Price {
   return {
-    prices: { retrieve },
-  } as never
+    id: 'price_starter',
+    object: 'price',
+    active: true,
+    currency: 'usd',
+    unit_amount: 500,
+    product: productId,
+    metadata: { fluxAmount: '500', recommended: 'true' },
+    currency_options: { jpy: { unit_amount: 500 } },
+    ...overrides,
+  } as Stripe.Price
 }
 
 describe('listStripePackages', () => {
-  it('lists Stripe prices including extra currencies', async () => {
-    const retrieve = vi.fn(async (priceId: string) => ({
-      id: priceId,
-      currency: 'usd',
-      unit_amount: 500,
-      currency_options: { jpy: { unit_amount: 500 } },
-    }))
+  it('lists Stripe product prices including extra currencies', async () => {
+    const catalog = createStripePriceCatalog(
+      createStripe({
+        list: vi.fn(async () => ({ data: [listedPrice()] })),
+      }),
+      createTestRedis(),
+    )
 
-    await expect(listStripePackages(createStripe(retrieve), createTestRedis(), [starterPack])).resolves.toEqual([{
-      packKey: 'starter',
+    await expect(listStripePackages(catalog, productId)).resolves.toEqual([{
+      packKey: 'price_starter',
       stripePriceId: 'price_starter',
       label: '500 Flux',
       defaultCurrency: 'usd',
@@ -38,41 +52,64 @@ describe('listStripePackages', () => {
     }])
   })
 
-  it('reuses the Stripe price cache for the same price id set', async () => {
-    const retrieve = vi.fn(async () => ({
-      id: 'price_starter',
-      currency: 'usd',
-      unit_amount: 500,
-      currency_options: {},
-    }))
-    const redis = createTestRedis()
+  it('reuses the Stripe price cache for the same product', async () => {
+    const list = vi.fn(async () => ({ data: [listedPrice()] }))
+    const catalog = createStripePriceCatalog(createStripe({ list }), createTestRedis())
 
-    await listStripePackages(createStripe(retrieve), redis, [starterPack])
-    await listStripePackages(createStripe(retrieve), redis, [starterPack])
-    expect(retrieve).toHaveBeenCalledTimes(1)
+    await listStripePackages(catalog, productId)
+    await listStripePackages(catalog, productId)
+    expect(list).toHaveBeenCalledTimes(1)
   })
 
-  it('skips a pack when price lookup fails', async () => {
-    const retrieve = vi.fn(async () => {
-      throw new Error('no such price')
+  it('returns no packages when Stripe price list fails', async () => {
+    const catalog = createStripePriceCatalog(
+      createStripe({
+        list: vi.fn(async () => {
+          throw new Error('timeout')
+        }),
+      }),
+      createTestRedis(),
+    )
+
+    await expect(listStripePackages(catalog, productId)).resolves.toEqual([])
+  })
+
+  it('does not cache a Stripe list failure', async () => {
+    const list = vi.fn()
+      .mockRejectedValueOnce(new Error('timeout'))
+      .mockResolvedValue({ data: [listedPrice()] })
+    const catalog = createStripePriceCatalog(createStripe({ list }), createTestRedis())
+
+    await expect(listStripePackages(catalog, productId)).resolves.toEqual([])
+    expect(await listStripePackages(catalog, productId)).toHaveLength(1)
+  })
+})
+
+describe('findActivePrice', () => {
+  it('retrieves a newly created price that is missing from cache', async () => {
+    const catalog = createStripePriceCatalog(
+      createStripe({
+        list: vi.fn(async () => ({ data: [] })),
+        retrieve: vi.fn(async () => listedPrice({ id: 'price_new' })),
+      }),
+      createTestRedis(),
+    )
+
+    await expect(catalog.findActivePrice(productId, 'price_new')).resolves.toMatchObject({
+      id: 'price_new',
+      metadata: { fluxAmount: '500', recommended: 'true' },
     })
-
-    await expect(listStripePackages(createStripe(retrieve), createTestRedis(), [starterPack])).resolves.toEqual([])
   })
-})
 
-// https://github.com/moeru-ai/airi/pull/2335
-it('refreshes a renamed pack without waiting for the price cache', async () => {
-  const retrieve = vi.fn(async () => ({ id: 'price_starter', currency: 'usd', unit_amount: 500, currency_options: {} }))
-  const redis = createTestRedis()
-  await listStripePackages(createStripe(retrieve), redis, [starterPack])
-  const items = await listStripePackages(createStripe(retrieve), redis, [{ ...starterPack, key: 'renamed', name: 'New name', recommended: false }])
-  expect(items[0]).toMatchObject({ packKey: 'renamed', label: 'New name', recommended: false })
-})
+  it('rejects a price that belongs to another product', async () => {
+    const catalog = createStripePriceCatalog(
+      createStripe({
+        list: vi.fn(async () => ({ data: [] })),
+        retrieve: vi.fn(async () => listedPrice({ product: 'prod_other' })),
+      }),
+      createTestRedis(),
+    )
 
-it('does not cache a transient lookup failure', async () => {
-  const retrieve = vi.fn().mockRejectedValueOnce(new Error('timeout')).mockResolvedValue({ id: 'price_starter', currency: 'usd', unit_amount: 500, currency_options: {} })
-  const redis = createTestRedis()
-  await listStripePackages(createStripe(retrieve), redis, [starterPack])
-  expect(await listStripePackages(createStripe(retrieve), redis, [starterPack])).toHaveLength(1)
+    await expect(catalog.findActivePrice(productId, 'price_starter')).resolves.toBeNull()
+  })
 })

@@ -56,7 +56,7 @@ async function resolvePaymentOrderId(
   const metadata = legacy.metadata
     ? parse(object({
         fluxAmount: optional(pipe(string(), regex(/^[1-9]\d*$/), transform(Number), safeInteger())),
-        packKey: optional(string()),
+        stripePriceId: optional(string()),
       }), JSON.parse(legacy.metadata))
     : undefined
   await db.insert(paymentSchema.paymentOrder).values({
@@ -66,7 +66,7 @@ async function resolvePaymentOrderId(
     processorOrderId: legacy.stripeSessionId,
     status: legacy.fluxCredited ? 'paid' : legacy.status === 'expired' ? 'expired' : 'pending',
     fluxAmount: metadata?.fluxAmount,
-    packKey: metadata?.packKey,
+    packKey: metadata?.stripePriceId,
     amount: legacy.amountTotal,
     currency: legacy.currency,
     creditedAt: legacy.fluxCredited ? legacy.updatedAt : null,

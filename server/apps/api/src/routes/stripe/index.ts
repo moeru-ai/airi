@@ -15,14 +15,8 @@ import { authGuard } from '../../middlewares/auth'
 import { rateLimiter } from '../../middlewares/rate-limit'
 import { createCheckoutOperation } from './operations/checkout'
 import { createWebhookOperation } from './operations/webhook'
-import { listStripePackages } from './price-catalog'
+import { createStripePriceCatalog, listStripePackages } from './price-catalog'
 
-/**
- * Creates Stripe HTTP routes for Flux purchase.
- *
- * Paths stay on `/api/v1/stripe`. Checkout lives in this adapter.
- * Webhook dispatch maps a session onto Payment CORE `settle`.
- */
 export function createStripeRoutes(
   payment: PaymentService,
   db: Database,
@@ -34,13 +28,16 @@ export function createStripeRoutes(
   rateLimitMetrics: RateLimitMetrics | null,
   productEventService: ProductEventService | null,
 ) {
-  const checkout = createCheckoutOperation(payment, stripe, configKV, env, metrics, productEventService)
+  const priceCatalog = stripe ? createStripePriceCatalog(stripe, redis) : null
+  const checkout = createCheckoutOperation(payment, stripe, priceCatalog, configKV, env, metrics, productEventService)
   const webhook = createWebhookOperation(stripe, env.STRIPE_WEBHOOK_SECRET ?? null, payment, db, metrics, productEventService)
 
   return new Hono<HonoEnv>()
     .get('/packages', async (c) => {
-      const packs = await configKV.getOptional('FLUX_PACKS') ?? []
-      return c.json(await listStripePackages(stripe, redis, packs))
+      const fluxProductId = await configKV.getOptional('STRIPE_FLUX_PRODUCT_ID')
+      if (!priceCatalog || !fluxProductId)
+        return c.json([])
+      return c.json(await listStripePackages(priceCatalog, fluxProductId))
     })
     .post('/checkout', authGuard, rateLimiter({ max: 10, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'stripe.checkout' }), async (c) => {
       const body = await c.req.json()
