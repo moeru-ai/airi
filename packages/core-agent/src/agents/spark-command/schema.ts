@@ -20,19 +20,10 @@ export const sparkCommandPersonaSchema = z.object({
   strength: z.enum(['very-high', 'high', 'medium', 'low', 'very-low']),
 }).strict()
 
-export const sparkNotifyCommandGuidanceSchema = z.object({
+export const sparkCommandGuidanceSchema = z.object({
   type: z.enum(['proposal', 'instruction', 'memory-recall']),
   persona: z.union([z.array(sparkCommandPersonaSchema), z.null()]).describe('Personas can be used to adjust the behavior of sub-agents. For example, when using as NPC in games, or player in Minecraft, the persona can help define the character\'s traits and decision-making style.'),
-  options: z.array(sparkCommandGuidanceOptionSchema),
-}).strict()
-
-export const sparkNotifyCommandItemSchema = z.object({
-  destinations: z.array(z.string()).min(1).describe('List of sub-agent IDs to send the command to'),
-  interrupt: z.union([z.enum(['force', 'soft', 'false']), z.null()]).describe('Interrupt type: force, soft, or false (no interrupt). A option to control whether this command is urgent enough to preempt ongoing tasks and require immediate attention.'),
-  priority: z.union([z.enum(['critical', 'high', 'normal', 'low']), z.null()]).describe('Semantic priority of the command, this affects how sub-agents prioritize it (queues, interruption queues, mq, etc.).'),
-  intent: z.union([z.enum(['plan', 'proposal', 'action', 'pause', 'resume', 'reroute', 'context']), z.null()]).describe('Intent of the command, indicating the nature of the instruction. If you attend to call other tools, use "plan" to reply with quick response to corresponding module / sub-agent.'),
-  ack: z.string().describe('Acknowledgment content used to be passed to sub-agents upon command receipt.'),
-  guidance: z.union([sparkNotifyCommandGuidanceSchema, z.null()]).describe('Guidance for the sub-agent on how to interpret and execute the command with given context, persona settings, and reasoning.'),
+  options: z.array(sparkCommandGuidanceOptionSchema).min(1).describe('Concrete execution options for the target.'),
 }).strict()
 
 export const sparkCommandMetadataEntrySchema = z.object({
@@ -59,12 +50,6 @@ export const sparkCommandContextSchema = z.object({
   metadata: z.union([z.array(sparkCommandMetadataEntrySchema), z.null()]).describe('JSON-like metadata for the context update, expressed as key-value pairs for schema compatibility.'),
 }).strict()
 
-export const sparkCommandGuidanceSchema = z.object({
-  type: z.enum(['proposal', 'instruction', 'memory-recall']),
-  persona: z.union([z.array(sparkCommandPersonaSchema), z.null()]).describe('Persona traits that shape the target behavior.'),
-  options: z.array(sparkCommandGuidanceOptionSchema).min(1).describe('Concrete execution options for the target.'),
-}).strict()
-
 export const sparkCommandToolSchema = z.object({
   destinations: z.array(z.string()).min(1).describe('One or more target module or agent IDs for this command.'),
   // NOTICE: Azure/OpenAI-compatible tool validators reject strict object schemas when some
@@ -80,6 +65,13 @@ export const sparkCommandToolSchema = z.object({
   contexts: z.union([z.array(sparkCommandContextSchema), z.null()]).describe('Optional context updates to attach to the command.'),
 }).strict()
 
+/**
+ * Converts provider-safe metadata entries into the runtime metadata map.
+ *
+ * @example
+ * normalizeSparkCommandMetadata([{ key: 'urgent', value: true }])
+ * // => { urgent: true }
+ */
 export function normalizeSparkCommandMetadata(
   metadata: z.infer<typeof sparkCommandMetadataEntrySchema>[] | undefined,
 ): Record<string, string | number | boolean | null> | undefined {
@@ -95,6 +87,13 @@ export function normalizeSparkCommandMetadata(
   }, {})
 }
 
+/**
+ * Converts provider-safe persona entries into the runtime persona map.
+ *
+ * @example
+ * normalizeSparkCommandPersona([{ traits: 'bravery', strength: 'high' }])
+ * // => { bravery: 'high' }
+ */
 export function normalizeSparkCommandPersona(
   persona: z.infer<typeof sparkCommandPersonaSchema>[] | undefined,
 ): Record<string, 'very-high' | 'high' | 'medium' | 'low' | 'very-low'> | undefined {
@@ -110,6 +109,13 @@ export function normalizeSparkCommandPersona(
   }, {})
 }
 
+/**
+ * Removes empty optional fields from guidance options.
+ *
+ * @example
+ * normalizeSparkCommandGuidanceOptions([{ label: 'Wait', steps: ['Wait'], rationale: null, possibleOutcome: [], risk: null, fallback: [], triggers: [] }])
+ * // => [{ label: 'Wait', steps: ['Wait'], rationale: undefined, possibleOutcome: undefined, risk: undefined, fallback: undefined, triggers: undefined }]
+ */
 export function normalizeSparkCommandGuidanceOptions(
   options: z.infer<typeof sparkCommandGuidanceOptionSchema>[],
 ) {
@@ -126,6 +132,13 @@ export function normalizeSparkCommandGuidanceOptions(
   }))
 }
 
+/**
+ * Removes empty routing filters from a context update.
+ *
+ * @example
+ * normalizeSparkCommandDestinations({ include: ['memory'], exclude: null })
+ * // => { include: ['memory'], exclude: undefined }
+ */
 export function normalizeSparkCommandDestinations(
   destinations: z.infer<typeof sparkCommandContextSchema>['destinations'],
 ) {
@@ -150,12 +163,26 @@ export function normalizeSparkCommandDestinations(
   }
 }
 
+/**
+ * Removes an empty provider-safe string list.
+ *
+ * @example
+ * normalizeSparkCommandStringList([])
+ * // => undefined
+ */
 export function normalizeSparkCommandStringList(value: string[] | null): string[] | undefined {
   // NOTICE: Several provider-facing fields are required-but-nullable to satisfy strict object
   // validation. Runtime context updates treat missing lists as omitted, not `null` or `[]`.
   return value?.length ? value : undefined
 }
 
+/**
+ * Converts a nullable provider-safe string into the runtime optional value.
+ *
+ * @example
+ * normalizeSparkCommandStringValue(null)
+ * // => undefined
+ */
 export function normalizeSparkCommandStringValue(value: string | null): string | undefined {
   // NOTICE: Required-but-nullable provider fields are normalized back to the runtime
   // convention of omitting absent scalar values with `undefined`.

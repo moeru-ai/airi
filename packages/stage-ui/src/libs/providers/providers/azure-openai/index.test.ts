@@ -1,9 +1,8 @@
 import type { JsonSchema } from 'xsschema'
 
+import { createSparkCommandTool } from '@proj-airi/core-agent/agents/spark-command'
 import { getDefinedProvider } from '@proj-airi/provider-inference'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-
-import { createSparkCommandTool } from '../../../../tools/character/orchestrator/spark-command'
 
 interface ChatRequestBody {
   tools: Array<{

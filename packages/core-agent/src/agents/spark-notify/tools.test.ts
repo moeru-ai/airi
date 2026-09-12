@@ -2,9 +2,9 @@ import type { JsonSchema } from 'xsschema'
 
 import { describe, expect, it } from 'vitest'
 
-import { createSparkNotifyTools } from './spark-notify'
+import { createSparkNotifyTools } from './tools'
 
-describe('tools/character/orchestrator/spark-notify', () => {
+describe('agents/spark-notify/tools', () => {
   it('emits strict parameter objects for spark notify tools', async () => {
     const { tools } = await createSparkNotifyTools({
       onNoResponse: () => undefined,
