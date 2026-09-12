@@ -6,12 +6,14 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
+import { toProviderConfigSnapshot } from '@proj-airi/stage-ui/libs/providers/config'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
+import { watchDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const providerId = 'elevenlabs'
@@ -74,15 +76,16 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   )
 }
 
-onMounted(async () => {
+async function loadVoicesWhenConfigured() {
   const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
+  const configSnapshot = toProviderConfigSnapshot(providerConfig)
+  if ((await providersStore.validateProviderConfig(providerId, configSnapshot)).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
     console.error('Failed to validate provider config', providerConfig)
   }
-})
+}
 
 watch(pitch, async () => {
   const providerConfig = providerStore.getProviderConfig(providerId)
@@ -119,15 +122,11 @@ watch(useSpeakerBoost, async () => {
   providerConfig.useSpeakerBoost = useSpeakerBoost.value
 })
 
-watch(providers, async () => {
-  const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
-    await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
-  }
-}, {
+watchDebounced([
+  () => providers.value[providerId]?.apiKey,
+  () => providers.value[providerId]?.baseUrl,
+], loadVoicesWhenConfigured, {
+  debounce: 500,
   immediate: true,
 })
 </script>
