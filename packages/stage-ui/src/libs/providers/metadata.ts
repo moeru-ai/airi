@@ -85,7 +85,7 @@ export async function selectProviderMetadata<TConfig>(
     order: definition.order,
     tasks: [...tasks],
     category: options.category ?? getProviderCategory(tasks),
-    ...(options.to ? { to: options.to } : {}),
+    ...(options.to ?? definition.settingsPath ? { to: options.to ?? definition.settingsPath } : {}),
     name: definition.name,
     nameKey: definition.nameLocalize({ t: key }),
     localizedName: definition.nameLocalize({ t }),

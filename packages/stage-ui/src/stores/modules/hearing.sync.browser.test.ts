@@ -1,0 +1,272 @@
+import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
+
+import { PiniaColada } from '@pinia/colada'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createApp } from 'vue'
+
+const analyticsMock = vi.hoisted(() => ({
+  trackMicrophonePermissionDenied: vi.fn(),
+  trackSttFailed: vi.fn(),
+  trackSttSucceeded: vi.fn(),
+  trackVoiceInputStarted: vi.fn(),
+}))
+
+vi.mock('../../composables/use-analytics', () => ({
+  useAnalytics: () => analyticsMock,
+}))
+
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    locale: { value: 'en' },
+    t: (key: string) => key,
+  }),
+}))
+
+const syncedContexts: Array<{
+  pinia: ReturnType<typeof createPinia>
+  runtime: SyncedPiniaRuntime
+}> = []
+
+function createSyncedContext(namespace: string, leadership: LeadershipMode) {
+  const pinia = createPinia()
+  const runtime = createSyncedPiniaPlugin({ callTimeout: 1000, leadership, namespace })
+  pinia.use(runtime.plugin)
+  createApp({}).use(pinia).use(PiniaColada)
+  syncedContexts.push({ pinia, runtime })
+  return { pinia, runtime }
+}
+
+describe('hearing provider reconciliation synchronization', () => {
+  afterEach(() => {
+    for (const context of syncedContexts.splice(0)) {
+      context.runtime.dispose()
+      disposePinia(context.pinia)
+    }
+    localStorage.clear()
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
+  it('routes follower alias migration through the synchronized leader action', async () => {
+    const { useHearingStore } = await import('./hearing')
+    const { useProviderConfigStore } = await import('../providers/config')
+    const namespace = `hearing-provider-reconciliation:${crypto.randomUUID()}`
+
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderHearingStore = useHearingStore()
+    const leaderActions: string[] = []
+    leaderHearingStore.$onAction(({ name }) => leaderActions.push(name))
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerHearingStore = useHearingStore()
+    const followerProviderStore = useProviderConfigStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    leaderHearingStore.activeTranscriptionProvider = 'local-provider'
+    await vi.waitFor(() => expect(followerHearingStore.activeTranscriptionProvider).toBe('local-provider'))
+
+    // A replicated provider-config snapshot can make the alias visible first
+    // in a follower. The follower must delegate the Hearing mutation instead
+    // of publishing its complete, potentially stale Hearing state.
+    followerProviderStore.providerCreationResolutions['local-provider'] = 'remote-provider'
+
+    await vi.waitFor(() => {
+      expect(leaderHearingStore.activeTranscriptionProvider).toBe('remote-provider')
+      expect(followerHearingStore.activeTranscriptionProvider).toBe('remote-provider')
+    })
+    expect(leaderActions).toContain('reconcileActiveTranscriptionProviderId')
+  })
+
+  it('routes follower model refresh through the leader and converges both windows', async () => {
+    const { useHearingStore } = await import('./hearing')
+    const { useProviderConfigStore } = await import('../providers/config')
+    const { useProviderStore } = await import('../providers/provider')
+    const namespace = `hearing-model-refresh:${crypto.randomUUID()}`
+    const providerId = 'funasr-instance'
+
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderHearingStore = useHearingStore()
+    const leaderConfigStore = useProviderConfigStore()
+    const leaderProviderStore = useProviderStore()
+    const leaderActions: string[] = []
+    leaderHearingStore.$onAction(({ name }) => leaderActions.push(name))
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerHearingStore = useHearingStore()
+    const followerConfigStore = useProviderConfigStore()
+    const followerProviderStore = useProviderStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    setActivePinia(leaderContext.pinia)
+    await leaderConfigStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://new.example/v1/',
+    })
+    await leaderConfigStore.setProviderStatus(providerId, 'configured')
+    leaderHearingStore.activeTranscriptionProvider = providerId
+    leaderHearingStore.activeTranscriptionModel = 'model-a'
+    await vi.waitFor(() => {
+      expect(followerConfigStore.providers[providerId]?.status).toBe('configured')
+      expect(followerHearingStore.activeTranscriptionProvider).toBe(providerId)
+      expect(followerHearingStore.activeTranscriptionModel).toBe('model-a')
+    })
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [{ id: 'model-b' }],
+      object: 'list',
+    }), { headers: { 'Content-Type': 'application/json' }, status: 200 })))
+
+    setActivePinia(followerContext.pinia)
+    await expect(followerHearingStore.refreshActiveTranscriptionModelForProvider(providerId)).resolves.toBe(true)
+
+    await vi.waitFor(() => {
+      expect(leaderHearingStore.activeTranscriptionModel).toBe('model-b')
+      expect(followerHearingStore.activeTranscriptionModel).toBe('model-b')
+      expect(leaderProviderStore.getModelsForProvider(providerId)).toEqual([
+        expect.objectContaining({ id: 'model-b' }),
+      ])
+      expect(followerProviderStore.getModelsForProvider(providerId)).toEqual([
+        expect.objectContaining({ id: 'model-b' }),
+      ])
+    })
+    expect(leaderActions).toContain('refreshActiveTranscriptionModelForProvider')
+  })
+
+  // Regression: https://github.com/moeru-ai/airi/pull/2435#discussion_r3939570393
+  it('preserves another window model choice during a follower refresh for PR #2435', async () => {
+    const { useHearingStore } = await import('./hearing')
+    const { useProviderConfigStore } = await import('../providers/config')
+    const namespace = `hearing-model-refresh-race:${crypto.randomUUID()}`
+    const providerId = 'funasr-instance'
+
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderHearingStore = useHearingStore()
+    const leaderConfigStore = useProviderConfigStore()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerHearingStore = useHearingStore()
+    const followerConfigStore = useProviderConfigStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    setActivePinia(leaderContext.pinia)
+    await leaderConfigStore.ensureProvider(providerId, 'funasr-audio-transcription', {
+      baseUrl: 'http://new.example/v1/',
+    })
+    await leaderConfigStore.setProviderStatus(providerId, 'configured')
+    leaderHearingStore.activeTranscriptionProvider = providerId
+    leaderHearingStore.activeTranscriptionModel = 'model-a'
+    await vi.waitFor(() => {
+      expect(followerConfigStore.providers[providerId]?.status).toBe('configured')
+      expect(followerHearingStore.activeTranscriptionModel).toBe('model-a')
+    })
+
+    let resolveResponse!: (response: Response) => void
+    const fetchMock = vi.fn().mockImplementation(() => new Promise<Response>((resolve) => {
+      resolveResponse = resolve
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    setActivePinia(followerContext.pinia)
+    const refresh = followerHearingStore.refreshActiveTranscriptionModelForProvider(providerId)
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
+    followerHearingStore.activeTranscriptionModel = 'model-c'
+    await vi.waitFor(() => expect(leaderHearingStore.activeTranscriptionModel).toBe('model-c'))
+    resolveResponse(new Response(JSON.stringify({
+      data: [{ id: 'model-b' }],
+      object: 'list',
+    }), { headers: { 'Content-Type': 'application/json' }, status: 200 }))
+
+    await expect(refresh).resolves.toBe(true)
+    await vi.waitFor(() => {
+      expect(leaderHearingStore.activeTranscriptionModel).toBe('model-c')
+      expect(followerHearingStore.activeTranscriptionModel).toBe('model-c')
+    })
+  })
+
+  // Regression: https://github.com/moeru-ai/airi/pull/2435#discussion_r3941982957
+  it('synchronizes stale model clearing from a follower window for PR #2435', async () => {
+    const { useHearingStore } = await import('./hearing')
+    const namespace = `hearing-model-clear:${crypto.randomUUID()}`
+    const providerId = 'funasr-instance'
+
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderHearingStore = useHearingStore()
+    const leaderActions: string[] = []
+    leaderHearingStore.$onAction(({ name }) => leaderActions.push(name))
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerHearingStore = useHearingStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    leaderHearingStore.activeTranscriptionProvider = providerId
+    leaderHearingStore.activeTranscriptionModel = 'model-from-old-endpoint'
+    leaderHearingStore.activeCustomModelName = 'model-from-old-endpoint'
+    await vi.waitFor(() => {
+      expect(followerHearingStore.activeTranscriptionProvider).toBe(providerId)
+      expect(followerHearingStore.activeTranscriptionModel).toBe('model-from-old-endpoint')
+      expect(followerHearingStore.activeCustomModelName).toBe('model-from-old-endpoint')
+    })
+
+    setActivePinia(followerContext.pinia)
+    await expect(followerHearingStore.clearActiveTranscriptionModelForProvider(providerId)).resolves.toBe(true)
+
+    await vi.waitFor(() => {
+      expect(leaderHearingStore.activeTranscriptionModel).toBe('')
+      expect(followerHearingStore.activeTranscriptionModel).toBe('')
+      expect(leaderHearingStore.activeCustomModelName).toBe('')
+      expect(followerHearingStore.activeCustomModelName).toBe('')
+    })
+    expect(leaderActions).toContain('clearActiveTranscriptionModelForProvider')
+  })
+
+  it('preserves a synchronized model entered while a bypass save is pending', async () => {
+    const { useHearingStore } = await import('./hearing')
+    const namespace = `hearing-model-clear-race:${crypto.randomUUID()}`
+    const providerId = 'funasr-instance'
+
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderHearingStore = useHearingStore()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerHearingStore = useHearingStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    leaderHearingStore.activeTranscriptionProvider = providerId
+    leaderHearingStore.activeTranscriptionModel = 'model-from-old-endpoint'
+    leaderHearingStore.activeCustomModelName = 'model-from-old-endpoint'
+    await vi.waitFor(() => expect(followerHearingStore.activeCustomModelName).toBe('model-from-old-endpoint'))
+
+    followerHearingStore.activeTranscriptionModel = 'new-manual-model'
+    followerHearingStore.activeCustomModelName = 'new-manual-model'
+    await vi.waitFor(() => expect(leaderHearingStore.activeCustomModelName).toBe('new-manual-model'))
+
+    await expect(followerHearingStore.clearActiveTranscriptionModelForProvider(
+      providerId,
+      'model-from-old-endpoint',
+      'model-from-old-endpoint',
+    )).resolves.toBe(true)
+
+    await vi.waitFor(() => {
+      expect(leaderHearingStore.activeTranscriptionModel).toBe('new-manual-model')
+      expect(followerHearingStore.activeTranscriptionModel).toBe('new-manual-model')
+      expect(leaderHearingStore.activeCustomModelName).toBe('new-manual-model')
+      expect(followerHearingStore.activeCustomModelName).toBe('new-manual-model')
+    })
+  })
+})
