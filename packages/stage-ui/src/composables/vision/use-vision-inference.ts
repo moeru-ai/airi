@@ -1,5 +1,5 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { CommonContentPart, Message } from '@xsai/shared-chat'
+import type { Conversation } from '@proj-airi/core-agent'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 
 import type { VisionWorkloadId } from './use-vision-workloads'
 
@@ -46,35 +46,26 @@ export function useVisionInference() {
     if (!activeProvider.value || !activeModel.value)
       throw new Error('Vision provider/model not configured')
 
-    const provider = await providersStore.getProviderInstance<ChatProvider>(activeProvider.value)
+    const provider = await providersStore.getChatProviderInstance(activeProvider.value)
     const workload = getVisionWorkload(input.workloadId)
     const prompt = input.promptOverride ?? workload.prompt
     const { url } = parseDataUrl(input.imageDataUrl)
-    const visionProvider = activeProvider.value === 'vision-ollama'
+    const visionProvider: GenerationProvider = activeProvider.value === 'vision-ollama'
       ? {
-        ...provider,
-        chat(model: string) {
-          return {
-            ...provider.chat(model),
-            think: ollamaThinkingEnabled.value,
-          }
-        },
-      } satisfies ChatProvider
+          generation(model) {
+            const request = provider.generation(model)
+            if (request.protocol !== 'chat-completions')
+              return request
+            return { ...request, config: { ...request.config, think: ollamaThinkingEnabled.value } }
+          },
+        }
       : provider
 
-    const contentParts: CommonContentPart[] = [
-      { type: 'text', text: prompt },
-      {
-        type: 'image_url',
-        image_url: {
-          url,
-        },
-      },
-    ]
-
-    const messages: Message[] = [
-      { role: 'user', content: contentParts },
-    ]
+    const context: Conversation = { turns: [{
+      id: 'vision-input',
+      type: 'user',
+      content: [{ type: 'text', text: prompt }, { type: 'image', url }],
+    }] }
 
     let buffer = ''
     const abortController = new AbortController()
@@ -83,7 +74,7 @@ export function useVisionInference() {
     }, VISION_INFERENCE_TIMEOUT_MS)
 
     try {
-      await llmStore.stream(activeModel.value, visionProvider, messages, {
+      await llmStore.stream(activeModel.value, visionProvider, context, {
         abortSignal: abortController.signal,
         onStreamEvent: (event) => {
           if (event.type === 'text-delta') {

@@ -65,7 +65,7 @@ describe('providerOpenRouterAI tool schemas', () => {
     const provider = await providerDefinition.createProvider({
       apiKey: 'test-key',
     })
-    if (!('chat' in provider))
+    if (!('chat' in provider) || !provider.chat)
       throw new Error('OpenRouter did not create a chat provider.')
 
     const providerFetch = provider.chat('google/gemini-test').fetch

@@ -1,5 +1,7 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { CommonContentPart, CompletionToolCall, CompletionToolResult, Message, Tool, ToolChoice } from '@xsai/shared-chat'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { CommonContentPart, CompletionToolCall, Tool, ToolChoice } from '@xsai/shared-chat'
+
+import type { AssistantTurn, Conversation } from '../messages/types'
 
 /** Describes whether generation usage came from the provider or a local fallback. */
 export type LlmUsageSource = 'reported' | 'estimated' | 'unavailable'
@@ -15,24 +17,30 @@ export interface LlmUsage {
 export type StreamEvent
   = | { type: 'text-delta', text: string }
     | { type: 'reasoning-delta', text: string }
-    | ({ type: 'finish' } & any)
+    | { type: 'finish' }
     | ({ type: 'tool-call' } & CompletionToolCall)
-    | (CompletionToolResult & { type: 'tool-error', isError: true })
+    | { type: 'tool-error', toolCallId: string, result?: string | CommonContentPart[], isError: true }
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
-    | { type: 'error', error: any }
+    | { type: 'citations', citations: import('../messages/types').Citation[] }
+    | { type: 'search', id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
+    | { type: 'error', error: unknown }
 
+/** Options shared by generation adapters. SDK payloads stay inside each adapter. */
 export interface StreamOptions {
+  /** Provider registry identity used to isolate native continuation data. */
+  providerId?: string
+  /** Called once with this turn only, after every tool step has settled. */
+  onTranscript?: (turn: AssistantTurn) => void | Promise<void>
   abortSignal?: AbortSignal
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
-  /** Called once with the final xsAI message list after all tool rounds finish. */
-  onMessages?: (messages: Message[]) => void | Promise<void>
   /** Called once after the full stream, including tool rounds, has settled. */
   onUsage?: (usage: LlmUsage) => void | Promise<void>
   /** Internal correlation kept out of the provider request body. */
   requestCorrelation?: {
     conversationId: string
-    roundId: string
+    turnId: string
+    runId?: string
   }
   /**
    * The temperature parameter controls the randomness of the model's output.
@@ -70,12 +78,12 @@ export interface StreamOptions {
   supportsContentArray?: boolean
 }
 
-export type BuiltinToolsResolver = (model: string, chatProvider: ChatProvider) => Promise<Tool[]>
+export type BuiltinToolsResolver = (model: string, chatProvider: GenerationProvider) => Promise<Tool[]>
 
 export interface StreamFromOptions {
   model: string
-  chatProvider: ChatProvider
-  messages: Message[]
+  chatProvider: GenerationProvider
+  conversation: Conversation
   options?: StreamOptions
   builtinToolsResolver?: BuiltinToolsResolver
 }

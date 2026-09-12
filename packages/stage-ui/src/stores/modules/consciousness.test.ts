@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
@@ -84,12 +83,12 @@ describe('consciousness store provider selection', () => {
     const settingsStore = useConsciousnessSettingsStore()
 
     const disabledProvider = await consciousnessStore.getChatProviderInstance('openai')
-    expect(disabledProvider.chat('test-model')).toMatchObject({ reasoningEffort: 'none' })
+    expect(disabledProvider.generation('test-model').config).toMatchObject({ reasoning: { effort: 'none' } })
 
     await settingsStore.setReasoning(true)
 
     const enabledProvider = await consciousnessStore.getChatProviderInstance('openai')
-    expect(enabledProvider.chat('test-model')).toMatchObject({ reasoningEffort: 'medium' })
+    expect(enabledProvider.generation('test-model').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
   })
 
   // ROOT CAUSE:

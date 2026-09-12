@@ -10,9 +10,50 @@ import type {
   TranscriptionProvider,
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/providers/utils'
+import type { ResponsesOptions } from '@xsai-ext/responses'
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type { MaybePromise } from 'clustr'
+import type { AIChatModelCard } from 'model-bank/types'
 import type { $ZodType } from 'zod/v4/core'
+
+/** Request configuration for the Responses protocol. The caller owns input and tools. */
+export type ResponsesConfig = Pick<ResponsesOptions, 'apiKey' | 'baseURL' | 'fetch' | 'headers' | 'model' | 'reasoning'>
+
+/** A resolved request selects exactly one wire protocol before context projection. */
+export type GenerationRequest
+  = { protocol: 'chat-completions', config: ReturnType<ChatProvider['chat']> }
+    | { protocol: 'responses', config: ResponsesConfig, webSearch: boolean }
+
+/** A provider that owns protocol selection and model capabilities. */
+export interface GenerationProvider {
+  generation: (model: string, options?: ChatRequestOptions) => GenerationRequest
+}
+
+/** Declares implemented protocols. The default must be one of the supported protocols. */
+export type GenerationCapabilities = {
+  [Protocol in GenerationRequest['protocol']]: {
+    /** The preferred protocol is first in the selector. */
+    supportedProtocols: readonly [Protocol, ...GenerationRequest['protocol'][]]
+    defaultProtocol: Protocol
+    nativeTools?: { responses: readonly 'web-search'[] }
+  }
+}[GenerationRequest['protocol']]
+
+/** Narrows instances that already expose AIRI's protocol-neutral inference capability. */
+export function isGenerationProvider(provider: ProviderInstance): provider is GenerationProvider {
+  return 'generation' in provider && typeof provider.generation === 'function'
+}
+
+/**
+ * Adapts SDK chat instances at the provider boundary. Existing native instances keep their identity.
+ * Non-chat definitions return undefined. Core-agent receives only the returned generation interface.
+ */
+export function getGenerationProvider(provider: ProviderInstance): GenerationProvider | undefined {
+  if (isGenerationProvider(provider))
+    return provider
+  if ('chat' in provider && typeof provider.chat === 'function')
+    return { generation: (model, options) => ({ protocol: 'chat-completions', config: provider.chat(model, options) }) }
+}
 
 /** Translates a provider label or description for the active interface locale. */
 export type ProviderTranslator = (input: string) => string
@@ -24,8 +65,8 @@ export interface ProviderContext {
 }
 
 export type ProviderInstance
-  = | ChatProvider
-    | ChatProviderWithExtraOptions
+  = | GenerationProvider
+    | ChatProviderWithExtraOptions<string, ChatRequestOptions>
     | EmbedProvider
     | EmbedProviderWithExtraOptions
     | SpeechProvider
@@ -161,7 +202,14 @@ export interface ProviderRuntimeValidator<TConfig> {
   schedule?: ProviderValidatorSchedule
 }
 
+/**
+ * Advisory route metadata. Model-bank contracts retain their original pricing and search semantics.
+ * Reported search abilities do not select an AIRI native tool implementation.
+ */
+export type ModelMetadata = Pick<AIChatModelCard, 'abilities' | 'maxOutput' | 'pricing' | 'settings'>
+
 export interface ModelInfo {
+  metadata?: ModelMetadata
   id: string
   name: string
   provider: string
@@ -263,6 +311,7 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
   }
   capabilities?: {
     chat?: {
+      generation?: GenerationCapabilities
       reasoning?: ChatReasoningCapability
     }
     transcription?: {

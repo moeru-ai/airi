@@ -1,19 +1,11 @@
-import type {
-  ChatProvider,
-  ChatProviderWithExtraOptions,
-  EmbedProvider,
-  EmbedProviderWithExtraOptions,
-  SpeechProvider,
-  SpeechProviderWithExtraOptions,
-  TranscriptionProvider,
-  TranscriptionProviderWithExtraOptions,
-} from '@xsai-ext/providers/utils'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type {} from 'pinia-plugin-synced'
 
 import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/providers'
 import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
+import { getGenerationProvider } from '@proj-airi/provider-inference'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { computedAsync, useAsyncState, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
@@ -64,20 +56,6 @@ export interface ProviderRuntimeState {
 /** Stable fallback for reactive consumers when a provider has no cached catalog. */
 const emptyProviderModels: ModelInfo[] = []
 Object.freeze(emptyProviderModels)
-
-function withChatRequestOptions(
-  provider: ChatProviderWithExtraOptions<string, ChatRequestOptions>,
-  options: ChatRequestOptions,
-): ChatProvider {
-  const decorated = {
-    ...provider,
-    chat(model: string) {
-      return provider.chat(model, options)
-    },
-  }
-
-  return decorated
-}
 
 // Only the provider data plane crosses renderer boundaries. Async derived refs
 // stay in useProviderStore and recompute locally instead of being patched as
@@ -555,6 +533,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   function normalizeProviderModels(providerId: string, models: Array<{
+    metadata?: ModelInfo['metadata']
     context_length?: number
     contextLength?: number
     deprecated?: boolean
@@ -564,6 +543,7 @@ export const useProviderStore = defineStore('provider', () => {
     name?: string
   }>) {
     return models.map(model => ({
+      metadata: model.metadata,
       id: model.id,
       name: model.name ?? model.display_name ?? model.id,
       provider: providerId,
@@ -740,6 +720,7 @@ export const useProviderStore = defineStore('provider', () => {
       const catalog = await listProviderModels(providerId, config || {})
       const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
         .map(model => ({
+          metadata: model.metadata,
           id: model.id,
           name: model.name,
           description: model.description,
@@ -766,7 +747,7 @@ export const useProviderStore = defineStore('provider', () => {
         }
         // Synced action results pass through structuredClone. Return local
         // catalog values because reading models back from state returns a Vue
-        // proxy and provider-specific metadata is not part of synced state.
+        // proxy. Catalog metadata contains only serializable data.
         return {
           ...catalog,
           models: normalizedModels,
@@ -895,16 +876,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   // Function to get provider object by provider id
-  async function getProviderInstance<R extends
-  | ChatProvider
-  | ChatProviderWithExtraOptions
-  | EmbedProvider
-  | EmbedProviderWithExtraOptions
-  | SpeechProvider
-  | SpeechProviderWithExtraOptions
-  | TranscriptionProvider
-  | TranscriptionProviderWithExtraOptions,
-  >(providerId: string): Promise<R> {
+  async function getProviderInstance<R extends ProviderInstance>(providerId: string): Promise<R> {
     await waitForProviderMetadata()
     const cached = providerInstanceCache.get(providerId) as R | undefined
     if (cached)
@@ -941,15 +913,14 @@ export const useProviderStore = defineStore('provider', () => {
    */
   async function getChatProviderInstance(
     providerId: string,
-    options: ChatRequestOptions,
-  ): Promise<ChatProvider> {
-    const provider = await getProviderInstance<ChatProviderWithExtraOptions<string, ChatRequestOptions>>(providerId)
-    const definition = findProviderDefinition(providerId)
-    const reasoning = definition?.capabilities?.chat?.reasoning
-    if (!reasoning?.modes.includes(options.reasoning))
-      return provider
-
-    return withChatRequestOptions(provider, options)
+    options?: ChatRequestOptions,
+  ): Promise<GenerationProvider> {
+    const provider = getGenerationProvider(await getProviderInstance(providerId))
+    if (!provider)
+      throw new Error(`Provider ${providerId} does not support generation`)
+    const reasoning = findProviderDefinition(providerId)?.capabilities?.chat?.reasoning
+    const requestOptions = options && reasoning?.modes.includes(options.reasoning) ? options : undefined
+    return { generation: model => provider.generation(model, requestOptions) }
   }
 
   async function disposeProviderInstance(providerId: string) {

@@ -3,6 +3,7 @@ import type { Tool } from '@xsai/shared-chat'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlicesToolCallResult } from '../types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
+import { chatContentToInputSegments } from '@proj-airi/core-agent'
 
 import { toolNameFrom } from './ai/chat-llm/tool-resolver'
 
@@ -43,8 +44,32 @@ export function replaceToolCallResult(message: ChatAssistantMessage, result: Too
     ...toolResult,
   }
 
+  let generationTranscript = message.generationTranscript
+  if (generationTranscript) {
+    const changedRound = generationTranscript.rounds.findIndex(round => round.toolInvocations.some(call => call.callId === result.id))
+    if (changedRound >= 0) {
+      // Later native rounds were generated from the old result and cannot be replayed after this edit.
+      generationTranscript = {
+        ...generationTranscript,
+        rounds: generationTranscript.rounds.map((round, index) => index < changedRound
+          ? round
+          : {
+              ...round,
+              continuation: undefined,
+              toolInvocations: round.toolInvocations.map(call => call.callId !== result.id
+                ? call
+                : {
+                    ...call,
+                    execution: { status: result.isError ? 'failed' : 'succeeded', output: chatContentToInputSegments(result.result) },
+                  }),
+            }),
+      }
+    }
+  }
+
   return {
     ...message,
+    generationTranscript,
     providerTranscript: message.providerTranscript?.map((providerMessage) => {
       if (providerMessage.role === 'tool' && providerMessage.tool_call_id === result.id) {
         return {

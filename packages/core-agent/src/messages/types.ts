@@ -1,3 +1,6 @@
+import type { ItemParam } from '@xsai-ext/responses'
+import type { Message as ChatMessage, CompletionStep } from '@xsai/shared-chat'
+
 /**
  * Provider-ready message payload.
  *
@@ -18,32 +21,85 @@ export interface RawMessage {
   metadata?: Record<string, unknown>
 }
 
-/**
- * Rich message projected from session, spark, or domain data.
- *
- * Use when:
- * - You need structured message segments
- * - You want to preserve history blocks, summaries, or other contextual payloads
- *
- * Expects:
- * - `segments` to describe the full rendered message content
- *
- * Returns:
- * - A structured message that can be compacted or rendered later
- */
-export interface Message {
-  id: string
-  role: 'system' | 'user' | 'assistant' | 'context' | 'event' | 'summary'
-  source?: string
-  segments: MessageSegment[]
-  metadata?: Record<string, unknown>
+/** A conversation keeps authored turns in chronological order. Protocol roles are assigned by adapters. */
+export interface Conversation {
+  turns: Turn[]
 }
+
+/** Each turn owns content with one source and authority. Only assistant turns execute rounds. */
+export type Turn = UserTurn | AssistantTurn | SystemTurn
+
+/** User-authored content and attachments, before provider projection. */
+export interface UserTurn {
+  type: 'user'
+  id: string
+  content: (InputSegment | ContextSegment)[]
+}
+
+/** Context supplied by the application is not automatically a trusted instruction. */
+export interface SystemTurn {
+  type: 'system'
+  id: string
+  authority: 'system' | 'developer' | 'context'
+  content: (SegmentText | ContextSegment)[]
+}
+
+/** One assistant execution. A round is one model invocation plus its tool executions. */
+export interface AssistantTurn {
+  type: 'assistant'
+  id: string
+  /** Supplied by the agent scheduler when this turn belongs to an identified run. */
+  runId?: string
+  status: 'completed' | 'failed' | 'cancelled'
+  rounds: GenerationRound[]
+}
+
+/** Tool references retain output order; calls and results are owned only by toolInvocations. */
+export type RoundContent = SegmentText | SegmentRefusal | ContextSegment | { type: 'tool', invocationId: string }
+
+/** One model invocation and its tool executions, with native data isolated to that invocation. */
+export interface GenerationRound {
+  id: string
+  /** Absent for imported history whose original model invocation is not known. */
+  modelCall?: { model: string, finishReason: CompletionStep['finishReason'], usage?: CompletionStep['usage'] }
+  content: RoundContent[]
+  toolInvocations: ToolInvocation[]
+  /** Provider data belongs to this round and cannot cross the recorded scope. */
+  continuation?: ProviderContinuation
+  /** Unknown native content is saved, but cannot silently disappear on a protocol change. */
+  projectionIssues: string[]
+}
+
+/** A tool call and its execution result have one owner inside a round. */
+export interface ToolInvocation {
+  /** Unique within the owning round; callId is the provider's correlation key. */
+  id: string
+  callId: string
+  name: string
+  arguments: string
+  /** Present only when the executor reports an actual child agent run. */
+  childRunId?: string
+  execution: ToolExecution
+}
+
+/** A missing result is pending, never an empty successful result. */
+export type ToolExecution
+  = { status: 'pending' }
+    | { status: 'succeeded' | 'failed', output: InputSegment[] }
+    | { status: 'cancelled' }
+
+/** Domain data becomes text only inside the selected protocol adapter. */
+export type ContextSegment = SegmentInstruction | SegmentTaggedText | SegmentDomainEvent
+  | SegmentStateSnapshot | SegmentHistoryBlock | SegmentSummary | SegmentReference
+  | { type: 'runtime-context', entries: { source: string, text: string }[] }
 
 /**
  * Structured content segment used inside a projected message.
  */
 export type MessageSegment
-  = SegmentText
+  = ContentSegment
+    | SegmentToolCall
+    | SegmentToolResult
     | SegmentInstruction
     | SegmentTaggedText
     | SegmentDomainEvent
@@ -51,6 +107,63 @@ export type MessageSegment
     | SegmentHistoryBlock
     | SegmentSummary
     | SegmentReference
+    | { type: 'runtime-context', entries: { source: string, text: string }[] }
+
+/** Content semantics retained until the selected protocol renders a request. */
+export type InputSegment = SegmentText
+  | { type: 'image', url: string, detail?: 'auto' | 'low' | 'high' }
+  | { type: 'audio', data: string, format: 'wav' | 'mp3' }
+  | ({ type: 'file', name?: string } & (
+    | { data: string, url?: never, providerFileId?: never }
+    | { url: string, data?: never, providerFileId?: never }
+    | { providerFileId: string, data?: never, url?: never }
+  ))
+
+export interface SegmentRefusal { type: 'refusal', text: string }
+
+export type ContentSegment = InputSegment | SegmentRefusal
+
+/** A source belongs to a specific output text item, with offsets in that item's text. */
+export interface Citation {
+  url: string
+  title: string
+  startIndex: number
+  endIndex: number
+}
+
+/** A complete invocation. The call id correlates its result across protocol projections. */
+export interface SegmentToolCall {
+  type: 'tool-call'
+  callId: string
+  name: string
+  arguments: string
+}
+
+/** A completed tool result, including media that the target protocol can carry. */
+export interface SegmentToolResult {
+  type: 'tool-result'
+  callId: string
+  content: InputSegment[]
+}
+
+/** Wire messages exist only after projection. Each protocol retains its owning SDK contract. */
+export interface AgentMessageByProtocol {
+  'chat-completions': ChatMessage
+  'responses': ItemParam
+}
+
+export type AgentMessage<Protocol extends keyof AgentMessageByProtocol> = AgentMessageByProtocol[Protocol]
+
+/**
+ * Serializable SDK output owned by its protocol adapter.
+ * The scope identifies the provider instance, endpoint, model, and conversation.
+ * A different scope uses the turn's portable messages instead of this state.
+ * Replay preserves provider extensions without parsing or rebuilding their nested payloads.
+ */
+export type ProviderContinuation = { scope: string } & (
+  | { protocol: 'chat-completions', data: AgentMessage<'chat-completions'>[] }
+  | { protocol: 'responses', data: AgentMessage<'responses'>[] }
+)
 
 /**
  * Plain text segment for projected message rendering.
@@ -58,6 +171,7 @@ export type MessageSegment
 export interface SegmentText {
   type: 'text'
   text: string
+  citations?: Citation[]
 }
 
 /**

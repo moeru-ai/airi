@@ -1,6 +1,8 @@
 import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@proj-airi/server-shared/types'
 import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
+import type { AssistantTurn } from '../messages/types'
+
 export interface ChatSlicesText {
   type: 'text'
   text: string
@@ -21,6 +23,9 @@ export interface ChatSlicesToolCallResult {
 export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult
 
 export interface ChatAssistantMessage extends AssistantMessage {
+  /** Sources returned by the provider, separate from text consumed by speech. */
+  citations?: import('../messages/types').Citation[]
+  search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
   slices: ChatSlices[]
   tool_results: {
     id: string
@@ -35,6 +40,8 @@ export interface ChatAssistantMessage extends AssistantMessage {
    * protocol order for the next provider request.
    */
   providerTranscript?: Message[]
+  /** Portable turn history and adapter-owned continuation data. */
+  generationTranscript?: AssistantTurn
   categorization?: {
     speech: string
     reasoning: string

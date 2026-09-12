@@ -1,17 +1,20 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Message } from '@xsai/shared-chat'
 
+import type { Conversation } from '../messages/types'
 import type { ChatHistoryItem, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from '../types/llm'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { describe, expect, it, vi } from 'vitest'
 
+import { chatMessagesToTurns, conversationToChatMessages } from '../messages/chat-completions'
 import { createChatOrchestratorRuntime } from './chat-orchestrator-runtime'
+import { streamFrom } from './llm-service'
 
-const provider = {
-  chat: () => ({ baseURL: 'https://example.com/' }),
-} as unknown as ChatProvider
+const provider: GenerationProvider = {
+  generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
+}
 
 function createHarness() {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
@@ -46,9 +49,9 @@ function createHarness() {
     messageRound: [] as unknown[],
     messageRoundFailed: [] as unknown[],
   }
-  const stream = vi.fn(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options?: StreamOptions) => {
+  const stream = vi.fn(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options?: StreamOptions) => {
     await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
-    await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    await options?.onStreamEvent?.({ type: 'finish' })
   })
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
   let systemPromptSupplement: string | undefined
@@ -158,7 +161,7 @@ describe('createChatOrchestratorRuntime', () => {
         await options?.onStreamEvent?.({ type: 'text-delta', text })
 
       patchesBeforeFinish = harness.foregroundPatches.length
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('show a slow response', {
@@ -180,8 +183,8 @@ describe('createChatOrchestratorRuntime', () => {
     })
 
     const storedUserMessage = harness.sessionMessages['session-1']?.find(message => message.role === 'user')
-    const providerMessages = harness.stream.mock.calls[0]?.[2]
-    const providerUserMessage = providerMessages?.find(message => message.role === 'user')
+    const providerMessages = conversationToChatMessages(harness.stream.mock.calls[0]![2])
+    const providerUserMessage = providerMessages.find(message => message.role === 'user')
 
     expect(storedUserMessage).toMatchObject({
       role: 'user',
@@ -214,7 +217,7 @@ describe('createChatOrchestratorRuntime', () => {
     })
 
     const storedUserMessage = harness.sessionMessages['session-1']?.find(message => message.id === 'user-id')
-    const providerMessages = harness.stream.mock.calls[0]?.[2]
+    const providerMessages = conversationToChatMessages(harness.stream.mock.calls[0]![2])
     const providerUserMessage = providerMessages?.at(-1)
 
     expect(storedUserMessage).toMatchObject({
@@ -245,7 +248,7 @@ describe('createChatOrchestratorRuntime', () => {
       replyToMessageId: 'assistant-long-reply',
     })
 
-    const providerMessages = harness.stream.mock.calls[0]?.[2]
+    const providerMessages = conversationToChatMessages(harness.stream.mock.calls[0]![2])
     const providerUserMessage = providerMessages?.at(-1)
 
     expect(providerUserMessage).toMatchObject({
@@ -278,8 +281,7 @@ describe('createChatOrchestratorRuntime', () => {
       } as StreamEvent)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'The weather is sunny.' })
 
-      await (options as StreamOptions & { onMessages?: (messages: Message[]) => void })?.onMessages?.([
-        ...messages,
+      const [turn] = chatMessagesToTurns([
         {
           role: 'assistant',
           content: '',
@@ -304,6 +306,9 @@ describe('createChatOrchestratorRuntime', () => {
           content: 'The weather is sunny.',
         },
       ])
+      if (turn.type !== 'assistant')
+        throw new Error('Expected assistant turn')
+      await options?.onTranscript?.(turn)
     })
 
     await harness.runtime.ingest('What is the weather?', {
@@ -315,7 +320,7 @@ describe('createChatOrchestratorRuntime', () => {
       chatProvider: provider,
     })
 
-    const messages = harness.stream.mock.calls[1]?.[2]
+    const messages = conversationToChatMessages(harness.stream.mock.calls[1][2])
 
     expect(messages?.map(message => message.role)).toEqual([
       'system',
@@ -391,9 +396,9 @@ describe('createChatOrchestratorRuntime', () => {
       hookOrder.push('turn-complete')
     })
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
-      composedMessages = messages
+      composedMessages = conversationToChatMessages(messages)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'hello' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('hello from user', {
@@ -415,16 +420,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(composedMessages).toHaveLength(2)
     expect(composedMessages[0]).toMatchObject({ role: 'system', content: 'system prompt' })
     expect(composedMessages[1]).toMatchObject({ role: 'user' })
-    expect(composedMessages[1]?.content).toEqual([
-      {
-        type: 'text',
-        text: '[2026-04-25 18:47] hello from user',
-      },
-      {
-        type: 'text',
-        text: '\n[Context]\n- system:weather: sunny',
-      },
-    ])
+    expect(composedMessages[1]?.content).toBe('[2026-04-25 18:47] hello from user\n[Context]\n- system:weather: sunny')
     expect(harness.lifecycleRecords).toEqual(expect.arrayContaining([
       expect.objectContaining({ phase: 'before-compose' }),
       expect.objectContaining({ phase: 'prompt-context-built' }),
@@ -447,7 +443,7 @@ describe('createChatOrchestratorRuntime', () => {
     })
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: '<|CALL ["plugin.action"]|>' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('trigger special', {
@@ -476,8 +472,8 @@ describe('createChatOrchestratorRuntime', () => {
     const secondMessages: Message[][] = []
 
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
-      firstMessages.push(structuredClone(messages))
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      firstMessages.push(conversationToChatMessages(messages))
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
     harness.now.set(new Date(2026, 3, 25, 18, 47).getTime())
 
@@ -487,8 +483,8 @@ describe('createChatOrchestratorRuntime', () => {
     })
 
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
-      secondMessages.push(structuredClone(messages))
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      secondMessages.push(conversationToChatMessages(messages))
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
     harness.now.set(new Date(2026, 3, 25, 19, 12).getTime())
 
@@ -507,9 +503,9 @@ describe('createChatOrchestratorRuntime', () => {
     let composedMessages: Message[] = []
     harness.systemPromptSupplement.set('Plugin toolset guidance.')
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
-      composedMessages = messages
+      composedMessages = conversationToChatMessages(messages)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'hello' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('hello from user', {
@@ -529,9 +525,9 @@ describe('createChatOrchestratorRuntime', () => {
     harness.sessionMessages['session-1'] = []
     harness.systemPromptSupplement.set('Plugin toolset guidance.')
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
-      composedMessages = messages
+      composedMessages = conversationToChatMessages(messages)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'hello' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('hello from user', {
@@ -551,7 +547,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.monotonicNow.set([100, 150, 250, 400, 460])
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
       await options?.onUsage?.({
         inputTokens: 12,
         outputTokens: 8,
@@ -827,7 +823,7 @@ describe('createChatOrchestratorRuntime', () => {
       await new Promise<void>((resolve) => {
         releaseFirstSend = resolve
       })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     const firstSend = harness.runtime.ingest('hold queue', {
@@ -864,7 +860,7 @@ describe('createChatOrchestratorRuntime', () => {
 
     const storedReply = harness.sessionMessages['session-1']
       ?.find(message => message.role === 'user' && message.content === 'send without stale reply')
-    const providerUserMessage = harness.stream.mock.calls[1]?.[2].at(-1)
+    const providerUserMessage = conversationToChatMessages(harness.stream.mock.calls[1]![2]).at(-1)
     const syncedUserMessage = (harness.userAppended.at(-1) as { message?: ChatHistoryItem } | undefined)?.message
 
     expect(storedReply).toBeDefined()
@@ -906,7 +902,7 @@ describe('createChatOrchestratorRuntime', () => {
         source: 'reported',
       })
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'deleted reply' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     const pendingSend = harness.runtime.ingest('delete this chat', {
@@ -1098,7 +1094,7 @@ describe('createChatOrchestratorRuntime', () => {
     const harness = createHarness()
     let composedMessages: Message[] = []
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
-      composedMessages = messages
+      composedMessages = conversationToChatMessages(messages)
       await options?.onStreamEvent?.({ type: 'reasoning-delta', text: 'thinking' })
       await options?.onStreamEvent?.({
         type: 'tool-call',
@@ -1112,7 +1108,7 @@ describe('createChatOrchestratorRuntime', () => {
         result: 'sunny',
       } as StreamEvent)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'visible reply' })
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('see image', {
@@ -1169,4 +1165,78 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.assistantAppended).toHaveLength(1)
     expect(harness.foregroundResets).toHaveLength(1)
   })
+})
+
+describe('responses transcript ownership', () => {
+  it('keeps portable history and opaque continuation together for the selected adapter', async () => {
+    const harness = createHarness()
+    const responsesProvider: GenerationProvider = {
+      generation: model => ({ protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://example.com/' } }),
+    }
+    const [transcript] = chatMessagesToTurns([{ role: 'assistant', content: 'answer' }])
+    if (transcript.type !== 'assistant')
+      throw new Error('Expected assistant turn')
+    transcript.rounds[0].continuation = { protocol: 'responses', scope: 'adapter-scope', data: [{ type: 'reasoning', summary: [], encrypted_content: 'opaque' }] }
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      await options?.onTranscript?.(transcript)
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'answer' })
+    })
+    await harness.runtime.ingest('first', { model: 'test', chatProvider: responsesProvider })
+    await harness.runtime.ingest('second', { model: 'test', chatProvider: responsesProvider })
+    expect(harness.stream.mock.calls[1][2].turns).toContainEqual(transcript)
+    await harness.runtime.ingest('third', { model: 'test', chatProvider: provider })
+    expect(harness.stream.mock.calls[2][2].turns).toContainEqual(transcript)
+    expect(conversationToChatMessages(harness.stream.mock.calls[2][2])).toContainEqual({ role: 'assistant', content: 'answer' })
+  })
+
+  it('aborts the active provider request when its session is cancelled', async () => {
+    const harness = createHarness()
+    let signal: AbortSignal | undefined
+    let started!: () => void
+    const ready = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    harness.stream.mockImplementationOnce(async (_model, _provider, _messages, options) => {
+      signal = options?.abortSignal
+      started()
+      await new Promise<void>((_resolve, reject) => signal?.addEventListener('abort', () => reject(signal?.reason), { once: true }))
+    })
+    const send = harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
+    await ready
+    harness.runtime.cancelPendingSends('session-1')
+    await send
+    expect(signal?.aborted).toBe(true)
+    expect(harness.assistantAppended).toHaveLength(0)
+  })
+})
+
+it('runs consecutive orchestrator turns through the real Responses adapter', async () => {
+  const harness = createHarness()
+  const requests: { input: unknown[] }[] = []
+  const native = [
+    { type: 'reasoning', id: 'rs-1', summary: [], encrypted_content: 'opaque' },
+    { type: 'message', id: 'msg-1', role: 'assistant', content: [{ type: 'output_text', text: 'answer', annotations: [] }], phase: 'final_answer' },
+  ]
+  const provider: GenerationProvider = {
+    generation: model => ({ protocol: 'responses', webSearch: false, config: {
+      model,
+      baseURL: 'https://example.test/v1/',
+      fetch: async (_url: RequestInfo | URL, init?: RequestInit) => {
+        requests.push(JSON.parse(String(init?.body)))
+        const events = [
+          { type: 'response.output_text.delta', delta: 'answer' },
+          ...native.map(item => ({ type: 'response.output_item.done', item })),
+          { type: 'response.completed', response: { output: native, usage: null } },
+        ]
+        return new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'Content-Type': 'text/event-stream' } })
+      },
+    } }),
+  }
+  harness.stream.mockImplementation((model, chatProvider, context, options) => streamFrom({ model, chatProvider, conversation: context, options }))
+  await harness.runtime.ingest('first', { model: 'test', chatProvider: provider })
+  await harness.runtime.ingest('second', { model: 'test', chatProvider: provider })
+  expect(requests).toHaveLength(2)
+  expect(requests[1].input.slice(2, 4)).toEqual(native)
+  expect(harness.assistantAppended).toHaveLength(2)
+  expect(JSON.stringify(harness.promptProjections)).not.toContain('encrypted_content')
 })

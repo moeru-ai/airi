@@ -1,6 +1,5 @@
-import type { StreamOptions } from '@proj-airi/core-agent'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message } from '@xsai/shared-chat'
+import type { Conversation, StreamOptions } from '@proj-airi/core-agent'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 
 import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
 import { listModels } from '@xsai/model'
@@ -16,7 +15,7 @@ export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())
 
-  async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+  async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: StreamOptions) {
     const key = modelKey(model, chatProvider)
     const { tools: customTools, ...streamOptions } = options ?? {}
     const builtinToolsResolver = () => resolveLlmTools({ customTools })
@@ -24,7 +23,7 @@ export const useLLM = defineStore('llm', () => {
     const runStream = () => coreStreamFrom({
       model,
       chatProvider,
-      messages,
+      conversation: context,
       options: {
         ...streamOptions,
         toolsCompatibility: toolsCompatibility.value,
