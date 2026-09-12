@@ -73,9 +73,28 @@ export function modelKey(model: string, chatProvider: ChatProvider): string {
   return `${chatProvider.chat(model).baseURL}-${model}`
 }
 
+function toolChoiceRequiresTools(toolChoice: StreamOptions['toolChoice']): boolean {
+  if (toolChoice === 'required')
+    return true
+  if (typeof toolChoice !== 'object' || toolChoice === null)
+    return false
+
+  return toolChoice.type === 'function'
+    || (toolChoice.type === 'allowed_tools' && toolChoice.mode === 'required')
+}
+
+/**
+ * Resolve whether tools may be attached to the provider request.
+ *
+ * An explicit `supportsTools: false` always wins. A required tool choice takes
+ * precedence over the runtime incompatibility cache so a mandatory tool call
+ * is retried with its tools instead of being silently downgraded to text.
+ */
 export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
-  if (options?.supportsTools !== undefined)
-    return options.supportsTools
+  if (options?.supportsTools === false)
+    return false
+  if (toolChoiceRequiresTools(options?.toolChoice))
+    return true
   const key = modelKey(model, chatProvider)
   return options?.toolsCompatibility?.get(key) !== false
 }
@@ -99,6 +118,103 @@ async function resolveTools(options?: StreamOptions) {
     ? await options.tools()
     : options?.tools
   return tools ?? []
+}
+
+const PLAIN_TEXT_TOOL_CALL_ERROR_CODE = 'AIRI_PLAIN_TEXT_TOOL_CALL'
+
+type BufferedOutputEvent
+  = | { type: 'text-delta', text: string }
+    | { type: 'reasoning-delta', text: string }
+
+type BufferedToolEvent = Extract<Event, { type: 'tool-call.done' | 'tool-result.done' }>
+
+function plainTextToolCallError(toolName: string): Error {
+  return Object.assign(
+    new Error(`Model returned tool call "${toolName}" as plain text instead of native tool calling.`),
+    { code: PLAIN_TEXT_TOOL_CALL_ERROR_CODE },
+  )
+}
+
+function serializedToolCallName(parsed: unknown, toolNames: Set<string>): string | undefined {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
+    return undefined
+
+  const record = parsed as Record<string, unknown>
+  if (typeof record.name !== 'string' || !toolNames.has(record.name))
+    return undefined
+  if (!Object.hasOwn(record, 'parameters') && !Object.hasOwn(record, 'arguments'))
+    return undefined
+
+  return record.name
+}
+
+function leakedToolCallName(text: string, toolNames: Set<string>): string | undefined {
+  // Each opening brace needs its own boundary, independent of malformed prefixes.
+  // Build suffix boundaries once instead of rescanning the rest of the channel
+  // for every unmatched opening brace. -1 means that no closing boundary exists.
+  const stringEnds = new Int32Array(text.length + 2).fill(-1)
+  const objectEnds = new Int32Array(text.length + 2).fill(-1)
+  for (let index = text.length - 1; index >= 0; index--) {
+    const character = text[index]
+    // Inside a string, a backslash consumes the next character, including a quote.
+    stringEnds[index] = character === '"'
+      ? index
+      : stringEnds[index + (character === '\\' ? 2 : 1)]
+
+    if (character === '}') {
+      objectEnds[index] = index
+    }
+    else if (character === '"' || character === '{') {
+      const end = character === '"' ? stringEnds[index + 1] : objectEnds[index + 1]
+      // Outside strings, skip a complete string or nested object to find the
+      // closing brace for the enclosing object.
+      objectEnds[index] = end < 0 ? -1 : objectEnds[end + 1]
+    }
+    else {
+      objectEnds[index] = objectEnds[index + 1]
+    }
+  }
+
+  // Allow eight full-channel passes for recovery from malformed prefixes.
+  // A valid object needs one pass, with no extra size or depth limit.
+  let remainingParseWork = text.length * 8
+  for (let start = text.indexOf('{'); start >= 0; start = text.indexOf('{', start + 1)) {
+    const end = objectEnds[start + 1]
+    if (end < 0)
+      continue
+
+    // Charge overlapping spans before slicing or parsing them. On exhaustion,
+    // reject the step so unchecked buffered output cannot reach consumers.
+    const candidateLength = end - start + 1
+    if (candidateLength > remainingParseWork)
+      throw new Error('Model output exceeded the JSON inspection work limit.')
+    remainingParseWork -= candidateLength
+
+    try {
+      const parsed: unknown = JSON.parse(text.slice(start, end + 1))
+      const toolName = serializedToolCallName(parsed, toolNames)
+      if (toolName)
+        return toolName
+      // A valid ordinary object owns its children and quoted examples.
+      // Only malformed candidates permit recovery at a later opening brace.
+      start = end
+    }
+    catch {
+      continue
+    }
+  }
+  return undefined
+}
+
+function toolNameFrom(tool: unknown): string | undefined {
+  if (typeof tool !== 'object' || tool === null)
+    return undefined
+
+  const candidate = tool as {
+    name?: string
+    function?: { name?: string }
+  }
+  return candidate.function?.name ?? candidate.name
 }
 
 /**
@@ -143,12 +259,20 @@ function toAiriStreamEvent(event: Event): StreamEvent | null {
   }
 }
 
+/**
+ * Forwards provider events in order and completes after the accepted callbacks.
+ * On failure, pending output stops before this promise rejects. An active callback
+ * must settle first because the runtime cannot cancel consumer side effects.
+ * Events received after provider completion do not enter the queue.
+ */
 export async function streamFrom({
   model,
   chatProvider,
   messages,
   options,
   builtinToolsResolver,
+  toolCallGuardNames,
+  onNativeToolCall,
 }: StreamFromOptions) {
   const chatConfig = chatProvider.chat(model)
   const supportsContentArray = streamOptionsContentArrayCompatibilityOk(model, chatProvider, options)
@@ -161,34 +285,192 @@ export async function streamFrom({
   const customTools = supportedTools ? await resolveTools(options) : []
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
+  if (!tools && toolChoiceRequiresTools(options?.toolChoice))
+    throw new Error('Cannot satisfy a required tool choice because no tools are available for this request.')
+  const toolNames = new Set(toolCallGuardNames)
+  for (const tool of mergedTools) {
+    const name = toolNameFrom(tool)
+    if (name)
+      toolNames.add(name)
+  }
 
   return new Promise<void>((resolve, reject) => {
+    // Provider completion closes admission, but accepted events can still fail.
+    // Failure stops queued work. Settlement waits for the active callback so
+    // consumers cannot receive a rejection while that callback still changes state.
     let settled = false
     let stepsSettled = false
+    let failed = false
+    let eventQueue = Promise.resolve()
+    let bufferPossibleToolCall = toolNames.size > 0
+    let bufferedOutputEvents: (BufferedOutputEvent | BufferedToolEvent)[] = []
+    let bufferedReasoningText = ''
+    let bufferedText = ''
+    // The guard stays active until step completion, even after native tool events.
+    // After either channel starts a JSON candidate, preserve all output order
+    // until the complete objects can be checked at the end of the step.
+    let hasBufferedJsonCandidate = false
     const resolveOnce = () => {
-      if (settled)
+      if (settled || failed)
         return
       settled = true
       resolve()
     }
-    const rejectOnce = (error: unknown) => {
-      if (settled || stepsSettled)
-        return
-      settled = true
-      reject(error)
+    const emitOutputEvent = async (event: BufferedOutputEvent) => {
+      if (event.text)
+        await options?.onStreamEvent?.(event)
     }
 
-    const onEvent = async (event: Event) => {
-      try {
-        const streamEvent = toAiriStreamEvent(event)
-        if (streamEvent != null)
-          await options?.onStreamEvent?.(streamEvent)
-        if (streamEvent?.type === 'error')
-          rejectOnce(streamEvent.error)
+    const bufferOutputEvent = (event: BufferedOutputEvent) => {
+      hasBufferedJsonCandidate ||= event.text.includes('{')
+      const previous = bufferedOutputEvents.at(-1)
+      if (previous?.type === event.type)
+        previous.text += event.text
+      else
+        bufferedOutputEvents.push(event)
+    }
+
+    const takeBufferedOutput = () => {
+      const events = bufferedOutputEvents
+      bufferedOutputEvents = []
+      bufferedReasoningText = ''
+      bufferedText = ''
+      hasBufferedJsonCandidate = false
+      return events
+    }
+
+    const rejectOnce = (error: unknown) => {
+      if (settled || failed)
+        return
+      failed = true
+      const rejectAfterEvents = () => {
+        takeBufferedOutput()
+        settled = true
+        reject(error)
       }
-      catch (error) {
-        rejectOnce(error)
+      // Both queue outcomes retain the first failure. The queue can itself
+      // reject, or finish after an active listener returns from a provider failure.
+      void eventQueue.then(rejectAfterEvents, rejectAfterEvents)
+    }
+
+    const flushBufferedOutput = async () => {
+      const events = takeBufferedOutput()
+      for (const event of events) {
+        if (failed)
+          return
+        if (event.type === 'text-delta' || event.type === 'reasoning-delta') {
+          await emitOutputEvent(event)
+        }
+        else {
+          const streamEvent = toAiriStreamEvent(event)
+          if (streamEvent != null)
+            await options?.onStreamEvent?.(streamEvent)
+        }
       }
+    }
+
+    const finishPossibleToolCall = async () => {
+      if (!bufferPossibleToolCall)
+        return
+
+      bufferPossibleToolCall = false
+      const toolName = leakedToolCallName(bufferedText, toolNames)
+        ?? leakedToolCallName(bufferedReasoningText, toolNames)
+      if (toolName) {
+        takeBufferedOutput()
+        throw plainTextToolCallError(toolName)
+      }
+
+      await flushBufferedOutput()
+    }
+
+    const startToolCallGuardStep = async () => {
+      await finishPossibleToolCall()
+      bufferPossibleToolCall = toolNames.size > 0
+    }
+
+    const consumeTextDelta = async (text: string) => {
+      if (!bufferPossibleToolCall) {
+        await emitOutputEvent({ type: 'text-delta', text })
+        return
+      }
+
+      bufferOutputEvent({ type: 'text-delta', text })
+      bufferedText += text
+      // Stream plain text without disabling detection for later JSON. Once a
+      // prefix reaches the caller, a later failure cannot safely replay it.
+      if (!hasBufferedJsonCandidate && bufferedText.trim().length > 0)
+        await flushBufferedOutput()
+    }
+
+    const consumeReasoningDelta = async (text: string) => {
+      if (!bufferPossibleToolCall) {
+        await emitOutputEvent({ type: 'reasoning-delta', text })
+        return
+      }
+
+      bufferOutputEvent({ type: 'reasoning-delta', text })
+      bufferedReasoningText += text
+      if (!hasBufferedJsonCandidate && bufferedReasoningText.trim().length > 0)
+        await flushBufferedOutput()
+    }
+
+    const processEvent = async (event: Event) => {
+      if (event.type === 'step.start') {
+        await startToolCallGuardStep()
+        return
+      }
+      if (event.type === 'step.done') {
+        await finishPossibleToolCall()
+        return
+      }
+      if (event.type === 'text.delta') {
+        await consumeTextDelta(event.delta)
+        return
+      }
+      if (event.type === 'reasoning.delta') {
+        await consumeReasoningDelta(event.delta)
+        return
+      }
+      if (event.type === 'tool-call.done' || event.type === 'tool-result.done') {
+        // Native events do not prove that other channels are safe. Keep their
+        // UI notifications behind any candidate to preserve output order.
+        if (bufferPossibleToolCall && bufferedOutputEvents.length > 0) {
+          bufferedOutputEvents.push(event)
+          return
+        }
+      }
+
+      const streamEvent = toAiriStreamEvent(event)
+      if (streamEvent != null)
+        await options?.onStreamEvent?.(streamEvent)
+      if (streamEvent?.type === 'error')
+        throw streamEvent.error
+    }
+
+    // xsAI intentionally does not await onEvent. Keep our own chain so output
+    // events retain provider order and completion waits for accepted deltas.
+    const onEvent = (event: Event) => {
+      if (settled || stepsSettled || failed)
+        return
+
+      if (event.type === 'tool-call.start' || event.type === 'tool-call.delta' || event.type === 'tool-call.done' || event.type === 'tool-result.done') {
+        // xsAI does not await our queue before tool execution. Notify the retry
+        // owner now, even if inspection later rejects buffered UI events.
+        try {
+          onNativeToolCall?.()
+        }
+        catch (error) {
+          rejectOnce(error)
+          return
+        }
+      }
+
+      eventQueue = eventQueue.then(() => {
+        if (!failed)
+          return processEvent(event)
+      })
+      void eventQueue.catch(error => rejectOnce(error))
     }
 
     try {
@@ -202,7 +484,7 @@ export async function streamFrom({
         topP: options?.topP,
         stopWhen: stepCountAtLeast(10),
         tools,
-        toolChoice: options?.toolChoice,
+        toolChoice: tools ? options?.toolChoice : undefined,
         onEvent,
       })
 
@@ -221,9 +503,20 @@ export async function streamFrom({
       // Keep `steps.then(resolveOnce)` so evaluation runners observe the real end
       // of the stream lifecycle instead of an intermediate tool boundary.
       void streamResult.steps.then(async () => {
-        // Ignore any late provider error event emitted after xsAI has already
-        // resolved the authoritative full-step lifecycle.
+        const acceptedEvents = eventQueue
+        // Reject new provider events, not errors already accepted into the queue.
         stepsSettled = true
+        try {
+          await acceptedEvents
+          if (failed)
+            return
+          await finishPossibleToolCall()
+        }
+        catch (error) {
+          rejectOnce(error)
+          return
+        }
+
         try {
           const finalMessages = await streamResult.messages
           await options?.onMessages?.(finalMessages)
@@ -231,23 +524,14 @@ export async function streamFrom({
         catch (error) {
           // Transcript persistence is part of the completed response contract,
           // unlike late provider events and optional usage observation.
-          if (!settled) {
-            settled = true
-            reject(error)
-          }
+          rejectOnce(error)
           return
         }
         try {
           await options?.onStreamEvent?.({ type: 'finish' } as const)
         }
         catch (error) {
-          // The finish listener runs after steps settled, so rejectOnce would
-          // ignore this error as a "late provider event". A listener failure
-          // is still a real failure and must reject the outer promise.
-          if (!settled) {
-            settled = true
-            reject(error)
-          }
+          rejectOnce(error)
           return
         }
         let usage: Usage | undefined
@@ -271,13 +555,6 @@ export async function streamFrom({
         }
         resolveOnce()
       }).catch((error) => {
-        // A failure after `steps` resolved belongs to optional usage
-        // observation and cannot invalidate the completed response.
-        if (stepsSettled) {
-          console.error('Stream usage observation error:', error)
-          resolveOnce()
-          return
-        }
         rejectOnce(error)
         console.error('Stream steps error:', error)
       })
@@ -311,8 +588,26 @@ const TOOLS_RELATED_ERROR_PATTERNS: RegExp[] = [
 ]
 
 export function isToolRelatedError(error: unknown): boolean {
+  if (isPlainTextToolCallError(error))
+    return true
+
   const message = String(error)
   return TOOLS_RELATED_ERROR_PATTERNS.some(pattern => pattern.test(message))
+}
+
+/**
+ * Identify this module's sentinel for a plain-text call to a known tool.
+ * Known names include tools from an earlier attempt of the same request.
+ * Message text alone never matches.
+ *
+ * A `true` result does not make replay safe by itself. Callers must separately
+ * verify that no output or tool side effects were committed and that the tool
+ * choice does not require a tool before retrying without tools.
+ */
+export function isPlainTextToolCallError(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && (error as { code?: unknown }).code === PLAIN_TEXT_TOOL_CALL_ERROR_CODE
 }
 
 // Runtime auto-degrade: patterns that indicate the provider rejected
