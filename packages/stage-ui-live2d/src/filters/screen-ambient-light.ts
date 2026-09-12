@@ -13,10 +13,8 @@ import {
   ambientLightDefaults,
   ambientLightMapSize,
   ambientLightNeutralMapMargin,
-  ambientLightPerceptualLevel,
   averageAmbientLightMap,
   linearToSrgb,
-  relativeLuminance,
   wholeWindowRectangle,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import { clamp } from 'es-toolkit'
@@ -55,17 +53,6 @@ const blurTapSpacingSigma = 0.5
  * is 2 CSS pixels on a 480 pixel window. The wrap band is the wide component.
  */
 const backlightRimSigma = 0.004
-
-/**
- * Backlight response at full amount. The shade is the fraction of the model
- * brightness that a full backlight removes everywhere, because the eye adapts
- * to the bright plate behind the character and the subject in front of it
- * goes darker as a whole. The rim gain lights the thin rim band and the glow
- * gain adds a faint spill over the wide wrap band.
- */
-const backlightShade = 0.45
-const backlightRimGain = 2
-const backlightGlowGain = 0.6
 
 /**
  * One separable blur pass over the model alpha.
@@ -127,16 +114,16 @@ uniform vec3 uSurroundAverage;
 uniform vec3 uContactAverage;
 uniform highp vec2 uStageSize;
 uniform float uBacklight;
-uniform float uBehindLevel;
 uniform float uDirectional;
 uniform float uStrength;
-uniform float uBaseBrightness;
-uniform float uBaseContrast;
-uniform float uExposure;
-uniform float uExposureRange;
-uniform float uChroma;
+uniform float uDisplayLevel;
+uniform float uDarkBase;
+uniform float uBaseCurve;
+uniform float uLocalShare;
+uniform float uTint;
+uniform float uColorBoost;
 uniform float uWrapIntensity;
-uniform float uSurroundPeak;
+uniform float uWrapSaturation;
 uniform float uTranslucentWrap;
 // How far the maps reach past the window on each axis, in units of that axis.
 // The two differ whenever the window is not square and they stand for the same
@@ -152,21 +139,6 @@ uniform highp vec4 uSubjectRect;
 
 const vec3 luminanceWeights = vec3(0.2126, 0.7152, 0.0722);
 
-// Linear luminance below which the cast fades out. 0.04 is an sRGB gray of
-// about #383838. A screen darker than that gives almost no light, and the hue
-// of what remains comes from window chrome and noise, so the unit-luminance
-// cast would turn it into a saturated tint.
-const float castFloorLuminance = 0.04;
-
-// Largest factor the cast may apply to one channel. Unit luminance divides the
-// light by its luminance, and red carries only 0.21 of the luminance weight,
-// so a pure red screen asks for 4.7x on red, or 2.85x at chroma 0.5. The cap
-// trades luminance for headroom: it holds the hue shift, because the channels
-// the light lacks are still scaled down, but a strongly saturated screen then
-// darkens the model instead of pushing one channel toward white.
-const float castGainLimit = 1.6;
-
-
 vec3 srgbToLinear(vec3 color) {
   vec3 low = color / 12.92;
   vec3 high = pow((color + 0.055) / 1.055, vec3(2.4));
@@ -179,42 +151,68 @@ vec3 linearToSrgb(vec3 color) {
   return mix(low, high, step(vec3(0.0031308), color));
 }
 
-/**
- * Perceived level of an amount of light, from 0 to 1.
- *
- * The backlight amount is tuned by eye against what the screen looks like, so
- * it follows the sRGB encoding of the luminance rather than the linear energy.
- */
-float perceptualLevel(float linearValue) {
-  float safe = max(linearValue, 0.0);
-  float low = safe * 12.92;
-  float high = 1.055 * pow(max(safe, 0.000001), 1.0 / 2.4) - 0.055;
-  return clamp(mix(low, high, step(0.0031308, safe)), 0.0, 1.0);
+// Public-domain linear sRGB / Oklab matrices by Bjorn Ottosson:
+// https://bottosson.github.io/posts/oklab/#converting-from-linear-srgb-to-oklab
+vec3 toOklab(vec3 c) {
+  vec3 lms = vec3(dot(c, vec3(0.4122214708, 0.5363325363, 0.0514459929)),
+                  dot(c, vec3(0.2119034982, 0.6806995451, 0.1073969566)),
+                  dot(c, vec3(0.0883024619, 0.2817188376, 0.6299787005)));
+  lms = pow(max(lms, vec3(0.0)), vec3(1.0 / 3.0));
+  return vec3(dot(lms, vec3(0.2104542553, 0.7936177850, -0.0040720468)),
+              dot(lms, vec3(1.9779984951, -2.4285922050, 0.4505937099)),
+              dot(lms, vec3(0.0259040371, 0.7827717662, -0.8086757660)));
+}
+
+vec3 fromOklab(vec3 c) {
+  vec3 lms = vec3(c.x + 0.3963377774 * c.y + 0.2158037573 * c.z,
+                  c.x - 0.1055613458 * c.y - 0.0638541728 * c.z,
+                  c.x - 0.0894841775 * c.y - 1.2914855480 * c.z);
+  lms = lms * lms * lms;
+  return vec3(dot(lms, vec3(4.0767416621, -3.3077115913, 0.2309699292)),
+              dot(lms, vec3(-1.2684380046, 2.6097574011, -0.3413193965)),
+              dot(lms, vec3(-0.0041960863, -0.7034186147, 1.7076147010)));
 }
 
 /**
- * Converts a light color into a color cast with unit luminance.
+ * Moves a lit color further from its unlit self in hue, at the same luminance.
  *
- * The cast multiplies the model, so it changes hue and leaves brightness to the
- * exposure term. Unit luminance holds only while every channel stays under
- * castGainLimit.
+ * A saturated light carries little energy: blue at full strength has 7% of the
+ * luminance of white, so light that looks strongly blue barely moves the model.
+ * The extra chroma grows with the saturation of the light and falls as the
+ * light gets brighter, so it lifts the dim colored case and leaves a bright one
+ * as the physics produced it.
  *
- * Two fades scale the cast down. Below castFloorLuminance it fades out. Above
- * it the cast scales with this light against the brightest light in the map, so
- * a position that receives only a faint bleed takes only a faint tint. That
- * level is the largest channel, not the luminance, so a blue window counts as
- * much light as a red one. Both fades are continuous, so neighboring positions
- * blend instead of flipping between a white cast and a full one.
- *
- * @param referenceLevel Largest channel of the brightest light in the map.
+ * Two limits keep the result honest. The shift is projected onto constant
+ * linear luminance, because Oklab lightness is perceptual and not luminance, so
+ * moving chroma alone would still change how bright the fragment is. It is then
+ * shortened until every channel stays between the unlit color and white: light
+ * may only add, so no channel may fall below what the model shows with the
+ * screen switched off.
  */
-vec3 castFrom(vec3 lightLinear, float chroma, float referenceLevel) {
-  float luminance = dot(lightLinear, luminanceWeights);
-  vec3 unit = luminance > 0.0005 ? min(lightLinear / luminance, vec3(castGainLimit)) : vec3(1.0);
-  float presence = smoothstep(0.0, castFloorLuminance, luminance);
-  float level = max(lightLinear.r, max(lightLinear.g, lightLinear.b));
-  presence *= clamp(level / max(referenceLevel, 0.0005), 0.0, 1.0);
-  return mix(vec3(1.0), unit, chroma * presence);
+vec3 enhanceLightColor(vec3 unlit, vec3 lit, vec3 incident) {
+  float peak = max(incident.r, max(incident.g, incident.b));
+  float low = min(incident.r, min(incident.g, incident.b));
+  if (uColorBoost <= 0.0 || peak <= 0.000001 || peak - low <= peak * 0.001)
+    return lit;
+
+  float intensity = dot(lit - unlit, luminanceWeights);
+  if (intensity <= 0.000001)
+    return lit;
+
+  float saturation = (peak - low) / peak;
+  vec3 unlitLab = toOklab(unlit);
+  vec3 litLab = toOklab(lit);
+  // The gain halves at an added luminance of 0.04, which is an sRGB gray of
+  // about #383838: brighter light than that needs no help to read as colored.
+  float extra = uColorBoost * saturation * saturation / (1.0 + intensity / 0.04);
+  vec3 target = fromOklab(vec3(litLab.x, litLab.yz + extra * (litLab.yz - unlitLab.yz)));
+
+  vec3 shift = target - lit;
+  shift -= vec3(dot(shift, luminanceWeights));
+  vec3 allowance = mix(lit - unlit, vec3(1.0) - lit, step(vec3(0.0), shift));
+  vec3 limits = allowance / max(abs(shift), vec3(0.000001));
+  float amount = clamp(min(limits.r, min(limits.g, limits.b)), 0.0, 1.0);
+  return clamp(lit + amount * shift, min(unlit, lit), vec3(1.0));
 }
 
 void main(void) {
@@ -239,31 +237,39 @@ void main(void) {
   vec2 mapUv = (subjectUv + uMapMargin) / (vec2(1.0) + 2.0 * uMapMargin);
 
   vec3 baseLinear = srgbToLinear(source.rgb / source.a);
-  float effect = min(uStrength, 1.0);
-
-  // The measured screen level moves the base exposure. A positive range
-  // brightens the model with the screen, which is the light the screen throws
-  // on it. A negative range darkens it instead, which keeps the unlit side
-  // dark so that the wrap and the rim read against it. At 0 the model keeps a
-  // constant exposure.
-  float measuredBase = clamp(uBaseBrightness + uExposureRange * uExposure, 0.0, 1.0);
-  float brightness = mix(1.0, measuredBase, effect);
-  float contrast = mix(1.0, uBaseContrast, effect);
-  vec3 exposed = pow(baseLinear, vec3(contrast)) * brightness;
 
   // Global mode replaces both lookups with the mean of the map, so the whole
   // model takes one color.
-  vec3 surroundLight = mix(uSurroundAverage, srgbToLinear(texture2D(uSurroundMap, mapUv).rgb), uDirectional);
-  vec3 contactLight = mix(uContactAverage, srgbToLinear(texture2D(uContactMap, mapUv).rgb), uDirectional);
+  vec3 surround = mix(uSurroundAverage, srgbToLinear(texture2D(uSurroundMap, mapUv).rgb), uDirectional);
+  vec3 contact = mix(uContactAverage, srgbToLinear(texture2D(uContactMap, mapUv).rgb), uDirectional);
 
-  // Color cast from the wide blur of the screen. A diffuse surface integrates
-  // its environment over a hemisphere, and the wide blur is that low-pass,
-  // applied once per capture instead of once per fragment. Global mode casts
-  // the map mean everywhere, so the mean is its own reference and the cast
-  // keeps full strength.
-  float meanLevel = max(uSurroundAverage.r, max(uSurroundAverage.g, uSurroundAverage.b));
-  float castReference = mix(meanLevel, uSurroundPeak, uDirectional);
-  vec3 lit = exposed * castFrom(surroundLight, clamp(uChroma * uStrength, 0.0, 1.0), castReference);
+  // The model reflects the light it stands in. Its painted colors are its
+  // reflectance under the painter's white light, so the screen light scales
+  // them: a white screen shows the model as drawn, a dark screen dims it to
+  // the floor, and a colored screen colors it.
+  //
+  // The level of that light comes from two places. uDisplayLevel is the mean of
+  // the whole display, so the character keeps one exposure while the user drags
+  // its window across the desktop. The map at this fragment supplies the rest,
+  // which is what keeps the side facing a bright window brighter than the far
+  // side. The tint keeps only the luminance of the map at 0, so the model then
+  // follows the screen brightness with its own colors.
+  //
+  // Nothing here subtracts. A channel the screen lacks falls no lower than
+  // uDarkBase, which stands for the light the room gives without the screen, so
+  // a saturated screen cannot drain a channel out of the artwork. Strength
+  // stops at 1, because more of it could only darken the model; the bands take
+  // the rest.
+  float effect = min(uStrength, 1.0);
+  vec3 shaped = mix(vec3(dot(surround, luminanceWeights)), surround, uTint);
+  vec3 incoming = mix(vec3(uDisplayLevel), shaped, uLocalShare);
+  vec3 reflectance = uDarkBase + (1.0 - uDarkBase) * pow(max(incoming, vec3(0.0)), vec3(uBaseCurve));
+  vec3 unlit = baseLinear * (1.0 - (1.0 - uDarkBase) * effect);
+  vec3 tinted = baseLinear * mix(vec3(1.0), reflectance, effect);
+
+  // Mixing toward the luminance keeps the amount of light, so the saturation
+  // control moves the hue of the band and not its brightness.
+  vec3 wrapColor = mix(vec3(dot(contact, luminanceWeights)), contact, uWrapSaturation);
 
   // Light wrap: the plate color bleeds around the edge of the model, the way a
   // compositor blends a foreground element into its plate. The stage window is
@@ -285,26 +291,29 @@ void main(void) {
   float coverage = source.a * mix(1.0, source.a, uTranslucentWrap);
   float rimMask = coverage * (1.0 - blurredAlpha.r);
   float wrapMask = coverage * (1.0 - blurredAlpha.g);
-  vec3 wrapLight = contactLight * wrapMask * uWrapIntensity * uStrength;
 
-  // Backlight. A subject in front of a bright plate reads as a silhouette: the
-  // whole interior goes darker, a thin rim lights up along the whole edge, and
-  // a faint spill follows the wrap band.
-  //
-  // The rim follows the light behind each part of the edge, so an edge in front
-  // of a dark area stays dark. The interior darkening instead follows one level
-  // for the whole window, because darkening that changed across the body would
-  // draw a second outline inside the silhouette.
-  float rimAmount = clamp(uBacklight * perceptualLevel(dot(contactLight, luminanceWeights)) * uStrength, 0.0, 2.0);
-  float interiorAmount = clamp(uBacklight * uBehindLevel * uStrength, 0.0, 2.0);
-  lit *= 1.0 - ${backlightShade.toFixed(3)} * min(interiorAmount, 1.0);
-  wrapLight += contactLight * rimAmount * (rimMask * ${backlightRimGain.toFixed(3)} + wrapMask * ${backlightGlowGain.toFixed(3)});
+  // The wide band is the wrap. The thin band is the backlight rim, the bright
+  // line a subject shows in front of a bright plate. Both follow the light
+  // behind each part of the edge, so an edge in front of a dark area stays
+  // dark.
+  vec3 added = wrapColor * uStrength * (wrapMask * uWrapIntensity + rimMask * uBacklight);
 
   // Added light compresses into the remaining headroom instead of clipping, so
-  // bright texture detail under a strong wrap keeps its differences.
-  vec3 headroom = max(vec3(0.0), vec3(1.0) - lit);
-  vec3 compressedWrap = headroom * (vec3(1.0) - exp(-wrapLight / max(headroom, vec3(0.0001))));
-  vec3 litLinear = clamp(lit + compressedWrap, 0.0, 1.0);
+  // bright texture detail under a strong wrap keeps its differences. One factor
+  // covers all three channels, taken from whichever channel has the least room
+  // left: compressing each channel on its own would let a bright colored wrap
+  // keep its strongest channel while cutting the others, and the band would
+  // turn white exactly where the screen color should show most.
+  vec3 headroom = max(vec3(0.0), vec3(1.0) - tinted);
+  vec3 load = added / max(headroom, vec3(0.0001));
+  float peakLoad = max(load.r, max(load.g, load.b));
+  float compression = peakLoad > 0.0 ? (1.0 - exp(-peakLoad)) / peakLoad : 1.0;
+  vec3 litLinear = clamp(tinted + added * compression, 0.0, 1.0);
+
+  // One boost over everything the screen contributed, measured against the
+  // model as it looks with the screen switched off.
+  vec3 unlitClamped = clamp(unlit, 0.0, 1.0);
+  litLinear = enhanceLightColor(unlitClamped, litLinear, max(litLinear - unlitClamped, vec3(0.0)));
 
   gl_FragColor = vec4(linearToSrgb(litLinear) * source.a, source.a);
 }
@@ -328,12 +337,18 @@ export interface ScreenAmbientLightFilterUpdate {
 }
 
 /**
- * Applies screen-derived color cast and light wrap to a Live2D model.
+ * Lights a Live2D model with the screen around it: the model reflects the
+ * screen light over its whole body, and a light wrap and a backlight rim add
+ * the light behind its silhouette.
  *
  * Each frame runs three passes. Two half-resolution passes blur the model
  * alpha, horizontally and then vertically, into a texture that holds the rim
- * band and the wrap band. The main pass then lights the model and reads that
- * texture for both bands.
+ * band and the wrap band. The main pass then scales the model by the screen
+ * light and adds the screen light inside both bands.
+ *
+ * The overall exposure comes from `environment.displayLuminance`, which meters
+ * the whole display, while the maps shape it by position. Splitting the two
+ * keeps the character at one brightness while its window moves.
  *
  * The light itself arrives as two small maps that cover the stage window and a
  * margin around it. The main pass reads them by the position of the fragment on
@@ -357,13 +372,12 @@ export class ScreenAmbientLightFilter extends Filter {
   private readonly contactAverage = new Float32Array([1, 1, 1])
   private readonly stageSize = new Float32Array([1, 1])
   /**
-   * Brightest perceived level in the contact map.
+   * Largest channel in the contact map.
    *
-   * The rim amount is a per-fragment value, so the early-out in `apply` cannot
-   * read it. The peak answers the only question the early-out asks: whether any
-   * fragment can receive a rim at all.
+   * Both bands add the map light, so the early-out in `apply` only has to know
+   * whether the map holds any light at all.
    */
-  private contactPeakLevel = 0
+  private contactPeak = 0
   private readonly blurPass: Filter
   /** Interleaved rim and wrap weights, one pair per tap from the center out. */
   private readonly blurWeights = new Float32Array((blurHalfTaps + 1) * 2)
@@ -388,16 +402,16 @@ export class ScreenAmbientLightFilter extends Filter {
       uContactAverage: new Float32Array([1, 1, 1]),
       uStageSize: new Float32Array([1, 1]),
       uBacklight: ambientLightDefaults.filter.backlight,
-      uBehindLevel: 0,
       uDirectional: 0,
       uStrength: 0,
-      uBaseBrightness: ambientLightDefaults.filter.baseBrightness,
-      uBaseContrast: ambientLightDefaults.filter.baseContrast,
-      uExposure: 0.5,
-      uExposureRange: ambientLightDefaults.filter.exposureRange,
-      uChroma: ambientLightDefaults.filter.chroma,
+      uDisplayLevel: 1,
+      uDarkBase: ambientLightDefaults.filter.darkBase,
+      uBaseCurve: ambientLightDefaults.filter.baseCurve,
+      uLocalShare: ambientLightDefaults.filter.localShare,
+      uTint: ambientLightDefaults.filter.tint,
+      uColorBoost: ambientLightDefaults.filter.colorBoost,
       uWrapIntensity: ambientLightDefaults.filter.wrapIntensity,
-      uSurroundPeak: 1,
+      uWrapSaturation: ambientLightDefaults.filter.wrapSaturation,
       uTranslucentWrap: 0,
       uMapMargin: new Float32Array([ambientLightNeutralMapMargin.x, ambientLightNeutralMapMargin.y]),
       uSubjectRect: new Float32Array([0, 0, 1, 1]),
@@ -433,10 +447,6 @@ export class ScreenAmbientLightFilter extends Filter {
 
     this.uniforms.uDirectional = next.mode === 'window-gradient' ? 1 : 0
     this.uniforms.uStrength = clamp(next.strength, 0, 3)
-    this.uniforms.uBaseBrightness = clamp(options.baseBrightness, 0, 1)
-    this.uniforms.uBaseContrast = clamp(options.baseContrast, 0.5, 2)
-    this.uniforms.uExposure = clamp(environment.exposure, 0, 1)
-    this.uniforms.uExposureRange = clamp(options.exposureRange, -1, 1)
     this.uniforms.uMapMargin[0] = environment.mapMargin.x
     this.uniforms.uMapMargin[1] = environment.mapMargin.y
     const subject = next.subject ?? wholeWindowRectangle
@@ -444,8 +454,14 @@ export class ScreenAmbientLightFilter extends Filter {
     this.uniforms.uSubjectRect[1] = subject.y
     this.uniforms.uSubjectRect[2] = Math.max(subject.width, 0.0001)
     this.uniforms.uSubjectRect[3] = Math.max(subject.height, 0.0001)
-    this.uniforms.uChroma = clamp(options.chroma, 0, 1)
+    this.uniforms.uDisplayLevel = clamp(environment.displayLuminance, 0, 1)
+    this.uniforms.uDarkBase = clamp(options.darkBase, 0, 1)
+    this.uniforms.uBaseCurve = clamp(options.baseCurve, 0.25, 4)
+    this.uniforms.uLocalShare = clamp(options.localShare, 0, 1)
+    this.uniforms.uTint = clamp(options.tint, 0, 1)
+    this.uniforms.uColorBoost = clamp(options.colorBoost, 0, 10)
     this.uniforms.uWrapIntensity = Math.max(0, options.wrapIntensity)
+    this.uniforms.uWrapSaturation = clamp(options.wrapSaturation, 0, 1)
     this.uniforms.uBacklight = clamp(options.backlight, 0, 2)
     this.uniforms.uTranslucentWrap = options.translucentWrap ? 1 : 0
     this.wrapDiffuse = clamp(options.wrapDiffuse, 0, 0.5)
@@ -467,8 +483,8 @@ export class ScreenAmbientLightFilter extends Filter {
     this.stageSize[1] = Math.max(1, screen.height)
     this.uniforms.uStageSize = this.stageSize
 
-    // With no wrap and no backlight, both bands multiply by zero. A white
-    // texture reads as fully covered, which is the same mask at no cost.
+    // With no light, or with no wrap and no backlight, both bands add zero. A
+    // white texture reads as fully covered, which is the same mask at no cost.
     if (!this.needsBands()) {
       this.uniforms.uWrapAlpha = Texture.WHITE
       filterManager.applyFilter(this, input, output, clearMode)
@@ -524,10 +540,8 @@ export class ScreenAmbientLightFilter extends Filter {
 
   private needsBands() {
     const strength = this.uniforms.uStrength as number
-    const wrap = (this.uniforms.uWrapIntensity as number) * strength
-    const backlight = (this.uniforms.uBacklight as number) * strength
-      * Math.max(this.contactPeakLevel, this.uniforms.uBehindLevel as number)
-    return wrap > 0 || backlight > 0
+    const amount = (this.uniforms.uWrapIntensity as number) + (this.uniforms.uBacklight as number)
+    return strength * amount * this.contactPeak > 0
   }
 
   private uploadMaps(environment: AmbientLightEnvironment) {
@@ -542,12 +556,7 @@ export class ScreenAmbientLightFilter extends Filter {
     this.contactAverage.set(averageAmbientLightMap(environment.contact))
     this.uniforms.uSurroundAverage = this.surroundAverage
     this.uniforms.uContactAverage = this.contactAverage
-
-    this.contactPeakLevel = peakPerceptualLevel(environment.contact)
-    this.uniforms.uBehindLevel = clamp(linearToSrgb(environment.behindLuminance), 0, 1)
-    // The cast scales each position against the brightest light in the map,
-    // so the reference is the largest channel of the brightest texel.
-    this.uniforms.uSurroundPeak = peakChannel(environment.surround)
+    this.contactPeak = peakChannel(environment.contact)
   }
 }
 
@@ -628,16 +637,6 @@ function writeMapTexels(texels: Uint8Array, map: AmbientLightMap) {
     texels[texel * 4 + 2] = toTexel(linearToSrgb(map.data[texel * 3 + 2]))
     texels[texel * 4 + 3] = 255
   }
-}
-
-function peakPerceptualLevel(map: AmbientLightMap) {
-  let peak = 0
-  for (let texel = 0; texel < map.width * map.height; texel += 1) {
-    const offset = texel * 3
-    peak = Math.max(peak, relativeLuminance(map.data[offset], map.data[offset + 1], map.data[offset + 2]))
-  }
-
-  return ambientLightPerceptualLevel(peak)
 }
 
 function toTexel(value: number) {

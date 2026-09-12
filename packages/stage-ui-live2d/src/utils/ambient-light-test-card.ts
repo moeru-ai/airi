@@ -1,6 +1,6 @@
 /**
  * Fills of the card, in card pixels. Every one is a neutral gray, because a
- * colored fill would mix with the cast the shader adds and hide it. The patch
+ * colored fill would mix with the light the shader adds and hide it. The patch
  * fill carries no alpha, because each patch declares its own.
  */
 const bodyColor = '#3c3c42'
@@ -46,8 +46,9 @@ export const ambientLightTestCard = {
   margin: cardMargin,
 
   /**
-   * The exposure, the contrast, the cast gain cap and the headroom compression
-   * all read as a tone response along this one axis. The body is far wider than
+   * The shader scales the model interior by the screen light, so the ramp
+   * must come out as one multiple of itself: its steps keep their ratios and
+   * only their level and hue follow the screen. The body is far wider than
    * the wrap band, so the wrap must not reach the ramp.
    */
   ramp: {

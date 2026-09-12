@@ -285,12 +285,12 @@
     - text: Light Wrap
       part-of-speech: noun
       status: preferred
-      context: Set the overall effect amount. 1 is the designed look, and up to 3 makes the color cast and the light wrap stronger.
+      context: Set the overall effect amount. 1 is the designed look, and up to 3 makes the light wrap and the backlight stronger.
 
 - id: backlight
   subject: rendering
   translatable: true
-  definition: Light from behind the character that darkens its interior and lights its whole edge.
+  definition: Light from behind the character that lights a thin rim along its whole edge.
   note: >-
     The photographic sense, as in a subject standing in front of a window. Do not use the word
     for the lamp behind a display panel, which the screen-capture strings may also suggest.

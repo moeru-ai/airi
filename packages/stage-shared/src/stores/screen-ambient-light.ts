@@ -23,12 +23,14 @@ const screenAmbientLightCaptureIntervalMs = useLocalStorageManualReset<number>('
 const screenAmbientLightSampleWidth = useLocalStorageManualReset<number>('settings/screen-ambient-light/sample-width', ambientLightDefaults.sampleWidth)
 const screenAmbientLightResponseMs = useLocalStorageManualReset<number>('settings/screen-ambient-light/response-ms', ambientLightDefaults.responseMs)
 const screenAmbientLightNeutralColorWeight = useLocalStorageManualReset<number>('settings/screen-ambient-light/neutral-color-weight', ambientLightDefaults.sampling.neutralColorWeight)
-const screenAmbientLightBaseBrightness = useLocalStorageManualReset<number>('settings/screen-ambient-light/base-brightness', ambientLightDefaults.filter.baseBrightness)
-const screenAmbientLightBaseContrast = useLocalStorageManualReset<number>('settings/screen-ambient-light/base-contrast', ambientLightDefaults.filter.baseContrast)
-const screenAmbientLightExposureRange = useLocalStorageManualReset<number>('settings/screen-ambient-light/exposure-range', ambientLightDefaults.filter.exposureRange)
+const screenAmbientLightDarkBase = useLocalStorageManualReset<number>('settings/screen-ambient-light/dark-base', ambientLightDefaults.filter.darkBase)
+const screenAmbientLightBaseCurve = useLocalStorageManualReset<number>('settings/screen-ambient-light/base-curve', ambientLightDefaults.filter.baseCurve)
+const screenAmbientLightLocalShare = useLocalStorageManualReset<number>('settings/screen-ambient-light/local-share', ambientLightDefaults.filter.localShare)
+const screenAmbientLightTint = useLocalStorageManualReset<number>('settings/screen-ambient-light/tint', ambientLightDefaults.filter.tint)
+const screenAmbientLightColorBoost = useLocalStorageManualReset<number>('settings/screen-ambient-light/color-boost', ambientLightDefaults.filter.colorBoost)
 const screenAmbientLightWrapIntensity = useLocalStorageManualReset<number>('settings/screen-ambient-light/wrap-intensity', ambientLightDefaults.filter.wrapIntensity)
+const screenAmbientLightWrapSaturation = useLocalStorageManualReset<number>('settings/screen-ambient-light/wrap-saturation', ambientLightDefaults.filter.wrapSaturation)
 const screenAmbientLightWrapDiffuse = useLocalStorageManualReset<number>('settings/screen-ambient-light/wrap-diffuse', ambientLightDefaults.filter.wrapDiffuse)
-const screenAmbientLightChroma = useLocalStorageManualReset<number>('settings/screen-ambient-light/chroma', ambientLightDefaults.filter.chroma)
 const screenAmbientLightBacklight = useLocalStorageManualReset<number>('settings/screen-ambient-light/backlight', ambientLightDefaults.filter.backlight)
 const screenAmbientLightTranslucentWrap = useLocalStorageManualReset<boolean>('settings/screen-ambient-light/translucent-wrap', ambientLightDefaults.filter.translucentWrap)
 
@@ -43,12 +45,14 @@ function resetState() {
   screenAmbientLightSampleWidth.reset()
   screenAmbientLightResponseMs.reset()
   screenAmbientLightNeutralColorWeight.reset()
-  screenAmbientLightBaseBrightness.reset()
-  screenAmbientLightBaseContrast.reset()
-  screenAmbientLightExposureRange.reset()
+  screenAmbientLightDarkBase.reset()
+  screenAmbientLightBaseCurve.reset()
+  screenAmbientLightLocalShare.reset()
+  screenAmbientLightTint.reset()
+  screenAmbientLightColorBoost.reset()
   screenAmbientLightWrapIntensity.reset()
+  screenAmbientLightWrapSaturation.reset()
   screenAmbientLightWrapDiffuse.reset()
-  screenAmbientLightChroma.reset()
   screenAmbientLightBacklight.reset()
   screenAmbientLightTranslucentWrap.reset()
 }
@@ -65,12 +69,14 @@ export const useSettingsScreenAmbientLight = defineStore('settings-screen-ambien
     screenAmbientLightSampleWidth,
     screenAmbientLightResponseMs,
     screenAmbientLightNeutralColorWeight,
-    screenAmbientLightBaseBrightness,
-    screenAmbientLightBaseContrast,
-    screenAmbientLightExposureRange,
+    screenAmbientLightDarkBase,
+    screenAmbientLightBaseCurve,
+    screenAmbientLightLocalShare,
+    screenAmbientLightTint,
+    screenAmbientLightColorBoost,
     screenAmbientLightWrapIntensity,
+    screenAmbientLightWrapSaturation,
     screenAmbientLightWrapDiffuse,
-    screenAmbientLightChroma,
     screenAmbientLightBacklight,
     screenAmbientLightTranslucentWrap,
     resetState,

@@ -26,26 +26,30 @@ const { t } = useI18n()
 const { diagnostics } = useScreenAmbientLightDiagnostics()
 const {
   screenAmbientLightBacklight,
-  screenAmbientLightBaseBrightness,
-  screenAmbientLightBaseContrast,
-  screenAmbientLightChroma,
-  screenAmbientLightExposureRange,
+  screenAmbientLightBaseCurve,
+  screenAmbientLightColorBoost,
+  screenAmbientLightDarkBase,
+  screenAmbientLightLocalShare,
   screenAmbientLightMode,
   screenAmbientLightStrength,
+  screenAmbientLightTint,
   screenAmbientLightTranslucentWrap,
   screenAmbientLightWrapDiffuse,
   screenAmbientLightWrapIntensity,
+  screenAmbientLightWrapSaturation,
 } = storeToRefs(useSettingsScreenAmbientLight())
 
 /** Message shown in place of the preview when the renderer cannot start. */
 const failure = shallowRef<string>()
 
 const filterOptions = computed<AmbientLightFilterOptions>(() => ({
-  baseBrightness: screenAmbientLightBaseBrightness.value,
-  exposureRange: screenAmbientLightExposureRange.value,
-  baseContrast: screenAmbientLightBaseContrast.value,
-  chroma: screenAmbientLightChroma.value,
+  darkBase: screenAmbientLightDarkBase.value,
+  baseCurve: screenAmbientLightBaseCurve.value,
+  localShare: screenAmbientLightLocalShare.value,
+  tint: screenAmbientLightTint.value,
+  colorBoost: screenAmbientLightColorBoost.value,
   wrapIntensity: screenAmbientLightWrapIntensity.value,
+  wrapSaturation: screenAmbientLightWrapSaturation.value,
   wrapDiffuse: screenAmbientLightWrapDiffuse.value,
   backlight: screenAmbientLightBacklight.value,
   translucentWrap: screenAmbientLightTranslucentWrap.value,

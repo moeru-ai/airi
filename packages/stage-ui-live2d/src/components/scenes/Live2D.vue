@@ -62,17 +62,19 @@ const {
 const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
 const {
   screenAmbientLightBacklight,
-  screenAmbientLightBaseBrightness,
-  screenAmbientLightBaseContrast,
-  screenAmbientLightChroma,
+  screenAmbientLightBaseCurve,
+  screenAmbientLightColorBoost,
+  screenAmbientLightDarkBase,
+  screenAmbientLightLocalShare,
   screenAmbientLightEnabled,
-  screenAmbientLightExposureRange,
   screenAmbientLightMode,
   screenAmbientLightSquint,
   screenAmbientLightStrength,
+  screenAmbientLightTint,
   screenAmbientLightTranslucentWrap,
   screenAmbientLightWrapDiffuse,
   screenAmbientLightWrapIntensity,
+  screenAmbientLightWrapSaturation,
 } = storeToRefs(useSettingsScreenAmbientLight())
 const {
   active: screenAmbientLightActive,
@@ -80,11 +82,13 @@ const {
   subject: screenAmbientLightSubject,
 } = storeToRefs(useScreenAmbientLightEnvironment())
 const screenAmbientLightFilterOptions = computed(() => ({
-  baseBrightness: screenAmbientLightBaseBrightness.value,
-  exposureRange: screenAmbientLightExposureRange.value,
-  baseContrast: screenAmbientLightBaseContrast.value,
-  chroma: screenAmbientLightChroma.value,
+  darkBase: screenAmbientLightDarkBase.value,
+  baseCurve: screenAmbientLightBaseCurve.value,
+  localShare: screenAmbientLightLocalShare.value,
+  tint: screenAmbientLightTint.value,
+  colorBoost: screenAmbientLightColorBoost.value,
   wrapIntensity: screenAmbientLightWrapIntensity.value,
+  wrapSaturation: screenAmbientLightWrapSaturation.value,
   wrapDiffuse: screenAmbientLightWrapDiffuse.value,
   backlight: screenAmbientLightBacklight.value,
   translucentWrap: screenAmbientLightTranslucentWrap.value,

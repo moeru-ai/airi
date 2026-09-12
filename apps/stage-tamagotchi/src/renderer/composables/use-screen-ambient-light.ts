@@ -22,7 +22,10 @@ import { clamp } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
-import { screenAmbientLightDiagnosticsChannelName } from '../../shared/screen-ambient-light-diagnostics'
+import {
+  screenAmbientLightDiagnosticsChannelName,
+  screenAmbientLightDiagnosticsWatchMs,
+} from '../../shared/screen-ambient-light-diagnostics'
 import { findDominantDisplayArea } from '../../shared/utils/electron/display'
 import { useStagePaintedMask } from './use-stage-painted-mask'
 
@@ -107,6 +110,10 @@ export function useScreenAmbientLight(sources: {
   let startVersion = 0
   let frameCallbackHandle = 0
   let lastSampleTime = 0
+  // When the last diagnostics request stops keeping the stream alive. Nothing
+  // listens most of the time, and a snapshot carries a copy of the capture
+  // frame, so publishing on every sample would clone that frame for nobody.
+  let diagnosticsWatchedUntil = 0
   let lastCaptureError: string | undefined
   let lastDiagnostics: ScreenAmbientLightDiagnosticsSnapshot | undefined
 
@@ -158,6 +165,7 @@ export function useScreenAmbientLight(sources: {
     if (event?.type !== 'request-current')
       return
 
+    diagnosticsWatchedUntil = performance.now() + screenAmbientLightDiagnosticsWatchMs
     if (lastDiagnostics)
       postDiagnosticsChannelEvent({ type: 'snapshot', snapshot: lastDiagnostics })
     else
@@ -361,12 +369,15 @@ export function useScreenAmbientLight(sources: {
     lastSampleTime = now
     ambientLight.setEnvironment(nextEnvironment, subjectInWindow)
 
+    // The frame is the expensive half of a snapshot, and only the devtool
+    // preview reads it. Everything else is already-allocated state that costs
+    // nothing to reference, so an unwatched capture still records a snapshot
+    // for the next request to answer with.
+    const watched = now < diagnosticsWatchedUntil
     publishDiagnostics('capturing', {
-      frame: {
-        width: frame.width,
-        height: frame.height,
-        data: frame.data.slice(),
-      },
+      frame: watched
+        ? { width: frame.width, height: frame.height, data: frame.data.slice() }
+        : undefined,
       excludedRegion: excludedWindow,
       subjectRegion: subjectOnDisplay,
       sampling: {
@@ -374,7 +385,7 @@ export function useScreenAmbientLight(sources: {
         targetEnvironment: result.environment,
         appliedEnvironment: nextEnvironment,
       },
-    })
+    }, watched)
   }
 
   function applyForcedColor() {
@@ -412,9 +423,17 @@ export function useScreenAmbientLight(sources: {
     }
   }
 
+  /**
+   * Records a snapshot and, unless `post` says otherwise, sends it.
+   *
+   * A lifecycle change always sends, because a viewer has to learn that the
+   * capture started, stopped, or failed. A per-frame update sends only while a
+   * viewer keeps asking for one.
+   */
   function publishDiagnostics(
     status: ScreenAmbientLightCaptureStatus,
     details: Partial<Pick<ScreenAmbientLightDiagnosticsSnapshot, 'frame' | 'excludedRegion' | 'subjectRegion' | 'sampling'>> = {},
+    post = true,
   ) {
     const display = capturedDisplay.value
     const snapshot: ScreenAmbientLightDiagnosticsSnapshot = {
@@ -435,7 +454,8 @@ export function useScreenAmbientLight(sources: {
       ...details,
     }
     lastDiagnostics = snapshot
-    postDiagnosticsChannelEvent({ type: 'snapshot', snapshot })
+    if (post)
+      postDiagnosticsChannelEvent({ type: 'snapshot', snapshot })
   }
 }
 

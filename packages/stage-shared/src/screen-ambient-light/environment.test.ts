@@ -63,13 +63,14 @@ describe('ambient light maps', () => {
     expect(ambientLightMapInteriorLuminance(createAmbientLightMap([1, 1, 1]))).toBeCloseTo(1)
   })
 
-  it('starts from a colorless environment with the backlight off', () => {
+  it('starts from a colorless environment that shows the model as drawn', () => {
     const { surround, contact, exposure, behindLuminance } = ambientLightNeutralEnvironment
-    const [red, green, blue] = averageAmbientLightMap(surround)
+    const [contactRed, contactGreen, contactBlue] = averageAmbientLightMap(contact)
 
-    expect(red).toBe(green)
-    expect(green).toBe(blue)
-    expect(averageAmbientLightMap(contact)).toEqual([red, green, blue])
+    // The model reflects the surround map, so only white leaves it as drawn.
+    expect(averageAmbientLightMap(surround)).toEqual([1, 1, 1])
+    expect(contactRed).toBe(contactGreen)
+    expect(contactGreen).toBe(contactBlue)
     expect(exposure).toBe(0.5)
     expect(behindLuminance).toBe(0)
   })

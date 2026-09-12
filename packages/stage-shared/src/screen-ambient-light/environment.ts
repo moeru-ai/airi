@@ -24,54 +24,89 @@ export interface AmbientLightSamplingOptions {
 
 export interface AmbientLightFilterOptions {
   /**
-   * Model brightness when the screen is black. The measured screen level moves
-   * it from here by `exposureRange`, in either direction.
+   * Model brightness over a black screen, from 0 to 1.
    *
-   * @default 1
+   * The model reflects the light around it: a white screen shows it as drawn,
+   * and a darker screen dims it toward this floor. The floor stands for the
+   * light the room gives without the screen, so 1 switches the dimming off.
+   *
+   * @default 0.45
    */
-  baseBrightness: number
+  darkBase: number
   /**
-   * How far the measured screen level moves the base brightness, and in which
-   * direction.
+   * Shape of the response between {@link darkBase} and the painted brightness.
    *
-   * Positive brightens the model as the screen brightens, which is the light
-   * the screen throws on it. Negative darkens it instead, which holds the
-   * unlit side dark so that the light wrap keeps its contrast against it. At 0
-   * the model holds one exposure whatever the screen shows.
+   * The screen level is raised to this power before it lifts the model, so
+   * above 1 a half-lit screen leaves the model closer to the floor than to its
+   * painted brightness. 1 is a straight line.
    *
-   * @default -0.3
+   * @default 2
    */
-  exposureRange: number
-  /** Base model contrast before light is applied. @default 1.2 */
-  baseContrast: number
+  baseCurve: number
   /**
-   * How much of the environment hue the color cast keeps.
+   * How much of the model's exposure comes from the light beside it rather
+   * than from the whole display, from 0 to 1.
    *
-   * The cast multiplies the model by the light color at unit luminance, so it
-   * changes hue and not brightness. At 0 the cast is white and the model keeps
-   * its own colors. At 1 a saturated screen color removes the channels that the
-   * light lacks, which turns skin gray.
+   * The display term is one number for the whole model, so dragging the window
+   * across the desktop does not swing its brightness. The local term reads the
+   * light map at each fragment, so a bright window beside the head lights that
+   * side more than the far one. At 0 the model takes one level everywhere; at
+   * 1 every fragment follows only what is beside it.
    *
    * @default 0.5
    */
-  chroma: number
+  localShare: number
+  /**
+   * How much of the screen hue the model takes as the screen lights it.
+   *
+   * At 1 the model reflects the screen color, so a blue screen turns it blue at
+   * the brightness that blue light gives. At 0 only the screen brightness
+   * reaches the model and its colors stay its own.
+   *
+   * @default 1
+   */
+  tint: number
+  /**
+   * Extra perceptual color the model takes from dim but saturated light, from
+   * 0 to 10.
+   *
+   * A saturated color carries little light: blue at full strength has 7% of the
+   * luminance of white, so light that looks strongly blue moves the model
+   * almost not at all. This pushes the color of the lit result further from the
+   * unlit one while holding its luminance, by an amount that grows with the
+   * saturation of the light and shrinks as the light gets brighter. 0 leaves
+   * the physical result alone.
+   *
+   * @default 4
+   */
+  colorBoost: number
   /**
    * Strength of the light wrap that bleeds the background color into the model
    * silhouette. This is the compositing cue that makes the model read as part
    * of the screen content behind it.
    *
-   * @default 0.85
+   * @default 1.7
    */
   wrapIntensity: number
   /**
-   * Strength of the backlight: a thin rim along the whole silhouette, a faint
-   * spill over the wrap band, and an evenly darker interior.
+   * How much of the screen hue the wrapped light keeps.
    *
-   * A subject in front of a bright plate reads as a silhouette. The rim amount
-   * follows the contact map at each fragment, so an edge with a dark desktop
-   * behind it gains nothing.
+   * At 0 the band adds the screen luminance as white light. At 1 it adds the
+   * screen color. The amount of light is the same at every value, so a
+   * saturated screen tints the edge without lighting it more.
    *
-   * @default 0.8
+   * @default 1
+   */
+  wrapSaturation: number
+  /**
+   * Strength of the backlight rim: a thin line of light along the whole
+   * silhouette.
+   *
+   * A subject in front of a bright plate shows a bright edge. The rim follows
+   * the contact map at each fragment, so an edge with a dark desktop behind it
+   * gains nothing.
+   *
+   * @default 1.6
    */
   backlight: number
   /**
@@ -221,7 +256,7 @@ export function averageAmbientLightMap(map: AmbientLightMap): [number, number, n
  * Mean linear luminance of the texels that cover the subject itself.
  *
  * Those texels sit behind the character, so the value says how much light the
- * character stands in front of. The backlight darkens the interior by it.
+ * character stands in front of. The squint narrows the eyes by it.
  */
 export function ambientLightMapInteriorLuminance(
   map: AmbientLightMap,
@@ -267,8 +302,20 @@ export interface AmbientLightEnvironment {
    */
   exposure: number
   /**
-   * Wide blur of the screen, in linear RGB. It drives the color cast over the
-   * whole model, and reaches about a third of the subject height.
+   * Mean linear luminance of the display outside the AIRI window, from 0 to 1.
+   *
+   * It sets the exposure of the whole model, so a window dragged from a bright
+   * area to a dark one does not change how bright the character is. The light
+   * maps then shape that level by position. The window is left out because it
+   * shows the character rather than the desktop, and counting it would let the
+   * character light itself.
+   */
+  displayLuminance: number
+  /**
+   * Wide blur of the screen, in linear RGB, reaching about a third of the
+   * subject height. It carries the color and the side the light comes from.
+   * The sampler also uses it to fill the contact texels that the narrow blur
+   * cannot support.
    */
   surround: AmbientLightMap
   /**
@@ -277,9 +324,8 @@ export interface AmbientLightEnvironment {
    */
   contact: AmbientLightMap
   /**
-   * Mean linear luminance of the contact map over the window interior. The
-   * backlight darkens the interior by one amount, so the darkening cannot draw
-   * an outline of its own. Zero switches the darkening off.
+   * Mean linear luminance of the contact map over the subject. It says how
+   * much light the character stands in front of, and the squint follows it.
    */
   behindLuminance: number
   /**
@@ -298,7 +344,8 @@ export const ambientLightDefaults = Object.freeze({
   mode: 'window-gradient' as ScreenAmbientLightMode,
   /**
    * Overall effect amount. 1 is the designed look. Values up to 3 scale the
-   * color cast and the light wrap for a more dramatic response.
+   * light wrap and the backlight rim for a more dramatic response; the
+   * reflected light stops at 1, because more of it would only darken.
    */
   strength: 1,
   /**
@@ -310,7 +357,16 @@ export const ambientLightDefaults = Object.freeze({
    * leaves the eyes open. See `useMotionUpdatePluginLightSquint`.
    */
   squint: 1,
-  captureIntervalMs: 250,
+  /**
+   * Time between screen samples, in milliseconds. It also constrains the
+   * capture stream, so the renderer never decodes frames it will not sample.
+   *
+   * One sample costs about 0.5 ms in the sampler plus about 1 ms to draw the
+   * stream frame down and read it back, so 50 ms is near 3% of one core. The
+   * painted-alpha read that dominated the old budget is cached on its own
+   * interval and does not follow this one.
+   */
+  captureIntervalMs: 50,
   /**
    * Width of the downscaled capture frame, in pixels. It decides how much
    * detail a map texel can hold. The height follows the display, so that a
@@ -321,28 +377,42 @@ export const ambientLightDefaults = Object.freeze({
    * a 2560 x 1440 display, a few pixels per map texel.
    */
   sampleWidth: 128,
-  responseMs: 650,
+  /**
+   * Time constant of the smoothing between samples, in milliseconds.
+   *
+   * It is the lag between a change on screen and the light on the character:
+   * one time constant covers 63% of a step and three cover 95%. At the same
+   * value as {@link captureIntervalMs} each sample moves the light 63% of the
+   * way, which at 20 samples a second reads as continuous.
+   */
+  responseMs: 50,
   sampling: Object.freeze<AmbientLightSamplingOptions>({
     neutralColorWeight: 0.35,
   }),
   filter: Object.freeze<AmbientLightFilterOptions>({
-    baseBrightness: 1,
-    exposureRange: -0.3,
-    baseContrast: 1.2,
-    chroma: 0.5,
-    wrapIntensity: 0.85,
+    darkBase: 0.45,
+    baseCurve: 2,
+    localShare: 0.5,
+    tint: 1,
+    colorBoost: 4,
+    wrapIntensity: 1.7,
+    wrapSaturation: 1,
     wrapDiffuse: 0.03,
-    backlight: 0.8,
+    backlight: 1.6,
     translucentWrap: false,
   }),
 })
 
 /**
- * Linear level of the neutral maps. The value is colorless, so the cast keeps
- * the model colors. Half of full light keeps the wrap visible without
- * pretending that a bright screen was measured.
+ * Linear levels of the neutral environment. All are colorless.
+ *
+ * The model reflects the display level and the surround map, so both sit at
+ * full light and show the model as drawn when nothing was measured. The
+ * contact map sits at half light, which keeps a soft wrap without pretending
+ * that a bright screen was measured.
  */
-const neutralAmbientLightLevel = 0.5
+const neutralSurroundLevel = 1
+const neutralContactLevel = 0.5
 
 /**
  * Environment used before the first capture, after a reset, and when the window
@@ -353,9 +423,10 @@ const neutralAmbientLightLevel = 0.5
  */
 export const ambientLightNeutralEnvironment: Readonly<AmbientLightEnvironment> = Object.freeze({
   exposure: 0.5,
+  displayLuminance: 1,
   mapMargin: ambientLightNeutralMapMargin,
-  surround: createAmbientLightMap([neutralAmbientLightLevel, neutralAmbientLightLevel, neutralAmbientLightLevel]),
-  contact: createAmbientLightMap([neutralAmbientLightLevel, neutralAmbientLightLevel, neutralAmbientLightLevel]),
+  surround: createAmbientLightMap([neutralSurroundLevel, neutralSurroundLevel, neutralSurroundLevel]),
+  contact: createAmbientLightMap([neutralContactLevel, neutralContactLevel, neutralContactLevel]),
   behindLuminance: 0,
 })
 

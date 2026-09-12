@@ -65,8 +65,8 @@ export interface SampleRegion {
  *
  * The contact blur feeds the light wrap and the backlight rim, which must show
  * what sits directly behind or beside the silhouette, so it stays narrow. The
- * surround blur feeds the color cast over the whole model, so it reaches about
- * a third of the subject height and averages a large area into one hue.
+ * surround blur is the light the whole model reflects, so it reaches about a
+ * third of the subject height and averages a large area into one hue.
  */
 const contactSigmaSubjectHeights = 0.08
 const surroundSigmaSubjectHeights = 0.30
@@ -267,7 +267,7 @@ export function sampleScreenAmbientLight(
   )
 
   return {
-    environment: buildEnvironment(surround, contact, mapMargin) ?? ambientLightNeutralEnvironment,
+    environment: buildEnvironment(surround, contact, mapMargin, displayLuminanceOf(frame, region)) ?? ambientLightNeutralEnvironment,
     diagnostics,
   }
 }
@@ -357,6 +357,9 @@ export function uniformAmbientLightEnvironment(
   return {
     // The sample luminance is linear, and the exposure travels perceptually.
     exposure: clamp(linearToSrgb(sample.luminance), 0, 1),
+    // The forced color stands in for every pixel of the display, so it is also
+    // the exposure meter for the whole model.
+    displayLuminance: sample.luminance,
     surround: createAmbientLightMap(linear),
     contact: createAmbientLightMap(linear),
     mapMargin: ambientLightNeutralMapMargin,
@@ -385,6 +388,7 @@ export function smoothAmbientLightEnvironment(
 
   return {
     exposure: mix(previous.exposure, next.exposure, alpha),
+    displayLuminance: mix(previous.displayLuminance, next.displayLuminance, alpha),
     surround: smoothMap(previous.surround, next.surround, alpha),
     contact: smoothMap(previous.contact, next.contact, alpha),
     // The window may have been resized between the two, and a mixed reach would
@@ -433,10 +437,62 @@ export function ambientLightSampleFromHex(color: string): AmbientLightSample | u
  *    lies off the display. The caller then keeps the neutral environment, which
  *    is what `undefined` reports.
  */
+/**
+ * Mean linear luminance of the display outside the AIRI window.
+ *
+ * This is the exposure meter for the whole model, so it reads every visible
+ * pixel of the frame rather than the grid that feeds the maps: a bright window
+ * in a far corner of the display lights the room, and a model that metered only
+ * its own neighborhood would change brightness whenever the user dragged it.
+ *
+ * The same pixels are left out as in the maps. A painted pixel is the character,
+ * and counting it would let the character raise its own exposure until it
+ * clipped. A fully transparent pixel carries no light.
+ */
+function displayLuminanceOf(frame: PixelFrame, region: SampleRegion): number {
+  const paintedAlpha = region.paintedAlpha
+  let total = 0
+  let count = 0
+
+  for (let y = 0; y < frame.height; y += 1) {
+    const normalizedY = (y + 0.5) / frame.height
+    const insideRow = normalizedY >= region.exclude.y
+      && normalizedY <= region.exclude.y + region.exclude.height
+
+    for (let x = 0; x < frame.width; x += 1) {
+      const index = y * frame.width + x
+      const offset = index * 4
+      if (frame.data[offset + 3] === 0)
+        continue
+
+      if (insideRow) {
+        const normalizedX = (x + 0.5) / frame.width
+        const inside = normalizedX >= region.exclude.x
+          && normalizedX <= region.exclude.x + region.exclude.width
+        if (inside) {
+          const painted = paintedAlpha?.[index]
+          if (painted === undefined || painted > seeThroughAlphaCeiling)
+            continue
+        }
+      }
+
+      total += relativeLuminance(
+        srgbByteToLinear[frame.data[offset]],
+        srgbByteToLinear[frame.data[offset + 1]],
+        srgbByteToLinear[frame.data[offset + 2]],
+      )
+      count += 1
+    }
+  }
+
+  return count > 0 ? total / count : 0
+}
+
 function buildEnvironment(
   surround: ResampledField,
   contact: ResampledField,
   mapMargin: AmbientLightMapMargin,
+  displayLuminance: number,
 ): AmbientLightEnvironment | undefined {
   const texelCount = ambientLightMapSize * ambientLightMapSize
   let meanRed = 0
@@ -493,6 +549,7 @@ function buildEnvironment(
     // The mean luminance is linear. The exposure drives a brightness control
     // that a person tunes by eye, so it travels in the perceptual encoding.
     exposure: clamp(linearToSrgb(relativeLuminance(surroundRed, surroundGreen, surroundBlue)), 0, 1),
+    displayLuminance,
     surround: surroundMap,
     contact: contactMap,
     mapMargin,
