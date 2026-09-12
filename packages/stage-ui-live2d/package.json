@@ -25,6 +25,7 @@
     "./stores": "./src/stores/index.ts",
     "./stores/model-parameters": "./src/stores/model-parameters.ts",
     "./stores/expression-store": "./src/stores/expression-store.ts",
+    "./testing/setup-browser": "./src/testing/setup-browser.ts",
     "./tools/expression-tools": "./src/tools/expression-tools.ts",
     "./utils/eye-motions": "./src/utils/eye-motions.ts",
     "./utils/live2d-preview": "./src/utils/live2d-preview.ts",
