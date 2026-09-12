@@ -220,7 +220,7 @@ Alert/callout box with themed accent bar.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `theme` | `'primary' \| 'violet' \| 'lime' \| 'orange'` | `'primary'` | Color theme |
+| `theme` | `'primary' \| 'violet' \| 'lime' \| 'orange' \| 'red'` | `'primary'` | Color theme |
 | `label` | `string?` | — | Title |
 
 **Slots**: `label`, `default`

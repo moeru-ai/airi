@@ -86,6 +86,17 @@ dialogs:
       placeholder: Choose screenshot or video file
       selected-count: '{count} file(s) selected'
     last-submitted-preview: Last Submitted Payload Preview
+  signOut:
+    title: Sign out
+    titleReset: Sign out and reset
+    description: End this account session.
+    keep:
+      label: Keep data
+    reset:
+      warning: This cannot be undone
+      description: All local data will be deleted.
+    cancel: Cancel
+    error: Sign out failed.
 language:
   title: Language
   description: |
