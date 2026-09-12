@@ -1,10 +1,21 @@
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { z } from 'zod/v4'
 
+/** Allowed intent values for a `spark:command` event. */
 export const sparkCommandIntentSchema = z.enum(['plan', 'proposal', 'action', 'pause', 'resume', 'reroute', 'context'])
+
+/** Allowed priority values for a `spark:command` event. */
 export const sparkCommandPrioritySchema = z.enum(['critical', 'high', 'normal', 'low'])
+
+/** Allowed interrupt values before the parent tool schema adds its nullable provider form. */
 export const sparkCommandInterruptSchema = z.union([z.literal('force'), z.literal('soft'), z.literal(false)])
 
+/**
+ * Provider-facing schema for one structured guidance option.
+ *
+ * Strict providers require every property in this object. Use `null` for an omitted optional
+ * value. The command tool removes those null and empty values before it emits `spark:command`.
+ */
 export const sparkCommandGuidanceOptionSchema = z.object({
   label: z.string().describe('Short label for the option.'),
   steps: z.array(z.string()).min(1).describe('Step-by-step actions the target should follow.'),
@@ -15,11 +26,22 @@ export const sparkCommandGuidanceOptionSchema = z.object({
   triggers: z.union([z.array(z.string()), z.null()]).describe('Conditions that should trigger this option.'),
 }).strict()
 
+/**
+ * Provider-facing persona entry used to avoid dynamic object keys in generated JSON Schema.
+ *
+ * The command tool converts these entries into the runtime persona map keyed by `traits`.
+ */
 export const sparkCommandPersonaSchema = z.object({
   traits: z.string().describe('Trait name to adjust behavior. For example, "bravery", "cautiousness", "friendliness".'),
   strength: z.enum(['very-high', 'high', 'medium', 'low', 'very-low']),
 }).strict()
 
+/**
+ * Provider-facing guidance schema for a Spark Command.
+ *
+ * `persona` uses an array of entries instead of a record because some providers reject
+ * `propertyNames`. The command tool converts it back to the runtime record shape.
+ */
 export const sparkCommandGuidanceSchema = z.object({
   type: z.enum(['proposal', 'instruction', 'memory-recall']),
   persona: z.union([z.array(sparkCommandPersonaSchema), z.null()]).describe('Personas can be used to adjust the behavior of sub-agents. For example, when using as NPC in games, or player in Minecraft, the persona can help define the character\'s traits and decision-making style.'),
@@ -50,6 +72,18 @@ export const sparkCommandContextSchema = z.object({
   metadata: z.union([z.array(sparkCommandMetadataEntrySchema), z.null()]).describe('JSON-like metadata for the context update, expressed as key-value pairs for schema compatibility.'),
 }).strict()
 
+/**
+ * Provider-facing parameter schema for `builtIn_emitSparkCommand`.
+ *
+ * Strict providers require every root property. Use `null` when an optional value is absent.
+ * The command tool converts null and empty values to runtime omissions or defaults before it
+ * emits `spark:command`.
+ *
+ * This schema does not equal the wire-event shape. Persona and metadata use arrays here so
+ * generated JSON Schema does not contain dynamic `propertyNames`. The tool converts them back
+ * to records before delivery. The input requires at least one destination; a transport adapter
+ * can clear that list when its protocol uses an empty list for broadcast delivery.
+ */
 export const sparkCommandToolSchema = z.object({
   destinations: z.array(z.string()).min(1).describe('One or more target module or agent IDs for this command.'),
   // NOTICE: Azure/OpenAI-compatible tool validators reject strict object schemas when some
