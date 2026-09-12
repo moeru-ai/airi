@@ -9,13 +9,15 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const {
   screenAmbientLightBacklight,
-  screenAmbientLightBaseBrightness,
-  screenAmbientLightBaseContrast,
-  screenAmbientLightChroma,
-  screenAmbientLightExposureRange,
+  screenAmbientLightBaseCurve,
+  screenAmbientLightColorBoost,
+  screenAmbientLightDarkBase,
+  screenAmbientLightLocalShare,
+  screenAmbientLightTint,
   screenAmbientLightTranslucentWrap,
   screenAmbientLightWrapDiffuse,
   screenAmbientLightWrapIntensity,
+  screenAmbientLightWrapSaturation,
 } = storeToRefs(useSettingsScreenAmbientLight())
 
 function formatPercent(value: number) {
@@ -35,54 +37,65 @@ function formatMultiplier(value: number) {
   >
     <div :class="['grid gap-5', 'md:grid-cols-2']">
       <FieldRange
-        v-model="screenAmbientLightBaseBrightness"
-        as="div"
-        :min="0.2"
-        :max="1"
-        :step="0.01"
-        :default-value="ambientLightDefaults.filter.baseBrightness"
-        :format-value="formatPercent"
-        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.base-brightness.title')"
-        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.base-brightness.description')"
-      />
-      <FieldRange
-        v-model="screenAmbientLightExposureRange"
-        as="div"
-        :min="-1"
-        :max="1"
-        :step="0.01"
-        :default-value="ambientLightDefaults.filter.exposureRange"
-        :format-value="formatPercent"
-        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.exposure-range.title')"
-        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.exposure-range.description')"
-      />
-      <FieldRange
-        v-model="screenAmbientLightBaseContrast"
-        as="div"
-        :min="0.5"
-        :max="2"
-        :step="0.01"
-        :default-value="ambientLightDefaults.filter.baseContrast"
-        :format-value="formatMultiplier"
-        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.base-contrast.title')"
-        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.base-contrast.description')"
-      />
-      <FieldRange
-        v-model="screenAmbientLightChroma"
+        v-model="screenAmbientLightDarkBase"
         as="div"
         :min="0"
         :max="1"
         :step="0.01"
-        :default-value="ambientLightDefaults.filter.chroma"
+        :default-value="ambientLightDefaults.filter.darkBase"
         :format-value="formatPercent"
-        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.chroma.title')"
-        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.chroma.description')"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.dark-base.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.dark-base.description')"
+      />
+      <FieldRange
+        v-model="screenAmbientLightBaseCurve"
+        as="div"
+        :min="0.25"
+        :max="4"
+        :step="0.05"
+        :default-value="ambientLightDefaults.filter.baseCurve"
+        :format-value="formatMultiplier"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.base-curve.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.base-curve.description')"
+      />
+      <FieldRange
+        v-model="screenAmbientLightLocalShare"
+        as="div"
+        :min="0"
+        :max="1"
+        :step="0.01"
+        :default-value="ambientLightDefaults.filter.localShare"
+        :format-value="formatPercent"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.local-share.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.local-share.description')"
+      />
+      <FieldRange
+        v-model="screenAmbientLightTint"
+        as="div"
+        :min="0"
+        :max="1"
+        :step="0.01"
+        :default-value="ambientLightDefaults.filter.tint"
+        :format-value="formatPercent"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.tint.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.tint.description')"
+      />
+      <FieldRange
+        v-model="screenAmbientLightColorBoost"
+        as="div"
+        :min="0"
+        :max="10"
+        :step="0.1"
+        :default-value="ambientLightDefaults.filter.colorBoost"
+        :format-value="formatMultiplier"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.color-boost.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.color-boost.description')"
       />
       <FieldRange
         v-model="screenAmbientLightWrapIntensity"
         as="div"
         :min="0"
-        :max="2"
+        :max="4"
         :step="0.01"
         :default-value="ambientLightDefaults.filter.wrapIntensity"
         :format-value="formatMultiplier"
@@ -90,10 +103,21 @@ function formatMultiplier(value: number) {
         :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.wrap-intensity.description')"
       />
       <FieldRange
+        v-model="screenAmbientLightWrapSaturation"
+        as="div"
+        :min="0"
+        :max="1"
+        :step="0.01"
+        :default-value="ambientLightDefaults.filter.wrapSaturation"
+        :format-value="formatPercent"
+        :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.wrap-saturation.title')"
+        :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.wrap-saturation.description')"
+      />
+      <FieldRange
         v-model="screenAmbientLightBacklight"
         as="div"
         :min="0"
-        :max="2"
+        :max="4"
         :step="0.01"
         :default-value="ambientLightDefaults.filter.backlight"
         :format-value="formatMultiplier"

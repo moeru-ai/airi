@@ -8,6 +8,18 @@ import type {
 
 export const screenAmbientLightDiagnosticsChannelName = 'airi::screen-ambient-light-diagnostics'
 
+/**
+ * How long one `request-current` keeps the capture publishing.
+ *
+ * The channel has no membership, so the capture cannot tell whether a devtool
+ * window is still open. A viewer repeats the request while it watches and the
+ * capture stops publishing once the requests stop, which is also what happens
+ * when the window closes. The interval is well inside the timeout, so a missed
+ * request does not interrupt the stream.
+ */
+export const screenAmbientLightDiagnosticsWatchMs = 6000
+export const screenAmbientLightDiagnosticsRequestMs = 2000
+
 /** A rectangle in display pixels, which is the unit Electron reports bounds in. */
 export interface DisplayPixelRectangle {
   x: number

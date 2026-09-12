@@ -72,7 +72,7 @@ devtools:
         description: Apply this color without screen capture.
       strength:
         title: Light strength
-        description: Set the overall effect amount. 1 is the designed look, and up to 3 makes the color cast and the light wrap stronger.
+        description: Set the overall effect amount. 1 is the designed look, and up to 3 makes the light wrap and the backlight stronger.
       squint:
         title: Squint at bright changes
         description: Narrow the eyes when the screen brightens faster than the character has adapted to it. A screen that stays bright leaves the eyes open. 0 turns this off.
@@ -116,7 +116,7 @@ devtools:
           applied: Applied after smoothing
           surround:
             title: Surround map
-            description: Wide blur of the screen around and behind the window. This map drives the color cast over the model.
+            description: Wide blur of the screen around and behind the window. It carries the color of the light and the side it comes from.
           contact:
             title: Contact map
             description: Narrow blur of the same content. This map drives the light wrap and the backlight rim.
@@ -136,30 +136,36 @@ devtools:
           description: Set the minimum weight for colors with low saturation. Colored content counts for more than gray.
       shader:
         title: Shader response
-        base-brightness:
-          title: Base brightness
-          description: Set the model brightness over a black screen. The measured screen level moves it from here.
-        exposure-range:
-          title: Exposure response
-          description: Set how far the measured screen level moves the base brightness. Above 0 a brighter screen brightens the model. Below 0 a brighter screen darkens it, so the light wrap stands out.
+        dark-base:
+          title: Brightness floor
+          description: Set the model brightness over a black screen. A white screen shows the model as drawn, and a darker screen dims it toward this floor.
+        base-curve:
+          title: Brightness curve
+          description: Set how the model brightness rises between the floor and the artwork. Above 1 a half-lit screen keeps the model closer to the floor.
+        local-share:
+          title: Local light share
+          description: Set how much of the model brightness follows the light beside it rather than the whole display. At 0 the model keeps one brightness wherever its window sits.
+        tint:
+          title: Tint
+          description: Set how much of the screen hue the model takes. At 0 only the screen brightness reaches the model.
+        color-boost:
+          title: Dim-light color boost
+          description: Set how much extra color the model takes from dim but saturated light. Brightness stays where the light put it, and no channel falls below the unlit model.
         wrap-intensity:
           title: Light wrap intensity
           description: Set how strongly the background color bleeds onto the edge of the model.
+        wrap-saturation:
+          title: Light wrap saturation
+          description: Set how much of the screen hue the wrapped light keeps. 0 adds white light of the same brightness. 1 adds the full screen color.
         backlight:
           title: Backlight
-          description: Set how strongly light from behind the character darkens its interior and lights its whole edge.
+          description: Set how strongly light from behind the character lights the thin rim along its whole edge.
         wrap-diffuse:
           title: Light wrap width
           description: Set how far the wrapped background color reaches inside the edge of the model.
         translucent-wrap:
           title: Reduce wrap on translucent parts
           description: Scale the light wrap and rim by the square of the model alpha. Parts drawn with partial alpha already show the desktop through themselves.
-        base-contrast:
-          title: Base contrast
-          description: Set how strongly the model separates light and dark values before sampled light is added.
-        chroma:
-          title: Color cast chroma
-          description: Set how much of the surrounding hue the cast keeps. 0 keeps the model colors. 1 applies the full screen color.
       preview-shader:
         title: Shader preview
         description: Run the real shader over a test card, with the live environment and the settings above.

@@ -3,10 +3,13 @@ import type {
   ScreenAmbientLightDiagnosticsSnapshot,
 } from '../../shared/screen-ambient-light-diagnostics'
 
-import { useBroadcastChannel } from '@vueuse/core'
+import { useBroadcastChannel, useIntervalFn } from '@vueuse/core'
 import { computed, onMounted, onUnmounted, shallowRef, watch } from 'vue'
 
-import { screenAmbientLightDiagnosticsChannelName } from '../../shared/screen-ambient-light-diagnostics'
+import {
+  screenAmbientLightDiagnosticsChannelName,
+  screenAmbientLightDiagnosticsRequestMs,
+} from '../../shared/screen-ambient-light-diagnostics'
 
 /** Receives transient capture diagnostics from the main AIRI renderer. */
 export function useScreenAmbientLightDiagnostics() {
@@ -23,6 +26,11 @@ export function useScreenAmbientLightDiagnostics() {
     if (document.visibilityState === 'visible')
       requestCurrent()
   }
+
+  // The request doubles as the signal that keeps the capture publishing, so it
+  // repeats while this view is open rather than only on mount and on focus. A
+  // hidden window asks for nothing, and the capture stops sending frames to it.
+  useIntervalFn(requestWhenVisible, screenAmbientLightDiagnosticsRequestMs)
 
   onMounted(() => {
     requestCurrent()

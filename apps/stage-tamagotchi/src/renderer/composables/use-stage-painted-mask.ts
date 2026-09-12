@@ -8,9 +8,13 @@ import { wholeWindowRectangle } from '@proj-airi/stage-shared/screen-ambient-lig
  *
  * A read costs about 3.4 ms at 20 captures per second, more than everything
  * else in a capture together, and reading a smaller region does not help. The
- * silhouette changes far more slowly than the screen behind it. 250 matches
- * the default capture interval, so the default configuration still reads once
- * per capture.
+ * silhouette changes far more slowly than the screen behind it, so this
+ * interval is deliberately longer than the capture interval: raising the
+ * capture rate must not raise the cost of this read.
+ *
+ * Moving the window still invalidates the cache at once, because a mask read at
+ * another position indexes the wrong frame pixels. A drag therefore pays one
+ * read per capture for as long as it lasts.
  */
 const paintedAlphaIntervalMs = 250
 
