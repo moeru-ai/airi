@@ -1,26 +1,56 @@
+character-switcher:
+  title: Switch character
+  manage: Manage characters
+  empty: No characters yet
+  failed: Could not switch characters. Try again.
+mobile-tools:
+  sign-in: Sign in to AIRI
+  account-description: Account and preferences
+  sound: Sound
+  character-voice: Character voice
+  title: Settings
+  appearance: Appearance
+  dark-mode: Dark mode
+  application: Application
+  more: More
+  background: Background
+  settings: All settings
+  about: About
+  view: View
+  close-view: Save and close view controls
+  hearing: Hearing
 chat:
   actions:
+    reply: Reply
     retry: Réessayer
+    send: Send message
   message:
     character-name:
       airi: AIRI
       core-system: Système central
       you: Vous
+  reply:
+    cancel: Cancel reply
+    message: Message
+    replying-to: Replying to {name}
   reasoning: Raisonnement
   sessions:
     title: Conversations
-    new: + Nouveau
+    new: New conversation
+    current: Current
+    confirm-delete: Delete this conversation and its messages?
+    cancel: Cancel
     empty: Pas encore de conversation
     cloud-badge: Synchronisé dans le cloud
     new-chat-fallback: Nouvelle conversation
     delete: Supprimer conversation
 render-error:
-  title: '{renderer} n’a pas pu afficher ce modèle'
-  description: Le modèle est sélectionné, mais la scène n’a pas pu l’afficher.
+  title: '{renderer} could not render this model'
+  description: The model is selected, but the Stage could not display it.
   report-description: |-
-    {renderer} n’a pas pu afficher le modèle sélectionné.
-    ID du modèle : {modelId}
-    Erreur : {error}
+    {renderer} failed to render the selected model.
+    Model ID: {modelId}
+    Error: {error}
 message: Dites quelque chose...
 send-mode:
   title: Envoyer la clef
@@ -28,8 +58,8 @@ send-mode:
   ctrl-enter: Ctrl + Entrée
   double-enter: Double Entrée
 speech-output:
-  mute: Couper la voix
-  unmute: Réactiver la voix
+  mute: Mute voice
+  unmute: Unmute voice
 operations:
   load-models: Charger les modèles
   load-models-status:

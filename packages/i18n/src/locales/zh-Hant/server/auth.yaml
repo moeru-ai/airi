@@ -57,8 +57,11 @@ signIn:
     useDifferentEmail: Use a different email
   divider:
     or: or
+  message:
+    redirecting: Redirecting to {provider}…
   error:
     fallback: Sign in failed
+    providerTimeout: Provider sign-in timed out. Please try again.
     unknown: An unknown error occurred
     socialOnlyNoPassword: This email was registered with Google or GitHub. Sign in with a button below; you can add a password in account settings after signing in.
     passwordMismatch: Password and confirmation do not match.
