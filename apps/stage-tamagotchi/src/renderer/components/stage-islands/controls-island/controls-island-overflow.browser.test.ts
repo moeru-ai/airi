@@ -367,11 +367,53 @@ describe('controls Island overflow', () => {
 
     island.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
     isOutside.value = true
+    // The real DOM pointer signal (useMouseInElement) must also agree the
+    // cursor left, since #2521's fix ORs it with the Electron-tracked
+    // signal above — a real click leaves the browser's own pointer state
+    // "inside" until something moves it away.
+    document.dispatchEvent(new MouseEvent('mouseleave'))
     await new Promise(resolve => setTimeout(resolve, 1700))
     expect(screen.getByTestId('controls-menu').element()).toBeInTheDocument()
     window.dispatchEvent(new MouseEvent('mouseup'))
     await expect.poll(() => screen.getByTestId('controls-menu').element().closest('[aria-hidden]')?.getAttribute('aria-hidden'), { timeout: 3500 }).toBe('true')
   })
+})
+
+// https://github.com/moeru-ai/airi/issues/2521
+it('keeps the menu open while genuinely hovered even if the Electron cursor signal reports outside', async () => {
+  // ROOT CAUSE:
+  //
+  // The auto-collapse watchers trusted only the Electron-tracked cursor
+  // signal (mocked here via `isOutside`). On a native Wayland session,
+  // Electron's screen.getCursorScreenPoint() can come back stuck away
+  // from the real pointer position, reporting the island as permanently
+  // "outside" and collapsing the menu regardless of where the cursor
+  // actually is.
+  //
+  // We fixed this by ORing that signal with useMouseInElement's plain
+  // DOM-based isOutside, which tracks real pointer position and needs no
+  // OS-level cursor query. The menu now stays open whenever either signal
+  // agrees the pointer is inside, and only collapses once both agree it
+  // left.
+  await page.viewport(450, 300)
+  const { i18n, screen } = mountControlsIsland('bottom-right')
+  const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+  const toggle = screen.getByLabelText(label('expand'), { exact: true })
+  await toggle.click()
+  const island = screen.getByTestId('controls-island').element() as HTMLElement
+
+  // Simulate the Wayland bug: the Electron-tracked signal is stuck
+  // reporting "outside" the whole time, even while the real pointer sits
+  // on the island (a genuine click just landed there).
+  isOutside.value = true
+  await new Promise(resolve => setTimeout(resolve, 1700))
+  expect(screen.getByTestId('controls-menu').element().closest('[aria-hidden]')?.getAttribute('aria-hidden')).not.toBe('true')
+
+  // The pointer genuinely leaves: now both signals agree, so the menu
+  // collapses as it did before this fix.
+  island.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }))
+  document.dispatchEvent(new MouseEvent('mouseleave'))
+  await expect.poll(() => screen.getByTestId('controls-menu').element().closest('[aria-hidden]')?.getAttribute('aria-hidden'), { timeout: 3500 }).toBe('true')
 })
 
 // https://github.com/moeru-ai/airi/pull/2474
@@ -476,6 +518,11 @@ for (const dock of docks) {
     const settingsButton = screen.getByLabelText(i18n.global.t('tamagotchi.stage.controls-island.open-settings'), { exact: true }).element() as HTMLElement
     settingsButton.focus()
     isOutside.value = true
+    // The real DOM pointer signal (useMouseInElement) must also agree the
+    // cursor left, since #2521's fix ORs it with the Electron-tracked
+    // signal above — a real click leaves the browser's own pointer state
+    // "inside" until something moves it away.
+    document.dispatchEvent(new MouseEvent('mouseleave'))
     await expect.poll(() => toggle.getAttribute('aria-expanded'), { timeout: 3500 }).toBe('false')
     expect(document.activeElement).toBe(toggle)
     await expect.poll(() => island.offsetHeight === main.offsetHeight).toBe(true)

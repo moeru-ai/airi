@@ -4,7 +4,7 @@ import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInEl
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ScrollableArea, useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn, useMousePressed } from '@vueuse/core'
+import { refDebounced, useIntervalFn, useMouseInElement, useMousePressed } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -104,7 +104,29 @@ defineExpose({
   set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
 })
 
-const { isOutside } = useElectronMouseInElement(islandElement)
+// NOTICE:
+// `isOutside` from useElectronMouseInElement alone can never become
+// "inside" again for the rest of the session on a native Wayland desktop.
+// Root cause: it is driven by Electron's screen.getCursorScreenPoint(),
+// polled from the main process, and Chromium's Ozone/Wayland backend
+// cannot query the absolute cursor position the way X11 allows — the
+// value can come back stuck away from the real pointer position.
+// Source: reported on CachyOS + KDE Plasma (native Wayland), Flatpak
+// build; see https://github.com/moeru-ai/airi/issues/2521.
+// Fix: OR it with useMouseInElement's plain DOM-based `isOutside`, which
+// tracks real pointermove/scroll/resize on the island geometrically (no
+// sticky enter/leave state, so it self-corrects every time the pointer
+// moves) and needs no OS-level cursor query. The Electron-cursor signal
+// stays the one used elsewhere (e.g. hit-testing over click-through
+// regions of the window, where DOM events never reach the renderer at
+// all), so this only stops it from forcing a false collapse here.
+// Removal condition: once Electron's Ozone/Wayland backend can reliably
+// report the absolute cursor position (electron/electron upstream), or
+// this composable no longer needs to detect the pointer leaving the
+// window's click-through regions specifically.
+const { isOutside: isOutsideByCursor } = useElectronMouseInElement(islandElement)
+const { isOutside: isOutsideByDom } = useMouseInElement(islandElement)
+const isOutside = computed(() => isOutsideByCursor.value && isOutsideByDom.value)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
 watch(isOutsideAfter2seconds, (outside) => {
