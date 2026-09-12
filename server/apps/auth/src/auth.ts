@@ -23,6 +23,7 @@ import { eq } from 'drizzle-orm'
 import * as authSchema from '@proj-airi/auth-shared'
 
 import { ApiError } from './error'
+import { googleClientIds } from './google-client-ids'
 import { getAuthTrustedOrigins, getTrustedOrigin } from './origin'
 import { banGuard } from './plugins/ban-guard'
 import { oidcJwtBearer } from './plugins/oidc-jwt-bearer'
@@ -660,7 +661,7 @@ export function createAuth(
 
     socialProviders: {
       google: {
-        clientId: env.AUTH_GOOGLE_CLIENT_ID,
+        clientId: googleClientIds(env.AUTH_GOOGLE_CLIENT_ID, env.AUTH_GOOGLE_NATIVE_CLIENT_IDS),
         clientSecret: env.AUTH_GOOGLE_CLIENT_SECRET,
         // Force the provider's authorization page to let users choose an
         // identity before linking. Without this, an existing provider session
