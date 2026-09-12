@@ -85,11 +85,4 @@ describe('fluxService (DB-backed)', () => {
     expect(record.flux).toBe(42)
     expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '42')
   })
-
-  it('updateStripeCustomerId should update DB only', async () => {
-    await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 100 })
-
-    const result = await service.updateStripeCustomerId(testUser.id, 'cus_abc123')
-    expect(result!.stripeCustomerId).toBe('cus_abc123')
-  })
 })

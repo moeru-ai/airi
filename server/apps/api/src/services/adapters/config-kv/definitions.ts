@@ -1,6 +1,6 @@
 import type { InferOutput } from 'valibot'
 
-import { any, array, boolean, check, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
+import { any, array, boolean, check, minValue, nonEmpty, number, object, optional, picklist, pipe, record, regex, safeInteger, string } from 'valibot'
 
 /**
  * LLM/TTS router config tree. Single composite entry under configKV holds the
@@ -233,6 +233,35 @@ export const llmRouterConfigSchema = object({
   defaults: llmRouterDefaultsSchema,
 })
 
+// Processor mappings stay optional so a pack can exist without a Stripe Price.
+// Checkout rejects that pack. `object()` (not `strictObject`) strips unknown
+// processor keys, so another channel can write ConfigKV before its schema lands.
+const fluxPackSchema = object({
+  key: pipe(string(), nonEmpty('FLUX_PACKS[].key must not be empty')),
+  name: pipe(string(), nonEmpty('FLUX_PACKS[].name must not be empty')),
+  fluxAmount: pipe(number(), minValue(1, 'FLUX_PACKS[].fluxAmount must be >= 1'), safeInteger()),
+  recommended: optional(boolean(), false),
+  processors: optional(object({
+    stripe: optional(object({
+      priceId: pipe(string(), nonEmpty('FLUX_PACKS[].processors.stripe.priceId must not be empty')),
+    })),
+  }), {}),
+})
+
+const fluxPacksSchema = optional(pipe(
+  array(fluxPackSchema),
+  check(
+    packs => new Set(packs.map(pack => pack.key)).size === packs.length,
+    'FLUX_PACKS[].key must be unique',
+  ),
+  check((packs) => {
+    const priceIds = packs
+      .map(pack => pack.processors.stripe?.priceId)
+      .filter((priceId): priceId is string => priceId != null)
+    return new Set(priceIds).size === priceIds.length
+  }, 'FLUX_PACKS[].processors.stripe.priceId must be unique'),
+), [])
+
 /**
  * Config entry schemas are the single source of truth for:
  * - runtime validation
@@ -247,8 +276,8 @@ export const configEntrySchemas = {
   // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
   // 24h gives users a long-enough window for accumulated dust to settle naturally.
   TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
-  // No default — absent means top-up is not available yet
-  STRIPE_FLUX_PRODUCT_ID: optional(string()),
+  // Display prices come from Stripe Price hydration, not ConfigKV strings.
+  FLUX_PACKS: fluxPacksSchema,
   // No default — absent lets Stripe auto-select payment methods via Dashboard config
   STRIPE_PAYMENT_METHODS: optional(array(string())),
   STRIPE_PAYMENT_METHOD_OPTIONS: optional(record(string(), any()), {}),

@@ -79,21 +79,6 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       return record
     },
 
-    async updateStripeCustomerId(userId: string, stripeCustomerId: string) {
-      const [updated] = await db.update(schema.userFlux)
-        .set({
-          stripeCustomerId,
-          updatedAt: new Date(),
-        })
-        .where(and(
-          eq(schema.userFlux.userId, userId),
-          isNull(schema.userFlux.deletedAt),
-        ))
-        .returning()
-
-      return updated
-    },
-
     /**
      * Soft-delete the user's flux balance and drop the cached value from
      * Redis. Does NOT touch `flux_transaction` — that ledger is preserved
