@@ -20,9 +20,9 @@ export type DisplayModel
   = | DisplayModelFile
     | DisplayModelURL
 
-const presetLive2dProUrl = new URL('../assets/live2d/models/hiyori_pro_zh.zip', import.meta.url).href
-const presetLive2dFreeUrl = new URL('../assets/live2d/models/hiyori_free_zh.zip', import.meta.url).href
-const presetLive2dPreview = new URL('../assets/live2d/models/hiyori/preview.png', import.meta.url).href
+const presetLive2dProUrl = new URL('../../../stage-ui-live2d/models/hiyori/hiyori_pro_zh.zip', import.meta.url).href
+const presetLive2dFreeUrl = new URL('../../../stage-ui-live2d/models/hiyori/hiyori_free_zh.zip', import.meta.url).href
+const presetLive2dPreview = new URL('../../../stage-ui-live2d/models/hiyori/preview.png', import.meta.url).href
 const presetVrmAvatarAUrl = new URL('../assets/vrm/models/AvatarSample-A/AvatarSample_A.vrm', import.meta.url).href
 const presetVrmAvatarAPreview = new URL('../assets/vrm/models/AvatarSample-A/preview.png', import.meta.url).href
 const presetVrmAvatarBUrl = new URL('../assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm', import.meta.url).href
