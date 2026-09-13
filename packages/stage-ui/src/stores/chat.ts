@@ -12,7 +12,7 @@ import { createChatOrchestratorRuntime } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, shallowRef, toRaw } from 'vue'
+import { shallowRef, toRaw } from 'vue'
 
 import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
@@ -38,7 +38,7 @@ import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useWebSearchStore } from './modules/web-search'
-import { useSettingsBilingualSubtitles } from './settings/bilingual-subtitles'
+import { buildBilingualInstruction, useSettingsBilingualSubtitles } from './settings/bilingual-subtitles'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -146,15 +146,6 @@ export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 export const useChatStore = defineStore('chat', () => {
   const runtimePrompt = useAiriRuntimePrompt()
   const bilingualSettings = useSettingsBilingualSubtitles()
-  // The bilingual instruction shares the ReplaceSelf runtime-prompt context.
-  // Joining here keeps one context id, so turning the feature off removes the
-  // old instruction on the next send instead of leaving a stale context.
-  const effectiveRuntimePrompt = computed(() => {
-    const bilingualInstruction = bilingualSettings.instruction()
-    return [runtimePrompt.value, bilingualInstruction]
-      .filter(part => Boolean(part && part.trim()))
-      .join('\n\n')
-  })
   const authStore = useAuthStore()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
@@ -326,8 +317,13 @@ export const useChatStore = defineStore('chat', () => {
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     getBilingualSnapshot: () => bilingualSettings.snapshot(),
+    // Built from the same per-send snapshot the orchestrator captured before
+    // the async before-compose hook, so the prompt mode and the splitter mode
+    // can never disagree because settings changed mid-send.
+    getBilingualInstructionContext: snapshot =>
+      snapshot ? createRuntimePromptContext(buildBilingualInstruction(snapshot)) : undefined,
     runtimeContextProviders: [
-      () => createRuntimePromptContext(effectiveRuntimePrompt.value),
+      () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,
     ],
     createId: nanoid,

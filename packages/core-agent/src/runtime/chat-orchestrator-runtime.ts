@@ -258,6 +258,13 @@ export interface ChatOrchestratorRuntimeDeps {
    * splitting and leaves the text path unchanged.
    */
   getBilingualSnapshot?: () => BilingualTurnSnapshot | undefined
+  /**
+   * Builds the bilingual runtime prompt context for the snapshot captured at
+   * the start of this send. The orchestrator reads the snapshot before any
+   * async hook runs, so the injected prompt and the output splitter always
+   * use the same mode. Undefined result adds no context.
+   */
+  getBilingualInstructionContext?: (snapshot: BilingualTurnSnapshot | undefined) => ContextMessage | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -477,12 +484,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.foregroundStream.reset()
   }
 
-  function ingestRuntimeContexts() {
+  function ingestRuntimeContexts(bilingualSnapshot?: BilingualTurnSnapshot) {
     for (const provider of deps.runtimeContextProviders ?? []) {
       const contextMessage = provider()
       if (contextMessage)
         deps.context.ingest(contextMessage)
     }
+    const bilingualContext = deps.getBilingualInstructionContext?.(bilingualSnapshot)
+    if (bilingualContext)
+      deps.context.ingest(bilingualContext)
   }
 
   function getStablePromptTimestamp(message: ChatHistoryItem, fallbackCreatedAt: number) {
@@ -547,11 +557,19 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // must not inflate the one-time activation milestones.
     const isActivationAttempt = !existingSessionMessages.some(message => message.role === 'assistant')
 
+    // Capture the bilingual snapshot before any async hook and before the
+    // runtime contexts (which carry the bilingual prompt) are ingested. The
+    // prompt mode and the output splitter must share this one value: reading
+    // the settings again after `emitBeforeMessageComposedHooks` could pair a
+    // bilingual prompt with no splitter (brackets spoken aloud) or a splitter
+    // with no bilingual prompt (flush-only chunking on plain text).
+    const bilingualSnapshot = deps.getBilingualSnapshot?.()
+
     // Datetime is no longer injected through the side-channel context store.
     // It is applied at message-assembly time (see below) as a system-prompt
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
-    ingestRuntimeContexts()
+    ingestRuntimeContexts(bilingualSnapshot)
 
     const sendingCreatedAt = now()
 
@@ -697,10 +715,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const categorizer = createStreamingCategorizer(deps.getActiveProvider())
       let streamPosition = 0
 
-      // Read the bilingual settings once for this send. The splitter state is
-      // owned by this send, so later settings changes cannot leak brackets
-      // into TTS or pair translations with the wrong turn.
-      const bilingualSnapshot = deps.getBilingualSnapshot?.()
+      // Splitter state is owned by this send. The snapshot itself was
+      // captured before the async before-compose hook above.
       const bilingual = bilingualSnapshot
         ? createBilingualTurnSplitter()
         : undefined
