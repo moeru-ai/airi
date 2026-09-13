@@ -321,6 +321,13 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     }
     catch (err) {
       logger.warn('Speech pipeline intent failed:', err)
+      // The producer is dead: no further items will be scheduled. Seal so
+      // the manager emits intentDrained once items already playing finish
+      // (or immediately when none were scheduled). Without this the manager
+      // keeps tracking an intent that never drains, and the terminal turn
+      // cleanup never runs for that intent. Idempotent with the cancel
+      // path, which seals through stopByIntent.
+      options.playback.sealIntent?.(intent.intentId, intent.turnId)
     }
     finally {
       if (intent.canceled) {

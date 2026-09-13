@@ -128,13 +128,30 @@ export const useCharacterStore = defineStore('character', () => {
     if (splitter && snapshot) {
       // splitBilingualText already ingests both tracks into the caption bus
       // in wire order and flushes the chunker at each pair boundary.
-      const spoken = splitBilingualText(
+      let spoken = splitBilingualText(
         splitter,
         turnId,
         text,
         snapshot.translationLanguage,
         () => intent.writeLiteral(TTS_FLUSH_INSTRUCTION),
       )
+      // A message ending on a closed bracket leaves its last translation
+      // waiting for a look-ahead character that never arrives. Drain the
+      // splitter like the streaming reaction path does, or that final
+      // translation would never reach the caption bus. The subsequent
+      // writeFlush cuts its spoken sentence in the chunker.
+      for (const event of splitter.end()) {
+        if (event.kind === 'spoken') {
+          spoken += event.text
+        }
+        else {
+          bilingualCaptionBus.ingestTranslation(turnId, {
+            language: snapshot.translationLanguage,
+            pairId: event.pairId,
+            text: event.text,
+          })
+        }
+      }
       await parser.consume(spoken)
     }
     else {
