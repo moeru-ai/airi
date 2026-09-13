@@ -104,26 +104,18 @@ defineExpose({
   set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
 })
 
-// NOTICE:
-// `isOutside` from useElectronMouseInElement alone can never become
-// "inside" again for the rest of the session on a native Wayland desktop.
-// Root cause: it is driven by Electron's screen.getCursorScreenPoint(),
-// polled from the main process, and Chromium's Ozone/Wayland backend
-// cannot query the absolute cursor position the way X11 allows — the
-// value can come back stuck away from the real pointer position.
-// Source: reported on CachyOS + KDE Plasma (native Wayland), Flatpak
-// build; see https://github.com/moeru-ai/airi/issues/2521.
-// Fix: OR it with useMouseInElement's plain DOM-based `isOutside`, which
-// tracks real pointermove/scroll/resize on the island geometrically (no
-// sticky enter/leave state, so it self-corrects every time the pointer
-// moves) and needs no OS-level cursor query. The Electron-cursor signal
-// stays the one used elsewhere (e.g. hit-testing over click-through
-// regions of the window, where DOM events never reach the renderer at
-// all), so this only stops it from forcing a false collapse here.
-// Removal condition: once Electron's Ozone/Wayland backend can reliably
-// report the absolute cursor position (electron/electron upstream), or
-// this composable no longer needs to detect the pointer leaving the
-// window's click-through regions specifically.
+// NOTICE: On native Wayland, `isOutsideByCursor` can get permanently stuck
+// because it is driven by Electron's screen.getCursorScreenPoint(), which
+// Chromium's Ozone/Wayland backend cannot query reliably the way X11 does.
+// Source: https://github.com/moeru-ai/airi/issues/2521 (CachyOS + KDE
+// Plasma, Flatpak). OR it with the DOM-based `isOutsideByDom`
+// (useMouseInElement), which self-corrects on every pointermove and needs
+// no OS-level cursor query, so a broken cursor signal cannot force a false
+// collapse. The Electron-cursor signal stays the one used elsewhere (e.g.
+// hit-testing over click-through regions, where DOM events never reach the
+// renderer). Removal condition: once Ozone/Wayland reports the absolute
+// cursor position reliably upstream, or the click-through hit-testing no
+// longer depends on this composable.
 const { isOutside: isOutsideByCursor } = useElectronMouseInElement(islandElement)
 const { isOutside: isOutsideByDom } = useMouseInElement(islandElement)
 const isOutside = computed(() => isOutsideByCursor.value && isOutsideByDom.value)
