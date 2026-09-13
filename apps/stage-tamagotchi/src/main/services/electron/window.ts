@@ -4,7 +4,7 @@ import type { BrowserWindow } from 'electron'
 import type { ElectronWindowControlsState, ElectronWindowLifecycleState } from '../../../shared/eventa'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
+import { bounds, electronEvents, startLoopGetBounds } from '@proj-airi/electron-eventa'
 import { createRendererLoop, onWindowClosed, safeClose } from '@proj-airi/electron-vueuse/main'
 import { isMacOS, isWindows } from 'std-env'
 
@@ -40,7 +40,7 @@ export function createWindowService(params: {
       minimized: params.window.isMinimized(),
       reason,
       updatedAt: Date.now(),
-      visible: params.window.isVisible(),
+      visible: reason !== 'suspend' && params.window.isVisible(),
     }
   }
 
@@ -94,6 +94,11 @@ export function createWindowService(params: {
   params.window.on('unmaximize', emitWindowControlsState)
   params.window.on('enter-full-screen', emitWindowControlsState)
   params.window.on('leave-full-screen', emitWindowControlsState)
+
+  params.context.on(electronEvents.powerMonitor.suspended, () => emitWindowLifecycle('suspend'))
+  params.context.on(electronEvents.powerMonitor.lockScreen, () => emitWindowLifecycle('suspend'))
+  params.context.on(electronEvents.powerMonitor.resumed, () => emitWindowLifecycle('restore'))
+  params.context.on(electronEvents.powerMonitor.unlockScreen, () => emitWindowLifecycle('restore'))
 
   defineInvokeHandler(params.context, electron.window.getBounds, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
