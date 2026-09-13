@@ -117,6 +117,17 @@ export interface PlaybackIntentDrainedEvent {
 
 export type IntentBehavior = 'queue' | 'interrupt' | 'replace'
 
+/**
+ * Controls which TTS segments count as sentence boundaries.
+ *
+ * - `punctuation` (default): hard punctuation and flush markers both end a
+ *   sentence. Correct for ordinary TTS.
+ * - `flush`: only explicit flush markers end sentences. Bilingual turns use
+ *   this so the boundary count matches the translation-pair count exactly,
+ *   regardless of abbreviation periods or line breaks.
+ */
+export type SentenceBoundaryMode = 'punctuation' | 'flush'
+
 export interface IntentOptions {
   turnId?: string
   intentId?: string
@@ -124,6 +135,8 @@ export interface IntentOptions {
   priority?: PriorityLevel | number
   ownerId?: string
   behavior?: IntentBehavior
+  /** See {@link SentenceBoundaryMode}. Defaults to `punctuation`. */
+  boundaryMode?: SentenceBoundaryMode
 }
 
 export interface IntentHandle {

@@ -27,6 +27,15 @@ export interface TtsInputChunkOptions {
   maximumWords?: number
   stripNarrative?: boolean
   keepNarrativeText?: boolean
+  /**
+   * Bilingual mode: only the explicit flush marker cuts one spoken
+   * sentence. Sentence punctuation, abbreviation periods, and newlines
+   * stay inside the chunk, so the number of boundary chunks equals the
+   * number of translation pairs exactly. In the default punctuation mode
+   * any hard punctuation can end a chunk, which is correct for ordinary
+   * TTS but would emit a spurious mid-pair boundary in bilingual mode.
+   */
+  flushBoundaries?: boolean
 }
 
 export interface TtsChunkItem {
@@ -43,6 +52,7 @@ export async function* chunkTtsInput(
     boost = 2,
     minimumWords = 4,
     maximumWords = 12,
+    flushBoundaries = false,
   } = options ?? {}
 
   const iterator = readGraphemeClusters(
@@ -82,6 +92,17 @@ export async function* chunkTtsInput(
     const kept = keptPunctuations.has(value)
     let next: IteratorResult<string, void> | undefined
     let afterNext: IteratorResult<string, void> | undefined
+
+    if (flushBoundaries && !flush && !special && (hard || soft)) {
+      // Bilingual mode: punctuation never ends a pair. Line breaks become
+      // spaces so TTS does not receive raw newlines; abbreviation periods
+      // and every other punctuation stay in the chunk until the flush
+      // marker cuts the sentence exactly once per translation pair.
+      buffer += value === '\n' || value === '\r' || value === '\t' ? ' ' : value
+      previousValue = value
+      current = await iterator.next()
+      continue
+    }
 
     if (flush || special || hard || soft) {
       switch (value) {
@@ -386,7 +407,7 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
 
 export function createTtsSegmentStream(
   tokens: ReadableStream<TextToken>,
-  meta: { streamId: string, intentId: string, turnId?: string },
+  meta: { streamId: string, intentId: string, turnId?: string, flushBoundaries?: boolean },
   options?: TtsInputChunkOptions,
 ) {
   const { stream, write, close, error } = createPushStream<TextSegment>()
@@ -483,7 +504,7 @@ export function createTtsSegmentStream(
   void (async () => {
     const reader = byteStream.getReader()
     try {
-      await chunkEmitter(reader, pendingSpecials, options, async (chunk) => {
+      await chunkEmitter(reader, pendingSpecials, { ...options, flushBoundaries: meta.flushBoundaries ?? options?.flushBoundaries }, async (chunk) => {
         write({
           turnId: meta.turnId,
           streamId: meta.streamId,
@@ -493,7 +514,9 @@ export function createTtsSegmentStream(
           special: chunk.special,
           // Only hard punctuation and explicit flush markers end a
           // sentence. Word-limit and early-boost chunks are pieces of one
-          // sentence and must not advance sentence-aligned captions.
+          // sentence and must not advance sentence-aligned captions. In
+          // flush-boundary (bilingual) mode hard punctuation never cuts, so
+          // one flush chunk per translation pair is the only boundary.
           sentenceBoundary: chunk.reason === 'hard' || chunk.reason === 'flush',
           reason: chunk.reason,
           createdAt: Date.now(),

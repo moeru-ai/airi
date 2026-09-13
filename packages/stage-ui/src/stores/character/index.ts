@@ -111,6 +111,7 @@ export const useCharacterStore = defineStore('character', () => {
       ownerId: ownerId.value,
       priority: 'normal',
       behavior: 'queue',
+      boundaryMode: splitter ? 'flush' : undefined,
     })
 
     const parser = parserFactory({
@@ -179,6 +180,7 @@ export const useCharacterStore = defineStore('character', () => {
         ownerId: ownerId.value,
         priority: 'high',
         behavior: 'interrupt',
+        boundaryMode: bilingual ? 'flush' : undefined,
       })
 
       const parser = parserFactory({

@@ -51,6 +51,7 @@ import { useSpeechStore } from '../../stores/modules/speech'
 import { useProviderConfigStore } from '../../stores/providers/config'
 import { useProviderStore } from '../../stores/providers/provider'
 import { useSettings } from '../../stores/settings'
+import { useSettingsBilingualSubtitles } from '../../stores/settings/bilingual-subtitles'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
 
@@ -75,6 +76,7 @@ const tachieSceneRef = ref<InstanceType<typeof TachieScene>>()
 const mmdSceneRef = ref<InstanceType<typeof MMDScene>>()
 
 const settingsStore = useSettings()
+const bilingualSettingsStore = useSettingsBilingualSubtitles()
 const {
   stageModelRenderer,
   stageViewControlsEnabled,
@@ -848,6 +850,9 @@ function openTtsSession(turnId: string): StageTtsSession {
       ownerId: activeCardId.value,
       priority: 'normal',
       behavior: 'queue',
+      // Read per send: bilingual turns cut sentences only at flush markers
+      // so boundary count matches translation pairs one-to-one.
+      boundaryMode: bilingualSettingsStore.snapshot() ? 'flush' : undefined,
     }),
     hooks: {
       onError: (err) => {
