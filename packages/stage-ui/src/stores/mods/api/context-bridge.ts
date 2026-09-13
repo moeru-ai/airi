@@ -776,6 +776,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
           await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
+        chatOrchestrator.onTokenTranslation(async (translation, context) => {
+          if (isProcessingRemoteStream)
+            return
+
+          await contextChannel?.emitStream({ type: 'token-translation', translation, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+        }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
           if (isProcessingRemoteStream)
             return
@@ -881,6 +887,19 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               if (!presentRemoteStreamIfActive())
                 return
               await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
+              break
+            case 'token-translation':
+              // Subtitle-only event: it never touches the chat stream. Gate
+              // it with the same session, active-window, and generation
+              // guards as token-special, so a stale mirrored turn cannot
+              // populate captions in a window that shows another session.
+              if (!remoteStreamGuard.value || event.sessionId !== remoteStreamGuard.value.sessionId)
+                return
+              if (remoteStreamGuard.value.sessionId !== chatSession.activeSessionId)
+                return
+              if (chatSession.getSessionGenerationValue(remoteStreamGuard.value.sessionId) !== remoteStreamGuard.value.generation)
+                return
+              await chatOrchestrator.emitTokenTranslationHooks(event.translation, event.context)
               break
             case 'token-special':
               if (!remoteStreamGuard.value || event.sessionId !== remoteStreamGuard.value.sessionId)

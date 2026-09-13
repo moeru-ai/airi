@@ -1,21 +1,8 @@
 import type { ToolMessage } from '@xsai/shared-chat'
 
-import type { ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
+import type { ChatStreamEventContext, StreamingAssistantMessage, TokenTranslationPayload } from '../types/chat'
 
-/**
- * One translated fragment split from a bilingual response.
- *
- * The splitter emits these on the subtitle track only. TTS never receives
- * this text. Fragments with one pair id belong to one spoken sentence.
- */
-export interface TokenTranslationPayload {
-  /** ISO 639-1 code of the translation language, for example `zh`. */
-  language: string
-  /** Spoken-sentence pair this fragment translates. Ids increase in turn order. */
-  pairId: number
-  /** Raw fragment text, including surrounding whitespace from the model. */
-  text: string
-}
+export type { TokenTranslationPayload } from '../types/chat'
 
 export interface ChatHookRegistry {
   onBeforeMessageComposed: (cb: (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>) => () => void
