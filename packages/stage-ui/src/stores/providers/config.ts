@@ -4,7 +4,7 @@ import type { InferenceServiceProvider, ProviderValidationStatus } from '../../l
 import type { ProviderReplicaRow } from '../../services/inference-service-providers'
 import type { ProviderSyncRow, ProviderSyncSnapshot } from './merge'
 
-import { useDebounceFn, useLocalStorage } from '@vueuse/core'
+import { useDebounceFn, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
@@ -24,6 +24,8 @@ const providerStorageOptions = {
 } as const
 
 const PUSH_DEBOUNCE_MS = 1000
+/** Same idle interval as VS Code Settings Sync. */
+const PULL_INTERVAL_MS = 5 * 60 * 1000
 
 type StoredProvider = InferenceServiceProvider & {
   replicaUpdatedAt?: string
@@ -34,9 +36,10 @@ function isUserProvider(provider: InferenceServiceProvider) {
 }
 
 /**
- * Local providers are the primary copy. Cloud is a replica: pull on login,
- * push after a debounce. Upsert only configured rows. Do not upload status.
- * Merge prefers a config that works on this device, then replica time.
+ * Local providers are the primary copy. Cloud is a replica: pull on login
+ * and every five minutes while signed in, push after a debounce. Upsert only
+ * configured rows. Do not upload status. Merge prefers a config that works
+ * on this device, then replica time.
  */
 export const useProviderConfigStore = defineStore('provider-config', () => {
   const authStore = useAuthStore()
@@ -418,8 +421,21 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
   }
 
+  const periodicSync = useIntervalFn(
+    () => {
+      void syncProviders()
+    },
+    PULL_INTERVAL_MS,
+    { immediate: false },
+  )
+
   authStore.onAuthenticated(() => {
     void syncProviders()
+    periodicSync.resume()
+  })
+
+  authStore.onLogout(() => {
+    periodicSync.pause()
   })
 
   async function addProvider(definitionId: string, initialConfig: Record<string, unknown> = {}) {

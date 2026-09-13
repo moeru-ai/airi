@@ -34,9 +34,12 @@ class MemoryStorage implements Storage {
   }
 }
 
-const { authState, mocks } = vi.hoisted(() => ({
+const { authState, authHooks, mocks } = vi.hoisted(() => ({
   authState: {
     isAuthenticated: false,
+  },
+  authHooks: {
+    logout: undefined as (() => void) | undefined,
   },
   mocks: {
     client: {},
@@ -60,6 +63,10 @@ vi.mock('../auth', () => ({
     onAuthenticated: (hook: () => void) => {
       if (authState.isAuthenticated)
         hook()
+      return () => {}
+    },
+    onLogout: (hook: () => void) => {
+      authHooks.logout = hook
       return () => {}
     },
   }),
@@ -115,6 +122,7 @@ describe('provider config store', () => {
   })
 
   afterEach(() => {
+    authHooks.logout?.()
     vi.clearAllMocks()
     vi.unstubAllGlobals()
     vi.useRealTimers()
@@ -492,5 +500,26 @@ describe('provider config store', () => {
         config: { apiKey: 'sk-edited' },
       }),
     )
+  })
+
+  it('pulls the replica every five minutes while signed in', async () => {
+    vi.useFakeTimers()
+    authState.isAuthenticated = true
+    installStore()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(mocks.service.listRemote).toHaveBeenCalledTimes(1)
+
+    mocks.service.listRemote.mockClear()
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000 - 1)
+    expect(mocks.service.listRemote).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(mocks.service.listRemote).toHaveBeenCalledTimes(1)
+
+    authState.isAuthenticated = false
+    authHooks.logout?.()
+    mocks.service.listRemote.mockClear()
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+    expect(mocks.service.listRemote).not.toHaveBeenCalled()
   })
 })
