@@ -1,3 +1,5 @@
+import { TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
+
 import { getAuthToken } from '../auth'
 import { SERVER_URL } from '../server'
 
@@ -22,6 +24,16 @@ export interface StreamingTtsPipelineEvents {
    * playback manager from this callback.
    */
   onSentence?: (sentence: StreamingPipelineSentence) => void
+  /**
+   * Fires at each upstream sentence boundary (`sentence.end` or `subtitle`)
+   * in arrival order.
+   *
+   * Buffered TTS 2.0 emits one audio item for the whole session, so its
+   * audio callbacks cannot drive per-sentence UI. Boundary events arrive
+   * in step with the audio chunks and are the deterministic signal for
+   * advancing sentence-aligned captions.
+   */
+  onSentenceBoundary?: (text: string) => void
   /**
    * Surfaced for any post-upgrade failure (server `error` event, ws close
    * without `session.finished`, decode failure). Consumers should treat the
@@ -184,6 +196,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     sentenceChunks: ArrayBuffer[],
     sentenceChunkBytes: number,
     textOverride?: string,
+    drainSentenceTexts = false,
   ) {
     if (sentenceChunkBytes === 0)
       return
@@ -196,9 +209,19 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
 
     // Prefer the explicit override (the `sentence.end` payload's own text)
     // over the queued `sentence.start` text — `sentence.end` is the
-    // authoritative pairing. The queue covers the case where `sentence.end`
-    // arrives without a text field.
-    const text = textOverride ?? pendingSentenceTexts.shift() ?? ''
+    // authoritative pairing. In buffered mode one flush represents the
+    // whole session, so join every queued `subtitle` text instead of
+    // labeling the single item with only the first subtitle.
+    let text: string
+    if (textOverride != null) {
+      text = textOverride
+    }
+    else if (drainSentenceTexts) {
+      text = pendingSentenceTexts.splice(0, pendingSentenceTexts.length).join(' ')
+    }
+    else {
+      text = pendingSentenceTexts.shift() ?? ''
+    }
 
     try {
       // decodeAudioData needs a transferable ArrayBuffer; pass the buffer
@@ -212,7 +235,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     }
   }
 
-  function enqueueFlush(textOverride?: string): Promise<void> {
+  function enqueueFlush(textOverride?: string, drainSentenceTexts = false): Promise<void> {
     const sentenceChunks = chunks
     const sentenceChunkBytes = chunkBytes
     chunks = []
@@ -221,7 +244,9 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     // `.catch(() => {})` keeps a single decode failure from poisoning the
     // tail of the chain — failures already surface via `onError` inside
     // `flushAccumulatedAsSentence`.
-    pendingFlush = pendingFlush.then(() => flushAccumulatedAsSentence(sentenceChunks, sentenceChunkBytes, textOverride)).catch(() => {})
+    pendingFlush = pendingFlush
+      .then(() => flushAccumulatedAsSentence(sentenceChunks, sentenceChunkBytes, textOverride, drainSentenceTexts))
+      .catch(() => {})
     return pendingFlush
   }
 
@@ -284,9 +309,15 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
         break
       }
       case 'sentence.end': {
+        // `sentence.end` is the single per-sentence boundary in every mode:
+        // it arrives in band with the audio chunks, so captions anchored to
+        // it stay in order. Buffered mode keeps the audio accumulated and
+        // only uses this as the boundary signal.
+        const text = readSentenceText(evt.payload) ?? pendingSentenceTexts.shift() ?? ''
+        if (text)
+          options.onSentenceBoundary?.(text)
         if (bufferEntireSession)
           break
-        const text = readSentenceText(evt.payload) ?? pendingSentenceTexts.shift() ?? ''
         // Fire-and-forget into the serialized chain. We do NOT await here;
         // awaiting from the message handler does not block sibling handlers
         // (they run concurrently via `void handleControlFrame`), so an
@@ -297,10 +328,10 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
         break
       }
       case 'subtitle': {
-        // TTS 2.0 emits subtitle events asynchronously (may arrive after
-        // the next sentence's audio has already started). We surface the
-        // text via the queue but do NOT flush audio here — buffered mode
-        // flushes once at session.finished instead.
+        // TTS 2.0 emits subtitle text asynchronously (may arrive after the
+        // next sentence's audio started). Buffered mode keeps it for the
+        // single item label only; it must NOT also report a boundary, or
+        // captions would advance twice per sentence (subtitle + sentence.end).
         const text = readSentenceText(evt.payload)
         if (text != null)
           pendingSentenceTexts.push(text)
@@ -308,7 +339,9 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       }
       case 'session.finished': {
         sawSessionFinished = true
-        void enqueueFlush()
+        // One flush represents the whole buffered session. Join every queued
+        // subtitle text so consumers can match all spoken sentence pairs.
+        void enqueueFlush(undefined, true)
         void requestTerminate(null)
         break
       }
@@ -379,13 +412,19 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     appendText(text: string) {
       if (text.length === 0)
         return
+      // The bilingual orchestrator inserts zero-width-space flush markers
+      // for the REST chunker. The WebSocket model does its own sentence
+      // splitting and must never receive them.
+      const filtered = text.replaceAll(TTS_FLUSH_INSTRUCTION, '')
+      if (filtered.length === 0)
+        return
       // Pure-whitespace chunks (e.g. the " " between two LLM tokens) ARE
       // forwarded verbatim. Dropping them would corrupt the text the
       // upstream model sees ("hello" + " " + "world" → "helloworld").
       // The per-character billing cost is negligible compared to the
       // semantic risk; codex review LOW #7 noted the wasted units but
       // accepted the trade-off.
-      safeSend(JSON.stringify({ event: 'text', text }))
+      safeSend(JSON.stringify({ event: 'text', text: filtered }))
     },
     finish() {
       safeSend(JSON.stringify({ event: 'finish' }))

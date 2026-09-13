@@ -1,35 +1,38 @@
 /**
- * Streaming splitter for one bilingual assistant turn.
+ * Streaming splitter for one bilingual assistant turn (UST format).
  *
- * The model emits the spoken language and one or more translations in one
- * text stream. Each block starts with an uppercase language tag in square
- * brackets:
+ * The model speaks naturally and puts the translation of each sentence in
+ * square brackets immediately after it:
  *
  * ```text
- * [EN] Hello, how are you?
- * [ZH] 你好吗？
+ * Hello! [你好！] How are you? [你好吗？]
  * ```
  *
- * The splitter separates spoken text from translation text before the TTS
- * fork. Tag characters never appear in output events. Brackets that are not
- * configured language tags (for example markdown links or array indices) pass
- * through without a delay longer than the longest configured opener.
+ * Spoken text outside brackets goes to TTS and the chat surface. Text
+ * inside brackets goes to the translation subtitle hook only. One spoken
+ * run and the bracketed translation that closes it share one `pairId`.
+ *
+ * The parser protects ordinary bracket uses:
+ *
+ * - Markdown links `[text](url)` pass through as spoken text.
+ * - Numeric citations such as `[1]` pass through as spoken text.
+ * - Nested or unclosed brackets pass through as spoken text.
+ *
+ * Alignment downstream is positional: the prompt requires one spoken
+ * sentence (ending in sentence punctuation) per bracketed translation, so
+ * TTS segmentation and playback order map one playback item to one pair
+ * without comparing any text.
  */
 
 export interface BilingualLanguageEntry {
   /** ISO 639-1 code, for example `en` or `zh`. */
   code: string
-  /**
-   * Native language name shown in the settings page and on caption labels.
-   */
+  /** Native language name shown in the settings page and on caption labels. */
   label: string
 }
 
 /**
- * Languages supported by the bilingual feature in its first version.
- *
- * The wire tag is always the uppercase ISO 639-1 code. The prompt teaches one
- * spelling only. Do not accept model-invented variants such as `JA-JP`.
+ * Languages offered for the spoken and translated language selectors.
  */
 export const BILINGUAL_LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -46,17 +49,17 @@ export const BILINGUAL_LANGUAGES = [
   { code: 'th', label: 'ไทย' },
 ] as const satisfies readonly BilingualLanguageEntry[]
 
-export type BilingualLanguageCode = typeof BILINGUAL_LANGUAGES[number]['code']
-
 /**
- * Immutable settings for one turn. Capture this object before the turn starts
- * so that settings changes do not affect an in-flight response.
+ * Immutable settings for one turn. Capture this object before the turn
+ * starts so mid-send setting changes do not affect the in-flight response.
+ * The splitter itself is language-agnostic; these fields drive the model
+ * instruction and the caption label.
  */
 export interface BilingualTurnSnapshot {
   /** ISO 639-1 code of the language sent to TTS. */
   spokenLanguage: string
-  /** ISO 639-1 codes shown as subtitle translations, in display order. */
-  translationLanguages: string[]
+  /** ISO 639-1 code shown as the translated subtitle line. */
+  translationLanguage: string
 }
 
 export type BilingualTurnEvent
@@ -68,211 +71,133 @@ export type BilingualTurnEvent
   | {
     /** Text for the translated subtitle track. */
     kind: 'translation'
-    /** ISO 639-1 code of this translation language. */
-    language: string
-    /**
-     * Pair identifier. A spoken block opens a pair after a translation block.
-     * Translation blocks that follow the same spoken block share one id.
-     */
+    /** Sentence-pair id. The spoken run and its bracket share one id. */
     pairId: number
     text: string
   }
 
 export interface BilingualTurnSplitter {
-  /**
-   * Feeds one LLM text chunk and returns the events it produced.
-   *
-   * A language tag can span multiple chunks. Do not assume chunk boundaries.
-   */
+  /** Feeds one LLM chunk and returns the events it produced. */
   consume: (chunk: string) => BilingualTurnEvent[]
   /**
-   * Flushes held bytes at turn end. An unclosed tag candidate is released as
-   * ordinary text. Call this once when the LLM stream finishes.
+   * Flushes held bytes at turn end. A bracket waiting for its look-ahead
+   * character resolves as a translation; an unclosed bracket stays spoken.
    */
   end: () => BilingualTurnEvent[]
 }
 
-interface TagTarget {
-  /** Full opener including brackets, for example `[EN]`. */
-  opener: string
-  language: string
-  kind: 'spoken' | 'translation'
-}
-
-/** Returns the full bracket opener for an ISO 639-1 code. */
-function openerForCode(code: string): string {
-  return `[${code.toUpperCase()}]`
-}
-
-/** Character that follows a complete opener in markdown links. */
-const MARKDOWN_LINK_FOLLOW = '('
-
 /**
- * Creates a streaming splitter for one bilingual turn.
+ * Creates the streaming splitter for one turn.
  *
- * @example
- * const splitter = createBilingualTurnSplitter({
- *   spokenLanguage: 'en',
- *   translationLanguages: ['zh'],
- * })
- * splitter.consume('[EN] Hello\n[ZH] 你好\n')
- * // => [
- * //   { kind: 'spoken', text: ' Hello\n' },
- * //   { kind: 'translation', language: 'zh', pairId: 0, text: ' 你好\n' },
- * // ]
- * splitter.end()
- * // => []
+ * It is stateless regarding languages: the prompt names the pair of
+ * languages, and the caption layer labels the translation track itself.
  */
-export function createBilingualTurnSplitter(snapshot: BilingualTurnSnapshot): BilingualTurnSplitter {
-  // Without a spoken language there is no wire format. Pass all text through
-  // as spoken so a broken settings snapshot cannot mute a response.
-  if (!snapshot.spokenLanguage) {
-    return {
-      consume(chunk) {
-        return chunk.length > 0 ? [{ kind: 'spoken', text: chunk }] : []
-      },
-      end() {
-        return []
-      },
-    }
-  }
-
-  const targets: TagTarget[] = []
-
-  function addTarget(code: string, kind: TagTarget['kind']) {
-    if (code.length === 0)
-      return
-    if (targets.some(target => target.language === code))
-      return
-    targets.push({ opener: openerForCode(code), language: code, kind })
-  }
-
-  addTarget(snapshot.spokenLanguage, 'spoken')
-  for (const code of snapshot.translationLanguages) {
-    // A translation in the spoken language adds no second track. The caller
-    // filters this case, but the splitter keeps the guard for direct use.
-    if (code !== snapshot.spokenLanguage)
-      addTarget(code, 'translation')
-  }
-
-  const openers = targets.map(target => target.opener)
-  const maxOpenerLength = openers.reduce((max, opener) => Math.max(max, opener.length), 0)
-
-  // Held bytes that can still become an opener. Empty outside a candidate.
-  let pending = ''
-  let currentKind: TagTarget['kind'] = targets[0]?.kind ?? 'spoken'
-  let currentLanguage = targets[0]?.language ?? snapshot.spokenLanguage
+export function createBilingualTurnSplitter(): BilingualTurnSplitter {
+  /**
+   * Parser mode:
+   * - `normal`: outside brackets.
+   * - `bracket`: inside `[ ...` waiting for `]`.
+   * - `closed`: saw `[inner]`, waiting one character to rule out a markdown
+   *   link (`[inner](`) before committing the bracket as a translation.
+   */
+  let mode: 'normal' | 'bracket' | 'closed' = 'normal'
+  let bracketText = ''
+  let bracketDepth = 0
   let pairId = 0
 
-  function isPrefixOfAnOpener(text: string): boolean {
-    if (text.length > maxOpenerLength)
-      return false
-    // Case-sensitive: the prompt teaches the uppercase spelling. A lowercase
-    // candidate such as `[en]` is ordinary text and releases immediately.
-    return openers.some(opener => opener.startsWith(text))
-  }
-
-  function targetForOpener(text: string): TagTarget | undefined {
-    return targets.find(target => target.opener === text)
-  }
-
-  function switchTarget(target: TagTarget) {
-    if (target.kind === 'spoken') {
-      // A new spoken block after a translation block opens the next pair.
-      // Consecutive spoken blocks and repeated tags keep the current pair.
-      if (currentKind === 'translation')
-        pairId += 1
-    }
-    currentKind = target.kind
-    currentLanguage = target.language
-  }
-
-  function makeEvent(text: string): BilingualTurnEvent {
-    if (currentKind === 'spoken')
-      return { kind: 'spoken', text }
-    return { kind: 'translation', language: currentLanguage, pairId, text }
-  }
-
-  /**
-   * Merges text into the event list. Adjacent events with the same kind,
-   * language, and pair stay as one event.
-   */
-  function pushText(events: BilingualTurnEvent[], text: string) {
-    if (text.length === 0)
+  function emitSpoken(events: BilingualTurnEvent[], text: string) {
+    if (!text)
       return
     const last = events.at(-1)
-    if (last
-      && last.kind === currentKind
-      && (last.kind === 'spoken'
-        || (last.kind === 'translation' && last.language === currentLanguage && last.pairId === pairId))) {
+    if (last?.kind === 'spoken')
       last.text += text
-      return
-    }
-    events.push(makeEvent(text))
+    else
+      events.push({ kind: 'spoken', text })
   }
 
   /**
-   * Releases a candidate that cannot become an opener. Keeps the longest
-   * suffix that still matches an opener prefix, so a bracket inside the held
-   * bytes gets another chance.
+   * Resolves a closed bracket using the character that follows it.
+   * Returns without consuming when there is no next character yet.
    */
-  function releaseFailedCandidate(events: BilingualTurnEvent[], candidate: string) {
-    for (let index = candidate.length - 1; index >= 1; index -= 1) {
-      if (candidate[index] !== '[')
-        continue
-      const suffix = candidate.slice(index)
-      if (isPrefixOfAnOpener(suffix)) {
-        pushText(events, candidate.slice(0, index))
-        pending = suffix
-        return
-      }
+  function resolveClosed(events: BilingualTurnEvent[], nextChar?: string) {
+    const inner = bracketText
+    bracketText = ''
+
+    if (nextChar === undefined) {
+      // End of stream: decide from content alone.
+      mode = 'closed'
+      bracketText = inner
+      return
     }
-    pushText(events, candidate)
-    pending = ''
+
+    mode = 'normal'
+
+    // Markdown link: `[inner](` — the bracket and the character are spoken.
+    if (nextChar === '(') {
+      emitSpoken(events, `[${inner}](`)
+      return
+    }
+
+    // Nested brackets (matrix data, nested citations) never hold a
+    // translation. Citations [1], [12] and empty brackets stay spoken too.
+    const staysSpoken = inner.includes('[')
+      || inner.includes(']')
+      || /^\d*$/.test(inner)
+
+    if (staysSpoken) {
+      emitSpoken(events, `[${inner}]`)
+      emitSpoken(events, nextChar)
+      return
+    }
+
+    // Translation bracket. Spoken bytes already emitted carry this pairId;
+    // publish the translation, then the next spoken run opens a new pair.
+    if (inner.trim())
+      events.push({ kind: 'translation', pairId, text: inner })
+    else
+      emitSpoken(events, '[]')
+    pairId += 1
+
+    emitSpoken(events, nextChar)
   }
 
   function consume(chunk: string): BilingualTurnEvent[] {
     const events: BilingualTurnEvent[] = []
-    if (chunk.length === 0)
-      return events
 
     for (const char of chunk) {
-      if (pending.length > 0) {
-        const candidate = pending + char
-
-        if (isPrefixOfAnOpener(candidate)) {
-          pending = candidate
-          continue
+      if (mode === 'normal') {
+        if (char === '[') {
+          mode = 'bracket'
+          bracketText = ''
+          bracketDepth = 1
         }
+        else {
+          emitSpoken(events, char)
+        }
+        continue
+      }
 
-        // The held bytes are a complete opener. The new character is the
-        // boundary character that decides tag versus markdown link.
-        const completeTarget = targetForOpener(pending)
-        if (completeTarget) {
-          if (char === MARKDOWN_LINK_FOLLOW) {
-            pushText(events, pending + char)
-            pending = ''
+      if (mode === 'bracket') {
+        if (char === '[') {
+          bracketDepth += 1
+          bracketText += char
+        }
+        else if (char === ']') {
+          bracketDepth -= 1
+          if (bracketDepth === 0) {
+            mode = 'closed'
             continue
           }
-          pending = ''
-          switchTarget(completeTarget)
-          if (char === '[')
-            pending = '['
-          else
-            pushText(events, char)
-          continue
+          bracketText += char
         }
-
-        releaseFailedCandidate(events, candidate)
+        else {
+          bracketText += char
+        }
         continue
       }
 
-      if (char === '[') {
-        pending = '['
-        continue
-      }
-
-      pushText(events, char)
+      // mode === 'closed'
+      resolveClosed(events, char)
     }
 
     return events
@@ -280,12 +205,27 @@ export function createBilingualTurnSplitter(snapshot: BilingualTurnSnapshot): Bi
 
   function end(): BilingualTurnEvent[] {
     const events: BilingualTurnEvent[] = []
-    if (pending.length > 0) {
-      // An unclosed opener candidate at turn end is ordinary text.
-      const held = pending
-      pending = ''
-      pushText(events, held)
+
+    if (mode === 'bracket') {
+      // Unclosed bracket: keep every byte on the spoken track.
+      mode = 'normal'
+      emitSpoken(events, `[${bracketText}`)
+      bracketText = ''
     }
+    else if (mode === 'closed') {
+      // No look-ahead character arrived. Numeric content is a citation and
+      // stays spoken; anything else is the final translation block.
+      const inner = bracketText
+      mode = 'normal'
+      bracketText = ''
+      if (/^\d*$/.test(inner))
+        emitSpoken(events, `[${inner}]`)
+      else if (inner.trim())
+        events.push({ kind: 'translation', pairId, text: inner })
+      else
+        emitSpoken(events, '[]')
+    }
+
     return events
   }
 

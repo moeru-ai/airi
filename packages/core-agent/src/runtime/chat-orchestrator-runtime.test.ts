@@ -1,4 +1,3 @@
-import type { BilingualTurnSnapshot } from '@proj-airi/pipelines-audio'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
@@ -53,7 +52,6 @@ function createHarness() {
   })
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
   let systemPromptSupplement: string | undefined
-  let bilingualSnapshot: BilingualTurnSnapshot | undefined
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
   let monotonicNowValues = [1000]
   let generation = 1
@@ -84,7 +82,6 @@ function createHarness() {
     getActiveSessionId: () => 'session-1',
     getActiveProvider: () => 'mock-provider',
     getSystemPromptSupplement: () => systemPromptSupplement,
-    getBilingualSnapshot: () => bilingualSnapshot,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
     createId: () => ids.shift() ?? 'generated-id',
@@ -137,11 +134,6 @@ function createHarness() {
     systemPromptSupplement: {
       set: (next: string | undefined) => {
         systemPromptSupplement = next
-      },
-    },
-    bilingualSnapshot: {
-      set: (next: BilingualTurnSnapshot | undefined) => {
-        bilingualSnapshot = next
       },
     },
     telemetry,
@@ -1176,108 +1168,5 @@ describe('createChatOrchestratorRuntime', () => {
     ])
     expect(harness.assistantAppended).toHaveLength(1)
     expect(harness.foregroundResets).toHaveLength(1)
-  })
-
-  describe('bilingual response splitting', () => {
-    async function runBilingualStream(snapshot: BilingualTurnSnapshot | undefined, deltas: string[]) {
-      const harness = createHarness()
-      harness.bilingualSnapshot.set(snapshot)
-      const literalEvents: string[] = []
-      const translationEvents: Array<{ language: string, pairId: number, text: string }> = []
-      harness.runtime.hooks.onTokenLiteral(async (literal) => {
-        literalEvents.push(literal)
-      })
-      harness.runtime.hooks.onTokenTranslation(async (payload) => {
-        translationEvents.push({ ...payload })
-      })
-      harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
-        for (const text of deltas)
-          await options?.onStreamEvent?.({ type: 'text-delta', text })
-        await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
-      })
-
-      await harness.runtime.ingest('bilingual please', {
-        model: 'gpt-test',
-        chatProvider: provider,
-      })
-
-      const assistant = harness.sessionMessages['session-1']?.at(-1) as StreamingAssistantMessage
-      return { assistant, literalEvents, translationEvents }
-    }
-
-    it('routes spoken text to TTS hooks and translations to translation hooks', async () => {
-      const { assistant, literalEvents, translationEvents } = await runBilingualStream(
-        { spokenLanguage: 'en', translationLanguages: ['zh'] },
-        ['[EN] Hello\n', '[ZH] 你好\n', '[EN] Bye\n', '[ZH] 再见'],
-      )
-
-      expect(literalEvents.join('')).toBe(' Hello\n Bye\n')
-      expect(translationEvents).toEqual([
-        { language: 'zh', pairId: 0, text: ' 你好\n' },
-        { language: 'zh', pairId: 1, text: ' 再见' },
-      ])
-      // Translations are subtitle-only. The bubble and stored history keep
-      // the spoken reply without tags or translations.
-      expect(assistant.content).toBe(' Hello\n Bye\n')
-      const textSlices = assistant.slices.filter(slice => slice.type === 'text')
-      expect(textSlices.map(slice => slice.text).join('')).toBe(' Hello\n Bye\n')
-    })
-
-    it('keeps the byte-for-byte path when no snapshot is configured', async () => {
-      const raw = '[EN] Hello\n[ZH] 你好'
-      const { assistant, literalEvents, translationEvents } = await runBilingualStream(undefined, [raw])
-
-      expect(translationEvents).toEqual([])
-      expect(literalEvents.join('')).toBe(raw)
-      expect(assistant.content).toBe(raw)
-    })
-
-    it('treats a tag-free model response as fully spoken when enabled', async () => {
-      const { assistant, literalEvents, translationEvents } = await runBilingualStream(
-        { spokenLanguage: 'en', translationLanguages: ['zh'] },
-        ['plain ', 'reply'],
-      )
-
-      expect(translationEvents).toEqual([])
-      expect(literalEvents.join('')).toBe('plain reply')
-      expect(assistant.content).toBe('plain reply')
-    })
-
-    it('keeps an unclosed trailing tag on the translation track in the stored message', () => {
-      // ROOT CAUSE:
-      //
-      // A turn can end while the splitter holds `[EN` after a translation
-      // block. The end flush used the spoken branch only, so the held bytes
-      // never reached the bubble or the persisted message. Flush on the
-      // active track instead.
-      return runBilingualStream(
-        { spokenLanguage: 'en', translationLanguages: ['zh'] },
-        ['[EN] Hello\n[ZH] ni\n[EN'],
-      ).then(({ assistant, literalEvents, translationEvents }) => {
-        // Translation fragments reach the subtitle track; the truncated tail
-        // stays visible in the message but is never sent to TTS.
-        expect(literalEvents.join('')).toBe(' Hello\n')
-        expect(translationEvents.map(event => event.text).join('')).toBe(' ni\n')
-        expect(assistant.content).toBe(' Hello\n[EN')
-      })
-    })
-
-    it('passes markdown links to TTS verbatim while splitting is enabled', () => {
-      // ROOT CAUSE:
-      //
-      // A hold-back parser that treats every `[` as a language tag start eats
-      // markdown links such as [docs](https://example.com). The splitter must
-      // release a candidate as soon as it cannot match a configured tag.
-      //
-      // We verify this through the orchestrator because TTS receives its text
-      // from the literal hook, so a swallowed bracket would mute the link.
-      return runBilingualStream(
-        { spokenLanguage: 'en', translationLanguages: ['zh'] },
-        ['See [docs](https://example.com) now'],
-      ).then(({ literalEvents, translationEvents }) => {
-        expect(literalEvents.join('')).toBe('See [docs](https://example.com) now')
-        expect(translationEvents).toEqual([])
-      })
-    })
   })
 })

@@ -98,6 +98,13 @@ export interface StreamingSessionSnapshot {
  */
 export interface PlaybackManagerSubset<TAudio> {
   schedule: (item: PlaybackItem<TAudio>) => void
+  /**
+   * Seals the intent after the upstream session terminated. Sentence
+   * items keep arriving one by one over the WebSocket, so the playback
+   * manager must only treat the intent as drained after this seal (and
+   * once the last scheduled item ends). Optional for test doubles.
+   */
+  sealIntent?: (intentId: string) => void
   stopByIntent: (intentId: string, reason: string) => void
 }
 
@@ -112,6 +119,12 @@ export interface StreamingSessionHooks {
   onError?: (err: Error) => void
   /** Called once when the ws terminates (success or error follows). */
   onDone?: () => void
+  /**
+   * Called at each upstream sentence boundary in arrival order. Used to
+   * advance sentence-aligned captions in buffered mode, where only one
+   * audio item exists for the whole session.
+   */
+  onSentenceBoundary?: (text: string) => void
 }
 
 export interface CreateStreamingSessionOptions<TAudio = AudioBuffer> {
@@ -176,6 +189,10 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
         priority: 0,
         text: text ?? '',
         special: null,
+        // Non-buffered streaming emits one item per server sentence, so each
+        // item ends a sentence. The buffered session emits one item for the
+        // whole turn and aligns via onSentenceBoundary instead.
+        sentenceBoundary: !snapshot.bufferEntireSession,
         audio: audio as unknown as TAudio,
         createdAt: Date.now(),
       })
@@ -183,8 +200,16 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
     onError: (err) => {
       hooks?.onError?.(err)
     },
+    onSentenceBoundary: (text) => {
+      hooks?.onSentenceBoundary?.(text)
+    },
     onDone: () => {
       terminated = true
+      // The pipeline awaits all pending flushes before onDone, so every
+      // sentence item has already been scheduled. Seal now; the terminal
+      // drain event fires once the last queued item actually finishes
+      // (or immediately when the session produced no audio at all).
+      playbackManager.sealIntent?.(intentId)
       hooks?.onDone?.()
     },
   })

@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { setCharacterLlmMarkerParserFactoryForTest, useCharacterStore } from './character'
 import { useAiriCardStore } from './modules'
-import { useSettingsBilingualSubtitles } from './settings/bilingual-subtitles'
 import { useSpeechRuntimeStore } from './speech-runtime'
 
 vi.mock('vue-i18n', () => ({
@@ -133,40 +132,6 @@ describe('store character', () => {
     })
 
     nowSpy.mockRestore()
-  })
-
-  it('keeps bilingual spark translations out of TTS and reaction history', async () => {
-    const store = useCharacterStore()
-    const settings = useSettingsBilingualSubtitles()
-    // createTestingPinia exposes setup-store refs as unwrapped state.
-    settings.enabled = true
-    settings.spokenLanguage = 'en'
-    settings.translationLanguages = ['zh']
-
-    try {
-      store.onSparkNotifyReactionStreamEvent('spark-bilingual', '[EN] Hello\n')
-      store.onSparkNotifyReactionStreamEvent('spark-bilingual', '[ZH] 你好\n')
-      store.onSparkNotifyReactionStreamEnd('spark-bilingual', '[EN] Hello\n[ZH] 你好\n')
-
-      // The speech intent is opened with the spark turn id for caption pairing.
-      const openIntentOptions = (openSpeechIntentSpy.mock.calls as unknown[][])[0]?.[0] as { turnId?: string } | undefined
-      expect(openIntentOptions?.turnId).toBe('spark:spark-bilingual')
-
-      await vi.waitFor(() => {
-        expect(parserEndSpy).toHaveBeenCalled()
-        expect(writeFlushSpy).toHaveBeenCalled()
-        expect(endSpy).toHaveBeenCalled()
-      })
-
-      // TTS receives the spoken block only, never the translation.
-      expect(writeLiteralSpy.mock.calls.map(call => call[0]).join('')).toBe(' Hello\n')
-      // The recorded reaction is the spoken projection without tags/translation.
-      const recorded = store.reactions.find(item => item.sourceEventId === 'spark-bilingual')
-      expect(recorded?.message).toBe(' Hello\n')
-    }
-    finally {
-      settings.enabled = false
-    }
   })
 
   it('ignores stream end when no streaming reaction exists', () => {

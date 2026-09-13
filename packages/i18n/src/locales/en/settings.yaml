@@ -555,11 +555,8 @@ pages:
       spoken_language:
         label: Spoken language (text-to-speech)
         description: The language that text-to-speech reads aloud.
-      subtitle_language_1:
-        label: Subtitle language 1
-      subtitle_language_2:
-        label: Subtitle language 2
-      none: None
+      translation_subtitle_1:
+        label: Translation subtitle 1
       voice_warning: The selected text-to-speech voice may not support the spoken language. Check the voice in Speech settings.
     beat_sync:
       description: Vibe with beats from the audio source

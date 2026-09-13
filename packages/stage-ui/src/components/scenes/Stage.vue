@@ -602,6 +602,11 @@ speechPipeline.on('onSpecial', (segment) => {
 
 speechPipeline.on('onTurnEnd', (turnId) => {
   streamingControl.completeTurn(turnId)
+  // Covers the REST/segmenter path, including turns where TTS produced no
+  // audio (null results): flush any translation pairs playback never
+  // reached. Turns with audio already flushed via the playback drain event,
+  // and the flush is idempotent.
+  bilingualCaptionBus.flushTurn(turnId)
 })
 
 speechPipeline.on('onTurnCancel', ({ turnId }) => {
@@ -631,14 +636,34 @@ bindSpeakingStateToPlaybackManager(playbackManager, {
     catch {
       // BroadcastChannel may be closed - don't break playback
     }
-    bilingualCaptionBus.routePlaybackItem(item)
     try {
       postPresent({ type: 'assistant-append', text: item.text })
     }
     catch {
       // BroadcastChannel may be closed - don't break playback
     }
+
+    // Reveal the translation when its sentence STARTS, so the translated
+    // line and the spoken line change together. Only the item flagged as
+    // the sentence boundary advances the queue: a long sentence can be
+    // split into several items by the word-limit chunker. The buffered
+    // WebSocket session emits one item for the whole turn without the flag
+    // and advances through `onSentenceBoundary` instead.
+    if (item.sentenceBoundary) {
+      bilingualCaptionBus.routePlaybackItem({
+        turnId: item.turnId,
+        intentId: item.intentId,
+      })
+    }
   },
+})
+
+// The whole utterance finished (every scheduled item ended, including ones
+// queued behind others). This is the moment to reveal translations playback
+// never reached. Never flush while audio is still pending: that used to dump
+// every remaining translation at once near the start of long replies.
+playbackManager.onIntentDrained(({ intentId, turnId }) => {
+  bilingualCaptionBus.flushIntent(intentId, turnId)
 })
 
 function startLipSyncLoop() {
@@ -807,13 +832,14 @@ function openTtsSession(turnId: string): StageTtsSession {
   // would null a still-active chat session and drop the rest of the reply. Capture the session and
   // compare identity; the `stream-` guard is preserved so segmenter sessions still don't self-clear.
   let session: StageTtsSession | null = null
+  const streamingSnapshot = buildStreamingSnapshot(turnId)
   const clearIfActive = () => {
     if (session && currentSession === session && session.intentId.startsWith('stream-'))
       currentSession = null
   }
   session = createStageTtsSession<AudioBuffer>({
     transport: resolveSpeechTransport(activeSpeechProvider.value),
-    streaming: () => buildStreamingSnapshot(turnId),
+    streaming: () => streamingSnapshot,
     audioContext,
     playbackManager,
     openIntent: opts => speechRuntimeStore.openIntent(opts),
@@ -831,12 +857,27 @@ function openTtsSession(turnId: string): StageTtsSession {
           error: err,
         })
         // Drop the failed session so no further audio is queued, but let the
-        // playback manager keep draining already-queued audio and emit its own
-        // terminal events. Calling resetSpeakingState() here would force the
-        // mouth shut while audio is still playing.
+        // playback manager keep draining already-queued audio. The session
+        // adapter seals the intent on termination (onDone always follows
+        // onError), so the terminal intent-drained event performs the final
+        // translation flush once audio actually stops — immediately when the
+        // session produced no audio at all. Flushing here would dump
+        // subtitles while queued audio is still playing.
         clearIfActive()
       },
+      onSentenceBoundary: () => {
+        // Only buffered TTS (one audio item for the whole session) uses
+        // upstream boundary events. Non-buffered streaming emits one item
+        // per sentence, whose playback start drives the queue. Advancing
+        // here too would double-count.
+        if (!streamingSnapshot?.bufferEntireSession)
+          return
+        bilingualCaptionBus.advancePlayback(turnId)
+      },
       onDone: () => {
+        // Stream closed, but scheduled audio may still be playing. The
+        // playback intent-drained event performs the final flush once audio
+        // actually finishes, so nothing is dumped early here.
         clearIfActive()
       },
     },
@@ -882,7 +923,7 @@ chatHookCleanups.push(onBeforeSend(async () => {
 chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
   if (context.turnId !== activeSpeechTurnId)
     return
-  bilingualCaptionBus.ingestSpoken(context.turnId, literal)
+  bilingualCaptionBus.ingestSpoken(context.turnId)
   currentSession?.appendText(literal)
 }))
 
@@ -907,12 +948,13 @@ chatHookCleanups.push(onStreamEnd(async () => {
   currentSession?.finishInput()
 }))
 
-chatHookCleanups.push(onAssistantResponseEnd(async (_message, context) => {
+chatHookCleanups.push(onAssistantResponseEnd(async () => {
   currentSession?.end()
-  // Pairs whose playback never started (a rejected or trimmed TTS item)
-  // publish on turn end. Muted speech shows no caption surface at all.
-  if (!speechMuted.value && context.turnId === activeSpeechTurnId)
-    bilingualCaptionBus.endTurn(context.turnId)
+  // No timed translation dump here: translations for pairs playback never
+  // reaches are flushed when the utterance actually finishes — the playback
+  // manager's intent-drained event, speechPipeline onTurnEnd, or the
+  // streaming session's onDone hook. A timer at text-end would reveal every
+  // remaining translation while long replies are still speaking.
   // Streaming sessions null-out via the onDone hook; segmenter sessions
   // stay around until the next `onBeforeMessageComposed` cancels them
   // (the segmenter pipeline's IntentHandle.end is idempotent and

@@ -1,4 +1,4 @@
-import type { BilingualTurnEvent, BilingualTurnSnapshot, BilingualTurnSplitter } from '@proj-airi/pipelines-audio'
+import type { BilingualTurnEvent, BilingualTurnSnapshot } from '@proj-airi/pipelines-audio'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
@@ -7,7 +7,7 @@ import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, ErrorMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
-import { createBilingualTurnSplitter } from '@proj-airi/pipelines-audio'
+import { createBilingualTurnSplitter, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
 import { createQueue } from '@proj-airi/stream-kit'
 
 import { formatContextPromptText } from '../messages/context-prompt'
@@ -698,11 +698,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       let streamPosition = 0
 
       // Read the bilingual settings once for this send. The splitter state is
-      // owned by this send, so later settings changes cannot leak tags into
-      // TTS or pair translations with the wrong turn.
+      // owned by this send, so later settings changes cannot leak brackets
+      // into TTS or pair translations with the wrong turn.
       const bilingualSnapshot = deps.getBilingualSnapshot?.()
-      const bilingual: BilingualTurnSplitter | undefined = bilingualSnapshot
-        ? createBilingualTurnSplitter(bilingualSnapshot)
+      const bilingual = bilingualSnapshot
+        ? createBilingualTurnSplitter()
         : undefined
 
       function appendTextToBuildingMessage(text: string) {
@@ -724,8 +724,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // reaches the chat message, so history keeps just the spoken reply.
       async function applyBilingualEvent(event: BilingualTurnEvent): Promise<boolean> {
         if (event.kind === 'translation') {
+          // Flush the spoken sentence in the TTS segmenter at the pair
+          // boundary. The chunker cuts on sentence punctuation already;
+          // the zero-width flush instruction is the deterministic fallback
+          // when the model omitted punctuation. It never reaches the bubble
+          // and the chunker strips it before synthesis.
+          await hooks.emitTokenLiteralHooks(TTS_FLUSH_INSTRUCTION, streamingMessageContext)
           await hooks.emitTokenTranslationHooks({
-            language: event.language,
+            language: bilingualSnapshot!.translationLanguage,
             pairId: event.pairId,
             text: event.text,
           }, streamingMessageContext)
@@ -1002,15 +1008,26 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
 
-      // Release a tag candidate still held at stream end, for example an
-      // unclosed `[EN`. Append it to the message so truncated bytes stay
-      // visible, but never send it to TTS or the subtitle track.
+      // Flush splitter state at stream end. A final translation block
+      // without a closing bracket still reaches the subtitle track; an
+      // unclosed bracket candidate stays in the message but never reaches
+      // TTS.
       if (bilingual) {
-        const tail = bilingual.end()
-          .map(event => event.text)
-          .join('')
-        if (tail) {
-          appendTextToBuildingMessage(tail)
+        let spokenTail = ''
+        for (const event of bilingual.end()) {
+          if (event.kind === 'spoken') {
+            spokenTail += event.text
+          }
+          else {
+            await hooks.emitTokenTranslationHooks({
+              language: bilingualSnapshot!.translationLanguage,
+              pairId: event.pairId,
+              text: event.text,
+            }, streamingMessageContext)
+          }
+        }
+        if (spokenTail) {
+          appendTextToBuildingMessage(spokenTail)
           updateStream(sessionId, buildingMessage)
         }
       }

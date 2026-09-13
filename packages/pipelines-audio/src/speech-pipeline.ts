@@ -31,6 +31,12 @@ export interface SpeechPipelineOptions<TAudio> {
   ttsMaxConcurrent?: number
   playback: {
     schedule: (item: PlaybackItem<TAudio>) => void
+    /**
+     * Seals an intent after its producer finished. The playback manager can
+     * then emit its terminal drain event once every item ended. Optional
+     * for adapter compatibility; without it no drain event is emitted.
+     */
+    sealIntent?: (intentId: string, turnId?: string) => void
     stopAll: (reason: string) => void
     stopByIntent: (intentId: string, reason: string) => void
     stopByOwner: (ownerId: string, reason: string) => void
@@ -195,6 +201,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
             priority: intent.priority,
             text: completedRequest.text,
             special: completedRequest.special,
+            sentenceBoundary: completedRequest.sentenceBoundary,
             audio: completedRequest.audio,
             createdAt: Date.now(),
           })
@@ -236,6 +243,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           sequence: request.sequence,
           text: request.text,
           special: request.special,
+          sentenceBoundary: request.sentenceBoundary,
           audio,
           createdAt: Date.now(),
         }
@@ -285,6 +293,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           sequence: nextRequestSequence++,
           text: value.text,
           special: value.special,
+          sentenceBoundary: value.sentenceBoundary,
           priority: intent.priority,
           createdAt: Date.now(),
         }
@@ -296,6 +305,11 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       await Promise.allSettled(inFlightTasks)
       scheduleCompletedRequests()
       await timeline.flush('speech')
+      // Producer side is finished and every scheduled playback item has
+      // ended. Seal so the manager emits the single terminal drain event.
+      // Without the seal, transient gaps between streaming items would
+      // look like premature drains and dump subtitles mid-turn.
+      options.playback.sealIntent?.(intent.intentId, intent.turnId)
       reader.releaseLock()
     }
     catch (err) {

@@ -1,6 +1,6 @@
 import type { BilingualTurnSplitter, IntentHandle } from '@proj-airi/pipelines-audio'
 
-import { createBilingualTurnSplitter } from '@proj-airi/pipelines-audio'
+import { createBilingualTurnSplitter, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, reactive, ref } from 'vue'
@@ -23,12 +23,14 @@ export interface CharacterSparkNotifyReaction {
 }
 
 interface ReactionBilingualState {
-  /** Per-reaction snapshot splitter. Undefined when bilingual mode is off. */
+  /** Per-reaction splitter. Undefined when bilingual mode is off. */
   splitter: BilingualTurnSplitter
   /** Caption bus turn id, same value as the speech intent turnId. */
   turnId: string
   /** Spoken projection accumulated for the final reaction message. */
   spokenText: string
+  /** ISO 639-1 code of the translation language, for caption payloads. */
+  translationLanguage: string
 }
 
 interface StreamingReactionState {
@@ -62,11 +64,19 @@ export const useCharacterStore = defineStore('character', () => {
   const speechRuntimeStore = useSpeechRuntimeStore()
 
   /**
-   * Splits one text block through the bilingual snapshot when enabled.
-   * Returns spoken fragments for the marker parser and TTS; translation
-   * fragments go straight to the caption bus.
+   * Splits one text block through the bilingual splitter.
+   * Returns spoken fragments for the marker parser and TTS. Spoken and
+   * translation fragments reach the caption bus in wire order, and a flush
+   * instruction marks each pair boundary in the TTS chunker so one spoken
+   * sentence becomes one playback item.
    */
-  function splitBilingualText(splitter: BilingualTurnSplitter | undefined, turnId: string, text: string): string {
+  function splitBilingualText(
+    splitter: BilingualTurnSplitter | undefined,
+    turnId: string,
+    text: string,
+    translationLanguage: string,
+    flush?: () => void,
+  ): string {
     if (!splitter)
       return text
 
@@ -74,10 +84,12 @@ export const useCharacterStore = defineStore('character', () => {
     for (const event of splitter.consume(text)) {
       if (event.kind === 'spoken') {
         spoken += event.text
+        bilingualCaptionBus.ingestSpoken(turnId)
       }
       else {
+        flush?.()
         bilingualCaptionBus.ingestTranslation(turnId, {
-          language: event.language,
+          language: translationLanguage,
           pairId: event.pairId,
           text: event.text,
         })
@@ -92,7 +104,7 @@ export const useCharacterStore = defineStore('character', () => {
     // and the caption bus can handle it like a reaction.
     const snapshot = bilingualSettings.snapshot()
     const turnId = `spark:direct:${nanoid()}`
-    const splitter = snapshot ? createBilingualTurnSplitter(snapshot) : undefined
+    const splitter = snapshot ? createBilingualTurnSplitter() : undefined
 
     const intent = speechRuntimeStore.openIntent({
       turnId: splitter ? turnId : undefined,
@@ -112,9 +124,16 @@ export const useCharacterStore = defineStore('character', () => {
       },
     })
 
-    if (splitter) {
-      const spoken = splitBilingualText(splitter, turnId, text)
-      bilingualCaptionBus.ingestSpoken(turnId, spoken)
+    if (splitter && snapshot) {
+      // splitBilingualText already ingests both tracks into the caption bus
+      // in wire order and flushes the chunker at each pair boundary.
+      const spoken = splitBilingualText(
+        splitter,
+        turnId,
+        text,
+        snapshot.translationLanguage,
+        () => intent.writeLiteral(TTS_FLUSH_INSTRUCTION),
+      )
       await parser.consume(spoken)
     }
     else {
@@ -122,12 +141,9 @@ export const useCharacterStore = defineStore('character', () => {
     }
     await parser.end()
 
-    if (splitter) {
-      // An unclosed tag candidate stays out of TTS; publish any translations
-      // whose audio never starts immediately, which is acceptable here
-      // because direct output is not sentence-aligned upstream.
-      bilingualCaptionBus.endTurn(turnId)
-    }
+    // Leftover translations are flushed by the speech pipeline's onTurnEnd
+    // and the playback manager's intent-drained event, once audio actually
+    // finishes — not here at text end.
 
     intent.writeFlush()
     intent.end()
@@ -144,11 +160,11 @@ export const useCharacterStore = defineStore('character', () => {
       }) satisfies CharacterSparkNotifyReaction
 
       // Read bilingual settings once per reaction. Mid-reaction settings
-      // changes cannot leak tags into TTS or pair the wrong translation.
+      // changes cannot leak brackets into TTS or pair the wrong translation.
       const snapshot = bilingualSettings.snapshot()
       const turnId = `spark:${sparkEventId}`
       const bilingual = snapshot
-        ? { splitter: createBilingualTurnSplitter(snapshot), turnId, spokenText: '' }
+        ? { splitter: createBilingualTurnSplitter(), turnId, spokenText: '', translationLanguage: snapshot.translationLanguage }
         : undefined
       if (bilingual) {
         for (const previousTurnId of activeSparkTurnIds)
@@ -188,7 +204,13 @@ export const useCharacterStore = defineStore('character', () => {
 
     // Spoken text feeds the marker parser and TTS, and becomes the stored
     // reaction message. Translation text goes to the caption bus only.
-    const spoken = splitBilingualText(state.bilingual.splitter, state.bilingual.turnId, chunk)
+    const spoken = splitBilingualText(
+      state.bilingual.splitter,
+      state.bilingual.turnId,
+      chunk,
+      state.bilingual.translationLanguage,
+      () => state.intent.writeLiteral(TTS_FLUSH_INSTRUCTION),
+    )
     state.bilingual.spokenText += spoken
     state.reaction.message += spoken
     if (spoken)
@@ -200,26 +222,37 @@ export const useCharacterStore = defineStore('character', () => {
     if (!state)
       return
 
-    // With bilingual mode the raw full text still contains tags and
-    // translations; persist the spoken projection instead. A truncated tag
-    // candidate stays visible in the message but never reaches TTS.
+    // With bilingual mode the raw full text contains brackets and
+    // translations; persist the spoken projection instead. A final
+    // translation block without a closing bracket still reaches the
+    // caption bus, while an unclosed candidate stays in the message.
     let persistedText = fullText
     if (state.bilingual) {
-      const tail = state.bilingual.splitter.end()
-        .map(event => event.text)
-        .join('')
-      state.bilingual.spokenText += tail
+      let spokenTail = ''
+      for (const event of state.bilingual.splitter.end()) {
+        if (event.kind === 'spoken') {
+          spokenTail += event.text
+        }
+        else {
+          bilingualCaptionBus.ingestTranslation(state.bilingual.turnId, {
+            language: state.bilingual.translationLanguage,
+            pairId: event.pairId,
+            text: event.text,
+          })
+        }
+      }
+      state.bilingual.spokenText += spokenTail
       persistedText = state.bilingual.spokenText
     }
     state.reaction.message = persistedText
     recordSparkNotifyReaction(sparkEventId, persistedText, { metadata: options?.metadata })
 
     void state.parser.end().then(() => {
-      if (state.bilingual) {
-        // Publish pairs whose audio never started (interrupted or rejected).
-        bilingualCaptionBus.endTurn(state.bilingual.turnId)
+      if (state.bilingual)
         activeSparkTurnIds.delete(state.bilingual.turnId)
-      }
+
+      // Pairs that playback never reaches are flushed by the pipeline
+      // onTurnEnd and the playback intent-drained event, not by a timer.
 
       state.intent.writeFlush()
       state.intent.end()

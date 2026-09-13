@@ -107,8 +107,8 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
     for (const item of matchedItems)
       clearTimer(item.id)
 
-    // Reflect the event label exactly. A multi-language event sends no label
-    // and renders inline names, so a previous single-language badge is removed.
+    // Reflect the event label exactly. A clear event without text removes
+    // the item before this branch, so a replacement always carries a badge.
     const replacement: CaptionItem = {
       ...currentItem,
       text: event.text,
