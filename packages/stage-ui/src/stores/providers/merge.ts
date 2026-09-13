@@ -12,6 +12,14 @@ export interface ProviderSyncSnapshot {
   pendingDeletes: Record<string, string | null>
 }
 
+/**
+ * Ids that work on this device. Omit a side to treat every live row on that side as working.
+ */
+export interface ProviderMergeWorkingIds {
+  local?: ReadonlySet<string>
+  remote?: ReadonlySet<string>
+}
+
 function replicaTime(value?: string | null): number {
   if (!value)
     return 0
@@ -33,12 +41,17 @@ function copyRemoteLive(remoteRow: ProviderReplicaRow): ProviderSyncRow {
 /**
  * replicaUpdatedAt is the last successful upload, not a local edit clock.
  * A stripped persist copy can keep that stamp, so equal timestamps apply
- * the cloud row.
+ * the cloud row when both sides work, or when neither side works.
  *
- * A missing local live row is not a delete. pendingDeletes is the only
- * local delete signal.
+ * A config that works on this device beats replica time. A remote-only row
+ * that does not work here is not adopted. A missing local live row is not a
+ * delete. pendingDeletes is the only local delete signal.
  */
-export function mergeProviderSync(local: ProviderSyncSnapshot, remote: ProviderReplicaRow[]): ProviderSyncSnapshot {
+export function mergeProviderSync(
+  local: ProviderSyncSnapshot,
+  remote: ProviderReplicaRow[],
+  workingIds: ProviderMergeWorkingIds = {},
+): ProviderSyncSnapshot {
   const remoteById = new Map(remote.map(row => [row.id, row]))
   const ids = new Set([
     ...Object.keys(local.live),
@@ -56,6 +69,8 @@ export function mergeProviderSync(local: ProviderSyncSnapshot, remote: ProviderR
     const remoteRow = remoteById.get(id)
     const localTime = replicaTime(localLive?.replicaUpdatedAt ?? localDeleteAt)
     const remoteTime = replicaTime(remoteRow?.updatedAt)
+    const localWorks = !!localLive && (!workingIds.local || workingIds.local.has(id))
+    const remoteWorks = !!remoteRow && !remoteRow.deletedAt && (!workingIds.remote || workingIds.remote.has(id))
 
     if (!remoteRow) {
       if (localLive)
@@ -68,10 +83,21 @@ export function mergeProviderSync(local: ProviderSyncSnapshot, remote: ProviderR
     if (hasLocalDelete) {
       const remoteIsNewerLive = !remoteRow.deletedAt && remoteTime > localTime
       const remoteTombstoneWins = !!remoteRow.deletedAt && remoteTime >= localTime
-      if (remoteIsNewerLive)
+      if (remoteIsNewerLive && remoteWorks)
         live[id] = copyRemoteLive(remoteRow)
       else if (!remoteTombstoneWins)
         pendingDeletes[id] = localDeleteAt!
+      continue
+    }
+
+    if (!remoteRow.deletedAt && !localLive && !remoteWorks)
+      continue
+
+    if (!remoteRow.deletedAt && localWorks !== remoteWorks) {
+      if (localWorks && localLive)
+        live[id] = localLive
+      else
+        live[id] = copyRemoteLive(remoteRow)
       continue
     }
 

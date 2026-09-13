@@ -35,8 +35,8 @@ function isUserProvider(provider: InferenceServiceProvider) {
 
 /**
  * Local providers are the primary copy. Cloud is a replica: pull on login,
- * push after a debounce. Upsert only configured rows. Do not upload status;
- * after a pull, the provider store validates locally.
+ * push after a debounce. Upsert only configured rows. Do not upload status.
+ * Merge prefers a config that works on this device, then replica time.
  */
 export const useProviderConfigStore = defineStore('provider-config', () => {
   const authStore = useAuthStore()
@@ -49,6 +49,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   let replicaMerged = false
   let syncInFlight: Promise<void> | undefined
   const afterSyncHooks: Array<() => void | Promise<void>> = []
+  let remoteWorkingCheck: ((row: ProviderReplicaRow) => Promise<boolean>) | undefined
 
   function onAfterSync(hook: () => void | Promise<void>) {
     afterSyncHooks.push(hook)
@@ -57,6 +58,10 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       if (index >= 0)
         afterSyncHooks.splice(index, 1)
     }
+  }
+
+  function onRemoteWorking(check: (row: ProviderReplicaRow) => Promise<boolean>) {
+    remoteWorkingCheck = check
   }
 
   // Import the previous provider configuration shape once. Provider ids remain
@@ -117,15 +122,18 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
   }
 
-  function indexLiveRemote(remote: ProviderReplicaRow[]) {
+  function indexAcceptedReplica(merged: ProviderSyncSnapshot, remote: ProviderReplicaRow[]) {
+    const remoteLiveIds = new Set(remote.filter(row => !row.deletedAt).map(row => row.id))
     const next: Record<string, ProviderReplicaRow> = {}
-    for (const row of remote) {
-      if (row.deletedAt)
+    for (const row of Object.values(merged.live)) {
+      if (!remoteLiveIds.has(row.id))
         continue
       next[row.id] = {
-        ...row,
-        // Copy config so a later local write is not compared against itself.
+        id: row.id,
+        definitionId: row.definitionId,
         config: { ...row.config },
+        updatedAt: row.replicaUpdatedAt ?? '',
+        deletedAt: null,
       }
     }
     lastLiveRemote = next
@@ -304,6 +312,33 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     pendingDeletes.value = merged.pendingDeletes
   }
 
+  function localWorkingIds() {
+    const ids = new Set<string>()
+    for (const provider of Object.values(providers.value)) {
+      if (isUserProvider(provider) && provider.status === 'configured')
+        ids.add(provider.id)
+    }
+    return ids
+  }
+
+  async function remoteWorkingIds(remote: ProviderReplicaRow[]) {
+    const ids = new Set<string>()
+    for (const row of remote) {
+      if (row.deletedAt)
+        continue
+      if (!remoteWorkingCheck) {
+        ids.add(row.id)
+        continue
+      }
+      try {
+        if (await remoteWorkingCheck(row))
+          ids.add(row.id)
+      }
+      catch {}
+    }
+    return ids
+  }
+
   async function syncProviders() {
     if (!authStore.isAuthenticated)
       return
@@ -316,8 +351,12 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     syncInFlight = (async () => {
       try {
         const remote = await service.listRemote(client)
-        applyMerged(mergeProviderSync(snapshotLocal(), remote))
-        indexLiveRemote(remote)
+        const merged = mergeProviderSync(snapshotLocal(), remote, {
+          local: localWorkingIds(),
+          remote: await remoteWorkingIds(remote),
+        })
+        applyMerged(merged)
+        indexAcceptedReplica(merged, remote)
         replicaMerged = true
       }
       catch {
@@ -451,6 +490,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     updateProviderConfig,
     resetProviders,
     onAfterSync,
+    onRemoteWorking,
   }
 }, {
   synced: {
