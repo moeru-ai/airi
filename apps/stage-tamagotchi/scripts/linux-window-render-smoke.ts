@@ -30,9 +30,18 @@ import { dirname, resolve } from 'node:path'
 import { env, exit, kill as killProcess } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-import { errorMessageFromValue } from '@proj-airi/stage-shared'
+// NOTICE: do not import the stage-shared barrel here. It re-exports
+// environment.ts, which reads `import.meta.env` at module scope. tsx runs
+// this script outside Vite, so `import.meta.env` is undefined and the
+// import crashes before the smoke starts (see PR #2519 CI failure). Use
+// @moeru/std directly instead.
+import { errorMessageFrom } from '@moeru/std'
 
 import { CdpClient, findAvailablePort, findDebugTarget, isRecord, sleep, waitForRemoteDebug } from './lib/remote-debug'
+
+function errorMessageFromValue(error: unknown): string {
+  return errorMessageFrom(error) ?? String(error)
+}
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repoDir = resolve(packageDir, '../..')
