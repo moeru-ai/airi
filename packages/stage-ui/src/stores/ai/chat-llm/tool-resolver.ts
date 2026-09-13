@@ -2,9 +2,10 @@ import type { StreamOptions } from '@proj-airi/core-agent'
 import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { Tool } from '@xsai/shared-chat'
 
+import { createSparkCommandTool } from '@proj-airi/core-agent/agents/spark-command'
 import { uniqBy } from 'es-toolkit'
 
-import { createSparkCommandTool, createWebSearchTools, debug, mcp } from '../../../tools'
+import { createWebSearchTools, debug, mcp } from '../../../tools'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useWebSearchStore } from '../../modules/web-search'
 import { useLlmToolsStore } from './tools'
