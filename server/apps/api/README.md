@@ -12,6 +12,16 @@ auth/OIDC routes.
 - Redis cache, configuration KV, and cross-instance Pub/Sub.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
 
+## Payment
+
+`src/services/domain/payment` owns pack grant and `payment_order` rows.
+Checkout and package list live in the Stripe adapter on `/api/v1/stripe/*`.
+ConfigKV stores `STRIPE_FLUX_PRODUCT_ID`. The adapter lists that product's
+Prices from Stripe. `GET /packages` returns `stripePriceId`. Checkout accepts
+`stripePriceId`. Label, flux amount, and display prices come from Price
+metadata and Stripe amounts.
+The adapter maps a verified session onto a `ClaimReceipt`, then calls `settle`.
+
 ## Run locally
 
 ```sh
