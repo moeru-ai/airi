@@ -2,7 +2,6 @@ import type { TokenTranslationPayload } from '@proj-airi/core-agent'
 import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 
 import { BILINGUAL_LANGUAGES } from '@proj-airi/pipelines-audio'
-import { useBroadcastChannel } from '@vueuse/core'
 
 import { createBilingualCaptionTracker } from '../composables/use-bilingual-captions'
 
@@ -58,23 +57,36 @@ function createBus(): BilingualCaptionBus {
 
   let post: ((event: CaptionChannelEvent) => void) | undefined
 
-  function emit(events: CaptionChannelEvent[]) {
-    if (events.length === 0)
-      return
-    try {
-      post ??= useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' }).post
-    }
-    catch {
-      return
-    }
-    for (const event of events) {
+  // Native channel instead of VueUse's useBroadcastChannel: VueUse creates
+  // its channel inside tryOnMounted, which never runs when the first emit
+  // happens from an async chat/TTS hook without a component scope. The
+  // result is a `post` that silently no-ops, dropping every translation
+  // event. The native constructor has no lifecycle requirement.
+  function resolvePost(): ((event: CaptionChannelEvent) => void) | undefined {
+    if (post)
+      return post
+    if (typeof BroadcastChannel === 'undefined')
+      return undefined
+    const channel = new BroadcastChannel('airi-caption-overlay')
+    post = (event) => {
       try {
-        post(event)
+        channel.postMessage(event)
       }
       catch {
         // BroadcastChannel may be closed - don't break the producer.
       }
     }
+    return post
+  }
+
+  function emit(events: CaptionChannelEvent[]) {
+    if (events.length === 0)
+      return
+    const send = resolvePost()
+    if (!send)
+      return
+    for (const event of events)
+      send(event)
   }
 
   function stopRevealPoller(turnId: string) {
