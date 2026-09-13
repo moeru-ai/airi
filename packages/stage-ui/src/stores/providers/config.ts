@@ -5,6 +5,7 @@ import type { ProviderReplicaRow } from '../../services/inference-service-provid
 import type { ProviderSyncRow, ProviderSyncSnapshot } from './merge'
 
 import { useDebounceFn, useLocalStorage } from '@vueuse/core'
+import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { computed, watch } from 'vue'
@@ -119,12 +120,12 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   function indexLiveRemote(remote: ProviderReplicaRow[]) {
     const next: Record<string, ProviderReplicaRow> = {}
     for (const row of remote) {
-      if (!row.deletedAt) {
-        next[row.id] = {
-          ...row,
-          // Copy config so a later local write is not compared against itself.
-          config: { ...row.config },
-        }
+      if (row.deletedAt)
+        continue
+      next[row.id] = {
+        ...row,
+        // Copy config so a later local write is not compared against itself.
+        config: { ...row.config },
       }
     }
     lastLiveRemote = next
@@ -134,7 +135,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     const remote = lastLiveRemote[provider.id]
     if (!remote)
       return true
-    return JSON.stringify(replicaBody(provider)) !== JSON.stringify(replicaBody(remote))
+    return !isEqual(replicaBody(provider), replicaBody(remote))
   }
 
   const schedulePush = useDebounceFn(() => {
@@ -337,12 +338,18 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function pushProviders() {
-    if (!authStore.isAuthenticated || !replicaMerged)
+    if (!authStore.isAuthenticated)
       return
 
     const toUpsert = Object.values(providers.value).filter(provider =>
       isUserProvider(provider) && isDirty(provider) && provider.status === 'configured',
     )
+
+    if (!replicaMerged) {
+      if (toUpsert.length === 0 && Object.keys(pendingDeletes.value).length === 0)
+        return
+      return syncProviders()
+    }
 
     for (const provider of toUpsert) {
       try {

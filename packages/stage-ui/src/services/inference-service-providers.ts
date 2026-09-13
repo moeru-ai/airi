@@ -43,14 +43,14 @@ export interface InferenceServiceProvidersRemoteClient {
 
 function asReplicaRow(value: unknown): ProviderReplicaRow {
   const item = value as {
-    id: string
+    configId: string
     definitionId: string
     config?: Record<string, unknown>
     updatedAt: string
     deletedAt?: string | null
   }
   return {
-    id: item.id,
+    id: item.configId, // replica identity; server PK is not used for merge
     definitionId: item.definitionId,
     config: item.config ?? {},
     updatedAt: item.updatedAt,

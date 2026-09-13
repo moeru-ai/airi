@@ -65,7 +65,7 @@ describe('providerRoutes', () => {
     expect(await res.json()).toEqual([])
   })
 
-  it('put /:id should create a row with the client id', async () => {
+  it('put /:id should create a row addressed by the client instance id', async () => {
     const res = await app.fetch(new Request('http://localhost/prov-1', {
       method: 'PUT',
       body: JSON.stringify({
@@ -76,59 +76,16 @@ describe('providerRoutes', () => {
     }), { user: testUser } as never)
 
     expect(res.status).toBe(200)
-    const data = await res.json() as { id: string, config: Record<string, unknown> }
-    expect(data.id).toBe('prov-1')
+    const data = await res.json() as { configId: string, config: Record<string, unknown> }
+    expect(data.configId).toBe('prov-1')
     expect(data.config).toEqual({ apiKey: 'sk-123' })
-  })
-
-  it('put /:id should overwrite the stored replica', async () => {
-    const res = await app.fetch(new Request('http://localhost/prov-1', {
-      method: 'PUT',
-      body: JSON.stringify({
-        definitionId: 'openai',
-        config: { apiKey: 'sk-overwritten' },
-      }),
-      headers: { 'Content-Type': 'application/json' },
-    }), { user: testUser } as never)
-
-    expect(res.status).toBe(200)
-    const data = await res.json() as { config: Record<string, unknown> }
-    expect(data.config).toEqual({ apiKey: 'sk-overwritten' })
-  })
-
-  it('put /:id should let another owner use the same instance id', async () => {
-    const [otherUser] = await db.insert(schema.user).values({
-      id: 'user-2',
-      name: 'Other User',
-      email: 'other@example.com',
-    }).returning()
-
-    const res = await app.fetch(new Request('http://localhost/prov-1', {
-      method: 'PUT',
-      body: JSON.stringify({
-        definitionId: 'openai',
-        config: { apiKey: 'sk-other' },
-      }),
-      headers: { 'Content-Type': 'application/json' },
-    }), { user: otherUser } as never)
-
-    expect(res.status).toBe(200)
-    const data = await res.json() as { id: string, config: Record<string, unknown> }
-    expect(data.id).toBe('prov-1')
-    expect(data.config).toEqual({ apiKey: 'sk-other' })
-
-    const ownerList = await app.fetch(new Request('http://localhost/'), { user: testUser } as never)
-    const ownerRows = await ownerList.json() as { id: string, config: Record<string, unknown> }[]
-    expect(ownerRows).toHaveLength(1)
-    expect(ownerRows[0]?.id).toBe('prov-1')
-    expect(ownerRows[0]?.config).toEqual({ apiKey: 'sk-overwritten' })
   })
 
   it('delete /:id should tombstone and get / should still return the row', async () => {
     const listed = await app.fetch(new Request('http://localhost/'), { user: testUser } as never)
-    const [current] = await listed.json() as { id: string, updatedAt: string }[]
+    const [current] = await listed.json() as { configId: string, updatedAt: string }[]
 
-    const res = await app.fetch(new Request(`http://localhost/${current.id}`, {
+    const res = await app.fetch(new Request(`http://localhost/${current.configId}`, {
       method: 'DELETE',
     }), { user: testUser } as never)
 

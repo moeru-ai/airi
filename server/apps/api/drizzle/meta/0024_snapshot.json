@@ -1635,12 +1635,19 @@
       "columns": {
         "id": {
           "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner_id": {
+          "name": "owner_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "owner_id": {
-          "name": "owner_id",
+        "config_id": {
+          "name": "config_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -1678,17 +1685,31 @@
           "notNull": false
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "user_provider_configs_owner_id_id_pk": {
-          "name": "user_provider_configs_owner_id_id_pk",
+      "indexes": {
+        "user_provider_configs_owner_config_uidx": {
+          "name": "user_provider_configs_owner_config_uidx",
           "columns": [
-            "owner_id",
-            "id"
-          ]
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "config_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},

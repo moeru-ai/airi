@@ -74,8 +74,8 @@ describe('providerService.deleteAllForUser', () => {
   it('marks every userProviderConfigs row owned by the user', async () => {
     await db.insert(schema.user).values({ id: 'u-prov-1', name: 'P', email: 'p@example.com' })
     await db.insert(schema.userProviderConfigs).values([
-      { id: 'p-a', ownerId: 'u-prov-1', definitionId: 'openai', config: 'v1.x.x.x' },
-      { id: 'p-b', ownerId: 'u-prov-1', definitionId: 'anthropic', config: 'v1.x.x.x' },
+      { configId: 'openai', ownerId: 'u-prov-1', definitionId: 'openai', config: 'v1.x.x.x' },
+      { configId: 'anthropic', ownerId: 'u-prov-1', definitionId: 'anthropic', config: 'v1.x.x.x' },
     ])
 
     const service = createProviderService(db, createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) }))
@@ -88,7 +88,7 @@ describe('providerService.deleteAllForUser', () => {
 
   it('does not touch other users rows', async () => {
     await db.insert(schema.user).values({ id: 'u-prov-other', name: 'O', email: 'o@example.com' })
-    await db.insert(schema.userProviderConfigs).values({ id: 'p-kept', ownerId: 'u-prov-other', definitionId: 'openai', config: 'v1.x.x.x' })
+    await db.insert(schema.userProviderConfigs).values({ configId: 'openai', ownerId: 'u-prov-other', definitionId: 'openai', config: 'v1.x.x.x' })
 
     const service = createProviderService(db, createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) }))
     await service.deleteAllForUser('u-prov-1')

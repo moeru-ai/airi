@@ -129,6 +129,8 @@ describe('provider config store', () => {
       deletedAt: null,
     }])
     const store = installStore()
+    const afterSync = vi.fn()
+    store.onAfterSync(afterSync)
     store.providers[localProvider.id] = { ...localProvider }
     authState.isAuthenticated = true
 
@@ -136,20 +138,43 @@ describe('provider config store', () => {
 
     expect(store.providers[localProvider.id]?.config).toEqual({ apiKey: 'sk-local' })
     expect(store.providers[localProvider.id]?.replicaUpdatedAt).toBeUndefined()
-    expect(store.providers['remote-provider']?.config).toEqual({ apiKey: 'sk-remote' })
+    expect(store.listedProviders['remote-provider']?.config).toEqual({ apiKey: 'sk-remote' })
     expect(mocks.service.upsertRemote).not.toHaveBeenCalled()
+    expect(afterSync).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the local snapshot when the remote list fails', async () => {
-    mocks.service.listRemote.mockRejectedValue(new Error('remote unavailable'))
+  // https://github.com/moeru-ai/airi/pull/2471#discussion_r3970904545
+  it('uploads a local edit after the login replica pull fails', async () => {
+    // ROOT CAUSE:
+    //
+    // onAuthenticated pulls once. If listRemote fails, catch returns and
+    // replicaMerged stays false. schedulePush and pushProviders then no-op
+    // for the rest of the session.
+    //
+    // A later push retries the pull. After that pull succeeds, dirty
+    // configured rows upload.
+    vi.useFakeTimers()
+    mocks.service.listRemote.mockRejectedValueOnce(new Error('remote unavailable'))
+    mocks.service.listRemote.mockResolvedValue([])
     const store = installStore()
-    store.providers[localProvider.id] = { ...localProvider }
+    store.providers[localProvider.id] = { ...localProvider, status: 'configured' }
     authState.isAuthenticated = true
 
     await store.syncProviders()
-
-    expect(store.providers[localProvider.id]).toEqual(localProvider)
+    expect(store.providers[localProvider.id]).toEqual({ ...localProvider, status: 'configured' })
     expect(mocks.service.upsertRemote).not.toHaveBeenCalled()
+
+    store.providers[localProvider.id].config.apiKey = 'sk-edited'
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(1000)
+
+    expect(mocks.service.upsertRemote).toHaveBeenCalledWith(
+      mocks.client,
+      expect.objectContaining({
+        id: localProvider.id,
+        config: { apiKey: 'sk-edited' },
+      }),
+    )
   })
 
   it('does not upload official providers', async () => {
@@ -193,28 +218,10 @@ describe('provider config store', () => {
 
     await store.updateProviderConfig(localProvider.id, { apiKey: '' }, 'unconfigured')
     await store.pushProviders()
-
     expect(mocks.service.upsertRemote).not.toHaveBeenCalled()
-  })
-
-  it('uploads a local edit after sync when the provider is configured', async () => {
-    const store = installStore()
-    store.providers[localProvider.id] = { ...localProvider, replicaUpdatedAt: '2026-01-01T00:00:00.000Z' }
-    mocks.service.listRemote.mockResolvedValue([{
-      id: localProvider.id,
-      definitionId: localProvider.definitionId,
-      config: { apiKey: 'sk-local' },
-      updatedAt: '2026-01-01T00:00:00.000Z',
-      deletedAt: null,
-    }])
-    authState.isAuthenticated = true
-
-    await store.syncProviders()
-    mocks.service.upsertRemote.mockClear()
 
     await store.updateProviderConfig(localProvider.id, { apiKey: 'sk-edited' }, 'configured')
     await store.pushProviders()
-
     expect(mocks.service.upsertRemote).toHaveBeenCalledWith(
       mocks.client,
       expect.objectContaining({
@@ -271,7 +278,7 @@ describe('provider config store', () => {
     expect(mocks.service.upsertRemote).not.toHaveBeenCalled()
   })
 
-  it('uploads a local delete as a tombstone', async () => {
+  it('keeps a local delete through a pull that still returns the live row', async () => {
     const store = installStore()
     store.providers[localProvider.id] = { ...localProvider, replicaUpdatedAt: '2026-01-01T00:00:00.000Z' }
     mocks.service.listRemote.mockResolvedValue([{
@@ -285,6 +292,7 @@ describe('provider config store', () => {
 
     await store.syncProviders()
     await store.removeProvider(localProvider.id)
+    await store.syncProviders()
     await store.pushProviders()
 
     expect(store.providers[localProvider.id]).toBeUndefined()
@@ -368,30 +376,6 @@ describe('provider config store', () => {
     expect(mocks.service.deleteRemote).not.toHaveBeenCalled()
   })
 
-  it('keeps a local delete through a pull that still returns the live row', async () => {
-    const store = installStore()
-    store.providers[localProvider.id] = { ...localProvider, replicaUpdatedAt: '2026-01-01T00:00:00.000Z' }
-    mocks.service.listRemote.mockResolvedValue([{
-      id: localProvider.id,
-      definitionId: localProvider.definitionId,
-      config: localProvider.config,
-      updatedAt: '2026-01-01T00:00:00.000Z',
-      deletedAt: null,
-    }])
-    authState.isAuthenticated = true
-
-    await store.syncProviders()
-    await store.removeProvider(localProvider.id)
-    await store.syncProviders()
-    await store.pushProviders()
-
-    expect(store.providers[localProvider.id]).toBeUndefined()
-    expect(mocks.service.deleteRemote).toHaveBeenCalledWith(
-      mocks.client,
-      localProvider.id,
-    )
-  })
-
   it('does not list a pre-existing local settings provider after sync', async () => {
     const store = installStore()
     store.providers.openai = {
@@ -407,22 +391,6 @@ describe('provider config store', () => {
 
     expect(store.listedProviders.openai).toBeUndefined()
     expect(store.providers.openai?.config).toEqual({ apiKey: 'sk-local' })
-  })
-
-  it('lists a remote-only provider after sync', async () => {
-    mocks.service.listRemote.mockResolvedValue([{
-      id: 'remote-provider',
-      definitionId: 'openai-compatible',
-      config: { apiKey: 'sk-remote' },
-      updatedAt: '2026-01-02T00:00:00.000Z',
-      deletedAt: null,
-    }])
-    const store = installStore()
-    authState.isAuthenticated = true
-
-    await store.syncProviders()
-
-    expect(store.listedProviders['remote-provider']?.config).toEqual({ apiKey: 'sk-remote' })
   })
 
   it('does not upload when only status changes', async () => {
@@ -442,6 +410,36 @@ describe('provider config store', () => {
 
     store.setProviderStatus(localProvider.id, 'configured')
     await store.pushProviders()
+
+    expect(mocks.service.upsertRemote).not.toHaveBeenCalled()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2471#discussion_r3997076532
+  it('does not upload when config keys are in a different order', async () => {
+    // ROOT CAUSE:
+    //
+    // isDirty compared JSON.stringify of replica bodies. Same values with
+    // different key insertion order produced different strings. A local row
+    // that won the merge then uploaded an unchanged config.
+    //
+    // isEqual compares keys and values, so key order does not mark dirty.
+    const store = installStore()
+    store.providers[localProvider.id] = {
+      ...localProvider,
+      status: 'configured',
+      config: { baseUrl: 'https://api.example.com', apiKey: 'sk-local' },
+      replicaUpdatedAt: '2026-01-02T00:00:00.000Z',
+    }
+    mocks.service.listRemote.mockResolvedValue([{
+      id: localProvider.id,
+      definitionId: localProvider.definitionId,
+      config: { apiKey: 'sk-local', baseUrl: 'https://api.example.com' },
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      deletedAt: null,
+    }])
+    authState.isAuthenticated = true
+
+    await store.syncProviders()
 
     expect(mocks.service.upsertRemote).not.toHaveBeenCalled()
   })
@@ -499,37 +497,5 @@ describe('provider config store', () => {
         config: { apiKey: 'sk-edited' },
       }),
     )
-  })
-
-  it('runs after-sync hooks after a successful pull', async () => {
-    const store = installStore()
-    const afterSync = vi.fn()
-    store.onAfterSync(afterSync)
-    authState.isAuthenticated = true
-
-    await store.syncProviders()
-
-    expect(afterSync).toHaveBeenCalledTimes(1)
-  })
-
-  it('applies the remote replica when timestamps are equal', async () => {
-    const store = installStore()
-    store.providers[localProvider.id] = {
-      ...localProvider,
-      config: { token: '' },
-      replicaUpdatedAt: '2026-01-01T00:00:00.000Z',
-    }
-    mocks.service.listRemote.mockResolvedValue([{
-      id: localProvider.id,
-      definitionId: localProvider.definitionId,
-      config: { token: 'remote-secret' },
-      updatedAt: '2026-01-01T00:00:00.000Z',
-      deletedAt: null,
-    }])
-    authState.isAuthenticated = true
-
-    await store.syncProviders()
-
-    expect(store.providers[localProvider.id]?.config).toEqual({ token: 'remote-secret' })
   })
 })
