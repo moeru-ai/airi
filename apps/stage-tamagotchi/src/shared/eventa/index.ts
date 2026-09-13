@@ -348,6 +348,7 @@ export type ElectronWindowLifecycleReason
     | 'restore'
     | 'focus'
     | 'blur'
+    | 'suspend'
 
 export interface ElectronWindowLifecycleState {
   focused: boolean
