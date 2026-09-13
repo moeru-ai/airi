@@ -42,6 +42,24 @@ function contentOffset(row: HTMLElement) {
 }
 
 describe('bidirectional swipe actions', () => {
+  // https://github.com/moeru-ai/airi/pull/2536#discussion_r3999184712
+  it('keeps vertical scrolling native after a small horizontal wheel jitter', async () => {
+    // ROOT CAUSE:
+    // The first wheel sample locked the whole sequence. A tiny horizontal
+    // sample then prevented subsequent vertical scrolling until the idle timer.
+    const state = createHarness()
+    const screen = await render(state.component)
+    const row = screen.container.querySelector<HTMLElement>('[data-swipe-actions]')!
+    const jitter = new WheelEvent('wheel', { deltaX: 1, deltaY: 0, bubbles: true, cancelable: true })
+    const vertical = new WheelEvent('wheel', { deltaX: 0, deltaY: 40, bubbles: true, cancelable: true })
+    row.dispatchEvent(jitter)
+    row.dispatchEvent(vertical)
+    expect(jitter.defaultPrevented).toBe(false)
+    expect(vertical.defaultPrevented).toBe(false)
+    expect(contentOffset(row)).toBe(0)
+    expect(state.open.value).toBe(false)
+  })
+
   it('crosses zero into the other List and keeps each layout independent', async () => {
     const state = createHarness()
     const screen = await render(state.component)

@@ -8,8 +8,11 @@ import { useControlsIslandPlacement } from './use-controls-island-placement'
 
 const props = withDefaults(defineProps<{
   side?: TooltipContentProps['side'] | 'inward'
+  /** Reuse a child that forwards trigger attributes and listeners. @default false */
+  asChild?: boolean
 }>(), {
   side: 'top',
+  asChild: false,
 })
 
 const { isLeft } = useControlsIslandPlacement()
@@ -28,7 +31,7 @@ const resolvedSide = computed<NonNullable<TooltipContentProps['side']>>(() => {
     :skip-delay-duration="0"
   >
     <TooltipRoot>
-      <TooltipTrigger as-child>
+      <TooltipTrigger :as-child="asChild">
         <slot />
       </TooltipTrigger>
       <TooltipPortal>

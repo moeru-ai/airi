@@ -3,7 +3,7 @@ import type { ChatSessionMeta } from '../../../../types/chat-session'
 import { SwipeActionButton, SwipeActionsContent, SwipeActionsItem, SwipeActionsList, SwipeActionsRoot } from '@proj-airi/ui'
 import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 import { defineComponent, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 
@@ -423,7 +423,7 @@ describe('sessions dialog actions', () => {
     expect(screen.getByLabelText('delete-count').element().textContent).toBe('1')
   })
 
-  it('follows small horizontal input and stretches the action area without resizing the drawer', async () => {
+  it('accumulates horizontal wheel intent and stretches the action area without resizing the drawer', async () => {
     // ROOT CAUSE:
     // The first prototype ignored trackpad input and clamped pointer travel to
     // 88px. The action surface must follow input beyond its settled width.
@@ -434,7 +434,8 @@ describe('sessions dialog actions', () => {
     const height = row.getBoundingClientRect().height
     const wheel = (deltaX: number, deltaY = 0) => row.dispatchEvent(new WheelEvent('wheel', { deltaX, deltaY, bubbles: true, cancelable: true }))
     wheel(3)
-    await expect.poll(() => actions.getBoundingClientRect().width).toBeCloseTo(3, 0)
+    // Small wheel samples remain native until the axis is clear.
+    expect(actions.getBoundingClientRect().width).toBe(0)
     // Browsers can make later events in the same sequence non-cancelable.
     row.dispatchEvent(new WheelEvent('wheel', { deltaX: 160, bubbles: true, cancelable: false }))
     await expect.poll(() => actions.getBoundingClientRect().width).toBeGreaterThan(100)
@@ -497,6 +498,22 @@ describe('sessions dialog actions', () => {
     await expect.element(screen.getByRole('button', { name: 'Delete conversation', exact: true })).not.toBeInTheDocument()
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320)
     expect(document.querySelector('[data-vaul-handle]')).not.toBeNull()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2536#discussion_r3999211068
+  it('moves keyboard focus from the fading trigger to Delete', async () => {
+    // ROOT CAUSE:
+    // The trigger fades and leaves the tab order while List precedes Content.
+    // Opening with the keyboard must focus an action before the trigger hides.
+    const screen = await render(createHarness(), { global: { plugins: [createTestI18n()] } })
+    const trigger = screen.getByRole('button', { name: 'Delete conversation: Second chat' })
+    trigger.element().focus()
+    await userEvent.keyboard('{Enter}')
+    const action = screen.getByRole('button', { name: 'Delete conversation', exact: true })
+    await expect.element(action).toBeVisible()
+    await expect.poll(() => document.activeElement).toBe(action.element())
+    await userEvent.keyboard('{Enter}')
+    expect(screen.getByLabelText('deleted-session-id').element().textContent).toBe('session-two')
   })
 
   it('keeps only one action area open and consumes Escape before drawer dismissal', async () => {

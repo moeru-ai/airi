@@ -764,7 +764,8 @@ appearance without starting another animation. Items keep their spacing and
 move behind the content clip when the revealed strip is narrower than the group.
 Vertical touch gestures and trackpad pinch zoom stay native. Crossing zero during
 a drag reveals the other List if it exists; a missing side stops at zero. Escape, outside clicks, and pointer cancellation never select an
-Item. Closing a focused action list returns focus to Content before making the List inert.
+Item. A keyboard toggle focuses the first enabled action when the List becomes visible.
+Closing a focused action list returns focus to Content before making the List inert.
 A swipe suppresses accidental content clicks. Reduced motion skips springs.
 
 A long swipe expands that List's default Item. Earlier Items move behind Content;

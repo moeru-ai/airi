@@ -92,6 +92,8 @@ const target = computed(() => {
 let intent: 'pending' | 'horizontal' | 'vertical' = 'pending'
 let pointerActive = false
 let wheelActive = false
+let wheelMovementX = 0
+let wheelMovementY = 0
 let startOffset = 0
 let changingSide = false
 let rawTravel = 0
@@ -102,6 +104,7 @@ let commitDispatched = false
 let pendingItem: RegisteredItem | undefined
 let lastMoveAt = 0
 let suppressClick = false
+let actionFocusOrigin: Element | undefined
 
 const spring = useRafFn(advanceSpring, { immediate: false })
 const wheelEnd = useTimeoutFn(endWheel, 180, { immediate: false })
@@ -141,6 +144,7 @@ watch(direction, () => {
 }, { flush: 'sync' })
 // Restore focus before List applies inert, including parent-controlled closes.
 watch(open, restoreContentFocus, { flush: 'sync' })
+watch([open, reveal], focusRevealedAction, { flush: 'post' })
 
 /**
  * Triggering workflow: useRafFn -> animation frame -> advanceSpring -> reveal.
@@ -204,10 +208,23 @@ function settle() {
   spring.resume()
 }
 
+/** Triggering workflow: keyboard toggle -> first visible frame -> focus the revealed action. */
+function focusRevealedAction() {
+  if (!actionFocusOrigin || !open.value || reveal.value === 0)
+    return
+  const origin = actionFocusOrigin
+  actionFocusOrigin = undefined
+  // A Tab press or outside click during opening keeps its new focus owner.
+  if (root.value?.ownerDocument.activeElement !== origin)
+    return
+  orderedItems.value.find(item => !item.disabled.value)?.element.value.focus({ preventScroll: true })
+}
+
 /** Triggering workflow: open model closes -> move focus out of the hidden List. */
 function restoreContentFocus(isOpen: boolean) {
   if (isOpen || !root.value)
     return
+  actionFocusOrigin = undefined
   const active = root.value.ownerDocument.activeElement
   if (!active?.closest('[data-swipe-actions-list]') || active.closest('[data-swipe-actions]') !== root.value)
     return
@@ -230,7 +247,10 @@ function toggle(requestedSide: SwipeActionsSide = side.value) {
     emit('interactionStart')
   if (switched)
     selectSide(requestedSide)
-  open.value = switched || !open.value
+  const opening = switched || !open.value
+  const active = root.value?.ownerDocument.activeElement
+  actionFocusOrigin = opening && active && root.value?.contains(active) && active.matches(':focus-visible') ? active : undefined
+  open.value = opening
   velocity = 0
   settle()
 }
@@ -392,23 +412,43 @@ function release() {
 function moveWheel(event: WheelEvent) {
   if (pointerActive || committing.value || props.disabled || !items.size || event.ctrlKey)
     return
+  const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? (root.value?.clientWidth ?? actionWidth.value) : 1
+  let delta = event.deltaX * unit
   if (!wheelActive) {
-    intent = Math.abs(event.deltaX) > Math.abs(event.deltaY) * 1.25 ? 'horizontal' : 'vertical'
-    if (intent === 'horizontal') {
-      captureTravel()
-      emit('interactionStart')
-    }
+    intent = 'pending'
+    wheelMovementX = 0
+    wheelMovementY = 0
     wheelActive = true
   }
   wheelEnd.start()
+  if (intent === 'pending') {
+    wheelMovementX += delta
+    wheelMovementY += event.deltaY * unit
+    const horizontal = Math.abs(wheelMovementX)
+    const vertical = Math.abs(wheelMovementY)
+    // Match Swipeable's 16px intent distance and 1.5:1 axis ratio. Small first
+    // samples stay native; the accumulated distance is applied once locked.
+    if (Math.max(horizontal, vertical) < 16)
+      return
+    if (vertical >= horizontal * 1.5) {
+      intent = 'vertical'
+      return
+    }
+    if (horizontal < vertical * 1.5)
+      return
+    intent = 'horizontal'
+    captureTravel()
+    wheelEnd.start()
+    emit('interactionStart')
+    delta = wheelMovementX
+  }
   if (intent !== 'horizontal')
     return
   // Some browsers make only the first wheel event cancelable. Later momentum
   // events still update the surface after this sequence owns horizontal input.
   if (event.cancelable)
     event.preventDefault()
-  const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? (root.value?.clientWidth ?? actionWidth.value) : 1
-  followOffset(rawTravel * sign.value + event.deltaX * unit)
+  followOffset(rawTravel * sign.value + delta)
 }
 
 /** Triggering workflow: wheel idle timer -> endWheel -> release or native-scroll completion. */
@@ -488,6 +528,7 @@ function activate(item: RegisteredItem) {
 
 /** Layout changes invalidate the identity captured by a gesture, even before release. */
 function cancelGesture() {
+  actionFocusOrigin = undefined
   commitReset.stop()
   resetCommittedRow()
   intent = 'pending'

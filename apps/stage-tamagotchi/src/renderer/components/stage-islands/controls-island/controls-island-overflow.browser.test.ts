@@ -265,6 +265,20 @@ describe('controls Island overflow', () => {
     expect(getComputedStyle(document.querySelector(tooltipWrapper)!).zIndex).toBe('1000')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2536#discussion_r3999184714
+  it('keeps tooltip hover for a profile picker with its own trigger', async () => {
+    // ROOT CAUSE:
+    // The profile wrapper disables attribute inheritance. With an as-child
+    // tooltip trigger, it loses the listeners. Only direct forwarding children
+    // opt into as-child; wrappers retain the existing tooltip trigger.
+    await page.viewport(450, 600)
+    const { i18n, screen } = mountControlsIsland('bottom-right')
+    const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+    await screen.getByLabelText(label('expand'), { exact: true }).click()
+    await screen.getByRole('combobox').hover()
+    await expect.poll(() => document.querySelector('.controls-island-tooltip')?.textContent).toContain(label('switch-profile'))
+  })
+
   // ROOT CAUSE:
   // Authentication content can grow after the right-docked Island has been
   // aligned, which changes the horizontal overflow range.
