@@ -280,13 +280,19 @@ export const providerFunASRAudioTranscription = defineProvider<FunASRAudioConfig
         baseURL: normalizeBaseUrl(config.baseUrl),
         ...(apiKey ? { apiKey } : {}),
       })
-      return models.map(model => ({
-        id: model.id,
-        name: model.id,
-        provider: 'funasr-audio-transcription',
-        contextLength: 0,
-        deprecated: false,
-      }))
+      return models.flatMap((model) => {
+        const id = model.id.trim()
+        if (!id)
+          return []
+
+        return [{
+          id,
+          name: id,
+          provider: 'funasr-audio-transcription',
+          contextLength: 0,
+          deprecated: false,
+        }]
+      })
     },
   },
 })

@@ -101,6 +101,39 @@ describe('funasr local audio provider', () => {
     ])
   })
 
+  // https://github.com/moeru-ai/airi/pull/2435#discussion_r3975505891
+  it('filters blank model ids from a mixed FunASR catalog for PR #2435', async () => {
+    // ROOT CAUSE:
+    //
+    // The endpoint validator accepted a catalog when any model had a usable id.
+    // The catalog loader then returned all ids, including blank ids that Hearing could select.
+    const config = { baseUrl: 'http://localhost:8000/v1/' }
+    const provider = await providerFunASRAudioTranscription.createProvider(config)
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        { created: 0, id: '   ', object: 'model', owned_by: 'funasr' },
+        { created: 0, id: 'SenseVoiceSmall', object: 'model', owned_by: 'funasr' },
+      ],
+      object: 'list',
+    }), {
+      headers: { 'Content-Type': 'application/json' },
+      status: 200,
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const models = await providerFunASRAudioTranscription.extraMethods?.listModels?.(config, provider)
+
+    expect(models).toEqual([
+      {
+        contextLength: 0,
+        deprecated: false,
+        id: 'SenseVoiceSmall',
+        name: 'SenseVoiceSmall',
+        provider: 'funasr-audio-transcription',
+      },
+    ])
+  })
+
   it('rejects relative endpoint URLs before fetching models', async () => {
     const validator = await providerFunASRAudioTranscription.validators?.validateProvider?.[0]({ t: translate })
     const provider = await providerFunASRAudioTranscription.createProvider({ baseUrl: 'localhost:8000/v1/' })
