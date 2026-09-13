@@ -42,6 +42,32 @@ pnpm dev:backend
 stay on its private network. The internal `/internal/*` boundary has no
 application token, and Caddy rejects that path at the public edge.
 
+## Native Google sign-in
+
+Set `AUTH_GOOGLE_NATIVE_CLIENT_IDS` to a comma-separated list of additional Google OAuth client IDs.
+For Android Credential Manager, include the Web client ID passed as `serverClientId`.
+
+- For the standalone Auth process, set the variable in `server/apps/auth/.env.local`.
+- For `pnpm dev:backend`, set it in `server/apps/api/.env.local`.
+  Compose loads `server/apps/api/.env` and `.env.local` into the Auth container, in that order.
+  It does not load `server/apps/auth/.env.local`.
+  Run `pnpm dev:backend` again after edits so Compose recreates the container with the updated values.
+- For Railway, set it in the Auth service variables for the target environment.
+
+```dotenv
+AUTH_GOOGLE_NATIVE_CLIENT_IDS=123456789-native.apps.googleusercontent.com
+```
+
+The original `AUTH_GOOGLE_CLIENT_ID` stays first in the provider configuration.
+Browser authorization still uses that client and `AUTH_GOOGLE_CLIENT_SECRET`.
+Native ID tokens can use any configured audience. Better Auth checks the token signature, issuer, expiry, and supplied nonce.
+Omit the new variable to keep the existing configuration. No database migration is required.
+
+Google ID token sign-in can create an account without a Google access or refresh token.
+Account deletion continues when neither token is stored, because AIRI has no Google API credential to revoke.
+This does not revoke consent in the user's Google Account.
+If either token is stored, Auth must complete its existing revocation policy before it deletes AIRI data.
+
 ## Railway
 
 Deploy this as the Auth Railway service with Config File Path

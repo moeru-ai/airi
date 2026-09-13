@@ -13,12 +13,20 @@ import {
   normalizeSparkCommandStringList,
   normalizeSparkCommandStringValue,
   sparkCommandToolSchema,
-} from './spark-command-shared'
+} from './schema'
 
+/** Options for the Spark Command LLM tool. */
 export interface CreateSparkCommandToolOptions {
+  /** Receives a protocol-ready `spark:command` event. */
   sendSparkCommand: (command: WebSocketEvents['spark:command']) => void
 }
 
+/**
+ * Creates the LLM tool that emits one `spark:command` event.
+ *
+ * The caller owns transport delivery. This function creates provider-facing schemas,
+ * normalizes the tool payload, and passes the resulting event to `sendSparkCommand`.
+ */
 export async function createSparkCommandTool(options: CreateSparkCommandToolOptions) {
   // Keep the generated JSON Schema provider-neutral. Each provider adapter
   // converts unsupported schema forms before it sends the request.

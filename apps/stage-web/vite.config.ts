@@ -218,6 +218,10 @@ export default defineConfig({
           },
           workbox: {
             maximumFileSizeToCacheInBytes: 64 * 1024 * 1024,
+            // Cloudflare redirects /index.html to /. Cache the canonical response
+            // so navigation fallbacks never replay a redirected response.
+            modifyURLPrefix: { 'index.html': './' },
+            navigateFallback: './',
             navigateFallbackDenylist: [
               /^\/docs\//,
               /^\/ui\//,
