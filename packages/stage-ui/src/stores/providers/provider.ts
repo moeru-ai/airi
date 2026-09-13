@@ -111,6 +111,7 @@ export const useProviderStore = defineStore('provider', () => {
   // Provider instances contain functions and transport handles. Keep this map
   // private so it never enters Pinia state.
   const providerInstanceCache = new Map<string, unknown>()
+  const previousCredentialHashes = new Map<string, string>()
   const { t } = useI18n()
 
   const VISION_PROVIDER_ID_PREFIX = 'vision-'
@@ -496,7 +497,15 @@ export const useProviderStore = defineStore('provider', () => {
     startPeriodicRuntimeValidation()
   }
 
-  providerConfigStore.onAfterSync(() => refreshListedProviderValidation())
+  providerConfigStore.onAfterSync(async () => {
+    for (const providerId of [...providerInstanceCache.keys()]) {
+      const current = providerCredentials.value[providerId]
+      if (current && previousCredentialHashes.get(providerId) === JSON.stringify(current))
+        continue
+      await disposeProviderInstance(providerId)
+    }
+    await refreshListedProviderValidation()
+  })
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.values(providerConfigStore.providers)
@@ -809,7 +818,6 @@ export const useProviderStore = defineStore('provider', () => {
       }
     }
   }
-  const previousCredentialHashes = new Map<string, string>()
 
   async function refreshModelsForChangedCredentials() {
     const changedProviders: string[] = []
@@ -926,6 +934,7 @@ export const useProviderStore = defineStore('provider', () => {
     try {
       const instance = await definition.createProvider(config || {})
       providerInstanceCache.set(providerId, instance)
+      previousCredentialHashes.set(providerId, JSON.stringify(config || {}))
       return instance as R
     }
     catch (error) {
@@ -953,10 +962,10 @@ export const useProviderStore = defineStore('provider', () => {
 
   async function disposeProviderInstance(providerId: string) {
     const instance = providerInstanceCache.get(providerId) as { dispose?: () => Promise<void> | void } | undefined
+    providerInstanceCache.delete(providerId)
+    previousCredentialHashes.delete(providerId)
     if (instance?.dispose)
       await instance.dispose()
-
-    providerInstanceCache.delete(providerId)
   }
 
   const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {

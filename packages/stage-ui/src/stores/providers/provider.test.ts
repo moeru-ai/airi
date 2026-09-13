@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/official'
+import { inferenceServiceProvidersService } from '../../services/inference-service-providers'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
 import { useProviderStore } from './provider'
@@ -49,6 +50,30 @@ function createAuthenticatedState(): { session: Session, token: string, user: Us
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   }
   return { session, token: 'restored-access-token', user }
+}
+
+function stubOpenAiReplica(config: Record<string, unknown>) {
+  const listRemote = vi.spyOn(inferenceServiceProvidersService, 'listRemote').mockResolvedValue([{
+    id: 'openai',
+    definitionId: 'openai',
+    config,
+    updatedAt: '2026-01-02T00:00:00.000Z',
+    deletedAt: null,
+  }])
+  const upsertRemote = vi.spyOn(inferenceServiceProvidersService, 'upsertRemote').mockImplementation(async (_client, provider) => ({
+    id: provider.id,
+    definitionId: provider.definitionId,
+    config: provider.config,
+    updatedAt: '2026-01-02T00:00:00.000Z',
+    deletedAt: null,
+  }))
+  const deleteRemote = vi.spyOn(inferenceServiceProvidersService, 'deleteRemote').mockResolvedValue()
+  useAuthStore().$patch(createAuthenticatedState())
+  return () => {
+    listRemote.mockRestore()
+    upsertRemote.mockRestore()
+    deleteRemote.mockRestore()
+  }
 }
 
 describe('provider store synchronization boundary', () => {
@@ -235,6 +260,46 @@ describe('provider store synchronization boundary', () => {
     expect(reasoningDisabledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'none' })
     expect(reasoningEnabledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'medium' })
     expect(baseProvider.chat('any-model')).not.toHaveProperty('reasoningEffort')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2471#discussion_r3948440504
+  it('drops a cached provider instance only when replica credentials change', async () => {
+    // ROOT CAUSE:
+    //
+    // Login merge replaced the persisted OpenAI key and left providerInstanceCache
+    // holding a client built from the previous key. Later chat returned that
+    // client until reload.
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const openaiConfig = {
+      apiKey: 'sk-old',
+      baseUrl: 'https://api.openai.com/v1/',
+    }
+    configStore.ensureProvider('openai', 'openai', openaiConfig)
+    const first = await store.getProviderInstance<ChatProvider>('openai')
+    let restore = stubOpenAiReplica({ ...openaiConfig })
+
+    try {
+      await configStore.syncProviders()
+      expect(await store.getProviderInstance<ChatProvider>('openai')).toBe(first)
+
+      restore()
+      restore = stubOpenAiReplica({
+        apiKey: 'sk-new',
+        baseUrl: 'https://api.openai.com/v1/',
+      })
+      await configStore.syncProviders()
+
+      const second = await store.getProviderInstance<ChatProvider>('openai')
+      expect(second).not.toBe(first)
+      expect(configStore.providers.openai?.config).toEqual({
+        apiKey: 'sk-new',
+        baseUrl: 'https://api.openai.com/v1/',
+      })
+    }
+    finally {
+      restore()
+    }
   })
 
   // ROOT CAUSE:
