@@ -12,9 +12,11 @@ import { userFluxRedisKey } from '../../../utils/redis-keys'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
-import * as stripeSchema from '../../../schemas/stripe'
 
 const logger = useLogger('billing-service')
+
+/** Database handle used when Payment CORE already owns the outer transaction. */
+export type BillingTransaction = Pick<Database, 'insert' | 'update' | 'select'>
 
 export function createBillingService(
   db: Database,
@@ -229,16 +231,21 @@ export function createBillingService(
       description: string
       source: string
       /**
-       * Ledger row `type`. Defaults to `'credit'` for backward compatibility
-       * with existing callers (Stripe top-up). Admin promo grants pass
-       * `'promo'` so reports / dashboards can distinguish them.
+       * Ledger row `type`. Defaults to `'credit'` for pack credits.
+       * Admin promo grants pass `'promo'` so reports can distinguish them.
        */
       type?: 'credit' | 'promo'
       auditMetadata?: Record<string, unknown>
+      /**
+       * When Payment CORE already opened a transaction, write through that
+       * handle and skip the Redis cache update. Caller must call
+       * `syncFluxCache` after the outer transaction commits.
+       */
+      tx?: BillingTransaction
     }): Promise<{ balanceBefore: number, balanceAfter: number, fluxTransactionId: string, idempotent: boolean }> {
       const ledgerType = input.type ?? 'credit'
 
-      const txResult = await db.transaction(async (tx) => {
+      const writeCredit = async (tx: BillingTransaction) => {
         if (input.requestId != null) {
           const [existing] = await tx
             .select({
@@ -297,7 +304,11 @@ export function createBillingService(
           fluxTransactionId: insertedTx!.id,
           idempotent: false,
         }
-      })
+      }
+
+      const txResult = input.tx
+        ? await writeCredit(input.tx)
+        : await db.transaction(async tx => writeCredit(tx))
 
       if (txResult.idempotent) {
         logger.withFields({
@@ -308,11 +319,19 @@ export function createBillingService(
         return txResult
       }
 
-      await updateRedisCache(input.userId, txResult.balanceAfter)
-      metrics?.fluxCredited.add(input.amount, { source: input.source, type: ledgerType })
+      if (!input.tx) {
+        await updateRedisCache(input.userId, txResult.balanceAfter)
+        metrics?.fluxCredited.add(input.amount, { source: input.source, type: ledgerType })
+      }
 
       logger.withFields({ userId: input.userId, amount: input.amount, balance: txResult.balanceAfter }).log('Credited flux')
       return txResult
+    },
+
+    async syncFluxCache(userId: string, balance: number, credited?: { amount: number, source: string }): Promise<void> {
+      await updateRedisCache(userId, balance)
+      if (credited)
+        metrics?.fluxCredited.add(credited.amount, { source: credited.source, type: 'credit' })
     },
 
     /**
@@ -398,158 +417,6 @@ export function createBillingService(
         balanceAfter: txResult.balanceAfter,
         issuedByUserId: input.issuedByUserId,
       }).log('Set flux balance')
-
-      return txResult
-    },
-
-    /**
-     * Credit flux from a Stripe checkout session (one-time payment).
-     * Idempotent: claims the checkout session row by flipping `fluxCredited`
-     * from false to true; replays of the same Stripe event observe the row
-     * already claimed and apply nothing.
-     */
-    async creditFluxFromStripeCheckout(input: {
-      stripeEventId: string
-      userId: string
-      stripeSessionId: string
-      amountTotal: number
-      currency: string | null
-      fluxAmount: number
-    }): Promise<{ applied: boolean, balanceAfter?: number }> {
-      const txResult = await db.transaction(async (tx) => {
-        // NOTICE: Webhook idempotency is enforced at the business-object level, not by a
-        // dedicated processed-events table keyed on Stripe `event.id`. We claim the
-        // checkout session row exactly once via `fluxCredited = false -> true`, which
-        // covers both Stripe retries of the same event and distinct Event objects that
-        // still refer to the same checkout session.
-        const [claimed] = await tx.update(stripeSchema.stripeCheckoutSession)
-          .set({ fluxCredited: true, updatedAt: new Date() })
-          .where(and(
-            eq(stripeSchema.stripeCheckoutSession.stripeSessionId, input.stripeSessionId),
-            eq(stripeSchema.stripeCheckoutSession.fluxCredited, false),
-          ))
-          .returning()
-
-        if (!claimed) {
-          return { applied: false }
-        }
-
-        await tx.insert(fluxSchema.userFlux)
-          .values({ userId: input.userId, flux: 0 })
-          .onConflictDoNothing({ target: fluxSchema.userFlux.userId })
-
-        const [currentFlux] = await tx
-          .select({ flux: fluxSchema.userFlux.flux })
-          .from(fluxSchema.userFlux)
-          .where(eq(fluxSchema.userFlux.userId, input.userId))
-          .for('update')
-
-        const balanceBefore = currentFlux!.flux
-        const balanceAfter = balanceBefore + input.fluxAmount
-
-        await tx.update(fluxSchema.userFlux)
-          .set({ flux: balanceAfter, updatedAt: new Date() })
-          .where(eq(fluxSchema.userFlux.userId, input.userId))
-
-        const description = `Stripe payment ${input.currency?.toUpperCase() ?? 'UNKNOWN'} ${(input.amountTotal / 100).toFixed(2)}`
-
-        await tx.insert(fluxTxSchema.fluxTransaction).values({
-          userId: input.userId,
-          type: 'credit',
-          amount: input.fluxAmount,
-          balanceBefore,
-          balanceAfter,
-          requestId: input.stripeEventId,
-          description,
-          metadata: {
-            stripeEventId: input.stripeEventId,
-            stripeSessionId: input.stripeSessionId,
-            source: 'stripe.checkout.completed',
-          },
-        })
-
-        return { applied: true, balanceAfter }
-      })
-
-      if (txResult.applied && txResult.balanceAfter != null) {
-        await updateRedisCache(input.userId, txResult.balanceAfter)
-        metrics?.fluxCredited.add(input.fluxAmount, { source: 'stripe.checkout', type: 'credit' })
-      }
-
-      return txResult
-    },
-
-    /**
-     * Credit flux from a Stripe invoice payment (subscription).
-     * Idempotent: claims the invoice row by flipping `fluxCredited`
-     * from false to true; replays observe it already claimed and apply nothing.
-     */
-    async creditFluxFromInvoice(input: {
-      stripeEventId: string
-      userId: string
-      stripeInvoiceId: string
-      amountPaid: number
-      currency: string
-      fluxAmount: number
-    }): Promise<{ applied: boolean, balanceAfter?: number }> {
-      const txResult = await db.transaction(async (tx) => {
-        // NOTICE: Invoice webhook idempotency follows the same object-level claim model
-        // as checkout sessions. We intentionally dedupe on the invoice record instead of
-        // only on Stripe `event.id`, because Stripe may emit multiple events that map to
-        // the same paid invoice while the balance must only be credited once.
-        const [claimed] = await tx.update(stripeSchema.stripeInvoice)
-          .set({ fluxCredited: true, updatedAt: new Date() })
-          .where(and(
-            eq(stripeSchema.stripeInvoice.stripeInvoiceId, input.stripeInvoiceId),
-            eq(stripeSchema.stripeInvoice.fluxCredited, false),
-          ))
-          .returning()
-
-        if (!claimed) {
-          return { applied: false }
-        }
-
-        await tx.insert(fluxSchema.userFlux)
-          .values({ userId: input.userId, flux: 0 })
-          .onConflictDoNothing({ target: fluxSchema.userFlux.userId })
-
-        const [currentFlux] = await tx
-          .select({ flux: fluxSchema.userFlux.flux })
-          .from(fluxSchema.userFlux)
-          .where(eq(fluxSchema.userFlux.userId, input.userId))
-          .for('update')
-
-        const balanceBefore = currentFlux!.flux
-        const balanceAfter = balanceBefore + input.fluxAmount
-
-        await tx.update(fluxSchema.userFlux)
-          .set({ flux: balanceAfter, updatedAt: new Date() })
-          .where(eq(fluxSchema.userFlux.userId, input.userId))
-
-        const description = `Subscription invoice ${input.currency.toUpperCase()} ${(input.amountPaid / 100).toFixed(2)}`
-
-        await tx.insert(fluxTxSchema.fluxTransaction).values({
-          userId: input.userId,
-          type: 'credit',
-          amount: input.fluxAmount,
-          balanceBefore,
-          balanceAfter,
-          requestId: input.stripeEventId,
-          description,
-          metadata: {
-            stripeEventId: input.stripeEventId,
-            stripeInvoiceId: input.stripeInvoiceId,
-            source: 'invoice.paid',
-          },
-        })
-
-        return { applied: true, balanceAfter }
-      })
-
-      if (txResult.applied && txResult.balanceAfter != null) {
-        await updateRedisCache(input.userId, txResult.balanceAfter)
-        metrics?.fluxCredited.add(input.fluxAmount, { source: 'stripe.invoice', type: 'credit' })
-      }
 
       return txResult
     },
