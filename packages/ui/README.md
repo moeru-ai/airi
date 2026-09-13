@@ -82,7 +82,11 @@ action. Each List uses its last Item as the long-swipe default. The List's
 
 Items register and follow DOM order automatically. Reordering or removing them
 cancels pending gestures. All parts support Reka UI's `as` and `asChild`.
-List controls per-action width and gap. Use an opaque background for Content.
+List controls per-action width and gap. `:gap="16"` leaves 16px between Items
+and 8px at each outer edge, including beside Content during entry. Its container size lets Items appear
+one at a time from the outer edge, with reversible scale and opacity curves.
+Items without space remain registered but cannot receive input or focus.
+Use an opaque background for Content.
 
 Use `SwipeActionButton` inside `SwipeActionsItem as-child` for the standard
 surface, icon, and text. Pass the Item slot's `takeover` and physical `edge` to the button.

@@ -142,7 +142,40 @@ describe('sessions dialog actions', () => {
     expect(icon.y + icon.height / 2).toBe(surface.getBoundingClientRect().y + surface.getBoundingClientRect().height / 2)
   })
 
-  it('eases proportional scale and opacity with reversible swipe progress', async () => {
+  it('reserves the configured gap beside content while the first action enters', async () => {
+    // ROOT CAUSE:
+    // The scale cap used the full revealed width and left no space beside Content.
+    // Reserve the configured gap before scaling, including during partial reveal.
+    const screen = await render(defineComponent({
+      components: { SwipeActionsRoot, SwipeActionsContent, SwipeActionsList, SwipeActionsItem },
+      template: `
+        <SwipeActionsRoot style="width: 350px; height: 80px">
+          <SwipeActionsContent><button style="height: 80px">Conversation</button></SwipeActionsContent>
+          <SwipeActionsList :action-width="72" :gap="16">
+            <SwipeActionsItem value="pin">Pin</SwipeActionsItem>
+          </SwipeActionsList>
+        </SwipeActionsRoot>
+      `,
+    }))
+    const row = screen.getByRole('button', { name: 'Conversation', exact: true }).element().closest('[data-swipe-actions]')!
+    const action = row.querySelector('[data-swipe-actions-item]')!
+    const content = row.querySelector('[data-swipe-actions-content]')!
+    const wheel = (deltaX: number) => row.dispatchEvent(new WheelEvent('wheel', { deltaX, bubbles: true, cancelable: true }))
+    const hold = setInterval(wheel, 40, 0)
+    try {
+      wheel(36)
+      await expect.poll(() => action.getBoundingClientRect().width).toBeGreaterThan(0)
+      expect(action.getBoundingClientRect().left - content.getBoundingClientRect().right).toBeCloseTo(8, 1)
+      wheel(36)
+      await expect.poll(() => action.getBoundingClientRect().width).toBeCloseTo(56, 1)
+      expect(action.getBoundingClientRect().left - content.getBoundingClientRect().right).toBeCloseTo(8, 1)
+    }
+    finally {
+      clearInterval(hold)
+    }
+  })
+
+  it('reveals each action only when its container has space and reverses the same curve', async () => {
     // ROOT CAUSE:
     // Closing reduced each action's width while retaining its full height.
     // Keep the aspect ratio and ease the whole item with distance, so reversing
@@ -171,33 +204,32 @@ describe('sessions dialog actions', () => {
       const expanded = bounds()
       wheel(-108)
       await expect.poll(() => bounds()[0].width).toBeLessThan(expanded[0].width)
-      const half = bounds()[0].width / expanded[0].width
-      const halfOpacity = Number(getComputedStyle(actions[0]).opacity)
-      expect(half).toBeGreaterThan(0.5)
+      expect(getComputedStyle(row.querySelector('[data-swipe-actions-list]')!).containerType).toBe('inline-size')
+      expect(bounds()[0].width).toBe(0)
+      expect(actions[0].hasAttribute('inert')).toBe(true)
+      expect(actions[0].getAttribute('tabindex')).toBe('-1')
+      expect(bounds()[2].width).toBeCloseTo(expanded[2].width, 2)
+      const half = bounds()[1].width / expanded[1].width
+      const halfOpacity = Number(getComputedStyle(actions[1]).opacity)
+      expect(half).toBeCloseTo(28 / 64, 2)
       expect(halfOpacity).toBeGreaterThan(0.5)
-      for (const [index, rect] of bounds().entries()) {
-        expect(rect.height).toBeLessThan(expanded[index].height)
-        expect(rect.width / rect.height).toBeCloseTo(expanded[index].width / expanded[index].height, 2)
-        expect(Number(getComputedStyle(actions[index]).opacity)).toBeLessThan(1)
-        expect(Number(getComputedStyle(actions[index]).opacity)).toBeGreaterThan(0)
-      }
-      wheel(-54)
-      await expect.poll(() => bounds()[0].width / expanded[0].width).toBeLessThan(half)
-      const quarter = bounds()[0].width / expanded[0].width
-      const quarterOpacity = Number(getComputedStyle(actions[0]).opacity)
-      expect(quarter).toBeGreaterThan(half - quarter)
+      expect(bounds()[1].width / bounds()[1].height).toBeCloseTo(expanded[1].width / expanded[1].height, 2)
+      expect(actions[1].getBoundingClientRect().right).toBeLessThan(actions[2].getBoundingClientRect().left)
+      wheel(-18)
+      await expect.poll(() => bounds()[1].width / expanded[1].width).toBeLessThan(half)
+      const quarterOpacity = Number(getComputedStyle(actions[1]).opacity)
       expect(quarterOpacity).toBeGreaterThan(halfOpacity - quarterOpacity)
-      expect(actions[0].getBoundingClientRect().right).toBeLessThan(actions[1].getBoundingClientRect().left)
-      wheel(54)
-      await expect.poll(() => bounds()[0].width / expanded[0].width).toBeCloseTo(half, 3)
-      expect(Number(getComputedStyle(actions[0]).opacity)).toBeCloseTo(halfOpacity, 3)
+      expect(bounds()[0].width).toBe(0)
+      wheel(18)
+      await expect.poll(() => bounds()[1].width / expanded[1].width).toBeCloseTo(half, 3)
+      expect(Number(getComputedStyle(actions[1]).opacity)).toBeCloseTo(halfOpacity, 3)
     }
     finally {
       clearInterval(hold)
     }
   })
 
-  it('expands gaps, pushes earlier actions behind content, and invokes the last action after reordering', async () => {
+  it('preserves gaps, pushes earlier actions behind content, and invokes the last action after reordering', async () => {
     await page.viewport(390, 844)
     const screen = await render(defineComponent({
       components: { SwipeActionsContent, SwipeActionsItem, SwipeActionsList, SwipeActionsRoot },
@@ -221,12 +253,12 @@ describe('sessions dialog actions', () => {
     const bounds = (id: string) => strip.querySelector(`[data-action="${id}"]`)!.getBoundingClientRect()
     const hold = setInterval(wheel, 40, 0)
     try {
-      wheel(60)
+      wheel(90)
       await expect.poll(() => bounds('pin').width).toBeGreaterThan(15)
-      const smallGap = bounds('archive').left - bounds('delete').right
-      wheel(120)
-      await expect.poll(() => bounds('archive').left - bounds('delete').right).toBeGreaterThan(smallGap)
-      wheel(80)
+      expect(bounds('pin').left - bounds('archive').right).toBeCloseTo(8, 1)
+      wheel(54)
+      await expect.poll(() => bounds('pin').left - bounds('archive').right).toBeCloseTo(8, 1)
+      wheel(116)
       await expect.poll(() => bounds('pin').width).toBeGreaterThan(340)
       expect(bounds('archive').right).toBeLessThanOrEqual(strip.getBoundingClientRect().left)
       expect(bounds('delete').right).toBeLessThanOrEqual(strip.getBoundingClientRect().left)

@@ -5205,9 +5205,6 @@ importers:
       '@vueuse/core':
         specifier: 'catalog:'
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
-      animejs:
-        specifier: 'catalog:'
-        version: 4.5.0(@types/three@0.185.4)(three@0.185.1)
       floating-vue:
         specifier: 'catalog:'
         version: 5.2.2(@nuxt/kit@3.21.11(magicast@0.5.4))(vue@3.5.41(typescript@6.0.3))

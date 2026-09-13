@@ -730,7 +730,7 @@ The container does not own conversation storage, undo, or business callbacks.
 | Root | `disabled` | `false` | Disables gestures and actions, not the content's own controls |
 | `SwipeActionsContent` | — | — | Translates the caller's opaque content and closes an open row before content activation |
 | `SwipeActionsList` | `actionWidth` | `88` | Settled width per Item in CSS pixels |
-| List | `gap` | `8` | Maximum gap between Items; grows with reveal |
+| List | `gap` | `8` | Gap between Items; each outer edge reserves half, including during entry. Capped at half `actionWidth` |
 | `SwipeActionsItem` | `value` | Required | Stable string identity emitted for this action |
 | Item | `disabled` | `false` | Disables pointer, keyboard, and long-swipe selection |
 
@@ -757,14 +757,16 @@ Root exposes `data-state="open|closed"`, `data-armed`, `data-committing`, and
 a resting action trigger.
 
 Horizontal pointer or trackpad input reveals the actions. The surface stretches
-with resistance and settles with a spring. Below the resting reveal, Items
-scale with Anime.js `outCubic` and fade with `outQuad`, including their icons
-and labels. Both curves use reveal distance, so reversing restores the same
-appearance without starting another animation. Items keep their spacing and
-move behind the content clip when the revealed strip is narrower than the group.
+with resistance and settles with a spring. List is an inline-size query container.
+Items use its container-query units to appear from the outer edge, one at a time,
+as each cell gets space. CSS applies cubic scale and quadratic opacity curves
+to each Item, including its icon and label. Scale stays within the available cell
+to prevent overlap and reserve the configured gap beside Content. Reversing follows the same curves without another animation.
+Items without space stay registered but are inert and hidden from accessibility
+tools; this preserves their order and the long-swipe default.
 Vertical touch gestures and trackpad pinch zoom stay native. Crossing zero during
 a drag reveals the other List if it exists; a missing side stops at zero. Escape, outside clicks, and pointer cancellation never select an
-Item. A keyboard toggle focuses the first enabled action when the List becomes visible.
+Item. A keyboard toggle focuses the first enabled action when that action has space to appear.
 Closing a focused action list returns focus to Content before making the List inert.
 A swipe suppresses accidental content clicks. Reduced motion skips springs.
 

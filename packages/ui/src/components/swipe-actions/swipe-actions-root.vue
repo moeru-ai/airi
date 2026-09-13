@@ -5,7 +5,6 @@ import type { CSSProperties } from 'vue'
 import type { RegisteredItem, RegisteredList, SwipeActionsSelectEvent, SwipeActionsSide } from './context'
 
 import { onClickOutside, useEventListener, usePointerSwipe, usePreferredReducedMotion, useRafFn, useTimeoutFn } from '@vueuse/core'
-import { eases } from 'animejs'
 import { Primitive, useDirection, useForwardExpose } from 'reka-ui'
 import { computed, shallowReactive, shallowRef, toRef, watch } from 'vue'
 
@@ -212,12 +211,15 @@ function settle() {
 function focusRevealedAction() {
   if (!actionFocusOrigin || !open.value || reveal.value === 0)
     return
+  const action = orderedItems.value.find(item => !item.disabled.value)
+  if (!action || !itemExposed(action))
+    return
   const origin = actionFocusOrigin
   actionFocusOrigin = undefined
   // A Tab press or outside click during opening keeps its new focus owner.
   if (root.value?.ownerDocument.activeElement !== origin)
     return
-  orderedItems.value.find(item => !item.disabled.value)?.element.value.focus({ preventScroll: true })
+  action.element.value.focus({ preventScroll: true })
 }
 
 /** Triggering workflow: open model closes -> move focus out of the hidden List. */
@@ -534,6 +536,12 @@ function cancelGesture() {
   intent = 'pending'
 }
 
+function itemExposed(item: RegisteredItem) {
+  const index = orderedItems.value.indexOf(item)
+  const gap = Math.min(actionGap.value, actionWidth.value / 2)
+  return index >= 0 && reveal.value > (actionCount.value - index - 1) * actionWidth.value + gap
+}
+
 function itemTakeover(item: RegisteredItem) {
   return item === (pendingItem ?? primary.value) ? takeover.value : 0
 }
@@ -548,31 +556,31 @@ function actionStyle(item: RegisteredItem): CSSProperties {
   const index = orderedItems.value.indexOf(item)
   const selected = pendingItem ?? primary.value
   const selectedIndex = selected ? orderedItems.value.indexOf(selected) : -1
-  const revealProgress = settledWidth.value ? Math.min(1, reveal.value / settledWidth.value) : 0
-  const scale = eases.outCubic(revealProgress)
-  const opacity = eases.outQuad(revealProgress)
-  // Eased items grow faster than the revealed strip. Keep their spacing and
-  // anchor the group at the trailing edge; excess stays behind the content clip.
-  const cell = actionCount.value ? Math.max(actionWidth.value, reveal.value / actionCount.value) * scale : 0
+  // Fixed cells enter from the outer edge, one at a time. Each Item's CSS
+  // reads the List container width to reveal only the space allocated to it.
+  const cell = actionCount.value ? Math.max(actionWidth.value, reveal.value / actionCount.value) : 0
   const groupOffset = reveal.value - cell * actionCount.value
-  const gap = Math.min(actionGap.value, actionWidth.value / 2) * scale
+  const gap = Math.min(actionGap.value, actionWidth.value / 2)
   const progress = selectedIndex < 0 ? 0 : takeover.value
   const leftShift = selectedIndex * cell * progress
   const rightShift = (actionCount.value - selectedIndex - 1) * cell * progress
   const left = index > selectedIndex && selectedIndex >= 0 ? index * cell + rightShift : index * cell - leftShift
   const width = index === selectedIndex ? cell + leftShift + rightShift : cell
-  // Below the resting reveal, retain the layout proportions and scale the whole
-  // item around its cell center. Width-only shrinking flattens surfaces and text.
-  const layoutWidth = scale > 0 ? Math.max(0, width - gap) / scale : actionWidth.value - actionGap.value
+  const layoutWidth = Math.max(0, width - gap)
+  const available = Math.max(0, Math.min(cell, reveal.value - (actionCount.value - index - 1) * cell))
+  // Center an entering Item in its partial cell. Full-swipe takeover restores
+  // the original cell center so the default can expand across the whole row.
+  const enteringShift = (cell - available) / 2 * (1 - progress)
   return {
-    position: 'absolute',
-    top: '0',
-    height: '100%',
-    [sign.value === 1 ? 'left' : 'right']: `${groupOffset + left + width / 2 - layoutWidth / 2}px`,
-    width: `${layoutWidth}px`,
-    transform: `scale(${scale})`,
-    transformOrigin: 'center',
-    opacity,
+    'position': 'absolute',
+    'top': '0',
+    'height': '100%',
+    [sign.value === 1 ? 'left' : 'right']: `${groupOffset + left + width / 2 - layoutWidth / 2 + enteringShift}px`,
+    'width': `${layoutWidth}px`,
+    '--swipe-item-offset': `${(actionCount.value - index - 1) * actionWidth.value}px`,
+    '--swipe-item-gap': `${gap}px`,
+    '--swipe-item-cell': `${actionWidth.value}px`,
+    '--swipe-item-base-width': `${Math.max(1, actionWidth.value - gap)}px`,
   }
 }
 
@@ -602,6 +610,7 @@ provideSwipeActionsContext({
   refreshOrder,
   actionStyle,
   itemTakeover,
+  itemExposed,
   activate,
   close,
   toggle,

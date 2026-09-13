@@ -28,7 +28,6 @@
   "dependencies": {
     "@moeru/std": "catalog:",
     "@vueuse/core": "catalog:",
-    "animejs": "catalog:",
     "floating-vue": "catalog:",
     "reka-ui": "catalog:",
     "vaul-vue": "catalog:",

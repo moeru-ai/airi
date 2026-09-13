@@ -39,6 +39,7 @@ interface SwipeActionsContext {
   register: (item: RegisteredItem) => () => void
   refreshOrder: () => void
   actionStyle: (item: RegisteredItem) => CSSProperties
+  itemExposed: (item: RegisteredItem) => boolean
   itemTakeover: (item: RegisteredItem) => number
   activate: (item: RegisteredItem) => void
   close: () => void

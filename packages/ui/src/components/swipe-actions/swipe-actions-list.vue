@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<PrimitiveProps & {
   defaultAction?: string
   /** Settled width per Item in CSS pixels. @default 88 */
   actionWidth?: number
-  /** Maximum gap between Items in CSS pixels. @default 8 */
+  /** Gap between Items in CSS pixels; each outer edge reserves half. Capped at half actionWidth. @default 8 */
   gap?: number
 }>(), { as: 'div', side: 'end', actionWidth: 88, gap: 8 })
 const context = injectSwipeActionsContext()
@@ -45,7 +45,7 @@ useMutationObserver(currentElement, context.refreshOrder, { childList: true, sub
     :ref="forwardRef" :as="as" :as-child="asChild"
     data-swipe-actions-list :data-side="side"
     :inert="!open" :aria-hidden="!open"
-    :style="{ position: 'absolute', zIndex: 0, insetBlock: '0', right: right ? '0' : undefined, left: right ? undefined : '0', width: `${reveal}px`, visibility: reveal === 0 ? 'hidden' : 'visible', overflow: 'hidden' }"
+    :style="{ container: 'swipe-actions / inline-size', position: 'absolute', zIndex: 0, insetBlock: '0', right: right ? '0' : undefined, left: right ? undefined : '0', width: `${reveal}px`, visibility: reveal === 0 ? 'hidden' : 'visible', overflow: 'hidden' }"
   >
     <slot />
   </Primitive>
