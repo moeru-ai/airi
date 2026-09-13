@@ -67,12 +67,8 @@ export function grantableConsumableTransaction(payload: JWSTransactionDecodedPay
 }
 
 export async function resolveAppleIapPack(configKV: ConfigKVService, productId: string) {
-  const packs = await configKV.getOptional('FLUX_PACKS') ?? []
-  const applePacks = await configKV.getOptional('APPLE_FLUX_PACKS') ?? {}
-  const packKey = applePacks[productId]
-  if (!packKey)
-    return undefined
-  return packs.find(item => item.key === packKey)
+  const applePacks = await configKV.getOptional('APPLE_FLUX_PACKS')
+  return applePacks?.[productId]
 }
 
 /** Live `payment_customer` for this Apple `appAccountToken`. */
@@ -105,14 +101,14 @@ export function evidenceReceiptFromTransaction(
   payload: JWSTransactionDecodedPayload,
   fields: GrantableFields,
   userId: string,
-  pack: { key: string, fluxAmount: number },
+  pack: { fluxAmount: number },
 ): EvidenceReceipt {
   return {
     kind: 'evidence',
     processor: APPLE_IAP_PROCESSOR,
     processorOrderId: fields.transactionId,
     userId,
-    packKey: pack.key,
+    packKey: fields.productId,
     fluxAmount: pack.fluxAmount,
     amount: payload.price ?? undefined,
     currency: payload.currency ?? undefined,

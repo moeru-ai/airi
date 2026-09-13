@@ -38,26 +38,16 @@ const verifiedTransaction = {
   type: 'Consumable',
 }
 
-const starterPack: ConfigDefinitions['FLUX_PACKS'][number] = {
-  key: 'starter',
-  name: '500 Flux',
-  fluxAmount: 500,
-  recommended: false,
-}
-
 const starterApplePacks: ConfigDefinitions['APPLE_FLUX_PACKS'] = {
-  'ai.moeru.airi.flux.500': 'starter',
-  'ai.moeru.airi.lite.flux.500': 'starter',
+  'ai.moeru.airi.flux.500': { fluxAmount: 500 },
+  'ai.moeru.airi.lite.flux.500': { fluxAmount: 500 },
 }
 
 function createPacksConfigKV(
-  packs: ConfigDefinitions['FLUX_PACKS'] = [starterPack],
   applePacks: ConfigDefinitions['APPLE_FLUX_PACKS'] = starterApplePacks,
 ): ConfigKVService {
   return {
     getOptional: vi.fn(async (key: string) => {
-      if (key === 'FLUX_PACKS')
-        return packs
       if (key === 'APPLE_FLUX_PACKS')
         return applePacks
       return null
@@ -213,13 +203,13 @@ describe('apple-iap routes', () => {
       processor: 'apple_iap',
       processorOrderId: 'txn_1',
       userId: 'user-1',
-      packKey: 'starter',
+      packKey: 'ai.moeru.airi.flux.500',
       fluxAmount: 500,
       customerId: storedToken,
     }))
   })
 
-  it('grants the same pack for a second App Store product id', async () => {
+  it('grants Flux for a second App Store product id', async () => {
     await seedAppleAccount(testUser.id)
     verifier = createMockVerifier({
       verifyTransaction: vi.fn(async () => ({
@@ -239,7 +229,7 @@ describe('apple-iap routes', () => {
       balanceAfter: 500,
     })
     expect(payment.settle).toHaveBeenCalledWith(expect.objectContaining({
-      packKey: 'starter',
+      packKey: 'ai.moeru.airi.lite.flux.500',
       fluxAmount: 500,
       processorOrderId: 'txn_lite',
     }))
@@ -247,7 +237,7 @@ describe('apple-iap routes', () => {
 
   it('returns 4xx for an unknown product', async () => {
     await seedAppleAccount(testUser.id)
-    const app = createTestApp(payment, verifier, db, createPacksConfigKV([]))
+    const app = createTestApp(payment, verifier, db, createPacksConfigKV({}))
     const res = await post(app, '/transactions', { signedTransaction: 'jws' }, testUser)
 
     expect(res.status).toBe(400)
@@ -313,7 +303,7 @@ describe('apple-iap routes', () => {
       processor: 'apple_iap',
       processorOrderId: 'txn_1',
       userId: 'user-1',
-      packKey: 'starter',
+      packKey: 'ai.moeru.airi.flux.500',
       fluxAmount: 500,
     }))
   })
