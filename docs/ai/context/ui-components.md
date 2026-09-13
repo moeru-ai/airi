@@ -487,6 +487,8 @@ Individual option item within `Select`.
 
 ### Combobox
 
+The input shows the selected option label when asynchronous options arrive or the model changes. Search text remains local to the input.
+
 Searchable dropdown/autocomplete using reka-ui with grouping.
 
 | Prop | Type | Default | Description |
