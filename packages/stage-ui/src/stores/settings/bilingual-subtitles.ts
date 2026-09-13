@@ -34,11 +34,18 @@ const translationSamples: Record<string, [string, string]> = {
  * translation before synthesis, and the bilingual splitter routes it to the
  * subtitle track. One short spoken sentence per pair keeps TTS segmentation
  * and playback order aligned one-to-one.
+ *
+ * Every sample is the same two prototype sentences in one language. Taking
+ * one sample for each side keeps the example semantically aligned, and the
+ * example always uses the two selected languages. An English-only example
+ * would bias a non-English spoken reply back to English.
  */
 export function buildBilingualInstruction(snapshot: BilingualTurnSnapshot): string {
   const spokenName = languageName(snapshot.spokenLanguage)
   const translationName = languageName(snapshot.translationLanguage)
-  const [firstTranslation, secondTranslation] = translationSamples[snapshot.translationLanguage]
+  const [spokenFirst, spokenSecond] = translationSamples[snapshot.spokenLanguage]
+    ?? translationSamples.en!
+  const [translatedFirst, translatedSecond] = translationSamples[snapshot.translationLanguage]
     ?? translationSamples.en!
 
   return [
@@ -54,7 +61,7 @@ export function buildBilingualInstruction(snapshot: BilingualTurnSnapshot): stri
     '- Continue this alternating pattern for the entire reply without explaining it.',
     '',
     'Example:',
-    `Hello! [${firstTranslation}] How are you? [${secondTranslation}]`,
+    `${spokenFirst} [${translatedFirst}] ${spokenSecond} [${translatedSecond}]`,
   ].join('\n')
 }
 

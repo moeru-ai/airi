@@ -1,5 +1,6 @@
 import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
 
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { getBeatSyncState, isBeatSyncSupported, listenBeatSyncStateChange } from '@proj-airi/stage-shared/beat-sync'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -47,6 +48,9 @@ export function useModulesList() {
   const artistryStore = useArtistryStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
   const beatSyncSupported = isBeatSyncSupported()
+  // Bilingual captions render in the Electron caption window. Stage Web and
+  // the mobile app have no caption receiver yet, so hide the entry there.
+  const bilingualSubtitlesSupported = isStageTamagotchi()
 
   minecraftStore.initialize()
 
@@ -69,15 +73,17 @@ export function useModulesList() {
       configured: speechStore.configured,
       category: 'essential',
     },
-    {
-      id: 'bilingual-subtitles',
-      name: t('settings.pages.modules.bilingual_subtitles.title'),
-      description: t('settings.pages.modules.bilingual_subtitles.description'),
-      icon: 'i-solar:translation-2-bold-duotone',
-      to: '/settings/modules/bilingual-subtitles',
-      configured: bilingualSubtitlesStore.enabled,
-      category: 'essential',
-    },
+    ...(bilingualSubtitlesSupported
+      ? [{
+          id: 'bilingual-subtitles',
+          name: t('settings.pages.modules.bilingual_subtitles.title'),
+          description: t('settings.pages.modules.bilingual_subtitles.description'),
+          icon: 'i-solar:translation-2-bold-duotone',
+          to: '/settings/modules/bilingual-subtitles',
+          configured: bilingualSubtitlesStore.enabled,
+          category: 'essential',
+        }]
+      : []),
     {
       id: 'hearing',
       name: t('settings.pages.modules.hearing.title'),

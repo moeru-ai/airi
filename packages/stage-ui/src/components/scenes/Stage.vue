@@ -211,6 +211,10 @@ const bilingualCaptionBus = useBilingualCaptionBus()
 // Turn owning the current speech surface. Late chunks from an interrupted
 // turn must not repopulate captions after the new turn reset the surface.
 let activeSpeechTurnId: string | undefined
+// Whether the active turn opened a TTS session. A muted turn collects
+// translation pairs but never plays, so no playback or pipeline event can
+// flush them. The response-end hook flushes that turn explicitly.
+let activeTurnSpeechEnabled = false
 
 type PresentEvent
   = | { type: 'assistant-reset' }
@@ -237,6 +241,7 @@ function resetAssistantSpeechSurface(source: string) {
   assistantCaption.value = ''
 
   activeSpeechTurnId = undefined
+  activeTurnSpeechEnabled = false
   bilingualCaptionBus.resetAll()
 
   try {
@@ -913,6 +918,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   if (speechMuted.value)
     return
 
+  activeTurnSpeechEnabled = true
   setupAnalyser()
   await setupLipSync()
   currentSession = openTtsSession(context.turnId)
@@ -955,6 +961,13 @@ chatHookCleanups.push(onStreamEnd(async () => {
 
 chatHookCleanups.push(onAssistantResponseEnd(async () => {
   currentSession?.end()
+  // A muted (or otherwise speech-less) turn never scheduled playback, so no
+  // intent-drained or pipeline turn-end event can reveal its pairs. Publish
+  // the collected translations once at response end instead. Spoken turns
+  // already revealed every pair during playback; flushTurn is idempotent.
+  const turnId = activeSpeechTurnId
+  if (turnId && !activeTurnSpeechEnabled)
+    bilingualCaptionBus.flushTurn(turnId)
   // No timed translation dump here: translations for pairs playback never
   // reaches are flushed when the utterance actually finishes — the playback
   // manager's intent-drained event, speechPipeline onTurnEnd, or the
