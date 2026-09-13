@@ -475,6 +475,11 @@ export const useProviderStore = defineStore('provider', () => {
     startPeriodicRuntimeValidation()
   }
 
+  providerConfigStore.onRemoteWorking(async (row) => {
+    const result = await validateProviderConfig(row.id, row.config, { skipChatPingCheck: true })
+    return result.valid
+  })
+
   providerConfigStore.onAfterSync(async () => {
     for (const providerId of [...providerInstanceCache.keys()]) {
       const current = providerCredentials.value[providerId]

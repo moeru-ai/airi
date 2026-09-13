@@ -50,7 +50,7 @@ function asReplicaRow(value: unknown): ProviderReplicaRow {
     deletedAt?: string | null
   }
   return {
-    id: item.configId, // replica identity; server PK is not used for merge
+    id: item.configId,
     definitionId: item.definitionId,
     config: item.config ?? {},
     updatedAt: item.updatedAt,
