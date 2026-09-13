@@ -6,12 +6,12 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
-import { toProviderConfigSnapshot } from '@proj-airi/stage-ui/libs/providers/config'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { getDefaultKokoroModel } from '@proj-airi/stage-ui/workers/kokoro/constants'
 import { Callout, ComboboxSelect } from '@proj-airi/ui'
+import { cloneDeep } from 'es-toolkit'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -123,7 +123,8 @@ onMounted(async () => {
       config.model = getDefaultKokoroModel(hasWebGPU.value)
     }
 
-    const configSnapshot = toProviderConfigSnapshot(config)
+    // Clone nested reactive values before the synchronized action sends its arguments.
+    const configSnapshot = cloneDeep(config)
     const validationResult = await providersStore.validateProviderConfig(providerId, configSnapshot)
     if (validationResult.valid) {
       // Load the initial model
@@ -147,7 +148,8 @@ watch(model, async (newValue) => {
       voicesLoading.value = true
 
       const config = providerStore.getProviderConfig(providerId)
-      const configSnapshot = toProviderConfigSnapshot(config)
+      // Clone nested reactive values before the synchronized action sends its arguments.
+      const configSnapshot = cloneDeep(config)
       const validationResult = await providersStore.validateProviderConfig(providerId, configSnapshot)
 
       if (validationResult.valid) {

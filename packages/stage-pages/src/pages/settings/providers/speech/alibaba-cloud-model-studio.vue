@@ -6,12 +6,12 @@ import {
   SpeechPlayground,
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
-import { toProviderConfigSnapshot } from '@proj-airi/stage-ui/libs/providers/config'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldRange } from '@proj-airi/ui'
 import { watchDebounced } from '@vueuse/core'
+import { cloneDeep } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -70,7 +70,8 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
 async function loadVoicesWhenConfigured() {
   const providerConfig = providerStore.getProviderConfig(providerId)
-  const configSnapshot = toProviderConfigSnapshot(providerConfig)
+  // Clone nested reactive values before the synchronized action sends its arguments.
+  const configSnapshot = cloneDeep(providerConfig)
   if ((await providersStore.validateProviderConfig(providerId, configSnapshot)).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
