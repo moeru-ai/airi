@@ -14,6 +14,7 @@ const CONFIG_MODEL_NAME = 'user-provider-configs'
 
 interface ProviderConfigDto {
   id: string
+  configId: string
   ownerId: string
   definitionId: string
   config: Record<string, unknown>
@@ -23,46 +24,47 @@ interface ProviderConfigDto {
 }
 
 interface UpsertProviderConfigInput {
-  id: string
+  configId: string
   ownerId: string
   definitionId: string
   config: Record<string, unknown>
 }
 
-function configAad(ownerId: string, id: string) {
+function configAad(ownerId: string, configId: string) {
   return {
     modelName: CONFIG_MODEL_NAME,
-    keyEntryId: `${ownerId}:${id}`,
+    keyEntryId: `${ownerId}:${configId}`,
   }
 }
 
 export function createProviderService(db: Database, envelopeCrypto: EnvelopeCrypto) {
-  function encryptConfig(ownerId: string, id: string, config: Record<string, unknown>): string {
-    return envelopeCrypto.encryptKey(JSON.stringify(config), configAad(ownerId, id))
+  function encryptConfig(ownerId: string, configId: string, config: Record<string, unknown>): string {
+    return envelopeCrypto.encryptKey(JSON.stringify(config), configAad(ownerId, configId))
   }
 
-  function decryptConfig(ownerId: string, id: string, ciphertext: string): Record<string, unknown> {
-    const plaintext = envelopeCrypto.decryptKey(ciphertext, configAad(ownerId, id)).toString('utf8')
+  function decryptConfig(ownerId: string, configId: string, ciphertext: string): Record<string, unknown> {
+    const plaintext = envelopeCrypto.decryptKey(ciphertext, configAad(ownerId, configId)).toString('utf8')
     return JSON.parse(plaintext) as Record<string, unknown>
   }
 
   function toDto(row: schema.UserProviderConfig): ProviderConfigDto {
     return {
       id: row.id,
+      configId: row.configId,
       ownerId: row.ownerId,
       definitionId: row.definitionId,
-      config: decryptConfig(row.ownerId, row.id, row.config),
+      config: decryptConfig(row.ownerId, row.configId, row.config),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       deletedAt: row.deletedAt?.toISOString() ?? null,
     }
   }
 
-  async function findOwnedRow(id: string, ownerId: string) {
+  async function findOwnedRow(configId: string, ownerId: string) {
     return db.query.userProviderConfigs.findFirst({
       where: and(
         eq(schema.userProviderConfigs.ownerId, ownerId),
-        eq(schema.userProviderConfigs.id, id),
+        eq(schema.userProviderConfigs.configId, configId),
       ),
     })
   }
@@ -76,41 +78,40 @@ export function createProviderService(db: Database, envelopeCrypto: EnvelopeCryp
     },
 
     async upsert(input: UpsertProviderConfigInput): Promise<ProviderConfigDto> {
-      const existing = await findOwnedRow(input.id, input.ownerId)
+      const existing = await findOwnedRow(input.configId, input.ownerId)
       const now = new Date()
-      const ciphertext = encryptConfig(input.ownerId, input.id, input.config)
 
       if (!existing) {
         const [inserted] = await db.insert(schema.userProviderConfigs).values({
-          id: input.id,
           ownerId: input.ownerId,
+          configId: input.configId,
           definitionId: input.definitionId,
-          config: ciphertext,
+          config: encryptConfig(input.ownerId, input.configId, input.config),
           createdAt: now,
           updatedAt: now,
         }).returning()
-        logger.withFields({ id: inserted.id, ownerId: input.ownerId, definitionId: input.definitionId }).log('Created user provider config')
+        logger.withFields({ id: inserted.id, configId: inserted.configId, ownerId: input.ownerId, definitionId: input.definitionId }).log('Created user provider config')
         return toDto(inserted)
       }
 
       const [updated] = await db.update(schema.userProviderConfigs)
         .set({
           definitionId: input.definitionId,
-          config: ciphertext,
+          config: encryptConfig(input.ownerId, input.configId, input.config),
           updatedAt: now,
           deletedAt: null,
         })
         .where(and(
-          eq(schema.userProviderConfigs.id, input.id),
+          eq(schema.userProviderConfigs.id, existing.id),
           eq(schema.userProviderConfigs.ownerId, input.ownerId),
         ))
         .returning()
-      logger.withFields({ id: input.id, ownerId: input.ownerId }).log('Updated user provider config')
+      logger.withFields({ id: existing.id, configId: input.configId, ownerId: input.ownerId }).log('Updated user provider config')
       return toDto(updated)
     },
 
-    async tombstone(id: string, ownerId: string): Promise<void> {
-      const existing = await findOwnedRow(id, ownerId)
+    async tombstone(configId: string, ownerId: string): Promise<void> {
+      const existing = await findOwnedRow(configId, ownerId)
       if (!existing)
         throw createNotFoundError()
 
@@ -118,10 +119,10 @@ export function createProviderService(db: Database, envelopeCrypto: EnvelopeCryp
       await db.update(schema.userProviderConfigs)
         .set({ deletedAt: now, updatedAt: now })
         .where(and(
-          eq(schema.userProviderConfigs.id, id),
+          eq(schema.userProviderConfigs.id, existing.id),
           eq(schema.userProviderConfigs.ownerId, ownerId),
         ))
-      logger.withFields({ id, ownerId }).log('Tombstoned user provider config')
+      logger.withFields({ id: existing.id, configId, ownerId }).log('Tombstoned user provider config')
     },
 
     /**
