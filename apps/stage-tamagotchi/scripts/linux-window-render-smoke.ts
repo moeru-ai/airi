@@ -82,7 +82,7 @@ async function ensureSmokePrerequisites() {
   ].join(' '))
 }
 
-function startStage(debugPort: number, inspectPort: number): ChildProcessWithoutNullStreams {
+function startStage(debugPort: number): ChildProcessWithoutNullStreams {
   return spawn('pnpm', ['-F', '@proj-airi/stage-tamagotchi', 'start'], {
     cwd: repoDir,
     detached: true,
@@ -92,14 +92,6 @@ function startStage(debugPort: number, inspectPort: number): ChildProcessWithout
       APP_REMOTE_DEBUG_PORT: String(debugPort),
       APP_REMOTE_DEBUG_NO_OPEN: 'true',
       APP_USER_DATA_PATH: userDataDir,
-      // electron-vite's `preview` command runs in production mode, where it
-      // ignores its own V8_INSPECTOR_PORT convenience env var (that's gated
-      // to dev mode). ELECTRON_CLI_ARGS is not gated, so use it to pass
-      // Electron's native `--inspect` flag through instead. This opens a
-      // Node inspector on the main process, letting the smoke check below
-      // read real BrowserWindow state (isVisible()) rather than only the
-      // renderer's DOM.
-      ELECTRON_CLI_ARGS: JSON.stringify([`--inspect=${inspectPort}`]),
     },
     stdio: 'pipe',
   })
@@ -153,37 +145,23 @@ async function findMainWindowTarget(debugPort: number) {
   )
 }
 
-async function findMainProcessInspectorTarget(inspectPort: number) {
-  // Node's inspector HTTP API exposes exactly one target for the process
-  // it's attached to; unlike Electron's Chrome DevTools endpoint, its
-  // `/json/version` response carries no webSocketDebuggerUrl, so this reads
-  // `/json/list` instead of using waitForRemoteDebug.
-  return await findDebugTarget(inspectPort, 'main process inspector target', () => true)
-}
-
 interface RenderCheck {
   readyState: DocumentReadyState
   appRootChildCount: number
   bodyTextLength: number
-}
-
-interface MainWindowVisibilityCheck {
-  found: boolean
-  isVisible: boolean
+  visibilityState: DocumentVisibilityState
 }
 
 async function main() {
   let stageProcess: ChildProcessWithoutNullStreams | undefined
   let client: CdpClient | undefined
-  let inspectorClient: CdpClient | undefined
 
   try {
     await ensureSmokePrerequisites()
     await mkdir(reportDir, { recursive: true })
 
     const debugPort = await findAvailablePort()
-    const inspectPort = await findAvailablePort()
-    stageProcess = startStage(debugPort, inspectPort)
+    stageProcess = startStage(debugPort)
     const stageExited = rejectWhenStageExits(stageProcess)
 
     await Promise.race([waitForRemoteDebug(debugPort), stageExited]).catch((error) => {
@@ -208,6 +186,7 @@ async function main() {
         readyState: document.readyState,
         appRootChildCount: root ? root.children.length : -1,
         bodyTextLength: document.body ? document.body.innerText.length : 0,
+        visibilityState: document.visibilityState,
       }
     })()`)
 
@@ -215,6 +194,16 @@ async function main() {
       throw new Error(`RENDER_CHECK_FAILED: document.readyState=${check.readyState}`)
     if (check.appRootChildCount <= 0)
       throw new Error(`RENDER_CHECK_FAILED: #app root has no children (appRootChildCount=${check.appRootChildCount}). The window likely came up blank.`)
+    // The DOM checks above pass even for a hidden window (show: false,
+    // ready-to-show never firing): CDP still exposes and can screenshot a
+    // renderer that is attached to a native window the user never sees.
+    // Chromium reports document.visibilityState='hidden' for such windows,
+    // so assert on it. Reading BrowserWindow.isVisible() from the main
+    // process is not an option here: Electron's main-process inspector
+    // cannot evaluate dynamic import(), and the main bundle is ESM, so
+    // there is no require('electron') to reach it with either.
+    if (check.visibilityState !== 'visible')
+      throw new Error(`RENDER_CHECK_FAILED: document.visibilityState=${check.visibilityState}; the window is not visible`)
 
     const screenshot = await client.send('Page.captureScreenshot', { format: 'png' })
     const screenshotData = isRecord(screenshot.result) ? screenshot.result.data : undefined
@@ -222,42 +211,14 @@ async function main() {
       throw new Error('RENDER_CHECK_FAILED: Page.captureScreenshot returned no image data')
     await writeFile(screenshotPath, Buffer.from(screenshotData, 'base64'))
 
-    // The renderer checks above pass even for a hidden window (show: false,
-    // ready-to-show never firing): CDP still exposes and can screenshot a
-    // renderer that is attached to a native window the user never sees.
-    // Ask the main process itself, over its Node inspector, whether the
-    // BrowserWindow actually became visible.
-    const inspectorTarget = await Promise.race([findMainProcessInspectorTarget(inspectPort), stageExited]).catch((error) => {
-      throw new Error(`APP_START_FAILED: ${errorMessageFromValue(error)}`)
-    })
-    if (!inspectorTarget.webSocketDebuggerUrl)
-      throw new Error('APP_START_FAILED: main process inspector target missing webSocketDebuggerUrl')
-
-    inspectorClient = await CdpClient.connect(inspectorTarget.webSocketDebuggerUrl)
-    const visibility = await inspectorClient.evaluate<MainWindowVisibilityCheck>(`(async () => {
-      const { BrowserWindow } = await import('electron')
-      const window = BrowserWindow.getAllWindows().find((candidate) => candidate.getTitle() === 'AIRI')
-      return {
-        found: Boolean(window),
-        isVisible: window ? window.isVisible() : false,
-      }
-    })()`)
-
-    if (!visibility.found)
-      throw new Error('RENDER_CHECK_FAILED: no BrowserWindow titled \'AIRI\' exists in the main process')
-    if (!visibility.isVisible)
-      throw new Error('RENDER_CHECK_FAILED: the AIRI BrowserWindow exists but BrowserWindow.isVisible() is false')
-
     console.info(JSON.stringify({
       ok: true,
       reportDir,
       screenshotPath,
       check,
-      visibility,
     }, null, 2))
   }
   finally {
-    inspectorClient?.close()
     client?.close()
     await stopStage(stageProcess)
   }
