@@ -3,6 +3,35 @@ import type { ExtensionLoadOptions, ExtensionManifestV1 } from '../../../shared/
 
 import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
+import { pathToFileURL } from 'node:url'
+
+const urlSchemePattern = /^[a-z][\d+.a-z-]*:\/\//i
+
+/**
+ * Converts a resolved filesystem entrypoint into an ESM import specifier.
+ *
+ * Why:
+ * - Dynamic `import()` parses a bare Windows path such as `C:\plugins\index.mjs`
+ *   as URL scheme `c:` and Node rejects it with `ERR_UNSUPPORTED_ESM_URL_SCHEME`.
+ * - Auto-reload cache-bust markers (`index.mjs?cacheBust=...`) must stay a URL
+ *   query so Node keeps them as the module cache key instead of a path segment.
+ *
+ * Returns the original specifier when it already carries a URL scheme.
+ */
+function toImportSpecifier(entrypoint: string): string {
+  if (urlSchemePattern.test(entrypoint)) {
+    return entrypoint
+  }
+
+  const queryIndex = entrypoint.indexOf('?')
+  if (queryIndex === -1) {
+    return pathToFileURL(entrypoint).href
+  }
+
+  const pathname = entrypoint.slice(0, queryIndex)
+  const query = entrypoint.slice(queryIndex)
+  return `${pathToFileURL(pathname).href}${query}`
+}
 
 function isExtensionDefinition(value: unknown): value is Extension {
   return typeof value === 'object'
@@ -71,7 +100,7 @@ export class FileSystemLoader {
 
   async loadExtensionFor(manifest: ExtensionManifestV1, options?: ExtensionLoadOptions) {
     const entrypoint = this.resolveEntrypointFor(manifest, options)
-    const extensionModule = await import(entrypoint)
+    const extensionModule = await import(toImportSpecifier(entrypoint))
     return coerceExtensionFromModule(extensionModule)
   }
 }
