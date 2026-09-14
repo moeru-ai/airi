@@ -15,12 +15,22 @@ Pass the model, chat provider, messages, and optional tools and callbacks.
 Await the returned promise to handle completion or failure.
 
 The runtime checks text and reasoning for serialized calls to registered tools.
-It buffers JSON candidates until the step ends. Valid ordinary objects retain
-their nested examples. Native tool activity does not disable this check.
+It checks complete JSON candidates at step boundaries. If a candidate is unmatched,
+it retains that candidate and all later output until the stream ends.
+The final check joins each channel across tool rounds. Valid ordinary objects retain
+their nested examples, including examples split across steps.
+Native tool activity does not disable this check or wait for buffered UI notifications.
 
-Each channel has a parse-work budget for each step. The budget permits candidate
+Each channel inspection has a parse-work budget. The budget permits candidate
 lengths to total at most eight times the channel length, measured in UTF-16 code units.
 Valid objects need one pass. The budget adds no size or depth limit to valid objects.
+An unmatched prefix is inspected at its first boundary and once at stream completion.
+Intermediate boundaries do not rescan that growing prefix.
+
+Ordinary text before a JSON candidate still streams immediately. Complete candidates
+can flush at step boundaries. After an unmatched candidate, text, reasoning, and
+native UI notifications wait for stream completion and retain their original order.
+Final incomplete ordinary output remains unchanged unless it contains a detected tool call.
 
 If malformed candidates exhaust the budget, the response rejects with
 `Model output exceeded the JSON inspection work limit.`
