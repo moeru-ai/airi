@@ -195,7 +195,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
       // Only set listening to true if transcription started successfully
       // (transcribeForMediaStream might return early if session already exists)
-      isListening.value = true
+      isListening.value = !hearingPipeline.error
       console.info('Streaming transcription initiated successfully', { source: 'useTranscriptions' })
     }
     catch (err) {

@@ -89,6 +89,7 @@ export const useSettings = defineStore('settings', () => {
     allowVisibleOnAllWorkspaces: controlsIslandRefs.allowVisibleOnAllWorkspaces,
     alwaysOnTop: controlsIslandRefs.alwaysOnTop,
     controlsIslandIconSize: controlsIslandRefs.controlsIslandIconSize,
+    showStageStatus: controlsIslandRefs.showStageStatus,
     inspectUpdaterDiagnostics: developerRefs.inspectUpdaterDiagnostics,
 
     // Methods

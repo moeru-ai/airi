@@ -1886,3 +1886,7 @@ websocket-secure-enabled:
 wip:
   title: 正在开发中
   description: 此功能正在开发中，尚未公开发布。请在未来的更新中再次查看此功能。
+
+stage-status:
+  title: 显示状态胶囊
+  description: 在角色窗口显示麦克风和登录状态。直播时可以关闭，不影响语音和登录。
