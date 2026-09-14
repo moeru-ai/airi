@@ -19,6 +19,9 @@ const selectClass = [
   'bg-white dark:bg-neutral-900',
 ]
 
+const fieldClass = ['flex flex-col gap-1']
+const fieldTitleClass = ['text-sm font-medium']
+
 // The voice catalog stores language codes such as `en-US`. Match the base
 // ISO 639-1 part so a regional voice still counts as compatible.
 const voiceMayNotSupportSpokenLanguage = computed(() => {
@@ -36,7 +39,7 @@ const voiceMayNotSupportSpokenLanguage = computed(() => {
 </script>
 
 <template>
-  <div flex="~ col gap-6">
+  <div :class="['flex flex-col gap-6']">
     <div
       :class="[
         'h-fit w-full rounded-xl p-4',
@@ -59,9 +62,9 @@ const voiceMayNotSupportSpokenLanguage = computed(() => {
         :description="t('settings.pages.modules.bilingual_subtitles.enable.description')"
       />
 
-      <fieldset v-if="enabled" flex="~ col gap-4" class="max-w-md">
-        <label flex="~ col gap-1">
-          <span class="text-sm font-medium">
+      <fieldset v-if="enabled" :class="['flex flex-col gap-4', 'max-w-md']">
+        <label :class="fieldClass">
+          <span :class="fieldTitleClass">
             {{ t('settings.pages.modules.bilingual_subtitles.spoken_language.label') }}
           </span>
           <span class="text-sm text-neutral-400 dark:text-neutral-500">
@@ -79,8 +82,8 @@ const voiceMayNotSupportSpokenLanguage = computed(() => {
           </select>
         </label>
 
-        <label flex="~ col gap-1">
-          <span class="text-sm font-medium">
+        <label :class="fieldClass">
+          <span :class="fieldTitleClass">
             {{ t('settings.pages.modules.bilingual_subtitles.translation_subtitle_1.label') }}
           </span>
           <select v-model="translationLanguage" :class="selectClass">
@@ -110,15 +113,16 @@ const voiceMayNotSupportSpokenLanguage = computed(() => {
 
   <div
     v-motion
-    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
+    :class="[
+      'pointer-events-none fixed z--1 right--5 bottom-0 top-[calc(100dvh-15rem)] size-60',
+      'flex items-center justify-center',
+      'text-neutral-200/50 dark:text-neutral-600/20',
+    ]"
     :initial="{ scale: 0.9, opacity: 0, x: 20 }"
     :enter="{ scale: 1, opacity: 1, x: 0 }"
     :duration="500"
-    size-60
-    flex items-center justify-center
   >
-    <div text="60" i-solar:translation-2-bold-duotone />
+    <div :class="['text-60', 'i-solar:translation-2-bold-duotone']" />
   </div>
 </template>
 

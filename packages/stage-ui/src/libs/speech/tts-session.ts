@@ -190,9 +190,9 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
         text: text ?? '',
         special: null,
         // Non-buffered streaming emits one item per server sentence, so each
-        // item ends a sentence. The buffered session emits one item for the
-        // whole turn and aligns via onSentenceBoundary instead.
-        sentenceBoundary: !snapshot.bufferEntireSession,
+        // item starts (and ends) its sentence. The buffered session emits
+        // one item for the whole turn and aligns via onSentenceBoundary.
+        sentenceStart: !snapshot.bufferEntireSession,
         audio: audio as unknown as TAudio,
         createdAt: Date.now(),
       })

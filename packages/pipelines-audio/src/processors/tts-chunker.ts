@@ -256,10 +256,9 @@ export async function* chunkTtsInput(
 
     buffer += value
     previousValue = value
-    // Cover runs with no punctuation at all: check on spaces (Latin word
-    // boundaries) and on a generous length guard (space-less scripts). The
-    // punctuation branch above handles the common cases, so this stays cheap.
-    if (flushBoundaries && (/\s/.test(value) || buffer.length > 80)) {
+    // Space-delimited text may omit sentence punctuation, so re-check the
+    // word cap at spaces; the punctuation branch above covers the rest.
+    if (flushBoundaries && /\s/.test(value)) {
       const overflow = takeFlushOverflow()
       if (overflow !== false) {
         yield { text: overflow, words: maximumWords, reason: 'limit' }
@@ -561,6 +560,11 @@ export function createTtsSegmentStream(
 
   void (async () => {
     const reader = byteStream.getReader()
+    // Caption alignment is anchored to when each spoken sentence STARTS. A
+    // sentence may span several chunks (word-limit pieces before its hard or
+    // flush terminator), so mark only the first chunk after the previous
+    // terminator; later pieces of the same sentence carry no start flag.
+    let atSentenceStart = true
     try {
       await chunkEmitter(reader, pendingSpecials, { ...options, flushBoundaries: meta.flushBoundaries ?? options?.flushBoundaries }, async (chunk) => {
         write({
@@ -570,15 +574,11 @@ export function createTtsSegmentStream(
           segmentId: `${meta.streamId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
           text: chunk.chunk,
           special: chunk.special,
-          // Only hard punctuation and explicit flush markers end a
-          // sentence. Word-limit and early-boost chunks are pieces of one
-          // sentence and must not advance sentence-aligned captions. In
-          // flush-boundary (bilingual) mode hard punctuation never cuts, so
-          // one flush chunk per translation pair is the only boundary.
-          sentenceBoundary: chunk.reason === 'hard' || chunk.reason === 'flush',
+          sentenceStart: atSentenceStart,
           reason: chunk.reason,
           createdAt: Date.now(),
         })
+        atSentenceStart = chunk.reason === 'hard' || chunk.reason === 'flush'
       })
       close()
     }

@@ -651,12 +651,12 @@ bindSpeakingStateToPlaybackManager(playbackManager, {
     }
 
     // Reveal the translation when its sentence STARTS, so the translated
-    // line and the spoken line change together. Only the item flagged as
-    // the sentence boundary advances the queue: a long sentence can be
-    // split into several items by the word-limit chunker. The buffered
-    // WebSocket session emits one item for the whole turn without the flag
-    // and advances through `onSentenceBoundary` instead.
-    if (item.sentenceBoundary) {
+    // line and the spoken line change together. Only the first item of a
+    // sentence advances the queue; a long sentence split into several items
+    // by the word-limit chunker carries the flag on its first item only. The
+    // buffered WebSocket session emits one item for the whole turn without
+    // the flag and advances through `onSentenceBoundary` instead.
+    if (item.sentenceStart) {
       bilingualCaptionBus.routePlaybackItem({
         turnId: item.turnId,
         intentId: item.intentId,

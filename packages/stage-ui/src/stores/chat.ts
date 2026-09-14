@@ -29,7 +29,7 @@ import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useAuthStore } from './auth'
-import { createBilingualPromptContext, createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { BILINGUAL_PROMPT_CONTEXT_ID, createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -321,7 +321,7 @@ export const useChatStore = defineStore('chat', () => {
     // the async before-compose hook, so the prompt mode and the splitter mode
     // can never disagree because settings changed mid-send.
     getBilingualInstructionContext: snapshot =>
-      snapshot ? createBilingualPromptContext(buildBilingualInstruction(snapshot)) : undefined,
+      snapshot ? createRuntimePromptContext(buildBilingualInstruction(snapshot), BILINGUAL_PROMPT_CONTEXT_ID) : undefined,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,

@@ -208,7 +208,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
             priority: intent.priority,
             text: completedRequest.text,
             special: completedRequest.special,
-            sentenceBoundary: completedRequest.sentenceBoundary,
+            sentenceStart: completedRequest.sentenceStart,
             audio: completedRequest.audio,
             createdAt: Date.now(),
           })
@@ -250,7 +250,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           sequence: request.sequence,
           text: request.text,
           special: request.special,
-          sentenceBoundary: request.sentenceBoundary,
+          sentenceStart: request.sentenceStart,
           audio,
           createdAt: Date.now(),
         }
@@ -300,7 +300,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           sequence: nextRequestSequence++,
           text: value.text,
           special: value.special,
-          sentenceBoundary: value.sentenceBoundary,
+          sentenceStart: value.sentenceStart,
           priority: intent.priority,
           createdAt: Date.now(),
         }
