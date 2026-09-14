@@ -13,14 +13,18 @@ import { electron } from '@proj-airi/electron-eventa'
 import { getElectronEventaContext, resetElectronEventaContextForTesting } from '@proj-airi/electron-vueuse'
 import { parseEvent, stringifyEvent } from '@proj-airi/server-sdk'
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
-import { setupSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { setupSynced, usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
-import { defineComponent, h, nextTick } from 'vue'
+import { createApp, defineComponent, h, nextTick, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -37,6 +41,7 @@ import {
 } from '../shared/eventa'
 import { electronPluginUpdateCapability, pluginProtocolListProviders, pluginProtocolListProvidersEventName } from '../shared/eventa/plugin/capabilities'
 import { electronPluginListXsaiTools } from '../shared/eventa/plugin/tools'
+import { resolveRendererWindowContext } from './window-context'
 
 const inference = vi.hoisted(() => ({
   loadModel: vi.fn<KokoroAdapter['loadModel']>(async () => ({})),
@@ -150,16 +155,24 @@ const channelConnector: ClientConnector<string> = {
   },
 }
 
-async function renderStage(routePath: string) {
+async function renderStage(routePath: string, search: string) {
   const originalUrl = location.href
   const url = new URL(originalUrl)
-  url.searchParams.set('synced-leader', 'true')
-  url.searchParams.delete('stage-runtime')
+  const windowQuery = new URLSearchParams(search)
+  for (const key of ['synced-leader', 'stage-runtime']) {
+    const value = windowQuery.get(key)
+    if (value === null)
+      url.searchParams.delete(key)
+    else
+      url.searchParams.set(key, value)
+  }
   url.hash = routePath
   history.replaceState(null, '', url)
+  const windowContext = resolveRendererWindowContext()
 
   const bridge = connectElectron()
   const reports: PluginCapabilityPayload[] = []
+  const errors: unknown[] = []
   defineInvokeHandler(bridge.main, electronPluginUpdateCapability, (payload) => {
     reports.push(payload)
     return { ...payload, updatedAt: Date.now() }
@@ -168,13 +181,14 @@ async function renderStage(routePath: string) {
   defineInvokeHandler(bridge.main, i18nSetLocale, () => {})
   defineInvokeHandler(bridge.main, electron.app.isWindows, () => false)
   defineInvokeHandler(bridge.main, artistrySyncConfig, () => {})
-  defineInvokeHandler(bridge.main, electronGetWindowLifecycleState, () => ({
+  const getWindowLifecycleState = vi.fn(() => ({
     focused: true,
     minimized: false,
-    reason: 'initial',
+    reason: 'initial' as const,
     updatedAt: 0,
     visible: true,
   }))
+  defineInvokeHandler(bridge.main, electronGetWindowLifecycleState, getWindowLifecycleState)
   defineInvokeHandler(bridge.main, electronGodotStageGetStatus, () => ({ state: 'stopped' as const, pid: null, updatedAt: 0 }))
   defineInvokeHandler(bridge.main, electronGetServerChannelConfig, () => ({
     hostname: '127.0.0.1',
@@ -189,11 +203,16 @@ async function renderStage(routePath: string) {
   defineInvokeHandler(bridge.main, electronPluginListXsaiTools, () => ({ prompts: [], tools: [] }))
 
   const pinia = createPinia()
-  const synced = setupSynced({ leadership: 'leader-only' })
+  const synced = setupSynced({ leadership: windowContext.leadership })
   pinia.use(synced.pinia)
   let unmount: (() => void | Promise<void>) | undefined
   let disposeCharacter: (() => void) | undefined
   let disposeChannel: (() => void) | undefined
+  let disposeLeader: (() => void) | undefined
+  let leader: {
+    pinia: ReturnType<typeof createPinia>
+    runtime: ReturnType<typeof usePiniaSynced>
+  } | undefined
   onTestFinished(async () => {
     // Stop component consumers before their transports and Pinia state disappear.
     await unmount?.()
@@ -201,9 +220,44 @@ async function renderStage(routePath: string) {
     disposeChannel?.()
     await nextTick()
     disposePinia(pinia)
+    // Keep the leader available until the follower releases its local consumers.
+    disposeLeader?.()
     bridge.dispose()
     history.replaceState(null, '', originalUrl)
   })
+
+  if (windowContext.leadership === 'follower-only') {
+    const leaderPinia = createPinia()
+    const leaderSynced = setupSynced({ leadership: 'leader-only' })
+    leaderPinia.use(leaderSynced.pinia)
+    let disposeLeaderChat: (() => void) | undefined
+    const leaderApp = createApp(defineComponent({
+      setup() {
+        const chat = useChatStore()
+        disposeLeaderChat = () => chat.dispose()
+        // Card actions run in this leader. Create their module stores during
+        // setup so their i18n consumers retain a component context.
+        useSpeechStore()
+        useVisionStore()
+        return () => null
+      },
+    }))
+    leaderApp.config.errorHandler = error => errors.push(error)
+    leaderApp.use(leaderPinia)
+      .use(leaderSynced.vue)
+      .use(PiniaColada)
+      .use(createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false }))
+    disposeLeader = () => {
+      leaderApp.unmount()
+      disposeLeaderChat?.()
+      disposePinia(leaderPinia)
+    }
+    leaderApp.mount(document.createElement('div'))
+    const leaderRuntime = leaderApp.runWithContext(usePiniaSynced)
+    await expect.poll(() => leaderRuntime.isLeader(), { timeout: 5000 }).toBe(true)
+    leader = { pinia: leaderPinia, runtime: leaderRuntime }
+  }
+
   const initializeCharacter = vi.fn()
   pinia.use(({ store }) => {
     if (store.$id === 'character-orchestrator') {
@@ -219,18 +273,21 @@ async function renderStage(routePath: string) {
   })
   await router.push(routePath)
   await router.isReady()
-  const errors: unknown[] = []
+  let runtime: ReturnType<typeof usePiniaSynced> | undefined
+  let channel: ReturnType<typeof useModsServerChannelStore> | undefined
+  const readyToMount = shallowRef(false)
   const Host = defineComponent({
     setup() {
-      const channel = useModsServerChannelStore()
-      disposeChannel = () => channel.dispose()
-      void channel.initialize({ token: 'startup-test-token', connector: () => channelConnector })
-      const providers = useProviderConfigStore()
-      providers.ensureProvider('kokoro-local', 'kokoro-local', { model: 'q8' })
-      providers.setProviderStatus('kokoro-local', 'configured')
-      const character = useCharacterOrchestratorStore()
-      disposeCharacter = () => character.dispose()
-      return () => h(App)
+      runtime = usePiniaSynced()
+      useProviderConfigStore()
+      if (windowContext.stageRuntime === 'full') {
+        const serverChannel = useModsServerChannelStore()
+        channel = serverChannel
+        disposeChannel = () => serverChannel.dispose()
+        const character = useCharacterOrchestratorStore()
+        disposeCharacter = () => character.dispose()
+      }
+      return () => readyToMount.value ? h(App) : null
     },
   })
   const screen = await render(Host, {
@@ -246,12 +303,36 @@ async function renderStage(routePath: string) {
     },
   })
   unmount = () => screen.unmount()
+  if (!runtime)
+    throw new Error('The renderer did not install Pinia synchronization.')
+  const rendererRuntime = runtime
+  if (leader) {
+    const leaderId = leader.runtime.participantId
+    await expect.poll(() => rendererRuntime.getLeaderId(), { timeout: 5000 }).toBe(leaderId)
+  }
+  else {
+    await expect.poll(() => rendererRuntime.isLeader(), { timeout: 5000 }).toBe(true)
+  }
+
+  // Seed provider state through its owner before App schedules inference.
+  // Followers receive that state through the real synchronization transport.
+  const providers = useProviderConfigStore(leader?.pinia ?? pinia)
+  await providers.ensureProvider('kokoro-local', 'kokoro-local', { model: 'q8' })
+  await providers.setProviderStatus('kokoro-local', 'configured')
+  await expect.poll(() => useProviderConfigStore(pinia).configuredProviders['kokoro-local'], { timeout: 5000 }).toBeDefined()
+  await channel?.initialize({ token: 'startup-test-token', connector: () => channelConnector })
+  readyToMount.value = true
+  await nextTick()
 
   return {
     errors,
+    getWindowLifecycleState,
     initializeCharacter,
+    leader,
     listProviders: defineInvoke(bridge.main, pluginProtocolListProviders),
+    pinia,
     reports,
+    runtime: rendererRuntime,
   }
 }
 
@@ -273,8 +354,8 @@ describe('renderer startup', () => {
   // That unresolved call blocked provider registration, capability reporting, and preload.
   // Removing the obsolete call lets these startup steps finish through the current IPC contracts.
   // https://github.com/moeru-ai/airi/pull/2530
-  it.each(['/', '/chat'])('completes full startup at %s without the obsolete mouse handler (PR #2530)', async (routePath) => {
-    const stage = await renderStage(routePath)
+  it('completes main window startup without the obsolete mouse handler (PR #2530)', async () => {
+    const stage = await renderStage('/', '?synced-leader=true')
 
     await expect.poll(() => ({ errors: stage.errors, reports: stage.reports }), { timeout: 5000 }).toEqual({
       errors: [],
@@ -284,20 +365,46 @@ describe('renderer startup', () => {
         metadata: { source: 'stage-ui' },
       }],
     })
+    expect(stage.runtime.isLeader()).toBe(true)
     expect(stage.initializeCharacter).toHaveBeenCalledTimes(1)
     await expect(stage.listProviders()).resolves.toContainEqual({ name: 'Kokoro TTS' })
     await expect.poll(() => inference.loadModel.mock.calls, { timeout: 5000 }).toHaveLength(1)
     expect(inference.loadModel).toHaveBeenCalledWith('q8', 'wasm', { signal: expect.any(AbortSignal) })
   }, 15000)
 
-  // https://github.com/moeru-ai/airi/pull/2530
-  it('starts widgets without the character orchestrator (PR #2530)', async () => {
-    const stage = await renderStage('/widgets')
+  // ROOT CAUSE:
+  //
+  // The fixture forced chat and widgets into leader/full mode. Their Electron
+  // windows use follower-only leadership, and chat uses the minimal runtime.
+  // Each fixture must preserve its window configuration and use a real store leader.
+  // https://github.com/moeru-ai/airi/pull/2530#discussion_r4002175977
+  it('starts chat as a minimal follower (PR #2530)', async () => {
+    const stage = await renderStage('/chat', '?stage-runtime=minimal&synced-leader=false')
+    const sessions = useChatSessionStore(stage.pinia)
+    const leaderSessions = stage.leader && useChatSessionStore(stage.leader.pinia)
+
+    await expect.poll(() => sessions.isReady, { timeout: 5000 }).toBe(true)
+    expect(sessions.activeSessionId).not.toBe('')
+    expect(sessions.activeSessionId).toBe(leaderSessions?.index?.characters.default?.activeSessionId)
+    expect(stage.runtime.isLeader()).toBe(false)
+    expect(stage.runtime.getLeaderId()).toBe(stage.leader?.runtime.participantId)
+    expect(stage.errors).toEqual([])
+    expect(stage.getWindowLifecycleState).not.toHaveBeenCalled()
+    expect(stage.initializeCharacter).not.toHaveBeenCalled()
+    expect(stage.reports).toEqual([])
+    expect(inference.loadModel).not.toHaveBeenCalled()
+  }, 15000)
+
+  // https://github.com/moeru-ai/airi/pull/2530#discussion_r4002175977
+  it('starts widgets as a full follower without the character orchestrator (PR #2530)', async () => {
+    const stage = await renderStage('/widgets', '?synced-leader=false')
 
     await expect.poll(() => ({ errors: stage.errors, reports: stage.reports }), { timeout: 5000 }).toMatchObject({
       errors: [],
       reports: [{ key: pluginProtocolListProvidersEventName, state: 'ready' }],
     })
+    expect(stage.runtime.isLeader()).toBe(false)
+    expect(stage.runtime.getLeaderId()).toBe(stage.leader?.runtime.participantId)
     expect(stage.initializeCharacter).not.toHaveBeenCalled()
     await expect(stage.listProviders()).resolves.toContainEqual({ name: 'Kokoro TTS' })
     await expect.poll(() => inference.loadModel.mock.calls, { timeout: 5000 }).toHaveLength(1)
