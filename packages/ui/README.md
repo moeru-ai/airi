@@ -65,6 +65,34 @@ import { Button } from '@proj-airi/ui'
     * [Range](src/components/Form/Range)
     * [ComboboxSelect](src/components/Form/Select)
     * [Textarea](src/components/Form/Textarea)
+    * [ContentEditable](src/components/form/content-editable)
+
+### BasicContentEditable
+
+Use `BasicContentEditable` for a plain-text multiline keyboard target that must avoid Safari Form Assistant. It submits on Enter outside IME composition. Shift+Enter adds a line.
+
+Native `contenteditable="plaintext-only"` handles text insertion, paste, drop, and undo. The component forwards file transfers and synchronizes external drafts. It does not rewrite local edits or insert text with `execCommand`.
+
+The control has a multiline textbox role. Set `aria-label` or `aria-labelledby` when the placeholder is not a suitable accessible name. Verify keyboard editing and VoiceOver on a real iOS device before release.
+
+Do not use it for a standard form field. Use `Textarea` when browser form behavior is required.
+
+```vue
+<script setup lang="ts">
+import { BasicContentEditable } from '@proj-airi/ui'
+import { ref } from 'vue'
+
+const message = ref('')
+
+function sendMessage(value: string) {
+  console.info(value)
+}
+</script>
+
+<template>
+  <BasicContentEditable v-model="message" placeholder="Write a message" @submit="sendMessage" />
+</template>
+```
 
 ## License
 
