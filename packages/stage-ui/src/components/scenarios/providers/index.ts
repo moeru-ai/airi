@@ -3,6 +3,7 @@ export { default as ProviderAdvancedSettings } from './provider-advanced-setting
 export { default as ProviderApiKeyInput } from './provider-api-key-input.vue'
 export { default as ProviderBaseUrlInput } from './provider-base-url-input.vue'
 export { default as ProviderBasicSettings } from './provider-basic-settings.vue'
+export { default as ProviderDownloadModel } from './provider-download-model.vue'
 export { default as ProviderSettingsContainer } from './provider-settings-container.vue'
 export { default as ProviderSettingsLayout } from './provider-settings-layout.vue'
 export { default as ProviderValidationAlerts } from './provider-validation-alerts.vue'
