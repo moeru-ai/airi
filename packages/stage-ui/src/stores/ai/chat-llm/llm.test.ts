@@ -892,15 +892,21 @@ describe('isToolRelatedError', () => {
   // A later JSON call can follow a prefix that already reached the caller.
   // Before the fix, this call bypassed the guard and the stream succeeded.
   // We reject the call without retrying or replaying the visible prefix.
+  // Ordinary reasoning is also committed output and must not be replayed.
   // https://github.com/moeru-ai/airi/pull/2459#discussion_r3932132863
-  it('does not retry a leak after visible text for Issue #2161', async () => {
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949439849
+  it.each([
+    ['text.delta', 'text-delta', 'I will call the game tool.\n'],
+    ['reasoning.delta', 'reasoning-delta', 'Let me think.'],
+  ] as const)('does not retry a leak after visible %s for Issue #2161', async (type, outputType, prefix) => {
     const onStreamEvent = vi.fn()
     const onMessages = vi.fn()
     const customTool = createSparkTool()
     mockStreamEvents([
-      { type: 'text.delta', delta: 'I will call the game tool.\n' },
+      { type, delta: prefix },
       { type: 'text.delta', delta: '{"name":"builtIn_emitSparkCommand","parameters":{}}' },
     ])
+    mockStreamEvents([{ type: 'text.delta', delta: 'A repeated answer.' }])
 
     await expect(useLLM().stream('model-a', provider, [], {
       tools: [customTool],
@@ -909,7 +915,7 @@ describe('isToolRelatedError', () => {
     })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
 
     expect(streamTextMock).toHaveBeenCalledTimes(1)
-    expect(onStreamEvent).toHaveBeenCalledExactlyOnceWith({ type: 'text-delta', text: 'I will call the game tool.\n' })
+    expect(onStreamEvent).toHaveBeenCalledExactlyOnceWith({ type: outputType, text: prefix })
     expect(onMessages).not.toHaveBeenCalled()
     expect(customTool.execute).not.toHaveBeenCalled()
   })
@@ -943,32 +949,6 @@ describe('isToolRelatedError', () => {
     expect(createSparkCommandToolMock).toHaveBeenCalledTimes(2)
     expect(sparkTool.execute).not.toHaveBeenCalled()
     expect(onStreamEvent).not.toHaveBeenCalled()
-    expect(onMessages).not.toHaveBeenCalled()
-  })
-
-  // ROOT CAUSE:
-  //
-  // Ordinary reasoning was hidden, so a later leak could replay the whole request.
-  // We now emit ordinary reasoning immediately and treat it as committed output.
-  // A later leak rejects without replaying that output or emitting the raw JSON.
-  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949439849
-  it('does not retry a leak after visible reasoning for Issue #2161', async () => {
-    const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
-    mockStreamEvents([
-      { type: 'reasoning.delta', delta: 'Let me think.' },
-      { type: 'text.delta', delta: '{"name":"builtIn_emitSparkCommand","parameters":{}}' },
-    ])
-    mockStreamEvents([{ type: 'text.delta', delta: 'A repeated answer.' }])
-
-    await expect(useLLM().stream('model-a', provider, [], {
-      tools: [createSparkTool()],
-      onStreamEvent,
-      onMessages,
-    })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
-
-    expect(streamTextMock).toHaveBeenCalledTimes(1)
-    expect(onStreamEvent).toHaveBeenCalledExactlyOnceWith({ type: 'reasoning-delta', text: 'Let me think.' })
     expect(onMessages).not.toHaveBeenCalled()
   })
 

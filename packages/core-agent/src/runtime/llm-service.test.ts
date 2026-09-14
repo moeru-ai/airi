@@ -696,7 +696,6 @@ describe('streamFrom tool errors', () => {
   // stream before a candidate starts, so callers must not replay that output.
   // https://github.com/moeru-ai/airi/issues/2161
   it('rejects a known plain-text tool call after ordinary reasoning for Issue #2161', async () => {
-    let resolveSteps: ((steps: unknown[]) => void) | undefined
     const events: unknown[] = []
     const rawToolCall = JSON.stringify({
       name: 'builtIn_emitSparkCommand',
@@ -705,38 +704,19 @@ describe('streamFrom tool errors', () => {
         guidance: 'x'.repeat(70 * 1024),
       },
     })
-    const sparkTool = {
-      type: 'function',
-      function: {
-        name: 'builtIn_emitSparkCommand',
-        description: 'Send a command to a connected game module.',
-        parameters: { type: 'object', properties: {} },
-      },
-      execute: vi.fn(async () => 'ok'),
-    } satisfies Tool
-
-    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
-      const steps = new Promise<unknown[]>((resolve) => {
-        resolveSteps = resolve
-      })
-
-      queueMicrotask(async () => {
-        await options.onEvent({ type: 'step.start' })
-        await options.onEvent({ type: 'reasoning.delta', delta: 'I should call the game tool.' })
-        await options.onEvent({ type: 'text.delta', delta: rawToolCall })
-        await options.onEvent({ type: 'step.done', usage: {} })
-        resolveSteps?.([])
-      })
-
-      return createMockStreamResult(steps)
-    })
+    mockStreamEvents([
+      { type: 'step.start' },
+      { type: 'reasoning.delta', delta: 'I should call the game tool.' },
+      { type: 'text.delta', delta: rawToolCall },
+      { type: 'step.done', usage: {} },
+    ])
 
     const error = await streamFrom({
       model: 'model-a',
       chatProvider: provider,
       messages: [{ role: 'user', content: 'Can you play games?' }] as Message[],
       options: {
-        tools: [sparkTool],
+        tools: [createSparkTool()],
         onStreamEvent: (event) => {
           events.push(event)
         },
@@ -771,43 +751,22 @@ describe('streamFrom tool errors', () => {
       name: 'builtIn_emitSparkCommand',
       parameters: { destinations: [] },
     })
-    const sparkTool = {
-      type: 'function',
-      function: {
-        name: 'builtIn_emitSparkCommand',
-        description: 'Send a command to a connected game module.',
-        parameters: { type: 'object', properties: {} },
-      },
-      execute: vi.fn(async () => 'ok'),
-    } satisfies Tool
-
     const expectRejectedReasoningCall = async (trailingEvents: unknown[]) => {
-      let resolveSteps: ((steps: unknown[]) => void) | undefined
       const events: unknown[] = []
 
-      streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
-        const steps = new Promise<unknown[]>((resolve) => {
-          resolveSteps = resolve
-        })
-
-        queueMicrotask(async () => {
-          await options.onEvent({ type: 'step.start' })
-          await options.onEvent({ type: 'reasoning.delta', delta: rawToolCall })
-          for (const event of trailingEvents)
-            await options.onEvent(event)
-          await options.onEvent({ type: 'step.done', usage: {} })
-          resolveSteps?.([])
-        })
-
-        return createMockStreamResult(steps)
-      })
+      mockStreamEvents([
+        { type: 'step.start' },
+        { type: 'reasoning.delta', delta: rawToolCall },
+        ...trailingEvents,
+        { type: 'step.done', usage: {} },
+      ])
 
       const error = await streamFrom({
         model: 'model-a',
         chatProvider: provider,
         messages: [{ role: 'user', content: 'Can you play games?' }] as Message[],
         options: {
-          tools: [sparkTool],
+          tools: [createSparkTool()],
           onStreamEvent: (event) => {
             events.push(event)
           },
@@ -1222,41 +1181,16 @@ describe('streamFrom tool errors', () => {
     ])
   })
 
-  it('streams ordinary text before the provider finishes the step', async () => {
-    let emit: ((event: unknown) => void) | undefined
-    let finish: ((steps: unknown[]) => void) | undefined
-    const onStreamEvent = vi.fn()
-    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => void }) => {
-      emit = options.onEvent
-      return createMockStreamResult(new Promise((resolve) => {
-        finish = resolve
-      }))
-    })
-    const pending = streamFrom({
-      model: 'model-a',
-      chatProvider: provider,
-      messages: [],
-      options: { tools: [createSparkTool()], onStreamEvent },
-    })
-
-    await vi.waitFor(() => expect(emit).toBeTypeOf('function'))
-    emit!({ type: 'text.delta', delta: 'Hello' })
-    await vi.waitFor(() => expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: 'Hello' }))
-    emit!({ type: 'text.delta', delta: ' there.' })
-    await vi.waitFor(() => expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: ' there.' }))
-    expect(onStreamEvent).not.toHaveBeenCalledWith({ type: 'finish' })
-    finish?.([])
-    await pending
-    expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
-  })
-
   // ROOT CAUSE:
   //
   // The reasoning path buffered every delta while tools were available.
   // Before the fix, ordinary reasoning stayed hidden until another event flushed it.
   // We stream reasoning until either output channel starts a JSON candidate.
   // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949439849
-  it('streams reasoning before text or step completion for Issue #2161', async () => {
+  it.each([
+    ['text.delta', 'text-delta', 'Hello', ' there.'],
+    ['reasoning.delta', 'reasoning-delta', 'Let me think.', ' I can explain.'],
+  ] as const)('streams %s before step completion for Issue #2161', async (type, outputType, first, second) => {
     let emit: ((event: unknown) => void) | undefined
     let finish: ((steps: unknown[]) => void) | undefined
     const onStreamEvent = vi.fn()
@@ -1275,10 +1209,10 @@ describe('streamFrom tool errors', () => {
 
     try {
       await vi.waitFor(() => expect(emit).toBeTypeOf('function'))
-      emit!({ type: 'reasoning.delta', delta: 'Let me think.' })
-      await vi.waitFor(() => expect(onStreamEvent).toHaveBeenCalledWith({ type: 'reasoning-delta', text: 'Let me think.' }))
-      emit!({ type: 'reasoning.delta', delta: ' I can explain.' })
-      await vi.waitFor(() => expect(onStreamEvent).toHaveBeenCalledWith({ type: 'reasoning-delta', text: ' I can explain.' }))
+      emit!({ type, delta: first })
+      await vi.waitFor(() => expect(onStreamEvent).toHaveBeenCalledWith({ type: outputType, text: first }))
+      emit!({ type, delta: second })
+      await vi.waitFor(() => expect(onStreamEvent).toHaveBeenCalledWith({ type: outputType, text: second }))
       expect(onStreamEvent).not.toHaveBeenCalledWith({ type: 'finish' })
     }
     finally {
@@ -1313,7 +1247,6 @@ describe('streamFrom tool errors', () => {
   })
 
   it('preserves a JSON answer that does not name an available tool', async () => {
-    let resolveSteps: ((steps: unknown[]) => void) | undefined
     const events: unknown[] = []
     const jsonAnswer = JSON.stringify({
       name: 'Airi',
@@ -1323,40 +1256,21 @@ describe('streamFrom tool errors', () => {
       name: 'analysis',
       parameters: { format: 'json' },
     })
-    const sparkTool = {
-      type: 'function',
-      function: {
-        name: 'builtIn_emitSparkCommand',
-        description: 'Send a command to a connected game module.',
-        parameters: { type: 'object', properties: {} },
-      },
-      execute: vi.fn(async () => 'ok'),
-    } satisfies Tool
-
-    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
-      const steps = new Promise<unknown[]>((resolve) => {
-        resolveSteps = resolve
-      })
-
-      queueMicrotask(async () => {
-        await options.onEvent({ type: 'step.start' })
-        await options.onEvent({ type: 'reasoning.delta', delta: jsonReasoning.slice(0, 10) })
-        await options.onEvent({ type: 'reasoning.delta', delta: jsonReasoning.slice(10) })
-        await options.onEvent({ type: 'text.delta', delta: jsonAnswer.slice(0, 10) })
-        await options.onEvent({ type: 'text.delta', delta: jsonAnswer.slice(10) })
-        await options.onEvent({ type: 'step.done', usage: {} })
-        resolveSteps?.([])
-      })
-
-      return createMockStreamResult(steps)
-    })
+    mockStreamEvents([
+      { type: 'step.start' },
+      { type: 'reasoning.delta', delta: jsonReasoning.slice(0, 10) },
+      { type: 'reasoning.delta', delta: jsonReasoning.slice(10) },
+      { type: 'text.delta', delta: jsonAnswer.slice(0, 10) },
+      { type: 'text.delta', delta: jsonAnswer.slice(10) },
+      { type: 'step.done', usage: {} },
+    ])
 
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
       messages: [{ role: 'user', content: 'Answer as JSON.' }] as Message[],
       options: {
-        tools: [sparkTool],
+        tools: [createSparkTool()],
         onStreamEvent: (event) => {
           events.push(event)
         },
