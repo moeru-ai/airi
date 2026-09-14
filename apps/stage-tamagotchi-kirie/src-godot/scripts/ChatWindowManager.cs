@@ -2,34 +2,31 @@ using Eventa;
 using GdKirie.EventaAdapter;
 using Godot;
 
-internal sealed class OnboardingWindowManager : IDisposable
+internal sealed class ChatWindowManager : IDisposable
 {
-    private const string WindowScenePath = "res://src-godot/onboarding-window.tscn";
+    private const string WindowScenePath = "res://src-godot/chat-window.tscn";
 
     private readonly Node _owner;
     private readonly Window _mainWindow;
     private readonly KirieEventaJsonRegistry _registry;
     private readonly string _rendererUrl;
-    private readonly AuthService _auth;
     private readonly IDisposable _openRegistration;
-    private OnboardingWindow? _window;
+    private ChatWindow? _window;
     private bool _disposed;
 
-    public OnboardingWindowManager(
+    public ChatWindowManager(
         IEventContext context,
         Node owner,
         Window mainWindow,
         KirieEventaJsonRegistry registry,
-        string rendererUrl,
-        AuthService auth)
+        string rendererUrl)
     {
         _owner = owner;
         _mainWindow = mainWindow;
         _registry = registry;
         _rendererUrl = rendererUrl;
-        _auth = auth;
         _openRegistration = context.RegisterInvokeHandler(
-            AiriDesktopEvents.OpenOnboarding,
+            AiriDesktopEvents.OpenChat,
             (EmptyPayload _, CancellationToken _) =>
             {
                 Open();
@@ -56,13 +53,13 @@ internal sealed class OnboardingWindowManager : IDisposable
             || _window.IsQueuedForDeletion())
         {
             var scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
-                ?? throw new InvalidOperationException($"The onboarding window scene is missing: {WindowScenePath}");
-            var window = scene.Instantiate<OnboardingWindow>();
+                ?? throw new InvalidOperationException($"The chat window scene is missing: {WindowScenePath}");
+            var window = scene.Instantiate<ChatWindow>();
             _window = window;
             try
             {
                 _owner.AddChild(window);
-                window.Initialize(_registry, _rendererUrl, _auth, () => OnWindowClosed(window));
+                window.Initialize(_registry, _rendererUrl, () => OnWindowClosed(window));
             }
             catch
             {
@@ -75,7 +72,7 @@ internal sealed class OnboardingWindowManager : IDisposable
         _window.Open(_mainWindow.CurrentScreen);
     }
 
-    private void OnWindowClosed(OnboardingWindow window)
+    private void OnWindowClosed(ChatWindow window)
     {
         if (_window == window)
         {

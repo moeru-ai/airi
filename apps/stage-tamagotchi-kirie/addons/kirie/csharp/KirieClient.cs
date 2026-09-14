@@ -11,6 +11,7 @@ public partial class KirieClient : GodotObject
     private readonly Callable _textReceivedCallable;
     private readonly Callable _binaryReceivedCallable;
     private readonly Callable _dataReceivedCallable;
+    private readonly Callable _permissionRequestedCallable;
     private readonly Callable _ipcErrorCallable;
 
     private readonly GodotObject? _pluginSingleton;
@@ -22,6 +23,7 @@ public partial class KirieClient : GodotObject
     public event Action<string>? TextReceived;
     public event Action<byte[]>? BinaryReceived;
     public event Action<Variant>? DataReceived;
+    public event Action<string, string, long>? PermissionRequested;
     public event Action<string>? IpcError;
 
     public KirieClient()
@@ -31,6 +33,7 @@ public partial class KirieClient : GodotObject
         _textReceivedCallable = Callable.From<long, string>(OnPluginTextReceived);
         _binaryReceivedCallable = Callable.From<long, byte[]>(OnPluginBinaryReceived);
         _dataReceivedCallable = Callable.From<long, Variant>(OnPluginDataReceived);
+        _permissionRequestedCallable = Callable.From<long, string, string, long>(OnPluginPermissionRequested);
         _ipcErrorCallable = Callable.From<long, string>(OnPluginIpcError);
 
         if (!Engine.HasSingleton(PluginSingletonName))
@@ -53,6 +56,7 @@ public partial class KirieClient : GodotObject
         _textReceivedCallable = Callable.From<string>(OnSceneTextReceived);
         _binaryReceivedCallable = Callable.From<byte[]>(OnSceneBinaryReceived);
         _dataReceivedCallable = Callable.From<Variant>(OnSceneDataReceived);
+        _permissionRequestedCallable = Callable.From<string, string, long>(OnScenePermissionRequested);
         _ipcErrorCallable = Callable.From<string>(OnSceneIpcError);
         ConnectSceneSignals();
     }
@@ -273,6 +277,16 @@ public partial class KirieClient : GodotObject
         return value;
     }
 
+    public bool GrantPermission(long requestId)
+    {
+        return ResolvePermission(requestId, grant: true);
+    }
+
+    public bool DenyPermission(long requestId)
+    {
+        return ResolvePermission(requestId, grant: false);
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -294,6 +308,7 @@ public partial class KirieClient : GodotObject
         ConnectPluginSignal("text_received", _textReceivedCallable);
         ConnectPluginSignal("binary_received", _binaryReceivedCallable);
         ConnectPluginSignal("data_received", _dataReceivedCallable);
+        ConnectPluginSignal("permission_requested", _permissionRequestedCallable);
         ConnectPluginSignal("ipc_error", _ipcErrorCallable);
     }
 
@@ -313,6 +328,7 @@ public partial class KirieClient : GodotObject
         _sceneNode.Connect("text_received", _textReceivedCallable);
         _sceneNode.Connect("binary_received", _binaryReceivedCallable);
         _sceneNode.Connect("data_received", _dataReceivedCallable);
+        _sceneNode.Connect("permission_requested", _permissionRequestedCallable);
         _sceneNode.Connect("ipc_error", _ipcErrorCallable);
     }
 
@@ -330,6 +346,7 @@ public partial class KirieClient : GodotObject
             DisconnectSignal(_sceneNode, "text_received", _textReceivedCallable);
             DisconnectSignal(_sceneNode, "binary_received", _binaryReceivedCallable);
             DisconnectSignal(_sceneNode, "data_received", _dataReceivedCallable);
+            DisconnectSignal(_sceneNode, "permission_requested", _permissionRequestedCallable);
             DisconnectSignal(_sceneNode, "ipc_error", _ipcErrorCallable);
             return;
         }
@@ -343,7 +360,32 @@ public partial class KirieClient : GodotObject
         DisconnectSignal(_pluginSingleton, "text_received", _textReceivedCallable);
         DisconnectSignal(_pluginSingleton, "binary_received", _binaryReceivedCallable);
         DisconnectSignal(_pluginSingleton, "data_received", _dataReceivedCallable);
+        DisconnectSignal(_pluginSingleton, "permission_requested", _permissionRequestedCallable);
         DisconnectSignal(_pluginSingleton, "ipc_error", _ipcErrorCallable);
+    }
+
+    private bool ResolvePermission(long requestId, bool grant)
+    {
+        if (_sceneNode is not null)
+        {
+            return _sceneNode.Call(grant ? "grant_permission" : "deny_permission", requestId).AsBool();
+        }
+
+        var methodName = grant ? "grantPermission" : "denyPermission";
+        if (!EnsurePluginSingleton(methodName))
+        {
+            return false;
+        }
+
+        if (!_pluginSingleton!.HasMethod(methodName))
+        {
+            var error = "Kirie permission mediation is not available on this platform";
+            GD.PushWarning(error);
+            IpcError?.Invoke(error);
+            return false;
+        }
+
+        return _pluginSingleton.Call(methodName, _viewId, requestId).AsBool();
     }
 
     private static void DisconnectSignal(GodotObject source, string signalName, Callable callback)
@@ -403,6 +445,14 @@ public partial class KirieClient : GodotObject
         DataReceived?.Invoke(value);
     }
 
+    private void OnPluginPermissionRequested(long viewId, string permissionType, string origin, long requestId)
+    {
+        if (viewId != _viewId)
+            return;
+
+        PermissionRequested?.Invoke(permissionType, origin, requestId);
+    }
+
     private void OnPluginIpcError(long viewId, string error)
     {
         if (viewId != _viewId)
@@ -430,6 +480,11 @@ public partial class KirieClient : GodotObject
     private void OnSceneDataReceived(Variant value)
     {
         DataReceived?.Invoke(value);
+    }
+
+    private void OnScenePermissionRequested(string permissionType, string origin, long requestId)
+    {
+        PermissionRequested?.Invoke(permissionType, origin, requestId);
     }
 
     private void OnSceneIpcError(string error)

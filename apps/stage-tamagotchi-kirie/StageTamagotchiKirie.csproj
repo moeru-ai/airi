@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
     <PackageReference Include="GdKirie.EventaAdapter" Version="0.2.2" />
     <PackageReference Include="GdKirie.Platform" Version="0.2.2" />
   </ItemGroup>

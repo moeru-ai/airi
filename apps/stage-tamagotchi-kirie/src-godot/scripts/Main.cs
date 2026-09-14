@@ -1,3 +1,4 @@
+using Eventa;
 using GdKirie.EventaAdapter;
 using GdKirie.Platform;
 using Godot;
@@ -11,6 +12,13 @@ public partial class Main : Node
     private KirieEventaContextHandle? _eventa;
     private GdKiriePlatformHost? _platform;
     private OnboardingWindowManager? _onboarding;
+    private SettingsWindowManager? _settings;
+    private ChatWindowManager? _chat;
+    private NoticeWindowManager? _notice;
+    private AuthService? _auth;
+    private IDisposable? _authRegistration;
+    private WebViewPermissionHandler? _permissions;
+    private IDisposable? _quitRegistration;
 
     public override void _Ready()
     {
@@ -25,6 +33,15 @@ public partial class Main : Node
             GdKiriePlatform.Register(new KirieEventaJsonRegistry()));
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, GetWindow());
+        _auth = new AuthService();
+        _authRegistration = _auth.Attach(_eventa.Context);
+        _quitRegistration = _eventa.Context.RegisterInvokeHandler(
+            AiriDesktopEvents.QuitApp,
+            (EmptyPayload _, CancellationToken _) =>
+            {
+                GetTree().Quit();
+                return Task.FromResult(new EmptyPayload());
+            });
 
         _kirie.WebViewReady += OnWebViewReady;
         _kirie.IpcError += OnIpcError;
@@ -35,8 +52,29 @@ public partial class Main : Node
         {
             var rendererUrl = ResolveInitialUrl();
             initialUrl = RendererUrl.ForMain(rendererUrl);
+            _permissions = new WebViewPermissionHandler(_kirie, rendererUrl, "microphone");
             GetWindow().GuiEmbedSubwindows = false;
             _onboarding = new OnboardingWindowManager(
+                _eventa.Context,
+                this,
+                GetWindow(),
+                registry,
+                rendererUrl,
+                _auth);
+            _settings = new SettingsWindowManager(
+                _eventa.Context,
+                this,
+                GetWindow(),
+                registry,
+                rendererUrl,
+                _auth);
+            _chat = new ChatWindowManager(
+                _eventa.Context,
+                this,
+                GetWindow(),
+                registry,
+                rendererUrl);
+            _notice = new NoticeWindowManager(
                 _eventa.Context,
                 this,
                 GetWindow(),
@@ -55,10 +93,22 @@ public partial class Main : Node
 
     public override void _ExitTree()
     {
+        _quitRegistration?.Dispose();
+        _authRegistration?.Dispose();
+        _auth?.Dispose();
+        _notice?.Dispose();
+        _chat?.Dispose();
+        _settings?.Dispose();
         _onboarding?.Dispose();
+        _permissions?.Dispose();
         _platform?.Dispose();
         _eventa?.Dispose();
         _kirie?.Dispose();
+    }
+
+    public override void _Process(double delta)
+    {
+        _auth?.ProcessPending();
     }
 
     private string ResolveInitialUrl()

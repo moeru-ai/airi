@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useHostAlwaysOnTop, useHostEventaInvoke, useHostMouseInElement, useHostWindowCenter, useHostWindowMove } from '@proj-airi/stage-host-context'
+import { useHostAlwaysOnTop, useHostAppQuit, useHostChat, useHostEventaInvoke, useHostMouseInElement, useHostWindowCenter, useHostWindowMove } from '@proj-airi/stage-host-context'
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ScrollableArea, useTheme } from '@proj-airi/ui'
@@ -19,8 +19,6 @@ import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
-  electronAppQuit,
-  electronOpenChat,
   electronOpenSettings,
 } from '../../../../shared/eventa'
 import { useControlsIslandLayout } from './use-controls-island-layout'
@@ -43,8 +41,8 @@ const settingsStore = useSettings()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useHostEventaInvoke(electronOpenSettings)
-const openChat = useHostEventaInvoke(electronOpenChat)
-const quitApp = useHostEventaInvoke(electronAppQuit)
+const openChat = useHostChat()
+const quitApp = useHostAppQuit()
 const setAlwaysOnTop = useHostAlwaysOnTop()
 const centerMainWindow = useHostWindowCenter()
 const { beginMove, isNativeMoveSupported, usesCssDragRegion } = useHostWindowMove()

@@ -3,6 +3,7 @@ import { getHostEventaContext } from '@proj-airi/stage-host-context'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { toast } from 'vue-sonner'
 
+import { desktopAuthConfiguration } from '../../shared/auth-config'
 import {
   electronAuthCallback,
   electronAuthCallbackError,
@@ -24,7 +25,7 @@ export function initializeElectronAuthCallbackBridge() {
     try {
       await useAuthStore().completeSignIn({
         ...tokens,
-        clientId: import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-electron',
+        clientId: desktopAuthConfiguration.clientId,
       })
     }
     catch (error) {

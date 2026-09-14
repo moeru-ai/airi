@@ -5,8 +5,6 @@ import { createApp, h, nextTick, ref } from 'vue'
 
 import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 
-import { electronAuthStartLogin } from '../../../../shared/eventa'
-
 const subscriptions = vi.hoisted(() => ({ on: vi.fn(() => vi.fn()) }))
 const invokes = vi.hoisted(() => ({ startLogin: vi.fn(), openSettings: vi.fn() }))
 
@@ -28,7 +26,8 @@ vi.mock('@proj-airi/stage-host-context', () => ({
   useHostEventaContext: () => ref({
     on: subscriptions.on,
   }),
-  useHostEventaInvoke: (event: unknown) => event === electronAuthStartLogin ? invokes.startLogin : invokes.openSettings,
+  useHostAuth: () => ({ startLogin: invokes.startLogin }),
+  useHostEventaInvoke: () => invokes.openSettings,
 }))
 
 vi.mock('vue-i18n', () => ({

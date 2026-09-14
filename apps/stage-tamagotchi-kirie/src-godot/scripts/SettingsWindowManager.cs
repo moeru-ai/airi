@@ -2,9 +2,10 @@ using Eventa;
 using GdKirie.EventaAdapter;
 using Godot;
 
-internal sealed class OnboardingWindowManager : IDisposable
+internal sealed class SettingsWindowManager : IDisposable
 {
-    private const string WindowScenePath = "res://src-godot/onboarding-window.tscn";
+    private const string DefaultRoute = "/settings";
+    private const string WindowScenePath = "res://src-godot/settings-window.tscn";
 
     private readonly Node _owner;
     private readonly Window _mainWindow;
@@ -12,10 +13,10 @@ internal sealed class OnboardingWindowManager : IDisposable
     private readonly string _rendererUrl;
     private readonly AuthService _auth;
     private readonly IDisposable _openRegistration;
-    private OnboardingWindow? _window;
+    private SettingsWindow? _window;
     private bool _disposed;
 
-    public OnboardingWindowManager(
+    public SettingsWindowManager(
         IEventContext context,
         Node owner,
         Window mainWindow,
@@ -29,10 +30,10 @@ internal sealed class OnboardingWindowManager : IDisposable
         _rendererUrl = rendererUrl;
         _auth = auth;
         _openRegistration = context.RegisterInvokeHandler(
-            AiriDesktopEvents.OpenOnboarding,
-            (EmptyPayload _, CancellationToken _) =>
+            AiriDesktopEvents.OpenSettings,
+            (OpenSettingsPayload payload, CancellationToken _) =>
             {
-                Open();
+                Open(payload.Route);
                 return Task.FromResult(new EmptyPayload());
             });
     }
@@ -48,21 +49,22 @@ internal sealed class OnboardingWindowManager : IDisposable
         _openRegistration.Dispose();
     }
 
-    private void Open()
+    private void Open(string? requestedRoute)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        var route = ResolveRoute(requestedRoute);
         if (_window is null
             || !GodotObject.IsInstanceValid(_window)
             || _window.IsQueuedForDeletion())
         {
             var scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
-                ?? throw new InvalidOperationException($"The onboarding window scene is missing: {WindowScenePath}");
-            var window = scene.Instantiate<OnboardingWindow>();
+                ?? throw new InvalidOperationException($"The settings window scene is missing: {WindowScenePath}");
+            var window = scene.Instantiate<SettingsWindow>();
             _window = window;
             try
             {
                 _owner.AddChild(window);
-                window.Initialize(_registry, _rendererUrl, _auth, () => OnWindowClosed(window));
+                window.Initialize(_registry, _rendererUrl, route, _auth, () => OnWindowClosed(window));
             }
             catch
             {
@@ -72,10 +74,26 @@ internal sealed class OnboardingWindowManager : IDisposable
             }
         }
 
-        _window.Open(_mainWindow.CurrentScreen);
+        _window.Open(_mainWindow.CurrentScreen, route);
     }
 
-    private void OnWindowClosed(OnboardingWindow window)
+    private static string ResolveRoute(string? route)
+    {
+        if (string.IsNullOrEmpty(route))
+        {
+            return DefaultRoute;
+        }
+
+        if (!StringComparer.Ordinal.Equals(route, DefaultRoute)
+            && !route.StartsWith($"{DefaultRoute}/", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("The settings window route must start with /settings.", nameof(route));
+        }
+
+        return route;
+    }
+
+    private void OnWindowClosed(SettingsWindow window)
     {
         if (_window == window)
         {
