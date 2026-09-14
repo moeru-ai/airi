@@ -349,6 +349,9 @@ export type ElectronWindowLifecycleReason
     | 'focus'
     | 'blur'
     | 'suspended'
+    | 'resumed'
+    | 'lock-screen'
+    | 'unlock-screen'
 
 export interface ElectronWindowLifecycleState {
   focused: boolean
@@ -357,6 +360,7 @@ export interface ElectronWindowLifecycleState {
   updatedAt: number
   visible: boolean
   suspended: boolean
+  screenLocked: boolean
 }
 
 export const electronWindowLifecycleChanged = defineEventa<ElectronWindowLifecycleState>('eventa:event:electron:window:lifecycle-changed')
