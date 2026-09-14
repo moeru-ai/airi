@@ -18,6 +18,7 @@ import SpeechProviderSettings from './speech-provider-settings.vue'
 import { useSpeechStore } from '../../../stores/modules/speech'
 import { useProviderConfigStore } from '../../../stores/providers/config'
 import { useProviderStore } from '../../../stores/providers/provider'
+import { useSettingsPersistenceStore } from '../../../stores/settings-persistence'
 
 function createContext(namespace: string, leadership: LeadershipMode) {
   const pinia = createPinia()
@@ -132,6 +133,15 @@ describe('speech settings in a follower window', () => {
       model: 'tts-1-hd',
     })
     await expect.poll(() => follower.config.getProviderConfig(providerId)?.apiKey).toBe('new-key')
+    // https://github.com/moeru-ai/airi/pull/2467#discussion_r4005472727
+    // Store replication must also update the visible input.
+    await expect.element(screen.getByPlaceholder('API Key', { exact: true })).toHaveValue('new-key')
+    // A snapshot must not turn into a settings RPC after the debounce interval.
+    await new Promise(resolve => setTimeout(resolve, 1100))
+    expect(traffic).not.toHaveBeenCalledWith(expect.objectContaining({
+      name: 'onCall',
+      rest: expect.arrayContaining([expect.objectContaining({ actionName: 'patchProviderConfig' })]),
+    }))
     await screen.getByTitle('Reset settings').click()
     await expect.poll(() => leader.config.getProviderConfig(providerId)?.voiceSettings).toMatchObject({ speed: 1 })
     expect(leader.config.getProviderConfig(providerId)?.apiKey).toBe('new-key')
@@ -160,5 +170,107 @@ describe('speech settings in a follower window', () => {
       baseUrl: 'https://edited.example/v1/',
       voiceSettings: { speed: 1 },
     })
+  })
+  // https://github.com/moeru-ai/airi/pull/2467#discussion_r4005368133
+  // ROOT CAUSE:
+  //
+  // The queue removed the patch before the RPC succeeded. A later voice edit
+  // recovered the promise chain but lost the failed credential edit.
+  it('retains failed credential edits when a later voice edit saves', async () => {
+    const providerId = 'openai-audio-speech'
+    const { leader, screen } = await mountSettings(providerId)
+    const key = screen.getByPlaceholder('API Key', { exact: true })
+    await expect.element(key).toHaveValue('original-key')
+
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const postMessage = BroadcastChannel.prototype.postMessage
+    let rejected = false
+    vi.spyOn(BroadcastChannel.prototype, 'postMessage').mockImplementation(function (this: BroadcastChannel, message) {
+      if (!rejected && JSON.stringify(message).includes('"actionName":"patchProviderConfig"')) {
+        rejected = true
+        throw new Error('Settings transport is unavailable')
+      }
+      return postMessage.call(this, message)
+    })
+    await key.fill('retry-key')
+    await expect.poll(() => rejected).toBe(true)
+    await expect.poll(() => error.mock.calls.length).toBe(1)
+    await screen.getByTitle('Reset settings').click()
+    await expect.poll(() => leader.config.getProviderConfig(providerId)?.voiceSettings).toMatchObject({ speed: 1 })
+    expect(leader.config.getProviderConfig(providerId)?.apiKey).toBe('retry-key')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2467#discussion_r4005368125
+  // ROOT CAUSE:
+  //
+  // Renderer shutdown discarded the pending debounce. The close handshake now
+  // flushes and awaits the leader write before it destroys the follower.
+  it('does not lose an edit when the follower closes before the debounce', async () => {
+    const providerId = 'openai-audio-speech'
+    const { leader, follower, screen } = await mountSettings(providerId)
+    const key = screen.getByPlaceholder('API Key', { exact: true })
+    await expect.element(key).toHaveValue('original-key')
+    await key.fill('close-key')
+    // The main-process close handler waits for this renderer save barrier.
+    await useSettingsPersistenceStore(follower.pinia).flush()
+    // Destroy the follower transport only after the close acknowledgement.
+    screen.unmount()
+    follower.runtime.dispose()
+    await expect.poll(() => leader.config.getProviderConfig(providerId)?.apiKey).toBe('close-key')
+  })
+
+  it('keeps unsaved input while other fields receive a snapshot', async () => {
+    const providerId = 'openai-audio-speech'
+    const { leader, follower, screen } = await mountSettings(providerId)
+    const key = screen.getByPlaceholder('API Key', { exact: true })
+    await expect.element(key).toHaveValue('original-key')
+    await key.fill('local-key')
+    await leader.config.patchProviderConfig(providerId, {
+      apiKey: 'remote-key',
+      baseUrl: 'https://remote.example/v1/',
+    })
+    await expect.poll(() => follower.config.getProviderConfig(providerId)?.apiKey).toBe('remote-key')
+    await expect.element(key).toHaveValue('local-key')
+    await screen.getByRole('button', { name: /Advanced/i }).click()
+    await expect.element(screen.getByPlaceholder('https://api.openai.com/v1/', { exact: true })).toHaveValue('https://remote.example/v1/')
+    await useSettingsPersistenceStore(follower.pinia).flush()
+    expect(leader.config.getProviderConfig(providerId)?.apiKey).toBe('local-key')
+    expect(leader.config.getProviderConfig(providerId)?.baseUrl).toBe('https://remote.example/v1/')
+  })
+  it('drains newer edits after an in-flight write without reverting the input', async () => {
+    const providerId = 'openai-audio-speech'
+    const { leader, follower, screen } = await mountSettings(providerId)
+    const key = screen.getByPlaceholder('API Key', { exact: true })
+    await expect.element(key).toHaveValue('original-key')
+
+    const postMessage = BroadcastChannel.prototype.postMessage
+    let release: (() => void) | undefined
+    vi.spyOn(BroadcastChannel.prototype, 'postMessage').mockImplementation(function (this: BroadcastChannel, message) {
+      if (!release && JSON.stringify(message).includes('"actionName":"patchProviderConfig"')) {
+        release = () => postMessage.call(this, message)
+        return
+      }
+      return postMessage.call(this, message)
+    })
+    await key.fill('first-key')
+    await expect.poll(() => release).toBeDefined()
+    await key.fill('latest-key')
+    const saved = useSettingsPersistenceStore(follower.pinia).flush()
+    release?.()
+    await saved
+    expect(leader.config.getProviderConfig(providerId)?.apiKey).toBe('latest-key')
+    await expect.element(key).toHaveValue('latest-key')
+  })
+
+  it('keeps the save barrier alive when the form unmounts during a write', async () => {
+    const providerId = 'openai-audio-speech'
+    const { leader, follower, screen } = await mountSettings(providerId)
+    const key = screen.getByPlaceholder('API Key', { exact: true })
+    await expect.element(key).toHaveValue('original-key')
+    await key.fill('unmount-key')
+    screen.unmount()
+    await useSettingsPersistenceStore(follower.pinia).flush()
+    follower.runtime.dispose()
+    expect(leader.config.getProviderConfig(providerId)?.apiKey).toBe('unmount-key')
   })
 })
