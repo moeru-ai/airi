@@ -78,6 +78,13 @@ const languages = computed(() => {
     />
 
     <FieldCheckbox
+      v-if="showControlsIsland"
+      v-model="settings.showStageStatus"
+      :label="t('settings.stage-status.title')"
+      :description="t('settings.stage-status.description')"
+    />
+
+    <FieldCheckbox
       v-model="analyticsToggleValue"
       v-motion
       :disabled="!showAnalyticsSettings"
