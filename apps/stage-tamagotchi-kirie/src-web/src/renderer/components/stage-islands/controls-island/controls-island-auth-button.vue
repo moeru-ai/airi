@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useHostEventaContext, useHostEventaInvoke } from '@proj-airi/stage-host-context'
+import { useHostAuth, useHostEventaContext, useHostEventaInvoke } from '@proj-airi/stage-host-context'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Avatar } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -9,7 +9,6 @@ import { useI18n } from 'vue-i18n'
 import {
   electronAuthCallback,
   electronAuthCallbackError,
-  electronAuthStartLogin,
   electronOpenSettings,
 } from '../../../../shared/eventa'
 
@@ -24,7 +23,7 @@ const authStore = useAuthStore()
 const { isAuthenticated, user, needsLogin, credits } = storeToRefs(authStore)
 const context = useHostEventaContext()
 
-const startSigningIn = useHostEventaInvoke(electronAuthStartLogin)
+const { startLogin: startSigningIn } = useHostAuth()
 const openSettings = useHostEventaInvoke(electronOpenSettings)
 
 const signingIn = ref(false)

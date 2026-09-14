@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useHostEventaInvoke, useHostOnboarding } from '@proj-airi/stage-host-context'
+import { useHostAuth, useHostOnboarding } from '@proj-airi/stage-host-context'
 import { OnboardingScreen, OnboardingStepAnalyticsNotice } from '@proj-airi/stage-ui/components'
 import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -8,7 +8,6 @@ import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
-import { electronAuthStartLogin } from '../../shared/eventa'
 import { useOnboardingAuthentication } from '../composables/use-onboarding-authentication'
 
 const authStore = useAuthStore()
@@ -16,7 +15,7 @@ const { needsLogin, isAuthenticated } = storeToRefs(authStore)
 const onboardingStore = useOnboardingStore()
 const { closeRequestId } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
-const startLogin = useHostEventaInvoke(electronAuthStartLogin)
+const { startLogin } = useHostAuth()
 const { close: closeWindow } = useHostOnboarding()
 const { closeOnboardingWindow } = useOnboardingAuthentication({
   closeRequestId,

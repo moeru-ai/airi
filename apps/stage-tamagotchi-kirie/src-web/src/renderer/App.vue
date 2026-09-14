@@ -37,10 +37,12 @@ import { toast, Toaster } from 'vue-sonner'
 import ResizeHandler from './components/ResizeHandler.vue'
 
 import {
+  electronChatReady,
   electronGetServerChannelConfig,
   electronGodotStageGetStatus,
   electronGodotStageStatusChanged,
   electronSettingsNavigate,
+  electronSettingsReady,
   electronStartTrackMousePosition,
 } from '../shared/eventa'
 import {
@@ -88,6 +90,7 @@ const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
 const isSpotlightWindow = initialRoutePath === '/spotlight'
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
+const isChatWindow = initialRoutePath === '/chat'
 
 async function refreshPluginRuntimeTools() {
   try {
@@ -332,6 +335,11 @@ if (isSettingsWindow) {
       console.warn('Failed to navigate settings window:', error)
     })
   })
+  context.value.emit(electronSettingsReady, {})
+}
+
+if (isChatWindow) {
+  context.value.emit(electronChatReady, {})
 }
 
 onMounted(async () => {

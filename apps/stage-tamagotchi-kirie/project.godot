@@ -22,6 +22,10 @@ project/assembly_name="StageTamagotchiKirie"
 
 enabled=PackedStringArray("res://addons/kirie/plugin.cfg")
 
+[godot_cef]
+
+security/default_permission_policy=2
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

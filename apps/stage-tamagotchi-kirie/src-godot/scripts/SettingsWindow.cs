@@ -3,65 +3,75 @@ using GdKirie.EventaAdapter;
 using GdKirie.Platform;
 using Godot;
 
-public partial class OnboardingWindow : Window
+public partial class SettingsWindow : Window
 {
     private KirieClient? _kirie;
     private KirieEventaContextHandle? _eventa;
     private GdKiriePlatformHost? _platform;
     private WebViewPermissionHandler? _permissions;
     private IDisposable? _authRegistration;
-    private IDisposable? _closeRegistration;
+    private IDisposable? _settingsReadyRegistration;
     private Action? _onClosed;
+    private string? _loadedRoute;
+    private string? _route;
     private bool _ready;
+    private bool _rendererReady;
     private bool _closing;
     private bool _showRequested;
+    private bool _positioned;
 
     internal void Initialize(
         KirieEventaJsonRegistry registry,
         string rendererUrl,
+        string initialRoute,
         AuthService auth,
         Action onClosed)
     {
         if (!IsInsideTree())
         {
-            throw new InvalidOperationException("The onboarding window must be inside the scene tree before initialization.");
+            throw new InvalidOperationException("The settings window must be inside the scene tree before initialization.");
         }
 
         if (_kirie is not null)
         {
-            throw new InvalidOperationException("The onboarding window is already initialized.");
+            throw new InvalidOperationException("The settings window is already initialized.");
         }
 
         _onClosed = onClosed;
+        _loadedRoute = initialRoute;
+        _route = initialRoute;
         _kirie = KirieClient.FromNode(GetNode("KirieNode"));
         if (!_kirie.IsAvailable)
         {
-            throw new InvalidOperationException("Kirie is unavailable for the onboarding window.");
+            throw new InvalidOperationException("Kirie is unavailable for the settings window.");
         }
 
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, this);
         _authRegistration = auth.Attach(_eventa.Context);
         _permissions = new WebViewPermissionHandler(_kirie, rendererUrl);
-        _closeRegistration = _eventa.Context.RegisterInvokeHandler(
-            AiriDesktopEvents.CloseOnboarding,
-            (EmptyPayload _, CancellationToken _) =>
-            {
-                RequestClose();
-                return Task.FromResult(new EmptyPayload());
-            });
+        _settingsReadyRegistration = _eventa.Context.Subscribe(
+            AiriDesktopEvents.SettingsReady,
+            _ => OnRendererReady());
 
         _kirie.WebViewReady += OnWebViewReady;
         _kirie.IpcError += OnIpcError;
         _eventa.Adapter.Error += OnEventaError;
         CloseRequested += RequestClose;
-        _kirie.CreateWebView(RendererUrl.ForFollowerRoute(rendererUrl, "/onboarding"));
+        _kirie.CreateWebView(RendererUrl.ForFollowerRoute(rendererUrl, initialRoute));
     }
 
-    public void Open(int screen)
+    public void Open(int screen, string route)
     {
         CurrentScreen = screen;
         _showRequested = true;
+        _route = route;
+        if (_rendererReady && !StringComparer.Ordinal.Equals(route, _loadedRoute))
+        {
+            Navigate(route);
+            _loadedRoute = route;
+        }
+
         if (_ready)
         {
             ShowAndFocus();
@@ -82,7 +92,7 @@ public partial class OnboardingWindow : Window
             _eventa.Adapter.Error -= OnEventaError;
         }
 
-        _closeRegistration?.Dispose();
+        _settingsReadyRegistration?.Dispose();
         _authRegistration?.Dispose();
         _permissions?.Dispose();
         _platform?.Dispose();
@@ -100,6 +110,23 @@ public partial class OnboardingWindow : Window
         }
     }
 
+    private void OnRendererReady()
+    {
+        _rendererReady = true;
+        if (_route is not null && !StringComparer.Ordinal.Equals(_route, _loadedRoute))
+        {
+            Navigate(_route);
+            _loadedRoute = _route;
+        }
+    }
+
+    private void Navigate(string route)
+    {
+        _eventa!.Context.Emit(
+            AiriDesktopEvents.SettingsNavigate,
+            new SettingsNavigatePayload(route));
+    }
+
     private void ShowAndFocus()
     {
         if (Mode == ModeEnum.Minimized)
@@ -107,10 +134,15 @@ public partial class OnboardingWindow : Window
             Mode = ModeEnum.Windowed;
         }
 
-        var workArea = DisplayServer.ScreenGetUsableRect(CurrentScreen);
-        Position = workArea.Position + new Vector2I(
-            Math.Max(0, (workArea.Size.X - Size.X) / 2),
-            Math.Max(0, (workArea.Size.Y - Size.Y) / 2));
+        if (!_positioned)
+        {
+            var workArea = DisplayServer.ScreenGetUsableRect(CurrentScreen);
+            Position = workArea.Position + new Vector2I(
+                Math.Max(0, (workArea.Size.X - Size.X) / 2),
+                Math.Max(0, (workArea.Size.Y - Size.Y) / 2));
+            _positioned = true;
+        }
+
         Show();
         GrabFocus();
     }
@@ -130,11 +162,11 @@ public partial class OnboardingWindow : Window
 
     private static void OnIpcError(string error)
     {
-        GD.PushError($"Onboarding Kirie IPC error: {error}");
+        GD.PushError($"Settings Kirie IPC error: {error}");
     }
 
     private static void OnEventaError(KirieEventaError error)
     {
-        GD.PushError($"Onboarding Kirie Eventa error: {error.Message}");
+        GD.PushError($"Settings Kirie Eventa error: {error.Message}");
     }
 }

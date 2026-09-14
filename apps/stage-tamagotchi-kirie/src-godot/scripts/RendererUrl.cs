@@ -24,15 +24,31 @@ internal static class RendererUrl
 
     public static string ForFollowerRoute(string baseUrl, string route)
     {
+        return ForFollowerRoute(baseUrl, route, null);
+    }
+
+    public static string ForMinimalFollowerRoute(string baseUrl, string route)
+    {
+        return ForFollowerRoute(baseUrl, route, "minimal");
+    }
+
+    private static string ForFollowerRoute(string baseUrl, string route, string? stageRuntime)
+    {
         var parts = Split(baseUrl);
         var queryParts = parts.Query
             .Split('&', StringSplitOptions.RemoveEmptyEntries)
             .Where(part =>
             {
                 var key = part.Split('=', 2)[0];
-                return !StringComparer.Ordinal.Equals(key, "synced-leader");
+                return !StringComparer.Ordinal.Equals(key, "synced-leader")
+                    && !StringComparer.Ordinal.Equals(key, "stage-runtime");
             })
             .ToList();
+
+        if (stageRuntime is not null)
+        {
+            queryParts.Add($"stage-runtime={stageRuntime}");
+        }
 
         var query = string.Join('&', queryParts);
         var fragment = route.StartsWith("/", StringComparison.Ordinal) ? route : $"/{route}";

@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { electron } from '@proj-airi/electron-eventa'
-import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
+import { useHostMediaAccessStatus } from '@proj-airi/stage-host-context'
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer, useAudioContextFromStream } from '@proj-airi/stage-ui/composables'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { useAsyncState } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, watch } from 'vue'
 
@@ -16,8 +14,7 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { autoSendEnabled } = storeToRefs(hearingStore)
 const { enabled, stream } = storeToRefs(settingsAudioDeviceStore)
 
-const getMediaAccessStatus = useHostEventaInvoke(electron.systemPreferences.getMediaAccessStatus)
-const { state: mediaAccessStatus, execute: refreshMediaAccessStatus } = useAsyncState(() => getMediaAccessStatus(['microphone']), 'not-determined')
+const mediaAccessStatus = useHostMediaAccessStatus('microphone')
 
 const { audioContext, initialize, dispose, pause } = useAudioContextFromStream(stream)
 const { volumeLevel, startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -46,7 +43,6 @@ watch([enabled, stream], ([isEnabled, currentStream]) => {
 }, { immediate: true })
 
 onMounted(async () => {
-  await refreshMediaAccessStatus()
   if (audioContext.value) {
     await startAnalyzer(audioContext.value)
   }

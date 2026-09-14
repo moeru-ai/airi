@@ -3,59 +3,51 @@ using GdKirie.EventaAdapter;
 using GdKirie.Platform;
 using Godot;
 
-public partial class OnboardingWindow : Window
+public partial class ChatWindow : Window
 {
     private KirieClient? _kirie;
     private KirieEventaContextHandle? _eventa;
     private GdKiriePlatformHost? _platform;
     private WebViewPermissionHandler? _permissions;
-    private IDisposable? _authRegistration;
-    private IDisposable? _closeRegistration;
+    private IDisposable? _readyRegistration;
     private Action? _onClosed;
     private bool _ready;
     private bool _closing;
     private bool _showRequested;
 
-    internal void Initialize(
+    public void Initialize(
         KirieEventaJsonRegistry registry,
         string rendererUrl,
-        AuthService auth,
         Action onClosed)
     {
         if (!IsInsideTree())
         {
-            throw new InvalidOperationException("The onboarding window must be inside the scene tree before initialization.");
+            throw new InvalidOperationException("The chat window must be inside the scene tree before initialization.");
         }
 
         if (_kirie is not null)
         {
-            throw new InvalidOperationException("The onboarding window is already initialized.");
+            throw new InvalidOperationException("The chat window is already initialized.");
         }
 
         _onClosed = onClosed;
         _kirie = KirieClient.FromNode(GetNode("KirieNode"));
         if (!_kirie.IsAvailable)
         {
-            throw new InvalidOperationException("Kirie is unavailable for the onboarding window.");
+            throw new InvalidOperationException("Kirie is unavailable for the chat window.");
         }
 
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, this);
-        _authRegistration = auth.Attach(_eventa.Context);
         _permissions = new WebViewPermissionHandler(_kirie, rendererUrl);
-        _closeRegistration = _eventa.Context.RegisterInvokeHandler(
-            AiriDesktopEvents.CloseOnboarding,
-            (EmptyPayload _, CancellationToken _) =>
-            {
-                RequestClose();
-                return Task.FromResult(new EmptyPayload());
-            });
+        _readyRegistration = _eventa.Context.Subscribe(
+            AiriDesktopEvents.ChatReady,
+            _ => OnRendererReady());
 
-        _kirie.WebViewReady += OnWebViewReady;
         _kirie.IpcError += OnIpcError;
         _eventa.Adapter.Error += OnEventaError;
         CloseRequested += RequestClose;
-        _kirie.CreateWebView(RendererUrl.ForFollowerRoute(rendererUrl, "/onboarding"));
+        _kirie.CreateWebView(RendererUrl.ForMinimalFollowerRoute(rendererUrl, "/chat"));
     }
 
     public void Open(int screen)
@@ -73,7 +65,6 @@ public partial class OnboardingWindow : Window
         CloseRequested -= RequestClose;
         if (_kirie is not null)
         {
-            _kirie.WebViewReady -= OnWebViewReady;
             _kirie.IpcError -= OnIpcError;
         }
 
@@ -82,8 +73,7 @@ public partial class OnboardingWindow : Window
             _eventa.Adapter.Error -= OnEventaError;
         }
 
-        _closeRegistration?.Dispose();
-        _authRegistration?.Dispose();
+        _readyRegistration?.Dispose();
         _permissions?.Dispose();
         _platform?.Dispose();
         _eventa?.Dispose();
@@ -91,7 +81,7 @@ public partial class OnboardingWindow : Window
         _onClosed?.Invoke();
     }
 
-    private void OnWebViewReady()
+    private void OnRendererReady()
     {
         _ready = true;
         if (_showRequested)
@@ -130,11 +120,11 @@ public partial class OnboardingWindow : Window
 
     private static void OnIpcError(string error)
     {
-        GD.PushError($"Onboarding Kirie IPC error: {error}");
+        GD.PushError($"Chat Kirie IPC error: {error}");
     }
 
     private static void OnEventaError(KirieEventaError error)
     {
-        GD.PushError($"Onboarding Kirie Eventa error: {error.Message}");
+        GD.PushError($"Chat Kirie Eventa error: {error.Message}");
     }
 }

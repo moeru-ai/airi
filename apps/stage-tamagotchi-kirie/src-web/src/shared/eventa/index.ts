@@ -38,7 +38,9 @@ export const electronCenterMainWindow = defineInvokeEventa<Rectangle>('eventa:in
 export const electronOpenEditor = defineInvokeEventa<void>('eventa:invoke:electron:windows:editor:open')
 export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
+export const electronSettingsReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:settings:ready')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
+export const electronChatReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:chat:ready')
 export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:hide')
 export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
 export const electronSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:electron:windows:spotlight:shortcut:get')
@@ -494,6 +496,7 @@ export const electronAuthStartLogin = defineInvokeEventa<void>('eventa:invoke:el
 export const electronAuthCallback = defineEventa<ElectronAuthTokens>('eventa:event:electron:auth:callback')
 export const electronAuthCallbackError = defineEventa<{ error: string }>('eventa:event:electron:auth:callback-error')
 export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electron:auth:logout')
+export const airiAuthConfigure = defineInvokeEventa<void, { clientId: string, serverUrl: string }>('eventa:invoke:airi:auth:configure')
 
 export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
 export const i18nGetLocale = defineInvokeEventa<string | undefined>('eventa:invoke:electron:i18n:get-locale')

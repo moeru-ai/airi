@@ -18,6 +18,13 @@ Model rendering, model assets, Live2D, VRM, and MMD are outside the current scop
 | GAP-010 | Main renderer | Initialize the AIRI server channel | Electron server-channel configuration and lifecycle service | Own the AIRI server lifecycle outside Kirie Platform | AIRI desktop service | Blocked | AIRI sidecar artifact decision required |
 | GAP-011 | Main renderer | Restore the saved locale | Electron `i18n:get-locale` and `i18n:set-locale` contracts | Use renderer storage in Kirie and keep the Electron fallback | AIRI host context | Resolved | Phase 6 locale review approved |
 | GAP-012 | Main renderer | Open onboarding when initial setup is incomplete | Electron `windows:onboarding:open` contract | Open one reusable native onboarding window with follower state and close it from its renderer | AIRI window orchestration | Resolved | Phase 6 onboarding review approved |
+| GAP-013 | Controls Island | Click an entry that opens Settings | Electron `windows:settings:open` contract | Open one reusable native settings window and navigate it to the requested settings route | AIRI window orchestration | Resolved | Real CEF runtime verified |
+| GAP-014 | Controls Island | Open Chat | Electron `windows:chat:open` contract | Open one reusable native chat window with the minimal renderer runtime | AIRI window orchestration | Resolved | Real CEF runtime verified |
+| GAP-015 | Controls Island | Close AIRI | Electron `app:quit` contract | Request a normal Godot scene-tree shutdown | AIRI application lifecycle | Resolved | Real CEF runtime verified |
+| GAP-016 | Controls Island | Read microphone permission status | Electron `system-preferences:get-media-access-status` contract | Query the browser-owned microphone permission in Kirie while preserving the Electron RPC | AIRI host context | Blocked | Waiting for a real Godot CEF permission prompt |
+| GAP-017 | Controls Island | Start microphone capture | Browser `getUserMedia({ audio: true })` behind Electron's WebContents permission policy | Resolve only trusted, same-origin microphone requests and deny every other WebView permission | Kirie low-level WebView API and AIRI host policy | Blocked | Waiting for a real Godot CEF permission prompt |
+| GAP-018 | Controls Island | Enable fade on hover for the first time | Electron notice-window request and action contracts | Open the fade-on-hover tutorial in a native Godot window and return its confirmation result | AIRI window orchestration | Resolved | Real CEF runtime verified |
+| GAP-019 | Controls Island, onboarding, and account settings | Start or cancel account sign-in | Electron OIDC service with a temporary loopback callback listener | Run PKCE sign-in through the system browser and preserve the existing auth events | AIRI authentication service | Resolved | Real CEF and independent review approved |
 
 ## GAP-001 evidence
 
@@ -115,3 +122,63 @@ Model rendering, model assets, Live2D, VRM, and MMD are outside the current scop
 - Required result: AIRI creates one native Godot onboarding window at `#/onboarding` with `synced-leader=false`. Later open requests reuse, show, and focus that window. The onboarding renderer can close it through the existing close contract.
 - Ownership: This is AIRI application-window orchestration. It does not add a Kirie Platform or Kirie Core API.
 - Runtime result: CEF showed one leader page and one follower onboarding page. A repeated open kept two pages. Closing onboarding removed only the follower page, and a later open created it again.
+
+## GAP-013 evidence
+
+- Input: Click the Controls Island button with `aria-label="Open settings"`.
+- Original result: Godot reports the unregistered `eventa:invoke:electron:windows:settings:open-send` request, and no settings window opens.
+- Required result: AIRI creates one native 600 by 800 Godot window with `synced-leader=false`. Later requests reuse, show, focus, and navigate that window.
+- Ownership: This is AIRI application-window orchestration. It does not add a Kirie Platform or Kirie Core API.
+- Runtime result: The control opened the native Settings window at `#/settings`. A connection-settings request reused that window and navigated it to `#/settings/connection`, including when both requests arrived before the settings renderer was ready. Native close removed the settings CEF page, and another request created the window again.
+
+## GAP-014 evidence
+
+- Input: Click the Controls Island button with `aria-label="Open Chat"`.
+- Original result: Godot reports the unregistered `eventa:invoke:electron:windows:chat:open-send` request, and no chat window opens.
+- Required result: AIRI creates one native 600 by 800 Godot window at `#/chat` with `stage-runtime=minimal` and `synced-leader=false`. Later requests reuse, show, and focus that window.
+- Ownership: This is AIRI application-window orchestration. It does not add a Kirie Platform or Kirie Core API.
+- Runtime result: Three concurrent requests kept one Chat CEF page. The rendered page exposed its Conversations, Mute voice, and Cancel reply controls. Native close removed the page, and another request created one new Chat page at the same minimal-runtime URL.
+
+## GAP-015 evidence
+
+- Input: Click the Controls Island button with `aria-label="Close"`.
+- Original result: Godot reports the unregistered `eventa:invoke:electron:app:quit-send` request, and AIRI keeps running.
+- Required result: The Kirie adapter preserves Electron's no-argument contract while sending an explicit empty payload to Godot. AIRI then requests a normal scene-tree shutdown.
+- Ownership: This is AIRI application lifecycle behavior. It does not add a Kirie Platform or Kirie Core API.
+- Runtime result: The control ended the Godot process and its child WebViews. The `kirie dev` command exited with status 0 without an unregistered quit request.
+
+## GAP-016 evidence
+
+- Input: Initialize the Controls Island microphone configuration.
+- Original result: Kirie sends the Electron-only `eventa:invoke:electron:system-preferences:get-media-access-status-send` request, which Godot cannot handle.
+- Required result: Electron keeps its native system-preferences query. Kirie reads the browser permission that owns its `getUserMedia` request and maps `prompt` to AIRI's existing `not-determined` state. The [W3C Permissions specification](https://www.w3.org/TR/permissions/) defines `granted`, `denied`, and `prompt` as the browser permission states.
+- Ownership: This is an AIRI host-context adaptation. It does not add a Kirie Platform or Kirie Core API.
+- Partial result: Godot CEF reported the microphone permission as `prompt`. The former unregistered system-preferences request was absent.
+- Blocker: Godot CEF does not show and resolve a real user permission prompt. Keep this gap blocked until that prompt lifecycle exists.
+
+## GAP-017 evidence
+
+- Input: Enable microphone capture from the main Controls Island hearing UI.
+- Original result: Godot CEF denied the browser request because its default permission policy is `DenyAll`.
+- Required result: Kirie forwards each Godot CEF permission request without exposing `CefTexture`. AIRI grants only `microphone` for the exact renderer origin. It denies all other permission types and all requests from other origins or application windows.
+- Configuration: `project.godot` selects Godot CEF's `Signal` permission policy. The [pinned Godot CEF settings source](https://github.com/dsh0416/godot-cef/blob/v1.15.3/crates/gdcef/src/settings.rs) defines `DenyAll:0,AllowAll:1,Signal:2` and defaults to `DenyAll`.
+- Partial result: The trusted main renderer received a live built-in microphone track. The host denied untrusted microphone and geolocation requests.
+- Blocker: AIRI currently resolves requests through host policy without a real user prompt. Keep this gap blocked until Godot CEF supplies that prompt.
+
+## GAP-018 evidence
+
+- Input: Enable fade on hover from the expanded Controls Island before the user has dismissed its tutorial.
+- Original result: Godot reports the unregistered `eventa:invoke:open:electron:windows:notice-send` request.
+- Required result: AIRI opens one native `1020 x 600` notice window, reports its pending request after the page mounts, and resolves the original request from the page's confirm, cancel, or close action.
+- Ownership: This is AIRI window orchestration. It uses one Kirie WebView and Eventa context for the notice window. It does not add a Kirie Platform API.
+- Runtime result: The Controls Island opened one native notice WebView at `#/notice/fade-on-hover?id=fade-on-hover`. The page received its pending request. Confirming destroyed the WebView, resolved the original request with `true`, and enabled the persisted fade-on-hover setting.
+
+## GAP-019 evidence
+
+- Input: Click **Sign in** from the Controls Island, onboarding page, or account settings.
+- Original result: Godot reports the unregistered `eventa:invoke:electron:auth:start-login-send` request, and no browser opens.
+- Required result: AIRI starts one temporary listener on `127.0.0.1`, generates an OIDC state and PKCE verifier, opens the system browser, validates the callback state, exchanges the code, and emits the existing token or error event. Logout cancels an unfinished attempt.
+- Ownership: This is an AIRI application service. It does not add a Kirie Platform API or require the GAP-010 server sidecar.
+- Configuration: The renderer sends its build-time server URL and client ID through the AIRI application context before login. The Godot host validates and uses that same configuration for authorization and token exchange.
+- Security source: [RFC 8252](https://www.rfc-editor.org/rfc/rfc8252.html) requires native apps to use an external user-agent and recommends PKCE and loopback redirects.
+- Verification: A real Controls Island click started the loopback listener and opened AIRI's sign-in page in the system browser. Focused tests verified successful callbacks, state rejection without consuming the listener, and relay CORS. The test did not enter account credentials or complete a live token exchange.

@@ -5,6 +5,7 @@ signal webview_ready
 signal text_received(message: String)
 signal binary_received(bytes: PackedByteArray)
 signal data_received(value: Variant)
+signal permission_requested(permission_type: String, origin: String, request_id: int)
 signal ipc_error(error: String)
 
 const PLUGIN_SINGLETON_NAME := "Kirie"
@@ -176,6 +177,14 @@ func get_launch_option(key: String) -> String:
 	return value
 
 
+func grant_permission(request_id: int) -> bool:
+	return _resolve_permission(request_id, true)
+
+
+func deny_permission(request_id: int) -> bool:
+	return _resolve_permission(request_id, false)
+
+
 func is_available() -> bool:
 	return _plugin_singleton != null
 
@@ -221,6 +230,10 @@ func _connect_plugin_signals() -> void:
 		print("[Kirie][gd] connecting data_received signal")
 		_plugin_singleton.connect(&"data_received", _on_plugin_data_received)
 
+	if _plugin_singleton.has_signal(&"permission_requested"):
+		print("[Kirie][gd] connecting permission_requested signal")
+		_plugin_singleton.connect(&"permission_requested", _on_plugin_permission_requested)
+
 	if _plugin_singleton.has_signal(&"ipc_error"):
 		print("[Kirie][gd] connecting ipc_error signal")
 		_plugin_singleton.connect(&"ipc_error", _on_plugin_ipc_error)
@@ -236,6 +249,24 @@ func _ensure_plugin_singleton(method_name: String) -> bool:
 			return true
 
 	var error := "Kirie platform singleton is not available for %s()" % method_name
+	push_warning(error)
+	ipc_error.emit(error)
+	return false
+
+
+func _resolve_permission(request_id: int, grant: bool) -> bool:
+	var method_name := "grant_permission" if grant else "deny_permission"
+	if not _ensure_plugin_singleton(method_name):
+		return false
+
+	if _is_godot_cef_backend():
+		return bool(_plugin_singleton.call(method_name, request_id))
+
+	var native_method_name := "grantPermission" if grant else "denyPermission"
+	if _plugin_singleton.has_method(native_method_name):
+		return bool(_plugin_singleton.call(native_method_name, _view_id, request_id))
+
+	var error := "Kirie permission mediation is not available on this platform"
 	push_warning(error)
 	ipc_error.emit(error)
 	return false
@@ -379,6 +410,13 @@ func _connect_cef_signals() -> void:
 			func(value: Variant) -> void: _on_plugin_data_received(-1, value)
 		)
 
+	if _plugin_singleton.has_signal(&"permission_requested"):
+		_plugin_singleton.connect(
+			&"permission_requested",
+			func(permission_type: String, origin: String, request_id: int) -> void:
+				_on_plugin_permission_requested(-1, permission_type, origin, request_id)
+		)
+
 	if _plugin_singleton.has_signal(&"load_error"):
 		_plugin_singleton.connect(&"load_error", _on_cef_load_error)
 
@@ -488,6 +526,21 @@ func _on_plugin_data_received(view_id: int, value: Variant) -> void:
 
 	print("[Kirie][gd] signal data_received %s" % str(value))
 	data_received.emit(value)
+
+
+func _on_plugin_permission_requested(
+	view_id: int,
+	permission_type: String,
+	origin: String,
+	request_id: int,
+) -> void:
+	if _should_ignore_view_signal(view_id): return
+
+	print(
+		"[Kirie][gd] signal permission_requested type=%s origin=%s request_id=%d"
+		% [permission_type, origin, request_id]
+	)
+	permission_requested.emit(permission_type, origin, request_id)
 
 
 func _on_plugin_ipc_error(view_id: int, error: String) -> void:

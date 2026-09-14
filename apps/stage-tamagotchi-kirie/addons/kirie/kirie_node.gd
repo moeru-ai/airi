@@ -5,6 +5,7 @@ signal webview_ready
 signal text_received(message: String)
 signal binary_received(bytes: PackedByteArray)
 signal data_received(value: Variant)
+signal permission_requested(permission_type: String, origin: String, request_id: int)
 signal ipc_error(error: String)
 
 @export var initial_url := ""
@@ -27,6 +28,10 @@ func _ready() -> void:
 		func(bytes: PackedByteArray) -> void: binary_received.emit(bytes)
 	)
 	_kirie.data_received.connect(func(value: Variant) -> void: data_received.emit(value))
+	_kirie.permission_requested.connect(
+		func(permission_type: String, origin: String, request_id: int) -> void:
+			permission_requested.emit(permission_type, origin, request_id)
+	)
 	_kirie.ipc_error.connect(func(error: String) -> void: ipc_error.emit(error))
 
 	if not auto_create:
@@ -80,6 +85,14 @@ func send_data(value: Variant) -> void:
 
 func get_launch_option(key: String) -> String:
 	return _kirie.get_launch_option(key)
+
+
+func grant_permission(request_id: int) -> bool:
+	return _kirie.grant_permission(request_id)
+
+
+func deny_permission(request_id: int) -> bool:
+	return _kirie.deny_permission(request_id)
 
 
 func is_available() -> bool:
