@@ -7,7 +7,7 @@ Minecraft 통합은 Mineflayer를 사용해 AIRI를 Minecraft 서버에 연결�
 
 ## 사전 준비 사항
 
-- 저장소 루트에서 **pnpm i**로 의존성을 설치하세요.
+- 저장소 루트에서 **bun install**로 의존성을 설치하세요.
 - 접속 가능한 로컬 또는 신뢰할 수 있는 Minecraft 서버를 준비하세요. 연결 주소와 포트는 환경 설정에서 가져옵니다.
 - AIRI에서 동작하는 채팅 제공자와 모델을 설정하고, Minecraft 에이전트가 사용할 OpenAI 호환 모델 설정을 준비하세요.
 
@@ -36,7 +36,7 @@ AIRI_WS_TOKEN=<Auth Token from Settings → Connection>
 ## 시작하기
 
 ```bash
-pnpm -F @proj-airi/minecraft-bot dev
+bun run --filter @proj-airi/minecraft-bot dev
 ```
 
 시작한 후 터미널 출력에서 AIRI 인증이 성공했는지, 에이전트가 Minecraft 서버에 연결되었는지 확인하세요. `AIRI_WS_TOKEN`이 없거나 잘못되면 모듈이 AIRI에 등록되지 않습니다.

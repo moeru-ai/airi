@@ -137,7 +137,7 @@ function createInvalidTransitionError(moduleId: string, from: BindingState, to: 
  * - adapters consume binding records to produce UI/runtime behavior
  *
  * This is similar to VS Code's contribution system in spirit, but not in exact mechanics. VS Code uses
- * declarative contribution points in extension manifests and the host interprets them at load time. AIRI's
+ * declarative contribution points in extension manifests and the host interprets them at load time. Moeka's
  * binding registry is more runtime-oriented:
  *
  * - contributions can appear after startup

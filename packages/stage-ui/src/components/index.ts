@@ -1,4 +1,3 @@
-export * from './auth'
 export * from './data-pane'
 export * from './gadgets'
 export * from './gestures'

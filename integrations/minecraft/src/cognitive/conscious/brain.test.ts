@@ -85,7 +85,7 @@ function createAiriCommandEvent() {
     type: 'perception',
     payload: {
       type: 'airi_command',
-      description: 'Directive from AIRI: "continue"',
+      description: 'Directive from Moeka: "continue"',
       sourceId: 'airi',
       confidence: 1,
       timestamp: Date.now(),
@@ -307,7 +307,7 @@ inv;
     expect(deps.llmAgent.callLLM).toHaveBeenCalledTimes(1)
   })
 
-  it('clears giveUp and proceeds when an AIRI command arrives', async () => {
+  it('clears giveUp and proceeds when an Moeka command arrives', async () => {
     const deps: any = createDeps('await skip()')
     const brain: any = new Brain(deps)
     brain.givenUp = true
@@ -326,7 +326,7 @@ inv;
     expect(deps.llmAgent.callLLM).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps suppressing non-chat and non-AIRI perceptions while giveUp is active', async () => {
+  it('keeps suppressing non-chat and non-Moeka perceptions while giveUp is active', async () => {
     const deps: any = createDeps('await skip()')
     const brain: any = new Brain(deps)
     brain.givenUp = true
@@ -532,7 +532,7 @@ describe('brain queue coalescing', () => {
     expect((brain.queue[0].event.payload as any).type).toBe('chat_message')
   })
 
-  it('promotes AIRI commands ahead of queued ordinary perceptions', () => {
+  it('promotes Moeka commands ahead of queued ordinary perceptions', () => {
     const brain: any = new Brain(createDeps('await skip()'))
 
     brain.queue = [

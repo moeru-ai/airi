@@ -23,7 +23,7 @@
 
 ## Summary
 
-Define a capability-oriented orchestration model for AIRI plugins and modules where dependency resolution is runtime-driven instead of static metadata-driven. Plugin Host coordinates module lifecycle using a stateful capability registry and readiness gates, enabling multi-runtime deployments (Electron, Web, Pocket) without hardcoding stage-first boot order.
+Define a capability-oriented orchestration model for Moeka plugins and modules where dependency resolution is runtime-driven instead of static metadata-driven. Plugin Host coordinates module lifecycle using a stateful capability registry and readiness gates, enabling multi-runtime deployments (Electron, Web, Pocket) without hardcoding stage-first boot order.
 
 ## Background
 
@@ -31,7 +31,7 @@ Current plugin lifecycle in `PluginHost` is phase-based but does not yet enforce
 
 ## Context
 
-The AIRI ecosystem is moving toward:
+The Moeka ecosystem is moving toward:
 
 - Multiple plugin hosts (Electron now, Pocket and Web later).
 - Multiple stage instances per host/runtime.
@@ -68,7 +68,7 @@ Readiness and availability are stateful in registry snapshots, with event notifi
 
 ## Vision
 
-AIRI plugin orchestration should behave like an extensible runtime kernel:
+Moeka plugin orchestration should behave like an extensible runtime kernel:
 
 - Hosts are runtime adapters (Electron, Pocket, Web), not policy exceptions.
 - Stages are normal modules that publish and consume capabilities.
@@ -207,5 +207,5 @@ Proposed.
 
 ### Related Documentations
 
-- [AIRI Plugin Platform](./architecture.md)
+- [Moeka Plugin Platform](./architecture.md)
 - [Multi-Transport Plugin Contexts](./multi-transport.md)

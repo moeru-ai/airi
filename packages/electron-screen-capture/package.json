@@ -5,7 +5,7 @@
   "private": true,
   "description": "Screen capture",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },
@@ -29,7 +29,7 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "pnpm run build",
+    "dev": "bun run build",
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },

@@ -60,7 +60,7 @@ async function approveFirstPending(client: Client, label: string) {
 }
 
 async function main() {
-  const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'pnpm'
+  const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'bun'
   const args = parseCommandArgs(env.COMPUTER_USE_SMOKE_SERVER_ARGS, ['start'])
   const cwd = env.COMPUTER_USE_SMOKE_SERVER_CWD?.trim() || packageDir
 
@@ -159,7 +159,7 @@ async function main() {
     const typeText = await client.callTool({
       name: 'desktop_type_text',
       arguments: {
-        text: 'AIRI remote linux-x11 smoke',
+        text: 'Moeka remote linux-x11 smoke',
         pressEnter: false,
         captureAfter: true,
       },

@@ -298,7 +298,7 @@ onUnmounted(() => {
         <div class="h-60 overflow-auto border border-neutral-200/60 rounded-lg p-2 dark:border-neutral-700/60">
           <div v-for="(msg, idx) in chatMessages" :key="idx" class="mb-2">
             <div class="text-[11px] text-neutral-500">
-              {{ msg.role === 'user' ? 'User' : 'AIRI' }}
+              {{ msg.role === 'user' ? 'User' : 'Moeka' }}
             </div>
             <div class="whitespace-pre-wrap break-words text-sm">
               {{ msg.text }}

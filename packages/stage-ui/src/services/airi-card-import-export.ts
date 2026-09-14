@@ -70,10 +70,10 @@ export class AiriCardPackageError extends Error {
 }
 
 /**
- * Creates a portable AIRI Card share package.
+ * Creates a portable Moeka Card share package.
  *
  * This format is intentionally not a lossless backup. It includes fields the
- * creation editor lets the sender review, a sanitized AIRI module subset, and
+ * creation editor lets the sender review, a sanitized Moeka module subset, and
  * the selected display model. Unreviewed CCv3 metadata, custom extensions,
  * agent prompts, and machine-local runtime references are omitted.
  */
@@ -102,7 +102,7 @@ export async function exportAiriCardPackage({ card, displayModelsStore }: { card
  *
  * The returned CCv3 object is safe to pass through the normal card creation
  * path: package authors cannot smuggle custom extensions, agent prompts, or
- * machine-local references into persisted AIRI state.
+ * machine-local references into persisted Moeka state.
  */
 export async function importAiriCardPackage({ file, displayModelsStore }: { file: File, displayModelsStore: DisplayModelsStore }): Promise<ccv3.CharacterCardV3> {
   const zip = await loadZip(file)

@@ -1,12 +1,12 @@
 ---
 title: CometAPI (TTS)
-description: Configuring CometAPI speech synthesis in AIRI
+description: Configuring CometAPI speech synthesis in Moeka
 ---
 
 CometAPI provides speech synthesis through its compatible interface.
 
 ::: info Why choose CometAPI?
-If you already use CometAPI to manage models and credentials, you can reuse the API Key directly in AIRI.
+If you already use CometAPI to manage models and credentials, you can reuse the API Key directly in Moeka.
 :::
 
 ## Obtain API Key
@@ -18,7 +18,7 @@ If you already use CometAPI to manage models and credentials, you can reuse the 
 Do not commit the API key, include it in screenshots, or share it with anyone.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Speech → Comet API** and fill in the API Key.
 2. Keep the default Base URL: `https://api.cometapi.com/v1/`; modify it only when using a proxy or compatible gateway.
@@ -28,7 +28,7 @@ Do not commit the API key, include it in screenshots, or share it with anyone.
 1. Select a model and any available voice in the provider settings.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
-## Enable for AIRI replies
+## Enable for Moeka replies
 
 Open **Settings → Modules → Speech**, select **Comet API**, then select an available model and voice. The playground test alone does not enable the provider for normal replies.
 

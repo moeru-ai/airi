@@ -1,6 +1,6 @@
 # `@proj-airi/model-driver-lipsync`
 
-Shared lip-sync profiles and model-neutral mouth-driving policies for AIRI.
+Shared lip-sync profiles and model-neutral mouth-driving policies for Moeka.
 
 ## What It Does
 

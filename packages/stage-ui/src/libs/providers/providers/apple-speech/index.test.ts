@@ -65,7 +65,7 @@ describe('apple speech transcription provider', () => {
     expect(providerAppleSpeechTranscription.views?.hearing).toBeTypeOf('function')
   })
 
-  it('converts PCM16 input and emits AIRI transcript snapshots', async () => {
+  it('converts PCM16 input and emits Moeka transcript snapshots', async () => {
     const writtenSamples: Float32Array[] = []
     const finalResult: TranscriptionResult = {
       locale: 'en-US',
@@ -75,9 +75,9 @@ describe('apple speech transcription provider', () => {
           isFinal: true,
           startMilliseconds: 100,
         },
-        text: 'Hello, AIRI.',
+        text: 'Hello, Moeka.',
       }],
-      text: 'Hello, AIRI.',
+      text: 'Hello, Moeka.',
     }
 
     const result = executeAppleSpeechStream({
@@ -118,7 +118,7 @@ describe('apple speech transcription provider', () => {
       }),
     })
 
-    await expect(result.text).resolves.toBe('Hello, AIRI.')
+    await expect(result.text).resolves.toBe('Hello, Moeka.')
     expect(writtenSamples).toHaveLength(1)
     expect(Array.from(writtenSamples[0] ?? [])).toEqual([
       -1,
@@ -146,7 +146,7 @@ describe('apple speech transcription provider', () => {
         isFinal: true,
         locale: 'en-US',
         startMilliseconds: 100,
-        text: 'Hello, AIRI.',
+        text: 'Hello, Moeka.',
         type: 'transcript.text.snapshot',
       },
     ])

@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.12.0-beta.5",
   "private": true,
-  "description": "AIRI host plugin that bridges VS Code context and UI",
+  "description": "Moeka host plugin that bridges VS Code context and UI",
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
@@ -23,7 +23,7 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "pnpm run build",
+    "dev": "bun run build",
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },

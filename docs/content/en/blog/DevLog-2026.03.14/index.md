@@ -3,7 +3,7 @@ title: DevLog @ 2026.03.14
 category: DevLog
 date: 2026-03-14
 excerpt: |
-  A story about PR #1194: debugging AIRI's VRM 3D stage, redesigning its lifecycle, introducing a window-local cache, and laying the first foundation for ThreeScene observability.
+  A story about PR #1194: debugging Moeka's VRM 3D stage, redesigning its lifecycle, introducing a window-local cache, and laying the first foundation for ThreeScene observability.
 preview-cover:
   light: "@assets('./assets/cover-light.avif')"
   dark: "@assets('./assets/cover-dark.avif')"
@@ -11,7 +11,7 @@ preview-cover:
 
 Hi, this is [@Lilia-Chen](https://github.com/Lilia-Chen).
 
-Lately I have been working on AIRI's VRM / Three.js runtime, the 3D stage shared across AIRI's web, desktop, and mobile apps. The DevLog for today is about [#1194](https://github.com/moeru-ai/airi/pull/1194), which I opened on March 8, 2026 and merged on March 12, 2026.
+Lately I have been working on Moeka's VRM / Three.js runtime, the 3D stage shared across Moeka's web, desktop, and mobile apps. The DevLog for today is about [#1194](https://github.com/moeru-ai/airi/pull/1194), which I opened on March 8, 2026 and merged on March 12, 2026.
 
 The story is simple: the VRM stage had reached the point where it was too easy for lifecycle mistakes to disguise themselves as rendering bugs, performance bugs, or random "loading forever" bugs.
 

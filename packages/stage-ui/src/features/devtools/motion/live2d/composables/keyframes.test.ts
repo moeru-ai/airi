@@ -117,7 +117,7 @@ describe('live2D motion overlays', () => {
     project.overlays.push({ id: 'layer', name: 'Layer', trackId: 'eyeOpen', blendMode: 'replace', weight: 0.75, startMs: 100, endMs: 900, points: [{ id: 'a', atMs: 100, value: 1 }, { id: 'b', atMs: 900, value: 0 }] })
 
     expect(parseLive2DMotionProject(stringifyLive2DMotionProject(project))).toEqual(project)
-    expect(() => parseLive2DMotionProject('{"format":"wrong"}')).toThrow('not an AIRI Live2D motion project')
+    expect(() => parseLive2DMotionProject('{"format":"wrong"}')).toThrow('not an Moeka Live2D motion project')
   })
 
   it('keeps inserted and dragged points in timeline order', () => {

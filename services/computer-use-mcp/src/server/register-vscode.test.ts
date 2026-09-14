@@ -118,12 +118,12 @@ describe('registerVscodeTools', () => {
     registerVscodeTools({ server, runtime, executeTerminalCommand })
 
     const result = await invoke('vscode_run_task', {
-      command: 'pnpm test',
+      command: 'bun run test',
       cwd: '/tmp/project',
     })
 
     expect(executeTerminalCommand).toHaveBeenCalledWith({
-      command: 'pnpm test',
+      command: 'bun run test',
       cwd: '/tmp/project',
       timeoutMs: 60_000,
     }, 'vscode_run_task')
@@ -133,7 +133,7 @@ describe('registerVscodeTools', () => {
 
   it('parses problem output and writes diagnostics into run-state', async () => {
     const executeTerminalCommand = vi.fn().mockResolvedValue(createExecutedTerminalResult({
-      command: 'pnpm typecheck 2>&1',
+      command: 'bun run typecheck 2>&1',
       exitCode: 1,
       effectiveCwd: '/tmp/project',
       stdout: [
@@ -172,12 +172,12 @@ describe('registerVscodeTools', () => {
     ])
     expect(runtime.stateManager.getState().vscode).toMatchObject({
       lastTask: {
-        command: 'pnpm typecheck 2>&1',
+        command: 'bun run typecheck 2>&1',
         cwd: '/tmp/project',
         exitCode: 1,
       },
       lastProblems: {
-        command: 'pnpm typecheck 2>&1',
+        command: 'bun run typecheck 2>&1',
         cwd: '/tmp/project',
         problemCount: 2,
       },

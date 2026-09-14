@@ -8,7 +8,7 @@ describe('audio input pipeline', () => {
   // It has 20 seconds of leading silence and 4 seconds of trailing silence in mono 16 kHz PCM WAV format.
   it('does not preserve the complete phrase after long leading silence', {
     input: new URL('./input.test.wav', import.meta.url),
-    // This regression isolates AIRI's default VAD and one explicit ASR Provider.
+    // This regression isolates Moeka's default VAD and one explicit ASR Provider.
     preflight: [
       configureOnboarding(() => ({ completed: true })),
       configureModuleHearing(async (context) => {

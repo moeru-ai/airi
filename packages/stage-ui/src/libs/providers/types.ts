@@ -25,7 +25,6 @@ export type {
   InferenceServiceProvider,
   ModelInfo,
   ProviderConfigContext,
-  ProviderConfiguredBy,
   ProviderConfigValidator,
   ProviderExtraMethods,
   ProviderInstance,

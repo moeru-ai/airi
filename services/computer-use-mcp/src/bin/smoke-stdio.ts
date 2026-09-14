@@ -55,7 +55,7 @@ function hasImageContent(result: unknown) {
 }
 
 async function main() {
-  const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'pnpm'
+  const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'bun'
   const args = parseCommandArgs(env.COMPUTER_USE_SMOKE_SERVER_ARGS, ['start'])
   const cwd = env.COMPUTER_USE_SMOKE_SERVER_CWD?.trim() || packageDir
 

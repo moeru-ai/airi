@@ -12,5 +12,5 @@ export function getProviderMode(providerId: string | undefined): ProviderMode {
   if (!providerId)
     return 'unknown'
 
-  return providerId.startsWith('official-provider') ? 'official' : 'custom'
+  return 'custom'
 }

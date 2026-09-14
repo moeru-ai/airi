@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.12.0-beta.5",
   "private": true,
-  "description": "Home Assistant integration plugin for AIRI server",
+  "description": "Home Assistant integration plugin for Moeka server",
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit"

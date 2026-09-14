@@ -1,130 +1,112 @@
-import type { Ref } from 'vue'
-
 import type { Character, CreateCharacterPayload, UpdateCharacterPayload } from '../types/character'
 
-import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
+import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { parse as parseValibot } from 'valibot'
+import { ref } from 'vue'
 
-import { client } from '../composables/api'
+import { LOCAL_USER_ID } from '../constants'
 import { charactersModel as model } from '../models/characters'
-import { charactersService as service } from '../services/characters'
-import { useAuthStore } from './auth'
-
-interface StoreQuery<TData> {
-  error: Ref<Error | null>
-  isLoading: Ref<boolean>
-  refetch: (force?: boolean) => Promise<{ data?: TData }>
-}
-
-interface StoreMutation<TVars, TData> {
-  error: Ref<Error | null>
-  mutateAsync: (vars: TVars) => Promise<TData>
-}
+import { CharacterWithRelationsSchema } from '../types/character'
 
 function setCharactersMap(target: Map<string, Character>, characters: Character[]) {
   target.clear()
-  for (const character of characters) {
+  for (const character of characters)
     target.set(character.id, character)
-  }
 }
 
-export function createCharactersListQueryOptions(params: {
-  client: Parameters<typeof service.fetchRemote>[0]
-  listAll: Ref<boolean>
-  service: Pick<typeof service, 'fetchRemote'>
-}) {
-  return {
-    key: () => ['characters', { all: params.listAll.value }],
-    query: async (context: { signal: AbortSignal }) => params.service.fetchRemote(params.client, { all: params.listAll.value }, { abortSignal: context.signal }),
-    enabled: false,
-  }
+/**
+ * Builds a local character record from a create payload.
+ *
+ * Moeka stores characters on the device only, so the generated relation ids
+ * and timestamps are the authoritative values for the new record.
+ *
+ * @example
+ * buildLocalCharacter('local', payload)
+ * // => { id: 'V1StGXR8_Z5jdHi6B-myT', creatorId: 'local', ... }
+ */
+function buildLocalCharacter(userId: string, payload: CreateCharacterPayload): Character {
+  const id = payload.character.id ?? nanoid()
+  const now = new Date()
+
+  return parseValibot(CharacterWithRelationsSchema, {
+    id,
+    version: payload.character.version,
+    coverUrl: payload.character.coverUrl,
+    avatarUrl: undefined,
+    characterAvatarUrl: undefined,
+    coverBackgroundUrl: undefined,
+    creatorRole: undefined,
+    priceCredit: '0',
+    likesCount: 0,
+    bookmarksCount: 0,
+    interactionsCount: 0,
+    forksCount: 0,
+    creatorId: userId,
+    ownerId: userId,
+    characterId: payload.character.characterId,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: undefined,
+    capabilities: payload.capabilities?.map(capability => ({
+      id: nanoid(),
+      characterId: id,
+      type: capability.type,
+      config: capability.config,
+    })),
+    avatarModels: payload.avatarModels?.map(avatarModel => ({
+      id: nanoid(),
+      characterId: id,
+      name: avatarModel.name,
+      type: avatarModel.type,
+      description: avatarModel.description,
+      config: avatarModel.config,
+      createdAt: now,
+      updatedAt: now,
+    })),
+    i18n: payload.i18n?.map(item => ({
+      id: nanoid(),
+      characterId: id,
+      language: item.language,
+      name: item.name,
+      description: item.description,
+      tags: item.tags,
+      createdAt: now,
+      updatedAt: now,
+    })),
+    prompts: payload.prompts?.map(prompt => ({
+      id: nanoid(),
+      characterId: id,
+      language: prompt.language,
+      type: prompt.type,
+      content: prompt.content,
+    })),
+    likes: [],
+    bookmarks: [],
+  })
 }
 
-export function createCharacterStoreController(params: {
-  auth: { userId: string }
-  bookmarkMutation: StoreMutation<string, Character>
-  characters: Ref<Map<string, Character>>
-  createMutation: StoreMutation<CreateCharacterPayload, Character>
-  likeMutation: StoreMutation<string, Character>
-  listAll: Ref<boolean>
-  listQuery: StoreQuery<Character[]>
-  model: typeof model
-  removeMutation: StoreMutation<string, void>
-  service: typeof service
-  updateMutation: StoreMutation<{ id: string, data: UpdateCharacterPayload }, Character>
-}) {
-  const {
-    auth,
-    bookmarkMutation,
-    characters,
-    createMutation,
-    likeMutation,
-    listAll,
-    listQuery,
-    model,
-    removeMutation,
-    service,
-    updateMutation,
-  } = params
-  const mutationError = computed(() =>
-    createMutation.error.value
-    ?? updateMutation.error.value
-    ?? removeMutation.error.value
-    ?? likeMutation.error.value
-    ?? bookmarkMutation.error.value)
+/**
+ * Owns the device-local character list and its persisted cache.
+ *
+ * Every mutation writes the in-memory map and the local cache together. The
+ * store keeps no network client, so a failed write is a failed cache write.
+ */
+export const useCharacterStore = defineStore('characters', () => {
+  const characters = ref<Map<string, Character>>(new Map())
 
-  async function fetchList(all: boolean = false) {
-    listAll.value = all
-    const cached = await model.list()
-    if (cached.length > 0)
-      setCharactersMap(characters.value, cached)
-
-    try {
-      const state = await listQuery.refetch(true)
-      if (state.data) {
-        await model.saveAll(state.data)
-        setCharactersMap(characters.value, state.data)
-      }
-      return state.data ?? cached
-    }
-    catch {
-      return cached
-    }
-  }
-
-  async function fetchById(id: string) {
-    const cached = characters.value.get(id) ?? (await model.list()).find(character => character.id === id)
-    if (cached)
-      characters.value.set(cached.id, cached)
-
-    try {
-      const remote = await service.fetchRemoteById(client, id)
-      characters.value.set(remote.id, remote)
-      await model.upsert(remote)
-      return remote
-    }
-    catch {
-      return cached
-    }
+  /** Replaces the in-memory list with the characters stored on this device. */
+  async function fetchList() {
+    const stored = await model.list()
+    setCharactersMap(characters.value, stored)
+    return stored
   }
 
   async function create(payload: CreateCharacterPayload) {
-    const localCharacter = service.buildLocal(auth.userId, payload)
-    characters.value.set(localCharacter.id, localCharacter)
-    await model.upsert(localCharacter)
-
-    try {
-      const remote = await createMutation.mutateAsync(payload)
-      characters.value.delete(localCharacter.id)
-      await model.remove(localCharacter.id)
-      characters.value.set(remote.id, remote)
-      await model.upsert(remote)
-      return remote
-    }
-    catch {
-      return localCharacter
-    }
+    const character = buildLocalCharacter(LOCAL_USER_ID, payload)
+    characters.value.set(character.id, character)
+    await model.upsert(character)
+    return character
   }
 
   async function update(id: string, payload: UpdateCharacterPayload) {
@@ -132,37 +114,21 @@ export function createCharacterStoreController(params: {
     if (!character)
       return
 
-    const localCharacter = {
+    const nextCharacter = {
       ...character,
       ...(payload.version !== undefined ? { version: payload.version } : {}),
       ...(payload.coverUrl !== undefined ? { coverUrl: payload.coverUrl } : {}),
       ...(payload.characterId !== undefined ? { characterId: payload.characterId } : {}),
       updatedAt: new Date(),
     }
-    characters.value.set(localCharacter.id, localCharacter)
-    await model.upsert(localCharacter)
-
-    try {
-      const remote = await updateMutation.mutateAsync({ id, data: payload })
-      characters.value.set(remote.id, remote)
-      await model.upsert(remote)
-      return remote
-    }
-    catch {
-      return localCharacter
-    }
+    characters.value.set(nextCharacter.id, nextCharacter)
+    await model.upsert(nextCharacter)
+    return nextCharacter
   }
 
   async function remove(id: string) {
     characters.value.delete(id)
     await model.remove(id)
-
-    try {
-      await removeMutation.mutateAsync(id)
-    }
-    catch {
-      // Keep current local-first behavior: local removal is retained on remote failure.
-    }
   }
 
   async function like(id: string) {
@@ -171,25 +137,18 @@ export function createCharacterStoreController(params: {
       return
 
     const likes = character.likes ?? []
-    if (!likes.some(item => item.userId === auth.userId)) {
-      const localCharacter = {
-        ...character,
-        likes: [...likes, { userId: auth.userId, characterId: id }],
-        likesCount: character.likesCount + 1,
-        updatedAt: new Date(),
-      }
-      characters.value.set(localCharacter.id, localCharacter)
-      await model.upsert(localCharacter)
-    }
+    if (likes.some(item => item.userId === LOCAL_USER_ID))
+      return
 
-    try {
-      const remote = await likeMutation.mutateAsync(id)
-      characters.value.set(remote.id, remote)
-      await model.upsert(remote)
+    const nextCharacter = {
+      ...character,
+      likes: [...likes, { userId: LOCAL_USER_ID, characterId: id }],
+      likesCount: character.likesCount + 1,
+      updatedAt: new Date(),
     }
-    catch {
-      // Keep local-first optimistic state.
-    }
+    characters.value.set(nextCharacter.id, nextCharacter)
+    await model.upsert(nextCharacter)
+    return nextCharacter
   }
 
   async function bookmark(id: string) {
@@ -198,25 +157,18 @@ export function createCharacterStoreController(params: {
       return
 
     const bookmarks = character.bookmarks ?? []
-    if (!bookmarks.some(item => item.userId === auth.userId)) {
-      const localCharacter = {
-        ...character,
-        bookmarks: [...bookmarks, { userId: auth.userId, characterId: id }],
-        bookmarksCount: character.bookmarksCount + 1,
-        updatedAt: new Date(),
-      }
-      characters.value.set(localCharacter.id, localCharacter)
-      await model.upsert(localCharacter)
-    }
+    if (bookmarks.some(item => item.userId === LOCAL_USER_ID))
+      return
 
-    try {
-      const remote = await bookmarkMutation.mutateAsync(id)
-      characters.value.set(remote.id, remote)
-      await model.upsert(remote)
+    const nextCharacter = {
+      ...character,
+      bookmarks: [...bookmarks, { userId: LOCAL_USER_ID, characterId: id }],
+      bookmarksCount: character.bookmarksCount + 1,
+      updatedAt: new Date(),
     }
-    catch {
-      // Keep local-first optimistic state.
-    }
+    characters.value.set(nextCharacter.id, nextCharacter)
+    await model.upsert(nextCharacter)
+    return nextCharacter
   }
 
   function getCharacter(id: string) {
@@ -225,12 +177,8 @@ export function createCharacterStoreController(params: {
 
   return {
     characters,
-    isLoading: computed(() => listQuery.isLoading.value),
-    error: computed(() => listQuery.error.value),
-    mutationError,
 
     fetchList,
-    fetchById,
     create,
     update,
     remove,
@@ -238,54 +186,4 @@ export function createCharacterStoreController(params: {
     bookmark,
     getCharacter,
   }
-}
-
-export const useCharacterStore = defineStore('characters', () => {
-  const characters = ref<Map<string, Character>>(new Map())
-  const listAll = ref(false)
-  const auth = useAuthStore()
-  const queryCache = useQueryCache()
-
-  const listQuery = useQuery(createCharactersListQueryOptions({ client, listAll, service }))
-  const createMutation = useMutation({
-    mutation: async (payload: CreateCharacterPayload) => service.createRemote(client, payload),
-    async onSettled() {
-      await queryCache.invalidateQueries({ key: ['characters'] })
-    },
-  })
-
-  const updateMutation = useMutation({
-    mutation: async (payload: { id: string, data: UpdateCharacterPayload }) => service.updateRemote(client, payload.id, payload.data),
-    async onSettled() {
-      await queryCache.invalidateQueries({ key: ['characters'] })
-    },
-  })
-
-  const removeMutation = useMutation({
-    mutation: async (id: string) => service.removeRemote(client, id),
-    async onSettled() {
-      await queryCache.invalidateQueries({ key: ['characters'] })
-    },
-  })
-
-  const likeMutation = useMutation({
-    mutation: async (id: string) => service.likeRemote(client, id),
-  })
-  const bookmarkMutation = useMutation({
-    mutation: async (id: string) => service.bookmarkRemote(client, id),
-  })
-
-  return createCharacterStoreController({
-    auth,
-    bookmarkMutation,
-    characters,
-    createMutation,
-    likeMutation,
-    listAll,
-    listQuery,
-    model,
-    removeMutation,
-    service,
-    updateMutation,
-  })
 })

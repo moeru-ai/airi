@@ -6,7 +6,7 @@ description: Project AIRI への貢献
 ### ドキュメントサイト
 
 ```shell
-pnpm dev:docs
+bun run dev:docs
 ```
 
 ::: tip

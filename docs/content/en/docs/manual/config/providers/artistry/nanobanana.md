@@ -1,12 +1,12 @@
 ---
 title: Nano Banana (Artistry)
-description: Configuring Nano Banana image generation in AIRI
+description: Configuring Nano Banana image generation in Moeka
 ---
 
 Nano Banana uses a Google AI Studio API key to generate images. Configure it under **Settings → Providers → Artistry**, then enable it under **Settings → Modules → Artistry**.
 
 ::: info Why choose Nano Banana?
-If you already have a Google AI Studio API Key and want to use AIRI's built-in Gemini image model and resolution options directly, you can select it.
+If you already have a Google AI Studio API Key and want to use Moeka's built-in Gemini image model and resolution options directly, you can select it.
 :::
 
 ## Obtain API Key
@@ -19,7 +19,7 @@ If you already have a Google AI Studio API Key and want to use AIRI's built-in G
 Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke and create a new key in Google AI Studio.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Artistry → Nano Banana** and paste the API Key.
 2. Select the default model: `gemini-3.1-flash-image-preview`, `gemini-3-pro-image-preview` or `gemini-2.5-flash-image`.
@@ -29,7 +29,7 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 1. Open **Settings → Modules → Artistry** and select **Nano Banana (Preview)**.
 2. Under **Settings → Modules → Consciousness**, select a chat model that supports tool/function calling.
-3. Return to chat and ask AIRI to generate a non-sensitive image.
+3. Return to chat and ask Moeka to generate a non-sensitive image.
 4. A returned image confirms that the API key, model, resolution, and tool call work.
 
 ## Troubleshooting

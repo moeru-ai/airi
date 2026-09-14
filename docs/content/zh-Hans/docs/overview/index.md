@@ -21,9 +21,8 @@ Project AIRI 是一个开源的 AI VTuber / 数字伙伴项目。你可以把它
 
 - 通过 OpenAI 兼容接口、OpenRouter、DeepSeek、Ollama、Qwen、Gemini、Claude 等服务为她配置「大脑」；
 - 使用角色卡定义名字、性格、说话方式和不同模块使用的模型；
-- 在网页端直接开始聊天，也可以在桌面端让她以 Live2D 或 VRM 模型常驻屏幕；
+- 在网页端直接开始聊天；
 - 配置语音合成、语音识别和说话检测，让交互从文字扩展到语音；
-- 在桌面端使用系统托盘、窗口穿透、悬停淡化、移动和缩放等桌宠式交互；
 - 通过源码运行或开发中的模块接入 Discord、Telegram、Minecraft、Factorio、MCP Server 等实验能力。
 
 项目仍在快速演进中，稳定版本优先提供聊天、角色、模型显示和基础设置；更深入的游戏智能体、机器人、插件与本地运行能力正在持续开发。
@@ -34,15 +33,13 @@ Project AIRI 是一个开源的 AI VTuber / 数字伙伴项目。你可以把它
 
 - **身体**：支持 Live2D 和 VRM，目标是让角色拥有可互动的 2D / 3D 表现；
 - **声音**：整合 TTS、STT、VAD 等能力，让角色可以开口、听见你说话，并判断你是否正在说话；
-- **上下文**：桌面端和插件系统正在把应用状态、开发环境、游戏状态等上下文接入对话流程；
+- **上下文**：插件系统正在把应用状态、开发环境、游戏状态等上下文接入对话流程；
 - **行动能力**：Minecraft、Factorio、Discord、Telegram 等服务侧模块展示了 AIRI 作为智能体参与外部世界的方向；
-- **可移植性**：项目从一开始就大量使用 Web 技术，结合 WebGPU、WebAudio、Web Worker、WebAssembly、WebSocket 等能力，让网页、桌面和移动端可以共用很多基础设施。
+- **可移植性**：项目从一开始就大量使用 Web 技术，结合 WebGPU、WebAudio、Web Worker、WebAssembly、WebSocket 等能力，让网页可以共用很多基础设施。
 
-这也是为什么仓库里同时有 `stage-web`、`stage-tamagotchi`、`stage-pocket`、`stage-ui`、`server-runtime`、`plugin-sdk` 等模块。AIRI 不是单一应用，而是一套围绕虚拟角色体验搭建的 monorepo：前端舞台、桌面运行时、移动端、共享 UI、服务通道、插件协议和智能体服务都在同一个项目里逐步成形。
+这也是为什么仓库里同时有 `stage-web`、`stage-ui`、`server-runtime`、`plugin-sdk` 等模块。AIRI 不是单一应用，而是一套围绕虚拟角色体验搭建的 monorepo：前端舞台、共享 UI、服务通道、插件协议和智能体服务都在同一个项目里逐步成形。
 
 ## 开始使用
-
-目前最容易上手的是网页端和桌面端。
 
 <div flex gap-2 w-full justify-center text-xl>
   <div w-full flex flex-col items-center gap-2 border="2 solid gray-500/10" rounded-lg px-2 pt-6 pb-4>
@@ -54,37 +51,11 @@ Project AIRI 是一个开源的 AI VTuber / 数字伙伴项目。你可以把它
       打开
     </a>
   </div>
-  <div w-full flex flex-col items-center gap-2 border="2 solid gray-500/10" rounded-lg px-2 pt-6 pb-4>
-    <div flex items-center gap-2 text-5xl>
-      <div i-lucide:laptop />
-      /
-      <div i-lucide:computer />
-    </div>
-    <span>桌面端</span>
-    <a href="https://github.com/moeru-ai/airi/releases/latest" target="_blank" decoration-none class="text-primary-900 dark:text-primary-400 text-base not-prose bg-primary-400/10 dark:bg-primary-600/10 block px-4 py-2 rounded-lg active:scale-95 transition-all duration-200 ease-in-out">
-      下载
-    </a>
-  </div>
 </div>
 
 **网页端** 适合快速体验。打开浏览器，配置模型提供商和 API Key，就可以开始和 AIRI 对话。它也适合在移动设备上访问，或者用来体验 PWA 与浏览器内能力。
 
-**桌面端** 适合长期使用和更完整的桌宠体验。它基于 Electron，可以让 AIRI 以 Live2D / VRM 模型常驻桌面，并提供系统托盘、窗口穿透、悬停淡化、本地模型接入、插件调试和更多实验功能。
-
-**移动端**（`stage-pocket`）正在开发中，基于 Capacitor 复用 Web 舞台能力。现阶段如果你只是想在手机上尝试，优先使用网页端。
-
 <div flex gap-2 w-full flex-col justify-center text-base>
-  <a href="../manual/tamagotchi/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
-    <div w-full flex items-center gap-2>
-      <div flex items-center gap-2 text-2xl>
-        <div i-lucide:laptop />
-      </div>
-      <span>桌面端</span>
-    </div>
-    <div decoration-none class="text-gray-900 dark:text-gray-200 text-base not-prose rounded-lg active:scale-95 transition-all duration-200 ease-in-out text-nowrap">
-      如何使用？
-    </div>
-  </a>
   <a href="../manual/web/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
     <div w-full flex items-center gap-2>
       <div flex items-center gap-2 text-2xl>
@@ -100,14 +71,12 @@ Project AIRI 是一个开源的 AI VTuber / 数字伙伴项目。你可以把它
 
 ## 给开发者
 
-AIRI 的主技术栈是 Vue 3、TypeScript、Vite、Pinia、VueUse、UnoCSS 和 Vitest。桌面端使用 Electron，移动端使用 Capacitor；跨进程通信和服务事件使用 `@moeru/eventa`，服务组合大量使用 `injeca`；模型与 LLM Provider 侧主要由 `xsai` 生态驱动。
+AIRI 的主技术栈是 Vue 3、TypeScript、Vite、Pinia、VueUse、UnoCSS 和 Vitest。跨进程通信和服务事件使用 `@moeru/eventa`，服务组合大量使用 `injeca`；模型与 LLM Provider 侧主要由 `xsai` 生态驱动。
 
 常见入口如下：
 
 - `apps/stage-web`：网页端，也就是 <https://airi.moeru.ai>；
-- `apps/stage-tamagotchi`：桌面端，包含 Electron 主进程、渲染端、桌面窗口、插件宿主和服务通道；
-- `apps/stage-pocket`：移动端实验应用；
-- `packages/stage-ui`：网页端、桌面端和移动端共享的核心业务组件、设置页、stores 与 composables；
+- `packages/stage-ui`：、设置页、stores 与 composables；
 - `packages/stage-ui-three` 与 `packages/stage-ui-live2d`：3D / Live2D 舞台相关能力；
 - `packages/server-runtime`、`packages/server-sdk`、`packages/server-shared`：服务通道和外部智能体连接；
 - `integrations/discord-bot`、`integrations/telegram-bot`、`integrations/minecraft`：需要源码配置运行的外部平台集成。

@@ -178,7 +178,7 @@ export default defineConfig({
     // import" error.
     // SW generation in dev is already disabled by `devOptions.enabled:
     // false` (the plugin's own default). So new SWs do NOT register from
-    // `pnpm dev` alone — but a previously-registered SW (e.g. from an
+    // `bun run dev` alone — but a previously-registered SW (e.g. from an
     // earlier `vite preview` / `vite build`) lives on per-origin in the
     // browser and keeps intercepting fetches even in dev. To recover from
     // that state, unregister via DevTools → Application → Storage → Clear
@@ -189,8 +189,8 @@ export default defineConfig({
           registerType: 'prompt',
           includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
           manifest: {
-            name: 'AIRI',
-            short_name: 'AIRI',
+            name: 'Moeka',
+            short_name: 'Moeka',
             icons: [
               {
                 src: '/web-app-manifest-192x192.png',
@@ -269,7 +269,7 @@ export default defineConfig({
     ] }),
     SpaceCard({
       root: cwd(),
-      title: 'AIRI: Virtual Companion',
+      title: 'Moeka: Virtual Companion',
       emoji: '🧸',
       colorFrom: 'pink',
       colorTo: 'pink',

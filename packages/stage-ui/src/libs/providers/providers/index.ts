@@ -7,13 +7,8 @@ import './apple-speech'
 import './local-audio'
 import './kokoro-local'
 import './nvidia'
-import './official'
 
 registerProviders(portableProviderDefinitions)
-
-export {
-  OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
-} from './official'
 
 export {
   getDefinedProvider,

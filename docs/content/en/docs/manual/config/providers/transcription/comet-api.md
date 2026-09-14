@@ -1,12 +1,12 @@
 ---
 title: CometAPI (ASR/STT)
-description: Configuring CometAPI speech recognition in AIRI
+description: Configuring CometAPI speech recognition in Moeka
 ---
 
 CometAPI provides audio transcription through its compatible interface.
 
 ::: info Why choose CometAPI?
-If you have used CometAPI to manage models and credentials, you can directly reuse the same API Key in AIRI for speech recognition.
+If you have used CometAPI to manage models and credentials, you can directly reuse the same API Key in Moeka for speech recognition.
 :::
 
 ## Obtain API Key
@@ -18,7 +18,7 @@ If you have used CometAPI to manage models and credentials, you can directly reu
 Do not commit the API key, include it in screenshots, or share it with anyone.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Transcription → Comet API** and fill in the API Key.
 2. In **Model Name**, enter the exact model ID from the CometAPI model catalog, for example `whisper-1`.
@@ -35,4 +35,4 @@ Open **Settings → Modules → Hearing** and select **Comet API**. Make sure th
 
 ## Troubleshooting
 
-If the playground cannot complete a request, check the API Key, account permissions, and network connection. If no text appears, confirm that AIRI has microphone access.
+If the playground cannot complete a request, check the API Key, account permissions, and network connection. If no text appears, confirm that Moeka has microphone access.

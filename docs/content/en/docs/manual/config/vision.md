@@ -1,20 +1,18 @@
 ---
 title: Configure vision
-description: Select an image-understanding provider and model for AIRI's vision module
+description: Select an image-understanding provider and model for Moeka's vision module
 ---
 
-The vision module sends captured images to a model that supports image input. Vision providers use the same kinds of fields as their chat counterparts, but AIRI stores their settings separately. Enter the credentials again on the Vision provider page.
+The vision module sends captured images to a model that supports image input. Vision providers use the same kinds of fields as their chat counterparts, but Moeka stores their settings separately. Enter the credentials again on the Vision provider page.
 
 ::: info Why do the fields look the same?
 The same service often provides both chat and image-understanding models, so the forms use matching fields. The saved values are independent, and you must still choose a model that explicitly supports image input.
 :::
 
-::: warning Before using screen vision, you need to enable Vision Capture
-When configuring only the vision service provider and model, there is no need to enable this tool.
+::: warning Screen capture needs the Desktop ver.
+The web version cannot capture your screen or a window. Screen capture belongs to the Desktop ver., which this project does not ship. Without a capture source, the vision module receives no image, so it stays idle.
 
-To have AIRI analyze your screen or window, open **System → Developer → Vision Capture**, grant screen-recording permission if needed, select a window or display, and click **Start ticker**. To send the results to the current character, enable **Publish to character**.
-
-Vision Capture is the current desktop debugging/development workflow; leaving the page will stop the capture loop. For complete instructions, see [Desktop Developer Tools](/en/docs/contributing/desktop-developer-tools#vision-capture).
+You can still configure a vision provider and model. Moeka uses them when a capture source sends a frame.
 :::
 
 ## Choose a vision provider
@@ -34,19 +32,17 @@ Visual analysis sends captured frames to the selected provider. Do not capture A
 1. Open **Settings → Modules → Vision**.
 2. Select the provider you just configured.
 3. Select a model that supports image input.
-4. Set **Capture interval** to control how frequently the vision ticker captures a frame.
-
-On desktop, the current screen or window source is selected separately under **System → Developer → Vision Capture**, as described above.
+4. Set **Capture interval** to control how frequently a capture source sends a frame.
 
 ## Verify the configuration
 
-1. Capture a window that does not contain sensitive information.
+1. Configure a capture source that does not record sensitive information.
 2. Trigger a visual analysis.
-3. Confirm that AIRI receives a description or other context from the captured frame.
+3. Confirm that Moeka receives a description or other context from the captured frame.
 
 ## Local visual model
 
-Ollama and LM Studio are available as local vision providers. Run a model that supports image input and confirm that AIRI can reach its service. Then enter or keep the corresponding Base URL on the Vision provider page and select the model under **Settings → Modules → Vision**.
+Ollama and LM Studio are available as local vision providers. Run a model that supports image input and confirm that Moeka can reach its service. Then enter or keep the corresponding Base URL on the Vision provider page and select the model under **Settings → Modules → Vision**.
 
 ## Troubleshooting
 

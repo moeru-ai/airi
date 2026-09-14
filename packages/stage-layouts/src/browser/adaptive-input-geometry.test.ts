@@ -102,7 +102,7 @@ describe('adaptive input geometry', () => {
     // ROOT CAUSE:
     //
     // Safari keeps reporting the keyboard-sized Visual Viewport for part of its close animation.
-    // If AIRI uses that stale measurement after blur, the input region stays compressed and leaves
+    // If Moeka uses that stale measurement after blur, the input region stays compressed and leaves
     // a visible gap above the keyboard.
     //
     // Before the fix, blur disabled keyboardVisible but kept height and visibleBottom at 404px.

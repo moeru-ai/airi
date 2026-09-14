@@ -1,25 +1,25 @@
 # Feasibility Summary
 
-This document records the validated state of the AIRI-specific macOS desktop orchestration v1 in `services/computer-use-mcp`.
+This document records the validated state of the Moeka-specific macOS desktop orchestration v1 in `services/computer-use-mcp`.
 
 ## Bottom Line
 
 The current direction is feasible and materially stronger than the earlier pure-vision-only path.
 The validated architecture is now:
 
-- AIRI keeps the control plane
+- Moeka keeps the control plane
 - `computer-use-mcp` keeps trace, audit, screenshot persistence, policy, and the MCP surface
 - the primary execution backend is local macOS window automation
-- AIRI desktop handles human approval through native dialogs
+- Moeka desktop handles human approval through native dialogs
 - terminal commands run in a controlled background shell runner instead of a Terminal tab script
 
 That makes the feature an orchestration layer, not just a mouse-clicking demo.
 
 ## What Was Verified
 
-### 1. The service still fits AIRI's MCP attachment model
+### 1. The service still fits Moeka's MCP attachment model
 
-AIRI continues to use the existing stdio MCP bridge through `mcp.json`.
+Moeka continues to use the existing stdio MCP bridge through `mcp.json`.
 No transport rewrite was required.
 
 ### 2. The service now exposes a tool-first desktop orchestration surface
@@ -32,7 +32,7 @@ Validated surface in this checkout:
 - primitive UI interaction tools
 - approval / trace / audit helpers
 
-This is a better fit for AIRI than leading with pure screenshot-driven action selection.
+This is a better fit for Moeka than leading with pure screenshot-driven action selection.
 
 ### 3. Terminal execution is now first-class and auditable
 
@@ -43,16 +43,16 @@ Validated by tests:
 - cwd is sticky across calls unless explicitly overridden
 - reset clears terminal state
 
-This gives AIRI a deterministic execution path for many developer workflows without relying on Terminal.app scripting.
+This gives Moeka a deterministic execution path for many developer workflows without relying on Terminal.app scripting.
 
-### 4. Native approval now sits in the AIRI desktop layer
+### 4. Native approval now sits in the Moeka desktop layer
 
 Validated by implementation shape:
 
 - MCP still returns `approval_required`
-- AIRI renderer intercepts `computer_use` pending actions
+- Moeka renderer intercepts `computer_use` pending actions
 - Electron main shows a native approval dialog
-- AIRI automatically follows up with approve/reject tool calls
+- Moeka automatically follows up with approve/reject tool calls
 - session-scoped approval reuse is limited to terminal and app open/focus actions
 
 That keeps approval as a user action, not a model action.
@@ -88,16 +88,16 @@ Explicit non-goals of this pass:
 
 ## Commands Verified In This Checkout
 
-- `pnpm -F @proj-airi/computer-use-mcp typecheck`
-- `pnpm -F @proj-airi/computer-use-mcp test`
-- `pnpm -F @proj-airi/stage-ui typecheck`
-- `pnpm -F @proj-airi/stage-tamagotchi typecheck`
+- `bun run --filter @proj-airi/computer-use-mcp typecheck`
+- `bun run --filter @proj-airi/computer-use-mcp test`
+- `bun run --filter @proj-airi/stage-ui typecheck`
+- `bun run --filter @proj-airi/stage-web typecheck`
 
 ## Practical Interpretation
 
 The feature is now credible as:
 
-- a macOS desktop orchestration layer for AIRI
+- a macOS desktop orchestration layer for Moeka
 - a way to connect chat, MCP, terminal execution, and UI observation into one task flow
 - a safer incremental path than trying to solve generic pure-vision computer use first
 

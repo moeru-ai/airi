@@ -220,7 +220,7 @@ const NO_ACTION_BUDGET_ALERT_SOURCE_ID = 'brain:no_action_budget'
 
 /**
  * Priority tiers for event scheduling (lower = higher priority).
- * Player chat and AIRI commands always take precedence over stale system feedback.
+ * Player chat and Moeka commands always take precedence over stale system feedback.
  */
 const EVENT_PRIORITY_URGENT_PERCEPTION = 0
 const EVENT_PRIORITY_PERCEPTION = 1
@@ -336,13 +336,13 @@ export class Brain {
 
     // Perception Handler
     this.unsubscribeEventBus = this.deps.eventBus.subscribe<PerceptionSignal>('conscious:signal:*', (event: TracedEvent<PerceptionSignal>) => {
-      // AIRI context updates are injected into conversation history without triggering a full cognitive cycle
+      // Moeka context updates are injected into conversation history without triggering a full cognitive cycle
       if (event.payload.type === 'airi_context') {
         this.conversationHistory.push({
           role: 'user',
           content: `[AIRI_CONTEXT] ${event.payload.description}`,
         })
-        this.deps.logger.log('INFO', `Brain: Injected AIRI context: ${event.payload.description.slice(0, 80)}`)
+        this.deps.logger.log('INFO', `Brain: Injected Moeka context: ${event.payload.description.slice(0, 80)}`)
         return
       }
 
@@ -1578,7 +1578,7 @@ export class Brain {
   }
 
   /**
-   * Coalesce the event queue: promote high-priority events (player chat, AIRI commands)
+   * Coalesce the event queue: promote high-priority events (player chat, Moeka commands)
    * ahead of stale low-priority events (feedback, no-action follow-ups),
    * and drop redundant stale follow-ups when a higher-priority event exists.
    */

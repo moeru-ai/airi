@@ -1,9 +1,9 @@
 ---
 title: Aliyun NLS
-description: Configure Alibaba Cloud Intelligent Voice Interaction Service (ASR) in AIRI
+description: Configure Alibaba Cloud Intelligent Voice Interaction Service (ASR) in Moeka
 ---
 
-Alibaba Cloud NLS provides AIRI with real-time speech-to-text (ASR). After completing the configuration, select **Aliyun NLS** under **Settings → Modules → Hearing** and test the microphone input.
+Alibaba Cloud NLS provides Moeka with real-time speech-to-text (ASR). After completing the configuration, select **Aliyun NLS** under **Settings → Modules → Hearing** and test the microphone input.
 
 ::: info Why choose Alibaba Cloud NLS?
 If you already use an Alibaba Cloud account and need real-time speech recognition capabilities, you can choose Alibaba Cloud NLS.
@@ -19,7 +19,7 @@ If you already use an Alibaba Cloud account and need real-time speech recognitio
 Do not commit the AccessKey ID, AccessKey Secret, or AppKey, include them in screenshots, or share them with anyone. Grant the RAM user only the required permissions. If credentials are exposed, disable them and create replacements in the Alibaba Cloud console immediately.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Transcription → Aliyun NLS**.
 2. Fill in the **AccessKey ID**, **AccessKey Secret** and **AppKey**.
@@ -34,4 +34,4 @@ Do not commit the AccessKey ID, AccessKey Secret, or AppKey, include them in scr
 
 ## Troubleshooting
 
-If credential verification fails, confirm that all three credentials come from the same Alibaba Cloud account and project, then check the RAM user permissions. If no text appears, confirm that the operating system has granted AIRI microphone access.
+If credential verification fails, confirm that all three credentials come from the same Alibaba Cloud account and project, then check the RAM user permissions. If no text appears, confirm that the operating system has granted Moeka microphone access.

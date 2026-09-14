@@ -2,9 +2,9 @@
   "name": "@proj-airi/i18n",
   "type": "module",
   "private": true,
-  "description": "Internationalization (i18n) locales and utilities for Project AIRI",
+  "description": "Internationalization (i18n) locales and utilities for Project Moeka",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },
@@ -59,7 +59,7 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "pnpm run build",
+    "dev": "bun run build",
     "build": "tsdown",
     "glossary:build": "tsx glossary/build-tbx.ts",
     "test": "vitest run",

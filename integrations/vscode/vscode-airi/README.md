@@ -1,3 +1,3 @@
-# AIRI VSCode Plugin
+# Moeka VSCode Plugin
 
-> Official VSCode extension for AIRI, streaming your current working at stuff back to AIRI.
+> Official VSCode extension for Moeka, streaming your current working at stuff back to Moeka.

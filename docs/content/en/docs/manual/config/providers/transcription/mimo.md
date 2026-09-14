@@ -1,6 +1,6 @@
 ---
 title: Xiaomi MiMo (ASR/STT)
-description: Configuring Xiaomi MiMo Voice Recognition in AIRI
+description: Configuring Xiaomi MiMo Voice Recognition in Moeka
 ---
 
 MiMo uses its native audio understanding model to complete speech transcription.
@@ -18,7 +18,7 @@ If you already use MiMo, or want to use its multimodal model to process audio co
 Do not expose the API Key. Cloud transcription sends audio to the provider for processing, so confirm that this meets your privacy and data-handling requirements.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Fill in the API Key in **Settings → Providers → Transcription → Xiaomi MiMo**.
 2. Keep the default Base URL: `https://api.xiaomimimo.com/v1/`, unless the service provider provides another address.
@@ -34,4 +34,4 @@ Open **Settings → Modules → Hearing**, select **Xiaomi MiMo**, choose model 
 
 ## Troubleshooting
 
-If a request fails, check the API key, model selection, and network connection. If no text is returned, confirm that AIRI has microphone permission.
+If a request fails, check the API key, model selection, and network connection. If no text is returned, confirm that Moeka has microphone permission.

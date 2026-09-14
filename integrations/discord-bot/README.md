@@ -6,7 +6,7 @@ Allow アイリ to talk to you and many other users in Discord voice channels.
 
 ```shell
 git clone git@github.com:moeru-ai/airi.git
-pnpm i
+bun install
 ```
 
 In [Discord Developer Portal](https://discord.com/developers/home), create a new application and this will be the bot
@@ -46,7 +46,7 @@ ELEVENLABS_API_BASE_URL=''
 ```
 
 ```shell
-pnpm run -F @proj-airi/discord-bot start
+bun run --filter @proj-airi/discord-bot start
 ```
 
 ## Other similar projects

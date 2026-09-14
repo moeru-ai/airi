@@ -3,7 +3,6 @@ import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@p
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
-import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -33,7 +32,6 @@ import { usePWAStore } from './stores/pwa'
 usePWAStore()
 
 const contextBridgeStore = useContextBridgeStore()
-const authStore = useAuthStore()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
@@ -53,27 +51,6 @@ useHearingStore()
 useSpeechStore()
 useSettingsStageModel()
 useVisionStore()
-
-let stopAuthenticatedSetup: (() => void) | undefined
-let stopLoggedOutSetup: (() => void) | undefined
-
-async function removeAuthenticationProviderConfiguration() {
-  if (!syncedPinia.isLeader())
-    return
-
-  await cardStore.configureForAuthentication(false)
-}
-
-function registerAuthenticatedSetup() {
-  stopAuthenticatedSetup ??= authStore.onAuthenticated(async () => {
-    if (!syncedPinia.isLeader())
-      return
-
-    await cardStore.configureForAuthentication(true)
-    await onboardingStore.closeAfterAuthentication()
-  })
-  stopLoggedOutSetup ??= authStore.onLogout(removeAuthenticationProviderConfiguration)
-}
 
 const inferencePreload = useInferencePreload()
 
@@ -120,12 +97,8 @@ watch(settings.themeColorsHueDynamic, () => {
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
   initializeAnalytics()
-  await authStore.initialize()
   await displayModelsStore.initialize()
   await cardStore.initialize()
-  registerAuthenticatedSetup()
-  if (!authStore.isAuthenticated)
-    await removeAuthenticationProviderConfiguration()
 
   if (onboardingStore.needsOnboarding) {
     onboardingStore.showingSetup = true
@@ -145,8 +118,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  stopAuthenticatedSetup?.()
-  stopLoggedOutSetup?.()
   chatStore.dispose()
   contextBridgeStore.dispose()
 })

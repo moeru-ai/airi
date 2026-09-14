@@ -24,7 +24,7 @@ function forEachMMDMaterial(root: Object3D, visit: (material: MMDToonMaterial) =
 }
 
 /**
- * Applies AIRI's albedo-glow policy to loader-owned MMD surfaces.
+ * Applies Moeka's albedo-glow policy to loader-owned MMD surfaces.
  *
  * Generated outline and shadow-pass materials remain under three-mmd's
  * control, while all render meshes opt out of bind-pose frustum culling.
@@ -50,7 +50,7 @@ export function prepareMMDMaterials(root: Object3D, glow = 0.45): void {
   })
 }
 
-/** Updates AIRI's live albedo-glow setting without modifying outline passes. */
+/** Updates Moeka's live albedo-glow setting without modifying outline passes. */
 export function setMMDMaterialGlow(root: Object3D, glow: number): void {
   forEachMMDMaterial(root, (material) => {
     material.emissiveIntensity = glow

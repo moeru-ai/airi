@@ -3,9 +3,9 @@
   "type": "module",
   "version": "0.12.0-beta.5",
   "private": true,
-  "description": "AIRI-specific macOS desktop orchestration MCP service",
+  "description": "Moeka-specific macOS desktop orchestration MCP service",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },
@@ -28,11 +28,6 @@
   "scripts": {
     "dev": "tsx ./src/bin/run.ts",
     "start": "tsx ./src/bin/run.ts",
-    "e2e:airi-chat": "tsx ./src/bin/e2e-airi-chat-observable.ts",
-    "e2e:airi-chat-terminal-self-acquire": "tsx ./src/bin/e2e-airi-chat-terminal-self-acquire.ts",
-    "demo:terminal-self-acquire": "tsx ./src/bin/e2e-airi-chat-terminal-self-acquire.ts",
-    "e2e:airi-discord": "tsx ./src/bin/e2e-airi-discord-observable.ts",
-    "e2e:airi-discord-agentic": "tsx ./src/bin/e2e-airi-discord-agentic.ts",
     "e2e:developer-workflow": "tsx ./src/bin/e2e-developer-workflow.ts",
     "e2e:browser-reroute": "tsx ./src/bin/e2e-browser-reroute.ts",
     "e2e:terminal-exec": "tsx ./src/bin/e2e-terminal-exec.ts",
@@ -44,7 +39,7 @@
     "smoke:macos": "tsx ./src/bin/smoke-macos.ts",
     "smoke:desktop-v3": "tsx ./src/bin/smoke-chrome-grounding.ts",
     "smoke:workflow": "tsx ./src/bin/smoke-workflow.ts",
-    "mcp:inspector": "pnpx @modelcontextprotocol/inspector pnpm -F @proj-airi/computer-use-mcp start",
+    "mcp:inspector": "bunx @modelcontextprotocol/inspector bun run --filter @proj-airi/computer-use-mcp start",
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config ./vitest.config.ts"

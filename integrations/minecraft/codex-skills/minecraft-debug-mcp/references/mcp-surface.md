@@ -58,7 +58,7 @@ The bot starts this server during normal runtime from:
 ## Troubleshooting
 
 - Connection refused:
-  - Ensure `pnpm dev` is running in the service directory.
+  - Ensure `bun run dev` is running in the service directory.
   - Confirm logs include `MCP REPL server running at http://localhost:3001`.
 - 404/invalid endpoint:
   - Use `/sse` as MCP entrypoint.

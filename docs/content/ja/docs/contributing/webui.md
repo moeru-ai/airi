@@ -6,7 +6,7 @@ description: Project AIRI への貢献
 ### Stage Web (Web 版 [airi.moeru.ai](https://airi.moeru.ai) 用)
 
 ```shell
-pnpm dev
+bun run dev
 ```
 
 ::: tip

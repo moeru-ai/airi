@@ -28,7 +28,7 @@ monitor.stop()
 
 Use this package directly in framework-independent browser code. It supports buttons, sticks, and analog triggers.
 
-In Vue code, use `@proj-airi/input-gamepad-vueuse`. It owns the polling lifecycle and exposes readonly reactive state.
+In Vue code, own the polling lifecycle in a composable: create the controller with `createGamepadMonitor()`, stop it when the component unmounts, and expose the state you need as readonly refs.
 
 Do not use this package for motion sensors, touchpads, lights, or adaptive triggers. Use a device-specific adapter for these features.
 

@@ -63,7 +63,7 @@ const props = withDefaults(defineProps<AnimatedContentProps>(), {
  *
  * This primitive follows those projects by resizing the outer box and focusing
  * an inner content layer separately. It deliberately does not copy drawesome's
- * JavaScript measurement: AIRI's Electron Chromium supports native intrinsic
+ * JavaScript measurement: Moeka's Electron Chromium supports native intrinsic
  * size interpolation, so `interpolate-size: allow-keywords` can animate from
  * `0` to `auto` without layout observers. The feature query keeps opacity and
  * translation as a fallback for other browsers. Browser behavior reference:
@@ -75,7 +75,7 @@ const props = withDefaults(defineProps<AnimatedContentProps>(), {
  * `https://github.com/unovue/reka-ui/blob/47c433a84ad819eb6becbffc0cc7419e282cf07e/packages/core/src/Menu/MenuContent.vue#L19-L47`
  * `https://github.com/unovue/reka-ui/blob/47c433a84ad819eb6becbffc0cc7419e282cf07e/packages/core/src/Menu/MenuContentImpl.vue#L375-L383`
  *
- * The 220ms/160ms timings, 6px blur, and easing curves are AIRI-specific tuning,
+ * The 220ms/160ms timings, 6px blur, and easing curves are Moeka-specific tuning,
  * not copied constants. Blur stays on the inner wrapper so it cannot blur the
  * caller's border or shadow. `overflow: clip` clips only descendants during the
  * height animation; the root's own box-shadow remains visible from frame one.

@@ -31,7 +31,7 @@ export const useJournalPreviewStore = defineStore('journal-preview', () => {
     link.href = url
     // Sanitizing the filename for OS compatibility
     const safeTitle = (title || 'Image').replace(/[<>:"/\\|?*]/g, '_')
-    link.download = `AIRI-Journal-${safeTitle}.png`
+    link.download = `Moeka-Journal-${safeTitle}.png`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)

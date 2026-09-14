@@ -50,7 +50,7 @@ export interface MorphController {
  * blink, and lip-sync composables can speak in logical slots.
  *
  * Managed weights must be written after the MMD runtime update each frame: a
- * VMD clip can also key morph influences, and AIRI's lip-sync/expression must
+ * VMD clip can also key morph influences, and Moeka's lip-sync/expression must
  * win for the slots it owns.
  */
 export function createMorphController(

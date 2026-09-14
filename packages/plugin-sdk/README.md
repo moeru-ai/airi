@@ -1,6 +1,6 @@
 # @proj-airi/plugin-sdk
 
-Runtime-agnostic SDK for AIRI extensions.
+Runtime-agnostic SDK for Moeka extensions.
 
 ## Kit API Naming
 

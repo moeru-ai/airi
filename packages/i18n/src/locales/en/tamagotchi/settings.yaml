@@ -50,8 +50,8 @@ devtools:
     context-flow:
       title: Context Flow
     editor:
-      title: AIRI Editor
-      description: Open the standalone AIRI Editor window
+      title: Moeka Editor
+      description: Open the standalone Moeka Editor window
       button: Open Editor
     lag-visualizer:
       title: Lag Visualizer
@@ -123,7 +123,7 @@ devtools:
         reset-view: Reset view
         export-project: Export project
         import-project: Import project
-        import-error: This file is not a valid AIRI Live2D motion project.
+        import-error: This file is not a valid Moeka Live2D motion project.
         playback:
           label: Timeline playback controls
           start: Go to start
@@ -305,7 +305,7 @@ devtools:
           recording: Recording motion
           playing: Playing motion
           ready: '{count} samples · {duration}'
-        import-error: This file is not a valid AIRI Live2D motion recording.
+        import-error: This file is not a valid Moeka Live2D motion recording.
     performance-visualizer:
       title: Performance Visualizer
       description: Inspect live performance metrics and runtime diagnostics
@@ -367,5 +367,5 @@ screen-capture:
     dismiss: Dismiss
     instructions:
       step-1: Open "System Preferences", select "Privacy & Security" from the sidebar.
-      step-2: In the "Screen & System Audio Recording" and "System Audio Recording Only" sections, turn on the switches for AIRI.
-      step-2-note: If AIRI is not listed, please add it manually by clicking the "+" button and selecting AIRI from the Applications folder.
+      step-2: In the "Screen & System Audio Recording" and "System Audio Recording Only" sections, turn on the switches for Moeka.
+      step-2-note: If Moeka is not listed, please add it manually by clicking the "+" button and selecting Moeka from the Applications folder.

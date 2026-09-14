@@ -130,6 +130,6 @@ const tools = [
 
 /**
  * Export all expression tools as a resolved promise array, matching the
- * pattern used by other tool modules in the AIRI codebase.
+ * pattern used by other tool modules in the Moeka codebase.
  */
 export const expressionTools = async () => Promise.all(tools)

@@ -1,7 +1,4 @@
-import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
-
 import factorioPoster from '../../../assets/factorio-simple.png'
-import onboardingPoster from '../../../assets/onboarding.avif'
 
 export interface PromoBannerItem {
   watermark: string
@@ -12,11 +9,12 @@ export interface PromoBannerItem {
   cta: string
 }
 
-export type PromoBannerItemKey = 'signin' | 'build' | 'spring' | 'coupon' | 'home'
+export type PromoBannerItemKey = 'build' | 'home'
 
-export type PromoBannerAction
-  = | { type: 'login' }
-    | { type: 'route', to: string }
+export interface PromoBannerAction {
+  type: 'route'
+  to: string
+}
 
 export interface PromoBannerVisual {
   key: PromoBannerItemKey
@@ -34,15 +32,6 @@ export function getPromoBannerFallbackLabelKey(key: PromoBannerItemKey) {
 
 export const promoBannerVisuals: PromoBannerVisual[] = [
   {
-    key: 'signin',
-    image: onboardingPoster,
-    action: { type: 'login' },
-    accentClass: 'from-fuchsia-500/30 via-rose-400/18 to-transparent',
-    fallbackIcon: 'i-solar:stars-line-duotone',
-    fallbackIconClass: 'text-amber-100',
-    fallbackClass: 'from-fuchsia-300/25 via-rose-300/14 to-violet-400/20',
-  },
-  {
     key: 'build',
     image: factorioPoster,
     action: { type: 'route', to: '/settings/modules/consciousness' },
@@ -51,28 +40,6 @@ export const promoBannerVisuals: PromoBannerVisual[] = [
     fallbackIconClass: 'text-cyan-100',
     fallbackClass: 'from-cyan-300/25 via-sky-300/14 to-blue-400/20',
   },
-  ...(isFluxPurchaseDisabled()
-    ? []
-    : [
-      {
-        key: 'spring',
-        image: '',
-        action: { type: 'route', to: '/settings/flux' },
-        accentClass: 'from-amber-400/30 via-orange-300/18 to-transparent',
-        fallbackIcon: 'i-solar:gift-bold-duotone',
-        fallbackIconClass: 'text-white/88',
-        fallbackClass: 'from-amber-300/25 via-rose-300/14 to-fuchsia-400/20',
-      },
-      {
-        key: 'coupon',
-        image: '',
-        action: { type: 'route', to: '/settings/flux' },
-        accentClass: 'from-emerald-400/28 via-teal-300/16 to-transparent',
-        fallbackIcon: 'i-solar:ticket-sale-bold-duotone',
-        fallbackIconClass: 'text-emerald-100',
-        fallbackClass: 'from-emerald-300/24 via-cyan-300/12 to-teal-400/18',
-      },
-    ] satisfies PromoBannerVisual[]),
   {
     key: 'home',
     image: '',

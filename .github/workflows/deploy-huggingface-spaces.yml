@@ -22,14 +22,16 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_USERNAME: ${{ secrets.HF_USERNAME }}
 
-      - uses: pnpm/setup@v2
+      - uses: actions/setup-node@v6
         with:
-          runtime: node@26.7.0
-          cache: true
-          install: false
+          node-version: 26.7.0
 
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - run: bun install --frozen-lockfile
+      - run: bun run build
         env:
           TARGET_HUGGINGFACE_SPACE: 'true'
           VITE_APP_TARGET_HUGGINGFACE_SPACE: 'true'

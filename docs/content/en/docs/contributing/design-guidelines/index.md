@@ -1,6 +1,6 @@
 ---
 title: Design Guidelines
-description: How to contribute design to Project AIRI
+description: How to contribute design to Project Moeka
 ---
 
 ::: warning Work in progress

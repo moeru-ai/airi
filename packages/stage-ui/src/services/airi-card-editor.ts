@@ -18,7 +18,7 @@ import {
 
 export type AiriCardDraftValidationError = 'name' | 'version' | 'invalid_artistry_json'
 
-/** Module settings owned by the AIRI Card editor form. */
+/** Module settings owned by the Moeka Card editor form. */
 interface AiriCardEditorModules {
   consciousness: AiriExtension['modules']['consciousness']
   vision: AiriExtension['modules']['vision']
@@ -38,7 +38,7 @@ interface AiriCardEditorModules {
 }
 
 /**
- * Reads the module fields that the AIRI Card editor owns.
+ * Reads the module fields that the Moeka Card editor owns.
  *
  * Empty strings mean that the card inherits the corresponding global setting.
  */
@@ -98,7 +98,7 @@ const artistryOptionsSchema = pipe(
 )
 
 /**
- * Validates and normalizes the fields owned by the AIRI Card editor.
+ * Validates and normalizes the fields owned by the Moeka Card editor.
  *
  * Display text remains untouched except for boundary whitespace on the
  * required name and version fields. Artistry options must be a JSON object

@@ -9,9 +9,9 @@ preview-cover:
   dark: "@assets('./assets/250608-dark.avif')"
 ---
 
-Hello everyone, here's LemonNeko, one of maintainer of AIRI. Today's DevLog is talking about: Let Live2D model of AIRI Tamagotchi to focus position.
+Hello everyone, here's LemonNeko, one of maintainer of Moeka. Today's DevLog is talking about: Let Live2D model of Moeka Tamagotchi to focus position.
 
-大家好，我是 LemonNeko，AIRI 的维护者之一，由我来为大家带来今天的 DevLog：让 AIRI 桌宠的 Live2D 模型可以注视鼠标位置。
+大家好，我是 LemonNeko，Moeka 的维护者之一，由我来为大家带来今天的 DevLog：让 Moeka 桌宠的 Live2D 模型可以注视鼠标位置。
 
 ## 思路整理「Chain of Thoughts」
 
@@ -41,18 +41,18 @@ For example, we have a screen like this:
 
 ![](./assets/screen.avif)
 
-The blue box is the screen, the pink box is the AIRI window, the purple arrow is the cursor, we define:
+The blue box is the screen, the pink box is the Moeka window, the purple arrow is the cursor, we define:
 
-蓝色框是屏幕，粉色是 AIRI 的窗口，紫色箭头是鼠标，我们定义：
+蓝色框是屏幕，粉色是 Moeka 的窗口，紫色箭头是鼠标，我们定义：
 
 - The screen size is: `A x B`<br>屏幕高宽为：`A x B`
-- The position of AIRI window is: `(E, F)`<br>AIRI 窗口左上角位置为：`(E, F)`
-- The size of AIRI window is: `C x D`<br>AIRI 窗口大小为：`C x D`
+- The position of Moeka window is: `(E, F)`<br>Moeka 窗口左上角位置为：`(E, F)`
+- The size of Moeka window is: `C x D`<br>Moeka 窗口大小为：`C x D`
 - The position of cursor is: `G, H`<br>鼠标位置是：`G, H`
 
 Then the relative position of cursor to window is: `(G - E, H - F)`
 
-那么鼠标的位置在 AIRI 窗口中的位置应当是：`(G - E, H - F)`
+那么鼠标的位置在 Moeka 窗口中的位置应当是：`(G - E, H - F)`
 
 It seems very simple, right? Then let's write the code.
 

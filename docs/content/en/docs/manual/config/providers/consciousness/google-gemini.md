@@ -1,12 +1,12 @@
 ---
 title: Google Gemini
-description: Configuring the Google Gemini chat model in AIRI
+description: Configuring the Google Gemini chat model in Moeka
 ---
 
 The Google Gemini provider uses the OpenAI-compatible endpoint of the Google Generative Language API. After completing the configuration, select the Gemini model under **Settings → Modules → Consciousness**.
 
 ::: info Why choose Google Gemini?
-If you already have a Gemini API Key or want to use Gemini models in AIRI, you can choose this service provider.
+If you already have a Gemini API Key or want to use Gemini models in Moeka, you can choose this service provider.
 :::
 
 ## Create API Key
@@ -19,7 +19,7 @@ If you already have a Gemini API Key or want to use Gemini models in AIRI, you c
 After the key is leaked, please immediately revoke and recreate it in the Google AI developer console; do not put the key in code, screenshots, or public configuration files.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Chat → Google Gemini**.
 2. Fill in the API Key.
@@ -27,9 +27,9 @@ After the key is leaked, please immediately revoke and recreate it in the Google
 
 ## Verify configuration
 
-1. **Validate configuration**: AIRI validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
+1. **Validate configuration**: Moeka validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
 2. **Select Model →**: After validation succeeds, use this button to open **Settings → Modules → Consciousness**, then select the provider and model.
 
 ## Troubleshooting
 
-Provider validation checks connectivity, model listing, and chat requests. If AIRI reports a permission error or an unavailable model, confirm that the Gemini API is enabled for the API key's project and that the model is available in the project's region. Use the model names returned in AIRI instead of rewriting names shown in Google AI Studio.
+Provider validation checks connectivity, model listing, and chat requests. If Moeka reports a permission error or an unavailable model, confirm that the Gemini API is enabled for the API key's project and that the model is available in the project's region. Use the model names returned in Moeka instead of rewriting names shown in Google AI Studio.

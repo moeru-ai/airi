@@ -2,7 +2,7 @@
   "name": "@proj-airi/font-departure-mono",
   "type": "module",
   "version": "0.12.0-beta.5",
-  "description": "Essential CSS for font, Departure Mono, used by Project AIRI",
+  "description": "Essential CSS for font, Departure Mono, used by Project Moeka",
   "author": {
     "name": "Tobias Fried",
     "email": "26732044+rektdeckard@users.noreply.github.com",
@@ -27,7 +27,7 @@
   },
   "main": "./dist/index.css",
   "scripts": {
-    "dev": "pnpm run build",
+    "dev": "bun run build",
     "build": "tsdown"
   }
 }

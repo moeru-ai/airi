@@ -1,5 +1,5 @@
 /**
- * AIRI emotion vocabulary shared across renderers.
+ * Moeka emotion vocabulary shared across renderers.
  *
  * Kept identical to the Live2D/Spine enums so the act-event bus in
  * `Stage.vue` can drive any renderer with the same emotion names.

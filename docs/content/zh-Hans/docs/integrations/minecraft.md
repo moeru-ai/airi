@@ -7,7 +7,7 @@ Minecraft 集成会通过 Mineflayer 连接 AIRI 与 Minecraft 服务器，让�
 
 ## 前提条件
 
-* 已在仓库根目录安装依赖：**pnpm i**。
+* 已在仓库根目录安装依赖：**bun install**。
 * 可访问的本地或受信任 Minecraft 服务器；连接地址与端口由环境配置提供。
 * 可用的 AIRI 与模型服务配置。
 
@@ -26,7 +26,7 @@ cp integrations/minecraft/.env integrations/minecraft/.env.local
 ## 启动
 
 ~~~bash
-pnpm -F @proj-airi/minecraft-bot dev
+bun run --filter @proj-airi/minecraft-bot dev
 ~~~
 
 启动后，智能体会连接 AIRI 和 Minecraft 服务器。开发环境可查看终端日志确认连接和动作状态。

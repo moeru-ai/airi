@@ -26,7 +26,7 @@ export function createSendMessageAction(client: SatoriClient): ActionHandler {
         return {
           success: false,
           shouldContinue: true,
-          result: 'AIRI System: [INTERRUPT] Message sending ABORTED. New unread messages were detected from the user. Please [read_unread_messages] first to understand the new context.',
+          result: 'Moeka System: [INTERRUPT] Message sending ABORTED. New unread messages were detected from the user. Please [read_unread_messages] first to understand the new context.',
         }
       }
 
@@ -35,12 +35,12 @@ export function createSendMessageAction(client: SatoriClient): ActionHandler {
         await client.sendMessage(chatCtx.platform, chatCtx.selfId, channelId, content)
 
         // Logic 3: Persistence
-        await recordMessage(channelId, chatCtx.selfId, 'AIRI', content)
+        await recordMessage(channelId, chatCtx.selfId, 'Moeka', content)
 
         return {
           success: true,
           shouldContinue: true,
-          result: `AIRI System: Message sent to ${channelId}: ${content}`,
+          result: `Moeka System: Message sent to ${channelId}: ${content}`,
         }
       }
       catch (error) {
@@ -48,7 +48,7 @@ export function createSendMessageAction(client: SatoriClient): ActionHandler {
         return {
           success: false,
           shouldContinue: true,
-          result: `AIRI System: Error sending message: ${(error as Error).message}`,
+          result: `Moeka System: Error sending message: ${(error as Error).message}`,
         }
       }
     },

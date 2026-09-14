@@ -31,11 +31,6 @@ const freeLocal = {
   deployment: 'local',
 } satisfies ProviderAttributes
 
-const recommendedPaidCloud = {
-  ...paidCloud,
-  beginnerRecommended: true,
-} satisfies ProviderAttributes
-
 const providerAttributesById = {
   '302-ai': paidCloud,
   'aihubmix': paidCloud,
@@ -82,9 +77,6 @@ const providerAttributesById = {
   'n1n': paidCloud,
   'novita-ai': paidCloud,
   'nvidia': paidCloud,
-  'official-provider': recommendedPaidCloud,
-  'official-provider-speech': recommendedPaidCloud,
-  'official-provider-speech-streaming': recommendedPaidCloud,
   'ollama': freeLocal,
   'openai': paidCloud,
   'openai-audio-speech': paidCloud,

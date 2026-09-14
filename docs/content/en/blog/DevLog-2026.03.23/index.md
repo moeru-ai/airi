@@ -3,7 +3,7 @@ title: DevLog @ 2026.03.23
 category: DevLog
 date: 2026-03-23
 excerpt: |
-  Initial investigation into improving AIRI mobile performance
+  Initial investigation into improving Moeka mobile performance
 preview-cover:
   light: "@assets('./assets/cover-light.avif')"
   dark: "@assets('./assets/cover-dark.avif')"
@@ -11,9 +11,9 @@ preview-cover:
 
 Hi, this is [@PurCHES5](https://github.com/PurCHES5).
 
-I've recently joined AIRI's team and will be working on AIRI's mobile development. With limited knowledge of this project and open-source workflows in general, my first task is to review the possibilities for integrating game engines or other technical solutions to improve the mobile build performance.
+I've recently joined Moeka's team and will be working on Moeka's mobile development. With limited knowledge of this project and open-source workflows in general, my first task is to review the possibilities for integrating game engines or other technical solutions to improve the mobile build performance.
 
-The current issue with AIRI's mobile integration is primarily related to performance. The latest mobile version [`stage-pocket`](https://github.com/moeru-ai/airi/tree/e952fe779e64494e778e44956eb1caf3338c61a7/apps/stage-pocket), is essentially a direct copy of the main Vue.js application packaged using Capacitor.
+The current issue with Moeka's mobile integration is primarily related to performance. The latest mobile version [`stage-pocket`](https://github.com/moeru-ai/airi/tree/e952fe779e64494e778e44956eb1caf3338c61a7/apps/stage-pocket), is essentially a direct copy of the main Vue.js application packaged using Capacitor.
 
 On mobile devices—especially iOS devices and lower-end hardware, the Live2D and VRM components quickly consume the available memory allocated to the WebView, which results in crashes.
 
@@ -159,10 +159,10 @@ Three prototype configurations were built using Unity 3D, with compression appli
 ### Screenshots
 
 **Android Renderer — Live2D:**
-![Android Renderer Live2D prototype](./assets/Screenshot-AIRI-Live2D.avif)
+![Android Renderer Live2D prototype](./assets/Screenshot-Moeka-Live2D.avif)
 
 **Android Renderer — VRM:**
-![Android Renderer VRM prototype](./assets/Screenshot-AIRI-VRM.avif)
+![Android Renderer VRM prototype](./assets/Screenshot-Moeka-VRM.avif)
 
 The same Vue.js front-end is consistently applied to all prototype builds to ensure consistency. For Unity WebGL export, the original contents in WebView are directly substituted with Unity WebGL using [`unity-webgl`](https://github.com/Marinerer/unity-webgl). For Unity Android Renderer, the original view containing Three.js and VRM modules is removed entirely, and Unity renders as a background layer while the Vue.js UI is rendered over it.
 
@@ -202,7 +202,7 @@ All measurements were taken on a Samsung A34 under equivalent conditions. A lowe
 ![Unity Android Renderer Live2D](./assets/Live2D-android-renderer.avif)
 
 **Three.js — VRM (baseline):**
-![Original VRM Module from AIRI](./assets/VRM-airi.avif)
+![Original VRM Module from Moeka](./assets/VRM-airi.avif)
 
 **Unity WebGL — VRM:**
 ![Unity WebGL VRM](./assets/VRM-webgl.avif)

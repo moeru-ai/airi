@@ -27,7 +27,7 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
   const runtime = await createRuntime(config, options)
   const executeAction = createExecuteAction(runtime)
   const server = new McpServer({
-    name: 'AIRI Computer Use',
+    name: 'Moeka Computer Use',
     version: packageVersion,
   })
 

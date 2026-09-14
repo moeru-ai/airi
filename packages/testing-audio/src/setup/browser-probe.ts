@@ -191,7 +191,7 @@ export function stubForBrowser(piniaActionChannelName: string) {
    *     -> captureSpan
    *
    * Upstream:
-   * - The AIRI I/O trace exporter.
+   * - The Moeka I/O trace exporter.
    *
    * Downstream:
    * - `window.__airiAudioInputE2E.spans`

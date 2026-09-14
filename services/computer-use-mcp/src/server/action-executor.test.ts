@@ -221,7 +221,7 @@ describe('createExecuteAction', () => {
     })
     executor.getForegroundContext.mockResolvedValue({
       available: true,
-      appName: 'AIRI',
+      appName: 'Moeka',
       platform: 'darwin',
     })
     session.createPendingAction.mockReturnValue({
@@ -301,7 +301,7 @@ describe('createExecuteAction', () => {
     desktopSessionController.ensureControlledAppInForeground.mockResolvedValue(true)
     executor.getForegroundContext.mockResolvedValue({
       available: true,
-      appName: 'AIRI',
+      appName: 'Moeka',
       platform: 'darwin',
     })
 
@@ -310,7 +310,7 @@ describe('createExecuteAction', () => {
 
     expect(result.isError).not.toBe(true)
     expect(desktopSessionController.ensureControlledAppInForeground).toHaveBeenCalledWith(expect.objectContaining({
-      currentForeground: expect.objectContaining({ appName: 'AIRI' }),
+      currentForeground: expect.objectContaining({ appName: 'Moeka' }),
     }))
     expect(executor.click).toHaveBeenCalledOnce()
     expect(session.record).toHaveBeenCalledWith(expect.objectContaining({
@@ -321,7 +321,7 @@ describe('createExecuteAction', () => {
     expect(session.record).toHaveBeenCalledWith(expect.objectContaining({
       event: 'requested',
       result: expect.objectContaining({
-        actualForegroundContext: expect.objectContaining({ appName: 'AIRI' }),
+        actualForegroundContext: expect.objectContaining({ appName: 'Moeka' }),
       }),
     }))
   })
@@ -365,7 +365,7 @@ describe('createExecuteAction', () => {
     })
     executor.getForegroundContext.mockResolvedValue({
       available: true,
-      appName: 'AIRI',
+      appName: 'Moeka',
       platform: 'darwin',
     })
 
@@ -421,7 +421,7 @@ describe('createExecuteAction', () => {
     desktopSessionController.ensureControlledAppInForeground.mockResolvedValue(true)
     executor.getForegroundContext.mockResolvedValue({
       available: true,
-      appName: 'AIRI',
+      appName: 'Moeka',
       platform: 'darwin',
     })
 
@@ -493,7 +493,7 @@ describe('createExecuteAction', () => {
     stateManager.updateGroundingSnapshot({
       snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
-      foregroundApp: 'AIRI',
+      foregroundApp: 'Moeka',
       windows: [],
       screenshot: {
         dataBase64: '',
@@ -505,7 +505,7 @@ describe('createExecuteAction', () => {
         {
           id: 't_0',
           source: 'ax',
-          appName: 'AIRI',
+          appName: 'Moeka',
           role: 'AXButton',
           label: 'Submit',
           bounds: { x: 100, y: 200, width: 80, height: 30 },
@@ -524,7 +524,7 @@ describe('createExecuteAction', () => {
     })
     executor.getForegroundContext.mockResolvedValue({
       available: true,
-      appName: 'AIRI',
+      appName: 'Moeka',
       platform: 'darwin',
     })
 
@@ -575,7 +575,7 @@ describe('createExecuteAction', () => {
     desktopSessionController.ensureControlledAppInForeground.mockRejectedValue(new Error('Chrome session unavailable'))
     executor.getForegroundContext.mockResolvedValue({
       available: true,
-      appName: 'AIRI',
+      appName: 'Moeka',
       platform: 'darwin',
     })
 

@@ -13,7 +13,7 @@ const remoteInstallDir = normalizeRemoteShellPath(env.COMPUTER_USE_REMOTE_INSTAL
 const remoteRunnerPath = normalizeRemoteShellPath(env.COMPUTER_USE_REMOTE_RUNNER_COMMAND?.trim() || '$HOME/.local/bin/airi-desktop-runner')
 
 async function buildLocalBundle() {
-  await runProcess('pnpm', ['build'], {
+  await runProcess('bun', ['run', 'build'], {
     cwd: packageDir,
     timeoutMs: 180_000,
     env: process.env,

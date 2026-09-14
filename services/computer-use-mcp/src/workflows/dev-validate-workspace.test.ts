@@ -8,7 +8,7 @@ describe('createDevValidateWorkspaceWorkflow', () => {
       projectPath: '/tmp/workspace',
       ideApp: 'VS Code',
       changesCommand: 'git diff --stat',
-      checkCommand: 'pnpm typecheck',
+      checkCommand: 'bun run typecheck',
     })
 
     expect(workflow.id).toBe('dev_validate_workspace')
@@ -25,7 +25,7 @@ describe('createDevValidateWorkspaceWorkflow', () => {
 
     expect(workflow.steps[4]?.params?.command).toBe('pwd')
     expect(workflow.steps[5]?.params?.command).toBe('git diff --stat')
-    expect(workflow.steps[6]?.params?.command).toBe('pnpm typecheck')
+    expect(workflow.steps[6]?.params?.command).toBe('bun run typecheck')
     expect(workflow.steps[6]?.params?.cwd).toBe('/tmp/workspace')
   })
 })

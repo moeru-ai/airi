@@ -2,7 +2,7 @@
   "name": "@proj-airi/minecraft-bot",
   "type": "module",
   "private": true,
-  "description": "An intelligent Minecraft bot powered by LLM. AIRI can understand natural language commands, interact with the world, and assist players in various tasks.",
+  "description": "An intelligent Minecraft bot powered by LLM. Moeka can understand natural language commands, interact with the world, and assist players in various tasks.",
   "scripts": {
     "dev": "NODE_OPTIONS=--no-node-snapshot tsx --env-file=.env --env-file-if-exists=.env.local src/main.ts",
     "start": "NODE_OPTIONS=--no-node-snapshot tsx --env-file=.env --env-file-if-exists=.env.local src/main.ts",

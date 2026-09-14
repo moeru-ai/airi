@@ -2,11 +2,11 @@
  * Workflow: Dev → Run Tests
  *
  * Opens a project directory, runs the test suite, and summarizes results.
- * Designed for monorepo-style projects with `pnpm` / `npm` / `yarn`.
+ * Designed for monorepo-style projects with `bun` / `npm` / `pnpm` / `yarn`.
  *
  * Parameterised by:
  *   - projectPath: absolute path to the project root
- *   - testCommand: the shell command to run tests (default: `pnpm test:run`)
+ *   - testCommand: the shell command to run tests (default: `bun run test:run`)
  */
 
 import type { WorkflowDefinition } from './types'
@@ -16,7 +16,7 @@ export function createDevRunTestsWorkflow(params?: {
   testCommand?: string
 }): WorkflowDefinition {
   const projectPath = params?.projectPath ?? '{projectPath}'
-  const testCommand = params?.testCommand ?? 'pnpm test:run'
+  const testCommand = params?.testCommand ?? 'bun run test:run'
 
   return {
     id: 'dev_run_tests',

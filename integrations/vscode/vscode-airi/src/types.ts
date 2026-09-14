@@ -54,7 +54,7 @@ export interface CodingContext {
    *   "after": [
    *     "  \"description\": \"LLM powered virtual character\",",
    *     "  \"author\": {",
-   *     "    \"name\": \"Moeru AI Project AIRI Team\",",
+   *     "    \"name\": \"Moeka Team\",",
    *     "    \"email\": \"airi@moeru.ai\",",
    *     "    \"url\": \"https://github.com/moeru-ai\""
    *   ]
@@ -78,7 +78,7 @@ export interface CodingContext {
 }
 
 /**
- * Event types sent to Airi
+ * Event types sent to Moeka
  */
 export interface Events {
   type: 'coding:context' | 'coding:save' | 'coding:switch-file'

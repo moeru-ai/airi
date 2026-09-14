@@ -1,9 +1,9 @@
 ---
 title: Alibaba Cloud Bailian (TTS)
-description: Configuring Alibaba Cloud Bailian speech synthesis in AIRI
+description: Configuring Alibaba Cloud Bailian speech synthesis in Moeka
 ---
 
-Alibaba Cloud Bailian provides the CosyVoice speech synthesis model in AIRI.
+Alibaba Cloud Bailian provides the CosyVoice speech synthesis model in Moeka.
 
 ::: info Why choose Alibaba Cloud Bailian?
 If you already use Alibaba Cloud Model Studio and want to choose among CosyVoice voices and models, this is the direct access method.
@@ -19,19 +19,19 @@ If you already use Alibaba Cloud Model Studio and want to choose among CosyVoice
 Do not commit the Bailian API key, include it in screenshots, or share it with anyone.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Speech → Alibaba Cloud Model Studio**.
-2. Enter the Model Studio API key. The default Base URL is the AIRI/UnSpeech gateway at `https://unspeech.hyp3r.link/v1/`, not Alibaba Cloud's direct API. Your key, text to synthesize, model/voice selection, and returned audio pass through this gateway. Use it only if you accept that trust boundary; otherwise enter a compatible self-hosted gateway URL or choose a direct provider.
+2. Enter the Model Studio API key. The default Base URL is the Moeka/UnSpeech gateway at `https://unspeech.hyp3r.link/v1/`, not Alibaba Cloud's direct API. Your key, text to synthesize, model/voice selection, and returned audio pass through this gateway. Use it only if you accept that trust boundary; otherwise enter a compatible self-hosted gateway URL or choose a direct provider.
 
 ## Verify configuration
 
-1. Select an available voice in the provider playground. This page uses AIRI's default CosyVoice model.
+1. Select an available voice in the provider playground. This page uses Moeka's default CosyVoice model.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
-## Enable for AIRI replies
+## Enable for Moeka replies
 
-Open **Settings → Modules → Speech**, select **Alibaba Cloud Model Studio**, then select an available model and voice. The provider playground tests credentials; this module selection is what enables speech for normal AIRI replies.
+Open **Settings → Modules → Speech**, select **Alibaba Cloud Model Studio**, then select an available model and voice. The provider playground tests credentials; this module selection is what enables speech for normal Moeka replies.
 
 ## Troubleshooting
 

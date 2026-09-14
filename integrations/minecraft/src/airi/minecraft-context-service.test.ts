@@ -9,12 +9,12 @@ type ContextBot = Parameters<MinecraftContextService['bindBot']>[0]
 /** Minimal bot stub exposing only the status fields owned by the context module. */
 function fakeBot(): ContextBot {
   return {
-    username: 'Airi',
+    username: 'Moeka',
     bot: {
       entity: { position: { x: 1, y: 2, z: 3 } },
       health: 20,
       game: { gameMode: 'survival' },
-      players: { Airi: {}, dssadg: {}, Bob: {} },
+      players: { Moeka: {}, dssadg: {}, Bob: {} },
     },
   }
 }
@@ -66,7 +66,7 @@ describe('minecraftContextService desktop relay context', () => {
     const update = captured[0]
     expect(update.lane).toBe('minecraft:status')
     expect(update.strategy).toBe('replace-self')
-    expect(update.text).toContain('Bot online: Airi')
+    expect(update.text).toContain('Bot online: Moeka')
     expect(update.text).toContain('Desktop command relay: available.')
     expect(update.text).toContain('builtIn_emitSparkCommand')
     expect(update.text).toContain('destinations to ["minecraft-bot"]')

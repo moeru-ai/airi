@@ -94,14 +94,14 @@ describe('browserDomExtensionBridge', () => {
     client = result.client
 
     mockClientAction(client, 'getActiveTab', () => ({
-      title: 'AIRI Demo Tab',
+      title: 'Moeka Demo Tab',
       url: 'https://example.com/demo',
     }))
 
     const activeTab = await bridge.getActiveTab()
 
     expect(activeTab).toEqual({
-      title: 'AIRI Demo Tab',
+      title: 'Moeka Demo Tab',
       url: 'https://example.com/demo',
     })
     expect(bridge.getStatus().connected).toBe(true)

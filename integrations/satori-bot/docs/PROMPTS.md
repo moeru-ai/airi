@@ -9,7 +9,7 @@ The bot implements a **"State-Aware Agentic Loop"** rather than a simple Chat-QA
 * **Role:** Defines the "Soul" and "Rules".
 * **Components:**
     * **Protocol Definition (`system-action-gen-v1`):** Hardcodes the JSON schema for available tools (`send_message`, `read_unread_messages`, `sleep`) and logic flow (e.g., "Must check unread messages after sending").
-    * **Persona (`personality-v1`):** Defines the character "AIRI" (tone, brevity, naturalness).
+    * **Persona (`personality-v1`):** Defines the character "Moeka" (tone, brevity, naturalness).
 
 #### **2. History Layer (Short-term Memory)**
 

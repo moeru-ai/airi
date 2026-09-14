@@ -131,7 +131,7 @@ describe('evaluateStrategy', () => {
   it('should advise read error when last terminal command failed', () => {
     const state = createBaseState({
       lastTerminalResult: {
-        command: 'pnpm test',
+        command: 'bun run test',
         stdout: '',
         stderr: 'Error: tests failed',
         exitCode: 1,
@@ -141,7 +141,7 @@ describe('evaluateStrategy', () => {
       },
     })
     const advisories = evaluateStrategy({
-      proposedAction: { kind: 'terminal_exec', input: { command: 'pnpm test' } },
+      proposedAction: { kind: 'terminal_exec', input: { command: 'bun run test' } },
       state,
     })
 

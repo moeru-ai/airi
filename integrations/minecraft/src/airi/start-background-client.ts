@@ -24,13 +24,13 @@ export function startAiriClientConnection(client: AiriClientLike, deps: {
     deps.logger.withFields({
       url: deps.url,
       error: errorMessageFrom(error) ?? 'Unknown error',
-    }).warn('AIRI server is unavailable; continuing startup without AIRI and retrying in background')
+    }).warn('Moeka server is unavailable; continuing startup without Moeka and retrying in background')
   }
 
   const reportDisconnected = () => {
     deps.logger.withFields({
       url: deps.url,
-    }).warn('AIRI server connection closed; retrying in background')
+    }).warn('Moeka server connection closed; retrying in background')
   }
 
   void client.connect()
@@ -39,8 +39,8 @@ export function startAiriClientConnection(client: AiriClientLike, deps: {
         url: deps.url,
       }).log(
         unavailableReported
-          ? 'Connected to AIRI server after background retry'
-          : 'Connected to AIRI server',
+          ? 'Connected to Moeka server after background retry'
+          : 'Connected to Moeka server',
       )
       unavailableReported = false
     })
@@ -48,7 +48,7 @@ export function startAiriClientConnection(client: AiriClientLike, deps: {
       deps.logger.withFields({
         url: deps.url,
         error: errorMessageFrom(error) ?? 'Unknown error',
-      }).warn('AIRI client stopped retrying')
+      }).warn('Moeka client stopped retrying')
     })
 
   return {

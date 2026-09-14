@@ -1,12 +1,12 @@
 ---
 title: OpenAI compatible API (ASR/STT)
-description: Configuring OpenAI or an OpenAI-compatible API as a speech recognition provider in AIRI
+description: Configuring OpenAI or an OpenAI-compatible API as a speech recognition provider in Moeka
 ---
 
 This page configures an OpenAI-compatible transcription API. After saving it, select the provider and model under **Settings → Modules → Hearing** and test microphone input.
 
 ::: info Why use an OpenAI-compatible API for ASR/STT?
-If your transcription provider implements the OpenAI transcription API, follow this guide to connect it to AIRI. An API address ending with `/v1` or a key starting with `sk-` does not by itself guarantee compatibility.
+If your transcription provider implements the OpenAI transcription API, follow this guide to connect it to Moeka. An API address ending with `/v1` or a key starting with `sk-` does not by itself guarantee compatibility.
 :::
 
 ## Obtain API Key
@@ -19,7 +19,7 @@ If your transcription provider implements the OpenAI transcription API, follow t
 Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the provider console.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Transcription → OpenAI Compatible**.
 2. Fill in the API Key and the ASR/STT model ID to be used.
@@ -33,4 +33,4 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Troubleshooting
 
-If there is no text result, confirm that AIRI has microphone permission. For a compatible service, verify that it implements the OpenAI transcription API and supports the entered model ID.
+If there is no text result, confirm that Moeka has microphone permission. For a compatible service, verify that it implements the OpenAI transcription API and supports the entered model ID.

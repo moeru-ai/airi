@@ -7,7 +7,7 @@ Telegram 봇을 실행하려면 Telegram Bot Token, PostgreSQL 벡터 데이터�
 
 ## 사전 준비 사항
 
-- 저장소 루트에서 **pnpm i**로 의존성을 설치하세요.
+- 저장소 루트에서 **bun install**로 의존성을 설치하세요.
 - [@BotFather](https://t.me/BotFather)로 Telegram 봇을 만들고 토큰을 발급받으세요.
 - 저장소의 PostgreSQL 벡터 서비스를 시작할 수 있도록 Docker를 준비하세요.
 - 채팅 모델과 임베딩 모델 서비스를 준비하세요.
@@ -30,7 +30,7 @@ cp integrations/telegram-bot/.env integrations/telegram-bot/.env.local
 cd integrations/telegram-bot
 docker compose up -d --wait pgvector
 cd ../..
-pnpm -F @proj-airi/telegram-bot db:push
+bun run --filter @proj-airi/telegram-bot db:push
 ```
 
 저장소의 Compose 파일은 PostgreSQL을 호스트 포트 `5433`으로 노출합니다. 이 서비스를 사용할 때는 다음과 같이 설정하세요:
@@ -44,7 +44,7 @@ DATABASE_URL=postgres://postgres:123456@localhost:5433/postgres
 ## 시작하기
 
 ```bash
-pnpm -F @proj-airi/telegram-bot start
+bun run --filter @proj-airi/telegram-bot start
 ```
 
 ## 참고 사항

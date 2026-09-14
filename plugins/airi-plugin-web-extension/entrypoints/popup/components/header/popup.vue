@@ -13,10 +13,10 @@ const emit = defineEmits<{
   <header :class="['flex', 'items-center', 'justify-between', 'gap-3']">
     <div :class="['flex', 'flex-col', 'gap-1']">
       <h1 :class="['text-lg', 'font-600', 'tracking-tight']">
-        AIRI Web Extension
+        Moeka Web Extension
       </h1>
       <p :class="['text-xs', 'opacity-70']">
-        Context provider for AIRI Stage
+        Context provider for Moeka Stage
       </p>
     </div>
     <div :class="['flex', 'items-center', 'gap-2']">

@@ -21,5 +21,5 @@ export const EMOTION_ACTION_NAME: Record<Emotion, string> = {
   [Emotion.Neutral]: 'idle',
 }
 
-/** Conventional name AIRI uses for the persistent looping idle motion. */
+/** Conventional name Moeka uses for the persistent looping idle motion. */
 export const IDLE_ACTION_NAME = 'idle'

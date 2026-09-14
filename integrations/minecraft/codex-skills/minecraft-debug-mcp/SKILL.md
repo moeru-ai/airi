@@ -1,6 +1,6 @@
 ---
 name: minecraft-debug-mcp
-description: Operate and debug the live Minecraft bot through its built-in MCP REPL server. Use when work requires starting the bot with `pnpm dev`, connecting to the local MCP endpoint, inspecting cognitive state/logs/history, injecting synthetic chat/events, or running targeted REPL code against the running brain during investigation and development.
+description: Operate and debug the live Minecraft bot through its built-in MCP REPL server. Use when work requires starting the bot with `bun run dev`, connecting to the local MCP endpoint, inspecting cognitive state/logs/history, injecting synthetic chat/events, or running targeted REPL code against the running brain during investigation and development.
 ---
 
 # Minecraft Debug MCP
@@ -11,7 +11,7 @@ Use this skill to run the local bot and interact with its MCP debug interface sa
 
 ## Quick Start Workflow
 
-1. Run `pnpm dev` from `/path/to/project/root/integrations/minecraft` and keep it running.
+1. Run `bun run dev` from `/path/to/project/root/integrations/minecraft` and keep it running.
 2. Wait for `MCP REPL server running at http://localhost:3001` in logs.
 3. Connect MCP client to `http://localhost:3001/sse`.
 4. Verify readiness with a read-only call:
@@ -27,7 +27,7 @@ Use this skill to run the local bot and interact with its MCP debug interface sa
 - Keep `execute_repl` snippets minimal and reversible.
 - Use `inject_chat` for conversational simulation and `inject_event` only when specific event-shape testing is required.
 - Treat `inject_chat` as side-effectful: it can trigger actual in-game bot replies/actions.
-- If MCP connection fails, check that `pnpm dev` is still running and port `3001` is free.
+- If MCP connection fails, check that `bun run dev` is still running and port `3001` is free.
 
 ## Tooling Strategy
 

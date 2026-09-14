@@ -7,7 +7,7 @@ Telegram 机器人需要 Telegram Bot Token、Postgres（含 pgvector）和模�
 
 ## 前提条件
 
-* 已在仓库根目录安装依赖：**pnpm i**。
+* 已在仓库根目录安装依赖：**bun install**。
 * 已从 [@BotFather](https://t.me/BotFather) 创建 Telegram Bot 并取得 Token。
 * Docker 可用于启动仓库提供的 Postgres 与 pgvector 服务。
 * 可用的聊天模型和嵌入模型服务。
@@ -30,13 +30,13 @@ cp integrations/telegram-bot/.env integrations/telegram-bot/.env.local
 cd integrations/telegram-bot
 docker compose up -d
 cd ../..
-pnpm -F @proj-airi/telegram-bot db:push
+bun run --filter @proj-airi/telegram-bot db:push
 ~~~
 
 ## 启动
 
 ~~~bash
-pnpm -F @proj-airi/telegram-bot start
+bun run --filter @proj-airi/telegram-bot start
 ~~~
 
 ## 注意事项

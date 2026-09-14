@@ -16,14 +16,14 @@ import { streamText } from '@xsai/stream-text'
  *   compatible chat SDK.
  *
  * Expects:
- * - `role: 'error'` entries (AIRI-internal markers from the chat UI). They are
+ * - `role: 'error'` entries (Moeka-internal markers from the chat UI). They are
  *   rewritten as user-role narrations so the provider doesn't reject them.
  * - `content` may be a string, a content-part array, or undefined.
  *
  * Returns:
  * - A new array of `Message` values; original objects are not mutated.
  *
- * @param messages - Raw messages from the chat session, may include AIRI's
+ * @param messages - Raw messages from the chat session, may include Moeka's
  *   `error` role.
  * @param supportsContentArray - When `false`, force-flatten every array
  *   content (including text + `image_url` mixes) to a text-only string and
@@ -102,10 +102,10 @@ async function resolveTools(options?: StreamOptions) {
 }
 
 /**
- * Maps xsAI stream events onto the AIRI {@link StreamEvent} contract.
+ * Maps xsAI stream events onto the Moeka {@link StreamEvent} contract.
  *
  * xsAI 0.5.0-beta.8 marks failed tool executions with `isError: true` on
- * `tool-result.done` instead of aborting the stream, so AIRI can distinguish
+ * `tool-result.done` instead of aborting the stream, so Moeka can distinguish
  * `tool-error` from `tool-result` directly from the event payload.
  */
 function toAiriStreamEvent(event: Event): StreamEvent | null {

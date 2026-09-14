@@ -1,6 +1,6 @@
 **Privacy Policy**
 
-This privacy policy applies to the AIRI app (as known as Project AIRI app, hereby referred to as "Application") for mobile devices that was created by Project AIRI team (hereby referred to as "Service Provider") as an Open Source service and partially Paid commercial service. This service is intended for use "AS IS".
+This privacy policy applies to the Moeka app (as known as Project Moeka app, hereby referred to as "Application") for mobile devices that was created by Project Moeka team (hereby referred to as "Service Provider") as an Open Source service and partially Paid commercial service. This service is intended for use "AS IS".
 
 **Information Collection and Use**
 

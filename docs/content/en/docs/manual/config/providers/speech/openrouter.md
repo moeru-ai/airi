@@ -1,6 +1,6 @@
 ---
 title: OpenRouter (TTS)
-description: Configuring OpenRouter as a speech synthesis service provider in AIRI
+description: Configuring OpenRouter as a speech synthesis service provider in Moeka
 ---
 
 OpenRouter is an aggregation API service provider. After completing the configuration, select the model and voice provided by OpenRouter under **Settings → Modules → Speech**.
@@ -19,7 +19,7 @@ Choose this provider if you want to manage supported speech models and voices th
 Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the OpenRouter console.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Speech → OpenRouter**.
 2. Paste the API Key into the basic settings.
@@ -29,7 +29,7 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 1. Select the configured provider, model, and voice under **Settings → Modules → Speech**.
 2. Enter test text and click **Test Voice**.
-3. If the test audio plays, the provider is configured correctly. If AIRI displays an error, use its message to check the credentials and model.
+3. If the test audio plays, the provider is configured correctly. If Moeka displays an error, use its message to check the credentials and model.
 
 ## Troubleshooting
 

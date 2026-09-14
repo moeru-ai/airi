@@ -27,7 +27,6 @@ function createTestI18n() {
               'current': 'Current',
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
-              'cloud-badge': 'Cloud synced',
             },
           },
         },

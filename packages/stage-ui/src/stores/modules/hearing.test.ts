@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { streamTranscription } from '../../libs/providers/stream-transcription'
 import {
   describeEmptyTranscriptionResponse,
   filterTranscriptionByConfidence,
@@ -42,12 +43,11 @@ describe('filterTranscriptionByConfidence', () => {
 describe('resolveStreamTranscriptionExecutor', () => {
   /**
    * @example
-   * resolveStreamTranscriptionExecutor('official-provider-transcription')
+   * resolveStreamTranscriptionExecutor('aliyun-nls-transcription')
    */
-  it('routes the official transcription provider through the Aliyun streaming executor', () => {
-    const executor = resolveStreamTranscriptionExecutor('official-provider-transcription')
-
-    expect(executor).toBe(resolveStreamTranscriptionExecutor('aliyun-nls-transcription'))
+  it('routes the Aliyun NLS provider through its streaming executor and ignores unknown providers', () => {
+    expect(resolveStreamTranscriptionExecutor('aliyun-nls-transcription')).toBe(streamTranscription)
+    expect(resolveStreamTranscriptionExecutor('unknown-provider')).toBeUndefined()
   })
 })
 

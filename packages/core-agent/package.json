@@ -3,9 +3,9 @@
   "type": "module",
   "version": "0.12.0-beta.5",
   "private": true,
-  "description": "Core agent runtime orchestration for AIRI",
+  "description": "Core agent runtime orchestration for Moeka",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },

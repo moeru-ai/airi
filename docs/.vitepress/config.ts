@@ -142,11 +142,9 @@ export default defineConfig<ThemeConfig>({
               {
                 text: 'Quick Start',
                 items: [
-                  { text: 'Desktop ver.', link: withBase('/en/docs/manual/tamagotchi/') },
                   { text: 'Web Version', link: withBase('/en/docs/manual/web/') },
                 ],
               },
-              { text: 'Setup and Use', link: withBase('/en/docs/manual/tamagotchi/setup-and-use/') },
               {
                 text: 'Configuration',
                 items: [
@@ -160,7 +158,7 @@ export default defineConfig<ThemeConfig>({
                   ] },
                   { text: 'Service Providers', collapsed: true, items: [
                     { text: 'Chat', collapsed: true, items: [
-                      { text: 'AIRI Official Provider', link: withBase('/en/docs/manual/config/providers/consciousness/official') },
+                      { text: 'Moeka Official Provider', link: withBase('/en/docs/manual/config/providers/consciousness/official') },
                       { text: 'AIHubMix', link: withBase('/en/docs/manual/config/providers/consciousness/aihubmix') },
                       { text: 'Amazon Bedrock', link: withBase('/en/docs/manual/config/providers/consciousness/amazon-bedrock') },
                       { text: 'Anthropic', link: withBase('/en/docs/manual/config/providers/consciousness/anthropic') },
@@ -267,15 +265,8 @@ export default defineConfig<ThemeConfig>({
                 text: 'Contributing',
                 items: [
                   { text: 'Development Setup & First Contribution', link: withBase('/en/docs/contributing/') },
-                  { text: 'Desktop App', link: withBase('/en/docs/contributing/tamagotchi') },
                   { text: 'Web App', link: withBase('/en/docs/contributing/webui') },
                   { text: 'Documentation Site', link: withBase('/en/docs/contributing/docs') },
-                ],
-              },
-              {
-                text: 'Desktop Debugging',
-                items: [
-                  { text: 'Developer Tools', link: withBase('/en/docs/contributing/desktop-developer-tools') },
                 ],
               },
               {
@@ -389,13 +380,8 @@ export default defineConfig<ThemeConfig>({
               {
                 text: '快速开始',
                 items: [
-                  { text: '桌面版', link: withBase('/zh-Hans/docs/manual/tamagotchi/') },
                   { text: '网页版', link: withBase('/zh-Hans/docs/manual/web/') },
                 ],
-              },
-              {
-                text: '安装与使用',
-                link: withBase('/zh-Hans/docs/manual/tamagotchi/setup-and-use/'),
               },
               {
                 text: '配置',
@@ -410,7 +396,7 @@ export default defineConfig<ThemeConfig>({
                   ] },
                   { text: '服务商', collapsed: true, items: [
                     { text: '聊天服务商', collapsed: true, items: [
-                      { text: 'AIRI 官方提供商', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/official') },
+                      { text: 'Moeka 官方提供商', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/official') },
                       { text: 'AIHubMix', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/aihubmix') },
                       { text: 'Amazon Bedrock', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/amazon-bedrock') },
                       { text: 'Anthropic', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/anthropic') },
@@ -449,7 +435,7 @@ export default defineConfig<ThemeConfig>({
                       { text: '火山引擎 Coding Plan', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/volcengine-coding-plan') },
                     ] },
                     { text: '语音合成（TTS）', collapsed: true, items: [
-                      { text: 'AIRI 官方语音合成', link: withBase('/zh-Hans/docs/manual/config/providers/speech/official') },
+                      { text: 'Moeka 官方语音合成', link: withBase('/zh-Hans/docs/manual/config/providers/speech/official') },
                       { text: '阿里云百炼', link: withBase('/zh-Hans/docs/manual/config/providers/speech/alibaba-cloud-model-studio') },
                       { text: '浏览器本地语音合成', link: withBase('/zh-Hans/docs/manual/config/providers/speech/browser-local') },
                       { text: 'CometAPI', link: withBase('/zh-Hans/docs/manual/config/providers/speech/comet-api') },
@@ -468,7 +454,7 @@ export default defineConfig<ThemeConfig>({
                       { text: '火山引擎', link: withBase('/zh-Hans/docs/manual/config/providers/speech/volcengine') },
                     ] },
                     { text: '语音识别（ASR/STT）', collapsed: true, items: [
-                      { text: 'AIRI 官方语音识别', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/official') },
+                      { text: 'Moeka 官方语音识别', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/official') },
                       { text: '阿里云智能语音服务', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/aliyun') },
                       { text: '浏览器本地语音识别', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/browser-local') },
                       { text: '浏览器 Web Speech API', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/web-speech-api') },
@@ -517,15 +503,8 @@ export default defineConfig<ThemeConfig>({
                 text: '参与贡献',
                 items: [
                   { text: '开发环境与首次贡献', link: withBase('/zh-Hans/docs/contributing/') },
-                  { text: '桌面端', link: withBase('/zh-Hans/docs/contributing/tamagotchi') },
                   { text: '网页端', link: withBase('/zh-Hans/docs/contributing/webui') },
                   { text: '文档站', link: withBase('/zh-Hans/docs/contributing/docs') },
-                ],
-              },
-              {
-                text: '桌面端调试',
-                items: [
-                  { text: '开发者工具', link: withBase('/zh-Hans/docs/contributing/desktop-developer-tools') },
                 ],
               },
               {
@@ -623,7 +602,6 @@ export default defineConfig<ThemeConfig>({
               {
                 text: 'クイックスタート',
                 items: [
-                  { text: 'デスクトップ版', link: withBase('/ja/docs/manual/tamagotchi/') },
                   { text: 'Web版', link: withBase('/ja/docs/manual/web/') },
                 ],
               },
@@ -643,7 +621,6 @@ export default defineConfig<ThemeConfig>({
                 text: '基本設定と開発',
                 items: [
                   { text: '環境構築と事前準備', link: withBase('/ja/docs/contributing/') },
-                  { text: 'デスクトップアプリ', link: withBase('/ja/docs/contributing/tamagotchi') },
                   { text: 'Web UI', link: withBase('/ja/docs/contributing/webui') },
                   { text: 'ドキュメントサイト', link: withBase('/ja/docs/contributing/docs') },
                 ],
@@ -760,11 +737,9 @@ export default defineConfig<ThemeConfig>({
               {
                 text: '빠른 시작',
                 items: [
-                  { text: '데스크톱 버전', link: withBase('/ko/docs/manual/tamagotchi/') },
                   { text: '웹 버전', link: withBase('/ko/docs/manual/web/') },
                 ],
               },
-              { text: '설치와 사용', link: withBase('/ko/docs/manual/tamagotchi/setup-and-use/') },
               {
                 text: '설정',
                 items: [
@@ -778,7 +753,7 @@ export default defineConfig<ThemeConfig>({
                   ] },
                   { text: '서비스 제공자', collapsed: true, items: [
                     { text: '채팅', collapsed: true, items: [
-                      { text: 'AIRI 공식 제공자', link: withBase('/ko/docs/manual/config/providers/consciousness/official') },
+                      { text: 'Moeka 공식 제공자', link: withBase('/ko/docs/manual/config/providers/consciousness/official') },
                       { text: 'AIHubMix', link: withBase('/ko/docs/manual/config/providers/consciousness/aihubmix') },
                       { text: 'Amazon Bedrock', link: withBase('/ko/docs/manual/config/providers/consciousness/amazon-bedrock') },
                       { text: 'Anthropic', link: withBase('/ko/docs/manual/config/providers/consciousness/anthropic') },
@@ -885,15 +860,8 @@ export default defineConfig<ThemeConfig>({
                 text: '기여하기',
                 items: [
                   { text: '개발 환경 설정과 사전 준비', link: withBase('/ko/docs/contributing/') },
-                  { text: '데스크톱 앱', link: withBase('/ko/docs/contributing/tamagotchi') },
                   { text: '웹 앱', link: withBase('/ko/docs/contributing/webui') },
                   { text: '문서 사이트', link: withBase('/ko/docs/contributing/docs') },
-                ],
-              },
-              {
-                text: '데스크톱 디버깅',
-                items: [
-                  { text: '개발자 도구', link: withBase('/ko/docs/contributing/desktop-developer-tools') },
                 ],
               },
               {

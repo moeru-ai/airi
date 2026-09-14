@@ -1220,7 +1220,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       ideApp: z.string().optional().describe('IDE application to open the workspace with (default: Cursor)'),
       fileManagerApp: z.string().optional().describe('File manager to reveal the workspace in (default: Finder)'),
       changesCommand: z.string().optional().describe('Command to inspect local changes (default: git diff --stat)'),
-      checkCommand: z.string().optional().describe('Validation command to run from the workspace root (default: pnpm typecheck)'),
+      checkCommand: z.string().optional().describe('Validation command to run from the workspace root (default: bun run typecheck)'),
       autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
     },
     async ({ projectPath, ideApp, fileManagerApp, changesCommand, checkCommand, autoApprove }) => {
@@ -1252,7 +1252,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     'workflow_run_tests',
     {
       projectPath: z.string().min(1).describe('Absolute path to the project directory'),
-      testCommand: z.string().optional().describe('Shell command to run tests (default: pnpm test:run)'),
+      testCommand: z.string().optional().describe('Shell command to run tests (default: bun run test:run)'),
       autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
     },
     async ({ projectPath, testCommand, autoApprove }) => {

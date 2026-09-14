@@ -22,16 +22,16 @@ export function createMinecraftContext(): ContextMessage | null {
     contextId: MINECRAFT_CONTEXT_ID,
     strategy: ContextUpdateStrategy.ReplaceSelf,
     text: [
-      'Minecraft integration is active because AIRI has observed a Minecraft service.',
-      'AIRI can oversee a connected Minecraft bot through AIRI server events.',
-      'Minecraft can send status and context upward, and AIRI can send high-level guidance back down.',
+      'Minecraft integration is active because Moeka has observed a Minecraft service.',
+      'Moeka can oversee a connected Minecraft bot through Moeka server events.',
+      'Minecraft can send status and context upward, and Moeka can send high-level guidance back down.',
       'Minecraft context updates are side context for the next turn and do not automatically trigger a new LLM response.',
       `Minecraft service is currently ${serviceStatus}.`,
       runtimeContextText
         ? `Latest Minecraft bot context: ${runtimeContextText}`
         : 'No live Minecraft bot context has been pushed yet.',
       serviceStatus === 'online'
-        ? 'The Minecraft service is online, but AIRI should still rely on live bot context before assuming the bot can act.'
+        ? 'The Minecraft service is online, but Moeka should still rely on live bot context before assuming the bot can act.'
         : 'Do not assume the Minecraft bot can act right now unless fresh bot context confirms it.',
     ].join(' '),
     createdAt: Date.now(),

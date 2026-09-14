@@ -1,13 +1,13 @@
 ---
 title: Telegram Bot
-description: Run AIRI as a Telegram bot using PostgreSQL and model services
+description: Run Moeka as a Telegram bot using PostgreSQL and model services
 ---
 
 The Telegram bot requires a Telegram Bot Token, a PostgreSQL vector database, and model services. The repository Compose service runs PostgreSQL with pgvecto.rs 0.4.0 in pgvector compatibility mode. The bot is intended to be run from source.
 
 ## Prerequisites
 
-- Install dependencies from the repository root with **pnpm i**.
+- Install dependencies from the repository root with **bun install**.
 - Create a Telegram bot with [@BotFather](https://t.me/BotFather) and obtain its token.
 - Make Docker available to start the repository's PostgreSQL vector service.
 - Prepare chat-model and embedding-model services.
@@ -30,7 +30,7 @@ Edit **integrations/telegram-bot/.env.local** and provide **TELEGRAM_BOT_TOKEN**
 cd integrations/telegram-bot
 docker compose up -d --wait pgvector
 cd ../..
-pnpm -F @proj-airi/telegram-bot db:push
+bun run --filter @proj-airi/telegram-bot db:push
 ```
 
 The repository Compose file exposes PostgreSQL on host port `5433`. When using that service, set:
@@ -44,7 +44,7 @@ Starting only `pgvector` avoids launching the optional Grafana, Tempo, Prometheu
 ## Start
 
 ```bash
-pnpm -F @proj-airi/telegram-bot start
+bun run --filter @proj-airi/telegram-bot start
 ```
 
 ## Notes

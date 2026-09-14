@@ -10,7 +10,6 @@ import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
-import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useAiriCardStore } from './airi-card'
@@ -68,7 +67,8 @@ describe('speech synchronization', () => {
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967949219
   // ROOT CAUSE: Catalog invalidation erased the voice just applied by a card.
   // The selection command must discard the old catalog before setting the override.
-  it.each(['microsoft-speech', 'official-provider-speech'])('preserves a card voice while its new %s model catalog loads', async (provider) => {
+  it('preserves a card voice while its new model catalog loads', async () => {
+    const provider = 'microsoft-speech'
     const deferred = Promise.withResolvers<Response>()
     let pause = false
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => pause
@@ -79,14 +79,6 @@ describe('speech synchronization', () => {
     await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
     const follower = createSyncedContext(namespace, 'follower-only', true)
     await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
-    if (provider === 'official-provider-speech') {
-      const now = new Date()
-      useAuthStore(leader.pinia).$patch({
-        token: 'access-token',
-        user: { id: 'owner', name: 'Owner', email: 'owner@example.com', emailVerified: true, createdAt: now, updatedAt: now },
-        session: { id: 'session', userId: 'owner', token: 'session-token', createdAt: now, updatedAt: now, expiresAt: new Date(now.getTime() + 60000) },
-      })
-    }
     await useProviderConfigStore(leader.pinia).ensureProvider(provider, provider, { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/', region: 'eastasia' })
     await useProviderStore(leader.pinia).forceProviderConfigured(provider)
     await leader.speechStore.selectProviderModel(provider, 'model-a', 'old')
@@ -123,31 +115,6 @@ describe('speech synchronization', () => {
     }
   })
 
-  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967949224
-  // ROOT CAUSE: HTTP discovery returned only models, leaving the server default
-  // in the outgoing renderer instead of the replicated provider catalog.
-  it('replicates the HTTP speech default to the next leader', async () => {
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
-      models: [{ id: 'first', name: 'First' }, { id: 'preferred', name: 'Preferred' }],
-      default: 'preferred',
-      voices: [],
-    })))
-    const namespace = `speech:${crypto.randomUUID()}`
-    const leader = createSyncedContext(namespace, 'leader-only')
-    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
-    const survivor = createSyncedContext(namespace, 'follower-preferred')
-    const provider = 'official-provider-speech'
-    await useProviderStore(leader.pinia).fetchModelsForProvider(provider)
-    await vi.waitFor(() => expect(useProviderStore(survivor.pinia).getDefaultModelForProvider(provider)).toBe('preferred'))
-    const outgoing = syncedContexts.find(context => context.runtime === leader.runtime)!
-    outgoing.app.unmount()
-    disposePinia(outgoing.pinia)
-    outgoing.runtime.dispose()
-    syncedContexts.splice(syncedContexts.indexOf(outgoing), 1)
-    await vi.waitFor(() => expect(survivor.runtime.isLeader()).toBe(true), { timeout: 5000 })
-    await survivor.speechStore.selectProviderModel(provider, '')
-    expect(survivor.speechStore.activeSpeechModel).toBe('preferred')
-  })
   beforeEach(() => {
     localStorage.clear()
   })
@@ -468,44 +435,6 @@ describe('speech synchronization', () => {
       await oldLoad
     }
   })
-  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960674493
-  // ROOT CAUSE: A remote catalog triggered local auto-pick state proposals.
-  it('routes automatic voice selection to the leader without follower proposals', async () => {
-    const namespace = `speech:${crypto.randomUUID()}`
-    const leader = createSyncedContext(namespace, 'leader-only')
-    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
-    const follower = createSyncedContext(namespace, 'follower-only')
-    await new Promise(resolve => setTimeout(resolve, 100))
-    let selections = 0
-    leader.speechStore.$onAction(({ name }) => {
-      if (name === 'ensureActiveSpeechVoice')
-        selections++
-    })
-    // Complete provider initialization before delivering a replacement catalog.
-    leader.speechStore.activeSpeechProvider = 'official-provider-speech'
-    await new Promise(resolve => setTimeout(resolve, 100))
-    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
-      flux: 0,
-      voices: [
-        { id: 'fallback', name: 'Fallback', languages: [{ code: 'en-US', title: 'English' }] },
-        { id: 'voice', name: 'Voice', languages: [{ code: 'en-US', title: 'English' }] },
-      ],
-      recommended: { 'en-US': 'voice' },
-    })))
-    const now = new Date()
-    useAuthStore(leader.pinia).$patch({
-      token: 'access-token',
-      user: { id: 'owner', name: 'Owner', email: 'owner@example.com', emailVerified: true, createdAt: now, updatedAt: now },
-      session: { id: 'session', userId: 'owner', token: 'session-token', createdAt: now, updatedAt: now, expiresAt: new Date(now.getTime() + 60000) },
-    })
-    await vi.waitFor(() => expect(useAuthStore(follower.pinia).isAuthenticated).toBe(true))
-    await leader.speechStore.loadVoicesForProvider('official-provider-speech')
-    await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoiceId).toBe('voice'))
-    await new Promise(resolve => setTimeout(resolve, 100))
-    expect(selections).toBeGreaterThan(0)
-    expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
-  })
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964170541
   // ROOT CAUSE: A replicated loading flag outlived the leader's request after tab closure.
   it('recovers an interrupted catalog when the surviving renderer becomes leader', async () => {
@@ -621,32 +550,6 @@ describe('speech synchronization', () => {
       finish(Response.json({ voices: [] }))
       await Promise.all([first, second])
     }
-  })
-
-  it('invalidates completed owned catalogs across renderers without follower proposals', async () => {
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
-      flux: 0,
-      voices: [{ id: 'previous-owner', name: 'Previous owner', languages: [] }],
-    })))
-    const namespace = `speech:${crypto.randomUUID()}`
-    const leader = createSyncedContext(namespace, 'leader-only')
-    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
-    const follower = createSyncedContext(namespace, 'follower-only')
-    const auth = useAuthStore(leader.pinia)
-    const now = new Date()
-    auth.$patch({
-      token: 'access-token',
-      user: { id: 'owner', name: 'Owner', email: 'owner@example.com', emailVerified: true, createdAt: now, updatedAt: now },
-      session: { id: 'session', userId: 'owner', token: 'session-token', createdAt: now, updatedAt: now, expiresAt: new Date(now.getTime() + 60000) },
-    })
-    await vi.waitFor(() => expect(useAuthStore(follower.pinia).user?.id).toBe('owner'))
-    await leader.speechStore.loadVoicesForProvider('official-provider-speech', 'model-a')
-    await vi.waitFor(() => expect(follower.speechStore.availableVoices['official-provider-speech']?.[0]?.id).toBe('previous-owner'))
-    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
-    auth.$patch({ token: null, session: null, user: null })
-    await vi.waitFor(() => expect(follower.speechStore.availableVoices['official-provider-speech']).toEqual([]))
-    expect(leader.speechStore.availableVoices['official-provider-speech']).toEqual([])
-    expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
   })
 
   it('reports a leader provider failure only in the requesting renderer', async () => {

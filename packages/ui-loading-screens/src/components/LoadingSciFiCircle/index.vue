@@ -99,7 +99,7 @@ const bootMessages = computed<BootMessage[]>(() => [
     withoutTimestamp: true,
   })),
   {
-    template: `Project AIRI version ${import.meta.env.VITE_AIRI_VERSION || '1.0.0'} @ ${import.meta.env.VITE_AIRI_COMMIT || '0240602'} build`,
+    template: `Project Moeka version ${import.meta.env.VITE_AIRI_VERSION || '1.0.0'} @ ${import.meta.env.VITE_AIRI_COMMIT || '0240602'} build`,
     typingSpeed: 5,
     withoutTimestamp: true,
   },
@@ -127,7 +127,7 @@ const bootMessages = computed<BootMessage[]>(() => [
     typingSpeed: 1,
   },
   {
-    template: 'Initializing AIRI subsystems...',
+    template: 'Initializing Moeka subsystems...',
     typingSpeed: 1,
     pending: true,
     onPendingCheck: () => {
@@ -162,7 +162,7 @@ const bootMessages = computed<BootMessage[]>(() => [
     },
   },
   {
-    template: 'AIRI core services initialized',
+    template: 'Moeka core services initialized',
     typingSpeed: 1,
   },
   {
@@ -238,7 +238,7 @@ const bootMessages = computed<BootMessage[]>(() => [
     typingSpeed: 1,
   },
   {
-    template: 'AIRI ready',
+    template: 'Moeka ready',
     typingSpeed: 1,
   },
 ])

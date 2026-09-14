@@ -1,1 +1,0 @@
-export { nanoid } from 'nanoid'

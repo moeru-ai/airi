@@ -1,6 +1,6 @@
 # Stage Pages
 
-`@proj-airi/stage-pages` contains route-level Vue pages that multiple AIRI stage applications share.
+`@proj-airi/stage-pages` contains route-level Vue pages that multiple Moeka stage applications share.
 
 ## Use
 

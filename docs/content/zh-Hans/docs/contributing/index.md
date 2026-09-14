@@ -6,7 +6,7 @@ description: 从本地运行 Project AIRI 到提交第一个拉取请求
 你好呀！感谢你有兴趣参与 Project AIRI。本页说明如何建立本地开发环境、创建分支并提交第一个 Pull Request。
 
 ::: info 适用范围
-本节面向需要修改源码、文档或设计资源的贡献者。若只是使用 AIRI，请从「用户手册」开始；应用内的调试工具请参阅[开发者工具](./desktop-developer-tools)。
+本节面向需要修改源码、文档或设计资源的贡献者。若只是使用 AIRI，请从「用户手册」开始。
 :::
 
 ## 前置准备
@@ -14,7 +14,7 @@ description: 从本地运行 Project AIRI 到提交第一个拉取请求
 - [Git](https://git-scm.com/downloads)
 - [mise](https://mise.jdx.dev/installing-mise.html)，或其他支持 `.tool-versions` 的版本管理工具
 
-仓库通过 [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions) 固定 Node.js 和 pnpm 的版本。[`package.json`](https://github.com/moeru-ai/airi/blob/main/package.json) 中的 `packageManager` 字段也指定了 pnpm 版本。克隆仓库后，请使用 mise 安装这些版本。
+仓库通过 [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions) 固定 Node.js 和 Bun 的版本。[`package.json`](https://github.com/moeru-ai/airi/blob/main/package.json) 中的 `packageManager` 字段也指定了 Bun 版本。克隆仓库后，请使用 mise 安装这些版本。
 
 <details>
 <summary>Windows 平台相关设置</summary>
@@ -104,24 +104,24 @@ git switch -c <your-branch-name>
 mise install
 ```
 
-检查 Node.js 和 pnpm 版本：
+检查 Node.js 和 Bun 版本：
 
 ```shell
 mise exec -- node --version
-mise exec -- pnpm --version
+mise exec -- bun --version
 ```
 
-输出的版本必须与 `.tool-versions` 一致。pnpm 版本还必须与 `package.json` 中的 `packageManager` 字段一致。
+输出的版本必须与 `.tool-versions` 一致。Bun 版本还必须与 `package.json` 中的 `packageManager` 字段一致。
 
-mise 直接安装 pnpm，因此这套安装步骤不需要 Corepack。[Node.js 25 及以上版本不再附带 Corepack](https://github.com/nodejs/corepack#how-to-install)。
+mise 直接安装 Bun，因此这套安装步骤不需要额外的包管理器引导步骤。
 
 安装项目依赖：
 
 ```shell
-mise exec -- pnpm install
+mise exec -- bun install
 ```
 
-后续示例假设你已[为当前终端启用 mise](https://mise.jdx.dev/dev-tools/shims.html)。否则，请在包管理器命令前加上 `mise exec --`，例如 `mise exec -- pnpm typecheck`。
+后续示例假设你已[为当前终端启用 mise](https://mise.jdx.dev/dev-tools/shims.html)。否则，请在包管理器命令前加上 `mise exec --`，例如 `mise exec -- bun run typecheck`。
 
 ::: tip
 
@@ -133,8 +133,8 @@ mise exec -- npm install --global @antfu/ni
 
 安装后，你可以：
 
-- 用 `ni` 来替代 `pnpm install`、`npm install` 和 `yarn install` 命令。
-- 用 `nr` 来替代 `pnpm run`、`npm run` 和 `yarn run` 命令。
+- 用 `ni` 来替代 `bun install`、`npm install` 和 `yarn install` 命令。
+- 用 `nr` 来替代 `bun run`、`npm run` 和 `yarn run` 命令。
 
 你无需费心选择包管理器， `ni` 会自动适配。
 :::
@@ -146,8 +146,8 @@ mise exec -- npm install --global @antfu/ni
 提交前请确保代码已通过 Lint（静态分析器）和 类型安全检查：
 
 ```shell
-pnpm lint
-pnpm typecheck
+bun run lint
+bun run typecheck
 ```
 
 ::: tip

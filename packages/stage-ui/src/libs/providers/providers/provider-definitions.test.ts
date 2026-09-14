@@ -29,7 +29,6 @@ function getRequiredProvider(id: string) {
 describe('migrated provider definitions', () => {
   it('exposes a closed provider id union to stage-ui consumers', () => {
     expectTypeOf<'openai'>().toExtend<StageProviderId>()
-    expectTypeOf<'official-provider'>().toExtend<StageProviderId>()
     expectTypeOf<string>().not.toExtend<StageProviderId>()
   })
 

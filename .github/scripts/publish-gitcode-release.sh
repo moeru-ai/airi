@@ -123,16 +123,16 @@ write_expected_github_asset_metadata() {
   gh api "repos/${GITHUB_REPOSITORY_NAME}/releases/tags/${encoded_tag}" \
     > "${release_assets_json}"
 
-  jq -r '.assets[].name | select(test("^(AIRI-.*|latest-.*\\.yml)$"))' "${release_assets_json}" \
+  jq -r '.assets[].name | select(test("^(Moeka-.*|latest-.*\\.yml)$"))' "${release_assets_json}" \
     | sort \
     > "${WORK_DIR}/expected-asset-names.txt"
 
-  jq -r '.assets[] | select(.name | test("^(AIRI-.*|latest-.*\\.yml)$")) | [.name, (.digest // "")] | @tsv' "${release_assets_json}" \
+  jq -r '.assets[] | select(.name | test("^(Moeka-.*|latest-.*\\.yml)$")) | [.name, (.digest // "")] | @tsv' "${release_assets_json}" \
     | sort \
     > "${WORK_DIR}/expected-asset-digests.tsv"
 
   if [[ ! -s "${WORK_DIR}/expected-asset-names.txt" ]]; then
-    echo "::error::No GitHub release assets matched AIRI-* or latest-*.yml."
+    echo "::error::No GitHub release assets matched Moeka-* or latest-*.yml."
     exit 1
   fi
 

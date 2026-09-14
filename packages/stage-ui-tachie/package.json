@@ -2,9 +2,9 @@
   "name": "@proj-airi/stage-ui-tachie",
   "type": "module",
   "private": true,
-  "description": "Tachie static image scene components and stores for Project AIRI",
+  "description": "Tachie static image scene components and stores for Project Moeka",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },

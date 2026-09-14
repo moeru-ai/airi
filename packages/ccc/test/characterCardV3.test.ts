@@ -20,7 +20,7 @@ const completeCard = {
     alternate_greetings: ['Good evening.'],
     group_only_greetings: ['Hello, everyone.'],
     character_version: '1.0.0',
-    creator: 'AIRI',
+    creator: 'Moeka',
     creator_notes: 'Created for codec coverage.',
     creator_notes_multilingual: {
       ja: 'コーデックテスト用です。',

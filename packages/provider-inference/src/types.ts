@@ -37,7 +37,6 @@ export type ProviderInstance
 
 /** Validation lifecycle for one serializable provider configuration. */
 export type ProviderValidationStatus = 'unconfigured' | 'validating' | 'configured' | 'invalid' | 'bypassed'
-export type ProviderConfiguredBy = 'user' | 'authentication'
 
 /** Serializable configuration for one provider instance. */
 export interface InferenceServiceProvider {
@@ -49,8 +48,6 @@ export interface InferenceServiceProvider {
   config: Record<string, unknown>
   /** Current validation state for this provider configuration. */
   status: ProviderValidationStatus
-  /** Lifecycle owner that creates and revokes this provider configuration. */
-  configuredBy: ProviderConfiguredBy
 }
 
 export function isModelProvider(providerInstance: ProviderInstance): providerInstance is ModelProvider | ModelProviderWithExtraOptions {
@@ -108,7 +105,7 @@ export interface ProviderExtraMethods<TConfig> {
    * discard aborted response side effects, including recommendation caches.
    */
 
-  listVoices?: (config: TConfig, provider: ProviderInstance, model?: string, signal?: AbortSignal) => Promise<VoiceInfo[]>
+  listVoices?: (config: TConfig, provider: ProviderInstance, model?: string) => Promise<VoiceInfo[]>
   loadModel?: (config: TConfig, provider: ProviderInstance, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
 }
 
@@ -238,13 +235,6 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
    */
   requiresCredentials?: boolean
 
-  /**
-   * Lifecycle owner for provider configurations created from this definition.
-   *
-   * @default 'user'
-   */
-  configuredBy?: ProviderConfiguredBy
-
   /** Builds the validation schema and its UI metadata for the current draft. */
   createProviderConfig: (contextOptions: ProviderConfigContext<TConfig>) => MaybePromise<$ZodType<TConfig>>
   onboardingFields?: (ctx: ProviderContext) => MaybePromise<ProviderOnboardingField[]>
@@ -271,26 +261,6 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
       streamOutput: boolean
       streamInput: boolean
     }
-    /**
-     * Declares the TTS transport this provider speaks. The host uses it to
-     * select its TTS session adapter:
-     *
-     * - `rest` (default when this whole block is absent): the host opens
-     *   a `pipelines-audio` IntentHandle and the provider's `speech()` is
-     *   called per-segment by the speech-pipeline `tts()` callback. This
-     *   matches every OpenAI-shaped HTTP TTS provider.
-     * - `bidirectional-ws`: the host opens one streaming TTS WebSocket
-     *   for the whole LLM intent and forwards raw token chunks without
-     *   client-side segmentation. The provider's `speech()` is unused
-     *   for synthesis on this path (kept only for legacy fallback).
-     *
-     * Designed so a future provider (ElevenLabs streaming, OpenAI Realtime
-     * Voice, etc.) only needs to set this flag — Stage and the session
-     * factory do not need to know each provider's id.
-     */
-    speech?: {
-      transport: 'rest' | 'bidirectional-ws'
-    }
   }
   /**
    * When true, hides the "skip chat ping check" checkbox in the UI even
@@ -314,7 +284,7 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
   }
 }
 
-/** Reasoning modes that AIRI can request from a chat provider. */
+/** Reasoning modes that Moeka can request from a chat provider. */
 export type ChatReasoningMode = 'disabled' | 'enabled'
 
 /** User-selected options that a provider applies to one chat request. */
@@ -323,8 +293,8 @@ export interface ChatRequestOptions {
   reasoning: ChatReasoningMode
 }
 
-/** Describes the reasoning controls that AIRI implements for a provider. */
+/** Describes the reasoning controls that Moeka implements for a provider. */
 export interface ChatReasoningCapability {
-  /** Modes that AIRI can pass to the provider. */
+  /** Modes that Moeka can pass to the provider. */
   modes: readonly ChatReasoningMode[]
 }

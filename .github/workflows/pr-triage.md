@@ -33,8 +33,6 @@ safe-outputs:
       - bug
       - feature
       - pending triage
-      - apps/stage-pocket
-      - apps/stage-tamagotchi
       - apps/stage-web
       - env/os-all
       - env/os-linux
@@ -64,8 +62,6 @@ safe-outputs:
       - bug
       - feature
       - pending triage
-      - apps/stage-pocket
-      - apps/stage-tamagotchi
       - apps/stage-web
       - env/os-all
       - env/os-linux
@@ -105,7 +101,7 @@ The target pull request is:
 Managed labels:
 
 - Type: `bug`, `feature`
-- App surface: `apps/stage-pocket`, `apps/stage-tamagotchi`, `apps/stage-web`
+- App surface: `apps/stage-web`
 - Environment: `env/os-all`, `env/os-linux`, `env/os-macos`, `env/os-windows`
 - Scope: `scope/agent`, `scope/audio-input`, `scope/audio-output`, `scope/avatar`, `scope/avatar/live2d`, `scope/avatar/vrm`, `scope/documentation`, `scope/engineering`, `scope/extension`, `scope/game-playing-ai`, `scope/i18n`, `scope/providers`, `scope/server-api`, `scope/ui`
 - Priority: `priority/general`, `priority/nice-to-have`, `priority/urgent`
@@ -160,9 +156,7 @@ Do not use web search. Do not use bash to modify files, create branches, post co
 ### App labels
 
 - Apply `apps/stage-web` when files under `apps/stage-web/` change, or the PR text explicitly says the change is for the web app or PWA/browser surface.
-- Apply `apps/stage-tamagotchi` when files under `apps/stage-tamagotchi/` change, or the PR text explicitly says desktop/Electron/Windows/macOS/Linux app.
-- Apply `apps/stage-pocket` when files under `apps/stage-pocket/` change, or the PR text explicitly says mobile/iOS/Android app.
-- Multiple app labels are allowed when the evidence is explicit.
+- Only `apps/stage-web` exists in this fork. Never apply a desktop or mobile app label.
 
 ### Environment labels
 

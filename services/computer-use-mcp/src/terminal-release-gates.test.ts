@@ -110,7 +110,7 @@ describe('terminal release gates', () => {
       ideApp: 'Cursor',
       fileManagerApp: 'Finder',
       changesCommand: 'git diff --stat',
-      checkCommand: 'pnpm test',
+      checkCommand: 'bun run test',
     })
     const stateManager = new RunStateManager()
 
@@ -140,7 +140,7 @@ describe('terminal release gates', () => {
         expect(stateManager.getState().lastTerminalResult?.command).toBe('pwd')
       }
 
-      if (command === 'pnpm test') {
+      if (command === 'bun run test') {
         expect(stateManager.getState().lastTerminalResult?.command).toBe('git diff --stat')
       }
 
@@ -151,7 +151,7 @@ describe('terminal release gates', () => {
       else if (command === 'git diff --stat') {
         stdout = ' packages/stage-ui/src/stores/chat.ts | 4 ++--\n'
       }
-      else if (command === 'pnpm test') {
+      else if (command === 'bun run test') {
         stdout = ' Test Files  29 passed (29)\n'
       }
 
@@ -187,10 +187,10 @@ describe('terminal release gates', () => {
     expect(stateManager.getState().terminalState).toMatchObject({
       effectiveCwd: projectPath,
       lastExitCode: 0,
-      lastCommandSummary: 'pnpm test',
+      lastCommandSummary: 'bun run test',
     })
     expect(stateManager.getState().lastTerminalResult).toMatchObject({
-      command: 'pnpm test',
+      command: 'bun run test',
       exitCode: 0,
       effectiveCwd: projectPath,
     })
@@ -230,7 +230,7 @@ describe('terminal release gates', () => {
         alive: true,
         rows: 24,
         cols: 80,
-        screenContent: 'pnpm dev\nwatching for changes...\n',
+        screenContent: 'bun run dev\nwatching for changes...\n',
         pid: 4321,
       })
       .mockReturnValueOnce({
@@ -238,7 +238,7 @@ describe('terminal release gates', () => {
         alive: true,
         rows: 24,
         cols: 80,
-        screenContent: 'pnpm dev\nwatching for changes...\n^C\n',
+        screenContent: 'bun run dev\nwatching for changes...\n^C\n',
         pid: 4321,
       })
 
@@ -265,7 +265,7 @@ describe('terminal release gates', () => {
       sessionId: 'pty_gate_1',
       approvalSessionId: 'approval_pty_gate',
     })
-    expect((firstRead.structuredContent as Record<string, unknown>).screenContent).toBe('pnpm dev\nwatching for changes...\n')
+    expect((firstRead.structuredContent as Record<string, unknown>).screenContent).toBe('bun run dev\nwatching for changes...\n')
 
     const sendInput = await invoke('pty_send_input', {
       sessionId: 'pty_gate_1',

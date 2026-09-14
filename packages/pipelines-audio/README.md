@@ -1,6 +1,6 @@
 # @proj-airi/pipelines-audio
 
-Shared audio-pipeline orchestration for AIRI. The package owns reusable streaming, playback, text-chunking, and transcript-buffering policies without depending on an application UI.
+Shared audio-pipeline orchestration for Moeka. The package owns reusable streaming, playback, text-chunking, and transcript-buffering policies without depending on an application UI.
 
 ## Use it for
 

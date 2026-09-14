@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "AIRI Desktop Grounding Bridge",
+  "name": "Moeka Desktop Grounding Bridge",
   "version": "1.0.0",
-  "description": "Read-only DOM observation bridge for AIRI desktop grounding (no DOM mutation, no eval)",
+  "description": "Read-only DOM observation bridge for Moeka desktop grounding (no DOM mutation, no eval)",
 
   "permissions": [
     "activeTab",

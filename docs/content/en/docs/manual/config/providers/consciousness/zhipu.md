@@ -1,13 +1,13 @@
 ---
 title: Z.ai
-description: Configure Z.ai as a chat service provider in AIRI
+description: Configure Z.ai as a chat service provider in Moeka
 is_openai_compatible: true
 ---
 
-Z.ai provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use Z.ai models in **Consciousness**.
+Z.ai provides a chat API compatible with the OpenAI format. After completing the configuration on this page, Moeka can use Z.ai models in **Consciousness**.
 
 ::: info Why choose Z.ai?
-If you want to use Z.ai models in AIRI, or already have a Z.ai API key, you can choose this service provider directly.
+If you want to use Z.ai models in Moeka, or already have a Z.ai API key, you can choose this service provider directly.
 :::
 
 ## Get the API key
@@ -20,7 +20,7 @@ If you want to use Z.ai models in AIRI, or already have a Z.ai API key, you can 
 Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the Z.ai console.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Chat → Z.ai**.
 2. Paste the API Key into the basic settings.
@@ -28,9 +28,9 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Verify configuration
 
-1. **Validate configuration**: AIRI validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
+1. **Validate configuration**: Moeka validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
 2. **Select Model →**: After validation succeeds, use this button to open **Settings → Modules → Consciousness**, then select the provider and model.
 
 ## Troubleshooting
 
-If the API check fails, verify the API key, available credit or quota, rate limits, and network connection. If AIRI cannot load the model list, enter the exact model ID provided by Z.ai manually on the **Consciousness** page.
+If the API check fails, verify the API key, available credit or quota, rate limits, and network connection. If Moeka cannot load the model list, enter the exact model ID provided by Z.ai manually on the **Consciousness** page.

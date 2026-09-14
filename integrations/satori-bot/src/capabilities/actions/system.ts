@@ -10,7 +10,7 @@ export const continueAction: ActionHandler = {
     return {
       success: true,
       shouldContinue: false,
-      result: 'AIRI System: Acknowledged, will now wait for user input.',
+      result: 'Moeka System: Acknowledged, will now wait for user input.',
     }
   },
 }
@@ -23,7 +23,7 @@ export const breakAction: ActionHandler = {
     return {
       success: true,
       shouldContinue: false,
-      result: 'AIRI System: Memory cleared. Loop broken.',
+      result: 'Moeka System: Memory cleared. Loop broken.',
     }
   },
 }
@@ -44,7 +44,7 @@ export const sleepAction: ActionHandler = {
     return {
       success: true,
       shouldContinue: true,
-      result: `AIRI System: Slept for ${duration / 1000} seconds.`,
+      result: `Moeka System: Slept for ${duration / 1000} seconds.`,
     }
   },
 }
@@ -58,7 +58,7 @@ export const listChannelsAction: ActionHandler = {
     return {
       success: true,
       shouldContinue: true,
-      result: `AIRI System: Channel List:\n${list}`,
+      result: `Moeka System: Channel List:\n${list}`,
     }
   },
 }

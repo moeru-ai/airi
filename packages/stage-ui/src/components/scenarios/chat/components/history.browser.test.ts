@@ -160,7 +160,7 @@ describe('chat history', () => {
     await vi.waitFor(() => {
       const messageBubbles = Array.from(screen.container.querySelectorAll<HTMLElement>('.chat-message-item-container'))
       const replyBubble = messageBubbles.find(element => element.textContent?.includes('My follow-up'))
-      expect(replyBubble?.textContent).toContain('Replying to AIRI')
+      expect(replyBubble?.textContent).toContain('Replying to Moeka')
       expect(replyBubble?.textContent).toContain('Earlier answer')
     })
   })
@@ -458,7 +458,7 @@ describe('chat history', () => {
       {
         id: 'assistant-reply-target',
         role: 'assistant',
-        content: 'A message from AIRI',
+        content: 'A message from Moeka',
         slices: [],
         tool_results: [],
       },
@@ -521,7 +521,7 @@ describe('chat history', () => {
         }],
         [{
           message: messages[1],
-          label: 'AIRI',
+          label: 'Moeka',
         }],
       ])
     })

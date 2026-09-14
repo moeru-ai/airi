@@ -11,7 +11,7 @@ import { McData } from '../utils/mcdata'
 
 /**
  * Default radius (in blocks) for the bot's "vision" — how far skill-level scans look for blocks,
- * entities, players, etc. Raised from the original 16 to 48 so Airi can find/act on things farther
+ * entities, players, etc. Raised from the original 16 to 48 so Moeka can find/act on things farther
  * away (cows to hunt, ores to mine, drops to collect). This only affects in-bot scanning work — it
  * does NOT meaningfully change backbone-LLM token cost, because scan results stay in the sandbox/
  * skills and never enter the prompt (only the compact [PERCEPTION] name summary does). The real

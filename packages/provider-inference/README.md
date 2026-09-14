@@ -1,6 +1,6 @@
 # Provider Inference
 
-`@proj-airi/provider-inference` owns runtime-neutral AIRI provider definitions.
+`@proj-airi/provider-inference` owns runtime-neutral Moeka provider definitions.
 
 Use this package to list built-in providers, create provider configuration schemas, and create provider instances. The package runs in Node.js and Browser runtimes.
 
@@ -24,8 +24,8 @@ Use `@proj-airi/stage-ui` for saved provider configuration, Vue settings views, 
 Run the package checks from the workspace root:
 
 ```text
-pnpm -F @proj-airi/provider-inference typecheck
-pnpm -F @proj-airi/provider-inference test:node
-pnpm -F @proj-airi/provider-inference test:browser
-pnpm -F @proj-airi/provider-inference build
+bun run --filter @proj-airi/provider-inference typecheck
+bun run --filter @proj-airi/provider-inference test:node
+bun run --filter @proj-airi/provider-inference test:browser
+bun run --filter @proj-airi/provider-inference build
 ```

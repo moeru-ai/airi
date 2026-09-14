@@ -2,9 +2,9 @@
   "name": "@proj-airi/model-driver-mediapipe",
   "type": "module",
   "private": true,
-  "description": "MediaPipe motion capture workshop (experimental) for Project AIRI",
+  "description": "MediaPipe motion capture workshop (experimental) for Project Moeka",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },

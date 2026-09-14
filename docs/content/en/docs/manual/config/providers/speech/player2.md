@@ -1,34 +1,34 @@
 ---
 title: Player2 (TTS)
-description: Connecting to local Player2 Speech service in AIRI
+description: Connecting to local Player2 Speech service in Moeka
 ---
 
 Player2 Speech is a speech synthesis option connected via a local service.
 
 ::: info Why choose Player2?
-If you already run Player2 Speech locally or on a trusted LAN, you can connect AIRI to the service and use its available voices.
+If you already run Player2 Speech locally or on a trusted LAN, you can connect Moeka to the service and use its available voices.
 :::
 
 ## Start local service
 
 1. Start the Player2 Speech service and confirm that the health check is available.
-2. AIRI connects to `http://localhost:4315/v1/` by default; if the service runs at another address, please record the complete Base URL.
+2. Moeka connects to `http://localhost:4315/v1/` by default; if the service runs at another address, please record the complete Base URL.
 
 ::: warning Local service security
 Do not expose local service ports to untrusted public networks.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Speech → Player2**.
 2. Enter the service's Base URL.
 
 ## Verify configuration
 
-1. Select an available voice in the provider playground. This page uses AIRI's default Player2 model.
+1. Select an available voice in the provider playground. This page uses Moeka's default Player2 model.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
-## Enable for AIRI replies
+## Enable for Moeka replies
 
 Open **Settings → Modules → Speech**, select **Player2**, then choose an available model and voice. The provider test alone does not enable speech for normal replies.
 

@@ -6,7 +6,7 @@ static emotion images.
 ## What it does
 
 - Loads `.tachie.zip` archives from local files, blob URLs, or HTTP(S) URLs.
-- Selects images through AIRI's shared emotion vocabulary.
+- Selects images through Moeka's shared emotion vocabulary.
 - Renders the active image with PixiJS on a transparent, responsive canvas.
 - Persists scale, position, render scale, and theme-colored shadow settings.
 - Exposes canvas capture for stage screenshots and theme-color extraction.

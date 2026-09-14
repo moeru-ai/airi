@@ -12,7 +12,7 @@
  * policy / action-executor pipeline.
  *
  * Usage:
- *   pnpm -F @proj-airi/computer-use-mcp exec tsx ./src/bin/smoke-workflow.ts
+ *   bun run --filter @proj-airi/computer-use-mcp smoke:workflow
  */
 
 import { mkdtempSync, writeFileSync } from 'node:fs'
@@ -57,7 +57,7 @@ function createSmokeProjectDir() {
 }
 
 async function createClient(overrides: Record<string, string> = {}): Promise<Client> {
-  const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'pnpm'
+  const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'bun'
   const args = (env.COMPUTER_USE_SMOKE_SERVER_ARGS || 'start').split(WHITESPACE_SPLIT_RE).filter(Boolean)
   const cwd = env.COMPUTER_USE_SMOKE_SERVER_CWD?.trim() || packageDir
 

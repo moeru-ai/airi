@@ -54,7 +54,7 @@ export function resolveLaunchContext(config: ComputerUseConfig): LaunchContext {
  * - Preserving legacy main-display fields while exposing multi-display bounds
  *
  * Expects:
- * - `snapshot` uses AIRI's top-left global logical coordinate space
+ * - `snapshot` uses Moeka's top-left global logical coordinate space
  *
  * Returns:
  * - DisplayInfo with legacy main-display fields and complete display list

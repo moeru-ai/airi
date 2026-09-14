@@ -6,14 +6,14 @@ description: Project AIRI를 로컬에서 실행하고 첫 Pull Request 제출�
 안녕하세요! Project AIRI에 기여하는 데 관심을 가져 주셔서 감사합니다. 이 가이드는 로컬 개발 환경을 설정하고, 브랜치를 만들고, 첫 Pull Request를 제출하는 방법을 설명합니다.
 
 ::: info 적용 범위
-이 섹션은 소스 코드, 문서, 디자인 리소스를 변경하려는 컨트리뷰터를 위한 내용입니다. AIRI를 사용하기만 하려면 사용자 매뉴얼부터 시작하세요. 앱에 내장된 디버깅 도구는 [개발자 도구](./desktop-developer-tools)를 참고하세요.
+이 섹션은 소스 코드, 문서, 디자인 리소스를 변경하려는 컨트리뷰터를 위한 내용입니다. AIRI를 사용하기만 하려면 사용자 매뉴얼부터 시작하세요.
 :::
 
 ## 사전 준비물
 
 - [Git](https://git-scm.com/downloads)
 - [mise](https://mise.jdx.dev/installing-mise.html) 또는 `.tool-versions`를 읽는 다른 버전 관리자
-- [Corepack](https://github.com/nodejs/corepack) — 최신 Node.js 릴리스에 포함되어 있습니다
+- [Bun](https://bun.sh/)
 
 이 저장소는 [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions)에 Node.js 버전을 고정해 둡니다(현재 24.13.0). 시스템 패키지 매니저가 제공하는 버전에 의존하지 말고, 클론한 뒤 고정된 버전을 설치하세요.
 
@@ -97,16 +97,16 @@ git switch -c <your-branch-name>
 
 ## 의존성 설치
 
-저장소 루트에서 `.tool-versions`에 기록된 Node.js 버전을 설치하고, 버전을 확인하고, Corepack을 활성화한 뒤 의존성을 설치하세요:
+저장소 루트에서 `.tool-versions`에 기록된 Node.js 버전을 설치하고, 버전을 확인하고, Bun 버전을 확인한 뒤 의존성을 설치하세요:
 
 ```shell
 mise install
 mise exec -- node --version
-mise exec -- corepack enable
-mise exec -- pnpm install
+mise exec -- bun --version
+mise exec -- bun install
 ```
 
-출력된 Node.js 버전이 `.tool-versions`와 일치해야 합니다. 이후 예시는 [셸에서 mise가 활성화되어 있다고](https://mise.jdx.dev/dev-tools/shims.html) 가정합니다. 그렇지 않다면 패키지 매니저 명령을 `mise exec --`를 통해 실행하세요(예: `mise exec -- pnpm typecheck`).
+출력된 Node.js 버전이 `.tool-versions`와 일치해야 합니다. 이후 예시는 [셸에서 mise가 활성화되어 있다고](https://mise.jdx.dev/dev-tools/shims.html) 가정합니다. 그렇지 않다면 패키지 매니저 명령을 `mise exec --`를 통해 실행하세요(예: `mise exec -- bun run typecheck`).
 
 ::: tip
 패키지 매니저 명령을 간단하게 쓰고 싶다면 [@antfu/ni](https://github.com/antfu-collective/ni)를 선택적으로 설치할 수 있습니다:
@@ -117,8 +117,8 @@ mise exec -- npm install --global @antfu/ni
 
 설치하고 나면:
 
-- `pnpm install`, `npm install`, `yarn install` 대신 `ni`를 사용하세요.
-- `pnpm run`, `npm run`, `yarn run` 대신 `nr`을 사용하세요.
+- `bun install`, `npm install`, `yarn install` 대신 `ni`를 사용하세요.
+- `bun run`, `npm run`, `yarn run` 대신 `nr`을 사용하세요.
 
 `ni`는 저장소가 사용하는 패키지 매니저를 감지합니다.
 :::
@@ -130,8 +130,8 @@ mise exec -- npm install --global @antfu/ni
 코드가 lint와 타입 검사를 통과하는지 확인하세요:
 
 ```shell
-pnpm lint
-pnpm typecheck
+bun run lint
+bun run typecheck
 ```
 
 ::: tip

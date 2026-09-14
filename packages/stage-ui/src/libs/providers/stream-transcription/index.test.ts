@@ -76,7 +76,7 @@ describe('streamTranscription', () => {
     const responseBody = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(encoder.encode('data: {"type":"transcript.text.delta","delta":"Hello"}\n'))
-        controller.enqueue(encoder.encode('\ndata: {"type":"transcript.text.delta","delta":" AIRI"}\n\n'))
+        controller.enqueue(encoder.encode('\ndata: {"type":"transcript.text.delta","delta":" Moeka"}\n\n'))
         controller.close()
       },
     })
@@ -92,7 +92,7 @@ describe('streamTranscription', () => {
       inputAudioStream: audioStream,
     })
 
-    expect(await result.text).toBe('Hello AIRI')
+    expect(await result.text).toBe('Hello Moeka')
     await expect(result.textStream.getReader().read()).resolves.toEqual({ done: false, value: 'Hello' })
   })
 

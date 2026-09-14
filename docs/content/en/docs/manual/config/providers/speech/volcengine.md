@@ -1,12 +1,12 @@
 ---
 title: Volcano Engine (TTS)
-description: Configuring Volcano Engine speech synthesis in AIRI
+description: Configuring Volcano Engine speech synthesis in Moeka
 ---
 
-Volcengine speech synthesis requires an API Key and application information in AIRI.
+Volcengine speech synthesis requires an API Key and application information in Moeka.
 
 ::: info Why choose Volcengine?
-If you have created a voice application and managed voice resources in Volcengine, you can reuse those settings in AIRI.
+If you have created a voice application and managed voice resources in Volcengine, you can reuse those settings in Moeka.
 :::
 
 ## Prepare application credentials
@@ -19,19 +19,19 @@ If you have created a voice application and managed voice resources in Volcengin
 Do not commit the API key or App ID, include either one in screenshots, or share them with anyone. Once either the key or ID is compromised, immediately revoke it and create a new key in the Volcengine console.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Speech → Volcano Engine**.
-2. Enter the API key and App ID. The default Base URL is the AIRI/UnSpeech gateway at `https://unspeech.hyp3r.link/v1/`, not Volcengine's direct API. Your credentials, text to synthesize, model/voice selection, and returned audio pass through this gateway. Use it only if you accept that trust boundary; otherwise enter a compatible self-hosted gateway URL or choose a direct provider.
+2. Enter the API key and App ID. The default Base URL is the Moeka/UnSpeech gateway at `https://unspeech.hyp3r.link/v1/`, not Volcengine's direct API. Your credentials, text to synthesize, model/voice selection, and returned audio pass through this gateway. Use it only if you accept that trust boundary; otherwise enter a compatible self-hosted gateway URL or choose a direct provider.
 
 ## Verify configuration
 
-1. Select an available voice in the provider playground. This page uses AIRI's default Volcengine speech model.
+1. Select an available voice in the provider playground. This page uses Moeka's default Volcengine speech model.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
-## Enable for AIRI replies
+## Enable for Moeka replies
 
-Open **Settings → Modules → Speech**, select **Volcano Engine**, then select an available model and voice. The provider playground tests credentials; this module selection enables speech for normal AIRI replies.
+Open **Settings → Modules → Speech**, select **Volcano Engine**, then select an available model and voice. The provider playground tests credentials; this module selection enables speech for normal Moeka replies.
 
 ## Troubleshooting
 

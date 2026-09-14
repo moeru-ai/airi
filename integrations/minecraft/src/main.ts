@@ -80,7 +80,7 @@ async function main() {
     // NOTICE:
     // The bot's Node event loop occasionally goes quiet for ~30s (busy mineflayer packet handling /
     // perception ticks), during which the heartbeat ping timer can't fire, so the default 30s
-    // readTimeout would trip and tear down the AIRI connection — making the in-game bot flap
+    // readTimeout would trip and tear down the Moeka connection — making the in-game bot flap
     // online/offline and the desktop's game-command relay unusable. Widen the read tolerance to 120s
     // (still under the server's 60s-per-miss TTL for a single ~30s gap) and keep pings frequent so
     // the connection recovers immediately once the loop frees up.
@@ -189,7 +189,7 @@ async function main() {
         logger.errorWithError('Failed to stop Minecraft runtime cleanly', err)
       })
       .finally(() => {
-        // TODO: Add an explicit AIRI-side deregistration path on shutdown instead of relying on
+        // TODO: Add an explicit Moeka-side deregistration path on shutdown instead of relying on
         // websocket close / heartbeat expiry. Right now the Minecraft page can briefly sit in a
         // stale state after the bot exits, which is annoying and easy to misread as still online.
         airiClient.close()

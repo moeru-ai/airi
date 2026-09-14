@@ -1,6 +1,6 @@
 ---
 title: Browser Web Speech API (ASR/STT)
-description: Using in-browser speech recognition with AIRI Web
+description: Using in-browser speech recognition with Moeka Web
 ---
 
 The Web Speech API uses the browser's built-in speech-recognition capability and does not require an API key.
@@ -11,14 +11,14 @@ If you're just trying out speech input quickly on the web, and your browser supp
 
 ## Confirm browser support
 
-1. Use AIRI Web. The Web Speech API provider is not available in the Desktop ver. (Electron).
+1. Use Moeka Web. The Web Speech API provider is not available in the Desktop ver. (Electron).
 2. Confirm that the current browser supports the Web Speech API and is ready to allow microphone permissions.
 
 ::: warning Browser restrictions
-The Web Speech API is only available in browser environments and is not supported by the desktop version of AIRI (Electron). Recognition capabilities may vary across browsers, network environments and languages.
+The Web Speech API is only available in browser environments and is not supported by the desktop version of Moeka (Electron). Recognition capabilities may vary across browsers, network environments and languages.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Transcription → Web Speech API** in the web version.
 2. Select **Recognition Language**, then configure **Continuous Recognition** and **Show Interim Results** as needed.
@@ -27,7 +27,7 @@ The Web Speech API is only available in browser environments and is not supporte
 
 1. Go to **Settings → Modules → Hearing** and select Web Speech API and Audio Input Device.
 2. Allow the browser to access the microphone and start a short voice input test.
-3. Confirm that the transcription appears in AIRI.
+3. Confirm that the transcription appears in Moeka.
 
 ## Troubleshooting
 

@@ -128,7 +128,7 @@ export type ExtensionsDepthPrompt = InferOutput<typeof extensionsDepthPromptSche
 /** A Character Card document using the CCv3 envelope and data contract. */
 export type CharacterCardV3 = InferOutput<typeof characterCardV3Schema>
 
-/** Compatibility of a parsed document relative to AIRI's current CCv3 implementation. */
+/** Compatibility of a parsed document relative to Moeka's current CCv3 implementation. */
 export type CharacterCardCompatibility = 'older' | 'current' | 'newer'
 
 /** A validated CCv3 document together with its compatibility classification. */
@@ -167,7 +167,7 @@ export function isInvalidCharacterCardError(error: unknown): error is InvalidCha
  * Parses and validates a Character Card V3 object or JSON document.
  *
  * Unknown fields are preserved so a newer card can be inspected and exported
- * without silently discarding data AIRI does not understand yet. Older and
+ * without silently discarding data Moeka does not understand yet. Older and
  * newer `spec_version` values are accepted and reported through
  * `compatibility`; callers can decide how prominently to warn users.
  */

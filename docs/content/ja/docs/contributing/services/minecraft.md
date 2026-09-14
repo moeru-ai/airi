@@ -22,7 +22,7 @@ cp .env .env.local
 ボットの実行
 
 ```shell
-pnpm -F @proj-airi/minecraft-bot start
+bun run --filter @proj-airi/minecraft-bot start
 ```
 
 ::: tip

@@ -9,7 +9,6 @@ import type {
   ProviderConfigData,
 } from './types'
 
-import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref } from 'vue'
 
@@ -68,7 +67,7 @@ const selectedProvider = computed(() => {
 const selectedProviderType = computed<ProviderMode>(() => {
   if (!selectedProviderId.value)
     return 'unknown'
-  return selectedProviderId.value.startsWith('official-provider') ? 'official' : 'custom'
+  return 'custom'
 })
 
 // Reset validation state when provider changes
@@ -126,9 +125,6 @@ const allSteps = computed<OnboardingStep[]>(() => {
     {
       id: 'welcome',
       component: StepWelcome,
-      props: () => ({
-        customProviderSetupEnabled: !isCustomProvidersDisabled(),
-      }),
     },
     {
       id: 'provider-selection',

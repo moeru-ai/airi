@@ -20,7 +20,7 @@ cp .env .env.local
 ボットの起動：
 
 ```shell
-pnpm -F @proj-airi/satori-bot dev
+bun run --filter @proj-airi/satori-bot dev
 ```
 
 ::: tip

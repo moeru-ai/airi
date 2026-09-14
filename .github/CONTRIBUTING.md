@@ -1,4 +1,4 @@
-# Start contributing to [Project AIRI](https://github.com/moeru-ai/airi)
+# Start contributing to [Project Moeka](https://github.com/cuwayo/moeka)
 
 Hello! Thank you for your interest in contributing to this project. This guide will help you get started.
 
@@ -6,44 +6,31 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 
 - [Git](https://git-scm.com/downloads)
 - [Node.js 23+](https://nodejs.org/en/download/)
-- [corepack](https://github.com/nodejs/corepack)
-- [pnpm](https://pnpm.io/installation)
+- [Bun 1.4+](https://bun.sh/docs/installation)
 
 <details>
 <summary>Windows setup</summary>
 
-0. Download [Visual Studio](https://visualstudio.microsoft.com/downloads/) and follow the instructions here: https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
-
-   > Make sure to install Windows SDK and C++ build tools when installing Visual Studio.
-
-1. Open PowerShell
-2. Install [`scoop`](https://scoop.sh/)
+0. Open PowerShell
+1. Install [`scoop`](https://scoop.sh/)
 
    ```powershell
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
    ```
 
-3. Install `git`, Node.js, `rustup`, `msvc` through `scoop`
+2. Install `git` and Node.js through `scoop`
 
    ```powershell
-   scoop install git nodejs rustup
-
-   # For Rust dependencies
-   # Not required if you are not going to develop on either crates or apps/tamagotchi
-   scoop install main/rust-msvc
-   # Rust & Windows specific
-   rustup toolchain install stable-x86_64-pc-windows-msvc
-   rustup default stable-x86_64-pc-windows-msvc
+   scoop install git nodejs
    ```
 
    > https://stackoverflow.com/a/64121601
 
-4. Install `pnpm` through `corepack`
+3. Install `bun` through the official script
 
    ```powershell
-   corepack enable
-   corepack prepare pnpm@latest --activate
+   powershell -c "irm bun.sh/install.ps1 | iex"
    ```
 
 </details>
@@ -58,11 +45,10 @@ Hello! Thank you for your interest in contributing to this project. This guide w
    brew install git node
    ```
 
-2. Install `pnpm` through `corepack`
+2. Install `bun` through `brew`
 
    ```shell
-   corepack enable
-   corepack prepare pnpm@latest --activate
+   brew install oven-sh/bun/bun
    ```
 
 </details>
@@ -73,22 +59,10 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 0. Open terminal
 1. Follow [nodesource/distributions: NodeSource Node.js Binary Distributions](https://github.com/nodesource/distributions?tab=readme-ov-file#table-of-contents) to install `node`
 2. Follow [Git](https://git-scm.com/downloads/linux) to install `git`
-3. Install `pnpm` through `corepack`
+3. Install `bun` through the official script
 
    ```shell
-   corepack enable
-   corepack prepare pnpm@latest --activate
-   ```
-
-4. If you would love to help to develop the desktop version, you will need those dependencies:
-
-   ```shell
-   sudo apt install \
-      libssl-dev \
-      libglib2.0-dev \
-      libgtk-3-dev \
-      libjavascriptcoregtk-4.1-dev \
-      libwebkit2gtk-4.1-dev
+   curl -fsSL https://bun.sh/install | bash
    ```
 
 </details>
@@ -121,8 +95,8 @@ Click on the **Fork** button on the top right corner of the [moeru-ai/airi](http
 ## Clone
 
 ```shell
-git clone https://github.com/<your-github-username>/airi.git
-cd airi
+git clone https://github.com/<your-github-username>/moeka.git
+cd moeka
 ```
 
 ## Create your working branch
@@ -134,12 +108,7 @@ git checkout -b <your-branch-name>
 ## Install dependencies
 
 ```shell
-corepack enable
-pnpm install
-
-# For Rust dependencies
-# Not required if you are not going to develop on either crates or apps/tamagotchi
-cargo fetch
+bun install
 ```
 
 > [!NOTE]
@@ -147,51 +116,22 @@ cargo fetch
 > We would recommend to install [@antfu/ni](https://github.com/antfu-collective/ni) to make your script simpler.
 >
 > ```shell
-> corepack enable
 > npm i -g @antfu/ni
 > ```
 >
 > Once installed, you can
 >
-> - use `ni` for `pnpm install`, `npm install` and `yarn install`.
-> - use `nr` for `pnpm run`, `npm run` and `yarn run`.
+> - use `ni` for `bun install`, `npm install` and `yarn install`.
+> - use `nr` for `bun run`, `npm run` and `yarn run`.
 >
 > You don't need to care about the package manager, `ni` will help you choose the right one.
 
 ## Choose the application you want to develop on
 
-### Stage Tamagotchi (Desktop version)
+### Stage Web
 
 ```shell
-pnpm dev:tamagotchi
-```
-
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr dev:tamagotchi
-> ```
-
-> [!NOTE]
->
-> The `dev` and `start` scripts run `install-electron` before `electron-vite`.
->
-> Electron 42 removed the `postinstall` script. The `electron` package now downloads its binary
-> when you first run its `bin` entry. `electron-vite` reads `node_modules/electron/path.txt`
-> directly, so it never starts that download. A fresh install therefore fails with
-> `Error: Electron uninstall`.
->
-> `install-electron` runs the same code as the removed `postinstall` script. It returns
-> immediately when the binary is already present.
->
-> Remove this step after `electron-vite` supports the lazy download.
-
-### Stage Web (Browser version for [airi.moeru.ai](https://airi.moeru.ai))
-
-```shell
-pnpm dev
+bun run dev
 ```
 
 > [!NOTE]
@@ -209,7 +149,7 @@ Browse the live UI component storyboard at [airi.moeru.ai/ui](https://airi.moeru
 ### Documentation site
 
 ```shell
-pnpm dev:docs
+bun run dev:docs
 ```
 
 > [!NOTE]
@@ -240,14 +180,14 @@ Edit the credentials in `.env.local`.
 Migrate the database
 
 ```shell
-pnpm -F @proj-airi/telegram-bot db:generate
-pnpm -F @proj-airi/telegram-bot db:push
+bun run --filter @proj-airi/telegram-bot db:generate
+bun run --filter @proj-airi/telegram-bot db:push
 ```
 
 Run the bot
 
 ```shell
-pnpm -F @proj-airi/telegram-bot start
+bun run --filter @proj-airi/telegram-bot start
 ```
 
 > [!NOTE]
@@ -275,7 +215,7 @@ Edit the credentials in `.env.local`.
 Run the bot
 
 ```shell
-pnpm -F @proj-airi/discord-bot start
+bun run --filter @proj-airi/discord-bot start
 ```
 
 > [!NOTE]
@@ -305,7 +245,7 @@ Edit the credentials in `.env.local`.
 Run the bot
 
 ```shell
-pnpm -F @proj-airi/minecraft-bot start
+bun run --filter @proj-airi/minecraft-bot start
 ```
 
 > [!NOTE]
@@ -323,13 +263,13 @@ pnpm -F @proj-airi/minecraft-bot start
 Please make sure lint (static checkers) and TypeScript compilers are satisfied:
 
 ```shell
-pnpm lint && pnpm typecheck
+bun run lint && bun run typecheck
 ```
 
 If you are committing images, consider using AVIF format instead of PNG, JPG etc. You can convert existing images to AVIF by running:
 
 ```shell
-pnpm to-avif <PATH_TO_IMAGE_OR_DIRECTORY1> <PATH_2> <PATH_3> ...
+bun run to-avif <PATH_TO_IMAGE_OR_DIRECTORY1> <PATH_2> <PATH_3> ...
 ```
 
 > [!NOTE]

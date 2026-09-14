@@ -8,7 +8,7 @@ interface ConsumerRegistryRef {
 }
 
 /**
- * Candidate peer metadata used for AIRI consumer selection.
+ * Candidate peer metadata used for Moeka consumer selection.
  */
 export interface ConsumerSelectionCandidate {
   /** Peer id available to receive the event. */
@@ -24,7 +24,7 @@ export interface ConsumerSelectionCandidate {
 }
 
 /**
- * Stored AIRI consumer registration.
+ * Stored Moeka consumer registration.
  */
 export interface ConsumerRegistration {
   /** Protocol event type consumed by the peer. */
@@ -40,7 +40,7 @@ export interface ConsumerRegistration {
 }
 
 /**
- * Sticky AIRI consumer assignment stored by the consumer selector.
+ * Sticky Moeka consumer assignment stored by the consumer selector.
  */
 export interface ConsumerStickyAssignment {
   /** Protocol event type the sticky assignment belongs to. */
@@ -52,14 +52,14 @@ export interface ConsumerStickyAssignment {
 }
 
 /**
- * Checks whether a delivery mode targets the AIRI consumer registry.
+ * Checks whether a delivery mode targets the Moeka consumer registry.
  */
 export function isConsumerDeliveryMode(mode: unknown): mode is 'consumer' | 'consumer-group' {
   return mode === 'consumer' || mode === 'consumer-group'
 }
 
 /**
- * Normalizes delivery mode for AIRI consumer registration.
+ * Normalizes delivery mode for Moeka consumer registration.
  *
  * Before:
  * - undefined with group "workers"
@@ -76,7 +76,7 @@ export function normalizeConsumerMode(mode: unknown, group?: string): 'consumer'
 }
 
 /**
- * Normalizes AIRI consumer priority.
+ * Normalizes Moeka consumer priority.
  *
  * Before:
  * - NaN
@@ -109,7 +109,7 @@ function sortConsumers(entries: Array<Pick<ConsumerSelectionCandidate, 'peerId' 
 }
 
 /**
- * Selects a concrete peer for AIRI consumer-style delivery modes.
+ * Selects a concrete peer for Moeka consumer-style delivery modes.
  *
  * Sticky and round-robin state are keyed with structured JSON tuples so event,
  * group, and sticky key values may contain delimiter-like text safely.
@@ -166,10 +166,10 @@ export function selectConsumerPeerId(options: {
 }
 
 /**
- * Creates the AIRI consumer delivery orchestrator for websocket peers.
+ * Creates the Moeka consumer delivery orchestrator for websocket peers.
  *
  * The orchestrator owns registration, unregister, listing, selection, and
- * sticky/round-robin cleanup state for AIRI consumer routing.
+ * sticky/round-robin cleanup state for Moeka consumer routing.
  */
 export function createConsumerOrchestrator() {
   const consumerRegistry = new Map<string, Map<string, Map<string, ConsumerRegistration>>>()

@@ -268,80 +268,23 @@
 > 开发本项目的详细指南请参阅 [CONTRIBUTING.md](../.github/CONTRIBUTING.md)
 
 > [!NOTE]
-> 默认情况下 `pnpm dev` 会启动 Stage Web（浏览器版）的开发服务器；如果你想尝试桌面版，请先阅读 [CONTRIBUTING.md](../.github/CONTRIBUTING.md) 正确完成环境配置。
+> 默认情况下 `bun run dev` 会启动 Stage Web（浏览器版）的开发服务器。环境配置请参阅 [CONTRIBUTING.md](../.github/CONTRIBUTING.md)。
 
 ```shell
-pnpm i
-pnpm dev
+bun install
+bun run dev
 ```
 
 ### 网页版 (也就是 [airi.moeru.ai](https://airi.moeru.ai) 的版本)
 
 ```shell
-pnpm dev
+bun run dev
 ```
-
-### 桌面版（也叫拓麻歌子，aka 电子宠物）
-
-```shell
-pnpm dev:tamagotchi
-```
-
-我们提供了拓麻歌子的 Nix 包。先启用 flakes，然后可以直接运行：
-
-```shell
-nix run github:moeru-ai/airi
-```
-
-#### NixOS
-
-在 NixOS 上，Electron 需要一些不在标准路径下的共享库。请使用 `flake.nix` 中定义的 FHS shell：
-
-```shell
-nix develop .#fhs
-pnpm dev:tamagotchi
-```
-
-### Stage Pocket（移动版）
-
-启动 Capacitor Web 版本的开发服务器：
-
-```shell
-pnpm dev:pocket
-```
-
-从上述命令的输出中查看 IP 地址：
-
-```shell
-  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
-
-  ➜  Local:   https://localhost:5273/
-  ➜  Network: https://<ip-will-be-here>:5273/
-  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
-  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
-  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
-```
-
-打开 Xcode 项目：
-
-```shell
-CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
-```
-
-随后 Xcode 会打开，你可以点击 "Run" 按钮在 iPhone 上运行应用。
-
-如果需要在无线模式下连接 Pocket 的 server channel，需要以 root 权限启动 Tamagotchi：
-
-```shell
-sudo pnpm dev:tamagotchi
-```
-
-然后在 Tamagotchi 的 `settings/connections` 中启用 secure websocket。
 
 ### 文档站
 
 ```shell
-pnpm dev:docs
+bun run dev:docs
 ```
 
 ### 发布
@@ -410,8 +353,6 @@ npx bumpp --no-commit --no-tag
 flowchart LR
   subgraph Apps[Stage applications]
     Web[stage-web]
-    Desktop[stage-tamagotchi]
-    Pocket[stage-pocket\nexperimental]
   end
 
   subgraph Shared[Shared product packages]
@@ -422,7 +363,7 @@ flowchart LR
     SDK[server-sdk\nserver-shared]
   end
 
-  subgraph Channel[Desktop server channel]
+  subgraph Channel[Server channel]
     Runtime[server-runtime]
   end
 
@@ -441,13 +382,10 @@ flowchart LR
   end
 
   Web --> StageUI
-  Desktop --> StageUI
-  Pocket --> StageUI
   StageUI --> Domain
   StageUI --> Audio
   StageUI --> Renderers
   StageUI --> SDK
-  Desktop --> Runtime
   SDK <-->|server channel| Runtime
   Discord --> SDK
   Minecraft --> SDK

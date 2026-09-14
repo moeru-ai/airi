@@ -26,14 +26,14 @@ import DemoDayHangzhou3 from './assets/demo-day-hangzhou-3.avif'
 </script>
 
 Hello again! Here's [Neko](https://github.com/nekomeowww), the girl who started
-the [Project AIRI](https://github.com/moeru-ai/airi)!
+the [Project Moeka](https://github.com/moeru-ai/airi)!
 
 Sorry for being late for new update in
-Project AIRI through the posted DevLog, please forgive us
+Project Moeka through the posted DevLog, please forgive us
 for the delay.
 
 > We wrote many fantastic DevLogs about our development
-> progress once a while for the past months for AIRI, where
+> progress once a while for the past months for Moeka, where
 > we share out thoughts, ideas, explaining in technologies
 > we use, artworks inspired from... everything.
 >
@@ -45,7 +45,7 @@ for the delay.
 
 # Dejavu
 
-For the past few weeks, the major quests of Project AIRI itself
+For the past few weeks, the major quests of Project Moeka itself
 haven't progressed for a while, perhaps I was quite burned
 out from the huge UI refactoring and release since March
 2025. Most of the work was done by community maintainers,
@@ -79,16 +79,16 @@ documentation to share, for now, try read [Void's Lorebook Types](https://rentry
 
 > To use Character Card, navigate to Settings page (top right
 > corner of the app, or hovering Gear icon in desktop app),
-> Find and click the "Airi Card" button.
+> Find and click the "Moeka Card" button.
 
-<img class="light" :src="CharacterCardMenuLight" alt="screenshot of a menu offers Airi Card menu button" />
-<img class="dark" :src="CharacterCardMenuDark" alt="screenshot of a menu offers Airi Card menu button" />
+<img class="light" :src="CharacterCardMenuLight" alt="screenshot of a menu offers Moeka Card menu button" />
+<img class="dark" :src="CharacterCardMenuDark" alt="screenshot of a menu offers Moeka Card menu button" />
 
-> This will bring you to the "Airi Card editor screen", where you can upload and
+> This will bring you to the "Moeka Card editor screen", where you can upload and
 > edit your character card for persona customization.
 
-<img class="light" :src="CharacterCardSettingsLight" alt="screenshot of a menu offers Airi Card menu button" />
-<img class="dark" :src="CharacterCardSettingsDark" alt="screenshot of a menu offers Airi Card menu button" />
+<img class="light" :src="CharacterCardSettingsLight" alt="screenshot of a menu offers Moeka Card menu button" />
+<img class="dark" :src="CharacterCardSettingsDark" alt="screenshot of a menu offers Moeka Card menu button" />
 
 For Character Card showcases, we tried some approaches too...
 
@@ -104,7 +104,7 @@ It's live in our UI component library, you can play around with it: https://airi
 > much appreciated.
 
 - Tauri MCP support
-- Connects AIRI to Android devices
+- Connects Moeka to Android devices
 
 These two was major update and try-out, and this part was done by [@LemonNekoGH](https://github.com/LemonNekoGH),
 she wrote another two DevLogs about these things and shared the technical
@@ -114,13 +114,13 @@ You can read them here:
 - [Controls Android](./DevLog-2025.04.22.mdx)
 - [MCP in Tauri](./DevLog-2025.04.28.md)
 
-## Project AIRI major quests
+## Project Moeka major quests
 
 ### Ears listening, and mouth speaking
 
 From April 15, I found both VAD (voice activation detection),
 [ASR (a.k.a. automatic speech recognition)](https://huggingface.co/tasks/automatic-speech-recognition),
-and [TTS (text to speech)](https://huggingface.co/tasks/text-to-speech) in AIRI
+and [TTS (text to speech)](https://huggingface.co/tasks/text-to-speech) in Moeka
 are very complex and hard to use and understand, for that time, I was cooperating
 with [@himself65](https://github.com/himself65) to improve and test the use cases
 for the new project from [Llama Index](https://www.llamaindex.ai/), a library
@@ -130,7 +130,7 @@ bytes, called [`llama-flow`](https://github.com/run-llama/llama-flow).
 [`llama-flow`](https://github.com/run-llama/llama-flow) is really small,
 and type-safe to use. In the old days without it, I have to manually wrap
 another **queue** structured, and Vue's reactivity powered workflow system
-to chain many asynchronous tasks together to be able to process data to power AIRI.
+to chain many asynchronous tasks together to be able to process data to power Moeka.
 
 That was the time I started to experiment more examples, demos on simplifying VAD,
 ASR, TTS workflow.
@@ -268,7 +268,7 @@ Let's end with DevLog with more images from the recent event we attended in Hang
 
 <img :src="DemoDayHangzhou1" alt="Demo Day @ Hangzhou" />
 
-This is me, I shared the AIRI project with other attendees, and we had a great time
+This is me, I shared the Moeka project with other attendees, and we had a great time
 there! Meet so many of the talented developers, product designers, and entrepreneurs.
 
 Introduced almost everything I shared today in this DevLog, and also the beloved AI VTuber Neuro-sama.

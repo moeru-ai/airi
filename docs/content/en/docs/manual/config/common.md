@@ -1,9 +1,9 @@
 ---
 title: General configuration instructions
-description: Understand AIRI's provider configuration flow, fields, and verification methods
+description: Understand Moeka's provider configuration flow, fields, and verification methods
 ---
 
-This page explains how AIRI's provider configuration works. For a provider's API endpoint, account setup, and model selection, see its provider-specific guide.
+This page explains how Moeka's provider configuration works. For a provider's API endpoint, account setup, and model selection, see its provider-specific guide.
 
 ## Configuration process
 
@@ -23,7 +23,7 @@ Credentials and provider settings are saved in the current device's local settin
 | --- | --- | --- |
 | API Key | Access token issued by the provider | Paste the complete key without adding quotes or spaces. |
 | Base URL | Root URL of the provider API | If the provider's documentation requires another URL, change it. Use `https://` for remote providers. Use `http://` only for trusted local services. A remote HTTP endpoint can expose API keys and request data. |
-| Model | Model ID used for chat, speech, or recognition | Prefer a model from AIRI's list. If the list cannot be loaded and the field accepts custom input, enter the exact ID from the provider's documentation. |
+| Model | Model ID used for chat, speech, or recognition | Prefer a model from Moeka's list. If the list cannot be loaded and the field accepts custom input, enter the exact ID from the provider's documentation. |
 | Voice | Voice ID used for speech synthesis | Select the model first, then select a voice supported by that model. |
 | Region | Deployment region used by some cloud services | Match the project or resource region shown in the provider console. |
 

@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { LOCAL_USER_ID } from '@proj-airi/stage-ui/constants'
 import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
 import { GhostButton } from '@proj-airi/ui'
 import { computed, onMounted } from 'vue'
 
 const characterStore = useCharacterStore()
-const authStore = useAuthStore()
 
 const coverImage = new URL('../../../../stage-ui/src/components/menu/relu.avif', import.meta.url).href
 const characterAvatarImage = new URL('../../../../stage-ui/src/assets/live2d/models/hiyori/preview.png', import.meta.url).href
@@ -35,7 +34,7 @@ function formatCount(value: number | string) {
 }
 
 onMounted(() => {
-  characterStore.fetchList(true)
+  characterStore.fetchList()
 })
 
 const characters = computed(() => Array.from(characterStore.characters.values()).map((char) => {
@@ -54,8 +53,8 @@ const characters = computed(() => Array.from(characterStore.characters.values())
     likes: char.likesCount,
     bookmarks: char.bookmarksCount,
     forks: char.forksCount,
-    liked: char.likes?.some(l => l.userId === authStore.user?.id),
-    bookmarked: char.bookmarks?.some(b => b.userId === authStore.user?.id),
+    liked: char.likes?.some(l => l.userId === LOCAL_USER_ID),
+    bookmarked: char.bookmarks?.some(b => b.userId === LOCAL_USER_ID),
     priceCredit: char.priceCredit,
   }
 }))

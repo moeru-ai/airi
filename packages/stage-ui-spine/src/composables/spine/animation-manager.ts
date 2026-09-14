@@ -16,7 +16,7 @@ export interface SpineAnimationManager {
 }
 
 /**
- * Wraps a Spine `AnimationState` + `Skeleton` pair with helpers for AIRI's
+ * Wraps a Spine `AnimationState` + `Skeleton` pair with helpers for Moeka's
  * idle-vs-emotion track conventions.
  *
  * Use when:

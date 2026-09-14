@@ -86,7 +86,7 @@ function collectFrontendDestinations(event: ModuleAnnouncedEvent) {
 }
 
 /**
- * Publishes Minecraft capability and status context through the AIRI server event seam.
+ * Publishes Minecraft capability and status context through the Moeka server event seam.
  *
  * Use when:
  * - A Stage runtime must discover how to relay a user instruction without Minecraft-specific UI code.
@@ -94,7 +94,7 @@ function collectFrontendDestinations(event: ModuleAnnouncedEvent) {
  *
  * Expects:
  * - {@link bindBot} and {@link unbindBot} follow the Mineflayer runtime lifecycle.
- * - The AIRI bridge is initialized before status updates are published.
+ * - The Moeka bridge is initialized before status updates are published.
  *
  * Returns:
  * - Replace-self status context that describes relay availability and the existing generic relay tool.

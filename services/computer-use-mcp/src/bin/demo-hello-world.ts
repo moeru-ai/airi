@@ -18,7 +18,7 @@ async function main() {
   console.info('🚀 Starting computer-use-mcp server …')
 
   const transport = new StdioClientTransport({
-    command: 'pnpm',
+    command: 'bun',
     args: ['start'],
     cwd: packageDir,
     env: {
@@ -75,11 +75,11 @@ async function main() {
       arguments: {
         command: `cat > "$HOME/hello-python-project/main.py" << 'PYEOF'
 #!/usr/bin/env python3
-"""Hello World project — created by AIRI computer-use-mcp"""
+"""Hello World project — created by Moeka computer-use-mcp"""
 
 def main():
     print("Hello World! 🌍")
-    print("This project was created by AIRI computer-use-mcp terminal_exec tool.")
+    print("This project was created by Moeka computer-use-mcp terminal_exec tool.")
 
 if __name__ == "__main__":
     main()

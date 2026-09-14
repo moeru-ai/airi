@@ -4,7 +4,7 @@
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },
@@ -17,7 +17,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "test:browser:run": "vitest run --project browser src/pages/devtools/vrm-model-position.browser.test.ts"
   },
   "dependencies": {
     "@date-fns/utc": "catalog:",
@@ -62,7 +63,6 @@
     "@xsai/stream-transcription": "catalog:",
     "@xsai/utils-chat": "catalog:",
     "animejs": "catalog:",
-    "better-auth": "catalog:",
     "colorjs.io": "catalog:",
     "culori": "catalog:",
     "d3": "catalog:",
@@ -73,7 +73,6 @@
     "embla-carousel-vue": "catalog:",
     "es-toolkit": "catalog:",
     "gpuu": "catalog:",
-    "hono": "catalog:",
     "html2canvas": "catalog:",
     "jszip": "catalog:",
     "localforage": "catalog:",

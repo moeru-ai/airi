@@ -1,9 +1,9 @@
 ---
 title: BytePlus
-description: Configuring the BytePlus chat model in AIRI
+description: Configuring the BytePlus chat model in Moeka
 ---
 
-BytePlus uses Ark-compatible chat service configuration in AIRI.
+BytePlus uses Ark-compatible chat service configuration in Moeka.
 
 ::: info Why choose BytePlus?
 Use this provider when your BytePlus account has Ark API access.
@@ -17,14 +17,14 @@ Use this provider when your BytePlus account has Ark API access.
 Do not commit API keys or endpoint credentials, include them in screenshots, or share them with anyone.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Chat → BytePlus** and enter the API key.
-2. Keep the default Base URL unless BytePlus documents another compatible API root. Models are selected from AIRI's provider list; this form has no Endpoint ID or model input.
+2. Keep the default Base URL unless BytePlus documents another compatible API root. Models are selected from Moeka's provider list; this form has no Endpoint ID or model input.
 
 ## Verify configuration
 
-1. **Validate configuration**: AIRI validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
+1. **Validate configuration**: Moeka validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
 2. **Select Model →**: After validation succeeds, use this button to open **Settings → Modules → Consciousness**, then select the provider and model.
 
 ## Troubleshooting

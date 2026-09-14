@@ -2,9 +2,9 @@
   "name": "@proj-airi/plugin-protocol",
   "type": "module",
   "version": "0.12.0-beta.5",
-  "description": "Plugin protocol event definitions and shared websocket types for Project AIRI",
+  "description": "Plugin protocol event definitions and shared websocket types for Project Moeka",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },
@@ -28,7 +28,7 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "pnpm run build",
+    "dev": "bun run build",
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },

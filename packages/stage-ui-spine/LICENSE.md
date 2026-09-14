@@ -5,7 +5,7 @@ This package contains code under two separate licenses:
 ## Original Code (MIT License)
 
 All source code in this package (Vue components, stores, composables, utilities)
-authored by the Moeru AI Project AIRI Team is licensed under the MIT License:
+authored by the Moeka Team is licensed under the MIT License:
 
 ```
 MIT License

@@ -2,9 +2,9 @@
   "name": "@proj-airi/ui-transitions",
   "type": "module",
   "private": true,
-  "description": "A collection of transition animations that used by Project AIRI",
+  "description": "A collection of transition animations that used by Project Moeka",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },

@@ -10,7 +10,7 @@ Install the library:
 
 ```shell
 ni @proj-airi/ui -D # from @antfu/ni, can be installed via `npm i -g @antfu/ni`
-pnpm i @proj-airi/ui -D
+bun add @proj-airi/ui -D
 yarn i @proj-airi/ui -D
 npm i @proj-airi/ui -D
 ```
@@ -20,7 +20,7 @@ This library requires `unocss` with Attributify Mode and a style reset.
 First, install `unocss` if you haven't already:
 
 ```shell
-pnpm i -D unocss
+bun add -D unocss
 ```
 
 Next, in your `uno.config.ts`, add `presetAttributify()` to your presets array:

@@ -7,13 +7,11 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import { useAuthStore } from '../../../stores/auth'
 import { getPromoBannerFallbackLabelKey, promoBannerVisuals } from './promo-banner'
 import { usePromoBannerLayout } from './use-promo-banner-layout'
 
 const router = useRouter()
 const { locale, t } = useI18n()
-const authStore = useAuthStore()
 const isVisible = ref(false)
 
 function translateBannerItem(key: PromoBannerItemKey): PromoBannerItem {
@@ -90,12 +88,6 @@ function scrollTo(index: number) {
 
 function handlePromoBannerAction(action: PromoBannerAction) {
   close()
-
-  if (action.type === 'login') {
-    authStore.needsLogin = true
-    return
-  }
-
   void router.push(action.to)
 }
 

@@ -23,14 +23,14 @@ cp .env .env.local
 データベースのマイグレーション
 
 ```shell
-pnpm -F @proj-airi/telegram-bot db:generate
-pnpm -F @proj-airi/telegram-bot db:push
+bun run --filter @proj-airi/telegram-bot db:generate
+bun run --filter @proj-airi/telegram-bot db:push
 ```
 
 ボットの実行
 
 ```shell
-pnpm -F @proj-airi/telegram-bot start
+bun run --filter @proj-airi/telegram-bot start
 ```
 
 ::: tip

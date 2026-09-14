@@ -5,7 +5,7 @@ import { computed, nextTick, onMounted, onScopeDispose, shallowRef, toValue, wat
 
 import { useAdaptiveInput } from './use-adaptive-input'
 
-/** The AIRI elements and feature policy used to lay out the mobile chat surface. */
+/** The Moeka elements and feature policy used to lay out the mobile chat surface. */
 export interface UseMobileInteractiveAreaLayoutOptions {
   /** The region that contains the message composer and its related controls. */
   area: Readonly<Ref<HTMLElement | null>>
@@ -26,9 +26,9 @@ export interface UseMobileInteractiveAreaLayoutOptions {
 }
 
 /**
- * Applies AIRI's mobile chat proportions and transition policy to adaptive input values.
+ * Applies Moeka's mobile chat proportions and transition policy to adaptive input values.
  *
- * This composable owns only AIRI presentation decisions. Browser keyboard measurement remains
+ * This composable owns only Moeka presentation decisions. Browser keyboard measurement remains
  * in {@link useAdaptiveInput}, so another framework or layout can consume the same geometry.
  */
 export function useMobileInteractiveAreaLayout(options: UseMobileInteractiveAreaLayoutOptions) {

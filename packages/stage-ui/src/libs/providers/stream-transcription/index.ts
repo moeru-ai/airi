@@ -15,7 +15,7 @@ export interface StreamTranscriptionSnapshot {
 
 export type AIRIStreamTranscriptionDelta = StreamTranscriptionDelta | StreamTranscriptionSnapshot
 
-/** xsAI stream result with AIRI's replaceable snapshot event. */
+/** xsAI stream result with Moeka's replaceable snapshot event. */
 export interface AIRIStreamTranscriptionResult extends Omit<StreamTranscriptionResult, 'fullStream'> {
   fullStream: ReadableStream<AIRIStreamTranscriptionDelta>
 }

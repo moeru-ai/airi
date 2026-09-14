@@ -30,13 +30,13 @@ Describe the expected behavior or evidence target.
 Run the narrowest relevant command first:
 
 ```bash
-pnpm -F <package-name> exec vitest run <path/to/test>
+bun run --filter <package-name> exec vitest run <path/to/test>
 ```
 
 If runtime contracts changed, also run:
 
 ```bash
-pnpm -F <package-name> typecheck
+bun run --filter <package-name> typecheck
 ```
 
 ## Output required

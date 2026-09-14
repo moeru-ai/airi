@@ -2,16 +2,13 @@ import type {} from 'pinia-plugin-synced'
 
 import type { InferenceServiceProvider, ProviderValidationStatus } from '../../libs/providers/types'
 
-import { useMutation, useQuery } from '@pinia/colada'
 import { useLocalStorage } from '@vueuse/core'
+import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
-import { client } from '../../composables/api'
 import { getDefinedProvider } from '../../libs/providers'
-import { inferenceServiceProvidersService as service } from '../../services/inference-service-providers'
 
-const PROVIDERS_QUERY_KEY = ['inference-service-providers']
 const providerStorageOptions = {
   // pinia-plugin-synced is the only cross-window propagation channel for this
   // store. Listening to storage events would feed replicated state back into
@@ -19,28 +16,25 @@ const providerStorageOptions = {
   listenToStorageChanges: false,
 } as const
 
-/**
- * Creates the remote provider-list query.
- *
- * The query returns a remote snapshot. The Provider Config Store merges that snapshot
- * into its persisted, cross-window state after the request succeeds.
- */
-function createProvidersQueryOptions() {
+/** Builds an unconfigured provider record for a registered provider definition. */
+function createProviderRecord(definitionId: string, config: Record<string, unknown>): InferenceServiceProvider {
+  if (!getDefinedProvider(definitionId))
+    throw new Error(`Provider definition with id "${definitionId}" not found.`)
+
   return {
-    key: PROVIDERS_QUERY_KEY,
-    query: async (context: { signal: AbortSignal }) => {
-      const remote = await service.fetchRemote(client, { abortSignal: context.signal })
-      return remote
-    },
-    enabled: false,
+    id: nanoid(),
+    definitionId,
+    config,
+    status: 'unconfigured',
   }
 }
 
 /**
  * Stores serializable provider instances and their configuration.
  *
- * Pinia Colada owns remote request state. This store remains the source of
- * truth for the local, cross-window provider snapshot.
+ * This store is the single source of truth for the cross-window provider
+ * snapshot. Provider records live in browser storage; there is no remote
+ * provider registry.
  */
 export const useProviderConfigStore = defineStore('provider-config', () => {
   const providers = useLocalStorage<Record<string, InferenceServiceProvider>>('settings/providers/configured', {}, providerStorageOptions)
@@ -65,37 +59,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       definitionId,
       config,
       status: 'unconfigured',
-      configuredBy: definition.configuredBy ?? 'user',
     }
   }
-
-  // Provider definitions own configuration lifecycle policy. Apply that
-  // policy to persisted snapshots before module pages consume them. Providers
-  // without an owner declaration remain user-configured.
-  for (const provider of Object.values(providers.value)) {
-    const configuredByDefinition = getDefinedProvider(provider.definitionId)?.configuredBy
-    if (configuredByDefinition) {
-      provider.configuredBy = configuredByDefinition
-    }
-    else if (!provider.configuredBy) {
-      provider.configuredBy = 'user'
-    }
-  }
-
-  const providersQuery = useQuery(createProvidersQueryOptions())
-  const addProviderMutation = useMutation({
-    mutation: async (provider: InferenceServiceProvider) => service.createRemote(client, provider),
-  })
-  const removeProviderMutation = useMutation({
-    mutation: async (providerId: string) => service.deleteRemote(client, providerId),
-  })
-  const updateProviderMutation = useMutation({
-    mutation: async (payload: {
-      providerId: string
-      config: Record<string, unknown>
-      status: ProviderValidationStatus
-    }) => service.patchConfigRemote(client, payload.providerId, payload.config, payload.status),
-  })
 
   const configs = computed(() => Object.fromEntries(
     Object.entries(providers.value).map(([providerId, provider]) => [providerId, provider.config]),
@@ -106,11 +71,6 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   const configuredProviders = computed(() => Object.fromEntries(
     Object.entries(providers.value).map(([providerId, provider]) => [providerId, provider.status === 'configured']),
   ))
-  const mutationError = computed(() =>
-    addProviderMutation.error.value
-    ?? removeProviderMutation.error.value
-    ?? updateProviderMutation.error.value)
-
   function getProvider(providerId: string) {
     return providers.value[providerId]
   }
@@ -133,7 +93,6 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       definitionId,
       config,
       status: 'unconfigured' as const,
-      configuredBy: definition.configuredBy ?? 'user',
     }
     providers.value[providerId] = provider
     return provider
@@ -207,44 +166,11 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
   }
 
-  function mergeProviderSnapshot(snapshot: Record<string, InferenceServiceProvider>) {
-    providers.value = { ...providers.value, ...snapshot }
-    for (const providerId of Object.keys(snapshot))
-      markProviderAdded(providerId)
-  }
-
-  async function fetchProviders() {
-    try {
-      const state = await providersQuery.refetch(true)
-      if (state.data) {
-        // The server snapshot has the highest priority for ids that exist remotely.
-        mergeProviderSnapshot(state.data)
-      }
-      return providers.value
-    }
-    catch {
-      // The merged local snapshot is authoritative while the remote endpoint is unavailable.
-      return providers.value
-    }
-  }
-
   async function addProvider(definitionId: string, initialConfig: Record<string, unknown> = {}) {
-    const provider = service.buildLocal(definitionId, initialConfig)
+    const provider = createProviderRecord(definitionId, initialConfig)
     providers.value[provider.id] = provider
     markProviderAdded(provider.id)
-
-    try {
-      const remote = await addProviderMutation.mutateAsync(provider)
-      delete providers.value[provider.id]
-      unmarkProviderAdded(provider.id)
-      providers.value[remote.id] = remote
-      markProviderAdded(remote.id)
-      return remote
-    }
-    catch {
-      // A failed remote create does not discard the local provider.
-      return provider
-    }
+    return provider
   }
 
   async function removeProvider(providerId: string) {
@@ -253,13 +179,6 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
     delete providers.value[providerId]
     unmarkProviderAdded(providerId)
-
-    try {
-      await removeProviderMutation.mutateAsync(providerId)
-    }
-    catch {
-      // A failed remote delete does not restore a provider that the user removed locally.
-    }
   }
 
   async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus) {
@@ -273,16 +192,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       status,
     }
     providers.value[providerId] = localProvider
-
-    try {
-      const remote = await updateProviderMutation.mutateAsync({ providerId, config, status })
-      providers.value[remote.id] = remote
-      return remote
-    }
-    catch {
-      // A failed remote update keeps the local provider configuration.
-      return localProvider
-    }
+    return localProvider
   }
 
   async function resetProviders() {
@@ -296,9 +206,6 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     addedProviders,
     listedProviders,
     configuredProviders,
-    isLoading: computed(() => providersQuery.isLoading.value),
-    error: computed(() => providersQuery.error.value),
-    mutationError,
 
     getProvider,
     getProviderConfig,
@@ -309,7 +216,6 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     patchProviderConfig,
     setProviderModel,
     setProviderModelIfUnset,
-    fetchProviders,
     addProvider,
     removeProvider,
     updateProviderConfig,
@@ -318,7 +224,6 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 }, {
   synced: {
     actions: [
-      'fetchProviders',
       'ensureProvider',
       'markProviderAdded',
       'unmarkProviderAdded',

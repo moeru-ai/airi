@@ -1,7 +1,7 @@
 import type { Extension } from './shared'
 
 /**
- * Defines an AIRI extension entrypoint.
+ * Defines an Moeka extension entrypoint.
  *
  * Use when:
  * - Authoring an extension package that runs setup code and may use host-provided kits

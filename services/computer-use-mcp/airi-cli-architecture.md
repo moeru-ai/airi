@@ -1,8 +1,8 @@
-# AIRI Coding CLI + Chafa Architecture
+# Moeka Coding CLI + Chafa Architecture
 
 ## Purpose
 
-Define a narrow architecture for a terminal-facing AIRI coding CLI that can
+Define a narrow architecture for a terminal-facing Moeka coding CLI that can
 optionally render an animated avatar through `chafa`, without coupling terminal
 presentation to the `computer-use-mcp` runtime.
 
@@ -290,4 +290,4 @@ Scope:
 
 - `feat(cli): define coding runner event contract`
 - `feat(cli): scaffold airi coding cli text renderer`
-- `feat(cli): add optional terminal AIRI avatar renderer with chafa`
+- `feat(cli): add optional terminal Moeka avatar renderer with chafa`

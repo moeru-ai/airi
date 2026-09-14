@@ -299,7 +299,7 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
   server.tool(
     'vscode_run_task',
     {
-      command: z.string().min(1).describe('Shell command to run (e.g. "pnpm typecheck", "pnpm test:run")'),
+      command: z.string().min(1).describe('Shell command to run (e.g. "bun run typecheck", "bun run test:run")'),
       cwd: z.string().optional().describe('Working directory for the command'),
       timeoutMs: z.number().int().min(1_000).max(300_000).optional().describe('Timeout in milliseconds (default: 60000)'),
     },
@@ -358,11 +358,11 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
     'vscode_list_problems',
     {
       cwd: z.string().optional().describe('Project root to run diagnostics from'),
-      checkCommand: z.string().optional().describe('Diagnostic command (default: "pnpm typecheck 2>&1")'),
+      checkCommand: z.string().optional().describe('Diagnostic command (default: "bun run typecheck 2>&1")'),
       maxLines: z.number().int().min(10).max(500).optional().describe('Maximum output lines to return (default: 200)'),
     },
     async ({ cwd, checkCommand, maxLines }) => {
-      const command = checkCommand ?? 'pnpm typecheck 2>&1'
+      const command = checkCommand ?? 'bun run typecheck 2>&1'
       const limit = maxLines ?? 200
       const terminal = await runTerminalCommand(executeTerminalCommand, {
         command,

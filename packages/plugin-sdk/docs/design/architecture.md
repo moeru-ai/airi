@@ -1,9 +1,9 @@
 ---
-title: AIRI Plugin Platform
+title: Moeka Plugin Platform
 description: Architecture for plugins, bridges, and multi-device orchestration
 ---
 
-# AIRI Plugin Platform
+# Moeka Plugin Platform
 
 - [Summary](#summary)
 - [Background](#background)
@@ -31,11 +31,11 @@ description: Architecture for plugins, bridges, and multi-device orchestration
 
 ## Summary
 
-AIRI is a multi-node system where plugins, bridges, and viewers communicate over Eventa transports. A Plugin Host loads plugins, provides a single API surface, and routes control and data across devices. The platform separates the control plane from the data plane, supports local and remote plugins, and enables multi-device orchestration without changing plugin APIs.
+Moeka is a multi-node system where plugins, bridges, and viewers communicate over Eventa transports. A Plugin Host loads plugins, provides a single API surface, and routes control and data across devices. The platform separates the control plane from the data plane, supports local and remote plugins, and enables multi-device orchestration without changing plugin APIs.
 
 ## Background
 
-AIRI needs to run across desktop, web, and mobile while keeping one clean API surface. Plugins must be able to register UI, declare capabilities, and exchange data with device-specific bridges. To keep the system scalable, high-rate streams must be separated from lifecycle and configuration traffic.
+Moeka needs to run across desktop, web, and mobile while keeping one clean API surface. Plugins must be able to register UI, declare capabilities, and exchange data with device-specific bridges. To keep the system scalable, high-rate streams must be separated from lifecycle and configuration traffic.
 
 Runtime dependency orchestration is intentionally split into a dedicated design document to keep this architecture document focused on platform shape and planes.
 
@@ -100,7 +100,7 @@ Both planes use Eventa messages. Transport options:
 The Plugin Host is a Node process that:
 
 - Loads plugin entrypoints.
-- Exposes the AIRI SDK.
+- Exposes the Moeka SDK.
 - Registers UI contributions.
 - Negotiates capabilities.
 - Connects to control and data planes.
@@ -138,7 +138,7 @@ Detailed capability dependency orchestration, waiting phases, and readiness gate
 
 ### Bridges And Remote Plugins
 
-Bridges connect external devices and services to AIRI. They do not own UI; they only provide data and actions. Examples:
+Bridges connect external devices and services to Moeka. They do not own UI; they only provide data and actions. Examples:
 
 - VS Code extension for editor context and commands.
 - Browser extension for page context.
@@ -181,7 +181,7 @@ Example:
 ```json
 {
   "id": "airi.vscode",
-  "name": "AIRI VS Code",
+  "name": "Moeka VS Code",
   "version": "1.0.0",
   "capabilities": ["context.read", "ui.panel", "commands"],
   "entrypoints": {

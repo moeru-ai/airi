@@ -1,11 +1,11 @@
 {
   "publisher": "proj-airi",
   "name": "vscode-airi",
-  "displayName": "AIRI VSCode adapter",
+  "displayName": "Moeka VSCode adapter",
   "type": "module",
   "version": "0.12.0-beta.5",
   "private": true,
-  "description": "Adapter that connects VSCode into Project AIRI",
+  "description": "Adapter that connects VSCode into Project Moeka",
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
@@ -27,24 +27,24 @@
     "commands": [
       {
         "command": "airi-vscode.enable",
-        "title": "AIRI: Enable"
+        "title": "Moeka: Enable"
       },
       {
         "command": "airi-vscode.disable",
-        "title": "AIRI: Disable"
+        "title": "Moeka: Disable"
       },
       {
         "command": "airi-vscode.status",
-        "title": "AIRI: Show Status"
+        "title": "Moeka: Show Status"
       }
     ],
     "configuration": {
-      "title": "AIRI",
+      "title": "Moeka",
       "properties": {
         "airi-vscode.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable or disable the AIRI extension"
+          "description": "Enable or disable the Moeka extension"
         },
         "airi-vscode.contextLines": {
           "type": "number",
@@ -60,7 +60,7 @@
     }
   },
   "scripts": {
-    "prepare": "pnpm run update",
+    "prepare": "bun run update",
     "update": "tsx ./scripts/vscode-ext-gen.ts",
     "dev": "tsdown --watch",
     "build": "tsdown",

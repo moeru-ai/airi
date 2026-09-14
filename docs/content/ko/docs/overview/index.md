@@ -33,8 +33,6 @@ description: Project AIRI의 UI를 알아보세요
 
 ## 시작하기
 
-저희는 웹과 데스크톱을 모두 지원합니다.
-
 <div flex gap-2 w-full justify-center text-xl>
   <div w-full flex flex-col items-center gap-2 border="2 solid gray-500/10" rounded-lg px-2 pt-6 pb-4>
     <div flex items-center gap-2 text-5xl>
@@ -45,35 +43,11 @@ description: Project AIRI의 UI를 알아보세요
       열기
     </a>
   </div>
-  <div w-full flex flex-col items-center gap-2 border="2 solid gray-500/10" rounded-lg px-2 pt-6 pb-4>
-    <div flex items-center gap-2 text-5xl>
-      <div i-lucide:laptop />
-      /
-      <div i-lucide:computer />
-    </div>
-    <span>데스크톱</span>
-    <a href="https://github.com/moeru-ai/airi/releases/latest" target="_blank" decoration-none class="text-primary-900 dark:text-primary-400 text-base not-prose bg-primary-400/10 dark:bg-primary-600/10 block px-4 py-2 rounded-lg active:scale-95 transition-all duration-200 ease-in-out">
-      다운로드
-    </a>
-  </div>
 </div>
 
 웹 버전은 모바일 기기를 포함해 어디서나 손쉽게 접근할 수 있습니다.
-데스크톱은 VTuber 스트리밍, 컴퓨터 조작, 그리고 AIRI를 돌리기 위해 막대한 양의 토큰 비용을
-지불할 필요가 없는 로컬 LLM 접근 등 더 고급 용도에 적합합니다.
 
 <div flex gap-2 w-full flex-col justify-center text-base>
-  <a href="../manual/tamagotchi/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
-    <div w-full flex items-center gap-2>
-      <div flex items-center gap-2 text-2xl>
-        <div i-lucide:laptop />
-      </div>
-      <span>데스크톱</span>
-    </div>
-    <div decoration-none class="text-gray-900 dark:text-gray-200 text-base not-prose rounded-lg active:scale-95 transition-all duration-200 ease-in-out text-nowrap">
-      사용법 보기
-    </div>
-  </a>
   <a href="../manual/web/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
     <div w-full flex items-center gap-2>
       <div flex items-center gap-2 text-2xl>

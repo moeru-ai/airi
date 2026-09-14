@@ -7,7 +7,7 @@ Satori 봇은 Koishi의 Satori 서비스를 통해 QQ, Telegram, Discord, Lark �
 
 ## 사전 준비 사항
 
-- 저장소 루트에서 **pnpm i**로 의존성을 설치하세요.
+- 저장소 루트에서 **bun install**로 의존성을 설치하세요.
 - **server-satori** 플러그인이 활성화된 Koishi 인스턴스를 실행하세요.
 - OpenAI 호환 API를 제공하는 모델 서비스를 준비하세요.
 
@@ -26,7 +26,7 @@ cp integrations/satori-bot/.env integrations/satori-bot/.env.local
 ## 시작
 
 ```bash
-pnpm -F @proj-airi/satori-bot dev
+bun run --filter @proj-airi/satori-bot dev
 ```
 
 ## 참고 사항

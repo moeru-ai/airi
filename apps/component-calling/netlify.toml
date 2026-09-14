@@ -1,6 +1,6 @@
 [build]
 base = "/"
-command = "pnpm -F @proj-airi/stream-vue-components... run build"
+command = "bun run --filter @proj-airi/stream-vue-components build"
 publish = "/apps/stream-vue-components/dist"
 
 [build.environment]

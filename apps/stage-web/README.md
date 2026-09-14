@@ -8,7 +8,7 @@
 
 ## Performance diagnostics
 
-Run `pnpm dev:web:https` from the repository root. Open `/devtools/performance-visualizer` and enable FPS.
+Run `bun run dev:web:https` from the repository root. Open `/devtools/performance-visualizer` and enable FPS.
 The floating overlay shows the last 10 seconds of FPS history, with time and FPS axes.
 The minimum, maximum, and latest values describe the visible samples. Other metrics retain their distribution charts.
 

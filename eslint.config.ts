@@ -17,14 +17,8 @@ export default defineConfig({
     'crowdin.yml',
     '**/assets/js/**',
     '**/assets/live2d/models/**',
-    'apps/stage-tamagotchi/out/**',
-    'apps/stage-tamagotchi/src/bindings/**',
-    'apps/stage-tamagotchi-electron/out/**',
-    'apps/stage-tamagotchi-electron/src/renderer/bindings/**',
     '**/flatpak/**',
     '**/flatpak-repo/**',
-    'apps/stage-pocket/ios/**',
-    'apps/stage-pocket/android/**',
     '**/drizzle/**',
     '**/.astro/**',
     'docs/superpowers/**',
@@ -73,30 +67,6 @@ export default defineConfig({
     'style/padding-line-between-statements': 'error',
     'vue/prefer-separate-static-class': 'off',
     'yaml/plain-scalar': 'off',
-  },
-}, {
-  files: ['server/apps/api/**/*.ts'],
-  rules: {
-    'no-restricted-syntax': [
-      'error',
-      {
-        message: 'Do not mock internal project modules with vi.mock or vi.doMock. Inject the collaborator through the route, service, or factory boundary and pass a fake or spy in tests.',
-        selector: 'CallExpression[callee.type=\'MemberExpression\'][callee.object.name=\'vi\'][callee.property.name=/^(mock|doMock)$/][arguments.0.type=\'Literal\'][arguments.0.value=/^(\\.|@proj-airi\\/|~)/]',
-      },
-      {
-        message: 'Do not use vi.hoisted. If a test needs a collaborator spy, expose an explicit dependency injection point instead of hoisting module mocks.',
-        selector: 'CallExpression[callee.type=\'MemberExpression\'][callee.object.name=\'vi\'][callee.property.name=\'hoisted\']',
-      },
-      {
-        message: 'Omit TypeScript and JavaScript source extensions from relative imports, dynamic imports, and re-exports.',
-        selector: [
-          'ImportDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
-          'ExportNamedDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
-          'ExportAllDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
-          'ImportExpression[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
-        ].join(', '),
-      },
-    ],
   },
 }, {
   ignores: [

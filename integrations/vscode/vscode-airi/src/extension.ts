@@ -20,7 +20,7 @@ interface IntervalHandle {
 export async function activate(context: vscode.ExtensionContext) {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
 
-  useLogger().log('AIRI is activating...')
+  useLogger().log('Moeka is activating...')
 
   // Get the configuration
   const config = workspace.getConfiguration('airi-vscode')
@@ -76,10 +76,10 @@ async function setup(params: {
   if (params.isEnabled) {
     const connected = await params.client.connect()
     if (connected) {
-      window.showInformationMessage('AIRI Server Channel connected!')
+      window.showInformationMessage('Moeka Server Channel connected!')
     }
     else {
-      window.showWarningMessage('AIRI Server Channel connection failed!')
+      window.showWarningMessage('Moeka Server Channel connection failed!')
     }
   }
 
@@ -89,19 +89,19 @@ async function setup(params: {
       params.isEnabled = true
       await params.client.connect()
       await registerListeners({ ...params })
-      window.showInformationMessage('AIRI enabled!')
+      window.showInformationMessage('Moeka enabled!')
     }),
 
     commands.registerCommand('airi-vscode.disable', () => {
       params.isEnabled = false
       unregisterListeners({ eventListeners: params.eventListeners, controlLoopInterval: params.controlLoopInterval })
       params.client.disconnect()
-      window.showInformationMessage('AIRI disabled!')
+      window.showInformationMessage('Moeka disabled!')
     }),
 
     commands.registerCommand('airi-vscode.status', () => {
       const status = params.isEnabled && params.client ? 'Connected' : 'Disconnected'
-      window.showInformationMessage(`AIRI Server Channel status: ${status}.`)
+      window.showInformationMessage(`Moeka Server Channel status: ${status}.`)
     }),
   )
 
@@ -110,7 +110,7 @@ async function setup(params: {
     await registerListeners({ ...params })
   }
 
-  useLogger().log('AIRI activated successfully')
+  useLogger().log('Moeka activated successfully')
 }
 
 /**
@@ -238,5 +238,5 @@ export async function deactivate() {
 
   unregisterListeners({ eventListeners, controlLoopInterval })
   client?.disconnect()
-  useLogger().log('AIRI deactivated!')
+  useLogger().log('Moeka deactivated!')
 }

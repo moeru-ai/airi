@@ -16,8 +16,7 @@ export const TERMINAL_OUTPUT_MAX_CHARS = 16_384
 
 /**
  * Grace period between SIGTERM and SIGKILL when reaping a timed-out command's
- * process group. Mirrors the SIGTERM -> 5s -> SIGKILL escalation already used
- * by the stage-tamagotchi desktop-overlay smoke harness.
+ * process group.
  */
 const PROCESS_GROUP_KILL_GRACE_MS = 5_000
 

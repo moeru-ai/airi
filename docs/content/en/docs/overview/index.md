@@ -1,6 +1,6 @@
 ---
 title: Introduction
-description: Get to know the UI of Project AIRI
+description: Get to know the UI of Project Moeka
 ---
 
 ### TL;DR
@@ -31,12 +31,12 @@ currently the best companion capable of playing games, chatting, and interacting
 with you and the participants (in VTuber community), some call this kind of being,
 "digital human" too. **Sadly, it's not open sourced, you cannot interact with her after she went offline from live stream**.
 
-Therefore, this project, AIRI, offers another possibility here:
+Therefore, this project, Moeka, offers another possibility here:
 **let you own your digital life, cyber living, easily, anywhere, anytime**.
 
 ## Getting started
 
-We do support both Web and Desktop.
+Moeka runs in the browser only.
 
 <div flex gap-2 w-full justify-center text-xl>
   <div w-full flex flex-col items-center gap-2 border="2 solid gray-500/10" rounded-lg px-2 pt-6 pb-4>
@@ -48,36 +48,11 @@ We do support both Web and Desktop.
       Open
     </a>
   </div>
-  <div w-full flex flex-col items-center gap-2 border="2 solid gray-500/10" rounded-lg px-2 pt-6 pb-4>
-    <div flex items-center gap-2 text-5xl>
-      <div i-lucide:laptop />
-      /
-      <div i-lucide:computer />
-    </div>
-    <span>Desktop</span>
-    <a href="https://github.com/moeru-ai/airi/releases/latest" target="_blank" decoration-none class="text-primary-900 dark:text-primary-400 text-base not-prose bg-primary-400/10 dark:bg-primary-600/10 block px-4 py-2 rounded-lg active:scale-95 transition-all duration-200 ease-in-out">
-      Download
-    </a>
-  </div>
 </div>
 
 The web version offers easy access from anywhere, even on mobile devices.
-Desktop suits for more advanced usage such as VTuber streaming, computer use
-and accessing to local LLMs where you don't need to pay for massive amount
-of tokens for running AIRI.
 
 <div flex gap-2 w-full flex-col justify-center text-base>
-  <a href="../manual/tamagotchi/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
-    <div w-full flex items-center gap-2>
-      <div flex items-center gap-2 text-2xl>
-        <div i-lucide:laptop />
-      </div>
-      <span>Desktop</span>
-    </div>
-    <div decoration-none class="text-gray-900 dark:text-gray-200 text-base not-prose rounded-lg active:scale-95 transition-all duration-200 ease-in-out text-nowrap">
-      How to use?
-    </div>
-  </a>
   <a href="../manual/web/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
     <div w-full flex items-center gap-2>
       <div flex items-center gap-2 text-2xl>
@@ -95,4 +70,4 @@ of tokens for running AIRI.
 
 For guides that help you understand how to contribute to this project, please refer to [Contributing](../contributing/) page.
 
-For references to help you design and improve the UI of Project AIRI, please refer to [Design Guidelines](../contributing/design-guidelines/resources) page.
+For references to help you design and improve the UI of Project Moeka, please refer to [Design Guidelines](../contributing/design-guidelines/resources) page.

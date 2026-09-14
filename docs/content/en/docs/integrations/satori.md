@@ -1,13 +1,13 @@
 ---
 title: Satori Bot
-description: Bridge AIRI to multiple messaging platforms through Koishi and the Satori protocol
+description: Bridge Moeka to multiple messaging platforms through Koishi and the Satori protocol
 ---
 
-The Satori bot connects to messaging platforms such as QQ, Telegram, Discord, and Lark through Koishi's Satori service. The current standalone core is transitional and is suitable for experiments and maintenance; it should not be treated as a stable AIRI Core integration.
+The Satori bot connects to messaging platforms such as QQ, Telegram, Discord, and Lark through Koishi's Satori service. The current standalone core is transitional and is suitable for experiments and maintenance; it should not be treated as a stable Moeka Core integration.
 
 ## Prerequisites
 
-- Install dependencies from the repository root with **pnpm i**.
+- Install dependencies from the repository root with **bun install**.
 - Run a Koishi instance with the **server-satori** plugin enabled.
 - Provide a model service with an OpenAI-compatible API.
 
@@ -26,7 +26,7 @@ Edit **integrations/satori-bot/.env.local** and provide **SATORI_WS_URL**, **SAT
 ## Start
 
 ```bash
-pnpm -F @proj-airi/satori-bot dev
+bun run --filter @proj-airi/satori-bot dev
 ```
 
 ## Notes

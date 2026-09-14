@@ -15,7 +15,7 @@
  * Node.js process on the host machine.
  *
  * Usage:
- *   pnpm -F @proj-airi/computer-use-mcp e2e:terminal-pty
+ *   bun run --filter @proj-airi/computer-use-mcp e2e:terminal-pty
  */
 
 import { dirname, resolve } from 'node:path'
@@ -51,7 +51,7 @@ function requireStructuredContent(result: unknown, label: string): Record<string
 }
 
 async function createClient(): Promise<Client> {
-  const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'pnpm'
+  const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'bun'
   const args = (env.COMPUTER_USE_SMOKE_SERVER_ARGS || 'start').split(WHITESPACE_SPLIT_RE).filter(Boolean)
   const cwd = env.COMPUTER_USE_SMOKE_SERVER_CWD?.trim() || packageDir
 

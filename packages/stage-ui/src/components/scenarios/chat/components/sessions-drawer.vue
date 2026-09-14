@@ -10,12 +10,11 @@ import SessionsDialog from './sessions-dialog.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
-import { extractMessageText } from '../../../../libs/chat-sync'
-import { useAuthStore } from '../../../../stores/auth'
 import { useChatStore } from '../../../../stores/chat'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
+import { getChatHistoryItemCopyText } from '../utils'
 
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
 
@@ -26,7 +25,6 @@ const chatSession = useChatSessionStore()
 const chat = useChatStore()
 const { sessionMetas, sessionMessages, activeSessionId } = storeToRefs(chatSession)
 const { activeCardId } = storeToRefs(useAiriCardStore())
-const { userId } = storeToRefs(useAuthStore())
 const { activeModel } = storeToRefs(useConsciousnessStore())
 const { trackChatSessionSelected, trackChatSessionStarted } = useAnalytics()
 
@@ -34,11 +32,7 @@ const { trackChatSessionSelected, trackChatSessionStarted } = useAnalytics()
 // second click from creating an orphan session while the first is pending.
 const isCreatingSession = ref(false)
 
-// Keep another account's sessions hidden while an account swap rehydrates.
-const ownedSessions = computed(() => {
-  const effectiveUserId = userId.value || 'local'
-  return Object.values(sessionMetas.value).filter(meta => meta.userId === effectiveUserId)
-})
+const ownedSessions = computed(() => Object.values(sessionMetas.value))
 
 /**
  * Normalizes a session into its one-line drawer preview.
@@ -55,7 +49,7 @@ function previewFor(meta: ChatSessionMeta): string {
   for (const message of messages) {
     if (message.role === 'system')
       continue
-    const trimmed = extractMessageText(message).replace(/\s+/g, ' ').trim()
+    const trimmed = getChatHistoryItemCopyText(message).replace(/\s+/g, ' ').trim()
     if (trimmed)
       return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed
   }
@@ -110,7 +104,6 @@ async function selectSession(sessionId: string) {
     trackChatSessionSelected({
       source: 'sessions_drawer',
       message_count: (sessionMessages.value[sessionId] ?? []).filter(message => message.role !== 'system').length,
-      cloud_synced: !!selectedRow.meta.cloudChatId,
     })
   }
   await chatSession.setActiveSession(sessionId)

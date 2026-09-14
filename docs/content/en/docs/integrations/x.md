@@ -1,9 +1,9 @@
 ---
 title: X / Twitter (unavailable)
-description: Current implementation status of AIRI's X / Twitter integration
+description: Current implementation status of Moeka's X / Twitter integration
 ---
 
-The X / Twitter integration is not functional in AIRI 0.11.3. Although **Settings → Modules → X / Twitter** displays credential fields and can show **configured**, the app cannot currently deliver that configuration to the separate X service.
+The X / Twitter integration is not functional in Moeka 0.11.3. Although **Settings → Modules → X / Twitter** displays credential fields and can show **configured**, the app cannot currently deliver that configuration to the separate X service.
 
 ::: warning Do not enter X credentials
 
@@ -12,9 +12,9 @@ Do not enter an API Key, API Secret, Access Token, or Access Token Secret in the
 
 ## Current limitation
 
-Before investigating the protocol mismatch, contributors must start the external process with `ENABLE_AIRI=true`, `AIRI_URL=ws://localhost:6121/ws`, and an `AIRI_TOKEN` that matches **Settings → Connection → Auth Token**. The checked-in defaults disable the AIRI adapter, point it to `http://localhost:3000`, and provide no token. Correcting these settings only allows the service to connect; it does not repair the incompatible configuration flow described below.
+Before investigating the protocol mismatch, contributors must start the external process with `ENABLE_AIRI=true`, `AIRI_URL=ws://localhost:6121/ws`, and an `AIRI_TOKEN` that matches **Settings → Connection → Auth Token**. The checked-in defaults disable the Moeka adapter, point it to `http://localhost:3000`, and provide no token. Correcting these settings only allows the service to connect; it does not repair the incompatible configuration flow described below.
 
-The AIRI module publishes configuration under the module name `twitter`, while the external service expects `x`. The channel protocols also disagree: the server forwards configuration as `module:configure` with a `{ config }` payload, but the service listens for `ui:configure` and expects a `moduleName` field. The external service also runs as a separate process and is not started by AIRI. Fixing only the module name or starting the service manually is therefore not enough to make the form work.
+The Moeka module publishes configuration under the module name `twitter`, while the external service expects `x`. The channel protocols also disagree: the server forwards configuration as `module:configure` with a `{ config }` payload, but the service listens for `ui:configure` and expects a `moduleName` field. The external service also runs as a separate process and is not started by Moeka. Fixing only the module name or starting the service manually is therefore not enough to make the form work.
 
 There is no supported end-user workaround. Contributors investigating the implementation can compare:
 
@@ -23,4 +23,4 @@ There is no supported end-user workaround. Contributors investigating the implem
 
 ## Credential security
 
-If you previously entered credentials, remove them from AIRI and rotate them in the [X Developer Portal](https://developer.x.com/en/portal/dashboard) if they may have been exposed. Never commit, screenshot, or share X credentials.
+If you previously entered credentials, remove them from Moeka and rotate them in the [X Developer Portal](https://developer.x.com/en/portal/dashboard) if they may have been exposed. Never commit, screenshot, or share X credentials.

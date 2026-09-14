@@ -184,7 +184,7 @@ const buttons = computed(() => theme.value.homepage?.buttons || [])
 
     <footer class="fixed bottom-3 left-1/2 z-40 flex justify-end -translate-x-1/2">
       <div class="rounded-full bg-white/80 px-3 py-2 text-sm text-slate-700 backdrop-blur-md dark:bg-white/20 dark:text-slate-900" text="nowrap">
-        Since 2024 @ <a href="https://github.com/proj-airi">Project AIRI</a> × <a href="https://github.com/moeru-ai">萌える AI 研究会</a>
+        Since 2024 @ <a href="https://github.com/proj-airi">Project Moeka</a> × <a href="https://github.com/moeru-ai">萌える AI 研究会</a>
       </div>
     </footer>
   </div>

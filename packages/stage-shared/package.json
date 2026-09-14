@@ -4,7 +4,7 @@
   "private": true,
   "description": "Shared",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },
@@ -20,7 +20,6 @@
     "./analytics/openpanel": "./src/analytics/openpanel.ts",
     "./beat-sync": "./src/beat-sync/index.ts",
     "./global-shortcut": "./src/global-shortcut/index.ts",
-    "./godot-stage": "./src/godot-stage/index.ts",
     "./perf/io-trace": "./src/perf/io-trace.ts",
     "./server-channel-qr": "./src/server-channel-qr.ts",
     "./types/io-trace": "./src/types/io-trace.ts",

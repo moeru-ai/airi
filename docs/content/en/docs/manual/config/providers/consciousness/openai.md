@@ -1,6 +1,6 @@
 ---
 title: OpenAI and compatible APIs
-description: Configuring OpenAI or an OpenAI-compatible chat service in AIRI
+description: Configuring OpenAI or an OpenAI-compatible chat service in Moeka
 is_openai_compatible: true
 ---
 
@@ -20,7 +20,7 @@ If you already have an OpenAI API Key, or the service provider explicitly provid
 Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the provider console.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Chat → OpenAI** or **OpenAI Compatible**.
 2. Paste the API Key into the basic settings.
@@ -28,7 +28,7 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Verify configuration
 
-1. **Validate configuration**: AIRI validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
+1. **Validate configuration**: Moeka validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
 2. **Select Model →**: After validation succeeds, use this button to open **Settings → Modules → Consciousness**, then select the provider and model.
 
 ## Troubleshooting

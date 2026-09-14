@@ -3,10 +3,9 @@ import type {} from 'pinia-plugin-synced'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
-import { useAuthStore } from './auth'
 import { useProviderConfigStore } from './providers/config'
 
-const essentialProviderIds = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible', 'official-provider'] as const
+const essentialProviderIds = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible'] as const
 const credentialBasedEssentialProviderIds = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'deepseek'] as const
 
 function hasNonEmptyText(value: unknown): boolean {
@@ -34,20 +33,12 @@ const useOnboardingStateStore = defineStore('onboarding-state', () => {
   // storage events cannot become a second state propagation channel.
   const hasCompletedSetup = ref(storage.getCompleted())
   const hasSkippedSetup = ref(storage.getSkipped())
-  // This counter is a transient cross-window command. The Electron onboarding
-  // renderer owns the actual BrowserWindow close side effect.
-  const closeRequestId = ref(0)
 
   function markSetupCompleted() {
     hasCompletedSetup.value = true
     hasSkippedSetup.value = false
     storage.setCompleted(true)
     storage.setSkipped(false)
-  }
-
-  function closeAfterAuthentication() {
-    markSetupCompleted()
-    closeRequestId.value += 1
   }
 
   function markSetupSkipped() {
@@ -63,8 +54,6 @@ const useOnboardingStateStore = defineStore('onboarding-state', () => {
   }
 
   return {
-    closeAfterAuthentication,
-    closeRequestId,
     hasCompletedSetup,
     hasSkippedSetup,
     markSetupCompleted,
@@ -74,7 +63,6 @@ const useOnboardingStateStore = defineStore('onboarding-state', () => {
 }, {
   synced: {
     actions: [
-      'closeAfterAuthentication',
       'markSetupCompleted',
       'markSetupSkipped',
       'resetSetupState',
@@ -85,9 +73,7 @@ const useOnboardingStateStore = defineStore('onboarding-state', () => {
 
 export const useOnboardingStore = defineStore('onboarding', () => {
   const providerStore = useProviderConfigStore()
-  const authStore = useAuthStore()
   const onboardingStateStore = useOnboardingStateStore()
-  const closeRequestId = computed(() => onboardingStateStore.closeRequestId)
   const hasCompletedSetup = computed(() => onboardingStateStore.hasCompletedSetup)
   const hasSkippedSetup = computed(() => onboardingStateStore.hasSkippedSetup)
 
@@ -120,14 +106,10 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   })
 
   // Check if first-time setup should be shown
-  const skipOnboardingPath = ['/auth/callback']
   const needsOnboarding = computed(() =>
-    !authStore.isAuthenticated
-    && !authStore.token
-    && !hasSkippedSetup.value
+    !hasSkippedSetup.value
     && !hasCompletedSetup.value
-    && !hadEssentialProviderConfiguredAtStartup
-    && !skipOnboardingPath.includes(document.location.pathname),
+    && !hadEssentialProviderConfiguredAtStartup,
   )
 
   // Keep in-memory display flag aligned with persisted onboarding status
@@ -141,11 +123,6 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   function markSetupCompleted() {
     showingSetup.value = false
     return onboardingStateStore.markSetupCompleted()
-  }
-
-  function closeAfterAuthentication() {
-    showingSetup.value = false
-    return onboardingStateStore.closeAfterAuthentication()
   }
 
   function markSetupSkipped() {
@@ -167,12 +144,10 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     hasCompletedSetup,
     hasSkippedSetup,
     showingSetup,
-    closeRequestId,
     hasEssentialProviderConfigured,
     hasEssentialProviderCredentialConfigured,
     needsOnboarding,
 
-    closeAfterAuthentication,
     markSetupCompleted,
     markSetupSkipped,
     resetSetupState,

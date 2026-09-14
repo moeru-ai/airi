@@ -24,7 +24,7 @@ interface InvalidEventErrorOptions {
   source?: unknown
 }
 
-/** Error thrown when parsed websocket text is not an AIRI event envelope. */
+/** Error thrown when parsed websocket text is not an Moeka event envelope. */
 export class InvalidEventError extends Error {
   readonly source?: unknown
 
@@ -35,7 +35,7 @@ export class InvalidEventError extends Error {
   }
 }
 
-/** Checks whether an error came from AIRI websocket event envelope validation. */
+/** Checks whether an error came from Moeka websocket event envelope validation. */
 export function isInvalidEventError(error: unknown): error is InvalidEventError {
   return error instanceof InvalidEventError
 }
@@ -47,14 +47,14 @@ export function heartbeatFrameFrom(text: string): MessageHeartbeatKind | undefin
   }
 }
 
-/** Parses one AIRI websocket protocol event from SuperJSON or plain JSON text. */
+/** Parses one Moeka websocket protocol event from SuperJSON or plain JSON text. */
 export function parseEvent(text: string): WebSocketEvent {
   // NOTICE:
   // SDK clients send events using superjson.stringify, so websocket runtime code must
   // use superjson.parse instead of message.json() or plain JSON.parse first.
   // JSON.parse on a superjson-encoded string returns the wrapper object
   // `{ json: {...}, meta: {...} }` with no protocol `type`, which breaks routing.
-  // Keep this until all AIRI websocket clients share one non-wrapper wire format.
+  // Keep this until all Moeka websocket clients share one non-wrapper wire format.
   let parsed: WebSocketEvent | undefined
   try {
     parsed = parse<WebSocketEvent>(text)
@@ -75,7 +75,7 @@ export function parseEvent(text: string): WebSocketEvent {
   return potentialEvent as WebSocketEvent
 }
 
-/** Serializes one AIRI websocket protocol event with the existing SuperJSON wire format. */
+/** Serializes one Moeka websocket protocol event with the existing SuperJSON wire format. */
 export function stringifyEvent(event: WebSocketBaseEvent<string, unknown> | string) {
   return typeof event === 'string' ? event : stringify(event)
 }

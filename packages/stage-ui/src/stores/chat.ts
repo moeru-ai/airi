@@ -14,22 +14,14 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { shallowRef, toRaw } from 'vue'
 
-import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
-import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
-import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
-import {
-  AIRI_CHAT_APP_SURFACE_HEADER,
-  AIRI_CHAT_ROUND_ID_HEADER,
-  AIRI_CHAT_SESSION_ID_HEADER,
-} from '../libs/product-signals/headers'
+import { createChatAnalyticsHooks } from '../libs/product-signals/events/chat'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
-import { useAuthStore } from './auth'
-import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { createMinecraftContext, createRuntimePromptContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -144,7 +136,6 @@ export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 export const useChatStore = defineStore('chat', () => {
   const runtimePrompt = useAiriRuntimePrompt()
-  const authStore = useAuthStore()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
@@ -177,28 +168,25 @@ export const useChatStore = defineStore('chat', () => {
 
   /**
    * Initializes chat state and binds local consumers to synchronized leadership.
-   * A promoted renderer restarts the leader-owned cloud consumer.
+   * A promoted renderer re-runs the leader-owned session bootstrap.
    */
   async function initialize(syncedPinia: SyncedPiniaRuntime) {
     stopLeadershipListener ??= syncedPinia.onLeadershipChange((isLeader) => {
-      if (!isLeader) {
-        chatSession.dispose()
+      if (!isLeader)
         return
-      }
 
       void chatSession.ensureCurrentSession().catch((error) => {
-        console.error('[chat] Failed to start chat consumers after leader promotion:', error)
+        console.error('[chat] Failed to ensure the chat session after leader promotion:', error)
       })
     })
 
     await chatSession.initialize()
   }
 
-  /** Stops chat consumers that belong to this window. */
+  /** Detaches the leadership listener owned by this window. */
   function dispose() {
     stopLeadershipListener?.()
     stopLeadershipListener = undefined
-    chatSession.dispose()
   }
 
   async function streamWithStageAdapters(
@@ -211,11 +199,6 @@ export const useChatStore = defineStore('chat', () => {
     let llmOutputChunkCount = 0
     const llmOutputChunkLengths: number[] = []
     const headers = { ...options?.headers }
-    if (getProviderMode(activeProvider.value) === 'official' && options?.requestCorrelation) {
-      headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
-      headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.roundId
-      headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
-    }
 
     const hadExistingTurn = !!activeTurnSpan.value
     if (!hadExistingTurn) {
@@ -290,15 +273,7 @@ export const useChatStore = defineStore('chat', () => {
     },
     context: {
       ingest: envelope => chatContext.ingestContextMessage(envelope),
-      snapshot: () => {
-        const snapshot = { ...chatContext.getContextsSnapshot() }
-        // Account data belongs to this request, not the persistent context registry.
-        // A signed-out request therefore cannot inherit the previous account snapshot.
-        const account = createUserAccountContext(authStore)
-        if (account)
-          snapshot[account.contextId] = [account]
-        return snapshot
-      },
+      snapshot: () => ({ ...chatContext.getContextsSnapshot() }),
     },
     foregroundStream: {
       patch: (message) => {
@@ -336,23 +311,6 @@ export const useChatStore = defineStore('chat', () => {
         roundId,
         turnIndex,
       })
-      if (isCloudSyncableMessage(message)) {
-        void chatSession.pushMessageToCloud(sessionId, {
-          id: message.id,
-          role: 'user',
-          content: messageText,
-          replyToMessageId: message.replyToMessageId,
-        })
-      }
-    },
-    onAssistantMessageAppended: ({ sessionId, message }) => {
-      if (isCloudSyncableMessage(message) && message.id) {
-        void chatSession.pushMessageToCloud(sessionId, {
-          id: message.id,
-          role: 'assistant',
-          content: extractMessageText(message),
-        })
-      }
     },
     onUserTurnReady: ({ messageText, sessionMessages }) => {
       const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'

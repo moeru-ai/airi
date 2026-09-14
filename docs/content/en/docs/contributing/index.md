@@ -1,12 +1,12 @@
 ---
 title: Development Setup and Your First Contribution
-description: Run Project AIRI locally and submit your first pull request
+description: Run Project Moeka locally and submit your first pull request
 ---
 
-Hello! Thank you for your interest in contributing to Project AIRI. This guide explains how to set up a local development environment, create a branch, and submit your first pull request.
+Hello! Thank you for your interest in contributing to Project Moeka. This guide explains how to set up a local development environment, create a branch, and submit your first pull request.
 
 ::: info Scope
-This section is for contributors who want to change source code, documentation, or design resources. If you only want to use AIRI, start with the user manual. For the debugging tools built into the app, see [Developer Tools](./desktop-developer-tools).
+This section is for contributors who want to change source code, documentation, or design resources. If you only want to use Moeka, start with the user manual.
 :::
 
 ## Prerequisites
@@ -14,7 +14,7 @@ This section is for contributors who want to change source code, documentation, 
 - [Git](https://git-scm.com/downloads)
 - [mise](https://mise.jdx.dev/installing-mise.html), or another version manager that reads `.tool-versions`
 
-The repository pins Node.js and pnpm in [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions). The `packageManager` field in [`package.json`](https://github.com/moeru-ai/airi/blob/main/package.json) also specifies the pnpm version. After you clone the repository, install these versions with mise.
+The repository pins Node.js and Bun in [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions). The `packageManager` field in [`package.json`](https://github.com/moeru-ai/airi/blob/main/package.json) also specifies the Bun version. After you clone the repository, install these versions with mise.
 
 <details>
 <summary>Windows setup</summary>
@@ -62,7 +62,7 @@ The repository pins Node.js and pnpm in [`.tool-versions`](https://github.com/mo
 Skip this section if you have not cloned the repository yet.
 :::
 
-If the `upstream` remote is not configured, add the Project AIRI repository before you fetch changes:
+If the `upstream` remote is not configured, add the Project Moeka repository before you fetch changes:
 
 ```shell
 git remote add upstream https://github.com/moeru-ai/airi.git
@@ -108,24 +108,24 @@ From the repository root, install the tools recorded in `.tool-versions`:
 mise install
 ```
 
-Check the Node.js and pnpm versions:
+Check the Node.js and Bun versions:
 
 ```shell
 mise exec -- node --version
-mise exec -- pnpm --version
+mise exec -- bun --version
 ```
 
-The reported versions must match `.tool-versions`. The pnpm version must also match the `packageManager` field in `package.json`.
+The reported versions must match `.tool-versions`. The Bun version must also match the `packageManager` field in `package.json`.
 
-mise installs pnpm directly, so this setup does not require Corepack. [Node.js 25 and later do not bundle Corepack](https://github.com/nodejs/corepack#how-to-install).
+mise installs Bun directly, so this setup does not require a separate package-manager bootstrap step.
 
 Install the project dependencies:
 
 ```shell
-mise exec -- pnpm install
+mise exec -- bun install
 ```
 
-The remaining examples assume that [mise is activated for your shell](https://mise.jdx.dev/dev-tools/shims.html). Otherwise, run package-manager commands through `mise exec --`, for example `mise exec -- pnpm typecheck`.
+The remaining examples assume that [mise is activated for your shell](https://mise.jdx.dev/dev-tools/shims.html). Otherwise, run package-manager commands through `mise exec --`, for example `mise exec -- bun run typecheck`.
 
 ::: tip
 You can optionally install [@antfu/ni](https://github.com/antfu-collective/ni) to simplify package-manager commands:
@@ -136,8 +136,8 @@ mise exec -- npm install --global @antfu/ni
 
 After installation:
 
-- Use `ni` instead of `pnpm install`, `npm install`, or `yarn install`.
-- Use `nr` instead of `pnpm run`, `npm run`, or `yarn run`.
+- Use `ni` instead of `bun install`, `npm install`, or `yarn install`.
+- Use `nr` instead of `bun run`, `npm run`, or `yarn run`.
 
 `ni` detects the package manager used by the repository.
 :::
@@ -149,8 +149,8 @@ After installation:
 Make sure the code passes linting and type checking:
 
 ```shell
-pnpm lint
-pnpm typecheck
+bun run lint
+bun run typecheck
 ```
 
 ::: tip

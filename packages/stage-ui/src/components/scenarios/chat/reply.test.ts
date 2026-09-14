@@ -17,7 +17,7 @@ describe('chat reply composition', () => {
     expect(isChatReplyTargetMessage(target, { role: 'user', content: 'hello' })).toBe(false)
 
     const identifiedTarget: ChatHistoryReplyPayload = {
-      label: 'AIRI',
+      label: 'Moeka',
       message: { id: 'assistant-1', role: 'assistant', content: 'hello', slices: [], tool_results: [] },
     }
     expect(isChatReplyTargetMessage(identifiedTarget, {

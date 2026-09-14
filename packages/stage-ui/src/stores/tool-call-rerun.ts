@@ -115,9 +115,9 @@ export async function executeToolCallRerun<TToolset extends string = string>(
 
   try {
     // NOTICE:
-    // Re-run tools receive AIRI's original chat history so runtime tools can
+    // Re-run tools receive Moeka's original chat history so runtime tools can
     // inspect the same context the UI is updating. xsai types narrow
-    // `messages` to provider `Message[]`, while AIRI history can also contain
+    // `messages` to provider `Message[]`, while Moeka history can also contain
     // local-only `error` entries. Keep the cast at this boundary instead of
     // filtering messages and silently changing the tool's context.
     // Removal condition: xsai exposes a tool execution context type that can

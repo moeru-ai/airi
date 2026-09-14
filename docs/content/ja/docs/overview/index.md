@@ -30,8 +30,6 @@ description: Project AIRI のユーザーインターフェースを知る
 
 ## はじめかた
 
-Web とデスクトップの両方を用意しています。
-
 <div flex gap-2 w-full justify-center text-xl>
   <div w-full flex flex-col items-center gap-2 border="2 solid gray-500/10" rounded-lg px-2 pt-6 pb-4>
     <div flex items-center gap-2 text-5xl>
@@ -42,35 +40,11 @@ Web とデスクトップの両方を用意しています。
       開く
     </a>
   </div>
-  <div w-full flex flex-col items-center gap-2 border="2 solid gray-500/10" rounded-lg px-2 pt-6 pb-4>
-    <div flex items-center gap-2 text-5xl>
-      <div i-lucide:laptop />
-      /
-      <div i-lucide:computer />
-    </div>
-    <span>デスクトップ</span>
-    <a href="https://github.com/moeru-ai/airi/releases/latest" target="_blank" decoration-none class="text-primary-900 dark:text-primary-400 text-base not-prose bg-primary-400/10 dark:bg-primary-600/10 block px-4 py-2 rounded-lg active:scale-95 transition-all duration-200 ease-in-out">
-      ダウンロード
-    </a>
-  </div>
 </div>
 
 Web 版は手軽にアクセスでき、モバイルからでも利用できます。
 
-デスクトップ版は VTuber 配信や computer-use（PC 操作代行）、ローカル LLM へのアクセスなど高度な用途に向いています。ローカル推論なら、AIRI を動かすために大量のトークンを払う必要もありません。
-
 <div flex gap-2 w-full flex-col justify-center text-base>
-  <a href="../../../en/docs/overview/guide/tamagotchi/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
-    <div w-full flex items-center gap-2>
-      <div flex items-center gap-2 text-2xl>
-      <div i-lucide:laptop />
-      </div>
-      <span>デスクトップ</span>
-    </div>
-    <div decoration-none class="text-gray-900 dark:text-gray-200 text-base not-prose rounded-lg active:scale-95 transition-all duration-200 ease-in-out text-nowrap">
-      使い方を見る
-    </div>
-  </a>
   <a href="./guide/web/" w-full flex items-center gap-2 border="2 solid gray-500/10" rounded-lg px-4 py-2>
     <div w-full flex items-center gap-2>
       <div flex items-center gap-2 text-2xl>

@@ -5,7 +5,6 @@ import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { watch } from 'vue'
 
 import { useBuildInfo } from '../../composables/use-build-info'
-import { useAuthStore } from '../../stores/auth'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 import { useSettingsAnalytics } from '../../stores/settings/analytics'
 import {
@@ -14,10 +13,8 @@ import {
   disableAnalyticsCapture,
   enableAnalyticsCapture,
   getAnalyticsIdentitySnapshot,
-  identifyAnalyticsUser,
   isAnalyticsAvailableInBuild,
   registerAnalyticsBuildInfo,
-  resetAnalyticsIdentity,
 } from './client'
 import {
   analyticsSettingChangedEvent,
@@ -68,7 +65,6 @@ class Analytics implements AnalyticsRecorder {
 
     const buildInfo = useBuildInfo()
     const settingsAnalytics = useSettingsAnalytics()
-    const authStore = useAuthStore()
     this.appStartTime = Date.now()
 
     if (settingsAnalytics.analyticsEnabled && enableAnalytics()) {
@@ -78,17 +74,6 @@ class Analytics implements AnalyticsRecorder {
         version: buildInfo.version,
       })
     }
-
-    if (authStore.isAuthenticated && authStore.user?.id)
-      identifyAnalyticsUser(authStore.user.id)
-
-    authStore.onAuthenticated(() => {
-      if (authStore.user?.id)
-        identifyAnalyticsUser(authStore.user.id)
-    })
-    authStore.onLogout(() => {
-      resetAnalyticsIdentity()
-    })
 
     watch(() => settingsAnalytics.analyticsEnabled, (enabled, previousEnabled) => {
       if (previousEnabled && !enabled) {
@@ -125,8 +110,6 @@ class Analytics implements AnalyticsRecorder {
       }
 
       registerAnalyticsBuildInfo(buildInfo)
-      if (authStore.isAuthenticated && authStore.user?.id)
-        identifyAnalyticsUser(authStore.user.id)
     })
 
     const cardStore = useAiriCardStore()

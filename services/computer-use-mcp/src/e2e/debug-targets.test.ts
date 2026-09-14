@@ -34,7 +34,7 @@ describe('debug target helpers', () => {
     }))).toBe(true)
   })
 
-  it('prioritizes chat and main AIRI surfaces ahead of generic pages', () => {
+  it('prioritizes chat and main Moeka surfaces ahead of generic pages', () => {
     const targets = prioritizeInspectableAiriTargets([
       createTarget({
         id: 'generic',
@@ -43,7 +43,7 @@ describe('debug target helpers', () => {
       }),
       createTarget({
         id: 'main',
-        title: 'AIRI',
+        title: 'Moeka',
         url: 'http://localhost:5173/',
       }),
       createTarget({
@@ -56,21 +56,21 @@ describe('debug target helpers', () => {
     expect(targets.map(target => target.id)).toEqual(['chat', 'main', 'generic'])
   })
 
-  it('detects chat surfaces from either target metadata or AIRI debug snapshots', () => {
+  it('detects chat surfaces from either target metadata or Moeka debug snapshots', () => {
     expect(isChatSurfaceTarget(createTarget({
       title: 'Chat',
       url: 'http://localhost:5173/',
     }))).toBe(true)
 
     expect(isChatSurfaceTarget(createTarget({
-      title: 'AIRI',
+      title: 'Moeka',
       url: 'http://localhost:5173/',
     }), {
       route: '#/chat',
     })).toBe(true)
 
     expect(isChatSurfaceTarget(createTarget({
-      title: 'AIRI',
+      title: 'Moeka',
       url: 'http://localhost:5173/',
     }), {
       route: '#/',

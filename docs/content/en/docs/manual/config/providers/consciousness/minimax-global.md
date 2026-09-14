@@ -1,10 +1,10 @@
 ---
 title: MiniMax Global
-description: Configure the overseas version of MiniMax in AIRI as a chat provider
+description: Configure the overseas version of MiniMax in Moeka as a chat provider
 is_openai_compatible: true
 ---
 
-This page applies to API Keys created on the MiniMax overseas platform. Once configured, AIRI can use the chat model provided by MiniMax Global in Consciousness.
+This page applies to API Keys created on the MiniMax overseas platform. Once configured, Moeka can use the chat model provided by MiniMax Global in Consciousness.
 
 ::: info Why choose MiniMax Global?
 If you create an API Key on the MiniMax overseas platform or use an overseas Token Plan, you should choose MiniMax Global. Please use [MiniMax (Mainland China)](./minimax.md) for the Key created by the Chinese mainland platform; the API Key, billing and Base URL of the two platforms cannot be mixed.
@@ -20,7 +20,7 @@ If you create an API Key on the MiniMax overseas platform or use an overseas Tok
 Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key on the MiniMax Global platform.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Chat → MiniMax Global**.
 2. Paste the API Key into the basic settings.
@@ -28,10 +28,10 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Verify configuration
 
-1. **Validate configuration**: AIRI validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
+1. **Validate configuration**: Moeka validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
 2. **Select Model →**: After validation succeeds, use this button to open **Settings → Modules → Consciousness**, then select the provider and model.
-3. Select MiniMax Global and the model in **Settings → Modules → Consciousness** and send a short message to confirm that AIRI can reply.
+3. Select MiniMax Global and the model in **Settings → Modules → Consciousness** and send a short message to confirm that Moeka can reply.
 
 ## Troubleshooting
 
-If the API check fails, confirm that the API key comes from the global platform, the Base URL is `https://api.minimax.io/v1/`, the account has available credit or quota, no rate limit is active, and the network can reach the service. A `401` response commonly means that a mainland-China key was paired with the global endpoint, or vice versa. If AIRI cannot load the model list, enter the exact model ID from MiniMax Global manually on the **Consciousness** page.
+If the API check fails, confirm that the API key comes from the global platform, the Base URL is `https://api.minimax.io/v1/`, the account has available credit or quota, no rate limit is active, and the network can reach the service. A `401` response commonly means that a mainland-China key was paired with the global endpoint, or vice versa. If Moeka cannot load the model list, enter the exact model ID from MiniMax Global manually on the **Consciousness** page.

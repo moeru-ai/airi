@@ -24,7 +24,7 @@ export { listAppleSpeechLocaleOptions } from './provider'
 export const APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID = 'apple-speech-transcription'
 type AppleSpeechTranscriptionProviderId = typeof APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID
 
-/** Request options applied by AIRI before Apple Speech creates a batch or live session. */
+/** Request options applied by Moeka before Apple Speech creates a batch or live session. */
 export interface AppleSpeechProviderOptions {
   /** Cancels native preparation and active transcription work. */
   abortSignal?: AbortSignal
@@ -183,10 +183,10 @@ async function pumpPcm16Input(
 }
 
 /**
- * Adapts AIRI's mono PCM16 VAD stream to Apple Speech live transcription.
+ * Adapts Moeka's mono PCM16 VAD stream to Apple Speech live transcription.
  *
  * The Provider boundary converts each audio chunk and maps Apple replacement
- * events to AIRI transcript snapshots.
+ * events to Moeka transcript snapshots.
  */
 export function executeAppleSpeechStream(options: AppleSpeechStreamOptions): AIRIStreamTranscriptionResult
 export function executeAppleSpeechStream(options: StreamTranscriptionOptions): AIRIStreamTranscriptionResult

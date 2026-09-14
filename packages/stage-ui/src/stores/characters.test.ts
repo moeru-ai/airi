@@ -1,11 +1,21 @@
-import type { CharactersModel } from '../models/characters'
-import type { CharactersRemoteClient, CharactersService } from '../services/characters'
-import type { Character, CreateCharacterPayload, UpdateCharacterPayload } from '../types/character'
+import type { Character, CreateCharacterPayload } from '../types/character'
 
-import { describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createCharactersListQueryOptions, createCharacterStoreController } from './characters'
+import { LOCAL_USER_ID } from '../constants'
+import { useCharacterStore } from './characters'
+
+const { model } = vi.hoisted(() => ({
+  model: {
+    list: vi.fn<() => Promise<Character[]>>(),
+    saveAll: vi.fn(async () => {}),
+    upsert: vi.fn(async () => {}),
+    remove: vi.fn(async () => {}),
+  },
+}))
+
+vi.mock('../models/characters', () => ({ charactersModel: model }))
 
 const character = {
   id: 'character-1',
@@ -22,7 +32,7 @@ const character = {
   forksCount: 0,
   creatorId: 'user-1',
   ownerId: 'user-1',
-  characterId: 'airi',
+  characterId: 'moeka',
   createdAt: new Date('2026-05-08T00:00:00.000Z'),
   updatedAt: new Date('2026-05-08T00:00:00.000Z'),
   deletedAt: undefined,
@@ -35,140 +45,120 @@ const character = {
 } satisfies Character
 
 const payload = {
-  character: { version: '1', coverUrl: 'cover.png', characterId: 'airi' },
+  character: { version: '1', coverUrl: 'cover.png', characterId: 'moeka' },
   capabilities: [],
   avatarModels: [],
   i18n: [],
   prompts: [],
 } satisfies CreateCharacterPayload
 
-function createMutation<TVars, TData>(mutation: (vars: TVars) => Promise<TData>) {
-  return {
-    error: ref<Error | null>(null),
-    async mutateAsync(vars: TVars) {
-      try {
-        return await mutation(vars)
-      }
-      catch (error) {
-        this.error.value = error as Error
-        throw error
-      }
-    },
-  }
-}
-
-function setupController() {
-  const model: CharactersModel = {
-    list: vi.fn(async () => []),
-    saveAll: vi.fn(async () => {}),
-    upsert: vi.fn(async () => {}),
-    remove: vi.fn(async () => {}),
-  }
-  const service: CharactersService = {
-    buildLocal: vi.fn(() => ({ ...character, id: 'local-character' })),
-    fetchRemote: vi.fn(async () => []),
-    fetchRemoteById: vi.fn(async () => character),
-    createRemote: vi.fn(async () => character),
-    updateRemote: vi.fn(async () => character),
-    removeRemote: vi.fn(async () => {}),
-    likeRemote: vi.fn(async () => ({ ...character, likesCount: 1 })),
-    bookmarkRemote: vi.fn(async () => ({ ...character, bookmarksCount: 1 })),
-  }
-  const listQuery = {
-    error: ref<Error | null>(null),
-    isLoading: ref(false),
-    refetch: vi.fn(async () => ({ data: [{ ...character, id: 'remote-character' }] })),
-  }
-  const controller = createCharacterStoreController({
-    auth: { userId: 'user-1' },
-    bookmarkMutation: createMutation<string, Character>(id => service.bookmarkRemote({} as CharactersRemoteClient, id)),
-    characters: ref<Map<string, Character>>(new Map()),
-    createMutation: createMutation<CreateCharacterPayload, Character>(nextPayload => service.createRemote({} as CharactersRemoteClient, nextPayload)),
-    likeMutation: createMutation<string, Character>(id => service.likeRemote({} as CharactersRemoteClient, id)),
-    listAll: ref(false),
-    listQuery,
-    model,
-    removeMutation: createMutation<string, void>(id => service.removeRemote({} as CharactersRemoteClient, id)),
-    service,
-    updateMutation: createMutation<{ id: string, data: UpdateCharacterPayload }, Character>(vars => service.updateRemote({} as CharactersRemoteClient, vars.id, vars.data)),
+describe('character store', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    model.list.mockResolvedValue([])
   })
 
-  return { controller, listQuery, model, service }
-}
+  it('replaces the in-memory list with the characters stored on the device', async () => {
+    model.list.mockResolvedValueOnce([character])
+    const store = useCharacterStore()
+    store.characters.set('stale-character', { ...character, id: 'stale-character' })
 
-/**
- * @example
- * describe('store characters controller', () => {})
- */
-describe('store characters controller', () => {
-  /**
-   * @example
-   * await controller.fetchList()
-   */
-  it('fetchList reads local characters first and then applies remote characters', async () => {
-    const { controller, model } = setupController()
-    vi.mocked(model.list).mockResolvedValueOnce([character])
+    await expect(store.fetchList()).resolves.toEqual([character])
 
-    await controller.fetchList()
-
-    expect(controller.characters.value.get('remote-character')).toBeDefined()
-    expect(controller.characters.value.get('character-1')).toBeUndefined()
-    expect(model.saveAll).toHaveBeenCalledWith([expect.objectContaining({ id: 'remote-character' })])
+    expect([...store.characters.keys()]).toEqual([character.id])
+    expect(store.getCharacter(character.id)).toEqual(character)
   })
 
-  /**
-   * @example
-   * await controller.create(payload)
-   */
-  it('keeps local create state and exposes mutation errors when remote create fails', async () => {
-    const { controller, service } = setupController()
-    const error = new Error('remote create failed')
-    vi.mocked(service.createRemote).mockRejectedValueOnce(error)
+  it('creates a character owned by the local user and persists it', async () => {
+    const store = useCharacterStore()
 
-    await expect(controller.create(payload)).resolves.toEqual(expect.objectContaining({ id: 'local-character' }))
+    const created = await store.create(payload)
 
-    expect(controller.characters.value.get('local-character')).toBeDefined()
-    expect(controller.mutationError.value).toBe(error)
+    expect(created.creatorId).toBe(LOCAL_USER_ID)
+    expect(created.ownerId).toBe(LOCAL_USER_ID)
+    expect(created.likesCount).toBe(0)
+    expect(created.bookmarksCount).toBe(0)
+    expect(store.getCharacter(created.id)).toEqual(created)
+    expect(model.upsert).toHaveBeenCalledWith(created)
   })
 
-  /**
-   * @example
-   * await controller.update('character-1', { version: '2' })
-   */
-  it('supports update remove like and bookmark through mutation controllers', async () => {
-    const { controller, model, service } = setupController()
-    controller.characters.value.set(character.id, character)
+  it('keeps the payload id and stamps relation rows with the new character id', async () => {
+    const store = useCharacterStore()
 
-    await controller.update(character.id, { version: '2' })
-    await controller.like(character.id)
-    await controller.bookmark(character.id)
-    await controller.remove(character.id)
+    const created = await store.create({
+      character: { id: 'chosen-id', version: '2', coverUrl: 'cover.png', characterId: 'moeka' },
+      capabilities: [{ type: 'llm', config: { apiKey: 'key', apiBaseUrl: 'https://example.invalid/v1/' } }],
+      prompts: [{ language: 'en', type: 'system', content: 'You are Moeka.' }],
+    })
 
-    expect(service.updateRemote).toHaveBeenCalled()
-    expect(service.likeRemote).toHaveBeenCalled()
-    expect(service.bookmarkRemote).toHaveBeenCalled()
-    expect(service.removeRemote).toHaveBeenCalled()
+    expect(created.id).toBe('chosen-id')
+    expect(created.capabilities?.[0]?.characterId).toBe('chosen-id')
+    expect(created.prompts?.[0]?.characterId).toBe('chosen-id')
+  })
+
+  it('merges update fields into the stored character and persists it', async () => {
+    const store = useCharacterStore()
+    store.characters.set(character.id, { ...character })
+
+    const updated = await store.update(character.id, { version: '2', coverUrl: 'next.png' })
+
+    expect(updated).toMatchObject({
+      id: character.id,
+      version: '2',
+      coverUrl: 'next.png',
+      characterId: character.characterId,
+    })
+    expect(model.upsert).toHaveBeenCalledWith(updated)
+  })
+
+  it('records a local like once and persists the incremented count', async () => {
+    const store = useCharacterStore()
+    store.characters.set(character.id, { ...character, likes: [], bookmarks: [] })
+
+    const liked = await store.like(character.id)
+    const repeated = await store.like(character.id)
+
+    expect(liked?.likesCount).toBe(character.likesCount + 1)
+    expect(liked?.likes).toEqual([{ userId: LOCAL_USER_ID, characterId: character.id }])
+    // The second call sees the stored like and keeps the count unchanged.
+    expect(repeated).toBeUndefined()
+    expect(store.getCharacter(character.id)?.likesCount).toBe(character.likesCount + 1)
+    expect(model.upsert).toHaveBeenCalledTimes(1)
+  })
+
+  it('records a local bookmark once and persists the incremented count', async () => {
+    const store = useCharacterStore()
+    store.characters.set(character.id, { ...character, likes: [], bookmarks: [] })
+
+    const bookmarked = await store.bookmark(character.id)
+    const repeated = await store.bookmark(character.id)
+
+    expect(bookmarked?.bookmarksCount).toBe(character.bookmarksCount + 1)
+    expect(bookmarked?.bookmarks).toEqual([{ userId: LOCAL_USER_ID, characterId: character.id }])
+    // The second call sees the stored bookmark and keeps the count unchanged.
+    expect(repeated).toBeUndefined()
+    expect(store.getCharacter(character.id)?.bookmarksCount).toBe(character.bookmarksCount + 1)
+    expect(model.upsert).toHaveBeenCalledTimes(1)
+  })
+
+  it('removes the character from memory and from storage', async () => {
+    const store = useCharacterStore()
+    store.characters.set(character.id, { ...character })
+
+    await store.remove(character.id)
+
+    expect(store.getCharacter(character.id)).toBeUndefined()
     expect(model.remove).toHaveBeenCalledWith(character.id)
   })
 
-  /**
-   * @example
-   * await options.query({ signal })
-   */
-  it('passes Pinia Colada query abort signal to the character service', async () => {
-    const service = {
-      fetchRemote: vi.fn(async () => [] as Character[]),
-    }
-    const listAll = ref(true)
-    const controller = new AbortController()
-    const options = createCharactersListQueryOptions({
-      client: {} as CharactersRemoteClient,
-      listAll,
-      service: service as Pick<CharactersService, 'fetchRemote'>,
-    })
+  it('ignores edits for an unknown character', async () => {
+    const store = useCharacterStore()
 
-    await options.query({ signal: controller.signal })
+    await expect(store.update('missing-character', { version: '2' })).resolves.toBeUndefined()
+    await expect(store.like('missing-character')).resolves.toBeUndefined()
+    await expect(store.bookmark('missing-character')).resolves.toBeUndefined()
 
-    expect(service.fetchRemote).toHaveBeenCalledWith({}, { all: true }, { abortSignal: controller.signal })
+    expect(model.upsert).not.toHaveBeenCalled()
   })
 })

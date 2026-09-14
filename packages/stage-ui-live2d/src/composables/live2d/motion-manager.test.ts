@@ -73,7 +73,7 @@ function createContext(overrides: Partial<MotionManagerPluginContext> = {}): Mot
 }
 
 describe('live2d motion manager plugins', () => {
-  it('keeps SDK breath from changing AIRI-owned idle parameters', () => {
+  it('keeps SDK breath from changing Moeka-owned idle parameters', () => {
     const updateParameters = vi.fn()
     const internalModel = {
       breath: { updateParameters },
@@ -81,7 +81,7 @@ describe('live2d motion manager plugins', () => {
 
     // ROOT CAUSE:
     //
-    // CubismBreath added periodic head, body, and breath offsets after AIRI's
+    // CubismBreath added periodic head, body, and breath offsets after Moeka's
     // final motion plugins. These late writes made a controlled pose wiggle.
     //
     // We fixed this by removing the SDK breath owner during model setup.

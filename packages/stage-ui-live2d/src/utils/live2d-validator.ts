@@ -8,7 +8,7 @@ export type Live2DValidationStatus = 'VALID' | 'WARNING' | 'INVALID'
 /** Whether an issue blocks import or only needs review. */
 export type Live2DValidationIssueSeverity = 'error' | 'warning'
 
-/** The file type that AIRI uses as the model target. */
+/** The file type that Moeka uses as the model target. */
 export type Live2DModelType = 'model3' | 'moc3' | 'unknown'
 
 /** A stable identifier for a validation rule that produced an issue. */
@@ -28,7 +28,7 @@ export type Live2DValidationIssueCode
     | 'unreferenced-expressions'
     | 'unreferenced-motions'
 
-/** A problem that AIRI found while it inspected a Live2D archive. */
+/** A problem that Moeka found while it inspected a Live2D archive. */
 export interface Live2DValidationIssue {
   code: Live2DValidationIssueCode
   severity: Live2DValidationIssueSeverity
@@ -36,7 +36,7 @@ export interface Live2DValidationIssue {
   resolution: string
 }
 
-/** Base model data that AIRI can read before it loads the Cubism runtime. */
+/** Base model data that Moeka can read before it loads the Cubism runtime. */
 export interface Live2DModelSummary {
   type: Live2DModelType
   entryPoint: string | null
@@ -54,12 +54,12 @@ export interface Live2DResourceCount {
   referenced: number
 }
 
-/** Adds the number of resource files that AIRI could parse. */
+/** Adds the number of resource files that Moeka could parse. */
 export interface Live2DParsedResourceCount extends Live2DResourceCount {
   parsed: number
 }
 
-/** Resource counts that AIRI can collect without loading the model. */
+/** Resource counts that Moeka can collect without loading the model. */
 export interface Live2DResourceSummary {
   textures: Live2DResourceCount
   motions: Live2DParsedResourceCount
@@ -294,10 +294,10 @@ function updateStatus(report: Live2DValidationReport): void {
 }
 
 /**
- * Inspects a Live2D ZIP before AIRI imports it.
+ * Inspects a Live2D ZIP before Moeka imports it.
  *
  * Errors identify missing core resources that block loading. Warnings identify optional
- * resources that AIRI can skip while it loads the model.
+ * resources that Moeka can skip while it loads the model.
  */
 export async function validateLive2DZip(file: File | Blob): Promise<Live2DValidationReport> {
   const zip = await JSZip.loadAsync(await file.arrayBuffer(), { decodeFileName: decodeZipFileName })
@@ -355,7 +355,7 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
         report,
         'multiple-settings-files',
         'warning',
-        `The archive contains ${settingsPaths.length} model settings files. AIRI will use ${settingsFileName}.`,
+        `The archive contains ${settingsPaths.length} model settings files. Moeka will use ${settingsFileName}.`,
         'Keep one model3.json file in each archive, or import each model as a separate ZIP.',
       )
     }

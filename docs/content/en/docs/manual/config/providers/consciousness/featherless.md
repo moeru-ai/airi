@@ -1,12 +1,12 @@
 ---
 title: Featherless AI
-description: Configuring the Featherless.ai chat model in AIRI
+description: Configuring the Featherless.ai chat model in Moeka
 ---
 
-Featherless.ai provides a chat model in AIRI via a compatible API.
+Featherless.ai provides a chat model in Moeka via a compatible API.
 
 ::: info Why choose Featherless.ai?
-If you have opened model access on Featherless.ai, you can directly use its API Key to configure AIRI.
+If you have opened model access on Featherless.ai, you can directly use its API Key to configure Moeka.
 :::
 
 ## Obtain API Key
@@ -17,15 +17,15 @@ If you have opened model access on Featherless.ai, you can directly use its API 
 Do not commit the API key, include it in screenshots, or share it with anyone.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Chat → Featherless AI** and fill in the **API Key**. The default Base URL is `https://api.featherless.ai/v1/`.
 
 ## Verify configuration
 
-1. **Validate configuration**: AIRI validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
+1. **Validate configuration**: Moeka validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
 2. **Select Model →**: After validation succeeds, use this button to open **Settings → Modules → Consciousness**, then select the provider and model.
 
 ## Troubleshooting
 
-If the API check fails, verify the API Key, account status, and network connection. If AIRI cannot load the model list, confirm that the Base URL is unchanged or enter the exact model ID provided by Featherless.ai manually on the **Consciousness** page.
+If the API check fails, verify the API Key, account status, and network connection. If Moeka cannot load the model list, confirm that the Base URL is unchanged or enter the exact model ID provided by Featherless.ai manually on the **Consciousness** page.

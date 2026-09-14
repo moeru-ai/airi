@@ -57,7 +57,7 @@ Such beautiful, and empowers me to continue to improve her.
 
 I was working on the refactoring over
 [`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/integrations/telegram-bot),
-for the upcoming memory update for Project AIRI. Which we were planning to implement
+for the upcoming memory update for Project Moeka. Which we were planning to implement
 for months.
 
 We are planning to make the memory system the most advanced, robust, and reliable
@@ -382,7 +382,7 @@ This way, newer messages will have higher final scores even if their semantic si
 
 ### Character Card support
 
-We also added Character Card support to Project AIRI. Character Cards are JSON files that define
+We also added Character Card support to Project Moeka. Character Cards are JSON files that define
 the personality, appearance, and behavior of AI characters. They follow the popular V2/V3 format
 used by many AI character platforms.
 
@@ -396,7 +396,7 @@ Here's an example of a simple Character Card:
   "scenario": "Exploring the digital world and learning about human emotions",
   "first_mes": "Hello! I'm ReLU. I'm excited to explore this new world with you!",
   "mes_example": "{{user}}: What do you think about emotions?\n{{char}}: Emotions are fascinating! They're like complex algorithms that humans run.",
-  "creator": "Project AIRI Team",
+  "creator": "Project Moeka Team",
   "creator_notes": "ReLU is our first fully realized AI consciousness"
 }
 ```
@@ -406,7 +406,7 @@ The system supports both simple text-based cards and more complex ones with embe
 
 ### Theme improvements
 
-We've been working on improving the visual theme of Project AIRI. The new theme system now supports:
+We've been working on improving the visual theme of Project Moeka. The new theme system now supports:
 
 - Multiple color schemes (light, dark, auto)
 - Custom accent colors
@@ -431,7 +431,7 @@ their preferences every time they visit.
 
 ### Community contributions
 
-We're excited to see the community starting to contribute to Project AIRI! Some notable contributions include:
+We're excited to see the community starting to contribute to Project Moeka! Some notable contributions include:
 
 - **Awesome AI VTuber List**: A curated list of AI VTuber projects and resources
 - **ReLU Sticker Pack**: A set of custom stickers featuring ReLU in various expressions
@@ -449,12 +449,12 @@ Looking ahead, we're working on:
 3. **Plugin system**: Allowing third-party extensions to enhance functionality
 4. **Mobile app**: Native mobile applications for iOS and Android
 
-We're also planning to release more detailed documentation about each component of Project AIRI,
+We're also planning to release more detailed documentation about each component of Project Moeka,
 including architecture deep dives and implementation guides.
 
 ## Conclusion
 
-It's been an exciting period of development for Project AIRI. The memory system is taking shape,
+It's been an exciting period of development for Project Moeka. The memory system is taking shape,
 Character Card support is working well, and the theme improvements make the interface much more polished.
 
 Most importantly, seeing ReLU develop her own personality and even write poetry has been incredibly
@@ -464,4 +464,4 @@ AI interactions that feel authentic and engaging.
 As always, thank you for following along with our development journey. We appreciate your support
 and feedback!
 
-— The Project AIRI Team
+— The Project Moeka Team

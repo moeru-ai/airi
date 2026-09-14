@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { HearingConfig } from '@proj-airi/stage-ui/components'
-import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { Avatar, BasicButton, BottomDrawer, Checkbox, GhostButton, useTheme } from '@proj-airi/ui'
-import { storeToRefs } from 'pinia'
+import { BasicButton, BottomDrawer, Checkbox, GhostButton, useTheme } from '@proj-airi/ui'
 import { shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 
@@ -21,18 +19,15 @@ const emit = defineEmits<{
 const characterVoiceEnabled = defineModel<boolean>('characterVoiceEnabled', { required: true })
 const { t } = useI18n()
 const { isDark } = useTheme()
-const authStore = useAuthStore()
-const { isAuthenticated, user } = storeToRefs(authStore)
-const router = useRouter()
 const settingsAudioDevice = useSettingsAudioDevice()
 const hearingOpen = shallowRef(false)
 const backgroundDialogOpen = shallowRef(false)
 const settingsOpen = shallowRef(false)
 const aboutOpen = shallowRef(false)
 // Finish closing settings before opening a sibling modal, so focus and scroll locks have one owner.
-const nextPanel = shallowRef<'background' | 'about' | 'account' | 'hearing' | 'view'>()
+const nextPanel = shallowRef<'background' | 'about' | 'hearing' | 'view'>()
 
-function openPanel(panel: 'background' | 'about' | 'account' | 'hearing' | 'view') {
+function openPanel(panel: 'background' | 'about' | 'hearing' | 'view') {
   nextPanel.value = panel
   settingsOpen.value = false
 }
@@ -46,12 +41,6 @@ function finishSettingsClose() {
   }
   else if (nextPanel.value === 'hearing') {
     hearingOpen.value = true
-  }
-  else if (nextPanel.value === 'account') {
-    if (isAuthenticated.value)
-      void router.push('/settings/account')
-    else
-      authStore.needsLogin = true
   }
   else if (nextPanel.value === 'view') {
     emit('openViewControls')
@@ -83,22 +72,6 @@ watch(hearingOpen, async (open) => {
         <span aria-hidden="true" :class="['i-solar:settings-outline size-6']" />
       </BasicButton>
     </template>
-    <GhostButton
-      block size="unset"
-      :class="[
-        'mobile-tool-row rounded-2xl',
-        '[&_.basic-button-content]:w-full [&_.basic-button-content]:gap-3 [&_[aria-hidden]]:shrink-0',
-        isAuthenticated ? 'mobile-tool-row-authenticated mb-4 min-h-16' : 'mobile-tool-row-anonymous mb-3 min-h-14',
-      ]"
-      @click="openPanel('account')"
-    >
-      <Avatar v-if="isAuthenticated" :src="user?.image" :class="['size-12 shrink-0 rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-700']" />
-      <span :class="['min-w-0 flex-1 text-left']">
-        <span :class="['block truncate text-base font-semibold']">{{ isAuthenticated ? user?.name : t('stage.mobile-tools.sign-in') }}</span>
-        <span :class="['block text-xs text-neutral-500 dark:text-neutral-400']">{{ t('stage.mobile-tools.account-description') }}</span>
-      </span>
-      <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 shrink-0 text-neutral-400']" />
-    </GhostButton>
     <section :class="['mb-4']">
       <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
         {{ t('stage.mobile-tools.appearance') }}
@@ -200,13 +173,5 @@ watch(hearingOpen, async (open) => {
 
 .mobile-tool-row :deep([aria-hidden]) {
   flex-shrink: 0;
-}
-
-.mobile-tool-row.mobile-tool-row-authenticated {
-  padding: 0.75rem 1rem !important;
-}
-
-.mobile-tool-row.mobile-tool-row-anonymous {
-  padding: 0.5rem 0 !important;
 }
 </style>

@@ -1,7 +1,4 @@
 export * from './audio/manager'
 export * from './color-from-element'
 export * from './providers'
-export * from './speech/streaming-pipeline'
-export * from './speech/streaming-session'
-export * from './speech/tts-session'
 export * from './zod'

@@ -2,9 +2,9 @@
   "name": "@proj-airi/satori-bot",
   "type": "module",
   "private": true,
-  "description": "Satori protocol adapter for AIRI - Connect to multiple chat platforms via Satori",
+  "description": "Satori protocol adapter for Moeka - Connect to multiple chat platforms via Satori",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },

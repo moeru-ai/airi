@@ -9,16 +9,20 @@ RUN apt update && apt install -y ca-certificates curl
 RUN update-ca-certificates
 RUN apt update && apt install -y build-essential python3 python3-setuptools curl
 
-RUN corepack enable
+# NOTICE:
+# The Bun binary must match the base image libc. node:24-trixie is glibc, so the
+# binary is copied from the default (Debian) Bun image instead of installing Bun
+# with npm. Keep this tag in step with `packageManager` in the root manifest.
+COPY --from=oven/bun:1.4.2 /usr/local/bin/bun /usr/local/bin/bun
 
 COPY . .
-RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=bun-cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 
-RUN pnpm -F @proj-airi/stage-web run build && \
-    pnpm -F @proj-airi/docs run build:base && \
+RUN bun run --filter @proj-airi/stage-web build && \
+    bun run --filter @proj-airi/docs build:base && \
     mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs && \
-    pnpm -F @proj-airi/stage-ui run story:build && \
+    bun run --filter @proj-airi/stage-ui story:build && \
     mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
 
 FROM nginx:stable-alpine AS production-stage

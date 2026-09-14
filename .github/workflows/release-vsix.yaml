@@ -16,11 +16,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/setup@v2
+      - uses: actions/setup-node@v6
         with:
-          runtime: node@26.7.0
-          cache: true
-          install: false
+          node-version: 26.7.0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
 
       - name: Configure npm registry
         uses: actions/setup-node@v6
@@ -29,11 +31,11 @@ jobs:
           # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
           registry-url: 'https://registry.npmjs.org'
 
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run build:packages
-      - run: pnpm run -F @proj-airi/airi-plugin-vscode build
-      - run: pnpm run -F vscode-airi build
-      - run: pnpm run publish
+      - run: bun install --frozen-lockfile
+      - run: bun run build:packages
+      - run: bun run --filter @proj-airi/airi-plugin-vscode build
+      - run: bun run --filter vscode-airi build
+      - run: bun run publish
         working-directory: ./integrations/vscode/vscode-airi
         env:
           VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}

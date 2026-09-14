@@ -7,7 +7,7 @@ Satori 机器人通过 Koishi 的 Satori 服务接入 QQ、Telegram、Discord、
 
 ## 前提条件
 
-* 已在仓库根目录安装依赖：**pnpm i**。
+* 已在仓库根目录安装依赖：**bun install**。
 * 已运行启用 **server-satori** 插件的 Koishi 实例。
 * 支持 OpenAI 兼容接口的模型服务。
 
@@ -26,7 +26,7 @@ cp integrations/satori-bot/.env integrations/satori-bot/.env.local
 ## 启动
 
 ~~~bash
-pnpm -F @proj-airi/satori-bot dev
+bun run --filter @proj-airi/satori-bot dev
 ~~~
 
 ## 注意事项

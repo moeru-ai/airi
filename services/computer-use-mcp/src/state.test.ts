@@ -33,7 +33,7 @@ describe('runStateManager', () => {
   it('should track terminal results', () => {
     const manager = new RunStateManager()
     manager.updateTerminalResult({
-      command: 'pnpm test:run',
+      command: 'bun run test:run',
       stdout: 'All tests passed',
       stderr: '',
       exitCode: 0,
@@ -71,7 +71,7 @@ describe('runStateManager', () => {
       phase: 'executing' as const,
       steps: [
         { index: 1, stepId: 'step_a', label: 'cd project' },
-        { index: 2, stepId: 'step_b', label: 'pnpm test' },
+        { index: 2, stepId: 'step_b', label: 'bun run test' },
       ],
       currentStepIndex: 0,
       startedAt: new Date().toISOString(),
@@ -86,7 +86,7 @@ describe('runStateManager', () => {
     manager.completeCurrentStep('success')
     expect(manager.getState().activeTask?.steps[0].outcome).toBe('success')
 
-    manager.advanceTaskStep({ index: 2, stepId: 'step_b', label: 'pnpm test' })
+    manager.advanceTaskStep({ index: 2, stepId: 'step_b', label: 'bun run test' })
     manager.completeCurrentStep('failure', 'Tests failed')
     expect(manager.getState().activeTask?.failureCount).toBe(1)
 

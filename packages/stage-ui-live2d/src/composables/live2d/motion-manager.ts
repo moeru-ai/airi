@@ -12,9 +12,9 @@ import { useLive2DIdleEyeFocus } from './animation'
 type CubismModel = Cubism4InternalModel['coreModel']
 type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
 
-/** The Pixi internal-model surface that AIRI motion plugins consume. */
+/** The Pixi internal-model surface that Moeka motion plugins consume. */
 export type PixiLive2DInternalModel = InternalModel & {
-  /** Cubism's breath controller, which AIRI removes before it applies its own curve. */
+  /** Cubism's breath controller, which Moeka removes before it applies its own curve. */
   breath?: unknown
   eyeBlink?: CubismEyeBlink
   coreModel: CubismModel
@@ -60,14 +60,14 @@ export interface UseLive2DMotionManagerUpdateOptions {
 }
 
 /**
- * Disables the periodic breath pass that the Cubism runtime applies after AIRI's motion plugins.
+ * Disables the periodic breath pass that the Cubism runtime applies after Moeka's motion plugins.
  */
 export function disableLive2DSdkBreath(internalModel: { breath?: unknown }) {
   delete internalModel.breath
 }
 
 /**
- * Applies AIRI's manual breath curve after normal motion updates.
+ * Applies Moeka's manual breath curve after normal motion updates.
  *
  * A release restores the configured static breath value once. Normal model
  * motion can own the parameter again on later frames.

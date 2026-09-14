@@ -43,7 +43,7 @@ export interface MultiDisplaySnapshot {
 }
 
 /**
- * Resolved position metadata for a point in AIRI's desktop coordinate space.
+ * Resolved position metadata for a point in Moeka's desktop coordinate space.
  *
  * The `global` coordinate is the unscaled logical point that macOS input events
  * should receive. `local` and `backingPixel` are diagnostics for display-aware
@@ -129,7 +129,7 @@ export function toDisplayLocalCoord(
  * - Recording display-local and backing-pixel diagnostics
  *
  * Expects:
- * - `snapshot` uses AIRI's top-left global logical coordinate space
+ * - `snapshot` uses Moeka's top-left global logical coordinate space
  * - `x` and `y` are not pre-scaled by Retina backing factor
  *
  * Returns:

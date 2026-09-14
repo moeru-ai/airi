@@ -1,6 +1,6 @@
 # Testing audio
 
-This package runs recorded microphone tests through the real AIRI audio pipeline.
+This package runs recorded microphone tests through the real Moeka audio pipeline.
 
 ```text
 input.wav -> virtual microphone -> VAD -> ASR -> LLM -> TTS -> playback -> UI
@@ -106,20 +106,20 @@ These tests send audio and text to external Providers. Each run can incur Provid
 Build both targets and run all runtime projects:
 
 ```bash
-pnpm -F @proj-airi/testing-audio test:run
+bun run --filter @proj-airi/testing-audio test:run
 ```
 
 Use existing builds:
 
 ```bash
-pnpm -F @proj-airi/testing-audio test:existing-builds
+bun run --filter @proj-airi/testing-audio test:existing-builds
 ```
 
 Run one runtime project:
 
 ```bash
-pnpm -F @proj-airi/testing-audio exec vitest run --project audio-web
-pnpm -F @proj-airi/testing-audio exec vitest run --project audio-electron
+bun run --filter @proj-airi/testing-audio exec vitest run --project audio-web
+bun run --filter @proj-airi/testing-audio exec vitest run --project audio-electron
 ```
 
 Use `*.audio.web.test.ts` for Web-only cases. Use `*.audio.electron.test.ts` for Electron-only cases. The `*.audio.test.ts` pattern runs in both projects.

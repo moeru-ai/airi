@@ -9,7 +9,7 @@ describe('audio input pipeline', () => {
   // Its warm-up phrase gives the VAD time to start. The final "say hello" command is required in the transcript.
   it('runs an OpenAI-compatible request through the complete pipeline', {
     input: new URL('./input.test.wav', import.meta.url),
-    // This case keeps AIRI's default VAD and selects every remote Provider explicitly.
+    // This case keeps Moeka's default VAD and selects every remote Provider explicitly.
     preflight: [
       configureOnboarding(() => ({ completed: true })),
       configureModuleHearing(async (context) => {

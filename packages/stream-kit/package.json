@@ -3,9 +3,9 @@
   "type": "module",
   "version": "0.12.0-beta.5",
   "private": true,
-  "description": "Stream utilities for AIRI (queues, streams)",
+  "description": "Stream utilities for Moeka (queues, streams)",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },

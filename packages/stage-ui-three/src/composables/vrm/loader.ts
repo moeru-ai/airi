@@ -115,7 +115,7 @@ export function useVRMLoader() {
   loader.register((parser) => {
     // NOTICE: Keep the ALL_OUTLINE policy inside the loader stage so three-vrm itself can decide
     // whether to generate the built-in outline layer. This avoids rebuilding the same-mesh
-    // dual-material/groups structure later in AIRI runtime hooks.
+    // dual-material/groups structure later in Moeka runtime hooks.
     const mtoonMaterialPlugin = new AiriMToonMaterialLoaderPlugin(parser)
     return new VRMLoaderPlugin(parser, { mtoonMaterialPlugin })
   })

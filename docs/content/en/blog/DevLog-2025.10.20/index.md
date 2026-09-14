@@ -3,7 +3,7 @@ title: DevLog @ 2025.10.20
 category: DevLog
 date: 2025-10-20
 excerpt: |
-  Sharing the latest progress on the AIRI project, from Tauri to Electron migration, new Live2D models, and various open-source project updates.
+  Sharing the latest progress on the Moeka project, from Tauri to Electron migration, new Live2D models, and various open-source project updates.
 preview-cover:
 # TODO
 ---
@@ -52,7 +52,7 @@ If you're interested too, come join us in maintaining it! [moeru-ai/three-mmd](h
 
  >"You can write prompts with [Vue](https://velin-dev.netlify.app/#/)"!
 
-Remember back in May when we shared our own prompt library? Thanks to RainbowBird hard work and donation, Velin is now officially part of Moeru AI! Almost all of AIRI's prompts are powered by Velin—but no worries about cross-platform capabilities, Velin works great in Node.js environments too!
+Remember back in May when we shared our own prompt library? Thanks to RainbowBird hard work and donation, Velin is now officially part of Moeru AI! Almost all of Moeka's prompts are powered by Velin—but no worries about cross-platform capabilities, Velin works great in Node.js environments too!
 
 <img src="./assets/velin.png" alt="velin.png" />
 
@@ -66,7 +66,7 @@ All these local inferences can only run in Web Workers / worker_threads, which c
 
 ## Project Development Status
 
-Now both Moeru AI and Project AIRI have grown into massive organizations, with over 50 original repositories covering machine learning, data processing, frontend, backend, and more—using TypeScript/Python/Rust/Go and other languages.
+Now both Moeru AI and Project Moeka have grown into massive organizations, with over 50 original repositories covering machine learning, data processing, frontend, backend, and more—using TypeScript/Python/Rust/Go and other languages.
 
 Total followers across all have exceeded 800 people. This was unimaginable when we first started a year ago—truly, thank you all so much for your support!
 
@@ -77,7 +77,7 @@ Moeru AI
 
 <img src="./assets/project-airi.png" alt="project-airi.png" />
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
-Project AIRI
+Project Moeka
 </div>
 
 ## Pure Rust TTS Implementation

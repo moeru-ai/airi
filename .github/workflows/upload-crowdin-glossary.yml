@@ -19,18 +19,20 @@ jobs:
           fi
 
       - uses: actions/checkout@v6
-      - uses: pnpm/setup@v2
+      - uses: actions/setup-node@v6
         with:
-          runtime: node@26.7.0
-          cache: true
-          install: false
+          node-version: 26.7.0
 
-      - run: pnpm install --frozen-lockfile
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - run: bun install --frozen-lockfile
 
       # The TBX file is generated, never committed, so it cannot drift from terms.yaml.
       # The schema also rejects a malformed entry here, before anything reaches Crowdin.
       - name: Generate TBX File
-        run: pnpm -F @proj-airi/i18n glossary:build
+        run: bun run --filter @proj-airi/i18n glossary:build
 
       # NOTICE: Crowdin does not document whether an import merges into the existing
       # concepts or adds duplicates beside them, and a merge cannot be undone. This

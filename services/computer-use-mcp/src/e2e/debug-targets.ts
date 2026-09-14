@@ -16,7 +16,7 @@ function containsFragment(input: string, fragments: string[]) {
 }
 
 // NOTICE: The remote debug endpoint exposes multiple renderer pages for Electron.
-// We only want actual AIRI app pages here; helper pages like beat-sync and devtools
+// We only want actual Moeka app pages here; helper pages like beat-sync and devtools
 // will never expose `window.__AIRI_DEBUG__` and should be deprioritized early.
 export function isInspectableAiriRendererTarget(target: DebugTargetLike) {
   if (target.type !== 'page') {
@@ -47,7 +47,7 @@ function scoreInspectableAiriTarget(target: DebugTargetLike) {
   if (target.title === 'Chat') {
     score += 40
   }
-  else if (target.title === 'AIRI') {
+  else if (target.title === 'Moeka') {
     score += 20
   }
 

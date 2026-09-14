@@ -5,8 +5,8 @@ import type { TwitterServices } from '../types/services'
 import * as fs from 'node:fs/promises'
 
 /**
- * Airi Adapter
- * Adapts the X service as an Airi module
+ * Moeka Adapter
+ * Adapts the X service as an Moeka module
  */
 import { Client } from '@proj-airi/server-sdk'
 
@@ -112,9 +112,9 @@ export class AiriAdapter {
       }
     })
 
-    // Handle input from AIRI system
+    // Handle input from Moeka system
     this.client.onEvent('input:text', async (event) => {
-      logger.main.log('Received input from AIRI system:', event.data.text)
+      logger.main.log('Received input from Moeka system:', event.data.text)
       // Process Twitter-related commands
       await this.handleInput(event.data.text)
     })
@@ -122,7 +122,7 @@ export class AiriAdapter {
     // Handle authentication
     this.client.onEvent('module:authenticated', async (event) => {
       if (event.data.authenticated) {
-        logger.main.log('X module authenticated with AIRI server')
+        logger.main.log('X module authenticated with Moeka server')
       }
       else {
         logger.main.warn('X module authentication failed')
@@ -283,31 +283,31 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
   }
 
   /**
-   * Start the AiriAdapter and connect to the AIRI server
+   * Start the AiriAdapter and connect to the Moeka server
    */
   async start(): Promise<void> {
-    logger.main.log('Starting Airi adapter for X...')
+    logger.main.log('Starting Moeka adapter for X...')
     try {
       await this.client.connect()
-      logger.main.log('Airi adapter for X started successfully')
+      logger.main.log('Moeka adapter for X started successfully')
     }
     catch (error) {
-      logger.main.errorWithError('Failed to start Airi adapter for X:', error)
+      logger.main.errorWithError('Failed to start Moeka adapter for X:', error)
       throw error
     }
   }
 
   /**
-   * Stop the AiriAdapter and disconnect from the AIRI server
+   * Stop the AiriAdapter and disconnect from the Moeka server
    */
   async stop(): Promise<void> {
-    logger.main.log('Stopping Airi adapter for X...')
+    logger.main.log('Stopping Moeka adapter for X...')
     try {
       this.client.close()
-      logger.main.log('Airi adapter for X stopped')
+      logger.main.log('Moeka adapter for X stopped')
     }
     catch (error) {
-      logger.main.errorWithError('Error stopping Airi adapter for X:', error)
+      logger.main.errorWithError('Error stopping Moeka adapter for X:', error)
       throw error
     }
   }

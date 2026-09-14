@@ -10,7 +10,7 @@ tools, schema changes, or a `plast-mem` dependency.
 
 `computer-use-mcp` owns current-run coding execution memory and may later expose
 a governed local reviewed-coding-memory export boundary. It must not become
-AIRI's long-term memory service.
+Moeka's long-term memory service.
 
 `plast-mem` owns project-level long-term memory: conversation ingestion,
 episodic memory, semantic consolidation, retrieval, and memory review/decay

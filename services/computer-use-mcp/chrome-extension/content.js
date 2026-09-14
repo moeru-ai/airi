@@ -1,5 +1,5 @@
 /**
- * content.js — AIRI Desktop Grounding: read-only DOM observation
+ * content.js — Moeka Desktop Grounding: read-only DOM observation
  *
  * Injected into every frame (including cross-origin iframes) in the MAIN world.
  * Namespace: window.__AIRI_DG__

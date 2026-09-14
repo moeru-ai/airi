@@ -10,7 +10,7 @@ export function useAdapter() {
 
   async function initAdapters(config: Config, ctx: Context): Promise<{ airi?: AiriAdapter, mcp?: MCPAdapter }> {
     if (config.adapters.airi?.enabled) {
-      logger.main.log('Starting Airi adapter...')
+      logger.main.log('Starting Moeka adapter...')
       const { AiriAdapter } = await import('./airi-adapter')
 
       adapters.airi = new AiriAdapter(ctx, {
@@ -20,7 +20,7 @@ export function useAdapter() {
       })
 
       await adapters.airi.start()
-      logger.main.log('Airi adapter started')
+      logger.main.log('Moeka adapter started')
     }
 
     if (config.adapters.mcp?.enabled) {

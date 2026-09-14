@@ -1,12 +1,12 @@
 ---
 title: Anthropic
-description: Configuring the Anthropic Claude chat model in AIRI
+description: Configuring the Anthropic Claude chat model in Moeka
 ---
 
-Anthropic provider lets AIRI use the Claude chat model. AIRI uses Anthropic's API address and your API Key; the model list is built into AIRI, so there's no need to manually fill in a Base URL or model ID to get started.
+Anthropic provider lets Moeka use the Claude chat model. Moeka uses Anthropic's API address and your API Key; the model list is built into Moeka, so there's no need to manually fill in a Base URL or model ID to get started.
 
 ::: info Why choose Anthropic?
-If you are already using the Claude API, or want to use Claude models in AIRI, you can choose Anthropic directly.
+If you are already using the Claude API, or want to use Claude models in Moeka, you can choose Anthropic directly.
 :::
 
 ## Create API Key
@@ -19,7 +19,7 @@ If you are already using the Claude API, or want to use Claude models in AIRI, y
 Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the Anthropic console.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Chat → Anthropic**.
 2. Paste the API Key into the basic settings.
@@ -27,11 +27,11 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Verify configuration
 
-1. **Validate configuration**: AIRI validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
+1. **Validate configuration**: Moeka validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
 2. **Select Model →**: After validation succeeds, use this button to open **Settings → Modules → Consciousness**, then select the provider and model.
 
 ## Troubleshooting
 
 Provider validation checks connectivity by sending a short chat request. If it fails, confirm that the API key is valid, the account has available credit and sufficient usage limits, no rate limit is active, and the network can reach the Anthropic API.
 
-If the model selector does not show the expected model, first update AIRI or manually enter the exact model ID provided by Anthropic on the **Consciousness** page.
+If the model selector does not show the expected model, first update Moeka or manually enter the exact model ID provided by Anthropic on the **Consciousness** page.

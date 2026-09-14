@@ -1,4 +1,4 @@
-# AIRI terminology glossary — English source of truth.
+# Moeka terminology glossary — English source of truth.
 #
 # A generator turns this file into TBX version 3 and sends it to the Crowdin glossary, where
 # the editor marks each term and offers the approved translation.
@@ -78,60 +78,28 @@
       note: The plural; TBX has no plural value, so it is recorded as a variant.
 
 # ---------------------------------------------------------------------------------------
-# Product and editions
+# Product
 # ---------------------------------------------------------------------------------------
 
-- id: airi
+- id: moeka
   subject: product
   # TODO: open question. Should this concept be translatable? Interface strings in all 8
-  # locales keep "AIRI". But the project uses the Japanese form アイリ in prose, and also in
+  # locales keep "Moeka". But the project uses the Japanese form アイリ in prose, and also in
   # the English README.
   translatable: false
   definition: The application that this project makes, an animated character that speaks, listens, and sees.
   note: >
     Keep the Latin letters in every language; only prose may write the Japanese form アイリ.
   terms:
-    - text: AIRI
+    - text: Moeka
       part-of-speech: proper noun
       status: preferred
-      context: Welcome to AIRI!
-    - text: Project AIRI
+      context: Welcome to Moeka!
+    - text: Project Moeka
       part-of-speech: proper noun
       status: preferred
       type: fullForm
       note: The full name, used on first mention.
-
-- id: tamagotchi
-  subject: product
-  translatable: false
-  definition: The internal codename of the desktop edition, whose package is stage-tamagotchi.
-  note: >
-    Keep the Latin letters, write "Desktop ver." in anything an end user reads, and never
-    write "Stage Tamagotchi" with a space.
-  terms:
-    - text: Tamagotchi
-      part-of-speech: proper noun
-      status: preferred
-      context: Desktop ver. (known as stage-tamagotchi internally)
-
-- id: pocket
-  subject: product
-  translatable: false
-  definition: The internal codename of the mobile edition, whose package is stage-pocket.
-  note: >
-    Keep the Latin letters, write "Mobile ver." in anything an end user reads, and never
-    write "Stage Pocket" with a space.
-  terms:
-    - text: Pocket
-      part-of-speech: proper noun
-      status: preferred
-      context: Mobile ver. (known as stage-pocket internally)
-      note: Correct for a developer audience, wrong in the interface.
-    - text: Stage Pocket
-      part-of-speech: proper noun
-      status: deprecated
-      type: variant
-      note: Neither the codename nor the name a user sees.
 
 # ---------------------------------------------------------------------------------------
 # Payment
@@ -434,11 +402,11 @@
     A rename is in progress, so no term is preferred yet, and the interface still uses
     "Character" for a smaller thing: a tab inside the card.
   terms:
-    - text: AIRI Card
+    - text: Moeka Card
       part-of-speech: noun
       status: admitted
-      context: Paste this into your AIRI Card artistry config to override these nodes.
-      note: The name in the interface today; translate "Card" and keep "AIRI".
+      context: Paste this into your Moeka Card artistry config to override these nodes.
+      note: The name in the interface today; translate "Card" and keep "Moeka".
     - text: Character
       part-of-speech: noun
       status: admitted

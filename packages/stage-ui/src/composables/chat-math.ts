@@ -8,7 +8,7 @@ import { SKIP, visit } from 'unist-util-visit'
 const chatMathFenceLanguages = new Set(['latex', 'math', 'tex'])
 
 /**
- * Checks whether a code-fence language belongs to the AIRI chat math syntax.
+ * Checks whether a code-fence language belongs to the Moeka chat math syntax.
  *
  * These fences are consumed before syntax highlighting and must not be loaded
  * as Shiki languages.
@@ -57,7 +57,7 @@ const remarkChatMath: Plugin<[], Root> = () => (tree) => {
 }
 
 /**
- * Defines the math syntax for AIRI chat Markdown.
+ * Defines the math syntax for Moeka chat Markdown.
  *
  * A single dollar sign stays text, and `$$...$$` defines inline math. A
  * `latex` or `tex` fence contains one formula per non-empty row. The `block`

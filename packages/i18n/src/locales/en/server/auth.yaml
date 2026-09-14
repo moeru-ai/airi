@@ -1,17 +1,17 @@
 electronCallback:
   title:
     loading: Completing sign-in
-    openingAiri: Opening AIRI
+    openingAiri: Opening Moeka
     signedIn: You are signed in
     signInFailed: Sign-in failed
-    finishSignInInAiri: Finish sign-in in AIRI
-    openAiriToContinue: Open AIRI to continue
+    finishSignInInAiri: Finish sign-in in Moeka
+    openAiriToContinue: Open Moeka to continue
   message:
-    checkingResponse: Checking your sign-in response and preparing the handoff to AIRI.
-    passingToAiri: Passing your sign-in back to AIRI now. This page should close in a moment.
-    syncedAndSafeToClose: We notified AIRI client you signed from.
+    checkingResponse: Checking your sign-in response and preparing the handoff to Moeka.
+    passingToAiri: Passing your sign-in back to Moeka now. This page should close in a moment.
+    syncedAndSafeToClose: We notified Moeka client you signed from.
     invalidResponse: We could not use this sign-in response.
-    loopbackUnreachable: The browser could not reach AIRI through the local callback port.
+    loopbackUnreachable: The browser could not reach Moeka through the local callback port.
     tryOpenDirectly: We will try opening the local handoff directly. If that still fails, use the button below.
     automaticHandoffFailed: Automatic handoff did not finish in this browser session.
   label:
@@ -19,7 +19,7 @@ electronCallback:
     safeToClose: It is safe to close this tab now.
     whyStillHere: Why this tab still here?
   action:
-    openAiriManually: Open AIRI manually
+    openAiriManually: Open Moeka manually
   hint:
     closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
 signIn:
@@ -156,7 +156,7 @@ profile:
     setLinkSent: Check {email} for the link to set your password.
     setLinkFailed: We could not send the password setup link.
   linkedAccounts:
-    description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+    description: Sign in to Moeka through these providers. Unlink to revoke access, then link again to switch to a different account.
     status:
       linked: Linked
       notLinked: Not linked
@@ -198,6 +198,6 @@ webCallback:
     missingCodeOrState: Missing authorization code or state
     missingFlowState: Missing OIDC flow state - please try logging in again
     tokenExchangeFailed: Token exchange failed
-    finalizing: Finalizing authentication with AIRI.
+    finalizing: Finalizing authentication with Moeka.
   action:
     tryAgain: Try again

@@ -1,10 +1,10 @@
 # @proj-airi/stage-ui-mmd
 
-MMD (MikuMikuDance) scene components, composables, and stores for Project AIRI.
+MMD (MikuMikuDance) scene components, composables, and stores for Project Moeka.
 
 ## What it does
 
-Renders PMX/PMD models with VMD/VPD motion support inside AIRI's stage,
+Renders PMX/PMD models with VMD/VPD motion support inside Moeka's stage,
 reaching feature parity with the Live2D and VRM renderers:
 
 - **Model loading** for `.pmx`/`.pmd`, from a packaged ZIP (model + textures)
@@ -15,7 +15,7 @@ reaching feature parity with the Live2D and VRM renderers:
   and custom rigs.
 - **Importable, mappable motions**: import VMD clips (persisted to IndexedDB,
   synced across windows), set one as the looping idle, preview any as a
-  one-shot, remove them, and map AIRI emotions to gesture motions.
+  one-shot, remove them, and map Moeka emotions to gesture motions.
 - **Morph-based lip-sync** driven by the shared wLipSync profile, mapping
   phonemes to the canonical あいうえお mouth morphs, with per-slot morph
   remapping for non-standard models.
@@ -63,7 +63,7 @@ is edited through the model settings panel.
 
 ## When to use it
 
-- Displaying MMD/MikuMikuDance characters (`.pmx`/`.pmd`) on the AIRI stage.
+- Displaying MMD/MikuMikuDance characters (`.pmx`/`.pmd`) on the Moeka stage.
 - When you need physics-driven secondary motion, IK, and VMD playback.
 
 ## When not to use it

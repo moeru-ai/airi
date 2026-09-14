@@ -1,9 +1,9 @@
 ---
 title: BytePlus Coding Plan
-description: Configuring the BytePlus Coding Plan chat model in AIRI
+description: Configuring the BytePlus Coding Plan chat model in Moeka
 ---
 
-BytePlus Coding Plan is available in AIRI as an independent provider card.
+BytePlus Coding Plan is available in Moeka as an independent provider card.
 
 ::: info Why choose BytePlus Coding Plan?
 If your BytePlus account has a Coding Plan, you should use this card instead of the normal BytePlus configuration to match the corresponding service plan.
@@ -17,14 +17,14 @@ If your BytePlus account has a Coding Plan, you should use this card instead of 
 Do not commit API keys or endpoint credentials, include them in screenshots, or share them with anyone.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Chat → BytePlus Coding Plan** and enter the API key.
-2. Keep the default **Base URL** unless the Coding Plan documentation provides another compatible API root. Models come from AIRI's static provider list; this form has no Endpoint ID or model field.
+2. Keep the default **Base URL** unless the Coding Plan documentation provides another compatible API root. Models come from Moeka's static provider list; this form has no Endpoint ID or model field.
 
 ## Verify configuration
 
-1. **Validate configuration**: AIRI validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
+1. **Validate configuration**: Moeka validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
 2. **Select Model →**: After validation succeeds, use this button to open **Settings → Modules → Consciousness**, then select an available model.
 
 ## Troubleshooting

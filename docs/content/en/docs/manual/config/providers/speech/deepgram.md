@@ -1,9 +1,9 @@
 ---
 title: Deepgram (TTS)
-description: Configuring Deepgram speech synthesis in AIRI
+description: Configuring Deepgram speech synthesis in Moeka
 ---
 
-Deepgram offers the Aura family of speech synthesis models in AIRI.
+Deepgram offers the Aura family of speech synthesis models in Moeka.
 
 ::: info Why choose Deepgram?
 If you already use Deepgram, or want to choose from the Aura range of voices, you can use this integration.
@@ -19,17 +19,17 @@ If you already use Deepgram, or want to choose from the Aura range of voices, yo
 Do not commit the API key, include it in screenshots, or share it with anyone.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Speech → Deepgram** and paste the API key.
-2. The default Base URL is the AIRI/UnSpeech gateway at `https://unspeech.hyp3r.link/v1/`, not Deepgram's direct API. Your API key, text to synthesize, model/voice selection, and returned audio pass through this gateway. Use it only if you accept that trust boundary; otherwise enter a compatible self-hosted gateway URL or choose a provider that connects directly.
+2. The default Base URL is the Moeka/UnSpeech gateway at `https://unspeech.hyp3r.link/v1/`, not Deepgram's direct API. Your API key, text to synthesize, model/voice selection, and returned audio pass through this gateway. Use it only if you accept that trust boundary; otherwise enter a compatible self-hosted gateway URL or choose a provider that connects directly.
 
 ## Verify configuration
 
 1. Select an available Aura voice in the provider playground.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
-## Enable for AIRI replies
+## Enable for Moeka replies
 
 Open **Settings → Modules → Speech**, select **Deepgram**, then select an available model and voice. The playground test alone does not enable the provider for normal replies.
 

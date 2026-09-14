@@ -37,11 +37,11 @@ export interface SupportMatrixEntry {
 }
 
 export const strictReleaseGateCommands = [
-  'pnpm -F @proj-airi/computer-use-mcp e2e:developer-workflow',
-  'pnpm -F @proj-airi/computer-use-mcp e2e:terminal-exec',
-  'pnpm -F @proj-airi/computer-use-mcp e2e:terminal-pty',
-  'pnpm -F @proj-airi/computer-use-mcp e2e:terminal-self-acquire',
-  'pnpm -F @proj-airi/computer-use-mcp e2e:airi-chat-terminal-self-acquire',
+  'bun run --filter @proj-airi/computer-use-mcp e2e:developer-workflow',
+  'bun run --filter @proj-airi/computer-use-mcp e2e:terminal-exec',
+  'bun run --filter @proj-airi/computer-use-mcp e2e:terminal-pty',
+  'bun run --filter @proj-airi/computer-use-mcp e2e:terminal-self-acquire',
+  'bun run --filter @proj-airi/computer-use-mcp e2e:airi-chat-terminal-self-acquire',
 ] as const
 
 // ---------------------------------------------------------------------------
@@ -59,7 +59,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
       'src/workflows/engine.test.ts',
       'src/server/workflow-formatter.test.ts',
     ],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:developer-workflow',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp e2e:developer-workflow',
     happyPath: 'open_workspace → validate_workspace → run_tests (e2e:developer-workflow, dry-run)',
   },
   {
@@ -71,7 +71,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
       'src/workflows/engine.test.ts',
       'src/server/workflow-formatter.test.ts',
     ],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:developer-workflow',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp e2e:developer-workflow',
     happyPath: 'open_workspace → validate_workspace → run_tests (e2e:developer-workflow, dry-run)',
   },
   {
@@ -83,7 +83,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
       'src/workflows/engine.test.ts',
       'src/server/workflow-formatter.test.ts',
     ],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:developer-workflow',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp e2e:developer-workflow',
     happyPath: 'open_workspace → validate_workspace → run_tests (e2e:developer-workflow, dry-run)',
   },
   {
@@ -92,7 +92,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
     label: 'Inspect IDE failure panel via accessibility',
     level: 'covered',
     unitTests: ['src/workflows/engine.test.ts'],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:workflow',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp smoke:workflow',
   },
   {
     lane: 'workflow',
@@ -100,7 +100,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
     label: 'Resume paused workflow after approval',
     level: 'covered',
     unitTests: ['src/workflows/engine.test.ts'],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:workflow',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp smoke:workflow',
   },
   {
     lane: 'workflow',
@@ -110,7 +110,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
     unitTests: [
       'src/server/workflow-formatter.test.ts',
     ],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:browser-reroute',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp e2e:browser-reroute',
     happyPath: 'workflow_browse_and_act → reroute detected → suggestedTool succeeds (secondary regression)',
   },
 
@@ -124,7 +124,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
       'src/strategy.test.ts',
       'src/server/workflow-formatter.test.ts',
     ],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:browser-reroute',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp e2e:browser-reroute',
     happyPath: 'Dual-stack browser selection is covered by strategy/formatter tests; secondary reroute regression remains surface-agnostic under dry-run.',
   },
   {
@@ -136,7 +136,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
       'src/strategy.test.ts',
       'src/server/workflow-formatter.test.ts',
     ],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:workflow',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp smoke:workflow',
   },
   {
     lane: 'browser',
@@ -144,7 +144,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
     label: 'Browser workflow orchestration',
     level: 'covered',
     unitTests: ['src/workflows/engine.test.ts'],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:workflow',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp smoke:workflow',
   },
 
   // ── Desktop/native lane ────────────────────────────────────────────────
@@ -154,7 +154,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
     label: 'Focus app + screenshot + accessibility observation',
     level: 'covered',
     unitTests: ['src/server/action-executor.test.ts'],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:stdio',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp smoke:stdio',
     happyPath: 'focus app → screenshot → accessibility_snapshot basic loop',
   },
   {
@@ -168,7 +168,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
       'src/server/register-desktop-grounding.test.ts',
       'src/server/register-desktop-grounding-tools.test.ts',
     ],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:desktop-v3',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp smoke:desktop-v3',
     happyPath: 'desktop_ensure_chrome → desktop_observe → desktop_click_target → desktop_get_state updates grounding and pointer state',
   },
   {
@@ -199,7 +199,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
     id: 'desktop_approval_queue',
     label: 'Approval queue (list / approve / reject pending actions)',
     level: 'covered',
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:workflow',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp smoke:workflow',
   },
   {
     lane: 'desktop-native',
@@ -220,7 +220,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
       'src/workflows/engine.test.ts',
       'src/terminal-release-gates.test.ts',
     ],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:terminal-exec',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp e2e:terminal-exec',
     happyPath: 'terminal_exec happy path: run command, capture stdout/stderr/exitCode, update run-state',
   },
   {
@@ -235,8 +235,8 @@ export const supportMatrix: SupportMatrixEntry[] = [
       'src/server/workflow-prep-tools.test.ts',
       'src/terminal-release-gates.test.ts',
     ],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:airi-chat-terminal-self-acquire',
-    happyPath: 'AIRI chat validates the repo → workflow self-acquires PTY for vim --version → PTY remains readable and run-state / audit / bindings stay consistent',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp e2e:airi-chat-terminal-self-acquire',
+    happyPath: 'Moeka chat validates the repo → workflow self-acquires PTY for vim --version → PTY remains readable and run-state / audit / bindings stay consistent',
   },
   {
     lane: 'terminal',
@@ -270,7 +270,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
       'src/workflows/engine.test.ts',
       'src/server/workflow-prep-tools.test.ts',
     ],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp e2e:airi-chat-terminal-self-acquire',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp e2e:airi-chat-terminal-self-acquire',
     happyPath: 'workflow_validate_workspace starts on exec, self-acquires PTY for the interactive validation step, and completes without harness-side pty_create',
   },
   {
@@ -309,7 +309,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
     unitTests: [
       'src/server/register-vscode.test.ts',
     ],
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:stdio',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp smoke:stdio',
   },
   {
     lane: 'terminal',
@@ -327,14 +327,14 @@ export const supportMatrix: SupportMatrixEntry[] = [
     id: 'secret_read_env_value',
     label: 'Read .env secrets without terminal echo',
     level: 'covered',
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:stdio',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp smoke:stdio',
   },
   {
     lane: 'handoff',
     id: 'clipboard_read_write',
     label: 'Clipboard read/write text handoff',
     level: 'covered',
-    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:stdio',
+    smokeCommand: 'bun run --filter @proj-airi/computer-use-mcp smoke:stdio',
   },
   {
     lane: 'handoff',
@@ -345,7 +345,7 @@ export const supportMatrix: SupportMatrixEntry[] = [
       'packages/stage-ui/src/tools/mcp-reroute.test.ts',
       'packages/stage-ui/src/tools/mcp.test.ts',
     ],
-    smokeCommand: 'pnpm exec vitest run packages/stage-ui/src/tools/mcp-reroute.test.ts packages/stage-ui/src/tools/mcp.test.ts',
+    smokeCommand: 'bunx vitest run packages/stage-ui/src/tools/mcp-reroute.test.ts packages/stage-ui/src/tools/mcp.test.ts',
     happyPath: 'MCP returns reroute → stage-ui parser extracts → fixed template observation → provider paths consume the same reroute signal in tests',
   },
 ]

@@ -1,6 +1,6 @@
 # Copilot repository instructions
 
-This is the `moeru-ai/airi` pnpm monorepo. Prefer the smallest safe change and keep every task inside its stated scope.
+This is the `cuwayo/moeka` Bun monorepo. Prefer the smallest safe change and keep every task inside its stated scope.
 
 ## General rules
 
@@ -14,7 +14,7 @@ This is the `moeru-ai/airi` pnpm monorepo. Prefer the smallest safe change and k
 
 ## Validation
 
-- Use package-scoped pnpm commands where possible.
+- Use package-scoped Bun commands where possible.
 - Run the narrowest relevant test first.
 - Run typecheck if runtime contracts or exported types changed.
 - Run affected package tests if shared logic changed.

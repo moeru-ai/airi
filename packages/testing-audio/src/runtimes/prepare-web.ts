@@ -7,7 +7,7 @@ import { piniaActionTracingChannelName } from '@proj-airi/stage-shared/types/pin
 import { stubForBrowser } from '../setup/browser-probe'
 import { createSession } from '../setup/session'
 
-/** Adapts a Fakemic Chromium process into an AIRI Web audio session. */
+/** Adapts a Fakemic Chromium process into an Moeka Web audio session. */
 export default async function prepareWebRuntime(context: FakemicWebPrepareContext): Promise<AudioInputSession> {
   await context.context.addInitScript(stubForBrowser, piniaActionTracingChannelName)
 

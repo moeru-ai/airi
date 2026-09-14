@@ -2,9 +2,9 @@
   "name": "@proj-airi/stage-ui-mmd",
   "type": "module",
   "private": true,
-  "description": "MMD (MikuMikuDance) scene components and stores for Project AIRI",
+  "description": "MMD (MikuMikuDance) scene components and stores for Project Moeka",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },

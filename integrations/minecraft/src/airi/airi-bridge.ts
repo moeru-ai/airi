@@ -17,7 +17,7 @@ interface SparkCommandData {
 }
 
 /**
- * Connects the Minecraft cognitive runtime to AIRI server events.
+ * Connects the Minecraft cognitive runtime to Moeka server events.
  *
  * Use when:
  * - Minecraft must publish context and notifications to Stage runtimes.
@@ -28,7 +28,7 @@ interface SparkCommandData {
  * - {@link setCommandAvailable} follows the active bot lifecycle.
  *
  * Returns:
- * - Event handlers and send operations for the Minecraft side of the AIRI server seam.
+ * - Event handlers and send operations for the Minecraft side of the Moeka server seam.
  */
 export class AiriBridge {
   private readonly logger = useLogg('airi-bridge').useGlobalConfig()
@@ -55,7 +55,7 @@ export class AiriBridge {
 
       this.sendEmit(cmd.commandId, 'queued', 'Command received')
 
-      // A spark:command is high-level guidance from the AIRI server. It must carry enough weight to
+      // A spark:command is high-level guidance from the Moeka server. It must carry enough weight to
       // trigger a fresh decision (Conscious) cycle, never be silently filed into history — so we
       // always route it through handleActionIntent (→ signal:airi_command → enqueueEvent → decision cycle).
       //
@@ -195,10 +195,10 @@ export class AiriBridge {
   }
 
   private handleActionIntent(cmd: SparkCommandData): void {
-    // A spark:command is high-level guidance from the AIRI server. Route it through the explicit
+    // A spark:command is high-level guidance from the Moeka server. Route it through the explicit
     // `airi_command` signal so the brain runs a fresh decision cycle
     // (resetNoActionFollowupBudget('airi_command'), normal Conscious wake-up) instead of silently
-    // filing it into history. The directive is attributed to the AIRI server as a neutral source,
+    // filing it into history. The directive is attributed to the Moeka server as a neutral source,
     // not to any specific in-game player. The status context tells Stage when this relay is available
     // while this bridge remains the final receiver-side availability gate.
     const firstOption = cmd.guidance?.options?.[0]
@@ -212,7 +212,7 @@ export class AiriBridge {
 
     const sourceId = 'airi'
 
-    this.logger.log('Routing spark:command as an AIRI directive', {
+    this.logger.log('Routing spark:command as an Moeka directive', {
       commandId: cmd.commandId,
       message,
     })
@@ -221,13 +221,13 @@ export class AiriBridge {
       type: 'signal:airi_command',
       payload: Object.freeze({
         type: 'airi_command' as const,
-        description: `Directive from AIRI: "${message}"`,
+        description: `Directive from Moeka: "${message}"`,
         sourceId,
         confidence: 1.0,
         timestamp: Date.now(),
         metadata: {
           message,
-          // Keep the spark provenance for debugging; the brain sees a typed AIRI directive.
+          // Keep the spark provenance for debugging; the brain sees a typed Moeka directive.
           sparkCommandId: cmd.commandId,
           sparkIntent: cmd.intent,
         },

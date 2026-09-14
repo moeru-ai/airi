@@ -257,7 +257,7 @@ describe('createChatOrchestratorRuntime', () => {
   // ROOT CAUSE:
   //
   // xsAI kept the assistant tool call and tool result in its private message copy.
-  // AIRI stored only UI slices, then removed those slices from the next provider request.
+  // Moeka stored only UI slices, then removed those slices from the next provider request.
   //
   // We fixed this by storing the provider transcript on the finalized UI message.
   // The next request expands that transcript back into chronological provider messages.

@@ -133,9 +133,6 @@ plugins/development
 plugins-local
 plugins-development
 
-apps/stage-pocket/ios/buildServer.json
-apps/stage-pocket/airi-pocket.jks
-apps/stage-tamagotchi/electron.vite.config.*.mjs
 docs/superpowers
 docs/research
 

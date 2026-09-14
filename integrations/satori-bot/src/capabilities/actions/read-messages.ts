@@ -33,7 +33,7 @@ export const readMessagesAction: ActionHandler = {
       return {
         success: true,
         shouldContinue: true,
-        result: 'AIRI System: No unread messages found.',
+        result: 'Moeka System: No unread messages found.',
       }
     }
 
@@ -62,7 +62,7 @@ export const readMessagesAction: ActionHandler = {
     return {
       success: true,
       shouldContinue: true,
-      result: `AIRI System: Read ${unreadEventsForThisChannel.length} unread events from channel ${channelId}:\n${formattedMessages}`,
+      result: `Moeka System: Read ${unreadEventsForThisChannel.length} unread events from channel ${channelId}:\n${formattedMessages}`,
     }
   },
 }

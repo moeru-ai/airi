@@ -9,8 +9,7 @@ import { computed, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
-export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'tachie' | 'mmd' | 'godot' | 'disabled' | undefined
-type BuiltInStageModelRenderer = Exclude<StageModelRenderer, 'godot'>
+export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'tachie' | 'mmd' | 'disabled' | undefined
 
 const useStageModelSelectionStore = defineStore('settings-stage-model-selection', () => {
   // Pinia synchronization owns live cross-window state. localStorage only
@@ -49,7 +48,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const stageModelSelectedDisplayModel = refManualReset<DisplayModel | undefined>(undefined)
   const stageModelSelectedUrl = refManualReset<string | undefined>(undefined)
   const stageModelRenderer = refManualReset<StageModelRenderer>(undefined)
-  const stageModelBuiltInRenderer = refManualReset<BuiltInStageModelRenderer>(undefined)
+  const stageModelBuiltInRenderer = refManualReset<StageModelRenderer>(undefined)
 
   const stageViewControlsEnabled = refManualReset<boolean>(false)
 
@@ -66,7 +65,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     stageModelSelectedUrl.value = nextUrl
   }
 
-  function resolveBuiltInStageModelRenderer(model?: DisplayModel): BuiltInStageModelRenderer {
+  function resolveBuiltInStageModelRenderer(model?: DisplayModel): StageModelRenderer {
     if (!model) {
       return 'disabled'
     }
@@ -117,8 +116,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
       stageModelBuiltInRenderer.value = 'disabled'
-      if (stageModelRenderer.value !== 'godot')
-        stageModelRenderer.value = 'disabled'
+      stageModelRenderer.value = 'disabled'
       return
     }
 
@@ -136,8 +134,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
       stageModelBuiltInRenderer.value = 'disabled'
-      if (stageModelRenderer.value !== 'godot')
-        stageModelRenderer.value = 'disabled'
+      stageModelRenderer.value = 'disabled'
       return
     }
 
@@ -158,8 +155,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     // Browser startup consumes the one-time legacy reset before these refs publish.
     // Direct ThreeScene routes mount from the refs and cannot start with stale identity state.
     stageModelBuiltInRenderer.value = builtInRenderer
-    if (stageModelRenderer.value !== 'godot')
-      stageModelRenderer.value = builtInRenderer
+    stageModelRenderer.value = builtInRenderer
     replaceStageModelUrl(nextUrl)
     stageModelSelectedDisplayModel.value = model
   }

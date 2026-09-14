@@ -21,18 +21,20 @@ jobs:
         with:
           ref: main
 
-      - uses: pnpm/setup@v2
+      - uses: actions/setup-node@v6
         with:
-          runtime: node@26.7.0
-          cache: true
-          install: false
-      - run: pnpm install --frozen-lockfile
+          node-version: 26.7.0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
 
       - name: Pull with rebase
         run: git pull origin main --rebase --autostash
 
       - name: Generate sponsors svg
-        run: pnpm run sponsors:generate
+        run: bun run sponsors:generate
 
       - name: Remove private SponsorKit cache
         run: rm -f docs/content/public/assets/sponsors/.cache.json

@@ -414,7 +414,7 @@ describe('javaScriptPlanner', () => {
     expect(planned.actions).toHaveLength(0)
   })
 
-  it('bridges AIRI notification callbacks through the isolate', async () => {
+  it('bridges Moeka notification callbacks through the isolate', async () => {
     const planner = new JavaScriptPlanner()
     const executeAction = vi.fn(async action => `ok:${action.tool}`)
     const notifyAiri = vi.fn()

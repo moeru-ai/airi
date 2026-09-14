@@ -269,71 +269,23 @@ Capacités :
 > Pour des instructions détaillées sur le développement, suivez [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
 
 > [!NOTE]
-> Par défaut, `pnpm dev` démarre le serveur de développement pour Stage Web (version navigateur). Pour développer la version desktop, lisez [CONTRIBUTING.md](./.github/CONTRIBUTING.md) pour configurer correctement l’environnement.
+> Par défaut, `bun run dev` démarre le serveur de développement pour Stage Web (version navigateur). Pour configurer correctement l’environnement, lisez [CONTRIBUTING.md](./.github/CONTRIBUTING.md).
 
 ```shell
-pnpm i
-pnpm dev
+bun install
+bun run dev
 ```
 
 ### Stage Web (Version navigateur sur [airi.moeru.ai](https://airi.moeru.ai))
 
 ```shell
-pnpm dev
+bun run dev
 ```
-
-### Stage Tamagotchi (Version Bureau)
-
-```shell
-pnpm dev:tamagotchi
-```
-
-Un package Nix pour Tamagotchi est inclus. Pour lancer AIRI avec Nix, assurez-vous d'abord d'activer les flakes, puis exécutez :
-
-```shell
-nix run github:moeru-ai/airi
-```
-
-### Stage Pocket (version mobile)
-
-Lancez le serveur de développement de la version Web Capacitor :
-
-```shell
-pnpm dev:pocket
-```
-
-Vérifiez l'adresse IP dans la sortie de cette commande :
-
-```shell
-  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
-
-  ➜  Local:   https://localhost:5273/
-  ➜  Network: https://<ip-will-be-here>:5273/
-  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
-  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
-  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
-```
-
-Ouvrez le projet Xcode :
-
-```shell
-CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
-```
-
-Xcode s'ouvrira ensuite, et vous pourrez cliquer sur le bouton "Run" pour lancer l'application sur un iPhone.
-
-Si vous devez connecter le canal serveur de Pocket en mode sans fil, vous devez lancer Tamagotchi avec les droits root :
-
-```shell
-sudo pnpm dev:tamagotchi
-```
-
-Activez ensuite le websocket sécurisé dans `settings/connections` de Tamagotchi.
 
 ### Site de la Documentation
 
 ```shell
-pnpm dev:docs
+bun run dev:docs
 ```
 
 ### Publier
@@ -402,8 +354,6 @@ npx bumpp --no-commit --no-tag
 flowchart LR
   subgraph Apps[Stage applications]
     Web[stage-web]
-    Desktop[stage-tamagotchi]
-    Pocket[stage-pocket\nexperimental]
   end
 
   subgraph Shared[Shared product packages]
@@ -414,7 +364,7 @@ flowchart LR
     SDK[server-sdk\nserver-shared]
   end
 
-  subgraph Channel[Desktop server channel]
+  subgraph Channel[Server channel]
     Runtime[server-runtime]
   end
 
@@ -433,13 +383,10 @@ flowchart LR
   end
 
   Web --> StageUI
-  Desktop --> StageUI
-  Pocket --> StageUI
   StageUI --> Domain
   StageUI --> Audio
   StageUI --> Renderers
   StageUI --> SDK
-  Desktop --> Runtime
   SDK <-->|server channel| Runtime
   Discord --> SDK
   Minecraft --> SDK

@@ -15,13 +15,13 @@ Privacy note:
 Commands run:
 
 ```sh
-pnpm install --ignore-scripts --frozen-lockfile
+bun install --ignore-scripts --frozen-lockfile
 ```
 
 Result: passed. Lockfile stayed unchanged; lifecycle scripts were intentionally skipped for local verification setup.
 
 ```sh
-pnpm -F @proj-airi/computer-use-mcp exec vitest run \
+bun run --filter @proj-airi/computer-use-mcp exec vitest run \
   src/browser-dom/browser-repair-contract.test.ts \
   src/server/register-tools-pty-approval.test.ts \
   --config ./vitest.config.ts
@@ -30,7 +30,7 @@ pnpm -F @proj-airi/computer-use-mcp exec vitest run \
 Result: passed. 2 test files, 12 tests.
 
 ```sh
-pnpm exec moeru-lint --fix \
+bunx moeru-lint --fix \
   services/computer-use-mcp/validation/browser-repair-contract.md \
   services/computer-use-mcp/src/browser-dom/browser-repair-contract.ts \
   services/computer-use-mcp/src/browser-dom/browser-repair-contract.test.ts \
@@ -47,7 +47,7 @@ git diff --check
 Result: passed.
 
 ```sh
-pnpm -F @proj-airi/computer-use-mcp typecheck
+bun run --filter @proj-airi/computer-use-mcp typecheck
 ```
 
 Result: failed on existing baseline files outside this change:

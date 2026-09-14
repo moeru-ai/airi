@@ -6,7 +6,7 @@ import { defineConfig } from 'histoire'
 export default defineConfig({
   routerMode: 'hash',
   theme: {
-    title: 'AIRI UI',
+    title: 'Moeka UI',
     logo: {
       dark: './public/logo.svg',
       light: './public/logo.svg',

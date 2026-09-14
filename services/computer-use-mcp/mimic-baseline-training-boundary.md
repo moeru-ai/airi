@@ -228,7 +228,7 @@ Chika should not own these in the first slice:
 - Windows support
 - terminal coding workflow integration
 - model deployment
-- product claims that AIRI has a trained computer-use model
+- product claims that Moeka has a trained computer-use model
 
 ## Non-Goals
 
@@ -239,7 +239,7 @@ Chika should not own these in the first slice:
 - No model deployment.
 - No MCP schema changes unless strictly necessary for trace serialization.
 - No desktop/chafa/CLI pet integration.
-- No product claim that AIRI has a trained computer-use model.
+- No product claim that Moeka has a trained computer-use model.
 
 ## Reminder Trigger
 

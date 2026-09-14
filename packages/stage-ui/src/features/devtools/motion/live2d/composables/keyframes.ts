@@ -449,7 +449,7 @@ export function parseLive2DMotionProject(raw: string): Live2DMotionProject {
 
   const result = safeParse(motionProjectSchema, input)
   if (!result.success)
-    throw new Error('The file is not an AIRI Live2D motion project.')
+    throw new Error('The file is not an Moeka Live2D motion project.')
 
   const project = result.output
   if (project.source.durationMs !== project.durationMs)

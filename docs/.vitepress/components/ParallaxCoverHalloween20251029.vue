@@ -87,7 +87,7 @@ const maskImageURL = `url(${homeCover})`
       '2xl:w-[100%] 2xl:translate-y-[-4%] 2xl:translate-x-[-60%] 2xl:rotate-[0deg] 2xl:top-16dvh',
     ]"
   >
-    <img ref="surface" :src="homeCover" alt="Project AIRI Cover Image" class="w-full object-cover">
+    <img ref="surface" :src="homeCover" alt="Project Moeka Cover Image" class="w-full object-cover">
     <div ref="silhouetteLayer1" class="silhouette absolute left-0 top-0 z--1 h-full w-full bg-[oklch(0.89_0.08_67.49)]" />
     <div ref="silhouetteLayer2" class="silhouette absolute left-0 top-0 z--2 h-full w-full bg-[oklch(0.69_0.16_295.04)]" />
   </div>

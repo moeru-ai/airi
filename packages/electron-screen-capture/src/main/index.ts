@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Copyright (c) Alec Armbruster, Licensed under MIT License
-// SPDX-FileCopyrightText: Copyright (c) Moeru AI Project AIRI Team
+// SPDX-FileCopyrightText: Copyright (c) Moeka Team
 
 import type { Format, LogLevelString } from '@guiiai/logg'
 import type { MutexInterface } from 'async-mutex'
@@ -148,7 +148,7 @@ function resetScreenCaptureSource() {
  * Reports whether a renderer-selected capture source is currently being served.
  *
  * Use when:
- * - A permission handler has to tell AIRI's own display capture flow apart from an unsolicited request
+ * - A permission handler has to tell Moeka's own display capture flow apart from an unsolicited request
  *
  * Expects:
  * - `initScreenCaptureForWindow` installed the invoke handlers that own the selection mutex

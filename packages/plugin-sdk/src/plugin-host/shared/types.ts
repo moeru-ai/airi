@@ -223,7 +223,7 @@ export interface ExtensionManifestV1 {
   }
   /** Stable extension id used for identity generation and display. */
   id: string
-  /** Manifest kind discriminator used to identify AIRI extension manifests. */
+  /** Manifest kind discriminator used to identify Moeka extension manifests. */
   kind: 'manifest.extension.airi.moeru.ai'
   /** Package/session permission ceiling that module permissions are capped by. */
   permissions: ModulePermissionDeclaration
@@ -322,7 +322,7 @@ const manifestEntrypointsSchema = object({
  * - `permissions` describes the extension-level install/session ceiling
  *
  * Returns:
- * - A Valibot schema for the AIRI extension manifest format
+ * - A Valibot schema for the Moeka extension manifest format
  */
 export const extensionManifestV1Schema = object({
   apiVersion: literal('v1'),

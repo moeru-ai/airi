@@ -1,9 +1,9 @@
 ---
 title: Configure voice input and output
-description: Configuring AIRI for speech synthesis (TTS) and speech recognition (ASR/STT)
+description: Configuring Moeka for speech synthesis (TTS) and speech recognition (ASR/STT)
 ---
 
-Speech synthesis (TTS) reads AIRI's text responses aloud; speech recognition (ASR/STT) converts microphone audio into text. You can configure either capability independently.
+Speech synthesis (TTS) reads Moeka's text responses aloud; speech recognition (ASR/STT) converts microphone audio into text. You can configure either capability independently.
 
 ## Configure speech synthesis (TTS)
 
@@ -30,7 +30,7 @@ Confirm that the Speech provider, model, and voice are selected, and check the s
 
 ### ASR produces no text
 
-Confirm that AIRI has permission to the microphone and that the correct input device is selected on the Hearing page. For real-time recognition services, network outages or browser/system microphone permissions being revoked can also result in empty results.
+Confirm that Moeka has permission to the microphone and that the correct input device is selected on the Hearing page. For real-time recognition services, network outages or browser/system microphone permissions being revoked can also result in empty results.
 
 ### Incorrect language or voice
 

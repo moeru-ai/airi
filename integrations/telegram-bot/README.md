@@ -8,8 +8,8 @@ Clone & install dependencies:
 
 ```shell
 git clone git@github.com:moeru-ai/airi.git
-pnpm i
-pnpm run build:packages
+bun install
+bun run build:packages
 ```
 
 Start Ollama instance for embedding models
@@ -72,5 +72,5 @@ Start both DB and the bot:
 
 ```shell
 docker compose up -d
-pnpm run -F @proj-airi/telegram-bot start
+bun run --filter @proj-airi/telegram-bot start
 ```

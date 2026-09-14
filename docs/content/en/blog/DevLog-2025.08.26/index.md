@@ -12,7 +12,7 @@ preview-cover:
 import NmsIou from './components/nms-iou.vue'
 </script>
 
-Long time no see, everyone! I'm [@LemonNeko](https://github.com/LemonNekoGH), one of the maintainers of AIRI. ~~Ah, getting tired of starting like this, just like an LLM.~~
+Long time no see, everyone! I'm [@LemonNeko](https://github.com/LemonNekoGH), one of the maintainers of Moeka. ~~Ah, getting tired of starting like this, just like an LLM.~~
 
 In my previous [DevLog](../DevLog-2025.07.18/index.md), I mentioned briefly looking at the [Factorio Learning Environment](https://arxiv.org/abs/2503.09617) paper and briefly discussed how we plan to improve `airi-factorio`, but... what I want to share with you today is not about that, but about progress in the pure vision direction.
 

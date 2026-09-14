@@ -11,7 +11,7 @@ describe('useChatComposer', () => {
     const send = vi.fn().mockResolvedValue(undefined)
     const composer = useChatComposer({ activeSessionId, send })
     const target: ChatHistoryReplyPayload = {
-      label: 'AIRI',
+      label: 'Moeka',
       message: { id: 'assistant-1', role: 'assistant', content: 'Reply target', slices: [], tool_results: [] },
     }
     composer.draft.value = 'My answer'
@@ -32,7 +32,7 @@ describe('useChatComposer', () => {
   it('restores a failed send without replacing newer input state', async () => {
     const activeSessionId = shallowRef('session-1')
     const firstTarget: ChatHistoryReplyPayload = {
-      label: 'AIRI',
+      label: 'Moeka',
       message: { id: 'assistant-1', role: 'assistant', content: 'First', slices: [], tool_results: [] },
     }
     const secondTarget: ChatHistoryReplyPayload = {
@@ -73,7 +73,7 @@ describe('useChatComposer', () => {
 
   it('clears only the reply target that matches the deleted message', () => {
     const target: ChatHistoryReplyPayload = {
-      label: 'AIRI',
+      label: 'Moeka',
       message: { id: 'assistant-2', role: 'assistant', content: 'Target', slices: [], tool_results: [] },
     }
     const composer = useChatComposer({ activeSessionId: shallowRef('session-1'), send: vi.fn() })

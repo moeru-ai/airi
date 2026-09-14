@@ -1,9 +1,4 @@
 <script setup lang="ts">
-import type {
-  StageViewErrorPayload,
-  StageViewPatch,
-  StageViewSnapshotPayload,
-} from '@proj-airi/stage-shared/godot-stage'
 import type { Live2DExpressionSettingsCommand } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 
 import type { DisplayModel } from '../../../../stores/display-models'
@@ -14,7 +9,6 @@ import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import Godot from './godot.vue'
 import Live2D from './live2d.vue'
 import MMD from './mmd.vue'
 import Spine from './spine.vue'
@@ -24,28 +18,21 @@ import VRM from './vrm.vue'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useSettings } from '../../../../stores/settings'
 import { ModelSelectorDialog } from '../../dialogs/model-selector'
-import { resolveModelSettingsPanelRenderer } from './runtime'
 
 interface ModelSettingsPanelProps {
   palette: string[]
   settingsClass?: string | string[]
   allowExtractColors?: boolean
   runtimeSnapshot: ModelSettingsRuntimeSnapshot
-  godotViewSnapshot?: StageViewSnapshotPayload | null
-  godotViewError?: StageViewErrorPayload
-  godotViewControlsLocked?: boolean
 }
 
 interface ModelSettingsPanelEmits {
   extractColorsFromModel: []
   live2dExpressionCommand: [command: Live2DExpressionSettingsCommand]
-  patchGodotViewState: [patch: StageViewPatch]
 }
 
 const props = withDefaults(defineProps<ModelSettingsPanelProps>(), {
   allowExtractColors: true,
-  godotViewControlsLocked: true,
-  godotViewSnapshot: null,
 })
 
 const emit = defineEmits<ModelSettingsPanelEmits>()
@@ -54,12 +41,9 @@ const { t } = useI18n()
 const modelSelectorOpen = ref(false)
 const settingsStore = useSettings()
 const airiCardStore = useAiriCardStore()
-const { stageModelRenderer, stageModelSelected, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
+const { stageModelSelected, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
 
-const effectiveRenderer = computed(() => resolveModelSettingsPanelRenderer({
-  settingsRenderer: stageModelRenderer.value,
-  runtimeRenderer: props.runtimeSnapshot.renderer,
-}))
+const effectiveRenderer = computed(() => props.runtimeSnapshot.renderer)
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
   stageModelSelected.value = selectedModel?.id ?? ''
@@ -141,14 +125,6 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
         :palette="palette"
         :runtime-snapshot="runtimeSnapshot"
         @extract-colors-from-model="emit('extractColorsFromModel')"
-      />
-      <Godot
-        v-if="effectiveRenderer === 'godot'"
-        :runtime-snapshot="runtimeSnapshot"
-        :view-snapshot="godotViewSnapshot"
-        :view-error="godotViewError"
-        :view-controls-locked="godotViewControlsLocked"
-        @patch-view-state="emit('patchGodotViewState', $event)"
       />
     </div>
   </ScrollableArea>

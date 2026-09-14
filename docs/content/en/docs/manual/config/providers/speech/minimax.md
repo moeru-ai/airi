@@ -1,12 +1,12 @@
 ---
 title: MiniMax Speech (TTS, unavailable)
-description: Current availability of MiniMax speech synthesis in AIRI
+description: Current availability of MiniMax speech synthesis in Moeka
 ---
 
-MiniMax Speech appears in AIRI's provider registry, but the current app does not include a MiniMax Speech settings page. Selecting it under **Settings → Providers → Speech** therefore cannot complete a usable configuration.
+MiniMax Speech appears in Moeka's provider registry, but the current app does not include a MiniMax Speech settings page. Selecting it under **Settings → Providers → Speech** therefore cannot complete a usable configuration.
 
-::: warning Unavailable in AIRI 0.11.3
-Do not enter credentials or try to follow a MiniMax setup flow in this version. The provider route is not implemented, and AIRI cannot save or test the required settings from the UI.
+::: warning Unavailable in Moeka 0.11.3
+Do not enter credentials or try to follow a MiniMax setup flow in this version. The provider route is not implemented, and Moeka cannot save or test the required settings from the UI.
 :::
 
 ## What to use instead

@@ -8,7 +8,7 @@ preview-cover:
   dark: "@assets('./assets/merry-christmas-iru.avif')"
 ---
 
-**Merry Christmas** from the AIRI team!
+**Merry Christmas** from the Moeka team!
 
 ![Christmas Art](./assets/merry-christmas-iru.avif)
 
@@ -32,7 +32,7 @@ Just hours ago, we saw that on X, [KOL @Dexerto](https://x.com/Dexerto) posted [
 > She reached level 123 with over 110,000 subs and more than 1,000,000 bits.
 
 Happy birthday, Neuro-sama. And congratulations to you, creator of Vedal, also, artist Camila. It's unbelievable you made this
-far, it is you, and also the Swarm brought me here wishing to deliver my version of cyber life, continuously making AIRI to grow.
+far, it is you, and also the Swarm brought me here wishing to deliver my version of cyber life, continuously making Moeka to grow.
 
 ![](./assets/neuro-sama-happy-birthday-live.avif)
 

@@ -8,7 +8,7 @@ describe('audio input pipeline', () => {
   // It repeats the greeting after a 2-second pause to catch regressions that drop the second utterance.
   it('keeps two utterances in streaming transcription', {
     input: new URL('./input.test.wav', import.meta.url),
-    // This regression isolates AIRI's default VAD and one explicit ASR Provider.
+    // This regression isolates Moeka's default VAD and one explicit ASR Provider.
     preflight: [
       configureOnboarding(() => ({ completed: true })),
       configureModuleHearing(async (context) => {
@@ -41,11 +41,11 @@ describe('audio input pipeline', () => {
 
     const expectedTranscriptions = [
       [
-        'Microphone warm up, microphone warm up. Hello, AIRI, please say hello.',
+        'Microphone warm up, microphone warm up. Hello, Moeka, please say hello.',
         'Microphone warm up, microphone warm up. Hello, Eric, please say hello.',
       ],
       [
-        'Microphone warm up, microphone warm up. Hello, AIRI, please say hello.',
+        'Microphone warm up, microphone warm up. Hello, Moeka, please say hello.',
         'Microphone warm up, microphone warm up. Hello, Eric, please say hello.',
       ],
     ]
@@ -89,11 +89,11 @@ describe('audio input pipeline', () => {
     })
     const expectedTranscriptions = [
       [
-        'Microphone warm up, microphone warm up. Hello, AIRI, please say hello.',
+        'Microphone warm up, microphone warm up. Hello, Moeka, please say hello.',
         'Microphone warm up, microphone warm up. Hello, Eric, please say hello.',
       ],
       [
-        'Microphone warm up, microphone warm up. Hello, AIRI, please say hello.',
+        'Microphone warm up, microphone warm up. Hello, Moeka, please say hello.',
         'Microphone warm up, microphone warm up. Hello, Eric, please say hello.',
       ],
     ]

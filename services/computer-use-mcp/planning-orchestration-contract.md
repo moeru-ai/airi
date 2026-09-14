@@ -22,7 +22,7 @@ Current repo facts:
 The Planning Orchestration Layer is a future layer above individual lanes:
 
 ```text
-AIRI Host / User Goal
+Moeka Host / User Goal
   -> Planning Orchestration Layer
   -> Lane Router
   -> coding / desktop / browser_dom / terminal / human lanes

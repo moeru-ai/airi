@@ -2,9 +2,9 @@
   "name": "@proj-airi/server-sdk",
   "type": "module",
   "version": "0.12.0-beta.5",
-  "description": "Client-side SDK implementation for connecting to AIRI server components and runtimes",
+  "description": "Client-side SDK implementation for connecting to Moeka server components and runtimes",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },
@@ -32,7 +32,7 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "pnpm run build",
+    "dev": "bun run build",
     "build": "tsdown",
     "typecheck": "tsc --noEmit"
   },

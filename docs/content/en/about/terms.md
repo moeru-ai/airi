@@ -1,9 +1,9 @@
 ---
 title: Terms & Conditions
-description: Terms & Conditions of Project AIRI
+description: Terms & Conditions of Project Moeka
 ---
 
-These terms and conditions apply to the AIRI app (as known as Project AIRI app, hereby referred to as "Application") for mobile devices that was created by Project AIRI team (hereby referred to as "Service Provider") as an Open Source service, and partially Paid commercial service.
+These terms and conditions apply to the Moeka app (as known as Project Moeka app, hereby referred to as "Application") for mobile devices that was created by Project Moeka team (hereby referred to as "Service Provider") as an Open Source service, and partially Paid commercial service.
 
 Upon downloading or utilizing the Application, you are automatically agreeing to the following terms. It is strongly advised that you thoroughly read and understand these terms prior to using the Application.
 

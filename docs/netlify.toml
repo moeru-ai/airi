@@ -1,6 +1,6 @@
 [build]
 base = "/"
-command = "pnpm -F @proj-airi/docs run build"
+command = "bun run --filter @proj-airi/docs build"
 publish = "/docs/.vitepress/dist"
 
 [build.environment]

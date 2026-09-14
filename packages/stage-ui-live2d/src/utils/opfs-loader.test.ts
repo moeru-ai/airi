@@ -269,7 +269,7 @@ describe('opfs cache full directory persistence', () => {
     const context = {
       source: {
         id: 'middleware-model',
-        url: 'file:///C:/AIRI/resources/app.asar/out/renderer/assets/model.zip',
+        url: 'file:///C:/Moeka/resources/app.asar/out/renderer/assets/model.zip',
       },
     } as Parameters<typeof OPFSCache.checkMiddleware>[0]
     const checkNext = vi.fn(async () => {})

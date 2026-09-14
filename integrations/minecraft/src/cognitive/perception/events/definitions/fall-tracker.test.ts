@@ -59,11 +59,11 @@ describe('damage_taken cause inference', () => {
   function makeCtx(health: number, entity: Record<string, any>, nearby: Record<string, any> = {}): any {
     return {
       bot: { health, entity, entities: nearby },
-      selfUsername: 'Airi',
+      selfUsername: 'Moeka',
       maxDistance: 32,
       distanceTo: (e: any) => (typeof e?._distance === 'number' ? e._distance : null),
       distanceToPos: () => null,
-      isSelf: (e: any) => e?.username === 'Airi',
+      isSelf: (e: any) => e?.username === 'Moeka',
       entityId: (e: any) => String(e?.id ?? 'unknown'),
     }
   }

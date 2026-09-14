@@ -73,7 +73,7 @@ const maskImageURL = `url(${homeCover})`
       '2xl:w-[100%] 2xl:translate-y-[-20%] 2xl:translate-x-[-50%] 2xl:rotate-[0deg] 2xl:scale-60 2xl:top-12dvh',
     ]"
   >
-    <img ref="surface" :src="homeCover" alt="Project AIRI Cover Image" class="w-full object-cover">
+    <img ref="surface" :src="homeCover" alt="Project Moeka Cover Image" class="w-full object-cover">
   </div>
 </template>
 

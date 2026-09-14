@@ -20,7 +20,7 @@ describe('hasCompletedChatTurn', () => {
     expect(hasCompletedChatTurn({
       chat: {
         lastTurnComplete: {
-          outputText: 'hello from AIRI',
+          outputText: 'hello from Moeka',
           toolCallCount: 0,
           toolResultCount: 0,
         },

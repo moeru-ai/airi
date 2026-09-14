@@ -22,9 +22,7 @@ function providerModeForAnalytics(providerId: string): ProviderMode {
   if (!providerId)
     return 'unknown'
 
-  return providerId.startsWith('official-provider') || providerId.startsWith('vision-official-provider')
-    ? 'official'
-    : 'custom'
+  return 'custom'
 }
 
 export function useProviderValidation(providerId: string) {

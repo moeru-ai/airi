@@ -2,16 +2,17 @@ import type { AudioInputPreflightContext } from '../../../src/types'
 
 import { resolve } from 'node:path'
 
-import { findWorkspaceDir } from '@pnpm/find-workspace-dir'
 import { loadEnv } from 'vite'
+
+import { findWorkspaceRoot } from '../../../src/setup/find-workspace-root'
 
 /** Loads Vite test-mode environment files and applies the environment of the current case. */
 export async function loadCaseEnvironment(
   environment: AudioInputPreflightContext['env'],
 ): Promise<Record<string, string | undefined>> {
-  const repositoryRoot = await findWorkspaceDir(import.meta.dirname)
+  const repositoryRoot = findWorkspaceRoot(import.meta.dirname)
   if (!repositoryRoot)
-    throw new Error(`Unable to find the pnpm workspace from ${import.meta.dirname}`)
+    throw new Error(`Unable to find the workspace root from ${import.meta.dirname}`)
 
   const repositoryEnvironment = loadEnv('test', repositoryRoot, '')
   // Shared Provider development variables live in stage-ui. These values override repository files.

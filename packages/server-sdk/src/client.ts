@@ -137,7 +137,7 @@ function normalizeHeartbeatOptions(heartbeat?: false | ClientHeartbeatOptions): 
   }
 }
 
-/** Wraps a text websocket connector with AIRI protocol serialization. */
+/** Wraps a text websocket connector with Moeka protocol serialization. */
 export function createTextProtocolConnector<C = undefined>(
   textConnector: ClientConnector<string>,
 ): ClientConnector<WebSocketEvent<C>> {

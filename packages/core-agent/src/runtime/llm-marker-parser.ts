@@ -156,7 +156,7 @@ function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerPa
 }
 
 /**
- * Creates a streaming parser for LLM responses with AIRI special markers.
+ * Creates a streaming parser for LLM responses with Moeka special markers.
  *
  * Use when:
  * - Handling streamed model output that may contain `<|...|>` markers.

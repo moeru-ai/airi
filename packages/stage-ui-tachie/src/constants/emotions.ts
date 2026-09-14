@@ -1,7 +1,7 @@
 /**
  * Emotion image names recognized inside a Tachie archive.
  *
- * The values intentionally match AIRI's stage emotion contract so the renderer
+ * The values intentionally match Moeka's stage emotion contract so the renderer
  * can consume the same events as Live2D, VRM, Spine, and MMD.
  */
 export const TACHIE_EMOTIONS = [

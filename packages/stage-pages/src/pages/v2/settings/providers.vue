@@ -6,17 +6,13 @@ import { Button, Input } from '@proj-airi/ui'
 import { breakpointsTailwind, refDebounced, useBreakpoints } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { Pane, Splitpanes } from 'splitpanes'
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRouter } from 'vue-router'
 
 const { t } = useI18n()
 const router = useRouter()
 const providerStore = useProviderConfigStore()
-
-onMounted(() => {
-  providerStore.fetchProviders()
-})
 
 const availableProviderSearchQuery = ref('')
 const availableProviderSearchQueryDebounced = refDebounced(availableProviderSearchQuery, 250)

@@ -35,7 +35,7 @@ function normalizeHeaders(headers) {
 /**
  * @example SponsorKit sends OpenCollective personal tokens through the documented HTTP header.
  */
-describe('sponsorKit OpenCollective pnpm patch', () => {
+describe('sponsorKit OpenCollective patch', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })

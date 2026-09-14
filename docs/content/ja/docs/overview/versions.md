@@ -14,20 +14,6 @@ import ReleasesList from '../../../../.vitepress/components/ReleasesList.vue'
 
 ### 最近の Release
 
-<ReleasesList type="releases" :limit="5" />
+<ReleasesList :limit="5" />
 
 [GitHub で以前のすべてのリリースを見る →](https://github.com/moeru-ai/airi/releases)
-
-## Nightly をダウンロード
-
-::: warning 実験的
-Nightly ビルドにはバグや不安定な機能が含まれる可能性があります。Release ビルドをバックアップとして残してください。
-:::
-
-Nightly ビルドは最新の `main` ブランチから生成されます。以下のリンクから最新の成功した実行を選択し、**Artifacts** セクションからビルドをダウンロードしてください。
-
-### 最近の Nightly
-
-<ReleasesList type="nightly-builds" :limit="5" />
-
-[Nightly ビルドをダウンロード →](https://github.com/moeru-ai/airi/actions/workflows/release-tamagotchi.yml)

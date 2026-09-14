@@ -367,7 +367,7 @@ function patchBuiltInOutlineMaterial(material: MToonMaterial) {
 
   if (!patchedVertexShader) {
     console.warn(
-      '[AIRI] Failed to patch built-in MToon outline shader: expected shader anchors were not found.',
+      '[Moeka] Failed to patch built-in MToon outline shader: expected shader anchors were not found.',
       material.name,
     )
     return false
@@ -508,7 +508,7 @@ export function createVrmOutlineHook(): VrmHook {
 
       if (!meshTarget.geometry.getAttribute(AIRI_OUTLINE_NORMAL_ATTRIBUTE_NAME)) {
         console.warn(
-          '[AIRI] Failed to patch built-in MToon outline shader: outlineNormal is missing on geometry.',
+          '[Moeka] Failed to patch built-in MToon outline shader: outlineNormal is missing on geometry.',
           meshTarget.mesh.name,
         )
         return

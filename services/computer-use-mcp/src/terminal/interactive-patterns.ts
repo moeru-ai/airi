@@ -22,7 +22,7 @@ export const KNOWN_INTERACTIVE_COMMAND_PATTERNS: RegExp[] = [
   /^(python3?|python3?\s+-i)\s*$/,
   /^(irb|rails\s+console|psql|mysql|sqlite3)\b/,
   // Interactive init wizards that prompt questions
-  /^(npm|pnpm|yarn)\s+(create|init)\b/,
+  /^(npm|pnpm|yarn|bun)\s+(create|init)\b/,
 ]
 
 /**

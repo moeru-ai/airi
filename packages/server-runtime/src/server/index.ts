@@ -93,7 +93,7 @@ export function getLocalIPs(): string[] {
 }
 
 /**
- * Creates the websocket server controller for the AIRI runtime.
+ * Creates the websocket server controller for the Moeka runtime.
  *
  * Use when:
  * - Starting, stopping, or restarting the standalone runtime server

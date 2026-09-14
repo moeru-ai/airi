@@ -1,10 +1,10 @@
 ---
 title: Fireworks AI
-description: Configure Fireworks AI as a chat provider in AIRI
+description: Configure Fireworks AI as a chat provider in Moeka
 is_openai_compatible: true
 ---
 
-Fireworks AI provides a chat API that is compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Fireworks AI in Consciousness.
+Fireworks AI provides a chat API that is compatible with the OpenAI format. After completing the configuration on this page, Moeka can use the models provided by Fireworks AI in Consciousness.
 
 ::: info Why choose Fireworks AI?
 If you already manage models or inference services in Fireworks AI, you can directly reuse the same set of API credentials.
@@ -20,7 +20,7 @@ If you already manage models or inference services in Fireworks AI, you can dire
 Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the Fireworks AI console.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Chat → Fireworks.ai**.
 2. Paste the API Key into the basic settings.
@@ -28,9 +28,9 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Verify configuration
 
-1. **Validate configuration**: AIRI validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
+1. **Validate configuration**: Moeka validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
 2. **Select Model →**: After validation succeeds, use this button to open **Settings → Modules → Consciousness**, then select the provider and model.
 
 ## Troubleshooting
 
-If the API check fails, verify the API key, available credit or quota, rate limits, and network connection. If AIRI cannot load the model list, enter the exact model ID provided by Fireworks AI manually on the **Consciousness** page.
+If the API check fails, verify the API key, available credit or quota, rate limits, and network connection. If Moeka cannot load the model list, enter the exact model ID provided by Fireworks AI manually on the **Consciousness** page.

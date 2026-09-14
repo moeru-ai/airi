@@ -1,8 +1,8 @@
-# AIRI Plugin - Web Extension
+# Moeka Plugin - Web Extension
 
 > Read what you are reading!
 
-This is a plugin for the AIRI to understand what you are reading, looking at, or listening to on the web.
+This is a plugin for the Moeka to understand what you are reading, looking at, or listening to on the web.
 
 ## What it does now
 
@@ -13,7 +13,7 @@ This is a plugin for the AIRI to understand what you are reading, looking at, or
 
 ## Quick start
 
-1. `pnpm -F @proj-airi/airi-plugin-web-extension dev`
+1. `bun run --filter @proj-airi/airi-plugin-web-extension dev`
 2. Load the unpacked extension from `.wxt/dev` in your browser.
 3. Open the popup to set the WebSocket URL (default: `ws://localhost:6121/ws`).
 4. Watch a YouTube/Bilibili video and confirm the popup shows the detected title/subtitle.

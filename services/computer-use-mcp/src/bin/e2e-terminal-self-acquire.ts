@@ -20,7 +20,7 @@
  * NOTE: No pre-created PTY. The workflow self-acquires.
  *
  * Usage:
- *   pnpm -F @proj-airi/computer-use-mcp e2e:terminal-self-acquire
+ *   bun run --filter @proj-airi/computer-use-mcp e2e:terminal-self-acquire
  */
 
 import { mkdtempSync, writeFileSync } from 'node:fs'
@@ -63,7 +63,7 @@ function createProjectDir(): string {
 }
 
 async function createClient(): Promise<Client> {
-  const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'pnpm'
+  const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'bun'
   const args = (env.COMPUTER_USE_SMOKE_SERVER_ARGS || 'start').split(WHITESPACE_SPLIT_RE).filter(Boolean)
   const cwd = env.COMPUTER_USE_SMOKE_SERVER_CWD?.trim() || packageDir
 

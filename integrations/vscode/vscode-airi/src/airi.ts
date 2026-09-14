@@ -13,11 +13,11 @@ export class Client {
     try {
       this.client = new ServerClient<Events>({ name: 'proj-airi:plugin-vscode' })
       await this.client.connect()
-      useLogger().log('AIRI connected to Server Channel')
+      useLogger().log('Moeka connected to Server Channel')
       return true
     }
     catch (error) {
-      useLogger().errorWithError('Failed to connect to AIRI Server Channel:', error)
+      useLogger().errorWithError('Failed to connect to Moeka Server Channel:', error)
       return false
     }
   }
@@ -26,13 +26,13 @@ export class Client {
     if (this.client) {
       this.client.close()
       this.client = null
-      useLogger().log('AIRI disconnected')
+      useLogger().log('Moeka disconnected')
     }
   }
 
   private async send(event: WebSocketEventOptionalSource<Events>): Promise<void> {
     if (!this.client) {
-      useLogger().warn('Cannot send event: not connected to AIRI Server Channel')
+      useLogger().warn('Cannot send event: not connected to Moeka Server Channel')
       return
     }
 
@@ -41,7 +41,7 @@ export class Client {
       this.client.send(event)
     }
     catch (error) {
-      useLogger().errorWithError('Failed to send event to AIRI:', error)
+      useLogger().errorWithError('Failed to send event to Moeka:', error)
     }
   }
 

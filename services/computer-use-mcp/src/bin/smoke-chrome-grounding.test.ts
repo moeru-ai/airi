@@ -91,7 +91,7 @@ describe('smoke-chrome-grounding helpers', () => {
             id: 't_2',
             source: 'chrome_dom',
             role: 'AXButton',
-            label: 'AIRI Desktop V3 Smoke Button',
+            label: 'Moeka Desktop V3 Smoke Button',
             interactable: true,
           },
         ],
@@ -132,7 +132,7 @@ describe('smoke-chrome-grounding helpers', () => {
       },
     }
 
-    expect(() => selectDesktopV3SmokeCandidate(runState)).toThrow('desktop_observe did not return the AIRI Desktop V3 Smoke Button chrome_dom candidate')
+    expect(() => selectDesktopV3SmokeCandidate(runState)).toThrow('desktop_observe did not return the Moeka Desktop V3 Smoke Button chrome_dom candidate')
   })
 
   it('locks pre-click and post-click overlay state shape', () => {

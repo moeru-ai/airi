@@ -1,7 +1,7 @@
 import type { Card } from '@proj-airi/ccc'
 
 /**
- * AIRI-specific runtime configuration embedded in a character card.
+ * Moeka-specific runtime configuration embedded in a character card.
  *
  * The extension is persisted with the card. Editor surfaces must preserve
  * fields they do not own so independent runtime modules can evolve without
@@ -67,7 +67,7 @@ export interface AiriExtension {
   }>
 }
 
-/** Character card normalized with the AIRI extension required by the runtime. */
+/** Character card normalized with the Moeka extension required by the runtime. */
 export interface AiriCard extends Card {
   extensions: {
     airi: AiriExtension

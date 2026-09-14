@@ -1,6 +1,6 @@
 ---
 title: Xiaomi MiMo (TTS)
-description: Configuring Xiaomi MiMo speech synthesis in AIRI
+description: Configuring Xiaomi MiMo speech synthesis in Moeka
 ---
 
 MiMo supports three speech synthesis modes: preset voice, sound design and sound cloning.
@@ -18,7 +18,7 @@ Choose MiMo if you need its preset Chinese voices or want to design voices from 
 Voice cloning requires audio samples in Base64 data URI format. Upload only samples you have permission to use, and never publish API keys or another person's voice samples.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Fill in the API Key in **Settings → Providers → Speech → Xiaomi MiMo**.
 2. Keep the default Base URL: `https://api.xiaomimimo.com/v1/`, unless the service provider provides another address.
@@ -28,7 +28,7 @@ Voice cloning requires audio samples in Base64 data URI format. Upload only samp
 1. Select a model and any available voice in the provider settings.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
-## Enable for AIRI replies
+## Enable for Moeka replies
 
 Open **Settings → Modules → Speech**, select **Xiaomi MiMo**, then choose the TTS model that matches your use case:
 

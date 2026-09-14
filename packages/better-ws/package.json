@@ -4,7 +4,7 @@
   "version": "0.12.0-beta.5",
   "description": "Transport-agnostic reliable WebSocket runtime primitives",
   "author": {
-    "name": "Moeru AI Project AIRI Team",
+    "name": "Moeka Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },
@@ -41,7 +41,7 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "dev": "pnpm run build",
+    "dev": "bun run build",
     "test": "vitest",
     "typecheck": "tsc --noEmit"
   },

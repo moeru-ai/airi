@@ -24,7 +24,6 @@ export type ProviderMode = 'official' | 'custom' | 'unknown'
 export type ChatActivationFailureStage = 'provider_config' | 'model_list' | 'message_send' | 'llm_response' | 'tts'
 export type VoiceType = 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
 export type VoiceAnalyticsSource = 'settings' | 'onboarding' | 'chat_auto_tts' | 'manual_preview'
-export type OfficialTtsExposureSource = 'settings' | 'onboarding' | 'post_first_chat' | 'chat_controls'
 export type FluxBalanceBucket = 'zero' | '1_100' | '101_1000' | '1001_10000' | '10000_plus' | 'unknown'
 export type FeedbackSource = 'app' | 'discord' | 'qq' | 'github' | 'email' | 'other'
 export type FeedbackCategory = 'provider_config' | 'model_list' | 'chat_activation' | 'tts' | 'voice_input' | 'performance' | 'payment' | 'ui_ux' | 'crash' | 'update' | 'live2d' | 'desktop_window' | 'mobile' | 'unknown'
@@ -38,20 +37,6 @@ export type AiUsageSource = 'reported' | 'estimated' | 'unavailable'
 /** Stable, low-cardinality actions emitted by the Electron controls island. */
 export type { ControlsIslandAction } from '../libs/product-signals/events/controls-island'
 
-/**
- * Full stage vocabulary of the cross-surface `oauth_callback_failed` event.
- * The web/PKCE stages fire from `pages/auth/callback.vue`; the electron
- * relay stages fire from ui-server-auth's `electron-callback.vue`, which
- * imports this type so the two emitters can't drift apart silently.
- */
-export type OauthCallbackFailureStage
-  = | 'provider_error'
-    | 'missing_code_or_state'
-    | 'missing_flow_state'
-    | 'token_exchange_failed'
-    | 'parse'
-    | 'relay_unreachable'
-
 interface ChatRoundCorrelationProperties {
   conversation_id: string
   round_id: string
@@ -62,12 +47,6 @@ interface TtsVoiceBaseProperties {
   tts_provider_id: string
   tts_model_id: string
   source: VoiceAnalyticsSource
-}
-
-interface OfficialTtsBaseProperties {
-  tts_provider_id: string
-  tts_model_id: string
-  source: OfficialTtsExposureSource
 }
 
 interface VoiceInputBaseProperties {
@@ -214,73 +193,6 @@ export function useAnalytics() {
       reason: properties.reason,
       flux_balance_bucket: properties.flux_balance_bucket,
     })
-  }
-
-  /**
-   * OAuth/OIDC callback landing failed before a session existed. Stage
-   * values map 1:1 to the guard branches in `pages/auth/callback.vue` so
-   * the funnel can tell a provider-side denial from a lost PKCE state.
-   */
-  function trackOauthCallbackFailed(properties: {
-    stage: Extract<OauthCallbackFailureStage, 'provider_error' | 'missing_code_or_state' | 'missing_flow_state' | 'token_exchange_failed'>
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('oauth_callback_failed', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  // ─── Account lifecycle (same event names as apps/ui-server-auth's
-  // analytics module — both surfaces feed one OpenPanel series) ───────────
-
-  function trackPasswordChanged() {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('password_changed', { app_surface: getConversationAnalyticsSurface() })
-  }
-
-  function trackPasswordResetRequested() {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('password_reset_requested', { app_surface: getConversationAnalyticsSurface() })
-  }
-
-  function trackOauthProviderLinkStarted(properties: { provider: string }) {
-    if (!canCapture())
-      return
-    // The only caller (`useLinkedAccounts.link`) navigates to the OAuth
-    // consent page right after this hook — the batched queue would race
-    // the unload and drop the event, same as `trackCheckoutStarted`.
-    captureAnalyticsEvent(
-      'oauth_provider_link_started',
-      {
-        ...properties,
-        app_surface: getConversationAnalyticsSurface(),
-      },
-      { beforeNavigation: true },
-    )
-  }
-
-  function trackOauthProviderUnlinked(properties: { provider: string }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('oauth_provider_unlinked', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  /**
-   * Deletion email sent (user confirmed in the dialog). The completion
-   * event lands on ui-server-auth's success page; this one is the churn
-   * intent signal even when the user never clicks the email link.
-   */
-  function trackAccountDeletionRequested() {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('account_deletion_requested', { app_surface: getConversationAnalyticsSurface() })
   }
 
   function trackOnboardingStarted(properties: { entry: ProductAnalyticsEntry }) {
@@ -443,7 +355,7 @@ export function useAnalytics() {
     })
   }
 
-  function trackChatSessionSelected(properties: { source: 'sessions_drawer', message_count: number, cloud_synced: boolean }) {
+  function trackChatSessionSelected(properties: { source: 'sessions_drawer', message_count: number }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('chat_session_selected', {
@@ -483,7 +395,6 @@ export function useAnalytics() {
     conversation_id: string
     source: ConversationEventSource
     character_id?: string
-    cloud_synced: boolean
   }) {
     if (!canCapture())
       return
@@ -520,7 +431,6 @@ export function useAnalytics() {
   function trackConversationDeleted(properties: {
     conversation_id: string
     message_count: number
-    cloud_synced: boolean
   }) {
     if (!canCapture())
       return
@@ -683,15 +593,6 @@ export function useAnalytics() {
     })
   }
 
-  function trackOfficialTtsExposed(properties: OfficialTtsBaseProperties) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('official_tts_exposed', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
   function trackPresetUsed(properties: {
     preset_id: string
     preset_type: 'character' | 'stage_model' | 'voice' | 'background' | 'unknown'
@@ -700,35 +601,6 @@ export function useAnalytics() {
     if (!canCapture())
       return
     captureAnalyticsEvent('preset_used', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackOfficialTtsPreviewStarted(properties: Omit<TtsVoiceBaseProperties, 'source'> & {
-    voice_id: string
-    voice_type: VoiceType
-    voice_pack_id?: string
-    source: Extract<VoiceAnalyticsSource, 'manual_preview'>
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('official_tts_preview_started', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackOfficialTtsPreviewSucceeded(properties: Omit<TtsVoiceBaseProperties, 'source'> & {
-    voice_id: string
-    voice_type: VoiceType
-    voice_pack_id?: string
-    source: Extract<VoiceAnalyticsSource, 'manual_preview'>
-    duration_ms: number
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('official_tts_preview_succeeded', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -769,7 +641,7 @@ export function useAnalytics() {
     captureAnalyticsEvent('autonomous_generate_text', properties)
   }
 
-  // ─── AIRI card (ccv3 character card) events ──────────────────────────
+  // ─── Moeka card (ccv3 character card) events ──────────────────────────
   // `card_created` is emitted store-side (`stores/modules/airi-card.ts`)
   // because creation has three entry points; edit has exactly one
   // user-driven entry (the creation dialog in edit mode), so it lives
@@ -991,12 +863,6 @@ export function useAnalytics() {
     trackPlanSelected,
     trackCheckoutStarted,
     trackPaywallSeen,
-    trackOauthCallbackFailed,
-    trackPasswordChanged,
-    trackPasswordResetRequested,
-    trackOauthProviderLinkStarted,
-    trackOauthProviderUnlinked,
-    trackAccountDeletionRequested,
     trackOnboardingStarted,
     trackOnboardingCompleted,
     trackCharacterCreated,
@@ -1039,9 +905,6 @@ export function useAnalytics() {
     trackPresetUsed,
     trackSettingsChanged,
     trackSupportContacted,
-    trackOfficialTtsExposed,
-    trackOfficialTtsPreviewStarted,
-    trackOfficialTtsPreviewSucceeded,
 
     trackAutonomousGenerateText,
 

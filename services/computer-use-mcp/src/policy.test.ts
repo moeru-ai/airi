@@ -125,7 +125,7 @@ describe('evaluateActionPolicy', () => {
       config: baseConfig,
       context: {
         available: true,
-        appName: 'AIRI',
+        appName: 'Moeka',
         platform: 'darwin',
       },
       operationsExecuted: 0,

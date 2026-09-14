@@ -1,9 +1,9 @@
 ---
 title: Azure OpenAI
-description: Configure Azure OpenAI chat model in AIRI
+description: Configure Azure OpenAI chat model in Moeka
 ---
 
-Azure OpenAI lets AIRI access models through your Azure resource endpoint and deployments.
+Azure OpenAI lets Moeka access models through your Azure resource endpoint and deployments.
 
 ::: info Why choose Azure OpenAI?
 If your team already deploys models and manages permissions in Azure OpenAI, this is a straightforward way to onboard.
@@ -17,14 +17,14 @@ If your team already deploys models and manages permissions in Azure OpenAI, thi
 Do not commit the Azure API key, include it in screenshots, or share it with anyone.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Chat → Azure OpenAI** and enter the **API Key**.
-2. Enter the complete Chat Completions URL provided by Azure. AIRI extracts the deployment name and `api-version` from the URL.
+2. Enter the complete Chat Completions URL provided by Azure. Moeka extracts the deployment name and `api-version` from the URL.
 
 ## Verify configuration
 
-1. Wait for AIRI's automatic validation after entering the API key, endpoint, and deployment details.
+1. Wait for Moeka's automatic validation after entering the API key, endpoint, and deployment details.
 2. Go to **Settings → Modules → Consciousness**, select Azure OpenAI and the corresponding deployment, then send a message to verify the configuration.
 
 ## Troubleshooting

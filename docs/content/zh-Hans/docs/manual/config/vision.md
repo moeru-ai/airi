@@ -14,7 +14,7 @@ description: 为 AIRI 的视觉模块选择图像理解服务商和模型
 
 如需让 AIRI 分析屏幕或窗口，请前往「系统 → 开发者 → Vision Capture」：授予屏幕录制权限，选择要捕获的窗口或显示器，然后点击「Start ticker」。如需将识别结果提供给 AIRI 对话，再开启「Publish to character」。
 
-Vision Capture 是当前的桌面端调试／开发工作流；离开该页面会停止捕获循环。完整说明见[桌面端开发者工具](../../contributing/desktop-developer-tools#vision-capture)。
+Vision Capture 是开发工作流；离开该页面会停止捕获循环。
 :::
 
 ## 第一步：选择视觉服务商

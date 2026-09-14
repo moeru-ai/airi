@@ -1,6 +1,6 @@
 ---
 title: OpenAI Compatible API (TTS)
-description: Configuring OpenAI or an OpenAI-compatible API as a speech synthesis provider in AIRI
+description: Configuring OpenAI or an OpenAI-compatible API as a speech synthesis provider in Moeka
 ---
 
 This page configures a provider that implements the OpenAI speech API. After saving the provider, select its model and voice in **Settings → Modules → Speech**.
@@ -19,7 +19,7 @@ Use this provider when your speech service explicitly supports the OpenAI speech
 Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the provider console.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Speech → OpenAI Compatible**.
 2. Fill in the API Key and the TTS model ID to be used.
@@ -30,7 +30,7 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 1. Select the configured provider, model, and voice in **Settings → Modules → Speech**.
 2. Enter test text and click **Test Voice**.
-3. If the test audio plays, the provider is configured correctly. If AIRI displays an error, use its message to check the credentials, model ID, and Base URL.
+3. If the test audio plays, the provider is configured correctly. If Moeka displays an error, use its message to check the credentials, model ID, and Base URL.
 
 ## Troubleshooting
 

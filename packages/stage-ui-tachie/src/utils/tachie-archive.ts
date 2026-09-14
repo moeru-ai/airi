@@ -10,7 +10,7 @@ export const MAX_TACHIE_ARCHIVE_BYTES = 100 * 1024 * 1024
 
 /** One recognized emotion image in its original archive location. */
 export interface TachieArchiveEntry {
-  /** AIRI emotion selected by the filename stem. */
+  /** Moeka emotion selected by the filename stem. */
   emotion: typeof TACHIE_EMOTIONS[number]
   /** Normalized path used to read the image from the ZIP. */
   path: string
@@ -51,7 +51,7 @@ export interface TachieDecodedImage {
 
 /** Fully decoded, dimension-checked images ready for an atomic model switch. */
 export interface TachieLoadedAssets {
-  /** Recognized images keyed by AIRI emotion. */
+  /** Recognized images keyed by Moeka emotion. */
   images: Map<typeof TACHIE_EMOTIONS[number], TachieDecodedImage>
   /** Shared width of every recognized image in physical pixels. */
   width: number

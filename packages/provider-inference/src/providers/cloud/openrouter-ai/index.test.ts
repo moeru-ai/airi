@@ -36,7 +36,7 @@ describe('providerOpenRouterAI tool schemas', () => {
     vi.unstubAllGlobals()
   })
 
-  it('maps AIRI reasoning modes to OpenRouter request fields', async () => {
+  it('maps Moeka reasoning modes to OpenRouter request fields', async () => {
     const provider = await providerOpenRouterAI.createProvider({
       apiKey: 'test-key',
     }) as ChatProviderWithExtraOptions<string, ChatRequestOptions>

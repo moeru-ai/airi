@@ -71,10 +71,6 @@ const formattedLastCapture = computed(() => formatRelativeTime(lastCaptureAt.val
 const formattedLastContextUpdate = computed(() => formatRelativeTime(lastContextUpdateAt.value))
 const isOllamaVisionProvider = computed(() => activeProvider.value === 'vision-ollama')
 
-function canDeleteProvider(providerId: string) {
-  return !providerId.startsWith('official-provider') && !providerId.startsWith('vision-official-provider')
-}
-
 function formatRelativeTime(timestamp: number | null) {
   if (!timestamp)
     return 'Never'
@@ -121,7 +117,7 @@ function formatRelativeTime(timestamp: number | null) {
               @update:model-value="selectProvider"
               @click="trackProviderClick(metadata.id, 'vision')"
             >
-              <template v-if="canDeleteProvider(metadata.id)" #topRight>
+              <template #topRight>
                 <button
                   type="button"
                   :class="[

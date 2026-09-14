@@ -1,6 +1,6 @@
 ---
 title: Azure AI Foundry
-description: Configure Azure AI Foundry chat model in AIRI
+description: Configure Azure AI Foundry chat model in Moeka
 ---
 
 Azure AI Foundry requires the resource name, model deployment information, and API Key.
@@ -17,14 +17,14 @@ If your model deployment and access control have been completed in Azure AI Foun
 Do not commit the Azure API key, include it in screenshots, or share it with anyone.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Chat → Azure AI Foundry** and fill in the **API Key**, resource name and model ID.
 2. If the console requires a specific API version, please fill it in the interface; do not mistake the common model name for the deployment name.
 
 ## Verify configuration
 
-1. After you fill in the required fields, AIRI automatically checks that the API Key, resource name, and model ID are present. This check does not test the network connection or credentials.
+1. After you fill in the required fields, Moeka automatically checks that the API Key, resource name, and model ID are present. This check does not test the network connection or credentials.
 2. Go to **Settings → Modules → Consciousness**, select the Azure AI Foundry provider and deployment, then send a test message to confirm that the deployment can respond.
 
 ## Troubleshooting

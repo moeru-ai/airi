@@ -1,0 +1,28 @@
+[install]
+# NOTICE:
+# pnpm's node_modules layout is strict: a package can only import dependencies
+# it declares. The isolated linker keeps that guarantee, so phantom imports and
+# catalog drift stay visible during the pnpm -> Bun migration.
+# Switch to "hoisted" only if an isolated install breaks a tool that relies on
+# hoisting.
+linker = "isolated"
+
+# Ported from pnpm-workspace.yaml `minimumReleaseAge: 4320` (minutes -> seconds).
+# NOTICE:
+# Excludes are the pnpm `minimumReleaseAgeExclude` list. They keep first-party
+# scopes and the electron-builder pin installable before the window expires.
+minimumReleaseAge = 259200
+minimumReleaseAgeExcludes = [
+  "app-builder-lib@26.16.1",
+  "dmg-builder@26.16.1",
+  "electron-builder-squirrel-windows@26.16.1",
+  "electron-builder@26.16.1",
+  "@moeru/*",
+  "@proj-airi/*",
+  "@vishot/*",
+  "@xsai/*",
+  "@xsai-apple-speech/*",
+  "@xsai-ext/*",
+  "@xsai-transformers/*",
+  "xsschema",
+]

@@ -3,7 +3,7 @@ import type { WebSocketBaseEvent, WebSocketEvent } from '@proj-airi/server-share
 import { parse, stringify } from 'superjson'
 import { check, objectWithRest, pipe, safeParse, string, unknown } from 'valibot'
 
-const invalidMessage = 'Invalid AIRI websocket message.'
+const invalidMessage = 'Invalid Moeka websocket message.'
 
 const eventDataSchema = pipe(
   unknown(),
@@ -26,7 +26,7 @@ export interface InvalidMessageErrorOptions {
   source?: unknown
 }
 
-/** Error thrown when websocket text cannot be parsed as an AIRI event envelope. */
+/** Error thrown when websocket text cannot be parsed as an Moeka event envelope. */
 export class InvalidMessageError extends Error {
   readonly source?: unknown
 
@@ -37,7 +37,7 @@ export class InvalidMessageError extends Error {
   }
 }
 
-/** Parses one AIRI websocket protocol event from SuperJSON or plain JSON text. */
+/** Parses one Moeka websocket protocol event from SuperJSON or plain JSON text. */
 export function parseEvent<C = undefined>(text: string): WebSocketEvent<C> {
   let superJsonParsed: WebSocketEvent<C> | undefined
   let superJsonError: unknown
@@ -61,7 +61,7 @@ export function parseEvent<C = undefined>(text: string): WebSocketEvent<C> {
   return potentialEvent as WebSocketEvent<C>
 }
 
-/** Serializes one AIRI websocket protocol event with SuperJSON. */
+/** Serializes one Moeka websocket protocol event with SuperJSON. */
 export function stringifyEvent<C = undefined>(
   event: WebSocketBaseEvent<string, unknown> | WebSocketEvent<C>,
 ) {

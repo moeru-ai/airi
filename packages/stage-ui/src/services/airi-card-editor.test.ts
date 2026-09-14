@@ -120,7 +120,7 @@ describe('airi card editor validation', () => {
     expect(savedCard.extensions.airi.modules.displayModelId).toBe('')
   })
 
-  it('preserves AIRI extension fields that are not editable in the form', () => {
+  it('preserves Moeka extension fields that are not editable in the form', () => {
     // ROOT CAUSE:
     //
     // Saving the editor rebuilt `extensions.airi.modules` from visible form

@@ -99,7 +99,7 @@ const comprehensiveMessages = ref<ChatHistoryItem[]>([
 const markdownMessages = ref<ChatHistoryItem[]>([
   {
     role: 'user',
-    content: 'Hey AIRI, can you summarize today\'s tasks?',
+    content: 'Hey Moeka, can you summarize today\'s tasks?',
   },
   {
     role: 'assistant',

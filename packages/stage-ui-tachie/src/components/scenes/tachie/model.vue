@@ -236,7 +236,7 @@ async function loadModel() {
 }
 
 /**
- * Displays the requested AIRI emotion, falling back to the required neutral
+ * Displays the requested Moeka emotion, falling back to the required neutral
  * image when the archive does not provide that state.
  */
 function setEmotion(emotion: string, _intensity = 1): TachieEmotion | undefined {

@@ -89,7 +89,7 @@ export function parseLive2DMotionRecording(raw: string): Live2DMotionRecording {
 
   const result = safeParse(live2dMotionRecordingSchema, input)
   if (!result.success)
-    throw new Error('The file is not an AIRI Live2D motion recording.')
+    throw new Error('The file is not an Moeka Live2D motion recording.')
 
   const { durationMs, samples } = result.output
   if (samples[0].atMs !== 0)

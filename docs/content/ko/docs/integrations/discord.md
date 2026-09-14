@@ -7,7 +7,7 @@ Discord 봇은 Discord 서버의 텍스트 채널과 음성 채널에 연결됩�
 
 ## 사전 준비 사항
 
-- 저장소 루트에서 **pnpm i**로 의존성을 설치하세요.
+- 저장소 루트에서 **bun install**로 의존성을 설치하세요.
 - [Discord Developer Portal](https://discord.com/developers/home)에서 애플리케이션과 봇을 만드세요.
 - 봇 설정에서 **Message Content Intent**를 활성화하세요.
 - AIRI에서 동작하는 채팅 제공자와 모델을 설정하세요.
@@ -36,7 +36,7 @@ Discord 음성 입력을 사용하려면 `OPENAI_STT_API_BASE_URL`, `OPENAI_STT_
 ## 서비스 시작
 
 ```bash
-pnpm -F @proj-airi/discord-bot start
+bun run --filter @proj-airi/discord-bot start
 ```
 
 ## AIRI에서 Discord 설정하기

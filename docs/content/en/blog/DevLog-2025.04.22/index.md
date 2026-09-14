@@ -8,9 +8,9 @@ date: 2025-04-22
 
 Hello everyone, I'm [@LemonNeko](https://github.com/LemonNekoGH), and this time I'm participating in writing the DevLog to share development stories with you.
 
-Two months ago, we ported AIRI's web interface to Electron [#7](https://github.com/moeru-ai/airi/pull/7) (which has now been refactored using Tauri 🤣 [#90](https://github.com/moeru-ai/airi/pull/90)), allowing it to appear as a desktop pet on our screens. At the same time, I had the idea of allowing AIRI to use mobile phones, but I kept putting it off.
+Two months ago, we ported Moeka's web interface to Electron [#7](https://github.com/moeru-ai/airi/pull/7) (which has now been refactored using Tauri 🤣 [#90](https://github.com/moeru-ai/airi/pull/90)), allowing it to appear as a desktop pet on our screens. At the same time, I had the idea of allowing Moeka to use mobile phones, but I kept putting it off.
 
-Last weekend (2025.04.20), I spent some time creating an MCP server demo [airi-android](https://github.com/LemonNekoGH/airi-android) that can interact with ADB, providing AIRI with basic mobile interaction capabilities (in fact, most LLMs can interact with phones through it). Here's a demo video:
+Last weekend (2025.04.20), I spent some time creating an MCP server demo [airi-android](https://github.com/LemonNekoGH/airi-android) that can interact with ADB, providing Moeka with basic mobile interaction capabilities (in fact, most LLMs can interact with phones through it). Here's a demo video:
 
 <ThemedVideo controls muted src="./assets/cursor-open-settings.mp4" />
 
@@ -66,6 +66,6 @@ During development, I also learned some small tricks, like using the command lin
 emulator -avd Pixel_6_Pro_API_34
 ```
 
-Next, I plan to connect the AIRI desktop pet to the MCP server and see what it wants to do. Maybe it will open Telegram and chat with us, just like ReLU does now, but without using Telegram's API.
+Next, I plan to connect the Moeka desktop pet to the MCP server and see what it wants to do. Maybe it will open Telegram and chat with us, just like ReLU does now, but without using Telegram's API.
 
 Thank you for reading this possibly somewhat rambling and not very substantial DevLog. See you next time!

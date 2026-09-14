@@ -13,12 +13,6 @@ import type {
   providerBrowserLocalAudioTranscription,
 } from './local-audio'
 import type { providerNvidia } from './nvidia'
-import type {
-  providerOfficialChat,
-  providerOfficialSpeech,
-  providerOfficialSpeechStreaming,
-  providerOfficialTranscription,
-} from './official'
 
 import { orderBy } from 'es-toolkit'
 
@@ -33,10 +27,6 @@ type StageOnlyProviderId
     | typeof providerBrowserLocalAudioTranscription.id
     | typeof providerKokoroLocal.id
     | typeof providerNvidia.id
-    | typeof providerOfficialChat.id
-    | typeof providerOfficialSpeech.id
-    | typeof providerOfficialSpeechStreaming.id
-    | typeof providerOfficialTranscription.id
 
 /** IDs of definitions registered by stage-ui, including portable definitions. */
 export type StageProviderId = PortableProviderId | StageOnlyProviderId

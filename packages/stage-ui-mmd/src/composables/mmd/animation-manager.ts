@@ -36,7 +36,7 @@ export interface PlayActionOptions {
  * Owns a model's animation mixer, imported VMD catalog, solver feature gates,
  * and lazily installed Ammo runtime.
  *
- * `update(delta)` must run once per frame before AIRI-owned expression,
+ * `update(delta)` must run once per frame before Moeka-owned expression,
  * lip-sync, blink, and gaze overrides. Disposal stops actions before ending
  * the MMD runtime so no frame can observe a partially torn-down model.
  */

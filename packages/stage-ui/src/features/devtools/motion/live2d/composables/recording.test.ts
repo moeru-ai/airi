@@ -161,7 +161,7 @@ describe('live2D motion recording', () => {
       format: 'airi-live2d-motion/v6',
       durationMs: 10,
       samples: [{ atMs: 0, ...pose({ headZ: 1.1 }) }],
-    }))).toThrow('The file is not an AIRI Live2D motion recording.')
+    }))).toThrow('The file is not an Moeka Live2D motion recording.')
   })
 
   it('rejects samples that are not in time order', () => {

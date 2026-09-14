@@ -21,7 +21,7 @@ export function createDevValidateWorkspaceWorkflow(params?: {
   const ideApp = canonicalizeKnownAppName(params?.ideApp ?? 'Cursor')
   const fileManagerApp = canonicalizeKnownAppName(params?.fileManagerApp ?? 'Finder')
   const changesCommand = params?.changesCommand ?? 'git diff --stat'
-  const checkCommand = params?.checkCommand ?? 'pnpm typecheck'
+  const checkCommand = params?.checkCommand ?? 'bun run typecheck'
 
   return {
     id: 'dev_validate_workspace',

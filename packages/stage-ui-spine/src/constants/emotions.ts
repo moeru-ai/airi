@@ -26,7 +26,7 @@ export const SPINE_IDLE_TRACK = 0
 export const SPINE_EMOTION_TRACK = 1
 
 /**
- * Common Spine animation names that AIRI maps incoming emotions to.
+ * Common Spine animation names that Moeka maps incoming emotions to.
  *
  * These names follow the Esoteric Software example conventions
  * (idle/walk/run/jump/shoot/death/celebrate). Models that ship custom
@@ -48,7 +48,7 @@ export const SpineAnimationName = {
 export type SpineAnimationKey = keyof typeof SpineAnimationName
 
 /**
- * Maps an AIRI emotion to a canonical Spine animation name.
+ * Maps an Moeka emotion to a canonical Spine animation name.
  *
  * The actual track name played at runtime falls back to whichever name
  * exists on the loaded skeleton — see useSpineAnimationManager().

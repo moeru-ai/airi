@@ -62,6 +62,8 @@ describe('interactive-patterns', () => {
       'pnpm init',
       'yarn create',
       'yarn init',
+      'bun create',
+      'bun init',
     ])('matches init wizard: %s', (cmd) => {
       expect(isKnownInteractiveCommand(cmd)).toBe(true)
     })
@@ -73,7 +75,7 @@ describe('interactive-patterns', () => {
       'node script.js',
       'python3 app.py',
       'npm install',
-      'pnpm run build',
+      'bun run build',
       'git status',
     ])('does not match non-interactive: %s', (cmd) => {
       expect(isKnownInteractiveCommand(cmd)).toBe(false)

@@ -34,7 +34,7 @@ describe('loadMMDModelFromSource', () => {
     //
     // three-stdlib selected PMX/PMD from the URL suffix, so object URLs needed
     // an artificial fragment. three-mmd selects the parser from binary header
-    // bytes, allowing AIRI to pass the original blob URL unchanged.
+    // bytes, allowing Moeka to pass the original blob URL unchanged.
     const objectUrl = URL.createObjectURL(new Blob([createEmptyPmx()]))
     let resolved: Awaited<ReturnType<typeof loadMMDModelFromSource>> | undefined
 

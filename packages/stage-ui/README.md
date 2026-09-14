@@ -10,10 +10,8 @@ The card store owns three distinct states:
 - Each card stores explicit overrides. An empty string means inherit.
 - Module stores expose the resolved runtime selections used by the application.
 
-Use `configureForAuthentication` for login and logout. It updates global
-defaults, then reapplies the active card without saving defaults into that card.
 Use card commands for activation and explicit edits. Settings pages must not
-save cards from watchers: authentication and remote snapshots also trigger them.
+save cards from watchers: remote snapshots also trigger them.
 The synchronization leader owns these commands; followers receive snapshots.
 
 Models inherit only within the same provider. Voices also require the same
@@ -57,7 +55,7 @@ in their owning business flows instead of attaching them to the initial click.
 https://histoire.dev/
 
 ```shell
-pnpm -F @proj-airi/stage-ui run story:dev
+bun run --filter @proj-airi/stage-ui story:dev
 ```
 
 ### Project structure

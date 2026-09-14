@@ -1,7 +1,7 @@
 import { Emotion } from './emotions'
 
 /**
- * Logical morph slots AIRI drives on an MMD model.
+ * Logical morph slots Moeka drives on an MMD model.
  *
  * MMD (PMX/PMD) models expose vertex morphs by Japanese (or, for some
  * Western models, English) names. The exact names differ per model, so we
@@ -76,7 +76,7 @@ export interface EmotionMorphState {
 }
 
 /**
- * Maps AIRI emotions to MMD morph targets.
+ * Maps Moeka emotions to MMD morph targets.
  *
  * Primary expression weights stay at 0.7–0.8 (not 1.0) to avoid the
  * over-expressive look reported for VRM in #590; the secondary mouth morph
@@ -122,7 +122,7 @@ export const EMOTION_MORPHS: Record<Emotion, EmotionMorphState> = {
 }
 
 /**
- * Standard MMD humanoid bone names AIRI manipulates for gaze and head aim.
+ * Standard MMD humanoid bone names Moeka manipulates for gaze and head aim.
  *
  * These are the de-facto standard Japanese bone names ("semi-standard bone"
  * convention) shared by the vast majority of MMD models.

@@ -9,42 +9,23 @@ description: Project AIRI への貢献
 
 - [Git](https://git-scm.com/downloads)
 - [Node.js 23+](https://nodejs.org/en/download/)
-- [corepack](https://github.com/nodejs/corepack)
-- [pnpm](https://pnpm.io/installation)
+- [Bun](https://bun.sh/)
 
 <details>
 <summary>Windows のセットアップ</summary>
 
-0. [Visual Studio](https://visualstudio.microsoft.com/downloads/) をダウンロードし、こちらの指示に従ってください: https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
-
-   > Visual Studio をインストールする際、Windows SDK と C++ ビルドツールを必ずインストールしてください。
-
-1. PowerShell を開く
-2. [`scoop`](https://scoop.sh/) をインストール
+0. PowerShell を開く
+1. [`scoop`](https://scoop.sh/) をインストール
 
    ```powershell
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
    ```
 
-3. `scoop` を使って `git`, Node.js, `rustup`, `msvc` をインストール
+2. `scoop` を使って `git` と Node.js をインストール
 
    ```powershell
-   scoop install git nodejs rustup
-
-   # Rust の依存関係用
-   # crates または apps/tamagotchi の開発を行わない場合は不要です
-   scoop install main/rust-msvc
-   # Rust & Windows 固有
-   rustup toolchain install stable-x86_64-pc-windows-msvc
-   rustup default stable-x86_64-pc-windows-msvc
-   ```
-
-4. `corepack` を使って `pnpm` をインストール
-
-   ```powershell
-   corepack enable
-   corepack prepare pnpm@latest --activate
+   scoop install git nodejs
    ```
 
 </details>
@@ -59,13 +40,6 @@ description: Project AIRI への貢献
    brew install git node
    ```
 
-2. `corepack` を使って `pnpm` をインストール
-
-   ```shell
-   corepack enable
-   corepack prepare pnpm@latest --activate
-   ```
-
 </details>
 
 <details>
@@ -73,14 +47,7 @@ description: Project AIRI への貢献
 
 0. Terminal を開く
 1. [nodesource/distributions: NodeSource Node.js Binary Distributions](https://github.com/nodesource/distributions?tab=readme-ov-file#table-of-contents) に従って `node` をインストール
-2. [Git](https://git-scm.com/downloads/linux) に従って `git` をインストール
-3. `corepack` を使って `pnpm` をインストール
-
-   ```shell
-   corepack enable
-   corepack prepare pnpm@latest --activate
-   ```
-4. デスクトップ版の開発を手助けしたい場合は、以下の依存関係が必要です：
+2. [Git](https://git-scm.com/downloads/linux) に従って `git` をインストール4. デスクトップ版の開発を手助けしたい場合は、以下の依存関係が必要です：
    ```shell
    sudo apt install \
       libssl-dev \
@@ -135,12 +102,7 @@ git checkout -b <your-branch-name>
 ## 依存関係のインストール
 
 ```shell
-corepack enable
-pnpm install
-
-# Rust の依存関係用
-# crates または apps/tamagotchi の開発を行わない場合は不要です
-cargo fetch
+bun install
 ```
 
 ::: tip
@@ -148,14 +110,13 @@ cargo fetch
 スクリプトを簡単にするために [@antfu/ni](https://github.com/antfu-collective/ni) のインストールをお勧めします。
 
 ```shell
-corepack enable
 npm i -g @antfu/ni
 ```
 
 インストールしたら、以下のように使用できます
 
-- `pnpm install`, `npm install`, `yarn install` の代わりに `ni` を使用。
-- `pnpm run`, `npm run`, `yarn run` の代わりに `nr` を使用。
+- `bun install`, `npm install`, `yarn install` の代わりに `ni` を使用。
+- `bun run`, `npm run`, `yarn run` の代わりに `nr` を使用。
 
 パッケージマネージャーを気にする必要はありません。`ni` が適切なものを選択してくれます。
 :::
@@ -171,7 +132,7 @@ npm i -g @antfu/ni
 リント (静的チェッカー) と TypeScript コンパイラが満たされていることを確認してください：
 
 ```shell
-pnpm lint && pnpm typecheck
+bun run lint && bun run typecheck
 ```
 
 :::

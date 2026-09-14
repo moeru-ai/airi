@@ -1,9 +1,9 @@
 ---
 title: CometAPI
-description: Configuring the CometAPI chat model in AIRI
+description: Configuring the CometAPI chat model in Moeka
 ---
 
-CometAPI provides a chat model in AIRI and also has independent TTS and STT service provider pages.
+CometAPI provides a chat model in Moeka and also has independent TTS and STT service provider pages.
 
 ::: info Why choose CometAPI?
 You can select this if you wish to configure chat, speech synthesis and speech recognition under the same CometAPI account.
@@ -17,13 +17,13 @@ You can select this if you wish to configure chat, speech synthesis and speech r
 Do not commit the API key, include it in screenshots, or share it with anyone.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Open **Settings → Providers → Chat → Comet API** and fill in the **API Key**. The default Base URL is `https://api.cometapi.com/v1/`.
 
 ## Verify configuration
 
-1. **Validate configuration**: AIRI validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
+1. **Validate configuration**: Moeka validates the configuration automatically as you edit it. If **Ping API** appears, use it for a live request test.
 2. **Select Model →**: After validation succeeds, use this button to open **Settings → Modules → Consciousness**, then select the provider and model.
 
 ## Troubleshooting

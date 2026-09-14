@@ -1,6 +1,6 @@
-# AIRI Minecraft Service
+# Moeka Minecraft Service
 
-This workspace runs AIRI's dedicated Minecraft bot. It connects a Mineflayer runtime to a Minecraft server, loads the cognitive stack in `src/cognitive`, and bridges status, context, and command traffic back to AIRI so the Stage settings shell can observe the service.
+This workspace runs Moeka's dedicated Minecraft bot. It connects a Mineflayer runtime to a Minecraft server, loads the cognitive stack in `src/cognitive`, and bridges status, context, and command traffic back to Moeka so the Stage settings shell can observe the service.
 
 ## Deprecation Notice
 
@@ -21,7 +21,7 @@ Treat this service as a local-development and trusted-server tool only.
 1. Install workspace dependencies from the repo root:
 
    ```bash
-   pnpm i
+   bun install
    ```
 
 2. Copy the template:
@@ -35,20 +35,20 @@ Treat this service as a local-development and trusted-server tool only.
 4. Start the service:
 
    ```bash
-   pnpm -F @proj-airi/minecraft-bot dev
+   bun run --filter @proj-airi/minecraft-bot dev
    ```
 
    Or, from `integrations/minecraft/`:
 
    ```bash
-   pnpm dev
+   bun run dev
    ```
 
-5. The bot should automatically connect to both AIRI and the Minecraft server.
+5. The bot should automatically connect to both Moeka and the Minecraft server.
 
 ## Cognitive Architecture
 
-AIRI's Minecraft agent is built on a **four-layered cognitive architecture** inspired by cognitive science, enabling reactive, conscious, and physically grounded behaviors.
+Moeka's Minecraft agent is built on a **four-layered cognitive architecture** inspired by cognitive science, enabling reactive, conscious, and physically grounded behaviors.
 
 ### Architecture Overview
 
@@ -165,7 +165,7 @@ Player: "build a house"
 
 ```txt
 src/
-├── airi/                      # AIRI bridge, module shell, status publishing
+├── airi/                      # Moeka bridge, module shell, status publishing
 ├── cognitive/                  # 🧠 Perception → Reflex → Conscious → Action
 │   ├── perception/            # Event definitions + rule evaluation
 │   │   ├── events/
@@ -239,10 +239,10 @@ src/
 
 ### Commands
 
-- `pnpm dev` - Start the bot in development mode
-- `pnpm lint` - Run ESLint
-- `pnpm typecheck` - Run TypeScript type checking
-- `pnpm test` - Run tests
+- `bun run dev` - Start the bot in development mode
+- `bun run lint` - Run ESLint
+- `bun run typecheck` - Run TypeScript type checking
+- `bun run test` - Run tests
 
 ## 🙏 Acknowledgements
 

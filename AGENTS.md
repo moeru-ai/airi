@@ -1,21 +1,18 @@
-# Project AIRI Agent Guide
+# Project Moeka Agent Guide
 
 Concise but detailed reference for contributors working across the `moeru-ai/airi` monorepo. Improve code when you touch it; avoid one-off patterns.
 
 ## Tech Stack (by surface)
 
-- **Desktop (stage-tamagotchi)**: Electron, Vue, Vite, TypeScript, Pinia, VueUse, Eventa (IPC/RPC), UnoCSS, Vitest, ESLint.
 - **Web (stage-web)**: Vue 3 + Vue Router, Vite, TypeScript, Pinia, VueUse, UnoCSS, Vitest, ESLint. Backend: WIP.
-- **Mobile (stage-pocket)**: Vue 3 + Vue Router, Vite, TypeScript, Pinia, VueUse, UnoCSS, Vitest, ESLint, Kotlin, Swift, Capacitor.
+- **Other apps**: `apps/ui-server-auth` (auth UI for the hosted auth service), `apps/component-calling` (realtime audio demo).
 - **UI/Shared Packages**:
-  - `packages/stage-ui`: Core business components, composables, stores shared by stage-web & stage-tamagotchi (heart of stage work).
+  - `packages/stage-ui`: Core business components, composables, stores shared by the stage apps (heart of stage work).
   - `packages/stage-ui-three`: Three.js bindings + Vue components.
-  - `packages/stage-ui-pixi`: Planned Pixi bindings.
-  - `packages/stage-shared`: Shared logic across stage-ui, stage-ui-three, stage-web, stage-tamagotchi.
+  - `packages/stage-shared`: Shared logic across stage-ui, stage-ui-three, and stage-web.
   - `packages/ui`: Standardized primitives (inputs, textarea, buttons, layout) built on reka-ui; minimal business logic.
   - `packages/i18n`: Central translations.
   - Server channel: `packages/server-runtime`, `packages/server-sdk`, `packages/server-shared` (power `services/` and `plugins/`).
-  - Legacy: `crates/` (old Tauri desktop; current desktop is Electron).
 
 ## Structure & Responsibilities
 
@@ -27,18 +24,18 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
   - `server/docker-compose.yaml`: complete local backend stack.
 - **Apps**
   - `apps/stage-web`: Web app; composables/stores in `src/composables`, `src/stores`; pages in `src/pages`; devtools in `src/pages/devtools`; router config via `vite.config.ts`.
-  - `apps/stage-tamagotchi`: Electron app; renderer pages in `src/renderer/pages`; devtools in `src/renderer/pages/devtools`; settings layout at `src/renderer/layouts/settings.vue`; router config via `electron.vite.config.ts`.
-  - Settings/devtools routes rely on `<route lang="yaml"> meta: layout: settings </route>`; ensure routes/icons are registered accordingly (`apps/stage-tamagotchi/src/renderer/layouts/settings.vue`, `apps/stage-web/src/layouts/settings.vue`).
+  - `apps/ui-server-auth`: Auth UI served by the hosted auth service; pages in `src/pages`.
+  - Settings/devtools routes rely on `<route lang="yaml"> meta: layout: settings </route>`; ensure routes/icons are registered accordingly (`apps/stage-web/src/layouts/settings.vue`).
   - Shared page bases: `packages/stage-pages`.
-  - Stage pages: `apps/stage-web/src/pages`, `apps/stage-tamagotchi/src/renderer/pages` (plus devtools folders).
+  - Stage pages: `apps/stage-web/src/pages` (plus the devtools folder).
 - **Stage UI internals** (`packages/stage-ui/src`)
   - Providers: `stores/providers.ts` and `stores/providers/` (standardized provider definitions).
-  - Modules: `stores/modules/` (AIRI orchestration building blocks).
+  - Modules: `stores/modules/` (Moeka orchestration building blocks).
   - Composables: `composables/` (business-oriented Vue helpers).
   - Components: `components/`; scenarios in `components/scenarios/` for page/use-case-specific pieces.
   - Stories: `packages/stage-ui/stories`, `packages/stage-ui/histoire.config.ts` (e.g. `components/misc/Button.story.vue`).
-- **IPC/Eventa**: Always use `@moeru/eventa` for type-safe, framework/runtime-agnostic IPC/RPC. Define contracts centrally (e.g., `apps/stage-tamagotchi/src/shared`) and follow usage patterns in `apps/stage-tamagotchi/src/main/services/electron` for main/renderer integration.
-- **Dependency Injection**: Use `injeca` for services/electron modules/plugins/frontend; see `apps/stage-tamagotchi/src/main/index.ts` for composition patterns.
+- **IPC/Eventa**: Always use `@moeru/eventa` for type-safe, framework/runtime-agnostic event and RPC contracts. Define contracts next to the module that owns them (e.g., `packages/stage-shared/src/beat-sync/eventa.ts`, `packages/plugin-protocol/src/types/events.ts`, `server/packages/server-sdk-shared/src/v2.ts`).
+- **Dependency Injection**: Use `injeca` for services and server/plugin composition; see `server/apps/api/src/app.ts` and `server/apps/auth/src/server.ts` for composition patterns.
 - **Build/CI/Lint**: `.github/workflows` for pipelines; `eslint.config.js` for lint rules.
 - **Styles**: UnoCSS config at `uno.config.ts`; check `apps/stage-web/src/styles` for existing animations; prefer UnoCSS over Tailwind.
 
@@ -46,48 +43,47 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 
 - `packages/stage-ui`: Core stage business components/composables/stores.
   - `src/stores/providers.ts` and `src/stores/providers/`: provider definitions (standardized).
-  - `src/stores/modules/`: AIRI orchestration modules.
+  - `src/stores/modules/`: Moeka orchestration modules.
   - `src/composables/`: reusable Vue composables (business-oriented).
   - `src/components/`: business components; `src/components/scenarios/` for page/use-case-specific pieces.
   - Stories: `packages/stage-ui/stories`, `packages/stage-ui/histoire.config.ts` (e.g. `components/misc/Button.story.vue`).
 - `packages/stage-ui-three`: Three.js bindings + Vue components.
 - `packages/stage-ui-pixi`: Planned Pixi bindings.
-- `packages/stage-shared`: Shared logic across stage-ui, stage-ui-three, stage-web, stage-tamagotchi.
+- `packages/stage-shared`: Shared logic across stage-ui, stage-ui-three, and stage-web.
 - `packages/ui`: Standardized primitives (inputs/textarea/buttons/layout) built on reka-ui.
 - `packages/i18n`: All translations.
 - Hosted backend: `server/apps/api`, `server/apps/auth`, `server/packages`, and local tooling under `server/dev`.
 - Server channel: `packages/server-runtime`, `packages/server-sdk`, `packages/server-shared` (power `services/` and `plugins/`).
-- Legacy desktop: `crates/` (old Tauri; Electron is current).
-- Pages: `packages/stage-pages` (shared bases); `apps/stage-web/src/pages` and `apps/stage-tamagotchi/src/renderer/pages` for app-specific pages; devtools live in each app’s `.../pages/devtools`.
-- Router configs: `apps/stage-web/vite.config.ts`, `apps/stage-tamagotchi/electron.vite.config.ts`.
-- Devtools/layouts: `apps/stage-tamagotchi/src/renderer/layouts/settings.vue`, `apps/stage-web/src/layouts/settings.vue`.
-- IPC/Eventa contracts/examples: `apps/stage-tamagotchi/src/shared`, `apps/stage-tamagotchi/src/main/services/electron`.
-- DI examples: `apps/stage-tamagotchi/src/main/index.ts` (injeca).
+- Pages: `packages/stage-pages` (shared bases); `apps/stage-web/src/pages` and `apps/ui-server-auth/src/pages` for app-specific pages; devtools live in `apps/stage-web/src/pages/devtools`.
+- Router config: `apps/stage-web/vite.config.ts`.
+- Devtools/layouts: `apps/stage-web/src/layouts/settings.vue`.
+- IPC/Eventa contracts/examples: `packages/stage-shared/src/beat-sync/eventa.ts`, `packages/plugin-protocol/src/types/events.ts`.
+- DI examples: `server/apps/api/src/app.ts`, `server/apps/auth/src/server.ts` (injeca).
 - Styles: `uno.config.ts` (UnoCSS), `apps/stage-web/src/styles` (animations/reference).
 - Build pipeline refs: `.github/workflows`; lint rules in `eslint.config.js`.
 - Documented solutions: `docs/solutions/` records past fixes and workflow learnings, organized by category with YAML frontmatter (`module`, `tags`, `problem_type`); relevant when implementing, debugging, or verifying in documented areas.
 - Tailwind/UnoCSS: prefer UnoCSS; if standardizing styles, add shortcuts/rules/plugins in `uno.config.ts`.
 
-## Commands (pnpm with filters)
+## Commands (Bun with filters)
 
-> Use pnpm workspace filters to scope tasks. Examples below are generic; replace the filter with the target workspace name (e.g. `@proj-airi/stage-tamagotchi`, `@proj-airi/stage-web`, `@proj-airi/stage-ui`, etc.).
+> Use Bun workspace filters to scope tasks. Examples below are generic; replace the filter with the target workspace name (e.g. `@proj-airi/stage-web`, `@proj-airi/stage-ui`, etc.).
 
 - **Typecheck**
-  - `pnpm -F <package.json name> typecheck`
-  - Example: `pnpm -F @proj-airi/stage-tamagotchi typecheck` (runs `tsc` + `vue-tsc`).
+  - `bun run --filter <package.json name> typecheck`
+  - Example: `bun run --filter @proj-airi/stage-web typecheck` (runs `tsc` + `vue-tsc`).
 - **Unit tests (Vitest)**
-  - Targeted: `pnpm exec vitest run <path/to/file>`
-    e.g. `pnpm exec vitest run apps/stage-tamagotchi/src/renderer/stores/tools/builtin/widgets.test.ts`
-  - Workspace: `pnpm -F <package.json name> exec vitest run`
-    e.g. `pnpm -F @proj-airi/stage-tamagotchi exec vitest run`
-  - Root `pnpm test:run`: runs all tests across registered projects. If no tests are found, check `vitest.config.ts` include patterns.
-  - Root `vitest.config.ts` includes `apps/stage-tamagotchi` and other projects; each app/package can have its own `vitest.config`.
+  - Targeted: `bunx vitest run <path/to/file>`
+    e.g. `bunx vitest run packages/stage-ui/src/stores/providers/provider.test.ts`
+  - Workspace: `bun run --filter <package.json name> exec vitest run`
+    e.g. `bun run --filter @proj-airi/stage-web exec vitest run`
+  - Root `bun run test:run`: runs all tests across registered projects. If no tests are found, check `vitest.config.ts` include patterns.
+  - Root `vitest.config.ts` lists the registered test projects; each app/package can have its own `vitest.config`.
 - **Lint**
-  - `pnpm lint` and `pnpm lint:fix`
-  - Formatting is handled via ESLint; `pnpm lint:fix` applies formatting.
+  - `bun run lint` and `bun run lint:fix`
+  - Formatting is handled via ESLint; `bun run lint:fix` applies formatting.
 - **Build**
-  - `pnpm -F <package.json name> build`
-  - Example: `pnpm -F @proj-airi/stage-tamagotchi build` (typecheck + electron-vite build).
+  - `bun run --filter <package.json name> build`
+  - Example: `bun run --filter @proj-airi/stage-web build` (typecheck + vite build).
 
 ## Before You Start
 
@@ -103,7 +99,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - For testing, Vitest, regression reproduction, mocks, or test import-boundary work, always use [`enforce-rules-for-vitest` skill](.agents/skills/enforce-rules-for-vitest/SKILL.md).
 - For UnoCSS, Vue styling, UI components, animations, icons, or color-mode work, always use [`enforce-rules-for-unocss` skill](.agents/skills/enforce-rules-for-unocss/SKILL.md).
 - For web or Electron workflows that upload a local file through an HTML input, a dynamically created input, or a file chooser, invoke [`$use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md). Also invoke `$agent-browser`, and invoke `$agent-browser-electron` when the target is Electron.
-- For AIRI Live2D, VRM, or MMD import and rendering tests across stage-web, stage-tamagotchi, or stage-pocket, invoke [`$use-agent-browser-for-airi`](.agents/skills/use-agent-browser-for-airi/SKILL.md). It invokes `$use-agent-browser-with-input-file` for the upload mechanism and adds AIRI-specific routes, state preparation, format behavior, and renderer verification.
+- For Moeka Live2D, VRM, or MMD import and rendering tests in stage-web, invoke [`$use-agent-browser-for-airi`](.agents/skills/use-agent-browser-for-airi/SKILL.md). It invokes `$use-agent-browser-with-input-file` for the upload mechanism and adds Moeka-specific routes, state preparation, format behavior, and renderer verification.
 - For editing, writing, refactoring, re-writing code, submitting issues, Pull Requests, and docs, comments, invoke [`$simple-english`](./agents/skills/simple-english/SKILL.md).
 
 ## Development Practices
@@ -120,7 +116,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 ## TypeScript / IPC / Tools
 
 - Keep JSON Schemas provider-compliant (explicit `type: object`, required fields; avoid unbounded records).
-- For Electron, and backend related packages, use `injeca` for dependency management; avoid new class hierarchies unless extending browser APIs (classes are harder to mock/test).
+- For backend related packages, use `injeca` for dependency management; avoid new class hierarchies unless extending browser APIs (classes are harder to mock/test).
 - Centralize Eventa contracts; use `@moeru/eventa` for all events.
 - Import types from the module or package that owns the contract. Do not redeclare external/public contracts locally just to use a narrower subset, and do not route type imports through local runtime assembly modules when the original side-effect-free type source is available.
 - Omit TypeScript and JavaScript source extensions from relative imports, dynamic imports, and re-exports. Write `./module` instead of `./module.ts` or `./module.js`; keep extensions only when the runtime or asset format requires them.
@@ -140,7 +136,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 ### Glossary
 
 `packages/i18n/glossary/terms.yaml` gives the approved English term for each product concept.
-`pnpm -F @proj-airi/i18n glossary:build` writes the TBX file that Crowdin imports. `schema.ts`
+`bun run --filter @proj-airi/i18n glossary:build` writes the TBX file that Crowdin imports. `schema.ts`
 documents each field.
 
 - Read `terms.yaml` before you write or change a string that a user sees. Use the term it gives.
@@ -240,7 +236,7 @@ as a first language.
 - Unlisted actions run in the caller renderer. Their mutations become full-state proposals when `state: true`.
 - Keep synchronization and persistence as separate boundaries. Give persisted synchronized state one explicit persistence owner.
 - Do not add bidirectional persistence composables or storage-event listeners to synchronized state. Use explicit persistence commands.
-- Set the leadership mode explicitly for every Electron renderer. Utility and minimal windows must use `follower-only`.
+- Set the leadership mode explicitly for every browser window or tab that runs the app. Utility and minimal windows must use `follower-only`.
 - Add a multi-window regression test for synchronization changes. A remote snapshot must not produce a local synchronized-state proposal. If a watcher calls a synchronized action, verify that repeated calls converge without repeated side effects.
 
 ### Readability Refactors
@@ -267,9 +263,9 @@ as a first language.
 - Rebase pulls; branch naming `username/feat/short-name`; clear commit messages (gitmoji is prohibited).
 - Summarize changes, how tested (commands), and follow-ups.
 - Improve legacy you touch; avoid one-off patterns.
-- Keep changes scoped; use workspace filters (`pnpm -F <package> <script>`).
+- Keep changes scoped; use workspace filters (`bun run --filter <package> <script>`).
 - Maintain structured `README.md` documentation for each `packages/` and `apps/` entry, covering what it does, how to use it, when to use it, and when not to use it.
-- Always run `pnpm typecheck` and `pnpm lint` after finishing a task.
+- Always run `bun run typecheck` and `bun run lint` after finishing a task.
 - Use Conventional Commits for commit messages (e.g., `feat(<package name>): add runner reconnect backoff`).
 - Before planning or writing new utilities/functions, always search for existing internal implementations first. If the logic could become shared utilities, proactively propose that shared approach to users and developers.
 

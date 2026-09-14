@@ -8,7 +8,7 @@ import { piniaActionTracingChannelName } from '@proj-airi/stage-shared/types/pin
 import { stubForBrowser } from '../setup/browser-probe'
 import { createSession } from '../setup/session'
 
-/** Adapts a Fakemic Electron process into an AIRI desktop audio session. */
+/** Adapts a Fakemic Electron process into an Moeka desktop audio session. */
 export default async function prepareElectronRuntime(context: FakemicElectronPrepareContext): Promise<AudioInputSession> {
   await context.app.context().addInitScript(stubForBrowser, piniaActionTracingChannelName)
   const page = await waitForPage(context, (page) => {

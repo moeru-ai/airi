@@ -22,7 +22,6 @@ import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 import { useAnalytics } from '../../composables/use-analytics'
 import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { createVadStreamingSession } from '../../libs/audio/vad-streaming-session'
-import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
 import { APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID, executeAppleSpeechStream } from '../../libs/providers/providers/apple-speech'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
 import { useVAD } from '../ai/models/vad'
@@ -238,7 +237,6 @@ export function resolveTranscriptionFileName(file: File, explicitFileName?: stri
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamTranscription,
   [APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID]: executeAppleSpeechStream,
-  [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
 }
 

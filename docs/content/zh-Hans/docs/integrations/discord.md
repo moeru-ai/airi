@@ -7,7 +7,7 @@ Discord 机器人连接 Discord 服务器中的消息和语音频道，并使用
 
 ## 前提条件
 
-* 已在仓库根目录安装依赖：**pnpm i**。
+* 已在仓库根目录安装依赖：**bun install**。
 * 在 [Discord Developer Portal](https://discord.com/developers/home) 创建应用和 Bot。
 * 在 Bot 设置中启用 **Server Members Intent** 与 **Message Content Intent**。
 * 已准备聊天模型和语音服务的凭据。
@@ -27,7 +27,7 @@ cp integrations/discord-bot/.env integrations/discord-bot/.env.local
 ## 启动
 
 ~~~bash
-pnpm -F @proj-airi/discord-bot start
+bun run --filter @proj-airi/discord-bot start
 ~~~
 
 ## 注意事项

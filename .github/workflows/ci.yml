@@ -18,33 +18,19 @@ jobs:
       - uses: actions/checkout@v6
       # NOTICE:
       # Pin Node.js because 26.8.0 reports 26.8.0-alpha.0.0.0.
-      # sharp 0.29.3 rejects this prerelease version during pnpm install.
+      # sharp 0.29.3 rejects this prerelease version during bun install.
       # Source: https://github.com/nodejs/node/blob/v26.8.0/src/node_version.h
       # Remove this pin when Node.js 26 reports a stable version.
-      - uses: pnpm/setup@v2
+      - uses: actions/setup-node@v6
         with:
-          runtime: node@26.7.0
-          cache: true
-          install: false
+          node-version: 26.7.0
 
-    # Setup .NET for Godot C# linting
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          dotnet-version: '10.0.x'
+          bun-version: 1.4.2
 
-    # Lint Godot C# code
-      - name: Lint Godot C#
-        working-directory: ./engines/stage-tamagotchi-godot
-        run: dotnet format stage-tamagotchi-godot.slnx --verify-no-changes
-
-      - run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest
-        working-directory: ./apps/stage-pocket
-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run lint
-      - run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest
-        working-directory: ./apps/stage-pocket
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
 
   build-test:
     name: Build Test (${{ matrix.app_name }})
@@ -53,19 +39,13 @@ jobs:
       matrix:
         include:
           - app_name: stage-web
-            command: pnpm -F @proj-airi/stage-web run build && pnpm -F @proj-airi/docs run build:base && mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs && pnpm -F @proj-airi/stage-ui run story:build && mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
-
-          - app_name: stage-tamagotchi
-            command: pnpm -F @proj-airi/stage-tamagotchi run build
-
-          - app_name: stage-tamagotchi-godot
-            command: cd engines/stage-tamagotchi-godot && dotnet restore && dotnet build -c ExportRelease
+            command: bun run --filter @proj-airi/stage-web build && bun run --filter @proj-airi/docs build:base && mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs && bun run --filter @proj-airi/stage-ui story:build && mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
 
           - app_name: ui-transitions
-            command: pnpm -F @proj-airi/ui-transitions run play:build
+            command: bun run --filter @proj-airi/ui-transitions play:build
 
           - app_name: ui-loading-screens
-            command: pnpm -F @proj-airi/ui-loading-screens run play:build
+            command: bun run --filter @proj-airi/ui-loading-screens play:build
 
     runs-on: ubuntu-latest
     steps:
@@ -80,39 +60,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
 
-      - uses: pnpm/setup@v2
+      - uses: actions/setup-node@v6
         with:
-          runtime: node@26.7.0
-          cache: true
-          install: false
+          node-version: 26.7.0
 
-      # Setup .NET and Godot
-      - name: Setup .NET
-        if: matrix.app_name == 'stage-tamagotchi-godot'
-        uses: actions/setup-dotnet@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          dotnet-version: '10.0.x'
+          bun-version: 1.4.2
 
-      - name: Setup Godot
-        if: matrix.app_name == 'stage-tamagotchi-godot'
-        uses: chickensoft-games/setup-godot@v2
-        with:
-          version: 4.7.1
-          use-dotnet: true
-          include-templates: true
-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run build:packages
+      - run: bun install --frozen-lockfile
+      - run: bun run build:packages
 
       - name: Build App
         run: ${{ matrix.command }}
-
-      - name: Export Godot Linux sidecar
-        if: matrix.app_name == 'stage-tamagotchi-godot'
-        working-directory: ./engines/stage-tamagotchi-godot
-        run: |
-          mkdir -p out/linux
-          godot --headless --export-release "Linux x64" out/linux/godot-stage
 
   unit-test:
     name: Unit Test
@@ -129,34 +89,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
 
-      - uses: pnpm/setup@v2
+      - uses: actions/setup-node@v6
         with:
-          runtime: node@26.7.0
-          cache: true
-          install: false
+          node-version: 26.7.0
 
-      # # Setup .NET and Godot
-      # - name: Setup .NET
-      #   if: matrix.app_name == 'stage-tamagotchi-godot'
-      #   uses: actions/setup-dotnet@v4
-      #   with:
-      #     dotnet-version: '10.0.x'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
 
-      # - name: Setup Godot
-      #   if: matrix.app_name == 'stage-tamagotchi-godot'
-      #   uses: chickensoft-games/setup-godot@v2
-      #   with:
-      #     version: 4.7.1
-      #     use-dotnet: true
-      #     include-templates: true
-
-      - run: pnpm install --frozen-lockfile
+      - run: bun install --frozen-lockfile
 
       - name: Setup Playwright
         run: npx playwright install chromium
 
-      - run: pnpm run build:packages
-      - run: pnpm run test:run
+      - run: bun run build:packages
+      - run: bun run test:run
         env:
           NODE_OPTIONS: --no-experimental-webstorage
 
@@ -168,14 +115,16 @@ jobs:
       - uses: actions/checkout@v6
 
       # Node.js
-      - uses: pnpm/setup@v2
+      - uses: actions/setup-node@v6
         with:
-          runtime: node@26.7.0
-          cache: true
-          install: false
+          node-version: 26.7.0
 
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run typecheck
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
 
   check-provenance:
     name: Check Provenance
@@ -188,7 +137,7 @@ jobs:
         id: check
         with:
           fail-on-provenance-change: true # optional, default: false
-        #   lockfile: pnpm-lock.yaml      # optional
+        #   lockfile: bun.lock      # optional
         #   base-ref: origin/main         # optional, default: origin/main
         #   fail-on-downgrade: true       # optional, default: true
       - name: Print result

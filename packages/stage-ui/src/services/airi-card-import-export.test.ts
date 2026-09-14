@@ -40,7 +40,7 @@ describe('airi card package import/export', () => {
     expect(fetch).toHaveBeenCalledWith('/assets/avatar.vrm')
     expect(await readJson(zip, 'manifest.json')).toMatchObject({ format: 'airi-character-card', version: 1, resources: { displayModel: { path: 'models/body-model.vrm', format: DisplayModelFormat.VRM, name: 'AvatarSample_A.vrm' } } })
     expect(await zip.file('models/body-model.vrm')?.async('string')).toBe('preset-vrm-model')
-    expect(cardJson.data).toMatchObject({ name: 'AIRI / Test Card', creator: '', tags: [], mes_example: '' })
+    expect(cardJson.data).toMatchObject({ name: 'Moeka / Test Card', creator: '', tags: [], mes_example: '' })
     expect(airi.modules).toMatchObject({ consciousness: { provider: 'openai', model: 'gpt-4o' }, speech: { provider: 'elevenlabs', model: 'eleven', voice_id: 'alloy' } })
     expect(airi.modules).not.toHaveProperty('activeBackgroundId')
     expect(airi.modules.artistry).not.toHaveProperty('workflowId')
@@ -61,7 +61,7 @@ describe('airi card package import/export', () => {
     const airi = airiFrom(imported)
 
     expect(imported.data).toMatchObject({
-      name: 'AIRI / Test Card',
+      name: 'Moeka / Test Card',
       nickname: 'Tester',
       character_version: '1.2.3',
       description: 'Description',
@@ -144,7 +144,7 @@ function mockAddDisplayModel(store: ReturnType<typeof useDisplayModelsStore>, id
 
 function createCard(displayModelId = 'preset-vrm-1'): AiriCard {
   return {
-    name: 'AIRI / Test Card',
+    name: 'Moeka / Test Card',
     nickname: 'Tester',
     version: '1.2.3',
     description: 'Description',

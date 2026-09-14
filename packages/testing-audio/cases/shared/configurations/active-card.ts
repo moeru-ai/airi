@@ -4,7 +4,7 @@ import type { AudioInputSession } from '../../../src/types'
 
 type ActiveCardModules = Partial<Pick<AiriExtension['modules'], 'consciousness' | 'speech'>>
 
-/** Updates Provider selections that the active AIRI Card reapplies during application startup. */
+/** Updates Provider selections that the active Moeka Card reapplies during application startup. */
 export async function configureActiveCardModules(
   runtime: AudioInputSession,
   modules: ActiveCardModules,
@@ -12,13 +12,13 @@ export async function configureActiveCardModules(
   await runtime.runtimePage.evaluate(({ configuredModules }) => {
     const serializedCards = localStorage.getItem('airi-cards')
     if (!serializedCards)
-      throw new Error('The AIRI Card store is not initialized.')
+      throw new Error('The Moeka Card store is not initialized.')
 
     const activeCardId = localStorage.getItem('airi-card-active-id') ?? 'default'
     const cards = JSON.parse(serializedCards) as Array<[string, AiriCard]>
     const activeCard = cards.find(([cardId]) => cardId === activeCardId)?.[1]
     if (!activeCard)
-      throw new Error(`The active AIRI Card "${activeCardId}" does not exist.`)
+      throw new Error(`The active Moeka Card "${activeCardId}" does not exist.`)
 
     const currentModules = activeCard.extensions.airi.modules
     activeCard.extensions.airi.modules = {

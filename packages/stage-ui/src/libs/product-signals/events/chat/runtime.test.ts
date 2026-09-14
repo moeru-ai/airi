@@ -26,15 +26,15 @@ describe('createChatAnalyticsHooks', () => {
       messageText: 'Hello',
       source: 'voice',
       model: 'selected-model',
-      provider: 'official-provider-chat',
+      provider: 'openai-compatible',
       roundId: 'round-1',
       turnIndex: 2,
     })
 
     expect(analytics.emit).toHaveBeenCalledWith(messageSentEvent, {
       conversation_id: 'session-1',
-      provider_type: 'official',
-      provider_name: 'official-provider-chat',
+      provider_type: 'custom',
+      provider_name: 'openai-compatible',
       model: 'selected-model',
       message_id: 'message-1',
       round_id: 'round-1',

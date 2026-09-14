@@ -1,12 +1,12 @@
 /**
- * background.js — MV3 Service Worker for AIRI Desktop Grounding
+ * background.js — MV3 Service Worker for Moeka Desktop Grounding
  *
- * Routes commands from the AIRI extension bridge → chrome.tabs.sendMessage
+ * Routes commands from the Moeka extension bridge → chrome.tabs.sendMessage
  * → msg_bridge.js → content.js (__AIRI_DG__)
  *
  * IMPORTANT: This background does NOT use offscreen documents or Python bridges.
  * It receives commands directly from the existing BrowserDomExtensionBridge
- * WebSocket connection in the AIRI computer-use-mcp service.
+ * WebSocket connection in the Moeka computer-use-mcp service.
  *
  * Only read-only observation commands are supported.
  * All DOM-mutating actions (click, type, hover, scroll) have been removed
@@ -397,10 +397,10 @@ async function readAllFramesDOMWithOffsets(tabId, frameIds, opts) {
   })
 }
 
-// ---- Handle external commands (from AIRI extension bridge) ----
+// ---- Handle external commands (from Moeka extension bridge) ----
 
 /**
- * Handle a command from the AIRI BrowserDomExtensionBridge.
+ * Handle a command from the Moeka BrowserDomExtensionBridge.
  *
  * Only read-only observation commands are supported:
  * - getActiveTab: get the active tab info
@@ -564,7 +564,7 @@ async function handleCommand(cmd) {
 }
 
 // ---- Listen for external messages ----
-// The AIRI BrowserDomExtensionBridge connects via chrome.runtime.onMessageExternal
+// The Moeka BrowserDomExtensionBridge connects via chrome.runtime.onMessageExternal
 // or through the existing WebSocket bridge mechanism
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {

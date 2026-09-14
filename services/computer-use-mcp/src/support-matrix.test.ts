@@ -59,7 +59,7 @@ describe('support matrix', () => {
     expect(entry).toBeDefined()
     expect(entry?.lane).toBe('desktop-native')
     expect(entry?.level).toBe('covered')
-    expect(entry?.smokeCommand).toBe('pnpm -F @proj-airi/computer-use-mcp smoke:desktop-v3')
+    expect(entry?.smokeCommand).toBe('bun run --filter @proj-airi/computer-use-mcp smoke:desktop-v3')
   })
 
   it('includes browser-dom route contract as covered, not product-supported', () => {

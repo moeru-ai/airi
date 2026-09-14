@@ -1,12 +1,12 @@
 ---
 title: Google Gemini (TTS)
-description: Configuring Google Gemini Audio Speech Synthesis in AIRI
+description: Configuring Google Gemini Audio Speech Synthesis in Moeka
 ---
 
 Google Gemini Audio speech synthesis uses Gemini credentials and a model that supports audio output.
 
 ::: info Why choose Google Gemini?
-If you have configured Google Gemini in AIRI and want to use the audio output capability under the same service provider, you can select this option.
+If you have configured Google Gemini in Moeka and want to use the audio output capability under the same service provider, you can select this option.
 :::
 
 ## Obtain API Key
@@ -19,7 +19,7 @@ If you have configured Google Gemini in AIRI and want to use the audio output ca
 Do not commit the Gemini API key, include it in screenshots, or share it with anyone.
 :::
 
-## Configure in AIRI
+## Configure in Moeka
 
 1. Fill in the Gemini API Key in **Settings → Providers → Speech → Google Gemini**.
 2. Keep the interface default Base URL unless you are using an enterprise gateway or compatible proxy.
@@ -29,7 +29,7 @@ Do not commit the Gemini API key, include it in screenshots, or share it with an
 1. Select a model and any available voice in the provider settings.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
-## Enable for AIRI replies
+## Enable for Moeka replies
 
 Open **Settings → Modules → Speech**, select **Google Gemini**, then select an available audio model and voice. The playground test alone does not enable the provider for normal replies.
 

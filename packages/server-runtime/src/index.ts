@@ -75,9 +75,9 @@ interface AiriWsPeerState {
 }
 
 function airiPeerFromRaw(rawPeer: CrossWsPeer): Peer {
-  // CrossWS peers expose the connection fields AIRI historically used directly
+  // CrossWS peers expose the connection fields Moeka historically used directly
   // (`id`, `send`, `close`, `remoteAddress`, and `request`). Keep the cast in
-  // this adapter boundary so protocol code below still depends on the AIRI peer
+  // this adapter boundary so protocol code below still depends on the Moeka peer
   // contract instead of the concrete transport type.
   return rawPeer as Peer
 }
@@ -196,7 +196,7 @@ export function normalizeLoggerConfig(options?: AppOptions) {
  * - Heartbeat monitoring for liveness detection
  *
  * Use when:
- * - Embedding the AIRI websocket runtime inside a server process
+ * - Embedding the Moeka websocket runtime inside a server process
  * - Spinning up a testable application instance before binding a socket listener
  *
  * Expects:
@@ -229,7 +229,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
   // === Registries & Orchestrators ===
   // TODO: Move protocol-neutral peer registry, consumer selection, and heartbeat
   // primitives into `@proj-airi/better-ws/server` so server-runtime only owns
-  // AIRI authentication, registry sync, route policy, and extension events.
+  // Moeka authentication, registry sync, route policy, and extension events.
   const peers = new Map<string, AuthenticatedPeer>()
   const peersByModule = new Map<string, Map<number | string | undefined, AuthenticatedPeer>>()
   const consumers = createConsumerOrchestrator()
@@ -518,7 +518,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
   }
 
   // === WebSocket Server Handlers ===
-  // Handles AIRI peer lifecycle: open, message, error, close.
+  // Handles Moeka peer lifecycle: open, message, error, close.
   const wsServer = createWsServer<AiriWsMessage, AiriWsPeerState>({
     peers: {
       unhealthyTimeout: heartbeatTtlMs,
@@ -1049,7 +1049,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     }
 
     // REVIEW: better-ws now reports silence duration in milliseconds, while the
-    // AIRI runtime peer state still exposes the legacy missedHeartbeats field.
+    // Moeka runtime peer state still exposes the legacy missedHeartbeats field.
     // Rename this business-facing field with the server-runtime state cleanup.
     peerInfo.missedHeartbeats = silentFor
 

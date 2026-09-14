@@ -143,7 +143,7 @@ export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOpti
         options.onNoResponse()
         options.onEvent?.({ type: 'tool-execution', payload: { toolName: name, toolCallId: context?.toolCallId, responseMode: 'no-response' } })
 
-        return 'AIRI System: Acknowledged, no response or action will be processed.'
+        return 'Moeka System: Acknowledged, no response or action will be processed.'
       },
     }))
   }
@@ -167,10 +167,10 @@ export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOpti
         }
         catch (error) {
           options.onEvent?.({ type: 'tool-execution', payload: { toolName: name, toolCallId: context?.toolCallId, ok: false, error: errorMessageFrom(error) } })
-          return `AIRI System: Error - invalid spark_command parameters: ${errorMessageFrom(error)}`
+          return `Moeka System: Error - invalid spark_command parameters: ${errorMessageFrom(error)}`
         }
 
-        return 'AIRI System: Acknowledged, command fired.'
+        return 'Moeka System: Acknowledged, command fired.'
       },
     }))
   }

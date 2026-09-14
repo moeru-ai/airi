@@ -84,7 +84,7 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
 
       // 1. Compose the "Director" prompt based on target
       const systemPrompt = target === 'assistant'
-        ? `You are the Cinematic Director for AIRI. 
+        ? `You are the Cinematic Director for Moeka.
 Your job is to analyze the character's response and reaction to the user, and decide if it warrants a visual manifestation (a generative image).
 Manifestation is warranted for:
 - Descriptions of beautiful scenery or environment changes in the response
@@ -102,7 +102,7 @@ Output EXACTLY this JSON format and nothing else:
   "prompt": "Highly detailed, illustrative prompt for the image generator capturing the character's reaction and scene. Use Mori's style (masterpiece, high quality, manga style, intricate details)",
   "title": "Short descriptive title for the scene"
 }`
-        : `You are the Cinematic Director for AIRI. 
+        : `You are the Cinematic Director for Moeka.
 Your job is to analyze the user's input and decide if it warrants a visual manifestation (a generative image).
 Manifestation is warranted for:
 - Descriptions of beautiful scenery or environment changes

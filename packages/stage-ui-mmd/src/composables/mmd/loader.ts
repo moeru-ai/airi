@@ -55,7 +55,7 @@ export function loadMMD(
 
 /**
  * Parses a VMD model motion and binds its bone and morph tracks to `mesh`.
- * AIRI intentionally does not consume camera motion from this adapter.
+ * Moeka intentionally does not consume camera motion from this adapter.
  */
 export async function loadMMDAnimationClip(
   url: string,
