@@ -8,6 +8,7 @@ import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
+import type { StageSpeechSessionOptions } from '../../services/stage-speech-session-host'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { sleep } from '@moeru/std'
@@ -41,7 +42,9 @@ import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } fr
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { useBilingualCaptionBus } from '../../services/bilingual-captions'
+import { registerReactionSpeechHost } from '../../services/reaction-speech'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
+import { registerStageSpeechSessionOpener } from '../../services/stage-speech-session-host'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
@@ -596,6 +599,13 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
 initIOTracer()
 useIOTraceBridge(speechPipeline)
 void speechRuntimeStore.registerHost(speechPipeline)
+// Lets spark reactions and other non-chat speakers open the same
+// transport-aware session (bidirectional-ws or segmenter) as chat.
+const disposeStageSpeechSessionOpener = registerStageSpeechSessionOpener(createStageSpeechSession)
+// Speaks reactions streamed from other renderers (e.g. the Electron
+// settings window). Pair ingest and playback reveal must share this
+// window's caption tracker, so raw chunks are forwarded here.
+const disposeReactionSpeechHost = registerReactionSpeechHost()
 
 speechPipeline.on('onSpecial', (segment) => {
   if (segment.special) {
@@ -832,7 +842,19 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
   return getDefinedProvider(providerId)?.capabilities?.speech?.transport
 }
 
-function openTtsSession(turnId: string, flushBoundaries: boolean): StageTtsSession {
+function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsSession {
+  const { turnId, flushBoundaries, priority = 'normal', behavior = 'queue', ownerId = activeCardId.value } = options
+
+  // Spark reactions cut in on top of whatever is speaking. Mirror the
+  // pre-open teardown a new chat message performs, without touching the
+  // chat turn bookkeeping (activeSpeechTurnId) owned by the chat hooks.
+  if (behavior === 'interrupt' || behavior === 'replace') {
+    currentSession?.cancel(behavior)
+    currentSession = null
+    speechPipeline.stopAll(behavior)
+    playbackManager.stopAll(behavior)
+  }
+
   // A session must only clear the module-level `currentSession` if it IS that session. The previous
   // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
   // are not assigned to `currentSession` (e.g. one-off read-aloud sessions): one of those finishing
@@ -852,9 +874,9 @@ function openTtsSession(turnId: string, flushBoundaries: boolean): StageTtsSessi
     openIntent: opts => speechRuntimeStore.openIntent(opts),
     intentOptions: () => ({
       turnId,
-      ownerId: activeCardId.value,
-      priority: 'normal',
-      behavior: 'queue',
+      ownerId,
+      priority,
+      behavior,
       // Captured by the caller before any async hook work, so the TTS
       // segmenter uses the same mode as the prompt and the splitter for
       // this turn even if settings change during setup.
@@ -893,7 +915,16 @@ function openTtsSession(turnId: string, flushBoundaries: boolean): StageTtsSessi
       },
     },
   })
+  // Streaming playback items carry no turnId; map their intent id so
+  // translation captions align on the bidirectional-ws transport too.
+  // Segmenter items already carry the turnId and this mapping is simply
+  // unused for them.
+  bilingualCaptionBus.mapIntentToTurn(session.intentId, turnId)
   return session
+}
+
+function openTtsSession(turnId: string, flushBoundaries: boolean): StageTtsSession {
+  return createStageSpeechSession({ turnId, flushBoundaries, priority: 'normal', behavior: 'queue' })
 }
 
 watch(latestStopRequest, (request) => {
@@ -929,10 +960,9 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   activeTurnSpeechEnabled = true
   setupAnalyser()
   await setupLipSync()
+  // openTtsSession maps the session intent id to this turn for caption
+  // alignment, for both the streaming and the segmenter adapter.
   currentSession = openTtsSession(context.turnId, flushBoundaries)
-  // Streaming playback items lack turnId. Their intent id maps back here so
-  // translation captions align on the bidirectional-ws transport too.
-  bilingualCaptionBus.mapIntentToTurn(currentSession.intentId, context.turnId)
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {
@@ -1145,6 +1175,8 @@ async function captureFrame() {
 
 onUnmounted(() => {
   disposePlaybackStateHandler()
+  disposeStageSpeechSessionOpener()
+  disposeReactionSpeechHost()
   resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())

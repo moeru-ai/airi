@@ -4,7 +4,7 @@ import { createTestingPinia } from '@pinia/testing'
 import { setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { setCharacterLlmMarkerParserFactoryForTest, useCharacterStore } from './character'
+import { useCharacterStore } from './character'
 import { useAiriCardStore } from './modules'
 import { useSpeechRuntimeStore } from './speech-runtime'
 
@@ -18,8 +18,6 @@ const writeLiteralSpy = vi.fn()
 const writeFlushSpy = vi.fn()
 const endSpy = vi.fn()
 const cancelSpy = vi.fn()
-const parserConsumeSpy = vi.fn()
-const parserEndSpy = vi.fn()
 
 const openSpeechIntentSpy = vi.fn(() => ({
   intentId: 'intent-test',
@@ -38,24 +36,11 @@ describe('store character', () => {
     const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false })
     setActivePinia(pinia)
 
-    setCharacterLlmMarkerParserFactoryForTest(options => ({
-      async consume(textPart: string) {
-        parserConsumeSpy(textPart)
-        if (textPart)
-          await options.onLiteral?.(textPart)
-      },
-      async end() {
-        parserEndSpy()
-      },
-    }))
-
     writeLiteralSpy.mockClear()
     writeFlushSpy.mockClear()
     endSpy.mockClear()
     cancelSpy.mockClear()
     openSpeechIntentSpy.mockClear()
-    parserConsumeSpy.mockClear()
-    parserEndSpy.mockClear()
 
     const speechRuntimeStore = useSpeechRuntimeStore(pinia)
     speechRuntimeStore.openIntent = openSpeechIntentSpy
@@ -122,14 +107,15 @@ describe('store character', () => {
     expect(store.reactions[0]?.sourceEventId).toBe('spark-1')
     expect(store.reactions[0]?.createdAt).toBe(123456)
 
+    // The speech surface is resolved asynchronously (cross-window host
+    // discovery may time out before the raw-intent fallback opens). The
+    // marker parser may batch fragments while looking ahead for tags, so
+    // assert on the fully delivered text rather than per-chunk calls.
     await vi.waitFor(() => {
-      expect(parserConsumeSpy).toHaveBeenCalled()
-      expect(parserEndSpy).toHaveBeenCalled()
-      expect(writeLiteralSpy).toHaveBeenCalledWith('Hello')
-      expect(writeLiteralSpy).toHaveBeenCalledWith(' world')
+      expect(writeLiteralSpy.mock.calls.map(call => call[0]).join('')).toBe('Hello world')
       expect(writeFlushSpy).toHaveBeenCalled()
       expect(endSpy).toHaveBeenCalled()
-    })
+    }, { timeout: 3000 })
 
     nowSpy.mockRestore()
   })
