@@ -1323,6 +1323,7 @@
     "electron",
   ],
   "patchedDependencies": {
+    "pixi-live2d-display@0.4.0": "patches/pixi-live2d-display.patch",
     "tab-election@4.6.2": "patches/tab-election@4.6.2.patch",
     "sponsorkit@17.1.0": "patches/sponsorkit@17.1.0.patch",
   },
