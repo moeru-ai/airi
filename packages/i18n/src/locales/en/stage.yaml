@@ -145,3 +145,18 @@ websocket-status:
   connected: Connected
   disconnected: No connection
   open-settings: Open connection settings
+
+status:
+  preparing: Preparing microphone
+  listening: Listening
+  paused: Listening paused while AIRI speaks
+  transcribing: Transcribing
+  hearing-error: Could not transcribe audio
+  no-transcript: Recognized speech will appear here.
+  signing-in: Finish signing in in your browser
+  confirming: Confirming sign-in
+  signed-in: Signed in
+  sign-in-error: Sign-in failed
+  sign-in-unconfirmed: Could not confirm your session. Please sign in again.
+  dismiss: Dismiss
+  configure-hearing: Select and configure a Hearing provider in Settings.

@@ -1,6 +1,7 @@
+import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 
 import { useAudioDevice } from '../../composables/audio'
 
@@ -21,6 +22,8 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
 
   const selectedAudioInputPersist = useLocalStorageManualReset<string>('settings/audio/input', selectedAudioInputNonPersist.value)
   const audioInputEnabled = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
+  // Retain device failures after input is disabled so the Stage can explain them.
+  const error = ref<string>()
   let audioInputStartGeneration = 0
   let audioInputStart: ReturnType<typeof startAudioInputStream> | undefined
 
@@ -36,7 +39,14 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
 
   async function askPermission() {
     syncSelectedAudioInputToRuntime()
-    await askAudioInputPermission()
+    error.value = undefined
+    try {
+      await askAudioInputPermission()
+    }
+    catch (cause) {
+      error.value = errorMessageFrom(cause) ?? 'Could not access the microphone'
+      throw cause
+    }
     syncSelectedAudioInputFromRuntime()
   }
 
@@ -66,7 +76,15 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
 
   async function startStreamForGeneration(generation: number) {
     syncSelectedAudioInputToRuntime()
-    await getOrStartAudioInputStream()
+    error.value = undefined
+    try {
+      await getOrStartAudioInputStream()
+    }
+    catch (cause) {
+      if (generation === audioInputStartGeneration)
+        error.value = errorMessageFrom(cause) ?? 'Could not start the microphone'
+      throw cause
+    }
 
     if (generation === audioInputStartGeneration)
       syncSelectedAudioInputFromRuntime()
@@ -139,6 +157,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   }
 
   function resetState() {
+    error.value = undefined
     selectedAudioInputPersist.reset()
     selectedAudioInputNonPersist.value = ''
     audioInputEnabled.reset()
@@ -146,6 +165,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   }
 
   return {
+    error,
     audioInputs,
     audioInputOptions,
     deviceConstraints,
