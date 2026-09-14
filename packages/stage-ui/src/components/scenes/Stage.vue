@@ -832,7 +832,7 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
   return getDefinedProvider(providerId)?.capabilities?.speech?.transport
 }
 
-function openTtsSession(turnId: string): StageTtsSession {
+function openTtsSession(turnId: string, flushBoundaries: boolean): StageTtsSession {
   // A session must only clear the module-level `currentSession` if it IS that session. The previous
   // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
   // are not assigned to `currentSession` (e.g. one-off read-aloud sessions): one of those finishing
@@ -855,9 +855,10 @@ function openTtsSession(turnId: string): StageTtsSession {
       ownerId: activeCardId.value,
       priority: 'normal',
       behavior: 'queue',
-      // Read per send: bilingual turns cut sentences only at flush markers
-      // so boundary count matches translation pairs one-to-one.
-      boundaryMode: bilingualSettingsStore.snapshot() ? 'flush' : undefined,
+      // Captured by the caller before any async hook work, so the TTS
+      // segmenter uses the same mode as the prompt and the splitter for
+      // this turn even if settings change during setup.
+      boundaryMode: flushBoundaries ? 'flush' : undefined,
     }),
     hooks: {
       onError: (err) => {
@@ -912,6 +913,13 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   resetAssistantSpeechSurface('new-message')
   activeSpeechTurnId = context.turnId
 
+  // Read bilingual mode before any await below. The orchestrator captured
+  // its own snapshot before this hook started; re-reading after setupLipSync
+  // could pair that mode with the opposite chunker mode if settings changed
+  // during the await (flush chunking on plain text, or punctuation chunking
+  // with pair markers).
+  const flushBoundaries = Boolean(bilingualSettingsStore.snapshot())
+
   currentSession?.cancel('new-message')
   currentSession = null
 
@@ -921,7 +929,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   activeTurnSpeechEnabled = true
   setupAnalyser()
   await setupLipSync()
-  currentSession = openTtsSession(context.turnId)
+  currentSession = openTtsSession(context.turnId, flushBoundaries)
   // Streaming playback items lack turnId. Their intent id maps back here so
   // translation captions align on the bidirectional-ws transport too.
   bilingualCaptionBus.mapIntentToTurn(currentSession.intentId, context.turnId)

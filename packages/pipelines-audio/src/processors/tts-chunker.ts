@@ -76,6 +76,46 @@ export async function* chunkTtsInput(
   let previousValue: string | undefined
   let current = await iterator.next()
 
+  /**
+   * Flush mode cannot rely on punctuation to keep TTS requests short:
+   * punctuation stays in the buffer until the pair flush marker. A spoken
+   * pair longer than `maximumWords` would otherwise become one oversized
+   * synthesis request, which providers reject or time out (observed as
+   * missing audio mid-turn). Cut the overflow at a word boundary into a
+   * non-boundary `limit` item; the later flush item still owns the pair's
+   * single sentence boundary. Returns true when a chunk was emitted.
+   */
+  function takeFlushOverflow(): string | false {
+    // Keep the raw text: cutting on a trimmed copy drops the whitespace at
+    // the cut point from both sides and glues two words together. The rest
+    // may keep a leading space; the chunk emitter trims it before synthesis.
+    const text = chunk + buffer
+    if (!text.trim())
+      return false
+    const segments = [...segmenter.segment(text)]
+    if (segments.filter(segment => segment.isWordLike).length <= maximumWords)
+      return false
+
+    let wordsSeen = 0
+    let cutIndex = text.length
+    for (const segment of segments) {
+      if (segment.isWordLike)
+        wordsSeen += 1
+      if (wordsSeen === maximumWords) {
+        cutIndex = segment.index + segment.segment.length
+        break
+      }
+    }
+
+    const head = text.slice(0, cutIndex)
+    const rest = text.slice(cutIndex)
+
+    chunk = ''
+    chunkWordsCount = 0
+    buffer = rest
+    return head
+  }
+
   while (!current.done) {
     let value = current.value
 
@@ -100,6 +140,14 @@ export async function* chunkTtsInput(
       // marker cuts the sentence exactly once per translation pair.
       buffer += value === '\n' || value === '\r' || value === '\t' ? ' ' : value
       previousValue = value
+      // Punctuation is the common word boundary (including space-less CJK
+      // sentences), so re-check the word cap here even though it does not
+      // cut a pair.
+      const overflow = takeFlushOverflow()
+      if (overflow !== false) {
+        yield { text: overflow, words: maximumWords, reason: 'limit' }
+        yieldCount += 1
+      }
       current = await iterator.next()
       continue
     }
@@ -208,6 +256,16 @@ export async function* chunkTtsInput(
 
     buffer += value
     previousValue = value
+    // Cover runs with no punctuation at all: check on spaces (Latin word
+    // boundaries) and on a generous length guard (space-less scripts). The
+    // punctuation branch above handles the common cases, so this stays cheap.
+    if (flushBoundaries && (/\s/.test(value) || buffer.length > 80)) {
+      const overflow = takeFlushOverflow()
+      if (overflow !== false) {
+        yield { text: overflow, words: maximumWords, reason: 'limit' }
+        yieldCount += 1
+      }
+    }
     next = await iterator.next()
     current = next
   }

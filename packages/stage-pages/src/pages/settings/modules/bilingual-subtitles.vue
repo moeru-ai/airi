@@ -72,8 +72,9 @@ const voiceMayNotSupportSpokenLanguage = computed(() => {
               v-for="language in bilingualLanguageOptions"
               :key="language.code"
               :value="language.code"
+              :disabled="language.code === translationLanguage"
             >
-              {{ language.label }}
+              {{ language.label }}{{ language.code === translationLanguage ? ` (${t('settings.pages.modules.bilingual_subtitles.translation_subtitle_1.same_language_disabled')})` : '' }}
             </option>
           </select>
         </label>
@@ -87,8 +88,9 @@ const voiceMayNotSupportSpokenLanguage = computed(() => {
               v-for="language in bilingualLanguageOptions"
               :key="language.code"
               :value="language.code"
+              :disabled="language.code === spokenLanguage"
             >
-              {{ language.label }}
+              {{ language.label }}{{ language.code === spokenLanguage ? ` (${t('settings.pages.modules.bilingual_subtitles.translation_subtitle_1.same_language_disabled')})` : '' }}
             </option>
           </select>
         </label>

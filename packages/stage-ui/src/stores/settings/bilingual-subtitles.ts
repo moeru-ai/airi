@@ -78,12 +78,10 @@ export const useSettingsBilingualSubtitles = defineStore('settings-bilingual-sub
 
   /**
    * Returns the immutable snapshot for one send, or undefined when disabled.
-   * A translation in the spoken language adds no second track.
+   * The settings UI prevents selecting the same language twice.
    */
   function snapshot(): BilingualTurnSnapshot | undefined {
     if (!enabled.value || !spokenLanguage.value || !translationLanguage.value)
-      return undefined
-    if (translationLanguage.value === spokenLanguage.value)
       return undefined
 
     return {

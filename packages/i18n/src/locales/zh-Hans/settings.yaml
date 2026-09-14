@@ -538,6 +538,7 @@ pages:
         description: 文字转语音朗读使用的语言。
       translation_subtitle_1:
         label: 译文字幕1
+        same_language_disabled: 该语言已选为口语语言
       voice_warning: 当前选择的语音可能不支持该口语语言，请到语音设置中确认音色。
     beat_sync:
       description: 随音源节拍律动
