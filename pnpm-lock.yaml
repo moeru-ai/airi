@@ -3917,6 +3917,9 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
+      '@proj-airi/core-agent':
+        specifier: workspace:^
+        version: link:../core-agent
       '@types/node':
         specifier: 'catalog:'
         version: 26.2.0
@@ -4240,6 +4243,9 @@ importers:
       dompurify:
         specifier: 'catalog:'
         version: 3.4.14
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.51.0
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
