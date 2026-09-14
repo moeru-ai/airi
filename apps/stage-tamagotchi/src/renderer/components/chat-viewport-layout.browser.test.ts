@@ -177,6 +177,25 @@ describe('desktop chat viewport layout', () => {
     const tail = [...screen.container.querySelectorAll<HTMLElement>('.chat-message-item')].at(-1)!
     tail.style.minHeight = `${tail.getBoundingClientRect().height + 64}px`
     await expectVisibleTail('Expanded streaming tail')
+
+    // https://github.com/moeru-ai/airi/pull/2461#discussion_r4003137140
+    // ROOT CAUSE:
+    // The custom scrollbar is outside the viewport, so viewport input listeners
+    // missed pointer scrolls. A later resize pulled the reader back to the tail.
+    await new Promise(resolve => setTimeout(resolve, 250))
+    const viewport = screen.container.querySelector<HTMLElement>('.chat-history-list')!
+    viewport.dispatchEvent(new Event('scroll'))
+    await expect.poll(() => screen.container.querySelector('.scrollable-area-scrollbar--vertical')).not.toBeNull()
+    const scrollbar = screen.container.querySelector<HTMLElement>('.scrollable-area-scrollbar--vertical')!
+    await userEvent.click(scrollbar, { position: { x: 5, y: 20 } })
+    await userEvent.hover(composer)
+    await expect.poll(() => viewport.scrollTop).toBeLessThan(viewport.scrollHeight - viewport.clientHeight - 24)
+    await new Promise(resolve => setTimeout(resolve, 250))
+    const readerPosition = viewport.scrollTop
+    const mountedTail = [...screen.container.querySelectorAll<HTMLElement>('.chat-message-item')].at(-1)!
+    mountedTail.style.minHeight = `${mountedTail.getBoundingClientRect().height + 64}px`
+    await new Promise(resolve => setTimeout(resolve, 300))
+    expect(viewport.scrollTop).toBe(readerPosition)
   })
 
   // ROOT CAUSE:

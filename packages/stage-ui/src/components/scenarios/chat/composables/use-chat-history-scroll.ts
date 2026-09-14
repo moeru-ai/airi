@@ -18,6 +18,8 @@ interface ChatHistoryScrollOptions<TMessage> {
  * A user scroll away from the tail disables automatic movement. Layout changes
  * and index scrolls do not disable it. Pointer, focus, and selection on an older
  * message also block movement until that inspection ends.
+ * The returned onUserScroll must receive custom scrollbar pointer events before
+ * their default handler changes the viewport position.
  */
 export function useChatHistoryScroll<TMessage>({
   container,
@@ -110,9 +112,14 @@ export function useChatHistoryScroll<TMessage>({
     }
   }, { passive: true })
 
-  useEventListener(container, ['wheel', 'touchmove'], () => {
+  // The custom scrollbar is a sibling of the viewport. Its owner calls this
+  // before Reka changes scrollTop; viewport wheel and touch events share it.
+  const onUserScroll = (event: PointerEvent | WheelEvent | TouchEvent) => {
+    if (event instanceof PointerEvent && event.button !== 0)
+      return
     hasUserScrollIntent = true
-  }, { passive: true })
+  }
+  useEventListener(container, ['wheel', 'touchmove'], onUserScroll, { passive: true })
 
   useEventListener(container, 'keydown', (event) => {
     if (['ArrowDown', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp', ' '].includes(event.key))
@@ -182,4 +189,6 @@ export function useChatHistoryScroll<TMessage>({
     },
     { flush: 'post', immediate: true },
   )
+
+  return { onUserScroll }
 }

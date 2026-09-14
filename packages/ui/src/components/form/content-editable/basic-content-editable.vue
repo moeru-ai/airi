@@ -41,23 +41,29 @@ function readEditableText(element: HTMLDivElement) {
   return text.endsWith('\n') ? text.slice(0, -1) : text
 }
 
-function getSelectionOffsets(editable: HTMLDivElement) {
-  const selection = window.getSelection()
-  const range = selection?.rangeCount ? selection.getRangeAt(0) : undefined
-  if (!selection || !range || !editable.contains(range.startContainer) || !editable.contains(range.endContainer))
+function getSelectionOffsets(editable: HTMLDivElement, previousValue: string) {
+  const selection = editable.ownerDocument.getSelection()
+  if (!selection || editable.ownerDocument.activeElement !== editable)
     return
 
-  const startRange = document.createRange()
-  startRange.selectNodeContents(editable)
-  startRange.setEnd(range.startContainer, range.startOffset)
+  const { anchorNode, anchorOffset, focusNode, focusOffset } = selection
+  if (!anchorNode || !focusNode || !editable.contains(anchorNode) || !editable.contains(focusNode))
+    return
 
-  const endRange = document.createRange()
-  endRange.selectNodeContents(editable)
-  endRange.setEnd(range.endContainer, range.endOffset)
-
-  return {
-    start: startRange.toString().length,
-    end: endRange.toString().length,
+  // Native plaintext editing produces text, br, and div nodes, not rich HTML.
+  // Selection serializes their rendered breaks, like innerText. Range.toString only
+  // counts text nodes. Sample each prefix without changing the editing DOM,
+  // then restore both endpoints before the queued selectionchange is delivered.
+  // Clamp the final caret filler to the end of the model's text.
+  try {
+    selection.setBaseAndExtent(editable, 0, anchorNode, anchorOffset)
+    const anchor = Math.min(selection.toString().replaceAll('\r\n', '\n').length, previousValue.length)
+    selection.setBaseAndExtent(editable, 0, focusNode, focusOffset)
+    const focus = Math.min(selection.toString().replaceAll('\r\n', '\n').length, previousValue.length)
+    return { anchor, focus }
+  }
+  finally {
+    selection.setBaseAndExtent(anchorNode, anchorOffset, focusNode, focusOffset)
   }
 }
 
@@ -65,27 +71,18 @@ function restoreSelection(editable: HTMLDivElement, previousValue: string, offse
   if (!offsets)
     return
 
-  const selection = window.getSelection()
+  const selection = editable.ownerDocument.getSelection()
   if (!selection)
     return
 
-  const followsPreviousEnd = offsets.start === previousValue.length && offsets.end === previousValue.length
-  const start = followsPreviousEnd ? input.value.length : Math.min(offsets.start, input.value.length)
-  const end = followsPreviousEnd ? input.value.length : Math.min(offsets.end, input.value.length)
-  const range = document.createRange()
+  const followsPreviousEnd = offsets.anchor === previousValue.length && offsets.focus === previousValue.length
+  const anchor = followsPreviousEnd ? input.value.length : Math.min(offsets.anchor, input.value.length)
+  const focus = followsPreviousEnd ? input.value.length : Math.min(offsets.focus, input.value.length)
   const textNode = editable.firstChild
-
-  if (textNode?.nodeType === Node.TEXT_NODE) {
-    range.setStart(textNode, start)
-    range.setEnd(textNode, end)
-  }
-  else {
-    range.selectNodeContents(editable)
-    range.collapse(true)
-  }
-
-  selection.removeAllRanges()
-  selection.addRange(range)
+  if (textNode?.nodeType === Node.TEXT_NODE)
+    selection.setBaseAndExtent(textNode, anchor, textNode, focus)
+  else
+    selection.collapse(editable, 0)
 }
 
 function syncEditableValue() {
@@ -97,7 +94,7 @@ function syncEditableValue() {
   if (previousValue === input.value)
     return
 
-  const selectionOffsets = getSelectionOffsets(editable)
+  const selectionOffsets = getSelectionOffsets(editable, previousValue)
   // A trailing line needs one more newline for the caret. Use the same
   // representation as native editing so readEditableText can omit that filler.
   editable.textContent = input.value.endsWith('\n') ? `${input.value}\n` : input.value

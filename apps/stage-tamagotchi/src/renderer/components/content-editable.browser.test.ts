@@ -181,6 +181,79 @@ describe('plain-text editor', () => {
     await expect.element(input).toHaveAttribute('data-empty', '')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r4003137131
+  it.each([
+    ['breaks', 'first<br>second', 'first\nsecond'],
+    ['blocks', '<div>first</div><div>second</div>', 'first\nsecond'],
+    ['surrogate pairs', '😀<br>second', '😀\nsecond'],
+    ['blank lines', 'first<br><br>second', 'first\n\nsecond'],
+  ])('preserves multiline selection through external updates with %s for Issue #2461', async (_, html, text) => {
+    // ROOT CAUSE:
+    // Range.toString omits rendered separators. Its offsets did not address
+    // the same plain text that replaces the DOM during an external update.
+    const draft = ref(text)
+    const screen = await render(defineComponent({
+      components: { BasicContentEditable },
+      setup: () => ({ draft }),
+      template: '<BasicContentEditable v-model="draft" />',
+    }))
+    const input = screen.getByRole('textbox').element()
+    input.innerHTML = html
+    input.focus()
+    const lastText = input.lastChild instanceof Text ? input.lastChild : input.lastChild!.firstChild!
+    const selection = window.getSelection()!
+    selection.setBaseAndExtent(lastText, 4, lastText, 1)
+
+    draft.value = `${text}!`
+
+    await expect.poll(() => input.textContent).toBe(`${text}!`)
+    expect(selection.anchorOffset).toBe(text.indexOf('second') + 4)
+    expect(selection.focusOffset).toBe(text.indexOf('second') + 1)
+    expect(selection.toString()).toBe('eco')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r4003137131
+  it.each([
+    ['first<br>second', 'first\nsecond'],
+    ['first<br><br>', 'first\n'],
+    ['<br><br><br>', '\n\n'],
+  ])('keeps the end caret following external appends from %s for Issue #2461', async (html, text) => {
+    const draft = ref(text)
+    const screen = await render(defineComponent({
+      components: { BasicContentEditable },
+      setup: () => ({ draft }),
+      template: '<BasicContentEditable v-model="draft" />',
+    }))
+    const input = screen.getByRole('textbox').element()
+    input.innerHTML = html
+    input.focus()
+    const selection = window.getSelection()!
+    selection.collapse(input, input.childNodes.length)
+    draft.value += ' appended'
+
+    await expect.poll(() => input.textContent).toBe(draft.value)
+    expect(selection.anchorOffset).toBe(draft.value.length)
+    expect(selection.isCollapsed).toBe(true)
+  })
+
+  it('does not reclaim focus when an external update replaces a blurred draft', async () => {
+    const draft = ref('draft')
+    const screen = await render(defineComponent({
+      components: { BasicContentEditable },
+      setup: () => ({ draft }),
+      template: '<BasicContentEditable v-model="draft" /><button>Next control</button>',
+    }))
+    const input = screen.getByRole('textbox')
+    const button = screen.getByRole('button')
+    await userEvent.click(input)
+    button.element().focus()
+    await expect.element(button).toHaveFocus()
+    draft.value = 'external draft'
+
+    await expect.element(input).toHaveTextContent('external draft')
+    await expect.element(button).toHaveFocus()
+  })
+
   it('lets native paste strip formatting and remain undoable', async () => {
     const screen = await render(defineComponent({
       components: { BasicContentEditable },
