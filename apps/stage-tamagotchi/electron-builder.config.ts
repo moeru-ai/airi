@@ -104,6 +104,26 @@ export default {
       filter: ['**/*'],
     },
   ],
+  extraFiles: [
+    // NOTICE: Runtime plugin directory shipped beside the installed application.
+    //
+    // Placement must match `resolveBundledPluginsRoot()` in
+    // `src/main/services/airi/plugins/host/root.ts`:
+    // - Windows/Linux: <install dir>/plugins
+    // - macOS: AIRI.app/Contents/plugins (electron-builder copies extraFiles
+    //   into the bundle Contents directory, not next to the executable)
+    //
+    // This bundled directory is the active user plugin directory only when it is
+    // writable (default Windows installs). Otherwise — read-only Linux installs
+    // and always on macOS — the app resolves `<userData>/plugins` instead and
+    // copies these bundled plugins there on first run, so the example still
+    // appears and updates never delete user plugins.
+    {
+      from: '../../plugins/airi-plugin-example-hello',
+      to: 'plugins/airi-plugin-example-hello',
+      filter: ['**/*'],
+    },
+  ],
   extraMetadata: {
     name: 'ai.moeru.airi',
     main: 'out/main/index.js',

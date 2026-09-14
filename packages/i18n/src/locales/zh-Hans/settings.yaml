@@ -951,6 +951,9 @@ pages:
       title: Flux 电池包
       buy: 充值
       description: 可以选择购入的 Flux 电池包
+  plugins:
+    title: 插件
+    description: 管理 AIRI 的即插即用插件
   providers:
     catalog:
       edit:

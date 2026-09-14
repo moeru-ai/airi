@@ -11,11 +11,11 @@ import type {
 } from '../features/static-assets'
 import type { ExtensionHostService, SetupExtensionHostOptions } from '../types'
 
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
 import { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
-import { app, session as electronSession } from 'electron'
+import { session as electronSession } from 'electron'
 
 import { createExtensionAutoReloadFeature } from '../features/auto-reload'
 import { createExtensionAssetService } from '../features/static-assets'
@@ -29,6 +29,7 @@ import {
   manifestIdOf,
   resolvePluginRuntimeEntrypointPath,
 } from './registry'
+import { resolveBundledPluginsRoot, resolvePluginsRoot, seedBundledPlugins } from './root'
 
 const extensionAssetSessionTtlMs = 30 * 24 * 60 * 60 * 1000
 
@@ -192,6 +193,21 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
   getAssetBaseUrl: () => string
 
   /**
+   * Returns the directory that holds user-installable plugin folders.
+   *
+   * Use when:
+   * - The open-folder IPC action reveals the plugin directory in the OS file manager
+   * - Diagnostics need the resolved plugin root without a full registry refresh
+   *
+   * Expects:
+   * - The root may not exist yet on first run; `list()` or startup refresh creates it
+   *
+   * Returns:
+   * - The absolute plugin root path resolved for the current runtime
+   */
+  getRoot: () => string
+
+  /**
    * Disposes optional host features and asset hosting resources.
    *
    * Use when:
@@ -215,8 +231,11 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
  * - Tests need direct access to the internal host bootstrap helper
  *
  * Expects:
- * - Electron `app.getPath('userData')` is available
- * - Extension manifests live under `<userData>/extensions/v1`
+ * - Electron `app` paths are available for plugin root resolution
+ * - Extension manifests live under the plugin root resolved by
+ *   `resolvePluginsRoot()`: the repository `plugins/` directory in development,
+ *   the install directory `plugins/` when it is writable, or the user data
+ *   directory otherwise (always the user data directory on macOS)
  *
  * Returns:
  * - The internal bootstrap service that powers the public extension-host IPC facade
@@ -225,7 +244,14 @@ export async function setupExtensionHostServiceInternal(
   options: SetupExtensionHostOptions,
 ): Promise<ExtensionHostServiceInternal> {
   const log = useLogg('main/extension-host').useGlobalConfig()
-  const extensionsRoot = join(app.getPath('userData'), 'extensions', 'v1')
+  const extensionsRoot = resolvePluginsRoot()
+  const seededBundledPluginDirectories = await seedBundledPlugins({
+    bundledRoot: resolveBundledPluginsRoot(),
+    targetRoot: extensionsRoot,
+  })
+  if (seededBundledPluginDirectories.length > 0) {
+    log.withFields({ extensionsRoot, seeded: seededBundledPluginDirectories }).log('bundled plugins seeded into user plugin directory')
+  }
 
   // Config
   const extensionConfig = createExtensionHostConfigStore()
@@ -516,6 +542,9 @@ export async function setupExtensionHostServiceInternal(
     },
     getAssetBaseUrl() {
       return extensionAssetService.getBaseUrl() ?? ''
+    },
+    getRoot() {
+      return extensionsRoot
     },
     async dispose() {
       autoReloadFeature.dispose()

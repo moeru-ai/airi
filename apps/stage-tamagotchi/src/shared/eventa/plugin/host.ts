@@ -59,6 +59,7 @@ export interface PluginModuleWidgetPayload {
  */
 export interface PluginManifestSummary {
   extensionId: string
+  version: string
   entrypoints: Record<string, string | undefined>
   path: string
   enabled: boolean
@@ -193,3 +194,4 @@ export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapsh
 export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:electron:plugins:load')
 export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:electron:plugins:unload')
 export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:electron:plugins:inspect')
+export const electronPluginOpenFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:plugins:open-folder')

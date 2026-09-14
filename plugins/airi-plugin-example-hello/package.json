@@ -1,0 +1,7 @@
+{
+  "name": "airi-plugin-example-hello",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Example drop-in plugin for AIRI. Copy this folder beside the installed app to test plugin loading."
+}

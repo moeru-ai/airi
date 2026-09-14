@@ -205,6 +205,7 @@ export type WidgetsIframeRequestResultPayload
 
 export interface PluginManifestSummary {
   extensionId: string
+  version: string
   entrypoints: Record<string, string | undefined>
   path: string
   enabled: boolean

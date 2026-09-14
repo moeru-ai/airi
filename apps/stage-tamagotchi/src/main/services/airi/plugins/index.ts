@@ -2,7 +2,7 @@ import type { ExtensionHostService, SetupExtensionHostOptions } from './types'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { app, ipcMain } from 'electron'
+import { app, ipcMain, shell } from 'electron'
 
 import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
 import {
@@ -15,6 +15,7 @@ import {
   electronPluginList,
   electronPluginLoad,
   electronPluginLoadEnabled,
+  electronPluginOpenFolder,
   electronPluginSetAutoReload,
   electronPluginSetEnabled,
   electronPluginUnload,
@@ -32,13 +33,14 @@ import { setupExtensionHostServiceInternal } from './host'
  * Call once during app startup; it loads manifests, returns the host instance,
  * and registers Eventa handlers for listing, enabling, and loading plugins.
  *
- * Loads extension manifests from the app config directory under `extensions/v1`.
+ * Loads extension manifests from the user plugin directory resolved per runtime:
  *
- * - Windows: %APPDATA%\${appId}\extensions\v1
- * - Linux: $XDG_CONFIG_HOME/${appId}/extensions/v1 or ~/.config/${appId}/extensions/v1
- * - macOS: ~/Library/Application Support/${appId}/extensions/v1
+ * - Development: `<repo>/plugins`, one level beside the repository `services/` directory
+ * - Packaged: a `plugins` directory beside the installed executable
+ *   (macOS: `AIRI.app/Contents/plugins`), populated by electron-builder
+ *   `extraFiles` so users can drop plugin folders next to the app.
  *
- * Persists enablement/known state to `extensions-v1.json` alongside config data.
+ * Persists enablement/known state to `extensions-v1.json` in the app config directory.
  *
  * - Windows: %APPDATA%\${appId}/extensions-v1.json
  * - Linux: $XDG_CONFIG_HOME/${appId}/extensions-v1.json or ~/.config/${appId}/extensions-v1.json
@@ -94,6 +96,15 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
 
   defineInvokeHandler(context, electronPluginInspect, async () => {
     return await hostService.inspect()
+  })
+
+  defineInvokeHandler(context, electronPluginOpenFolder, async () => {
+    const path = hostService.getRoot()
+    const openResult = await shell.openPath(path)
+    if (openResult) {
+      throw new Error(openResult)
+    }
+    return { path }
   })
 
   defineInvokeHandler(context, electronPluginGetAssetBaseUrl, async () => {

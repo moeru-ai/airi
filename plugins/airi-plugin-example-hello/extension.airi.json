@@ -1,0 +1,9 @@
+{
+  "apiVersion": "v1",
+  "kind": "manifest.extension.airi.moeru.ai",
+  "id": "airi-plugin-example-hello",
+  "permissions": {},
+  "entrypoints": {
+    "electron": "./index.mjs"
+  }
+}

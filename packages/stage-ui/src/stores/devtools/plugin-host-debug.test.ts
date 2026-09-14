@@ -10,6 +10,7 @@ function createRegistry(enabled: boolean, loaded: boolean): PluginRegistrySnapsh
     root: 'extensions/v1',
     plugins: [{
       extensionId: 'sample-plugin',
+      version: '0.0.0',
       entrypoints: { electron: './index.mjs' },
       path: 'sample-plugin/extension.airi.json',
       enabled,

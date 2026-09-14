@@ -987,6 +987,9 @@ pages:
       title: Flux Packages
       buy: Charge
       description: Flux packages to choose from.
+  plugins:
+    title: Plugins
+    description: Manage drop-in plugins for the AIRI app
   providers:
     catalog:
       edit:

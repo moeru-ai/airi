@@ -11,6 +11,30 @@ pages:
     mcp-server:
       description: Connect and manage MCP server and tools
       title: MCP Server
+  plugins:
+    installed: Installed plugins
+    folder: Plugin folder
+    empty:
+      title: No plugins found
+      description: >-
+        Put a plugin folder that contains an extension.airi.json manifest into
+        the plugin folder, then refresh this page.
+    status:
+      enabled: Enabled
+      disabled: Disabled
+      loaded: Loaded
+      not-loaded: Not loaded
+    actions:
+      refresh: Refresh
+      open-folder: Open folder
+      enable: Enable and load
+      disable: Disable and unload
+      reload: Reload
+    errors:
+      refresh: Failed to load plugins.
+      toggle: Failed to update plugin {extensionId}.
+      reload: Failed to reload plugin {extensionId}.
+      open-folder: Failed to open the plugin folder.
   system:
     sections:
       section:
