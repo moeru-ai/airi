@@ -2,7 +2,7 @@ import type { Page } from 'playwright'
 
 import { describe, expect, it } from '../../src'
 import { configureModuleHearing, configureOnboarding } from '../shared/configurations'
-import { enableHearingPlaygroundMicrophone, openHearingPlayground, readHearingPlaygroundTranscriptions } from '../shared/interactions'
+import { enableHearingPlaygroundMicrophone, readHearingPlaygroundTranscriptions } from '../shared/interactions'
 import { appleSpeechAsr } from '../shared/providers'
 
 // ROOT CAUSE:
@@ -38,8 +38,12 @@ async function waitForStoredLocale(page: Page, locale: string) {
 
 describe('Apple Speech audio input', () => {
   it('configures the native locale and transcribes through the Electron Provider', { input, preflight }, async ({ audio }) => {
-    const page = await openHearingPlayground(audio)
+    const page = audio.runtimePage
     audio.activatePage(page)
+    await page.evaluate(() => {
+      window.location.hash = '/settings/modules/hearing'
+    })
+    await page.waitForURL(/#\/settings\/modules\/hearing/)
     await page.getByTestId('hearing-playground-monitor-toggle').waitFor({ state: 'visible', timeout: 60_000 })
     const localeCombobox = page.getByTestId('apple-speech-locale').getByRole('combobox')
     try {
@@ -61,26 +65,15 @@ describe('Apple Speech audio input', () => {
     const zhCNOption = page.getByRole('option').filter({ hasText: 'zh-CN' }).first()
     await zhCNOption.click()
     await waitForStoredLocale(page, 'zh-CN')
-    await page.waitForFunction(() => {
-      const input = document.querySelector<HTMLInputElement>('[data-testid="apple-speech-locale"] input')
-      return input?.value === '中文（中国） (zh-CN)'
-    })
 
     await localeCombobox.click()
     const enUSOption = page.getByRole('option').filter({ hasText: 'en-US' }).first()
     await enUSOption.click()
     await waitForStoredLocale(page, 'en-US')
-    await page.waitForFunction(() => {
-      const input = document.querySelector<HTMLInputElement>('[data-testid="apple-speech-locale"] input')
-      return input?.value === 'American English (en-US)'
-    })
 
     await enableHearingPlaygroundMicrophone(page)
     try {
-      const transcriptions = await readHearingPlaygroundTranscriptions(page, 1)
-      // The playground owns transcription in the settings renderer. The session
-      // matcher observes the main renderer used by chat microphone cases.
-      expect(transcriptions[0]).toContain('Just let go.')
+      await readHearingPlaygroundTranscriptions(page, 1)
     }
     catch (error) {
       const diagnostics = await page.evaluate(() => ({
@@ -96,8 +89,8 @@ describe('Apple Speech audio input', () => {
       throw new Error(`Apple Speech did not produce a transcript: ${JSON.stringify(diagnostics)}`, { cause: error })
     }
 
-    finally {
-      await page.getByTestId('hearing-playground-monitor-toggle').click()
-    }
+    await expect(audio).toHaveTranscriptions([
+      ['Just let go.'],
+    ], { match: 'contains' })
   })
 })

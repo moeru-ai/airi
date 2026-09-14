@@ -48,6 +48,28 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode) {
   return { pinia, providerConfigStore, providerStore, runtime }
 }
 
+const transcriptionProviderId = 'openai-compatible-audio-transcription'
+
+async function createTranscriptionRenderers() {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => {
+    throw new TypeError('Test backend is offline')
+  }))
+
+  const namespace = `provider-instance:${crypto.randomUUID()}`
+  const leader = createSyncedContext(namespace, 'leader-only')
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+
+  const follower = createSyncedContext(namespace, 'follower-only')
+  await expect.poll(() => follower.runtime.getLeaderId()).toBe(leader.runtime.participantId)
+
+  const config = { baseUrl: 'https://example.org/v1/', apiKey: 'test' }
+  await leader.providerStore.initializeProvider(transcriptionProviderId)
+  await leader.providerConfigStore.updateProviderConfig(transcriptionProviderId, config, 'configured')
+  await expect.poll(() => follower.providerConfigStore.getProviderConfig(transcriptionProviderId)).toMatchObject(config)
+
+  return { leader, follower }
+}
+
 describe('provider model catalog synchronization', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -65,55 +87,43 @@ describe('provider model catalog synchronization', () => {
   })
 
   it('disposes the caller renderer instance without disposing the leader instance', async () => {
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => {
-      throw new TypeError('Test backend is offline')
-    }))
-    const namespace = `provider-local-instance:${crypto.randomUUID()}`
-    const leader = createSyncedContext(namespace, 'leader-only')
-    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
-    const follower = createSyncedContext(namespace, 'follower-only')
-    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
-    await follower.providerStore.initializeProvider('openai-compatible-audio-transcription')
-    await leader.providerConfigStore.updateProviderConfig('openai-compatible-audio-transcription', { baseUrl: 'https://example.com/v1/', apiKey: 'test' }, 'configured')
-    await vi.waitFor(() => expect(follower.providerConfigStore.getProviderConfig('openai-compatible-audio-transcription')?.apiKey).toBe('test'))
-    const leaderInstance = await leader.providerStore.getProviderInstance('openai-compatible-audio-transcription')
-    const followerInstance = await follower.providerStore.getProviderInstance('openai-compatible-audio-transcription')
+    const { leader, follower } = await createTranscriptionRenderers()
+    const leaderInstance = await leader.providerStore.getProviderInstance(transcriptionProviderId)
+    const followerInstance = await follower.providerStore.getProviderInstance(transcriptionProviderId)
 
     // ROOT CAUSE:
     //
     // Hearing saves configuration through the leader, then disposes its Provider.
     // Disposal also ran on the leader, leaving the settings renderer cache intact.
     // Instance creation and disposal must belong to the same renderer.
-    await follower.providerStore.disposeProviderInstance('openai-compatible-audio-transcription')
-    expect(await follower.providerStore.getProviderInstance('openai-compatible-audio-transcription')).not.toBe(followerInstance)
-    expect(await leader.providerStore.getProviderInstance('openai-compatible-audio-transcription')).toBe(leaderInstance)
+    await follower.providerStore.disposeProviderInstance(transcriptionProviderId)
+
+    const nextFollowerInstance = await follower.providerStore.getProviderInstance(transcriptionProviderId)
+    const nextLeaderInstance = await leader.providerStore.getProviderInstance(transcriptionProviderId)
+    expect(nextFollowerInstance).not.toBe(followerInstance)
+    expect(nextLeaderInstance).toBe(leaderInstance)
   })
 
   it('replaces a cached instance after a configuration snapshot without proposing state', async () => {
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => {
-      throw new TypeError('Test backend is offline')
-    }))
-    const namespace = `provider-instance-config:${crypto.randomUUID()}`
-    const leader = createSyncedContext(namespace, 'leader-only')
-    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
-    const follower = createSyncedContext(namespace, 'follower-only')
-    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
-    const providerId = 'openai-compatible-audio-transcription'
-    await follower.providerStore.initializeProvider(providerId)
-    await leader.providerConfigStore.updateProviderConfig(providerId, { baseUrl: 'https://example.org/v1/', apiKey: 'test' }, 'configured')
-    await vi.waitFor(() => expect(follower.providerConfigStore.getProviderConfig(providerId)?.apiKey).toBe('test'))
-    const before = await follower.providerStore.getProviderInstance(providerId)
+    const { leader, follower } = await createTranscriptionRenderers()
+    const before = await follower.providerStore.getProviderInstance(transcriptionProviderId)
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
 
     // A settings window can create an instance before the leader snapshot arrives.
     // The next request must use the snapshot instead of that earlier configuration.
-    await leader.providerConfigStore.updateProviderConfig(providerId, { baseUrl: 'https://example.com/v1/', apiKey: 'test' }, 'configured')
-    await vi.waitFor(() => expect(follower.providerConfigStore.getProviderConfig(providerId)?.baseUrl).toBe('https://example.com/v1/'))
-    const after = await follower.providerStore.getProviderInstance<TranscriptionProvider>(providerId)
+    const config = { baseUrl: 'https://example.com/v1/', apiKey: 'test' }
+    await leader.providerConfigStore.updateProviderConfig(transcriptionProviderId, config, 'configured')
+    await expect.poll(() => follower.providerConfigStore.getProviderConfig(transcriptionProviderId)).toMatchObject(config)
+
+    const after = await follower.providerStore.getProviderInstance<TranscriptionProvider>(transcriptionProviderId)
+    const reused = await follower.providerStore.getProviderInstance(transcriptionProviderId)
     expect(after).not.toBe(before)
-    expect(String(after.transcription('whisper-1').baseURL)).toBe('https://example.com/v1/')
-    expect(await follower.providerStore.getProviderInstance(providerId)).toBe(after)
-    expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
+    expect(String(after.transcription('whisper-1').baseURL)).toBe(config.baseUrl)
+    expect(reused).toBe(after)
+    expect(traffic).not.toHaveBeenCalledWith(expect.objectContaining({
+      name: 'onCall',
+      rest: expect.arrayContaining(['replaceState']),
+    }))
   })
 
   // https://github.com/moeru-ai/airi/pull/2440#discussion_r3912226716

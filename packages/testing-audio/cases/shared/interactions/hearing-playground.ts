@@ -17,8 +17,7 @@ export async function openHearingPlayground(runtime: AudioInputSession): Promise
   }
 
   await settingsButton.click({ force: true })
-  // Leadership is a query parameter between index.html and the settings hash.
-  const settingsPage = await waitForElectronPage(app, page => new URL(page.url()).hash === '#/settings')
+  const settingsPage = await waitForElectronPage(app, page => page.url().includes('index.html#/settings'))
   await settingsPage.evaluate(() => {
     window.location.hash = '/settings/modules/hearing'
   })
