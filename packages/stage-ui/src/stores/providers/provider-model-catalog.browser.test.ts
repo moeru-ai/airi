@@ -1,3 +1,4 @@
+import type { TranscriptionProvider } from '@xsai-ext/providers/utils'
 import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { App } from 'vue'
 
@@ -47,6 +48,28 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode) {
   return { pinia, providerConfigStore, providerStore, runtime }
 }
 
+const transcriptionProviderId = 'openai-compatible-audio-transcription'
+
+async function createTranscriptionRenderers() {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => {
+    throw new TypeError('Test backend is offline')
+  }))
+
+  const namespace = `provider-instance:${crypto.randomUUID()}`
+  const leader = createSyncedContext(namespace, 'leader-only')
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+
+  const follower = createSyncedContext(namespace, 'follower-only')
+  await expect.poll(() => follower.runtime.getLeaderId()).toBe(leader.runtime.participantId)
+
+  const config = { baseUrl: 'https://example.org/v1/', apiKey: 'test' }
+  await leader.providerStore.initializeProvider(transcriptionProviderId)
+  await leader.providerConfigStore.updateProviderConfig(transcriptionProviderId, config, 'configured')
+  await expect.poll(() => follower.providerConfigStore.getProviderConfig(transcriptionProviderId)).toMatchObject(config)
+
+  return { leader, follower }
+}
+
 describe('provider model catalog synchronization', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -58,8 +81,49 @@ describe('provider model catalog synchronization', () => {
       context.runtime.dispose()
       disposePinia(context.pinia)
     }
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
     localStorage.clear()
+  })
+
+  it('disposes the caller renderer instance without disposing the leader instance', async () => {
+    const { leader, follower } = await createTranscriptionRenderers()
+    const leaderInstance = await leader.providerStore.getProviderInstance(transcriptionProviderId)
+    const followerInstance = await follower.providerStore.getProviderInstance(transcriptionProviderId)
+
+    // ROOT CAUSE:
+    //
+    // Hearing saves configuration through the leader, then disposes its Provider.
+    // Disposal also ran on the leader, leaving the settings renderer cache intact.
+    // Instance creation and disposal must belong to the same renderer.
+    await follower.providerStore.disposeProviderInstance(transcriptionProviderId)
+
+    const nextFollowerInstance = await follower.providerStore.getProviderInstance(transcriptionProviderId)
+    const nextLeaderInstance = await leader.providerStore.getProviderInstance(transcriptionProviderId)
+    expect(nextFollowerInstance).not.toBe(followerInstance)
+    expect(nextLeaderInstance).toBe(leaderInstance)
+  })
+
+  it('replaces a cached instance after a configuration snapshot without proposing state', async () => {
+    const { leader, follower } = await createTranscriptionRenderers()
+    const before = await follower.providerStore.getProviderInstance(transcriptionProviderId)
+    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+
+    // A settings window can create an instance before the leader snapshot arrives.
+    // The next request must use the snapshot instead of that earlier configuration.
+    const config = { baseUrl: 'https://example.com/v1/', apiKey: 'test' }
+    await leader.providerConfigStore.updateProviderConfig(transcriptionProviderId, config, 'configured')
+    await expect.poll(() => follower.providerConfigStore.getProviderConfig(transcriptionProviderId)).toMatchObject(config)
+
+    const after = await follower.providerStore.getProviderInstance<TranscriptionProvider>(transcriptionProviderId)
+    const reused = await follower.providerStore.getProviderInstance(transcriptionProviderId)
+    expect(after).not.toBe(before)
+    expect(String(after.transcription('whisper-1').baseURL)).toBe(config.baseUrl)
+    expect(reused).toBe(after)
+    expect(traffic).not.toHaveBeenCalledWith(expect.objectContaining({
+      name: 'onCall',
+      rest: expect.arrayContaining(['replaceState']),
+    }))
   })
 
   // https://github.com/moeru-ai/airi/pull/2440#discussion_r3912226716

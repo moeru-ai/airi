@@ -34,7 +34,15 @@ chat:
     message: 消息
     replying-to: 回复 {name}
   reasoning: 思考
+  swipe-demo:
+    show-label: 显示文字
+    delete: 删除
+    archive: 归档
+    pin: 置顶
+    actions: 展开操作
+    row: '示例会话 {n}'
   sessions:
+    delete-short: 删除
     title: 对话
     new: 新建对话
     current: 当前
