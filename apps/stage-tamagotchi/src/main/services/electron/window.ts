@@ -34,6 +34,8 @@ export function createWindowService(params: {
   /** Owns the window's pin when the window decides more than the renderer asks, like the main window in fullscreen mode. */
   setAlwaysOnTop?: (flag: boolean) => void
 }) {
+  let screenLocked = false
+  let suspended = false
   function getWindowLifecycleState(reason: ElectronWindowLifecycleState['reason']): ElectronWindowLifecycleState {
     return {
       focused: params.window.isFocused(),
@@ -41,7 +43,8 @@ export function createWindowService(params: {
       reason,
       updatedAt: Date.now(),
       visible: params.window.isVisible(),
-      suspended: reason === 'suspended',
+      suspended,
+      screenLocked,
     }
   }
 
@@ -96,10 +99,22 @@ export function createWindowService(params: {
   params.window.on('enter-full-screen', emitWindowControlsState)
   params.window.on('leave-full-screen', emitWindowControlsState)
 
-  params.context.on(electronEvents.powerMonitor.suspended, () => emitWindowLifecycle('suspended'))
-  params.context.on(electronEvents.powerMonitor.lockScreen, () => emitWindowLifecycle('suspended'))
-  params.context.on(electronEvents.powerMonitor.resumed, () => emitWindowLifecycle('restore'))
-  params.context.on(electronEvents.powerMonitor.unlockScreen, () => emitWindowLifecycle('restore'))
+  params.context.on(electronEvents.powerMonitor.suspended, () => {
+    suspended = true
+    emitWindowLifecycle('suspended')
+  })
+  params.context.on(electronEvents.powerMonitor.resumed, () => {
+    suspended = false
+    emitWindowLifecycle('resumed')
+  })
+  params.context.on(electronEvents.powerMonitor.lockScreen, () => {
+    screenLocked = true
+    emitWindowLifecycle('lock-screen')
+  })
+  params.context.on(electronEvents.powerMonitor.unlockScreen, () => {
+    screenLocked = false
+    emitWindowLifecycle('unlock-screen')
+  })
 
   defineInvokeHandler(params.context, electron.window.getBounds, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
