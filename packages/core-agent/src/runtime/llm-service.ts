@@ -39,7 +39,7 @@ export async function streamFrom({
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
 
-  const scope = await createContinuationScope(request.config, options)
+  const scope = createContinuationScope(request.config, options)
 
   return new Promise<void>((resolve, reject) => {
     let settled = false

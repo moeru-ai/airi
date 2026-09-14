@@ -473,10 +473,10 @@ it.each(['chat-completions', 'responses'] as const)('overrides headers without d
 })
 
 // https://github.com/moeru-ai/airi/pull/2477
-it('uses portable history after changing provider credentials', async () => {
+it('keeps native history when only request credentials change (PR #2477)', async () => {
   // ROOT CAUSE:
-  // Provider id, URL, model and conversation do not identify a credential owner.
-  // A credential change must prevent native state from reaching the new account.
+  // Credential hashing required Web Crypto even for ordinary HTTP-origin chats.
+  // Scope now depends only on provider identity, endpoint, model and conversation.
   const requests: { input: ItemParam[] }[] = []
   let apiKey = 'first-account-key'
   const reasoning: ItemParam = { type: 'reasoning', id: 'reasoning', summary: [], encrypted_content: 'private-state' }
@@ -494,7 +494,7 @@ it('uses portable history after changing provider credentials', async () => {
   expect(requests[1].input).toEqual([reasoning, answer])
   apiKey = 'second-account-key'
   await streamFrom({ model: 'test', chatProvider, conversation })
-  expect(requests[2].input).toEqual([answer])
+  expect(requests[2].input).toEqual([reasoning, answer])
   expect(JSON.stringify(conversation)).not.toContain('first-account-key')
 })
 
