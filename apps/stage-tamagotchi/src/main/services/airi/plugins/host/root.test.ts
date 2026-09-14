@@ -1,7 +1,7 @@
 import process from 'node:process'
 
-import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { existsSync, lstatSync } from 'node:fs'
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -130,6 +130,24 @@ describe('plugin directory resolution', () => {
       await expect(migrateLegacyPluginsRoot({ legacyRoot, targetRoot })).resolves.toEqual({ migrated: ['legacy-plugin'], failed: [] })
       expect(existsSync(join(targetRoot, 'legacy-plugin', 'extension.airi.json'))).toBe(true)
       expect(existsSync(join(targetRoot, 'not-a-plugin'))).toBe(false)
+    })
+
+    // NOTICE:
+    // Directory symlinks need extra privileges on Windows, so this case only
+    // runs on the Linux runners that package the app.
+    it.skipIf(process.platform === 'win32')('migrates symlink-backed legacy plugins as content', async () => {
+      appMock.isPackaged = true
+      const legacyRoot = join(workingDirectory, 'legacy')
+      const targetRoot = join(workingDirectory, 'target')
+      const realPluginRoot = join(workingDirectory, 'real-plugin')
+      await mkdir(realPluginRoot, { recursive: true })
+      await writeFile(join(realPluginRoot, 'extension.airi.json'), '{}')
+      await mkdir(legacyRoot, { recursive: true })
+      await symlink(realPluginRoot, join(legacyRoot, 'linked-plugin'), 'dir')
+
+      await expect(migrateLegacyPluginsRoot({ legacyRoot, targetRoot })).resolves.toEqual({ migrated: ['linked-plugin'], failed: [] })
+      expect(existsSync(join(targetRoot, 'linked-plugin', 'extension.airi.json'))).toBe(true)
+      expect(lstatSync(join(targetRoot, 'linked-plugin')).isSymbolicLink()).toBe(false)
     })
 
     it('keeps legacy folders and stays idempotent on later starts', async () => {

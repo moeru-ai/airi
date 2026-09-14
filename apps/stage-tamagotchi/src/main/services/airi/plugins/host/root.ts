@@ -1,7 +1,7 @@
 import process from 'node:process'
 
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
-import { cp, rm } from 'node:fs/promises'
+import { cp, rm, stat } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 
 import { app } from 'electron'
@@ -130,6 +130,45 @@ function listPluginDirectories(root: string): string[] {
 }
 
 /**
+ * Lists plugin directories, including symlinks that resolve to directories.
+ *
+ * Manifest discovery accepts symlink-backed plugin folders through `realpath`,
+ * so migration must enumerate them as well. A plain `Dirent.isDirectory()` check
+ * reports `false` for a symlink and would drop those plugins on upgrade.
+ */
+async function listDirectoriesIncludingLinks(root: string): Promise<string[]> {
+  let entries
+  try {
+    entries = readdirSync(root, { withFileTypes: true })
+  }
+  catch {
+    return []
+  }
+
+  const directories: string[] = []
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      directories.push(entry.name)
+      continue
+    }
+
+    if (entry.isSymbolicLink()) {
+      try {
+        const entryStats = await stat(join(root, entry.name))
+        if (entryStats.isDirectory()) {
+          directories.push(entry.name)
+        }
+      }
+      catch {
+        // Broken symlinks are not migration sources.
+      }
+    }
+  }
+
+  return directories
+}
+
+/**
  * Resolves the plugin discovery root used before the `plugins/` directory move.
  *
  * Older builds discovered extension manifests under
@@ -170,6 +209,7 @@ export interface MigrateLegacyPluginsResult {
  * - The source folders stay in place, so the migration is non-destructive and
  *   can run again on every start
  * - Only child directories with an `extension.airi.json` manifest are copied
+ * - Symlinks that resolve to directories are followed and copied as content
  * - Development keeps the repository `plugins/` directory untouched, because a
  *   copy there could add untracked workspace packages
  *
@@ -187,7 +227,7 @@ export async function migrateLegacyPluginsRoot(options: { legacyRoot: string, ta
     return result
   }
 
-  const legacyDirectories = listPluginDirectories(legacyRoot)
+  const legacyDirectories = await listDirectoriesIncludingLinks(legacyRoot)
   if (legacyDirectories.length === 0) {
     return result
   }
@@ -206,7 +246,7 @@ export async function migrateLegacyPluginsRoot(options: { legacyRoot: string, ta
     }
 
     try {
-      await cp(source, destination, { recursive: true })
+      await cp(source, destination, { recursive: true, dereference: true })
       result.migrated.push(directoryName)
     }
     catch (error) {
