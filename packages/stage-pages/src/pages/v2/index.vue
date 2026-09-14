@@ -8,7 +8,7 @@ const characterStore = useCharacterStore()
 const authStore = useAuthStore()
 
 const coverImage = new URL('../../../../stage-ui/src/components/menu/relu.avif', import.meta.url).href
-const characterAvatarImage = new URL('../../../../stage-ui/src/assets/live2d/models/hiyori/preview.png', import.meta.url).href
+const characterAvatarImage = new URL('../../../../stage-ui-live2d/models/hiyori/preview.png', import.meta.url).href
 
 function formatCount(value: number | string) {
   const num = typeof value === 'string' ? Number.parseInt(value) : value
