@@ -110,7 +110,7 @@ export const useProviderStore = defineStore('provider', () => {
   const addedProviders = computed(() => providerConfigStore.addedProviders)
   // Provider instances contain functions and transport handles. Keep this map
   // private so it never enters Pinia state.
-  const providerInstanceCache = new Map<string, unknown>()
+  const providerInstanceCache = new Map<string, { configKey: string | undefined, instance: unknown }>()
   const { t } = useI18n()
 
   const VISION_PROVIDER_ID_PREFIX = 'vision-'
@@ -894,7 +894,10 @@ export const useProviderStore = defineStore('provider', () => {
     }
   }
 
-  // Function to get provider object by provider id
+  /**
+   * Returns an instance owned by this renderer for the current configuration.
+   * A replicated configuration invalidates the previous instance before reuse.
+   */
   async function getProviderInstance<R extends
   | ChatProvider
   | ChatProviderWithExtraOptions
@@ -906,10 +909,6 @@ export const useProviderStore = defineStore('provider', () => {
   | TranscriptionProviderWithExtraOptions,
   >(providerId: string): Promise<R> {
     await waitForProviderMetadata()
-    const cached = providerInstanceCache.get(providerId) as R | undefined
-    if (cached)
-      return cached
-
     const definition = getProviderDefinition(providerId)
 
     // Providers that don't require credentials use empty config
@@ -924,9 +923,18 @@ export const useProviderStore = defineStore('provider', () => {
     if (!config && !noCredentials)
       throw new Error(`Provider credentials for ${providerId} not found`)
 
+    // Configuration snapshots can arrive after a follower creates an instance.
+    // Compare serialized values so an equivalent snapshot preserves its transport.
+    const configKey = JSON.stringify(config)
+    const cached = providerInstanceCache.get(providerId)
+    if (cached && cached.configKey === configKey)
+      return cached.instance as R
+    if (cached)
+      await disposeProviderInstance(providerId)
+
     try {
       const instance = await definition.createProvider(config || {})
-      providerInstanceCache.set(providerId, instance)
+      providerInstanceCache.set(providerId, { configKey, instance })
       return instance as R
     }
     catch (error) {
@@ -952,12 +960,13 @@ export const useProviderStore = defineStore('provider', () => {
     return withChatRequestOptions(provider, options)
   }
 
+  /** Releases this renderer's transport; each window owns its own instance cache. */
   async function disposeProviderInstance(providerId: string) {
-    const instance = providerInstanceCache.get(providerId) as { dispose?: () => Promise<void> | void } | undefined
+    const instance = providerInstanceCache.get(providerId)?.instance as { dispose?: () => Promise<void> | void } | undefined
+    // Remove ownership before awaiting cleanup so a concurrent request cannot reuse it.
+    providerInstanceCache.delete(providerId)
     if (instance?.dispose)
       await instance.dispose()
-
-    providerInstanceCache.delete(providerId)
   }
 
   const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {
@@ -1156,7 +1165,6 @@ export const useProviderStore = defineStore('provider', () => {
   synced: {
     actions: [
       'deleteProvider',
-      'disposeProviderInstance',
       'fetchModelsForProvider',
       'forceProviderConfigured',
       'initializeProvider',
