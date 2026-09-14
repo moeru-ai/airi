@@ -4243,6 +4243,9 @@ importers:
       dompurify:
         specifier: 'catalog:'
         version: 3.4.14
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.51.0
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1

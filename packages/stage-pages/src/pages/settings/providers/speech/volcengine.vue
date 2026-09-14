@@ -10,8 +10,10 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
+import { watchDebounced } from '@vueuse/core'
+import { cloneDeep } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const providerId = 'volcengine'
@@ -71,15 +73,17 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   )
 }
 
-onMounted(async () => {
+async function loadVoicesWhenConfigured() {
   const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
+  // Clone nested reactive values before the synchronized action sends its arguments.
+  const configSnapshot = cloneDeep(providerConfig)
+  if ((await providersStore.validateProviderConfig(providerId, configSnapshot)).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
     console.error('Failed to validate provider config', providerConfig)
   }
-})
+}
 
 watch(speedRatio, async () => {
   const providerConfig = providerStore.getProviderConfig(providerId)
@@ -90,15 +94,12 @@ watch(speedRatio, async () => {
   (providerConfig.audio as any).speedRatio = speedRatio.value
 })
 
-watch([providers, appId], async () => {
-  const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
-    await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
-  }
-}, {
+watchDebounced([
+  () => providers.value[providerId]?.apiKey,
+  () => providers.value[providerId]?.baseUrl,
+  appId,
+], loadVoicesWhenConfigured, {
+  debounce: 500,
   immediate: true,
 })
 </script>
