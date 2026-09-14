@@ -6,6 +6,7 @@ import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { ScrollableArea } from '@proj-airi/ui'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
+import { userEvent } from 'vitest/browser'
 import { defineComponent, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 
@@ -127,6 +128,10 @@ describe('desktop chat viewport layout', () => {
       },
     })
     const composer = screen.getByTestId('chat-composer-layer').element() as HTMLElement
+
+    // This case tests automatic following without a reader inspecting history.
+    // Keep the browser pointer outside messages while appending and streaming.
+    await userEvent.hover(composer)
 
     async function expectVisibleTail(text: string) {
       await vi.waitFor(() => {
