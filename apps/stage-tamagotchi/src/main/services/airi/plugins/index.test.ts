@@ -569,6 +569,63 @@ describe('setupExtensionHost', () => {
     ])
   })
 
+  it('re-imports the entrypoint when an explicit load follows an unload', async () => {
+    const pluginDir = join(pluginsDir, 'test-manual-reload')
+    await mkdir(pluginDir, { recursive: true })
+    const pluginSdkUrl = pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href
+    const markerKey = '__airiPluginManualReloadEvaluations'
+    await writeEntrypoint({
+      dir: pluginDir,
+      name: 'test-manual-reload.ts',
+      contents: [
+        `import { defineExtension } from ${JSON.stringify(pluginSdkUrl)}`,
+        '',
+        'const marker = globalThis as unknown as Record<string, number | undefined>',
+        `marker[${JSON.stringify(markerKey)}] = (marker[${JSON.stringify(markerKey)}] ?? 0) + 1`,
+        '',
+        'export default defineExtension({',
+        '  id: \'test-manual-reload\',',
+        '  setup() {},',
+        '})',
+      ].join('\n'),
+    })
+    await writeManifest({
+      dir: pluginDir,
+      name: 'test-manual-reload',
+      entrypoint: './test-manual-reload.ts',
+    })
+
+    await setupExtensionHost()
+
+    expect(contextState.lastContext).toBeDefined()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
+    const invokeUnload = defineInvoke(contextState.lastContext!, electronPluginUnload)
+
+    const readEvaluations = () => (globalThis as unknown as Record<string, number | undefined>)[markerKey]
+
+    try {
+      await invokeSetEnabled({ extensionId: 'test-manual-reload', enabled: true })
+      await invokeLoad({ extensionId: 'test-manual-reload' })
+      expect(readEvaluations()).toBe(1)
+
+      // ROOT CAUSE:
+      //
+      // The explicit load endpoint imported the entrypoint without a cache-bust
+      // key. Node caches ESM modules by file URL for the life of the process, so
+      // a manual reload after an unload reused the first module.
+      //
+      // We fixed this by cache-busting every explicit load in the host service.
+      await invokeUnload({ extensionId: 'test-manual-reload' })
+      await invokeLoad({ extensionId: 'test-manual-reload' })
+
+      expect(readEvaluations()).toBe(2)
+    }
+    finally {
+      delete (globalThis as unknown as Record<string, number | undefined>)[markerKey]
+    }
+  })
+
   it('loads the first matching manifest when duplicate plugin names exist', async () => {
     const errorEntrypoint = join(testDataRoot, 'test-error-plugin.ts')
 

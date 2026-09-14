@@ -25,7 +25,6 @@ import { buildPluginHostDebugSnapshot } from './debug'
 import {
   buildPluginRegistrySnapshot,
   createExtensionHostRegistry,
-  createManifestForLoad,
   manifestIdOf,
   resolvePluginRuntimeEntrypointPath,
 } from './registry'
@@ -141,6 +140,7 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
    *
    * Expects:
    * - `extensionId` resolves to a manifest entry in the current registry
+   * - Each call imports the entrypoint file, so the session uses the code on disk
    *
    * Returns:
    * - The extension registry snapshot after the load completes
@@ -245,12 +245,16 @@ export async function setupExtensionHostServiceInternal(
 ): Promise<ExtensionHostServiceInternal> {
   const log = useLogg('main/extension-host').useGlobalConfig()
   const extensionsRoot = resolvePluginsRoot()
-  const seededBundledPluginDirectories = await seedBundledPlugins({
+  // Seeding is best effort: a failed copy must not stop the host from starting.
+  const seeding = await seedBundledPlugins({
     bundledRoot: resolveBundledPluginsRoot(),
     targetRoot: extensionsRoot,
   })
-  if (seededBundledPluginDirectories.length > 0) {
-    log.withFields({ extensionsRoot, seeded: seededBundledPluginDirectories }).log('bundled plugins seeded into user plugin directory')
+  if (seeding.seeded.length > 0) {
+    log.withFields({ extensionsRoot, seeded: seeding.seeded }).log('bundled plugins seeded into user plugin directory')
+  }
+  for (const failure of seeding.failed) {
+    log.withError(failure.error).withFields({ extensionsRoot, directoryName: failure.directoryName }).warn('failed to seed bundled plugin')
   }
 
   // Config
@@ -379,8 +383,10 @@ export async function setupExtensionHostServiceInternal(
       throw new Error(`Extension manifest not found: ${extensionId}`)
     }
 
-    const manifestForLoad = createManifestForLoad(entry, loadOptions)
-    const session = await host.start(manifestForLoad, { cwd: dirname(entry.path) })
+    const session = await host.start(entry.manifest, {
+      cacheBustKey: loadOptions.cacheBustKey,
+      cwd: dirname(entry.path),
+    })
     loaded.add(extensionId)
     loadedSessionIds.set(extensionId, session.id)
     log.withFields({ extensionId, sessionId: session.id }).log('extension loaded')
@@ -526,7 +532,10 @@ export async function setupExtensionHostServiceInternal(
     },
     async load(extensionId) {
       await refreshManifests()
-      await loadExtensionById(extensionId)
+      // The renderer reload action calls this endpoint. Node caches ESM modules
+      // by file URL for the life of the process, so import the entrypoint with
+      // a cache-bust key. Without the key, an edited plugin keeps the old module.
+      await loadExtensionById(extensionId, { cacheBustKey: `manual-load-${Date.now()}` })
       autoReloadFeature.sync()
       return listSnapshot()
     },

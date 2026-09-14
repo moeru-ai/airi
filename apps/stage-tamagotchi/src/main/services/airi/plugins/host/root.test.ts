@@ -119,7 +119,7 @@ describe('plugin directory resolution', () => {
       await writeFile(join(bundledRoot, 'airi-plugin-example-hello', 'extension.airi.json'), '{}')
       await mkdir(targetRoot, { recursive: true })
 
-      await expect(seedBundledPlugins({ bundledRoot, targetRoot })).resolves.toEqual(['airi-plugin-example-hello'])
+      await expect(seedBundledPlugins({ bundledRoot, targetRoot })).resolves.toEqual({ seeded: ['airi-plugin-example-hello'], failed: [] })
       expect(existsSync(join(targetRoot, 'airi-plugin-example-hello', 'extension.airi.json'))).toBe(true)
     })
 
@@ -129,7 +129,7 @@ describe('plugin directory resolution', () => {
       await mkdir(join(bundledRoot, 'airi-plugin-example-hello'), { recursive: true })
       await mkdir(join(targetRoot, 'user-plugin'), { recursive: true })
 
-      await expect(seedBundledPlugins({ bundledRoot, targetRoot })).resolves.toEqual([])
+      await expect(seedBundledPlugins({ bundledRoot, targetRoot })).resolves.toEqual({ seeded: [], failed: [] })
       expect(existsSync(join(targetRoot, 'airi-plugin-example-hello'))).toBe(false)
     })
 
@@ -137,7 +137,7 @@ describe('plugin directory resolution', () => {
       const root = join(workingDirectory, 'plugins')
       await mkdir(join(root, 'airi-plugin-example-hello'), { recursive: true })
 
-      await expect(seedBundledPlugins({ bundledRoot: root, targetRoot: root })).resolves.toEqual([])
+      await expect(seedBundledPlugins({ bundledRoot: root, targetRoot: root })).resolves.toEqual({ seeded: [], failed: [] })
     })
 
     it('ignores a bundled root that is not a directory', async () => {
@@ -146,7 +146,27 @@ describe('plugin directory resolution', () => {
       await writeFile(bundledRoot, 'blocked by a file')
       await mkdir(targetRoot, { recursive: true })
 
-      await expect(seedBundledPlugins({ bundledRoot, targetRoot })).resolves.toEqual([])
+      await expect(seedBundledPlugins({ bundledRoot, targetRoot })).resolves.toEqual({ seeded: [], failed: [] })
+    })
+
+    it('reports a failed copy without throwing', async () => {
+      const bundledRoot = join(workingDirectory, 'bundled')
+      const targetRoot = join(workingDirectory, 'target-file')
+      await mkdir(join(bundledRoot, 'airi-plugin-example-hello'), { recursive: true })
+      await writeFile(join(bundledRoot, 'airi-plugin-example-hello', 'extension.airi.json'), '{}')
+      await writeFile(targetRoot, 'blocked by a file')
+
+      // ROOT CAUSE:
+      //
+      // A rejected `cp` propagated out of `seedBundledPlugins` and stopped host
+      // startup, although seeding is optional. The host now receives the failed
+      // directory names and keeps starting.
+      const result = await seedBundledPlugins({ bundledRoot, targetRoot })
+
+      expect(result.seeded).toEqual([])
+      expect(result.failed).toEqual([
+        expect.objectContaining({ directoryName: 'airi-plugin-example-hello' }),
+      ])
     })
   })
 })

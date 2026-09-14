@@ -243,44 +243,6 @@ export function resolvePluginRuntimeEntrypointPath(entry: ManifestEntry): string
   return isAbsolute(entrypoint) ? entrypoint : resolve(manifestDir, entrypoint)
 }
 
-function appendCacheBustKey(entrypoint: string, cacheBustKey: string): string {
-  const delimiter = entrypoint.includes('?') ? '&' : '?'
-  return `${entrypoint}${delimiter}cacheBust=${encodeURIComponent(cacheBustKey)}`
-}
-
-/**
- * Produces the manifest used for runtime loading, optionally with a cache-busted entrypoint.
- *
- * Use when:
- * - Loading a plugin normally
- * - Reloading a plugin after file changes to avoid stale module cache
- *
- * Expects:
- * - `cacheBustKey` is omitted for standard loads
- * - `cacheBustKey` is deterministic enough for one reload cycle when provided
- *
- * Returns:
- * - Original manifest or cloned manifest with cache-busted runtime entrypoint
- */
-export function createManifestForLoad(
-  entry: ManifestEntry,
-  options: { cacheBustKey?: string },
-): ExtensionManifestV1 {
-  const loadManifest = entry.manifest
-  if (!options.cacheBustKey) {
-    return loadManifest
-  }
-
-  const manifest = structuredClone(loadManifest)
-  if (manifest.entrypoints.electron) {
-    manifest.entrypoints.electron = appendCacheBustKey(manifest.entrypoints.electron, options.cacheBustKey)
-  }
-  else if (manifest.entrypoints.default) {
-    manifest.entrypoints.default = appendCacheBustKey(manifest.entrypoints.default, options.cacheBustKey)
-  }
-  return manifest
-}
-
 /**
  * Tracks the manifest registry state used by the Electron extension host.
  *

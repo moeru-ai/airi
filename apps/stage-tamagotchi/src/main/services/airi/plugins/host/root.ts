@@ -1,7 +1,7 @@
 import process from 'node:process'
 
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
-import { cp } from 'node:fs/promises'
+import { cp, rm } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 
 import { app } from 'electron'
@@ -128,6 +128,23 @@ function listPluginDirectories(root: string): string[] {
 }
 
 /**
+ * Reports the outcome of one bundled plugin seeding run.
+ *
+ * Use when:
+ * - Host bootstrap logs which bundled sample plugins were copied or failed
+ *
+ * Expects:
+ * - `failed` entries contain the caught copy error for diagnostics
+ *
+ * Returns:
+ * - N/A
+ */
+export interface SeedBundledPluginsResult {
+  seeded: string[]
+  failed: Array<{ directoryName: string, error: unknown }>
+}
+
+/**
  * Copies bundled sample plugins into an empty user plugin directory.
  *
  * Use when:
@@ -137,25 +154,26 @@ function listPluginDirectories(root: string): string[] {
  * Expects:
  * - The target must be empty to count as a first run, so user changes are never
  *   overwritten
+ * - A failed copy removes its partial destination, so a later run can retry
  *
  * Returns:
- * - Directory names that were copied, for startup logging
+ * - Seeded directory names for startup logging, plus per-directory copy errors
  */
-export async function seedBundledPlugins(options: { bundledRoot: string, targetRoot: string }): Promise<string[]> {
+export async function seedBundledPlugins(options: { bundledRoot: string, targetRoot: string }): Promise<SeedBundledPluginsResult> {
   const { bundledRoot, targetRoot } = options
+  const result: SeedBundledPluginsResult = { seeded: [], failed: [] }
   if (resolve(bundledRoot) === resolve(targetRoot)) {
-    return []
+    return result
   }
 
   const bundledDirectories = listPluginDirectories(bundledRoot)
   if (bundledDirectories.length === 0) {
-    return []
+    return result
   }
   if (listPluginDirectories(targetRoot).length > 0) {
-    return []
+    return result
   }
 
-  const seededDirectories: string[] = []
   for (const directoryName of bundledDirectories) {
     const source = join(bundledRoot, directoryName)
     const destination = join(targetRoot, directoryName)
@@ -163,9 +181,22 @@ export async function seedBundledPlugins(options: { bundledRoot: string, targetR
       continue
     }
 
-    await cp(source, destination, { recursive: true })
-    seededDirectories.push(directoryName)
+    try {
+      await cp(source, destination, { recursive: true })
+      result.seeded.push(directoryName)
+    }
+    catch (error) {
+      // A partial copy must not block the next seeding attempt.
+      try {
+        await rm(destination, { recursive: true, force: true })
+      }
+      catch {
+        // The partial copy stays on disk; the next start retries seeding.
+      }
+
+      result.failed.push({ directoryName, error })
+    }
   }
 
-  return seededDirectories
+  return result
 }
