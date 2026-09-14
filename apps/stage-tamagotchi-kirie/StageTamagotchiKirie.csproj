@@ -1,0 +1,15 @@
+<Project Sdk="Godot.NET.Sdk/4.7.1">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GdKirie.EventaAdapter" Version="0.2.2" />
+    <PackageReference Include="GdKirie.Platform" Version="0.2.2" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,17 @@
+.DS_Store
+.godot/
+.import/
+.mono/
+!node_modules/
+node_modules/*
+!node_modules/.gdignore
+addons/godot_cef/
+src-web/dist/
+dist/
+build/
+bin/
+obj/
+*.apk
+*.aab
+*.aar
+*.xcframework
