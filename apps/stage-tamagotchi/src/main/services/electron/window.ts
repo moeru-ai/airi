@@ -40,7 +40,8 @@ export function createWindowService(params: {
       minimized: params.window.isMinimized(),
       reason,
       updatedAt: Date.now(),
-      visible: reason !== 'suspend' && params.window.isVisible(),
+      visible: params.window.isVisible(),
+      suspended: reason === 'suspended',
     }
   }
 
@@ -95,8 +96,8 @@ export function createWindowService(params: {
   params.window.on('enter-full-screen', emitWindowControlsState)
   params.window.on('leave-full-screen', emitWindowControlsState)
 
-  params.context.on(electronEvents.powerMonitor.suspended, () => emitWindowLifecycle('suspend'))
-  params.context.on(electronEvents.powerMonitor.lockScreen, () => emitWindowLifecycle('suspend'))
+  params.context.on(electronEvents.powerMonitor.suspended, () => emitWindowLifecycle('suspended'))
+  params.context.on(electronEvents.powerMonitor.lockScreen, () => emitWindowLifecycle('suspended'))
   params.context.on(electronEvents.powerMonitor.resumed, () => emitWindowLifecycle('restore'))
   params.context.on(electronEvents.powerMonitor.unlockScreen, () => emitWindowLifecycle('restore'))
 
