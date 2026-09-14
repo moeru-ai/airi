@@ -62,6 +62,7 @@ const baseUrl = ref('')
 // Voice settings as reactive objects to allow for different provider settings
 const voiceSettings = ref<Record<string, any>>({})
 let settingsInitialized = false
+let pendingPatch: Record<string, unknown> | undefined
 let pendingProviderConfigUpdate = Promise.resolve()
 
 /**
@@ -93,10 +94,8 @@ function initializeVoiceSettings() {
 onMounted(async () => {
   await providersStore.initializeProvider(props.providerId)
 
-  // Skip the API key write when the field is hidden. Its setter mutates the
-  // stored configuration, and an empty string makes that configuration differ
-  // from the schema defaults. `shouldListProvider` reads any such difference as
-  // the user having configured the provider.
+  // A provider without credentials must not acquire an empty API key, which
+  // would make its configuration differ from the provider defaults.
   if (!props.hideApiKey)
     apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
 
@@ -105,24 +104,23 @@ onMounted(async () => {
   // Initialize voice settings
   initializeVoiceSettings()
 
-  // Load voices if provider is configured
+  // Initial assignments must not become writes. Catalog loading can remain
+  // pending while the form is interactive, so it must not gate persistence.
+  await nextTick()
+  settingsInitialized = true
+
   if (providerStore.configuredProviders[props.providerId]) {
     await speechStore.loadVoicesForProvider(props.providerId)
   }
-
-  // Run the initial assignments before enabling persistence watchers.
-  await nextTick()
-  settingsInitialized = true
 })
 
 async function persistProviderConfig() {
-  const patch = {
-    // A provider without a credential field keeps no `apiKey` key. The guard in
-    // `onMounted` stops the same key arriving by the other path.
-    ...(props.hideApiKey ? {} : { apiKey: apiKey.value }),
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultConfig.baseUrl || '',
-    voiceSettings: { ...voiceSettings.value },
-  }
+  if (!pendingPatch)
+    return
+
+  const patch = pendingPatch
+  const providerId = props.providerId
+  pendingPatch = undefined
 
   // Follower-only settings windows route this action to the leader. Keep each
   // write in order so a later field patch cannot overtake an earlier one. A
@@ -131,25 +129,37 @@ async function persistProviderConfig() {
   pendingProviderConfigUpdate = pendingProviderConfigUpdate
     .catch(() => {})
     .then(async () => {
-      await providerStore.patchProviderConfig(props.providerId, patch)
+      await providerStore.patchProviderConfig(providerId, patch)
     })
   await pendingProviderConfigUpdate
 }
 
 const debouncedUpdate = useDebounceFn(persistProviderConfig, 1000)
 
-async function scheduleProviderConfigUpdate() {
+async function scheduleProviderConfigUpdate(patch: Record<string, unknown>) {
   if (!settingsInitialized)
     return
 
+  // Accumulate only edited fields. Sending every local draft would restore
+  // stale credentials after another renderer updates the provider snapshot.
+  pendingPatch = { ...pendingPatch, ...patch }
   await debouncedUpdate()
 }
 
-// Watch all settings and update the provider configuration
-watch([apiKey, baseUrl], scheduleProviderConfigUpdate)
+watch(apiKey, async (value) => {
+  if (!props.hideApiKey)
+    await scheduleProviderConfigUpdate({ apiKey: value })
+})
 
-// Watch voice settings for changes
-watch(voiceSettings, scheduleProviderConfigUpdate, { deep: true })
+watch(baseUrl, async (value) => {
+  await scheduleProviderConfigUpdate({
+    baseUrl: value || providerMetadata.value?.defaultConfig.baseUrl || '',
+  })
+})
+
+watch(voiceSettings, async (value) => {
+  await scheduleProviderConfigUpdate({ voiceSettings: { ...value } })
+}, { deep: true })
 
 function handleResetVoiceSettings() {
   voiceSettings.value = resolveDefaultVoiceSettings()
