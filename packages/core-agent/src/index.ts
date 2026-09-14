@@ -12,6 +12,7 @@ export type { ContextSnapshot } from './messages/context-prompt'
 export { formatTimePrefix } from './messages/datetime-prefix'
 export { createChatHooks } from './runtime/agent-hooks'
 export type {
+  ChatAttachment,
   ChatOrchestratorLifecycleRecord,
   ChatOrchestratorLLMPort,
   ChatOrchestratorPromptProjection,

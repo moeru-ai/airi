@@ -75,8 +75,8 @@ export function useMobileInteractiveAreaLayout(options: UseMobileInteractiveArea
     : { height: `${controlsIslandHeight.value}px` })
   const messageComposerStyle = computed(() => ({
     paddingBottom: `${enabled.value && keyboardVisible.value
-      ? 12
-      : Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 12)}px`,
+      ? 16
+      : Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 0) + 20}px`,
   }))
 
   let areaAnimation: Animation | undefined

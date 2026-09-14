@@ -8,6 +8,7 @@ import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } fr
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
+import { decodeBase64 } from '@moeru/std/base64'
 import { createChatOrchestratorRuntime } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
@@ -37,6 +38,7 @@ import { useContextObservabilityStore } from './devtools/context-observability'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useHearingSpeechInputPipeline, useHearingStore } from './modules/hearing'
 import { useWebSearchStore } from './modules/web-search'
 import { executeToolCallRerun } from './tool-call-rerun'
 
@@ -49,8 +51,8 @@ interface ForkOptions {
 
 /** A serializable chat request that any application context can send to the leader. */
 export interface ChatSendPayload {
-  /** Image attachments for the new user message. */
-  attachments?: { type: 'image', data: string, mimeType: string }[]
+  /** Media for the new user message, using the core chat contract. */
+  attachments?: ChatOrchestratorSendOptions['attachments']
   /** Original input metadata for chat hooks and telemetry. */
   input?: WebSocketEventInputs
   /** Session that owns the new turn. */
@@ -236,7 +238,33 @@ export const useChatStore = defineStore('chat', () => {
     let llmFirstTokenEmitted = false
 
     try {
-      await llmStore.stream(model, chatProvider, messages, {
+      // A model change can expose older native audio turns to a text-only model.
+      // Project those turns through ASR without replacing the durable recordings.
+      const providerMessages: Message[] = []
+      for (const message of messages) {
+        if (consciousnessStore.supportsAudioInput || message.role !== 'user' || !Array.isArray(message.content)) {
+          providerMessages.push(message)
+          continue
+        }
+        const content = []
+        for (const part of message.content) {
+          if (part.type !== 'input_audio') {
+            content.push(part)
+            continue
+          }
+          if (!useHearingStore().configured)
+            throw new Error('Select a transcription provider and model in Settings > Modules > Hearing to send audio to this model.')
+          // The shared file transcription pipeline owns one error/result state.
+          // Keep history conversion sequential so each result has its own error.
+          const pipeline = useHearingSpeechInputPipeline()
+          const text = await pipeline.transcribeForRecording(new Blob([new Uint8Array(decodeBase64(part.input_audio.data))], { type: `audio/${part.input_audio.format}` }))
+          if (!text)
+            throw new Error(pipeline.error ?? 'Audio transcription returned no text.')
+          content.push({ type: 'text' as const, text })
+        }
+        providerMessages.push({ ...message, content })
+      }
+      await llmStore.stream(model, chatProvider, providerMessages, {
         ...options,
         headers,
         onStreamEvent: async (event: StreamEvent) => {
@@ -416,6 +444,7 @@ export const useChatStore = defineStore('chat', () => {
       model: modelId,
       chatProvider,
       attachments: payload.attachments,
+      supportsAudioInput: consciousnessStore.supportsAudioInput,
       input: payload.input,
       replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,

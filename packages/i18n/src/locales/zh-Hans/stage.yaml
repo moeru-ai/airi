@@ -20,7 +20,10 @@ mobile-tools:
   close-view: 保存并关闭视图调节
   hearing: 听觉
 chat:
+  image: 附加图片
   actions:
+    attach: 添加图片
+    remove-attachment: 移除 {name}
     reply: 回复
     retry: 重试
     send: 发送消息
@@ -145,3 +148,23 @@ websocket-status:
   connected: 已连接
   disconnected: 无网络连接
   open-settings: 打开连接设置
+
+voice:
+  audio: 语音消息
+  transcription: 语音转文字
+  hold-hint: 长按录音，短按切换模式。按 Enter 可免手持录音。
+  listening: 正在聆听…
+  lock: 上滑锁定
+  locked: 已锁定录音
+  cancel-hint: 左滑取消
+  release-cancel: 松开取消
+  release-send: 松开发送语音
+  release-insert: 松开填入文字
+  processing: 正在处理…
+  cancel: 取消
+  send: 发送语音
+  insert: 填入文字
+  failed: 语音输入失败
+  configure-title: 配置语音转文字
+  configure-description: 请在聆听设置中选择转写服务和模型，以使用语音转文字，或向不支持音频的模型发送语音。
+  configure-action: 打开聆听设置

@@ -98,6 +98,11 @@ function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAss
   }
 }
 
+/** Binary attachments persist as base64 so history can cross renderer boundaries. */
+export type ChatAttachment
+  = | { type: 'image', data: string, mimeType: string }
+    | { type: 'audio', data: string, mimeType: 'audio/wav', transcript?: string }
+
 /**
  * Options accepted by the chat orchestrator runtime for one user send.
  */
@@ -108,8 +113,10 @@ export interface ChatOrchestratorSendOptions {
   chatProvider: ChatProvider
   /** Provider-specific request options, currently used for headers. */
   providerConfig?: Record<string, unknown>
-  /** Image attachments appended to the user message content parts. */
-  attachments?: { type: 'image', data: string, mimeType: string }[]
+  /** Media appended to the durable user message and the model request. */
+  attachments?: ChatAttachment[]
+  /** False projects available audio transcripts into text without changing history. @default true */
+  supportsAudioInput?: boolean
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
   /** Serializable tool names stored with the user message for later requests. */
@@ -485,17 +492,27 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return fallbackCreatedAt
   }
 
-  function buildProviderMessages(sessionMessagesForSend: ChatHistoryItem[]): Array<Message | ErrorMessage> {
+  function buildProviderMessages(sessionMessagesForSend: ChatHistoryItem[], supportsAudioInput: boolean): Array<Message | ErrorMessage> {
     const nowTs = now()
     const messagesById = new Map(
       sessionMessagesForSend.flatMap(message => message.id ? [[message.id, message] as const] : []),
     )
 
     return sessionMessagesForSend.flatMap<Message | ErrorMessage>((msg) => {
-      const { context: _context, id: _id, createdAt: _createdAt, replyToMessageId, tools: _tools, ...withoutContext } = msg
+      const { context: _context, id: _id, createdAt: _createdAt, replyToMessageId, tools: _tools, audioTranscripts, ...withoutContext } = msg
       const rawMessage = unwrapMessage(withoutContext)
 
       if (rawMessage.role === 'user') {
+        if (!supportsAudioInput && Array.isArray(rawMessage.content)) {
+          let audioIndex = 0
+          rawMessage.content = rawMessage.content.map((part) => {
+            if (part.type !== 'input_audio')
+              return part
+            const transcript = audioTranscripts?.[audioIndex++]
+            // Older native audio turns without a transcript reach the stage ASR adapter.
+            return transcript ? { type: 'text' as const, text: transcript } : part
+          })
+        }
         const prefix = `${formatTimePrefix(getStablePromptTimestamp(msg, nowTs))}${formatReplyPromptPrefix(replyToMessageId, messagesById)}`
         return [prependTextToContent(rawMessage, prefix)]
       }
@@ -624,7 +641,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       if (options.attachments) {
         for (const attachment of options.attachments) {
-          if (attachment.type === 'image') {
+          if (attachment.type === 'audio') {
+            contentParts.push({ type: 'input_audio', input_audio: { data: attachment.data, format: 'wav' } })
+          }
+          else if (attachment.type === 'image') {
             contentParts.push({
               type: 'image_url',
               image_url: {
@@ -660,6 +680,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const userMessage = {
         role: 'user' as const,
         content: finalContent,
+        audioTranscripts: options.attachments?.filter(attachment => attachment.type === 'audio').map(attachment => attachment.transcript),
         createdAt: sendingCreatedAt,
         id: roundId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
@@ -760,7 +781,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ],
       })
 
-      const newMessages = buildProviderMessages(sessionMessagesForSend)
+      const newMessages = buildProviderMessages(sessionMessagesForSend, options.supportsAudioInput ?? true)
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
         const systemMessage = newMessages.find(message => message.role === 'system')
