@@ -496,7 +496,7 @@ describe('interactive area synchronized state', () => {
     await screen.getByTestId('view-controls-close-button').click()
   })
 
-  it('keeps the empty mobile input compact and aligns the send action with its bubble', async () => {
+  it('keeps the mobile input centered at a stable width and matches the send action', async () => {
     // ROOT CAUSE:
     //
     // The hierarchy redesign removed the input bubble's compact maximum width.
@@ -513,12 +513,16 @@ describe('interactive area synchronized state', () => {
       - Number.parseFloat(composerStyle.paddingLeft)
       - Number.parseFloat(composerStyle.paddingRight)
 
-    expect(Math.round(bubble.getBoundingClientRect().width)).toBe(Math.round(composerContentWidth * 0.7))
+    const emptyWidth = bubble.getBoundingClientRect().width
+    expect(emptyWidth).toBe(composerContentWidth - 44 * 2 - 8 * 2)
+    expect(bubble.getBoundingClientRect().x + emptyWidth / 2).toBe(195)
 
     await userEvent.fill(input, 'hi')
     const send = screen.getByRole('button', { name: 'stage.chat.actions.send' }).element()
     await expect.poll(() => input.getBoundingClientRect().height).toBe(32)
-    expect(send.getBoundingClientRect().height).toBe(32)
+    expect(send.getBoundingClientRect().height).toBe(44)
+    expect(send.getBoundingClientRect().width).toBe(44)
+    expect(bubble.getBoundingClientRect().width).toBe(emptyWidth)
     expect(bubble.getBoundingClientRect().bottom).toBe(send.getBoundingClientRect().bottom)
     const bubbleBounds = bubble.getBoundingClientRect()
     const inputBounds = input.getBoundingClientRect()
@@ -1014,6 +1018,8 @@ describe('interactive area synchronized state', () => {
     await vi.waitFor(() => expect(send).toHaveBeenCalledWith({
       sessionId: 'session-b',
       text: 'mobile follower message',
+      attachments: [],
+      replyToMessageId: undefined,
     }))
   })
 
