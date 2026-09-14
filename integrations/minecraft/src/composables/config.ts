@@ -104,11 +104,13 @@ const defaultConfig: Omit<Config, 'openai'> = {
   },
 }
 
-// Create a singleton config instance
-// openai is populated by initEnv() at startup
+/**
+ * Create a singleton config instance
+ * openai is populated by initEnv() at startup
+ */
 export const config = { ...defaultConfig } as Config
 
-// Initialize environment configuration
+/** Initialize environment configuration */
 export function initEnv(): void {
   logger.log('Initializing environment variables')
 

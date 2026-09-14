@@ -119,7 +119,7 @@ const props = withDefaults(defineProps<{
   modelId: string
   modelSrc?: string
   idleAnimation: string
-  // loadAnimations?: string[]
+  /** loadAnimations?: string[] */
   paused?: boolean
 
   envSelect: string

@@ -37,10 +37,11 @@ import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { MODEL_IDS, MODEL_NAMES } from '../inference/constants'
 import { classifyError, isRecoverable } from '../inference/protocol'
 
-// ---------------------------------------------------------------------------
-// Inference-specific input/output types
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Inference-specific input/output types
+ * ---------------------------------------------------------------------------
+ */
 export interface WhisperInput {
   /** @deprecated Use audioFloat32 instead */
   audio?: string

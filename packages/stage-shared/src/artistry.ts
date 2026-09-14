@@ -3,7 +3,7 @@ import { defineInvokeEventa } from '@moeru/eventa'
 export interface ArtistrySyncPayload {
   provider: string
   globals: any
-  // Card-level defaults to ensure widget triggers respect character settings
+  /** Card-level defaults to ensure widget triggers respect character settings */
   model?: string
   promptPrefix?: string
   options?: Record<string, any>

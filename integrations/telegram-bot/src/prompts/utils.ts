@@ -45,7 +45,7 @@ export function div(...args: (string | TextContentPart | TextContentPart[] | nul
   return results.join('\n\n')
 }
 
-// ul + li
+/** ul + li */
 export function ul(...args: string[]) {
   return args.map((arg) => {
     return `- ${arg}`

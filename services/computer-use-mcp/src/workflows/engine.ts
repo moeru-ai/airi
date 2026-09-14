@@ -119,10 +119,11 @@ export interface WorkflowStepResult {
   preparatoryResults?: PreparatoryResult[]
 }
 
-// ---------------------------------------------------------------------------
-// PTY acquisition callback
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * PTY acquisition callback
+ * ---------------------------------------------------------------------------
+ */
 export interface AcquirePtyResult {
   /** Whether the PTY was successfully created. */
   acquired: boolean
@@ -149,10 +150,11 @@ export type AcquirePtyForStep = (params: {
   autoApprove: boolean
 }) => Promise<AcquirePtyResult>
 
-// ---------------------------------------------------------------------------
-// Engine
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Engine
+ * ---------------------------------------------------------------------------
+ */
 export async function executeWorkflow(params: {
   workflow: WorkflowDefinition
   executeAction: ExecuteAction

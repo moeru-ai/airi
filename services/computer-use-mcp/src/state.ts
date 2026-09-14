@@ -33,10 +33,11 @@ import type {
 
 import { appNamesMatch } from './app-aliases'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Types
+ * ---------------------------------------------------------------------------
+ */
 export type TaskPhase
   = | 'idle'
     | 'planning'
@@ -209,10 +210,11 @@ export interface RunState {
   updatedAt: string
 }
 
-// ---------------------------------------------------------------------------
-// State Manager
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * State Manager
+ * ---------------------------------------------------------------------------
+ */
 export class RunStateManager {
   private state: RunState
 
@@ -233,8 +235,7 @@ export class RunStateManager {
     return { ...this.state }
   }
 
-  // -- Desktop context updates -------------------------------------------
-
+  /** -- Desktop context updates ------------------------------------------- */
   updateForegroundContext(ctx: ForegroundContext) {
     this.state.foregroundContext = ctx
     this.state.activeApp = ctx.appName
@@ -318,8 +319,7 @@ export class RunStateManager {
     this.touch()
   }
 
-  // -- Terminal context updates ------------------------------------------
-
+  /** -- Terminal context updates ------------------------------------------ */
   updateTerminalState(ts: TerminalState) {
     this.state.terminalState = ts
     this.touch()
@@ -337,8 +337,7 @@ export class RunStateManager {
     this.touch()
   }
 
-  // -- Screenshot context updates ----------------------------------------
-
+  /** -- Screenshot context updates ---------------------------------------- */
   updateLastScreenshot(info: LastScreenshotInfo, summary?: string) {
     this.state.lastScreenshot = info
     if (summary !== undefined) {
@@ -352,8 +351,7 @@ export class RunStateManager {
     this.touch()
   }
 
-  // -- Approval context updates ------------------------------------------
-
+  /** -- Approval context updates ------------------------------------------ */
   setPendingApprovalCount(count: number) {
     this.state.pendingApprovalCount = count
     this.touch()
@@ -370,8 +368,7 @@ export class RunStateManager {
     this.touch()
   }
 
-  // -- Task context updates ----------------------------------------------
-
+  /** -- Task context updates ---------------------------------------------- */
   startTask(task: ActiveTask) {
     this.state.activeTask = task
     this.touch()
@@ -505,8 +502,7 @@ export class RunStateManager {
     this.touch()
   }
 
-  // -- Task memory updates ------------------------------------------------
-
+  /** -- Task memory updates ------------------------------------------------ */
   updateTaskMemory(tm: TaskMemory) {
     this.state.taskMemory = tm
     this.touch()

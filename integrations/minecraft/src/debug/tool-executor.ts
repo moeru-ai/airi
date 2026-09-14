@@ -124,7 +124,7 @@ export class ToolExecutor {
     return params
   }
 
-  // Helper to extract metadata from Zod types
+  /** Helper to extract metadata from Zod types */
   private getZodDef(zodType: ZodType<any>): { typeName: 'string' | 'number' | 'boolean', description?: string, min?: number, max?: number, defaultValue?: any } {
     let typeName: 'string' | 'number' | 'boolean' = 'string'
     let curr: any = zodType

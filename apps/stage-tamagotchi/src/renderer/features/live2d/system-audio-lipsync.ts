@@ -257,11 +257,13 @@ class Live2DLipSyncProcessor {
     return (Math.sign(emphasized * 2 - 1) * Math.abs(emphasized * 2 - 1) ** 0.85 + 1) / 2
   }
 
-  // NOTICE:
-  // This deliberate short closure breaks up unnaturally sustained system-audio mouth openings.
-  // The current analyzer can hold a high value across several spoken words without a visible consonant closure.
-  // This workaround is local to the Live2D lipsync processor and does not change phoneme detection.
-  // Remove it when the lipsync analyzer provides reliable short-term mouth-closure timing.
+  /**
+   * NOTICE:
+   * This deliberate short closure breaks up unnaturally sustained system-audio mouth openings.
+   * The current analyzer can hold a high value across several spoken words without a visible consonant closure.
+   * This workaround is local to the Live2D lipsync processor and does not change phoneme detection.
+   * Remove it when the lipsync analyzer provides reliable short-term mouth-closure timing.
+   */
   private applySustainedMouthClosure(mouthOpen: number, timestamp: number): number {
     if (timestamp < this.forcedMouthCloseUntilMs)
       return 0

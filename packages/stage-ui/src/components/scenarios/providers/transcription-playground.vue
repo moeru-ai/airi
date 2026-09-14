@@ -13,9 +13,9 @@ import { useAudioRecorder } from '../../../composables/audio/audio-recorder'
 import { LevelMeter, TestDummyMarker, ThresholdMeter } from '../../gadgets'
 
 const props = defineProps<{
-  // Provider-specific handlers (provided from parent)
+  /** Provider-specific handlers (provided from parent) */
   generateTranscription: (input: File) => Promise<HearingTranscriptionResult>
-  // Current state
+  /** Current state */
   apiKeyConfigured?: boolean
 }>()
 

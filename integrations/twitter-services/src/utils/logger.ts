@@ -9,7 +9,7 @@ import { useConfigManager } from '../config'
 // Track initialization status
 let isInitialized = false
 
-// Initialize global logging configuration
+/** Initialize global logging configuration */
 export function initLogger(): void {
   if (isInitialized) {
     return // Prevent multiple initializations
@@ -62,7 +62,7 @@ export function useLogger(name?: string): Logg {
   return useLogg(`${dirName}/${fileName}:${lineNumber}`).useGlobalConfig()
 }
 
-// Create pre-configured loggers for various services
+/** Create pre-configured loggers for various services */
 export const logger = {
   auth: useLogger('auth-service'),
   timeline: useLogger('timeline-service'),

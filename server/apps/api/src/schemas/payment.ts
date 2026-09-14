@@ -5,10 +5,11 @@ import { bigint, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } 
 
 import { nanoid } from '../utils/id'
 
-// NOTICE: bare userId is intentional — no FK to user.id. better-auth hard-deletes
-// the user row; a cascade would wipe these soft-delete archive rows kept for
-// billing audit. See `server/apps/api/docs/ai-context/account-deletion.md`.
-
+/**
+ * NOTICE: bare userId is intentional — no FK to user.id. better-auth hard-deletes
+ * the user row; a cascade would wipe these soft-delete archive rows kept for
+ * billing audit. See `server/apps/api/docs/ai-context/account-deletion.md`.
+ */
 export const paymentOrder = pgTable('payment_order', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
   userId: text('user_id').notNull(),

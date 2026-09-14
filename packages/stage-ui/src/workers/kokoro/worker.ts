@@ -22,10 +22,11 @@ import { KokoroTTS } from 'kokoro-js'
 import { MODEL_IDS, MODEL_NAMES } from '../../libs/inference/constants'
 import { classifyError, isRecoverable } from '../../libs/inference/protocol'
 
-// ---------------------------------------------------------------------------
-// Inference-specific input/output types
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Inference-specific input/output types
+ * ---------------------------------------------------------------------------
+ */
 export interface KokoroGenerateInput {
   action: 'generate'
   text: string

@@ -19,7 +19,7 @@ export interface LLMCallOptions {
 export interface LLMResult {
   text: string
   reasoning?: string
-  // FIXME unsafe type
+  /** FIXME unsafe type */
   usage: any
 }
 

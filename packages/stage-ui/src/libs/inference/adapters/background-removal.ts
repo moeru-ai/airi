@@ -18,10 +18,11 @@ import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordi
 import { LOAD_PRIORITY } from '../load-queue'
 import { createRequestId, InferenceAbortError, throwIfAborted } from '../protocol'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Types
+ * ---------------------------------------------------------------------------
+ */
 export interface BackgroundRemovalAdapter {
   /**
    * Load the background removal model in the worker.
@@ -57,10 +58,11 @@ export interface BackgroundRemovalAdapter {
 const LOAD_TIMEOUT = TIMEOUTS.BG_REMOVAL_LOAD
 const PROCESS_TIMEOUT = TIMEOUTS.BG_REMOVAL_PROCESS
 
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Factory
+ * ---------------------------------------------------------------------------
+ */
 export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
   let worker: Worker | null = null
   let state: BackgroundRemovalAdapter['state'] = 'idle'

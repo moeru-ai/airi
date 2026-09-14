@@ -2,7 +2,7 @@ import type { FilesetResolver, Landmark, NormalizedLandmark } from '@mediapipe/t
 
 export type VisionTaskModule = typeof import('@mediapipe/tasks-vision')
 
-// Indirect export from @mediapipe/tasks-vision
+/** Indirect export from @mediapipe/tasks-vision */
 export type VisionTaskWasmFileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>
 
 export type Landmark2D = NormalizedLandmark

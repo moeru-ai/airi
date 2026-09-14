@@ -43,10 +43,12 @@ interface InventorySummaryRecord {
 
 interface SelfQueryRecord {
   pos: { x: number, y: number, z: number }
-  // Aliases of `pos`. The LLM frequently guesses `self.position` / `self.location` (and the prompt
-  // prose/reflex-summary historically used those words inconsistently). Exposing all three names
-  // pointing at the same coords prevents "Cannot read properties of undefined (reading 'x')" crashes
-  // when the model picks a name other than `pos`.
+  /**
+   * Aliases of `pos`. The LLM frequently guesses `self.position` / `self.location` (and the prompt
+   * prose/reflex-summary historically used those words inconsistently). Exposing all three names
+   * pointing at the same coords prevents "Cannot read properties of undefined (reading 'x')" crashes
+   * when the model picks a name other than `pos`.
+   */
   position: { x: number, y: number, z: number }
   location: { x: number, y: number, z: number }
   health: number

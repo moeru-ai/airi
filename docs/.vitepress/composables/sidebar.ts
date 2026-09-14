@@ -176,7 +176,7 @@ function containsActiveLink(
       : false
 }
 
-// From https://github.com/vuejs/vitepress/blob/fa81e89643523170047ca2c9a690f4d7adf4ffdc/src/client/theme-default/support/sidebar.ts
+/** From https://github.com/vuejs/vitepress/blob/fa81e89643523170047ca2c9a690f4d7adf4ffdc/src/client/theme-default/support/sidebar.ts */
 export interface SidebarLink {
   text: string
   link: string

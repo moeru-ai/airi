@@ -4,8 +4,7 @@ import type { ActionHandler } from './definition'
 import { readMessagesAction } from './actions/read-messages'
 import { createSendMessageAction } from './actions/send-message'
 import { breakAction, continueAction, listChannelsAction, sleepAction } from './actions/system'
-// import { createReadMessagesAction } ...
-
+/** import { createReadMessagesAction } ... */
 export class ActionRegistry {
   private actions = new Map<string, ActionHandler>()
 
@@ -17,7 +16,7 @@ export class ActionRegistry {
     return this.actions.get(name)
   }
 
-  // 提供一个批量加载的方法
+  /** 提供一个批量加载的方法 */
   loadStandardActions(client: SatoriClient) {
     // 注册不需要依赖的系统 Action
     this.register(continueAction)

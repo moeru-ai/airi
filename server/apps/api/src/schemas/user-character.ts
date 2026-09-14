@@ -6,9 +6,11 @@ import { relations } from 'drizzle-orm/relations'
 
 import { character } from './characters'
 
-// NOTICE: bare userId is intentional — no FK to user.id. better-auth hard-deletes
-// the user row; a cascade would wipe these soft-delete archive rows.
-// See `server/apps/api/docs/ai-context/account-deletion.md`.
+/**
+ * NOTICE: bare userId is intentional — no FK to user.id. better-auth hard-deletes
+ * the user row; a cascade would wipe these soft-delete archive rows.
+ * See `server/apps/api/docs/ai-context/account-deletion.md`.
+ */
 export const characterLikes = pgTable(
   'user_character_likes',
   {
