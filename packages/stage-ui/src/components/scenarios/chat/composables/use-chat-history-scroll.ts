@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 
-import { useEventListener } from '@vueuse/core'
-import { computed, watch } from 'vue'
+import { useEventListener, useMutationObserver, useResizeObserver } from '@vueuse/core'
+import { computed, shallowRef, watch } from 'vue'
 
 interface ChatHistoryScrollOptions<TMessage> {
   container: Readonly<Ref<HTMLElement | null>>
@@ -36,6 +36,39 @@ export function useChatHistoryScroll<TMessage>({
   let previousLastMessageKey: string | number | null = null
 
   const selectionDocument = computed(() => container.value?.ownerDocument)
+
+  // Message layout can change after the model watcher and Virtua's pending
+  // scroll finish (for example, fonts or rendered content arrive later).
+  // These scope-owned observers follow mounted messages without overriding
+  // a reader who scrolled away, focused history, or selected older text.
+  const renderedMessages = shallowRef<HTMLElement[]>([])
+  const measuredHeights = new WeakMap<Element, number>()
+  const observeRenderedMessages = () => {
+    const currentContainer = container.value
+    if (!currentContainer) {
+      renderedMessages.value = []
+      return
+    }
+    renderedMessages.value = Array.from(currentContainer.querySelectorAll<HTMLElement>('.chat-message-item'))
+  }
+  useMutationObserver(container, observeRenderedMessages, { childList: true, subtree: true })
+  watch(container, observeRenderedMessages, { flush: 'post', immediate: true })
+  useResizeObserver(renderedMessages, (entries) => {
+    let heightChanged = false
+    for (const { target, contentRect } of entries) {
+      const previousHeight = measuredHeights.get(target)
+      measuredHeights.set(target, contentRect.height)
+      if (previousHeight !== undefined && previousHeight !== contentRect.height)
+        heightChanged = true
+    }
+
+    if (!heightChanged || !didRequestInitialScroll || !isFollowingConversation || isPointerOrFocusOnOlderMessage || isSelectionInOlderMessage)
+      return
+
+    const lastIndex = messages.value.length - 1
+    if (lastIndex >= 0)
+      scrollToIndex(lastIndex, 'end')
+  })
 
   const isNearTail = (currentContainer: HTMLElement) => {
     // NOTICE: This tolerance absorbs sub-pixel layout changes, font swaps, and late content growth.

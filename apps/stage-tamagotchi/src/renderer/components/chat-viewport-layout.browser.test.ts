@@ -133,7 +133,7 @@ describe('desktop chat viewport layout', () => {
         const mountedMessages = screen.container.querySelectorAll<HTMLElement>('.chat-message-item')
         const finalMessage = [...mountedMessages].find(message => message.textContent?.includes(text))
         expect(finalMessage).not.toBeUndefined()
-        expect(finalMessage!.getBoundingClientRect().bottom).toBeLessThanOrEqual(composer.getBoundingClientRect().top + 1)
+        expect(finalMessage!.getBoundingClientRect().bottom, text).toBeLessThanOrEqual(composer.getBoundingClientRect().top + 1)
       })
     }
 
@@ -164,6 +164,13 @@ describe('desktop chat viewport layout', () => {
       slices: [{ type: 'text', text: expandedStreamText }],
       tool_results: [],
     }
+    await expectVisibleTail('Expanded streaming tail')
+
+    // Virtua's scroll request stops waiting for measurements after 150ms.
+    // A later layout change must still follow the tail without a model update.
+    await new Promise(resolve => setTimeout(resolve, 250))
+    const tail = [...screen.container.querySelectorAll<HTMLElement>('.chat-message-item')].at(-1)!
+    tail.style.minHeight = `${tail.getBoundingClientRect().height + 64}px`
     await expectVisibleTail('Expanded streaming tail')
   })
 
