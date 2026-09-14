@@ -202,14 +202,14 @@ describe('interactive area synchronized state', () => {
     await page.viewport(1280, 720)
   })
 
-  it('centers the mobile textarea when no reply preview is visible', async () => {
+  it('centers the mobile editor when no reply preview is visible', async () => {
     // ROOT CAUSE:
     //
     // Without a reply preview, the 40px bubble has spare height around its
-    // 32px textarea and borders. Before the fix, justify-end put all spare
-    // height above the textarea: 6px above and 2px below.
+    // 32px editor and borders. Before the fix, justify-end put all spare
+    // height above the editor: 6px above and 2px below.
     //
-    // We fixed this with justify-center. The empty and single-line textarea
+    // We fixed this with justify-center. The empty and single-line editor
     // now has 4px on each side, and multiline input stays centered.
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
@@ -535,8 +535,11 @@ describe('interactive area synchronized state', () => {
   // its cancel button. Keyboard focus then remained in an aria-hidden subtree.
   //
   // Each composer owner now clears the reply and restores focus to its input.
-  it('restores composer focus after a keyboard user cancels a reply', async () => {
-    const { chatSession, screen } = await renderArea()
+  it.each([
+    { name: 'Electron', component: InteractiveArea },
+    { name: 'mobile', component: MobileInteractiveArea },
+  ])('restores composer focus after a keyboard user cancels a reply ($name)', async ({ component }) => {
+    const { chatSession, screen } = await renderArea(component)
     chatSession.$patch((state) => {
       state.sessionMessages['session-b'] = [{ id: 'reply-target', role: 'user', content: 'Reply target' }]
     })
@@ -548,7 +551,22 @@ describe('interactive area synchronized state', () => {
     if (!swipeable)
       throw new Error('Expected a swipeable message.')
 
-    dispatchHorizontalPan(swipeable)
+    if (component === MobileInteractiveArea) {
+      for (const [type, clientX] of [['touchstart', 100], ['touchmove', 40], ['touchend', 40]] as const) {
+        const touch = new Touch({ identifier: 1, target: swipeable, clientX, clientY: 60 })
+        const touches = type === 'touchend' ? [] : [touch]
+        swipeable.dispatchEvent(new TouchEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          touches,
+          targetTouches: touches,
+          changedTouches: [touch],
+        }))
+      }
+    }
+    else {
+      dispatchHorizontalPan(swipeable)
+    }
     await vi.waitFor(() => {
       const button = screen.container.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
       expect(button?.parentElement?.getAttribute('aria-hidden')).toBe('false')
@@ -556,6 +574,7 @@ describe('interactive area synchronized state', () => {
     const cancelButton = screen.container.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
     if (!cancelButton)
       throw new Error('Expected a reply cancel button.')
+    await expect.element(screen.getByRole('textbox')).toHaveFocus()
     cancelButton.focus()
     expect(document.activeElement).toBe(cancelButton)
 
