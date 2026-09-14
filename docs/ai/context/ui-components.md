@@ -372,7 +372,11 @@ so flex layouts do not stretch the empty measurement box.
 
 ### BasicContentEditable
 
-Plain-text multiline contenteditable control with submit and paste-file events. It preserves browser undo for plain-text paste and is for text entry that must not use browser form controls.
+Plain-text multiline contenteditable control with submit and paste-file events. Use it when text entry must avoid Safari Form Assistant.
+
+The browser owns typing, plain-text paste, text drop, selection, and undo. Only external model changes replace editor content. Enter submits outside IME composition. Shift+Enter adds a line.
+
+The control exposes a multiline textbox role. Its placeholder supplies the default accessible name. Use `aria-label` or `aria-labelledby` for a separate name. This does not replace iOS VoiceOver testing.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|

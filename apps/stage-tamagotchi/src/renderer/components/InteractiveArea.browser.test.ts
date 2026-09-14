@@ -46,6 +46,7 @@ const ContentEditableHarness = defineComponent({
     return { defaultHeight, message }
   },
   template: `
+    <output>{{ JSON.stringify(message) }}</output>
     <button type="button" @click="defaultHeight = '48px'">Expand editor</button>
     <BasicContentEditable
       v-model="message"
@@ -993,14 +994,11 @@ describe('interactive area synchronized state', () => {
 
   // https://github.com/moeru-ai/airi/pull/2461#discussion_r3932701283
   // https://github.com/moeru-ai/airi/pull/2461#discussion_r3932882973
-  it('normalizes rich input and reacts to default height changes', async () => {
+  it('reacts to default height changes', async () => {
     const screen = await render(ContentEditableHarness)
     const input = screen.getByRole('textbox').element()
 
-    input.innerHTML = '<strong>formatted</strong>'
-    input.dispatchEvent(new Event('input', { bubbles: true }))
-
-    await vi.waitFor(() => expect(input.innerHTML).toBe('formatted'))
+    await userEvent.fill(input, 'draft')
     await vi.waitFor(() => expect(input.style.height).toBe('32px'))
 
     await userEvent.click(screen.getByRole('button', { name: 'Expand editor' }))
@@ -1013,10 +1011,11 @@ describe('interactive area synchronized state', () => {
     const screen = await render(ContentEditableHarness)
     const input = screen.getByRole('textbox').element()
 
-    input.innerHTML = 'draft<br><br>'
-    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await userEvent.fill(input, 'draft')
+    await userEvent.click(input)
+    await userEvent.keyboard('{End}{Shift>}{Enter}{/Shift}')
 
-    await vi.waitFor(() => expect(input.textContent).toBe('draft\n'))
+    await expect.element(screen.getByRole('status')).toHaveTextContent(JSON.stringify('draft\n'))
   })
 
   it('keeps a one-line mobile draft at the composer height', async () => {

@@ -69,7 +69,11 @@ import { Button } from '@proj-airi/ui'
 
 ### BasicContentEditable
 
-Use `BasicContentEditable` for a plain-text multiline keyboard target that must not be a browser form control. It submits on Enter and adds a line on Shift+Enter.
+Use `BasicContentEditable` for a plain-text multiline keyboard target that must avoid Safari Form Assistant. It submits on Enter outside IME composition. Shift+Enter adds a line.
+
+Native `contenteditable="plaintext-only"` handles text insertion, paste, drop, and undo. The component forwards file transfers and synchronizes external drafts. It does not rewrite local edits or insert text with `execCommand`.
+
+The control has a multiline textbox role. Set `aria-label` or `aria-labelledby` when the placeholder is not a suitable accessible name. Verify keyboard editing and VoiceOver on a real iOS device before release.
 
 Do not use it for a standard form field. Use `Textarea` when browser form behavior is required.
 

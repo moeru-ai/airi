@@ -602,6 +602,7 @@ onUnmounted(() => {
               'font-cute',
               'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full touch-none overflow-y-scroll scrollbar-none',
               'border-2 border-solid border-transparent bg-transparent px-4 py-0.5 outline-none',
+              'focus-visible:ring-2 focus-visible:ring-primary-500/60',
               'text-neutral-500 dark:text-neutral-100',
               'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
               'data-[empty]:before:text-[14px] data-[empty]:before:leading-6 data-[empty]:before:text-neutral-400',
