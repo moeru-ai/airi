@@ -23,12 +23,13 @@ export interface TextSegment {
   special: string | null
   reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
   /**
-   * This segment starts a spoken sentence: it is the first playback chunk
-   * after the previous hard-punctuation or flush terminator. A sentence
-   * split by the word limit has the flag only on its first chunk, so
-   * sentence-aligned captions reveal once, when the sentence audio starts.
+   * This segment ends a spoken sentence (hard punctuation or an explicit
+   * flush marker). `limit`/`boost` segments produced by the word-limit
+   * splitter are mid-sentence pieces and are not boundaries. Bilingual
+   * captions reveal only on a boundary, so a long sentence split into
+   * several pieces reveals once, on the piece that finishes it.
    */
-  sentenceStart?: boolean
+  sentenceBoundary?: boolean
   createdAt: number
 }
 
@@ -40,8 +41,8 @@ export interface TtsRequest {
   sequence: number
   text: string
   special: string | null
-  /** See {@link TextSegment.sentenceStart}. */
-  sentenceStart?: boolean
+  /** See {@link TextSegment.sentenceBoundary}. */
+  sentenceBoundary?: boolean
   priority: number
   createdAt: number
 }
@@ -54,8 +55,8 @@ export interface TtsResult<TAudio> {
   sequence: number
   text: string
   special: string | null
-  /** See {@link TextSegment.sentenceStart}. */
-  sentenceStart?: boolean
+  /** See {@link TextSegment.sentenceBoundary}. */
+  sentenceBoundary?: boolean
   audio: TAudio
   createdAt: number
 }
@@ -72,10 +73,10 @@ export interface PlaybackItem<TAudio> {
   text: string
   special: string | null
   /**
-   * True when this item's audio starts a spoken sentence. Later chunks of a
-   * sentence split by the word limit are false.
+   * True when this item's audio ends a spoken sentence. Mid-sentence chunks
+   * produced by the word-limit splitter are false.
    */
-  sentenceStart?: boolean
+  sentenceBoundary?: boolean
   audio: TAudio
   createdAt: number
 }

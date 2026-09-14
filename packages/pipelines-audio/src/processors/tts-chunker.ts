@@ -560,11 +560,6 @@ export function createTtsSegmentStream(
 
   void (async () => {
     const reader = byteStream.getReader()
-    // Caption alignment is anchored to when each spoken sentence STARTS. A
-    // sentence may span several chunks (word-limit pieces before its hard or
-    // flush terminator), so mark only the first chunk after the previous
-    // terminator; later pieces of the same sentence carry no start flag.
-    let atSentenceStart = true
     try {
       await chunkEmitter(reader, pendingSpecials, { ...options, flushBoundaries: meta.flushBoundaries ?? options?.flushBoundaries }, async (chunk) => {
         write({
@@ -574,11 +569,14 @@ export function createTtsSegmentStream(
           segmentId: `${meta.streamId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
           text: chunk.chunk,
           special: chunk.special,
-          sentenceStart: atSentenceStart,
+          // Only hard punctuation and explicit flush markers end a
+          // sentence. Word-limit pieces cut to protect long pairs are
+          // mid-sentence and must not advance captions. In flush mode a
+          // pair's flush piece is its single boundary.
+          sentenceBoundary: chunk.reason === 'hard' || chunk.reason === 'flush',
           reason: chunk.reason,
           createdAt: Date.now(),
         })
-        atSentenceStart = chunk.reason === 'hard' || chunk.reason === 'flush'
       })
       close()
     }

@@ -650,13 +650,13 @@ bindSpeakingStateToPlaybackManager(playbackManager, {
       // BroadcastChannel may be closed - don't break playback
     }
 
-    // Reveal the translation when its sentence STARTS, so the translated
-    // line and the spoken line change together. Only the first item of a
-    // sentence advances the queue; a long sentence split into several items
-    // by the word-limit chunker carries the flag on its first item only. The
-    // buffered WebSocket session emits one item for the whole turn without
-    // the flag and advances through `onSentenceBoundary` instead.
-    if (item.sentenceStart) {
+    // Reveal the translation when its sentence ends, so the translated
+    // line and the spoken line stay aligned. Only the boundary item (the
+    // last piece of a sentence) advances the queue; word-limit pieces of a
+    // long sentence do not. The buffered WebSocket session emits one item
+    // for the whole turn without the flag and advances through
+    // `onSentenceBoundary` instead.
+    if (item.sentenceBoundary) {
       bilingualCaptionBus.routePlaybackItem({
         turnId: item.turnId,
         intentId: item.intentId,
