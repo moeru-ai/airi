@@ -60,6 +60,10 @@ https://histoire.dev/
 pnpm -F @proj-airi/stage-ui run story:dev
 ```
 
+The **Misc → Swipe Actions** story renders one row with two start actions and three end actions. Its **Show labels** control switches between
+text labels and surfaces that fill the available height. Use this story to
+compare gesture presentation, not conversation storage behavior.
+
 ### Project structure
 
 1. If a story is bound to a specific component, it can be placed beside the component in the `src` folder. e.g., `MyComponent.story.vue`
