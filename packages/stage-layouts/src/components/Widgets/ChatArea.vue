@@ -2,10 +2,11 @@
 import type { ChatComposerController } from '@proj-airi/stage-ui/components/scenarios/chat'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { ChatReplyPreview } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatReplyPreview, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
@@ -23,8 +24,11 @@ const props = defineProps<{
   composer: ChatComposerController<never>
 }>()
 
+const voiceActive = ref(false)
+const voiceInput = useTemplateRef<HTMLElement>('voiceInput')
 const composerRoot = useTemplateRef<HTMLDivElement>('composer')
 
+const { activeSessionId } = storeToRefs(useChatSessionStore())
 const messageInput = props.composer.draft
 const hearingPopoverOpen = ref(false)
 const isComposing = props.composer.isComposing
@@ -162,6 +166,7 @@ watch(replyTarget, async (target) => {
 <template>
   <div ref="composer" h="<md:full" flex gap-2 class="ph-no-capture">
     <div
+      ref="voiceInput"
       :class="[
         'relative w-full overflow-hidden rounded-t-xl',
         'border-t-2 border-solid border-primary-200/20 bg-primary-100/50 backdrop-blur-md',
@@ -169,6 +174,7 @@ watch(replyTarget, async (target) => {
       ]"
     >
       <ChatReplyPreview
+        :class="[voiceActive && 'invisible']"
         :target="replyTarget"
         @cancel="handleCancelReply"
       />
@@ -183,6 +189,7 @@ watch(replyTarget, async (target) => {
         outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
         :class="{
           'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,
+          'invisible': voiceActive,
         }"
         @keydown="handleMessageInputKeydown"
         @compositionstart="isComposing = true"
@@ -191,6 +198,7 @@ watch(replyTarget, async (target) => {
 
       <!-- Input configuration controls -->
       <div
+        :class="[voiceActive && 'invisible']"
         absolute bottom-2 left-2 z-10 flex items-center gap-2
       >
         <DropdownMenuRoot>
@@ -274,6 +282,14 @@ watch(replyTarget, async (target) => {
       <div
         absolute bottom-2 right-2 z-10 flex items-center gap-1
       >
+        <VoiceComposer
+          v-model="messageInput"
+          :input-element="voiceInput"
+          :session-id="activeSessionId"
+          :reply-to-message-id="replyTarget?.message.id"
+          @recording-change="voiceActive = $event"
+          @sent="props.composer.clearReply()"
+        />
         <button
           v-if="showStopSpeakingButton"
           data-testid="stop-speaking-button"

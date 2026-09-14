@@ -2,10 +2,11 @@
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
+import { encodeBase64 } from '@moeru/std/base64'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatHistory } from '@proj-airi/stage-ui/components'
-import { ChatReplyPreview, ChatSessionsDrawer, useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatReplyPreview, ChatSessionsDrawer, useChatComposer, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -16,7 +17,7 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { BasicButton, BasicContentEditable } from '@proj-airi/ui'
-import { onLongPress, useEventListener, usePointerSwipe } from '@vueuse/core'
+import { onLongPress, useEventListener, useFileDialog, usePointerSwipe } from '@vueuse/core'
 import { animate, spring } from 'animejs'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
@@ -53,15 +54,21 @@ const visibleStreamingMessage = computed(() => activeSendSessionId.value === act
   : streamingMessage.value)
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
-const composer = useChatComposer({
+const composer = useChatComposer<File>({
   activeSessionId,
-  send: submission => chatOrchestrator.send({
+  send: async submission => chatOrchestrator.send({
     sessionId: submission.sessionId,
     text: submission.text,
+    attachments: await Promise.all(submission.attachments.map(async file => ({
+      type: 'image' as const,
+      data: encodeBase64(await file.arrayBuffer()),
+      mimeType: file.type,
+    }))),
     replyToMessageId: submission.replyToMessageId,
   }),
 })
 const {
+  attachments,
   clearReplyForMessage,
   draft: messageInput,
   isComposing,
@@ -83,9 +90,17 @@ async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: n
   clearReplyForMessage(message)
 }
 
+const imageDialog = useFileDialog({ accept: 'image/*', multiple: true, reset: true })
+// File selection only updates the draft. Encoding and delivery belong to submit,
+// so a failed send restores both the text and selected images.
+imageDialog.onChange((files) => {
+  if (files)
+    composer.addAttachments(...Array.from(files).filter(file => file.type.startsWith('image/')))
+})
+const voiceActive = shallowRef(false)
+const showSendButton = computed(() => !voiceActive.value && (messageInput.value.trim() || isComposing.value || attachments.value.length > 0))
 const inputBubbleDocked = shallowRef(false)
 const inputBubbleDragging = shallowRef(false)
-const inputBubbleAnimating = shallowRef(false)
 const sessionsDrawerOpen = shallowRef(false)
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
@@ -250,7 +265,6 @@ async function setInputBubbleDocked(docked: boolean) {
   if (inputBubbleDocked.value === docked)
     return
 
-  inputBubbleAnimating.value = true
   const bubble = inputBubble.value!
   const source = bubble.getBoundingClientRect()
   bubble.style.transform = 'translate3d(0px, 0px, 0px) scale(1)'
@@ -298,7 +312,6 @@ async function setInputBubbleDocked(docked: boolean) {
     bubble.style.removeProperty('max-width')
     bubble.style.removeProperty('height')
   }
-  inputBubbleAnimating.value = false
   await nextTick()
 }
 
@@ -333,6 +346,9 @@ function handleInputBubbleSwipe() {
 }
 
 function handleInputBubbleLongPress() {
+  if (voiceActive.value)
+    return
+
   if (inputBubbleDocked.value)
     return
 
@@ -343,6 +359,9 @@ function handleInputBubbleLongPress() {
 }
 
 function handleInputBubblePointerDown(event: PointerEvent) {
+  if (voiceActive.value)
+    return
+
   suppressNextInputBubbleClick = false
 
   const messageInput = inputBubble.value!.querySelector<HTMLElement>('[contenteditable]')!
@@ -368,6 +387,9 @@ onLongPress(inputBubble, handleInputBubbleLongPress, {
 })
 
 async function handleInputBubbleClick() {
+  if (voiceActive.value)
+    return
+
   if (suppressNextInputBubbleClick) {
     suppressNextInputBubbleClick = false
     return
@@ -549,6 +571,17 @@ onUnmounted(() => {
             data-testid="mobile-input-bubble-dock-target"
             class="invisible size-10 shrink-0 self-end"
           />
+          <BasicButton
+            v-if="showStopSpeakingButton"
+            size="unset"
+            data-testid="stop-speaking-button"
+            :class="['size-11 flex items-center justify-center self-end rounded-full bg-neutral-100/80 text-primary-600 dark:bg-neutral-950/80 dark:text-primary-300']"
+            title="Stop speaking"
+            aria-label="Stop speaking"
+            @click="stopSpeakingFromChat"
+          >
+            <span :class="['i-solar:stop-circle-bold-duotone size-5']" />
+          </BasicButton>
           <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
         </div>
       </div>
@@ -557,28 +590,37 @@ onUnmounted(() => {
         data-testid="mobile-message-composer"
         :class="[
           'max-h-100dvh max-w-100dvw w-full',
-          'flex gap-2 px-3 pt-2',
+          'flex items-end gap-2 px-3 pt-2',
         ]"
         :style="messageComposerStyle"
       >
+        <BasicButton
+          size="unset"
+          :aria-label="t('stage.chat.actions.attach')"
+          :disabled="voiceActive"
+          :class="[
+            'size-11 flex shrink-0 items-center justify-center self-end rounded-full',
+            'bg-neutral-100/80 text-neutral-600 backdrop-blur-md dark:bg-neutral-950/80 dark:text-neutral-200',
+          ]"
+          @click="imageDialog.open()"
+        >
+          <span :class="['i-solar:paperclip-linear size-5']" />
+        </BasicButton>
         <div
           ref="inputBubble"
           data-testid="mobile-input-bubble"
           :data-dragging="inputBubbleDragging"
           :class="[
-            'group relative mx-auto min-h-10 flex flex-col justify-center origin-center overflow-hidden',
+            'group relative min-h-11 min-w-0 flex flex-1 flex-col justify-center origin-center overflow-hidden',
             'touch-none select-none focus-within:touch-auto focus-within:select-text',
             'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 backdrop-blur-md',
             'dark:border-neutral-700/60 dark:bg-neutral-950/80',
-            inputBubbleDragging || inputBubbleAnimating
-              ? 'transition-none'
-              : 'transition-[max-width] duration-320 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]',
             inputBubbleDocked
               ? [
                 'h-10 max-w-10 w-10 cursor-pointer rounded-xl',
                 'border-neutral-100/60 bg-neutral-50/70 dark:border-neutral-800/30 dark:bg-neutral-800/70',
               ]
-              : 'max-w-[70%] w-full rounded-[1lh]',
+              : 'w-full rounded-[22px]',
           ]"
           @click="handleInputBubbleClick"
           @contextmenu="handleInputBubbleContextMenu"
@@ -586,9 +628,22 @@ onUnmounted(() => {
         >
           <ChatReplyPreview
             :target="replyTarget"
-            :class="['w-full']"
+            :class="['w-full', voiceActive && 'invisible']"
             @cancel="handleCancelReply"
           />
+          <div v-if="attachments.length" :class="['flex flex-wrap gap-1 px-3 pt-2', voiceActive && 'invisible']">
+            <BasicButton
+              v-for="(file, index) in attachments"
+              :key="index"
+              size="unset"
+              :aria-label="t('stage.chat.actions.remove-attachment', { name: file.name })"
+              :class="['max-w-full flex items-center gap-1 rounded-lg bg-primary-100 px-2 py-1 text-xs text-primary-700 dark:bg-primary-900 dark:text-primary-200']"
+              @click.stop="composer.removeAttachment(index)"
+            >
+              <span :class="['truncate']">{{ file.name }}</span>
+              <span :class="['i-solar:close-circle-linear size-4 shrink-0']" />
+            </BasicButton>
+          </div>
           <!-- Android handles touch from the scrollable editor, so it needs touch-none to keep the bubble drag active. -->
           <BasicContentEditable
             v-model="messageInput"
@@ -596,20 +651,21 @@ onUnmounted(() => {
             autocapitalize="off"
             autocorrect="off"
             :spellcheck="false"
-            default-height="calc(1lh + 4px + 4px)"
             :placeholder="t('stage.message')"
             :class="[
-              'font-cute',
+              'font-cute text-base leading-6',
+              voiceActive && 'invisible',
               'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full touch-none overflow-y-scroll scrollbar-none',
               'border-2 border-solid border-transparent bg-transparent px-4 py-0.5 outline-none',
               'focus-visible:ring-2 focus-visible:ring-primary-500/60',
-              'text-neutral-500 dark:text-neutral-100',
-              'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
-              'data-[empty]:before:text-[14px] data-[empty]:before:leading-6 data-[empty]:before:text-neutral-400',
+              'text-neutral-800 dark:text-neutral-100',
+              'transition-colors duration-250 ease-in-out',
+              'data-[empty]:before:text-base data-[empty]:before:leading-6 data-[empty]:before:text-neutral-500',
               'data-[empty]:before:transition-all data-[empty]:before:duration-250 data-[empty]:before:ease-in-out data-[empty]:hover:before:text-neutral-500 dark:data-[empty]:before:text-neutral-500 dark:data-[empty]:hover:before:text-neutral-400',
               messageInputPointerEventsClass,
               themeColorsHueDynamic ? 'transition-colors-none data-[empty]:before:transition-colors-none' : undefined,
             ]"
+            default-height="calc(1lh + 4px + 4px)"
             @submit="handleSubmit"
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
@@ -622,31 +678,32 @@ onUnmounted(() => {
             <div class="i-solar:keyboard-bold-duotone size-5" />
           </div>
         </div>
-        <button
-          v-if="showStopSpeakingButton"
-          data-testid="stop-speaking-button"
-          :class="[
-            'h-[calc(1lh+4px+4px)] w-[calc(1lh+4px+4px)] flex items-center justify-center self-end rounded-md outline-none',
-            'text-lg text-neutral-500 transition-all duration-200 active:scale-95 dark:text-neutral-400',
-            'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
-          ]"
-          title="Stop speaking"
-          aria-label="Stop speaking"
-          @click="stopSpeakingFromChat"
-        >
-          <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
-        </button>
-        <button
-          v-if="messageInput.trim() || isComposing"
-          :aria-label="t('stage.chat.actions.send')"
-          w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]" aspect-square flex items-center self-end justify-center rounded-full outline-none backdrop-blur-md
-          text="neutral-500 hover:neutral-600 dark:neutral-900 dark:hover:neutral-800"
-          bg="primary-50/80 dark:neutral-100/80 hover:neutral-50"
-          transition="all duration-250 ease-in-out"
-          @click="handleSend"
-        >
-          <div i-solar:arrow-up-outline />
-        </button>
+        <div :class="['relative size-11 shrink-0 self-end']">
+          <div v-show="!showSendButton" :class="['absolute inset-0']">
+            <VoiceComposer
+              v-model="messageInput"
+              size="large"
+              :input-element="inputBubble"
+              :session-id="activeSessionId"
+              :reply-to-message-id="replyTarget?.message.id"
+              @recording-change="voiceActive = $event"
+              @sent="composer.clearReply()"
+            />
+          </div>
+          <BasicButton
+            v-if="showSendButton"
+            size="unset"
+            :aria-label="t('stage.chat.actions.send')"
+            :class="[
+              'size-11 flex items-center justify-center rounded-full outline-none',
+              'bg-primary-500 text-white shadow-sm dark:bg-primary-400 dark:text-primary-950',
+              'transition-colors duration-200 hover:bg-primary-600 dark:hover:bg-primary-300',
+            ]"
+            @click="handleSend"
+          >
+            <span :class="['i-solar:arrow-up-outline size-5']" />
+          </BasicButton>
+        </div>
       </div>
     </div>
     <div

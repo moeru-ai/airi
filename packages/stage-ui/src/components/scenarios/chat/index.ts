@@ -8,8 +8,10 @@ export { createToolResultError, normalizeToolResultText } from './components/too
 export type { ChatToolCallRendererProps, ChatToolCallRendererRegistry } from './components/tool-call-renderer'
 export { default as ChatToolCallShell } from './components/tool-call-shell.vue'
 export { default as ChatUserItem } from './components/user-item.vue'
+export { default as VoiceComposer } from './components/voice-composer.vue'
 export { useChatComposer } from './composables/use-chat-composer'
 export type { ChatComposerController, ChatComposerSubmission, ChatComposerSubmitResult, UseChatComposerOptions } from './composables/use-chat-composer'
 export { default as JournalPreviewModal } from './JournalPreviewModal.vue'
 export { getChatReplyPreview, isChatReplyTargetMessage, normalizeChatReplyPreview } from './reply'
+
 export type { ChatHistoryReplyPayload } from './reply'

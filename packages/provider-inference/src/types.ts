@@ -167,6 +167,8 @@ export interface ModelInfo {
   provider: string
   description?: string
   capabilities?: string[]
+  /** Input media declared by the provider model catalog. Missing means unknown. */
+  inputModalities?: string[]
   contextLength?: number
   deprecated?: boolean
 }

@@ -1094,6 +1094,40 @@ describe('createChatOrchestratorRuntime', () => {
     await firstSend
   })
 
+  it('keeps audio-only turns in history and sends native audio to capable models', async () => {
+    const harness = createHarness()
+    await harness.runtime.ingest('', {
+      model: 'audio-model',
+      chatProvider: provider,
+      attachments: [{ type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }],
+    }, 'session-1')
+    const stored = harness.sessionMessages['session-1'].find(message => message.role === 'user')
+    expect(stored?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } })
+    const sent = harness.stream.mock.calls[0][2].find(message => message.role === 'user')
+    expect(sent?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } })
+    expect(sent).not.toHaveProperty('audioTranscripts')
+  })
+
+  it('projects transcripts for text-only models while retaining playable recordings', async () => {
+    const harness = createHarness()
+    await harness.runtime.ingest('', {
+      model: 'text-model',
+      chatProvider: provider,
+      supportsAudioInput: false,
+      attachments: [{ type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav', transcript: 'Turn on the light.' }],
+    }, 'session-1')
+    const stored = harness.sessionMessages['session-1'].find(message => message.role === 'user')
+    expect(stored?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } })
+    expect(stored?.audioTranscripts).toEqual(['Turn on the light.'])
+    const sent = harness.stream.mock.calls[0][2].find(message => message.role === 'user')
+    expect(sent?.content).toContainEqual({ type: 'text', text: 'Turn on the light.' })
+    expect(JSON.stringify(sent)).not.toContain('input_audio')
+    expect(sent).not.toHaveProperty('audioTranscripts')
+    await harness.runtime.ingest('Thanks', { model: 'text-model', chatProvider: provider, supportsAudioInput: false }, 'session-1')
+    expect(JSON.stringify(harness.stream.mock.calls[1][2])).not.toContain('input_audio')
+    expect(stored?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } })
+  })
+
   it('handles attachments, reasoning deltas, tool events, and assistant finalization', async () => {
     const harness = createHarness()
     let composedMessages: Message[] = []

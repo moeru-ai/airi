@@ -61,6 +61,8 @@ export interface ContextMessage extends ContextUpdate<Record<string, unknown>, u
 }
 
 export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
+  /** Final transcripts in audio-part order. Missing entries retain native audio. */
+  audioTranscripts?: (string | undefined)[]
   context?: ContextMessage
   createdAt?: number
   id?: string
