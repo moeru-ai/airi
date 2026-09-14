@@ -148,7 +148,7 @@ function serializedToolCallName(parsed: unknown, toolNames: Set<string>): string
   return record.name
 }
 
-function leakedToolCallName(text: string, toolNames: Set<string>): string | undefined {
+function inspectToolCallCandidates(text: string, toolNames: Set<string>, isFinal: boolean): { toolName?: string, incomplete?: boolean } | undefined {
   // Each opening brace needs its own boundary, independent of malformed prefixes.
   // Build suffix boundaries once instead of rescanning the rest of the channel
   // for every unmatched opening brace. -1 means that no closing boundary exists.
@@ -180,11 +180,16 @@ function leakedToolCallName(text: string, toolNames: Set<string>): string | unde
   let remainingParseWork = text.length * 8
   for (let start = text.indexOf('{'); start >= 0; start = text.indexOf('{', start + 1)) {
     const end = objectEnds[start + 1]
-    if (end < 0)
+    if (end < 0) {
+      // Another step can close this object. Its children then become ordinary examples.
+      // Only final output permits recovery inside an unmatched outer candidate.
+      if (!isFinal)
+        return { incomplete: true }
       continue
+    }
 
     // Charge overlapping spans before slicing or parsing them. On exhaustion,
-    // reject the step so unchecked buffered output cannot reach consumers.
+    // reject the response so unchecked buffered output cannot reach consumers.
     const candidateLength = end - start + 1
     if (candidateLength > remainingParseWork)
       throw new Error('Model output exceeded the JSON inspection work limit.')
@@ -194,7 +199,7 @@ function leakedToolCallName(text: string, toolNames: Set<string>): string | unde
       const parsed: unknown = JSON.parse(text.slice(start, end + 1))
       const toolName = serializedToolCallName(parsed, toolNames)
       if (toolName)
-        return toolName
+        return { toolName }
       // A valid ordinary object owns its children and quoted examples.
       // Only malformed candidates permit recovery at a later opening brace.
       start = end
@@ -302,13 +307,14 @@ export async function streamFrom({
     let stepsSettled = false
     let failed = false
     let eventQueue = Promise.resolve()
-    let bufferPossibleToolCall = toolNames.size > 0
+    const hasToolCallGuard = toolNames.size > 0
     let bufferedOutputEvents: (BufferedOutputEvent | BufferedToolEvent)[] = []
     let bufferedReasoningText = ''
     let bufferedText = ''
-    // The guard stays active until step completion, even after native tool events.
-    // After either channel starts a JSON candidate, preserve all output order
-    // until the complete objects can be checked at the end of the step.
+    // Consumers join each channel across tool rounds. An unmatched candidate
+    // therefore keeps all subsequent output buffered until stream completion.
+    // Do not rescan that growing prefix at every later step boundary.
+    let deferInspectionUntilCompletion = false
     let hasBufferedJsonCandidate = false
     const resolveOnce = () => {
       if (settled || failed)
@@ -336,6 +342,7 @@ export async function streamFrom({
       bufferedReasoningText = ''
       bufferedText = ''
       hasBufferedJsonCandidate = false
+      deferInspectionUntilCompletion = false
       return events
     }
 
@@ -369,28 +376,28 @@ export async function streamFrom({
       }
     }
 
-    const finishPossibleToolCall = async () => {
-      if (!bufferPossibleToolCall)
+    const inspectBufferedToolCalls = async (isFinal: boolean) => {
+      if (!hasToolCallGuard || (!isFinal && deferInspectionUntilCompletion))
         return
 
-      bufferPossibleToolCall = false
-      const toolName = leakedToolCallName(bufferedText, toolNames)
-        ?? leakedToolCallName(bufferedReasoningText, toolNames)
+      const text = inspectToolCallCandidates(bufferedText, toolNames, isFinal)
+      const reasoning = text?.toolName ? undefined : inspectToolCallCandidates(bufferedReasoningText, toolNames, isFinal)
+      const toolName = text?.toolName ?? reasoning?.toolName
       if (toolName) {
         takeBufferedOutput()
         throw plainTextToolCallError(toolName)
       }
 
+      if (text?.incomplete || reasoning?.incomplete) {
+        deferInspectionUntilCompletion = true
+        return
+      }
+
       await flushBufferedOutput()
     }
 
-    const startToolCallGuardStep = async () => {
-      await finishPossibleToolCall()
-      bufferPossibleToolCall = toolNames.size > 0
-    }
-
     const consumeTextDelta = async (text: string) => {
-      if (!bufferPossibleToolCall) {
+      if (!hasToolCallGuard) {
         await emitOutputEvent({ type: 'text-delta', text })
         return
       }
@@ -404,7 +411,7 @@ export async function streamFrom({
     }
 
     const consumeReasoningDelta = async (text: string) => {
-      if (!bufferPossibleToolCall) {
+      if (!hasToolCallGuard) {
         await emitOutputEvent({ type: 'reasoning-delta', text })
         return
       }
@@ -416,12 +423,8 @@ export async function streamFrom({
     }
 
     const processEvent = async (event: Event) => {
-      if (event.type === 'step.start') {
-        await startToolCallGuardStep()
-        return
-      }
-      if (event.type === 'step.done') {
-        await finishPossibleToolCall()
+      if (event.type === 'step.start' || event.type === 'step.done') {
+        await inspectBufferedToolCalls(false)
         return
       }
       if (event.type === 'text.delta') {
@@ -435,7 +438,7 @@ export async function streamFrom({
       if (event.type === 'tool-call.done' || event.type === 'tool-result.done') {
         // Native events do not prove that other channels are safe. Keep their
         // UI notifications behind any candidate to preserve output order.
-        if (bufferPossibleToolCall && bufferedOutputEvents.length > 0) {
+        if (hasToolCallGuard && bufferedOutputEvents.length > 0) {
           bufferedOutputEvents.push(event)
           return
         }
@@ -508,7 +511,7 @@ export async function streamFrom({
           await acceptedEvents
           if (failed)
             return
-          await finishPossibleToolCall()
+          await inspectBufferedToolCalls(true)
         }
         catch (error) {
           rejectOnce(error)

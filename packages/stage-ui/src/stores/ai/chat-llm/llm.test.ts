@@ -380,7 +380,10 @@ describe('isToolRelatedError', () => {
   // These tests use the real SDK and scripted HTTP responses to check both fixes.
   // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440962
   // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440972
-  it.runIf(env.AIRI_TEST_REAL_SSE === '1').each(['native-text', 'native-reasoning', 'native-safe', 'tools-first', 'arrays-first'] as const)('checks %s with real xsAI and HTTP/SSE for Issue #2161', async (scenario) => {
+  // Step boundaries also released partial calls or misclassified partial outer examples.
+  // Keep those candidates through the SDK tool round and inspect the joined output.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3954079834
+  it.runIf(env.AIRI_TEST_REAL_SSE === '1').each(['native-text', 'native-reasoning', 'native-safe', 'native-split-text', 'native-split-reasoning', 'native-split-example', 'native-split-failure', 'tools-first', 'arrays-first'] as const)('checks %s with real xsAI and HTTP/SSE for Issue #2161', async (scenario) => {
     const { streamText } = await vi.importActual<typeof import('@xsai/stream-text')>('@xsai/stream-text')
     const sdkResults: StreamTextResult[] = []
     streamTextMock.mockImplementation((options: Parameters<typeof streamText>[0]) => {
@@ -402,6 +405,11 @@ describe('isToolRelatedError', () => {
           raw += part.toString()
         requests.push(JSON.parse(raw))
         const attempt = requests.length
+        if (scenario === 'native-split-failure' && attempt === 2) {
+          response.writeHead(400, { 'Content-Type': 'application/json' })
+          response.end(JSON.stringify({ error: { message: 'fixture failed after a tool round' } }))
+          return
+        }
         if (!native && attempt === (scenario === 'tools-first' ? 2 : 1)) {
           response.writeHead(400, { 'Content-Type': 'application/json' })
           response.end(JSON.stringify({ error: { message: 'messages[0]: invalid type: sequence, expected a string' } }))
@@ -417,8 +425,12 @@ describe('isToolRelatedError', () => {
           })}\n\n`)
         }
         if (native && attempt === 1) {
-          const text = scenario === 'native-safe' ? '{"note":"safe"}' : call
-          send(scenario === 'native-text'
+          let text = scenario === 'native-safe' ? '{"note":"safe"}' : call
+          if (scenario === 'native-split-example')
+            text = `{"example":${call}`
+          else if (scenario.startsWith('native-split'))
+            text = call.slice(0, 20)
+          send(scenario.endsWith('text')
             ? { role: 'assistant', content: text }
             : { role: 'assistant', reasoning_content: text }, 'tool_calls')
           send({ role: 'assistant', tool_calls: [{
@@ -428,7 +440,12 @@ describe('isToolRelatedError', () => {
             function: { name: 'builtIn_emitSparkCommand', arguments: '{}' },
           }] }, 'tool_calls')
         }
+        else if (scenario === 'native-split-text' || scenario === 'native-split-reasoning') {
+          send(scenario === 'native-split-text' ? { role: 'assistant', content: call.slice(20) } : { role: 'assistant', reasoning_content: call.slice(20) })
+        }
         else {
+          if (scenario === 'native-split-example')
+            send({ role: 'assistant', reasoning_content: '}' })
           const leakAttempt = !native && attempt === (scenario === 'tools-first' ? 1 : 2)
           send({ role: 'assistant', content: leakAttempt ? call : 'Recovered.' })
         }
@@ -454,13 +471,17 @@ describe('isToolRelatedError', () => {
         expect(streamTextMock).toHaveBeenCalledTimes(1)
         expect(requests).toHaveLength(2)
         expect(requests[1].messages).toContainEqual(expect.objectContaining({ role: 'tool', tool_call_id: 'call-1' }))
-        if (scenario === 'native-safe') {
+        if (scenario === 'native-safe' || scenario === 'native-split-example') {
           expect(outcome).toBeUndefined()
           expect(onMessages).toHaveBeenCalledTimes(1)
-          expect(onStreamEvent.mock.calls.map(([event]) => event.type)).toEqual(['reasoning-delta', 'tool-call', 'tool-result', 'text-delta', 'finish'])
+          expect(onStreamEvent.mock.calls.map(([event]) => event.type === 'reasoning-delta' ? event.text : '').join('')).toBe(scenario === 'native-safe' ? '{"note":"safe"}' : `{"example":${call}}`)
+          expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: 'Recovered.' })
+          expect(onStreamEvent.mock.calls.map(([event]) => event.type)).toEqual(scenario === 'native-safe'
+            ? ['reasoning-delta', 'tool-call', 'tool-result', 'text-delta', 'finish']
+            : ['reasoning-delta', 'tool-call', 'tool-result', 'reasoning-delta', 'text-delta', 'finish'])
         }
         else {
-          expect(String(outcome)).toContain('as plain text')
+          expect(String(outcome)).toContain(scenario === 'native-split-failure' ? 'fixture failed after a tool round' : 'as plain text')
           expect(onStreamEvent).not.toHaveBeenCalled()
           expect(onMessages).not.toHaveBeenCalled()
         }

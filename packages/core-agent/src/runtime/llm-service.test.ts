@@ -1060,6 +1060,168 @@ describe('streamFrom tool errors', () => {
     ])
   })
 
+  // ROOT CAUSE:
+  // Step completion released incomplete JSON, but consumers joined text across steps.
+  // Keep unmatched candidates until stream completion and inspect each channel as a whole.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3954079834
+  it.each(['text.delta', 'reasoning.delta'] as const)('guards every cross-step split in %s for Issue #2161', async (type) => {
+    const call = JSON.stringify({ name: 'builtIn_emitSparkCommand', arguments: { text: 'a\\"}b', nested: { value: 1 } } })
+    for (const boundary of [['step.done'], ['step.start'], ['step.done', 'step.start']]) {
+      for (let cut = 1; cut < call.length; cut++) {
+        const onStreamEvent = vi.fn()
+        const onMessages = vi.fn()
+        mockStreamEvents([
+          { type, delta: call.slice(0, cut) },
+          ...boundary.map(type => ({ type })),
+          { type, delta: call.slice(cut) },
+        ])
+        await expect(streamFrom({
+          model: 'model-a',
+          chatProvider: provider,
+          messages: [],
+          options: { tools: [createSparkTool()], onStreamEvent, onMessages },
+        })).rejects.toThrow('as plain text')
+        expect(onStreamEvent).not.toHaveBeenCalled()
+        expect(onMessages).not.toHaveBeenCalled()
+      }
+    }
+  })
+
+  // ROOT CAUSE:
+  // An unfinished outer example can contain a complete inner tool-shaped object.
+  // Wait for the outer object before deciding whether its children are calls.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3954079834
+  it.each(['text.delta', 'reasoning.delta'] as const)('preserves cross-step examples in %s for Issue #2161', async (type) => {
+    const call = '{"name":"builtIn_emitSparkCommand","arguments":{}}'
+    for (const answer of [`{"example":${call}}`, JSON.stringify({ text: call, escape: '\\"{}' }), '{"ordinary":1}']) {
+      for (let cut = 1; cut < answer.length; cut++) {
+        const onStreamEvent = vi.fn()
+        mockStreamEvents([
+          { type, delta: answer.slice(0, cut) },
+          { type: 'step.done' },
+          { type: 'step.start' },
+          { type, delta: answer.slice(cut) },
+        ])
+        await streamFrom({
+          model: 'model-a',
+          chatProvider: provider,
+          messages: [],
+          options: { tools: [createSparkTool()], onStreamEvent },
+        })
+        expect(onStreamEvent.mock.calls.map(([event]) => event.text ?? '').join('')).toBe(answer)
+        expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
+      }
+    }
+  })
+
+  // ROOT CAUSE:
+  // A step boundary is not final output. Partial candidates must retain event order.
+  // Native activity still reaches the retry owner before buffered UI callbacks.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3954079834
+  it.each([false, true])('holds partial output until stream settlement, failure=%s, for Issue #2161', async (fail) => {
+    const steps = Promise.withResolvers<unknown[]>()
+    const onStreamEvent = vi.fn()
+    const onMessages = vi.fn()
+    const onUsage = vi.fn()
+    const onNativeToolCall = vi.fn()
+    const failure = new Error('provider failed after a partial candidate')
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => void }) => {
+      queueMicrotask(() => {
+        options.onEvent({ type: 'text.delta', delta: '{"ordinary":' })
+        options.onEvent({ type: 'step.done' })
+        options.onEvent({ type: 'tool-call.done', toolCallId: 'call-1', toolName: 'builtIn_emitSparkCommand', toolCallType: 'function', args: '{}' })
+        options.onEvent({ type: 'step.start' })
+        options.onEvent({ type: 'reasoning.delta', delta: 'Still working.' })
+      })
+      return createMockStreamResult(steps.promise)
+    })
+    const pending = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      onNativeToolCall,
+      options: { tools: [createSparkTool()], onStreamEvent, onMessages, onUsage },
+    }).then(() => undefined, error => error)
+    await new Promise(resolve => setImmediate(resolve))
+    expect(onNativeToolCall).toHaveBeenCalledTimes(1)
+    expect(onStreamEvent).not.toHaveBeenCalled()
+    expect(onMessages).not.toHaveBeenCalled()
+    if (fail)
+      steps.reject(failure)
+    else
+      steps.resolve([])
+    const outcome = await pending
+    if (fail) {
+      expect(outcome).toBe(failure)
+      expect(onStreamEvent).not.toHaveBeenCalled()
+      expect(onMessages).not.toHaveBeenCalled()
+      expect(onUsage).not.toHaveBeenCalled()
+    }
+    else {
+      expect(outcome).toBeUndefined()
+      expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
+        { type: 'text-delta', text: '{"ordinary":' },
+        expect.objectContaining({ type: 'tool-call', toolCallId: 'call-1' }),
+        { type: 'reasoning-delta', text: 'Still working.' },
+        { type: 'finish' },
+      ])
+      expect(onMessages).toHaveBeenCalledTimes(1)
+      expect(onUsage).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  // ROOT CAUSE:
+  // Cross-step retention must not remove the parse-work limit or merge channels.
+  // Inspect deferred buffers once at completion, with each channel kept separate.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3954079834
+  it.each(['text.delta', 'reasoning.delta'] as const)('bounds deferred parsing in %s for Issue #2161', async (type) => {
+    const onStreamEvent = vi.fn()
+    mockStreamEvents([
+      ...Array.from({ length: 10 }, () => [
+        { type, delta: '{"a":'.repeat(2000) },
+        { type: 'step.done' },
+        { type: 'step.start' },
+      ]).flat(),
+      { type, delta: `x${'}'.repeat(20_000)}` },
+    ])
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [],
+      options: { tools: [createSparkTool()], onStreamEvent },
+    })).rejects.toThrow('JSON inspection work limit')
+    expect(onStreamEvent).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  // Consumers join steps within each channel, not text with reasoning.
+  // A partial candidate must not combine with the other channel or another request.
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r3954079834
+  it('isolates retained candidates across channels and requests for Issue #2161', async () => {
+    const prefix = '{"name":"builtIn_emitSparkCommand",'
+    const suffix = '"arguments":{}}'
+    const onStreamEvent = vi.fn()
+    mockStreamEvents([
+      { type: 'text.delta', delta: prefix },
+      { type: 'step.done' },
+      { type: 'step.start' },
+      { type: 'reasoning.delta', delta: suffix },
+    ])
+    await streamFrom({ model: 'model-a', chatProvider: provider, messages: [], options: { tools: [createSparkTool()], onStreamEvent } })
+    expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
+      { type: 'text-delta', text: prefix },
+      { type: 'reasoning-delta', text: suffix },
+      { type: 'finish' },
+    ])
+    onStreamEvent.mockClear()
+    mockStreamEvents([{ type: 'text.delta', delta: suffix }])
+    await streamFrom({ model: 'model-a', chatProvider: provider, messages: [], options: { tools: [createSparkTool()], onStreamEvent } })
+    expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
+      { type: 'text-delta', text: suffix },
+      { type: 'finish' },
+    ])
+  })
+
   it('streams ordinary text before the provider finishes the step', async () => {
     let emit: ((event: unknown) => void) | undefined
     let finish: ((steps: unknown[]) => void) | undefined
