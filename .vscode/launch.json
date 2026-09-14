@@ -17,17 +17,6 @@
       "skipFiles": [
         "<node_internals>/**"
       ]
-    },
-    {
-      "name": "Debug VSCode Extension",
-      "type": "extensionHost",
-      "request": "launch",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}/integrations/vscode/airi-plugin-vscode"
-      ],
-      "outFiles": [
-        "${workspaceFolder}/integrations/vscode/airi-plugin-vscode/dist/**/*.cjs"
-      ]
     }
   ]
 }

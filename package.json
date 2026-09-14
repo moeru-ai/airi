@@ -90,7 +90,6 @@
     "packages/*",
     "plugins/*",
     "integrations/*",
-    "integrations/vscode/*",
     "services/*",
     "examples/*",
     "docs",

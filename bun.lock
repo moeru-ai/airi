@@ -408,28 +408,6 @@
         "zod": "catalog:",
       },
     },
-    "integrations/vscode/airi-plugin-vscode": {
-      "name": "@proj-airi/airi-plugin-vscode",
-      "version": "0.12.0-beta.5",
-      "devDependencies": {
-        "@proj-airi/plugin-sdk": "workspace:*",
-      },
-    },
-    "integrations/vscode/vscode-airi": {
-      "name": "vscode-airi",
-      "version": "0.12.0-beta.5",
-      "devDependencies": {
-        "@guiiai/logg": "catalog:",
-        "@moeru/std": "catalog:",
-        "@proj-airi/server-sdk": "workspace:*",
-        "@types/vscode": "catalog:",
-        "es-toolkit": "catalog:",
-        "injeca": "catalog:",
-        "nanoid": "catalog:",
-        "tinyexec": "catalog:",
-        "vscode-ext-gen": "catalog:",
-      },
-    },
     "packages/audio": {
       "name": "@proj-airi/audio",
       "dependencies": {
@@ -3065,8 +3043,6 @@
 
     "@proj-airi/airi-plugin-homeassistant": ["@proj-airi/airi-plugin-homeassistant@workspace:plugins/airi-plugin-homeassistant"],
 
-    "@proj-airi/airi-plugin-vscode": ["@proj-airi/airi-plugin-vscode@workspace:integrations/vscode/airi-plugin-vscode"],
-
     "@proj-airi/airi-plugin-web-extension": ["@proj-airi/airi-plugin-web-extension@workspace:plugins/airi-plugin-web-extension"],
 
     "@proj-airi/audio": ["@proj-airi/audio@workspace:packages/audio"],
@@ -3604,8 +3580,6 @@
     "@types/trusted-types": ["@types/trusted-types@2.0.7", "", {}, "sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw=="],
 
     "@types/unist": ["@types/unist@3.0.3", "", {}, "sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q=="],
-
-    "@types/vscode": ["@types/vscode@1.134.0", "", {}, "sha512-NDEu0hg4sF7+vvFsADsktqUJ6f80LHSZvVK2Ovo1XiQ0/VHck1O3zst+ZZyVA/uvz6vo6LcuoqU2q48YMqOwWw=="],
 
     "@types/w3c-web-hid": ["@types/w3c-web-hid@1.0.7", "", {}, "sha512-/y97wBH7fYB5vKoDIn11O1ZDMNFLCAVqZ9af0OWDN7VSO2ClErEN2HlGbBuPgHBTUmZOVx1og2ZHX1U2gEJM4Q=="],
 
@@ -4938,8 +4912,6 @@
     "inherits": ["inherits@2.0.4", "", {}, "sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ=="],
 
     "ini": ["ini@1.3.8", "", {}, "sha512-JV/yugV2uzW5iMRSiZAyDtQd+nxtUnjeLt0acNdw98kKLrvuRVyB80tsREOE7yvGVgalhZ6RNXCmEHkUKBKxew=="],
-
-    "injeca": ["injeca@0.2.0", "", { "peerDependencies": { "@guiiai/logg": ">= 1", "error-stack-parser": "^2.1.4", "nanoid": ">=5" }, "optionalPeers": ["@guiiai/logg"] }, "sha512-uV++UZJQMx/wGzIFQzPB1/+3Xc3QQxZ0zvFZFyNlcSpbNqcn/8X7vGvRM2K9Nrj1qMsodQhAhCHP4GCMhXrDfQ=="],
 
     "inspect-function": ["inspect-function@0.3.4", "", { "dependencies": { "inspect-parameters-declaration": "0.0.8", "magicli": "0.0.8", "split-skip": "0.0.1", "stringify-parameters": "0.0.4", "unpack-string": "0.0.2" }, "bin": { "inspect-function": "bin/magicli.js" } }, "sha512-s0RsbJqK/sNZ+U1mykGoTickog3ea1A9Qk4mXniogOBu4PgkkZ56elScO7QC/r8D94lhGmJ2NyDI1ipOA/uq/g=="],
 
@@ -6367,10 +6339,6 @@
 
     "vitest-browser-vue": ["vitest-browser-vue@2.1.0", "", { "dependencies": { "@vue/test-utils": "2.4.11" }, "peerDependencies": { "vitest": "^4.0.0-0", "vue": "^3.0.0" } }, "sha512-K3H/oxIOY4EjXx2bxwrLsPg4jTMvzpRW6Jb6T8XZRoxUvmDVwGkd8mua130F8GZezE7H5QYoXd/S8hYijw7j5g=="],
 
-    "vscode-airi": ["vscode-airi@workspace:integrations/vscode/vscode-airi"],
-
-    "vscode-ext-gen": ["vscode-ext-gen@1.6.0", "", { "dependencies": { "cac": "6.7.14", "tinyglobby": "0.2.17" }, "bin": { "vscode-ext-gen": "bin.mjs" } }, "sha512-oYg4QCx56hs1+EOVInhQMeuO4jKOCHuBrG9uppivGac8Cu9crJ7YKZg8bviDO60iX9IHqX7o5oRIV/Y+f96XwA=="],
-
     "vscode-jsonrpc": ["vscode-jsonrpc@9.0.1", "", {}, "sha512-rfuA6T75H6m5EkbhtEPzre9pT0HPcDI2MMy4+nPFIBks5J8JBAUHD4tRYSgaBOijIEC7SRkC1kKyXTLqbmh9jw=="],
 
     "vscode-languageserver": ["vscode-languageserver@10.1.0", "", { "dependencies": { "vscode-languageserver-protocol": "3.18.2" }, "bin": { "installServerIntoExtension": "bin/installServerIntoExtension" } }, "sha512-9gEWpXkYGXoqG7pBnE8O8hx/yP7+Aabn4+peQ3KDicQv6qunHSWyLTud3OF0w4S2+HfDD+5HqYKiXQW9HAU6mA=="],
@@ -7238,8 +7206,6 @@
     "vitepress/@shikijs/types": ["@shikijs/types@3.23.0", "", { "dependencies": { "@shikijs/vscode-textmate": "10.0.2", "@types/hast": "3.0.5" } }, "sha512-3JZ5HXOZfYjsYSk0yPwBrkupyYSLpAE26Qc0HLghhZNGTZg/SKxXIIgoxOpmmeQP0RRSDJTk1/vPfw9tbw+jSQ=="],
 
     "vitepress/shiki": ["shiki@3.23.0", "", { "dependencies": { "@shikijs/core": "3.23.0", "@shikijs/engine-javascript": "3.23.0", "@shikijs/engine-oniguruma": "3.23.0", "@shikijs/langs": "3.23.0", "@shikijs/themes": "3.23.0", "@shikijs/types": "3.23.0", "@shikijs/vscode-textmate": "10.0.2", "@types/hast": "3.0.5" } }, "sha512-55Dj73uq9ZXL5zyeRPzHQsK7Nbyt6Y10k5s7OjuFZGMhpp4r/rsLBH0o/0fstIzX1Lep9VxefWljK/SKCzygIA=="],
-
-    "vscode-ext-gen/cac": ["cac@6.7.14", "", {}, "sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ=="],
 
     "vue-i18n/@vue/devtools-api": ["@vue/devtools-api@6.6.4", "", {}, "sha512-sGhTPMuXqZ1rVOk32RylztWkfXTRhuS7vgAKv0zjqk8gbsHkJ7xfFf+jbySxt7tWObEJwyKaHMikV/WGDiQm8g=="],
 
