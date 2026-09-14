@@ -498,7 +498,6 @@ onUnmounted(() => {
           <VoiceComposer
             v-else
             v-model="messageInput"
-            size="large"
             :input-element="inputBubble"
             :session-id="activeSessionId"
             :reply-to-message-id="replyTarget?.message.id"

@@ -412,7 +412,10 @@ describe('interactive area synchronized state', () => {
     const { screen } = await renderArea(MobileInteractiveArea)
     const bubble = screen.getByTestId('mobile-input-bubble').element()
     const input = screen.getByRole('textbox').element()
+    const voiceButton = screen.getByTestId('voice-composer-button').element()
     const emptyWidth = bubble.getBoundingClientRect().width
+    expect(voiceButton.getBoundingClientRect().width).toBe(40)
+    expect(voiceButton.getBoundingClientRect().bottom).toBe(bubble.getBoundingClientRect().bottom)
 
     await userEvent.fill(input, 'hi')
     const send = screen.getByRole('button', { name: 'stage.chat.actions.send' }).element()
@@ -1003,6 +1006,8 @@ describe('interactive area synchronized state', () => {
       replyToMessageId: undefined,
       sessionId: 'session-b',
       text: 'mobile follower message',
+      attachments: [],
+      replyToMessageId: undefined,
     }))
   })
 
