@@ -34,7 +34,15 @@ chat:
     message: Message
     replying-to: Replying to {name}
   reasoning: Reasoning
+  swipe-demo:
+    show-label: Show labels
+    delete: Delete
+    archive: Archive
+    pin: Pin
+    actions: Show actions
+    row: 'Conversation {n}'
   sessions:
+    delete-short: Delete
     title: Conversations
     new: New conversation
     current: Current
