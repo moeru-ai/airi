@@ -10,17 +10,15 @@ import type { WidgetsWindowManager } from '../widgets'
 
 import { join, resolve } from 'node:path'
 
-import { defineInvoke } from '@moeru/eventa'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { electronSettingsFlush, electronSettingsNavigate } from '../../../shared/eventa'
+import { electronSettingsNavigate } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
-import { deferSettingsWindowClose } from './close'
 import { setupSettingsWindowInvokes } from './rpc/index.electron'
 
 export interface SettingsWindowManager {
@@ -83,11 +81,6 @@ export function setupSettingsWindowReusableFunc(params: {
     await load(window, withHashRoute(rendererBase, currentRoute, {
       query: { 'synced-leader': 'false' },
     }))
-
-    const flushSettings = defineInvoke(settingsContext, electronSettingsFlush)
-    // A missing or unresponsive renderer must not leave the close request
-    // pending forever. Timeout keeps the window open and permits another try.
-    deferSettingsWindowClose(window, () => flushSettings(undefined, { signal: AbortSignal.timeout(10_000) }))
 
     window.on('closed', () => {
       if (settingsContext)

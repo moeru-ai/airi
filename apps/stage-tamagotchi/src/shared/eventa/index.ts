@@ -338,9 +338,6 @@ export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: stri
 export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')
 export const widgetsIframePublish = defineInvokeEventa<void, { id: string, event: Record<string, unknown> }>('eventa:invoke:electron:windows:widgets:iframe-publish')
 
-/** The settings window waits for renderer-owned writes before it closes. */
-export const electronSettingsFlush = defineInvokeEventa<void>('eventa:invoke:electron:settings:flush')
-
 export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
 export type ElectronWindowLifecycleReason
   = | 'initial'

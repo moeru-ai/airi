@@ -26,7 +26,6 @@ import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { useSettingsPersistenceStore } from '@proj-airi/stage-ui/stores/settings-persistence'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { useTheme } from '@proj-airi/ui'
 import { isEqual } from 'es-toolkit'
@@ -41,7 +40,6 @@ import {
   electronGetServerChannelConfig,
   electronGodotStageGetStatus,
   electronGodotStageStatusChanged,
-  electronSettingsFlush,
   electronSettingsNavigate,
   electronStartTrackMousePosition,
   i18nGetLocale,
@@ -91,12 +89,6 @@ const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
 const isSpotlightWindow = initialRoutePath === '/spotlight'
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
-
-const settingsPersistence = useSettingsPersistenceStore()
-if (isSettingsWindow) {
-  const stopSettingsFlush = defineInvokeHandler(context.value, electronSettingsFlush, settingsPersistence.flush)
-  onUnmounted(stopSettingsFlush)
-}
 
 async function refreshPluginRuntimeTools() {
   try {

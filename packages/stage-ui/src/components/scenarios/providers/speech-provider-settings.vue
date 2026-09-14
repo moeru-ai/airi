@@ -2,7 +2,7 @@
 import { errorMessageFrom } from '@moeru/std'
 import { computedAsync, useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -19,7 +19,6 @@ import { selectProviderMetadata } from '../../../libs/providers/metadata'
 import { useSpeechStore } from '../../../stores/modules/speech'
 import { useProviderConfigStore } from '../../../stores/providers/config'
 import { useProviderStore } from '../../../stores/providers/provider'
-import { useSettingsPersistenceStore } from '../../../stores/settings-persistence'
 
 const props = defineProps<{
   providerId: string
@@ -50,7 +49,6 @@ const router = useRouter()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
-const settingsPersistence = useSettingsPersistenceStore()
 const { configs: providers } = storeToRefs(providerStore)
 
 const providerMetadata = computedAsync(async () => {
@@ -69,7 +67,6 @@ let pendingPatch: Record<string, unknown> | undefined
 let inFlightPatch: Record<string, unknown> | undefined
 let pendingProviderConfigUpdate: Promise<void> | undefined
 let applyingSnapshot = false
-let mounted = true
 
 /**
  * Resolves the voice settings a provider starts from.
@@ -174,27 +171,6 @@ function reportSaveError(error: unknown) {
   console.error('Failed to save speech settings:', errorMessageFrom(error))
 }
 
-const unregister = settingsPersistence.register(flushSettings)
-
-async function flushSettings() {
-  debouncedUpdate.cancel()
-  await persistProviderConfig()
-  if (!mounted)
-    unregister()
-}
-
-onBeforeUnmount(async () => {
-  mounted = false
-  // Vue does not await unmount hooks. Keep this barrier registered until saving
-  // succeeds, so an immediate Electron window close still waits for the RPC.
-  try {
-    await flushSettings()
-  }
-  catch (error) {
-    reportSaveError(error)
-  }
-})
-
 async function scheduleProviderConfigUpdate(patch: Record<string, unknown>) {
   if (!settingsInitialized || applyingSnapshot)
     return
@@ -210,8 +186,7 @@ async function scheduleProviderConfigUpdate(patch: Record<string, unknown>) {
   }
 }
 
-// Synchronous watchers distinguish input from snapshot assignments and record
-// edits before a close request can ask the renderer to flush.
+// Synchronous watchers distinguish user input from guarded snapshot assignments.
 watch(apiKey, async (value) => {
   if (!props.hideApiKey)
     await scheduleProviderConfigUpdate({ apiKey: value })
