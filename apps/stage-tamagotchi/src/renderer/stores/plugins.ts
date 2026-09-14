@@ -98,7 +98,8 @@ export const usePluginsStore = defineStore('plugins', () => {
     // Main-process unload treats unknown sessions as already stopped, so reload
     // also works for plugins that are enabled but not currently loaded.
     await runCommand(extensionId, async () => {
-      await unloadPlugin({ extensionId })
+      // Keep the stopped state visible when the following load fails.
+      assignSnapshot(await unloadPlugin({ extensionId }))
       assignSnapshot(await loadPlugin({ extensionId }))
     })
   }

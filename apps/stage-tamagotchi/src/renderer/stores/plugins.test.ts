@@ -123,6 +123,30 @@ describe('usePluginsStore', async () => {
     expect(store.plugins).toEqual([expect.objectContaining({ extensionId: 'test-plugin', enabled: true, loaded: true })])
   })
 
+  it('keeps the unloaded snapshot when reload fails to load', async () => {
+    invokeMocks.list.mockResolvedValue(createSnapshot(createPluginSummary({ enabled: true, loaded: true })))
+    invokeMocks.unload.mockResolvedValue(createSnapshot(createPluginSummary({ enabled: true, loaded: false })))
+    invokeMocks.load.mockRejectedValue(new Error('entrypoint import failed'))
+
+    const store = usePluginsStore()
+    await store.refresh()
+
+    // ROOT CAUSE:
+    //
+    // Reload dropped the snapshot returned by unload. When the following load
+    // failed, no snapshot was assigned, so the UI kept showing the old loaded
+    // state although the session had already stopped.
+    //
+    // We fixed this by assigning the unload snapshot before the load starts.
+    await expect(store.reload('test-plugin')).rejects.toThrow('entrypoint import failed')
+
+    expect(invokeMocks.unload).toHaveBeenCalledWith({ extensionId: 'test-plugin' })
+    expect(invokeMocks.load).toHaveBeenCalledWith({ extensionId: 'test-plugin' })
+    expect(store.plugins).toEqual([expect.objectContaining({ extensionId: 'test-plugin', enabled: true, loaded: false })])
+    expect(store.loading).toBe(false)
+    expect(store.pendingExtensionId).toBeUndefined()
+  })
+
   it('unloads before it persists the disabled state', async () => {
     invokeMocks.list.mockResolvedValue(createSnapshot(createPluginSummary({ enabled: true, loaded: true })))
     invokeMocks.unload.mockResolvedValue(createSnapshot(createPluginSummary({ enabled: true, loaded: false })))
