@@ -41,6 +41,14 @@ jobs:
       # https://github.com/e18e/ecosystem-issues/issues/201
       - run: npm install -g npm@latest
 
+      - name: Cache bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - run: bun install --frozen-lockfile
       - run: bun run build:packages
 

@@ -27,6 +27,14 @@ jobs:
         with:
           bun-version: 1.4.2
 
+      - name: Cache bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - run: bun install --frozen-lockfile
 
       # The TBX file is generated, never committed, so it cannot drift from terms.yaml.
