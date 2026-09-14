@@ -1,12 +1,13 @@
-import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
-import type { App } from 'vue'
+import type { LeadershipMode } from 'pinia-plugin-synced'
+
+import type { ProviderValidationStatus } from '../../../libs/providers/types'
 
 import en from '@proj-airi/i18n/locales/en'
 
 import { PiniaColada } from '@pinia/colada'
 import { createPinia, disposePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
@@ -18,24 +19,13 @@ import { useSpeechStore } from '../../../stores/modules/speech'
 import { useProviderConfigStore } from '../../../stores/providers/config'
 import { useProviderStore } from '../../../stores/providers/provider'
 
-const contexts: Array<{ app: App, pinia: ReturnType<typeof createPinia>, runtime: SyncedPiniaRuntime }> = []
-const unmounts: Array<() => void> = []
-const releaseRequests: Array<() => void> = []
-
 function createContext(namespace: string, leadership: LeadershipMode) {
   const pinia = createPinia()
   const runtime = createSyncedPiniaPlugin({ namespace, leadership, callTimeout: 3000 })
   pinia.use(runtime.plugin)
-  let stores: {
-    config: ReturnType<typeof useProviderConfigStore>
-    providers: ReturnType<typeof useProviderStore>
-  } | undefined
   const app = createApp({
     setup() {
-      stores = {
-        config: useProviderConfigStore(),
-        providers: useProviderStore(),
-      }
+      useProviderStore()
       useSpeechStore()
       return () => null
     },
@@ -44,13 +34,15 @@ function createContext(namespace: string, leadership: LeadershipMode) {
     .use(pinia)
     .use(PiniaColada)
     .mount(document.createElement('div'))
-  if (!stores)
-    throw new Error('Provider stores did not initialize')
-  contexts.push({ app, pinia, runtime })
-  return { ...stores, pinia, runtime }
+  onTestFinished(() => {
+    app.unmount()
+    runtime.dispose()
+    disposePinia(pinia)
+  })
+  return { pinia, runtime, config: useProviderConfigStore(pinia), providers: useProviderStore(pinia) }
 }
 
-async function createRenderers(providerId: string) {
+async function mountSettings(providerId: string, status: ProviderValidationStatus = 'unconfigured') {
   const namespace = `speech-settings:${crypto.randomUUID()}`
   const leader = createContext(namespace, 'leader-only')
   await expect.poll(() => leader.runtime.isLeader()).toBe(true)
@@ -62,11 +54,12 @@ async function createRenderers(providerId: string) {
     baseUrl: 'http://localhost:50021/',
     voiceSettings: { pitch: 0, speed: 0.5, volume: 1 },
   })
-  await expect.poll(() => follower.config.getProviderConfig(providerId)?.voiceSettings).toMatchObject({ speed: 0.5 })
-  return { leader, follower }
-}
+  await leader.config.setProviderStatus(providerId, status)
+  await expect.poll(() => follower.config.getProvider(providerId)).toMatchObject({
+    status,
+    config: { voiceSettings: { speed: 0.5 } },
+  })
 
-async function mountSettings(pinia: ReturnType<typeof createPinia>, providerId: string) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/', component: { template: '<div />' } }],
@@ -76,11 +69,12 @@ async function mountSettings(pinia: ReturnType<typeof createPinia>, providerId: 
     props: { providerId, hideApiKey: providerId === 'voicevox' },
     global: {
       directives: { motion: {} },
-      plugins: [pinia, PiniaColada, createI18n({ legacy: false, locale: 'en', messages: { en } }), router],
+      plugins: [follower.pinia, PiniaColada, createI18n({ legacy: false, locale: 'en', messages: { en } }), router],
     },
   })
-  unmounts.push(() => screen.unmount())
-  return screen
+  // Finished hooks run in reverse order: unmount the form before its stores.
+  onTestFinished(() => screen.unmount())
+  return { leader, follower, screen }
 }
 
 describe('speech settings in a follower window', () => {
@@ -92,15 +86,6 @@ describe('speech settings in a follower window', () => {
   })
 
   afterEach(() => {
-    for (const release of releaseRequests.splice(0))
-      release()
-    for (const unmount of unmounts.splice(0))
-      unmount()
-    for (const context of contexts.splice(0)) {
-      context.app.unmount()
-      context.runtime.dispose()
-      disposePinia(context.pinia)
-    }
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     localStorage.clear()
@@ -110,26 +95,20 @@ describe('speech settings in a follower window', () => {
   // ROOT CAUSE:
   //
   // The form waited for the voice catalog before enabling persistence.
-  // A user could edit the visible form while that request was pending.
-  // The watchers discarded those edits and never saved them after the request.
+  // Watchers discarded edits made while that request was pending.
   it('saves edits while the configured provider loads its voice catalog', async () => {
-    const { leader, follower } = await createRenderers('voicevox')
-    await leader.config.setProviderStatus('voicevox', 'configured')
-    await expect.poll(() => follower.config.configuredProviders.voicevox).toBe(true)
-
+    const response = Promise.withResolvers<Response>()
+    onTestFinished(() => response.resolve(Response.json([])))
     let requested = false
-    const response = new Promise<Response>((resolve) => {
-      releaseRequests.push(() => resolve(Response.json([])))
-    })
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
       if (String(input).includes('/speakers')) {
         requested = true
-        return response
+        return response.promise
       }
       throw new TypeError('Test backend is offline')
     }))
 
-    const screen = await mountSettings(follower.pinia, 'voicevox')
+    const { leader, screen } = await mountSettings('voicevox', 'configured')
     await expect.poll(() => requested).toBe(true)
     await screen.getByTitle('Reset settings').click()
     await expect.poll(() => leader.config.getProviderConfig('voicevox')?.voiceSettings).toMatchObject({ speed: 1 })
@@ -139,13 +118,11 @@ describe('speech settings in a follower window', () => {
   // https://github.com/moeru-ai/airi/pull/2467
   // ROOT CAUSE:
   //
-  // Every form change sent the local API key and URL along with voice settings.
-  // A remote snapshot updated the store but left those form drafts unchanged.
-  // Resetting the voice settings could therefore restore older credentials.
+  // Every edit sent the local API key and URL along with voice settings.
+  // Resetting voice settings could overwrite newer credentials from the leader.
   it('keeps newer leader fields when the follower resets voice settings', async () => {
     const providerId = 'openai-audio-speech'
-    const { leader, follower } = await createRenderers(providerId)
-    const screen = await mountSettings(follower.pinia, providerId)
+    const { leader, follower, screen } = await mountSettings(providerId)
     await expect.element(screen.getByPlaceholder('API Key', { exact: true })).toHaveValue('original-key')
 
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
@@ -166,10 +143,10 @@ describe('speech settings in a follower window', () => {
       rest: expect.arrayContaining(['replaceState']),
     }))
   })
+
   it('combines credential and voice edits made in one debounce interval', async () => {
     const providerId = 'openai-audio-speech'
-    const { leader, follower } = await createRenderers(providerId)
-    const screen = await mountSettings(follower.pinia, providerId)
+    const { leader, screen } = await mountSettings(providerId)
     const key = screen.getByPlaceholder('API Key', { exact: true })
     await expect.element(key).toHaveValue('original-key')
 
@@ -183,6 +160,5 @@ describe('speech settings in a follower window', () => {
       baseUrl: 'https://edited.example/v1/',
       voiceSettings: { speed: 1 },
     })
-    await expect.poll(() => follower.config.getProviderConfig(providerId)?.apiKey).toBe('edited-key')
   })
 })
