@@ -1,12 +1,13 @@
 import type { Extension } from '../../../../extension'
 import type { ExtensionLoadOptions, ExtensionManifestV1 } from '../../../shared/types'
 
-import { registerHooks } from 'node:module'
-import { dirname, isAbsolute, join, sep } from 'node:path'
+import { createRequire, registerHooks } from 'node:module'
+import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { cwd } from 'node:process'
 import { pathToFileURL } from 'node:url'
 
 const urlSchemePattern = /^[a-z][\d+.a-z-]*:\/\//i
+const requireForCommonJsCache = createRequire(import.meta.url)
 
 /**
  * Converts a resolved filesystem entrypoint into an ESM import specifier.
@@ -54,6 +55,26 @@ function findModuleGeneration(parentUrl: string): { cacheBustKey: string, rootUr
   }
 
   return undefined
+}
+
+/**
+ * Drops CommonJS module cache entries below one plugin root.
+ *
+ * Node keys the CommonJS cache by resolved filename and ignores URL queries, so
+ * a cache-busted `import()` can still return a previously required CommonJS
+ * module. Purging the entries before a load makes CommonJS entrypoints and
+ * CommonJS helpers re-run with the current files.
+ */
+function clearCommonJsModuleCache(root: string) {
+  const rootPath = resolve(root)
+  const rootPrefix = `${rootPath}${sep}`
+
+  for (const modulePath of Object.keys(requireForCommonJsCache.cache)) {
+    const normalizedModulePath = resolve(modulePath)
+    if (normalizedModulePath === rootPath || normalizedModulePath.startsWith(rootPrefix)) {
+      delete requireForCommonJsCache.cache[modulePath]
+    }
+  }
 }
 
 /**
@@ -173,10 +194,15 @@ export class FileSystemLoader {
 
     if (options?.cacheBustKey) {
       registerPluginModuleGraphHook()
+      const pluginRoot = options.cwd || dirname(entrypoint)
       // Register the plugin root and the entrypoint directory, so relative
       // imports from either location receive the same cache-bust generation.
-      pluginModuleGenerations.set(createRootUrl(options.cwd || dirname(entrypoint)), options.cacheBustKey)
+      pluginModuleGenerations.set(createRootUrl(pluginRoot), options.cacheBustKey)
       pluginModuleGenerations.set(createRootUrl(dirname(entrypoint)), options.cacheBustKey)
+      // CommonJS modules ignore URL queries in the module cache, so drop the
+      // entries under the plugin root to make reloads read the current files.
+      clearCommonJsModuleCache(pluginRoot)
+      clearCommonJsModuleCache(dirname(entrypoint))
     }
 
     const extensionModule = await import(options?.cacheBustKey

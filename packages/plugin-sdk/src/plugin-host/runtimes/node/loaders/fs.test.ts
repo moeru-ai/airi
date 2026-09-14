@@ -133,4 +133,54 @@ describe('fileSystemLoader', () => {
 
     expect(stdout.trim()).toBe('2')
   })
+
+  // NOTICE:
+  // CommonJS modules ignore URL queries in the module cache, so the loader must
+  // clear their cached entries on a cache-busted load. This test runs in a
+  // child Node process for the same reason as the module graph test above.
+  it('re-imports CommonJS modules when the cache-bust key changes', async () => {
+    const loaderUrl = pathToFileURL(join(import.meta.dirname, 'fs.ts')).href
+    const entryManifest: ExtensionManifestV1 = {
+      apiVersion: 'v1',
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'test-loader-plugin',
+      permissions: {},
+      entrypoints: { electron: './entry.cjs' },
+    }
+    const esmManifest: ExtensionManifestV1 = {
+      ...entryManifest,
+      entrypoints: { electron: './index.mjs' },
+    }
+
+    await writeFile(join(pluginDir, 'entry.cjs'), [
+      'globalThis.__airiCjsEntryEvaluations = (globalThis.__airiCjsEntryEvaluations ?? 0) + 1',
+      'module.exports = { id: "test-loader-plugin", setup() {} }',
+    ].join('\n'))
+    await writeFile(
+      join(pluginDir, 'helper.cjs'),
+      'globalThis.__airiCjsHelperEvaluations = (globalThis.__airiCjsHelperEvaluations ?? 0) + 1',
+    )
+    await writeFile(join(pluginDir, 'index.mjs'), [
+      'import "./helper.cjs"',
+      'export default { id: "test-loader-plugin", setup() {} }',
+    ].join('\n'))
+
+    const probePath = join(pluginDir, 'probe-cjs.mjs')
+    await writeFile(probePath, [
+      `import { FileSystemLoader } from ${JSON.stringify(loaderUrl)}`,
+      '',
+      `const entryManifest = ${JSON.stringify(entryManifest)}`,
+      `const esmManifest = ${JSON.stringify(esmManifest)}`,
+      'const loader = new FileSystemLoader()',
+      `await loader.loadExtensionFor(entryManifest, { cacheBustKey: 'cjs-1', cwd: ${JSON.stringify(pluginDir)} })`,
+      `await loader.loadExtensionFor(entryManifest, { cacheBustKey: 'cjs-2', cwd: ${JSON.stringify(pluginDir)} })`,
+      `await loader.loadExtensionFor(esmManifest, { cacheBustKey: 'esm-1', cwd: ${JSON.stringify(pluginDir)} })`,
+      `await loader.loadExtensionFor(esmManifest, { cacheBustKey: 'esm-2', cwd: ${JSON.stringify(pluginDir)} })`,
+      'console.log(globalThis.__airiCjsEntryEvaluations + "," + globalThis.__airiCjsHelperEvaluations)',
+    ].join('\n'))
+
+    const { stdout } = await execFileAsync(process.execPath, [probePath], { cwd: pluginDir })
+
+    expect(stdout.trim()).toBe('2,2')
+  })
 })
