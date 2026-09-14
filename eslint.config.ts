@@ -1,3 +1,5 @@
+import slop from 'eslint-plugin-slop'
+
 import { defineConfig } from '@moeru/eslint-config'
 
 export default defineConfig({
@@ -29,9 +31,27 @@ export default defineConfig({
     '**/.astro/**',
     'docs/superpowers/**',
     '.agents/**',
+    'tools/oxlint/anti-slop/**',
     '.github/**',
     'CLAUDE.md', // Skip the symbolic link
   ],
+}, {
+  name: 'airi/slop',
+  files: ['**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}'],
+  plugins: { slop },
+  settings: { slop: { inspection: { mode: 'full' } } },
+  rules: {
+    'slop/max-comment-length': 'warn',
+    'slop/no-chained-type-assertions': 'warn',
+    // Product text and translations can use this punctuation.
+    'slop/no-em-dash': 'off',
+    'slop/no-jargon': 'warn',
+    'slop/no-static-only-class': 'warn',
+    'slop/no-trivial-functions': 'warn',
+    // Anti-slop covers unknown aliases. Named primitive domain types remain valid.
+    'slop/no-trivial-type-aliases': 'off',
+    'slop/prefer-jsdoc': 'warn',
+  },
 }, {
   rules: {
     'antfu/import-dedupe': 'error',

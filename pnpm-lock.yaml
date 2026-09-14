@@ -330,6 +330,9 @@ catalogs:
     '@opentelemetry/semantic-conventions':
       specifier: ^1.43.0
       version: 1.43.0
+    '@oxlint/plugins':
+      specifier: 1.79.0
+      version: 1.79.0
     '@pinia/colada':
       specifier: ^1.4.2
       version: 1.4.2
@@ -738,6 +741,9 @@ catalogs:
     eslint-plugin-perfectionist:
       specifier: ^5.10.1
       version: 5.10.1
+    eslint-plugin-slop:
+      specifier: 0.1.3
+      version: 0.1.3
     eventemitter3:
       specifier: ^5.0.4
       version: 5.0.4
@@ -895,7 +901,7 @@ catalogs:
       specifier: ^0.146.0
       version: 0.146.0
     oxlint:
-      specifier: ^1.79.0
+      specifier: 1.79.0
       version: 1.79.0
     p-limit:
       specifier: ^7.3.1
@@ -1272,6 +1278,9 @@ importers:
       '@moeru/eslint-config':
         specifier: 'catalog:'
         version: 0.1.0-beta.19(@antfu/eslint-config@8.2.0(@typescript-eslint/typescript-estree@8.67.0(supports-color@10.2.2)(typescript@6.0.3))(@typescript-eslint/utils@8.67.0(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@unocss/eslint-plugin@66.7.5(@typescript-eslint/types@8.67.0)(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3))(@vue/compiler-sfc@3.5.41)(eslint-plugin-format@2.0.1(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2)))(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(oxlint@1.79.0)(supports-color@10.2.2)(typescript@6.0.3)(vitest@4.1.11))(eslint-plugin-oxlint@1.79.0(oxlint@1.79.0))(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      '@oxlint/plugins':
+        specifier: 'catalog:'
+        version: 1.79.0
       '@proj-airi/unocss-preset-chromatic':
         specifier: 'catalog:'
         version: 1.1.4
@@ -1314,6 +1323,9 @@ importers:
       eslint-plugin-perfectionist:
         specifier: 'catalog:'
         version: 5.10.1(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@6.0.3)
+      eslint-plugin-slop:
+        specifier: 'catalog:'
+        version: 0.1.3(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))
       knip:
         specifier: 'catalog:'
         version: 6.32.2
@@ -10117,6 +10129,10 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@oxlint/plugins@1.79.0':
+    resolution: {integrity: sha512-S0uyoxakDINJ4DPgqxGlEEvrdSMeQb7Z2lKVjxoY2gwsbZbfg2Xr8Klfeo5ZeraHmmdBCELFUHkSe6KEmBpMvg==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+
   '@package-json/types@0.0.13':
     resolution: {integrity: sha512-QL0MO8uptW+EdqK2Un6imfaN9gQ1G5pUEUlvPfHmNrgRTJTGVraKnRbDN5d4N/Z3cWTPDHjiEDJPDEpppldr4g==}
 
@@ -14573,6 +14589,11 @@ packages:
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
     peerDependencies:
       eslint: '>=9.38.0'
+
+  eslint-plugin-slop@0.1.3:
+    resolution: {integrity: sha512-BktDwEdrqqy+THOMvSBXsrzcb6hZp2pPfLeEYXU66cP809UroTpzeQK0lFLa1u9XlC12GCSq95NB9xEZxyr89w==}
+    peerDependencies:
+      eslint: ^10.0.0
 
   eslint-plugin-sonarjs@4.2.0:
     resolution: {integrity: sha512-bqADfuNtTL7VK6RU29eoiFTtaaBKIpVPuX3bOl+rBpWSBa0zIBVZlqZNZQjfP6s4iXkAJokv5IsD8OsACkwApg==}
@@ -24273,6 +24294,8 @@ snapshots:
   '@oxlint/binding-win32-x64-msvc@1.79.0':
     optional: true
 
+  '@oxlint/plugins@1.79.0': {}
+
   '@package-json/types@0.0.13': {}
 
   '@peculiar/asn1-schema@2.9.4':
@@ -28954,6 +28977,11 @@ snapshots:
       refa: 0.12.1
       regexp-ast-analysis: 0.7.1
       scslre: 0.3.0
+
+  eslint-plugin-slop@0.1.3(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2)):
+    dependencies:
+      diff: 9.0.0
+      eslint: 10.9.0(jiti@2.7.0)(supports-color@10.2.2)
 
   eslint-plugin-sonarjs@4.2.0(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2)):
     dependencies:
