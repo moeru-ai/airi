@@ -17,7 +17,7 @@ export interface TaskMemoryArtifact {
  * Primary task execution state attached to a computer-use session.
  */
 export interface TaskMemory {
-  /** --- Primary fields --- */
+  // --- Primary fields ---
   status: TaskMemoryStatus
   goal: string | null
   currentStep: string | null
@@ -29,7 +29,7 @@ export interface TaskMemory {
   /** Identifies which tool invocation / turn produced this snapshot. */
   sourceTurnId: string
 
-  /** --- Secondary fields (all optional) --- */
+  // --- Secondary fields (all optional) ---
   plan?: string[]
   workingAssumptions?: string[]
   recentFailureReason?: string | null

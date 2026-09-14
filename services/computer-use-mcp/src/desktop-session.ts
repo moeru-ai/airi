@@ -13,11 +13,10 @@ import type { ChromeSessionManager } from './chrome-session-manager'
 import type { RunStateManager } from './state'
 import type { ForegroundContext } from './types'
 
-/**
- * ---------------------------------------------------------------------------
- * Types
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 export interface OwnedWindow {
   /** Application name (e.g. "Google Chrome"). */
   appName: string
@@ -44,11 +43,10 @@ export interface DesktopSession {
   lastActiveAt: string
 }
 
-/**
- * ---------------------------------------------------------------------------
- * Session Controller
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Session Controller
+// ---------------------------------------------------------------------------
+
 export interface DesktopSessionController {
   /**
    * Begin a new session targeting a specific app.

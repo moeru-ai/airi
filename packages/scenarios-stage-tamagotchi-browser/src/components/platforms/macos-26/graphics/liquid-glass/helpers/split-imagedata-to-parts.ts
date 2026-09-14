@@ -4,7 +4,7 @@
  */
 import { imageDataToUrl } from './image-data-to-url'
 
-/** Each part is a Base64-encoded PNG image */
+// Each part is a Base64-encoded PNG image
 export interface Parts {
   topLeft: string
   top: string

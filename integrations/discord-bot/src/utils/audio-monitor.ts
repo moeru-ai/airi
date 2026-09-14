@@ -4,10 +4,8 @@ import { Buffer } from 'node:buffer'
 
 import { useLogg } from '@guiiai/logg'
 
-/**
- * eliza/packages/client-discord/src/voice.ts at develop · elizaOS/eliza
- * https://github.com/elizaOS/eliza/blob/develop/packages/client-discord/src/voice.ts
- */
+// eliza/packages/client-discord/src/voice.ts at develop · elizaOS/eliza
+// https://github.com/elizaOS/eliza/blob/develop/packages/client-discord/src/voice.ts
 export class AudioMonitor {
   private readable: Readable
   private buffers: Buffer[] = []

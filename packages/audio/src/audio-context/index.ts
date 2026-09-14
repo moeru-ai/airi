@@ -305,7 +305,7 @@ export function isAudioContextReady(): boolean {
   return isReady
 }
 
-/** Event subscription */
+// Event subscription
 export function subscribeToAudioContext(listener: (state: State) => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)

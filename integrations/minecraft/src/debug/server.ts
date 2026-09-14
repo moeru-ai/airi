@@ -55,14 +55,14 @@ export class DebugServer {
   private clients: Map<string, ClientInfo> = new Map()
   private commandHandlers: Map<string, CommandHandler[]> = new Map()
 
-  /** History buffer (Ring buffer) */
+  // History buffer (Ring buffer)
   private history: ServerEvent[] = []
   private readonly MAX_HISTORY = 1000
 
-  /** File Logging */
+  // File Logging
   private logStream: fs.WriteStream | null = null
 
-  /** Heartbeat */
+  // Heartbeat
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null
   private readonly HEARTBEAT_INTERVAL = 30000
 
@@ -129,11 +129,10 @@ export class DebugServer {
     this.logStream = null
   }
 
-  /**
-   * ============================================================
-   * Public API for emitting events
-   * ============================================================
-   */
+  // ============================================================
+  // Public API for emitting events
+  // ============================================================
+
   public broadcast(event: ServerEvent): void {
     // Add to history
     this.addToHistory(event)
@@ -152,11 +151,10 @@ export class DebugServer {
     }
   }
 
-  /**
-   * ============================================================
-   * Command handling
-   * ============================================================
-   */
+  // ============================================================
+  // Command handling
+  // ============================================================
+
   public onCommand(type: string, handler: CommandHandler): () => void {
     const handlers = this.commandHandlers.get(type) || []
     handlers.push(handler)
@@ -174,11 +172,10 @@ export class DebugServer {
     }
   }
 
-  /**
-   * ============================================================
-   * Private methods
-   * ============================================================
-   */
+  // ============================================================
+  // Private methods
+  // ============================================================
+
   private handleHttpRequest(req: IncomingMessage, res: http.ServerResponse): void {
     // Enable CORS
     res.setHeader('Access-Control-Allow-Origin', '*')

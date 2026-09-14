@@ -117,11 +117,10 @@ export interface CompactedBlock {
   entryIdRange: [number, number]
 }
 
-/**
- * ---------------------------------------------------------------------------
- * 4. Projection Output - what the projection layer produces
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// 4. Projection Output - what the projection layer produces
+// ---------------------------------------------------------------------------
+
 export type ProjectedBlock = TranscriptBlock | CompactedBlock
 
 export interface TranscriptProjectionResult {

@@ -54,7 +54,7 @@ export function getLoadQueue(): LoadQueue {
   return loadQueue
 }
 
-/** Rough VRAM estimates per model (in bytes) for allocation tracking */
+// Rough VRAM estimates per model (in bytes) for allocation tracking
 export const MODEL_VRAM_ESTIMATES: Record<string, number> = {
   // Kokoro 82M — varies by quantization
   'kokoro-fp32-webgpu': 330 * 1024 * 1024, // ~330 MB

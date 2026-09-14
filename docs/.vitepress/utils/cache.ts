@@ -1,8 +1,6 @@
-/**
- * adapted from https://stackoverflow.com/a/46432113/11613622
- * eslint-disable-next-line ts/ban-ts-comment
- * @ts-nocheck
- */
+// adapted from https://stackoverflow.com/a/46432113/11613622
+// eslint-disable-next-line ts/ban-ts-comment
+// @ts-nocheck
 export class LRUCache {
   max
   cache

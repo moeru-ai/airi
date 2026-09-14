@@ -9,10 +9,8 @@ import defaultSkyBoxSrc from '../components/Environment/assets/sky_linekotsi_23_
 import { DEFAULT_CAMERA_POSITION, useThreeCamera } from './camera'
 import { supportedControl, useThreeViewControl } from './view-control'
 
-/**
- * TODO: this is for future type injection features
- * TODO: make a separate type.ts
- */
+// TODO: this is for future type injection features
+// TODO: make a separate type.ts
 export interface Vec3 { x: number, y: number, z: number }
 export interface SceneBootstrap {
   cacheHit: boolean
@@ -60,9 +58,9 @@ export interface FieldKindMap {
   color: { def: ColorField, value: HexColor }
   select: { def: SelectField<any>, value: string }
 }
-/** type of Field */
+// type of Field
 export type FieldDef = FieldKindMap[keyof FieldKindMap]['def']
-/** type of value */
+// type of value
 export type FieldValueOf<D> = D extends SelectField<infer T> ? T
   : D extends { type: infer K }
     ? K extends keyof FieldKindMap ? FieldKindMap[K]['value'] : never

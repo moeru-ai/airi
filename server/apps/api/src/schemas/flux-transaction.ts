@@ -3,12 +3,10 @@ import { bigint, index, jsonb, pgTable, text, timestamp, uniqueIndex } from 'dri
 
 import { nanoid } from '../utils/id'
 
-/**
- * NOTICE: ledger is permanent — bare userId (no FK) and no `deletedAt` column,
- * both intentional. Entries must outlive the user row, and better-auth's
- * hard-delete of user.id must not cascade-wipe the ledger.
- * See `server/apps/api/docs/ai-context/account-deletion.md`.
- */
+// NOTICE: ledger is permanent — bare userId (no FK) and no `deletedAt` column,
+// both intentional. Entries must outlive the user row, and better-auth's
+// hard-delete of user.id must not cascade-wipe the ledger.
+// See `server/apps/api/docs/ai-context/account-deletion.md`.
 export const fluxTransaction = pgTable('flux_transaction', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
   userId: text('user_id').notNull(),

@@ -15,11 +15,9 @@ function containsFragment(input: string, fragments: string[]) {
   return fragments.some(fragment => input.includes(fragment))
 }
 
-/**
- * NOTICE: The remote debug endpoint exposes multiple renderer pages for Electron.
- * We only want actual AIRI app pages here; helper pages like beat-sync and devtools
- * will never expose `window.__AIRI_DEBUG__` and should be deprioritized early.
- */
+// NOTICE: The remote debug endpoint exposes multiple renderer pages for Electron.
+// We only want actual AIRI app pages here; helper pages like beat-sync and devtools
+// will never expose `window.__AIRI_DEBUG__` and should be deprioritized early.
 export function isInspectableAiriRendererTarget(target: DebugTargetLike) {
   if (target.type !== 'page') {
     return false

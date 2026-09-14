@@ -150,5 +150,5 @@ export function createPerfTracer(): PerfTracer {
   }
 }
 
-/** Default singleton used across surfaces. Devtools should call enable/disable explicitly. */
+// Default singleton used across surfaces. Devtools should call enable/disable explicitly.
 export const defaultPerfTracer = createPerfTracer()

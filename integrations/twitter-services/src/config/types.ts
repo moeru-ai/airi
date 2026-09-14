@@ -7,13 +7,13 @@ import process from 'node:process'
  * Complete configuration interface
  */
 export interface Config {
-  /** Browser configuration */
+  // Browser configuration
   browser: BrowserConfig & {
     apiKey: string // API Key for Stagehand
     endpoint?: string // Optional Stagehand service endpoint
   }
 
-  /** Twitter API credentials */
+  // Twitter API credentials
   credentials?: {
     apiKey?: string
     apiSecret?: string
@@ -21,7 +21,7 @@ export interface Config {
     accessTokenSecret?: string
   }
 
-  /** Twitter configuration */
+  // Twitter configuration
   twitter: {
     defaultOptions?: {
       timeline?: TimelineOptions
@@ -29,7 +29,7 @@ export interface Config {
     }
   }
 
-  /** Adapter configuration */
+  // Adapter configuration
   adapters: {
     airi?: {
       url?: string
@@ -42,7 +42,7 @@ export interface Config {
     }
   }
 
-  /** System configuration */
+  // System configuration
   system: {
     logLevel: 'error' | 'warn' | 'info' | 'verbose' | 'debug'
     logFormat?: 'json' | 'pretty'

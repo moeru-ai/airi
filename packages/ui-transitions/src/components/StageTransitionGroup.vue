@@ -47,7 +47,7 @@ const transitionStage = ref<TransitionStage>()
 const activeTransitionName = ref('')
 const activeStageTransitionParams = ref<StageTransitionCommonParams>()
 
-/** Define transition lifecycle events */
+// Define transition lifecycle events
 export type TransitionStage
   = | 'before-enter' // Just before animation starts
     | 'enter-active' // Animation has started

@@ -6,7 +6,7 @@ import { defineConfig } from 'wxt'
 
 type VitePlugin = NonNullable<WxtViteConfig['plugins']>[number]
 
-/** See https://wxt.dev/api/config.html */
+// See https://wxt.dev/api/config.html
 export default defineConfig({
   modules: ['@wxt-dev/module-vue'],
   manifest: {

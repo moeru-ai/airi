@@ -110,10 +110,8 @@ export interface RuleEngineConfig {
  */
 export class RuleEngine {
   private readonly rules: Rule[] = []
-  /**
-   * NOTICE: Keep detector states mutable in a Map on the hot path to avoid
-   * per-event object spreads/freezes; only export frozen snapshots for debug reads.
-   */
+  // NOTICE: Keep detector states mutable in a Map on the hot path to avoid
+  // per-event object spreads/freezes; only export frozen snapshots for debug reads.
   private readonly detectors: Map<string, DetectorState> = new Map()
   private readonly detectorDecisions: DetectorDecisionSnapshot[] = []
   private unsubscribe: (() => void) | null = null

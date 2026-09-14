@@ -696,7 +696,8 @@ class ConversationPanel {
     }
   }
 
-  /** --- Session rendering --- */
+  // --- Session rendering ---
+
   renderSession(session) {
     const { messages } = session
     if (!messages || messages.length === 0)
@@ -767,7 +768,8 @@ class ConversationPanel {
     </div>`
   }
 
-  /** --- Event summary helpers --- */
+  // --- Event summary helpers ---
+
   summarizeEvent(section) {
     const text = section.text
     // Chat messages: "Chat from X: "message""
@@ -806,7 +808,8 @@ class ConversationPanel {
     return flat + (text.length > 70 ? '...' : '')
   }
 
-  /** --- Parsed user message rendering --- */
+  // --- Parsed user message rendering ---
+
   renderParsedUserMessage(parsed, turnNum) {
     if (!parsed)
       return ''
@@ -865,7 +868,8 @@ class ConversationPanel {
     </div>`
   }
 
-  /** --- Parsed assistant message rendering --- */
+  // --- Parsed assistant message rendering ---
+
   renderParsedAssistantMessage(msg, turnNum) {
     const reasoning = msg.reasoning || ''
     const code = msg.content || ''
@@ -896,7 +900,8 @@ class ConversationPanel {
     return `<div class="cv-assistant">${parts.join('')}</div>`
   }
 
-  /** --- System message --- */
+  // --- System message ---
+
   renderSystemMessage(msg) {
     const id = `cv-sys-${Math.random().toString(36).slice(2, 6)}`
     const preview = formatSystemMessageContent(msg.content || '')

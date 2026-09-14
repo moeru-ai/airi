@@ -18,11 +18,10 @@ import type { TerminalStepConfig } from './types'
 
 import { hasInteractiveOutputMarkers, isKnownInteractiveCommand } from '../terminal/interactive-patterns'
 
-/**
- * ---------------------------------------------------------------------------
- * Types
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 export interface SurfaceResolutionInput {
   taskId: string
   stepId: string

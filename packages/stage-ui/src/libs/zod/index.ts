@@ -3,7 +3,7 @@ import type { $ZodType } from 'zod/v4/core'
 
 import { ZodDefault } from 'zod'
 
-/** https://github.com/colinhacks/zod/discussions/1953#discussioncomment-14098158 */
+// https://github.com/colinhacks/zod/discussions/1953#discussioncomment-14098158
 export function getSchemaDefault<T>(schema: $ZodType<T> | null | undefined): Partial<T> {
   if (!schema)
     return {}

@@ -110,11 +110,10 @@ export interface ConversationUpdateEvent {
 
 // Union type for all server events
 
-/**
- * ============================================================
- * Tool types
- * ============================================================
- */
+// ============================================================
+// Tool types
+// ============================================================
+
 export interface ToolParameter {
   name: string
   type: 'string' | 'number' | 'boolean'
@@ -172,7 +171,8 @@ export interface ReplExecutionResultEvent {
 // Server Events Extension
 // ============================================================
 
-/** ... (previous events) */
+// ... (previous events)
+
 export type ServerEvent
   = | { type: 'log', payload: LogEvent }
     | { type: 'llm', payload: LLMTraceEvent }
@@ -342,11 +342,10 @@ export type RequestConversationCommand = z.infer<typeof requestConversationComma
 export type ExecuteReplCommand = z.infer<typeof executeReplCommandSchema>
 export type ClientCommand = z.infer<typeof clientCommandSchema>
 
-/**
- * ============================================================
- * Wire format
- * ============================================================
- */
+// ============================================================
+// Wire format
+// ============================================================
+
 export interface DebugMessage<T = ServerEvent | ClientCommand> {
   id: string
   data: T

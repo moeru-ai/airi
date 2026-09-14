@@ -1,36 +1,36 @@
 export interface BaseVADConfig {
-  /** Sample rate of the audio */
+  // Sample rate of the audio
   sampleRate: number
-  /** Probabilities above this value are considered speech */
+  // Probabilities above this value are considered speech
   speechThreshold: number
-  /** Threshold to exit speech state */
+  // Threshold to exit speech state
   exitThreshold: number
-  /** Minimum silence duration to consider speech ended (ms) */
+  // Minimum silence duration to consider speech ended (ms)
   minSilenceDurationMs: number
-  /** Padding to add before and after speech (ms) */
+  // Padding to add before and after speech (ms)
   speechPadMs: number
-  /** Minimum duration of speech to consider valid (ms) */
+  // Minimum duration of speech to consider valid (ms)
   minSpeechDurationMs: number
-  /** Maximum buffer duration in seconds */
+  // Maximum buffer duration in seconds
   maxBufferDuration: number
-  /** Size of input buffers from audio source */
+  // Size of input buffers from audio source
   newBufferSize: number
 }
 
 export interface VADEvents {
-  /** Emitted when speech is detected */
+  // Emitted when speech is detected
   'speech-start': void
-  /** Emitted with each PCM chunk that belongs to the active speech segment */
+  // Emitted with each PCM chunk that belongs to the active speech segment
   'speech-audio': { buffer: Float32Array }
-  /** Emitted when speech has ended */
+  // Emitted when speech has ended
   'speech-end': void
-  /** Emitted when detected speech is too short to produce a segment */
+  // Emitted when detected speech is too short to produce a segment
   'speech-cancel': void
-  /** Emitted when a complete speech segment is ready for transcription */
+  // Emitted when a complete speech segment is ready for transcription
   'speech-ready': { buffer: Float32Array, duration: number }
-  /** Emitted for status updates and errors */
+  // Emitted for status updates and errors
   'status': { type: string, message: string }
-  /** Debug info */
+  // Debug info
   'debug': { message: string, data?: any }
 }
 

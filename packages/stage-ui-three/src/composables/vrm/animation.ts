@@ -47,7 +47,7 @@ export async function clipFromVRMAnimation(vrm?: VRMCore, animation?: VRMAnimati
   return createVRMAnimationClip(animation, vrm)
 }
 
-/** Set initial positions for animation */
+// Set initial positions for animation
 export function reAnchorRootPositionTrack(clip: AnimationClip, _vrm: VRMCore) {
 // Get the hips node to re-anchor the root position track
   const hipNode = _vrm.humanoid?.getNormalizedBoneNode('hips')

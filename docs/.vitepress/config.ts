@@ -38,7 +38,7 @@ function withBase(url: string) {
     : url
 }
 
-/** https://vitepress.dev/reference/site-config */
+// https://vitepress.dev/reference/site-config
 export default defineConfig<ThemeConfig>({
   cleanUrls: true,
   ignoreDeadLinks: true,

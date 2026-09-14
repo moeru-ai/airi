@@ -6,11 +6,9 @@ import { boolean, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
-/**
- * NOTICE: bare ownerId is intentional — no FK to user.id. better-auth hard-deletes
- * the user row; a cascade would wipe these soft-delete archive rows.
- * See `server/apps/api/docs/ai-context/account-deletion.md`.
- */
+// NOTICE: bare ownerId is intentional — no FK to user.id. better-auth hard-deletes
+// the user row; a cascade would wipe these soft-delete archive rows.
+// See `server/apps/api/docs/ai-context/account-deletion.md`.
 export const userProviderConfigs = pgTable(
   'user_provider_configs',
   {

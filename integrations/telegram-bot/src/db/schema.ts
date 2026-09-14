@@ -106,7 +106,7 @@ export const chatCompletionsHistoryTable = pgTable('chat_completions_history', {
   created_at: bigint({ mode: 'number' }).notNull().default(0).$defaultFn(() => Date.now()),
 })
 
-/** Memory Item table - base table for all memories */
+// Memory Item table - base table for all memories
 export const memoryFragmentsTable = pgTable('memory_fragments', {
   id: uuid().primaryKey().defaultRandom(),
   content: text().notNull(),
@@ -135,7 +135,7 @@ export const memoryFragmentsTable = pgTable('memory_fragments', {
   index('memory_items_last_accessed_index').on(table.last_accessed),
 ])
 
-/** Memory Tags junction table */
+// Memory Tags junction table
 export const memoryTagsTable = pgTable('memory_tags', {
   id: uuid().primaryKey().defaultRandom(),
   memory_id: uuid().notNull().references(() => memoryFragmentsTable.id, { onDelete: 'cascade' }),
@@ -147,7 +147,7 @@ export const memoryTagsTable = pgTable('memory_tags', {
   index('memory_tags_tag_index').on(table.tag),
 ])
 
-/** Episodic Memory (specific events) */
+// Episodic Memory (specific events)
 export const memoryEpisodicTable = pgTable('memory_episodic', {
   id: uuid().primaryKey().defaultRandom(),
   memory_id: uuid().notNull().references(() => memoryFragmentsTable.id, { onDelete: 'cascade' }),
@@ -161,7 +161,7 @@ export const memoryEpisodicTable = pgTable('memory_episodic', {
   index('memory_episodic_event_type_index').on(table.event_type),
 ])
 
-/** Goals table */
+// Goals table
 export const memoryLongTermGoalsTable = pgTable('memory_long_term_goals', {
   id: uuid().primaryKey().defaultRandom(),
   title: text().notNull(),
@@ -182,7 +182,7 @@ export const memoryLongTermGoalsTable = pgTable('memory_long_term_goals', {
   index('memory_long_term_goals_parent_goal_id_index').on(table.parent_goal_id),
 ])
 
-/** Ideas generated from dreams or normal thinking */
+// Ideas generated from dreams or normal thinking
 export const memoryShortTermIdeas = pgTable('memory_short_term_ideas', {
   id: uuid().primaryKey().defaultRandom(),
   content: text().notNull(),

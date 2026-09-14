@@ -2,9 +2,9 @@ import type { ReaderLike } from 'clustr'
 
 import { readGraphemeClusters } from 'clustr'
 
-/** A special character to instruct the TTS pipeline to flush */
+// A special character to instruct the TTS pipeline to flush
 export const TTS_FLUSH_INSTRUCTION = '\u200B'
-/** This is for special literals */
+// This is for special literals
 export const TTS_SPECIAL_TOKEN = '\u2063'
 
 const keptPunctuations = new Set('?？!！')
@@ -23,7 +23,7 @@ export interface TTSInputChunkOptions {
   maximumWords?: number
 }
 
-/** New output type for tts, metaData (special token) contained */
+// New output type for tts, metaData (special token) contained
 export interface TTSChunkItem {
   chunk: string
   special: string | null

@@ -19,11 +19,10 @@ import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordi
 import { LOAD_PRIORITY } from '../load-queue'
 import { classifyDeviceLossReason, classifyError, createRequestId, InferenceAbortError, throwIfAborted } from '../protocol'
 
-/**
- * ---------------------------------------------------------------------------
- * Types
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 export interface KokoroAdapter {
   /**
    * Load a TTS model with the given quantization and device.

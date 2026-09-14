@@ -68,7 +68,8 @@ export async function getRecentMessages(channelId: string, limit: number = 10) {
     .then(msgs => msgs.reverse())
 }
 
-/** Event Queue Persistence */
+// Event Queue Persistence
+
 export async function pushToEventQueue(item: { event: SatoriEvent, status: 'pending' | 'ready' }) {
   const id = nanoid()
   await db.insert(eventQueue).values({
@@ -112,7 +113,8 @@ export async function loadEventQueue() {
   }))
 }
 
-/** Unread Events Persistence */
+// Unread Events Persistence
+
 export async function pushToUnreadEvents(channelId: string, event: SatoriEvent) {
   const id = nanoid()
   await db.insert(unreadEvents).values({

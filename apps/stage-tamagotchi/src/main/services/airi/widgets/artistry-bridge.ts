@@ -98,7 +98,7 @@ function supportsJobCallback(provider: ArtistryProvider): provider is ArtistryPr
   return typeof provider.setJobCallback === 'function'
 }
 
-/** Maintaining a registry of providers */
+// Maintaining a registry of providers
 export const artistryProviders = new Map<string, ArtistryProvider>()
 artistryProviders.set('comfyui', new ComfyUIProvider())
 artistryProviders.set('replicate', new ReplicateProvider())

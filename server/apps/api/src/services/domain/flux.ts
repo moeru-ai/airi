@@ -13,13 +13,11 @@ import * as fluxTxSchema from '../../schemas/flux-transaction'
 
 const logger = useLogger('flux-service')
 
-/**
- * NOTICE:
- * All read paths here treat soft-deleted rows (`deletedAt IS NOT NULL`) as
- * invisible. After account deletion the auth tables hard-delete the user
- * so this filter is mostly defense-in-depth against routes that bypass
- * `sessionMiddleware`. See `server/apps/api/docs/ai-context/account-deletion.md`.
- */
+// NOTICE:
+// All read paths here treat soft-deleted rows (`deletedAt IS NOT NULL`) as
+// invisible. After account deletion the auth tables hard-delete the user
+// so this filter is mostly defense-in-depth against routes that bypass
+// `sessionMiddleware`. See `server/apps/api/docs/ai-context/account-deletion.md`.
 export function createFluxService(db: Database, redis: Redis, configKV: ConfigKVService) {
   return {
     async getFlux(userId: string) {

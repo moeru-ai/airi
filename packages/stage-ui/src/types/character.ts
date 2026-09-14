@@ -2,7 +2,8 @@ import type { InferOutput } from 'valibot'
 
 import { array, date, literal, number, object, optional, pipe, string, transform, union } from 'valibot'
 
-/** --- Enums & Configs --- */
+// --- Enums & Configs ---
+
 export const AvatarModelConfigSchema = object({
   vrm: optional(object({
     urls: array(string()),
@@ -61,7 +62,8 @@ const DateSchema = pipe(
   transform(v => new Date(v)),
 )
 
-/** --- Base Entities (mimicking database tables) --- */
+// --- Base Entities (mimicking database tables) ---
+
 export const CharacterBaseSchema = object({
   id: string(),
   version: string(),
@@ -121,7 +123,8 @@ export const CharacterPromptSchema = object({
   content: string(),
 })
 
-/** --- Aggregated Character (with relations) --- */
+// --- Aggregated Character (with relations) ---
+
 export const CharacterWithRelationsSchema = object({
   ...CharacterBaseSchema.entries,
   capabilities: optional(array(CharacterCapabilitySchema)),
@@ -132,7 +135,8 @@ export const CharacterWithRelationsSchema = object({
   bookmarks: optional(array(object({ userId: string(), characterId: string() }))),
 })
 
-/** --- API Request Schemas --- */
+// --- API Request Schemas ---
+
 export const CreateCharacterSchema = object({
   character: object({
     id: optional(string()),
@@ -174,7 +178,8 @@ export const UpdateCharacterSchema = object({
   }))),
 })
 
-/** --- Type Exports --- */
+// --- Type Exports ---
+
 export type Character = InferOutput<typeof CharacterWithRelationsSchema>
 export type CharacterBase = InferOutput<typeof CharacterBaseSchema>
 export type CharacterCapability = InferOutput<typeof CharacterCapabilitySchema>

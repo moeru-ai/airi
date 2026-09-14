@@ -380,11 +380,10 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
   return result
 }
 
-/**
- * ------------------------------------------------------------------
- * Data flow processor
- * ------------------------------------------------------------------
- */
+// ------------------------------------------------------------------
+// Data flow processor
+// ------------------------------------------------------------------
+
 export function createTtsSegmentStream(
   tokens: ReadableStream<TextToken>,
   meta: { streamId: string, intentId: string, turnId?: string },

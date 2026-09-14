@@ -4,7 +4,7 @@ import type { SatoriEvent } from '../adapter/satori/types'
 
 import * as v from 'valibot'
 
-/** Action schemas */
+// Action schemas
 export const ContinueActionSchema = v.object({
   action: v.literal('continue'),
 })

@@ -2,10 +2,8 @@ import { boolean, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
-/**
- * NOTICE:
- * Unused at runtime. Keep the defs so drizzle-kit does not emit DROP.
- */
+// NOTICE:
+// Unused at runtime. Keep the defs so drizzle-kit does not emit DROP.
 export const stripeCustomer = pgTable('stripe_customer', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
   userId: text('user_id').notNull(),

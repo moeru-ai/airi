@@ -3,7 +3,7 @@ import type { ActionHandler, ActionResult } from '../definition'
 import { SLEEP_DURATION_MS } from '../../core/constants'
 import { listChannels } from '../../lib/db'
 
-/** 1. Continue Action */
+// 1. Continue Action
 export const continueAction: ActionHandler = {
   name: 'continue',
   execute: async (): Promise<ActionResult> => {
@@ -15,7 +15,7 @@ export const continueAction: ActionHandler = {
   },
 }
 
-/** 2. Break Action */
+// 2. Break Action
 export const breakAction: ActionHandler = {
   name: 'break',
   execute: async (_ctx, chatCtx): Promise<ActionResult> => {
@@ -28,7 +28,7 @@ export const breakAction: ActionHandler = {
   },
 }
 
-/** 3. Sleep Action */
+// 3. Sleep Action
 export const sleepAction: ActionHandler = {
   name: 'sleep',
   execute: async (_ctx, _chatCtx, args): Promise<ActionResult> => {
@@ -49,7 +49,7 @@ export const sleepAction: ActionHandler = {
   },
 }
 
-/** 4. List Channels Action */
+// 4. List Channels Action
 export const listChannelsAction: ActionHandler = {
   name: 'list_channels',
   execute: async (): Promise<ActionResult> => {

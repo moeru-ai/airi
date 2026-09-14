@@ -25,11 +25,10 @@ interface CreateChatPayload {
 
 type PushMessage = SendMessagesRequest['messages'][number]
 
-/**
- * ---------------------------------------------------------------------------
- * Pure helpers (exported for testing)
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Pure helpers (exported for testing)
+// ---------------------------------------------------------------------------
+
 export function clampLimit(limit?: number): number {
   if (!limit || limit <= 0)
     return 100
@@ -42,11 +41,10 @@ export function resolveSenderId(role: string, userId: string): string | null {
   return null
 }
 
-/**
- * ---------------------------------------------------------------------------
- * Service factory
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Service factory
+// ---------------------------------------------------------------------------
+
 export function createChatService(db: Database, metrics?: EngagementMetrics | null) {
   // ---- internal helpers ---------------------------------------------------
 

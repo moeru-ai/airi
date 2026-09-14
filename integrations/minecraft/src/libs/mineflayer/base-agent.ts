@@ -63,10 +63,9 @@ export abstract class AbstractAgent extends EventEmitter3 implements BaseAgent {
 
   protected initialized: boolean
   protected logger: Logg
-  /**
-   * protected actionManager: ReturnType<typeof useActionManager>
-   * protected conversationStore: ReturnType<typeof useConversationStore>
-   */
+  // protected actionManager: ReturnType<typeof useActionManager>
+  // protected conversationStore: ReturnType<typeof useConversationStore>
+
   constructor(config: AgentConfig) {
     super()
     this.id = config.id // TODO: use uuid, is it needed?
@@ -102,12 +101,11 @@ export abstract class AbstractAgent extends EventEmitter3 implements BaseAgent {
     this.initialized = false
   }
 
-  /**
-   * Agent interface implementation
-   * public isIdle(): boolean {
-   * return !this.actionManager.executing
-   * }
-   */
+  // Agent interface implementation
+  // public isIdle(): boolean {
+  //   return !this.actionManager.executing
+  // }
+
   public handleMessage(sender: string, message: string): void {
     this.logger.withFields({ sender, message }).log('Received message')
     this.emit('message', { sender, message })
@@ -118,16 +116,15 @@ export abstract class AbstractAgent extends EventEmitter3 implements BaseAgent {
     this.emit('chat', message)
   }
 
-  /**
-   * public clearBotLogs(): void {
-   * // Implement if needed
-   * }
-   */
+  // public clearBotLogs(): void {
+  //   // Implement if needed
+  // }
+
   public requestInterrupt(): void {
     this.emit('interrupt')
   }
 
-  /** Methods to be implemented by specific agents */
+  // Methods to be implemented by specific agents
   protected abstract initializeAgent(): Promise<void>
   protected abstract destroyAgent(): Promise<void>
 }

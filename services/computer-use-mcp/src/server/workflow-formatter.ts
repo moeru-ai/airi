@@ -11,11 +11,10 @@ import type { RunState } from '../state'
 import type { StrategyAdvisory } from '../strategy'
 import type { WorkflowExecutionResult, WorkflowStepResult } from '../workflows/engine'
 
-/**
- * ---------------------------------------------------------------------------
- * Public API
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 export function formatWorkflowStructuredContent(params: {
   workflowId: string
   result: WorkflowExecutionResult

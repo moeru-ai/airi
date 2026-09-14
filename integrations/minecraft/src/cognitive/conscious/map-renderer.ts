@@ -2,7 +2,8 @@ import type { Bot } from 'mineflayer'
 
 import { Vec3 } from 'vec3'
 
-/** ─── Types ─────────────────────────────────────────────────────────── */
+// ─── Types ───────────────────────────────────────────────────────────
+
 export type MapViewType = 'top-down' | 'cross-section'
 
 export interface MapOptions {

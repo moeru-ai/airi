@@ -96,10 +96,8 @@ export const CreateCharacterSchema = object({
   }))),
 })
 
-/**
- * TODO: Split update request schema from DB insert schema.
- * This route should reject server-managed fields like id/ownerId/creatorId/timestamps instead of allowing them here.
- */
+// TODO: Split update request schema from DB insert schema.
+// This route should reject server-managed fields like id/ownerId/creatorId/timestamps instead of allowing them here.
 export const UpdateCharacterSchema = object({
   version: optional(string()),
   coverUrl: optional(string()),

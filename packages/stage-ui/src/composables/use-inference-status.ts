@@ -11,11 +11,10 @@ import type { ErrorPayload, ProgressPayload } from '../libs/inference/protocol'
 
 import { computed, reactive } from 'vue'
 
-/**
- * ---------------------------------------------------------------------------
- * Types
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 export type InferenceModelState
   = | 'idle'
     | 'downloading'
@@ -72,11 +71,10 @@ export function removeInferenceStatus(modelId: string): void {
   statusMap.delete(modelId)
 }
 
-/**
- * ---------------------------------------------------------------------------
- * Composable (used by UI components)
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Composable (used by UI components)
+// ---------------------------------------------------------------------------
+
 export function useInferenceStatus() {
   const models = computed<InferenceModelStatus[]>(() =>
     Array.from(statusMap.values()),

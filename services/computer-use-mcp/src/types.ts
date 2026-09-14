@@ -74,18 +74,18 @@ export interface PtyAuditEntry {
   event: 'create' | 'send_input' | 'read_screen' | 'resize' | 'destroy'
   /** ISO timestamp. */
   at: string
-  /** create */
+  // create
   cwd?: string
   rows?: number
   cols?: number
   pid?: number
-  /** send_input */
+  // send_input
   byteCount?: number
   inputPreview?: string
-  /** read_screen */
+  // read_screen
   returnedLineCount?: number
   alive?: boolean
-  /** destroy */
+  // destroy
   actor?: string
   outcome?: string
 }

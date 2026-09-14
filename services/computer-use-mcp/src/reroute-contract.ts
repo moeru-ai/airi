@@ -13,11 +13,10 @@
 import type { RecommendedSurface } from './strategy'
 import type { BrowserSurfaceKind, TerminalSurface } from './types'
 
-/**
- * ---------------------------------------------------------------------------
- * Reroute detail block
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Reroute detail block
+// ---------------------------------------------------------------------------
+
 export interface WorkflowRerouteDetail {
   /** Target surface category for the reroute. */
   recommendedSurface: RecommendedSurface
@@ -55,11 +54,10 @@ export interface WorkflowRerouteDetail {
   ptySessionId?: string
 }
 
-/**
- * ---------------------------------------------------------------------------
- * Top-level structuredContent shape for reroute responses
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Top-level structuredContent shape for reroute responses
+// ---------------------------------------------------------------------------
+
 export interface WorkflowRerouteStructuredContent {
   kind: 'workflow_reroute'
   status: 'reroute_required'

@@ -8,7 +8,7 @@ export interface Contributor {
 }
 
 export interface CoreTeam extends DefaultTheme.TeamMember {
-  /** required to download avatars from GitHub */
+  // required to download avatars from GitHub
   github: string
   twitter?: string
   mastodon?: string

@@ -1,4 +1,4 @@
-/** Define a union type for the command parsing result */
+// Define a union type for the command parsing result
 export type ParseResult
   = | { command: 'post tweet', content: string }
     | { command: 'search tweets', content: string }

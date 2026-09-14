@@ -9,14 +9,14 @@ import { useI18n } from 'vue-i18n'
 import { TestDummyMarker } from '../../gadgets'
 
 const props = defineProps<{
-  /** Input fields */
+  // Input fields
   defaultText?: string
   availableVoices: VoiceInfo[]
 
-  /** Provider-specific handlers (provided from parent) */
+  // Provider-specific handlers (provided from parent)
   generateSpeech: (input: string, voice: string, useSSML: boolean) => Promise<ArrayBuffer>
 
-  /** Current state */
+  // Current state
   apiKeyConfigured?: boolean
   voicesLoading?: boolean
 }>()

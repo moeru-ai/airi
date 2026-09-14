@@ -50,7 +50,8 @@ export default defineConfig({
     'slop/no-trivial-functions': 'warn',
     // Named primitive aliases can express domain concepts.
     'slop/no-trivial-type-aliases': 'off',
-    'slop/prefer-jsdoc': 'warn',
+    // The autofix workflow must preserve existing comment syntax.
+    'slop/prefer-jsdoc': 'off',
   },
 }, {
   rules: {

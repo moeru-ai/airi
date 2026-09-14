@@ -26,11 +26,10 @@ const CHROME_APP_NAME = 'Google Chrome'
 const DEFAULT_CDP_PORT = 9222
 const DEFAULT_CDP_PORT_SCAN_ATTEMPTS = 20
 
-/**
- * ---------------------------------------------------------------------------
- * Public interface
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Public interface
+// ---------------------------------------------------------------------------
+
 export interface ChromeSessionManager {
   /**
    * Ensure the agent has a usable Chrome window.
@@ -66,11 +65,10 @@ export interface ChromeSessionManager {
   endSession: () => void
 }
 
-/**
- * ---------------------------------------------------------------------------
- * Implementation
- * ---------------------------------------------------------------------------
- */
+// ---------------------------------------------------------------------------
+// Implementation
+// ---------------------------------------------------------------------------
+
 export function createChromeSessionManager(
   config: ComputerUseConfig,
   options?: { onSessionLost?: () => void },

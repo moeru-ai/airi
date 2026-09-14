@@ -96,10 +96,8 @@ interface LlmTraceEntry {
   sourceId: string
   attempt: number
   model: string
-  /**
-   * NOTICE: Full messages array is no longer stored to prevent O(turns²) memory growth.
-   * Use messageCount + estimatedTokens for diagnostics, or llmLog for detailed history.
-   */
+  // NOTICE: Full messages array is no longer stored to prevent O(turns²) memory growth.
+  // Use messageCount + estimatedTokens for diagnostics, or llmLog for detailed history.
   messageCount: number
   estimatedTokens: number
   content: string
@@ -283,7 +281,7 @@ export class Brain {
   private readonly repl = new JavaScriptPlanner()
   private paused = false
 
-  /** State */
+  // State
   private queue: QueuedEvent[] = []
   private consecutiveHighPriorityTurns = 0
   private isProcessing = false
@@ -685,7 +683,7 @@ export class Brain {
     return JSON.parse(JSON.stringify(messages)) as Message[]
   }
 
-  /** FIXME: Temporary fix to normalize xsai Message[] into the debug dashboard's string-only message schema. */
+  // FIXME: Temporary fix to normalize xsai Message[] into the debug dashboard's string-only message schema.
   private toDebugConversationMessages(messages: Message[]): ConversationUpdateEvent['messages'] {
     return messages.map((message) => {
       const normalizedMessage: ConversationUpdateEvent['messages'][number] = {
@@ -699,7 +697,7 @@ export class Brain {
     })
   }
 
-  /** FIXME: Temporary fix to flatten structured message parts into a string for debug transport compatibility. */
+  // FIXME: Temporary fix to flatten structured message parts into a string for debug transport compatibility.
   private toDebugMessageContent(content: Message['content']): string {
     if (typeof content === 'string')
       return content
@@ -716,7 +714,7 @@ export class Brain {
       .join('\n')
   }
 
-  /** FIXME: Temporary fix to preserve reasoning in debug payload while message typing is inconsistent. */
+  // FIXME: Temporary fix to preserve reasoning in debug payload while message typing is inconsistent.
   private extractMessageReasoning(message: Message): string | undefined {
     const maybeReasoning = (message as Message & { reasoning?: unknown }).reasoning
     if (typeof maybeReasoning === 'string' && maybeReasoning.length > 0)
@@ -1565,7 +1563,8 @@ export class Brain {
     )
   }
 
-  /** --- Event Queue Logic --- */
+  // --- Event Queue Logic ---
+
   private async enqueueEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
     return new Promise((resolve, reject) => {
       this.queue.push({ event, resolve, reject })
@@ -1760,7 +1759,8 @@ export class Brain {
     }
   }
 
-  /** --- Cognitive Cycle --- */
+  // --- Cognitive Cycle ---
+
   private async processEvent(bot: MineflayerWithAgents, event: BotEvent): Promise<void> {
     if (this.paused) {
       this.appendLlmLog({

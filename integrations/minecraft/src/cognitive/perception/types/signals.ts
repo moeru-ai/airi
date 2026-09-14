@@ -13,14 +13,12 @@ export interface PerceptionSignal {
   type: PerceptionSignalType
   description: string // Textual summary for LLM
 
-  /** Contextual Data */
+  // Contextual Data
   sourceId?: string // Who/What caused this
   confidence?: number // 0-1
   timestamp: number
 
-  /**
-   * Structured Data (for logic)
-   * FIXME unsafe type
-   */
+  // Structured Data (for logic)
+  // FIXME unsafe type
   metadata: Record<string, any>
 }
