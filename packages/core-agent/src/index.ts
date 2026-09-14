@@ -28,6 +28,7 @@ export { createContextRegistry } from './runtime/context-registry'
 export { useLlmmarkerParser } from './runtime/llm-marker-parser'
 export {
   isContentArrayRelatedError,
+  isPlainTextToolCallError,
   isToolRelatedError,
   modelKey,
   sanitizeMessages,
