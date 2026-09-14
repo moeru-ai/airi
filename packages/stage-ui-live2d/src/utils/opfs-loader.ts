@@ -218,7 +218,7 @@ export class OPFSCache {
     }
   }
 
-  // Runs before ZipLoader to check if the file is already cached
+  /** Runs before ZipLoader to check if the file is already cached */
   static checkMiddleware: Middleware<OPFSContext> = async (context, next) => {
     const source = context.source
     let key: string | undefined
@@ -275,7 +275,7 @@ export class OPFSCache {
     return next()
   }
 
-  // Runs after ZipLoader to cache the files
+  /** Runs after ZipLoader to cache the files */
   static saveMiddleware: Middleware<OPFSContext> = async (context, next) => {
     if (!context.opfsKey || !context.opfsZipBlob) {
       return next()

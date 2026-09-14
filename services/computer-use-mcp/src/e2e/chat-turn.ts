@@ -11,9 +11,11 @@ interface ChatTurnSnapshotLike {
   }
 }
 
-// NOTICE: AIRI can legitimately finish a turn with tool calls/results but no
-// natural-language assistant text. Treat that as a completed turn so E2E
-// harnesses do not hang forever waiting for output that will never arrive.
+/**
+ * NOTICE: AIRI can legitimately finish a turn with tool calls/results but no
+ * natural-language assistant text. Treat that as a completed turn so E2E
+ * harnesses do not hang forever waiting for output that will never arrive.
+ */
 export function hasCompletedChatTurn(snapshot: ChatTurnSnapshotLike) {
   const lastTurnComplete = snapshot.chat?.lastTurnComplete
   if (!lastTurnComplete || typeof lastTurnComplete !== 'object') {

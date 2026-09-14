@@ -11,7 +11,7 @@ export interface CognitiveEngineOptions {
   airiClient: Client
 }
 
-// TODO: currently stimulus is just chat events, consider renaming to 'input' or 'user_interaction'
+/** TODO: currently stimulus is just chat events, consider renaming to 'input' or 'user_interaction' */
 export type EventCategory = 'perception' | 'feedback' | 'system_alert'
 
 export interface BotEventSource {
@@ -20,13 +20,13 @@ export interface BotEventSource {
   reply?: (message: string) => void
 }
 
-// FIXME unsafe type
+/** FIXME unsafe type */
 export interface BotEvent<T = any> {
   type: EventCategory
   payload: T
   source: BotEventSource
   timestamp: number
-  // Layered Architecture Metadata
+  /** Layered Architecture Metadata */
   priority?: number // Higher is more urgent
   handled?: boolean // Set by Reflex layer to inhibit Conscious layer
 }

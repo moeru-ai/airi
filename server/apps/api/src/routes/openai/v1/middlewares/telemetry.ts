@@ -61,10 +61,12 @@ export function getLlmMetricAttributes(opts: { model: string, type: string, stat
   }
 }
 
-// Fresh per-request context handed to `llmRouter.route` / `routeTts` so the
-// router can report back which upstream it used (for the `provider` metric
-// label). Must be created per request — never shared — because the route
-// closures live at factory scope across concurrent requests.
+/**
+ * Fresh per-request context handed to `llmRouter.route` / `routeTts` so the
+ * router can report back which upstream it used (for the `provider` metric
+ * label). Must be created per request — never shared — because the route
+ * closures live at factory scope across concurrent requests.
+ */
 export function newRouteContext(): LlmRouteContext {
   return { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
 }

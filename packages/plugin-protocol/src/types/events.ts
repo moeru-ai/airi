@@ -1288,10 +1288,12 @@ export function getProtocolEventMetadata(eventType: keyof ProtocolEvents | strin
   return protocolEventMetadataByType[eventType as keyof typeof protocolEventMetadataByType]
 }
 
-// Thanks to:
-//
-// A little hack for creating extensible discriminated unions : r/typescript
-// https://www.reddit.com/r/typescript/comments/1064ibt/a_little_hack_for_creating_extensible/
+/**
+ * Thanks to:
+ *
+ * A little hack for creating extensible discriminated unions : r/typescript
+ * https://www.reddit.com/r/typescript/comments/1064ibt/a_little_hack_for_creating_extensible/
+ */
 export interface ProtocolEvents<C = undefined> {
   'error': ErrorEvent
   'error:permission': ErrorPermissionEvent

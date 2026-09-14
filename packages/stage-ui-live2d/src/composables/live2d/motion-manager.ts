@@ -22,9 +22,9 @@ export type PixiLive2DInternalModel = InternalModel & {
 
 export interface MotionManagerUpdateContext {
   model: CubismModel
-  // in seconds
+  /** in seconds */
   now: number
-  // in seconds
+  /** in seconds */
   timeDelta: number
   hookedUpdate?: (model: CubismModel, now: number) => boolean
 }
@@ -182,8 +182,7 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
   }
 }
 
-// -- Plugins ---------------------------------------------------------------
-
+/** -- Plugins --------------------------------------------------------------- */
 export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): MotionManagerPlugin {
   return (ctx) => {
     beatSync.updateTargets(ctx.now)

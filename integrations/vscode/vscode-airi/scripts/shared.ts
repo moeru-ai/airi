@@ -36,14 +36,16 @@ export async function packageJSONForVSCode(name: string) {
   }
 }
 
-// NOTICE: VSCE rejects prerelease identifiers, so we encode stage+sequence into a numeric-only patch bucket:
-//   encodedPatch = patch*10000 + stageBucket + sequence.
-//   stageBucket: alpha=1000, beta=2000, rc=3000, stable=9000.
-//   Examples:
-//     0.8.0-alpha.6 -> 0.8.(0*10000+1000+6)=0.8.1006 (preview=true)
-//     0.8.0-beta.1 -> 0.8.2001 (preview=true)
-//     0.8.0        -> 0.8.(0*10000+9000)=0.8.9000 (preview=false)
-//   This keeps ordering: alpha < beta < rc < stable. Unknown prerelease tags default to alpha.
+/**
+ * NOTICE: VSCE rejects prerelease identifiers, so we encode stage+sequence into a numeric-only patch bucket:
+ * encodedPatch = patch*10000 + stageBucket + sequence.
+ * stageBucket: alpha=1000, beta=2000, rc=3000, stable=9000.
+ * Examples:
+ * 0.8.0-alpha.6 -> 0.8.(0*10000+1000+6)=0.8.1006 (preview=true)
+ * 0.8.0-beta.1 -> 0.8.2001 (preview=true)
+ * 0.8.0        -> 0.8.(0*10000+9000)=0.8.9000 (preview=false)
+ * This keeps ordering: alpha < beta < rc < stable. Unknown prerelease tags default to alpha.
+ */
 export function encodeNumericVersion(version: string) {
   const match = version.match(/^(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)(-(?<pre>[0-9A-Z.-]+))?$/i)
   if (!match || !match.groups)

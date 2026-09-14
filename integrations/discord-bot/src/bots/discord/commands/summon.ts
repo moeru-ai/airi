@@ -52,9 +52,10 @@ async function setSelfVoice(logger: Logg, me?: GuildMember | null) {
   }
 }
 
-// eliza/packages/client-discord/src/voice.ts at develop · elizaOS/eliza
-// https://github.com/elizaOS/eliza/blob/develop/packages/client-discord/src/voice.ts
-
+/**
+ * eliza/packages/client-discord/src/voice.ts at develop · elizaOS/eliza
+ * https://github.com/elizaOS/eliza/blob/develop/packages/client-discord/src/voice.ts
+ */
 export class VoiceManager extends EventEmitter {
   private logger = useLogg('VoiceManager').useGlobalConfig()
   private processingVoice: boolean = false
@@ -79,7 +80,7 @@ export class VoiceManager extends EventEmitter {
     { channel: BaseGuildVoiceChannel, monitor: AudioMonitor }
   > = new Map()
 
-  // Track event listeners for cleanup
+  /** Track event listeners for cleanup */
   private connectionListeners: Map<string, {
     stateChange: (oldState: any, newState: any) => Promise<void>
     error: (error: Error) => void

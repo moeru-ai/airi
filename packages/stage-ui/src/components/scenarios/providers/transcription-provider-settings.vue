@@ -19,9 +19,9 @@ import { useProviderStore } from '../../../stores/providers/provider'
 
 const props = defineProps<{
   providerId: string
-  // Default model to use if not specified in provider settings
+  /** Default model to use if not specified in provider settings */
   defaultModel?: string
-  // Additional provider-specific settings
+  /** Additional provider-specific settings */
   additionalSettings?: Record<string, any>
   placeholder?: string
 }>()

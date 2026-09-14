@@ -11,7 +11,7 @@ import Inspect from 'vite-plugin-inspect'
 
 import { defineConfig } from 'vite'
 
-// For Histoire
+/** For Histoire */
 export default defineConfig({
   resolve: {
     alias: {

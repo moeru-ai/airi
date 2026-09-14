@@ -1,6 +1,6 @@
 import type MarkdownIt from 'markdown-it'
 
-// Define a custom plugin to transform JSDoc @link tags
+/** Define a custom plugin to transform JSDoc @link tags */
 export function transformJSDocLinks(md: MarkdownIt) {
   md.core.ruler.push('transform-jsdoc-links', (state) => {
     state.tokens.forEach((token) => {

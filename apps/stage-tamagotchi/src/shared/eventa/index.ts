@@ -92,7 +92,7 @@ export interface RequestWindowPending {
   payload?: Record<string, any>
 }
 
-// Reference window helpers are generic; callers can alias for clarity
+/** Reference window helpers are generic; callers can alias for clarity */
 export type NoticeAction = 'confirm' | 'cancel' | 'close'
 
 export function createRequestWindowEventa(namespace: string) {
@@ -105,10 +105,10 @@ export function createRequestWindowEventa(namespace: string) {
   }
 }
 
-// Notice window events built from generic factory
+/** Notice window events built from generic factory */
 export const noticeWindowEventa = createRequestWindowEventa('notice')
 
-// Widgets / Adhoc window events
+/** Widgets / Adhoc window events */
 export interface WidgetWindowSize {
   width?: number
   height?: number
@@ -125,7 +125,7 @@ export interface WidgetsAddPayload {
   componentName: string
   componentProps?: Record<string, any>
   alwaysOnTop?: boolean
-  // size presets or explicit spans; renderer decides mapping
+  /** size presets or explicit spans; renderer decides mapping */
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
   /** Automatic destruction delay in milliseconds. If omitted or zero, the widget stays until an explicit close. */
@@ -217,9 +217,11 @@ export interface PluginRegistrySnapshot {
   plugins: PluginManifestSummary[]
 }
 
-// TODO: Replace these manually duplicated IPC types with re-exports from
-// @proj-airi/plugin-sdk (CapabilityDescriptor) once stage-ui and the shared
-// eventa layer can depend on the SDK without introducing unwanted coupling.
+/**
+ * TODO: Replace these manually duplicated IPC types with re-exports from
+ * @proj-airi/plugin-sdk (CapabilityDescriptor) once stage-ui and the shared
+ * eventa layer can depend on the SDK without introducing unwanted coupling.
+ */
 export interface PluginCapabilityPayload {
   key: string
   state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
@@ -444,8 +446,7 @@ export const electronShortcutUnregisterAll = defineInvokeEventa<void>('eventa:in
 export const electronShortcutList = defineInvokeEventa<ShortcutBinding[]>('eventa:invoke:electron:shortcut:list')
 export const electronShortcutTriggered = defineEventa<ElectronShortcutTriggerPayload>('eventa:event:electron:shortcut:triggered')
 
-// <- Global shortcut
-
+/** <- Global shortcut */
 export type StageThreeRuntimeTraceEnvelope
   = | { type: 'three-render-info', payload: ThreeSceneRenderInfoTracePayload }
     | { type: 'three-hit-test-read', payload: ThreeHitTestReadTracePayload }
@@ -469,7 +470,7 @@ export const stageThreeRuntimeTraceForwardedEvent = defineEventa<StageThreeRunti
 export const stageThreeRuntimeTraceRemoteEnableEvent = defineEventa<StageThreeRuntimeTraceRemoteControlPayload>('eventa:event:stage-three-runtime-trace:remote-enable')
 export const stageThreeRuntimeTraceRemoteDisableEvent = defineEventa<StageThreeRuntimeTraceRemoteControlPayload>('eventa:event:stage-three-runtime-trace:remote-disable')
 
-// Internal event from main -> widgets renderer when a widget should render
+/** Internal event from main -> widgets renderer when a widget should render */
 export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:electron:windows:widgets:render')
 export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:electron:windows:widgets:remove')
 export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:widgets:clear')
@@ -479,11 +480,11 @@ export const widgetsIframeRequestEvent = defineEventa<WidgetsIframeRequestPayloa
 /** Renderer-to-main event carrying the correlated result for a widget iframe request. */
 export const widgetsIframeRequestResultEvent = defineEventa<WidgetsIframeRequestResultPayload>('eventa:event:electron:windows:widgets:iframe-request-result')
 
-// Onboarding window events
+/** Onboarding window events */
 export const electronOnboardingClose = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:close')
 export const electronOpenOnboarding = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:open')
 
-// Auth — OIDC Authorization Code + PKCE flow via system browser
+/** Auth — OIDC Authorization Code + PKCE flow via system browser */
 export interface ElectronAuthTokens {
   accessToken: string
   refreshToken?: string

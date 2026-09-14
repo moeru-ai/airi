@@ -27,7 +27,7 @@ export async function ensureCraftingTable(mineflayer: Mineflayer): Promise<boole
   throw new ActionError('CRAFTING_FAILED', 'Failed to ensure crafting table')
 }
 
-// Helper function to ensure a specific amount of planks
+/** Helper function to ensure a specific amount of planks */
 export async function ensurePlanks(mineflayer: Mineflayer, neededAmount: number): Promise<boolean> {
   logger.log('Bot: Checking for planks...')
 
@@ -111,7 +111,7 @@ export async function ensurePlanks(mineflayer: Mineflayer, neededAmount: number)
   throw new ActionError('RESOURCE_MISSING', 'Failed to ensure enough planks after retries', { needed: neededAmount, current: planksCount })
 }
 
-// Helper function to ensure a specific amount of sticks
+/** Helper function to ensure a specific amount of sticks */
 export async function ensureSticks(mineflayer: Mineflayer, neededAmount: number): Promise<boolean> {
   logger.log('Bot: Checking for sticks...')
 
@@ -162,7 +162,7 @@ export async function ensureSticks(mineflayer: Mineflayer, neededAmount: number)
   throw new ActionError('RESOURCE_MISSING', 'Failed to ensure sticks', { needed: neededAmount, current: sticksCount })
 }
 
-// Ensure a specific number of chests
+/** Ensure a specific number of chests */
 export async function ensureChests(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
   logger.log(`Bot: Checking for ${quantity} chest(s)...`)
 
@@ -182,7 +182,7 @@ export async function ensureChests(mineflayer: Mineflayer, quantity: number = 1)
   return true
 }
 
-// Ensure a specific number of furnaces
+/** Ensure a specific number of furnaces */
 export async function ensureFurnaces(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
   logger.log(`Bot: Checking for ${quantity} furnace(s)...`)
 
@@ -208,7 +208,7 @@ export async function ensureFurnaces(mineflayer: Mineflayer, quantity: number = 
   return true
 }
 
-// Ensure a specific number of torches
+/** Ensure a specific number of torches */
 export async function ensureTorches(mineflayer: Mineflayer, quantity: number = 1): Promise<boolean> {
   logger.log(`Bot: Checking for ${quantity} torch(es)...`)
 
@@ -235,8 +235,10 @@ export async function ensureTorches(mineflayer: Mineflayer, quantity: number = 1
   return true
 }
 
-// Ensure a campfire
-// Todo: rework
+/**
+ * Ensure a campfire
+ * Todo: rework
+ */
 export async function ensureCampfire(mineflayer: Mineflayer): Promise<boolean> {
   logger.log('Bot: Checking for a campfire...')
 
@@ -396,7 +398,7 @@ async function ensureTool(mineflayer: Mineflayer, toolType: ToolType, quantity: 
   throw new ActionError('CRAFTING_FAILED', `Failed to ensure ${toolType} of any material`)
 }
 
-// Helper function to check if the bot has enough materials to craft a tool of a specific material
+/** Helper function to check if the bot has enough materials to craft a tool of a specific material */
 export async function hasResourcesForTool(
   mineflayer: Mineflayer,
   material: MaterialType,

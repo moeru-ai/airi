@@ -29,10 +29,11 @@ interface Exp3Json {
   // FadeInTime / FadeOutTime are intentionally ignored (we do direct application).
 }
 
-// ---------------------------------------------------------------------------
-// Controller
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Controller
+ * ---------------------------------------------------------------------------
+ */
 export interface ExpressionControllerOptions {
   /**
    * The loaded Live2D internal model reference (reactive so it can be null

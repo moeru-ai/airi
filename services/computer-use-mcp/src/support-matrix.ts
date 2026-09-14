@@ -11,10 +11,11 @@
  * - `product-supported` — code + test + real happy-path script
  */
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Types
+ * ---------------------------------------------------------------------------
+ */
 export type SupportLevel = 'implemented' | 'covered' | 'product-supported'
 
 export type Lane = 'workflow' | 'browser' | 'desktop-native' | 'handoff' | 'terminal'
@@ -44,10 +45,11 @@ export const strictReleaseGateCommands = [
   'pnpm -F @proj-airi/computer-use-mcp e2e:airi-chat-terminal-self-acquire',
 ] as const
 
-// ---------------------------------------------------------------------------
-// Matrix entries
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Matrix entries
+ * ---------------------------------------------------------------------------
+ */
 export const supportMatrix: SupportMatrixEntry[] = [
   // ── Workflow lane ──────────────────────────────────────────────────────
   {
@@ -350,10 +352,11 @@ export const supportMatrix: SupportMatrixEntry[] = [
   },
 ]
 
-// ---------------------------------------------------------------------------
-// Query helpers
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Query helpers
+ * ---------------------------------------------------------------------------
+ */
 export function getProductSupported(): SupportMatrixEntry[] {
   return supportMatrix.filter(entry => entry.level === 'product-supported')
 }

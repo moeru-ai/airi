@@ -3,7 +3,7 @@
  * Based on Satori Protocol v1 specification
  */
 
-// Opcode for WebSocket signaling
+/** Opcode for WebSocket signaling */
 export enum SatoriOpcode {
   EVENT = 0, // 接收事件
   PING = 1, // 发送心跳
@@ -13,30 +13,30 @@ export enum SatoriOpcode {
   META = 5, // 接收元信息更新
 }
 
-// WebSocket Signal Structure
+/** WebSocket Signal Structure */
 export interface SatoriSignal<T = unknown> {
   op: SatoriOpcode
   body?: T
 }
 
-// IDENTIFY signal body
+/** IDENTIFY signal body */
 export interface SatoriIdentifyBody {
   token?: string
   sn?: number
 }
 
-// READY signal body
+/** READY signal body */
 export interface SatoriReadyBody {
   logins: SatoriLogin[]
   proxy_urls?: string[]
 }
 
-// META signal body
+/** META signal body */
 export interface SatoriMetaBody {
   proxy_urls?: string[]
 }
 
-// User resource
+/** User resource */
 export interface SatoriUser {
   id: string
   name?: string
@@ -45,7 +45,7 @@ export interface SatoriUser {
   is_bot?: boolean
 }
 
-// Channel resource
+/** Channel resource */
 export interface SatoriChannel {
   id: string
   type: number
@@ -53,14 +53,14 @@ export interface SatoriChannel {
   parent_id?: string
 }
 
-// Guild resource
+/** Guild resource */
 export interface SatoriGuild {
   id: string
   name?: string
   avatar?: string
 }
 
-// Guild Member resource
+/** Guild Member resource */
 export interface SatoriGuildMember {
   user?: SatoriUser
   nick?: string
@@ -68,13 +68,13 @@ export interface SatoriGuildMember {
   joined_at?: number
 }
 
-// Guild Role resource
+/** Guild Role resource */
 export interface SatoriGuildRole {
   id: string
   name?: string
 }
 
-// Message resource
+/** Message resource */
 export interface SatoriMessage {
   id: string
   content: string
@@ -87,7 +87,7 @@ export interface SatoriMessage {
   updated_at?: number
 }
 
-// Login resource
+/** Login resource */
 export interface SatoriLogin {
   user?: SatoriUser
   self_id?: string
@@ -97,19 +97,19 @@ export interface SatoriLogin {
   proxy_urls?: string[]
 }
 
-// Interaction Argv
+/** Interaction Argv */
 export interface SatoriArgv {
   name: string
   arguments: unknown[]
   options: Record<string, unknown>
 }
 
-// Interaction Button
+/** Interaction Button */
 export interface SatoriButton {
   id: string
 }
 
-// Event structure
+/** Event structure */
 export interface SatoriEvent {
   id: number
   type: string
@@ -130,7 +130,7 @@ export interface SatoriEvent {
   _data?: Record<string, unknown>
 }
 
-// API Request/Response types
+/** API Request/Response types */
 export interface SatoriMessageCreateRequest {
   channel_id: string
   content: string
@@ -147,13 +147,13 @@ export interface SatoriMessageCreateResponse {
   updated_at?: number
 }
 
-// Paginated list
+/** Paginated list */
 export interface SatoriList<T> {
   data: T[]
   next?: string
 }
 
-// Bidirectional paginated list
+/** Bidirectional paginated list */
 export interface SatoriBidiList<T> {
   data: T[]
   prev?: string

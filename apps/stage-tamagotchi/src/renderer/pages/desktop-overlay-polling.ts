@@ -11,10 +11,11 @@ import { errorMessageFromValue } from '@proj-airi/stage-shared'
 
 import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryParam } from '../../shared/desktop-overlay-heartbeat'
 
-// ---------------------------------------------------------------------------
-// Types — minimal shapes matching RunState fields the overlay consumes
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Types — minimal shapes matching RunState fields the overlay consumes
+ * ---------------------------------------------------------------------------
+ */
 export interface OverlayTargetCandidate {
   id: string
   source: string
@@ -152,10 +153,11 @@ export function isOverlayPollHeartbeatEnabled(locationLike: Pick<Location, 'hash
     || searchParams.get(desktopOverlayPollHeartbeatQueryParam) === '1'
 }
 
-// ---------------------------------------------------------------------------
-// Polling controller (framework-agnostic)
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Polling controller (framework-agnostic)
+ * ---------------------------------------------------------------------------
+ */
 export interface OverlayPollController {
   /** Start polling. No-op if already running. */
   start: () => void

@@ -28,7 +28,7 @@ export class SatoriClient {
   private shouldReconnect = true
   private apiClients = new Map<string, SatoriAPI>()
 
-  // Event handlers
+  /** Event handlers */
   private eventHandlers = new Map<string, Set<(event: SatoriEvent) => void | Promise<void>>>()
   private readyHandler?: (logins: SatoriReadyBody) => void | Promise<void>
 
@@ -233,7 +233,7 @@ export class SatoriClient {
     }
   }
 
-  // Public API for sending messages
+  /** Public API for sending messages */
   async sendMessage(platform: string, selfId: string, channelId: string, content: string): Promise<void> {
     const key = `${platform}:${selfId}`
     log.debug(`sendMessage called - platform: "${platform}", selfId: "${selfId}", key: "${key}"`)
@@ -254,7 +254,7 @@ export class SatoriClient {
     }
   }
 
-  // Event subscription
+  /** Event subscription */
   on(eventType: string, handler: (event: SatoriEvent) => void | Promise<void>): void {
     let handlers = this.eventHandlers.get(eventType)
     if (!handlers) {

@@ -18,10 +18,11 @@ import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordi
 import { LOAD_PRIORITY } from '../load-queue'
 import { classifyDeviceLossReason, classifyError, createRequestId, InferenceAbortError, throwIfAborted } from '../protocol'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Types
+ * ---------------------------------------------------------------------------
+ */
 export type WhisperState
   = | 'idle'
     | 'loading'
@@ -99,10 +100,11 @@ interface PendingWaiter {
   reject: (error: Error) => void
 }
 
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Factory
+ * ---------------------------------------------------------------------------
+ */
 export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   let worker: Worker | null = null
   let state: WhisperState = 'idle'

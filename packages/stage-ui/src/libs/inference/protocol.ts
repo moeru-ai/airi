@@ -18,10 +18,11 @@ import { errorMessageFromValue } from '@proj-airi/stage-shared'
  * - Workers auto-detect WebGPU availability and fall back to WASM when unavailable
  */
 
-// ---------------------------------------------------------------------------
-// Progress
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Progress
+ * ---------------------------------------------------------------------------
+ */
 export type ProgressPhase = 'download' | 'compile' | 'warmup' | 'inference'
 
 export interface ProgressPayload {
@@ -44,10 +45,11 @@ export interface ProgressPayload {
   total?: number
 }
 
-// ---------------------------------------------------------------------------
-// Errors
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Errors
+ * ---------------------------------------------------------------------------
+ */
 export type InferenceErrorCode
   = | 'OOM'
     | 'TIMEOUT'
@@ -64,10 +66,11 @@ export interface ErrorPayload {
   recoverable: boolean
 }
 
-// ---------------------------------------------------------------------------
-// Main → Worker requests
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Main → Worker requests
+ * ---------------------------------------------------------------------------
+ */
 export interface LoadModelRequest {
   type: 'load-model'
   requestId: string
@@ -115,10 +118,11 @@ export type WorkerInboundMessage<TInput = unknown>
     | UnloadModelRequest
     | CancelRequest
 
-// ---------------------------------------------------------------------------
-// Worker → Main responses
-// ---------------------------------------------------------------------------
-
+/**
+ * ---------------------------------------------------------------------------
+ * Worker → Main responses
+ * ---------------------------------------------------------------------------
+ */
 export interface ModelReadyResponse {
   type: 'model-ready'
   requestId: string

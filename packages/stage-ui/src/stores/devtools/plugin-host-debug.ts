@@ -17,8 +17,10 @@ export interface PluginRegistrySnapshot {
   plugins: PluginManifestSummary[]
 }
 
-// TODO: Replace with re-export of CapabilityDescriptor from
-// @proj-airi/plugin-sdk once stage-ui can depend on the SDK.
+/**
+ * TODO: Replace with re-export of CapabilityDescriptor from
+ * @proj-airi/plugin-sdk once stage-ui can depend on the SDK.
+ */
 export interface PluginCapabilityState {
   key: string
   state: 'announced' | 'ready' | 'degraded' | 'withdrawn'

@@ -237,8 +237,10 @@ export interface AppUpdaterLike {
   forceDevUpdateConfig?: boolean
 }
 
-// NOTICE: this part of code is copied from https://www.electron.build/auto-update
-// Or https://github.com/electron-userland/electron-builder/blob/b866e99ccd3ea9f85bc1e840f0f6a6a162fca388/pages/auto-update.md?plain=1#L57-L66
+/**
+ * NOTICE: this part of code is copied from https://www.electron.build/auto-update
+ * Or https://github.com/electron-userland/electron-builder/blob/b866e99ccd3ea9f85bc1e840f0f6a6a162fca388/pages/auto-update.md?plain=1#L57-L66
+ */
 export function fromImported(): AppUpdaterLike {
   if (is.dev && !getUpdateServerOverride())
     return new MockAutoUpdater()

@@ -258,7 +258,7 @@ export function getItemAnimalSource(itemName: string): string | undefined {
   }[itemName]
 }
 
-// Function to get the nearest block of a specific type using Mineflayer
+/** Function to get the nearest block of a specific type using Mineflayer */
 export function getNearestBlock(
   bot: Bot,
   blockType: string,

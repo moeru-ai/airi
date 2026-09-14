@@ -21,13 +21,15 @@ import { useProviderStore } from '../../../stores/providers/provider'
 
 const props = defineProps<{
   providerId: string
-  // Default model to use if not specified in provider settings
+  /** Default model to use if not specified in provider settings */
   defaultModel?: string
-  // Additional provider-specific settings
+  /** Additional provider-specific settings */
   additionalSettings?: Record<string, any>
   placeholder?: string
-  // Hides the API key field for a provider that takes no credentials, such as a
-  // local speech engine. The page otherwise shows a credential box with no effect.
+  /**
+   * Hides the API key field for a provider that takes no credentials, such as a
+   * local speech engine. The page otherwise shows a credential box with no effect.
+   */
   hideApiKey?: boolean
 }>()
 
