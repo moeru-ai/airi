@@ -60,6 +60,7 @@ const redundantChatAnalyticsMocks = vi.hoisted(() => ({
   trackFeatureUsed: vi.fn(),
 }))
 const ingestContextMessageMock = vi.fn()
+const removeContextMessageMock = vi.fn()
 const getContextsSnapshotMock = vi.fn()
 const createRuntimePromptContextMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
@@ -123,6 +124,7 @@ vi.mock('../composables/use-io-tracer', () => ({
 }))
 
 vi.mock('./chat/context-providers', () => ({
+  BILINGUAL_PROMPT_CONTEXT_ID: 'system:bilingual-subtitles',
   createMinecraftContext: () => createMinecraftContextMock(),
   createRuntimePromptContext: (prompt: string) => createRuntimePromptContextMock(prompt),
   createUserAccountContext: () => createUserAccountContextMock(),
@@ -139,6 +141,7 @@ vi.mock('vue-i18n', () => ({
 vi.mock('./chat/context-store', () => ({
   useChatContextStore: () => ({
     ingestContextMessage: ingestContextMessageMock,
+    removeContext: removeContextMessageMock,
     getContextsSnapshot: getContextsSnapshotMock,
   }),
 }))
@@ -246,6 +249,7 @@ describe('chat store contract', () => {
     redundantChatAnalyticsMocks.trackChatStarted.mockReset()
     redundantChatAnalyticsMocks.trackFeatureUsed.mockReset()
     ingestContextMessageMock.mockReset()
+    removeContextMessageMock.mockReset()
     getContextsSnapshotMock.mockReset()
     getContextsSnapshotMock.mockReturnValue({})
     createUserAccountContextMock.mockReset().mockReturnValue(null)

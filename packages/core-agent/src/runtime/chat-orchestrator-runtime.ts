@@ -240,8 +240,8 @@ interface ChatRoundCorrelation {
 export interface ChatOrchestratorRuntimeDeps {
   /** Session persistence and generation guard port. */
   session: ChatOrchestratorSessionPort
-  /** Context registry facade used for runtime context ingest and prompt snapshots. */
-  context: Pick<AgentContextPort, 'ingest' | 'snapshot'>
+  /** Context registry facade used for runtime context ingest, removal, and prompt snapshots. */
+  context: Pick<AgentContextPort, 'ingest' | 'remove' | 'snapshot'>
   /** Foreground assistant stream port controlled by the UI facade. */
   foregroundStream: AgentForegroundStreamPort
   /** Provider-agnostic LLM streaming port. */
@@ -265,6 +265,13 @@ export interface ChatOrchestratorRuntimeDeps {
    * use the same mode. Undefined result adds no context.
    */
   getBilingualInstructionContext?: (snapshot: BilingualTurnSnapshot | undefined) => ContextMessage | undefined
+  /**
+   * Stable context bucket key of the bilingual instruction. When the
+   * feature is disabled for a send, that bucket is removed from the
+   * registry so a prompt injected by an earlier turn cannot survive the
+   * setting change and keep making the model emit bracketed translations.
+   */
+  bilingualContextKey?: string
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -491,8 +498,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         deps.context.ingest(contextMessage)
     }
     const bilingualContext = deps.getBilingualInstructionContext?.(bilingualSnapshot)
-    if (bilingualContext)
+    if (bilingualContext) {
       deps.context.ingest(bilingualContext)
+    }
+    else if (bilingualSnapshot === undefined && deps.bilingualContextKey) {
+      // Disabled for this send: drop the dedicated bucket so the model
+      // stops receiving the bracket-format instruction from earlier turns.
+      deps.context.remove(deps.bilingualContextKey)
+    }
   }
 
   function getStablePromptTimestamp(message: ChatHistoryItem, fallbackCreatedAt: number) {

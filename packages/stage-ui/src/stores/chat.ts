@@ -292,6 +292,7 @@ export const useChatStore = defineStore('chat', () => {
     },
     context: {
       ingest: envelope => chatContext.ingestContextMessage(envelope),
+      remove: sourceKey => chatContext.removeContext(sourceKey),
       snapshot: () => {
         const snapshot = { ...chatContext.getContextsSnapshot() }
         // Account data belongs to this request, not the persistent context registry.
@@ -322,6 +323,9 @@ export const useChatStore = defineStore('chat', () => {
     // can never disagree because settings changed mid-send.
     getBilingualInstructionContext: snapshot =>
       snapshot ? createRuntimePromptContext(buildBilingualInstruction(snapshot), BILINGUAL_PROMPT_CONTEXT_ID) : undefined,
+    // Re-asserted on every send without a bilingual snapshot, so disabling
+    // the setting drops the instruction bucket an earlier turn injected.
+    bilingualContextKey: BILINGUAL_PROMPT_CONTEXT_ID,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,
