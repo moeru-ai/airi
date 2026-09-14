@@ -78,6 +78,17 @@ dialogs:
       placeholder: 选择屏幕截图或视频文件
       selected-count: '已选择 {count} 个文件'
     last-submitted-preview: 提交前预览
+  signOut:
+    title: 退出登录
+    titleReset: 退出并重置
+    description: 结束当前账号会话。
+    keep:
+      label: 保留数据
+    reset:
+      warning: 无法撤销
+      description: 将删除全部本地数据。
+    cancel: 取消
+    error: 退出登录失败。
 language:
   title: 语言
   description: |
