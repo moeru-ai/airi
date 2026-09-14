@@ -113,6 +113,44 @@ describe('plain-text editor', () => {
     expect(submit).toHaveBeenCalledWith('draft\n')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r4002754625
+  it('preserves break-only drafts for Issue #2461', async () => {
+    // ROOT CAUSE:
+    //
+    // WebKit represents an empty line and its caret filler with two br nodes.
+    // textContent is empty for both nodes, so the early return discarded the
+    // draft. Read rendered line breaks before removing the final caret filler.
+    const update = vi.fn()
+    const screen = await render(BasicContentEditable, {
+      props: { 'defaultHeight': '32px', 'placeholder': 'Write a message', 'onUpdate:modelValue': update },
+      attrs: { style: 'line-height: 24px; overflow-y: auto' },
+    })
+    const input = screen.getByRole('textbox').element()
+    const emptyHeight = input.getBoundingClientRect().height
+
+    input.innerHTML = '<br><br>'
+    input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertLineBreak' }))
+
+    await vi.waitFor(() => expect(update).toHaveBeenLastCalledWith('\n'))
+    await expect.element(input).not.toHaveAttribute('data-empty')
+
+    input.innerHTML = '<br><br><br>'
+    input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertLineBreak' }))
+    await vi.waitFor(() => expect(update).toHaveBeenLastCalledWith('\n\n'))
+
+    input.innerHTML = '<br>'
+    input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }))
+    await vi.waitFor(() => expect(update).toHaveBeenLastCalledWith(''))
+    await expect.element(input).toHaveAttribute('data-empty', '')
+    await expect.poll(() => input.getBoundingClientRect().height).toBe(emptyHeight)
+
+    // Check native blank-line growth in the mobile composer's scrollable layout.
+    await userEvent.fill(screen.getByRole('textbox'), '')
+    await userEvent.keyboard('{Shift>}{Enter}{Enter}{/Shift}')
+    await vi.waitFor(() => expect(update).toHaveBeenLastCalledWith('\n\n'))
+    await expect.poll(() => input.getBoundingClientRect().height).toBeGreaterThan(emptyHeight)
+  })
+
   it('preserves consecutive blank lines in the submitted text', async () => {
     const submit = vi.fn()
     const screen = await render(BasicContentEditable, {

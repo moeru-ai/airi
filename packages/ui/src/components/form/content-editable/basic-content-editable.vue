@@ -34,10 +34,8 @@ let resizeFrame: number | undefined
  * // readEditableText(editable) => 'draft\n'
  */
 function readEditableText(element: HTMLDivElement) {
-  if (element.textContent === '')
-    return ''
-
-  // innerText preserves native line breaks, including WebKit's <br> nodes.
+  // innerText preserves native line breaks, including break-only WebKit drafts.
+  // A lone <br> is an empty editor's caret filler; additional breaks are text.
   // eslint-disable-next-line unicorn/prefer-dom-node-text-content
   const text = element.innerText.replaceAll('\r\n', '\n')
   return text.endsWith('\n') ? text.slice(0, -1) : text
