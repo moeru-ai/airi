@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { StatusCapsule } from '@proj-airi/stage-ui/components'
-import { BasicButton } from '@proj-airi/ui'
+import { Button } from '@proj-airi/ui'
 import { useTimeoutFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -58,13 +58,24 @@ watch(status, (value) => {
         </span>
       </span>
     </template>
-    <div :class="['mt-2 flex gap-2']">
-      <BasicButton v-if="status.state === 'error'" @click="startLogin()">
-        {{ t('tamagotchi.stage.controls-island.login') }}
-      </BasicButton>
-      <BasicButton @click="dismissedAttempt = status?.attemptId">
-        {{ t('stage.status.dismiss') }}
-      </BasicButton>
+    <div :class="['mt-3 w-full flex items-center gap-2']">
+      <Button
+        size="sm"
+        icon="i-solar:close-circle-line-duotone"
+        :label="t('stage.status.dismiss')"
+        :class="['min-w-0 flex-1 whitespace-nowrap']"
+        @click="dismissedAttempt = status?.attemptId"
+      />
+      <Button
+        v-if="status.state === 'error'"
+        size="sm"
+        color="primary"
+        variant="primary"
+        icon="i-solar:login-3-line-duotone"
+        :label="t('tamagotchi.stage.controls-island.login')"
+        :class="['min-w-0 flex-1 whitespace-nowrap']"
+        @click="startLogin()"
+      />
     </div>
   </StatusCapsule>
 </template>
