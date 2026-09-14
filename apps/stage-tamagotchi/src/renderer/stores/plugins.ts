@@ -22,7 +22,8 @@ import {
  * - Enable/disable is a two-step main-process protocol: `set-enabled` persists
  *   the choice, `load`/`unload` starts or stops the runtime session. Both steps
  *   run through this store so the UI never observes a persisted-but-untouched
- *   enablement state after a click.
+ *   enablement state after a click. Disable unloads before it persists, so a
+ *   disabled plugin never keeps running.
  */
 export const usePluginsStore = defineStore('plugins', () => {
   const listPlugins = useElectronEventaInvoke(electronPluginList)
@@ -77,12 +78,23 @@ export const usePluginsStore = defineStore('plugins', () => {
 
   async function disableAndUnload(extensionId: string, path?: string) {
     await runCommand(extensionId, async () => {
-      assignSnapshot(await setPluginEnabled({ extensionId, enabled: false, path }))
+      // Stop the session before the store persists the disabled state. If
+      // unload fails, the plugin stays enabled and loaded instead of disabled
+      // and loaded.
       assignSnapshot(await unloadPlugin({ extensionId }))
+      assignSnapshot(await setPluginEnabled({ extensionId, enabled: false, path }))
     })
   }
 
   async function reload(extensionId: string) {
+    const plugin = plugins.value.find(plugin => plugin.extensionId === extensionId)
+
+    // Reload restarts only an enabled plugin. The main process loads a disabled
+    // plugin on request. Refuse the command, because a disabled plugin must not run.
+    if (plugin && !plugin.enabled) {
+      throw new Error(`Cannot reload disabled plugin: ${extensionId}`)
+    }
+
     // Main-process unload treats unknown sessions as already stopped, so reload
     // also works for plugins that are enabled but not currently loaded.
     await runCommand(extensionId, async () => {

@@ -144,7 +144,7 @@ onMounted(refresh)
               size="sm"
               :label="t('tamagotchi.settings.pages.plugins.actions.reload')"
               icon="i-solar:restart-bold-duotone"
-              :disabled="pluginsStore.loading"
+              :disabled="pluginsStore.loading || !plugin.enabled"
               :loading="pluginsStore.pendingExtensionId === plugin.extensionId"
               @click="reloadPlugin(plugin)"
             />
