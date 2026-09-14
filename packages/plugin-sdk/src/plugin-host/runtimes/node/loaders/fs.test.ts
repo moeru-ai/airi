@@ -1,12 +1,17 @@
 import type { ExtensionManifestV1 } from '../../../shared/types'
 
+import { execFile } from 'node:child_process'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { promisify } from 'node:util'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { FileSystemLoader } from './fs'
+
+const execFileAsync = promisify(execFile)
 
 function createManifest(entrypoint: string): ExtensionManifestV1 {
   return {
@@ -85,5 +90,47 @@ describe('fileSystemLoader', () => {
     finally {
       delete (globalThis as unknown as Record<string, number | undefined>)[markerKey]
     }
+  })
+
+  // NOTICE:
+  // The Vitest module runner loads dynamic imports itself and does not apply
+  // native `module.registerHooks` resolve hooks, so this test reproduces the
+  // reload behavior in a child Node process instead.
+  it('re-imports relative modules when the cache-bust key changes', async () => {
+    const markerKey = '__airiPluginDependencyEvaluations'
+    const loaderUrl = pathToFileURL(join(import.meta.dirname, 'fs.ts')).href
+    const manifest: ExtensionManifestV1 = {
+      apiVersion: 'v1',
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'test-loader-plugin',
+      permissions: {},
+      entrypoints: { electron: './index.mjs' },
+    }
+
+    await writeFile(
+      join(pluginDir, 'dependency.mjs'),
+      `globalThis[${JSON.stringify(markerKey)}] = (globalThis[${JSON.stringify(markerKey)}] ?? 0) + 1`,
+    )
+    await writeFile(
+      join(pluginDir, 'index.mjs'),
+      [
+        'import "./dependency.mjs"',
+        'export default { id: "test-loader-plugin", setup() {} }',
+      ].join('\n'),
+    )
+    const probePath = join(pluginDir, 'probe.mjs')
+    await writeFile(probePath, [
+      `import { FileSystemLoader } from ${JSON.stringify(loaderUrl)}`,
+      '',
+      `const manifest = ${JSON.stringify(manifest)}`,
+      'const loader = new FileSystemLoader()',
+      `await loader.loadExtensionFor(manifest, { cacheBustKey: 'graph-1', cwd: ${JSON.stringify(pluginDir)} })`,
+      `await loader.loadExtensionFor(manifest, { cacheBustKey: 'graph-2', cwd: ${JSON.stringify(pluginDir)} })`,
+      `console.log(globalThis[${JSON.stringify(markerKey)}])`,
+    ].join('\n'))
+
+    const { stdout } = await execFileAsync(process.execPath, [probePath], { cwd: pluginDir })
+
+    expect(stdout.trim()).toBe('2')
   })
 })
