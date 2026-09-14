@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 
-import { useEventListener } from '@vueuse/core'
-import { computed, watch } from 'vue'
+import { useEventListener, useMutationObserver, useResizeObserver } from '@vueuse/core'
+import { computed, shallowRef, watch } from 'vue'
 
 interface ChatHistoryScrollOptions<TMessage> {
   container: Readonly<Ref<HTMLElement | null>>
@@ -18,6 +18,8 @@ interface ChatHistoryScrollOptions<TMessage> {
  * A user scroll away from the tail disables automatic movement. Layout changes
  * and index scrolls do not disable it. Pointer, focus, and selection on an older
  * message also block movement until that inspection ends.
+ * The returned onUserScroll must receive custom scrollbar pointer events before
+ * their default handler changes the viewport position.
  */
 export function useChatHistoryScroll<TMessage>({
   container,
@@ -36,6 +38,39 @@ export function useChatHistoryScroll<TMessage>({
   let previousLastMessageKey: string | number | null = null
 
   const selectionDocument = computed(() => container.value?.ownerDocument)
+
+  // Message layout can change after the model watcher and Virtua's pending
+  // scroll finish (for example, fonts or rendered content arrive later).
+  // These scope-owned observers follow mounted messages without overriding
+  // a reader who scrolled away, focused history, or selected older text.
+  const renderedMessages = shallowRef<HTMLElement[]>([])
+  const measuredHeights = new WeakMap<Element, number>()
+  const observeRenderedMessages = () => {
+    const currentContainer = container.value
+    if (!currentContainer) {
+      renderedMessages.value = []
+      return
+    }
+    renderedMessages.value = Array.from(currentContainer.querySelectorAll<HTMLElement>('.chat-message-item'))
+  }
+  useMutationObserver(container, observeRenderedMessages, { childList: true, subtree: true })
+  watch(container, observeRenderedMessages, { flush: 'post', immediate: true })
+  useResizeObserver(renderedMessages, (entries) => {
+    let heightChanged = false
+    for (const { target, contentRect } of entries) {
+      const previousHeight = measuredHeights.get(target)
+      measuredHeights.set(target, contentRect.height)
+      if (previousHeight !== undefined && previousHeight !== contentRect.height)
+        heightChanged = true
+    }
+
+    if (!heightChanged || !didRequestInitialScroll || !isFollowingConversation || isPointerOrFocusOnOlderMessage || isSelectionInOlderMessage)
+      return
+
+    const lastIndex = messages.value.length - 1
+    if (lastIndex >= 0)
+      scrollToIndex(lastIndex, 'end')
+  })
 
   const isNearTail = (currentContainer: HTMLElement) => {
     // NOTICE: This tolerance absorbs sub-pixel layout changes, font swaps, and late content growth.
@@ -77,9 +112,14 @@ export function useChatHistoryScroll<TMessage>({
     }
   }, { passive: true })
 
-  useEventListener(container, ['wheel', 'touchmove'], () => {
+  // The custom scrollbar is a sibling of the viewport. Its owner calls this
+  // before Reka changes scrollTop; viewport wheel and touch events share it.
+  const onUserScroll = (event: PointerEvent | WheelEvent | TouchEvent) => {
+    if (event instanceof PointerEvent && event.button !== 0)
+      return
     hasUserScrollIntent = true
-  }, { passive: true })
+  }
+  useEventListener(container, ['wheel', 'touchmove'], onUserScroll, { passive: true })
 
   useEventListener(container, 'keydown', (event) => {
     if (['ArrowDown', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp', ' '].includes(event.key))
@@ -149,4 +189,6 @@ export function useChatHistoryScroll<TMessage>({
     },
     { flush: 'post', immediate: true },
   )
+
+  return { onUserScroll }
 }
