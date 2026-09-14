@@ -10,6 +10,7 @@ import { computed } from 'vue'
 
 import { electronAuthStartLogin, electronOnboardingClose } from '../../shared/eventa'
 import { useOnboardingAuthentication } from '../composables/use-onboarding-authentication'
+import { useAuthStatusStore } from '../stores/auth-status'
 
 const authStore = useAuthStore()
 const { needsLogin, isAuthenticated } = storeToRefs(authStore)
@@ -18,10 +19,12 @@ const { closeRequestId } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
 const closeWindow = useElectronEventaInvoke(electronOnboardingClose)
+const authStatus = useAuthStatusStore()
 const { closeOnboardingWindow } = useOnboardingAuthentication({
   closeRequestId,
   closeWindow,
   isAuthenticated,
+  isConfirming: computed(() => authStatus.status?.state === 'confirming'),
   needsLogin,
   onCloseError: error => console.error('[Onboarding] Failed to close the onboarding window.', error),
   startLogin,

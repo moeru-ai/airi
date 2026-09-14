@@ -279,14 +279,12 @@ export function streamWebSpeechAPITranscription(
       return
     }
 
-    if (errorType === 'audio-capture') {
-      console.warn('Web Speech API: Microphone access issue. Please check microphone permissions.')
+    if (errorType === 'aborted') {
       return
     }
+    if (deferredText.isRejected || deferredText.isResolved)
+      return
 
-    if (errorType === 'network' || errorType === 'aborted') {
-      return
-    }
     const error = new Error(`Speech recognition error: ${errorType}`)
     fullStreamCtrl?.error(error)
     textStreamCtrl?.error(error)
@@ -298,6 +296,9 @@ export function streamWebSpeechAPITranscription(
   recognition.onend = () => {
     options?.onRecognitionCycleEnd?.()
     console.info('Web Speech API recognition ended. Continuous mode:', options?.continuous !== false, 'Aborted:', options?.abortSignal?.aborted)
+
+    if (deferredText.isRejected)
+      return
 
     // If continuous mode and not aborted, restart recognition
     if (options?.continuous !== false && !options?.abortSignal?.aborted) {
