@@ -7,8 +7,10 @@ import { dirname, join, resolve } from 'node:path'
 import { app } from 'electron'
 
 import { getElectronMainDirname } from '../../../../libs/electron/location'
+import { extensionManifestFileName } from './registry'
 
 const pluginsDirectoryName = 'plugins'
+const legacyPluginsRootSegments = ['extensions', 'v1'] as const
 const writeProbeFileName = `.airi-plugin-write-probe-${process.pid}`
 
 function ensureDirectory(dir: string): boolean {
@@ -125,6 +127,102 @@ function listPluginDirectories(root: string): string[] {
     // A missing root or a file occupying the path is not a seeding source.
     return []
   }
+}
+
+/**
+ * Resolves the plugin discovery root used before the `plugins/` directory move.
+ *
+ * Older builds discovered extension manifests under
+ * `<userData>/extensions/v1`. The persisted `extensions-v1.json` still lists
+ * enabled ids, so those folders must move into the active root to keep loading.
+ *
+ * @returns Absolute path of the legacy extension root.
+ */
+export function resolveLegacyPluginsRoot(): string {
+  return join(app.getPath('userData'), ...legacyPluginsRootSegments)
+}
+
+/**
+ * Reports the outcome of one legacy plugin migration run.
+ *
+ * Use when:
+ * - Host bootstrap logs which legacy plugin folders were copied or failed
+ *
+ * Expects:
+ * - `failed` entries contain the caught copy error for diagnostics
+ *
+ * Returns:
+ * - N/A
+ */
+export interface MigrateLegacyPluginsResult {
+  migrated: string[]
+  failed: Array<{ directoryName: string, error: unknown }>
+}
+
+/**
+ * Copies plugin folders from the legacy extension root into the active root.
+ *
+ * Use when:
+ * - A packaged app upgrades from a build that discovered plugins under
+ *   `<userData>/extensions/v1`
+ *
+ * Expects:
+ * - The source folders stay in place, so the migration is non-destructive and
+ *   can run again on every start
+ * - Only child directories with an `extension.airi.json` manifest are copied
+ * - Development keeps the repository `plugins/` directory untouched, because a
+ *   copy there could add untracked workspace packages
+ *
+ * Returns:
+ * - Migrated directory names for startup logging, plus per-directory errors
+ */
+export async function migrateLegacyPluginsRoot(options: { legacyRoot: string, targetRoot: string }): Promise<MigrateLegacyPluginsResult> {
+  const result: MigrateLegacyPluginsResult = { migrated: [], failed: [] }
+  if (!app.isPackaged) {
+    return result
+  }
+
+  const { legacyRoot, targetRoot } = options
+  if (resolve(legacyRoot) === resolve(targetRoot)) {
+    return result
+  }
+
+  const legacyDirectories = listPluginDirectories(legacyRoot)
+  if (legacyDirectories.length === 0) {
+    return result
+  }
+
+  ensureDirectory(targetRoot)
+
+  for (const directoryName of legacyDirectories) {
+    const source = join(legacyRoot, directoryName)
+    const destination = join(targetRoot, directoryName)
+    if (existsSync(destination)) {
+      continue
+    }
+    if (!existsSync(join(source, extensionManifestFileName))) {
+      // Files and folders without a manifest were never loadable plugins.
+      continue
+    }
+
+    try {
+      await cp(source, destination, { recursive: true })
+      result.migrated.push(directoryName)
+    }
+    catch (error) {
+      // A partial copy must not block the next migration attempt.
+      try {
+        await rm(destination, { recursive: true, force: true })
+      }
+      catch {
+        // The partial copy stays on disk; the next start retries migration.
+      }
+
+      result.failed.push({ directoryName, error })
+    }
+  }
+
+  return result
 }
 
 /**

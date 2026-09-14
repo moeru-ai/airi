@@ -28,7 +28,7 @@ import {
   manifestIdOf,
   resolvePluginRuntimeEntrypointPath,
 } from './registry'
-import { resolveBundledPluginsRoot, resolvePluginsRoot, seedBundledPlugins } from './root'
+import { migrateLegacyPluginsRoot, resolveBundledPluginsRoot, resolveLegacyPluginsRoot, resolvePluginsRoot, seedBundledPlugins } from './root'
 
 const extensionAssetSessionTtlMs = 30 * 24 * 60 * 60 * 1000
 
@@ -245,6 +245,17 @@ export async function setupExtensionHostServiceInternal(
 ): Promise<ExtensionHostServiceInternal> {
   const log = useLogg('main/extension-host').useGlobalConfig()
   const extensionsRoot = resolvePluginsRoot()
+  // Copy plugins from the pre-`plugins/` discovery root before the first load.
+  const migration = await migrateLegacyPluginsRoot({
+    legacyRoot: resolveLegacyPluginsRoot(),
+    targetRoot: extensionsRoot,
+  })
+  if (migration.migrated.length > 0) {
+    log.withFields({ extensionsRoot, migrated: migration.migrated }).log('legacy plugins migrated into the active plugin directory')
+  }
+  for (const failure of migration.failed) {
+    log.withError(failure.error).withFields({ extensionsRoot, directoryName: failure.directoryName }).warn('failed to migrate legacy plugin')
+  }
   // Seeding is best effort: a failed copy must not stop the host from starting.
   const seeding = await seedBundledPlugins({
     bundledRoot: resolveBundledPluginsRoot(),

@@ -8,7 +8,7 @@ import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { setElectronMainDirname } from '../../../../libs/electron/location'
-import { resolveBundledPluginsRoot, resolvePluginsRoot, seedBundledPlugins } from './root'
+import { migrateLegacyPluginsRoot, resolveBundledPluginsRoot, resolveLegacyPluginsRoot, resolvePluginsRoot, seedBundledPlugins } from './root'
 
 const appMock = vi.hoisted(() => ({
   getPath: vi.fn(),
@@ -108,6 +108,67 @@ describe('plugin directory resolution', () => {
 
       expect(resolvePluginsRoot()).toBe(join(userDataDirectory, 'plugins'))
       expect(existsSync(join(userDataDirectory, 'plugins'))).toBe(true)
+    })
+  })
+
+  describe('resolveLegacyPluginsRoot', () => {
+    it('resolves the previous extension discovery root under user data', () => {
+      expect(resolveLegacyPluginsRoot()).toBe(join(userDataDirectory, 'extensions', 'v1'))
+    })
+  })
+
+  describe('migrateLegacyPluginsRoot', () => {
+    it('copies legacy plugin folders into the packaged target root', async () => {
+      appMock.isPackaged = true
+      const legacyRoot = join(workingDirectory, 'legacy')
+      const targetRoot = join(workingDirectory, 'target')
+      await mkdir(join(legacyRoot, 'legacy-plugin'), { recursive: true })
+      await writeFile(join(legacyRoot, 'legacy-plugin', 'extension.airi.json'), '{}')
+      await mkdir(join(legacyRoot, 'not-a-plugin'), { recursive: true })
+      await writeFile(join(legacyRoot, 'not-a-plugin', 'readme.txt'), '')
+
+      await expect(migrateLegacyPluginsRoot({ legacyRoot, targetRoot })).resolves.toEqual({ migrated: ['legacy-plugin'], failed: [] })
+      expect(existsSync(join(targetRoot, 'legacy-plugin', 'extension.airi.json'))).toBe(true)
+      expect(existsSync(join(targetRoot, 'not-a-plugin'))).toBe(false)
+    })
+
+    it('keeps legacy folders and stays idempotent on later starts', async () => {
+      appMock.isPackaged = true
+      const legacyRoot = join(workingDirectory, 'legacy')
+      const targetRoot = join(workingDirectory, 'target')
+      await mkdir(join(legacyRoot, 'legacy-plugin'), { recursive: true })
+      await writeFile(join(legacyRoot, 'legacy-plugin', 'extension.airi.json'), '{}')
+      await mkdir(join(targetRoot, 'legacy-plugin'), { recursive: true })
+
+      await expect(migrateLegacyPluginsRoot({ legacyRoot, targetRoot })).resolves.toEqual({ migrated: [], failed: [] })
+      expect(existsSync(join(legacyRoot, 'legacy-plugin', 'extension.airi.json'))).toBe(true)
+    })
+
+    it('does not touch the repository plugin directory in development', async () => {
+      appMock.isPackaged = false
+      const legacyRoot = join(workingDirectory, 'legacy')
+      const targetRoot = join(workingDirectory, 'target')
+      await mkdir(join(legacyRoot, 'legacy-plugin'), { recursive: true })
+      await writeFile(join(legacyRoot, 'legacy-plugin', 'extension.airi.json'), '{}')
+
+      await expect(migrateLegacyPluginsRoot({ legacyRoot, targetRoot })).resolves.toEqual({ migrated: [], failed: [] })
+      expect(existsSync(join(targetRoot, 'legacy-plugin'))).toBe(false)
+    })
+
+    it('reports a failed copy without throwing', async () => {
+      appMock.isPackaged = true
+      const legacyRoot = join(workingDirectory, 'legacy')
+      const targetRoot = join(workingDirectory, 'target-file')
+      await mkdir(join(legacyRoot, 'legacy-plugin'), { recursive: true })
+      await writeFile(join(legacyRoot, 'legacy-plugin', 'extension.airi.json'), '{}')
+      await writeFile(targetRoot, 'blocked by a file')
+
+      const result = await migrateLegacyPluginsRoot({ legacyRoot, targetRoot })
+
+      expect(result.migrated).toEqual([])
+      expect(result.failed).toEqual([
+        expect.objectContaining({ directoryName: 'legacy-plugin' }),
+      ])
     })
   })
 
