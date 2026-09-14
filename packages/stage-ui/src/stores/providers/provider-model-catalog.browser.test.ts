@@ -144,6 +144,25 @@ describe('provider model catalog synchronization', () => {
     }))
   })
 
+  it('replicates audio input capabilities without a follower state proposal', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+      data: [{ id: 'audio-model', architecture: { input_modalities: ['text', 'audio'] } }],
+    })))
+    const namespace = `provider-audio-catalog:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const follower = createSyncedContext(namespace, 'follower-only')
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await follower.providerStore.initializeProvider('openrouter-ai')
+    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+    const catalog = await follower.providerStore.fetchModelsForProvider('openrouter-ai')
+    expect(catalog.models[0]?.inputModalities).toEqual(['text', 'audio'])
+    await vi.waitFor(() => expect(follower.providerStore.getModelsForProvider('openrouter-ai')[0]?.inputModalities).toEqual(['text', 'audio']))
+    expect(leader.providerStore.getModelsForProvider('openrouter-ai')[0]?.inputModalities).toEqual(['text', 'audio'])
+    expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
+    traffic.mockRestore()
+  })
+
   // https://github.com/moeru-ai/airi/pull/2440#discussion_r3912226716
   // ROOT CAUSE:
   //

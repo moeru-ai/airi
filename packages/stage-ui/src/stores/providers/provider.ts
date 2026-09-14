@@ -534,6 +534,9 @@ export const useProviderStore = defineStore('provider', () => {
 
   function normalizeProviderModels(providerId: string, models: Array<{
     metadata?: ModelInfo['metadata']
+
+    inputModalities?: string[]
+    architecture?: { input_modalities?: string[] }
     context_length?: number
     contextLength?: number
     deprecated?: boolean
@@ -549,6 +552,7 @@ export const useProviderStore = defineStore('provider', () => {
       provider: providerId,
       description: model.description ?? '',
       contextLength: model.contextLength ?? model.context_length ?? 0,
+      inputModalities: model.inputModalities ?? model.architecture?.input_modalities,
       deprecated: model.deprecated ?? false,
     }))
   }
@@ -725,6 +729,7 @@ export const useProviderStore = defineStore('provider', () => {
           name: model.name,
           description: model.description,
           contextLength: model.contextLength,
+          inputModalities: model.inputModalities,
           deprecated: model.deprecated,
           provider: providerId,
         }))

@@ -68,3 +68,36 @@ compare gesture presentation, not conversation storage behavior.
 
 1. If a story is bound to a specific component, it can be placed beside the component in the `src` folder. e.g., `MyComponent.story.vue`
 2. If a story is not bound to a specific component, then it should be placed in the `stories` folder. e.g., `MyStory.story.vue`
+
+
+## Manual voice composer
+
+`VoiceComposer` adds hold-to-record input to a chat surface. Bind the text draft
+with `v-model` and pass the active `session-id` and the input container as
+`input-element`. Use `recording-change` to hide the editable contents while
+recording; the status content renders inside that same input shell. Pass `reply-to-message-id` and
+`tools` when the surface uses them. Handle `sent` to clear the reply selection.
+
+A short press changes between voice messages and dictation. A long press starts
+recording. The button follows the pointer and shrinks as it moves left toward
+cancellation. Move up to collapse the lock track and lock recording.
+Only the halo follows volume; the timer stays in the input bar. The overlay
+excludes that bar while dimming the Stage, background, and chat.
+Release sends the voice message or inserts the transcript. Enter starts a locked
+recording. Escape cancels it. Locked recordings have explicit finish and cancel
+buttons.
+
+The composer owns its microphone stream and transcription session. It cancels
+pending input when its chat session changes or the component unmounts. It does
+not enable the shared always-on Hearing stream or its automatic send setting.
+Use the existing Hearing controls for continuous listening.
+
+Voice messages keep WAV audio in local chat history. Models whose catalogs
+declare audio input receive the recording. Other models receive a transcript.
+Unknown model capabilities require transcription. Dictation also requires a
+configured Hearing provider and model. Providers with streaming input show live
+text; providers with file input return text after release. No automatic send
+setting applies to dictation drafts.
+
+Cloud chat synchronization currently transfers text only. It does not transfer
+voice recordings, just as it does not transfer image attachments.

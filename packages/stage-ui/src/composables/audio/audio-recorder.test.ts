@@ -3,7 +3,7 @@ import { shallowRef } from 'vue'
 
 const mediabunnyMock = vi.hoisted(() => {
   const audioSources: Array<{ track: MediaStreamTrack, encodingConfig: { codec: string, bitrate: number } }> = []
-  const outputs: Array<{ target: { buffer?: Uint8Array }, finalized: boolean }> = []
+  const outputs: Array<{ target: { buffer?: Uint8Array }, finalized: boolean, cancelled: boolean }> = []
   let startFailuresRemaining = 0
 
   class FakeBufferTarget {
@@ -23,6 +23,7 @@ const mediabunnyMock = vi.hoisted(() => {
   class FakeOutput {
     target: FakeBufferTarget
     finalized = false
+    cancelled = false
 
     constructor(options: { target: FakeBufferTarget }) {
       this.target = options.target
@@ -42,6 +43,10 @@ const mediabunnyMock = vi.hoisted(() => {
       }
 
       this.target.buffer = new Uint8Array([outputs.length])
+    }
+
+    async cancel() {
+      this.cancelled = true
     }
 
     async finalize() {
@@ -138,7 +143,7 @@ describe('useAudioRecorder', () => {
     // method ran the normal stop hooks, so rejected noise reached ASR and could
     // create a user message.
     //
-    // We finalize canceled audio through a separate discard operation that
+    // We cancel the output through a separate discard operation that
     // does not create a recording blob or run stop hooks.
     const { useAudioRecorder } = await import('./audio-recorder')
     const stream = shallowRef(createMediaStream())
@@ -151,7 +156,8 @@ describe('useAudioRecorder', () => {
 
     await recorder.discardRecord()
 
-    expect(activeOutput?.finalized).toBe(true)
+    expect(activeOutput?.cancelled).toBe(true)
+    expect(activeOutput?.finalized).toBe(false)
     expect(recorder.isRecording.value).toBe(false)
     expect(onStopRecord).not.toHaveBeenCalled()
   })
