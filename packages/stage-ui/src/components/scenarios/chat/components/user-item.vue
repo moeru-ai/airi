@@ -47,10 +47,19 @@ const content = computed(() => {
   return ''
 })
 
-const emptyImages: readonly string[] = Object.freeze([])
-const images = computed(() => typeof props.message.content === 'string'
-  ? emptyImages
-  : props.message.content.filter(part => part.type === 'image_url').map(part => part.image_url.url))
+const noMedia: readonly string[] = Object.freeze([])
+const images = computed(() => {
+  const raw = props.message.content
+  if (!Array.isArray(raw))
+    return noMedia
+  return raw.filter(part => part.type === 'image_url').map(part => part.image_url.url)
+})
+const recordings = computed(() => {
+  const raw = props.message.content
+  if (!Array.isArray(raw))
+    return noMedia
+  return raw.filter(part => part.type === 'input_audio').map(part => `data:audio/${part.input_audio.format};base64,${part.input_audio.data}`)
+})
 
 const containerClasses = computed(() => [
   'flex',
@@ -102,8 +111,18 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           <div v-if="images.length" :class="['flex flex-wrap gap-2 py-2']">
             <img v-for="(image, index) in images" :key="index" :src="image" :alt="t('stage.chat.images.description')" :class="['max-h-64 max-w-full rounded-xl object-contain']">
           </div>
+          <audio
+            v-for="(recording, index) in recordings"
+            :key="index"
+            :src="recording"
+            :aria-label="t('stage.voice.audio')"
+            :class="['my-2 max-w-full w-64']"
+            controls
+            preload="metadata"
+          />
           <MarkdownRenderer
-            :content="content as string"
+            v-if="content"
+            :content="content"
             class="break-words"
           />
         </div>

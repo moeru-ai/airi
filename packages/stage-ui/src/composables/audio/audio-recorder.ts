@@ -83,9 +83,13 @@ export function useAudioRecorder(
     mediaOutput.value = undefined
     mediaFormat.value = undefined
 
-    await activeOutput.finalize()
-    if (!notifyStopHooks)
+    if (!notifyStopHooks) {
+      // A quick cancellation can precede the first packet. Finalizing an empty
+      // WAV fails because its decoder format is unknown; cancellation needs no file.
+      await activeOutput.cancel()
       return
+    }
+    await activeOutput.finalize()
 
     const bufferTarget = activeOutput.target as BufferTarget | undefined
     const buffer = bufferTarget?.buffer
@@ -113,7 +117,7 @@ export function useAudioRecorder(
     return await finalizeRecord(true)
   }
 
-  /** Finalizes the active recording without creating a blob or running stop hooks. */
+  /** Cancels the active output without creating a blob or running stop hooks. */
   async function discardRecord() {
     await finalizeRecord(false)
   }

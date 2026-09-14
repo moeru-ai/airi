@@ -119,6 +119,12 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     })
   }
 
+  // Catalog evidence is required. Unknown and custom models use transcription.
+  const supportsAudioInput = computed(() => providerModels.value
+    .find(model => model.id === activeModel.value)
+    ?.inputModalities
+    ?.includes('audio') === true)
+
   const configured = computed(() => {
     return !!activeProvider.value && !!activeModel.value
   })
@@ -135,6 +141,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   return {
     // State
     configured,
+    supportsAudioInput,
     activeProvider,
     activeModel,
     activeTemperature,

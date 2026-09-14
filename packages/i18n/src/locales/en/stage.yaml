@@ -184,3 +184,23 @@ status:
   sign-in-unconfirmed: Could not confirm your session. Please sign in again.
   dismiss: Dismiss
   configure-hearing: Select and configure a Hearing provider in Settings.
+
+voice:
+  audio: Voice message
+  transcription: Dictation
+  hold-hint: Hold to record. Tap to switch mode. Press Enter to record hands-free.
+  listening: Listening…
+  lock: Slide up to lock
+  locked: Recording locked
+  cancel-hint: Slide left to cancel
+  release-cancel: Release to cancel
+  release-send: Release to send voice message
+  release-insert: Release to insert text
+  processing: Finishing…
+  cancel: Cancel
+  send: Send voice message
+  insert: Insert text
+  failed: Voice input failed
+  configure-title: Configure transcription
+  configure-description: Select a transcription provider and model in Hearing to use dictation or send audio to a text-only model.
+  configure-action: Open Hearing

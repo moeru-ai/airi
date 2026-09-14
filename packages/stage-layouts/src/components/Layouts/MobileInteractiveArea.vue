@@ -5,7 +5,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatHistory, HearingStatus } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -54,7 +54,7 @@ const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
-  send: submission => chatOrchestrator.send({
+  send: async submission => chatOrchestrator.send({
     sessionId: submission.sessionId,
     text: submission.text,
     attachments: submission.attachments.map(({ type, data, mimeType }) => ({ type, data, mimeType })),
@@ -72,6 +72,7 @@ const {
 } = composer
 const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
+const voiceActive = shallowRef(false)
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
   sessionId: activeSessionId,
@@ -398,13 +399,14 @@ onUnmounted(() => {
         data-testid="mobile-message-composer"
         :class="[
           'max-h-100dvh max-w-100dvw w-full',
-          'flex gap-2 px-3 pt-2',
+          'flex items-end gap-2 px-3 pt-2',
         ]"
         :style="messageComposerStyle"
       >
         <button
           type="button"
           :aria-label="t('stage.chat.images.attach')"
+          :disabled="voiceActive"
           :class="[
             'size-10 shrink-0 flex items-center justify-center self-end rounded-full',
             'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 text-primary-600 backdrop-blur-md',
@@ -427,10 +429,10 @@ onUnmounted(() => {
         >
           <ChatReplyPreview
             :target="replyTarget"
-            :class="['w-full']"
+            :class="['w-full', voiceActive && 'invisible']"
             @cancel="handleCancelReply"
           />
-          <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2']">
+          <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2', voiceActive && 'invisible']">
             <ChatImageAttachmentPreview v-for="(attachment, index) in attachments" :key="attachment.previewId" :file="attachment.file" @remove="removeAttachment(index)" />
           </div>
           <p v-if="imageError" role="alert" :class="['px-3 py-1 text-xs text-red-600 dark:text-red-400']">
@@ -455,6 +457,7 @@ onUnmounted(() => {
               'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
               'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
               themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
+              voiceActive && 'invisible',
             ]"
             default-height="1lh"
             @submit="handleSubmit"
@@ -492,6 +495,16 @@ onUnmounted(() => {
           >
             <div class="i-solar:arrow-up-outline size-5" />
           </button>
+          <VoiceComposer
+            v-else
+            v-model="messageInput"
+            size="large"
+            :input-element="inputBubble"
+            :session-id="activeSessionId"
+            :reply-to-message-id="replyTarget?.message.id"
+            @recording-change="voiceActive = $event"
+            @sent="composer.clearReply()"
+          />
         </div>
       </div>
     </div>
