@@ -911,17 +911,17 @@ describe('for FileSystemLoader', () => {
     expect(host.resolveEntrypointFor(runtimeEntryManifest, {
       cwd: '/tmp/extension',
       runtime: 'node',
-    })).toBe('/tmp/extension/node-entry.ts')
+    })).toBe(join('/tmp/extension', 'node-entry.ts'))
 
     expect(host.resolveEntrypointFor(defaultFallbackManifest, {
       cwd: '/tmp/extension',
       runtime: 'node',
-    })).toBe('/tmp/extension/default-entry.ts')
+    })).toBe(join('/tmp/extension', 'default-entry.ts'))
 
     expect(host.resolveEntrypointFor(electronFallbackManifest, {
       cwd: '/tmp/extension',
       runtime: 'node',
-    })).toBe('/tmp/extension/electron-entry.ts')
+    })).toBe(join('/tmp/extension', 'electron-entry.ts'))
   })
 
   it('should preserve absolute runtime entrypoints', () => {
