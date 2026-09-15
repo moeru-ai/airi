@@ -61,7 +61,10 @@ export async function routeModelAliasCandidates(input: {
         headers: {},
         abortSignal: input.abortSignal,
       }, routeCtx)
-      await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
+      // Cleanup previous failed response — treat as best-effort to avoid
+      // a cleanup rejection discarding a successful later response.
+      // Fire-and-forget: don't await, never let cleanup affect control flow.
+      lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
       if (response.ok || index === input.modelIds.length - 1)
         return { modelId, response, routeCtx }
       // Keep the last HTTP failure until another candidate produces a response.
@@ -70,7 +73,8 @@ export async function routeModelAliasCandidates(input: {
     }
     catch (err) {
       if (input.abortSignal?.aborted) {
-        await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
+        // On abort, best-effort cleanup of any held response, then re-throw.
+        lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
         throw err
       }
       lastError = err
