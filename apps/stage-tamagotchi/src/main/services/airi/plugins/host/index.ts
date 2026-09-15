@@ -66,9 +66,9 @@ function createElectronExtensionAssetCookieAdapter() {
  * - `widgetsManager` is ready before startup begins
  *
  * Returns:
- * - The plain `ExtensionHostService` fields plus internal helpers for list/load/unload/inspect/dispose
+ * - The Host fields plus internal helpers for list/load/unload/inspect/dispose
  */
-export interface ExtensionHostServiceInternal extends ExtensionHostService {
+export interface ExtensionHostServiceInternal extends Pick<ExtensionHostService, 'host' | 'manifests'> {
   /** Tamagotchi-owned extension tool registry used by IPC tool bridges. */
   tools: TamagotchiToolRegistry
 

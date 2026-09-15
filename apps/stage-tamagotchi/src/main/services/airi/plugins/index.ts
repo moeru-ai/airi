@@ -55,6 +55,20 @@ function assertImportPlanOwner(planOwners: Map<string, number>, planId: string, 
   }
 }
 
+function cancelDirectoryImportsForOwner(
+  hostService: Awaited<ReturnType<typeof setupExtensionHostServiceInternal>>,
+  planOwners: Map<string, number>,
+  ownerId: number,
+): void {
+  for (const [planId, planOwnerId] of planOwners) {
+    if (planOwnerId !== ownerId) {
+      continue
+    }
+    hostService.cancelDirectoryImport(planId)
+    planOwners.delete(planId)
+  }
+}
+
 /**
  * Initializes the Electron extension host and wires IPC handlers.
  * Call once during app startup; it loads manifests, returns the host instance,
@@ -101,6 +115,7 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
     }
 
     const plan = await hostService.prepareDirectoryImport(sourcePath, selection.bookmarks?.[0])
+    cancelDirectoryImportsForOwner(hostService, directoryImportPlanOwners, event.sender.id)
     directoryImportPlanOwners.set(plan.planId, event.sender.id)
     return {
       status: 'ready' as const,
@@ -211,5 +226,10 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   return {
     host: hostService.host,
     manifests: hostService.manifests,
+    cancelDirectoryImportsForOwner: ownerId => cancelDirectoryImportsForOwner(
+      hostService,
+      directoryImportPlanOwners,
+      ownerId,
+    ),
   }
 }

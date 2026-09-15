@@ -38,8 +38,8 @@ export interface ExtensionDirectoryImportKitSummary {
 /**
  * Immutable package facts returned before an Extension folder is imported.
  *
- * The plan expires after a short time. The renderer sends only `planId` when
- * the user confirms the import.
+ * The plan remains valid while its management renderer owns it. The renderer
+ * sends only `planId` when the user confirms the import.
  */
 export interface ExtensionDirectoryImportPlan {
   planId: string
@@ -53,7 +53,6 @@ export interface ExtensionDirectoryImportPlan {
   fileCount: number
   totalBytes: number
   fingerprint: string
-  createdAt: number
 }
 
 /** Result of opening the native Extension folder picker. */

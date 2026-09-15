@@ -607,6 +607,64 @@ describe('setupExtensionHost', () => {
     await expect(invokeAsRenderer(invokeCancel, { planId: prepared.plan.planId })).resolves.toBeUndefined()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013971562
+  it('replaces the pending folder import owned by the same renderer (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // Each prepare call added another plan for the same renderer. The renderer
+    // displayed only the latest review and could no longer cancel older plans.
+    const sourceDir = join(userDataDir, 'replacement-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('replacement-extension'))
+    await writeManifest({ dir: sourceDir, name: 'replacement-extension', entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
+
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
+    const first = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    const second = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    if (first.status !== 'ready' || second.status !== 'ready') {
+      throw new Error('Expected ready import plans.')
+    }
+
+    await expect(invokeAsRenderer(invokeCommit, { planId: first.plan.planId })).rejects.toThrow(
+      'Extension import plan is not available to this renderer.',
+    )
+    await expect(invokeAsRenderer(invokeCommit, { planId: second.plan.planId })).resolves.toEqual(
+      expect.objectContaining({
+        plugins: [expect.objectContaining({ extensionId: 'replacement-extension' })],
+      }),
+    )
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013971562
+  it('cancels pending folder imports when their management renderer closes (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // Closing Settings removed the authorized renderer id but left its import
+    // plan and security-scoped bookmark in the Host until application shutdown.
+    const sourceDir = join(userDataDir, 'closed-renderer-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('closed-renderer-extension'))
+    await writeManifest({ dir: sourceDir, name: 'closed-renderer-extension', entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
+
+    const service = await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
+    const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    if (prepared.status !== 'ready') {
+      throw new Error('Expected a ready import plan.')
+    }
+
+    service.cancelDirectoryImportsForOwner(extensionManagementWebContentsId)
+
+    await expect(invokeAsRenderer(invokeCommit, { planId: prepared.plan.planId })).rejects.toThrow(
+      'Extension import plan is not available to this renderer.',
+    )
+  })
+
   it('retains security-scoped folder access through import confirmation', async () => {
     const sourceDir = join(userDataDir, 'sandboxed-extension')
     await mkdir(sourceDir, { recursive: true })

@@ -28,6 +28,8 @@ export type ExtensionId = string
 export interface ExtensionHostService {
   host: ExtensionHost
   manifests: ExtensionManifestV2[]
+  /** Cancels each pending folder import owned by one management renderer. */
+  cancelDirectoryImportsForOwner: (webContentsId: number) => void
 }
 
 /**

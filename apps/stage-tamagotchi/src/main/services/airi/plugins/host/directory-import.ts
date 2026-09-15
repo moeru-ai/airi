@@ -20,8 +20,6 @@ import { parseExtensionManifest } from '@proj-airi/plugin-sdk/plugin-host'
 
 import { extensionManifestFileName } from './registry'
 
-const importPlanTtlMs = 10 * 60 * 1000
-
 /** Bounds inspection work for an untrusted Extension folder. */
 const extensionPackageLimits = Object.freeze({
   entries: 10_000,
@@ -380,7 +378,7 @@ export class ExtensionDirectoryImporter {
     private readonly startAccessingSecurityScopedResource?: StartAccessingSecurityScopedResource,
   ) {}
 
-  /** Creates a short-lived import plan from an untrusted source directory. */
+  /** Creates an import plan from an untrusted source directory. */
   async prepare(sourcePath: string, securityScopedBookmark?: string): Promise<ExtensionDirectoryImportPlan> {
     this.assertActive()
     const inspected = await this.withSecurityScopedAccess(
@@ -403,7 +401,6 @@ export class ExtensionDirectoryImporter {
       fileCount: inspected.fileCount,
       totalBytes: inspected.totalBytes,
       fingerprint: inspected.fingerprint,
-      createdAt: Date.now(),
     }
     this.plans.set(planId, {
       preview,
@@ -471,11 +468,6 @@ export class ExtensionDirectoryImporter {
     if (!storedPlan) {
       throw new Error('Extension import plan is missing or was already used.')
     }
-    if (Date.now() - storedPlan.preview.createdAt > importPlanTtlMs) {
-      this.plans.delete(planId)
-      throw new Error('Extension import plan expired. Select the folder again.')
-    }
-
     return await this.withSecurityScopedAccess(storedPlan.securityScopedBookmark, async () => {
       const inspected = await inspectExtensionDirectory(storedPlan.sourcePath)
       if (inspected.manifest.id !== storedPlan.preview.extensionId || inspected.fingerprint !== storedPlan.preview.fingerprint) {

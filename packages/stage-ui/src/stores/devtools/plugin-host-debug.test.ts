@@ -159,7 +159,6 @@ describe('extension folder import', () => {
         fileCount: 2,
         totalBytes: 128,
         fingerprint: 'fingerprint',
-        createdAt: 1,
       },
     })
     const store = usePluginHostInspectorStore()

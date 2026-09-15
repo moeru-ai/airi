@@ -260,7 +260,7 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, globalShortcut, spotlightWindow },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, globalShortcut, spotlightWindow, pluginHost },
     build: async ({ dependsOn }) =>
       setupSettingsWindowReusableFunc({
         ...dependsOn,
@@ -269,6 +269,7 @@ app.whenReady().then(async () => {
           const webContentsId = window.webContents.id
           extensionManagementWebContentsId = webContentsId
           window.once('closed', () => {
+            dependsOn.pluginHost.cancelDirectoryImportsForOwner(webContentsId)
             if (extensionManagementWebContentsId === webContentsId) {
               extensionManagementWebContentsId = undefined
             }
