@@ -239,6 +239,18 @@ export function createMcpStdioManager(): McpStdioManager {
     }
     catch {
       await writeConfigFile(path, `${JSON.stringify(defaultMcpConfig, null, 2)}\n`)
+      return { path }
+    }
+
+    // Files created by older builds can stay world readable. Tighten them here
+    // as well, because a read path never calls `writeConfigFile`.
+    if (process.platform !== 'win32') {
+      try {
+        await chmod(path, mcpConfigFileMode)
+      }
+      catch (error) {
+        log.withError(error).withFields({ path }).warn('failed to tighten mcp config permissions')
+      }
     }
 
     return { path }

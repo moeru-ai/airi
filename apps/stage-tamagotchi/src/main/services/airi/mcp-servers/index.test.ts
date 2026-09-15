@@ -1,4 +1,4 @@
-import { mkdtemp, rm, stat } from 'node:fs/promises'
+import { chmod, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -114,6 +114,26 @@ describe('createMcpStdioManager', () => {
       await manager.writeConfigText(JSON.stringify({ mcpServers: {} }))
 
       const fileStats = await stat(join(userDataDir, 'mcp.json'))
+      expect(fileStats.mode & 0o777).toBe(0o600)
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
+  })
+
+  it.skipIf(process.platform === 'win32')('tightens permissions on an existing mcp.json', async () => {
+    const userDataDir = await createTempUserDataDir()
+
+    try {
+      const path = join(userDataDir, 'mcp.json')
+      await writeFile(path, JSON.stringify({ mcpServers: {} }), { mode: 0o644 })
+      await chmod(path, 0o644)
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+
+      await manager.ensureConfigFile()
+
+      const fileStats = await stat(path)
       expect(fileStats.mode & 0o777).toBe(0o600)
     }
     finally {
