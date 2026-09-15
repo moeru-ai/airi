@@ -86,6 +86,24 @@ describe('provider model catalog synchronization', () => {
     localStorage.clear()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2477#discussion_r4000309837
+  // ROOT CAUSE:
+  //
+  // A follower patch used to send its full stale store as a state proposal.
+  // Route the changed fields to the leader so other configuration stays authoritative.
+  it('routes partial config updates through the leader without state proposals (PR #2477)', async () => {
+    const { leader, follower } = await createTranscriptionRenderers()
+    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+    await follower.providerConfigStore.patchProviderConfig(transcriptionProviderId, { api: 'responses' })
+    await expect.poll(() => leader.providerConfigStore.getProviderConfig(transcriptionProviderId)?.api).toBe('responses')
+    await expect.poll(() => follower.providerConfigStore.getProviderConfig(transcriptionProviderId)?.api).toBe('responses')
+    expect(leader.providerConfigStore.getProviderConfig(transcriptionProviderId)?.apiKey).toBe('test')
+    expect(traffic).toHaveBeenCalledWith(expect.objectContaining({ name: 'onCall', rest: expect.arrayContaining(['invokeAction', expect.objectContaining({ actionName: 'patchProviderConfig' })]) }))
+    expect(traffic).not.toHaveBeenCalledWith(expect.objectContaining({ name: 'onCall', rest: expect.arrayContaining(['replaceState']) }))
+    await expect(follower.providerConfigStore.patchProviderConfig('missing', { api: 'responses' })).resolves.toBe(false)
+    expect(leader.providerConfigStore.getProvider('missing')).toBeUndefined()
+  })
+
   it('disposes the caller renderer instance without disposing the leader instance', async () => {
     const { leader, follower } = await createTranscriptionRenderers()
     const leaderInstance = await leader.providerStore.getProviderInstance(transcriptionProviderId)
