@@ -9,13 +9,22 @@ The user confirmed this implementation scope and the existing `@xsai/shared-stre
 Issue #2479 defines an authenticated, stateless Responses create endpoint.
 This PR implements its server boundary on top of the existing gateway and Flux policy.
 The client sends complete input Items. The gateway forces `store: false`.
-It rejects conversation references, file IDs, background execution, and hosted tools with separate charges.
+It rejects conversation references, file IDs, background execution, and hosted tools other than web search.
+The user confirmed native web search support for OpenAI upstreams.
+The server reuses `model-bank/openai` search capabilities for the effective upstream model.
+Only the canonical OpenAI endpoint advertises this provider capability.
+Requests opt into search through `tools`; the gateway does not inject tools.
+Search calls and sources remain portable input Items. Unsupported search candidates are skipped.
+
 Function tools run on the client and return their output on the next request.
 
 Each upstream explicitly opts into Responses through `protocols: ['responses']`.
 An omitted list supports Chat Completions only. This preserves the current configured service contract.
 Aliases keep their primary, weighted, and fallback order. Protocol filtering precedes candidate selection.
 Unsupported candidates never receive a request. The last attempted HTTP error remains available to the caller.
+
+This change preserves the existing Flux policy and adds no per-search rate.
+The service absorbs upstream search-call fees; returned search content tokens use the existing token rate.
 
 Each request owns one billing ID. Completed results use input/output token usage and the existing Flux pricing policy.
 Missing usage follows the existing flat-rate policy. Failed, incomplete, cancelled, and truncated streams incur no debit.
@@ -37,6 +46,7 @@ flowchart LR
   HTTP --> Limit[User rate limit]
   Operation --> Alias[Shared alias routing]
   Alias --> Router[LLM router and key rotation]
+  Router --> Catalog[model-bank OpenAI catalog]
   Router --> Upstream[Responses-capable upstream]
   Operation --> Billing[Existing Flux settlement]
   Operation --> Observe[Metrics, logs, generation trace]
@@ -53,7 +63,7 @@ server/
       index.ts, gateway.ts, model-routing.ts, route.test.ts
       middlewares/traffic-control.ts
       operations/chat-completions/index.ts
-      operations/responses.ts
+      operations/responses/{index.ts,request.ts,request.test.ts}
     src/services/
       adapters/config-kv/definitions.ts
       domain/llm-router/{router.ts,types.ts,tests/router.test.ts}
@@ -86,7 +96,8 @@ sequenceDiagram
 
 ## Verification
 
-Exercise the mounted route with authentication, malformed input, stateful references, hosted tools, and insufficient Flux.
+Exercise the mounted route with authentication, malformed input, stateful references, search tools, rejected hosted tools, and insufficient Flux.
+Cover catalog model matching, compatible-proxy rejection, grouped fallback, portable search Items, citations, and unchanged tool choice.
 Cover JSON/SSE completion, usage, upstream errors, split UTF-8 frames, cancellation, duplicate terminal events, and stream EOF.
 Verify grouped and ungrouped routing, incompatible candidates, key failover, and preservation of terminal upstream errors.
 Run focused gateway, router, schema, and billing tests. CI checks the complete repository.

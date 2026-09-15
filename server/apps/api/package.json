@@ -56,6 +56,7 @@
     "injeca": "catalog:",
     "ioredis": "catalog:",
     "jose": "catalog:",
+    "model-bank": "catalog:",
     "nanoid": "catalog:",
     "ofetch": "catalog:",
     "pg": "catalog:",

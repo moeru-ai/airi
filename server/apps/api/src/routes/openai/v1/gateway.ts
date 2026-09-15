@@ -2,7 +2,7 @@ import type { Context, Handler, MiddlewareHandler } from 'hono'
 
 import type { HonoEnv } from '../../../types/hono'
 import type { ChatCompletionsOperationRequest } from './operations/chat-completions'
-import type { ResponsesOperationRequest } from './operations/responses'
+import type { ResponsesOperationRequest } from './operations/responses/request'
 import type { SpeechGenerationOperationRequest } from './operations/speech-generation'
 import type { V1RouteDeps } from './types'
 

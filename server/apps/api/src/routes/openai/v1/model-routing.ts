@@ -2,6 +2,8 @@ import type { CapabilityAliasRoute } from '../../../schemas/provider-catalog'
 import type { LlmRouteRequest } from '../../../services/domain/llm-router/types'
 import type { V1RouteDeps } from './types'
 
+import { useLogger } from '@guiiai/logg'
+
 import { createBadRequestError } from '../../../utils/error'
 import { newRouteContext } from './middlewares/telemetry'
 
@@ -38,11 +40,13 @@ export async function routeModelAliasCandidates(input: {
   modelIds: string[]
   abortSignal?: AbortSignal
   protocol?: LlmRouteRequest['protocol']
+  requiresWebSearch?: boolean
 }): Promise<{
   modelId: string
   response: Response
   routeCtx: ReturnType<typeof newRouteContext>
 }> {
+  const logger = useLogger('model-alias-routing').useGlobalConfig()
   let lastError: unknown
   let lastResponse: { modelId: string, response: Response, routeCtx: ReturnType<typeof newRouteContext> } | undefined
   for (let index = 0; index < input.modelIds.length; index += 1) {
@@ -52,11 +56,12 @@ export async function routeModelAliasCandidates(input: {
       const response = await input.deps.llmRouter.route({
         modelName: modelId,
         protocol: input.protocol,
+        requiresWebSearch: input.requiresWebSearch,
         body: input.body,
         headers: {},
         abortSignal: input.abortSignal,
       }, routeCtx)
-      await lastResponse?.response.body?.cancel()
+      await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
       if (response.ok || index === input.modelIds.length - 1)
         return { modelId, response, routeCtx }
       // Keep the last HTTP failure until another candidate produces a response.
@@ -65,7 +70,7 @@ export async function routeModelAliasCandidates(input: {
     }
     catch (err) {
       if (input.abortSignal?.aborted) {
-        await lastResponse?.response.body?.cancel()
+        await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
         throw err
       }
       lastError = err

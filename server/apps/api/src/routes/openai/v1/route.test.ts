@@ -2663,3 +2663,57 @@ it('issue #2479 keeps the last upstream error when a later alias candidate lacks
   expect(router.route).toHaveBeenCalledTimes(2)
   expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
 })
+
+// https://github.com/moeru-ai/airi/pull/2554#discussion_r4017201502
+it('pR #2554 keeps a successful fallback when discarded body cancellation rejects', async () => {
+  const catalog = createMockProviderCatalogService()
+  const alias = await catalog.resolveEnabledAlias('llm', 'auto')
+  vi.mocked(catalog.resolveEnabledAlias).mockResolvedValue({ ...alias, routes: [
+    ...alias.routes,
+    { ...alias.routes[0], id: 'second-route', routerModelId: 'chat-only', pool: 'fallback' },
+  ] })
+  const router = createMockLlmRouter({ route: vi.fn(async ({ modelName }) => {
+    if (modelName === 'chat-only')
+      return Response.json(responsesResult())
+    // ROOT CAUSE:
+    // Awaiting rejected cleanup discarded the next successful provider response.
+    // Cleanup must not change the selected response.
+    return new Response(new ReadableStream({
+      cancel() {
+        throw new Error('socket closed')
+      },
+    }), { status: 402 })
+  }) })
+  const billing = createMockBillingService()
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, undefined, undefined, router, createMockLlmTracing(), createMockProductEventService(), createMockVoicePackService(), catalog)
+  const response = await app.request('/api/v1/openai/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: 'hello' }),
+  }, { user: testUser })
+  expect(response.status).toBe(200)
+  expect(await response.json()).toEqual(responsesResult())
+  expect(router.route).toHaveBeenCalledTimes(2)
+  expect(billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+})
+
+it('forwards search tools and portable history without forcing tool use', async () => {
+  const result = responsesResult()
+  const harness = responsesHarness(() => Response.json(result))
+  const body = { tools: [{ type: 'web_search' }], tool_choice: 'none', input: [{ type: 'web_search_call', id: 'ws-1', status: 'completed', action: { type: 'search', query: 'AIRI' } }] }
+  const response = await harness.send(body)
+  expect(response.status).toBe(200)
+  expect(await response.json()).toEqual(result)
+  expect(harness.router.route).toHaveBeenCalledWith(expect.objectContaining({ requiresWebSearch: true, body: expect.objectContaining(body) }), expect.anything())
+})
+
+it('preserves native search SSE output and citation annotations', async () => {
+  const search = { type: 'web_search_call', id: 'ws-1', status: 'completed', action: { type: 'search', queries: ['AIRI'], sources: [{ type: 'url', url: 'https://airi.moeru.ai' }] } }
+  const output = [search, { type: 'message', id: 'msg-1', role: 'assistant', content: [{ type: 'output_text', text: 'AIRI', annotations: [{ type: 'url_citation', start_index: 0, end_index: 4, url: 'https://airi.moeru.ai', title: 'AIRI' }] }] }]
+  const result = { ...responsesResult(), output }
+  const frame = `event: response.completed\ndata: ${JSON.stringify({ type: 'response.completed', response: result })}\n\n`
+  const harness = responsesHarness(() => new Response(frame))
+  const response = await harness.send({ stream: true, tools: [{ type: 'web_search' }], include: ['web_search_call.action.sources'] })
+  expect(await response.text()).toBe(frame)
+  expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+})

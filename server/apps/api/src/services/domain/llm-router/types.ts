@@ -117,6 +117,8 @@ export type ModelKind = 'llm' | 'tts'
 export interface LlmRouteRequest {
   /** Wire protocol. @default 'chat-completions' */
   protocol?: 'chat-completions' | 'responses'
+  /** Select only upstreams whose effective model supports hosted web search. @default false */
+  requiresWebSearch?: boolean
 
   /**
    * Model name from the caller (e.g. `openai/gpt-5-mini`). Used to look up

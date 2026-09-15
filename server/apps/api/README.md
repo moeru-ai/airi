@@ -81,8 +81,21 @@ This PR does not update live routing configuration or switch the official client
 
 The request uses `store: false`, which is also the default. Send complete messages, reasoning Items, function calls,
 and function outputs in `input`. The endpoint rejects `previous_response_id`, `conversation`, file IDs,
-background generation, item references, and hosted tools such as web search or code interpreter.
-Do not use this endpoint for provider-side history or tools with separate charges.
+background generation, item references, file search, and code interpreter.
+Do not use this endpoint for provider-side history.
+
+For a Responses-enabled OpenAI upstream at `https://api.openai.com/v1`, web search needs no separate capability flag.
+The server reads `abilities.search` from `model-bank/openai` using `overrideModel`, or the dispatched model name when no override exists.
+A compatible proxy is not treated as OpenAI. Unknown or unsupported models do not receive search requests.
+If all protocol-compatible candidates lack search support, the endpoint returns `503 LLM_WEB_SEARCH_UNAVAILABLE`.
+Send `tools: [{ "type": "web_search" }]` to make search available. The gateway does not inject tools or change `tool_choice`.
+Search filters, approximate location, source inclusion, and `web_search_call` Items pass through the validated request boundary.
+Keep search Items and citation annotations in the client history for replay and editing.
+
+The Responses operation lives in `operations/responses/index.ts`. Its request contract lives in `operations/responses/request.ts`.
+
+Web search adds no separate Flux debit. The hosted service absorbs the upstream search-call fee.
+Search content tokens in the returned usage follow the existing token rate.
 
 A completed result uses `usage.input_tokens` and `usage.output_tokens` with the existing Flux pricing policy.
 When usage is absent, the existing per-request rate applies. Failed, incomplete, cancelled, malformed,

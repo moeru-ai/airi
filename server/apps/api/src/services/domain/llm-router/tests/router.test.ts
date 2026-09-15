@@ -1911,3 +1911,39 @@ it('issue #2479 rejects Responses when no upstream opts in', async () => {
   await expect(router.route({ modelName: 'openai/gpt-5-mini', protocol: 'responses', body: { input: 'hello' } })).rejects.toMatchObject({ errorCode: 'LLM_PROTOCOL_UNAVAILABLE' })
   expect(fetchImpl).not.toHaveBeenCalled()
 })
+
+it.each([false, true])('routes web search only to a catalog-capable OpenAI model (grouped: %s)', async (grouped) => {
+  const { config, crypto } = makeConfig({ upstreams: [
+    { baseURL: 'https://compatible.example/v1', keyIds: ['c'], overrideModel: 'gpt-5-mini' },
+    { baseURL: 'https://api.openai.com/v1', keyIds: ['o'], overrideModel: 'gpt-5-mini' },
+  ] })
+  const model = config.llm.models['openai/gpt-5-mini']
+  model.upstreams.forEach((upstream, index) => {
+    upstream.protocols = ['responses']
+    upstream.id = `up-${index}`
+  })
+  if (grouped)
+    model.routing = { groups: [{ id: 'all', upstreamIds: ['up-0', 'up-1'], retryOn: { httpCodes: [500], onTimeout: true } }] }
+  const fetchImpl = vi.fn<typeof fetch>(async () => happyResponse({ ok: true }))
+  const router = createLlmRouterService({ gatewayMetrics: null, configKV: makeConfigKV(config), envelopeCrypto: crypto, fetchImpl, redis: makeRedisStub(), concurrencyLedger: makeLedger() })
+  const body = { input: 'hello', tools: [{ type: 'web_search' }], tool_choice: 'none' }
+  const response = await router.route({ modelName: 'openai/gpt-5-mini', protocol: 'responses', requiresWebSearch: true, body })
+  expect(response.status).toBe(200)
+  expect(fetchImpl).toHaveBeenCalledTimes(1)
+  expect(fetchImpl.mock.calls[0][0]).toBe('https://api.openai.com/v1/responses')
+  expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body))).toEqual({ ...body, model: 'gpt-5-mini' })
+})
+
+it.each([
+  ['https://api.openai.com/v1', 'gpt-3.5-turbo'],
+  ['https://api.openai.com/v1', 'unknown-model'],
+  ['https://api.openai.com.evil.example/v1', 'gpt-5-mini'],
+  ['http://api.openai.com/v1', 'gpt-5-mini'],
+])('rejects unsupported search without contacting %s (%s)', async (baseURL, overrideModel) => {
+  const { config, crypto } = makeConfig({ upstreams: [{ baseURL, overrideModel, keyIds: ['o'] }] })
+  config.llm.models['openai/gpt-5-mini'].upstreams[0].protocols = ['responses']
+  const fetchImpl = vi.fn<typeof fetch>()
+  const router = createLlmRouterService({ gatewayMetrics: null, configKV: makeConfigKV(config), envelopeCrypto: crypto, fetchImpl, redis: makeRedisStub(), concurrencyLedger: makeLedger() })
+  await expect(router.route({ modelName: 'openai/gpt-5-mini', protocol: 'responses', requiresWebSearch: true, body: { input: 'hello', tools: [{ type: 'web_search' }] } })).rejects.toMatchObject({ errorCode: 'LLM_WEB_SEARCH_UNAVAILABLE' })
+  expect(fetchImpl).not.toHaveBeenCalled()
+})
