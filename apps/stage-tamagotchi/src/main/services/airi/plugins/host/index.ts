@@ -253,9 +253,11 @@ export async function setupExtensionHostServiceInternal(
 
   // extension registry
   const extensionRegistry = createExtensionHostRegistry({ extensionsRoot, log })
+  const loaded = new Set<string>()
+  const loadedSessionIds = new Map<string, string>()
   const directoryImporter = new ExtensionDirectoryImporter(
     extensionsRoot,
-    extensionId => Boolean(extensionRegistry.findManifestEntry(extensionId)),
+    extensionId => Boolean(extensionRegistry.findManifestEntry(extensionId)) || loaded.has(extensionId),
     (bookmark) => {
       const stopAccessing = app.startAccessingSecurityScopedResource(bookmark)
       return () => stopAccessing()
@@ -283,8 +285,6 @@ export async function setupExtensionHostServiceInternal(
   })
   await extensionAssetService.start()
 
-  const loaded = new Set<string>()
-  const loadedSessionIds = new Map<string, string>()
   const moduleAssetSessionCache = new Map<string, ExtensionAssetSession>()
 
   const clearModuleAssetSessionCacheByExtensionId = (extensionId: string) => {

@@ -538,6 +538,40 @@ describe('setupExtensionHost', () => {
     expect(await readFile(join(pluginsDir, 'imported-extension', 'extension.mjs'), 'utf8')).toContain('defineExtension')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4015043919
+  it('rejects an import while the same Extension id has a live session (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // Refresh removed an Extension from the registry after its folder
+    // disappeared, but the runtime session continued to own the same id. The
+    // importer checked only the registry and allowed a replacement package.
+    const extensionId = 'live-extension'
+    const installedDir = join(pluginsDir, extensionId)
+    const sourceDir = join(userDataDir, 'replacement-live-extension')
+    await mkdir(installedDir, { recursive: true })
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(installedDir, 'extension.mjs'), createEmptyExtensionEntrypoint(extensionId))
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint(extensionId))
+    await writeManifest({ dir: installedDir, name: extensionId, entrypoint: './extension.mjs' })
+    await writeManifest({ dir: sourceDir, name: extensionId, entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
+
+    await setupExtensionHost()
+    const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
+    const invokeUnload = defineInvoke(contextState.lastContext!, electronPluginUnload)
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+
+    await invokeLoad({ extensionId })
+    await rm(installedDir, { recursive: true, force: true })
+
+    await expect(invokeAsRenderer(invokePrepare, undefined)).rejects.toThrow('already installed')
+
+    await invokeUnload({ extensionId })
+    await expect(invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)).resolves.toEqual(
+      expect.objectContaining({ status: 'ready' }),
+    )
+  })
+
   it('opens the Extension folder picker for the invoking window', async () => {
     const sender = { id: 42 }
     dialogMock.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] })
