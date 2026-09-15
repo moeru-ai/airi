@@ -145,7 +145,7 @@ export function rewriteWidgetModuleAssetUrl(
 
   return options.createAssetSession({
     extensionId: module.ownerExtensionId,
-    version: entry.version,
+    version: entry.manifest.version,
     sessionId: module.ownerSessionId,
     routeAssetPath: widgetAssetRoute.routeAssetPath,
     sessionPathPrefix: widgetAssetRoute.sessionPathPrefix,

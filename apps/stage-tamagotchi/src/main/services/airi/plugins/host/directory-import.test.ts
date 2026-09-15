@@ -92,7 +92,6 @@ describe('extension directory importer', () => {
       }),
       path: join(extensionsRoot, 'example-extension', 'extension.airi.json'),
       rootDir: join(extensionsRoot, 'example-extension'),
-      version: '1.0.0',
     })
     expect(await readFile(result.path, 'utf8')).toContain('example-extension')
     expect(await readFile(join(sourceRoot, 'extension.airi.json'), 'utf8')).toContain('example-extension')

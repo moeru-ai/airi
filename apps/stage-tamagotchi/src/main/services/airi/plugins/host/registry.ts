@@ -137,7 +137,6 @@ export async function loadManifestsFrom(
         manifest: parsed.manifest,
         path: manifestPath.path,
         rootDir: manifestPath.rootDir,
-        version: parsed.manifest.version,
       })
     }
     catch (error) {

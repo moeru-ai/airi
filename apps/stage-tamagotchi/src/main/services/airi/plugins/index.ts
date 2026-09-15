@@ -69,6 +69,24 @@ function cancelDirectoryImportsForOwner(
   }
 }
 
+function trackDirectoryImportOwner(
+  hostService: Awaited<ReturnType<typeof setupExtensionHostServiceInternal>>,
+  planOwners: Map<string, number>,
+  trackedOwnerIds: Set<number>,
+  ownerWindow: BrowserWindow,
+  ownerId: number,
+): void {
+  if (trackedOwnerIds.has(ownerId)) {
+    return
+  }
+
+  trackedOwnerIds.add(ownerId)
+  ownerWindow.once('closed', () => {
+    cancelDirectoryImportsForOwner(hostService, planOwners, ownerId)
+    trackedOwnerIds.delete(ownerId)
+  })
+}
+
 /**
  * Initializes the Electron extension host and wires IPC handlers.
  * Call once during app startup; it loads manifests, returns the host instance,
@@ -93,6 +111,7 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   // A plan remains owned by the renderer that displayed its review. Reopening
   // Settings creates a new renderer, which must start a new import review.
   const directoryImportPlanOwners = new Map<string, number>()
+  const trackedDirectoryImportOwnerIds = new Set<number>()
 
   defineInvokeHandler(context, electronPluginList, async () => {
     return await hostService.list()
@@ -108,6 +127,13 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
     if (!ownerWindow) {
       throw new Error('The Extension management window is no longer available.')
     }
+    trackDirectoryImportOwner(
+      hostService,
+      directoryImportPlanOwners,
+      trackedDirectoryImportOwnerIds,
+      ownerWindow,
+      event.sender.id,
+    )
     const selection = await dialog.showOpenDialog(ownerWindow, dialogOptions)
     const sourcePath = selection.filePaths[0]
     if (selection.canceled || !sourcePath) {
@@ -115,6 +141,13 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
     }
 
     const plan = await hostService.prepareDirectoryImport(sourcePath, selection.bookmarks?.[0])
+    if (
+      ownerWindow.isDestroyed()
+      || options.getExtensionManagementWebContentsId?.() !== event.sender.id
+    ) {
+      hostService.cancelDirectoryImport(plan.planId)
+      throw new Error('The Extension management window is no longer available.')
+    }
     cancelDirectoryImportsForOwner(hostService, directoryImportPlanOwners, event.sender.id)
     directoryImportPlanOwners.set(plan.planId, event.sender.id)
     return {
@@ -226,10 +259,5 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   return {
     host: hostService.host,
     manifests: hostService.manifests,
-    cancelDirectoryImportsForOwner: ownerId => cancelDirectoryImportsForOwner(
-      hostService,
-      directoryImportPlanOwners,
-      ownerId,
-    ),
   }
 }

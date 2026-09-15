@@ -229,7 +229,7 @@ export interface ExtensionProvidedKitDeclaration {
 export interface ExtensionUsedKitDeclaration {
   /** Stable Kit contract identifier. */
   id: string
-  /** Version range accepted by the Consumer. */
+  /** Exact Kit version required by the Consumer. */
   version: string
   /** Whether the Extension can start without this Kit. @default false */
   optional?: boolean

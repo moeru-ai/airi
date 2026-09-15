@@ -38,6 +38,7 @@ interface InspectedExtensionDirectory {
 interface StoredImportPlan {
   preview: ExtensionDirectoryImportPlan
   sourcePath: string
+  fingerprint: string
   securityScopedBookmark?: string
 }
 
@@ -400,11 +401,11 @@ export class ExtensionDirectoryImporter {
       kits: summarizeKits(inspected.manifest),
       fileCount: inspected.fileCount,
       totalBytes: inspected.totalBytes,
-      fingerprint: inspected.fingerprint,
     }
     this.plans.set(planId, {
       preview,
       sourcePath: inspected.sourcePath,
+      fingerprint: inspected.fingerprint,
       securityScopedBookmark,
     })
     return structuredClone(preview)
@@ -470,7 +471,7 @@ export class ExtensionDirectoryImporter {
     }
     return await this.withSecurityScopedAccess(storedPlan.securityScopedBookmark, async () => {
       const inspected = await inspectExtensionDirectory(storedPlan.sourcePath)
-      if (inspected.manifest.id !== storedPlan.preview.extensionId || inspected.fingerprint !== storedPlan.preview.fingerprint) {
+      if (inspected.manifest.id !== storedPlan.preview.extensionId || inspected.fingerprint !== storedPlan.fingerprint) {
         throw new Error('Extension source changed after review. Select the folder again.')
       }
 
@@ -494,7 +495,6 @@ export class ExtensionDirectoryImporter {
           manifest: staged.manifest,
           path: join(destination, extensionManifestFileName),
           rootDir: destination,
-          version: staged.manifest.version,
         }
       }
       catch (error) {

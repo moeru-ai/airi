@@ -52,7 +52,6 @@ export interface ExtensionDirectoryImportPlan {
   kits: ExtensionDirectoryImportKitSummary[]
   fileCount: number
   totalBytes: number
-  fingerprint: string
 }
 
 /** Result of opening the native Extension folder picker. */

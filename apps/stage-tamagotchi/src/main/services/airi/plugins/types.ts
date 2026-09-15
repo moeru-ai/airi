@@ -28,8 +28,6 @@ export type ExtensionId = string
 export interface ExtensionHostService {
   host: ExtensionHost
   manifests: ExtensionManifestV2[]
-  /** Cancels each pending folder import owned by one management renderer. */
-  cancelDirectoryImportsForOwner: (webContentsId: number) => void
 }
 
 /**
@@ -141,7 +139,7 @@ export interface ExtensionConfig {
 }
 
 /**
- * Internal manifest record with its resolved location and declared version.
+ * Internal manifest record with its resolved location.
  *
  * Use when:
  * - Loading extension manifests from disk
@@ -151,7 +149,6 @@ export interface ExtensionConfig {
  * - `manifest` is schema-validated
  * - `path` points to `extension.airi.json`
  * - `rootDir` is the extension root directory
- * - `version` is copied from the validated manifest
  *
  * Returns:
  * - N/A
@@ -160,5 +157,4 @@ export interface ManifestEntry {
   manifest: ExtensionManifestV2
   path: string
   rootDir: string
-  version: string
 }

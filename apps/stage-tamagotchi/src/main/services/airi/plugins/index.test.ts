@@ -143,6 +143,29 @@ function invokeAsRenderer<TResult>(invoke: unknown, payload: unknown, senderId =
   }]) as Promise<TResult>
 }
 
+function createOwnerWindowDouble() {
+  let destroyed = false
+  let closedListener: (() => void) | undefined
+  const ownerWindow = {
+    id: 7,
+    isDestroyed: vi.fn(() => destroyed),
+    once: vi.fn((event: string, listener: () => void) => {
+      if (event === 'closed') {
+        closedListener = listener
+      }
+      return ownerWindow
+    }),
+  }
+
+  return {
+    ownerWindow,
+    close: () => {
+      destroyed = true
+      closedListener?.()
+    },
+  }
+}
+
 async function writeManifest(params: { dir: string, name: string, entrypoint: string }) {
   const manifest = {
     manifestVersion: 2,
@@ -382,6 +405,7 @@ async function setupExtensionHost() {
 describe('setupExtensionHost', () => {
   let userDataDir: string
   let pluginsDir: string
+  let ownerWindowDouble: ReturnType<typeof createOwnerWindowDouble>
 
   it('types the setup host service as the plain ExtensionHost surface', () => {
     expectTypeOf<ExtensionHostService['host']>().toMatchTypeOf<ExtensionHost>()
@@ -432,7 +456,8 @@ describe('setupExtensionHost', () => {
     await mkdir(pluginsDir, { recursive: true })
     appMock.getPath.mockReturnValue(userDataDir)
     appMock.startAccessingSecurityScopedResource.mockReturnValue(vi.fn())
-    browserWindowMock.fromWebContents.mockReturnValue({ id: 7 })
+    ownerWindowDouble = createOwnerWindowDouble()
+    browserWindowMock.fromWebContents.mockReturnValue(ownerWindowDouble.ownerWindow)
     dialogMock.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] })
   })
 
@@ -515,8 +540,6 @@ describe('setupExtensionHost', () => {
 
   it('opens the Extension folder picker for the invoking window', async () => {
     const sender = { id: 42 }
-    const ownerWindow = { id: 7 }
-    browserWindowMock.fromWebContents.mockReturnValue(ownerWindow)
     dialogMock.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] })
     await setupExtensionHost()
 
@@ -524,7 +547,7 @@ describe('setupExtensionHost', () => {
     await invokeAsRenderer(invokePrepare, undefined, sender.id)
 
     expect(browserWindowMock.fromWebContents).toHaveBeenCalledExactlyOnceWith(sender)
-    expect(dialogMock.showOpenDialog).toHaveBeenCalledExactlyOnceWith(ownerWindow, {
+    expect(dialogMock.showOpenDialog).toHaveBeenCalledExactlyOnceWith(ownerWindowDouble.ownerWindow, {
       properties: ['openDirectory'],
       securityScopedBookmarks: true,
     })
@@ -650,7 +673,7 @@ describe('setupExtensionHost', () => {
     await writeManifest({ dir: sourceDir, name: 'closed-renderer-extension', entrypoint: './extension.mjs' })
     dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
 
-    const service = await setupExtensionHost()
+    await setupExtensionHost()
     const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
     const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
     const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
@@ -658,10 +681,38 @@ describe('setupExtensionHost', () => {
       throw new Error('Expected a ready import plan.')
     }
 
-    service.cancelDirectoryImportsForOwner(extensionManagementWebContentsId)
+    ownerWindowDouble.close()
 
     await expect(invokeAsRenderer(invokeCommit, { planId: prepared.plan.planId })).rejects.toThrow(
       'Extension import plan is not available to this renderer.',
+    )
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4014231041
+  it('cancels a folder import prepared after its management renderer closes (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // The close listener ran before prepare stored its plan. Prepare then
+    // assigned the new plan to a renderer that no longer existed.
+    const sourceDir = join(userDataDir, 'closed-during-prepare-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('closed-during-prepare-extension'))
+    await writeManifest({ dir: sourceDir, name: 'closed-during-prepare-extension', entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: [sourceDir],
+      bookmarks: ['sandbox-bookmark'],
+    })
+    appMock.startAccessingSecurityScopedResource.mockImplementation(() => {
+      ownerWindowDouble.close()
+      return vi.fn()
+    })
+
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+
+    await expect(invokeAsRenderer(invokePrepare, undefined)).rejects.toThrow(
+      'The Extension management window is no longer available.',
     )
   })
 

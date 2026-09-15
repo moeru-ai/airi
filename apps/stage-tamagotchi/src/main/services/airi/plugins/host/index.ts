@@ -68,7 +68,7 @@ function createElectronExtensionAssetCookieAdapter() {
  * Returns:
  * - The Host fields plus internal helpers for list/load/unload/inspect/dispose
  */
-export interface ExtensionHostServiceInternal extends Pick<ExtensionHostService, 'host' | 'manifests'> {
+export interface ExtensionHostServiceInternal extends ExtensionHostService {
   /** Tamagotchi-owned extension tool registry used by IPC tool bridges. */
   tools: TamagotchiToolRegistry
 
@@ -270,7 +270,15 @@ export async function setupExtensionHostServiceInternal(
 
   // Extension feature: Static Assets serving
   const extensionAssetService = createExtensionAssetService({
-    getManifestEntryByExtensionId: () => extensionRegistry.getManifestEntryByExtensionId(),
+    getManifestEntryByExtensionId: () => new Map(
+      [...extensionRegistry.getManifestEntryByExtensionId()].map(([extensionId, entry]) => [
+        extensionId,
+        {
+          rootDir: entry.rootDir,
+          version: entry.manifest.version,
+        },
+      ]),
+    ),
     cookieAdapter: createElectronExtensionAssetCookieAdapter(),
   })
   await extensionAssetService.start()
