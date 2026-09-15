@@ -527,6 +527,19 @@ pages:
           description: 配置 3D VRM 模型
         scene: 场景
   modules:
+    bilingual_subtitles:
+      title: 双语字幕
+      description: 用一种语言说话，并显示翻译字幕
+      enable:
+        label: 启用双语字幕
+        description: AIRI 用口语语言说话，并在字幕窗口中显示译文。
+      spoken_language:
+        label: 口语语言（文字转语音）
+        description: 文字转语音朗读使用的语言。
+      translation_subtitle_1:
+        label: 译文字幕1
+        same_language_disabled: 该语言已选为口语语言
+      voice_warning: 当前选择的语音可能不支持该口语语言，请到语音设置中确认音色。
     beat_sync:
       description: 随音源节拍律动
       title: 同步音律

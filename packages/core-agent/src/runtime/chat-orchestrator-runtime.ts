@@ -1,3 +1,4 @@
+import type { BilingualTurnEvent, BilingualTurnSnapshot } from '@proj-airi/pipelines-audio'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
@@ -6,6 +7,7 @@ import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, ErrorMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
+import { createBilingualTurnSplitter, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
 import { createQueue } from '@proj-airi/stream-kit'
 
 import { formatContextPromptText } from '../messages/context-prompt'
@@ -238,8 +240,8 @@ interface ChatRoundCorrelation {
 export interface ChatOrchestratorRuntimeDeps {
   /** Session persistence and generation guard port. */
   session: ChatOrchestratorSessionPort
-  /** Context registry facade used for runtime context ingest and prompt snapshots. */
-  context: Pick<AgentContextPort, 'ingest' | 'snapshot'>
+  /** Context registry facade used for runtime context ingest, removal, and prompt snapshots. */
+  context: Pick<AgentContextPort, 'ingest' | 'remove' | 'snapshot'>
   /** Foreground assistant stream port controlled by the UI facade. */
   foregroundStream: AgentForegroundStreamPort
   /** Provider-agnostic LLM streaming port. */
@@ -250,6 +252,26 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
+  /**
+   * Returns the bilingual snapshot for this send. Read once per send so that
+   * settings changes do not affect an in-flight response. Undefined disables
+   * splitting and leaves the text path unchanged.
+   */
+  getBilingualSnapshot?: () => BilingualTurnSnapshot | undefined
+  /**
+   * Builds the bilingual runtime prompt context for the snapshot captured at
+   * the start of this send. The orchestrator reads the snapshot before any
+   * async hook runs, so the injected prompt and the output splitter always
+   * use the same mode. Undefined result adds no context.
+   */
+  getBilingualInstructionContext?: (snapshot: BilingualTurnSnapshot | undefined) => ContextMessage | undefined
+  /**
+   * Stable context bucket key of the bilingual instruction. When the
+   * feature is disabled for a send, that bucket is removed from the
+   * registry so a prompt injected by an earlier turn cannot survive the
+   * setting change and keep making the model emit bracketed translations.
+   */
+  bilingualContextKey?: string
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -469,11 +491,20 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.foregroundStream.reset()
   }
 
-  function ingestRuntimeContexts() {
+  function ingestRuntimeContexts(bilingualSnapshot?: BilingualTurnSnapshot) {
     for (const provider of deps.runtimeContextProviders ?? []) {
       const contextMessage = provider()
       if (contextMessage)
         deps.context.ingest(contextMessage)
+    }
+    const bilingualContext = deps.getBilingualInstructionContext?.(bilingualSnapshot)
+    if (bilingualContext) {
+      deps.context.ingest(bilingualContext)
+    }
+    else if (bilingualSnapshot === undefined && deps.bilingualContextKey) {
+      // Disabled for this send: drop the dedicated bucket so the model
+      // stops receiving the bracket-format instruction from earlier turns.
+      deps.context.remove(deps.bilingualContextKey)
     }
   }
 
@@ -539,11 +570,19 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // must not inflate the one-time activation milestones.
     const isActivationAttempt = !existingSessionMessages.some(message => message.role === 'assistant')
 
+    // Capture the bilingual snapshot before any async hook and before the
+    // runtime contexts (which carry the bilingual prompt) are ingested. The
+    // prompt mode and the output splitter must share this one value: reading
+    // the settings again after `emitBeforeMessageComposedHooks` could pair a
+    // bilingual prompt with no splitter (brackets spoken aloud) or a splitter
+    // with no bilingual prompt (flush-only chunking on plain text).
+    const bilingualSnapshot = deps.getBilingualSnapshot?.()
+
     // Datetime is no longer injected through the side-channel context store.
     // It is applied at message-assembly time (see below) as a system-prompt
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
-    ingestRuntimeContexts()
+    ingestRuntimeContexts(bilingualSnapshot)
 
     const sendingCreatedAt = now()
 
@@ -689,6 +728,69 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const categorizer = createStreamingCategorizer(deps.getActiveProvider())
       let streamPosition = 0
 
+      // Splitter state is owned by this send. The snapshot itself was
+      // captured before the async before-compose hook above.
+      const bilingual = bilingualSnapshot
+        ? createBilingualTurnSplitter()
+        : undefined
+
+      function appendTextToBuildingMessage(text: string) {
+        buildingMessage.content += text
+        const lastSlice = buildingMessage.slices.at(-1)
+        if (lastSlice?.type === 'text') {
+          lastSlice.text += text
+        }
+        else {
+          buildingMessage.slices.push({
+            type: 'text',
+            text,
+          })
+        }
+      }
+
+      // Spoken text stays on the chat surface: bubble, slices, stored history,
+      // and the TTS literal hook. Translation text is subtitle-only and never
+      // reaches the chat message, so history keeps just the spoken reply.
+      async function applyBilingualEvent(event: BilingualTurnEvent): Promise<boolean> {
+        if (event.kind === 'translation') {
+          // Flush the spoken sentence in the TTS segmenter at the pair
+          // boundary. The chunker cuts on sentence punctuation already;
+          // the zero-width flush instruction is the deterministic fallback
+          // when the model omitted punctuation. It never reaches the bubble
+          // and the chunker strips it before synthesis.
+          await hooks.emitTokenLiteralHooks(TTS_FLUSH_INSTRUCTION, streamingMessageContext)
+          await hooks.emitTokenTranslationHooks({
+            language: bilingualSnapshot!.translationLanguage,
+            pairId: event.pairId,
+            text: event.text,
+          }, streamingMessageContext)
+          return false
+        }
+
+        appendTextToBuildingMessage(event.text)
+        if (event.text.trim())
+          await hooks.emitTokenLiteralHooks(event.text, streamingMessageContext)
+        return true
+      }
+
+      async function routeSpeechEvents(text: string) {
+        if (!bilingual) {
+          if (text.trim()) {
+            appendTextToBuildingMessage(text)
+            await hooks.emitTokenLiteralHooks(text, streamingMessageContext)
+            updateStream(sessionId, buildingMessage)
+          }
+          return
+        }
+
+        let bubbleChanged = false
+        for (const event of bilingual.consume(text))
+          bubbleChanged = (await applyBilingualEvent(event)) || bubbleChanged
+
+        if (bubbleChanged)
+          updateStream(sessionId, buildingMessage)
+      }
+
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
           if (shouldAbort())
@@ -699,23 +801,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
           streamPosition += literal.length
 
-          if (speechOnly.trim()) {
-            buildingMessage.content += speechOnly
-
-            await hooks.emitTokenLiteralHooks(speechOnly, streamingMessageContext)
-
-            const lastSlice = buildingMessage.slices.at(-1)
-            if (lastSlice?.type === 'text') {
-              lastSlice.text += speechOnly
-            }
-            else {
-              buildingMessage.slices.push({
-                type: 'text',
-                text: speechOnly,
-              })
-            }
-            updateStream(sessionId, buildingMessage)
-          }
+          await routeSpeechEvents(speechOnly)
         },
         onSpecial: async (special) => {
           if (shouldAbort())
@@ -950,6 +1036,30 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await parser.end()
       if (shouldAbort())
         return
+
+      // Flush splitter state at stream end. A final translation block
+      // without a closing bracket still reaches the subtitle track; an
+      // unclosed bracket candidate stays in the message but never reaches
+      // TTS.
+      if (bilingual) {
+        let spokenTail = ''
+        for (const event of bilingual.end()) {
+          if (event.kind === 'spoken') {
+            spokenTail += event.text
+          }
+          else {
+            await hooks.emitTokenTranslationHooks({
+              language: bilingualSnapshot!.translationLanguage,
+              pairId: event.pairId,
+              text: event.text,
+            }, streamingMessageContext)
+          }
+        }
+        if (spokenTail) {
+          appendTextToBuildingMessage(spokenTail)
+          updateStream(sessionId, buildingMessage)
+        }
+      }
 
       buildingMessage.providerTranscript = providerTranscript
       deps.onAssistantResponseRendered?.({

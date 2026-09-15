@@ -355,7 +355,28 @@ export function setupCaptionWindowManager(params: {
 
     }
 
+    // One-time cleanup for docking offsets corrupted by an earlier build
+    // that resized the window from caption content. If the stored offset
+    // would dock the window outside the work area, drop it. The follower
+    // then derives a fresh offset from the clamped on-screen bounds.
     if (isFollowing) {
+      const startupConfig = getConfig()
+      const matrix = startupConfig?.matrices?.[matrixHash]
+      const storedOffset = matrix?.relativeToMain
+      if (startupConfig && matrix && storedOffset) {
+        const mainBounds = params.mainWindow.getBounds()
+        const projected = {
+          x: mainBounds.x + storedOffset.dx,
+          y: mainBounds.y + storedOffset.dy,
+          width: window.getBounds().width,
+          height: window.getBounds().height,
+        }
+        const clamped = clampBoundsWithinRect(projected, screen.getDisplayMatching(projected).workArea)
+        if (clamped.x !== projected.x || clamped.y !== projected.y) {
+          delete matrix.relativeToMain
+          updateConfig(startupConfig)
+        }
+      }
       followMainWindow(window)
     }
 

@@ -70,6 +70,7 @@ function createHarness() {
     },
     context: {
       ingest: vi.fn(),
+      remove: vi.fn(),
       snapshot: () => structuredClone(contextSnapshot),
     },
     foregroundStream: {

@@ -27,6 +27,15 @@ export interface TtsInputChunkOptions {
   maximumWords?: number
   stripNarrative?: boolean
   keepNarrativeText?: boolean
+  /**
+   * Bilingual mode: only the explicit flush marker cuts one spoken
+   * sentence. Sentence punctuation, abbreviation periods, and newlines
+   * stay inside the chunk, so the number of boundary chunks equals the
+   * number of translation pairs exactly. In the default punctuation mode
+   * any hard punctuation can end a chunk, which is correct for ordinary
+   * TTS but would emit a spurious mid-pair boundary in bilingual mode.
+   */
+  flushBoundaries?: boolean
 }
 
 export interface TtsChunkItem {
@@ -43,6 +52,7 @@ export async function* chunkTtsInput(
     boost = 2,
     minimumWords = 4,
     maximumWords = 12,
+    flushBoundaries = false,
   } = options ?? {}
 
   const iterator = readGraphemeClusters(
@@ -66,6 +76,46 @@ export async function* chunkTtsInput(
   let previousValue: string | undefined
   let current = await iterator.next()
 
+  /**
+   * Flush mode cannot rely on punctuation to keep TTS requests short:
+   * punctuation stays in the buffer until the pair flush marker. A spoken
+   * pair longer than `maximumWords` would otherwise become one oversized
+   * synthesis request, which providers reject or time out (observed as
+   * missing audio mid-turn). Cut the overflow at a word boundary into a
+   * non-boundary `limit` item; the later flush item still owns the pair's
+   * single sentence boundary. Returns true when a chunk was emitted.
+   */
+  function takeFlushOverflow(): string | false {
+    // Keep the raw text: cutting on a trimmed copy drops the whitespace at
+    // the cut point from both sides and glues two words together. The rest
+    // may keep a leading space; the chunk emitter trims it before synthesis.
+    const text = chunk + buffer
+    if (!text.trim())
+      return false
+    const segments = [...segmenter.segment(text)]
+    if (segments.filter(segment => segment.isWordLike).length <= maximumWords)
+      return false
+
+    let wordsSeen = 0
+    let cutIndex = text.length
+    for (const segment of segments) {
+      if (segment.isWordLike)
+        wordsSeen += 1
+      if (wordsSeen === maximumWords) {
+        cutIndex = segment.index + segment.segment.length
+        break
+      }
+    }
+
+    const head = text.slice(0, cutIndex)
+    const rest = text.slice(cutIndex)
+
+    chunk = ''
+    chunkWordsCount = 0
+    buffer = rest
+    return head
+  }
+
   while (!current.done) {
     let value = current.value
 
@@ -82,6 +132,25 @@ export async function* chunkTtsInput(
     const kept = keptPunctuations.has(value)
     let next: IteratorResult<string, void> | undefined
     let afterNext: IteratorResult<string, void> | undefined
+
+    if (flushBoundaries && !flush && !special && (hard || soft)) {
+      // Bilingual mode: punctuation never ends a pair. Line breaks become
+      // spaces so TTS does not receive raw newlines; abbreviation periods
+      // and every other punctuation stay in the chunk until the flush
+      // marker cuts the sentence exactly once per translation pair.
+      buffer += value === '\n' || value === '\r' || value === '\t' ? ' ' : value
+      previousValue = value
+      // Punctuation is the common word boundary (including space-less CJK
+      // sentences), so re-check the word cap here even though it does not
+      // cut a pair.
+      const overflow = takeFlushOverflow()
+      if (overflow !== false) {
+        yield { text: overflow, words: maximumWords, reason: 'limit' }
+        yieldCount += 1
+      }
+      current = await iterator.next()
+      continue
+    }
 
     if (flush || special || hard || soft) {
       switch (value) {
@@ -187,6 +256,15 @@ export async function* chunkTtsInput(
 
     buffer += value
     previousValue = value
+    // Space-delimited text may omit sentence punctuation, so re-check the
+    // word cap at spaces; the punctuation branch above covers the rest.
+    if (flushBoundaries && /\s/.test(value)) {
+      const overflow = takeFlushOverflow()
+      if (overflow !== false) {
+        yield { text: overflow, words: maximumWords, reason: 'limit' }
+        yieldCount += 1
+      }
+    }
     next = await iterator.next()
     current = next
   }
@@ -386,7 +464,7 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
 
 export function createTtsSegmentStream(
   tokens: ReadableStream<TextToken>,
-  meta: { streamId: string, intentId: string, turnId?: string },
+  meta: { streamId: string, intentId: string, turnId?: string, flushBoundaries?: boolean },
   options?: TtsInputChunkOptions,
 ) {
   const { stream, write, close, error } = createPushStream<TextSegment>()
@@ -483,7 +561,7 @@ export function createTtsSegmentStream(
   void (async () => {
     const reader = byteStream.getReader()
     try {
-      await chunkEmitter(reader, pendingSpecials, options, async (chunk) => {
+      await chunkEmitter(reader, pendingSpecials, { ...options, flushBoundaries: meta.flushBoundaries ?? options?.flushBoundaries }, async (chunk) => {
         write({
           turnId: meta.turnId,
           streamId: meta.streamId,
@@ -491,6 +569,11 @@ export function createTtsSegmentStream(
           segmentId: `${meta.streamId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
           text: chunk.chunk,
           special: chunk.special,
+          // Only hard punctuation and explicit flush markers end a
+          // sentence. Word-limit pieces cut to protect long pairs are
+          // mid-sentence and must not advance captions. In flush mode a
+          // pair's flush piece is its single boundary.
+          sentenceBoundary: chunk.reason === 'hard' || chunk.reason === 'flush',
           reason: chunk.reason,
           createdAt: Date.now(),
         })
