@@ -466,6 +466,21 @@ export const useHearingStore = defineStore('hearing-store', () => {
     return true
   }
 
+  /** Commits validated provider configuration and refreshes the active model in one leader-owned action. */
+  async function finishProviderValidationAndRefreshTranscriptionModel(
+    providerId: string,
+    token: string,
+    config?: Record<string, unknown>,
+    previousConfig?: Record<string, unknown>,
+  ) {
+    const didCommit = await providerStore.finishProviderValidationAndUpdateConfig(providerId, token, config)
+    if (!didCommit || !config)
+      return didCommit
+
+    await refreshActiveTranscriptionModelForProvider(providerId, previousConfig)
+    return true
+  }
+
   async function clearActiveTranscriptionModelForProvider(
     providerId: string,
     expectedModel = activeTranscriptionModel.value,
@@ -669,6 +684,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     clearActiveTranscriptionModelForProvider,
     reconcileActiveTranscriptionProviderId,
     refreshActiveTranscriptionModelForProvider,
+    finishProviderValidationAndRefreshTranscriptionModel,
     loadModelsForProvider,
     getModelsForProvider,
     resetState,
@@ -679,6 +695,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       'clearActiveTranscriptionModelForProvider',
       'reconcileActiveTranscriptionProviderId',
       'refreshActiveTranscriptionModelForProvider',
+      'finishProviderValidationAndRefreshTranscriptionModel',
     ],
     state: true,
   },

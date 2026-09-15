@@ -386,9 +386,12 @@ async function runValidation() {
     const previousConfig = validatedConfig
       ? merge({}, providerConfig.value.config ?? emptyProviderConfigValues)
       : undefined
-    const didCommit = await providerStore.finishProviderValidationAndUpdateConfig(validationProviderId, validationToken, validatedConfig)
-    if (didCommit && validatedConfig)
-      await hearingStore.refreshActiveTranscriptionModelForProvider(validationProviderId, previousConfig)
+    await hearingStore.finishProviderValidationAndRefreshTranscriptionModel(
+      validationProviderId,
+      validationToken,
+      validatedConfig,
+      previousConfig,
+    )
     validationStatusRestorer.clear(validationToken)
   }
   catch (error) {
