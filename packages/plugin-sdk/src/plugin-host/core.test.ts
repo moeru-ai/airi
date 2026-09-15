@@ -29,6 +29,30 @@ describe('extension manifest schema', () => {
     expect(result.success).toBe(true)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013407993
+  it('rejects non-semantic Extension package versions (PR #2506)', () => {
+    // ROOT CAUSE:
+    //
+    // The manifest schema only required a non-empty package version, so an
+    // invalid value could become the installed package and session identity.
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'airi-extension-test',
+      version: 'release-1',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
   it('rejects legacy extension manifests', () => {
     const result = safeParse(extensionManifestV2Schema, {
       apiVersion: 'v1',

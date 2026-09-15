@@ -66,6 +66,12 @@ const sessionMock = vi.hoisted(() => ({
 const contextState = vi.hoisted(() => ({
   lastContext: undefined as ReturnType<typeof createContext<any, any>> | undefined,
 }))
+const lifecycleMock = vi.hoisted(() => ({
+  beforeQuitHooks: [] as Array<() => Promise<void> | void>,
+  onAppBeforeQuit: vi.fn((hook: () => Promise<void> | void) => {
+    lifecycleMock.beforeQuitHooks.push(hook)
+  }),
+}))
 
 vi.mock('electron', () => ({
   app: appMock,
@@ -86,6 +92,10 @@ vi.mock('@moeru/eventa/adapters/electron/main', async () => {
     },
   }
 })
+
+vi.mock('../../../libs/bootkit/lifecycle', () => ({
+  onAppBeforeQuit: lifecycleMock.onAppBeforeQuit,
+}))
 
 const testDataRoot = resolve(
   import.meta.dirname,
@@ -364,6 +374,22 @@ describe('setupExtensionHost', () => {
     expectTypeOf<ReturnType<ExtensionHost['getBinding']>>().toMatchTypeOf<BindingRecord<HostDataRecord> | undefined>()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013408003
+  it('returns Host disposal to the awaited application shutdown lifecycle (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // The Electron before-quit listener discarded the Host disposal promise,
+    // so application shutdown could finish before an active import settled.
+    await setupExtensionHostService({ widgetsManager: createWidgetsManagerDouble().widgetsManager })
+
+    expect(lifecycleMock.onAppBeforeQuit).toHaveBeenCalledOnce()
+    expect(lifecycleMock.beforeQuitHooks).toHaveLength(1)
+
+    const disposal = lifecycleMock.beforeQuitHooks[0]?.()
+    expect(disposal).toBeInstanceOf(Promise)
+    await disposal
+  })
+
   it('loads manifests through the internal host bootstrap helper', async () => {
     const normalEntrypoint = join(testDataRoot, 'test-normal-plugin.ts')
     await writeManifestInPluginDir({
@@ -382,6 +408,7 @@ describe('setupExtensionHost', () => {
   })
 
   beforeEach(async () => {
+    lifecycleMock.beforeQuitHooks.length = 0
     userDataDir = await mkdtemp(join(tmpdir(), 'airi-plugins-'))
     pluginsDir = join(userDataDir, 'extensions', 'v1')
     await mkdir(pluginsDir, { recursive: true })

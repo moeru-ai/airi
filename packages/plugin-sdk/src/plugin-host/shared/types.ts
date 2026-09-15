@@ -418,7 +418,7 @@ export const extensionManifestV2Schema = pipe(
     manifestVersion: literal(2),
     kind: literal('manifest.extension.airi.moeru.ai'),
     id: extensionIdSchema,
-    version: pipe(string(), trim(), minLength(1)),
+    version: exactSemanticVersionSchema,
     engines: strictObject({
       airi: semanticVersionRangeSchema,
       runtimes: pipe(

@@ -4,7 +4,7 @@ import type { ExtensionHostService, SetupExtensionHostOptions } from './types'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { BrowserWindow, dialog, ipcMain } from 'electron'
 
 import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
 import {
@@ -30,6 +30,7 @@ import {
   electronPluginListXsaiTools,
   electronPluginToolsChanged,
 } from '../../../../shared/eventa/plugin/tools'
+import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { setupExtensionHostServiceInternal } from './host'
 
 /**
@@ -171,11 +172,7 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
     }
   })
 
-  if (typeof app.once === 'function') {
-    app.once('before-quit', () => {
-      void hostService.dispose()
-    })
-  }
+  onAppBeforeQuit(() => hostService.dispose())
 
   return {
     host: hostService.host,
