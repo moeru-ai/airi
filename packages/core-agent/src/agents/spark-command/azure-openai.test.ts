@@ -1,9 +1,10 @@
 import type { JsonSchema } from 'xsschema'
 
 import { createSparkCommandTool } from '@proj-airi/core-agent/agents/spark-command'
+import { getDefinedProvider } from '@proj-airi/provider-inference'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { providerAzureOpenAI } from './index'
+const providerAzureOpenAI = getDefinedProvider('azure-openai')!
 
 interface ChatRequestBody {
   tools: Array<{
@@ -45,7 +46,7 @@ describe('providerAzureOpenAI tool schemas', () => {
       apiKey: 'test-key',
       baseUrl: 'https://example.openai.azure.com/openai/',
     })
-    if (!('chat' in provider))
+    if (!('chat' in provider) || !provider.chat)
       throw new Error('Azure OpenAI did not create a chat provider.')
 
     const providerFetch = provider.chat('test-deployment').fetch

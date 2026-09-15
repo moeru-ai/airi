@@ -127,6 +127,44 @@ describe('createOpenAICompatibleValidators', () => {
     expect(ids).not.toContain('openai-compatible:check-chat-completions')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2477#discussion_r4000309839
+  // ROOT CAUSE:
+  //
+  // Responses validation omitted the output limit used by Chat validation.
+  // Bound the Responses probe too, so validation cannot request unbounded output.
+  it('bounds the output of a Responses validation request (PR #2477)', async () => {
+    listModelsMock.mockResolvedValue([{ id: 'test-model' }])
+    const requestFetch = vi.fn<typeof fetch>(async (_url, init) => {
+      const body = JSON.parse(String(init?.body))
+      expect(body.max_output_tokens).toBe(16)
+      return new Response(`data: ${JSON.stringify({ type: 'response.completed', response: { output: [] } })}\n\n`, { headers: { 'content-type': 'text/event-stream' } })
+    })
+    const responseProvider: ProviderInstance = { generation: model => ({ protocol: 'responses', webSearch: false, config: { model, baseURL: config.baseUrl, apiKey: config.apiKey, fetch: requestFetch } }) }
+    const [validator] = await getProviderValidators({ checks: [ProviderValidationCheck.ChatCompletions] })
+    const result = await validator.validator(config, responseProvider, providerExtra, { t: mockT })
+    expect(result.valid).toBe(true)
+    expect(requestFetch).toHaveBeenCalledTimes(1)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2477#discussion_r4002606333
+  it('probes the configured Responses model before a mixed catalog (PR #2477)', async () => {
+    // ROOT CAUSE:
+    //
+    // Catalog order replaced the configured model and could pick a Chat-only model.
+    // Preserve the user's selection and apply the existing model normalization afterward.
+    listModelsMock.mockResolvedValue([{ id: 'chat-only' }, { id: 'responses-model' }])
+    const requestFetch = vi.fn<typeof fetch>(async (_url, init) => {
+      expect(JSON.parse(String(init?.body)).model).toBe('responses-model')
+      return new Response('data: {"type":"response.completed","response":{"output":[]}}\n\n', { headers: { 'content-type': 'text/event-stream' } })
+    })
+    const selectedProvider: ProviderInstance = { generation: model => ({ protocol: 'responses', webSearch: false, config: { model, baseURL: config.baseUrl, fetch: requestFetch } }) }
+    const [validator] = await getProviderValidators({ checks: [ProviderValidationCheck.ChatCompletions] })
+    const result = await validator.validator({ ...config, model: ' responses-model ' }, selectedProvider, providerExtra, { t: mockT })
+    expect(result.valid).toBe(true)
+    expect(requestFetch).toHaveBeenCalledTimes(1)
+    expect(listModelsMock).not.toHaveBeenCalled()
+  })
+
   it('normalizes the selected model id before chat probing', async () => {
     listModelsMock.mockResolvedValue([
       { id: 'byteplus/seed-2-0-pro-260328' },
