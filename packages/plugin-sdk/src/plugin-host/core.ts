@@ -22,6 +22,8 @@ import type {
   PluginRuntime,
 } from './shared/types'
 
+import semver from 'semver'
+
 import { DisposableStore } from '../extension/disposable'
 import { kitUseFailure } from '../kit'
 import {
@@ -213,6 +215,7 @@ export class ExtensionHost {
   private readonly modules = new KitApiBindingRegistryService()
   private readonly extensionModuleResources = new Map<string, ExtensionModuleResourceTracker>()
   private readonly permissions = new PermissionService()
+  private readonly airiVersion?: string
   private readonly permissionResolver?: ExtensionHostOptions['permissionResolver']
   private readonly persistedPermissionGrants = new Map<string, ModulePermissionGrant>()
   private readonly resources = new ResourceService()
@@ -222,6 +225,10 @@ export class ExtensionHost {
   constructor(options: ExtensionHostOptions = {}) {
     this.loader = new FileSystemLoader()
     this.runtime = options.runtime ?? 'electron'
+    if (options.airiVersion && !semver.valid(options.airiVersion)) {
+      throw new Error(`AIRI version must be a valid semantic version: ${options.airiVersion}`)
+    }
+    this.airiVersion = options.airiVersion
     this.permissionResolver = options.permissionResolver
     this.resources.setValue(protocolListProvidersEventName, [] as Array<{ name: string }>)
     this.markCapabilityReady(protocolListProvidersEventName, { source: 'plugin-host' })
@@ -232,10 +239,24 @@ export class ExtensionHost {
     }
   }
 
+  private assertManifestCompatibility(manifest: ExtensionManifestV2, runtime: PluginRuntime) {
+    if (!manifest.engines.runtimes.includes(runtime)) {
+      throw new Error(`Extension \`${manifest.id}\` does not support runtime \`${runtime}\`.`)
+    }
+    if (this.airiVersion && !semver.satisfies(this.airiVersion, manifest.engines.airi, { includePrerelease: true })) {
+      throw new Error(
+        `Extension \`${manifest.id}\` requires AIRI \`${manifest.engines.airi}\`, but the running version is \`${this.airiVersion}\`.`,
+      )
+    }
+  }
+
   async startExtension(
     extension: Extension,
     options: { manifest: ExtensionManifestV2, cwd?: string, runtime?: PluginRuntime },
   ) {
+    const runtime = options.runtime ?? this.runtime
+    this.assertManifestCompatibility(options.manifest, runtime)
+
     if (extension.id !== options.manifest.id) {
       throw new Error(`Extension entrypoint id \`${extension.id}\` must match manifest id \`${options.manifest.id}\`.`)
     }
@@ -264,7 +285,7 @@ export class ExtensionHost {
       extension: extensionIdentity,
       manifest: options.manifest,
       cwd: options.cwd,
-      runtime: options.runtime,
+      runtime,
       entrypoint: extension,
       phase: 'setting-up',
       modules: new Map(),
@@ -775,15 +796,17 @@ export class ExtensionHost {
   }
 
   async start(manifest: ExtensionManifestV2, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
+    const runtime = options.runtime ?? this.runtime
+    this.assertManifestCompatibility(manifest, runtime)
     const extension = await this.loader.loadExtensionFor(manifest, {
       cwd: options.cwd,
-      runtime: options.runtime,
+      runtime,
     })
 
     const session = await this.startExtension(extension, {
       manifest,
       cwd: options.cwd,
-      runtime: options.runtime,
+      runtime,
     })
 
     return session

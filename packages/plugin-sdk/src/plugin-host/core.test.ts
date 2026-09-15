@@ -121,7 +121,7 @@ describe('extension manifest schema', () => {
         }],
         uses: [{
           id: 'dev.airi.character-reaction',
-          version: '^1.0.0',
+          version: '1.0.0',
           optional: true,
         }],
       },
@@ -129,9 +129,128 @@ describe('extension manifest schema', () => {
 
     expect(safeParse(extensionManifestV2Schema, manifest).success).toBe(true)
   })
+
+  it('rejects duplicate provided Kit ids', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'duplicate-kit-provider',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        provides: [
+          {
+            id: 'dev.airi.agent-activity',
+            version: '1.0.0',
+            exposure: 'local-only',
+          },
+          {
+            id: 'dev.airi.agent-activity',
+            version: '2.0.0',
+            exposure: 'remote-callable',
+          },
+        ],
+      },
+    })
+
+    // ROOT CAUSE:
+    //
+    // Preflight and runtime resolution find Kit declarations by id. If the
+    // manifest repeats an id, those stages can select different contracts.
+    // The schema now rejects that ambiguity before Extension code can run.
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.issues).toContainEqual(expect.objectContaining({
+        message: 'Declare each provided Kit once.',
+      }))
+    }
+  })
+
+  it('rejects duplicate used Kit ids', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'duplicate-kit-consumer',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        uses: [
+          {
+            id: 'dev.airi.agent-activity',
+            version: '2.0.0',
+            optional: true,
+          },
+          {
+            id: 'dev.airi.agent-activity',
+            version: '1.0.0',
+          },
+        ],
+      },
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.issues).toContainEqual(expect.objectContaining({
+        message: 'Declare each used Kit once.',
+      }))
+    }
+  })
+
+  it('rejects Kit version ranges until the Host supports range resolution', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'agent-activity-consumer',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        uses: [{
+          id: 'dev.airi.agent-activity',
+          version: '^1.0.0',
+        }],
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
 })
 
 describe('for ExtensionHost', () => {
+  it('rejects an incompatible AIRI version before importing the entrypoint', async () => {
+    const host = new ExtensionHost({ runtime: 'node', airiVersion: '1.0.0' })
+
+    await expect(host.start({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'future-extension',
+      version: '1.0.0',
+      engines: { airi: '>=99.0.0', runtimes: ['node'] },
+      permissions: {},
+      entrypoints: { node: './missing-entrypoint.mjs' },
+    })).rejects.toThrow('requires AIRI `>=99.0.0`')
+  })
+
   it('runs extension setup and registers multiple module sessions', async () => {
     const host = new ExtensionHost()
     const extension = defineExtension({
@@ -980,7 +1099,7 @@ describe('for FileSystemLoader', () => {
     expect(host.listModules().map(module => module.id)).toEqual(['stoppable-extension-module'])
   })
 
-  it('should resolve runtime-specific extension entrypoint with node fallback', async () => {
+  it('should load a runtime-specific extension entrypoint', async () => {
     const host = new FileSystemLoader()
 
     const extension = await host.loadExtensionFor({
@@ -988,7 +1107,7 @@ describe('for FileSystemLoader', () => {
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
       version: '1.0.0',
-      engines: { airi: '*', runtimes: ['electron'] },
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
       entrypoints: {
         node: join(import.meta.dirname, 'testdata', 'test-define-extension-entrypoint.ts'),
@@ -1016,14 +1135,14 @@ describe('for FileSystemLoader', () => {
     }, { cwd: '', runtime: 'electron' })).rejects.toThrow('Failed to resolve extension module. The entrypoint must export defineExtension(...).')
   })
 
-  it('should resolve entrypoint by runtime then default then electron', () => {
+  it('should resolve entrypoint by runtime then default', () => {
     const host = new FileSystemLoader()
     const baseManifest = {
       manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
       version: '1.0.0',
-      engines: { airi: '*', runtimes: ['electron'] },
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
     } satisfies Omit<ExtensionManifestV2, 'entrypoints'>
 
@@ -1042,13 +1161,6 @@ describe('for FileSystemLoader', () => {
         electron: './electron-entry.ts',
       },
     }
-    const electronFallbackManifest = {
-      ...baseManifest,
-      entrypoints: {
-        electron: './electron-entry.ts',
-      },
-    }
-
     expect(host.resolveEntrypointFor(runtimeEntryManifest, {
       cwd: '/tmp/extension',
       runtime: 'node',
@@ -1058,11 +1170,31 @@ describe('for FileSystemLoader', () => {
       cwd: '/tmp/extension',
       runtime: 'node',
     })).toBe('/tmp/extension/default-entry.ts')
+  })
 
-    expect(host.resolveEntrypointFor(electronFallbackManifest, {
+  it('should reject a runtime that the extension does not support', () => {
+    const host = new FileSystemLoader()
+
+    // ROOT CAUSE:
+    //
+    // Entrypoint resolution ignored engines.runtimes. A host could therefore
+    // execute a default or runtime-named entrypoint even when the manifest
+    // explicitly excluded the active runtime.
+    expect(() => host.resolveEntrypointFor({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai' as const,
+      id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['web'] },
+      permissions: testPermissions,
+      entrypoints: {
+        default: './default-entry.ts',
+        electron: './electron-entry.ts',
+      },
+    }, {
       cwd: '/tmp/extension',
-      runtime: 'node',
-    })).toBe('/tmp/extension/electron-entry.ts')
+      runtime: 'electron',
+    })).toThrow('does not support runtime `electron`')
   })
 
   it('should preserve absolute runtime entrypoints', () => {
@@ -1073,7 +1205,7 @@ describe('for FileSystemLoader', () => {
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
       version: '1.0.0',
-      engines: { airi: '*', runtimes: ['electron'] },
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
       entrypoints: {
         node: '/opt/extensions/entry.ts',
@@ -1092,7 +1224,7 @@ describe('for FileSystemLoader', () => {
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
       version: '1.0.0',
-      engines: { airi: '*', runtimes: ['electron'] },
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
       entrypoints: {},
     }, { runtime: 'node' })).toThrow('Extension entrypoint is required for runtime `node`.')

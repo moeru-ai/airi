@@ -273,7 +273,8 @@ export function createManifestForLoad(
  * - Looking up manifests by extension id during load or inspect operations
  *
  * Expects:
- * - `refresh()` is called before consumers read entries or manifests
+ * - `refresh()` is called before consumers read discovered entries or manifests
+ * - A completed import records its validated entry without another filesystem scan
  * - `extensionsRoot` points at the extension manifest root under user data
  *
  * Returns:
@@ -282,6 +283,8 @@ export function createManifestForLoad(
 export interface ExtensionHostRegistry {
   getRoot: () => string
   refresh: () => Promise<ManifestEntry[]>
+  /** Adds the validated entry returned by a completed import transaction. */
+  recordCommittedEntry: (entry: ManifestEntry) => ManifestEntry
   listEntries: () => ManifestEntry[]
   listManifests: () => ExtensionManifestV2[]
   findManifestEntry: (extensionId: string) => ManifestEntry | undefined
@@ -308,21 +311,33 @@ export function createExtensionHostRegistry(options: {
   let manifests: ExtensionManifestV2[] = []
   let manifestEntryByExtensionId = new Map<string, ManifestEntry>()
 
+  const replaceEntries = (nextEntries: ManifestEntry[]) => {
+    entries = nextEntries
+    manifestEntryByExtensionId = new Map()
+    for (const entry of entries) {
+      const id = manifestIdOf(entry.manifest)
+      if (!manifestEntryByExtensionId.has(id)) {
+        manifestEntryByExtensionId.set(id, entry)
+      }
+    }
+    manifests = entries.map(entry => entry.manifest)
+  }
+
   return {
     getRoot() {
       return options.extensionsRoot
     },
     async refresh() {
-      entries = await loadManifestsFrom(options.extensionsRoot, options.log)
-      manifestEntryByExtensionId = new Map()
-      for (const entry of entries) {
-        const id = manifestIdOf(entry.manifest)
-        if (!manifestEntryByExtensionId.has(id)) {
-          manifestEntryByExtensionId.set(id, entry)
-        }
-      }
-      manifests = entries.map(entry => entry.manifest)
+      replaceEntries(await loadManifestsFrom(options.extensionsRoot, options.log))
       return entries
+    },
+    recordCommittedEntry(entry) {
+      const extensionId = manifestIdOf(entry.manifest)
+      replaceEntries([
+        ...entries.filter(candidate => manifestIdOf(candidate.manifest) !== extensionId),
+        entry,
+      ])
+      return entry
     },
     listEntries() {
       return entries

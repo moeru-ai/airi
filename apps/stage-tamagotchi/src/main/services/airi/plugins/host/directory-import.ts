@@ -7,16 +7,27 @@ import type {
   ExtensionDirectoryImportPermissionSummary,
   ExtensionDirectoryImportPlan,
 } from '../../../../../shared/eventa/plugin/host'
+import type { ManifestEntry } from '../types'
 
+import { Buffer } from 'node:buffer'
 import { createHash, randomUUID } from 'node:crypto'
-import { cp, lstat, mkdir, readdir, readFile, realpath, rename, rm } from 'node:fs/promises'
+import { createReadStream, createWriteStream } from 'node:fs'
+import { chmod, lstat, mkdir, open, opendir, realpath, rename, rm } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { pipeline } from 'node:stream/promises'
 
 import { parseExtensionManifest } from '@proj-airi/plugin-sdk/plugin-host'
 
 import { extensionManifestFileName } from './registry'
 
 const importPlanTtlMs = 10 * 60 * 1000
+
+/** Bounds inspection work for an untrusted Extension folder. */
+const extensionPackageLimits = Object.freeze({
+  entries: 10_000,
+  manifestBytes: 1024 * 1024,
+  totalBytes: 512 * 1024 * 1024,
+})
 
 interface InspectedExtensionDirectory {
   sourcePath: string
@@ -29,7 +40,10 @@ interface InspectedExtensionDirectory {
 interface StoredImportPlan {
   preview: ExtensionDirectoryImportPlan
   sourcePath: string
+  securityScopedBookmark?: string
 }
+
+type StartAccessingSecurityScopedResource = (bookmark: string) => () => void
 
 function isMissingPathError(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT'
@@ -105,6 +119,37 @@ async function assertRegularFile(path: string, label: string): Promise<Stats> {
   return stats
 }
 
+async function readManifestSnapshot(path: string, expectedSize: number): Promise<Buffer> {
+  const handle = await open(path, 'r')
+  try {
+    // One extra byte distinguishes the maximum valid manifest from a file
+    // that grew past the limit after the directory walk.
+    const buffer = Buffer.allocUnsafe(extensionPackageLimits.manifestBytes + 1)
+    let bytesRead = 0
+    while (bytesRead < buffer.byteLength) {
+      const result = await handle.read(buffer, bytesRead, buffer.byteLength - bytesRead, bytesRead)
+      if (result.bytesRead === 0) {
+        break
+      }
+      bytesRead += result.bytesRead
+    }
+
+    if (bytesRead > extensionPackageLimits.manifestBytes) {
+      throw new Error('Extension manifest exceeds the 1 MiB size limit.')
+    }
+
+    const finalStats = await handle.stat()
+    if (!finalStats.isFile() || finalStats.size !== expectedSize || bytesRead !== expectedSize) {
+      throw new Error('Extension package changed during inspection. Select the folder again.')
+    }
+
+    return buffer.subarray(0, bytesRead)
+  }
+  finally {
+    await handle.close()
+  }
+}
+
 async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedExtensionDirectory> {
   const sourceStats = await lstat(sourcePath)
   if (sourceStats.isSymbolicLink() || !sourceStats.isDirectory()) {
@@ -115,9 +160,65 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
   const manifestPath = join(sourceRealPath, extensionManifestFileName)
   await assertRegularFile(manifestPath, 'Extension manifest')
 
+  const files: Array<{ path: string, relativePath: string, size: number }> = []
+  const directories = ['.']
+  const pendingDirectories = [sourceRealPath]
+  let entryCount = 0
+  let totalBytes = 0
+  while (pendingDirectories.length > 0) {
+    const directory = pendingDirectories.pop()
+    if (!directory) {
+      continue
+    }
+    const entries = await opendir(directory)
+    for await (const entry of entries) {
+      entryCount += 1
+      if (entryCount > extensionPackageLimits.entries) {
+        throw new Error(`Extension package exceeds the ${extensionPackageLimits.entries} entry limit.`)
+      }
+      const path = join(directory, entry.name)
+      const stats = await lstat(path)
+      const relativePath = relative(sourceRealPath, path)
+
+      if (stats.isSymbolicLink()) {
+        throw new Error(`Extension packages cannot contain symbolic links: ${relativePath}`)
+      }
+      if (stats.isDirectory()) {
+        directories.push(relativePath)
+        pendingDirectories.push(path)
+        continue
+      }
+      if (!stats.isFile()) {
+        throw new Error(`Extension packages can contain only files and directories: ${relativePath}`)
+      }
+      totalBytes += stats.size
+      if (totalBytes > extensionPackageLimits.totalBytes) {
+        throw new Error('Extension package exceeds the 512 MiB size limit.')
+      }
+      files.push({ path, relativePath, size: stats.size })
+    }
+  }
+
+  directories.sort()
+  files.sort((left, right) => left.relativePath.localeCompare(right.relativePath))
+
+  const manifestRelativePath = relative(sourceRealPath, manifestPath)
+  const manifestFile = files.find(file => file.relativePath === manifestRelativePath)
+  if (!manifestFile) {
+    throw new Error(`Extension manifest does not exist: ${manifestPath}`)
+  }
+  if (manifestFile.size > extensionPackageLimits.manifestBytes) {
+    throw new Error('Extension manifest exceeds the 1 MiB size limit.')
+  }
+
+  // The manifest remains the only retained byte snapshot because the preview
+  // and fingerprint must describe the same manifest contents. The stable file
+  // handle limits the allocation even if another process grows the path.
+  const manifestContents = await readManifestSnapshot(manifestFile.path, manifestFile.size)
+
   let rawManifest: unknown
   try {
-    rawManifest = JSON.parse(await readFile(manifestPath, 'utf8')) as unknown
+    rawManifest = JSON.parse(manifestContents.toString('utf8')) as unknown
   }
   catch (error) {
     if (error instanceof SyntaxError) {
@@ -130,31 +231,6 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
   if (!parsedManifest.success) {
     throw new Error(`Extension manifest is invalid: ${formatManifestDiagnostics(parsedManifest.diagnostics)}`)
   }
-
-  const files: Array<{ path: string, relativePath: string, size: number }> = []
-  const directories = ['.']
-  const walk = async (directory: string): Promise<void> => {
-    const entries = await readdir(directory, { withFileTypes: true })
-    for (const entry of entries) {
-      const path = join(directory, entry.name)
-      const stats = await lstat(path)
-      const relativePath = relative(sourceRealPath, path)
-
-      if (stats.isSymbolicLink()) {
-        throw new Error(`Extension packages cannot contain symbolic links: ${relativePath}`)
-      }
-      if (stats.isDirectory()) {
-        directories.push(relativePath)
-        await walk(path)
-        continue
-      }
-      if (!stats.isFile()) {
-        throw new Error(`Extension packages can contain only files and directories: ${relativePath}`)
-      }
-      files.push({ path, relativePath, size: stats.size })
-    }
-  }
-  await walk(sourceRealPath)
 
   for (const entrypoint of Object.values(parsedManifest.manifest.entrypoints)) {
     if (!entrypoint) {
@@ -174,15 +250,29 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
     }
   }
 
-  directories.sort()
-  files.sort((left, right) => left.relativePath.localeCompare(right.relativePath))
   const fingerprint = createHash('sha256')
   for (const directory of directories) {
     fingerprint.update(`directory\0${directory}\0`)
   }
   for (const file of files) {
     fingerprint.update(`file\0${file.relativePath}\0${file.size}\0`)
-    fingerprint.update(await readFile(file.path))
+    if (file.relativePath === manifestRelativePath) {
+      fingerprint.update(manifestContents)
+    }
+    else {
+      let bytesRead = 0
+      for await (const chunk of createReadStream(file.path)) {
+        const contents = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+        bytesRead += contents.byteLength
+        if (bytesRead > file.size) {
+          throw new Error('Extension package changed during inspection. Select the folder again.')
+        }
+        fingerprint.update(contents)
+      }
+      if (bytesRead !== file.size) {
+        throw new Error('Extension package changed during inspection. Select the folder again.')
+      }
+    }
     fingerprint.update('\0')
   }
 
@@ -190,8 +280,86 @@ async function inspectExtensionDirectory(sourcePath: string): Promise<InspectedE
     sourcePath: sourceRealPath,
     manifest: parsedManifest.manifest,
     fileCount: files.length,
-    totalBytes: files.reduce((total, file) => total + file.size, 0),
+    totalBytes,
     fingerprint: fingerprint.digest('hex'),
+  }
+}
+
+/** Copies an untrusted package while enforcing the same resource limits as inspection. */
+async function copyExtensionDirectory(sourceRoot: string, destinationRoot: string): Promise<void> {
+  const sourceStats = await lstat(sourceRoot)
+  if (sourceStats.isSymbolicLink() || !sourceStats.isDirectory()) {
+    throw new Error(`Extension source must be a regular directory: ${sourceRoot}`)
+  }
+
+  await mkdir(destinationRoot)
+  const pendingDirectories = [{ source: sourceRoot, destination: destinationRoot }]
+  let entryCount = 0
+  let totalBytes = 0
+
+  while (pendingDirectories.length > 0) {
+    const directory = pendingDirectories.pop()
+    if (!directory) {
+      continue
+    }
+
+    const entries = await opendir(directory.source)
+    for await (const entry of entries) {
+      entryCount += 1
+      if (entryCount > extensionPackageLimits.entries) {
+        throw new Error(`Extension package exceeds the ${extensionPackageLimits.entries} entry limit.`)
+      }
+
+      const sourcePath = join(directory.source, entry.name)
+      const destinationPath = join(directory.destination, entry.name)
+      const relativePath = relative(sourceRoot, sourcePath)
+      const stats = await lstat(sourcePath)
+      if (stats.isSymbolicLink()) {
+        throw new Error(`Extension packages cannot contain symbolic links: ${relativePath}`)
+      }
+      if (stats.isDirectory()) {
+        await mkdir(destinationPath)
+        pendingDirectories.push({ source: sourcePath, destination: destinationPath })
+        continue
+      }
+      if (!stats.isFile()) {
+        throw new Error(`Extension packages can contain only files and directories: ${relativePath}`)
+      }
+      if (totalBytes + stats.size > extensionPackageLimits.totalBytes) {
+        throw new Error('Extension package exceeds the 512 MiB size limit.')
+      }
+
+      const isManifest = relativePath === extensionManifestFileName
+      if (isManifest && stats.size > extensionPackageLimits.manifestBytes) {
+        throw new Error('Extension manifest exceeds the 1 MiB size limit.')
+      }
+
+      let copiedBytes = 0
+      await pipeline(
+        createReadStream(sourcePath),
+        async function* enforceCopyLimits(chunks) {
+          for await (const chunk of chunks) {
+            const contents = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+            copiedBytes += contents.byteLength
+            totalBytes += contents.byteLength
+            if (totalBytes > extensionPackageLimits.totalBytes) {
+              throw new Error('Extension package exceeds the 512 MiB size limit.')
+            }
+            if (isManifest && copiedBytes > extensionPackageLimits.manifestBytes) {
+              throw new Error('Extension manifest exceeds the 1 MiB size limit.')
+            }
+            yield contents
+          }
+        },
+        createWriteStream(destinationPath, { flags: 'wx' }),
+      )
+      if (copiedBytes !== stats.size) {
+        throw new Error('Extension package changed during copy. Select the folder again.')
+      }
+      // Stats.mode also contains file-type bits. Only permission bits belong
+      // in chmod, which keeps executable entrypoints and bundled tools usable.
+      await chmod(destinationPath, stats.mode & 0o777)
+    }
   }
 }
 
@@ -208,11 +376,15 @@ export class ExtensionDirectoryImporter {
   constructor(
     private readonly extensionsRoot: string,
     private readonly isExtensionInstalled: (extensionId: string) => boolean | Promise<boolean> = () => false,
+    private readonly startAccessingSecurityScopedResource?: StartAccessingSecurityScopedResource,
   ) {}
 
   /** Creates a short-lived import plan from an untrusted source directory. */
-  async prepare(sourcePath: string): Promise<ExtensionDirectoryImportPlan> {
-    const inspected = await inspectExtensionDirectory(sourcePath)
+  async prepare(sourcePath: string, securityScopedBookmark?: string): Promise<ExtensionDirectoryImportPlan> {
+    const inspected = await this.withSecurityScopedAccess(
+      securityScopedBookmark,
+      async () => await inspectExtensionDirectory(sourcePath),
+    )
     await this.assertDestinationAvailable(inspected.manifest.id)
 
     const planId = randomUUID()
@@ -230,12 +402,16 @@ export class ExtensionDirectoryImporter {
       fingerprint: inspected.fingerprint,
       createdAt: Date.now(),
     }
-    this.plans.set(planId, { preview, sourcePath: inspected.sourcePath })
+    this.plans.set(planId, {
+      preview,
+      sourcePath: inspected.sourcePath,
+      securityScopedBookmark,
+    })
     return structuredClone(preview)
   }
 
-  /** Publishes a prepared package and returns its final manifest path. */
-  async commit(planId: string): Promise<{ extensionId: string, manifestPath: string }> {
+  /** Publishes a prepared package and returns its validated committed registry entry. */
+  async commit(planId: string): Promise<ManifestEntry> {
     const result = this.commitQueue.then(() => this.commitPreparedPlan(planId))
     this.commitQueue = result.then(() => undefined, () => undefined)
     return await result
@@ -251,6 +427,26 @@ export class ExtensionDirectoryImporter {
     this.plans.clear()
   }
 
+  private async withSecurityScopedAccess<TResult>(
+    bookmark: string | undefined,
+    operation: () => Promise<TResult>,
+  ): Promise<TResult> {
+    if (!bookmark) {
+      return await operation()
+    }
+    if (!this.startAccessingSecurityScopedResource) {
+      throw new Error('Security-scoped Extension import access is not configured.')
+    }
+
+    const stopAccessing = this.startAccessingSecurityScopedResource(bookmark)
+    try {
+      return await operation()
+    }
+    finally {
+      stopAccessing()
+    }
+  }
+
   private async assertDestinationAvailable(extensionId: string): Promise<void> {
     const destination = join(this.extensionsRoot, extensionId)
     if (await this.isExtensionInstalled(extensionId) || await pathExists(destination)) {
@@ -258,7 +454,7 @@ export class ExtensionDirectoryImporter {
     }
   }
 
-  private async commitPreparedPlan(planId: string): Promise<{ extensionId: string, manifestPath: string }> {
+  private async commitPreparedPlan(planId: string): Promise<ManifestEntry> {
     const storedPlan = this.plans.get(planId)
     if (!storedPlan) {
       throw new Error('Extension import plan is missing or was already used.')
@@ -268,41 +464,39 @@ export class ExtensionDirectoryImporter {
       throw new Error('Extension import plan expired. Select the folder again.')
     }
 
-    const inspected = await inspectExtensionDirectory(storedPlan.sourcePath)
-    if (inspected.manifest.id !== storedPlan.preview.extensionId || inspected.fingerprint !== storedPlan.preview.fingerprint) {
-      throw new Error('Extension source changed after review. Select the folder again.')
-    }
-
-    await this.assertDestinationAvailable(inspected.manifest.id)
-    await mkdir(this.extensionsRoot, { recursive: true })
-    const stagingRoot = join(this.extensionsRoot, '.imports')
-    await mkdir(stagingRoot, { recursive: true })
-    const stagingPath = join(stagingRoot, planId)
-    const destination = join(this.extensionsRoot, inspected.manifest.id)
-
-    try {
-      await cp(inspected.sourcePath, stagingPath, {
-        recursive: true,
-        force: false,
-        errorOnExist: true,
-        dereference: false,
-        verbatimSymlinks: true,
-      })
-      const staged = await inspectExtensionDirectory(stagingPath)
-      if (staged.manifest.id !== inspected.manifest.id || staged.fingerprint !== inspected.fingerprint) {
-        throw new Error('Extension copy does not match the reviewed package.')
+    return await this.withSecurityScopedAccess(storedPlan.securityScopedBookmark, async () => {
+      const inspected = await inspectExtensionDirectory(storedPlan.sourcePath)
+      if (inspected.manifest.id !== storedPlan.preview.extensionId || inspected.fingerprint !== storedPlan.preview.fingerprint) {
+        throw new Error('Extension source changed after review. Select the folder again.')
       }
+
       await this.assertDestinationAvailable(inspected.manifest.id)
-      await rename(stagingPath, destination)
-      this.plans.delete(planId)
-      return {
-        extensionId: inspected.manifest.id,
-        manifestPath: join(destination, extensionManifestFileName),
+      await mkdir(this.extensionsRoot, { recursive: true })
+      const stagingRoot = join(this.extensionsRoot, '.imports')
+      await mkdir(stagingRoot, { recursive: true })
+      const stagingPath = join(stagingRoot, planId)
+      const destination = join(this.extensionsRoot, inspected.manifest.id)
+
+      try {
+        await copyExtensionDirectory(inspected.sourcePath, stagingPath)
+        const staged = await inspectExtensionDirectory(stagingPath)
+        if (staged.manifest.id !== inspected.manifest.id || staged.fingerprint !== inspected.fingerprint) {
+          throw new Error('Extension copy does not match the reviewed package.')
+        }
+        await this.assertDestinationAvailable(inspected.manifest.id)
+        await rename(stagingPath, destination)
+        this.plans.delete(planId)
+        return {
+          manifest: staged.manifest,
+          path: join(destination, extensionManifestFileName),
+          rootDir: destination,
+          version: staged.manifest.version,
+        }
       }
-    }
-    catch (error) {
-      await rm(stagingPath, { recursive: true, force: true })
-      throw error
-    }
+      catch (error) {
+        await rm(stagingPath, { recursive: true, force: true })
+        throw error
+      }
+    })
   }
 }

@@ -43,9 +43,14 @@ import { widgetPluginKitDescriptor } from './kits/widget'
 
 const appMock = vi.hoisted(() => ({
   getPath: vi.fn(),
+  getVersion: vi.fn(() => '0.12.0-beta.5'),
+  startAccessingSecurityScopedResource: vi.fn(),
 }))
 const dialogMock = vi.hoisted(() => ({
   showOpenDialog: vi.fn(),
+}))
+const browserWindowMock = vi.hoisted(() => ({
+  fromWebContents: vi.fn(),
 }))
 const protocolMock = vi.hoisted(() => ({
   handle: vi.fn(),
@@ -64,6 +69,7 @@ const contextState = vi.hoisted(() => ({
 
 vi.mock('electron', () => ({
   app: appMock,
+  BrowserWindow: browserWindowMock,
   dialog: dialogMock,
   ipcMain: {},
   protocol: protocolMock,
@@ -380,6 +386,7 @@ describe('setupExtensionHost', () => {
     pluginsDir = join(userDataDir, 'extensions', 'v1')
     await mkdir(pluginsDir, { recursive: true })
     appMock.getPath.mockReturnValue(userDataDir)
+    appMock.startAccessingSecurityScopedResource.mockReturnValue(vi.fn())
     dialogMock.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] })
   })
 
@@ -458,6 +465,67 @@ describe('setupExtensionHost', () => {
       }),
     ])
     expect(await readFile(join(pluginsDir, 'imported-extension', 'extension.mjs'), 'utf8')).toContain('defineExtension')
+  })
+
+  it('opens the Extension folder picker for the invoking window', async () => {
+    const sender = { id: 42 }
+    const ownerWindow = { id: 7 }
+    browserWindowMock.fromWebContents.mockReturnValue(ownerWindow)
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] })
+    await setupExtensionHost()
+
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    await Reflect.apply(invokePrepare, undefined, [undefined, {
+      raw: {
+        ipcMainEvent: { sender },
+      },
+    }])
+
+    expect(browserWindowMock.fromWebContents).toHaveBeenCalledExactlyOnceWith(sender)
+    expect(dialogMock.showOpenDialog).toHaveBeenCalledExactlyOnceWith(ownerWindow, {
+      properties: ['openDirectory'],
+      securityScopedBookmarks: true,
+    })
+  })
+
+  it('retains security-scoped folder access through import confirmation', async () => {
+    const sourceDir = join(userDataDir, 'sandboxed-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('sandboxed-extension'))
+    await writeManifest({
+      dir: sourceDir,
+      name: 'sandboxed-extension',
+      entrypoint: './extension.mjs',
+    })
+    const stopAccessing = vi.fn()
+    appMock.startAccessingSecurityScopedResource.mockReturnValue(stopAccessing)
+    dialogMock.showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: [sourceDir],
+      bookmarks: ['sandbox-bookmark'],
+    })
+
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
+    const prepared = await invokePrepare()
+    if (prepared.status !== 'ready') {
+      throw new Error('Expected a ready import plan.')
+    }
+    expect(appMock.startAccessingSecurityScopedResource).toHaveBeenCalledExactlyOnceWith('sandbox-bookmark')
+    expect(stopAccessing).toHaveBeenCalledOnce()
+
+    await invokeCommit({ planId: prepared.plan.planId })
+
+    // ROOT CAUSE:
+    //
+    // The picker returned only a path, so a Mac App Store build lost its
+    // sandbox grant before the reviewed import was committed. The Host now
+    // keeps the bookmark in the plan and opens a fresh access scope for each
+    // file-system phase.
+    expect(appMock.startAccessingSecurityScopedResource).toHaveBeenCalledTimes(2)
+    expect(appMock.startAccessingSecurityScopedResource).toHaveBeenLastCalledWith('sandbox-bookmark')
+    expect(stopAccessing).toHaveBeenCalledTimes(2)
   })
 
   it('treats closing the Extension folder picker as cancellation', async () => {

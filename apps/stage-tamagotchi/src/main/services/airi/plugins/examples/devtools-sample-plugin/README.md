@@ -5,7 +5,7 @@ This sample extension is for validating extension host behavior in the **Extensi
 ## Files
 
 - `extension.airi.json`: extension manifest (`ExtensionManifestV2`)
-- `devtools-sample-plugin.mjs`: extension implementation
+- `devtools-sample-plugin.mjs`: self-contained bundled Extension output
 
 The manifest declares the extension entrypoint used by the host inspector sample.
 

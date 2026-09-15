@@ -73,7 +73,7 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
   tools: TamagotchiToolRegistry
 
   /** Reads and validates one selected folder without executing Extension code. */
-  prepareDirectoryImport: (sourcePath: string) => Promise<ExtensionDirectoryImportPlan>
+  prepareDirectoryImport: (sourcePath: string, securityScopedBookmark?: string) => Promise<ExtensionDirectoryImportPlan>
 
   /** Copies one reviewed folder into the managed registry and keeps it disabled. */
   commitDirectoryImport: (planId: string) => Promise<PluginRegistrySnapshot>
@@ -244,7 +244,10 @@ export async function setupExtensionHostServiceInternal(
 
   // Kit API, Host
   const builtInKitRuntime = createBuiltInExtensionKitRuntime(options)
-  const host = new ExtensionHost({ runtime: 'electron' })
+  const host = new ExtensionHost({
+    airiVersion: app.getVersion(),
+    runtime: 'electron',
+  })
   log.withFields({ extensionsRoot }).log('loading extension manifests')
   builtInKitRuntime.registerHostKits(host)
 
@@ -253,6 +256,10 @@ export async function setupExtensionHostServiceInternal(
   const directoryImporter = new ExtensionDirectoryImporter(
     extensionsRoot,
     extensionId => Boolean(extensionRegistry.findManifestEntry(extensionId)),
+    (bookmark) => {
+      const stopAccessing = app.startAccessingSecurityScopedResource(bookmark)
+      return () => stopAccessing()
+    },
   )
 
   await extensionRegistry.refresh()
@@ -454,22 +461,22 @@ export async function setupExtensionHostServiceInternal(
     // to this host service and passing it into kit registration as a dependency.
     tools: builtInKitRuntime.tools,
     manifests: extensionRegistry.listManifests(),
-    async prepareDirectoryImport(sourcePath) {
+    async prepareDirectoryImport(sourcePath, securityScopedBookmark) {
       await refreshManifests()
-      return await directoryImporter.prepare(sourcePath)
+      return await directoryImporter.prepare(sourcePath, securityScopedBookmark)
     },
     async commitDirectoryImport(planId) {
       await refreshManifests()
       const imported = await directoryImporter.commit(planId)
-      await refreshManifests()
+      extensionRegistry.recordCommittedEntry(imported)
 
       const config = getConfig()
       extensionConfig.update({
-        enabled: config.enabled.filter(extensionId => extensionId !== imported.extensionId),
-        autoReload: config.autoReload.filter(extensionId => extensionId !== imported.extensionId),
+        enabled: config.enabled.filter(extensionId => extensionId !== imported.manifest.id),
+        autoReload: config.autoReload.filter(extensionId => extensionId !== imported.manifest.id),
         known: {
           ...config.known,
-          [imported.extensionId]: { path: imported.manifestPath },
+          [imported.manifest.id]: { path: imported.path },
         },
       })
 
