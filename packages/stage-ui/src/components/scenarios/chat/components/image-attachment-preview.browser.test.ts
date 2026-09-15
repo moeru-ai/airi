@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
+import { createI18n } from 'vue-i18n'
 
-import ChatImageAttachmentPreview from './chat-image-attachment-preview.vue'
+import ChatImageAttachmentPreview from './image-attachment-preview.vue'
 
 describe('chat image attachment preview', () => {
   // ROOT CAUSE:
@@ -15,6 +16,7 @@ describe('chat image attachment preview', () => {
     const file = new File(['preview-bytes'], 'preview.png', { type: 'image/png' })
     const screen = await render(ChatImageAttachmentPreview, {
       props: { file },
+      global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] },
     })
     const image = screen.container.querySelector<HTMLImageElement>('img')
 

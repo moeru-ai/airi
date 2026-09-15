@@ -3,6 +3,8 @@ import { defineInvoke } from '@moeru/eventa'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '@proj-airi/stage-ui/services/speech/bus'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { storeToRefs } from 'pinia'
 import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -10,6 +12,7 @@ import InteractiveArea from '../components/InteractiveArea.vue'
 import WindowTitleBar from '../components/Window/TitleBar.vue'
 import ChatPageShell from './chat-page-shell.vue'
 
+const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
 const getOutputPlaybackState = defineInvoke(getSpeechBusContext(), speechOutputGetPlaybackState)
 const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton({
@@ -28,7 +31,7 @@ const { t } = useI18n()
 <template>
   <ChatPageShell>
     <WindowTitleBar
-      title="Chat"
+      :title="activeCard?.name || 'AIRI'"
       icon="i-solar:chat-line-bold"
       @title-click="sessionsDrawerOpen = true"
     >

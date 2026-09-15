@@ -15,6 +15,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { useChatStore } from './chat'
+import { useContextObservabilityStore } from './devtools/context-observability'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 
 vi.hoisted(() => {
@@ -74,6 +75,7 @@ const disposeSessionMock = vi.fn()
 const ensureCurrentSessionMock = vi.fn()
 const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
+const visionMocks = vi.hoisted(() => ({ configured: false, runInference: vi.fn() }))
 
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
@@ -141,6 +143,14 @@ vi.mock('./chat/context-store', () => ({
     ingestContextMessage: ingestContextMessageMock,
     getContextsSnapshot: getContextsSnapshotMock,
   }),
+}))
+
+vi.mock('./modules/vision', () => ({
+  useVisionStore: () => ({ get configured() { return visionMocks.configured }, useForChat: true }),
+}))
+
+vi.mock('../composables/vision/use-vision-inference', () => ({
+  useVisionInference: () => ({ runVisionInference: visionMocks.runInference }),
 }))
 
 vi.mock('./chat/session-store', () => ({
@@ -271,6 +281,8 @@ describe('chat store contract', () => {
       },
       execute: vi.fn(),
     })))
+    visionMocks.configured = false
+    visionMocks.runInference.mockReset()
     ioTracerMocks.activeTurnSpan.value = undefined
     ioTracerMocks.spans.length = 0
     ioTracerMocks.startSpanMock.mockClear()
@@ -313,6 +325,89 @@ describe('chat store contract', () => {
       ['stage_widgets'],
       ['stage_widgets'],
     ])
+  })
+
+  it('preserves image attachments when retrying a failed turn', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'What is this?' },
+          { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } },
+        ],
+        id: 'user-image',
+      },
+      { role: 'error', content: 'Provider failed' },
+    ]
+
+    const store = useChatStore()
+    await store.retry({ sessionId: 'session-1', index: 2 })
+
+    const retried = sessionMessages['session-1'].findLast(message => message.role === 'user')
+    expect(retried.content).toEqual([
+      { type: 'text', text: 'What is this?' },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } },
+    ])
+  })
+
+  it('cancels vision preprocessing when its chat turn is cancelled', async () => {
+    visionMocks.configured = true
+    let visionSignal: AbortSignal | undefined
+    visionMocks.runInference.mockImplementation(({ abortSignal }: { abortSignal?: AbortSignal }) => new Promise<string>((_resolve, reject) => {
+      visionSignal = abortSignal
+      abortSignal?.addEventListener('abort', () => reject(abortSignal.reason), { once: true })
+    }))
+
+    const store = useChatStore()
+    const sending = store.send({
+      sessionId: 'session-1',
+      text: 'Read this',
+      attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
+    })
+    await vi.waitFor(() => expect(visionSignal).toBeDefined())
+
+    store.cancelPendingSends('session-1')
+
+    await sending
+    expect(visionSignal?.aborted).toBe(true)
+    expect(llmStreamMock).not.toHaveBeenCalled()
+  })
+
+  it('starts chat-model telemetry and captures the provider prompt after vision preprocessing', async () => {
+    visionMocks.configured = true
+    let resolveVision!: (description: string) => void
+    visionMocks.runInference.mockReturnValue(new Promise<string>((resolve) => {
+      resolveVision = resolve
+    }))
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    const sending = store.send({
+      sessionId: 'session-1',
+      text: 'Read this',
+      attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
+    })
+    await vi.waitFor(() => expect(visionMocks.runInference).toHaveBeenCalledOnce())
+
+    expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.LLMInference)).toBe(false)
+    expect(llmStreamMock).not.toHaveBeenCalled()
+
+    resolveVision('A red square.')
+    await sending
+
+    expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.LLMInference)).toBe(true)
+    expect(useContextObservabilityStore().lastPromptProjection?.composedMessage).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        role: 'user',
+        content: expect.stringContaining('A red square.'),
+      }),
+    ]))
   })
 
   // https://github.com/moeru-ai/airi/pull/2565#discussion_r4028809145

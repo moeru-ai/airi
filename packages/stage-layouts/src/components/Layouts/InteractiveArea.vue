@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
@@ -26,11 +27,12 @@ const { streamingMessage } = storeToRefs(useChatStreamStore())
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 
 const isLoading = ref(true)
-const composer = useChatComposer({
+const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
   send: submission => chatOrchestrator.send({
     sessionId: submission.sessionId,
     text: submission.text,
+    attachments: submission.attachments.map(({ type, data, mimeType }) => ({ type, data, mimeType })),
     replyToMessageId: submission.replyToMessageId,
   }),
 })
