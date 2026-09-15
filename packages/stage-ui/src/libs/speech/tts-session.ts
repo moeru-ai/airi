@@ -72,6 +72,8 @@ export interface StreamingSessionSnapshot {
   model: string
   voice: string
   voiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
+  /** Chat round that owns this TTS session. Groups its ledger entries in Flux history. */
+  roundId?: string
   bufferEntireSession: boolean
   extraBody: Record<string, unknown>
   /**
@@ -160,6 +162,7 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
     model: snapshot.model,
     voice: snapshot.voice,
     ttsVoiceType: snapshot.voiceType,
+    roundId: snapshot.roundId,
     audioContext,
     bufferEntireSession: snapshot.bufferEntireSession,
     extraBody: snapshot.extraBody,

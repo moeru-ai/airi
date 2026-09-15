@@ -546,6 +546,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
           trigger: 'auto',
           source: 'chat_auto_tts',
           voice_type: resolveStageVoiceType(),
+          ...(request.turnId != null && { round_id: request.turnId }),
         },
       )
 
@@ -768,6 +769,7 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
     model: sessionModel,
     voice: voiceId,
     voiceType: resolveStageVoiceType(),
+    roundId: turnId,
     bufferEntireSession,
     extraBody: {
       api_resource_id: apiResourceId,

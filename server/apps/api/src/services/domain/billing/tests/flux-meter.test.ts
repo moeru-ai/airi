@@ -63,7 +63,17 @@ describe('fluxMeter', () => {
     const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() })
 
     await meter.accumulate({ userId: 'u1', units: 700, currentBalance: 10, requestId: 'a' })
-    const result = await meter.accumulate({ userId: 'u1', units: 400, currentBalance: 10, requestId: 'b' })
+    const result = await meter.accumulate({
+      userId: 'u1',
+      units: 400,
+      currentBalance: 10,
+      requestId: 'b',
+      metadata: {
+        model: 'tts-model',
+        conversationId: 'conversation-1',
+        roundId: 'round-1',
+      },
+    })
 
     expect(result.fluxDebited).toBe(1)
     expect(result.debtAfter).toBe(100)
@@ -72,6 +82,9 @@ describe('fluxMeter', () => {
       amount: 1,
       requestId: 'b',
       description: 'tts_request',
+      model: 'tts-model',
+      conversationId: 'conversation-1',
+      roundId: 'round-1',
     }))
   })
 

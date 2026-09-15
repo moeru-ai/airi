@@ -44,6 +44,7 @@ interface SpeechAnalytics {
   trigger: 'auto' | 'manual'
   source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
   voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
+  round_id?: string
 }
 
 // Request status belongs to this renderer's RPC wait, not to replicated speech settings.
