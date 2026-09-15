@@ -5,6 +5,7 @@ import type { LlmTracingDeps, V1RouteDeps } from './types'
 
 import { authGuard } from '../../../middlewares/auth'
 import { configGuard } from '../../../middlewares/config-guard'
+import { createBadRequestError } from '../../../utils/error'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
@@ -12,8 +13,10 @@ import {
   resolveChatAnalyticsSurface,
 } from './analytics'
 import { createV1Gateway } from './gateway'
-import { chatCompletionsRateLimit } from './middlewares'
+import { generationRateLimit } from './middlewares'
 import { chatCompletions } from './operations/chat-completions'
+import { responsesCreate } from './operations/responses'
+import { parseResponsesRequest } from './operations/responses/request'
 import { createSpeechCatalogOperation } from './operations/speech-catalog'
 import { speechGeneration } from './operations/speech-generation'
 import { defaultLlmTracing } from './types'
@@ -27,6 +30,7 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
   const gateway = createV1Gateway(deps)
     .useHono('*', '*', authGuard)
     .useHono('openai', '/chat/*', configGuard(deps.configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet'))
+    .useHono('openai', '/responses', configGuard(deps.configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet'))
     .useHono('audio', '/speech', configGuard(deps.configKV, ['FLUX_PER_1K_CHARS_TTS'], 'TTS service is not available yet'))
 
   // OpenAI-compatible surface (mounted at /api/v1/openai). Only routes that
@@ -35,9 +39,32 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
   // real OpenAI route and the streaming TTS protocol has nothing to do with
   // OpenAI — keeping them here mislabelled the surface, so audio now mounts
   // at /api/v1/audio (see `audioRoutes` below).
+  const rateLimit = generationRateLimit({ metrics: deps.rateLimitMetrics })
   const openai = gateway.route('openai')
-    .use('chat.completions', chatCompletionsRateLimit({ metrics: deps.rateLimitMetrics }))
+    .use('chat.completions', rateLimit)
+    .use('responses.create', rateLimit)
   const openaiRoutes = openai
+    .post('/responses', openai.handler(
+      'responses.create',
+      async (c) => {
+        let body: unknown
+        try {
+          body = await c.req.json()
+        }
+        catch {
+          throw createBadRequestError('Invalid Responses JSON body', 'INVALID_RESPONSES_REQUEST')
+        }
+        return {
+          userId: c.get('user')!.id,
+          body: parseResponsesRequest(body),
+          sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
+          roundId: c.req.header(AIRI_CHAT_ROUND_ID_HEADER),
+          appSurface: resolveChatAnalyticsSurface(c.req.header(AIRI_CHAT_APP_SURFACE_HEADER)),
+          abortSignal: c.req.raw.signal,
+        }
+      },
+      responsesCreate(deps),
+    ))
     .post('/chat/completions', openai.handler(
       'chat.completions',
       async (c) => {

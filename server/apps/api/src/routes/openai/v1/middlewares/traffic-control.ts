@@ -22,9 +22,10 @@ interface RateLimitBucket {
   resetAt: number
 }
 
-export function chatCompletionsRateLimit(input: {
+/** Shares one per-user generation quota across Chat Completions and Responses. */
+export function generationRateLimit(input: {
   metrics?: RateLimitMetrics | null
-}): GatewayMiddleware<'chat.completions'> {
+}): GatewayMiddleware<'chat.completions' | 'responses.create'> {
   return createGatewayRateLimiter({
     classify: context => ({
       key: context.input.userId,

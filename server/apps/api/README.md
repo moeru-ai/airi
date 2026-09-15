@@ -67,3 +67,40 @@ Set `AUTH_SERVER_INTERNAL_URL` from Auth's Railway private domain. It is only
 the private JWKS route; `AUTH_SERVER_URL` remains the public Auth issuer URL.
 See [`server/README.md`](../../README.md#railway-deployment) for the complete
 cross-service variable and migration contract.
+
+### Hosted Responses API
+
+`POST /api/v1/openai/responses` accepts authenticated, stateless OpenAI Responses requests.
+Use this endpoint when a client sends complete input Items and handles function tools locally.
+The endpoint supports JSON and SSE output. It shares the per-user generation quota with Chat Completions.
+
+Add `protocols: ["chat-completions", "responses"]` to each compatible LLM upstream in `LLM_ROUTER_CONFIG`.
+An omitted `protocols` field permits Chat Completions only. Aliases retain their configured primary and fallback order.
+If no configured route supports Responses, the endpoint returns `503 LLM_PROTOCOL_UNAVAILABLE` before contacting an upstream.
+This PR does not update live routing configuration or switch the official client provider.
+
+The request uses `store: false`, which is also the default. Send complete messages, reasoning Items, function calls,
+and function outputs in `input`. The endpoint rejects `previous_response_id`, `conversation`, file IDs,
+background generation, item references, file search, and code interpreter.
+Do not use this endpoint for provider-side history.
+
+For a Responses-enabled OpenAI upstream at `https://api.openai.com/v1`, web search needs no separate capability flag.
+The server reads `abilities.search` from `model-bank/openai` using `overrideModel`, or the dispatched model name when no override exists.
+A compatible proxy is not treated as OpenAI. Unknown or unsupported models do not receive search requests.
+If all protocol-compatible candidates lack search support, the endpoint returns `503 LLM_WEB_SEARCH_UNAVAILABLE`.
+Send `tools: [{ "type": "web_search" }]` to make search available. The gateway does not inject tools or change `tool_choice`.
+Search filters, approximate location, source inclusion, and `web_search_call` Items pass through the validated request boundary.
+Keep search Items and citation annotations in the client history for replay and editing.
+
+The Responses operation lives in `operations/responses/index.ts`. Its request contract lives in `operations/responses/request.ts`.
+
+Web search adds no separate Flux debit. The hosted service absorbs the upstream search-call fee.
+Search content tokens in the returned usage follow the existing token rate.
+
+A completed result uses `usage.input_tokens` and `usage.output_tokens` with the existing Flux pricing policy.
+When usage is absent, the existing per-request rate applies. Failed, incomplete, cancelled, malformed,
+and truncated streams incur no debit. Each request has one settlement ID, so duplicate terminal events cannot charge twice.
+A client disconnect cancels the upstream reader. A delivered terminal event authorizes settlement. The gateway closes the stream after that settlement attempt.
+
+Before release, configure a Responses-capable upstream and verify authenticated requests and Flux settlement in the target environment.
+The architecture and test scope are in [the hosted Responses ADR](../../docs/ai/adr/2026-09-15-hosted-responses.md).
