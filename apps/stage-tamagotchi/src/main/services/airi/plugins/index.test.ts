@@ -610,6 +610,46 @@ describe('setupExtensionHost', () => {
     }
   })
 
+  it('stops loaded extensions after their manifest disappears', async () => {
+    const pluginDir = join(pluginsDir, 'test-deleted-plugin')
+    await mkdir(pluginDir, { recursive: true })
+    await writeEntrypoint({
+      dir: pluginDir,
+      name: 'test-deleted-plugin.ts',
+      contents: createEmptyExtensionEntrypoint('test-deleted-plugin'),
+    })
+    await writeManifest({
+      dir: pluginDir,
+      name: 'test-deleted-plugin',
+      entrypoint: './test-deleted-plugin.ts',
+    })
+
+    const service = await setupExtensionHost()
+
+    expect(contextState.lastContext).toBeDefined()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
+    const invokeList = defineInvoke(contextState.lastContext!, electronPluginList)
+
+    await invokeSetEnabled({ extensionId: 'test-deleted-plugin', enabled: true })
+    await invokeLoad({ extensionId: 'test-deleted-plugin' })
+
+    expect(service.host.listSessions()).toHaveLength(1)
+
+    // ROOT CAUSE:
+    //
+    // `refreshManifests()` refreshed the registry without stopping sessions for
+    // removed manifests, so a deleted plugin folder kept its session and tools.
+    //
+    // We fixed this by stopping loaded extensions that are no longer discovered.
+    await rm(pluginDir, { recursive: true, force: true })
+
+    const snapshot = await invokeList()
+
+    expect(snapshot.plugins.find(plugin => plugin.extensionId === 'test-deleted-plugin')).toBeUndefined()
+    expect(service.host.listSessions()).toHaveLength(0)
+  })
+
   it('loads the first matching manifest when duplicate plugin names exist', async () => {
     const errorEntrypoint = join(testDataRoot, 'test-error-plugin.ts')
 
