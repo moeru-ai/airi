@@ -1,4 +1,4 @@
-import type { MaybeElementRef, MouseInElementOptions, UseMouseOptions } from '@vueuse/core'
+import type { MaybeElementRef } from '@vueuse/core'
 
 import { defineInvoke } from '@moeru/eventa'
 import { bounds, cursorScreenPoint, electron, startLoopGetBounds, startLoopGetCursorScreenPoint } from '@proj-airi/electron-eventa'
@@ -14,7 +14,6 @@ const windowBoundsX = shallowRef(0)
 const windowBoundsY = shallowRef(0)
 const windowBoundsWidth = shallowRef(0)
 const windowBoundsHeight = shallowRef(0)
-const sourceType = shallowRef<'mouse'>('mouse')
 
 let trackingStarted = false
 let trackingStopped = false
@@ -72,16 +71,17 @@ async function pollKiriePointer() {
       platform.hostWindow.getPointerPosition(),
       shouldRefreshBounds ? platform.hostWindow.getBounds() : undefined,
     ])
+    const deviceScale = window.devicePixelRatio
 
-    pointerX.value = pointer.x
-    pointerY.value = pointer.y
+    pointerX.value = pointer.x / deviceScale
+    pointerY.value = pointer.y / deviceScale
     pointerInsideWindow.value = pointer.inside
 
     if (windowBounds) {
-      windowBoundsX.value = windowBounds.x
-      windowBoundsY.value = windowBounds.y
-      windowBoundsWidth.value = windowBounds.width
-      windowBoundsHeight.value = windowBounds.height
+      windowBoundsX.value = windowBounds.x / deviceScale
+      windowBoundsY.value = windowBounds.y / deviceScale
+      windowBoundsWidth.value = windowBounds.width / deviceScale
+      windowBoundsHeight.value = windowBounds.height / deviceScale
     }
 
     reportedPollingError = false
@@ -135,7 +135,7 @@ export function useHostWindowBounds() {
   }
 }
 
-export function useHostRelativeMouse(_options?: UseMouseOptions) {
+export function useHostRelativeMouse() {
   startTracking()
   const host = initializeHostContext()
   const x = host.runtime === 'kirie'
@@ -148,33 +148,16 @@ export function useHostRelativeMouse(_options?: UseMouseOptions) {
   return {
     x,
     y,
-    sourceType,
   }
 }
 
-export function useHostMouseInElement(
-  target?: MaybeElementRef,
-  options: MouseInElementOptions = {},
-) {
-  const {
-    windowResize = true,
-    windowScroll = true,
-    handleOutside = true,
-    window = defaultWindow,
-  } = options
-  const type = options.type || 'page'
-  const { x, y } = useHostRelativeMouse(options)
-  const targetRef = shallowRef(target ?? window?.document.body)
-  const elementX = shallowRef(0)
-  const elementY = shallowRef(0)
-  const elementPositionX = shallowRef(0)
-  const elementPositionY = shallowRef(0)
-  const elementHeight = shallowRef(0)
-  const elementWidth = shallowRef(0)
+export function useHostMouseInElement(target?: MaybeElementRef) {
+  const { x, y } = useHostRelativeMouse()
+  const targetRef = shallowRef(target ?? defaultWindow?.document.body)
   const isOutside = shallowRef(true)
 
   function update() {
-    if (!window)
+    if (!defaultWindow)
       return
 
     const element = unrefElement(targetRef)
@@ -182,67 +165,36 @@ export function useHostMouseInElement(
       return
 
     const { left, top, width, height } = element.getBoundingClientRect()
-    elementPositionX.value = left + (type === 'page' ? window.pageXOffset : 0)
-    elementPositionY.value = top + (type === 'page' ? window.pageYOffset : 0)
-    elementHeight.value = height
-    elementWidth.value = width
-
-    const nextElementX = x.value - elementPositionX.value
-    const nextElementY = y.value - elementPositionY.value
+    const elementX = x.value - left
+    const elementY = y.value - top
     isOutside.value = width === 0
       || height === 0
-      || nextElementX < 0
-      || nextElementY < 0
-      || nextElementX > width
-      || nextElementY > height
-
-    if (handleOutside || !isOutside.value) {
-      elementX.value = nextElementX
-      elementY.value = nextElementY
-    }
-  }
-
-  const stopFunctions: Array<() => void> = []
-  function stop() {
-    stopFunctions.forEach(stopFunction => stopFunction())
-    stopFunctions.length = 0
+      || elementX < 0
+      || elementY < 0
+      || elementX > width
+      || elementY > height
   }
 
   tryOnMounted(update)
 
-  if (window) {
-    const { stop: stopResizeObserver } = useResizeObserver(targetRef, update)
-    const { stop: stopMutationObserver } = useMutationObserver(targetRef, update, {
+  if (defaultWindow) {
+    useResizeObserver(targetRef, update)
+    useMutationObserver(targetRef, update, {
       attributeFilter: ['style', 'class'],
     })
-    const stopWatch = watch([targetRef, x, y], update)
-
-    stopFunctions.push(stopResizeObserver, stopMutationObserver, stopWatch)
-    useEventListener(document, 'mouseleave', () => isOutside.value = true, { passive: true })
-
-    if (windowScroll)
-      stopFunctions.push(useEventListener('scroll', update, { capture: true, passive: true }))
-    if (windowResize)
-      stopFunctions.push(useEventListener('resize', update, { passive: true }))
+    watch([targetRef, x, y], update)
+    useEventListener(defaultWindow.document, 'mouseleave', () => isOutside.value = true, { passive: true })
+    useEventListener(defaultWindow, 'scroll', update, { capture: true, passive: true })
+    useEventListener(defaultWindow, 'resize', update, { passive: true })
   }
 
   return {
-    x,
-    y,
-    sourceType,
-    elementX,
-    elementY,
-    elementPositionX,
-    elementPositionY,
-    elementHeight,
-    elementWidth,
     isOutside,
-    stop,
   }
 }
 
-export function useHostMouseInWindow(options: MouseInElementOptions = {}) {
-  const mouse = useHostRelativeMouse(options)
+export function useHostMouseInWindow() {
+  const mouse = useHostRelativeMouse()
   const { width, height } = useHostWindowBounds()
   const isOutside = computed(() => !pointerInsideWindow.value
     || mouse.x.value < 0
@@ -251,7 +203,6 @@ export function useHostMouseInWindow(options: MouseInElementOptions = {}) {
     || mouse.y.value > height.value)
 
   return {
-    ...mouse,
     isOutside,
   }
 }
@@ -274,25 +225,9 @@ export function useHostMouseAroundWindowBorder(
   const nearRight = computed(() => Math.abs(x.value - width.value) <= threshold && y.value > -overshoot && y.value < height.value + overshoot)
   const nearTop = computed(() => Math.abs(y.value) <= threshold && x.value > -overshoot && x.value < width.value + overshoot)
   const nearBottom = computed(() => Math.abs(y.value - height.value) <= threshold && x.value > -overshoot && x.value < width.value + overshoot)
-  const nearTopLeft = computed(() => nearTop.value && nearLeft.value)
-  const nearTopRight = computed(() => nearTop.value && nearRight.value)
-  const nearBottomLeft = computed(() => nearBottom.value && nearLeft.value)
-  const nearBottomRight = computed(() => nearBottom.value && nearRight.value)
   const isNearAnyBorder = computed(() => nearLeft.value || nearRight.value || nearTop.value || nearBottom.value)
 
   return {
-    x,
-    y,
-    width,
-    height,
-    nearLeft,
-    nearRight,
-    nearTop,
-    nearBottom,
-    nearTopLeft,
-    nearTopRight,
-    nearBottomLeft,
-    nearBottomRight,
     isNearAnyBorder,
   }
 }

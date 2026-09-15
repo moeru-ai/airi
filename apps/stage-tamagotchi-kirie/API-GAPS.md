@@ -7,7 +7,7 @@ Model rendering, model assets, Live2D, VRM, and MMD are outside the current scop
 | ID | Page | Trigger | Existing Electron API | Required behavior | Owner | Status | Review |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | GAP-001 | Main renderer | Open the first Kirie window | Electron window creation adds `synced-leader` | The first Kirie window receives an explicit leader state before Pinia setup | AIRI host context | Resolved | Gate 4 approved |
-| GAP-002 | Main renderer | Mount `ResizeHandler` in Kirie | `useElectronWindowResize` calls Electron `app.isWindows` and `window.resize` | Resize handling uses the shared host context and the existing Kirie Platform resize API | AIRI host context | Resolved | Phase 5 resize review approved |
+| GAP-002 | Main renderer | Resize the borderless Kirie window | Electron mounts DOM resize handles and sends resize deltas over IPC | Godot detects native window edges and starts native resize operations | AIRI Godot host | Resolved | Native resize regression tests pass |
 | GAP-003 | Main renderer | Mount the main Stage page in Kirie | Electron mouse composables create their own Electron Eventa context | Pointer state comes from the shared host context and existing Kirie Platform pointer APIs | AIRI host context | Resolved | Phase 5 pointer review approved |
 | GAP-004 | Controls Island | Mount `ControlsIslandRoot` in Kirie | `useElectronAllDisplays` and `useElectronWindowBounds` create an Electron Eventa context | Island placement uses shared host window and current-display bounds | AIRI host context | Resolved | Phase 5 displays review approved |
 | GAP-005 | Controls Island | Mount controls and apply saved window state | Electron `app.isLinux`, `window.set-always-on-top`, and drag contracts | Select the move mechanism without Electron IPC and use Kirie Platform for native movement and always-on-top state | AIRI host context | Resolved | Phase 5 window actions review approved |
@@ -43,8 +43,8 @@ Model rendering, model assets, Live2D, VRM, and MMD are outside the current scop
 - Input: `http://127.0.0.1:5174/?synced-leader=true`
 - Original result: `useElectronWindowResize` requested `window.electron.ipcRenderer` during `ResizeHandler` setup.
 - Original error: `Electron ipcRenderer is not available.`
-- Existing Kirie capability: `PlatformClient.hostWindow.beginResize`.
-- Resolved result: `ResizeHandler` borrows the AIRI host context; runtime execution proceeds to the main-page pointer setup.
+- Existing Godot capabilities: `WindowInput` and `Window.StartResize`.
+- Resolved result: Godot owns edge hit testing, resize cursors, and native resize operations. The Kirie renderer has no DOM resize handles.
 
 ## GAP-003 evidence
 
@@ -59,8 +59,8 @@ Model rendering, model assets, Live2D, VRM, and MMD are outside the current scop
 - Input: `http://127.0.0.1:5174/?synced-leader=true#/`
 - Original result: `ControlsIslandRoot` called `useElectronAllDisplays`, which requested `window.electron.ipcRenderer`.
 - Original error: `Electron ipcRenderer is not available.`
-- Existing Kirie capabilities: `PlatformClient.hostWindow.getBounds` and `getCurrentDisplayBounds`.
-- Resolution: Kirie uses its current display as both the full and usable display area. Electron continues to return all Electron displays through the shared Eventa context.
+- Existing Godot capabilities: `ScreenGetPosition`, `ScreenGetSize`, and `ScreenGetUsableRect`.
+- Resolution: Kirie gets one atomic native snapshot containing full bounds, usable bounds, and display scale. Electron continues to return all Electron displays through the shared Eventa context.
 
 ## GAP-005 evidence
 

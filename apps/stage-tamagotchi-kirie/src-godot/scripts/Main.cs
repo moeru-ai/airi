@@ -17,11 +17,16 @@ public partial class Main : Node
     private NoticeWindowManager? _notice;
     private AuthService? _auth;
     private IDisposable? _authRegistration;
+    private IDisposable? _displaySnapshotRegistration;
     private WebViewPermissionHandler? _permissions;
     private IDisposable? _quitRegistration;
+    private NativeWindowResizeController? _nativeResize;
 
     public override void _Ready()
     {
+        var window = GetWindow();
+        DesktopWindowSizing.ApplyInitialDisplayScale(window);
+        _nativeResize = new NativeWindowResizeController(window);
         _kirie = KirieClient.FromNode(GetNode("KirieNode"));
         if (!_kirie.IsAvailable)
         {
@@ -32,7 +37,10 @@ public partial class Main : Node
         var registry = AiriDesktopContracts.Register(
             GdKiriePlatform.Register(new KirieEventaJsonRegistry()));
         _eventa = _kirie.CreateEventaContext(registry);
-        _platform = GdKiriePlatform.Attach(_eventa.Context, GetWindow());
+        _platform = GdKiriePlatform.Attach(_eventa.Context, window);
+        _displaySnapshotRegistration = CurrentDisplaySnapshotService.Attach(
+            _eventa.Context,
+            window);
         _auth = new AuthService();
         _authRegistration = _auth.Attach(_eventa.Context);
         _quitRegistration = _eventa.Context.RegisterInvokeHandler(
@@ -53,7 +61,6 @@ public partial class Main : Node
             var rendererUrl = ResolveInitialUrl();
             initialUrl = RendererUrl.ForMain(rendererUrl);
             _permissions = new WebViewPermissionHandler(_kirie, rendererUrl, "microphone");
-            GetWindow().GuiEmbedSubwindows = false;
             _onboarding = new OnboardingWindowManager(
                 _eventa.Context,
                 this,
@@ -93,8 +100,10 @@ public partial class Main : Node
 
     public override void _ExitTree()
     {
+        _nativeResize?.Dispose();
         _quitRegistration?.Dispose();
         _authRegistration?.Dispose();
+        _displaySnapshotRegistration?.Dispose();
         _auth?.Dispose();
         _notice?.Dispose();
         _chat?.Dispose();

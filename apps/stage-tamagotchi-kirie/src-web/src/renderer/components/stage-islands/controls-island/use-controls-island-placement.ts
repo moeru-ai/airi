@@ -12,11 +12,11 @@ export type ControlsIslandDock = 'top-left' | 'top-right' | 'bottom-left' | 'bot
 
 /** Inputs for the Controls Island quadrant policy. */
 export interface ResolveControlsIslandDockOptions {
-  /** Available displays in Electron logical coordinates. */
+  /** Available displays in host-independent logical coordinates. */
   displays: readonly DisplayArea[]
   /** Dock that remains active while display data is missing or the window is near the display center. */
   previousDock: ControlsIslandDock
-  /** AIRI window bounds in Electron logical coordinates. Zero width or height means that the bounds are not available. */
+  /** AIRI window bounds in host-independent logical coordinates. Zero width or height means that the bounds are not available. */
   windowBounds: Rectangle
 }
 
@@ -26,7 +26,7 @@ const displayCenterDeadZoneRatio = 0.05
 /**
  * Resolves the window corner that matches the current display quadrant.
  *
- * The screen geometry stays in Electron logical coordinates. The returned
+ * The screen geometry stays in host-independent logical coordinates. The returned
  * dock contains no DOM coordinates, so display scaling cannot affect layout.
  */
 export function resolveControlsIslandDock(options: ResolveControlsIslandDockOptions): ControlsIslandDock {

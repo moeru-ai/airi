@@ -64,6 +64,8 @@ internal sealed class SettingsWindowManager : IDisposable
             try
             {
                 _owner.AddChild(window);
+                window.CurrentScreen = _mainWindow.CurrentScreen;
+                DesktopWindowSizing.ApplyInitialDisplayScale(window);
                 window.Initialize(_registry, _rendererUrl, route, _auth, () => OnWindowClosed(window));
             }
             catch

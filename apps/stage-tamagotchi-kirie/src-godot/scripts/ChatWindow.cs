@@ -14,6 +14,7 @@ public partial class ChatWindow : Window
     private bool _ready;
     private bool _closing;
     private bool _showRequested;
+    private bool _initialGeometryApplied;
 
     public void Initialize(
         KirieEventaJsonRegistry registry,
@@ -97,11 +98,15 @@ public partial class ChatWindow : Window
             Mode = ModeEnum.Windowed;
         }
 
-        var workArea = DisplayServer.ScreenGetUsableRect(CurrentScreen);
-        Position = workArea.Position + new Vector2I(
-            Math.Max(0, (workArea.Size.X - Size.X) / 2),
-            Math.Max(0, (workArea.Size.Y - Size.Y) / 2));
         Show();
+
+        if (!_initialGeometryApplied)
+        {
+            DesktopWindowSizing.FitDecoratedSizeToInitialSize(this);
+            DesktopWindowSizing.MoveToUsableCenter(this);
+            _initialGeometryApplied = true;
+        }
+
         GrabFocus();
     }
 

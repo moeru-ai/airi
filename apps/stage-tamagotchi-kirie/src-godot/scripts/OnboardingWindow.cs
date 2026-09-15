@@ -15,6 +15,7 @@ public partial class OnboardingWindow : Window
     private bool _ready;
     private bool _closing;
     private bool _showRequested;
+    private bool _initialGeometryApplied;
 
     internal void Initialize(
         KirieEventaJsonRegistry registry,
@@ -30,6 +31,11 @@ public partial class OnboardingWindow : Window
         if (_kirie is not null)
         {
             throw new InvalidOperationException("The onboarding window is already initialized.");
+        }
+
+        if (ExtendToTitle)
+        {
+            WindowInput += OnWindowInput;
         }
 
         _onClosed = onClosed;
@@ -84,6 +90,7 @@ public partial class OnboardingWindow : Window
 
         _closeRegistration?.Dispose();
         _authRegistration?.Dispose();
+        WindowInput -= OnWindowInput;
         _permissions?.Dispose();
         _platform?.Dispose();
         _eventa?.Dispose();
@@ -107,12 +114,47 @@ public partial class OnboardingWindow : Window
             Mode = ModeEnum.Windowed;
         }
 
-        var workArea = DisplayServer.ScreenGetUsableRect(CurrentScreen);
-        Position = workArea.Position + new Vector2I(
-            Math.Max(0, (workArea.Size.X - Size.X) / 2),
-            Math.Max(0, (workArea.Size.Y - Size.Y) / 2));
         Show();
+        if (!_initialGeometryApplied)
+        {
+            DesktopWindowSizing.FitDecoratedSizeToInitialSize(this);
+            DesktopWindowSizing.MoveToUsableCenter(this);
+            _initialGeometryApplied = true;
+        }
+
         GrabFocus();
+    }
+
+    internal static bool IsInSafeTitleRegion(
+        Vector2 position,
+        Vector2I windowSize,
+        Vector3I safeTitleMargins)
+    {
+        return position.X >= safeTitleMargins.X
+            && position.X < windowSize.X - safeTitleMargins.Y
+            && position.Y >= 0
+            && position.Y < safeTitleMargins.Z;
+    }
+
+    private void OnWindowInput(InputEvent inputEvent)
+    {
+        if (inputEvent is not InputEventMouseButton
+            {
+                ButtonIndex: MouseButton.Left,
+                Pressed: true,
+            } mouseButton)
+        {
+            return;
+        }
+
+        var safeTitleMargins = DisplayServer.WindowGetSafeTitleMargins(GetWindowId());
+        if (!IsInSafeTitleRegion(mouseButton.Position, Size, safeTitleMargins))
+        {
+            return;
+        }
+
+        SetInputAsHandled();
+        StartDrag();
     }
 
     private void RequestClose()

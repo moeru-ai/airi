@@ -59,6 +59,8 @@ internal sealed class ChatWindowManager : IDisposable
             try
             {
                 _owner.AddChild(window);
+                window.CurrentScreen = _mainWindow.CurrentScreen;
+                DesktopWindowSizing.ApplyInitialDisplayScale(window);
                 window.Initialize(_registry, _rendererUrl, () => OnWindowClosed(window));
             }
             catch
