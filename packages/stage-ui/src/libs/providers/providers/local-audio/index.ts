@@ -281,7 +281,7 @@ export const providerFunASRAudioTranscription = defineProvider<FunASRAudioConfig
         ...(apiKey ? { apiKey } : {}),
       })
       return models.flatMap((model) => {
-        const id = model.id.trim()
+        const id = typeof model.id === 'string' ? model.id.trim() : ''
         if (!id)
           return []
 
