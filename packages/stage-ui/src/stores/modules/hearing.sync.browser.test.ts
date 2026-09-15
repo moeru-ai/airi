@@ -139,6 +139,82 @@ describe('hearing provider reconciliation synchronization', () => {
     expect(leaderActions).toContain('refreshActiveTranscriptionModelForProvider')
   })
 
+  // Regression: https://github.com/moeru-ai/airi/pull/2435#discussion_r3998573495
+  it('commits and refreshes a validated endpoint from a follower for PR #2435', async () => {
+    // ROOT CAUSE:
+    //
+    // A synchronized follower action does not return the leader action value.
+    // The settings page used that value to decide if it must refresh models.
+    const { useHearingStore } = await import('./hearing')
+    const { useProviderConfigStore } = await import('../providers/config')
+    const namespace = `hearing-validated-endpoint-refresh:${crypto.randomUUID()}`
+    const providerId = 'funasr-instance'
+    const previousConfig = { baseUrl: 'http://old.example/v1/' }
+    const validatedConfig = { baseUrl: 'http://new.example/v1/' }
+
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderHearingStore = useHearingStore()
+    const leaderConfigStore = useProviderConfigStore()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerHearingStore = useHearingStore()
+    const followerConfigStore = useProviderConfigStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    setActivePinia(leaderContext.pinia)
+    await leaderConfigStore.ensureProvider(providerId, 'funasr-audio-transcription', previousConfig)
+    await leaderConfigStore.setProviderStatus(providerId, 'configured')
+    leaderHearingStore.activeTranscriptionProvider = providerId
+    leaderHearingStore.activeTranscriptionModel = 'model-from-old-endpoint'
+    await vi.waitFor(() => {
+      expect(followerConfigStore.providers[providerId]?.config).toEqual(previousConfig)
+      expect(followerHearingStore.activeTranscriptionModel).toBe('model-from-old-endpoint')
+    })
+
+    const fetchMock = vi.fn().mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input, init)
+      if (request.method === 'PATCH') {
+        return new Response(JSON.stringify({
+          id: providerId,
+          definitionId: 'funasr-audio-transcription',
+          config: validatedConfig,
+          validated: true,
+          validationBypassed: false,
+        }), { headers: { 'Content-Type': 'application/json' }, status: 200 })
+      }
+
+      return new Response(JSON.stringify({
+        data: [{ id: 'model-from-new-endpoint' }],
+        object: 'list',
+      }), { headers: { 'Content-Type': 'application/json' }, status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    setActivePinia(followerContext.pinia)
+    const validationToken = crypto.randomUUID()
+    await followerConfigStore.beginProviderValidation(providerId, validationToken)
+    await followerHearingStore.finishProviderValidationAndRefreshTranscriptionModel(
+      providerId,
+      validationToken,
+      validatedConfig,
+      previousConfig,
+    )
+
+    await vi.waitFor(() => {
+      expect(leaderConfigStore.providers[providerId]?.config).toEqual(validatedConfig)
+      expect(followerConfigStore.providers[providerId]?.config).toEqual(validatedConfig)
+      expect(leaderHearingStore.activeTranscriptionModel).toBe('model-from-new-endpoint')
+      expect(followerHearingStore.activeTranscriptionModel).toBe('model-from-new-endpoint')
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls.map(([input, init]) => {
+      return input instanceof Request ? input.method : init?.method ?? 'GET'
+    })).toEqual(['PATCH', 'GET'])
+  })
+
   // Regression: https://github.com/moeru-ai/airi/pull/2435#discussion_r3939570393
   it('preserves another window model choice during a follower refresh for PR #2435', async () => {
     const { useHearingStore } = await import('./hearing')
