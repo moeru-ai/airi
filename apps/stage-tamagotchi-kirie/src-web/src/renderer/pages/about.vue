@@ -5,7 +5,8 @@ import type { ElectronUpdaterChannel } from '../../shared/eventa'
 
 import semver from 'semver'
 
-import { useElectronAutoUpdater, useHostEventaInvoke } from '@proj-airi/stage-host-context'
+import { useElectronAutoUpdater } from '@proj-airi/electron-vueuse'
+import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
 import { AboutContent, BugReportDialog, createBugReportPageContext, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useBreakpoints, useBuildInfo } from '@proj-airi/stage-ui/composables'
 import { Button, ContainerError, DoubleCheckButton, FieldSelect, Progress, ScrollableArea } from '@proj-airi/ui'

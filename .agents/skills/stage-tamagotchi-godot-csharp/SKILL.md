@@ -1,23 +1,26 @@
 ---
 name: stage-tamagotchi-godot-csharp
 description: >-
-  Apply engine-local C# development method and code style only when working in
-  `engines/stage-tamagotchi-godot`, including its `.cs` files, `.csproj`,
-  engine-local `.editorconfig`, and Godot-specific C# structure decisions. Do
-  not use for TypeScript, Electron, renderer code, shared workspace config,
-  repo-wide C# conventions, or any file outside
-  `engines/stage-tamagotchi-godot`.
+  Apply the Stage Tamagotchi Godot C# development method and code style when
+  working in `apps/stage-tamagotchi-kirie` or its migration predecessor,
+  `engines/stage-tamagotchi-godot`. Use it for their `.cs` files, `.csproj`,
+  local `.editorconfig`, and Godot-specific C# structure decisions. Do not use
+  it for TypeScript, Electron, renderer code, shared workspace configuration,
+  or repo-wide C# conventions.
 ---
 
 # Stage Tamagotchi Godot C#
 
-1. Confirm every touched file is under `engines/stage-tamagotchi-godot`.
-   If the task crosses that boundary, do not use this skill as the governing
-   instruction set.
+1. Treat `apps/stage-tamagotchi-kirie` and
+   `engines/stage-tamagotchi-godot` as one Godot project migration line.
+   Use `apps/stage-tamagotchi-kirie` as the active desktop host. Keep changes
+   in the directory that owns the affected runtime.
 2. Before editing C# files, read:
    - `engines/stage-tamagotchi-godot/docs/csharp-development-method.md`
    - `engines/stage-tamagotchi-godot/.editorconfig`
    - `engines/stage-tamagotchi-godot/docs/csharp-style.md`
+   These files remain the canonical C# guidance while the application moves
+   to `apps/stage-tamagotchi-kirie`.
 3. Treat the development-method document as the primary source of truth for
    structure and feature usage. Treat `.editorconfig` and `csharp-style.md` as
    secondary formatting and naming guidance.
@@ -44,10 +47,10 @@ description: >-
    - `PascalCase` for types and members
    - `camelCase` for locals and parameters
    - `_camelCase` for private fields
-7. Keep changes local to the engine. Do not push these C# rules into repo
-   root config or other workspaces.
-8. After changing C# files or the engine-local `.editorconfig`, run the
-   verification command from `engines/stage-tamagotchi-godot`:
+7. Keep changes local to the Stage Tamagotchi Godot migration line. Do not
+   push these C# rules into repo root configuration or other workspaces.
+8. After changing C# files or a local `.editorconfig`, run the verification
+   command from the project directory that owns the changed file:
 
 ```powershell
 dotnet format --verify-no-changes

@@ -10,6 +10,7 @@ size = Vector2i(1000, 650)
 min_size = Vector2i(400, 500)
 visible = false
 transient = false
+extend_to_title = true
 script = ExtResource("1_window")
 
 [node name="KirieNode" type="Control" parent="."]

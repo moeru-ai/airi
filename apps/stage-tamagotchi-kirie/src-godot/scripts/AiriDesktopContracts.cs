@@ -24,6 +24,11 @@ internal sealed record AuthTokensPayload(
     int ExpiresIn);
 internal sealed record AuthErrorPayload(string Error);
 internal sealed record AuthConfigurationPayload(string ClientId, string ServerUrl);
+internal sealed record DesktopDisplayBoundsPayload(int X, int Y, int Width, int Height);
+internal sealed record DesktopDisplaySnapshotPayload(
+    DesktopDisplayBoundsPayload Bounds,
+    DesktopDisplayBoundsPayload WorkArea,
+    float Scale);
 
 internal static class AiriDesktopEvents
 {
@@ -77,6 +82,9 @@ internal static class AiriDesktopEvents
 
     public static readonly InvokeEventDefinition<EmptyPayload, AuthConfigurationPayload> AuthConfigure =
         new("eventa:invoke:airi:auth:configure");
+
+    public static readonly InvokeEventDefinition<DesktopDisplaySnapshotPayload, EmptyPayload> GetCurrentDisplaySnapshot =
+        new("eventa:invoke:airi:desktop:current-display:get");
 }
 
 internal static class AiriDesktopContracts
@@ -146,7 +154,11 @@ internal static class AiriDesktopContracts
             .RegisterInvoke(
                 AiriDesktopEvents.AuthConfigure,
                 AiriDesktopJsonContext.Default.EmptyPayload,
-                AiriDesktopJsonContext.Default.AuthConfigurationPayload);
+                AiriDesktopJsonContext.Default.AuthConfigurationPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.GetCurrentDisplaySnapshot,
+                AiriDesktopJsonContext.Default.DesktopDisplaySnapshotPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload);
     }
 }
 
@@ -162,4 +174,6 @@ internal static class AiriDesktopContracts
 [JsonSerializable(typeof(AuthTokensPayload))]
 [JsonSerializable(typeof(AuthErrorPayload))]
 [JsonSerializable(typeof(AuthConfigurationPayload))]
+[JsonSerializable(typeof(DesktopDisplayBoundsPayload))]
+[JsonSerializable(typeof(DesktopDisplaySnapshotPayload))]
 internal sealed partial class AiriDesktopJsonContext : JsonSerializerContext;

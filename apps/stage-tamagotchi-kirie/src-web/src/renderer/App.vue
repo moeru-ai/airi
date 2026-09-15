@@ -34,8 +34,6 @@ import { onMounted, onUnmounted, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
-import ResizeHandler from './components/ResizeHandler.vue'
-
 import {
   electronChatReady,
   electronGetServerChannelConfig,
@@ -88,7 +86,6 @@ const builtinToolsStore = useTamagotchiBuiltinToolsStore()
 const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
-const isSpotlightWindow = initialRoutePath === '/spotlight'
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
 const isChatWindow = initialRoutePath === '/chat'
 
@@ -374,7 +371,6 @@ onUnmounted(() => {
   <ToasterRoot @close="id => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
-  <ResizeHandler v-if="!isSpotlightWindow" />
   <RouterView />
 </template>
 

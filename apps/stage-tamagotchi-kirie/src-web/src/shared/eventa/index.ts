@@ -30,6 +30,22 @@ import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
+export interface AiriDesktopDisplayBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** Physical display geometry and scale reported by the AIRI Godot host. */
+export interface AiriDesktopDisplaySnapshot {
+  bounds: AiriDesktopDisplayBounds
+  workArea: AiriDesktopDisplayBounds
+  scale: number
+}
+
+export const airiGetCurrentDisplaySnapshot = defineInvokeEventa<AiriDesktopDisplaySnapshot, Record<string, never>>('eventa:invoke:airi:desktop:current-display:get')
+
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 

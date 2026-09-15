@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DataSettingsStatusEmits } from '@proj-airi/stage-pages/pages/settings/data/status'
 
-import { useHostDesktopServices } from '@proj-airi/stage-host-context'
+import { openApplicationDataDirectory } from '@proj-airi/stage-host-context'
 import { createDataSettingsStatusHelpers } from '@proj-airi/stage-pages/pages/settings/data/status'
 import { Button } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
@@ -12,7 +12,7 @@ const { handleActionError } = createDataSettingsStatusHelpers(emit)
 
 async function triggerOpenDesktopUserDataFolder() {
   try {
-    await useHostDesktopServices().openApplicationDataDirectory()
+    await openApplicationDataDirectory()
   }
   catch (error) {
     handleActionError(error)

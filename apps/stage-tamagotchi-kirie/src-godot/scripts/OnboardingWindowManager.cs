@@ -62,6 +62,8 @@ internal sealed class OnboardingWindowManager : IDisposable
             try
             {
                 _owner.AddChild(window);
+                window.CurrentScreen = _mainWindow.CurrentScreen;
+                DesktopWindowSizing.ApplyInitialDisplayScale(window);
                 window.Initialize(_registry, _rendererUrl, _auth, () => OnWindowClosed(window));
             }
             catch

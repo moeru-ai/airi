@@ -1,9 +1,11 @@
+import type { AiriDesktopDisplayBounds, AiriDesktopDisplaySnapshot } from '../../shared/eventa'
 import type { DisplayArea } from '../../shared/utils/electron/display'
 
 import { defineInvoke } from '@moeru/eventa'
 import { electron } from '@proj-airi/electron-eventa'
 import { shallowRef } from 'vue'
 
+import { airiGetCurrentDisplaySnapshot } from '../../shared/eventa'
 import { initializeHostContext } from './owner'
 
 const displays = shallowRef<DisplayArea[]>([])
@@ -21,8 +23,8 @@ async function refreshDisplays() {
 
   try {
     if (host.runtime === 'kirie') {
-      const bounds = await host.platform!.hostWindow.getCurrentDisplayBounds()
-      displays.value = [{ bounds, workArea: bounds }]
+      const snapshot = await defineInvoke(host.context, airiGetCurrentDisplaySnapshot)({})
+      displays.value = [toDisplayArea(snapshot)]
     }
     else {
       displays.value = await defineInvoke(host.context, electron.screen.getAllDisplays)()
@@ -39,6 +41,22 @@ async function refreshDisplays() {
 
   if (!refreshStopped)
     refreshTimer = setTimeout(refreshDisplays, 5000)
+}
+
+function toDisplayArea(snapshot: AiriDesktopDisplaySnapshot): DisplayArea {
+  return {
+    bounds: toCssPixels(snapshot.bounds, snapshot.scale),
+    workArea: toCssPixels(snapshot.workArea, snapshot.scale),
+  }
+}
+
+function toCssPixels(bounds: AiriDesktopDisplayBounds, scale: number) {
+  return {
+    x: bounds.x / scale,
+    y: bounds.y / scale,
+    width: bounds.width / scale,
+    height: bounds.height / scale,
+  }
 }
 
 function startDisplayRefresh() {

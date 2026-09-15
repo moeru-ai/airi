@@ -10,6 +10,8 @@ config_version=5
 
 [application]
 
+boot_splash/show_image=false
+config/icon="res://icon.svg"
 config/name="AIRI"
 run/main_scene="res://src-godot/main.tscn"
 config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
@@ -17,7 +19,11 @@ config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
 [display]
 
 window/size/borderless=true
+window/size/always_on_top=true
 window/size/transparent=true
+window/size/viewport_height=600
+window/size/viewport_width=450
+window/subwindows/embed_subwindows=false
 window/per_pixel_transparency/allowed=true
 
 [dotnet]

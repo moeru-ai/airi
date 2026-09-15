@@ -19,6 +19,7 @@ public partial class NoticeWindow : Window
     private CancellationTokenRegistration _cancellationRegistration;
     private bool _ready;
     private bool _closing;
+    private bool _initialGeometryApplied;
     private bool _showRequested;
 
     public void Initialize(
@@ -197,11 +198,15 @@ public partial class NoticeWindow : Window
             Mode = ModeEnum.Windowed;
         }
 
-        var workArea = DisplayServer.ScreenGetUsableRect(CurrentScreen);
-        Position = workArea.Position + new Vector2I(
-            Math.Max(0, (workArea.Size.X - Size.X) / 2),
-            Math.Max(0, (workArea.Size.Y - Size.Y) / 2));
         Show();
+
+        if (!_initialGeometryApplied)
+        {
+            DesktopWindowSizing.FitDecoratedSizeToInitialSize(this);
+            DesktopWindowSizing.MoveToUsableCenter(this);
+            _initialGeometryApplied = true;
+        }
+
         GrabFocus();
     }
 
