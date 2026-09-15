@@ -372,6 +372,7 @@ async function copyExtensionDirectory(sourceRoot: string, destinationRoot: strin
 export class ExtensionDirectoryImporter {
   private readonly plans = new Map<string, StoredImportPlan>()
   private commitQueue: Promise<void> = Promise.resolve()
+  private disposed = false
 
   constructor(
     private readonly extensionsRoot: string,
@@ -381,11 +382,13 @@ export class ExtensionDirectoryImporter {
 
   /** Creates a short-lived import plan from an untrusted source directory. */
   async prepare(sourcePath: string, securityScopedBookmark?: string): Promise<ExtensionDirectoryImportPlan> {
+    this.assertActive()
     const inspected = await this.withSecurityScopedAccess(
       securityScopedBookmark,
       async () => await inspectExtensionDirectory(sourcePath),
     )
     await this.assertDestinationAvailable(inspected.manifest.id)
+    this.assertActive()
 
     const planId = randomUUID()
     const preview: ExtensionDirectoryImportPlan = {
@@ -412,6 +415,7 @@ export class ExtensionDirectoryImporter {
 
   /** Publishes a prepared package and returns its validated committed registry entry. */
   async commit(planId: string): Promise<ManifestEntry> {
+    this.assertActive()
     const result = this.commitQueue.then(() => this.commitPreparedPlan(planId))
     this.commitQueue = result.then(() => undefined, () => undefined)
     return await result
@@ -422,9 +426,17 @@ export class ExtensionDirectoryImporter {
     this.plans.delete(planId)
   }
 
-  /** Clears in-memory plans during host shutdown. */
-  dispose(): void {
+  /** Stops new work and waits for queued imports during host shutdown. */
+  async dispose(): Promise<void> {
+    this.disposed = true
     this.plans.clear()
+    await this.commitQueue
+  }
+
+  private assertActive(): void {
+    if (this.disposed) {
+      throw new Error('Extension directory importer is disposed.')
+    }
   }
 
   private async withSecurityScopedAccess<TResult>(

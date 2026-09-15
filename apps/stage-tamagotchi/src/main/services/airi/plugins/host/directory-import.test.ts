@@ -59,7 +59,7 @@ describe('extension directory importer', () => {
   })
 
   afterEach(async () => {
-    importer.dispose()
+    await importer.dispose()
     await rm(testRoot, { recursive: true, force: true })
   })
 
@@ -225,6 +225,52 @@ describe('extension directory importer', () => {
     importer = new ExtensionDirectoryImporter(extensionsRoot, extensionId => extensionId === 'example-extension')
 
     await expect(importer.prepare(sourceRoot)).rejects.toThrow('already installed')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4011635187
+  it('waits for an active commit during disposal (PR #2506)', async () => {
+    const plan = await importer.prepare(sourceRoot)
+    let releaseManifestRead: () => void = () => {}
+    const manifestReadReleased = new Promise<void>((resolve) => {
+      releaseManifestRead = resolve
+    })
+    let markManifestReadStarted: () => void = () => {}
+    const manifestReadStarted = new Promise<void>((resolve) => {
+      markManifestReadStarted = resolve
+    })
+    fileSystemState.afterRead = async (path) => {
+      if (!path.endsWith(join('source', 'extension.airi.json'))) {
+        return
+      }
+      fileSystemState.afterRead = undefined
+      markManifestReadStarted()
+      await manifestReadReleased
+    }
+
+    const commit = importer.commit(plan.planId)
+    await manifestReadStarted
+
+    // ROOT CAUSE:
+    //
+    // Dispose cleared prepared plans but did not wait for a commit that had
+    // already started copying. Host shutdown could therefore finish while the
+    // importer was still writing into the managed Extension directory.
+    const disposal = Promise.resolve(importer.dispose())
+    let disposalFinished = false
+    void disposal.then(() => {
+      disposalFinished = true
+    })
+
+    try {
+      await Promise.resolve()
+      expect(disposalFinished).toBe(false)
+    }
+    finally {
+      releaseManifestRead()
+      await Promise.all([commit, disposal])
+    }
+
+    expect(disposalFinished).toBe(true)
   })
 })
 

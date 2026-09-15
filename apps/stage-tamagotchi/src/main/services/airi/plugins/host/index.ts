@@ -565,7 +565,7 @@ export async function setupExtensionHostServiceInternal(
       return extensionAssetService.getBaseUrl() ?? ''
     },
     async dispose() {
-      directoryImporter.dispose()
+      await directoryImporter.dispose()
       autoReloadFeature.dispose()
       builtInKitRuntime.dispose()
 
