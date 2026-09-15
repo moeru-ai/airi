@@ -417,6 +417,12 @@ catalogs:
     '@rive-app/canvas-lite':
       specifier: ^2.40.1
       version: 2.40.1
+    '@sherpaw/preloader':
+      specifier: 0.0.2
+      version: 0.0.2
+    '@sherpaw/xsai-transcription':
+      specifier: 0.0.2
+      version: 0.0.2
     '@shikijs/markdown-it':
       specifier: ^4.4.3
       version: 4.4.3
@@ -2250,6 +2256,9 @@ importers:
       '@proj-airi/unplugin-live2d-sdk':
         specifier: 'catalog:'
         version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      '@proj-airi/vite-plugin-sherpaw':
+        specifier: workspace:^
+        version: link:../../packages/vite-plugin-sherpaw
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.100
@@ -2675,6 +2684,9 @@ importers:
       '@proj-airi/unplugin-live2d-sdk':
         specifier: 'catalog:'
         version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      '@proj-airi/vite-plugin-sherpaw':
+        specifier: workspace:^
+        version: link:../../packages/vite-plugin-sherpaw
       '@shikijs/markdown-it':
         specifier: 'catalog:'
         version: 4.4.3
@@ -4476,9 +4488,18 @@ importers:
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../ui
+      '@proj-airi/vite-plugin-sherpaw':
+        specifier: workspace:^
+        version: link:../vite-plugin-sherpaw
       '@ricky0123/vad-web':
         specifier: 'catalog:'
         version: 0.0.30
+      '@sherpaw/asr':
+        specifier: 0.0.2
+        version: 0.0.2
+      '@sherpaw/xsai-transcription':
+        specifier: 'catalog:'
+        version: 0.0.2(electron@43.4.1(supports-color@10.2.2))
       '@shikijs/rehype':
         specifier: 'catalog:'
         version: 4.4.3
@@ -5328,6 +5349,28 @@ importers:
       '@unocss/preset-web-fonts':
         specifier: '>=66'
         version: 66.8.1
+
+  packages/vite-plugin-sherpaw:
+    dependencies:
+      '@proj-airi/unplugin-fetch':
+        specifier: 'catalog:'
+        version: 0.2.3(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+      '@sherpaw/preloader':
+        specifier: 'catalog:'
+        version: 0.0.2
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      vitest:
+        specifier: catalog:vitest
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/vitest-plugin-fakemic:
     dependencies:
@@ -8452,6 +8495,20 @@ packages:
       web-worker:
         optional: true
 
+  '@moeru/eventa@1.0.0-beta.1':
+    resolution: {integrity: sha512-4VPs+FlTdIMtlNdBvERvF+e9pnSbz+PN7dgztADtaETCQsSDk9ptHJuzajRBhOlr364k4TotroZa9rrIoVelRQ==}
+    peerDependencies:
+      electron: '>=30'
+      h3: 2.0.0-beta.1
+      web-worker: ^1.5.0
+    peerDependenciesMeta:
+      electron:
+        optional: true
+      h3:
+        optional: true
+      web-worker:
+        optional: true
+
   '@moeru/std@0.1.0-beta.1':
     resolution: {integrity: sha512-ImfoMBchZP+F4aos2nFmlcipcgIhT+ZkUUVWB/bBHEqyB/w/nbI/xgA8a1ibJUtG7RcQnQH+SKom0r4/1xCWqA==}
 
@@ -10939,6 +10996,18 @@ packages:
   '@sapphire/snowflake@3.5.5':
     resolution: {integrity: sha512-xzvBr1Q1c4lCe7i6sRnrofxeO1QTP/LKQ6A6qy0iB4x5yfiSfARMEQEghojzTNALDTcv8En04qYNIco9/K9eZQ==}
     engines: {node: '>=v14.0.0', npm: '>=7.0.0'}
+
+  '@sherpaw/asr@0.0.2':
+    resolution: {integrity: sha512-AtDgTQFii9kZDPTr32L9DjU8TmHH1NjSVgorqCFQqlrF0tSD9G0TBU+A+nMtlab/YEaLMUWeaRBEMRWcLJnkaA==}
+
+  '@sherpaw/preloader@0.0.2':
+    resolution: {integrity: sha512-QJyIk9EgLfgL96caV6Mg1MVoZk2/INqJVe/mq5sSQuv3quvtund/HfIpz+gl91WWZ8jDuYAg3Vmy1rS2Ao5HNQ==}
+
+  '@sherpaw/shared@0.0.2':
+    resolution: {integrity: sha512-iJtwcBxV0TvKwwPLs730nlX6VwJlnL9oqCdaZmAS02F77egPYwbgataJYYQj26zEjr2pITf1UA+8T4Ou27o0fQ==}
+
+  '@sherpaw/xsai-transcription@0.0.2':
+    resolution: {integrity: sha512-TOCIvuj6QS9b6ivTfcqzF80PVmBlAgH9MwQwIkuOnM7HzpExApHBIZDlWM5fwlmpDCbrKQXbskDrMfQu/eZtPw==}
 
   '@shikijs/core@3.23.0':
     resolution: {integrity: sha512-NSWQz0riNb67xthdm5br6lAkvpDJRTgB36fxlo37ZzM2yq0PQFFzbd8psqC2XMPgCzo1fW6cVi18+ArJ44wqgA==}
@@ -22907,6 +22976,13 @@ snapshots:
       h3: 2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7))
       hono: 4.13.3
 
+  '@moeru/eventa@1.0.0-beta.1(electron@43.4.1(supports-color@10.2.2))':
+    dependencies:
+      nanoid: 5.1.16
+      picomatch: 4.0.5
+    optionalDependencies:
+      electron: 43.4.1(supports-color@10.2.2)
+
   '@moeru/std@0.1.0-beta.1': {}
 
   '@moeru/std@0.1.0-beta.17': {}
@@ -24952,6 +25028,24 @@ snapshots:
       lodash: 4.18.1
 
   '@sapphire/snowflake@3.5.5': {}
+
+  '@sherpaw/asr@0.0.2': {}
+
+  '@sherpaw/preloader@0.0.2': {}
+
+  '@sherpaw/shared@0.0.2': {}
+
+  '@sherpaw/xsai-transcription@0.0.2(electron@43.4.1(supports-color@10.2.2))':
+    dependencies:
+      '@moeru/eventa': 1.0.0-beta.1(electron@43.4.1(supports-color@10.2.2))
+      '@moeru/std': 0.1.0-beta.17
+      '@sherpaw/asr': 0.0.2
+      '@sherpaw/preloader': 0.0.2
+      '@sherpaw/shared': 0.0.2
+    transitivePeerDependencies:
+      - electron
+      - h3
+      - web-worker
 
   '@shikijs/core@3.23.0':
     dependencies:
