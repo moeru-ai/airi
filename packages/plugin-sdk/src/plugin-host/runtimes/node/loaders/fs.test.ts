@@ -1,7 +1,7 @@
 import type { ExtensionManifestV1 } from '../../../shared/types'
 
 import { execFile } from 'node:child_process'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -182,5 +182,46 @@ describe('fileSystemLoader', () => {
     const { stdout } = await execFileAsync(process.execPath, [probePath], { cwd: pluginDir })
 
     expect(stdout.trim()).toBe('2,2')
+  })
+
+  // NOTICE:
+  // Windows creates directory links as junctions, because plain symlinks need
+  // extra privileges there.
+  it('re-imports dependencies behind a symlinked plugin root', async () => {
+    const realRoot = join(pluginDir, 'real-plugin')
+    const linkedRoot = join(pluginDir, 'linked-plugin')
+    await mkdir(realRoot, { recursive: true })
+    await writeFile(
+      join(realRoot, 'dependency.mjs'),
+      'globalThis.__airiLinkedDependencyEvaluations = (globalThis.__airiLinkedDependencyEvaluations ?? 0) + 1',
+    )
+    await writeFile(join(realRoot, 'index.mjs'), [
+      'import "./dependency.mjs"',
+      'export default { id: "test-loader-plugin", setup() {} }',
+    ].join('\n'))
+    await symlink(realRoot, linkedRoot, process.platform === 'win32' ? 'junction' : 'dir')
+
+    const loaderUrl = pathToFileURL(join(import.meta.dirname, 'fs.ts')).href
+    const manifest: ExtensionManifestV1 = {
+      apiVersion: 'v1',
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'test-loader-plugin',
+      permissions: {},
+      entrypoints: { electron: './index.mjs' },
+    }
+    const probePath = join(pluginDir, 'probe-linked.mjs')
+    await writeFile(probePath, [
+      `import { FileSystemLoader } from ${JSON.stringify(loaderUrl)}`,
+      '',
+      `const manifest = ${JSON.stringify(manifest)}`,
+      'const loader = new FileSystemLoader()',
+      `await loader.loadExtensionFor(manifest, { cacheBustKey: 'linked-1', cwd: ${JSON.stringify(linkedRoot)} })`,
+      `await loader.loadExtensionFor(manifest, { cacheBustKey: 'linked-2', cwd: ${JSON.stringify(linkedRoot)} })`,
+      'console.log(globalThis.__airiLinkedDependencyEvaluations)',
+    ].join('\n'))
+
+    const { stdout } = await execFileAsync(process.execPath, [probePath], { cwd: pluginDir })
+
+    expect(stdout.trim()).toBe('2')
   })
 })

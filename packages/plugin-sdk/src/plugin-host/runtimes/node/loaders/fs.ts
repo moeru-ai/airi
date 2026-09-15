@@ -1,6 +1,7 @@
 import type { Extension } from '../../../../extension'
 import type { ExtensionLoadOptions, ExtensionManifestV1 } from '../../../shared/types'
 
+import { realpath } from 'node:fs/promises'
 import { createRequire, registerHooks } from 'node:module'
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { cwd } from 'node:process'
@@ -45,6 +46,22 @@ let pluginModuleGraphHookRegistered = false
 
 function createRootUrl(root: string): string {
   return pathToFileURL(root.endsWith(sep) ? root : `${root}${sep}`).href
+}
+
+/**
+ * Resolves the real path of one plugin root.
+ *
+ * Node canonicalizes imported file URLs through symbolic links. A plugin that
+ * ships `dist/ -> build/` reports real-path parent URLs, so the graph hook must
+ * know both the lexical and the canonical root URL.
+ */
+async function resolveCanonicalRoot(root: string): Promise<string> {
+  try {
+    return await realpath(root)
+  }
+  catch {
+    return resolve(root)
+  }
 }
 
 function findModuleGeneration(parentUrl: string): { cacheBustKey: string, rootUrl: string } | undefined {
@@ -194,15 +211,21 @@ export class FileSystemLoader {
 
     if (options?.cacheBustKey) {
       registerPluginModuleGraphHook()
-      const pluginRoot = options.cwd || dirname(entrypoint)
       // Register the plugin root and the entrypoint directory, so relative
       // imports from either location receive the same cache-bust generation.
-      pluginModuleGenerations.set(createRootUrl(pluginRoot), options.cacheBustKey)
-      pluginModuleGenerations.set(createRootUrl(dirname(entrypoint)), options.cacheBustKey)
-      // CommonJS modules ignore URL queries in the module cache, so drop the
-      // entries under the plugin root to make reloads read the current files.
-      clearCommonJsModuleCache(pluginRoot)
-      clearCommonJsModuleCache(dirname(entrypoint))
+      // Node canonicalizes imports through symlinks, so register both the
+      // lexical and the real path of each root.
+      const roots = new Set([options.cwd || dirname(entrypoint), dirname(entrypoint)])
+      for (const root of roots) {
+        const absoluteRoot = resolve(root)
+        const canonicalRoot = await resolveCanonicalRoot(absoluteRoot)
+        pluginModuleGenerations.set(createRootUrl(absoluteRoot), options.cacheBustKey)
+        pluginModuleGenerations.set(createRootUrl(canonicalRoot), options.cacheBustKey)
+        // CommonJS modules ignore URL queries in the module cache, so drop the
+        // entries under the plugin root to make reloads read the current files.
+        clearCommonJsModuleCache(absoluteRoot)
+        clearCommonJsModuleCache(canonicalRoot)
+      }
     }
 
     const extensionModule = await import(options?.cacheBustKey
