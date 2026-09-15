@@ -48,6 +48,8 @@ export const keyEntrySchema = object({
 })
 
 export const llmUpstreamSchema = object({
+  /** Supported wire protocols. Omission permits Chat Completions only. */
+  protocols: optional(array(picklist(['chat-completions', 'responses']))),
   id: optional(pipe(
     string(),
     nonEmpty('llm.upstreams[].id must not be empty'),

@@ -1877,3 +1877,37 @@ describe('createLlmRouterService', () => {
     })
   })
 })
+
+// https://github.com/moeru-ai/airi/issues/2479
+it.each([false, true])('issue #2479 filters incompatible upstreams before terminal handling (grouped: %s)', async (grouped) => {
+  const { config, crypto } = makeConfig({ upstreams: [
+    { baseURL: 'https://responses.example/v1', keyIds: ['r'] },
+    { baseURL: 'https://chat.example/v1', keyIds: ['c'] },
+  ] })
+  const model = config.llm.models['openai/gpt-5-mini']
+  model.upstreams[0].protocols = ['responses']
+  model.upstreams[0].id = 'responses'
+  model.upstreams[1].id = 'chat'
+  if (grouped) {
+    model.routing = { groups: [
+      { id: 'chat-first', upstreamIds: ['chat'], retryOn: { httpCodes: [500], onTimeout: true } },
+      { id: 'mixed', upstreamIds: ['responses', 'chat'], retryOn: { httpCodes: [500], onTimeout: true } },
+    ] }
+  }
+  const fetchImpl = vi.fn<typeof fetch>(async () => failResponse(402, { error: 'quota' }))
+  const router = createLlmRouterService({ gatewayMetrics: null, configKV: makeConfigKV(config), envelopeCrypto: crypto, fetchImpl, redis: makeRedisStub(), concurrencyLedger: makeLedger() })
+  const response = await router.route({ modelName: 'openai/gpt-5-mini', protocol: 'responses', body: { input: 'hello', store: false } })
+  expect(fetchImpl).toHaveBeenCalledTimes(1)
+  expect(fetchImpl.mock.calls[0][0]).toBe('https://responses.example/v1/responses')
+  expect(response.status).toBe(402)
+  expect(await response.json()).toEqual({ error: 'quota' })
+})
+
+// https://github.com/moeru-ai/airi/issues/2479
+it('issue #2479 rejects Responses when no upstream opts in', async () => {
+  const { config, crypto } = makeConfig({})
+  const fetchImpl = vi.fn<typeof fetch>()
+  const router = createLlmRouterService({ gatewayMetrics: null, configKV: makeConfigKV(config), envelopeCrypto: crypto, fetchImpl, redis: makeRedisStub(), concurrencyLedger: makeLedger() })
+  await expect(router.route({ modelName: 'openai/gpt-5-mini', protocol: 'responses', body: { input: 'hello' } })).rejects.toMatchObject({ errorCode: 'LLM_PROTOCOL_UNAVAILABLE' })
+  expect(fetchImpl).not.toHaveBeenCalled()
+})

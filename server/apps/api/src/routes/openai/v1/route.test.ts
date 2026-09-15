@@ -2421,3 +2421,245 @@ describe('v1CompletionsRoutes', () => {
     })
   })
 })
+
+// https://github.com/moeru-ai/airi/issues/2479
+it('issue #2479 exposes an authenticated Responses create route', async () => {
+  const app = createTestApp(createMockFluxService(), createMockConfigKV())
+  const response = await app.request('/api/v1/openai/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: 'hello' }),
+  })
+  expect(response.status).toBe(401)
+})
+
+// https://github.com/moeru-ai/airi/issues/2479
+it('issue #2479 rejects stateful Responses before routing', async () => {
+  const router = createMockLlmRouter()
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, router)
+  const response = await app.request('/api/v1/openai/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: 'hello', previous_response_id: 'resp-other-user' }),
+  }, { user: testUser })
+  expect(response.status).toBe(400)
+  expect(router.route).not.toHaveBeenCalled()
+})
+
+/** Native upstream result used to exercise gateway settlement and forwarding. */
+function responsesResult(status = 'completed') {
+  return {
+    id: 'resp-test',
+    status,
+    output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: '你好', annotations: [] }] }],
+    usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150 },
+  }
+}
+
+function responsesHarness(response: () => Response, balance = 100) {
+  const billing = createMockBillingService(balance)
+  const logs = createMockRequestLogService()
+  const tracing = createMockLlmTracing()
+  const router = createMockLlmRouter({ route: vi.fn(async () => response()) })
+  const app = createTestApp(createMockFluxService(balance), createMockConfigKV({ FLUX_PER_1K_TOKENS: 20 }), billing, logs, undefined, router, tracing)
+  const send = (body: object, signal?: AbortSignal) => app.request('/api/v1/openai/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: 'hello', ...body }),
+    signal,
+  }, { user: testUser })
+  return { app, send, billing, logs, tracing, router }
+}
+
+function responsesFrame(status = 'completed') {
+  return `event: response.${status}\nid: event-1\ndata: ${JSON.stringify({ type: `response.${status}`, response: responsesResult(status) })}\n\n`
+}
+
+describe('issue #2479 hosted Responses', () => {
+  it('forwards native JSON and settles input/output usage once', async () => {
+    const harness = responsesHarness(() => Response.json(responsesResult()))
+    const response = await harness.send({})
+    expect(await response.json()).toEqual(responsesResult())
+    expect(harness.router.route).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses', body: expect.objectContaining({ store: false, model: 'auto' }) }), expect.anything())
+    expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+    expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledWith(expect.objectContaining({ amount: 3, promptTokens: 100, completionTokens: 50, model: 'openai/gpt-5-mini' }))
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200, fluxConsumed: 3 }))
+    expect(harness.tracing.startChatGeneration).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses' }))
+  })
+
+  it.each(['failed', 'incomplete', 'cancelled'])('does not charge a %s JSON result', async (status) => {
+    const harness = responsesHarness(() => Response.json(responsesResult(status)))
+    const response = await harness.send({})
+    expect(await response.json()).toMatchObject({ status })
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0 }))
+  })
+
+  it('uses the existing flat price when usage is unavailable', async () => {
+    const harness = responsesHarness(() => Response.json({ ...responsesResult(), usage: null }))
+    await harness.send({})
+    expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledWith(expect.objectContaining({ amount: 1 }))
+  })
+
+  it('forwards terminal upstream errors and records no debit', async () => {
+    const harness = responsesHarness(() => new Response('quota exceeded', { status: 429, headers: { 'Retry-After': '10', 'Set-Cookie': 'private=value' } }))
+    const response = await harness.send({})
+    expect(response.status).toBe(429)
+    expect(await response.text()).toBe('quota exceeded')
+    expect(response.headers.get('Retry-After')).toBe('10')
+    expect(response.headers.has('Set-Cookie')).toBe(false)
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 429, fluxConsumed: 0 }))
+  })
+
+  it('rejects invalid JSON and insufficient balance before routing', async () => {
+    const harness = responsesHarness(() => Response.json(responsesResult()), 0)
+    const response = await harness.send({})
+    expect(response.status).toBe(402)
+    const malformed = await harness.app.request('/api/v1/openai/responses', { method: 'POST', body: '{' }, { user: testUser })
+    expect(malformed.status).toBe(400)
+    expect(harness.router.route).not.toHaveBeenCalled()
+  })
+
+  it('does not retry or alter a completed result when settlement fails', async () => {
+    const harness = responsesHarness(() => Response.json(responsesResult()))
+    vi.mocked(harness.billing.consumeFluxForLLM).mockRejectedValueOnce(new Error('database unavailable'))
+    const response = await harness.send({})
+    expect(await response.json()).toEqual(responsesResult())
+    expect(harness.router.route).toHaveBeenCalledTimes(1)
+    expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ fluxConsumed: 0 }))
+  })
+
+  it('forwards split UTF-8 SSE events and stops before duplicate terminal events', async () => {
+    const frame = responsesFrame()
+    const bytes = new TextEncoder().encode(frame + frame)
+    const cancel = vi.fn()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const byte of bytes)
+          controller.enqueue(new Uint8Array([byte]))
+      },
+      cancel,
+    })
+    const harness = responsesHarness(() => new Response(stream))
+    const response = await harness.send({ stream: true })
+    expect(await response.text()).toBe(frame)
+    expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalled())
+  })
+
+  it.each(['failed', 'incomplete'])('forwards a %s terminal SSE event without charging', async (status) => {
+    const harness = responsesHarness(() => new Response(responsesFrame(status)))
+    const response = await harness.send({ stream: true })
+    expect(await response.text()).toBe(responsesFrame(status))
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0 }))
+  })
+
+  it.each([
+    'data: {"type":"response.output_text.delta","delta":"partial"}\n\n',
+    'data: not-json\n\n',
+    'data: {"type":"response.completed","response":{"status":"completed"}}\n\n',
+    `data: ${JSON.stringify({ type: 'response.completed', response: responsesResult('failed') })}\n\n`,
+  ])('does not charge truncated or malformed SSE: %s', async (frame) => {
+    const harness = responsesHarness(() => new Response(frame))
+    const response = await harness.send({ stream: true })
+    await expect(response.text()).rejects.toThrow()
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0 }))
+  })
+
+  it('forwards SSE error events and records a failed generation', async () => {
+    const frame = 'event: error\ndata: {"type":"error","code":"server_error"}\n\n'
+    const harness = responsesHarness(() => new Response(frame))
+    const response = await harness.send({ stream: true })
+    expect(await response.text()).toBe(frame)
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502 }))
+  })
+
+  it.each(['request', 'reader'] as const)('cancels an idle upstream when the %s is cancelled', async (source) => {
+    const cancelled = vi.fn()
+    const upstream = new ReadableStream<Uint8Array>({ cancel: cancelled })
+    const harness = responsesHarness(() => new Response(upstream))
+    const controller = new AbortController()
+    const response = await harness.send({ stream: true }, controller.signal)
+    if (source === 'request') {
+      controller.abort()
+      await expect(response.text()).rejects.toThrow()
+    }
+    else {
+      await response.body!.cancel()
+    }
+    await vi.waitFor(() => expect(cancelled).toHaveBeenCalledTimes(1))
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 499, fluxConsumed: 0 }))
+  })
+
+  it('shares the generation quota with Chat Completions', async () => {
+    const harness = responsesHarness(() => Response.json(responsesResult()))
+    for (let index = 0; index < 60; index++) {
+      const response = await harness.app.request('/api/v1/openai/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [] }),
+      }, { user: testUser })
+      expect(response.status).toBe(200)
+    }
+    const response = await harness.send({})
+    expect(response.status).toBe(429)
+    expect(harness.router.route).toHaveBeenCalledTimes(60)
+  })
+})
+
+// https://github.com/moeru-ai/airi/issues/2479
+it('issue #2479 does not debit a terminal frame cancelled before downstream delivery', async () => {
+  const harness = responsesHarness(() => new Response(responsesFrame()))
+  const response = await harness.send({ stream: true })
+  await response.body!.cancel()
+  await vi.waitFor(() => expect(harness.logs.logRequest).toHaveBeenCalled())
+  expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+})
+
+// https://github.com/moeru-ai/airi/issues/2479
+it('issue #2479 cancels an idle JSON response before settlement', async () => {
+  const cancel = vi.fn()
+  const source = new ReadableStream<Uint8Array>({ cancel })
+  const harness = responsesHarness(() => new Response(source))
+  const controller = new AbortController()
+  const pending = harness.send({}, controller.signal)
+  await vi.waitFor(() => expect(harness.router.route).toHaveBeenCalled())
+  controller.abort()
+  const response = await pending
+  expect(response.status).toBeGreaterThanOrEqual(400)
+  await vi.waitFor(() => expect(cancel).toHaveBeenCalledTimes(1))
+  expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+  expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 499 }))
+})
+
+// https://github.com/moeru-ai/airi/issues/2479
+it('issue #2479 keeps the last upstream error when a later alias candidate lacks Responses support', async () => {
+  const catalog = createMockProviderCatalogService()
+  const alias = await catalog.resolveEnabledAlias('llm', 'auto')
+  vi.mocked(catalog.resolveEnabledAlias).mockResolvedValue({ ...alias, routes: [
+    ...alias.routes,
+    { ...alias.routes[0], id: 'second-route', routerModelId: 'chat-only', pool: 'fallback' },
+  ] })
+  const router = createMockLlmRouter({ route: vi.fn(async ({ modelName }) => {
+    if (modelName === 'chat-only')
+      throw new ApiError(503, 'LLM_PROTOCOL_UNAVAILABLE', 'No compatible upstream')
+    return new Response('upstream quota exceeded', { status: 402 })
+  }) })
+  const billing = createMockBillingService()
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, undefined, undefined, router, createMockLlmTracing(), createMockProductEventService(), createMockVoicePackService(), catalog)
+  const response = await app.request('/api/v1/openai/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: 'hello' }),
+  }, { user: testUser })
+  expect(response.status).toBe(402)
+  expect(await response.text()).toBe('upstream quota exceeded')
+  expect(router.route).toHaveBeenCalledTimes(2)
+  expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
+})

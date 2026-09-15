@@ -303,7 +303,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
         let response: Response
         try {
-          response = await fetchImpl(`${upstream.baseURL.replace(/\/+$/, '')}/chat/completions`, {
+          response = await fetchImpl(`${upstream.baseURL.replace(/\/+$/, '')}/${req.protocol === 'responses' ? 'responses' : 'chat/completions'}`, {
             method: 'POST',
             headers,
             body,
@@ -409,6 +409,11 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     }
 
     const llmModel = slice.model
+    const protocol = req.protocol ?? 'chat-completions'
+    const candidates = llmModel.upstreams.map((upstream, index) => ({ upstream, index }))
+      .filter(({ upstream }) => upstream.protocols?.includes(protocol) ?? protocol === 'chat-completions')
+    if (candidates.length === 0)
+      throw createServiceUnavailableError('No upstream supports the requested protocol', 'LLM_PROTOCOL_UNAVAILABLE')
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
     const fallbackHttpCodes = llmModel.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
@@ -454,20 +459,17 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean, response?: Response }
     > {
       const statuses: Array<number | 'timeout'> = []
-      for (let groupCandidateIndex = 0; groupCandidateIndex < group.upstreamIds.length; groupCandidateIndex += 1) {
-        const upstreamId = group.upstreamIds[groupCandidateIndex]
-        const index = llmModel.upstreams.findIndex(upstream => upstream.id === upstreamId)
-        if (index === -1) {
-          throw new Error(
-            `LLM routing group ${group.id} references unknown upstream ${upstreamId} for model ${req.modelName}`,
-          )
-        }
-
-        const result = await attemptUpstream(llmModel.upstreams[index], index)
+      const groupCandidates = group.upstreamIds.flatMap((id) => {
+        const candidate = candidates.find(({ upstream }) => upstream.id === id)
+        return candidate ? [candidate] : []
+      })
+      for (let groupCandidateIndex = 0; groupCandidateIndex < groupCandidates.length; groupCandidateIndex += 1) {
+        const { upstream, index } = groupCandidates[groupCandidateIndex]
+        const result = await attemptUpstream(upstream, index)
         if (result.kind === 'ok')
           return result
         statuses.push(...result.statuses)
-        const hasNextCandidate = groupCandidateIndex < group.upstreamIds.length - 1
+        const hasNextCandidate = groupCandidateIndex < groupCandidates.length - 1
         if (hasNextCandidate && !failuresMatch(result.statuses, group.retryOn))
           return { kind: 'exhausted', statuses, transitionBlocked: true, response: result.response }
         if (hasNextCandidate)
@@ -478,13 +480,17 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     }
 
     if (llmModel.routing != null) {
-      for (let groupIndex = 0; groupIndex < llmModel.routing.groups.length; groupIndex += 1) {
-        const group = llmModel.routing.groups[groupIndex]
+      // Empty protocol groups have no failure evidence and do not consume a transition.
+      const groups = llmModel.routing.groups.filter(group => candidates.some(({ upstream }) => upstream.id != null && group.upstreamIds.includes(upstream.id)))
+      if (groups.length === 0)
+        throw createServiceUnavailableError('No routing group supports the requested protocol', 'LLM_PROTOCOL_UNAVAILABLE')
+      for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
+        const group = groups[groupIndex]
         const result = await routeGroup(group)
         if (result.kind === 'ok')
           return result.response
 
-        const hasNextGroup = groupIndex < llmModel.routing.groups.length - 1
+        const hasNextGroup = groupIndex < groups.length - 1
         if (
           result.transitionBlocked
           || !hasNextGroup
@@ -498,11 +504,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       }
     }
     else {
-      for (let index = 0; index < llmModel.upstreams.length; index += 1) {
-        const result = await attemptUpstream(llmModel.upstreams[index], index)
+      for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+        const { upstream, index } = candidates[candidateIndex]
+        const result = await attemptUpstream(upstream, index)
         if (result.kind === 'ok')
           return result.response
-        if (index < llmModel.upstreams.length - 1)
+        if (candidateIndex < candidates.length - 1)
           await discardUpstreamResponse(result.response)
         else if (result.response != null)
           terminalResponse = result.response
