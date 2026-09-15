@@ -67,6 +67,8 @@ const mcpTestStderrMaxChars = 16_000
 const mcpConfigFileMode = 0o600
 const mcpListToolsMaxPerServer = 200
 const mcpToolDescriptionMaxChars = 2_000
+const mcpToolDescriptorMaxChars = 50_000
+const mcpToolListTotalMaxChars = 1_000_000
 const mcpToolResultMaxChars = 200_000
 const mcpToolResultMaxItems = 50
 
@@ -376,15 +378,31 @@ export function createMcpStdioManager(): McpStdioManager {
           timeout: mcpRequestTimeoutMsec,
           maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
         })
-        return response.tools
-          .slice(0, mcpListToolsMaxPerServer)
-          .map<ElectronMcpToolDescriptor>(item => ({
+        const descriptors: ElectronMcpToolDescriptor[] = []
+        let totalChars = 0
+
+        for (const item of response.tools.slice(0, mcpListToolsMaxPerServer)) {
+          const descriptor = {
             serverName,
             name: `${serverName}${toolNameSeparator}${item.name}`,
             toolName: item.name,
             description: item.description ? truncateText(item.description, mcpToolDescriptionMaxChars) : item.description,
             inputSchema: item.inputSchema,
-          }))
+          } satisfies ElectronMcpToolDescriptor
+
+          // Names and input schemas are unbounded server output too, so apply a
+          // serialized-size budget to each descriptor and to the whole list.
+          const descriptorChars = JSON.stringify(descriptor)?.length ?? 0
+          if (descriptorChars > mcpToolDescriptorMaxChars || totalChars + descriptorChars > mcpToolListTotalMaxChars) {
+            log.withFields({ serverName, toolName: item.name }).warn('skipping mcp tool with oversized descriptor')
+            continue
+          }
+
+          descriptors.push(descriptor)
+          totalChars += descriptorChars
+        }
+
+        return descriptors
       }
       catch (error) {
         log.withFields({ serverName }).withError(error).warn('failed to list tools from mcp server')

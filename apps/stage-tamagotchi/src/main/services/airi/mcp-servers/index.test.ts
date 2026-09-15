@@ -167,6 +167,39 @@ describe('createMcpStdioManager', () => {
     }
   })
 
+  it('skips MCP tools with oversized descriptors', async () => {
+    const userDataDir = await createTempUserDataDir()
+
+    try {
+      clientMocks.listTools.mockResolvedValue({
+        tools: [
+          { name: 'normal-tool', description: 'ok', inputSchema: { type: 'object' } },
+          {
+            name: 'huge-schema-tool',
+            description: 'ok',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                data: { description: 'x'.repeat(80_000) },
+              },
+            },
+          },
+        ],
+      })
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+      await manager.writeConfigText(JSON.stringify({ mcpServers: { srv: { command: 'srv' } } }))
+      await manager.applyAndRestart()
+
+      const tools = await manager.listTools()
+
+      expect(tools.map(tool => tool.toolName)).toEqual(['normal-tool'])
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
+  })
+
   it('caps oversized MCP tool results', async () => {
     const userDataDir = await createTempUserDataDir()
 
