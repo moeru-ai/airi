@@ -7,17 +7,19 @@ import type { Mock } from 'vitest'
 import type { UnwrapRef } from 'vue'
 import type z from 'zod'
 
+import type { StageTtsSession } from '../../../libs/speech/tts-session'
 import type { StreamEvent } from '../../ai/chat-llm/llm'
 import type { AiriCard } from '../../modules'
 
 import { tool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
+import { registerStageSpeechSessionOpener } from '../../../services/stage-speech-session-host'
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
@@ -108,10 +110,22 @@ describe('sparkNotifyCommandSchema', () => {
 describe('store character-orchestrator', () => {
   const sendSparkCommandMock = vi.fn()
   let pinia: ReturnType<typeof createPinia>
+  let disposeSpeechHost: (() => void) | undefined
 
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
+    // The orchestrator only runs reactions in a renderer that mounts
+    // Stage; pretend this test window is that renderer. Some tests drive
+    // the real character store, so provide a complete no-op session.
+    disposeSpeechHost = registerStageSpeechSessionOpener((): StageTtsSession => ({
+      intentId: 'test-intent',
+      appendText: () => {},
+      appendSpecial: () => {},
+      finishInput: () => {},
+      end: () => {},
+      cancel: () => {},
+    }))
 
     sendSparkCommandMock.mockReset()
     mockedStore(useModsServerChannelStore, pinia).send = sendSparkCommandMock
@@ -152,6 +166,11 @@ describe('store character-orchestrator', () => {
         },
       },
     } satisfies AiriCard
+  })
+
+  afterEach(() => {
+    disposeSpeechHost?.()
+    disposeSpeechHost = undefined
   })
 
   it('handles immediate spark:notify with reaction and commands', async () => {

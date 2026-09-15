@@ -1,14 +1,15 @@
-import type { BilingualTurnSplitter } from '@proj-airi/pipelines-audio'
+import type { BilingualTurnEvent, BilingualTurnSplitter } from '@proj-airi/pipelines-audio'
 
-import type { ReactionSpeechSurface } from '../../services/reaction-speech'
+import type { StageTtsSession } from '../../libs/speech/tts-session'
 
-import { createBilingualTurnSplitter } from '@proj-airi/pipelines-audio'
+import { createBilingualTurnSplitter, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 
+import { useLlmmarkerParser } from '../../composables/llm-marker-parser'
 import { useBilingualCaptionBus } from '../../services/bilingual-captions'
-import { openReactionSpeech, spokenProjection } from '../../services/reaction-speech'
+import { openStageSpeechSession } from '../../services/stage-speech-session-host'
 import { useAiriCardStore } from '../modules'
 import { useSettingsBilingualSubtitles } from '../settings/bilingual-subtitles'
 
@@ -24,32 +25,35 @@ export interface CharacterSparkNotifyReaction {
 }
 
 interface StreamingReactionState {
+  session: StageTtsSession
+  /** Marker parser is the serialized input channel of the session. */
+  parser: ReturnType<typeof useLlmmarkerParser>
+  /** Undefined when bilingual mode is off; raw text then goes straight in. */
+  splitter: BilingualTurnSplitter | undefined
   /** Caption bus turn id, same value as the speech session turnId. */
   turnId: string
-  /** Resolves to the local or cross-window speech surface. */
-  surface: Promise<ReactionSpeechSurface>
-  /**
-   * Serializes raw chunk delivery until the surface is ready and keeps
-   * chunks in arrival order.
-   */
-  chain: Promise<void>
-  /** Spoken-only projection splitter for the persisted message. */
-  projection: BilingualTurnSplitter | undefined
-  /** Accumulated spoken projection of the whole reaction. */
-  spokenText: string
-  /** Stream end was requested; late chunks must not reopen delivery. */
-  ended: boolean
+  translationLanguage: string | undefined
 }
 
 const MAX_REACTIONS = 200
+
+/** Returns the spoken projection of raw UST text, dropping bracket translations. */
+function spokenProjection(rawText: string): string {
+  const splitter = createBilingualTurnSplitter()
+  let spoken = ''
+  for (const event of [...splitter.consume(rawText), ...splitter.end()]) {
+    if (event.kind === 'spoken')
+      spoken += event.text
+  }
+  return spoken
+}
 
 export const useCharacterStore = defineStore('character', () => {
   const { activeCard, systemPrompt } = storeToRefs(useAiriCardStore())
   const bilingualSettings = useSettingsBilingualSubtitles()
   const bilingualCaptionBus = useBilingualCaptionBus()
   // Spark reactions interrupt earlier speech. Track active turn ids so the
-  // previous reaction's caption line is cleared when a new one starts. The
-  // playback host keeps an equivalent set for turns it speaks remotely.
+  // previous reaction's caption line is cleared when a new one starts.
   const activeSparkTurnIds = new Set<string>()
 
   const name = computed(() => activeCard.value?.name ?? '')
@@ -58,23 +62,30 @@ export const useCharacterStore = defineStore('character', () => {
   const reactions = ref<CharacterSparkNotifyReaction[]>([])
   const streamingReactions = ref<Map<string, StreamingReactionState>>(new Map())
 
-  async function emitTextOutput(text: string) {
-    // Plugin-emitted text can carry bilingual tags after a spark request
-    // injected the format instruction. Give it a turn id so playback pairing
-    // and the caption bus can handle it like a reaction.
-    const snapshot = bilingualSettings.snapshot()
-    const surface = await openReactionSpeech({
-      turnId: `spark:direct:${nanoid()}`,
-      ...(snapshot ? { translationLanguage: snapshot.translationLanguage } : {}),
-      priority: 'normal',
-      behavior: 'queue',
-      ownerId: ownerId.value,
-    })
-
-    surface.append(text)
-    // Leftover translations are flushed by the terminal intent-drained /
-    // turn-end event once audio actually finishes — not here at text end.
-    await surface.finish()
+  /**
+   * Routes one batch of splitter events to the marker parser and caption
+   * bus. A pair's flush marker is written as parser text in its wire
+   * position, right after the spoken sentence: the parser is the single
+   * serialized channel into the session, and a direct write could overtake
+   * the asynchronously delivered sentence and get dropped by the
+   * flush-mode chunker, killing the pair's playback boundary.
+   */
+  function routeBilingualEvents(state: StreamingReactionState, events: Iterable<BilingualTurnEvent>) {
+    for (const event of events) {
+      if (event.kind === 'spoken') {
+        bilingualCaptionBus.ingestSpoken(state.turnId)
+        if (event.text)
+          void state.parser.consume(event.text)
+      }
+      else {
+        void state.parser.consume(TTS_FLUSH_INSTRUCTION)
+        bilingualCaptionBus.ingestTranslation(state.turnId, {
+          language: state.translationLanguage as string,
+          pairId: event.pairId,
+          text: event.text,
+        })
+      }
+    }
   }
 
   function onSparkNotifyReactionStreamEvent(sparkEventId: string, chunk: string) {
@@ -91,79 +102,68 @@ export const useCharacterStore = defineStore('character', () => {
         activeSparkTurnIds.add(turnId)
       }
 
-      const surfacePromise = openReactionSpeech({
+      // The orchestrator only delivers events to windows that mount Stage,
+      // so this session always exists. The guard covers direct callers.
+      const session = openStageSpeechSession({
         turnId,
-        ...(snapshot ? { translationLanguage: snapshot.translationLanguage } : {}),
+        flushBoundaries: Boolean(snapshot),
         priority: 'high',
         behavior: 'interrupt',
         ownerId: ownerId.value,
       })
-      surfacePromise.catch((error) => {
-        console.warn('[Character] Failed to open spark reaction speech', error)
+      if (!session)
+        return
+
+      const parser = useLlmmarkerParser({
+        onLiteral: (literal) => {
+          if (literal)
+            session.appendText(literal)
+        },
+        onSpecial: (special) => {
+          if (special)
+            session.appendSpecial(special)
+        },
       })
 
       state = {
+        session,
+        parser,
+        splitter: snapshot ? createBilingualTurnSplitter() : undefined,
         turnId,
-        surface: surfacePromise,
-        chain: Promise.resolve(),
-        projection: snapshot ? createBilingualTurnSplitter() : undefined,
-        spokenText: '',
-        ended: false,
+        translationLanguage: snapshot?.translationLanguage,
       }
       streamingReactions.value.set(sparkEventId, state)
     }
 
-    // Bilingual mode persists the spoken projection; raw chunks still
-    // carry UST brackets for the splitter at the speech surface. In
-    // non-bilingual mode the plugin's final text is persisted at stream
-    // end, so nothing is accumulated here.
-    if (state.projection)
-      state.spokenText += spokenProjection(state.projection.consume(chunk))
-
-    if (state.ended)
-      return
-
-    state.chain = state.chain
-      .then(async () => {
-        const surface = await state.surface
-        surface.append(chunk)
-      })
-      .catch((error) => {
-        // A speech failure must not stop the visible reaction stream.
-        console.warn('[Character] Spark reaction speech chunk failed', error)
-      })
+    if (state.splitter)
+      routeBilingualEvents(state, state.splitter.consume(chunk))
+    else
+      void state.parser.consume(chunk)
   }
 
   function onSparkNotifyReactionStreamEnd(sparkEventId: string, fullText: string, options?: { metadata?: Record<string, unknown> }) {
     const state = streamingReactions.value.get(sparkEventId)
-    if (!state || state.ended)
+    if (!state) {
+      // No speech session for this stream; still persist the reaction.
+      recordSparkNotifyReaction(sparkEventId, spokenProjection(fullText), { metadata: options?.metadata })
       return
+    }
 
-    // The splitter drain delivers a final closed translation to the speech
-    // surface; an unclosed bracket stays in the spoken projection.
-    const spokenTail = state.projection ? spokenProjection(state.projection.end()) : ''
-    state.spokenText += spokenTail
-    recordSparkNotifyReaction(
-      sparkEventId,
-      state.projection ? state.spokenText : fullText,
-      { metadata: options?.metadata },
-    )
+    if (state.splitter)
+      routeBilingualEvents(state, state.splitter.end())
 
-    state.ended = true
-    state.chain = state.chain
-      .then(async () => {
-        const surface = await state.surface
-        // Pairs that playback never reaches are flushed by the terminal
-        // intent-drained / turn-end event, not by a timer.
-        await surface.finish()
-      })
-      .catch((error) => {
-        console.warn('[Character] Spark reaction speech finish failed', error)
-      })
-      .then(() => {
-        activeSparkTurnIds.delete(state.turnId)
-        streamingReactions.value.delete(sparkEventId)
-      })
+    // Persist the spoken projection; raw text still carries UST brackets.
+    recordSparkNotifyReaction(sparkEventId, spokenProjection(fullText), { metadata: options?.metadata })
+
+    // Close the parser first so every queued fragment (including the last
+    // flush marker) reaches the session before EOF. Leftover pairs are
+    // flushed by the terminal intent-drained / turn-end event, not here.
+    void state.parser.end().then(() => {
+      state.session.finishInput()
+      state.session.end()
+    })
+    activeSparkTurnIds.delete(state.turnId)
+    streamingReactions.value.delete(sparkEventId)
   }
 
   function recordSparkNotifyReaction(sparkEventId: string, message: string, options?: { metadata?: Record<string, unknown> }) {
@@ -195,7 +195,5 @@ export const useCharacterStore = defineStore('character', () => {
     onSparkNotifyReactionStreamEvent,
     onSparkNotifyReactionStreamEnd,
     clearReactions,
-
-    emitTextOutput,
   }
 })

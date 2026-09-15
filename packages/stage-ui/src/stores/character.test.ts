@@ -1,12 +1,13 @@
+import type { StageTtsSession } from '../libs/speech/tts-session'
 import type { AiriCard } from './modules'
 
 import { createTestingPinia } from '@pinia/testing'
 import { setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { registerStageSpeechSessionOpener } from '../services/stage-speech-session-host'
 import { useCharacterStore } from './character'
 import { useAiriCardStore } from './modules'
-import { useSpeechRuntimeStore } from './speech-runtime'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -19,31 +20,28 @@ const writeFlushSpy = vi.fn()
 const endSpy = vi.fn()
 const cancelSpy = vi.fn()
 
-const openSpeechIntentSpy = vi.fn(() => ({
+const stubSession: StageTtsSession = {
   intentId: 'intent-test',
-  streamId: 'stream-test',
-  priority: 100,
-  stream: new ReadableStream(),
-  writeLiteral: writeLiteralSpy,
-  writeSpecial: vi.fn(),
-  writeFlush: writeFlushSpy,
+  appendText: writeLiteralSpy,
+  appendSpecial: vi.fn(),
+  finishInput: writeFlushSpy,
   end: endSpy,
   cancel: cancelSpy,
-}))
+}
 
 describe('store character', () => {
+  let disposeOpener: (() => void) | undefined
+
   beforeEach(() => {
     const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false })
     setActivePinia(pinia)
+    // Reactions only open speech in a renderer that mounts Stage.
+    disposeOpener = registerStageSpeechSessionOpener(() => stubSession)
 
     writeLiteralSpy.mockClear()
     writeFlushSpy.mockClear()
     endSpy.mockClear()
     cancelSpy.mockClear()
-    openSpeechIntentSpy.mockClear()
-
-    const speechRuntimeStore = useSpeechRuntimeStore(pinia)
-    speechRuntimeStore.openIntent = openSpeechIntentSpy
 
     const airiCardStore = useAiriCardStore(pinia)
     // @ts-expect-error - testing purpose
@@ -73,6 +71,11 @@ describe('store character', () => {
         },
       },
     } satisfies AiriCard
+  })
+
+  afterEach(() => {
+    disposeOpener?.()
+    disposeOpener = undefined
   })
 
   it('exposes name and system prompt from the active card', () => {
@@ -107,25 +110,24 @@ describe('store character', () => {
     expect(store.reactions[0]?.sourceEventId).toBe('spark-1')
     expect(store.reactions[0]?.createdAt).toBe(123456)
 
-    // The speech surface is resolved asynchronously (cross-window host
-    // discovery may time out before the raw-intent fallback opens). The
-    // marker parser may batch fragments while looking ahead for tags, so
-    // assert on the fully delivered text rather than per-chunk calls.
+    // Parser delivery is asynchronous; it may batch fragments while
+    // looking ahead for tags, so assert on the fully delivered text.
     await vi.waitFor(() => {
       expect(writeLiteralSpy.mock.calls.map(call => call[0]).join('')).toBe('Hello world')
       expect(writeFlushSpy).toHaveBeenCalled()
       expect(endSpy).toHaveBeenCalled()
-    }, { timeout: 3000 })
+    })
 
     nowSpy.mockRestore()
   })
 
-  it('ignores stream end when no streaming reaction exists', () => {
+  it('still records a reaction when only the stream end is observed', () => {
     const store = useCharacterStore()
 
     store.onSparkNotifyReactionStreamEnd('missing', 'Ignored')
 
-    expect(store.reactions).toHaveLength(0)
+    expect(store.reactions).toHaveLength(1)
+    expect(store.reactions[0]?.message).toBe('Ignored')
   })
 
   it('clears reactions', () => {

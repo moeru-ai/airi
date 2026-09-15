@@ -3,9 +3,7 @@ import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 
 import { BILINGUAL_LANGUAGES } from '@proj-airi/pipelines-audio'
 
-import { createBilingualCaptionTracker } from '../composables/use-bilingual-captions'
-
-/** Minimal playback item shape the tracker needs from either TTS transport. */
+/** Minimal playback item shape the bus needs from either TTS transport. */
 export interface BilingualCaptionPlaybackItem {
   /** Turn id stamped on REST pipeline items. */
   turnId?: string
@@ -13,56 +11,254 @@ export interface BilingualCaptionPlaybackItem {
   intentId: string
 }
 
-export interface BilingualCaptionBus {
-  /** Maps a streaming TTS intent (no item turnId) back to its chat turn. */
-  mapIntentToTurn: (intentId: string, turnId: string) => void
-  /** Opens the pair that the next spoken fragments belong to. */
-  ingestSpoken: (turnId: string) => void
-  /** Stores a translated fragment and republishes when its pair is current. */
-  ingestTranslation: (turnId: string, payload: TokenTranslationPayload) => void
-  /** Reports one spoken sentence item started at a real boundary. */
-  routePlaybackItem: (item: BilingualCaptionPlaybackItem) => void
-  /** Reports one upstream sentence boundary from buffered streaming TTS. */
-  advancePlayback: (turnId: string) => void
-  /** Flushes leftover pairs once playback for one intent fully drained. */
-  flushIntent: (intentId: string, turnId?: string) => void
-  /** Flushes leftover pairs for one turn (no-audio / session-end fallback). */
-  flushTurn: (turnId: string) => void
-  /** Clears one turn and posts the event that clears its caption line. */
-  resetTurn: (turnId: string) => void
-  /** Clears every turn and posts the event that clears the caption line. */
-  resetAll: () => void
+// Positional binder between translated UST pairs and TTS playback. The
+// model writes `<spoken sentence> [<translation>]`; prompt boundaries and
+// the flush marker make TTS emit one playback item per pair, so the Nth
+// played item reveals pair N. Pair ingest, playback reveal and the
+// BroadcastChannel to the caption window live in this one process (the
+// Stage renderer): other renderers never split or ingest pairs.
+
+interface PairTranslation {
+  /** Native language name used as the caption badge, for example `中文`. */
+  label: string
+  text: string
 }
 
-/**
- * Reveal timing is anchored to the spoken sentence START: the
- * REST/non-buffered path calls in from a sentence item `onStart`, and the
- * buffered WebSocket path calls in from an upstream sentence boundary. The
- * translation line therefore changes with the spoken line, at any speech
- * rate and without a time offset.
- *
- * The poller runs only for the rare case where the sentence starts before
- * its translation finished streaming. The queue drains as soon as the text
- * arrives.
- */
+interface CaptionPair {
+  id: number
+  translation: PairTranslation | undefined
+  /** Playback reached this pair. */
+  played: boolean
+  /** A reveal for this pair was already dequeued and shown. */
+  revealed: boolean
+}
+
+interface CaptionTurn {
+  pairs: CaptionPair[]
+  byId: Map<number, CaptionPair>
+  /** Next wire block expected, mirroring the splitter state machine. */
+  phase: 'spoken' | 'translation'
+  /** Pair ids that own speech, in playback order. */
+  playablePairs: number[]
+  /** Playback position inside `playablePairs`. */
+  playbackIndex: number
+  /** Pair ids waiting to be revealed, in playback order. */
+  revealQueue: number[]
+  /** Pair id currently on screen, if any. */
+  currentPairId: number | undefined
+  /** Last posted translation text, used to skip duplicate events. */
+  lastPublishedText: string | undefined
+}
+
+function normalize(text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
+function createCaptionTracker() {
+  const turns = new Map<string, CaptionTurn>()
+
+  function ensureTurn(turnId: string): CaptionTurn {
+    let turn = turns.get(turnId)
+    if (!turn) {
+      turn = {
+        pairs: [],
+        byId: new Map(),
+        phase: 'spoken',
+        playablePairs: [],
+        playbackIndex: 0,
+        revealQueue: [],
+        currentPairId: undefined,
+        lastPublishedText: undefined,
+      }
+      turns.set(turnId, turn)
+    }
+    return turn
+  }
+
+  function createPair(turn: CaptionTurn, id: number): CaptionPair {
+    const pair: CaptionPair = { id, translation: undefined, played: false, revealed: false }
+    turn.pairs.push(pair)
+    turn.pairs.sort((a, b) => a.id - b.id)
+    turn.byId.set(id, pair)
+    return pair
+  }
+
+  function pairForSpoken(turn: CaptionTurn): CaptionPair {
+    const last = turn.pairs.at(-1)
+    if (last && turn.phase === 'spoken')
+      return last
+
+    const nextId = last ? last.id + 1 : 0
+    const pair = createPair(turn, nextId)
+    turn.phase = 'spoken'
+    turn.playablePairs.push(nextId)
+    return pair
+  }
+
+  function eventForPair(turn: CaptionTurn, pair: CaptionPair): CaptionChannelEvent | undefined {
+    if (!pair.translation)
+      return undefined
+    const text = normalize(pair.translation.text)
+    if (!text || text === turn.lastPublishedText)
+      return undefined
+    turn.lastPublishedText = text
+    return {
+      operation: 'replace',
+      text,
+      type: 'caption-assistant-translation',
+      label: pair.translation.label,
+    }
+  }
+
+  function ingestSpoken(turnId: string) {
+    pairForSpoken(ensureTurn(turnId))
+  }
+
+  function ingestTranslation(turnId: string, payload: TokenTranslationPayload, label: string): CaptionChannelEvent[] {
+    if (!payload.text)
+      return []
+    const turn = ensureTurn(turnId)
+    let pair = turn.byId.get(payload.pairId)
+    if (!pair)
+      pair = createPair(turn, payload.pairId)
+    turn.phase = 'translation'
+    if (pair.translation)
+      pair.translation.text += payload.text
+    else
+      pair.translation = { label, text: payload.text }
+
+    // Stream corrections only for the pair currently on screen.
+    if (pair.revealed && pair.id === turn.currentPairId) {
+      const event = eventForPair(turn, pair)
+      return event ? [event] : []
+    }
+    return []
+  }
+
+  function advancePlayback(turnId: string) {
+    const turn = turns.get(turnId)
+    if (!turn || turn.playbackIndex >= turn.playablePairs.length)
+      return
+    const pairId = turn.playablePairs[turn.playbackIndex]!
+    turn.playbackIndex += 1
+    const pair = turn.byId.get(pairId)
+    if (pair) {
+      pair.played = true
+      if (!turn.revealQueue.includes(pair.id))
+        turn.revealQueue.push(pair.id)
+    }
+  }
+
+  function takeNextReveal(turnId: string): CaptionChannelEvent[] {
+    const turn = turns.get(turnId)
+    if (!turn)
+      return []
+    const pairId = turn.revealQueue[0]
+    if (pairId === undefined)
+      return []
+    const pair = turn.byId.get(pairId)
+    if (!pair) {
+      turn.revealQueue.shift()
+      return []
+    }
+    // Translation not generated yet: leave it at the queue head; the bus
+    // poller retries and later pairs wait to preserve order.
+    if (!pair.translation || !normalize(pair.translation.text))
+      return []
+
+    turn.revealQueue.shift()
+    pair.revealed = true
+    turn.currentPairId = pair.id
+    const event = eventForPair(turn, pair)
+    return event ? [event] : []
+  }
+
+  function hasPendingReveal(turnId: string): boolean {
+    return Boolean(turns.get(turnId)?.revealQueue.length)
+  }
+
+  function endTurn(turnId: string): CaptionChannelEvent[] {
+    const turn = turns.get(turnId)
+    if (!turn)
+      return []
+
+    // Pairs queued but never revealed, then pairs playback never reached.
+    const pending: CaptionPair[] = []
+    for (const id of turn.revealQueue) {
+      const pair = turn.byId.get(id)
+      if (pair && !pair.revealed)
+        pending.push(pair)
+    }
+    for (const pair of turn.pairs) {
+      if (!pair.played && pair.translation && normalize(pair.translation.text))
+        pending.push(pair)
+    }
+    turn.revealQueue = []
+
+    const lines = pending
+      .map(pair => pair.translation ? normalize(pair.translation.text) : '')
+      .filter(Boolean)
+    if (lines.length === 0)
+      return []
+
+    for (const pair of pending)
+      pair.revealed = pair.played = true
+    turn.currentPairId = pending.at(-1)?.id
+    turn.lastPublishedText = lines.join('\n')
+    return [{
+      operation: 'replace',
+      text: lines.join('\n'),
+      type: 'caption-assistant-translation',
+      label: pending[0]?.translation?.label,
+    }]
+  }
+
+  function resetTurn(turnId: string): CaptionChannelEvent[] {
+    if (!turns.delete(turnId))
+      return []
+    return [{ operation: 'replace', text: '', type: 'caption-assistant-translation' }]
+  }
+
+  function resetAll(): CaptionChannelEvent[] {
+    if (turns.size === 0)
+      return []
+    turns.clear()
+    return [{ operation: 'replace', text: '', type: 'caption-assistant-translation' }]
+  }
+
+  return { ingestSpoken, ingestTranslation, advancePlayback, takeNextReveal, hasPendingReveal, endTurn, resetTurn, resetAll }
+}
+
+// BroadcastChannel reveal poller tick. Runs only for the rare case where
+// a sentence starts before its translation finished streaming.
 const REVEAL_TICK_MS = 60
 
 const labelsByCode = new Map<string, string>(BILINGUAL_LANGUAGES.map(language => [language.code, language.label]))
 
+export interface BilingualCaptionBus {
+  mapIntentToTurn: (intentId: string, turnId: string) => void
+  ingestSpoken: (turnId: string) => void
+  ingestTranslation: (turnId: string, payload: TokenTranslationPayload) => void
+  routePlaybackItem: (item: BilingualCaptionPlaybackItem) => void
+  advancePlayback: (turnId: string) => void
+  flushIntent: (intentId: string, turnId?: string) => void
+  flushTurn: (turnId: string) => void
+  resetTurn: (turnId: string) => void
+  resetAll: () => void
+}
+
 function createBus(): BilingualCaptionBus {
-  const tracker = createBilingualCaptionTracker()
+  const tracker = createCaptionTracker()
   const intentTurns = new Map<string, string>()
-  // One reveal poller per turn.
   const revealTimers = new Map<string, ReturnType<typeof setInterval>>()
 
   let post: ((event: CaptionChannelEvent) => void) | undefined
 
   // Native channel instead of VueUse's useBroadcastChannel: VueUse creates
-  // its channel inside tryOnMounted, which never runs when the first emit
-  // happens from an async chat/TTS hook without a component scope. The
-  // result is a `post` that silently no-ops, dropping every translation
-  // event. The native constructor has no lifecycle requirement.
-  function resolvePost(): ((event: CaptionChannelEvent) => void) | undefined {
+  // its channel inside tryOnMounted, which never runs for an emit from an
+  // async hook without a component scope; its post would then silently
+  // no-op and drop every translation event.
+  function resolvePost() {
     if (post)
       return post
     if (typeof BroadcastChannel === 'undefined')
@@ -97,16 +293,9 @@ function createBus(): BilingualCaptionBus {
     revealTimers.delete(turnId)
   }
 
-  /**
-   * Drains every ready reveal from the tracker queue immediately. If the
-   * head pair's translation has not streamed yet, the poller keeps the turn
-   * scheduled and retries. Later pairs wait behind it to keep order.
-   */
   function drainReveals(turnId: string) {
     while (tracker.hasPendingReveal(turnId)) {
       const events = tracker.takeNextReveal(turnId)
-      // Empty result means the head pair's translation is not ready yet;
-      // it stays queued and the poller retries. Stop draining to keep order.
       if (events.length === 0)
         break
       emit(events)
@@ -117,13 +306,11 @@ function createBus(): BilingualCaptionBus {
     drainReveals(turnId)
     if (!tracker.hasPendingReveal(turnId) || revealTimers.has(turnId))
       return
-
-    const timer = setInterval(() => {
+    revealTimers.set(turnId, setInterval(() => {
       drainReveals(turnId)
       if (!tracker.hasPendingReveal(turnId))
         stopRevealPoller(turnId)
-    }, REVEAL_TICK_MS)
-    revealTimers.set(turnId, timer)
+    }, REVEAL_TICK_MS))
   }
 
   function noteSentenceStarted(turnId: string) {
@@ -131,7 +318,6 @@ function createBus(): BilingualCaptionBus {
     ensureRevealPoller(turnId)
   }
 
-  /** Stops reveal polling and publishes pairs playback never reached. */
   function flushTurn(turnId: string) {
     stopRevealPoller(turnId)
     emit(tracker.endTurn(turnId))
@@ -146,7 +332,6 @@ function createBus(): BilingualCaptionBus {
       const label = labelsByCode.get(payload.language) ?? payload.language
       const events = tracker.ingestTranslation(turnId, payload, label)
       emit(events)
-      // A late translation can complete the pair a poller is waiting on.
       if (events.length === 0 && tracker.hasPendingReveal(turnId))
         ensureRevealPoller(turnId)
     },
@@ -156,13 +341,8 @@ function createBus(): BilingualCaptionBus {
         noteSentenceStarted(turnId)
     },
     advancePlayback: noteSentenceStarted,
-    /**
-     * Flushes by intent id. Called when the playback manager reports the
-     * intent drained (every item ended/rejected) or by a no-audio fallback.
-     * Idempotent: after a normal drain every pair is already revealed, so
-     * this posts nothing.
-     */
-    flushIntent(intentId: string, turnId?: string) {
+    // Idempotent: after a normal drain every pair is already revealed.
+    flushIntent(intentId, turnId?) {
       const resolved = turnId ?? intentTurns.get(intentId)
       if (resolved)
         flushTurn(resolved)
@@ -188,11 +368,8 @@ function createBus(): BilingualCaptionBus {
 let sharedBus: BilingualCaptionBus | undefined
 
 /**
- * Returns the process-wide bilingual caption bus.
- *
- * Chat turns (Stage.vue) and spark-notify reactions (character store) both
- * speak through the same speech pipeline and caption channel, so one bus
- * owns the pair tracker and posts translation caption events.
+ * Process-wide bilingual caption bus. Chat turns and spark reactions share
+ * one speech pipeline and caption channel in the Stage renderer.
  */
 export function useBilingualCaptionBus(): BilingualCaptionBus {
   sharedBus ??= createBus()

@@ -42,7 +42,6 @@ import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } fr
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { useBilingualCaptionBus } from '../../services/bilingual-captions'
-import { registerReactionSpeechHost } from '../../services/reaction-speech'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
 import { registerStageSpeechSessionOpener } from '../../services/stage-speech-session-host'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
@@ -602,10 +601,6 @@ void speechRuntimeStore.registerHost(speechPipeline)
 // Lets spark reactions and other non-chat speakers open the same
 // transport-aware session (bidirectional-ws or segmenter) as chat.
 const disposeStageSpeechSessionOpener = registerStageSpeechSessionOpener(createStageSpeechSession)
-// Speaks reactions streamed from other renderers (e.g. the Electron
-// settings window). Pair ingest and playback reveal must share this
-// window's caption tracker, so raw chunks are forwarded here.
-const disposeReactionSpeechHost = registerReactionSpeechHost()
 
 speechPipeline.on('onSpecial', (segment) => {
   if (segment.special) {
@@ -1205,7 +1200,6 @@ async function captureFrame() {
 onUnmounted(() => {
   disposePlaybackStateHandler()
   disposeStageSpeechSessionOpener()
-  disposeReactionSpeechHost()
   resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())

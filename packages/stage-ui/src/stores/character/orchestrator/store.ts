@@ -7,6 +7,7 @@ import { ref } from 'vue'
 
 import { useCharacterNotebookStore, useCharacterStore } from '../'
 import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prompt'
+import { hasStageSpeechSessionHost } from '../../../services/stage-speech-session-host'
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
@@ -175,6 +176,14 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   async function handleIncomingSparkNotify(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
+    // The event reaches every renderer, but only the window that mounts
+    // Stage can speak and caption the reaction. Other windows (for
+    // example the settings window) skip it so the model does not run once
+    // per open window. Widget requests arrive in the Stage window through
+    // the context bridge, which calls this same function.
+    if (!hasStageSpeechSessionHost())
+      return undefined
+
     if (event.data.urgency === 'immediate' && !processing.value) {
       return await processSparkNotify(event, control)
     }
@@ -199,6 +208,11 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   function enqueueDueTasks(now: number) {
+    // Notebook reminders are spoken reactions: only the Stage window may
+    // schedule them.
+    if (!hasStageSpeechSessionHost())
+      return
+
     const dueTasks = notebookStore.getDueTasks(now, attentionConfig.value.taskNotifyWindowMs)
     if (!dueTasks.length)
       return

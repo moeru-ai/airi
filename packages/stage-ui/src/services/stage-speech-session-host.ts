@@ -45,3 +45,13 @@ export function registerStageSpeechSessionOpener(fn: Opener): () => void {
 export function openStageSpeechSession(options: StageSpeechSessionOptions): StageTtsSession | undefined {
   return opener?.(options)
 }
+
+/**
+ * Whether this renderer mounts the Stage that owns speech playback.
+ * Non-stage windows (for example the Electron settings window) use this
+ * to leave spark:notify events to the playback window instead of
+ * generating reactions the user can never hear or see captioned.
+ */
+export function hasStageSpeechSessionHost(): boolean {
+  return opener !== undefined
+}
