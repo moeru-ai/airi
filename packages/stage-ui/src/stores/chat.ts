@@ -495,6 +495,7 @@ export const useChatStore = defineStore('chat', () => {
       payload,
       resolveTools: () => resolveLlmTools({
         customTools: llmToolsStore.getToolsByNames(payload.toolName),
+        allowedToolNames: cardStore.activeCard?.extensions?.airi?.tools?.allowed,
       }),
     })
     chatSession.setSessionMessages(payload.sessionId, nextMessages)
