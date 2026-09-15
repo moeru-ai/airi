@@ -70,6 +70,12 @@ export interface ExtensionHostGameletWidgetsManager {
  */
 export interface SetupExtensionHostOptions {
   widgetsManager: ExtensionHostGameletWidgetsManager
+  /**
+   * Returns the active Settings renderer that may import Extension folders.
+   *
+   * @default undefined, which disables folder import IPC
+   */
+  getExtensionManagementWebContentsId?: () => number | undefined
 }
 
 /**

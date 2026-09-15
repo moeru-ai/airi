@@ -5,6 +5,7 @@ import type {
   HostDataRecord,
   ModulePermissionDeclaration,
 } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionDirectoryImportPrepareResult, PluginRegistrySnapshot } from '@proj-airi/stage-shared/plugin-host'
 
 import type { WidgetsAddPayload, WidgetSnapshot, WidgetsUpdatePayload } from '../../../../shared/eventa'
 import type { ExtensionHostService } from './types'
@@ -128,6 +129,19 @@ const samplePluginRoot = resolve(
   'devtools-sample-plugin',
 )
 const extensionManifestFileName = 'extension.airi.json'
+let extensionManagementWebContentsId = 42
+
+function invokeAsRenderer<TResult>(invoke: unknown, payload: unknown, senderId = extensionManagementWebContentsId): Promise<TResult> {
+  if (typeof invoke !== 'function') {
+    throw new TypeError('Expected an Eventa invoke function.')
+  }
+
+  return Reflect.apply(invoke, undefined, [payload, {
+    raw: {
+      ipcMainEvent: { sender: { id: senderId } },
+    },
+  }]) as Promise<TResult>
+}
 
 async function writeManifest(params: { dir: string, name: string, entrypoint: string }) {
   const manifest = {
@@ -348,7 +362,10 @@ function createWidgetsManagerDouble(options: { respondToRequests?: boolean } = {
 
 async function setupExtensionHostForTest() {
   const widgets = createWidgetsManagerDouble()
-  const service = await setupExtensionHostService({ widgetsManager: widgets.widgetsManager })
+  const service = await setupExtensionHostService({
+    widgetsManager: widgets.widgetsManager,
+    getExtensionManagementWebContentsId: () => extensionManagementWebContentsId,
+  })
   return { service, ...widgets }
 }
 
@@ -409,11 +426,13 @@ describe('setupExtensionHost', () => {
 
   beforeEach(async () => {
     lifecycleMock.beforeQuitHooks.length = 0
+    extensionManagementWebContentsId = 42
     userDataDir = await mkdtemp(join(tmpdir(), 'airi-plugins-'))
     pluginsDir = join(userDataDir, 'extensions', 'v1')
     await mkdir(pluginsDir, { recursive: true })
     appMock.getPath.mockReturnValue(userDataDir)
     appMock.startAccessingSecurityScopedResource.mockReturnValue(vi.fn())
+    browserWindowMock.fromWebContents.mockReturnValue({ id: 7 })
     dialogMock.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] })
   })
 
@@ -470,7 +489,7 @@ describe('setupExtensionHost', () => {
 
     const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
     const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
-    const prepared = await invokePrepare()
+    const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
     expect(prepared.status).toBe('ready')
     if (prepared.status !== 'ready') {
       throw new Error('Expected a ready import plan.')
@@ -481,7 +500,7 @@ describe('setupExtensionHost', () => {
       runtimes: ['electron'],
     })
 
-    const snapshot = await invokeCommit({ planId: prepared.plan.planId })
+    const snapshot = await invokeAsRenderer<PluginRegistrySnapshot>(invokeCommit, { planId: prepared.plan.planId })
 
     expect(snapshot.plugins).toEqual([
       expect.objectContaining({
@@ -502,17 +521,90 @@ describe('setupExtensionHost', () => {
     await setupExtensionHost()
 
     const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
-    await Reflect.apply(invokePrepare, undefined, [undefined, {
-      raw: {
-        ipcMainEvent: { sender },
-      },
-    }])
+    await invokeAsRenderer(invokePrepare, undefined, sender.id)
 
     expect(browserWindowMock.fromWebContents).toHaveBeenCalledExactlyOnceWith(sender)
     expect(dialogMock.showOpenDialog).toHaveBeenCalledExactlyOnceWith(ownerWindow, {
       properties: ['openDirectory'],
       securityScopedBookmarks: true,
     })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013551590
+  it('rejects folder import preparation from a renderer outside the Extension management window (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // The global IPC handler used the sender only as the dialog parent. It did
+    // not verify that the sender was the Settings renderer.
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+
+    await expect(invokeAsRenderer(invokePrepare, undefined, 84)).rejects.toThrow(
+      'Extension folder import is available only from the Extension management window.',
+    )
+    expect(dialogMock.showOpenDialog).not.toHaveBeenCalled()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013551590
+  it('binds folder import commit to the renderer that prepared the plan (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // Commit accepted any valid plan id, so another authorized renderer could
+    // publish a package that it did not present for review.
+    const sourceDir = join(userDataDir, 'owned-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('owned-extension'))
+    await writeManifest({ dir: sourceDir, name: 'owned-extension', entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
+
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
+    const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    if (prepared.status !== 'ready') {
+      throw new Error('Expected a ready import plan.')
+    }
+
+    extensionManagementWebContentsId = 84
+    await expect(invokeAsRenderer(invokeCommit, { planId: prepared.plan.planId })).rejects.toThrow(
+      'Extension import plan is not available to this renderer.',
+    )
+
+    extensionManagementWebContentsId = 42
+    await expect(invokeAsRenderer(invokeCommit, { planId: prepared.plan.planId })).resolves.toEqual(
+      expect.objectContaining({
+        plugins: [expect.objectContaining({ extensionId: 'owned-extension' })],
+      }),
+    )
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013551590
+  it('binds folder import cancellation to the renderer that prepared the plan (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // Cancel used the same unowned plan lookup and could invalidate another
+    // renderer's pending review.
+    const sourceDir = join(userDataDir, 'owned-cancel-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('owned-cancel-extension'))
+    await writeManifest({ dir: sourceDir, name: 'owned-cancel-extension', entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
+
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    const invokeCancel = defineInvoke(contextState.lastContext!, electronPluginCancelDirectoryImport)
+    const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    if (prepared.status !== 'ready') {
+      throw new Error('Expected a ready import plan.')
+    }
+
+    extensionManagementWebContentsId = 84
+    await expect(invokeAsRenderer(invokeCancel, { planId: prepared.plan.planId })).rejects.toThrow(
+      'Extension import plan is not available to this renderer.',
+    )
+
+    extensionManagementWebContentsId = 42
+    await expect(invokeAsRenderer(invokeCancel, { planId: prepared.plan.planId })).resolves.toBeUndefined()
   })
 
   it('retains security-scoped folder access through import confirmation', async () => {
@@ -535,14 +627,14 @@ describe('setupExtensionHost', () => {
     await setupExtensionHost()
     const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
     const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
-    const prepared = await invokePrepare()
+    const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
     if (prepared.status !== 'ready') {
       throw new Error('Expected a ready import plan.')
     }
     expect(appMock.startAccessingSecurityScopedResource).toHaveBeenCalledExactlyOnceWith('sandbox-bookmark')
     expect(stopAccessing).toHaveBeenCalledOnce()
 
-    await invokeCommit({ planId: prepared.plan.planId })
+    await invokeAsRenderer(invokeCommit, { planId: prepared.plan.planId })
 
     // ROOT CAUSE:
     //
@@ -559,7 +651,7 @@ describe('setupExtensionHost', () => {
     await setupExtensionHost()
     const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
 
-    await expect(invokePrepare()).resolves.toEqual({ status: 'cancelled' })
+    await expect(invokeAsRenderer(invokePrepare, undefined)).resolves.toEqual({ status: 'cancelled' })
   })
 
   it('cancels a prepared Extension import plan', async () => {
@@ -573,14 +665,16 @@ describe('setupExtensionHost', () => {
     const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
     const invokeCancel = defineInvoke(contextState.lastContext!, electronPluginCancelDirectoryImport)
     const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
-    const prepared = await invokePrepare()
+    const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
     if (prepared.status !== 'ready') {
       throw new Error('Expected a ready import plan.')
     }
 
-    await invokeCancel({ planId: prepared.plan.planId })
+    await invokeAsRenderer(invokeCancel, { planId: prepared.plan.planId })
 
-    await expect(invokeCommit({ planId: prepared.plan.planId })).rejects.toThrow('missing or was already used')
+    await expect(invokeAsRenderer(invokeCommit, { planId: prepared.plan.planId })).rejects.toThrow(
+      'Extension import plan is not available to this renderer.',
+    )
   })
 
   it('discovers extension manifests and ignores legacy extension manifests', async () => {

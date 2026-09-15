@@ -1,4 +1,4 @@
-import type { OpenDialogOptions } from 'electron'
+import type { IpcMainEvent, OpenDialogOptions } from 'electron'
 
 import type { ExtensionHostService, SetupExtensionHostOptions } from './types'
 
@@ -33,6 +33,28 @@ import {
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { setupExtensionHostServiceInternal } from './host'
 
+interface ElectronInvokeOptions {
+  raw?: { ipcMainEvent?: IpcMainEvent }
+}
+
+function requireExtensionManagementEvent(
+  invokeOptions: ElectronInvokeOptions | undefined,
+  getAuthorizedWebContentsId: SetupExtensionHostOptions['getExtensionManagementWebContentsId'],
+): IpcMainEvent {
+  const event = invokeOptions?.raw?.ipcMainEvent
+  const authorizedWebContentsId = getAuthorizedWebContentsId?.()
+  if (!event || authorizedWebContentsId === undefined || event.sender.id !== authorizedWebContentsId) {
+    throw new Error('Extension folder import is available only from the Extension management window.')
+  }
+  return event
+}
+
+function assertImportPlanOwner(planOwners: Map<string, number>, planId: string, senderId: number): void {
+  if (planOwners.get(planId) !== senderId) {
+    throw new Error('Extension import plan is not available to this renderer.')
+  }
+}
+
 /**
  * Initializes the Electron extension host and wires IPC handlers.
  * Call once during app startup; it loads manifests, returns the host instance,
@@ -54,39 +76,51 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   const hostService = await setupExtensionHostServiceInternal(options)
   const { context } = createContext(ipcMain)
   const invokePluginProtocolListProviders = defineInvoke(context, pluginProtocolListProviders)
+  // A plan remains owned by the renderer that displayed its review. Reopening
+  // Settings creates a new renderer, which must start a new import review.
+  const directoryImportPlanOwners = new Map<string, number>()
 
   defineInvokeHandler(context, electronPluginList, async () => {
     return await hostService.list()
   })
 
   defineInvokeHandler(context, electronPluginPrepareDirectoryImport, async (_, invokeOptions) => {
+    const event = requireExtensionManagementEvent(invokeOptions, options.getExtensionManagementWebContentsId)
     const dialogOptions: OpenDialogOptions = {
       properties: ['openDirectory'],
       securityScopedBookmarks: true,
     }
-    const ownerWindow = invokeOptions?.raw?.ipcMainEvent
-      ? BrowserWindow.fromWebContents(invokeOptions.raw.ipcMainEvent.sender)
-      : null
-    const selection = ownerWindow
-      ? await dialog.showOpenDialog(ownerWindow, dialogOptions)
-      : await dialog.showOpenDialog(dialogOptions)
+    const ownerWindow = BrowserWindow.fromWebContents(event.sender)
+    if (!ownerWindow) {
+      throw new Error('The Extension management window is no longer available.')
+    }
+    const selection = await dialog.showOpenDialog(ownerWindow, dialogOptions)
     const sourcePath = selection.filePaths[0]
     if (selection.canceled || !sourcePath) {
       return { status: 'cancelled' as const }
     }
 
+    const plan = await hostService.prepareDirectoryImport(sourcePath, selection.bookmarks?.[0])
+    directoryImportPlanOwners.set(plan.planId, event.sender.id)
     return {
       status: 'ready' as const,
-      plan: await hostService.prepareDirectoryImport(sourcePath, selection.bookmarks?.[0]),
+      plan,
     }
   })
 
-  defineInvokeHandler(context, electronPluginCommitDirectoryImport, async ({ planId }) => {
-    return await hostService.commitDirectoryImport(planId)
+  defineInvokeHandler(context, electronPluginCommitDirectoryImport, async ({ planId }, invokeOptions) => {
+    const event = requireExtensionManagementEvent(invokeOptions, options.getExtensionManagementWebContentsId)
+    assertImportPlanOwner(directoryImportPlanOwners, planId, event.sender.id)
+    const snapshot = await hostService.commitDirectoryImport(planId)
+    directoryImportPlanOwners.delete(planId)
+    return snapshot
   })
 
-  defineInvokeHandler(context, electronPluginCancelDirectoryImport, async ({ planId }) => {
+  defineInvokeHandler(context, electronPluginCancelDirectoryImport, async ({ planId }, invokeOptions) => {
+    const event = requireExtensionManagementEvent(invokeOptions, options.getExtensionManagementWebContentsId)
+    assertImportPlanOwner(directoryImportPlanOwners, planId, event.sender.id)
     hostService.cancelDirectoryImport(planId)
+    directoryImportPlanOwners.delete(planId)
   })
 
   defineInvokeHandler(context, electronPluginSetEnabled, async (payload) => {
