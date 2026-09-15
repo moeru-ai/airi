@@ -842,6 +842,18 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
   return getDefinedProvider(providerId)?.capabilities?.speech?.transport
 }
 
+// Live bidirectional-ws sessions opened through this factory, for every
+// speaker (chat replies, spark reactions, plugin text). The streaming
+// adapter bypasses speechPipeline and owns its upstream WebSocket alone:
+// `speechPipeline.stopAll` / `playbackManager.stopAll` purge scheduled
+// items but cannot close the socket, and `schedule()` keeps accepting
+// sentences a still-open socket delivers. `currentSession` only
+// references the chat session, so non-chat speakers (spark reactions)
+// would survive an interrupt and keep feeding stale audio. Cancel the
+// previous sessions explicitly before an interrupt/replace opens the
+// next one; each session removes itself on terminal onDone/onError.
+const liveStreamingSessions = new Set<StageTtsSession>()
+
 function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsSession {
   const { turnId, flushBoundaries, priority = 'normal', behavior = 'queue', ownerId = activeCardId.value } = options
 
@@ -849,8 +861,16 @@ function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsS
   // pre-open teardown a new chat message performs, without touching the
   // chat turn bookkeeping (activeSpeechTurnId) owned by the chat hooks.
   if (behavior === 'interrupt' || behavior === 'replace') {
-    currentSession?.cancel(behavior)
+    const interruptingSession = currentSession
+    interruptingSession?.cancel(behavior)
     currentSession = null
+    // Close upstream WebSockets that playback/pipeline teardown cannot
+    // reach. The chat session is tracked too; skip it — cancelled above.
+    for (const previous of liveStreamingSessions) {
+      if (previous !== interruptingSession)
+        previous.cancel(behavior)
+    }
+    liveStreamingSessions.clear()
     speechPipeline.stopAll(behavior)
     playbackManager.stopAll(behavior)
   }
@@ -865,6 +885,11 @@ function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsS
   const clearIfActive = () => {
     if (session && currentSession === session && session.intentId.startsWith('stream-'))
       currentSession = null
+  }
+  // Terminal hooks fire asynchronously, after `session` is assigned.
+  const untrackSession = () => {
+    if (session)
+      liveStreamingSessions.delete(session)
   }
   session = createStageTtsSession<AudioBuffer>({
     transport: resolveSpeechTransport(activeSpeechProvider.value),
@@ -896,6 +921,7 @@ function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsS
         // translation flush once audio actually stops — immediately when the
         // session produced no audio at all. Flushing here would dump
         // subtitles while queued audio is still playing.
+        untrackSession()
         clearIfActive()
       },
       onSentenceBoundary: () => {
@@ -911,6 +937,7 @@ function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsS
         // Stream closed, but scheduled audio may still be playing. The
         // playback intent-drained event performs the final flush once audio
         // actually finishes, so nothing is dumped early here.
+        untrackSession()
         clearIfActive()
       },
     },
@@ -919,6 +946,8 @@ function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsS
   // translation captions align on the bidirectional-ws transport too.
   // Segmenter items already carry the turnId and this mapping is simply
   // unused for them.
+  if (session.intentId.startsWith('stream-'))
+    liveStreamingSessions.add(session)
   bilingualCaptionBus.mapIntentToTurn(session.intentId, turnId)
   return session
 }
@@ -1183,10 +1212,15 @@ onUnmounted(() => {
   // Tear down any in-flight TTS session (segmenter or streaming) and
   // drain playback. Without this, a still-open streaming ws keeps
   // feeding sentences into a playbackManager whose listeners still
-  // mutate component refs (caption / nowSpeaking). Codex review: HIGH
-  // #1 + MEDIUM #5.
+  // mutate component refs (caption / nowSpeaking). currentSession only
+  // covers chat; liveStreamingSessions also closes non-chat speakers
+  // (spark reactions) whose sockets playback/pipeline teardown cannot
+  // reach.
   currentSession?.cancel('unmount')
   currentSession = null
+  for (const session of liveStreamingSessions)
+    session.cancel('unmount')
+  liveStreamingSessions.clear()
   playbackManager.stopAll('unmount')
 })
 
