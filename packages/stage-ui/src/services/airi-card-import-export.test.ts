@@ -45,6 +45,7 @@ describe('airi card package import/export', () => {
     expect(airi.modules).not.toHaveProperty('activeBackgroundId')
     expect(airi.modules.artistry).not.toHaveProperty('workflowId')
     expect(airi.agents).toEqual({})
+    expect(airi.tools).toEqual({ allowed: ['builtIn_mcpListTools', 'play_chess'] })
     expect(displayModelsStore.addDisplayModel).toHaveBeenCalledWith(DisplayModelFormat.VRM, expect.objectContaining({ name: 'AvatarSample_A.vrm' }))
     expect(airiFrom(imported).modules.displayModelId).toBe('display-model-imported')
   })
@@ -53,6 +54,7 @@ describe('airi card package import/export', () => {
     const displayModelsStore = useDisplayModelsStore()
     const source = exportToJSON(createCard('preset-live2d-1'))
     source.data.extensions.third_party = { token: 'do-not-import' }
+    ;(source.data.extensions.airi as AiriExtension).tools = { allowed: [42] as unknown as string[] }
 
     const imported = await importAiriCardPackage({
       file: await packageFile(source),
@@ -72,6 +74,8 @@ describe('airi card package import/export', () => {
     expect(imported.data.extensions).not.toHaveProperty('third_party')
     expect(airi.modules).not.toHaveProperty('activeBackgroundId')
     expect(airi.modules.artistry).not.toHaveProperty('workflowId')
+    // Invalid allowlist shapes are dropped instead of imported.
+    expect(airi.tools).toBeUndefined()
     expect(airi.agents).toEqual({})
   })
 
@@ -162,6 +166,7 @@ function createCard(displayModelId = 'preset-vrm-1'): AiriCard {
           artistry: { provider: 'replicate', model: 'flux', workflowId: 'workflow-secret' },
         },
         agents: { minecraft: { prompt: 'secret', enabled: true } },
+        tools: { allowed: ['builtIn_mcpListTools', 'play_chess'] },
       },
     },
   }
