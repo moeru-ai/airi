@@ -139,7 +139,7 @@ describe('steam auth plugin', () => {
     expect(account).not.toBeNull()
     const user = await context.internalAdapter.findUserById(account!.userId)
     expect(user?.email).toBe(`${STEAM_ID}@steam.placeholder.local`)
-    expect(user?.emailVerified).toBe(true)
+    expect(user?.emailVerified).toBe(false)
 
     const { response: secondStart, headers: secondStartHeaders } = await auth.api.signInSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
