@@ -423,6 +423,7 @@ export async function setupExtensionHostServiceInternal(
 
       log.withFields({ extensionId }).log('stopping extension whose manifest disappeared')
       await unloadExtensionById(extensionId)
+      options.onExtensionStopped?.(extensionId)
     }
   }
 

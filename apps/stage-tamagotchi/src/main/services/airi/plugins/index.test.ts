@@ -586,7 +586,7 @@ describe('setupExtensionHost', () => {
     const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
     const invokeUnload = defineInvoke(contextState.lastContext!, electronPluginUnload)
 
-    const readEvaluations = () => (globalThis as unknown as Record<string, number | undefined>)[markerKey]
+    const readEvaluations = () => Reflect.get(globalThis, markerKey) as number | undefined
 
     try {
       await invokeSetEnabled({ extensionId: 'test-manual-reload', enabled: true })
@@ -606,7 +606,7 @@ describe('setupExtensionHost', () => {
       expect(readEvaluations()).toBe(2)
     }
     finally {
-      delete (globalThis as unknown as Record<string, number | undefined>)[markerKey]
+      Reflect.deleteProperty(globalThis, markerKey)
     }
   })
 
@@ -630,6 +630,12 @@ describe('setupExtensionHost', () => {
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
     const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
     const invokeList = defineInvoke(contextState.lastContext!, electronPluginList)
+    const toolsChangedEvents: Array<{ reason: string, extensionId?: string }> = []
+    contextState.lastContext!.on(electronPluginToolsChanged, (event) => {
+      if (event.body) {
+        toolsChangedEvents.push(event.body)
+      }
+    })
 
     await invokeSetEnabled({ extensionId: 'test-deleted-plugin', enabled: true })
     await invokeLoad({ extensionId: 'test-deleted-plugin' })
@@ -648,6 +654,12 @@ describe('setupExtensionHost', () => {
 
     expect(snapshot.plugins.find(plugin => plugin.extensionId === 'test-deleted-plugin')).toBeUndefined()
     expect(service.host.listSessions()).toHaveLength(0)
+    // Renderers refresh cached tools from this event, so reconciliation
+    // unloads must emit it like explicit unloads do.
+    expect(toolsChangedEvents).toContainEqual({
+      reason: 'unloaded',
+      extensionId: 'test-deleted-plugin',
+    })
   })
 
   it('loads the first matching manifest when duplicate plugin names exist', async () => {
