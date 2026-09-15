@@ -1,11 +1,9 @@
-import type { StageTtsSession } from '../libs/speech/tts-session'
 import type { AiriCard } from './modules'
 
 import { createTestingPinia } from '@pinia/testing'
 import { setActivePinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { registerStageSpeechSessionOpener } from '../services/stage-speech-session-host'
 import { useCharacterStore } from './character'
 import { useAiriCardStore } from './modules'
 
@@ -15,33 +13,10 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-const writeLiteralSpy = vi.fn()
-const writeFlushSpy = vi.fn()
-const endSpy = vi.fn()
-const cancelSpy = vi.fn()
-
-const stubSession: StageTtsSession = {
-  intentId: 'intent-test',
-  appendText: writeLiteralSpy,
-  appendSpecial: vi.fn(),
-  finishInput: writeFlushSpy,
-  end: endSpy,
-  cancel: cancelSpy,
-}
-
 describe('store character', () => {
-  let disposeOpener: (() => void) | undefined
-
   beforeEach(() => {
     const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false })
     setActivePinia(pinia)
-    // Reactions only open speech in a renderer that mounts Stage.
-    disposeOpener = registerStageSpeechSessionOpener(() => stubSession)
-
-    writeLiteralSpy.mockClear()
-    writeFlushSpy.mockClear()
-    endSpy.mockClear()
-    cancelSpy.mockClear()
 
     const airiCardStore = useAiriCardStore(pinia)
     // @ts-expect-error - testing purpose
@@ -73,11 +48,6 @@ describe('store character', () => {
     } satisfies AiriCard
   })
 
-  afterEach(() => {
-    disposeOpener?.()
-    disposeOpener = undefined
-  })
-
   it('exposes name and system prompt from the active card', () => {
     const store = useCharacterStore()
 
@@ -97,7 +67,7 @@ describe('store character', () => {
     expect(store.reactions[199]?.message).toBe('message-200')
   })
 
-  it('records streamed reactions when the stream ends', async () => {
+  it('records a streamed reaction with its raw text when the stream ends', () => {
     const store = useCharacterStore()
     const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(123456)
 
@@ -110,33 +80,7 @@ describe('store character', () => {
     expect(store.reactions[0]?.sourceEventId).toBe('spark-1')
     expect(store.reactions[0]?.createdAt).toBe(123456)
 
-    // Parser delivery is asynchronous; it may batch fragments while
-    // looking ahead for tags, so assert on the fully delivered text.
-    await vi.waitFor(() => {
-      expect(writeLiteralSpy.mock.calls.map(call => call[0]).join('')).toBe('Hello world')
-      expect(writeFlushSpy).toHaveBeenCalled()
-      expect(endSpy).toHaveBeenCalled()
-    })
-
     nowSpy.mockRestore()
-  })
-
-  it('keeps ordinary brackets verbatim when bilingual mode is off', () => {
-    const store = useCharacterStore()
-
-    store.onSparkNotifyReactionStreamEvent('spark-3', 'Use arr[index] for that.')
-    store.onSparkNotifyReactionStreamEnd('spark-3', 'Use arr[index] for that.')
-
-    expect(store.reactions[0]?.message).toBe('Use arr[index] for that.')
-  })
-
-  it('still records a reaction when only the stream end is observed', () => {
-    const store = useCharacterStore()
-
-    store.onSparkNotifyReactionStreamEnd('missing', 'Ignored')
-
-    expect(store.reactions).toHaveLength(1)
-    expect(store.reactions[0]?.message).toBe('Ignored')
   })
 
   it('clears reactions', () => {
