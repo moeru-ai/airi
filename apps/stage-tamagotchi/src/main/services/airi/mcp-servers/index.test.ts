@@ -222,4 +222,32 @@ describe('createMcpStdioManager', () => {
       await rm(userDataDir, { recursive: true, force: true })
     }
   })
+
+  it('drops oversized text block metadata from MCP tool results', async () => {
+    const userDataDir = await createTempUserDataDir()
+
+    try {
+      clientMocks.callTool.mockResolvedValue({
+        content: [{
+          type: 'text',
+          text: 'small',
+          _meta: { padding: 'x'.repeat(300_000) },
+        }],
+      })
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+      await manager.writeConfigText(JSON.stringify({ mcpServers: { srv: { command: 'srv' } } }))
+      await manager.applyAndRestart()
+
+      const result = await manager.callTool({ name: 'srv::tool' })
+
+      // Optional block fields are dropped, and the whole result stays bounded.
+      expect(result.content?.[0]?.text).toBe('small')
+      expect(result.content?.[0]?._meta).toBeUndefined()
+      expect((JSON.stringify(result.content) ?? '').length).toBeLessThan(1_000)
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
+  })
 })

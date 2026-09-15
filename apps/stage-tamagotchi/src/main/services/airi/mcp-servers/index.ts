@@ -71,6 +71,8 @@ const mcpToolDescriptorMaxChars = 50_000
 const mcpToolListTotalMaxChars = 1_000_000
 const mcpToolResultMaxChars = 200_000
 const mcpToolResultMaxItems = 50
+const mcpToolResultTruncationSuffix = '\n[truncated by AIRI: result content was cut to fit the size budget]'
+const mcpTextBlockOverheadChars = JSON.stringify({ type: 'text', text: '' }).length
 
 function stringifyError(error: unknown) {
   if (error instanceof Error) {
@@ -109,9 +111,35 @@ function boundMcpToolResult(result: ElectronMcpCallToolResult): ElectronMcpCallT
 
       const text = typeof item.text === 'string' ? item.text : undefined
       if (item.type === 'text' && text !== undefined) {
-        const boundedText = truncateText(text, remaining)
-        items.push({ ...item, text: boundedText })
-        remaining -= boundedText.length
+        // Drop optional block fields such as `_meta` and charge the serialized
+        // block, because extra fields can exceed the budget on their own.
+        const maxTextChars = Math.max(0, remaining - mcpTextBlockOverheadChars)
+        let boundedText = text.slice(0, maxTextChars)
+        if (boundedText.length < text.length) {
+          // Reserve room for the marker so the model knows the content was cut.
+          const suffixBudget = Math.max(0, maxTextChars - mcpToolResultTruncationSuffix.length)
+          let withSuffixText = `${text.slice(0, suffixBudget)}${mcpToolResultTruncationSuffix}`
+          let withSuffixChars = JSON.stringify({ type: 'text', text: withSuffixText })?.length ?? 0
+          if (withSuffixChars > remaining) {
+            // JSON escaping can add characters; trim the overflow before the
+            // final budget check.
+            const overflow = withSuffixChars - remaining
+            withSuffixText = `${text.slice(0, Math.max(0, suffixBudget - overflow))}${mcpToolResultTruncationSuffix}`
+            withSuffixChars = JSON.stringify({ type: 'text', text: withSuffixText })?.length ?? 0
+          }
+          if (withSuffixChars <= remaining) {
+            boundedText = withSuffixText
+          }
+        }
+
+        const textBlock = { type: 'text', text: boundedText }
+        const textBlockChars = JSON.stringify(textBlock)?.length ?? 0
+        if (textBlockChars > remaining) {
+          break
+        }
+
+        items.push(textBlock)
+        remaining -= textBlockChars
         continue
       }
 
