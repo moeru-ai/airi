@@ -6,21 +6,6 @@ import type {
 
 import { defineInvokeEventa } from '@moeru/eventa'
 
-export type {
-  ExtensionDirectoryImportKitSummary,
-  ExtensionDirectoryImportPermissionSummary,
-  ExtensionDirectoryImportPlan,
-  ExtensionDirectoryImportPrepareResult,
-  PluginCapabilityState,
-  PluginHostDebugSnapshot,
-  PluginHostKitCapabilitySummary,
-  PluginHostKitSummary,
-  PluginHostModuleSummary,
-  PluginHostSessionSummary,
-  PluginManifestSummary,
-  PluginRegistrySnapshot,
-} from '@proj-airi/stage-shared/plugin-host'
-
 /**
  * Window sizing metadata forwarded through plugin widget payloads.
  *

@@ -2,11 +2,11 @@ import type { Dirent } from 'node:fs'
 
 import type { useLogg } from '@guiiai/logg'
 import type { ExtensionManifestV2 } from '@proj-airi/plugin-sdk/plugin-host'
-
 import type {
   PluginManifestSummary,
   PluginRegistrySnapshot,
-} from '../../../../../shared/eventa/plugin/host'
+} from '@proj-airi/stage-shared/plugin-host'
+
 import type { ExtensionConfig, ManifestEntry } from '../types'
 
 import { mkdir, readdir, readFile, realpath, stat } from 'node:fs/promises'

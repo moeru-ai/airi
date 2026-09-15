@@ -2,8 +2,6 @@ import type { PluginCapabilityState } from '@proj-airi/stage-shared/plugin-host'
 
 import { defineInvokeEventa } from '@moeru/eventa'
 
-export type { PluginCapabilityState } from '@proj-airi/stage-shared/plugin-host'
-
 /**
  * Plugin capability state change payload reported by renderer or plugin code.
  *

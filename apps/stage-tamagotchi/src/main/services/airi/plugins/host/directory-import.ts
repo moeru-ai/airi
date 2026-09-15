@@ -1,12 +1,12 @@
 import type { Stats } from 'node:fs'
 
 import type { ExtensionManifestV2 } from '@proj-airi/plugin-sdk/plugin-host'
-
 import type {
   ExtensionDirectoryImportKitSummary,
   ExtensionDirectoryImportPermissionSummary,
   ExtensionDirectoryImportPlan,
-} from '../../../../../shared/eventa/plugin/host'
+} from '@proj-airi/stage-shared/plugin-host'
+
 import type { ManifestEntry } from '../types'
 
 import { Buffer } from 'node:buffer'

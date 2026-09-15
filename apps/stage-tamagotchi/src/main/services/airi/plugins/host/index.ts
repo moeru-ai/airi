@@ -1,10 +1,10 @@
 import type { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
-
 import type {
   ExtensionDirectoryImportPlan,
   PluginHostDebugSnapshot,
   PluginRegistrySnapshot,
-} from '../../../../../shared/eventa/plugin/host'
+} from '@proj-airi/stage-shared/plugin-host'
+
 import type {
   ExtensionAssetCookie,
   ExtensionAssetSession,
