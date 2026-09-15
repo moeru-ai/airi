@@ -100,7 +100,6 @@ watchDebounced([
   appId,
 ], loadVoicesWhenConfigured, {
   debounce: 500,
-  immediate: true,
 })
 </script>
 
