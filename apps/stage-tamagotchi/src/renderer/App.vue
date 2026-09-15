@@ -41,7 +41,6 @@ import {
   electronGodotStageGetStatus,
   electronGodotStageStatusChanged,
   electronSettingsNavigate,
-  electronStartTrackMousePosition,
   i18nGetLocale,
   i18nSetLocale,
 } from '../shared/eventa'
@@ -164,7 +163,6 @@ function createFullStageRuntime() {
   const loadPlugin = useElectronEventaInvoke(electronPluginLoad)
   const unloadPlugin = useElectronEventaInvoke(electronPluginUnload)
   const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
-  const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMousePosition)
   const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
   const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
@@ -286,7 +284,6 @@ function createFullStageRuntime() {
       contextBridgeStore.initialize()
       if (!isWidgetsWindow) {
         characterOrchestratorStore.initialize()
-        await startTrackingCursorPoint()
       }
 
       defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
