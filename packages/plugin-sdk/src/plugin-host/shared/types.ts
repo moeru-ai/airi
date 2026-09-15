@@ -17,6 +17,7 @@ import {
   finite,
   lazy,
   literal,
+  maxLength,
   minLength,
   minValue,
   null_,
@@ -363,7 +364,12 @@ const extensionIdSchema = pipe(
   string(),
   trim(),
   minLength(1),
+  maxLength(255, 'Use at most 255 ASCII characters for an Extension id.'),
   regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/, 'Use a file-safe lowercase Extension id.'),
+  check(
+    id => !/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/.test(id),
+    'Do not use a Windows reserved device name as an Extension id.',
+  ),
 )
 const manifestEntrypointsSchema = pipe(
   strictObject({

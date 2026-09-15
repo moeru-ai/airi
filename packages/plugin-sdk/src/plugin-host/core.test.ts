@@ -123,6 +123,54 @@ describe('extension manifest schema', () => {
     expect(result.success).toBe(false)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4014945385
+  it('rejects Extension ids longer than one portable folder component (PR #2506)', () => {
+    // ROOT CAUSE:
+    //
+    // The schema accepted an ID that exceeds the 255-byte component limit on
+    // common file systems. Folder import then failed with ENAMETOOLONG.
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'a'.repeat(256),
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4014945385
+  it('rejects Windows device names as Extension ids (PR #2506)', () => {
+    // ROOT CAUSE:
+    //
+    // Windows reserves device names even when a file extension follows them.
+    // The schema accepted these names as normal installation folders.
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'con.tools',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
   it('accepts extension-hosted kit declarations', () => {
     const manifest = {
       manifestVersion: 2,
