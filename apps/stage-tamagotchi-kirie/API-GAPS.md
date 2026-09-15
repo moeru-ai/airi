@@ -14,7 +14,7 @@ Model rendering, model assets, Live2D, VRM, and MMD are outside the current scop
 | GAP-006 | Controls Island and data settings | Click `Move to screen center` | Electron `windows:main:center` contract | Center the Godot host window on its current display | AIRI host context | Resolved | Phase 5 centering review approved |
 | GAP-007 | Window shortcut settings | Open the Spotlight shortcut page | Electron `windows:spotlight:shortcut:get` contract | Store the Spotlight shortcut and open its application window when the shortcut fires | AIRI window orchestration | Deferred | User-directed scope exclusion |
 | GAP-008 | Global shortcut devtools | Open the global shortcut page | Electron shortcut list, register, unregister, and trigger contracts | Manage renderer-owned shortcuts through the existing Kirie Platform shortcut API | AIRI host context | Resolved | Phase 5 global shortcuts review approved |
-| GAP-009 | Main renderer | Initialize the Stage window lifecycle store | Electron `window:get-lifecycle-state` and `window:lifecycle-changed` contracts | Read and observe the host window's visibility, focus, and minimized state | Kirie Platform and AIRI host context | Resolved | Phase 6 lifecycle review approved |
+| GAP-009 | Main renderer | Initialize the Stage window lifecycle store | Electron `window:get-lifecycle-state` and `window:lifecycle-changed` contracts | Read and observe the host window's visibility, focus, and minimized state | Kirie Platform and AIRI host context | Resolved | Local Kirie workspace and real CEF verified |
 | GAP-010 | Main renderer | Initialize the AIRI server channel | Electron server-channel configuration and lifecycle service | Own the AIRI server lifecycle outside Kirie Platform | AIRI desktop service | Blocked | AIRI sidecar artifact decision required |
 | GAP-011 | Main renderer | Restore the saved locale | Electron `i18n:get-locale` and `i18n:set-locale` contracts | Use renderer storage in Kirie and keep the Electron fallback | AIRI host context | Resolved | Phase 6 locale review approved |
 | GAP-012 | Main renderer | Open onboarding when initial setup is incomplete | Electron `windows:onboarding:open` contract | Open one reusable native onboarding window with follower state and close it from its renderer | AIRI window orchestration | Resolved | Phase 6 onboarding review approved |
@@ -25,6 +25,10 @@ Model rendering, model assets, Live2D, VRM, and MMD are outside the current scop
 | GAP-017 | Controls Island | Start microphone capture | Browser `getUserMedia({ audio: true })` behind Electron's WebContents permission policy | Resolve only trusted, same-origin microphone requests and deny every other WebView permission | Kirie low-level WebView API and AIRI host policy | Blocked | Waiting for a real Godot CEF permission prompt |
 | GAP-018 | Controls Island | Enable fade on hover for the first time | Electron notice-window request and action contracts | Open the fade-on-hover tutorial in a native Godot window and return its confirmation result | AIRI window orchestration | Resolved | Real CEF runtime verified |
 | GAP-019 | Controls Island, onboarding, and account settings | Start or cancel account sign-in | Electron OIDC service with a temporary loopback callback listener | Run PKCE sign-in through the system browser and preserve the existing auth events | AIRI authentication service | Resolved | Real CEF and independent review approved |
+| GAP-020 | Main window | Render the Stage over the desktop | Electron creates a frameless transparent `BrowserWindow` | Preserve renderer alpha through CEF, the root viewport, and the native window | AIRI Godot project configuration | Resolved | Real Godot runtime and independent review approved |
+| GAP-021 | Settings pages | Open an external link | Electron forwards new-window requests to `shell.openExternal` | Open trusted HTTP and HTTPS links with the system browser | Kirie Platform and AIRI host context | Resolved | Local Kirie workspace and real CEF verified; code review pending |
+| GAP-022 | Data settings | Click `Open data folder` | Electron opens and returns its `userData` path | Open and return the current Godot application's data directory | Kirie Platform and AIRI host context | Resolved | Local Kirie workspace and real CEF verified; code review pending |
+| GAP-023 | Main renderer and plugin settings | Initialize plugin tools | Electron owns the Node.js plugin host and its workers | Discover extensions and run plugin tools outside Kirie Platform | AIRI desktop service | Blocked | AIRI sidecar artifact decision required |
 
 ## GAP-001 evidence
 
@@ -97,6 +101,8 @@ Model rendering, model assets, Live2D, VRM, and MMD are outside the current scop
 - Godot source: [Window 4.7 documentation](https://docs.godotengine.org/en/4.7/classes/class_window.html).
 - Sampling source: [SceneTree 4.7 `process_frame` signal](https://docs.godotengine.org/en/4.7/classes/class_scenetree.html#class-scenetree-signal-process-frame).
 - Resolved result: The initial snapshot reported a focused and visible window. Native minimize and restore actions emitted matching AIRI lifecycle reasons.
+- Development dependency: AIRI links the sibling Kirie TypeScript packages and .NET projects.
+- Runtime result: The renderer loaded the local lifecycle API without the former `onStateChanged is not a function` error.
 
 ## GAP-010 evidence
 
@@ -105,6 +111,7 @@ Model rendering, model assets, Live2D, VRM, and MMD are outside the current scop
 - Required result: AIRI owns its server configuration, process lifecycle, and errors outside Kirie Platform.
 - Contract result: Kirie can preserve the existing get-config, apply-config, and QR-payload Eventa contracts. No Kirie Core or Platform API is required.
 - Boundary finding: `@proj-airi/server-runtime` depends on Node.js listener and WebSocket APIs. The current Godot host does not embed Node.js, and AIRI does not publish a production sidecar with complete configuration, readiness, shutdown, and desktop packaging semantics.
+- Controls Island result: The connection-status button reuses the Settings window and navigates it to `/settings/connection`. The page then reproduces the same blocked desktop service through `server-channel:get-qr-payload`; opening Settings itself does not require another Kirie API.
 - Rejected workaround: Do not port the AIRI protocol to C#, bundle it into the browser renderer, or treat the workspace-only Node.js command as a production implementation.
 - Current decision: Block implementation until AIRI defines a supported sidecar artifact and control contract, or the product explicitly accepts a user-managed external server with reduced behavior.
 
@@ -182,3 +189,48 @@ Model rendering, model assets, Live2D, VRM, and MMD are outside the current scop
 - Configuration: The renderer sends its build-time server URL and client ID through the AIRI application context before login. The Godot host validates and uses that same configuration for authorization and token exchange.
 - Security source: [RFC 8252](https://www.rfc-editor.org/rfc/rfc8252.html) requires native apps to use an external user-agent and recommends PKCE and loopback redirects.
 - Verification: A real Controls Island click started the loopback listener and opened AIRI's sign-in page in the system browser. Focused tests verified successful callbacks, state rejection without consuming the listener, and relay CORS. The test did not enter account credentials or complete a live token exchange.
+
+## GAP-020 evidence
+
+- Input: Start the main Stage window with a transparent renderer background.
+- Original result: Kirie made the CEF background transparent, but the Godot root viewport and native window stayed opaque.
+- Required result: AIRI creates a frameless main window and preserves each transparent renderer pixel through the full native stack.
+- Kirie capability: The Godot CEF backend already uses `Color.TRANSPARENT` before it enters the scene tree.
+- Godot source: [ProjectSettings 4.7 documentation](https://docs.godotengine.org/en/4.7/classes/class_projectsettings.html#class-projectsettings-property-display-window-size-transparent).
+- Runtime result: Godot reported available per-pixel transparency, a transparent main window, a transparent root viewport, and a borderless main window.
+- Review result: The project settings affect only the main window. Existing auxiliary `Window` scenes keep their opaque default.
+
+## GAP-021 evidence
+
+- Input: Open an external settings link through `window.open()` or an anchor with `target="_blank"`.
+- Original result: Godot CEF returns `null` from `window.open()` and does not open a browser.
+- Godot CEF source: [Popup policy documentation](https://github.com/dsh0416/godot-cef/blob/v1.15.3/docs/api/properties.md#popup-policy).
+- Required result: AIRI sends trusted HTTP and HTTPS links to the user's system browser.
+- Kirie capability: The Platform working tree provides `openExternalUrl()` through the shared Eventa context and Godot's `OS.shell_open()`.
+- Kirie runtime result: The real Godot host opened the Kirie repository in the system Chrome browser and returned success to the example renderer.
+- Development dependency: AIRI links the sibling Kirie TypeScript packages and .NET projects.
+- AIRI integration: The Kirie renderer routes external HTTP and HTTPS links through `openExternalUrl()`.
+- Runtime result: A real `window.open()` request opened the AIRI repository in the system Chrome browser.
+- Review result: Awaiting user code review.
+
+## GAP-022 evidence
+
+- Input: Click **Open data folder** in desktop data settings.
+- Original result: The Kirie renderer returns before invoking any host capability. The button has no effect.
+- Required result: Open the current AIRI application data directory and return its absolute path.
+- Kirie capability: The Platform working tree provides `openApplicationDataDirectory()` through the shared Eventa context.
+- Godot source: [Godot 4.7 `OS.get_user_data_dir()`](https://docs.godotengine.org/en/4.7/classes/class_os.html#class-os-method-get-user-data-dir).
+- Kirie runtime result: The real Godot host opened the example's application data directory and returned its absolute path to the renderer.
+- Development dependency: AIRI links the sibling Kirie TypeScript packages and .NET projects.
+- AIRI integration: The data settings action calls `openApplicationDataDirectory()` in Kirie.
+- Runtime result: The real data settings button opened the `AIRI` application data directory in Finder.
+- Project identity: AIRI sets Godot's application name to `AIRI`, so the default project-specific data directory no longer uses `Kirie Basic`.
+- Review result: Awaiting user code review.
+
+## GAP-023 evidence
+
+- Input: Start the full Stage runtime in Kirie.
+- Original result: Godot reports the unregistered `eventa:invoke:electron:plugins:tools:list-xsai-send` request.
+- Required result: AIRI discovers installed extensions and runs their tools through the existing renderer contracts.
+- Boundary finding: The Electron plugin host uses Node.js files, paths, workers, and runtime loading. These capabilities do not belong in Kirie Platform.
+- Current decision: Block implementation until the AIRI sidecar owns plugin discovery, worker lifecycle, shutdown, and desktop packaging.

@@ -6,10 +6,23 @@ desktop capabilities. AIRI C# handlers own application services and windows.
 
 ## Setup
 
-Install workspace dependencies and check the local Godot environment:
+Clone `airi` and `godot-kirie` into the same parent directory. This project
+uses the local Kirie TypeScript packages and .NET projects during migration.
+
+Install dependencies in both repositories:
 
 ```sh
+cd ../godot-kirie
 mise x -- pnpm install
+
+cd ../airi
+mise x -- pnpm install
+```
+
+Check the local Godot environment from this project:
+
+```sh
+cd apps/stage-tamagotchi-kirie
 mise x -- pnpm kirie doctor
 ```
 
@@ -22,7 +35,7 @@ mise x -- pnpm kirie doctor --fix godot-cef
 Start a development session:
 
 ```sh
-mise x -- pnpm dev
+mise x -- pnpm kirie dev
 ```
 
 Build the web application into `src-web/dist`:
@@ -37,6 +50,11 @@ settings, chat, and notice renderers in separate native Godot windows with
 close-request behavior. See the
 [Godot Window documentation](https://docs.godotengine.org/en/4.7/classes/class_window.html)
 and [Viewport subwindow documentation](https://docs.godotengine.org/en/4.7/classes/class_viewport.html#class-viewport-property-gui-embed-subwindows).
+
+Godot owns the main Stage window transparency. `project.godot` enables a
+borderless transparent window, per-pixel transparency, and a transparent root
+viewport. Kirie supplies the transparent CEF background. See the
+[Godot 4.7 project settings](https://docs.godotengine.org/en/4.7/classes/class_projectsettings.html#class-projectsettings-property-display-window-per-pixel-transparency-allowed).
 
 Godot CEF uses its per-request signal policy for browser permissions. AIRI
 grants microphone requests only from the main renderer's exact origin. It

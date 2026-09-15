@@ -1,28 +1,18 @@
 <script setup lang="ts">
 import type { DataSettingsStatusEmits } from '@proj-airi/stage-pages/pages/settings/data/status'
 
-import { defineInvoke } from '@moeru/eventa'
-import { getHostEventaContext } from '@proj-airi/stage-host-context'
+import { useHostDesktopServices } from '@proj-airi/stage-host-context'
 import { createDataSettingsStatusHelpers } from '@proj-airi/stage-pages/pages/settings/data/status'
-import { isElectronWindow } from '@proj-airi/stage-shared'
 import { Button } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
-
-import { electronAppOpenUserDataFolder } from '../../../../../shared/eventa'
 
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
 const { handleActionError } = createDataSettingsStatusHelpers(emit)
 
 async function triggerOpenDesktopUserDataFolder() {
-  if (typeof window === 'undefined' || !isElectronWindow(window))
-    return
-
   try {
-    const context = getHostEventaContext()
-    const openUserDataFolder = defineInvoke(context, electronAppOpenUserDataFolder)
-
-    await openUserDataFolder()
+    await useHostDesktopServices().openApplicationDataDirectory()
   }
   catch (error) {
     handleActionError(error)
