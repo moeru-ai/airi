@@ -776,6 +776,7 @@ export class ExtensionHost {
 
   async start(manifest: ExtensionManifestV1, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
     const extension = await this.loader.loadExtensionFor(manifest, {
+      cacheBustKey: options.cacheBustKey,
       cwd: options.cwd,
       runtime: options.runtime,
     })

@@ -59,6 +59,14 @@ export interface ResolveLlmToolsOptions {
    * @default useLlmToolsStore().activeTools
    */
   activeTools?: Tool[]
+  /**
+   * Model-facing tool names the active character card allows.
+   *
+   * Omit the field, or pass an empty array, to keep every resolved tool. A
+   * non-empty list narrows the final tool set, so cards can keep large MCP
+   * catalogs away from small models that cannot handle the context.
+   */
+  allowedToolNames?: readonly string[]
 }
 
 /**
@@ -153,7 +161,7 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
     resolveCustomTools(options.customTools),
   ])
 
-  return uniqBy(
+  const resolved = uniqBy(
     [
       ...builtInTools,
       ...debugTools,
@@ -164,4 +172,14 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
     ].toReversed(),
     tool => toolNameFrom(tool) ?? tool,
   ).toReversed()
+
+  if (!options.allowedToolNames || options.allowedToolNames.length === 0) {
+    return resolved
+  }
+
+  const allowedNames = new Set(options.allowedToolNames)
+  return resolved.filter((tool) => {
+    const name = toolNameFrom(tool)
+    return name != null && allowedNames.has(name)
+  })
 }

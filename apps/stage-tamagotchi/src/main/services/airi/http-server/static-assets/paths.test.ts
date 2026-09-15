@@ -28,6 +28,14 @@ describe('static asset paths', () => {
     expect(normalizeStaticAssetPath('dist/../ui/index.html')).toBeUndefined()
   })
 
+  it('keeps encoded traversal and separators inside the asset path', () => {
+    // A double-encoded traversal must stay a literal path segment, and a
+    // single-encoded traversal or encoded separator must be rejected.
+    expect(normalizeStaticAssetPath('dist/%252e%252e/secret.txt')).toBe('dist/%2e%2e/secret.txt')
+    expect(normalizeStaticAssetPath('dist/%2e%2e/secret.txt')).toBeUndefined()
+    expect(normalizeStaticAssetPath('dist/safe%5C..%5Csecret.txt')).toBeUndefined()
+  })
+
   it('parses session-scoped mounted plugin request path and rejects malformed routes', () => {
     expect(parseStaticAssetRequestPath('/_airi/extensions/airi-plugin-game-chess/sessions/asset-session-1/ui/dist/ui/index.html')).toEqual({
       extensionId: 'airi-plugin-game-chess',

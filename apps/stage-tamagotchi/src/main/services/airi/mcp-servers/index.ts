@@ -1,4 +1,4 @@
-import type { createContext } from '@moeru/eventa/adapters/electron/main'
+import type { createContext, ElectronMainEmitOptions } from '@moeru/eventa/adapters/electron/main'
 
 import type {
   ElectronMcpCallToolPayload,
@@ -14,7 +14,9 @@ import type {
   ElectronMcpToolDescriptor,
 } from '../../../../shared/eventa'
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import process from 'node:process'
+
+import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
@@ -62,6 +64,15 @@ const toolNameSeparator = '::'
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
 const mcpTestStderrMaxChars = 16_000
+const mcpConfigFileMode = 0o600
+const mcpListToolsMaxPerServer = 200
+const mcpToolDescriptionMaxChars = 2_000
+const mcpToolDescriptorMaxChars = 50_000
+const mcpToolListTotalMaxChars = 1_000_000
+const mcpToolResultMaxChars = 200_000
+const mcpToolResultMaxItems = 50
+const mcpToolResultTruncationSuffix = '\n[truncated by AIRI: result content was cut to fit the size budget]'
+const mcpTextBlockOverheadChars = JSON.stringify({ type: 'text', text: '' }).length
 
 function stringifyError(error: unknown) {
   if (error instanceof Error) {
@@ -71,8 +82,134 @@ function stringifyError(error: unknown) {
   return String(error)
 }
 
+function truncateText(value: string, maxChars: number) {
+  if (value.length <= maxChars) {
+    return value
+  }
+
+  return `${value.slice(0, maxChars)}\n[truncated by AIRI: content exceeded ${maxChars} characters]`
+}
+
+/**
+ * Bounds one MCP tool result before it reaches the renderer or the model.
+ *
+ * MCP servers are separate processes and can fail or misbehave. Without a cap,
+ * one server could grow AIRI memory and the model context without limit.
+ */
+function boundMcpToolResult(result: ElectronMcpCallToolResult): ElectronMcpCallToolResult {
+  const bounded: ElectronMcpCallToolResult = { ...result }
+  const content = bounded.content
+
+  if (content) {
+    const items: Array<Record<string, unknown>> = []
+    let remaining = mcpToolResultMaxChars
+
+    for (const item of content) {
+      if (items.length >= mcpToolResultMaxItems || remaining <= 0) {
+        break
+      }
+
+      const text = typeof item.text === 'string' ? item.text : undefined
+      if (item.type === 'text' && text !== undefined) {
+        // Drop optional block fields such as `_meta` and charge the serialized
+        // block, because extra fields can exceed the budget on their own.
+        const maxTextChars = Math.max(0, remaining - mcpTextBlockOverheadChars)
+        let boundedText = text.slice(0, maxTextChars)
+        if (boundedText.length < text.length) {
+          // Reserve room for the marker so the model knows the content was cut.
+          const suffixBudget = Math.max(0, maxTextChars - mcpToolResultTruncationSuffix.length)
+          let withSuffixText = `${text.slice(0, suffixBudget)}${mcpToolResultTruncationSuffix}`
+          let withSuffixChars = JSON.stringify({ type: 'text', text: withSuffixText })?.length ?? 0
+          if (withSuffixChars > remaining) {
+            // JSON escaping can add characters; trim the overflow before the
+            // final budget check.
+            const overflow = withSuffixChars - remaining
+            withSuffixText = `${text.slice(0, Math.max(0, suffixBudget - overflow))}${mcpToolResultTruncationSuffix}`
+            withSuffixChars = JSON.stringify({ type: 'text', text: withSuffixText })?.length ?? 0
+          }
+          if (withSuffixChars <= remaining) {
+            boundedText = withSuffixText
+          }
+        }
+
+        const textBlock = { type: 'text', text: boundedText }
+        const textBlockChars = JSON.stringify(textBlock)?.length ?? 0
+        if (textBlockChars > remaining) {
+          break
+        }
+
+        items.push(textBlock)
+        remaining -= textBlockChars
+        continue
+      }
+
+      const serializedLength = JSON.stringify(item)?.length ?? 0
+      if (serializedLength > remaining) {
+        break
+      }
+
+      items.push(item)
+      remaining -= serializedLength
+    }
+
+    if (items.length < content.length) {
+      items.push({
+        type: 'text',
+        text: `[truncated by AIRI: this result exceeded ${mcpToolResultMaxChars} characters or ${mcpToolResultMaxItems} items]`,
+      })
+    }
+
+    bounded.content = items
+  }
+
+  if (bounded.toolResult !== undefined && (JSON.stringify(bounded.toolResult)?.length ?? 0) > mcpToolResultMaxChars) {
+    delete bounded.toolResult
+  }
+  if (bounded.structuredContent && (JSON.stringify(bounded.structuredContent)?.length ?? 0) > mcpToolResultMaxChars) {
+    delete bounded.structuredContent
+  }
+
+  return bounded
+}
+
 function getConfigPath() {
   return join(app.getPath('userData'), 'mcp.json')
+}
+
+/**
+ * Writes the MCP config with owner-only permissions.
+ *
+ * The file can hold API keys in `env`, so it must not stay group or world
+ * readable on POSIX systems. `chmod` also tightens files created by older
+ * builds, because `mode` only applies when `writeFile` creates the file.
+ */
+async function writeConfigFile(path: string, contents: string) {
+  await writeFile(path, contents, { mode: mcpConfigFileMode })
+  if (process.platform !== 'win32') {
+    await chmod(path, mcpConfigFileMode)
+  }
+}
+
+/**
+ * Rejects MCP IPC commands that do not come from an app window main frame.
+ *
+ * Every app window shares the preload IPC bridge, while sandboxed plugin
+ * iframes have no bridge at all. This guard keeps subframes and foreign frames
+ * out of the MCP read, write, and process-spawn operations.
+ */
+function assertTrustedMcpSender(options: { raw?: ElectronMainEmitOptions['raw'] } | undefined) {
+  const event = options?.raw?.ipcMainEvent
+  if (!event) {
+    // In-memory contexts carry no IPC frame; only tests use them.
+    return
+  }
+
+  const frame = event.senderFrame
+  // Only the top frame of an app window may drive MCP. `parent` is null for a
+  // main frame; subframes and disposed frames are rejected.
+  if (!frame || frame.parent !== null) {
+    throw new Error('Rejected MCP command from an untrusted frame.')
+  }
 }
 
 function parseQualifiedToolName(name: string) {
@@ -131,7 +268,19 @@ export function createMcpStdioManager(): McpStdioManager {
       await readFile(path, 'utf-8')
     }
     catch {
-      await writeFile(path, `${JSON.stringify(defaultMcpConfig, null, 2)}\n`)
+      await writeConfigFile(path, `${JSON.stringify(defaultMcpConfig, null, 2)}\n`)
+      return { path }
+    }
+
+    // Files created by older builds can stay world readable. Tighten them here
+    // as well, because a read path never calls `writeConfigFile`.
+    if (process.platform !== 'win32') {
+      try {
+        await chmod(path, mcpConfigFileMode)
+      }
+      catch (error) {
+        log.withError(error).withFields({ path }).warn('failed to tighten mcp config permissions')
+      }
     }
 
     return { path }
@@ -257,13 +406,29 @@ export function createMcpStdioManager(): McpStdioManager {
           timeout: mcpRequestTimeoutMsec,
           maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
         })
-        return response.tools.map<ElectronMcpToolDescriptor>(item => ({
-          serverName,
-          name: `${serverName}${toolNameSeparator}${item.name}`,
-          toolName: item.name,
-          description: item.description,
-          inputSchema: item.inputSchema,
-        }))
+        const descriptors: ElectronMcpToolDescriptor[] = []
+
+        for (const item of response.tools.slice(0, mcpListToolsMaxPerServer)) {
+          const descriptor = {
+            serverName,
+            name: `${serverName}${toolNameSeparator}${item.name}`,
+            toolName: item.name,
+            description: item.description ? truncateText(item.description, mcpToolDescriptionMaxChars) : item.description,
+            inputSchema: item.inputSchema,
+          } satisfies ElectronMcpToolDescriptor
+
+          // Names and input schemas are unbounded server output too, so bound
+          // each descriptor before it leaves this server.
+          const descriptorChars = JSON.stringify(descriptor)?.length ?? 0
+          if (descriptorChars > mcpToolDescriptorMaxChars) {
+            log.withFields({ serverName, toolName: item.name }).warn('skipping mcp tool with oversized descriptor')
+            continue
+          }
+
+          descriptors.push(descriptor)
+        }
+
+        return descriptors
       }
       catch (error) {
         log.withFields({ serverName }).withError(error).warn('failed to list tools from mcp server')
@@ -271,7 +436,22 @@ export function createMcpStdioManager(): McpStdioManager {
       }
     }))
 
-    return listResult.flat()
+    // Apply the total budget across every server. A per-server budget would
+    // multiply with the number of configured servers.
+    const bounded: ElectronMcpToolDescriptor[] = []
+    let totalChars = 0
+    for (const descriptor of listResult.flat()) {
+      const descriptorChars = JSON.stringify(descriptor)?.length ?? 0
+      if (totalChars + descriptorChars > mcpToolListTotalMaxChars) {
+        log.warn('mcp tool list reached the total size budget')
+        break
+      }
+
+      bounded.push(descriptor)
+      totalChars += descriptorChars
+    }
+
+    return bounded
   }
 
   const callTool = async (payload: ElectronMcpCallToolPayload): Promise<ElectronMcpCallToolResult> => {
@@ -326,7 +506,7 @@ export function createMcpStdioManager(): McpStdioManager {
       normalized.toolResult = result.toolResult
     }
 
-    return normalized
+    return boundMcpToolResult(normalized)
   }
 
   const getRuntimeStatus = (): ElectronMcpStdioRuntimeStatus => {
@@ -347,7 +527,7 @@ export function createMcpStdioManager(): McpStdioManager {
     const { path } = await ensureConfigFile()
     const validated = parseElectronMcpConfigText(text)
     const normalized = `${JSON.stringify(validated, null, 2)}\n`
-    await writeFile(path, normalized)
+    await writeConfigFile(path, normalized)
     return { path, text: normalized }
   }
 
@@ -459,35 +639,43 @@ export async function setupMcpStdioManager() {
 }
 
 export function createMcpServersService(params: { context: ReturnType<typeof createContext>['context'], manager: McpStdioManager }) {
-  defineInvokeHandler(params.context, electronMcpOpenConfigFile, async () => {
+  defineInvokeHandler(params.context, electronMcpOpenConfigFile, async (_payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.openConfigFile()
   })
 
-  defineInvokeHandler(params.context, electronMcpApplyAndRestart, async () => {
+  defineInvokeHandler(params.context, electronMcpApplyAndRestart, async (_payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.applyAndRestart()
   })
 
-  defineInvokeHandler(params.context, electronMcpGetRuntimeStatus, async () => {
+  defineInvokeHandler(params.context, electronMcpGetRuntimeStatus, async (_payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.getRuntimeStatus()
   })
 
-  defineInvokeHandler(params.context, electronMcpListTools, async () => {
+  defineInvokeHandler(params.context, electronMcpListTools, async (_payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.listTools()
   })
 
-  defineInvokeHandler(params.context, electronMcpCallTool, async (payload) => {
+  defineInvokeHandler(params.context, electronMcpCallTool, async (payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.callTool(payload)
   })
 
-  defineInvokeHandler(params.context, electronMcpReadConfigText, async () => {
+  defineInvokeHandler(params.context, electronMcpReadConfigText, async (_payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.readConfigText()
   })
 
-  defineInvokeHandler(params.context, electronMcpWriteConfigText, async (payload) => {
+  defineInvokeHandler(params.context, electronMcpWriteConfigText, async (payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.writeConfigText(payload.text)
   })
 
-  defineInvokeHandler(params.context, electronMcpTestServer, async (payload) => {
+  defineInvokeHandler(params.context, electronMcpTestServer, async (payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.testServer(payload)
   })
 }

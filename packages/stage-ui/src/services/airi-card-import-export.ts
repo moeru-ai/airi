@@ -7,7 +7,7 @@ import type { AiriCard, AiriExtension } from '../types/airiCard'
 import JSZip from 'jszip'
 
 import { exportToJSON } from '@proj-airi/ccc'
-import { array, literal, object, optional, parse, picklist, record, string, unknown as unknownSchema } from 'valibot'
+import { array, literal, object, optional, parse, picklist, record, safeParse, string, unknown as unknownSchema } from 'valibot'
 
 import { DisplayModelFormat } from '../stores/display-models'
 
@@ -55,6 +55,10 @@ const characterCardV3Schema = object({
     post_history_instructions: optional(string(), ''),
     extensions: optional(record(string(), unknownSchema()), {}),
   }),
+})
+
+const airiToolsSchema = object({
+  allowed: optional(array(string())),
 })
 
 type CharacterCardPackageJson = InferOutput<typeof characterCardV3Schema>
@@ -220,6 +224,7 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
   const artistry = isRecord(modules.artistry) ? modules.artistry : {}
   const speech = isRecord(modules.speech) ? modules.speech : {}
   const displayModelId = displayModelIdOverride ?? stringValue(modules.displayModelId)
+  const tools = sanitizeAiriTools(source.tools)
 
   return {
     modules: {
@@ -242,7 +247,28 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
       },
     },
     agents: {},
+    ...(tools ? { tools } : {}),
   }
+}
+
+/**
+ * Keeps the card tool allowlist through export and import.
+ *
+ * The list gates which tools a card can use, so a shared card must keep it.
+ * Invalid shapes are dropped instead of throwing, because the sanitizer runs
+ * on untrusted package data.
+ */
+function sanitizeAiriTools(value: unknown): AiriExtension['tools'] {
+  if (!isRecord(value)) {
+    return undefined
+  }
+
+  const parsed = safeParse(airiToolsSchema, value)
+  if (!parsed.success || !parsed.output.allowed || parsed.output.allowed.length === 0) {
+    return undefined
+  }
+
+  return { allowed: parsed.output.allowed }
 }
 
 function providerModel(value: unknown) {

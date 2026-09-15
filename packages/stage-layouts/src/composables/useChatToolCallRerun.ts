@@ -3,6 +3,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import { errorMessageFrom } from '@moeru/std'
 import { resolveLlmTools } from '@proj-airi/stage-ui/stores/ai/chat-llm/tool-resolver'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { executeToolCallRerun } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 
 export interface ChatToolCallRerunEvent {
@@ -16,6 +17,7 @@ export interface ChatToolCallRerunEvent {
 
 export function useChatToolCallRerun() {
   const chatSession = useChatSessionStore()
+  const cardStore = useAiriCardStore()
 
   async function rerunToolCall(payload: ChatToolCallRerunEvent) {
     const sessionId = chatSession.activeSessionId
@@ -32,7 +34,10 @@ export function useChatToolCallRerun() {
           toolName: payload.toolName,
           args: payload.args,
         },
-        resolveTools: () => resolveLlmTools(),
+        resolveTools: () => resolveLlmTools({
+          // Keep the character card tool policy on web and mobile surfaces too.
+          allowedToolNames: cardStore.activeCard?.extensions?.airi?.tools?.allowed,
+        }),
       })
       chatSession.setSessionMessages(sessionId, nextMessages)
     }

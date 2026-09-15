@@ -1,3 +1,7 @@
+import { chmod, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const appMock = vi.hoisted(() => ({
@@ -10,6 +14,7 @@ const shellMock = vi.hoisted(() => ({
 }))
 
 const clientMocks = vi.hoisted(() => ({
+  callTool: vi.fn(),
   close: vi.fn(),
   connect: vi.fn(),
   listTools: vi.fn(),
@@ -37,6 +42,7 @@ vi.mock('../../../libs/bootkit/lifecycle', () => ({
 
 vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
   Client: class {
+    callTool = clientMocks.callTool
     close = clientMocks.close
     connect = clientMocks.connect
     listTools = clientMocks.listTools
@@ -57,11 +63,18 @@ vi.mock('@modelcontextprotocol/sdk/client/stdio.js', async () => {
   }
 })
 
+async function createTempUserDataDir() {
+  const userDataDir = await mkdtemp(join(tmpdir(), 'airi-mcp-'))
+  appMock.getPath.mockReturnValue(userDataDir)
+  return userDataDir
+}
+
 describe('createMcpStdioManager', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     appMock.getPath.mockReturnValue('/tmp/airi-user-data')
     appMock.getVersion.mockReturnValue('0.10.0')
+    clientMocks.callTool.mockReset()
     clientMocks.close.mockResolvedValue(undefined)
     clientMocks.listTools.mockResolvedValue({ tools: [] })
   })
@@ -85,5 +98,184 @@ describe('createMcpStdioManager', () => {
     expect(result.ok).toBe(false)
     expect(result.error).toContain('connect failed')
     expect(result.error).toContain('Missing required environment variable: API_KEY')
+  })
+
+  // NOTICE:
+  // Windows does not implement POSIX file modes, so this check runs on the
+  // Linux and macOS runners that enforce file permissions.
+  it.skipIf(process.platform === 'win32')('writes mcp.json with owner-only permissions', async () => {
+    const userDataDir = await mkdtemp(join(tmpdir(), 'airi-mcp-'))
+    appMock.getPath.mockReturnValue(userDataDir)
+
+    try {
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+
+      await manager.writeConfigText(JSON.stringify({ mcpServers: {} }))
+
+      const fileStats = await stat(join(userDataDir, 'mcp.json'))
+      expect(fileStats.mode & 0o777).toBe(0o600)
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
+  })
+
+  it.skipIf(process.platform === 'win32')('tightens permissions on an existing mcp.json', async () => {
+    const userDataDir = await createTempUserDataDir()
+
+    try {
+      const path = join(userDataDir, 'mcp.json')
+      await writeFile(path, JSON.stringify({ mcpServers: {} }), { mode: 0o644 })
+      await chmod(path, 0o644)
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+
+      await manager.ensureConfigFile()
+
+      const fileStats = await stat(path)
+      expect(fileStats.mode & 0o777).toBe(0o600)
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
+  })
+
+  it('caps MCP tool lists and descriptions', async () => {
+    const userDataDir = await createTempUserDataDir()
+
+    try {
+      clientMocks.listTools.mockResolvedValue({
+        tools: Array.from({ length: 250 }, (_, index) => ({
+          name: `tool-${index}`,
+          description: 'x'.repeat(5_000),
+          inputSchema: { type: 'object' },
+        })),
+      })
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+      await manager.writeConfigText(JSON.stringify({ mcpServers: { srv: { command: 'srv' } } }))
+      await manager.applyAndRestart()
+
+      const tools = await manager.listTools()
+
+      expect(tools).toHaveLength(200)
+      expect(tools[0]?.description ?? '').toContain('truncated by AIRI')
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
+  })
+
+  it('skips MCP tools with oversized descriptors', async () => {
+    const userDataDir = await createTempUserDataDir()
+
+    try {
+      clientMocks.listTools.mockResolvedValue({
+        tools: [
+          { name: 'normal-tool', description: 'ok', inputSchema: { type: 'object' } },
+          {
+            name: 'huge-schema-tool',
+            description: 'ok',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                data: { description: 'x'.repeat(80_000) },
+              },
+            },
+          },
+        ],
+      })
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+      await manager.writeConfigText(JSON.stringify({ mcpServers: { srv: { command: 'srv' } } }))
+      await manager.applyAndRestart()
+
+      const tools = await manager.listTools()
+
+      expect(tools.map(tool => tool.toolName)).toEqual(['normal-tool'])
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
+  })
+
+  it('enforces the MCP tool list budget across all servers', async () => {
+    const userDataDir = await createTempUserDataDir()
+
+    try {
+      clientMocks.listTools.mockResolvedValue({
+        tools: Array.from({ length: 200 }, (_, index) => ({
+          name: `tool-${index}`,
+          description: 'ok',
+          inputSchema: { type: 'object', properties: { data: { description: 'x'.repeat(40_000) } } },
+        })),
+      })
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+      await manager.writeConfigText(JSON.stringify({ mcpServers: { alpha: { command: 'alpha' }, beta: { command: 'beta' } } }))
+      await manager.applyAndRestart()
+
+      const tools = await manager.listTools()
+
+      // One shared budget, not one budget per server.
+      expect((JSON.stringify(tools) ?? '').length).toBeLessThanOrEqual(1_100_000)
+      // The first server already fills the shared budget.
+      expect(tools.some(tool => tool.serverName === 'beta')).toBe(false)
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
+  })
+
+  it('caps oversized MCP tool results', async () => {
+    const userDataDir = await createTempUserDataDir()
+
+    try {
+      clientMocks.callTool.mockResolvedValue({
+        content: [{ type: 'text', text: 'x'.repeat(300_000) }],
+      })
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+      await manager.writeConfigText(JSON.stringify({ mcpServers: { srv: { command: 'srv' } } }))
+      await manager.applyAndRestart()
+
+      const result = await manager.callTool({ name: 'srv::tool' })
+      const text = result.content?.[0]?.text as string | undefined
+
+      expect(text ?? '').toContain('truncated by AIRI')
+      expect((text ?? '').length).toBeLessThan(300_000)
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
+  })
+
+  it('drops oversized text block metadata from MCP tool results', async () => {
+    const userDataDir = await createTempUserDataDir()
+
+    try {
+      clientMocks.callTool.mockResolvedValue({
+        content: [{
+          type: 'text',
+          text: 'small',
+          _meta: { padding: 'x'.repeat(300_000) },
+        }],
+      })
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+      await manager.writeConfigText(JSON.stringify({ mcpServers: { srv: { command: 'srv' } } }))
+      await manager.applyAndRestart()
+
+      const result = await manager.callTool({ name: 'srv::tool' })
+
+      // Optional block fields are dropped, and the whole result stays bounded.
+      expect(result.content?.[0]?.text).toBe('small')
+      expect(result.content?.[0]?._meta).toBeUndefined()
+      expect((JSON.stringify(result.content) ?? '').length).toBeLessThan(1_000)
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
   })
 })

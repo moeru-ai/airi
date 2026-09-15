@@ -431,6 +431,8 @@ export interface ExtensionHostPermissionRequest {
  * - Runtime and working-directory overrides for one load operation
  */
 export interface ExtensionLoadOptions {
+  /** Unique key appended to the resolved entrypoint URL so a reload imports the current file instead of a cached module. */
+  cacheBustKey?: string
   /** Working directory used to resolve relative manifest entrypoints. */
   cwd?: string
   /** Runtime used when selecting a manifest entrypoint. */
@@ -450,6 +452,8 @@ export interface ExtensionLoadOptions {
  * - Per-start overrides for initialization behavior
  */
 export interface ExtensionStartOptions {
+  /** Unique key appended to the resolved entrypoint URL so a reload imports the current file instead of a cached module. */
+  cacheBustKey?: string
   /** Working directory used to resolve relative manifest entrypoints. */
   cwd?: string
   /** Runtime override used for this specific start operation. */

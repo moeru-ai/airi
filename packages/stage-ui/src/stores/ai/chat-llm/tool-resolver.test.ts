@@ -93,6 +93,40 @@ describe('resolveLlmTools', () => {
     expect(tools).toEqual([builtInTool, webSearchTool])
   })
 
+  it('keeps only card-allowed tools when an allowlist is provided', async () => {
+    const allowedBuiltInTool = createTool('builtIn_mcpListTools')
+    const otherBuiltInTool = createTool('builtIn_mcpCallTool')
+    const allowedRuntimeTool = createTool('play_chess')
+    const otherRuntimeTool = createTool('play_go')
+
+    const tools = await resolveLlmTools({
+      builtInTools: [allowedBuiltInTool, otherBuiltInTool],
+      debugTools: [],
+      sparkCommandTools: [],
+      webSearchTools: [],
+      activeTools: [allowedRuntimeTool, otherRuntimeTool],
+      allowedToolNames: ['builtIn_mcpListTools', 'play_chess'],
+    })
+
+    expect(tools).toEqual([allowedBuiltInTool, allowedRuntimeTool])
+  })
+
+  it('keeps every tool when the card allowlist is empty', async () => {
+    const builtInTool = createTool('built_in_tool')
+    const runtimeTool = createTool('runtime_tool')
+
+    const tools = await resolveLlmTools({
+      builtInTools: [builtInTool],
+      debugTools: [],
+      sparkCommandTools: [],
+      webSearchTools: [],
+      activeTools: [runtimeTool],
+      allowedToolNames: [],
+    })
+
+    expect(tools).toEqual([builtInTool, runtimeTool])
+  })
+
   describe('default web-search branch (module store gate)', () => {
     beforeEach(() => {
       createWebSearchToolsMock.mockReset()

@@ -25,7 +25,6 @@ import { buildPluginHostDebugSnapshot } from './debug'
 import {
   buildPluginRegistrySnapshot,
   createExtensionHostRegistry,
-  createManifestForLoad,
   manifestIdOf,
   resolvePluginRuntimeEntrypointPath,
 } from './registry'
@@ -140,6 +139,7 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
    *
    * Expects:
    * - `extensionId` resolves to a manifest entry in the current registry
+   * - Each call imports the entrypoint file, so the session uses the code on disk
    *
    * Returns:
    * - The extension registry snapshot after the load completes
@@ -274,10 +274,6 @@ export async function setupExtensionHostServiceInternal(
     }
   }
 
-  const refreshManifests = async () => {
-    await extensionRegistry.refresh()
-  }
-
   const getConfig = () => extensionConfig.get()
 
   const listSnapshot = (): PluginRegistrySnapshot => {
@@ -353,8 +349,10 @@ export async function setupExtensionHostServiceInternal(
       throw new Error(`Extension manifest not found: ${extensionId}`)
     }
 
-    const manifestForLoad = createManifestForLoad(entry, loadOptions)
-    const session = await host.start(manifestForLoad, { cwd: dirname(entry.path) })
+    const session = await host.start(entry.manifest, {
+      cacheBustKey: loadOptions.cacheBustKey,
+      cwd: dirname(entry.path),
+    })
     loaded.add(extensionId)
     loadedSessionIds.set(extensionId, session.id)
     log.withFields({ extensionId, sessionId: session.id }).log('extension loaded')
@@ -396,7 +394,9 @@ export async function setupExtensionHostServiceInternal(
     resolveWatchPaths: resolveAutoReloadWatchPaths,
     reload: async (extensionId) => {
       await stopLoadedExtensionById(extensionId)
-      await refreshManifests()
+      // Re-read the manifest without the discovery reconciliation; the manifest
+      // still exists during an auto-reload.
+      await extensionRegistry.refresh()
       await loadExtensionById(extensionId, { cacheBustKey: `auto-reload-${Date.now()}` })
     },
   })
@@ -404,6 +404,32 @@ export async function setupExtensionHostServiceInternal(
   const unloadExtensionById = async (extensionId: string) => {
     autoReloadFeature.clearExtension(extensionId)
     await stopLoadedExtensionById(extensionId)
+  }
+
+  /**
+   * Stops loaded extensions whose manifest disappeared from the plugin root.
+   *
+   * A deleted plugin folder removes the row from the next registry snapshot.
+   * Without this reconciliation the old session and its tools keep running, and
+   * no surface can unload them.
+   */
+  const stopUndiscoveredExtensions = async () => {
+    // Deleting the current entry during Set iteration is safe; new entries are
+    // not added while this reconciliation runs.
+    for (const extensionId of loaded) {
+      if (extensionRegistry.findManifestEntry(extensionId)) {
+        continue
+      }
+
+      log.withFields({ extensionId }).log('stopping extension whose manifest disappeared')
+      await unloadExtensionById(extensionId)
+      options.onExtensionStopped?.(extensionId)
+    }
+  }
+
+  const refreshManifests = async () => {
+    await extensionRegistry.refresh()
+    await stopUndiscoveredExtensions()
   }
 
   const loadEnabledExtensions = async () => {
@@ -500,7 +526,10 @@ export async function setupExtensionHostServiceInternal(
     },
     async load(extensionId) {
       await refreshManifests()
-      await loadExtensionById(extensionId)
+      // The renderer reload action calls this endpoint. Node caches ESM modules
+      // by file URL for the life of the process, so import the entrypoint with
+      // a cache-bust key. Without the key, an edited plugin keeps the old module.
+      await loadExtensionById(extensionId, { cacheBustKey: `manual-load-${Date.now()}` })
       autoReloadFeature.sync()
       return listSnapshot()
     },

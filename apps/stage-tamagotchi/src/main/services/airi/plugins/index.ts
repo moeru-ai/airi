@@ -45,8 +45,19 @@ import { setupExtensionHostServiceInternal } from './host'
  * - macOS: ~/Library/Application Support/${appId}/extensions-v1.json
  */
 export async function setupExtensionHost(options: SetupExtensionHostOptions): Promise<ExtensionHostService> {
-  const hostService = await setupExtensionHostServiceInternal(options)
   const { context } = createContext(ipcMain)
+  const hostService = await setupExtensionHostServiceInternal({
+    ...options,
+    // Reconciliation stops sessions outside explicit IPC actions, so notify
+    // renderers here to refresh cached tool definitions and prompts.
+    onExtensionStopped: (extensionId) => {
+      options.onExtensionStopped?.(extensionId)
+      context.emit(electronPluginToolsChanged, {
+        reason: 'unloaded',
+        extensionId,
+      })
+    },
+  })
   const invokePluginProtocolListProviders = defineInvoke(context, pluginProtocolListProviders)
 
   defineInvokeHandler(context, electronPluginList, async () => {

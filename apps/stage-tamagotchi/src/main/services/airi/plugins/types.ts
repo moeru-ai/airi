@@ -70,6 +70,17 @@ export interface ExtensionHostGameletWidgetsManager {
  */
 export interface SetupExtensionHostOptions {
   widgetsManager: ExtensionHostGameletWidgetsManager
+
+  /**
+   * Receives the extension id after host reconciliation stops a stale session.
+   *
+   * Use when:
+   * - A discovered manifest disappears and its session must stop
+   *
+   * Expects:
+   * - The consumer emits the renderer-facing tools-changed event
+   */
+  onExtensionStopped?: (extensionId: string) => void
 }
 
 /**
