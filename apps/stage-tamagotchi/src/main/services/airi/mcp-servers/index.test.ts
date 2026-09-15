@@ -14,6 +14,7 @@ const shellMock = vi.hoisted(() => ({
 }))
 
 const clientMocks = vi.hoisted(() => ({
+  callTool: vi.fn(),
   close: vi.fn(),
   connect: vi.fn(),
   listTools: vi.fn(),
@@ -41,6 +42,7 @@ vi.mock('../../../libs/bootkit/lifecycle', () => ({
 
 vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
   Client: class {
+    callTool = clientMocks.callTool
     close = clientMocks.close
     connect = clientMocks.connect
     listTools = clientMocks.listTools
@@ -61,11 +63,18 @@ vi.mock('@modelcontextprotocol/sdk/client/stdio.js', async () => {
   }
 })
 
+async function createTempUserDataDir() {
+  const userDataDir = await mkdtemp(join(tmpdir(), 'airi-mcp-'))
+  appMock.getPath.mockReturnValue(userDataDir)
+  return userDataDir
+}
+
 describe('createMcpStdioManager', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     appMock.getPath.mockReturnValue('/tmp/airi-user-data')
     appMock.getVersion.mockReturnValue('0.10.0')
+    clientMocks.callTool.mockReset()
     clientMocks.close.mockResolvedValue(undefined)
     clientMocks.listTools.mockResolvedValue({ tools: [] })
   })
@@ -106,6 +115,55 @@ describe('createMcpStdioManager', () => {
 
       const fileStats = await stat(join(userDataDir, 'mcp.json'))
       expect(fileStats.mode & 0o777).toBe(0o600)
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
+  })
+
+  it('caps MCP tool lists and descriptions', async () => {
+    const userDataDir = await createTempUserDataDir()
+
+    try {
+      clientMocks.listTools.mockResolvedValue({
+        tools: Array.from({ length: 250 }, (_, index) => ({
+          name: `tool-${index}`,
+          description: 'x'.repeat(5_000),
+          inputSchema: { type: 'object' },
+        })),
+      })
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+      await manager.writeConfigText(JSON.stringify({ mcpServers: { srv: { command: 'srv' } } }))
+      await manager.applyAndRestart()
+
+      const tools = await manager.listTools()
+
+      expect(tools).toHaveLength(200)
+      expect(tools[0]?.description ?? '').toContain('truncated by AIRI')
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
+  })
+
+  it('caps oversized MCP tool results', async () => {
+    const userDataDir = await createTempUserDataDir()
+
+    try {
+      clientMocks.callTool.mockResolvedValue({
+        content: [{ type: 'text', text: 'x'.repeat(300_000) }],
+      })
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+      await manager.writeConfigText(JSON.stringify({ mcpServers: { srv: { command: 'srv' } } }))
+      await manager.applyAndRestart()
+
+      const result = await manager.callTool({ name: 'srv::tool' })
+      const text = result.content?.[0]?.text as string | undefined
+
+      expect(text ?? '').toContain('truncated by AIRI')
+      expect((text ?? '').length).toBeLessThan(300_000)
     }
     finally {
       await rm(userDataDir, { recursive: true, force: true })

@@ -65,6 +65,10 @@ const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
 const mcpTestStderrMaxChars = 16_000
 const mcpConfigFileMode = 0o600
+const mcpListToolsMaxPerServer = 200
+const mcpToolDescriptionMaxChars = 2_000
+const mcpToolResultMaxChars = 200_000
+const mcpToolResultMaxItems = 50
 
 function stringifyError(error: unknown) {
   if (error instanceof Error) {
@@ -72,6 +76,70 @@ function stringifyError(error: unknown) {
   }
 
   return String(error)
+}
+
+function truncateText(value: string, maxChars: number) {
+  if (value.length <= maxChars) {
+    return value
+  }
+
+  return `${value.slice(0, maxChars)}\n[truncated by AIRI: content exceeded ${maxChars} characters]`
+}
+
+/**
+ * Bounds one MCP tool result before it reaches the renderer or the model.
+ *
+ * MCP servers are separate processes and can fail or misbehave. Without a cap,
+ * one server could grow AIRI memory and the model context without limit.
+ */
+function boundMcpToolResult(result: ElectronMcpCallToolResult): ElectronMcpCallToolResult {
+  const bounded: ElectronMcpCallToolResult = { ...result }
+  const content = bounded.content
+
+  if (content) {
+    const items: Array<Record<string, unknown>> = []
+    let remaining = mcpToolResultMaxChars
+
+    for (const item of content) {
+      if (items.length >= mcpToolResultMaxItems || remaining <= 0) {
+        break
+      }
+
+      const text = typeof item.text === 'string' ? item.text : undefined
+      if (item.type === 'text' && text !== undefined) {
+        const boundedText = truncateText(text, remaining)
+        items.push({ ...item, text: boundedText })
+        remaining -= boundedText.length
+        continue
+      }
+
+      const serializedLength = JSON.stringify(item)?.length ?? 0
+      if (serializedLength > remaining) {
+        break
+      }
+
+      items.push(item)
+      remaining -= serializedLength
+    }
+
+    if (items.length < content.length) {
+      items.push({
+        type: 'text',
+        text: `[truncated by AIRI: this result exceeded ${mcpToolResultMaxChars} characters or ${mcpToolResultMaxItems} items]`,
+      })
+    }
+
+    bounded.content = items
+  }
+
+  if (bounded.toolResult !== undefined && (JSON.stringify(bounded.toolResult)?.length ?? 0) > mcpToolResultMaxChars) {
+    delete bounded.toolResult
+  }
+  if (bounded.structuredContent && (JSON.stringify(bounded.structuredContent)?.length ?? 0) > mcpToolResultMaxChars) {
+    delete bounded.structuredContent
+  }
+
+  return bounded
 }
 
 function getConfigPath() {
@@ -296,13 +364,15 @@ export function createMcpStdioManager(): McpStdioManager {
           timeout: mcpRequestTimeoutMsec,
           maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
         })
-        return response.tools.map<ElectronMcpToolDescriptor>(item => ({
-          serverName,
-          name: `${serverName}${toolNameSeparator}${item.name}`,
-          toolName: item.name,
-          description: item.description,
-          inputSchema: item.inputSchema,
-        }))
+        return response.tools
+          .slice(0, mcpListToolsMaxPerServer)
+          .map<ElectronMcpToolDescriptor>(item => ({
+            serverName,
+            name: `${serverName}${toolNameSeparator}${item.name}`,
+            toolName: item.name,
+            description: item.description ? truncateText(item.description, mcpToolDescriptionMaxChars) : item.description,
+            inputSchema: item.inputSchema,
+          }))
       }
       catch (error) {
         log.withFields({ serverName }).withError(error).warn('failed to list tools from mcp server')
@@ -365,7 +435,7 @@ export function createMcpStdioManager(): McpStdioManager {
       normalized.toolResult = result.toolResult
     }
 
-    return normalized
+    return boundMcpToolResult(normalized)
   }
 
   const getRuntimeStatus = (): ElectronMcpStdioRuntimeStatus => {
