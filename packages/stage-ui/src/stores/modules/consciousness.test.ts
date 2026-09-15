@@ -83,12 +83,14 @@ describe('consciousness store provider selection', () => {
     const settingsStore = useConsciousnessSettingsStore()
 
     const disabledProvider = await consciousnessStore.getChatProviderInstance('openai')
-    expect(disabledProvider.generation('test-model').config).toMatchObject({ reasoning: { effort: 'none' } })
+    // The provider only sends efforts supported by the selected catalog model.
+    expect(disabledProvider.generation('gpt-5.1').config).toMatchObject({ reasoning: { effort: 'none' } })
 
     await settingsStore.setReasoning(true)
 
     const enabledProvider = await consciousnessStore.getChatProviderInstance('openai')
-    expect(enabledProvider.generation('test-model').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
+    expect(enabledProvider.generation('gpt-5.1').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
+    expect(enabledProvider.generation('test-model').config).not.toHaveProperty('reasoning')
   })
 
   // ROOT CAUSE:

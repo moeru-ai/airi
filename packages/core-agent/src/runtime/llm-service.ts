@@ -73,7 +73,7 @@ export async function streamFrom({
 
     try {
       const streamResult = request.protocol === 'responses'
-        ? streamResponses({ config: request.config, webSearch: request.webSearch, conversation, scope, options, tools, onEvent })
+        ? streamResponses({ config: request.config, webSearch: supportedTools && request.webSearch, conversation, scope, options, tools, onEvent })
         : streamChatCompletions({ config: request.config, conversation, scope, options, tools, onEvent, supportsContentArray })
 
       // NOTICE: Consume underlying promises to prevent unhandled rejections from

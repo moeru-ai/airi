@@ -232,11 +232,14 @@ describe('provider store synchronization boundary', () => {
 
     expect(reasoningDisabledProvider).not.toBe(baseProvider)
     expect(reasoningEnabledProvider).not.toBe(baseProvider)
-    expect(reasoningDisabledProvider.generation('any-model').config).toMatchObject({ reasoning: { effort: 'none' } })
-    expect(reasoningEnabledProvider.generation('any-model').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
+    // Use a catalog model that supports both efforts; unknown models omit reasoning fields.
+    expect(reasoningDisabledProvider.generation('gpt-5.1').config).toMatchObject({ reasoning: { effort: 'none' } })
+    expect(reasoningEnabledProvider.generation('gpt-5.1').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
+    expect(reasoningDisabledProvider.generation('any-model').config).not.toHaveProperty('reasoning')
+    expect(reasoningEnabledProvider.generation('any-model').config).not.toHaveProperty('reasoning')
     if (!isGenerationProvider(baseProvider))
       throw new Error('Expected generation provider')
-    expect(baseProvider.generation('any-model').config).not.toHaveProperty('reasoning')
+    expect(baseProvider.generation('gpt-5.1').config).not.toHaveProperty('reasoning')
   })
 
   // ROOT CAUSE:

@@ -14,6 +14,7 @@ This patch fixes behavior in the published SDK. AIRI's protocol and billing code
 - Await `onNativeEvent` before transcript commit so consumers can retain sources and search activity.
 - Use Fetch and headers types from `@xsai/shared`, the owner of the HTTP request contract.
 - Translate Chat tool text, image, and file parts to Responses input parts without changing tool events. Reject unsupported audio parts.
+- Serialize empty tool-result arrays as JSON and void results as an empty output string.
 - Export the existing `ItemParam` type for consumers that retain native history.
 
 Browser regressions are in `packages/provider-inference/src/responses.browser.test.ts`. Core integration tests use the real patched SDK with synthetic HTTP responses in `packages/core-agent/src/runtime/responses.test.ts`.

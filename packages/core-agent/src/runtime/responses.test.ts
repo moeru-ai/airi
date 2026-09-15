@@ -27,6 +27,49 @@ function provider(fetch: typeof globalThis.fetch): GenerationProvider {
   }
 }
 
+// https://github.com/moeru-ai/airi/pull/2477#discussion_r4005498788
+// https://github.com/moeru-ai/airi/pull/2477#discussion_r4005940671
+it.each([
+  { name: 'void', result: undefined, output: '' },
+  { name: 'empty array', result: [], output: '[]' },
+])('serializes $name tool results before the next request (PR #2477)', async ({ result, output }) => {
+  // ROOT CAUSE:
+  // JSON.stringify omits undefined, and every accepts empty arrays as content parts.
+  // Both cases need a string output so a valid tool execution can continue.
+  // A plugin can return no value at runtime despite the SDK's narrower declaration.
+  const execute = vi.fn<NonNullable<Tool['execute']>>()
+  if (result !== undefined)
+    execute.mockReturnValue(result)
+  const requests: { input: ItemParam[] }[] = []
+  const fetch: typeof globalThis.fetch = async (_url, init) => {
+    requests.push(JSON.parse(String(init?.body)))
+    return sse(completed(requests.length === 1 ? [{ type: 'function_call', call_id: 'read', name: 'read', arguments: '{}' }] : []))
+  }
+  await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: [] }, options: {
+    tools: [{ type: 'function', function: { name: 'read', parameters: { type: 'object', properties: {} } }, execute }],
+  } })
+  expect(requests).toHaveLength(2)
+  expect(requests[1].input.at(-1)).toEqual({ type: 'function_call_output', call_id: 'read', output, status: 'completed' })
+})
+
+// https://github.com/moeru-ai/airi/pull/2477#discussion_r4005498799
+it.each(['explicit', 'compatibility'] as const)('disables hosted search under the %s tool policy (PR #2477)', async (policy) => {
+  // ROOT CAUSE:
+  // The runtime removed local tools but forwarded hosted search unchanged.
+  // The resolved tool policy must govern both kinds of tools.
+  const fetch = vi.fn<typeof globalThis.fetch>(async (_url, init) => {
+    expect(JSON.parse(String(init?.body))).not.toHaveProperty('tools')
+    return sse(completed([]))
+  })
+  const chatProvider: GenerationProvider = {
+    generation: model => ({ protocol: 'responses', webSearch: true, config: { model, baseURL: 'https://example.test/v1/', fetch } }),
+  }
+  await streamFrom({ model: 'test', chatProvider, conversation: { turns: [] }, options: policy === 'explicit'
+    ? { supportsTools: false }
+    : { toolsCompatibility: new Map([['responses:https://example.test/v1/-test', false]]) } })
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
+
 describe('responses generation', () => {
   it('executes functions and preserves ordered native Items and aggregate usage', async () => {
     const reasoning: ItemParam = { type: 'reasoning', id: 'rs_1', summary: [], encrypted_content: 'opaque' }
