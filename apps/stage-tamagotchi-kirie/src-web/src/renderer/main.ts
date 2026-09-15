@@ -18,7 +18,7 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
-import { disposeHostContext, getHostPlatform, initializeHostContext } from './host-context'
+import { disposeHostContext, getHostPlatform, initializeHostContext, installExternalNavigation } from './host-context'
 import { i18n } from './modules/i18n'
 import { resolveRendererWindowContext } from './window-context'
 
@@ -49,7 +49,9 @@ configureAnalyticsAdapter(async (options) => {
 registerAuthorizationHandler(browserAuthorizationHandler)
 
 const hostContext = initializeHostContext()
+const disposeExternalNavigation = installExternalNavigation()
 function disposeRendererHost() {
+  disposeExternalNavigation()
   disposeHostContext()
 }
 
