@@ -4,9 +4,15 @@ import type { ChatToolReference } from '@proj-airi/stage-ui/types/chat'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { defineStore } from 'pinia'
 
+import { computerUseTools } from './builtin/computer-use'
 import { imageJournalTools } from './builtin/image-journal'
 import { weatherTools } from './builtin/weather'
 import { widgetsTools } from './builtin/widgets'
+
+export const computerUseToolReferences = [
+  { name: 'computer_use' },
+  { name: 'computer_use_read_image' },
+] satisfies ChatToolReference[]
 
 export const widgetToolReferences = [
   { name: 'stage_widgets' },
@@ -33,6 +39,7 @@ export const useTamagotchiBuiltinToolsStore = defineStore('tamagotchi-builtin-to
       imageJournalTools(),
       widgetsTools(),
       weatherTools(),
+      computerUseTools(),
     ])).flat()
 
     llmToolsStore.removeToolsByIds(...registeredToolIds())

@@ -202,6 +202,29 @@ describe('interactive area synchronized state', () => {
     await page.viewport(1280, 720)
   })
 
+  it('includes computer use only while the desktop composer toggle is enabled', async () => {
+    const { chat, screen } = await renderArea()
+    const send = vi.spyOn(chat, 'send').mockResolvedValue({ messages: [], sessionId: 'session-b' })
+    const toggle = screen.getByTestId('computer-use-toggle')
+    await expect.element(toggle).toHaveAttribute('aria-pressed', 'false')
+
+    await submitDraft(screen, 'Ordinary chat')
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    expect(send.mock.calls[0][0].tools).not.toContainEqual({ name: 'computer_use' })
+
+    await toggle.click()
+    await expect.element(toggle).toHaveAttribute('aria-pressed', 'true')
+    await submitDraft(screen, 'Inspect a window')
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2))
+    expect(send.mock.calls[1][0].tools).toContainEqual({ name: 'computer_use' })
+    expect(send.mock.calls[1][0].tools).toContainEqual({ name: 'computer_use_read_image' })
+
+    await toggle.click()
+    await submitDraft(screen, 'Ordinary chat again')
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(3))
+    expect(send.mock.calls[2][0].tools).not.toContainEqual({ name: 'computer_use' })
+  })
+
   it('centers the mobile editor when no reply preview is visible', async () => {
     // ROOT CAUSE:
     //

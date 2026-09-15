@@ -96,6 +96,7 @@ export default {
   asar: true,
   asarUnpack: [
     '**/*.node',
+    '**/node_modules/@auv-js/cli-*/bin/**',
   ],
   extraResources: [
     {

@@ -37,6 +37,8 @@
     "update-test:matrix": "bash scripts/update-test/run-matrix.sh"
   },
   "dependencies": {
+    "@auv-js/cli": "catalog:",
+    "@auv-js/sdk": "catalog:",
     "@date-fns/utc": "catalog:",
     "@fontsource-variable/comfortaa": "catalog:",
     "@fontsource-variable/dm-sans": "catalog:",

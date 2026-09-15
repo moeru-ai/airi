@@ -14,7 +14,7 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { BasicTextarea } from '@proj-airi/ui'
+import { BasicTextarea, GhostButton } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
@@ -27,11 +27,13 @@ import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
-import { artistryToolReferences, widgetToolReferences } from '../stores/tools'
+import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
 
 const router = useRouter()
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
 const lastEnterTime = ref(0)
+// Permission is local to this composer and resets when the window closes.
+const computerUseEnabled = ref(false)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -63,7 +65,7 @@ const composer = useChatComposer<ImageComposerAttachment>({
       data: attachment.data,
       mimeType: attachment.mimeType,
     })),
-    tools: artistryToolReferences,
+    tools: computerUseEnabled.value ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences,
   }),
 })
 const {
@@ -233,7 +235,7 @@ async function handleRetryMessage(index: number) {
   await chatStore.retry({
     sessionId: chatSession.activeSessionId,
     index,
-    tools: widgetToolReferences,
+    tools: computerUseEnabled.value ? [...widgetToolReferences, ...computerUseToolReferences] : widgetToolReferences,
   })
   trackChatMessageRetried({
     source: 'history',
@@ -327,6 +329,17 @@ async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: n
           </div>
         </div>
         <div :class="['flex shrink-0 items-center justify-end gap-2 py-1']">
+          <GhostButton
+            data-testid="computer-use-toggle"
+            size="sm"
+            icon="i-solar:monitor-bold-duotone"
+            :label="t('stage.computer-use.label')"
+            :title="t('stage.computer-use.description')"
+            :active="computerUseEnabled"
+            :aria-pressed="computerUseEnabled"
+            :disabled="isActiveSessionSending"
+            @click="computerUseEnabled = !computerUseEnabled"
+          />
           <DropdownMenuRoot>
             <DropdownMenuTrigger as-child>
               <button
