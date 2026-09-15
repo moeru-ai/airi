@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
+import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatHistory } from '@proj-airi/stage-ui/components'
-import { ChatReplyPreview, ChatSessionsDrawer, useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -53,21 +53,27 @@ const visibleStreamingMessage = computed(() => activeSendSessionId.value === act
   : streamingMessage.value)
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
-const composer = useChatComposer({
+const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
   send: submission => chatOrchestrator.send({
     sessionId: submission.sessionId,
     text: submission.text,
+    attachments: submission.attachments.map(({ type, data, mimeType }) => ({ type, data, mimeType })),
     replyToMessageId: submission.replyToMessageId,
   }),
 })
 const {
+  attachments,
+  removeAttachment,
   clearReplyForMessage,
   draft: messageInput,
   isComposing,
   replyTarget,
   selectReply,
 } = composer
+
+const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
+const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
@@ -414,7 +420,8 @@ async function handleSubmit() {
 }
 
 async function handleSend() {
-  await composer.submit()
+  if (!pendingImages.value)
+    await composer.submit()
 }
 
 function teardownAnalyzer() {
@@ -561,6 +568,15 @@ onUnmounted(() => {
         ]"
         :style="messageComposerStyle"
       >
+        <button
+          type="button"
+          :aria-label="t('stage.chat.images.attach')"
+          :class="['size-11 shrink-0 flex items-center justify-center self-end rounded-full', 'bg-neutral-100/80 text-primary-600 backdrop-blur-md dark:bg-neutral-900/80 dark:text-primary-300']"
+          @click="imageInput?.click()"
+        >
+          <span :class="['i-solar:paperclip-bold-duotone size-5']" />
+        </button>
+        <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">
         <div
           ref="inputBubble"
           data-testid="mobile-input-bubble"
@@ -589,6 +605,15 @@ onUnmounted(() => {
             :class="['w-full']"
             @cancel="handleCancelReply"
           />
+          <div v-if="attachments.length && !inputBubbleDocked" :class="['flex gap-2 overflow-x-auto p-2']" @pointerdown.stop>
+            <ChatImageAttachmentPreview v-for="(attachment, index) in attachments" :key="attachment.previewId" :file="attachment.file" @remove="removeAttachment(index)" />
+          </div>
+          <p v-if="imageError" role="alert" :class="['px-3 py-1 text-xs text-red-600 dark:text-red-400']">
+            {{ imageError }}
+          </p>
+          <p v-if="pendingImages" role="status" :class="['px-3 py-1 text-xs text-neutral-500']">
+            {{ t('stage.chat.images.reading') }}
+          </p>
           <!-- Android handles touch from the scrollable editor, so it needs touch-none to keep the bubble drag active. -->
           <BasicContentEditable
             v-model="messageInput"
@@ -611,6 +636,7 @@ onUnmounted(() => {
               themeColorsHueDynamic ? 'transition-colors-none data-[empty]:before:transition-colors-none' : undefined,
             ]"
             @submit="handleSubmit"
+            @paste-file="addFiles"
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
           />
@@ -637,7 +663,8 @@ onUnmounted(() => {
           <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
         </button>
         <button
-          v-if="messageInput.trim() || isComposing"
+          v-if="messageInput.trim() || attachments.length || isComposing"
+          :disabled="!!pendingImages"
           :aria-label="t('stage.chat.actions.send')"
           w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]" aspect-square flex items-center self-end justify-center rounded-full outline-none backdrop-blur-md
           text="neutral-500 hover:neutral-600 dark:neutral-900 dark:hover:neutral-800"

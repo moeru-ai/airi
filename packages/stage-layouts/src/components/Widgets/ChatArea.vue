@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { ChatComposerController } from '@proj-airi/stage-ui/components/scenarios/chat'
+import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { ChatReplyPreview } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
@@ -20,10 +21,15 @@ import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
 const props = defineProps<{
-  composer: ChatComposerController<never>
+  composer: ChatComposerController<ChatImageAttachment>
 }>()
 
 const composerRoot = useTemplateRef<HTMLDivElement>('composer')
+
+const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
+const chatSession = useChatSessionStore()
+const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(props.composer, () => chatSession.activeSessionId)
+const { attachments, removeAttachment } = props.composer
 
 const messageInput = props.composer.draft
 const hearingPopoverOpen = ref(false)
@@ -58,7 +64,8 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription, au
 const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 
 async function handleSend() {
-  await props.composer.submit()
+  if (!pendingImages.value)
+    await props.composer.submit()
 }
 
 async function handleCancelReply() {
@@ -172,6 +179,17 @@ watch(replyTarget, async (target) => {
         :target="replyTarget"
         @cancel="handleCancelReply"
       />
+      <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2']">
+        <ChatImageAttachmentPreview v-for="(attachment, index) in attachments" :key="attachment.previewId" :file="attachment.file" @remove="removeAttachment(index)" />
+      </div>
+      <p v-if="imageError" role="alert" :class="['px-2 text-sm text-red-600']">
+        {{ imageError }}
+      </p>
+      <p v-if="pendingImages" role="status">
+        {{ t('stage.chat.images.reading') }}
+      </p>
+
+      <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">
       <BasicTextarea
         v-model="messageInput"
         :submit-on-enter="false"
@@ -185,14 +203,28 @@ watch(replyTarget, async (target) => {
           'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,
         }"
         @keydown="handleMessageInputKeydown"
+        @paste-file="addFiles"
         @compositionstart="isComposing = true"
         @compositionend="isComposing = false"
       />
+
+      <button
+        type="button"
+        :aria-label="t('stage.chat.actions.send')"
+        :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
+        :class="['absolute bottom-2 right-2 size-9 flex items-center justify-center rounded-full bg-primary-500 text-white disabled:opacity-40']"
+        @click="handleSend"
+      >
+        <span :class="['i-solar:arrow-up-outline size-5']" />
+      </button>
 
       <!-- Input configuration controls -->
       <div
         absolute bottom-2 left-2 z-10 flex items-center gap-2
       >
+        <button type="button" :aria-label="t('stage.chat.images.attach')" :class="['size-8 flex items-center justify-center rounded-full text-primary-500']" @click="imageInput?.click()">
+          <span :class="['i-solar:paperclip-bold-duotone size-5']" />
+        </button>
         <DropdownMenuRoot>
           <DropdownMenuTrigger as-child>
             <button
