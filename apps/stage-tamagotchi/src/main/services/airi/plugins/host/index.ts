@@ -11,11 +11,11 @@ import type {
 } from '../features/static-assets'
 import type { ExtensionHostService, SetupExtensionHostOptions } from '../types'
 
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
 import { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
-import { session as electronSession } from 'electron'
+import { app, session as electronSession } from 'electron'
 
 import { createExtensionAutoReloadFeature } from '../features/auto-reload'
 import { createExtensionAssetService } from '../features/static-assets'
@@ -28,7 +28,6 @@ import {
   manifestIdOf,
   resolvePluginRuntimeEntrypointPath,
 } from './registry'
-import { migrateLegacyPluginsRoot, resolveBundledPluginsRoot, resolveLegacyPluginsRoot, resolvePluginsRoot, seedBundledPlugins } from './root'
 
 const extensionAssetSessionTtlMs = 30 * 24 * 60 * 60 * 1000
 
@@ -193,21 +192,6 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
   getAssetBaseUrl: () => string
 
   /**
-   * Returns the directory that holds user-installable plugin folders.
-   *
-   * Use when:
-   * - The open-folder IPC action reveals the plugin directory in the OS file manager
-   * - Diagnostics need the resolved plugin root without a full registry refresh
-   *
-   * Expects:
-   * - The root may not exist yet on first run; `list()` or startup refresh creates it
-   *
-   * Returns:
-   * - The absolute plugin root path resolved for the current runtime
-   */
-  getRoot: () => string
-
-  /**
    * Disposes optional host features and asset hosting resources.
    *
    * Use when:
@@ -231,11 +215,8 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
  * - Tests need direct access to the internal host bootstrap helper
  *
  * Expects:
- * - Electron `app` paths are available for plugin root resolution
- * - Extension manifests live under the plugin root resolved by
- *   `resolvePluginsRoot()`: the repository `plugins/` directory in development,
- *   the install directory `plugins/` when it is writable, or the user data
- *   directory otherwise (always the user data directory on macOS)
+ * - Electron `app.getPath('userData')` is available
+ * - Extension manifests live under `<userData>/extensions/v1`
  *
  * Returns:
  * - The internal bootstrap service that powers the public extension-host IPC facade
@@ -244,29 +225,7 @@ export async function setupExtensionHostServiceInternal(
   options: SetupExtensionHostOptions,
 ): Promise<ExtensionHostServiceInternal> {
   const log = useLogg('main/extension-host').useGlobalConfig()
-  const extensionsRoot = resolvePluginsRoot()
-  // Copy plugins from the pre-`plugins/` discovery root before the first load.
-  const migration = await migrateLegacyPluginsRoot({
-    legacyRoot: resolveLegacyPluginsRoot(),
-    targetRoot: extensionsRoot,
-  })
-  if (migration.migrated.length > 0) {
-    log.withFields({ extensionsRoot, migrated: migration.migrated }).log('legacy plugins migrated into the active plugin directory')
-  }
-  for (const failure of migration.failed) {
-    log.withError(failure.error).withFields({ extensionsRoot, directoryName: failure.directoryName }).warn('failed to migrate legacy plugin')
-  }
-  // Seeding is best effort: a failed copy must not stop the host from starting.
-  const seeding = await seedBundledPlugins({
-    bundledRoot: resolveBundledPluginsRoot(),
-    targetRoot: extensionsRoot,
-  })
-  if (seeding.seeded.length > 0) {
-    log.withFields({ extensionsRoot, seeded: seeding.seeded }).log('bundled plugins seeded into user plugin directory')
-  }
-  for (const failure of seeding.failed) {
-    log.withError(failure.error).withFields({ extensionsRoot, directoryName: failure.directoryName }).warn('failed to seed bundled plugin')
-  }
+  const extensionsRoot = join(app.getPath('userData'), 'extensions', 'v1')
 
   // Config
   const extensionConfig = createExtensionHostConfigStore()
@@ -562,9 +521,6 @@ export async function setupExtensionHostServiceInternal(
     },
     getAssetBaseUrl() {
       return extensionAssetService.getBaseUrl() ?? ''
-    },
-    getRoot() {
-      return extensionsRoot
     },
     async dispose() {
       autoReloadFeature.dispose()

@@ -185,7 +185,6 @@ export function createPluginSummary(
   const extensionId = manifestIdOf(entry.manifest)
   return {
     extensionId,
-    version: entry.version,
     entrypoints: entry.manifest.entrypoints,
     path: entry.path,
     enabled: config.enabled.includes(extensionId),

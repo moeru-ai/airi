@@ -26,13 +26,11 @@ import {
   electronPluginList,
   electronPluginLoad,
   electronPluginLoadEnabled,
-  electronPluginOpenFolder,
   electronPluginSetAutoReload,
   electronPluginSetEnabled,
   electronPluginUnload,
 } from '../../../../shared/eventa/plugin/host'
 import { electronPluginToolsChanged } from '../../../../shared/eventa/plugin/tools'
-import { setElectronMainDirname } from '../../../libs/electron/location'
 import { setupExtensionHostServiceInternal } from './host'
 import { loadManifestsFrom } from './host/registry'
 import { setupExtensionHost as setupExtensionHostService } from './index'
@@ -42,10 +40,6 @@ import { widgetPluginKitDescriptor } from './kits/widget'
 
 const appMock = vi.hoisted(() => ({
   getPath: vi.fn(),
-  isPackaged: false,
-}))
-const shellMock = vi.hoisted(() => ({
-  openPath: vi.fn(async (_path: string) => ''),
 }))
 const protocolMock = vi.hoisted(() => ({
   handle: vi.fn(),
@@ -67,15 +61,6 @@ vi.mock('electron', () => ({
   ipcMain: {},
   protocol: protocolMock,
   session: sessionMock,
-  shell: shellMock,
-}))
-
-// NOTICE: `libs/electron/location` pulls in `@electron-toolkit/utils`, whose ESM
-// wrapper imports named Electron exports such as `BrowserWindow`. The `electron`
-// mock above only provides the exports used by the plugin host, so mock the
-// toolkit module to keep these tests independent from Electron module interop.
-vi.mock('@electron-toolkit/utils', () => ({
-  is: { dev: false },
 }))
 
 vi.mock('@moeru/eventa/adapters/electron/main', async () => {
@@ -379,8 +364,7 @@ describe('setupExtensionHost', () => {
 
   beforeEach(async () => {
     userDataDir = await mkdtemp(join(tmpdir(), 'airi-plugins-'))
-    setElectronMainDirname(join(userDataDir, 'apps', 'stage-tamagotchi', 'out', 'main'))
-    pluginsDir = join(userDataDir, 'plugins')
+    pluginsDir = join(userDataDir, 'extensions', 'v1')
     await mkdir(pluginsDir, { recursive: true })
     appMock.getPath.mockReturnValue(userDataDir)
   })
@@ -418,8 +402,8 @@ describe('setupExtensionHost', () => {
     expect(snapshot.root).toBe(pluginsDir)
     expect(snapshot.plugins).toHaveLength(2)
     expect(snapshot.plugins).toEqual(expect.arrayContaining([
-      expect.objectContaining({ extensionId: 'test-normal', version: '0.0.0', path: normalPath, enabled: false, loaded: false, isNew: true }),
-      expect.objectContaining({ extensionId: 'test-error', version: '0.0.0', path: errorPath, enabled: false, loaded: false, isNew: true }),
+      expect.objectContaining({ extensionId: 'test-normal', path: normalPath, enabled: false, loaded: false, isNew: true }),
+      expect.objectContaining({ extensionId: 'test-error', path: errorPath, enabled: false, loaded: false, isNew: true }),
     ]))
   })
 
@@ -931,18 +915,6 @@ describe('setupExtensionHost', () => {
 
     const baseUrl = await invokeGetAssetBaseUrl()
     expect(baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
-  })
-
-  it('opens the plugin root folder through Eventa invoke', async () => {
-    await setupExtensionHost()
-
-    expect(contextState.lastContext).toBeDefined()
-    const invokeOpenFolder = defineInvoke(contextState.lastContext!, electronPluginOpenFolder)
-
-    const result = await invokeOpenFolder()
-
-    expect(result).toEqual({ path: pluginsDir })
-    expect(shellMock.openPath).toHaveBeenCalledWith(pluginsDir)
   })
 
   it('rewrites plugin widget iframe asset URLs in inspect snapshots', async () => {

@@ -11,28 +11,6 @@ pages:
     mcp-server:
       description: 连接与管理 MCP 服务器和工具
       title: MCP 服务器
-  plugins:
-    installed: 已安装的插件
-    folder: 插件文件夹
-    empty:
-      title: 未发现插件
-      description: 将包含 extension.airi.json 清单的插件文件夹放入插件文件夹，然后刷新本页面。
-    status:
-      enabled: 已启用
-      disabled: 已停用
-      loaded: 已加载
-      not-loaded: 未加载
-    actions:
-      refresh: 刷新
-      open-folder: 打开文件夹
-      enable: 启用并加载
-      disable: 停用并卸载
-      reload: 重新加载
-    errors:
-      refresh: 加载插件列表失败。
-      toggle: 更新插件 {extensionId} 失败。
-      reload: 重新加载插件 {extensionId} 失败。
-      open-folder: 打开插件文件夹失败。
   system:
     sections:
       section:

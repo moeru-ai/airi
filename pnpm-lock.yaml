@@ -5358,8 +5358,6 @@ importers:
         specifier: 'catalog:'
         version: 3.3.11(typescript@6.0.3)
 
-  plugins/airi-plugin-example-hello: {}
-
   plugins/airi-plugin-web-extension:
     devDependencies:
       '@iconify-json/solar':
