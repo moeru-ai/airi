@@ -12,14 +12,24 @@ import { resolveLlmTools } from './tool-resolver'
 export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 export { isContentArrayRelatedError, isToolRelatedError } from '@proj-airi/core-agent'
 
+/** Stream options plus the card-level tool policy that stage-ui enforces. */
+export interface LlmStreamOptions extends StreamOptions {
+  /**
+   * Model-facing tool names the active character card allows.
+   *
+   * `undefined` or an empty list keeps every resolved tool.
+   */
+  allowedToolNames?: readonly string[]
+}
+
 export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())
 
-  async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+  async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: LlmStreamOptions) {
     const key = modelKey(model, chatProvider)
-    const { tools: customTools, ...streamOptions } = options ?? {}
-    const builtinToolsResolver = () => resolveLlmTools({ customTools })
+    const { tools: customTools, allowedToolNames, ...streamOptions } = options ?? {}
+    const builtinToolsResolver = () => resolveLlmTools({ customTools, allowedToolNames })
 
     const runStream = () => coreStreamFrom({
       model,

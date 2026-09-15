@@ -239,6 +239,8 @@ export const useChatStore = defineStore('chat', () => {
       await llmStore.stream(model, chatProvider, messages, {
         ...options,
         headers,
+        // The character card decides which tools stay visible to the model.
+        allowedToolNames: cardStore.activeCard?.extensions?.airi?.tools?.allowed,
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
             llmOutputChunkCount += 1

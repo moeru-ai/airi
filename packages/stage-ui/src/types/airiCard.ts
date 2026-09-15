@@ -65,6 +65,17 @@ export interface AiriExtension {
     prompt: string
     enabled?: boolean
   }>
+
+  /**
+   * Tool exposure policy for this card.
+   *
+   * Keeps large MCP tool sets out of small local models unless the card asks
+   * for them. Omit `allowed`, or leave it empty, to keep the default tool set.
+   */
+  tools?: {
+    /** Model-facing tool names this card allows, for example `builtIn_mcpListTools`. */
+    allowed?: string[]
+  }
 }
 
 /** Character card normalized with the AIRI extension required by the runtime. */
