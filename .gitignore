@@ -159,3 +159,7 @@ packages/i18n/glossary/glossary.tbx
 
 /airi-docs/
 .worktrees/
+
+# Sherpaw models downloaded by the Vite plugin
+apps/*/public/sherpaw/
+apps/*/src/renderer/public/sherpaw/
