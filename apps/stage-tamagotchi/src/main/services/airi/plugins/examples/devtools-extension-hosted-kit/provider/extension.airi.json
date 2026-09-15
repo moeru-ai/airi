@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 2,
+  "kind": "manifest.extension.airi.moeru.ai",
+  "id": "devtools-agent-activity-provider",
+  "version": "1.0.0",
+  "engines": {
+    "airi": "*",
+    "runtimes": [
+      "electron"
+    ]
+  },
+  "entrypoints": {
+    "electron": "./provider.mjs"
+  },
+  "permissions": {},
+  "kits": {
+    "provides": [
+      {
+        "id": "dev.airi.agent-activity",
+        "version": "1.0.0",
+        "exposure": "local-only"
+      }
+    ]
+  }
+}

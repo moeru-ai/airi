@@ -1,0 +1,33 @@
+{
+  "manifestVersion": 2,
+  "kind": "manifest.extension.airi.moeru.ai",
+  "id": "devtools-agent-activity-consumer",
+  "version": "1.0.0",
+  "engines": {
+    "airi": "*",
+    "runtimes": [
+      "electron"
+    ]
+  },
+  "entrypoints": {
+    "electron": "./consumer.mjs"
+  },
+  "permissions": {
+    "apis": [
+      {
+        "key": "dev.airi.agent-activity",
+        "actions": [
+          "invoke"
+        ]
+      }
+    ]
+  },
+  "kits": {
+    "uses": [
+      {
+        "id": "dev.airi.agent-activity",
+        "version": "1.0.0"
+      }
+    ]
+  }
+}

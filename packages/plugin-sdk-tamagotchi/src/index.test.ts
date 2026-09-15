@@ -1,8 +1,9 @@
 import type {
+  ConsumableKit,
   ExtensionModuleRef,
   KitAvailability,
+  KitClientOf,
   KitClientRuntime,
-  KitRef,
   KitUseResult,
 } from '@proj-airi/plugin-sdk'
 import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
@@ -81,9 +82,9 @@ function createGameletModuleRef(input: {
   const module: ExtensionModuleRef = {
     id: input.id,
     kits: {
-      async use<TClient>(kit: KitRef<TClient>): Promise<TClient> {
+      async use<TKit extends ConsumableKit>(kit: TKit): Promise<KitClientOf<TKit>> {
         useKit(kit)
-        if (kit !== gameletKit) {
+        if (kit.id !== gameletKit.id) {
           throw new Error(`Unexpected kit requested: ${kit.id}`)
         }
 
@@ -93,18 +94,18 @@ function createGameletModuleRef(input: {
           moduleId: input.id,
           bind: input.bind,
           gamelets: input.gamelets,
-        })) as TClient
+        })) as KitClientOf<TKit>
       },
-      async tryUse<TClient>(kit: KitRef<TClient>): Promise<KitUseResult<TClient>> {
+      async tryUse<TKit extends ConsumableKit>(kit: TKit): Promise<KitUseResult<TKit>> {
         return {
           ok: false,
           reason: 'missing-kit',
           error: new Error(`Unused test kit lookup: ${kit.id}`),
         }
       },
-      watch<TClient>(
-        _kit: KitRef<TClient>,
-        _callback: (availability: KitAvailability<TClient>) => void | Promise<void>,
+      watch<TKit extends ConsumableKit>(
+        _kit: TKit,
+        _callback: (availability: KitAvailability<TKit>) => void | Promise<void>,
       ) {
         return { dispose: vi.fn() }
       },
@@ -128,9 +129,9 @@ function createToolModuleRef(input: {
   const module: ExtensionModuleRef = {
     id: input.id,
     kits: {
-      async use<TClient>(kit: KitRef<TClient>): Promise<TClient> {
+      async use<TKit extends ConsumableKit>(kit: TKit): Promise<KitClientOf<TKit>> {
         useKit(kit)
-        if (kit !== toolKit) {
+        if (kit.id !== toolKit.id) {
           throw new Error(`Unexpected kit requested: ${kit.id}`)
         }
 
@@ -140,18 +141,18 @@ function createToolModuleRef(input: {
           moduleId: input.id,
           register: input.register,
           registerToolsetPrompt: input.registerToolsetPrompt,
-        })) as TClient
+        })) as KitClientOf<TKit>
       },
-      async tryUse<TClient>(kit: KitRef<TClient>): Promise<KitUseResult<TClient>> {
+      async tryUse<TKit extends ConsumableKit>(kit: TKit): Promise<KitUseResult<TKit>> {
         return {
           ok: false,
           reason: 'missing-kit',
           error: new Error(`Unused test kit lookup: ${kit.id}`),
         }
       },
-      watch<TClient>(
-        _kit: KitRef<TClient>,
-        _callback: (availability: KitAvailability<TClient>) => void | Promise<void>,
+      watch<TKit extends ConsumableKit>(
+        _kit: TKit,
+        _callback: (availability: KitAvailability<TKit>) => void | Promise<void>,
       ) {
         return { dispose: vi.fn() }
       },

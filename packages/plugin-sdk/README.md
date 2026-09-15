@@ -32,11 +32,77 @@ Each installable Extension package has an `extension.airi.json` file at its root
 }
 ```
 
-Manifest parsing is strict. Unknown fields, unsafe ids, empty entrypoints, and missing runtime entrypoints fail validation. Kit declarations use exact semantic versions. The manifest owns the Extension version used by the Host session. `defineExtension(...)` owns runtime setup and must use the same Extension id.
+Manifest parsing is strict. Unknown fields, unsafe ids, empty entrypoints, and missing runtime entrypoints fail validation. The manifest owns the Extension version used by the Host session. `defineExtension(...)` owns runtime setup and must use the same Extension id.
 
-## Kit API Naming
+## Extension-hosted Kits
 
-Kits should hide transport details from extension authors. A normal extension should use a kit as a normal API object directly from setup:
+A Provider Extension registers method handlers during `setup`. Its manifest must declare the same Kit id, version, and exposure policy. Method inputs, method outputs, and event payloads must use `KitValue`.
+
+```ts
+interface AgentActivity {
+  agentId: string
+  state: 'waiting-for-user' | 'completed'
+  summary: string
+}
+
+const agentActivityKit = defineKitContract({
+  id: 'dev.airi.agent-activity',
+  version: '1.0.0',
+  allowedExposePolicies: ['local-only'],
+  methods: {
+    getCurrentActivity: defineKitMethod<undefined, AgentActivity>(),
+  },
+  events: {
+    activityChanged: defineKitEvent<AgentActivity>(),
+  },
+})
+
+export default defineExtension({
+  id: 'agent-activity-provider',
+  setup(ctx) {
+    const provider = ctx.kits.provide(agentActivityKit, {
+      methods: {
+        getCurrentActivity() {
+          return currentActivity
+        },
+      },
+    })
+
+    ctx.subscriptions.add(
+      observeAgentActivity((activity) => {
+        provider.emit('activityChanged', activity)
+      }),
+    )
+  },
+})
+```
+
+A Consumer Extension imports the shared contract. The Consumer manifest declares the Kit in `kits.uses` and requests `apis.invoke` permission.
+
+```ts
+export default defineExtension({
+  id: 'agent-activity-consumer',
+  async setup(ctx) {
+    const activityClient = await ctx.kits.use(agentActivityKit)
+    ctx.subscriptions.add(activityClient.activityChanged.subscribe((activity) => {
+      reactWithAiri(activity)
+    }))
+
+    const currentActivity = await activityClient.getCurrentActivity()
+    reactWithAiri(currentActivity)
+  },
+})
+```
+
+The Host permits one active Provider for each Kit id. The Host creates each Consumer client and routes its methods and events. A Provider object never crosses the Kit seam. Provider unload removes the registration, closes subscriptions, and updates Kit watchers.
+
+The desktop example is in `apps/stage-tamagotchi/src/main/services/airi/plugins/examples/devtools-extension-hosted-kit`.
+
+## Host-provided Kit Naming
+
+Host-provided Kits are trusted local capabilities. They can use `defineKit(...)` and `createClient(...)` when structured `KitValue` cannot represent the capability. The Tool Kit uses this path because tool definitions contain execution callbacks.
+
+Host-provided Kits must hide transport details from Extension authors. A normal Extension uses the Kit as a normal client from setup:
 
 ```ts
 const gamelets = await ctx.kits.use(gameletKit)
@@ -45,7 +111,7 @@ await gamelets.mount(input)
 
 Explicit module scopes are an advanced lifecycle and attribution API. Use `module.kits.use(...)` only when the host needs a contribution to be associated with a sub-scope that may later be inspected, disposed, or restarted independently.
 
-When a kit needs to work across process or network boundaries, expose shared Eventa invoke contracts from the kit package and build the client from those contracts. Do not introduce kit-specific transport method names such as `invokeGamelet`, `gameletRpc`, or `gameletRuntime`.
+When a Host-provided Kit works across process or network seams, expose shared Eventa contracts from the Kit package. Do not add transport names such as `invokeGamelet`, `gameletRpc`, or `gameletRuntime` to the author-facing client.
 
 Use these names consistently:
 

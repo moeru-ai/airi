@@ -8,7 +8,7 @@ function createTestExtensionContext(register: ExtensionSetupContext['modules']['
   return {
     extension: { id: 'extension-test', sessionId: 'session-1', version: '1.0.0' },
     subscriptions: new DisposableStore(),
-    kits: { use: vi.fn(), tryUse: vi.fn(), watch: vi.fn() },
+    kits: { provide: vi.fn(), use: vi.fn(), tryUse: vi.fn(), watch: vi.fn() },
     modules: { register },
   }
 }
@@ -50,6 +50,7 @@ describe('defineExtension', () => {
       },
       subscriptions,
       kits: {
+        provide: vi.fn(),
         use: vi.fn(),
         tryUse: vi.fn(),
         watch: vi.fn(),
