@@ -1118,6 +1118,14 @@ pages:
       Transcription: 转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
+      sherpaw-transcription:
+        title: Sherpaw
+        description: 使用应用内置模型进行本地语音识别，无需 API 密钥。
+        language-group:
+          label: 语言组
+          description: 选择内置模型，自动识别该组支持的语言。更改后会重新启动当前识别会话。
+          zh-en: 中文 / 英语
+          multilingual: 阿拉伯语 / 英语 / 印度尼西亚语 / 日语 / 俄语 / 泰语 / 越南语 / 中文
       apple-speech-transcription:
         title: Apple 语音识别
         description: 使用 macOS 26 或更高版本的设备端语音识别，无需 API 密钥。

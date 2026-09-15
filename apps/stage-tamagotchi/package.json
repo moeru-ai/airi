@@ -181,6 +181,7 @@
     "@proj-airi/ui-transitions": "workspace:^",
     "@proj-airi/unplugin-fetch": "catalog:",
     "@proj-airi/unplugin-live2d-sdk": "catalog:",
+    "@proj-airi/vite-plugin-sherpaw": "workspace:^",
     "@types/audioworklet": "catalog:",
     "@types/culori": "catalog:",
     "@types/nprogress": "catalog:",

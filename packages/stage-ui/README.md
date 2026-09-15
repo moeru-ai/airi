@@ -86,3 +86,16 @@ compare gesture presentation, not conversation storage behavior.
 
 1. If a story is bound to a specific component, it can be placed beside the component in the `src` folder. e.g., `MyComponent.story.vue`
 2. If a story is not bound to a specific component, then it should be placed in the `stories` folder. e.g., `MyStory.story.vue`
+
+## Local Hearing with Sherpaw
+
+Select **Sherpaw** in Hearing settings, then choose **Chinese / English** or the
+**eight-language** group. The model detects the language within that group.
+Changing the group saves the Provider configuration and replaces its runtime.
+Each speech session owns a Worker, released when the session ends or is cancelled.
+
+Hosts must enable `@proj-airi/vite-plugin-sherpaw` to include the model assets.
+Use this Provider for local streaming recognition without API credentials.
+It requires Workers and WebAssembly and adds about 576 MB to the build. Use a
+remote Provider when model download size or local memory makes that unsuitable.
+The existing VAD pipeline has separate model and runtime downloads.
