@@ -1,4 +1,4 @@
-import type { createContext } from '@moeru/eventa/adapters/electron/main'
+import type { createContext, ElectronMainEmitOptions } from '@moeru/eventa/adapters/electron/main'
 
 import type {
   ElectronMcpCallToolPayload,
@@ -14,7 +14,9 @@ import type {
   ElectronMcpToolDescriptor,
 } from '../../../../shared/eventa'
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import process from 'node:process'
+
+import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
@@ -62,6 +64,7 @@ const toolNameSeparator = '::'
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
 const mcpTestStderrMaxChars = 16_000
+const mcpConfigFileMode = 0o600
 
 function stringifyError(error: unknown) {
   if (error instanceof Error) {
@@ -73,6 +76,42 @@ function stringifyError(error: unknown) {
 
 function getConfigPath() {
   return join(app.getPath('userData'), 'mcp.json')
+}
+
+/**
+ * Writes the MCP config with owner-only permissions.
+ *
+ * The file can hold API keys in `env`, so it must not stay group or world
+ * readable on POSIX systems. `chmod` also tightens files created by older
+ * builds, because `mode` only applies when `writeFile` creates the file.
+ */
+async function writeConfigFile(path: string, contents: string) {
+  await writeFile(path, contents, { mode: mcpConfigFileMode })
+  if (process.platform !== 'win32') {
+    await chmod(path, mcpConfigFileMode)
+  }
+}
+
+/**
+ * Rejects MCP IPC commands that do not come from an app window main frame.
+ *
+ * Every app window shares the preload IPC bridge, while sandboxed plugin
+ * iframes have no bridge at all. This guard keeps subframes and foreign frames
+ * out of the MCP read, write, and process-spawn operations.
+ */
+function assertTrustedMcpSender(options: { raw?: ElectronMainEmitOptions['raw'] } | undefined) {
+  const event = options?.raw?.ipcMainEvent
+  if (!event) {
+    // In-memory contexts carry no IPC frame; only tests use them.
+    return
+  }
+
+  const frame = event.senderFrame
+  // Only the top frame of an app window may drive MCP. `parent` is null for a
+  // main frame; subframes and disposed frames are rejected.
+  if (!frame || frame.parent !== null) {
+    throw new Error('Rejected MCP command from an untrusted frame.')
+  }
 }
 
 function parseQualifiedToolName(name: string) {
@@ -131,7 +170,7 @@ export function createMcpStdioManager(): McpStdioManager {
       await readFile(path, 'utf-8')
     }
     catch {
-      await writeFile(path, `${JSON.stringify(defaultMcpConfig, null, 2)}\n`)
+      await writeConfigFile(path, `${JSON.stringify(defaultMcpConfig, null, 2)}\n`)
     }
 
     return { path }
@@ -347,7 +386,7 @@ export function createMcpStdioManager(): McpStdioManager {
     const { path } = await ensureConfigFile()
     const validated = parseElectronMcpConfigText(text)
     const normalized = `${JSON.stringify(validated, null, 2)}\n`
-    await writeFile(path, normalized)
+    await writeConfigFile(path, normalized)
     return { path, text: normalized }
   }
 
@@ -459,35 +498,43 @@ export async function setupMcpStdioManager() {
 }
 
 export function createMcpServersService(params: { context: ReturnType<typeof createContext>['context'], manager: McpStdioManager }) {
-  defineInvokeHandler(params.context, electronMcpOpenConfigFile, async () => {
+  defineInvokeHandler(params.context, electronMcpOpenConfigFile, async (_payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.openConfigFile()
   })
 
-  defineInvokeHandler(params.context, electronMcpApplyAndRestart, async () => {
+  defineInvokeHandler(params.context, electronMcpApplyAndRestart, async (_payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.applyAndRestart()
   })
 
-  defineInvokeHandler(params.context, electronMcpGetRuntimeStatus, async () => {
+  defineInvokeHandler(params.context, electronMcpGetRuntimeStatus, async (_payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.getRuntimeStatus()
   })
 
-  defineInvokeHandler(params.context, electronMcpListTools, async () => {
+  defineInvokeHandler(params.context, electronMcpListTools, async (_payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.listTools()
   })
 
-  defineInvokeHandler(params.context, electronMcpCallTool, async (payload) => {
+  defineInvokeHandler(params.context, electronMcpCallTool, async (payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.callTool(payload)
   })
 
-  defineInvokeHandler(params.context, electronMcpReadConfigText, async () => {
+  defineInvokeHandler(params.context, electronMcpReadConfigText, async (_payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.readConfigText()
   })
 
-  defineInvokeHandler(params.context, electronMcpWriteConfigText, async (payload) => {
+  defineInvokeHandler(params.context, electronMcpWriteConfigText, async (payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.writeConfigText(payload.text)
   })
 
-  defineInvokeHandler(params.context, electronMcpTestServer, async (payload) => {
+  defineInvokeHandler(params.context, electronMcpTestServer, async (payload, options) => {
+    assertTrustedMcpSender(options)
     return params.manager.testServer(payload)
   })
 }

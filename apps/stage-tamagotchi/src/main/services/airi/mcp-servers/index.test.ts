@@ -1,3 +1,7 @@
+import { mkdtemp, rm, stat } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const appMock = vi.hoisted(() => ({
@@ -85,5 +89,26 @@ describe('createMcpStdioManager', () => {
     expect(result.ok).toBe(false)
     expect(result.error).toContain('connect failed')
     expect(result.error).toContain('Missing required environment variable: API_KEY')
+  })
+
+  // NOTICE:
+  // Windows does not implement POSIX file modes, so this check runs on the
+  // Linux and macOS runners that enforce file permissions.
+  it.skipIf(process.platform === 'win32')('writes mcp.json with owner-only permissions', async () => {
+    const userDataDir = await mkdtemp(join(tmpdir(), 'airi-mcp-'))
+    appMock.getPath.mockReturnValue(userDataDir)
+
+    try {
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+
+      await manager.writeConfigText(JSON.stringify({ mcpServers: {} }))
+
+      const fileStats = await stat(join(userDataDir, 'mcp.json'))
+      expect(fileStats.mode & 0o777).toBe(0o600)
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
   })
 })
