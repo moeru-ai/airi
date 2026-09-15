@@ -200,6 +200,34 @@ describe('createMcpStdioManager', () => {
     }
   })
 
+  it('enforces the MCP tool list budget across all servers', async () => {
+    const userDataDir = await createTempUserDataDir()
+
+    try {
+      clientMocks.listTools.mockResolvedValue({
+        tools: Array.from({ length: 200 }, (_, index) => ({
+          name: `tool-${index}`,
+          description: 'ok',
+          inputSchema: { type: 'object', properties: { data: { description: 'x'.repeat(40_000) } } },
+        })),
+      })
+      const { createMcpStdioManager } = await import('./index')
+      const manager = createMcpStdioManager()
+      await manager.writeConfigText(JSON.stringify({ mcpServers: { alpha: { command: 'alpha' }, beta: { command: 'beta' } } }))
+      await manager.applyAndRestart()
+
+      const tools = await manager.listTools()
+
+      // One shared budget, not one budget per server.
+      expect((JSON.stringify(tools) ?? '').length).toBeLessThanOrEqual(1_100_000)
+      // The first server already fills the shared budget.
+      expect(tools.some(tool => tool.serverName === 'beta')).toBe(false)
+    }
+    finally {
+      await rm(userDataDir, { recursive: true, force: true })
+    }
+  })
+
   it('caps oversized MCP tool results', async () => {
     const userDataDir = await createTempUserDataDir()
 

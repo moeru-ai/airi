@@ -407,7 +407,6 @@ export function createMcpStdioManager(): McpStdioManager {
           maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
         })
         const descriptors: ElectronMcpToolDescriptor[] = []
-        let totalChars = 0
 
         for (const item of response.tools.slice(0, mcpListToolsMaxPerServer)) {
           const descriptor = {
@@ -418,16 +417,15 @@ export function createMcpStdioManager(): McpStdioManager {
             inputSchema: item.inputSchema,
           } satisfies ElectronMcpToolDescriptor
 
-          // Names and input schemas are unbounded server output too, so apply a
-          // serialized-size budget to each descriptor and to the whole list.
+          // Names and input schemas are unbounded server output too, so bound
+          // each descriptor before it leaves this server.
           const descriptorChars = JSON.stringify(descriptor)?.length ?? 0
-          if (descriptorChars > mcpToolDescriptorMaxChars || totalChars + descriptorChars > mcpToolListTotalMaxChars) {
+          if (descriptorChars > mcpToolDescriptorMaxChars) {
             log.withFields({ serverName, toolName: item.name }).warn('skipping mcp tool with oversized descriptor')
             continue
           }
 
           descriptors.push(descriptor)
-          totalChars += descriptorChars
         }
 
         return descriptors
@@ -438,7 +436,22 @@ export function createMcpStdioManager(): McpStdioManager {
       }
     }))
 
-    return listResult.flat()
+    // Apply the total budget across every server. A per-server budget would
+    // multiply with the number of configured servers.
+    const bounded: ElectronMcpToolDescriptor[] = []
+    let totalChars = 0
+    for (const descriptor of listResult.flat()) {
+      const descriptorChars = JSON.stringify(descriptor)?.length ?? 0
+      if (totalChars + descriptorChars > mcpToolListTotalMaxChars) {
+        log.warn('mcp tool list reached the total size budget')
+        break
+      }
+
+      bounded.push(descriptor)
+      totalChars += descriptorChars
+    }
+
+    return bounded
   }
 
   const callTool = async (payload: ElectronMcpCallToolPayload): Promise<ElectronMcpCallToolResult> => {
