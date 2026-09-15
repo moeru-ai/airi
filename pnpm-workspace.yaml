@@ -188,6 +188,8 @@ catalog:
   '@radix-ui/colors': ^3.0.0
   '@ricky0123/vad-web': ^0.0.30
   '@rive-app/canvas-lite': ^2.40.1
+  '@sherpaw/preloader': 0.0.2
+  '@sherpaw/xsai-transcription': 0.0.2
   '@shikijs/markdown-it': ^4.4.3
   '@shikijs/rehype': ^4.4.3
   '@shopify/draggable': ^1.2.1
