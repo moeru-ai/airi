@@ -100,7 +100,6 @@ watchDebounced([
   () => providers.value[providerId]?.baseUrl,
 ], loadVoicesWhenConfigured, {
   debounce: 500,
-  immediate: true,
 })
 </script>
 
