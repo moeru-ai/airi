@@ -999,7 +999,6 @@ chatHookCleanups.push(onBeforeSend(async () => {
 chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
   if (context.turnId !== activeSpeechTurnId)
     return
-  bilingualCaptionBus.ingestSpoken(context.turnId)
   currentSession?.appendText(literal)
 }))
 

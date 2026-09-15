@@ -73,7 +73,6 @@ export const useCharacterStore = defineStore('character', () => {
   function routeBilingualEvents(state: StreamingReactionState, events: Iterable<BilingualTurnEvent>) {
     for (const event of events) {
       if (event.kind === 'spoken') {
-        bilingualCaptionBus.ingestSpoken(state.turnId)
         if (event.text)
           void state.parser.consume(event.text)
       }
