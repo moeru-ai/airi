@@ -1,4 +1,4 @@
-import type { ExtensionHost, ExtensionManifestV1 } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionHost, ExtensionManifestV2 } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type {
   WidgetsAddPayload,
@@ -27,7 +27,7 @@ export type ExtensionId = string
  */
 export interface ExtensionHostService {
   host: ExtensionHost
-  manifests: ExtensionManifestV1[]
+  manifests: ExtensionManifestV2[]
 }
 
 /**
@@ -70,6 +70,12 @@ export interface ExtensionHostGameletWidgetsManager {
  */
 export interface SetupExtensionHostOptions {
   widgetsManager: ExtensionHostGameletWidgetsManager
+  /**
+   * Returns the active Settings renderer that may import Extension folders.
+   *
+   * @default undefined, which disables folder import IPC
+   */
+  getExtensionManagementWebContentsId?: () => number | undefined
 }
 
 /**
@@ -133,7 +139,7 @@ export interface ExtensionConfig {
 }
 
 /**
- * Internal manifest record with resolved location and package version.
+ * Internal manifest record with its resolved location and declared version.
  *
  * Use when:
  * - Loading extension manifests from disk
@@ -143,13 +149,13 @@ export interface ExtensionConfig {
  * - `manifest` is schema-validated
  * - `path` points to `extension.airi.json`
  * - `rootDir` is the extension root directory
- * - `version` is discovered from package metadata or fallback
+ * - `version` is copied from the validated manifest
  *
  * Returns:
  * - N/A
  */
 export interface ManifestEntry {
-  manifest: ExtensionManifestV1
+  manifest: ExtensionManifestV2
   path: string
   rootDir: string
   version: string

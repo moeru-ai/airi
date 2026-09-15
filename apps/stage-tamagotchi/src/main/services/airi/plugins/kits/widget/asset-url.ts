@@ -1,4 +1,5 @@
-import type { PluginHostModuleSummary } from '../../../../../../shared/eventa/plugin/host'
+import type { PluginHostModuleSummary } from '@proj-airi/stage-shared/plugin-host'
+
 import type { ManifestEntry } from '../../types'
 
 import { isPlainObject } from 'es-toolkit'

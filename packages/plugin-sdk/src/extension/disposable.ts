@@ -17,7 +17,7 @@ export interface Disposable {
  * - Disposables are independent or tolerate reverse-order teardown
  *
  * Returns:
- * - A disposable store that can be awaited during host cleanup
+ * - A disposable store that attempts every cleanup before reporting failures
  */
 export class DisposableStore implements Disposable {
   private readonly disposables: Disposable[] = []
@@ -39,9 +39,22 @@ export class DisposableStore implements Disposable {
     }
 
     this.disposed = true
+    const errors: unknown[] = []
     for (const disposable of [...this.disposables].reverse()) {
-      await disposable.dispose()
+      try {
+        await disposable.dispose()
+      }
+      catch (error) {
+        errors.push(error)
+      }
     }
     this.disposables.length = 0
+
+    if (errors.length === 1) {
+      throw errors[0]
+    }
+    if (errors.length > 1) {
+      throw new AggregateError(errors, 'Multiple disposable resources failed to clean up.')
+    }
   }
 }
