@@ -765,9 +765,31 @@ function setupAnalyser() {
 // decision point. See `packages/stage-ui/src/libs/speech/tts-session.ts`.
 let currentSession: StageTtsSession | null = null
 
+// Live bidirectional-ws sessions for every speaker (chat replies, spark
+// reactions). The streaming adapter bypasses speechPipeline and owns its
+// upstream WebSocket alone: `stopAll` purges scheduled items but cannot
+// close the socket, and `schedule()` keeps accepting sentences a
+// still-open socket delivers. `currentSession` only references chat, so
+// these sessions are cancelled through cancelLiveStreamingSessions on
+// stop, mute, interrupt/replace, and unmount. Each removes itself on
+// terminal onDone/onError.
+const liveStreamingSessions = new Set<StageTtsSession>()
+
+// Closes upstream WebSockets of every live streaming session (chat and
+// non-chat speakers). playbackManager/speechPipeline teardown purges
+// scheduled audio but cannot close the socket, so without this a stopped
+// or muted streaming session keeps scheduling new audio. Session cancel
+// is idempotent.
+function cancelLiveStreamingSessions(reason: string) {
+  for (const session of liveStreamingSessions)
+    session.cancel(reason)
+  liveStreamingSessions.clear()
+}
+
 function stopSpeechOutput(reason: string) {
   currentSession?.cancel(reason)
   currentSession = null
+  cancelLiveStreamingSessions(reason)
   speechPipeline.stopAll(reason)
   playbackManager.stopAll(reason)
   resetAssistantSpeechSurface(reason)
@@ -837,18 +859,6 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
   return getDefinedProvider(providerId)?.capabilities?.speech?.transport
 }
 
-// Live bidirectional-ws sessions opened through this factory, for every
-// speaker (chat replies, spark reactions, plugin text). The streaming
-// adapter bypasses speechPipeline and owns its upstream WebSocket alone:
-// `speechPipeline.stopAll` / `playbackManager.stopAll` purge scheduled
-// items but cannot close the socket, and `schedule()` keeps accepting
-// sentences a still-open socket delivers. `currentSession` only
-// references the chat session, so non-chat speakers (spark reactions)
-// would survive an interrupt and keep feeding stale audio. Cancel the
-// previous sessions explicitly before an interrupt/replace opens the
-// next one; each session removes itself on terminal onDone/onError.
-const liveStreamingSessions = new Set<StageTtsSession>()
-
 function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsSession {
   const { turnId, flushBoundaries, priority = 'normal', behavior = 'queue', ownerId = activeCardId.value } = options
 
@@ -856,16 +866,9 @@ function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsS
   // pre-open teardown a new chat message performs, without touching the
   // chat turn bookkeeping (activeSpeechTurnId) owned by the chat hooks.
   if (behavior === 'interrupt' || behavior === 'replace') {
-    const interruptingSession = currentSession
-    interruptingSession?.cancel(behavior)
+    currentSession?.cancel(behavior)
     currentSession = null
-    // Close upstream WebSockets that playback/pipeline teardown cannot
-    // reach. The chat session is tracked too; skip it — cancelled above.
-    for (const previous of liveStreamingSessions) {
-      if (previous !== interruptingSession)
-        previous.cancel(behavior)
-    }
-    liveStreamingSessions.clear()
+    cancelLiveStreamingSessions(behavior)
     speechPipeline.stopAll(behavior)
     playbackManager.stopAll(behavior)
   }
@@ -1212,9 +1215,7 @@ onUnmounted(() => {
   // reach.
   currentSession?.cancel('unmount')
   currentSession = null
-  for (const session of liveStreamingSessions)
-    session.cancel('unmount')
-  liveStreamingSessions.clear()
+  cancelLiveStreamingSessions('unmount')
   playbackManager.stopAll('unmount')
 })
 

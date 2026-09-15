@@ -121,6 +121,15 @@ describe('store character', () => {
     nowSpy.mockRestore()
   })
 
+  it('keeps ordinary brackets verbatim when bilingual mode is off', () => {
+    const store = useCharacterStore()
+
+    store.onSparkNotifyReactionStreamEvent('spark-3', 'Use arr[index] for that.')
+    store.onSparkNotifyReactionStreamEnd('spark-3', 'Use arr[index] for that.')
+
+    expect(store.reactions[0]?.message).toBe('Use arr[index] for that.')
+  })
+
   it('still records a reaction when only the stream end is observed', () => {
     const store = useCharacterStore()
 

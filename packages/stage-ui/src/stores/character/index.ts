@@ -52,9 +52,9 @@ export const useCharacterStore = defineStore('character', () => {
   const { activeCard, systemPrompt } = storeToRefs(useAiriCardStore())
   const bilingualSettings = useSettingsBilingualSubtitles()
   const bilingualCaptionBus = useBilingualCaptionBus()
-  // Spark reactions interrupt earlier speech. Track active turn ids so the
-  // previous reaction's caption line is cleared when a new one starts.
-  const activeSparkTurnIds = new Set<string>()
+  // A new reaction interrupts the previous one, so at most one bilingual
+  // turn is active. Clear its caption line when the next one starts.
+  let activeBilingualTurnId: string | undefined
 
   const name = computed(() => activeCard.value?.name ?? '')
   const ownerId = computed(() => activeCard.value?.name ?? 'default')
@@ -96,10 +96,9 @@ export const useCharacterStore = defineStore('character', () => {
       const snapshot = bilingualSettings.snapshot()
       const turnId = `spark:${sparkEventId}`
       if (snapshot) {
-        for (const previousTurnId of activeSparkTurnIds)
-          bilingualCaptionBus.resetTurn(previousTurnId)
-        activeSparkTurnIds.clear()
-        activeSparkTurnIds.add(turnId)
+        if (activeBilingualTurnId)
+          bilingualCaptionBus.resetTurn(activeBilingualTurnId)
+        activeBilingualTurnId = turnId
       }
 
       // The orchestrator only delivers events to windows that mount Stage,
@@ -144,16 +143,19 @@ export const useCharacterStore = defineStore('character', () => {
   function onSparkNotifyReactionStreamEnd(sparkEventId: string, fullText: string, options?: { metadata?: Record<string, unknown> }) {
     const state = streamingReactions.value.get(sparkEventId)
     if (!state) {
-      // No speech session for this stream; still persist the reaction.
-      recordSparkNotifyReaction(sparkEventId, spokenProjection(fullText), { metadata: options?.metadata })
+      // No speech session for this stream; persist the raw text.
+      recordSparkNotifyReaction(sparkEventId, fullText, { metadata: options?.metadata })
       return
     }
 
     if (state.splitter)
       routeBilingualEvents(state, state.splitter.end())
 
-    // Persist the spoken projection; raw text still carries UST brackets.
-    recordSparkNotifyReaction(sparkEventId, spokenProjection(fullText), { metadata: options?.metadata })
+    // Only bilingual text carries UST brackets to strip. In an ordinary
+    // response brackets are ordinary content (e.g. `arr[index]`) and the
+    // raw plugin text must be persisted unchanged.
+    const message = state.splitter ? spokenProjection(fullText) : fullText
+    recordSparkNotifyReaction(sparkEventId, message, { metadata: options?.metadata })
 
     // Close the parser first so every queued fragment (including the last
     // flush marker) reaches the session before EOF. Leftover pairs are
@@ -162,7 +164,8 @@ export const useCharacterStore = defineStore('character', () => {
       state.session.finishInput()
       state.session.end()
     })
-    activeSparkTurnIds.delete(state.turnId)
+    if (activeBilingualTurnId === state.turnId)
+      activeBilingualTurnId = undefined
     streamingReactions.value.delete(sparkEventId)
   }
 
