@@ -765,7 +765,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         deps.onLifecycle?.({ phase: 'prompt-context-built', channel: 'chat', sessionId, details: { contexts: contextsSnapshot } })
       }
 
-      // Hooks and the plugin bridge consume a display projection. It contains
+      // Hooks, diagnostics, and the plugin bridge consume a display projection. It contains
       // no native continuation state and never becomes a provider request.
       streamingMessageContext.composedMessage = renderConversationPreview(context)
       deps.onPromptProjection?.({
@@ -779,7 +779,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         channel: 'chat',
         sessionId,
         textPreview: sendingMessage,
-        details: { context },
+        details: { composedMessage: streamingMessageContext.composedMessage },
       })
 
       await hooks.emitAfterMessageComposedHooks(sendingMessage, streamingMessageContext)

@@ -1260,4 +1260,10 @@ it('runs consecutive orchestrator turns through the real Responses adapter', asy
   expect(requests[1].input.slice(2, 4)).toEqual(native)
   expect(harness.assistantAppended).toHaveLength(2)
   expect(JSON.stringify(harness.promptProjections)).not.toContain('encrypted_content')
+  // ROOT CAUSE:
+  // Lifecycle snapshots retained native history after each composition.
+  // Keep opaque state on the provider boundary, outside diagnostic copies.
+  // https://github.com/moeru-ai/airi/pull/2477#discussion_r4015043327
+  expect(JSON.stringify(harness.lifecycleRecords)).not.toContain('encrypted_content')
+  expect(JSON.stringify(harness.lifecycleRecords)).toContain('answer')
 })
