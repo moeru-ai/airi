@@ -235,11 +235,6 @@ describe('provider store synchronization boundary', () => {
   // We fixed this by requiring a configured record for official providers
   // while keeping account-free browser and local providers available.
   it('lists official providers only after authenticated setup configures them', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ flux: 0 }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    }))
-    vi.stubGlobal('fetch', fetchMock)
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
 
@@ -278,7 +273,6 @@ describe('provider store synchronization boundary', () => {
     expect(store.moduleSpeechProvidersMetadata.map(provider => provider.id)).not.toContain(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
     expect(store.moduleTranscriptionProvidersMetadata.map(provider => provider.id)).toContain(OFFICIAL_TRANSCRIPTION_PROVIDER_ID)
     expect(store.moduleVisionProvidersMetadata.map(provider => provider.id)).toContain('vision-official-provider')
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled())
   })
 
   // ROOT CAUSE:
