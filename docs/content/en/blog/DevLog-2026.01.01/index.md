@@ -5,8 +5,8 @@ date: 2026-01-01
 excerpt: |
   Sharing AIRI's progress on the iOS platform, the problems we encountered and their solutions, as well as some achievements and implementation details of the memory layer experiments in FlowChat by LemonNeko.
 preview-cover:
-  light: "@assets('./assets/cover-light.png')"
-  dark: "@assets('./assets/cover-dark.png')"
+  light: "@assets('./assets/cover-light.avif')"
+  dark: "@assets('./assets/cover-dark.avif')"
 ---
 
 ::: info AI Translation
@@ -16,7 +16,7 @@ This article was translated from Chinese to English using AI. The original Chine
 Happy New Year! This is [@LemonNekoGH](https://github.com/LemonNekoGH), one of AIRI's maintainers. The first DevLog of the new year is mine, (pressing B key to select laughing emoji) hahahahaha!
 
 <p style="display: flex; justify-content: center;">
-    <img src="./assets/helldiver-laughing.png" alt="Helldiver Laughing Emotion" />
+    <img src="./assets/helldiver-laughing.avif" alt="Helldiver Laughing Emotion" />
 </p>
 
 Alright, let's get to the point.

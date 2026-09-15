@@ -154,7 +154,7 @@ const buttons = computed(() => theme.value.homepage?.buttons || [])
         <template v-if="isShowHalloween">
           <div class="bg-icon-pattern pointer-events-none absolute inset-0 z-0 opacity-10 dark:opacity-10" :style="{ '--bg-mask-icon-pattern': `url(${homeBackgroundPatternGhost})` }" />
         </template>
-        <template v-if="isShowChristmas">
+        <template v-else-if="isShowChristmas">
           <img :src="homeBackgroundChristmas20251224" class="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover">
         </template>
         <template v-else>
