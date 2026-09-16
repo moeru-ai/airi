@@ -370,6 +370,7 @@ async function copyExtensionDirectory(sourceRoot: string, destinationRoot: strin
  */
 export class ExtensionDirectoryImporter {
   private readonly plans = new Map<string, StoredImportPlan>()
+  private initialization: Promise<void> | undefined
   private commitQueue: Promise<void> = Promise.resolve()
   private disposed = false
 
@@ -379,9 +380,17 @@ export class ExtensionDirectoryImporter {
     private readonly startAccessingSecurityScopedResource?: StartAccessingSecurityScopedResource,
   ) {}
 
+  /** Removes staging copies left by a previous process before this importer accepts work. */
+  async initialize(): Promise<void> {
+    this.assertActive()
+    this.initialization ??= rm(join(this.extensionsRoot, '.imports'), { recursive: true, force: true })
+    await this.initialization
+    this.assertActive()
+  }
+
   /** Creates an import plan from an untrusted source directory. */
   async prepare(sourcePath: string, securityScopedBookmark?: string): Promise<ExtensionDirectoryImportPlan> {
-    this.assertActive()
+    await this.initialize()
     const inspected = await this.withSecurityScopedAccess(
       securityScopedBookmark,
       async () => await inspectExtensionDirectory(sourcePath),
@@ -413,7 +422,7 @@ export class ExtensionDirectoryImporter {
 
   /** Publishes a prepared package and returns its validated committed registry entry. */
   async commit(planId: string): Promise<ManifestEntry> {
-    this.assertActive()
+    await this.initialize()
     const result = this.commitQueue.then(() => this.commitPreparedPlan(planId))
     this.commitQueue = result.then(() => undefined, () => undefined)
     return await result
@@ -428,6 +437,7 @@ export class ExtensionDirectoryImporter {
   async dispose(): Promise<void> {
     this.disposed = true
     this.plans.clear()
+    await this.initialization
     await this.commitQueue
   }
 

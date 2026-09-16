@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, symlink, truncate, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readFile, rm, symlink, truncate, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -96,6 +96,21 @@ describe('extension directory importer', () => {
     expect(await readFile(result.path, 'utf8')).toContain('example-extension')
     expect(await readFile(join(sourceRoot, 'extension.airi.json'), 'utf8')).toContain('example-extension')
     await expect(importer.commit(plan.planId)).rejects.toThrow('missing or was already used')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4015377960
+  it('removes stale staging copies when the importer starts (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // Process termination bypasses commit error handling, so an interrupted
+    // copy can remain under .imports across application restarts.
+    const staleStagingPath = join(extensionsRoot, '.imports', 'interrupted-import')
+    await mkdir(staleStagingPath, { recursive: true })
+    await writeFile(join(staleStagingPath, 'partial.asset'), 'partial')
+
+    await importer.initialize()
+
+    await expect(lstat(staleStagingPath)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('rejects invalid manifest fields with their field path', async () => {

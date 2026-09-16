@@ -263,6 +263,7 @@ export async function setupExtensionHostServiceInternal(
       return () => stopAccessing()
     },
   )
+  await directoryImporter.initialize()
 
   await extensionRegistry.refresh()
   log.withFields({ count: extensionRegistry.listEntries().length }).log('extension manifests loaded')
