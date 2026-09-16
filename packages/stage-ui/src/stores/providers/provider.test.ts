@@ -307,6 +307,36 @@ describe('provider store synchronization boundary', () => {
     }
   })
 
+  // https://github.com/moeru-ai/airi/pull/2471#discussion_r3999454891
+  it('adopts a remote addProvider instance on a fresh device', async () => {
+    // ROOT CAUSE:
+    //
+    // onRemoteWorking validated row.id. addProvider ids are nanoids, so a
+    // fresh device threw and merge skipped the row (broken × none).
+    //
+    // The working check now uses row.definitionId.
+    const configStore = useProviderConfigStore()
+    useProviderStore()
+    const instanceId = 'added-speech-1'
+    const config = { apiKey: 'sk-speech', baseUrl: 'https://api.example.com/v1/' }
+    const restore = stubOpenAiReplica(config)
+    vi.mocked(inferenceServiceProvidersService.listRemote).mockResolvedValue([{
+      id: instanceId,
+      definitionId: 'openai-compatible-audio-speech',
+      config,
+      updatedAt: '2026-01-02T00:00:00.000Z',
+      deletedAt: null,
+    }])
+
+    try {
+      await configStore.syncProviders()
+      expect(configStore.providers[instanceId]?.config).toEqual(config)
+    }
+    finally {
+      restore()
+    }
+  })
+
   // ROOT CAUSE:
   //
   // A model request kept a reference to its runtime entry across an await.

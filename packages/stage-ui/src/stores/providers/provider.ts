@@ -476,7 +476,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   providerConfigStore.onRemoteWorking(async (row) => {
-    const result = await validateProviderConfig(row.id, row.config, { skipChatPingCheck: true })
+    const result = await validateProviderConfig(row.definitionId, row.config, { skipChatPingCheck: true })
     return result.valid
   })
 
