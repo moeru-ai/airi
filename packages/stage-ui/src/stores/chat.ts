@@ -82,6 +82,8 @@ export interface ChatRetryPayload {
 
 /** Identifies one stored tool call that must run again in the leader. */
 export interface ChatToolCallRerunPayload extends Omit<ToolCallRerunPayload, 'sessionId' | 'toolset'> {
+  /** Current selections authorize request-only tools; stored calls do not grant access. */
+  tools?: ChatToolReference[]
   sessionId: string
 }
 
@@ -374,12 +376,19 @@ export const useChatStore = defineStore('chat', () => {
     return runtime.ingest(sendingMessage, options, targetSessionId)
   }
 
+  function requiresToolSelection(name: string) {
+    return llmToolsStore.tools.findLast(tool => tool.function.name === name)?.requiresExplicitSelection === true
+  }
+
   function collectToolReferences(sessionId: string, selectedTools: ChatToolReference[] = []): ChatToolReference[] {
     const names = new Set<string>()
 
     for (const message of chatSession.getSessionMessages(sessionId)) {
-      for (const tool of message.tools ?? [])
-        names.add(tool.name)
+      for (const tool of message.tools ?? []) {
+        // History preserves context, but only this request can grant access to restricted tools.
+        if (!requiresToolSelection(tool.name))
+          names.add(tool.name)
+      }
     }
 
     for (const tool of selectedTools)
@@ -474,7 +483,7 @@ export const useChatStore = defineStore('chat', () => {
         sessionId: payload.sessionId,
         text,
         replyToMessageId: sourceMessage?.replyToMessageId,
-        tools: payload.tools ?? sourceMessage?.tools,
+        tools: payload.tools ?? sourceMessage?.tools?.filter(tool => !requiresToolSelection(tool.name)),
       })
     }
     catch (error) {
@@ -485,6 +494,9 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Runs one stored tool call again and replaces its stored result. */
   async function rerunToolCall(payload: ChatToolCallRerunPayload): Promise<void> {
+    if (requiresToolSelection(payload.toolName) && !payload.tools?.some(tool => tool.name === payload.toolName))
+      throw new Error('Select this tool before running it again.')
+
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 

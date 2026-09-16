@@ -46,6 +46,7 @@ export const useTamagotchiBuiltinToolsStore = defineStore('tamagotchi-builtin-to
     llmToolsStore.addTools(...tools.map(tool => ({
       ...tool,
       defaultActive: false,
+      requiresExplicitSelection: computerUseToolReferences.some(reference => reference.name === tool.function.name),
       id: `${toolIdPrefix}${tool.function.name}`,
     } satisfies ExecutableTool)))
   }

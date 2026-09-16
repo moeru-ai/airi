@@ -10,10 +10,11 @@ Run `pnpm -F @proj-airi/stage-tamagotchi build` to build the app.
 
 ## Computer use
 
-In the desktop chat composer, turn on **Use computer** before sending a desktop task.
-The button starts off and resets when the composer is destroyed. While a request runs, its selection is locked.
+The desktop chat composer starts with **Use computer** on. Turn it off to send a request without desktop access.
+The selection is local to the composer. A new composer starts with it on. While a request runs, its selection is locked.
 Turn it off before sending messages that must not receive computer-use tools.
 
+Only the current selection grants access, including retries and tool reruns. Historical messages do not grant access.
 The selected request receives `computer_use` and `computer_use_read_image`.
 The first tool accepts AUV arguments, such as `["invoke", "window.list"]`.
 Use `["invoke", "--help"]` and command-specific help to discover supported operations.

@@ -206,23 +206,36 @@ describe('interactive area synchronized state', () => {
     const { chat, screen } = await renderArea()
     const send = vi.spyOn(chat, 'send').mockResolvedValue({ messages: [], sessionId: 'session-b' })
     const toggle = screen.getByTestId('computer-use-toggle')
-    await expect.element(toggle).toHaveAttribute('aria-pressed', 'false')
-
-    await submitDraft(screen, 'Ordinary chat')
-    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1))
-    expect(send.mock.calls[0][0].tools).not.toContainEqual({ name: 'computer_use' })
-
-    await toggle.click()
     await expect.element(toggle).toHaveAttribute('aria-pressed', 'true')
+    // The previous small labelled button used a 16px icon beside larger toolbar icons.
+    // Check the rendered geometry, including a narrow desktop chat window.
+    for (const width of [600, 375]) {
+      await page.viewport(width, 768)
+      const buttons = [toggle, screen.getByRole('button', { name: 'stage.send-mode.title' }), screen.getByRole('button', { name: 'Image Journal' }), screen.getByRole('button', { name: 'Attach Image' })]
+      for (const button of buttons) {
+        const bounds = button.element().getBoundingClientRect()
+        const icon = button.element().querySelector('[class*="i-solar:"]')
+        expect(bounds.height).toBe(36)
+        expect(icon?.getBoundingClientRect().width).toBe(20)
+        expect(icon?.getBoundingClientRect().height).toBe(20)
+      }
+    }
     await submitDraft(screen, 'Inspect a window')
-    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2))
-    expect(send.mock.calls[1][0].tools).toContainEqual({ name: 'computer_use' })
-    expect(send.mock.calls[1][0].tools).toContainEqual({ name: 'computer_use_read_image' })
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    expect(send.mock.calls[0][0].tools).toContainEqual({ name: 'computer_use' })
+    expect(send.mock.calls[0][0].tools).toContainEqual({ name: 'computer_use_read_image' })
 
     await toggle.click()
-    await submitDraft(screen, 'Ordinary chat again')
+    await expect.element(toggle).toHaveAttribute('aria-pressed', 'false')
+    await submitDraft(screen, 'Ordinary chat')
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2))
+    expect(send.mock.calls[1][0].tools).not.toContainEqual({ name: 'computer_use' })
+    expect(send.mock.calls[1][0].tools).not.toContainEqual({ name: 'computer_use_read_image' })
+
+    await toggle.click()
+    await submitDraft(screen, 'Inspect another window')
     await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(3))
-    expect(send.mock.calls[2][0].tools).not.toContainEqual({ name: 'computer_use' })
+    expect(send.mock.calls[2][0].tools).toContainEqual({ name: 'computer_use' })
   })
 
   it('centers the mobile editor when no reply preview is visible', async () => {

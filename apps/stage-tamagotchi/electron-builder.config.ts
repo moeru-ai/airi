@@ -136,6 +136,7 @@ export default {
     runAfterFinish: true,
   },
   mac: {
+    entitlements: 'build/entitlements.mac.plist',
     entitlementsInherit: 'build/entitlements.mac.plist',
     // NOTICE: Same channel rule as Windows. Keep `${arch}` here so generated metadata resolves
     // to architecture-specific update feeds on macOS (for example: `latest-x64-mac.yml`, `latest-arm64-mac.yml`).
@@ -208,6 +209,7 @@ export default {
       channel: 'latest-${arch}',
     },
     extendInfo: {
+      NSAppleEventsUsageDescription: 'AIRI uses Automation to control apps for computer-use tasks.',
       NSMicrophoneUsageDescription: 'AIRI requires microphone access for voice interaction',
       NSSpeechRecognitionUsageDescription: 'AIRI uses Apple Speech to transcribe voice interactions on this device',
       NSCameraUsageDescription: 'AIRI requires camera access for vision understanding',
