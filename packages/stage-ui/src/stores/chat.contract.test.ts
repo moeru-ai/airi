@@ -317,10 +317,10 @@ describe('chat store contract', () => {
 
   // https://github.com/moeru-ai/airi/pull/2565#discussion_r4028809145
   it('does not restore request-only tools from session history', async () => {
-    llmStreamMock.mockImplementation(async (_model: string, _provider: ChatProvider, _messages: Message[], options: StreamOptions) => {
+    llmStreamMock.mockImplementation(async (_model: unknown, _provider: unknown, _messages: unknown, options: StreamOptions) => {
       if (typeof options.tools === 'function')
         await options.tools()
-      await options.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options.onStreamEvent?.({ type: 'finish' })
     })
     // ROOT CAUSE:
     // History retained tool selections and granted them to every later request.
