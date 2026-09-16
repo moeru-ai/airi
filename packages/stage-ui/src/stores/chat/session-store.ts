@@ -1488,11 +1488,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return sessionMessages.value[sessionId]
   }
 
-  /** Returns the character that owns a known session without consulting active UI state. */
-  function getSessionCharacterId(sessionId: string) {
-    return sessionMetas.value[sessionId]?.characterId
-  }
-
   function getSessionGeneration(sessionId: string) {
     ensureGeneration(sessionId)
     return sessionGenerations.value[sessionId] ?? 0
@@ -1672,8 +1667,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     persistSessionMessages,
     getSessionMessages,
     getSessionMessagesIfLoaded,
-    getSessionCharacterId,
-    getCurrentUserName,
+    currentUserName: computed(getCurrentUserName),
     sessionMessages,
     sessionMetas,
     getSessionGeneration,

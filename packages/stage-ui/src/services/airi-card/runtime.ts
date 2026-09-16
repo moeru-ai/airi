@@ -6,6 +6,8 @@ import type { AiriCard } from '../../types/airiCard'
 
 import { chatMessagesToTurns, renderConversationPreview } from '@proj-airi/core-agent'
 
+import { matchRegexKeys } from './regex-matcher'
+
 /** Values that vary between one character-card runtime and another. */
 export interface CharacterCardRuntimeOptions {
   /** Display name substituted for the CCv3 `{{user}}` macro. @default 'User' at provider compilation */
@@ -105,16 +107,16 @@ function composeSystemPrompt(
  * Lorebook token budget is not applied because this provider-neutral boundary
  * has no model tokenizer and must not discard entries using guessed token sizes.
  */
-export function compileCharacterCardMessages(
+export async function compileCharacterCardMessages(
   card: AiriCard | undefined,
   messages: Message[],
   options: CharacterCardRuntimeOptions = {},
-): Message[] {
+): Promise<Message[]> {
   if (!card)
     return messages.map(cloneMessage)
 
   const projected = messages.map(cloneMessage)
-  const activeLorebookEntries = compileLorebookEntries(card.characterBook, projected, card, options)
+  const activeLorebookEntries = await compileLorebookEntries(card.characterBook, projected, card, options)
   replaceStableSystemPrompt(projected, card, activeLorebookEntries, options)
   insertDepthMessages(projected, [...activeLorebookEntries, ...compileDepthPrompt(card, options)])
   insertMessageExamples(projected, card, options)
@@ -127,11 +129,11 @@ export function compileCharacterCardMessages(
  * Preview messages are used only for Lorebook matching and insertion positions.
  * Original turns retain media, tool execution, and native continuation data.
  */
-export function compileCharacterCardConversation(
+export async function compileCharacterCardConversation(
   card: AiriCard | undefined,
   conversation: Conversation,
   options: CharacterCardRuntimeOptions = {},
-): Conversation {
+): Promise<Conversation> {
   if (!card)
     return conversation
 
@@ -142,7 +144,7 @@ export function compileCharacterCardConversation(
     sources.set(message, turn)
     return message
   })
-  const entries = compileLorebookEntries(card.characterBook, messages, card, options)
+  const entries = await compileLorebookEntries(card.characterBook, messages, card, options)
   replaceStableSystemPrompt(messages, card, entries, options)
   insertDepthMessages(messages, [...entries, ...compileDepthPrompt(card, options)])
   insertMessageExamples(messages, card, options)
@@ -181,12 +183,12 @@ export function compileCharacterCardGreeting(
   return expandCharacterCardMacros(greeting, card, options)
 }
 
-function compileLorebookEntries(
+async function compileLorebookEntries(
   book: CharacterBook | undefined,
   messages: Message[],
   card: Card,
   options: CharacterCardRuntimeOptions,
-): CompiledLorebookEntry[] {
+): Promise<CompiledLorebookEntry[]> {
   if (!book)
     return []
 
@@ -216,7 +218,7 @@ function compileLorebookEntries(
         parsed.decorators.scanDepth ?? book.scan_depth,
         book.recursive_scanning ? matchedContents : [],
       )
-      if (!matchesLorebookEntry(candidate.entry, parsed.decorators, scanText, messages, options))
+      if (!await matchesLorebookEntry(candidate.entry, parsed.decorators, scanText, messages, options))
         continue
 
       remaining.splice(index, 1)
@@ -245,13 +247,13 @@ function compileLorebookEntries(
   )
 }
 
-function matchesLorebookEntry(
+async function matchesLorebookEntry(
   entry: CharacterBookEntry,
   decorators: LorebookDecorators,
   scanText: string,
   messages: Message[],
   options: CharacterCardRuntimeOptions,
-): boolean {
+): Promise<boolean> {
   if (!entry.enabled || (decorators.dontActivate && !decorators.activate))
     return false
 
@@ -264,10 +266,12 @@ function matchesLorebookEntry(
     return false
 
   const matches = (keys: string[]) => matchesAnyKey(keys, scanText, entry.use_regex, entry.case_sensitive)
-  if (decorators.excludeKeys.length > 0 && matches(decorators.excludeKeys))
+  if (decorators.excludeKeys.length > 0 && await matches(decorators.excludeKeys))
     return false
-  if (decorators.additionalKeys.some(keys => !matches(keys)))
-    return false
+  for (const keys of decorators.additionalKeys) {
+    if (!await matches(keys))
+      return false
+  }
 
   if (decorators.activate)
     return true
@@ -275,43 +279,22 @@ function matchesLorebookEntry(
   // still need a matching key even when both fields are present.
   if (entry.constant && !entry.use_regex)
     return true
-  if (!matches(entry.keys))
+  if (!await matches(entry.keys))
     return false
 
-  return !entry.selective || matches(entry.secondary_keys ?? [])
+  return !entry.selective || await matches(entry.secondary_keys ?? [])
 }
 
-function matchesAnyKey(keys: string[], text: string, useRegex: boolean, caseSensitive = false): boolean {
+async function matchesAnyKey(keys: string[], text: string, useRegex: boolean, caseSensitive = false): Promise<boolean> {
   if (keys.length === 0)
     return false
-
-  if (useRegex) {
-    const patterns: RegExp[] = []
-    for (const key of keys) {
-      try {
-        patterns.push(createLorebookPattern(key, caseSensitive))
-      }
-      catch {
-        // CCv3 requires an invalid regex entry to be treated as not matched.
-        return false
-      }
-    }
-    return patterns.some(pattern => pattern.test(text))
-  }
-
+  if (useRegex)
+    return matchRegexKeys(keys, text, caseSensitive)
   const haystack = caseSensitive ? text : text.toLowerCase()
   return keys.some((key) => {
     const needle = caseSensitive ? key : key.toLowerCase()
     return needle.length > 0 && haystack.includes(needle)
   })
-}
-
-function createLorebookPattern(value: string, caseSensitive: boolean): RegExp {
-  const delimitedPattern = value.match(/^\/([\s\S]*)\/([dgimsuvy]*)$/)
-  if (delimitedPattern)
-    return new RegExp(delimitedPattern[1], [...new Set(delimitedPattern[2] + (caseSensitive ? '' : 'i'))].join(''))
-
-  return new RegExp(value, caseSensitive ? '' : 'i')
 }
 
 function buildLorebookScanText(messages: Message[], scanDepth: number | undefined, recursiveContents: string[]): string {
@@ -515,8 +498,8 @@ function expandCharacterCardMacros(
   const random = options.random ?? Math.random
 
   return source
-    .replace(/\{\{char\}\}|<char>|<bot>/gi, characterName)
-    .replace(/\{\{user\}\}|<user>/gi, userName)
+    .replace(/\{\{char\}\}|<char>|<bot>/gi, () => characterName)
+    .replace(/\{\{user\}\}|<user>/gi, () => userName)
     .replace(/\{\{\/\/[^}]*\}\}/g, '')
     .replace(/\{\{(?:hidden_key|comment):[^}]*\}\}/gi, '')
     .replace(/\{\{reverse:([^}]*)\}\}/gi, (_, value: string) => [...value].reverse().join(''))

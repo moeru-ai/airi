@@ -12,7 +12,7 @@ import {
 } from './runtime'
 
 describe('character card runtime compiler', () => {
-  it('compiles stable character fields without resolving send-time macros', () => {
+  it('compiles stable character fields without resolving send-time macros', async () => {
     const card = createCard({
       nickname: 'Stargazer',
       systemPrompt: 'You are {{char}}. Help {{user}}.',
@@ -29,14 +29,14 @@ describe('character card runtime compiler', () => {
       'Use the image widget.',
     ].join('\n\n'))
 
-    const [systemMessage] = compileCharacterCardMessages(card, [
+    const [systemMessage] = await compileCharacterCardMessages(card, [
       { role: 'system', content: compileCharacterCardSystemPrompt(card) },
     ], { userName: 'Mira' })
 
     expect(systemMessage?.content).toContain('You are Stargazer. Help Mira.')
   })
 
-  it('projects examples and post-history instructions without mutating session history', () => {
+  it('projects examples and post-history instructions without mutating session history', async () => {
     const card = createCard({
       nickname: 'Nova',
       messageExample: [
@@ -49,7 +49,7 @@ describe('character card runtime compiler', () => {
       { role: 'user' as const, content: 'Show me the sky.' },
     ]
 
-    const result = compileCharacterCardMessages(card, history, { userName: 'Mira' })
+    const result = await compileCharacterCardMessages(card, history, { userName: 'Mira' })
 
     expect(result).toEqual([
       { role: 'system', content: compileCharacterCardSystemPrompt(card) },
@@ -64,7 +64,7 @@ describe('character card runtime compiler', () => {
     ])
   })
 
-  it('expands only card-owned additions when the stored system prompt cannot be replaced', () => {
+  it('expands only card-owned additions when the stored system prompt cannot be replaced', async () => {
     const card = createCard({
       systemPrompt: 'Card prompt for {{user}}.',
       characterBook: {
@@ -78,14 +78,14 @@ describe('character card runtime compiler', () => {
       },
     })
 
-    const [systemMessage] = compileCharacterCardMessages(card, [
+    const [systemMessage] = await compileCharacterCardMessages(card, [
       { role: 'system', content: 'External policy keeps {{user}} literal.' },
     ], { userName: 'Mira' })
 
     expect(systemMessage?.content).toBe('External policy keeps {{user}} literal.\n\nLore for Mira.')
   })
 
-  it('matches, orders, and positions Lorebook entries from recent chat history', () => {
+  it('matches, orders, and positions Lorebook entries from recent chat history', async () => {
     const card = createCard({
       description: 'Base description.',
       characterBook: {
@@ -131,7 +131,7 @@ describe('character card runtime compiler', () => {
     })
     const stablePrompt = compileCharacterCardSystemPrompt(card)
 
-    const result = compileCharacterCardMessages(card, [
+    const result = await compileCharacterCardMessages(card, [
       { role: 'system', content: `Policy.\n${stablePrompt}\n\nTool guidance.` },
       { role: 'user', content: 'old topic' },
       { role: 'assistant', content: 'unrelated' },
@@ -161,7 +161,7 @@ describe('character card runtime compiler', () => {
     ])
   })
 
-  it('supports constants, selective keys, exclusions, and invalid regex safety', () => {
+  it('supports constants, selective keys, exclusions, and invalid regex safety', async () => {
     const card = createCard({
       characterBook: {
         extensions: {},
@@ -198,7 +198,7 @@ describe('character card runtime compiler', () => {
       },
     })
 
-    const [systemMessage] = compileCharacterCardMessages(card, [
+    const [systemMessage] = await compileCharacterCardMessages(card, [
       { role: 'system', content: compileCharacterCardSystemPrompt(card) },
       { role: 'user', content: 'A moonlit forest fire.' },
     ])
@@ -211,7 +211,7 @@ describe('character card runtime compiler', () => {
   })
 
   // https://github.com/kwaroran/character-card-spec-v3/blob/main/SPEC_V3.md#constant
-  it('ignores constant when Lorebook regex mode is enabled', () => {
+  it('ignores constant when Lorebook regex mode is enabled', async () => {
     const card = createCard({
       characterBook: {
         extensions: {},
@@ -226,7 +226,7 @@ describe('character card runtime compiler', () => {
       },
     })
 
-    const [systemMessage] = compileCharacterCardMessages(card, [
+    const [systemMessage] = await compileCharacterCardMessages(card, [
       { role: 'system', content: compileCharacterCardSystemPrompt(card) },
       { role: 'user', content: 'Unrelated conversation.' },
     ])
@@ -239,7 +239,7 @@ describe('character card runtime compiler', () => {
   //
   // Equal-depth entries were inserted one at a time at the same array index.
   // Every later splice therefore moved ahead of earlier insertion orders.
-  it('preserves insertion order for Lorebook entries at the same depth', () => {
+  it('preserves insertion order for Lorebook entries at the same depth', async () => {
     const card = createCard({
       characterBook: {
         extensions: {},
@@ -258,7 +258,7 @@ describe('character card runtime compiler', () => {
       },
     })
 
-    const result = compileCharacterCardMessages(card, [
+    const result = await compileCharacterCardMessages(card, [
       { role: 'system', content: compileCharacterCardSystemPrompt(card) },
       { role: 'user', content: 'Latest user turn.' },
     ])
@@ -271,7 +271,7 @@ describe('character card runtime compiler', () => {
     ])
   })
 
-  it('supports recursive hidden keys and deterministic macro dependencies', () => {
+  it('supports recursive hidden keys and deterministic macro dependencies', async () => {
     const card = createCard({
       systemPrompt: '{{// hidden note}}{{comment: another note}}{{reverse:abc}} {{random:A,B}} {{roll:d6}}',
       characterBook: {
@@ -292,7 +292,7 @@ describe('character card runtime compiler', () => {
       },
     })
 
-    const [systemMessage] = compileCharacterCardMessages(card, [
+    const [systemMessage] = await compileCharacterCardMessages(card, [
       { role: 'system', content: compileCharacterCardSystemPrompt(card) },
     ], { random: () => 0 })
 
@@ -304,7 +304,7 @@ describe('character card runtime compiler', () => {
     expect(systemMessage?.content).not.toContain('hidden_key')
   })
 
-  it('compiles only individual greetings and uses the selected index', () => {
+  it('compiles only individual greetings and uses the selected index', async () => {
     const card = createCard({
       nickname: 'Nova',
       greetings: ['Hello, {{user}}. I am {{char}}.', 'Welcome back, {{user}}.'],
@@ -353,7 +353,7 @@ function loreEntry(overrides: Partial<NonNullable<AiriCard['characterBook']>['en
 }
 
 describe('character policy on portable conversations', () => {
-  it('retains native Responses continuation and media while adding character instructions', () => {
+  it('retains native Responses continuation and media while adding character instructions', async () => {
     const card = createCard({ postHistoryInstructions: 'Reply as {{char}}.' })
     const conversation: Conversation = {
       turns: [
@@ -373,7 +373,7 @@ describe('character policy on portable conversations', () => {
       ],
     }
     const before = structuredClone(conversation)
-    const result = compileCharacterCardConversation(card, conversation)
+    const result = await compileCharacterCardConversation(card, conversation)
     expect(result.turns.find(turn => turn.id === 'image')).toBe(conversation.turns[0])
     expect(result.turns.find(turn => turn.id === 'answer')).toBe(conversation.turns[1])
     expect(result.turns.at(-1)).toMatchObject({ type: 'system', content: [{ type: 'text', text: `Reply as ${card.name}.` }] })
@@ -382,37 +382,50 @@ describe('character policy on portable conversations', () => {
 })
 
 describe('character card review regressions', () => {
-  it('keeps equal-depth order and anchors against authored history', () => {
+  it('keeps equal-depth order and anchors against authored history', async () => {
     const card = createCard({ characterBook: { extensions: {}, entries: [
       loreEntry({ constant: true, insertion_order: 1, content: '@@role assistant\n@@depth 1\nFirst' }),
       loreEntry({ constant: true, insertion_order: 2, content: '@@depth 1\nSecond' }),
       loreEntry({ constant: true, insertion_order: 3, content: '@@depth 2\nEarlier' }),
     ] } })
     card.extensions.airi.modules.artistry = undefined
-    expect(compileCharacterCardMessages(card, [{ role: 'user', content: 'old' }, { role: 'assistant', content: 'answer' }, { role: 'user', content: 'latest' }]).map(message => message.content)).toEqual(['old', 'Earlier', 'answer', 'First', 'Second', 'latest'])
+    expect((await compileCharacterCardMessages(card, [{ role: 'user', content: 'old' }, { role: 'assistant', content: 'answer' }, { role: 'user', content: 'latest' }])).map(message => message.content)).toEqual(['old', 'Earlier', 'answer', 'First', 'Second', 'latest'])
   })
 
-  it('does not scan history when scan depth is zero', () => {
+  it('does not scan history when scan depth is zero', async () => {
     const card = createCard({ characterBook: { extensions: {}, scan_depth: 0, entries: [loreEntry({ keys: ['comet'], content: 'matched' })] } })
     card.extensions.airi.modules.artistry = undefined
-    expect(compileCharacterCardMessages(card, [{ role: 'user', content: 'comet' }])).toEqual([{ role: 'user', content: 'comet' }])
+    expect(await compileCharacterCardMessages(card, [{ role: 'user', content: 'comet' }])).toEqual([{ role: 'user', content: 'comet' }])
   })
 
-  it('uses locale-neutral matching and merges regex case flags', () => {
+  it('uses locale-neutral matching and merges regex case flags', async () => {
     const card = createCard({ characterBook: { extensions: {}, entries: [
       loreEntry({ keys: ['i'], content: '@@depth 0\nplain' }),
       loreEntry({ keys: ['/comet/m'], use_regex: true, content: '@@depth 0\nregex' }),
     ] } })
     card.extensions.airi.modules.artistry = undefined
-    expect(compileCharacterCardMessages(card, [{ role: 'user', content: 'I COMET' }]).map(message => message.content)).toEqual(['I COMET', 'plain', 'regex'])
+    expect((await compileCharacterCardMessages(card, [{ role: 'user', content: 'I COMET' }])).map(message => message.content)).toEqual(['I COMET', 'plain', 'regex'])
   })
 
-  it('expands legacy user names and inserts the card depth prompt', () => {
+  it('expands legacy user names and inserts the card depth prompt', async () => {
     const card = createCard({ greetings: ['Hello <USER>'] })
     card.extensions.depth_prompt = { depth: 1, role: 'system', prompt: 'Help <user>' }
     card.extensions.airi.modules.artistry = undefined
     expect(compileCharacterCardGreeting(card, { userName: 'Mira' })).toBe('Hello Mira')
     card.extensions.airi.modules.artistry = undefined
-    expect(compileCharacterCardMessages(card, [{ role: 'user', content: 'question' }], { userName: 'Mira' })).toEqual([{ role: 'system', content: 'Help Mira' }, { role: 'user', content: 'question' }])
+    expect(await compileCharacterCardMessages(card, [{ role: 'user', content: 'question' }], { userName: 'Mira' })).toEqual([{ role: 'system', content: 'Help Mira' }, { role: 'user', content: 'question' }])
   })
+})
+
+it('terminates pathological imported regex without blocking the renderer', async () => {
+  const card = createCard({ characterBook: { extensions: {}, entries: [loreEntry({ keys: ['^(a+)+$'], use_regex: true, content: 'unsafe' })] } })
+  const result = compileCharacterCardMessages(card, [{ role: 'user', content: `${'a'.repeat(80)}!` }])
+  await expect(result).rejects.toThrow('Lorebook regex matching timed out')
+  card.characterBook!.entries[0].keys = ['safe']
+  await expect(compileCharacterCardMessages(card, [{ role: 'user', content: 'safe' }])).resolves.toBeDefined()
+})
+
+it('inserts names containing replacement tokens literally', () => {
+  const card = createCard({ name: '$&', greetings: ['Hello {{char}} and {{user}}.'] })
+  expect(compileCharacterCardGreeting(card, { userName: '$\'' })).toBe('Hello $& and $\'.')
 })
