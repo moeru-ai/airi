@@ -103,20 +103,6 @@ These tests send audio and text to external Providers. Each run can incur Provid
 
 ## Run the tests
 
-The Web and Electron `cases/sherpaw` cases run the bundled Chinese/English and eight-language models without ASR credentials. Each case sends two recorded utterances through the Hearing playground and checks partial and final text. The cases block remote Sherpaw model downloads.
-
-The tests serve the real VAD model and installed ONNX Runtime files through test fixtures. Network latency does not consume the recording. Web uses browser routes. Electron uses an HTTPS protocol handler because CDP interception can stall local AudioWorklet requests.
-
-Set `TESTING_AUDIO_VAD_MODEL_PATH` to a downloaded Silero model to reuse it; the test verifies its SHA-256 hash. Otherwise, the test downloads it before recording starts.
-
-```bash
-pnpm -F @proj-airi/testing-audio exec vitest run cases/sherpaw/case.audio.test.ts
-```
-
-Web and Electron tests use a virtual audio output so the Web Audio clock does not depend on a physical speaker. VAD and ASR inference use the real models. See `cases/sherpaw/README.md` for measured results and the Electron regression details.
-
-Build the targets after changes to the Provider or its language settings. The Vite plugin includes about 576 MB of model data in each target before compression.
-
 Build both targets and run all runtime projects:
 
 ```bash
