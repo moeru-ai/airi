@@ -415,5 +415,4 @@ describe('character card review regressions', () => {
     card.extensions.airi.modules.artistry = undefined
     expect(compileCharacterCardMessages(card, [{ role: 'user', content: 'question' }], { userName: 'Mira' })).toEqual([{ role: 'system', content: 'Help Mira' }, { role: 'user', content: 'question' }])
   })
-
 })
