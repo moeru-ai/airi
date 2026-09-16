@@ -167,7 +167,7 @@ Generates:
 }
 ```
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/config/variants
 - https://unocss.dev/presets/wind3

@@ -43,11 +43,11 @@ IMPORTANT: Each function entry includes a short `Description` and a detailed `Re
 | [`useDebouncedRefHistory`](references/useDebouncedRefHistory.md) | Shorthand for `useRefHistory` with debounced filter | AUTO |
 | [`useLastChanged`](references/useLastChanged.md) | Records the timestamp of the last change | AUTO |
 | [`useLocalStorage`](references/useLocalStorage.md) | Reactive [LocalStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage) | AUTO |
-| [`useManualRefHistory`](references/useManualRefHistory.md) | Manually track the change history of a ref when the using calls `commit()` | AUTO |
+| [`useManualRefHistory`](references/useManualRefHistory.md) | Manually track the change history of a ref when the user calls `commit()` | AUTO |
 | [`useRefHistory`](references/useRefHistory.md) | Track the change history of a ref | AUTO |
 | [`useSessionStorage`](references/useSessionStorage.md) | Reactive [SessionStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage) | AUTO |
 | [`useStorage`](references/useStorage.md) | Create a reactive ref that can be used to access & modify [LocalStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage) or [SessionStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/sessionStorage) | AUTO |
-| [`useStorageAsync`](references/useStorageAsync.md) | Reactive Storage in with async support | AUTO |
+| [`useStorageAsync`](references/useStorageAsync.md) | Reactive Storage with async support | AUTO |
 | [`useThrottledRefHistory`](references/useThrottledRefHistory.md) | Shorthand for `useRefHistory` with throttled filter | AUTO |
 
 ### Elements
@@ -61,7 +61,7 @@ IMPORTANT: Each function entry includes a short `Description` and a detailed `Re
 | [`useElementBounding`](references/useElementBounding.md) | Reactive [bounding box](https://developer.mozilla.org/en-US/docs/Web/API/Element/getBoundingClientRect) of an HTML element | AUTO |
 | [`useElementSize`](references/useElementSize.md) | Reactive size of an HTML element | AUTO |
 | [`useElementVisibility`](references/useElementVisibility.md) | Tracks the visibility of an element within the viewport | AUTO |
-| [`useIntersectionObserver`](references/useIntersectionObserver.md) | Detects that a target element's visibility | AUTO |
+| [`useIntersectionObserver`](references/useIntersectionObserver.md) | Detects changes to a target element's visibility | AUTO |
 | [`useMouseInElement`](references/useMouseInElement.md) | Reactive mouse position related to an element | AUTO |
 | [`useMutationObserver`](references/useMutationObserver.md) | Watch for changes being made to the DOM tree | AUTO |
 | [`useParentElement`](references/useParentElement.md) | Get parent element of the given element | AUTO |
@@ -138,7 +138,7 @@ IMPORTANT: Each function entry includes a short `Description` and a detailed `Re
 | [`useElementByPoint`](references/useElementByPoint.md) | Reactive element by point | AUTO |
 | [`useElementHover`](references/useElementHover.md) | Reactive element's hover state | AUTO |
 | [`useFocus`](references/useFocus.md) | Reactive utility to track or set the focus state of a DOM element | AUTO |
-| [`useFocusWithin`](references/useFocusWithin.md) | Reactive utility to track if an element or one of its decendants has focus | AUTO |
+| [`useFocusWithin`](references/useFocusWithin.md) | Reactive utility to track if an element or one of its descendants has focus | AUTO |
 | [`useFps`](references/useFps.md) | Reactive FPS (frames per second) | AUTO |
 | [`useGeolocation`](references/useGeolocation.md) | Reactive [Geolocation API](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API) | AUTO |
 | [`useIdle`](references/useIdle.md) | Tracks whether the user is being inactive | AUTO |
@@ -281,6 +281,7 @@ IMPORTANT: Each function entry includes a short `Description` and a detailed `Re
 
 | Function | Description | Invocation |
 |----------|-------------|------------|
+| [`createDisposableDirective`](references/createDisposableDirective.md) | Utility for authoring disposable directives | AUTO |
 | [`createEventHook`](references/createEventHook.md) | Utility for creating event hooks | AUTO |
 | [`createUnrefFn`](references/createUnrefFn.md) | Make a plain function accepting ref and raw values as arguments | AUTO |
 | [`get`](references/get.md) | Shorthand for accessing `ref.value` | EXPLICIT_ONLY |

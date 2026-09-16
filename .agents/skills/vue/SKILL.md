@@ -38,7 +38,7 @@ metadata:
 
 ```vue
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 
 const props = defineProps<{
   title: string
@@ -71,11 +71,14 @@ onMounted(() => {
 
 ```ts
 // Reactivity
-import { computed, reactive, readonly, ref, shallowRef, toRef, toRefs, toValue } from 'vue'
+import { ref, shallowRef, computed, reactive, readonly, toRef, toRefs, toValue } from 'vue'
+
 // Watchers
-import { onWatcherCleanup, watch, watchEffect, watchPostEffect } from 'vue'
+import { watch, watchEffect, watchPostEffect, onWatcherCleanup } from 'vue'
+
 // Lifecycle
-import { onBeforeMount, onBeforeUnmount, onBeforeUpdate, onMounted, onUnmounted, onUpdated } from 'vue'
+import { onMounted, onUpdated, onUnmounted, onBeforeMount, onBeforeUpdate, onBeforeUnmount } from 'vue'
+
 // Utilities
-import { defineAsyncComponent, defineComponent, nextTick } from 'vue'
+import { nextTick, defineComponent, defineAsyncComponent } from 'vue'
 ```

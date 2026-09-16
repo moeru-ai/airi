@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Agent Browser for AIRI"
+  short_description: "Test AIRI model imports across desktop, web, and mobile"
+  default_prompt: "Use $use-agent-browser-for-airi to upload and verify a local display model in AIRI."

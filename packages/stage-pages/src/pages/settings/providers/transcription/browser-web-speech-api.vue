@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RemovableRef } from '@vueuse/core'
 
+import { streamWebSpeechAPITranscription } from '@proj-airi/provider-inference'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import {
   Alert,
@@ -9,11 +10,12 @@ import {
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { streamWebSpeechAPITranscription } from '@proj-airi/stage-ui/stores/providers/web-speech-api'
+import { selectProviderMetadata } from '@proj-airi/stage-ui/libs'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCombobox } from '@proj-airi/ui'
-import { until } from '@vueuse/core'
+import { computedAsync, until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -23,12 +25,20 @@ const providerId = 'browser-web-speech-api'
 const { t } = useI18n()
 const router = useRouter()
 
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const providersStore = useProviderStore()
 
-providersStore.initializeProvider(providerId)
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+onMounted(async () => {
+  await providersStore.initializeProvider(providerId)
+})
+
+const providerMetadata = computedAsync(() => selectProviderMetadata(
+  providersStore.getProviderDefinition(providerId),
+  t,
+  { id: providerId },
+))
 
 // Web Speech API settings (no API key needed, but language and options)
 const settings = computed({
@@ -105,14 +115,14 @@ const isWebSpeechAPIAvailable = computed(() => {
     && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 })
 
+const settingsAudioDeviceStore = useSettingsAudioDevice()
+const { askPermission, stopStream, startStream } = settingsAudioDeviceStore
+const { audioInputOptions, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
+
 onMounted(async () => {
   ensureProviderSettings()
-  // Audio devices are loaded on demand when user requests them
+  await askPermission()
 })
-
-// Speech-to-Text test state (always uses Web Speech API)
-const { stopStream, startStream } = useSettingsAudioDevice()
-const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
 
 const isTestingSTT = ref(false)
 const testTranscriptionText = ref<string>('')
@@ -397,10 +407,7 @@ onUnmounted(() => {
                 v-model="selectedAudioInput"
                 label="Audio Input Device"
                 description="Select the audio input device for testing"
-                :options="audioInputs.map(input => ({
-                  label: input.label || input.deviceId,
-                  value: input.deviceId,
-                }))"
+                :options="audioInputOptions"
                 placeholder="Select an audio input device"
                 layout="vertical"
                 class="flex-1"

@@ -1,11 +1,13 @@
 <script lang="ts" setup>
+import { ScrollableArea } from '@proj-airi/ui'
 </script>
 
 <template>
-  <div
-    bg="neutral-100 dark:neutral-800"
-    overflow-y-scroll
+  <ScrollableArea
+    :class="[
+      'bg-neutral-100 dark:bg-neutral-800',
+    ]"
   >
     <slot />
-  </div>
+  </ScrollableArea>
 </template>

@@ -470,7 +470,7 @@ onMounted(async () => {
       </article>
 
       <GhostButton
-        v-track-button="{ name: 'mcp_server_added' }"
+        v-track-button="{ name: 'mcp_server_updated', action: 'add' }"
         size="md" block :disabled="isBusy"
         icon="i-solar:add-circle-bold-duotone" :label="tn('actions.add-server')"
         @click="addServer"

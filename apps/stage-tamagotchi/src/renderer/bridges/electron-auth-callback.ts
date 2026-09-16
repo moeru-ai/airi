@@ -1,6 +1,5 @@
 import { errorMessageFrom } from '@moeru/std'
 import { getElectronEventaContext } from '@proj-airi/electron-vueuse'
-import { fetchSession } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { toast } from 'vue-sonner'
 
@@ -23,18 +22,10 @@ export function initializeElectronAuthCallbackBridge() {
       return
 
     try {
-      const authStore = useAuthStore()
-      authStore.token = tokens.accessToken
-
-      if (tokens.refreshToken) {
-        authStore.refreshToken = tokens.refreshToken
-      }
-
-      authStore.oidcClientId = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-electron'
-      authStore.tokenExpiry = Date.now() + tokens.expiresIn * 1000
-      authStore.scheduleTokenRefresh(tokens.expiresIn)
-
-      await fetchSession()
+      await useAuthStore().completeSignIn({
+        ...tokens,
+        clientId: import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-electron',
+      })
     }
     catch (error) {
       toast.error(errorMessageFrom(error) ?? 'Sign-in failed')

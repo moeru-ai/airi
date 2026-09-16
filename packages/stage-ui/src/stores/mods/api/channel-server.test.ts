@@ -139,7 +139,7 @@ describe('channel-server store reconnect', () => {
     } as any)
 
     const initializePromise = store.initialize({ token: 'secret' })
-    const client = serverSdkMocks.MockClient.instances[0]
+    const client = serverSdkMocks.MockClient.instances.at(-1)!
 
     client.simulateAuthenticated()
     await initializePromise
@@ -269,6 +269,33 @@ describe('channel-server store reconnect', () => {
 
     secondClient.simulateAuthenticated()
     await secondInitializePromise
+
+    expect(store.connected).toBe(true)
+  })
+
+  // ROOT CAUSE:
+  //
+  // Auxiliary Electron renderers can register a listener before App.vue has
+  // loaded the server token. The first anonymous initialize call held the
+  // single-flight lock, so the later explicit-token call reused the anonymous
+  // promise and the server rejected every retry.
+  //
+  // We fixed this by replacing an in-flight client when the requested
+  // connection URL or token changes.
+  it('replaces an anonymous in-flight initialization when explicit credentials arrive', async () => {
+    const store = useModsServerChannelStore()
+
+    const anonymousInitialize = store.initialize()
+    const anonymousClient = serverSdkMocks.MockClient.instances[0]
+    const authenticatedInitialize = store.initialize({ token: 'secret' })
+    const authenticatedClient = serverSdkMocks.MockClient.instances[1]
+
+    expect(anonymousClient.options.token).toBeUndefined()
+    expect(authenticatedInitialize).not.toBe(anonymousInitialize)
+    expect(authenticatedClient.options.token).toBe('secret')
+
+    authenticatedClient.simulateAuthenticated()
+    await authenticatedInitialize
 
     expect(store.connected).toBe(true)
   })

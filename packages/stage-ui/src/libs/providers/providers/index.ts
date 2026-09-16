@@ -1,48 +1,24 @@
-import './amazon-bedrock'
-import './openai'
-import './aihubmix'
-import './lm-studio'
-import './azure-openai'
-import './openai-compatible'
-import './atlascloud'
-import './volcengine-coding-plan'
-import './byteplus'
-import './byteplus-coding-plan'
-import './n1n'
-import './openpaths'
-import './openrouter-ai'
+import { portableProviderDefinitions } from '@proj-airi/provider-inference'
+
+import { registerProviders } from './registry'
+
+import './aliyun-nls'
+import './apple-speech'
+import './local-audio'
+import './kokoro-local'
 import './nvidia'
-import './groq'
-import './anthropic'
-import './google-generative-ai'
-import './deepseek'
-import './302-ai'
-import './cerebras-ai'
-import './together-ai'
-import './xai'
-import './zai'
-import './novita-ai'
-import './fireworks-ai'
-import './featherless-ai'
-import './comet-api'
-import './perplexity-ai'
-import './minimax'
-import './mistral-ai'
-import './moonshot-ai'
-import './modelscope'
-import './ollama'
-import './mimo'
-import './cloudflare-workers-ai'
-import './azure-ai-foundry'
 import './official'
 
+registerProviders(portableProviderDefinitions)
+
 export {
-  getDefaultStreamingModel,
-  getStreamingTtsAvailable,
   OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
 } from './official'
 
 export {
   getDefinedProvider,
+  isProviderId,
   listProviders,
 } from './registry'
+
+export type { StageProviderId } from './registry'

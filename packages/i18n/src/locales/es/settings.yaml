@@ -51,16 +51,14 @@ dialogs:
     no-models-help: >-
       Por favor, vuelva al paso anterior y compruebe su clave API, o compruebe la conexión de red.
     permissions:
-      title: Notificaciones
-      description: Puedes permitir notificaciones ahora o continuar y configurarlas más tarde.
+      title: Gestión de permisos
+      description: Puedes conceder los permisos necesarios ahora o continuar y configurarlos más tarde.
       notificationsTitle: Notificaciones
       notificationsDescription: Permitir recordatorios y actualizaciones importantes de estado.
-      notificationsAction: '​Solicitar Permiso de Notificación'
-      notificationsNotGrantedHint: Si se deniega, puede habilitar las notificaciones más tarde desde la configuración de iOS.
-      openSettings: Abrir ajustes de iOS
-      optionalHint: Puedes continuar incluso si no se concede permiso de notificación.
-      stateUnknown: No solicitado
-      stateRequesting: Solicitando...
+      microphoneTitle: Micrófono
+      microphoneDescription: Permite que AIRI use el micrófono para la entrada de voz y la transcripción.
+      requestAction: Solicitar acceso
+      optionalHint: Puedes continuar aunque no se concedan estos permisos.
       stateGranted: Concedido
       stateNotGranted: No concedido
   bug-report:
@@ -1452,6 +1450,9 @@ pages:
     general:
       description: Tema oscuro, idiomas, etc.
       title: General
+    permissions:
+      description: Consulta el estado actual de los permisos.
+      title: Gestión de permisos
     description: '¡Personaliza tu escenario!'
     sections:
       section:

@@ -132,15 +132,14 @@ export interface ControlledRefOptions<T> {
 export declare function refWithControl<T>(
   initial: T,
   options?: ControlledRefOptions<T>,
-): ShallowUnwrapRef<{
+): {
   get: (tracking?: boolean) => T
   set: (value: T, triggering?: boolean) => void
   untrackedGet: () => T
   silentSet: (v: T) => void
   peek: () => T
   lay: (v: T) => void
-}>
-& Ref<T, T>
+} & Ref<T, T>
 /** @deprecated use `refWithControl` instead */
 export declare const controlledRef: typeof refWithControl
 ```

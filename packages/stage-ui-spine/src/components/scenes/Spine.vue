@@ -56,7 +56,6 @@ defineExpose({
       :width="width"
       :height="height"
       :resolution="renderScale"
-      max-h="100dvh"
     >
       <SpineModel
         ref="modelRef"

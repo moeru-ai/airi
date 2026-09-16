@@ -3,7 +3,7 @@ import type { Live2DEyeFocusSource } from '../../composables/live2d'
 
 import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
@@ -31,6 +31,10 @@ const props = withDefaults(defineProps<{
   themeColorsHueDynamic: false,
 })
 
+const emit = defineEmits<{
+  error: [error: Error]
+}>()
+
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const componentStateCanvas = defineModel<'pending' | 'loading' | 'mounted'>('canvasState', { default: 'pending' })
 const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('modelState', { default: 'pending' })
@@ -41,6 +45,7 @@ const activeCursorPosition = ref<Live2DEyeFocusSource | null>(null)
 let clearCursorFocusTimeout: ReturnType<typeof setTimeout> | undefined
 
 const {
+  live2dMotionDriver,
   live2dEyeTracking,
   live2dIdleAnimationEnabled,
   live2dForceIdleEyeAnimation,
@@ -51,6 +56,7 @@ const {
   live2dRenderScale,
   live2dShadowEnabled,
 } = storeToRefs(useSettingsLive2d())
+const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
 const mouseFocus = useLive2DEyeFocusFor({
   canvas: () => live2dCanvasRef.value?.canvasElement(),
   model: () => ({
@@ -60,7 +66,6 @@ const mouseFocus = useLive2DEyeFocusFor({
   }),
   source: activeCursorPosition,
 })
-
 watch(() => props.cursorPosition, (cursorPosition) => {
   activeCursorPosition.value = cursorPosition ? { ...cursorPosition } : null
   if (clearCursorFocusTimeout)
@@ -101,7 +106,7 @@ defineExpose({
       :height="height"
       :resolution="live2dRenderScale"
       :max-fps="live2dMaxFps"
-      max-h="100dvh"
+      @error="emit('error', $event)"
     >
       <Live2DModel
         ref="live2dModelRef"
@@ -115,16 +120,17 @@ defineExpose({
         :height="height"
         :paused="paused"
         :focus-at="mouseFocus"
-        :eye-tracking="live2dEyeTracking"
-        :eye-focus-source-active="!!activeCursorPosition"
+        :eye-tracking="universalMotionEnabled && live2dEyeTracking"
+        :eye-focus-source-active="universalMotionEnabled && !!activeCursorPosition"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
-        :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
-        :live2d-force-idle-eye-animation="live2dForceIdleEyeAnimation"
+        :live2d-idle-animation-enabled="universalMotionEnabled && live2dIdleAnimationEnabled"
+        :live2d-force-idle-eye-animation="universalMotionEnabled && live2dForceIdleEyeAnimation"
         :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-expression-enabled="live2dExpressionEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
+        @error="emit('error', $event)"
       />
     </Live2DCanvas>
   </Screen>

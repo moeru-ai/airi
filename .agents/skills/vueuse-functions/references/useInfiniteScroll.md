@@ -104,13 +104,13 @@ function canLoadMore() {
 ## Type Declarations
 
 ```ts
-type InfiniteScrollElement
-  = | HTMLElement
-    | SVGElement
-    | Window
-    | Document
-    | null
-    | undefined
+type InfiniteScrollElement =
+  | HTMLElement
+  | SVGElement
+  | Window
+  | Document
+  | null
+  | undefined
 export interface UseInfiniteScrollOptions<
   T extends InfiniteScrollElement = InfiniteScrollElement,
 > extends UseScrollOptions {
@@ -125,7 +125,7 @@ export interface UseInfiniteScrollOptions<
    *
    * @default 'bottom'
    */
-  direction?: 'top' | 'bottom' | 'left' | 'right'
+  direction?: "top" | "bottom" | "left" | "right"
   /**
    * The interval time between two load more (to avoid too many invokes).
    *

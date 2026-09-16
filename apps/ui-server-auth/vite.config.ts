@@ -63,7 +63,7 @@ export default defineConfig({
         chunkFileNames: (chunkInfo) => {
           const containsAnalyticsModule = chunkInfo.moduleIds.some((moduleId) => {
             const normalizedModuleId = moduleId.replaceAll('\\', '/').toLowerCase()
-            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('posthog')
+            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('openpanel')
           })
 
           // Keep analytics as the source-domain name, but explicitly map its
@@ -113,8 +113,16 @@ export default defineConfig({
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
     Layouts({
       layoutsDirs: [
-        resolve(import.meta.dirname, 'src', 'layouts'),
         resolve(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src', 'layouts'),
+      ],
+      // Auth routes use only the plain layout. Loading other shared layouts
+      // pulls the stage renderer, model assets, and local inference runtime
+      // into the auth deployment.
+      exclude: [
+        '**/default.vue',
+        '**/home.vue',
+        '**/settings.vue',
+        '**/stage.vue',
       ],
     }),
 

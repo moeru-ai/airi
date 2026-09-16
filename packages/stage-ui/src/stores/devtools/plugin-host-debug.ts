@@ -1,74 +1,20 @@
+import type {
+  ExtensionDirectoryImportPrepareResult,
+  PluginCapabilityState,
+  PluginHostDebugSnapshot,
+  PluginHostKitSummary,
+  PluginHostSessionSummary,
+  PluginRegistrySnapshot,
+} from '@proj-airi/stage-shared/plugin-host'
+
 import { errorMessageFrom } from '@moeru/std'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-export interface PluginManifestSummary {
-  extensionId: string
-  entrypoints: Record<string, string | undefined>
-  path: string
-  enabled: boolean
-  autoReload: boolean
-  loaded: boolean
-  isNew: boolean
-}
-
-export interface PluginRegistrySnapshot {
-  root: string
-  plugins: PluginManifestSummary[]
-}
-
-// TODO: Replace with re-export of CapabilityDescriptor from
-// @proj-airi/plugin-sdk once stage-ui can depend on the SDK.
-export interface PluginCapabilityState {
-  key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  metadata?: Record<string, unknown>
-  updatedAt: number
-}
-
-export interface PluginHostSessionSummary {
-  id: string
-  extensionId: string
-  phase: string
-  runtime: 'electron' | 'node' | 'web'
-  moduleId: string
-}
-
-export interface PluginHostKitCapabilitySummary {
-  key: string
-  actions: string[]
-}
-
-export interface PluginHostKitSummary {
-  kitId: string
-  version: string
-  capabilities: PluginHostKitCapabilitySummary[]
-  runtimes: Array<'electron' | 'node' | 'web'>
-}
-
-export interface PluginHostModuleSummary {
-  moduleId: string
-  ownerSessionId: string
-  ownerExtensionId: string
-  kitId: string
-  kitModuleType: string
-  state: 'announced' | 'active' | 'degraded' | 'withdrawn'
-  runtime: 'electron' | 'node' | 'web'
-  revision: number
-  updatedAt: number
-  config: Record<string, unknown>
-}
-
-export interface PluginHostDebugSnapshot {
-  registry: PluginRegistrySnapshot
-  sessions: PluginHostSessionSummary[]
-  kits: PluginHostKitSummary[]
-  modules: PluginHostModuleSummary[]
-  capabilities: PluginCapabilityState[]
-  refreshedAt: number
-}
-
 interface PluginHostDebugBridge {
+  prepareDirectoryImport: () => Promise<ExtensionDirectoryImportPrepareResult>
+  commitDirectoryImport: (payload: { planId: string }) => Promise<PluginRegistrySnapshot>
+  cancelDirectoryImport: (payload: { planId: string }) => Promise<void>
   list: () => Promise<PluginRegistrySnapshot>
   setEnabled: (payload: { extensionId: string, enabled: boolean, path?: string }) => Promise<PluginRegistrySnapshot>
   setAutoReload: (payload: { extensionId: string, enabled: boolean }) => Promise<PluginRegistrySnapshot>
@@ -161,6 +107,20 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     return nextRegistry
   }
 
+  async function prepareDirectoryImport() {
+    return await withBridge(activeBridge => activeBridge.prepareDirectoryImport())
+  }
+
+  async function commitDirectoryImport(payload: { planId: string }) {
+    const nextRegistry = await withBridge(activeBridge => activeBridge.commitDirectoryImport(payload))
+    assignRegistry(nextRegistry)
+    return nextRegistry
+  }
+
+  async function cancelDirectoryImport(payload: { planId: string }) {
+    await withBridge(activeBridge => activeBridge.cancelDirectoryImport(payload))
+  }
+
   async function refreshInspection() {
     const snapshot = await withBridge(activeBridge => activeBridge.inspect())
     assignInspection(snapshot)
@@ -206,6 +166,28 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     return nextRegistry
   }
 
+  /** Keeps enablement visible if loading fails, so the user can retry loading. */
+  async function enableAndLoad(payload: { extensionId: string, path?: string }) {
+    return withBridge(async (activeBridge) => {
+      assignRegistry(await activeBridge.setEnabled({ ...payload, enabled: true }))
+      const nextRegistry = await activeBridge.load({ extensionId: payload.extensionId })
+      assignRegistry(nextRegistry)
+      assignInspection(await activeBridge.inspect())
+      return nextRegistry
+    })
+  }
+
+  /** Keeps the plugin disabled for future startup even if stopping its current session fails. */
+  async function disableAndUnload(payload: { extensionId: string, path?: string }) {
+    return withBridge(async (activeBridge) => {
+      assignRegistry(await activeBridge.setEnabled({ ...payload, enabled: false }))
+      const nextRegistry = await activeBridge.unload({ extensionId: payload.extensionId })
+      assignRegistry(nextRegistry)
+      assignInspection(await activeBridge.inspect())
+      return nextRegistry
+    })
+  }
+
   return {
     registry,
     sessions,
@@ -221,6 +203,9 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
 
     setBridge,
     clearError,
+    prepareDirectoryImport,
+    commitDirectoryImport,
+    cancelDirectoryImport,
     refreshRegistry,
     refreshInspection,
     refreshAll,
@@ -229,5 +214,7 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     loadEnabled,
     load,
     unload,
+    enableAndLoad,
+    disableAndUnload,
   }
 })

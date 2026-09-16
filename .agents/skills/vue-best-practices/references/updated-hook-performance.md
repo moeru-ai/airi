@@ -81,7 +81,7 @@ export default {
     }
   },
   methods: {
-    syncToServer: debounce((items) => {
+    syncToServer: debounce(function(items) {
       fetch('/api/sync', {
         method: 'POST',
         body: JSON.stringify(items)
@@ -94,8 +94,8 @@ export default {
 ```vue
 <!-- GOOD: Composition API with targeted watchers -->
 <script setup>
+import { ref, watch, onUpdated } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
-import { onUpdated, ref, watch } from 'vue'
 
 const items = ref([])
 const scrollContainer = ref(null)
@@ -136,7 +136,7 @@ export default {
     }
   },
   methods: {
-    syncContent: debounce(() => {
+    syncContent: debounce(function() {
       // Sync logic
     }, 300)
   }

@@ -129,8 +129,8 @@ export default {
 
 **GOOD:**
 ```ts
-import type { AxiosInstance } from 'axios'
 import type { InjectionKey } from 'vue'
+import type { AxiosInstance } from 'axios'
 
 interface AppConfig {
   apiUrl: string
@@ -153,11 +153,8 @@ export default {
 Wrap required injections in composables that throw clear setup errors.
 
 ```ts
-import type { AuthService } from '@/injection-keys'
-
 import { inject } from 'vue'
-
-import { authKey } from '@/injection-keys'
+import { authKey, type AuthService } from '@/injection-keys'
 
 export function useAuth(): AuthService {
   const auth = inject(authKey)

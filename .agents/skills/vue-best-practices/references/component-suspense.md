@@ -132,15 +132,11 @@ Nested Suspense boundaries need `suspensible` on the inner boundary so the paren
     <LayoutShell>
       <Suspense>
         <AsyncWidget />
-        <template #fallback>
-          Loading widget...
-        </template>
+        <template #fallback>Loading widget...</template>
       </Suspense>
     </LayoutShell>
 
-    <template #fallback>
-      Loading layout...
-    </template>
+    <template #fallback>Loading layout...</template>
   </Suspense>
 </template>
 ```
@@ -152,15 +148,11 @@ Nested Suspense boundaries need `suspensible` on the inner boundary so the paren
     <LayoutShell>
       <Suspense suspensible>
         <AsyncWidget />
-        <template #fallback>
-          Loading widget...
-        </template>
+        <template #fallback>Loading widget...</template>
       </Suspense>
     </LayoutShell>
 
-    <template #fallback>
-      Loading layout...
-    </template>
+    <template #fallback>Loading layout...</template>
   </Suspense>
 </template>
 ```
@@ -175,11 +167,11 @@ import { ref } from 'vue'
 
 const isLoading = ref(false)
 
-function onPending() {
+const onPending = () => {
   isLoading.value = true
 }
 
-function onResolve() {
+const onResolve = () => {
   isLoading.value = false
 }
 </script>
@@ -223,9 +215,7 @@ When combining these components, the nesting order should be `RouterView` -> `Tr
       <KeepAlive>
         <Suspense>
           <component :is="Component" />
-          <template #fallback>
-            Loading...
-          </template>
+          <template #fallback>Loading...</template>
         </Suspense>
       </KeepAlive>
     </Transition>

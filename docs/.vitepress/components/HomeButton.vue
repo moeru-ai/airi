@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ButtonItem } from '../theme/config.ts'
+import type { ButtonItem } from '../theme/config'
 
 defineProps<{
   item: ButtonItem

@@ -58,16 +58,14 @@ dialogs:
       Please return to the previous step and check your API key, or check the
       network connection.
     permissions:
-      title: Notifications
-      description: You can allow notifications now or continue and set it up later.
+      title: Permission management
+      description: You can grant the required permissions now or continue and configure them later.
       notificationsTitle: Notifications
       notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
+      microphoneTitle: Microphone
+      microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      requestAction: Request access
+      optionalHint: You can continue even if these permissions are not granted.
       stateGranted: Granted
       stateNotGranted: Not granted
   bug-report:
@@ -131,6 +129,38 @@ model-select:
     import: Import
     remove: Remove
     confirm: Confirm
+  live2d-report:
+    title: Before import
+    description: Review the model data and any issues found in the archive.
+    description-short: Review the model data and issues.
+    close: Close
+    model:
+      title: Model
+      files: '{count} files'
+      types:
+        cubism: 'Cubism {version} ({format})'
+        cubism-compatible: 'Cubism 3+ ({format})'
+        unknown: Unknown
+    resources:
+      title: Resources
+      motions: Motions
+      expressions: Expressions
+      parameters: Parameters
+      textures: Textures
+      referenced-and-found: '{referenced} referenced · {found} found'
+      referenced: '{count} referenced'
+      found: '{count} found'
+    issues:
+      title: Issues
+      errors: '{count} errors'
+      warnings: '{count} warnings'
+      none: No issues found.
+      how-to-fix: How to fix
+      resolve-before-import: Resolve the errors before import.
+    actions:
+      cancel: Cancel
+      confirm: Confirm Import
+      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: Load from File
@@ -164,6 +194,33 @@ live2d:
       title: Extract
   animation:
     title: Animation
+    motion-driver:
+      title: Motion driver
+      description: Select how AIRI creates idle body and eye motion.
+      options:
+        universal:
+          title: Universal
+          description: Use model motions, idle eye movement, and mouse tracking.
+        magic:
+          title: MAGIC
+          description: Generate motion from the bundled MAGIC dataset.
+      magic:
+        profile:
+          title: MAGIC profile
+          description: Select the bundled motion dataset that fits the MAGIC driver.
+          options:
+            idle-calm:
+              title: Idle / calm
+              description: Use the bundled idle and calm motion recording.
+            speaking-excited:
+              title: Speaking / excited
+              description: Use the bundled speaking and excited motion recording.
+        skip-mouth-open:
+          title: Skip generated mouth opening
+          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
+        force-view-target:
+          title: Force forward view target
+          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
       title: Enable mouse tracking
       description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
@@ -357,10 +414,10 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
-        Configure modules for this character card. If not set, default module
-        configuration will be used.
+        Configure modules for this character card. Empty fields inherit global settings.
       use_default: Use default
       use_default_not_configured: Use default (not configured)
+      inherit_global_settings: Inherit global settings
       fields_info:
         subtitle: >-
           You can put here some details about the character you are creating,
@@ -384,6 +441,7 @@ pages:
         consciousness_model: Select the consciousness model (AI model) for this character.
         speech_model: Select the speech synthesis model and voice for this character.
       errors:
+        model_required: Select a model for each explicit provider. Models cannot be inherited from a different provider.
         name: Name should be valid or non-empty.
         version: 'Error: Invalid version number !'
         description: 'Error: You must provide a description for this card.'
@@ -628,8 +686,16 @@ pages:
             search_results: Found {count} of {total} models
             show_less: Show less
             show_more: Show more
+            temperature_label: Temperature
+            temperature_description: Control the randomness of the model's output. A lower value (e.g. 0.2) results in more deterministic, precise, and analytical output, while a higher value (e.g. 1.0) increases creativity and diversity.
+            top_p_label: Top P
+            top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.
             subtitle: Select a default model from the provider
             title: Model
+          model-options:
+            title: Model options
+            thinking:
+              label: Thinking
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:
@@ -688,6 +754,19 @@ pages:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          playground:
+            current: Current transcript
+            description: Listen through the active Hearing pipeline and keep each completed speech segment below.
+            empty: Start monitoring and speak into the selected microphone.
+            error-title: Transcription error
+            listening: Listening for speech…
+            no-transcription: No speech was recognized in this audio.
+            segment: 'Speech segment {number}'
+            start: Start monitoring
+            stop: Stop monitoring
+            title: Hearing playground
+            transcribing: Transcribing…
+            transcription-failed: Transcription failed.
           confidence-threshold:
             title: Confidence Threshold
             description: >-
@@ -924,9 +1003,19 @@ pages:
               proceed.
             action: Save anyway
         config:
+          loading: Loading provider settings...
+          load-error: Failed to load provider settings.
+          save-error: Failed to save provider settings.
+          retry: Retry
           common:
             fields:
               field:
+                web-search:
+                  label: Web search
+                  description: Allow supported OpenAI models to search when needed. Uses your API key and can incur search charges. Requires Responses API.
+                api-protocol:
+                  label: API protocol
+                  description: Choose the API supported by this provider and model.
                 api-key:
                   label: API Key
                   description: API Key used to authorize requests to this provider
@@ -1064,6 +1153,14 @@ pages:
         OpenAI, Azure Speech
     description: LLMs, speech providers, etc.
     provider:
+      apple-speech-transcription:
+        title: Apple Speech
+        description: On-device speech recognition on macOS 26 or later. No API key is required.
+        fields:
+          locale:
+            label: Locale
+            description: Use an exact Apple Speech locale, such as en-US or zh-CN.
+            placeholder: en-US
       app-local-audio-transcription:
         title: App (Local)
         description: https://github.com/moeru-ai/xsai-transformers
@@ -1134,6 +1231,26 @@ pages:
             volume:
               description: Adjust the volume of speech
               label: Volume
+      voicevox:
+        description: voicevox.hiroshiba.jp
+        title: VOICEVOX
+        fields:
+          field:
+            intonation:
+              description: Adjust how much the intonation of the reading varies
+              label: Intonation
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
+      aivis-speech:
+        description: aivis-project.com
+        title: AivisSpeech
+        fields:
+          field:
+            intonation:
+              description: Adjust how strongly the speaking style is expressed
+              label: Emotion expression strength
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
@@ -1234,6 +1351,10 @@ pages:
             nano_banana: Nano Banana (Gemini 2.5 Flash Image)
       deepseek:
         description: deepseek.com
+        fields:
+          field:
+            thinking-mode:
+              description: Controls whether DeepSeek reasoning models use thinking in chat requests.
         title: DeepSeek
       elevenlabs:
         description: elevenlabs.io
@@ -1407,6 +1528,11 @@ pages:
         title: Volcano Engine
       volcengine-coding-plan:
         description: Volcengine Coding Plan
+        models:
+          ark-code-latest:
+            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
+          legacy:
+            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
         title: Volcengine Coding Plan
       byteplus:
         description: byteplus.com
@@ -1455,39 +1581,29 @@ pages:
     description: Configure WebSocket server connection
     title: Connection
     websocket-url:
-      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
-      label: WebSocket Server Address
+      description: The address that this app uses to connect to the local server.
+      label: Server Address
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: Expose On Network
-      description: >-
-        Choose whether the AIRI gateway only listens on this device or can be
-        reached from your local network.
-      advanced-label: Bind Hostname
-      advanced-description: >-
-        Use a specific hostname or IP address when you need manual network
-        binding.
-      options:
-        this-device: This device
-        all: All
-        advanced: Advanced
+      label: Expose To All
+      description: Allow other devices on the local network to connect to this server.
     server-auth-token:
-      label: Auth Token
+      label: Pairing Token
       description: >-
-        Security token required by remote clients that connect to this gateway.
-        When left empty, AIRI generates a new token automatically.
+        Other devices use this token to pair with this server. AIRI generates a
+        token when this field is empty.
       placeholder: Auto-generate
     qr:
-      title: Connect from Stage Pocket
+      title: Pairing
       description: >-
-        Scan this QR code from Stage Pocket to try all reachable local network
-        addresses and save the first working one.
+        Scan this QR code with the mobile app. The app tries each local address
+        and saves the first working address.
       refresh: Refresh
-      image-alt: AIRI server channel connection QR code
+      image-alt: AIRI pairing QR code
       candidates: Candidate addresses
       token-hint: >-
-        The QR code includes the auth token so Stage Pocket can authenticate
-        after connecting. Do not share it publicly.
+        The QR code includes the pairing token. Do not share the QR code
+        publicly.
       errors:
         title: QR code unavailable
         unavailable: Failed to prepare the connection QR code.
@@ -1512,6 +1628,9 @@ pages:
     general:
       description: Dark theme, languages, etc.
       title: General
+    permissions:
+      description: View current permission status.
+      title: Permission Management
     description: Customize your stage!
     sections:
       section:
@@ -1529,10 +1648,36 @@ pages:
             section:
               performance-visualizer:
                 title: Performance Visualizer
-                description: Toggle FPS/long task/memory overlay
+                description: Show FPS, frame time, long tasks, and supported browser memory metrics
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
+              plugin-host:
+                actions:
+                  enable-and-load: Enable and Load
+                  disable-and-unload: Disable and Unload
+                  import-folder: Import Folder
+                  confirm-import: Import Extension
+                  cancel-import: Cancel
+                errors:
+                  enable-and-load: 'Failed to enable and load plugin {extensionId}.'
+                  disable-and-unload: 'Failed to disable and unload plugin {extensionId}.'
+                  prepare-import: Failed to inspect the Extension folder.
+                  commit-import: 'Failed to import Extension {extensionId}.'
+                  cancel-import: Failed to cancel the Extension import.
+                import:
+                  title: Review Extension Import
+                  description: The Extension stays disabled and unloaded after import.
+                  source: Source folder
+                  runtimes: Runtimes
+                  entrypoints: Entrypoints
+                  package-size: Package
+                  package-size-value: '{fileCount} files · {totalBytes}'
+                  permissions: Permissions
+                  kits: Kits
+                  no-permissions: No permissions declared.
+                  no-kits: No Kits declared.
+                  imported: 'Imported Extension {extensionId}.'
               use-magic-keys:
                 title: useMagicKeys Tool
                 description: Test shortcuts
@@ -1826,10 +1971,9 @@ tachie:
     render-scale: Render Scale
     shadow: Theme-colored drop shadow
 websocket-secure-enabled:
-  title: Enable Secure WebSocket (WSS)
+  title: Serve as Secure WebSocket (WSS)
   description: >-
-    Enable WSS (WebSocket Secure) to allow HTTPS connections for mobile (pocket)
-    in development mode. This will automatically generate a self-signed
+    Use WSS for secure mobile connections. AIRI creates a self-signed
     certificate.
 wip:
   title: Work in Progress

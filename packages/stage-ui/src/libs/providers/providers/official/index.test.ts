@@ -22,8 +22,8 @@ describe('official speech provider', () => {
    * @example
    * provider.speech('microsoft/v1', { speed: 1.2 })
    */
-  it('keeps speech extra options on the generated request config', () => {
-    const provider = providerOfficialSpeech.createProvider({}) as SpeechProviderWithExtraOptions<string, OfficialSpeechOptions>
+  it('keeps speech extra options on the generated request config', async () => {
+    const provider = await providerOfficialSpeech.createProvider({}) as SpeechProviderWithExtraOptions<string, OfficialSpeechOptions>
 
     const request = provider.speech('microsoft/v1', {
       speed: 1.2,
@@ -48,8 +48,8 @@ describe('official speech provider', () => {
    * @example
    * provider.speech('volcengine/seed-tts-2.0', { extraBody: { airi_analytics: { source: 'manual_preview', voice_type: 'official_selected' } } })
    */
-  it('keeps streaming speech preview analytics on the generated request config', () => {
-    const provider = providerOfficialSpeechStreaming.createProvider({}) as SpeechProviderWithExtraOptions<string, OfficialSpeechOptions>
+  it('keeps streaming speech preview analytics on the generated request config', async () => {
+    const provider = await providerOfficialSpeechStreaming.createProvider({}) as SpeechProviderWithExtraOptions<string, OfficialSpeechOptions>
 
     const request = provider.speech('volcengine/seed-tts-2.0', {
       extraBody: {
@@ -76,8 +76,8 @@ describe('official transcription provider', () => {
    * @example
    * provider.transcription('auto')
    */
-  it('builds an authenticated streaming transcription request for the server audio surface', () => {
-    const provider = providerOfficialTranscription.createProvider({}) as {
+  it('builds an authenticated streaming transcription request for the server audio surface', async () => {
+    const provider = await providerOfficialTranscription.createProvider({}) as {
       transcription: (model: string) => {
         baseURL: URL
         fetch?: typeof fetch
@@ -98,7 +98,8 @@ describe('official transcription provider', () => {
    * providerOfficialTranscription.extraMethods.listModels()
    */
   it('lists the auto realtime model without calling a provider credential flow', async () => {
-    const models = await providerOfficialTranscription.extraMethods?.listModels?.({}, providerOfficialTranscription.createProvider({}))
+    const provider = await providerOfficialTranscription.createProvider({})
+    const models = await providerOfficialTranscription.extraMethods?.listModels?.({}, provider)
 
     expect(models).toEqual([
       {

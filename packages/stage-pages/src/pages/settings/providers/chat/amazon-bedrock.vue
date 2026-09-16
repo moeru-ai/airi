@@ -11,14 +11,14 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
 const providerId = 'amazon-bedrock'
-const providersStore = useProvidersStore()
+const providerStore = useProviderConfigStore()
 const consciousnessStore = useConsciousnessStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 const { activeProvider } = storeToRefs(consciousnessStore)
 
 const apiKey = computed({

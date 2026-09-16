@@ -20,6 +20,7 @@ export interface ChatSendOutboxEntry {
   cloudChatId?: string
   role: 'user' | 'assistant'
   content: string
+  replyToMessageId?: string
   attempts: number
   lastError?: string
   queuedAt: number

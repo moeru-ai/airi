@@ -21,18 +21,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/setup@v2
         with:
-          run_install: false
+          runtime: node@26.7.0
+          cache: true
+          install: false
 
-      - name: Install Node.js 24.x
+      - name: Configure npm registry
         uses: actions/setup-node@v6
         with:
-          node-version: 24.x
           # registry-url required. Learn more at
           # https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
           registry-url: 'https://registry.npmjs.org'
-          cache: pnpm
 
       # npm 11.5.1 or later is required so update to latest to use OIDC trusted publisher
       # https://github.com/eslint/config-inspector/pull/174/files

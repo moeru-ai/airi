@@ -3,14 +3,14 @@ import { defineStore } from 'pinia'
 import { computed, watch } from 'vue'
 
 import { WEB_SEARCH_TOOLSET_PROMPT } from '../../tools/web-search'
-import { useLlmToolsetPromptsStore } from '../llm-toolset-prompts'
+import { useLlmToolsetPromptsStore } from '../ai/chat-llm/toolset-prompts'
 
 /**
  * Settings + lifecycle for the web-search capability (Tavily-backed).
  *
  * Renderer-only: unlike the messaging modules it does not broadcast to a backend
  * service, so there is no configurator channel here. The tool itself is mounted
- * by `resolveWebSearchTools` in `stores/llm-tool-resolver.ts`, gated on
+ * by `resolveWebSearchTools` in `stores/ai/chat-llm/tool-resolver.ts`, gated on
  * {@link configured}; this store owns the paired system-prompt guidance so the
  * "web content is data, not instructions" rule is present exactly when the tool
  * is, and gone when it is not.

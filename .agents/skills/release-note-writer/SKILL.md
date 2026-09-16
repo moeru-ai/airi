@@ -52,7 +52,7 @@ Use `To developers` for external developer impact:
 
 - Plugin SDK, plugin manifest, gamelet, widget, extension, public package API, self-host deployment behavior, server-runtime, Docker image behavior, integration contracts.
 - Include deployment behavior changes that affect external operators.
-- Do not include purely internal `apps/server` business logic unless users of AIRI Cloud or external operators need to act on it.
+- Do not include purely internal `server/apps/api` business logic unless users of AIRI Cloud or external operators need to act on it.
 
 Use `To contributors` for internal project work:
 

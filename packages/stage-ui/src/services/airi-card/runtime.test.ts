@@ -1,8 +1,11 @@
+import type { Conversation } from '@proj-airi/core-agent'
+
 import type { AiriCard } from '../../types/airiCard'
 
 import { describe, expect, it } from 'vitest'
 
 import {
+  compileCharacterCardConversation,
   compileCharacterCardGreeting,
   compileCharacterCardMessages,
   compileCharacterCardSystemPrompt,
@@ -348,3 +351,32 @@ function loreEntry(overrides: Partial<NonNullable<AiriCard['characterBook']>['en
     ...overrides,
   }
 }
+
+describe('character policy on portable conversations', () => {
+  it('retains native Responses continuation and media while adding character instructions', () => {
+    const card = createCard({ postHistoryInstructions: 'Reply as {{char}}.' })
+    const conversation: Conversation = {
+      turns: [
+        { id: 'image', type: 'user', content: [{ type: 'image', url: 'data:image/png;base64,fixture' }] },
+        {
+          id: 'answer',
+          type: 'assistant',
+          status: 'completed',
+          rounds: [{
+            id: 'round',
+            content: [{ type: 'text', text: 'An image.' }],
+            toolInvocations: [],
+            projectionIssues: [],
+            continuation: { scope: 'same-provider', protocol: 'responses', data: [] },
+          }],
+        },
+      ],
+    }
+    const before = structuredClone(conversation)
+    const result = compileCharacterCardConversation(card, conversation)
+    expect(result.turns.find(turn => turn.id === 'image')).toBe(conversation.turns[0])
+    expect(result.turns.find(turn => turn.id === 'answer')).toBe(conversation.turns[1])
+    expect(result.turns.at(-1)).toMatchObject({ type: 'system', content: [{ type: 'text', text: `Reply as ${card.name}.` }] })
+    expect(conversation).toEqual(before)
+  })
+})

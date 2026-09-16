@@ -27,7 +27,7 @@ export function parseMayStructuredMessage(responseText: string) {
 
     const parsedResponse = parse(result[0]) as ({ messages?: unknown, reply_to_message_id?: unknown } | undefined)
     const hasMessagesArray = Array.isArray(parsedResponse?.messages)
-    const messages = hasMessagesArray
+    const messages = Array.isArray(parsedResponse?.messages)
       ? parsedResponse.messages.filter((message): message is string => typeof message === 'string' && message.trim() !== '')
       : []
     const replyToMessageId = typeof parsedResponse?.reply_to_message_id === 'string'
@@ -109,9 +109,9 @@ export async function sendMessage(
     messages: responseText,
     response: res.text,
     now: new Date().toLocaleString(),
-    totalTokens: res.usage.total_tokens,
-    promptTokens: res.usage.prompt_tokens,
-    completion_tokens: res.usage.completion_tokens,
+    totalTokens: res.usage.totalTokens,
+    promptTokens: res.usage.inputTokens,
+    completion_tokens: res.usage.outputTokens,
   }).log('Message split')
 
   const structuredMessage = parseMayStructuredMessage(res.text)

@@ -31,6 +31,34 @@ Keep product routes, selectors, window identities, and interaction scenarios in 
 9. Inspect every screenshot and confirm it depicts the intended window and state.
 10. Return its stable ID, title, window identity, and absolute path to `$use-vishot` or the caller.
 
+## Window Sizing
+
+Resize the native `BrowserWindow` through Playwright's Electron handle when a scenario needs a deterministic content size:
+
+```ts
+const size = { width: 1200, height: 900 }
+const browserWindow = await electronApp.browserWindow(page)
+
+try {
+  await browserWindow.evaluate((window, target) => {
+    window.setContentSize(target.width, target.height)
+  }, size)
+}
+finally {
+  await browserWindow.dispose()
+}
+
+await page.waitForFunction(target => (
+  globalThis.innerWidth === target.width
+  && globalThis.innerHeight === target.height
+), size)
+```
+
+- Use `BrowserWindow.setContentSize()` when the requested dimensions describe the renderer content captured by `page.screenshot()`.
+- Use `BrowserWindow.setSize()` only when the requested dimensions describe the complete native window, including its frame and title bar.
+- Do not use `page.setViewportSize()` to resize an Electron window. It overrides renderer viewport metrics through Playwright/CDP but does not resize the native `BrowserWindow`, so the visible window and screenshot state can disagree.
+- Treat screenshot dimensions as device pixels. On a display with `devicePixelRatio = 2`, a `1200 × 900` content area normally produces a `2400 × 1800` screenshot.
+
 ## Electron Windows and UI State
 
 - Do not treat `electronApp.firstWindow()` or the next `window` event as semantic window selection. They reflect creation order, and startup may create Chromium DevTools, splash, onboarding, hidden, or auxiliary windows before the intended product window.

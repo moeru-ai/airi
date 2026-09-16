@@ -58,7 +58,7 @@ export interface UseWindowSizeOptions extends ConfigurableWindow {
    * visualViewport documentation from MDN(https://developer.mozilla.org/zh-CN/docs/Web/API/VisualViewport)
    * @default 'inner'
    */
-  type?: 'inner' | 'outer' | 'visual'
+  type?: "inner" | "outer" | "visual"
 }
 export interface UseWindowSizeReturn {
   width: ShallowRef<number>

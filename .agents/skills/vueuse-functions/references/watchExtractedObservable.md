@@ -17,7 +17,6 @@ Supports all overloads of [`watch`](https://vuejs.org/guide/essentials/watchers.
 ```ts no-twoslash
 import { watchExtractedObservable } from '@vueuse/rxjs'
 import { computed, reactive, useTemplateRef } from 'vue'
-
 import { AudioPlayer } from '../my/libs/AudioPlayer'
 
 // setup()
@@ -40,7 +39,6 @@ You can also supply an optional `onComplete` configuration if you need to attach
 ```ts no-twoslash
 import { watchExtractedObservable } from '@vueuse/rxjs'
 import { computed, reactive, useTemplateRef } from 'vue'
-
 import { AudioPlayer } from '../my/libs/AudioPlayer'
 
 // setup()
@@ -68,7 +66,6 @@ If you want, you can also pass `watch` options as the last argument:
 ```ts no-twoslash
 import { watchExtractedObservable } from '@vueuse/rxjs'
 import { computed, reactive, useTemplateRef } from 'vue'
-
 import { AudioPlayer } from '../my/libs/AudioPlayer'
 
 // setup()

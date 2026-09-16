@@ -59,7 +59,7 @@ watch(inputFiles, async (newFiles) => {
     return
 
   try {
-    addCard(await importAiriCardPackage({ file, displayModelsStore }), 'import')
+    await addCard(await importAiriCardPackage({ file, displayModelsStore }), 'import')
     toast(t('settings.pages.card.imported'))
   }
   catch (error) {
@@ -113,9 +113,9 @@ const sortedFilteredCards = computed<CardItem[]>(() => {
 const showDeleteConfirm = ref(false)
 const cardToDelete = ref<string | null>(null)
 
-function handleDeleteConfirm() {
+async function handleDeleteConfirm() {
   if (cardToDelete.value) {
-    removeCard(cardToDelete.value)
+    await removeCard(cardToDelete.value)
     cardToDelete.value = null
     showDeleteConfirm.value = false
   }
@@ -154,7 +154,7 @@ function handleCardCreationDialog() {
 
 // Card activation
 function activateCard(id: string) {
-  activeCardId.value = id
+  void cardStore.activateCard(id)
 }
 
 watch(activeCardId, (cardId, previousCardId) => {

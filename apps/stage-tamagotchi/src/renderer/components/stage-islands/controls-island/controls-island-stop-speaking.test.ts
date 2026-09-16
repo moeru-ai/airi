@@ -1,17 +1,23 @@
 // @vitest-environment jsdom
+import type { ControlsIslandPlacement } from './use-controls-island-placement'
+
+import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
+import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
-import { createApp, h, nextTick } from 'vue'
+import { createApp, h, nextTick, shallowRef } from 'vue'
 
 import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
 
+import { controlsIslandPlacementKey } from './use-controls-island-placement'
+
 const nowSpeakingRef = { value: false }
 const stopAllSpeakingMock = vi.fn()
-
-vi.mock('@proj-airi/stage-ui/stores/audio', () => ({
-  useSpeakingStore: () => ({
-    nowSpeaking: nowSpeakingRef,
-  }),
-}))
+const placement: ControlsIslandPlacement = {
+  dock: shallowRef('bottom-right'),
+  isLeft: shallowRef(false),
+  isTop: shallowRef(false),
+  motionPhase: shallowRef('idle'),
+}
 
 vi.mock('@proj-airi/stage-layouts/composables/useStopSpeakingButton', () => ({
   useStopSpeakingButton: () => ({
@@ -27,16 +33,11 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-vi.mock('pinia', () => ({
-  storeToRefs: (store: object) => store,
-}))
-
-vi.mock('reka-ui', () => ({
-  TooltipContent: { template: '<div><slot /></div>', inheritAttrs: false },
-  TooltipProvider: { template: '<div><slot /></div>' },
-  TooltipRoot: { template: '<div><slot /></div>' },
-  TooltipTrigger: { template: '<div><slot /></div>' },
-}))
+// ROOT CAUSE:
+// PR #2536 adds swipe actions to the shared UI entry point. The full reka-ui
+// mock omitted createContext and failed while importing that entry point.
+// Use the real primitives so this test also checks the production import graph.
+// https://github.com/moeru-ai/airi/pull/2536
 
 describe('controlsIslandStopSpeaking', () => {
   function mountComponent() {
@@ -48,6 +49,10 @@ describe('controlsIslandStopSpeaking', () => {
         iconClass: 'size-5',
       }),
     })
+    const pinia = createPinia()
+    app.use(pinia)
+    useSpeakingStore(pinia).nowSpeaking = nowSpeakingRef.value
+    app.provide(controlsIslandPlacementKey, placement)
     app.mount(host)
     return { host, app }
   }
@@ -56,7 +61,7 @@ describe('controlsIslandStopSpeaking', () => {
     nowSpeakingRef.value = false
     const { host, app } = mountComponent()
     await nextTick()
-    expect(host.querySelectorAll('button').length).toBeGreaterThan(0)
+    expect(host.querySelectorAll('button')).toHaveLength(1)
     app.unmount()
     host.remove()
   })
@@ -65,7 +70,7 @@ describe('controlsIslandStopSpeaking', () => {
     nowSpeakingRef.value = true
     const { host, app } = mountComponent()
     await nextTick()
-    expect(host.querySelectorAll('button').length).toBeGreaterThan(0)
+    expect(host.querySelectorAll('button')).toHaveLength(1)
     app.unmount()
     host.remove()
   })

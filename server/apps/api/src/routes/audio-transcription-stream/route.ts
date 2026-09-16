@@ -1,6 +1,6 @@
 import type { Context } from 'hono'
 
-import type { AuthInstance } from '../../libs/auth'
+import type { Database } from '../../libs/db'
 import type { Env } from '../../libs/env'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { RouterConfig } from '../../services/domain/llm-router/types'
@@ -117,7 +117,7 @@ export async function resolveOfficialAliyunNlsCredentialsFromConfig(input: {
  * - An SSE response that mirrors `@xsai/stream-transcription` delta events.
  */
 export function createAudioTranscriptionStreamHandler(input: {
-  auth: AuthInstance
+  db: Database
   env: Env
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
@@ -125,7 +125,7 @@ export function createAudioTranscriptionStreamHandler(input: {
 }) {
   return async function handleAudioTranscriptionStream(c: Context) {
     const session = await resolveRequestAuth(
-      input.auth,
+      input.db,
       input.env,
       c.req.raw.headers,
     )

@@ -48,4 +48,34 @@ describe('useCaptionItems', () => {
       vi.useRealTimers()
     }
   })
+
+  // ROOT CAUSE:
+  //
+  // Streaming providers send a complete volatile sentence on each update.
+  // The caption overlay appended every correction as a separate item.
+  it('replaces volatile speaker captions without accumulating corrections', () => {
+    vi.useFakeTimers()
+
+    try {
+      const captions = useCaptionItems({ ttlMs: 1000 })
+
+      captions.add({ operation: 'replace', type: 'caption-speaker', text: '今天天气很号' })
+      vi.advanceTimersByTime(500)
+      captions.add({ operation: 'replace', type: 'caption-speaker', text: '今天天气很好' })
+
+      expect(captions.items.value).toHaveLength(1)
+      expect(captions.items.value[0]?.text).toBe('今天天气很好')
+
+      vi.advanceTimersByTime(500)
+
+      expect(captions.items.value).toHaveLength(1)
+
+      vi.advanceTimersByTime(500)
+
+      expect(captions.items.value).toEqual([])
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
 })

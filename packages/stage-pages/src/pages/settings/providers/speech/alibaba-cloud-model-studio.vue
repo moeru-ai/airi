@@ -7,10 +7,13 @@ import {
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldRange } from '@proj-airi/ui'
+import { watchDebounced } from '@vueuse/core'
+import { cloneDeep } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const providerId = 'alibaba-cloud-model-studio'
@@ -26,8 +29,9 @@ const speed = ref<number>(1.0)
 const volume = ref<number>(0)
 
 const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore)
 const { t } = useI18n()
 
 // Check if API key is configured
@@ -46,7 +50,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   }
 
   // Get provider configuration
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
   const model = providerConfig.model as string | undefined || defaultModel
@@ -64,43 +68,38 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   )
 }
 
-onMounted(async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
+async function loadVoicesWhenConfigured() {
+  const providerConfig = providerStore.getProviderConfig(providerId)
+  // Clone nested reactive values before the synchronized action sends its arguments.
+  const configSnapshot = cloneDeep(providerConfig)
+  if ((await providersStore.validateProviderConfig(providerId, configSnapshot)).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
     console.error('Failed to validate provider config', providerConfig)
   }
-})
+}
 
 watch(pitch, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
   providerConfig.pitch = pitch.value
 })
 
 watch(speed, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
   providerConfig.speed = speed.value
 })
 
 watch(volume, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
   providerConfig.volume = volume.value
 })
 
-watch(providers, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
-    await speechStore.loadVoicesForProvider(providerId)
-  }
-  else {
-    console.error('Failed to validate provider config', providerConfig)
-  }
-}, {
-  immediate: true,
+watchDebounced([
+  () => providers.value[providerId]?.apiKey,
+  () => providers.value[providerId]?.baseUrl,
+], loadVoicesWhenConfigured, {
+  debounce: 500,
 })
 </script>
 

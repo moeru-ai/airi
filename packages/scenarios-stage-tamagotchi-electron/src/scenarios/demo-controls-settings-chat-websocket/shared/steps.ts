@@ -1,8 +1,8 @@
-import type { CaptureExecutionResult, ManualCaptureStep, ManualRuntime } from './types.ts'
+import type { CaptureExecutionResult, ManualCaptureStep, ManualRuntime } from './types'
 
 import { sleep } from '@moeru/std'
 
-import { ensureControlsIslandExpanded, getChatWindowSnapshot, getSettingsWindowSnapshot, waitForRouteReadiness } from './runtime.ts'
+import { ensureControlsIslandExpanded, getChatWindowSnapshot, getSettingsWindowSnapshot, waitForRouteReadiness } from './runtime'
 
 async function captureStepPage(step: ManualCaptureStep, runtime: ManualRuntime): Promise<CaptureExecutionResult> {
   let page

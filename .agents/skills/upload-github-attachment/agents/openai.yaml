@@ -1,0 +1,4 @@
+interface:
+  display_name: "Upload GitHub Attachment"
+  short_description: "Upload files as GitHub user attachments"
+  default_prompt: "Use $upload-github-attachment to upload this file for a GitHub issue or pull request."

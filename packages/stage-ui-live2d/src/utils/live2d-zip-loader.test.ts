@@ -58,6 +58,17 @@ function createCjkPathSettingsText(): string {
   })
 }
 
+function createSpacePathSettingsText(): string {
+  return JSON.stringify({
+    Version: 3,
+    FileReferences: {
+      Moc: 'Avatar Model.moc3',
+      Textures: ['Avatar Model.4096/texture 00.png'],
+    },
+    Groups: [],
+  })
+}
+
 const appleDoubleHeader = new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0, 77, 97, 99, 32, 79, 83, 32, 88])
 
 describe('live2d zip loader settings sanitization', () => {
@@ -134,6 +145,47 @@ describe('live2d zip loader settings sanitization', () => {
     }
   })
 
+  it('loads a zip model whose settings and resources contain spaces', async () => {
+    await import('./live2d-zip-loader')
+    const { FileLoader, Live2DModel, ZipLoader } = await import('pixi-live2d-display/cubism4')
+
+    const zip = new JSZip()
+    zip.file('Model Package/Avatar Model.model3.json', createSpacePathSettingsText())
+    zip.file('Model Package/Avatar Model.moc3', new Uint8Array([77, 79, 67, 51]))
+    zip.file('Model Package/Avatar Model.4096/texture 00.png', new Uint8Array([1, 2, 3]))
+
+    const zipBytes = await zip.generateAsync({ type: 'uint8array' })
+    const reader = await JSZip.loadAsync(await blobFromBytes(zipBytes).arrayBuffer())
+    const settings = await ZipLoader.createSettings(reader)
+    const files = Object.assign(await ZipLoader.unzip(reader, settings), { settings })
+    const objectUrl = `zip://test/${settings.url}`
+    Object.assign(settings, { _objectURL: objectUrl })
+
+    // ROOT CAUSE:
+    //
+    // ModelSettings.resolveURL percent-encodes spaces while ZipLoader and OPFS preserve
+    // decoded archive paths. FileLoader therefore rejects resources that are present.
+    //
+    // Model Package/Avatar Model.moc3
+    // !== Model%20Package/Avatar%20Model.moc3
+    //
+    // We fixed this by comparing canonical decoded archive paths at the loader boundary.
+    const context = {
+      source: files,
+      options: {},
+      live2dModel: new Live2DModel(),
+    }
+
+    try {
+      await expect(FileLoader.factory(context, async () => {})).resolves.toBeUndefined()
+    }
+    finally {
+      for (const resourceUrl of Object.values(FileLoader.filesMap[objectUrl] ?? {}))
+        URL.revokeObjectURL(resourceUrl)
+      delete FileLoader.filesMap[objectUrl]
+    }
+  })
+
   it('loads a zip model when a macOS AppleDouble settings sidecar is present before the real settings file', async () => {
     await import('./live2d-zip-loader')
     const { ZipLoader } = await import('pixi-live2d-display/cubism4')
@@ -153,6 +205,40 @@ describe('live2d zip loader settings sanitization', () => {
     expect(settings.url).toBe('302301_shisihangshi/302301_shisihangshi.model3.json')
     expect(settings.physics).toBeUndefined()
     expect(filePaths).not.toContain('__MACOSX/302301_shisihangshi/._302301_shisihangshi.model3.json')
+  })
+
+  it('ignores macOS AppleDouble expression sidecars during zip metadata extraction', async () => {
+    await import('./live2d-zip-loader')
+    const { ZipLoader } = await import('pixi-live2d-display/cubism4')
+
+    const zip = new JSZip()
+    zip.file('302301_shisihangshi/302301_shisihangshi.model3.json', createShisihangshiSettingsText())
+    zip.file('302301_shisihangshi/expressions/happy.exp3.json', JSON.stringify({
+      Type: 'Live2D Expression',
+      Parameters: [{ Id: 'ParamEyeLOpen', Value: 1, Blend: 'Add' }],
+    }))
+    zip.file('__MACOSX/302301_shisihangshi/expressions/._happy.exp3.json', appleDoubleHeader)
+
+    const zipBytes = await zip.generateAsync({ type: 'uint8array' })
+    const reader = await JSZip.loadAsync(await blobFromBytes(zipBytes).arrayBuffer())
+    const settings = await ZipLoader.createSettings(reader)
+
+    // ROOT CAUSE:
+    //
+    // Metadata extraction scanned every ZIP entry. It parsed the AppleDouble sidecar as JSON,
+    // then discarded the valid expression metadata when that parse failed.
+    //
+    // The loader now removes macOS metadata paths before it discovers model resources.
+    expect(settings).toHaveProperty('_expFiles', [
+      {
+        name: 'happy',
+        fileName: '302301_shisihangshi/expressions/happy.exp3.json',
+        data: {
+          Type: 'Live2D Expression',
+          Parameters: [{ Id: 'ParamEyeLOpen', Value: 1, Blend: 'Add' }],
+        },
+      },
+    ])
   })
 
   it('loads an OPFS-restored file directory when model3.json contains Physics: null', async () => {

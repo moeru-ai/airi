@@ -1,6 +1,6 @@
 import type { CapabilityAliasRoute } from '../../../../../schemas/provider-catalog'
 import type { UsageInfo } from '../../../../../services/domain/billing/billing'
-import type { AiGenerationAppSurface } from '../../../../../services/domain/product-events'
+import type { ChatAppSurface } from '../../analytics'
 import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
 
@@ -9,7 +9,7 @@ import { useLogger } from '@guiiai/logg'
 import { extractUsageFromBody } from '../../../../../services/domain/billing/billing'
 import { createBadRequestError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
-import { buildSafeResponseHeaders } from '../../http/response'
+import { buildSafeErrorResponseHeaders, buildSafeResponseHeaders } from '../../http/response'
 import { createOpenAiRouteBilling } from '../../middlewares/billing'
 import { createRouteTelemetry, newRouteContext } from '../../middlewares/telemetry'
 
@@ -22,22 +22,8 @@ export interface ChatCompletionsOperationRequest {
   body: Record<string, unknown>
   sessionId?: string
   roundId?: string
-  appSurface?: AiGenerationAppSurface
+  appSurface?: ChatAppSurface
   abortSignal?: AbortSignal
-}
-
-interface GenerationCaptureInput {
-  deps: V1RouteDeps
-  userId: string
-  requestId: string
-  sessionId?: string
-  roundId?: string
-  appSurface?: AiGenerationAppSurface
-  generationModel: string
-  routeCtxProvider: string
-  usage: UsageInfo
-  durationMs: number
-  stream: boolean
 }
 
 export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.completions'> {
@@ -71,19 +57,6 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
       stream,
       messageCount: Array.isArray(body.messages) ? body.messages.length : undefined,
     }).log('chat completion request')
-    void deps.productEventService.track({
-      userId: input.userId,
-      feature: 'gen_ai_chat',
-      action: 'completion_requested',
-      status: 'started',
-      source: 'openai.chat.completions',
-      model: requestModel,
-      metadata: {
-        stream,
-        message_count: Array.isArray(body.messages) ? body.messages.length : null,
-      },
-    })
-
     // Server-connection attrs come from the router (which knows the actual
     // upstream baseURL it dispatched to) — it enriches the active span with
     // its own `airi.gen_ai.gateway.*` attrs on success.
@@ -126,20 +99,6 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
         sessionId: input.sessionId,
       }).fail('Router exhausted or unknown model')
       telemetry.recordMetrics({ model: requestModel, status: 502, type: 'chat', provider: routeCtx.provider, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
-      void deps.productEventService.track({
-        userId: input.userId,
-        feature: 'gen_ai_chat',
-        action: 'completion_failed',
-        status: 'failed',
-        source: 'openai.chat.completions',
-        model: requestModel,
-        provider: routeCtx.provider,
-        reason: 'router_exhausted',
-        metadata: {
-          duration_ms: Date.now() - startedAt,
-          stream,
-        },
-      })
       throw err
     }
 
@@ -165,27 +124,12 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
       telemetry.failSpan(span, `Gateway ${response.status}`)
       generationTrace.fail(`Gateway ${response.status}`)
       telemetry.recordMetrics({ model: requestModel, status: response.status, type: 'chat', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
-      void deps.productEventService.track({
-        userId: input.userId,
-        feature: 'gen_ai_chat',
-        action: 'completion_failed',
-        status: 'failed',
-        source: 'openai.chat.completions',
-        model: requestModel,
-        provider: routeCtx.provider,
-        reason: 'upstream_error',
-        metadata: {
-          http_status: response.status,
-          duration_ms: durationMs,
-          stream,
-        },
-      })
       logger.withFields({ requestId, userId: input.userId, model: requestModel, status: response.status, durationMs })
         .warn('chat completion delivered with upstream error status')
 
       return new Response(response.body, {
         status: response.status,
-        headers: buildSafeResponseHeaders(response),
+        headers: buildSafeErrorResponseHeaders(response),
       })
     }
 
@@ -199,11 +143,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
         durationMs,
         requestId,
         userId: input.userId,
-        sessionId: input.sessionId,
-        roundId: input.roundId,
-        appSurface: input.appSurface,
         requestModel,
-        generationModel: langfuseModel,
         routeCtxProvider: routeCtx.provider,
         billing,
         billingPolicy,
@@ -220,11 +160,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
       durationMs,
       requestId,
       userId: input.userId,
-      sessionId: input.sessionId,
-      roundId: input.roundId,
-      appSurface: input.appSurface,
       requestModel,
-      generationModel: langfuseModel,
       routeCtxProvider: routeCtx.provider,
       billing,
       billingPolicy,
@@ -236,37 +172,6 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
 
 interface ChatModelAliasPlan {
   modelIds: string[]
-}
-
-function captureGeneration(input: GenerationCaptureInput): void {
-  const generationId = input.roundId ?? input.requestId
-  const conversationId = input.sessionId ?? input.requestId
-  const totalTokens = input.usage.promptTokens != null && input.usage.completionTokens != null
-    ? input.usage.promptTokens + input.usage.completionTokens
-    : undefined
-
-  input.deps.productEventService.trackGeneration({
-    userId: input.userId,
-    traceId: conversationId,
-    generationId,
-    model: input.generationModel,
-    provider: input.routeCtxProvider || 'unknown',
-    providerType: 'official',
-    usageSource: input.usage.promptTokens != null || input.usage.completionTokens != null
-      ? 'reported'
-      : 'unavailable',
-    inputTokens: input.usage.promptTokens,
-    outputTokens: input.usage.completionTokens,
-    totalTokens,
-    costUsdSource: 'unavailable',
-    conversationId,
-    conversationIdSource: input.sessionId ? 'client_header' : 'server_request',
-    roundId: generationId,
-    ...(input.appSurface && { appSurface: input.appSurface }),
-    captureSurface: 'server',
-    latencySeconds: input.durationMs / 1000,
-    stream: input.stream,
-  })
 }
 
 async function resolveChatModelAliasPlan(deps: V1RouteDeps, aliasId: string): Promise<ChatModelAliasPlan> {
@@ -301,7 +206,8 @@ async function routeChatAliasCandidates(input: {
   routeCtx: ReturnType<typeof newRouteContext>
 }> {
   let lastError: unknown
-  for (const modelId of input.modelIds) {
+  for (let index = 0; index < input.modelIds.length; index += 1) {
+    const modelId = input.modelIds[index]
     const routeCtx = newRouteContext()
     try {
       const response = await input.deps.llmRouter.route({
@@ -310,7 +216,13 @@ async function routeChatAliasCandidates(input: {
         headers: {},
         abortSignal: input.abortSignal,
       }, routeCtx)
-      return { modelId, response, routeCtx }
+      if (response.ok || index === input.modelIds.length - 1)
+        return { modelId, response, routeCtx }
+
+      // The alias owns the next configured model candidate. Its non-2xx body
+      // cannot reach the client while a later candidate can still serve the
+      // request, so release it before the next route attempt.
+      await response.body?.cancel().catch(() => {})
     }
     catch (err) {
       if (input.abortSignal?.aborted)
@@ -358,11 +270,7 @@ function streamChatCompletion(input: {
   durationMs: number
   requestId: string
   userId: string
-  sessionId?: string
-  roundId?: string
-  appSurface?: AiGenerationAppSurface
   requestModel: string
-  generationModel: string
   routeCtxProvider: string
   billing: ChatBilling
   billingPolicy: ChatBillingPolicy
@@ -433,21 +341,6 @@ function streamChatCompletion(input: {
         input.telemetry.endSpan(input.span)
         input.generationTrace.fail('Gateway stream interrupted')
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
-        void input.deps.productEventService.track({
-          userId: input.userId,
-          feature: 'gen_ai_chat',
-          action: 'completion_failed',
-          status: 'failed',
-          source: 'openai.chat.completions',
-          model: input.requestModel,
-          provider: input.routeCtxProvider,
-          reason: 'stream_interrupted',
-          metadata: {
-            http_status: input.response.status,
-            duration_ms: input.durationMs,
-            stream: true,
-          },
-        })
       }
       else if (streamCompleted) {
         try {
@@ -480,20 +373,6 @@ function streamChatCompletion(input: {
           fluxConsumed,
         })
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed, ...usage })
-
-        captureGeneration({
-          deps: input.deps,
-          userId: input.userId,
-          requestId: input.requestId,
-          sessionId: input.sessionId,
-          roundId: input.roundId,
-          appSurface: input.appSurface,
-          generationModel: input.generationModel,
-          routeCtxProvider: input.routeCtxProvider,
-          usage,
-          durationMs: input.durationMs,
-          stream: true,
-        })
 
         // Debit flux via DB transaction (source of truth)
         // NOTICE: streaming response is already sent, so we cannot reject on failure.
@@ -534,23 +413,6 @@ function streamChatCompletion(input: {
           promptTokens: usage.promptTokens,
           completionTokens: usage.completionTokens,
         })
-        void input.deps.productEventService.track({
-          userId: input.userId,
-          feature: 'gen_ai_chat',
-          action: 'completion_succeeded',
-          status: 'succeeded',
-          source: 'openai.chat.completions',
-          model: input.requestModel,
-          provider: input.routeCtxProvider,
-          metadata: {
-            http_status: input.response.status,
-            duration_ms: input.durationMs,
-            prompt_tokens: usage.promptTokens ?? 0,
-            completion_tokens: usage.completionTokens ?? 0,
-            flux_consumed: actualCharged,
-            stream: true,
-          },
-        })
 
         input.logger.withFields({
           requestId: input.requestId,
@@ -581,11 +443,7 @@ async function completeNonStreamingChat(input: {
   durationMs: number
   requestId: string
   userId: string
-  sessionId?: string
-  roundId?: string
-  appSurface?: AiGenerationAppSurface
   requestModel: string
-  generationModel: string
   routeCtxProvider: string
   billing: ChatBilling
   billingPolicy: ChatBillingPolicy
@@ -604,21 +462,6 @@ async function completeNonStreamingChat(input: {
     input.telemetry.failSpan(input.span, 'Failed to parse upstream response body')
     input.generationTrace.fail('Failed to parse upstream response body')
     input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
-    void input.deps.productEventService.track({
-      userId: input.userId,
-      feature: 'gen_ai_chat',
-      action: 'completion_failed',
-      status: 'failed',
-      source: 'openai.chat.completions',
-      model: input.requestModel,
-      provider: input.routeCtxProvider,
-      reason: 'malformed_upstream_response',
-      metadata: {
-        http_status: input.response.status,
-        duration_ms: input.durationMs,
-        stream: false,
-      },
-    })
     throw err
   }
   const usage = extractUsageFromBody(responseBody)
@@ -633,20 +476,6 @@ async function completeNonStreamingChat(input: {
     fluxConsumed,
   })
   input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed, ...usage })
-
-  captureGeneration({
-    deps: input.deps,
-    userId: input.userId,
-    requestId: input.requestId,
-    sessionId: input.sessionId,
-    roundId: input.roundId,
-    appSurface: input.appSurface,
-    generationModel: input.generationModel,
-    routeCtxProvider: input.routeCtxProvider,
-    usage,
-    durationMs: input.durationMs,
-    stream: false,
-  })
 
   // Debit flux via DB transaction (source of truth).
   // The upstream call has already happened (cost incurred), so partial
@@ -671,24 +500,6 @@ async function completeNonStreamingChat(input: {
     promptTokens: usage.promptTokens,
     completionTokens: usage.completionTokens,
   })
-  void input.deps.productEventService.track({
-    userId: input.userId,
-    feature: 'gen_ai_chat',
-    action: 'completion_succeeded',
-    status: 'succeeded',
-    source: 'openai.chat.completions',
-    model: input.requestModel,
-    provider: input.routeCtxProvider,
-    metadata: {
-      http_status: input.response.status,
-      duration_ms: input.durationMs,
-      prompt_tokens: usage.promptTokens ?? 0,
-      completion_tokens: usage.completionTokens ?? 0,
-      flux_consumed: actualCharged,
-      stream: false,
-    },
-  })
-
   input.logger.withFields({
     requestId: input.requestId,
     userId: input.userId,

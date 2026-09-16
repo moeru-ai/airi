@@ -30,6 +30,33 @@ Prefer product-owned Vishot capture roots when available. Otherwise capture a lo
 8. Inspect each image for loading screens, stale data, iframe refusal, missing fonts, permission prompts, and animation instability.
 9. Return its stable ID, title, viewport, and absolute path to `$use-vishot` or the caller.
 
+## Viewport Sizing
+
+Prefer Vishot's browser dimensions when the size is known before launch:
+
+```bash
+pnpm exec vishot render \
+  --target browser \
+  http://127.0.0.1:5173/settings \
+  --width 1440 \
+  --height 900 \
+  --output-dir /absolute/output/settings
+```
+
+Use Playwright's viewport API when a browser scenario must change responsive states during the same run:
+
+```ts
+await page.setViewportSize({ width: 390, height: 844 })
+await page.waitForFunction(size => (
+  globalThis.innerWidth === size.width
+  && globalThis.innerHeight === size.height
+), { width: 390, height: 844 })
+```
+
+- Web pages do not have an Electron `BrowserWindow`; `page.setViewportSize()` is therefore the correct way to change the browser viewport in scenario code.
+- Do not use DOM APIs such as `window.resizeTo()` to control Vishot output. Browser security and window-manager behavior can ignore them, and they do not define the Playwright capture viewport reliably.
+- Treat `width` and `height` as CSS pixels. The output image can contain more device pixels when the browser context uses a device scale factor above `1`.
+
 ## Scenario Readiness and Locators
 
 - Implement readiness for the specific route and UI state. A heading, button, or expected text from one page is not a reusable readiness condition for another page.

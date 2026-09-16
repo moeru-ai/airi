@@ -16,6 +16,7 @@ Use Vishot as the common screenshot interface and delegate runtime-specific beha
    - Invoke `$use-vishot-with-electron` for Electron windows.
    - Invoke `$use-vishot-with-web` for browser routes.
    - Invoke `$use-vishot-with-capacitor` for Capacitor WebView or native-shell evidence.
+   - Also invoke `$use-vishot-with-input-file` when reaching the requested state requires a local file chooser or file input.
 5. When developing or debugging the disposable automation, use a locally available `$agent-browser` to inspect web or Capacitor DOM and interaction paths. For Electron window discovery and interaction, also invoke `$agent-browser-electron`. Use these skills as development and validation aids; do not make their availability a prerequisite for Vishot capture.
 6. Produce the final screenshot artifacts with Vishot whenever possible, even when agent-browser helped discover selectors or verify the interaction sequence. Treat a missing product helper as temporary automation work, not as proof that Vishot cannot capture the state; report a Vishot limitation only after reproducing a concrete runtime failure.
 7. Give the variant an explicit output directory. Directory ownership belongs to the caller; Vishot only writes named capture artifacts into that directory.

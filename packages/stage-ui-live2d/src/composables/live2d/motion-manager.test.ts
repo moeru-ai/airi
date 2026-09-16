@@ -1,11 +1,17 @@
+import type { Live2DBreathControlState } from '../../stores/motion-control'
 import type { MotionManagerPluginContext, PixiLive2DInternalModel } from './motion-manager'
 
 import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
+import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
+import { createLive2DMotionSpring } from './motion-control-spring'
 import {
+  disableLive2DSdkBreath,
   useMotionUpdatePluginAutoEyeBlink,
+  useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginIdleDisable,
+  useMotionUpdatePluginManualControl,
 } from './motion-manager'
 
 vi.mock('./animation', () => ({
@@ -67,6 +73,62 @@ function createContext(overrides: Partial<MotionManagerPluginContext> = {}): Mot
 }
 
 describe('live2d motion manager plugins', () => {
+  it('keeps SDK breath from changing AIRI-owned idle parameters', () => {
+    const updateParameters = vi.fn()
+    const internalModel = {
+      breath: { updateParameters },
+    }
+
+    // ROOT CAUSE:
+    //
+    // CubismBreath added periodic head, body, and breath offsets after AIRI's
+    // final motion plugins. These late writes made a controlled pose wiggle.
+    //
+    // We fixed this by removing the SDK breath owner during model setup.
+    disableLive2DSdkBreath(internalModel)
+
+    // The SDK runs this optional breath pass after the motion manager.
+    internalModel.breath?.updateParameters()
+
+    expect(updateParameters).not.toHaveBeenCalled()
+  })
+
+  it('applies manual breath after motion and restores the configured value on release', () => {
+    const context = createContext({
+      modelParameters: ref({
+        breath: 0.2,
+        leftEyeOpen: 1,
+        rightEyeOpen: 1,
+      }),
+    })
+    const breathControl = ref<Live2DBreathControlState>({
+      active: true,
+      ownerId: 'motion-devtool',
+      startedAtMs: 1_000,
+      options: {
+        cycleSeconds: 4,
+        exhaleDwellSeconds: 0,
+        minimum: 0.1,
+        maximum: 0.7,
+        inhaleRatio: 0.25,
+      },
+    })
+    const plugin = useMotionUpdatePluginBreathControl(breathControl, () => 2_000)
+
+    plugin(context)
+
+    expect(context.model.setParameterValueById).toHaveBeenLastCalledWith('ParamBreath', 0.7)
+
+    breathControl.value = {
+      ...breathControl.value,
+      active: false,
+      ownerId: null,
+    }
+    plugin(context)
+
+    expect(context.model.setParameterValueById).toHaveBeenLastCalledWith('ParamBreath', 0.2)
+  })
+
   /**
    * @example
    * expect(idleEyeFocus.update).toHaveBeenCalled()
@@ -136,6 +198,32 @@ describe('live2d motion manager plugins', () => {
     expect(context.handled).toBe(true)
   })
 
+  it('applies force blink after the SDK handles an idle-motion frame', () => {
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
+    const context = createContext({
+      live2dAutoBlinkEnabled: ref(true),
+      live2dForceAutoBlinkEnabled: ref(true),
+      timeDelta: 4,
+      handled: true,
+    })
+    const plugin = useMotionUpdatePluginAutoEyeBlink(ref(false))
+
+    // ROOT CAUSE:
+    //
+    // The SDK marks normal idle-motion frames as handled. The final blink
+    // plug-in returned on handled frames, so force mode never advanced.
+    //
+    // We fixed this by letting force mode run after an SDK-handled frame.
+    plugin(context)
+    context.timeDelta = 0.075
+    plugin(context)
+
+    expect(context.model.getParameterValueById('ParamEyeLOpen')).toBe(0)
+    expect(context.model.getParameterValueById('ParamEyeROpen')).toBe(0)
+
+    randomSpy.mockRestore()
+  })
+
   /**
    * @example
    * expect(context.model.getParameterValueById('ParamEyeLOpen')).toBeLessThan(1)
@@ -178,5 +266,60 @@ describe('live2d motion manager plugins', () => {
     expect(context.model.getParameterValueById('ParamEyeROpen')).toBe(1)
 
     randomSpy.mockRestore()
+  })
+
+  it('springs eye, head, and body parameters toward the manual target', () => {
+    const context = createContext({ timeDelta: 1 / 60 })
+    const spring = createLive2DMotionSpring()
+
+    const plugin = useMotionUpdatePluginManualControl(ref({
+      active: true,
+      ownerId: 'motion-devtool',
+      pose: {
+        ...neutralLive2DMotionControlPose,
+        eyeX: 0.25,
+        eyeY: -0.5,
+        headX: 0.5,
+        headY: -0.25,
+        headZ: -0.75,
+        bodyX: -0.5,
+        bodyY: 0.75,
+        bodyZ: 1,
+        mouthForm: -0.25,
+      },
+      dynamics: { follow: 0.6, inertia: 0.35 },
+    }), spring)
+
+    plugin(context)
+
+    const firstAngleX = context.model.getParameterValueById('ParamAngleX')
+    expect(firstAngleX).toBeGreaterThan(0)
+    expect(firstAngleX).toBeLessThan(15)
+
+    for (let frame = 0; frame < 300; frame += 1)
+      plugin(context)
+
+    expect(context.model.getParameterValueById('ParamEyeBallX')).toBeCloseTo(0.25)
+    expect(context.model.getParameterValueById('ParamEyeBallY')).toBeCloseTo(-0.5)
+    expect(context.model.getParameterValueById('ParamAngleX')).toBeCloseTo(15)
+    expect(context.model.getParameterValueById('ParamAngleY')).toBeCloseTo(-7.5)
+    expect(context.model.getParameterValueById('ParamAngleZ')).toBeCloseTo(-22.5)
+    expect(context.model.getParameterValueById('ParamBodyAngleX')).toBeCloseTo(-5)
+    expect(context.model.getParameterValueById('ParamBodyAngleY')).toBeCloseTo(7.5)
+    expect(context.model.getParameterValueById('ParamBodyAngleZ')).toBeCloseTo(10)
+    expect(context.model.getParameterValueById('ParamMouthForm')).toBeCloseTo(-0.25)
+  })
+
+  it('leaves motion parameters unchanged after manual control is released', () => {
+    const context = createContext()
+
+    useMotionUpdatePluginManualControl(ref({
+      active: false,
+      ownerId: null,
+      pose: neutralLive2DMotionControlPose,
+      dynamics: { follow: 0.6, inertia: 0.35 },
+    }), createLive2DMotionSpring())(context)
+
+    expect(context.model.setParameterValueById).not.toHaveBeenCalled()
   })
 })

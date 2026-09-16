@@ -1,9 +1,19 @@
+import type { Action } from '../../../libs/mineflayer/action'
+
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 import { generateBrainSystemPrompt } from './brain-prompt'
 
+/**
+ * @example
+ * generateBrainSystemPrompt(actions, { masterUsername: 'dssadg' }) binds the configured owner.
+ */
 describe('generateBrainSystemPrompt', () => {
+  /**
+   * @example
+   * expect(prompt).toContain('Feedback Loop Guard')
+   */
   it('includes chat feedback loop guard guidance', () => {
     const prompt = generateBrainSystemPrompt([
       {
@@ -13,7 +23,7 @@ describe('generateBrainSystemPrompt', () => {
         schema: z.object({ message: z.string(), feedback: z.boolean().optional() }),
         perform: () => () => '',
       },
-    ] as any)
+    ] satisfies Action[])
 
     expect(prompt).toContain('Feedback Loop Guard')
     expect(prompt).toContain('chat->feedback->chat')
@@ -46,22 +56,30 @@ describe('generateBrainSystemPrompt', () => {
     execution: 'sync',
     schema: z.object({ message: z.string() }),
     perform: () => () => '',
-  }] as any
+  }] satisfies Action[]
 
+  /**
+   * @example
+   * expect(prompt).toContain('master = dssadg')
+   */
   it('binds the master and enforces master-only command authority when a master username is set', () => {
     const prompt = generateBrainSystemPrompt(chatAction, { masterUsername: 'dssadg' })
 
-    expect(prompt).toContain('主人身份')
-    expect(prompt).toContain('主人 = dssadg')
-    expect(prompt).toContain('只听主人的指令') // only the master's commands are authoritative
-    expect(prompt).toContain('别的玩家') // other players are handled cautiously
-    expect(prompt).toContain('默认不要照做')
+    expect(prompt).toContain('Master Identity')
+    expect(prompt).toContain('master = dssadg')
+    expect(prompt).toContain('Only commands from dssadg')
+    expect(prompt).toContain('another player')
+    expect(prompt).toContain('default to declining politely')
   })
 
+  /**
+   * @example
+   * expect(prompt).not.toContain('Master Identity')
+   */
   it('omits the master identity section when no master username is configured', () => {
     const prompt = generateBrainSystemPrompt(chatAction)
 
-    expect(prompt).not.toContain('主人身份')
-    expect(prompt).not.toContain('只听主人的指令')
+    expect(prompt).not.toContain('Master Identity')
+    expect(prompt).not.toContain('Only commands from')
   })
 })

@@ -1,4 +1,5 @@
 import type { StageAvatarBoundsPayload, StageViewState } from '@proj-airi/stage-shared/godot-stage'
+import type { Live2DExpressionSettingsSnapshot } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 
 import type { StageModelRenderer } from '../../../../stores/settings/stage-model'
 
@@ -7,11 +8,14 @@ export type ModelSettingsRuntimePhase = 'pending' | 'loading' | 'binding' | 'mou
 
 export interface ModelSettingsRuntimeSnapshot {
   ownerInstanceId: string
+  /** Identifies the loaded model state that produced the runtime controls. */
+  modelId: string
   renderer: ModelSettingsRuntimeRenderer
   phase: ModelSettingsRuntimePhase
   controlsLocked: boolean
   previewAvailable: boolean
   canCapturePreview: boolean
+  live2dExpressions?: Live2DExpressionSettingsSnapshot
   lastError?: string
   updatedAt: number
 }
@@ -21,6 +25,7 @@ export function createEmptyModelSettingsRuntimeSnapshot(
 ): ModelSettingsRuntimeSnapshot {
   return {
     ownerInstanceId: '',
+    modelId: '',
     renderer: 'disabled',
     phase: 'pending',
     controlsLocked: false,

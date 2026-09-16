@@ -1,21 +1,17 @@
 <script setup lang="ts">
-import type { ChatProvider } from '@xsai-ext/providers/utils'
+import type { ChatComposerController } from '@proj-airi/stage-ui/components/scenarios/chat'
 
-import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
+import { ChatReplyPreview } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, PopoverContent, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
@@ -23,9 +19,15 @@ import IndicatorMicVolume from './IndicatorMicVolume.vue'
 import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
-const messageInput = ref<string>('')
+const props = defineProps<{
+  composer: ChatComposerController<never>
+}>()
+
+const composerRoot = useTemplateRef<HTMLDivElement>('composer')
+
+const messageInput = props.composer.draft
 const hearingPopoverOpen = ref(false)
-const isComposing = ref(false)
+const isComposing = props.composer.isComposing
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
@@ -33,16 +35,11 @@ type SendMode = (typeof SEND_MODES)[number]
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
 const lastEnterTime = ref(0)
 
-const providersStore = useProvidersStore()
-const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(useSettingsAudioDevice())
-const chatOrchestrator = useChatOrchestratorStore()
-const chatSession = useChatSessionStore()
-const { ingest, onAfterMessageComposed } = chatOrchestrator
-const { messages } = storeToRefs(chatSession)
+const replyTarget = props.composer.replyTarget
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 const sendModeLabels = computed<Record<SendMode, string>>(() => ({
@@ -61,33 +58,13 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription, au
 const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 
 async function handleSend() {
-  if (!messageInput.value.trim() || isComposing.value) {
-    return
-  }
+  await props.composer.submit()
+}
 
-  const textToSend = messageInput.value
-  messageInput.value = ''
-
-  try {
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-
-    await ingest(textToSend, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-      model: activeModel.value,
-      providerConfig,
-    })
-  }
-  catch (error) {
-    // preserve any user input when failed to send the message
-    messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
-    chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value.slice(0, -1),
-      {
-        role: 'error',
-        content: errorMessageFrom(error) ?? 'Failed to send message',
-      },
-    ])
-  }
+async function handleCancelReply() {
+  props.composer.clearReply()
+  await nextTick()
+  composerRoot.value?.querySelector('textarea')?.focus()
 }
 
 function sendFromKeyboard() {
@@ -136,9 +113,6 @@ watch(hearingPopoverOpen, async (value) => {
   }
 })
 
-onAfterMessageComposed(async () => {
-})
-
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
 
@@ -175,17 +149,29 @@ onUnmounted(() => {
 watch(sendMode, () => {
   lastEnterTime.value = 0
 })
+
+watch(replyTarget, async (target) => {
+  if (!target)
+    return
+
+  await nextTick()
+  composerRoot.value?.querySelector('textarea')?.focus()
+})
 </script>
 
 <template>
-  <div h="<md:full" flex gap-2 class="ph-no-capture">
+  <div ref="composer" h="<md:full" flex gap-2 class="ph-no-capture">
     <div
       :class="[
-        'relative',
-        'w-full',
-        'bg-primary-200/20 dark:bg-primary-400/20',
+        'relative w-full overflow-hidden rounded-t-xl',
+        'border-t-2 border-solid border-primary-200/20 bg-primary-100/50 backdrop-blur-md',
+        'dark:border-primary-400/20 dark:bg-primary-900/70',
       ]"
     >
+      <ChatReplyPreview
+        :target="replyTarget"
+        @cancel="handleCancelReply"
+      />
       <BasicTextarea
         v-model="messageInput"
         :submit-on-enter="false"
@@ -193,7 +179,7 @@ watch(sendMode, () => {
         text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
         bg="transparent"
         min-h="[100px]" max-h="[300px]" w-full
-        rounded-t-xl p-4 font-medium pb="[60px]"
+        p-4 font-medium pb="[60px]"
         outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
         :class="{
           'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,

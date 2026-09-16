@@ -9,6 +9,7 @@ import type { VoiceKey, Voices } from '../../../workers/kokoro/types'
 import type { AllocationToken } from '../gpu-resource-coordinator'
 import type { ProgressPayload } from '../protocol'
 
+import { toWav } from '@proj-airi/audio/encoding'
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { Mutex } from 'async-mutex'
 
@@ -73,57 +74,6 @@ export interface KokoroAdapter {
 
 const LOAD_MODEL_TIMEOUT = TIMEOUTS.KOKORO_LOAD
 const GENERATE_TIMEOUT = TIMEOUTS.KOKORO_GENERATE
-
-// ---------------------------------------------------------------------------
-// Audio Encoding
-// ---------------------------------------------------------------------------
-
-/**
- * Encode raw PCM Float32Array samples into a WAV ArrayBuffer.
- * This runs on the main thread — intentionally lightweight (just header + int16 conversion).
- */
-function encodeWav(samples: Float32Array, sampleRate: number, numChannels = 1): ArrayBuffer {
-  const bitsPerSample = 16
-  const bytesPerSample = bitsPerSample / 8
-  const dataLength = samples.length * bytesPerSample
-  const headerLength = 44
-  const buffer = new ArrayBuffer(headerLength + dataLength)
-  const view = new DataView(buffer)
-
-  // RIFF header
-  writeString(view, 0, 'RIFF')
-  view.setUint32(4, 36 + dataLength, true)
-  writeString(view, 8, 'WAVE')
-
-  // fmt chunk
-  writeString(view, 12, 'fmt ')
-  view.setUint32(16, 16, true) // chunk size
-  view.setUint16(20, 1, true) // PCM format
-  view.setUint16(22, numChannels, true)
-  view.setUint32(24, sampleRate, true)
-  view.setUint32(28, sampleRate * numChannels * bytesPerSample, true) // byte rate
-  view.setUint16(32, numChannels * bytesPerSample, true) // block align
-  view.setUint16(34, bitsPerSample, true)
-
-  // data chunk
-  writeString(view, 36, 'data')
-  view.setUint32(40, dataLength, true)
-
-  // Convert Float32 [-1, 1] to Int16
-  const output = new Int16Array(buffer, headerLength)
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]))
-    output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
-  }
-
-  return buffer
-}
-
-function writeString(view: DataView, offset: number, str: string): void {
-  for (let i = 0; i < str.length; i++) {
-    view.setUint8(offset + i, str.charCodeAt(i))
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -454,7 +404,7 @@ export function createKokoroAdapter(): KokoroAdapter {
       if (output.action === 'generate') {
         state = 'ready'
         onSuccess()
-        return encodeWav(output.samples as Float32Array, output.samplingRate as number)
+        return toWav((output.samples as Float32Array).buffer, output.samplingRate as number)
       }
 
       const errorCode = classifyError(new Error('Unexpected output action'))

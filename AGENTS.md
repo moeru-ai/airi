@@ -19,6 +19,12 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 
 ## Structure & Responsibilities
 
+- **Hosted backend** (`server/`)
+  - `server/apps/api`: Hono resource API and business domains.
+  - `server/apps/auth`: standalone Better Auth and OIDC service.
+  - `server/packages`: backend-private schema and Node infrastructure packages.
+  - `server/dev/caddy`: local-only Auth/API edge routing.
+  - `server/docker-compose.yaml`: complete local backend stack.
 - **Apps**
   - `apps/stage-web`: Web app; composables/stores in `src/composables`, `src/stores`; pages in `src/pages`; devtools in `src/pages/devtools`; router config via `vite.config.ts`.
   - `apps/stage-tamagotchi`: Electron app; renderer pages in `src/renderer/pages`; devtools in `src/renderer/pages/devtools`; settings layout at `src/renderer/layouts/settings.vue`; router config via `electron.vite.config.ts`.
@@ -49,6 +55,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - `packages/stage-shared`: Shared logic across stage-ui, stage-ui-three, stage-web, stage-tamagotchi.
 - `packages/ui`: Standardized primitives (inputs/textarea/buttons/layout) built on reka-ui.
 - `packages/i18n`: All translations.
+- Hosted backend: `server/apps/api`, `server/apps/auth`, `server/packages`, and local tooling under `server/dev`.
 - Server channel: `packages/server-runtime`, `packages/server-sdk`, `packages/server-shared` (power `services/` and `plugins/`).
 - Legacy desktop: `crates/` (old Tauri; Electron is current).
 - Pages: `packages/stage-pages` (shared bases); `apps/stage-web/src/pages` and `apps/stage-tamagotchi/src/renderer/pages` for app-specific pages; devtools live in each app’s `.../pages/devtools`.
@@ -82,20 +89,33 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
   - `pnpm -F <package.json name> build`
   - Example: `pnpm -F @proj-airi/stage-tamagotchi build` (typecheck + electron-vite build).
 
+## Before You Start
+
+## Architecture decisions
+
+- Put project-wide and client ADRs in `docs/ai/adr/`.
+- Put hosted backend ADRs in `server/docs/ai/adr/`.
+- Both paths are relative to the repository root.
+- Keep ADRs in this repository and include them in the related commits and pull requests.
+
+## Enforced Repository Skills
+
+- For testing, Vitest, regression reproduction, mocks, or test import-boundary work, always use [`enforce-rules-for-vitest` skill](.agents/skills/enforce-rules-for-vitest/SKILL.md).
+- For UnoCSS, Vue styling, UI components, animations, icons, or color-mode work, always use [`enforce-rules-for-unocss` skill](.agents/skills/enforce-rules-for-unocss/SKILL.md).
+- For web or Electron workflows that upload a local file through an HTML input, a dynamically created input, or a file chooser, invoke [`$use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md). Also invoke `$agent-browser`, and invoke `$agent-browser-electron` when the target is Electron.
+- For AIRI Live2D, VRM, or MMD import and rendering tests across stage-web, stage-tamagotchi, or stage-pocket, invoke [`$use-agent-browser-for-airi`](.agents/skills/use-agent-browser-for-airi/SKILL.md). It invokes `$use-agent-browser-with-input-file` for the upload mechanism and adds AIRI-specific routes, state preparation, format behavior, and renderer verification.
+- For editing, writing, refactoring, re-writing code, submitting issues, Pull Requests, and docs, comments, invoke [`$simple-english`](./agents/skills/simple-english/SKILL.md).
+
 ## Development Practices
 
 - Favor clear module boundaries; shared logic goes in `packages/`.
 - Keep runtime entrypoints lean; move heavy logic into services/modules.
 - Use Valibot for schema validation; keep schemas close to their consumers.
 - Use Eventa (`@moeru/eventa`) for structured IPC/RPC contracts where needed.
+- Use `errorMessageFrom(error)` from `@moeru/std` to extract error messages instead of manual patterns like `error instanceof Error ? error.message : String(error)`. Pair with `?? 'fallback'` when a default is needed.
 - Do not add backward-compatibility guards. If extended support is required, write refactor docs and spin up another Codex or Claude Code instance via shell command to complete the implementation with clear instructions and the expected post-refactor shape.
 - If the refactor scope is small, do a progressive refactor step by step.
 - For new feature requirements or requirement-related tasks involving `node:*` built-in modules, DOM operations, Vue composables, React hooks, Vite plugins, or GitHub Actions workflows, always do deep research for suitable existing libraries or open source modules first. Before choosing any library, always ask the user to choose and help judge which option is right. Never choose generalized utility libraries on your own (for example, `es-toolkit`, utilities from `github.com/unjs`, or tiny tools from `github.com/tinylib`) without explicit user confirmation. If the user is working spec-driven, list candidate choices in a clear and concise Markdown comparison table.
-
-## Enforced Repository Skills
-
-- For testing, Vitest, regression reproduction, mocks, or test import-boundary work, always use [`enforce-rules-for-vitest`](.agents/skills/enforce-rules-for-vitest/SKILL.md).
-- For UnoCSS, Vue styling, UI components, animations, icons, or color-mode work, always use [`enforce-rules-for-unocss`](.agents/skills/enforce-rules-for-unocss/SKILL.md).
 
 ## TypeScript / IPC / Tools
 
@@ -103,6 +123,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - For Electron, and backend related packages, use `injeca` for dependency management; avoid new class hierarchies unless extending browser APIs (classes are harder to mock/test).
 - Centralize Eventa contracts; use `@moeru/eventa` for all events.
 - Import types from the module or package that owns the contract. Do not redeclare external/public contracts locally just to use a narrower subset, and do not route type imports through local runtime assembly modules when the original side-effect-free type source is available.
+- Omit TypeScript and JavaScript source extensions from relative imports, dynamic imports, and re-exports. Write `./module` instead of `./module.ts` or `./module.js`; keep extensions only when the runtime or asset format requires them.
 - Do not directly modify or override `tsconfig.json` to make an import/type error disappear. First investigate compilation behavior, `package.json` `exports` declarations, type declarations, and whether the dependency exposes the intended browser/node entrypoints.
 - When Node-only and browser-only types are mixed through one import chain, split the type declarations into a neutral type file and keep runtime modules environment-specific. Avoid importing values from modules that carry side effects just to obtain types.
 - If a wrong export or missing export causes an error, trace the full import chain and side-effect chain before changing imports at the leaf. Prefer fixing package/module exports and the owning boundary over adding local workaround imports.
@@ -114,6 +135,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 ## i18n
 
 - Add/modify translations in `packages/i18n`; avoid scattering i18n across apps/packages.
+- By default, modify only the English source locale and the locale used by the developer working on the change. Other locale files are managed through the Crowdin integration; direct local edits may be replaced by untranslated source content after the next Crowdin upload or sync. Avoid editing other locales unless explicitly requested.
 
 ### Glossary
 
@@ -160,6 +182,14 @@ as a first language.
 
 - Comments should explain information the code cannot express clearly: intent, constraints, ownership, invariants, precedence, lifecycle, ordering, side effects, protocol shape, or non-obvious fallbacks.
 - Do not add comments that only restate names, types, or visible operations.
+- Treat a contract comment as an explanation of the relationship between a producer and its consumers.
+- Explain why a value exists in the system before you explain how the code represents it.
+- Describe the decision, behavior, or invariant that a value controls.
+- If different values select different control-flow or UI paths, describe each observable outcome.
+- When a value crosses a module or component boundary, identify the consumer and how it applies the value.
+- Put representation details after behavior: units, coordinate systems, thresholds, clamps, and source API fields.
+- Put background evidence after the contract: browser behavior, issue links, investigation history, and removal conditions.
+- If the name, type, and surrounding code express the full contract, omit the comment.
 - Place implementation comments next to the branch, calculation, transition, or side effect they explain.
 - For calculation-heavy code, explain non-obvious coordinate systems, units, conversions, clamps, rounding, aggregation, and precedence beside the relevant intermediate values or branches.
 - Prefer clearer names, types, and structured state over comments that compensate for hidden or encoded concepts.
@@ -175,6 +205,10 @@ as a first language.
 - Any fallback chain with more than two sources must make precedence explicit.
 - If fallback sources represent different schema versions, compatibility behavior, specificity levels, or user/system overrides, each non-primary branch must explain why that case exists and why it has that priority.
 - Avoid nested ternaries for fallback chains when any branch is non-obvious. Use named intermediate variables or `if` / `else if` blocks so comments can live next to the relevant branch.
+- Do not use a new object or array as a casual fallback. Expressions such as `value ?? {}`, `value ?? []`, `value || {}`, and `value || []` create a new reference each time.
+- Never use an inline object or array fallback in a reactive getter, computed value, watcher source, or Pinia state projection. New references can cause false changes, watcher loops, and state broadcasts.
+- If an immutable empty fallback is valid, reuse a stable module-level value. Freeze the value when consumers must not mutate it.
+- Use `??` only when `null` and `undefined` mean that a value is missing. Use `||` only when `false`, `0`, and an empty string must also select the fallback.
 - Do not keep backward-compatibility fallbacks silently. If a fallback is temporary, mark it with `// NOTICE:` and include the removal condition. If it is permanent, document it as supported policy instead of calling it legacy.
 - If a fallback returns an empty string, stale value, cached value, default value, or ignored result in non-trivial domain/protocol code, explain why that fallback is safe at the return or branch site.
 
@@ -190,6 +224,24 @@ as a first language.
 - When cleanup spans multiple owners, keep the ordering visible and explain why the order matters.
 - When returning a snapshot, fallback value, stale value, or cached value, document freshness semantics at the return site.
 - For watchers, event listeners, and async background work, make ownership and shutdown behavior explicit: what starts and stops the work, whether duplicate starts are allowed, and what happens to in-flight work during unload or dispose.
+
+### Pinia Cross-Window Synchronization
+
+- Treat `pinia-plugin-synced` as snapshot replication and leader-routed RPC. It does not share Vue refs between renderers.
+- Add `synced` only to stores that need cross-window ownership. Synchronize the smallest serializable source-of-truth state.
+- `state: true` sends a full-store proposal after each local mutation. Keep transient and high-frequency state in an unsynchronized store.
+- State, action arguments, and action results must support `structuredClone`.
+- Keep computed values, query status, runtime clients, controllers, pending promises, and component state outside synchronized state.
+- Remote snapshots run local Vue watchers. A watcher on synchronized state must not write synchronized state directly.
+- A watcher can call a synchronized action to enforce a leader-owned invariant. The watcher must await the action. The action must be idempotent because each renderer can observe the same snapshot.
+- Enforce cross-field invariants inside explicit actions before the state commit. Do not repair replicated state with a watcher.
+- Every returned function in a setup store is a Pinia action. Use computed values or pure helpers for read-only projections.
+- List only leader-owned side-effecting actions under `synced.actions`. These actions must be asynchronous, and callers must await them.
+- Unlisted actions run in the caller renderer. Their mutations become full-state proposals when `state: true`.
+- Keep synchronization and persistence as separate boundaries. Give persisted synchronized state one explicit persistence owner.
+- Do not add bidirectional persistence composables or storage-event listeners to synchronized state. Use explicit persistence commands.
+- Set the leadership mode explicitly for every Electron renderer. Utility and minimal windows must use `follower-only`.
+- Add a multi-window regression test for synchronization changes. A remote snapshot must not produce a local synchronized-state proposal. If a watcher calls a synchronized action, verify that repeated calls converge without repeated side effects.
 
 ### Readability Refactors
 
@@ -211,12 +263,13 @@ as a first language.
 ## PR / Workflow Tips
 
 - When asked to create, open, publish, or prepare a pull request, always use the repo-local `create-pr` skill. For user-visible changes it orchestrates `use-vishot` and the matching runtime variant, then uploads before/after screenshots as GitHub user assets in the PR body.
+- After you create a pull request, get its review threads, comments, and check status. If a review identifies a confirmed error, fix it, run focused checks, push the update, reply with evidence, and resolve the thread.
 - Rebase pulls; branch naming `username/feat/short-name`; clear commit messages (gitmoji is prohibited).
 - Summarize changes, how tested (commands), and follow-ups.
 - Improve legacy you touch; avoid one-off patterns.
 - Keep changes scoped; use workspace filters (`pnpm -F <package> <script>`).
 - Maintain structured `README.md` documentation for each `packages/` and `apps/` entry, covering what it does, how to use it, when to use it, and when not to use it.
-- Always run `pnpm type-check` and `pnpm lint` after finishing a task.
+- Always run `pnpm typecheck` and `pnpm lint` after finishing a task.
 - Use Conventional Commits for commit messages (e.g., `feat(<package name>): add runner reconnect backoff`).
 - Before planning or writing new utilities/functions, always search for existing internal implementations first. If the logic could become shared utilities, proactively propose that shared approach to users and developers.
 

@@ -1,0 +1,23 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "target": "ESNext",
+    "lib": [
+      "ESNext"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "types": [
+      "vitest",
+      "node"
+    ],
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "instrumentation.ts"
+  ]
+}

@@ -12,7 +12,7 @@ title: Neuro-sama
 - [Is it really Neuro-sama playing Minecraft? : r/NeuroSama](https://www.reddit.com/r/NeuroSama/comments/1ifhv0f/is_it_really_neurosama_playing_minecraft/)
 - [Is neuro custom coded from the ground up or does she have a base model? : r/NeuroSama](https://www.reddit.com/r/NeuroSama/comments/19481ow/is_neuro_custom_coded_from_the_ground_up_or_does/)
 
-AI/LLM 이 모델을 제어할 수 있게 해 주는 플러그인:
+AI/LLM이 모델을 제어할 수 있게 해 주는 플러그인:
 
 - [pladisdev/VTS-AI-Plugin](https://github.com/pladisdev/VTS-AI-Plugin)
 

@@ -1,23 +1,19 @@
-import type { HonoWsInvocableEventContext } from '@moeru/eventa/adapters/websocket/hono'
-
 import type { ChatBroadcastPayload } from '../../utils/chat-broadcast'
-
-import { newMessages } from '@proj-airi/server-sdk-shared'
 
 /**
  * In-process websocket connection registry keyed by authenticated user id.
  */
 export interface ChatConnectionRegistry {
-  /** Adds one websocket Eventa context for the user. */
-  add: (userId: string, ctx: HonoWsInvocableEventContext) => void
-  /** Removes one websocket Eventa context and deletes the user bucket when empty. */
-  remove: (userId: string, ctx: HonoWsInvocableEventContext) => void
+  /** Adds one version-specific websocket emitter for the user. */
+  add: (userId: string, connectionId: string, emit: (payload: ChatBroadcastPayload) => void) => void
+  /** Removes one websocket emitter and deletes the user bucket when empty. */
+  remove: (userId: string, connectionId: string) => void
   /** Returns whether this process still has local connections for the user. */
   hasUser: (userId: string) => boolean
   /** Counts all local websocket connections across users for metrics export. */
   activeCount: () => number
   /** Emits `chat:new-messages` to all local user devices except an optional sender context. */
-  emitNewMessages: (userId: string, excludeCtx: HonoWsInvocableEventContext | null, payload: ChatBroadcastPayload) => void
+  emitNewMessages: (userId: string, excludeConnectionId: string | null, payload: ChatBroadcastPayload) => void
 }
 
 /**
@@ -34,23 +30,23 @@ export interface ChatConnectionRegistry {
  * - A mutable registry scoped to one chat websocket runtime.
  */
 export function createChatConnectionRegistry(): ChatConnectionRegistry {
-  const userConnections = new Map<string, Set<HonoWsInvocableEventContext>>()
+  const userConnections = new Map<string, Map<string, (payload: ChatBroadcastPayload) => void>>()
 
   return {
-    add(userId, ctx) {
+    add(userId, connectionId, emit) {
       let conns = userConnections.get(userId)
       if (!conns) {
-        conns = new Set()
+        conns = new Map()
         userConnections.set(userId, conns)
       }
-      conns.add(ctx)
+      conns.set(connectionId, emit)
     },
 
-    remove(userId, ctx) {
+    remove(userId, connectionId) {
       const conns = userConnections.get(userId)
       if (!conns)
         return
-      conns.delete(ctx)
+      conns.delete(connectionId)
       if (conns.size === 0)
         userConnections.delete(userId)
     },
@@ -66,13 +62,13 @@ export function createChatConnectionRegistry(): ChatConnectionRegistry {
       return total
     },
 
-    emitNewMessages(userId, excludeCtx, payload) {
+    emitNewMessages(userId, excludeConnectionId, payload) {
       const conns = userConnections.get(userId)
       if (!conns)
         return
-      for (const ctx of conns) {
-        if (ctx !== excludeCtx)
-          ctx.emit(newMessages, payload)
+      for (const [connectionId, emit] of conns) {
+        if (connectionId !== excludeConnectionId)
+          emit(payload)
       }
     },
   }

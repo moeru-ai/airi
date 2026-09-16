@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -12,7 +13,9 @@ import {
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '.'
-import { useProvidersStore } from '../../../stores/providers'
+import { selectProviderMetadata } from '../../../libs/providers/metadata'
+import { useProviderConfigStore } from '../../../stores/providers/config'
+import { useProviderStore } from '../../../stores/providers/provider'
 
 const props = defineProps<{
   providerId: string
@@ -25,11 +28,14 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const router = useRouter()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore)
 
-// Get provider metadata
-const providerMetadata = computed(() => providersStore.getProviderMetadata(props.providerId))
+const providerMetadata = computedAsync(async () => {
+  const definition = providersStore.getProviderDefinition(props.providerId)
+  return await selectProviderMetadata(definition, t, { id: props.providerId })
+}, undefined)
 
 // Common provider settings
 const apiKey = computed({
@@ -43,7 +49,7 @@ const apiKey = computed({
 })
 
 const baseUrl = computed({
-  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || '',
+  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || '',
   set: (value) => {
     if (!providers.value[props.providerId])
       providers.value[props.providerId] = {}
@@ -52,23 +58,23 @@ const baseUrl = computed({
   },
 })
 
-onMounted(() => {
-  providersStore.initializeProvider(props.providerId)
+onMounted(async () => {
+  await providersStore.initializeProvider(props.providerId)
 
   // Initialize refs with current values
   apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
-  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || ''
+  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
 })
 
 function handleResetTranscriptionSettings() {
   apiKey.value = ''
-  baseUrl.value = providerMetadata.value?.defaultOptions?.().baseUrl as string | undefined || ''
+  baseUrl.value = providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
 }
 </script>
 
 <template>
   <ProviderSettingsLayout
-    :provider-name="providerMetadata?.localizedName"
+    :provider-name="providerMetadata?.localizedName ?? ''"
     :provider-icon="providerMetadata?.icon"
     :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
@@ -81,7 +87,7 @@ function handleResetTranscriptionSettings() {
           :description="t('settings.pages.providers.common.section.basic.description')"
           :on-reset="handleResetTranscriptionSettings"
         >
-          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName" :placeholder="props.placeholder || 'API Key'" />
+          <ProviderApiKeyInput v-model="apiKey" :provider-name="providerMetadata?.localizedName ?? ''" :placeholder="props.placeholder || 'API Key'" />
           <!-- Slot for provider-specific basic settings -->
           <slot name="basic-settings" />
         </ProviderBasicSettings>
@@ -90,7 +96,7 @@ function handleResetTranscriptionSettings() {
         <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
           <ProviderBaseUrlInput
             v-model="baseUrl"
-            :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || ''" required
+            :placeholder="providerMetadata?.defaultConfig.baseUrl as string || ''" required
           />
           <!-- Slot for provider-specific advanced settings -->
           <slot name="advanced-settings" />

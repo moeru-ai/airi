@@ -14,10 +14,10 @@
  * policy linked on the sign-in page.
  */
 
-import type { OauthCallbackFailureStage } from '@proj-airi/stage-ui/composables'
+import type { OauthCallbackFailureStage } from '@proj-airi/stage-ui/composables/use-analytics'
 
 /** Login/signup credential kinds shown on the sign-in page. */
-export type AuthMethod = 'email' | 'github' | 'google'
+export type AuthMethod = 'email' | 'github' | 'google' | 'steam'
 
 interface CaptureOptions {
   /**

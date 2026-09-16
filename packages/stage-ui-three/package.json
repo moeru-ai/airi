@@ -29,6 +29,7 @@
     "@pixiv/three-vrm": "catalog:",
     "@pixiv/three-vrm-animation": "catalog:",
     "@pixiv/three-vrm-core": "catalog:",
+    "@proj-airi/model-driver-lipsync": "workspace:*",
     "@proj-airi/stage-shared": "workspace:*",
     "@proj-airi/ui": "workspace:*",
     "@tresjs/cientos": "catalog:",
@@ -40,8 +41,7 @@
     "pinia": "catalog:",
     "postprocessing": "catalog:",
     "three": "catalog:",
-    "vue": "catalog:",
-    "wlipsync": "catalog:"
+    "vue": "catalog:"
   },
   "devDependencies": {
     "@types/culori": "catalog:",

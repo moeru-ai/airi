@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 
 import InteractiveArea from '../components/InteractiveArea.vue'
 import WindowTitleBar from '../components/Window/TitleBar.vue'
+import ChatPageShell from './chat-page-shell.vue'
 
 const sessionsDrawerOpen = shallowRef(false)
 const getOutputPlaybackState = defineInvoke(getSpeechBusContext(), speechOutputGetPlaybackState)
@@ -25,7 +26,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div h-full w-full pt="44px" overflow-y-scroll>
+  <ChatPageShell>
     <WindowTitleBar
       title="Chat"
       icon="i-solar:chat-line-bold"
@@ -66,10 +67,10 @@ const { t } = useI18n()
     </WindowTitleBar>
     <InteractiveArea
       class="interaction-area block"
-      h-full w-full p-4 transition="opacity duration-250"
+      h-full w-full transition="opacity duration-250"
     />
     <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
-  </div>
+  </ChatPageShell>
 </template>
 
 <route lang="yaml">

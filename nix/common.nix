@@ -6,12 +6,12 @@
   cacert,
   gitMinimal,
   nodejs,
-  pnpm_10,
+  pnpm_11,
   pnpmConfigHook,
 }:
 
 let
-  pnpm = pnpm_10;
+  pnpm = pnpm_11;
 in
 
 stdenvNoCC.mkDerivation (final: {
@@ -31,7 +31,8 @@ stdenvNoCC.mkDerivation (final: {
 
   pnpmDeps = fetchPnpmDeps {
     inherit (final) pname version src;
-    fetcherVersion = 3;
+    inherit pnpm;
+    fetcherVersion = 4;
     hash = builtins.readFile ./pnpm-deps-hash.txt;
   };
 
@@ -51,8 +52,7 @@ stdenvNoCC.mkDerivation (final: {
     buildPhase = ''
       runHook preBuild
 
-      pnpm run build:packages
-      pnpm -F @proj-airi/stage-web run build
+      pnpm -F @proj-airi/stage-web... run build
 
       runHook postBuild
     '';

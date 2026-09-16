@@ -60,8 +60,8 @@ export interface UsePointerSwipeOptions {
 export interface UsePointerSwipeReturn {
   readonly isSwiping: ShallowRef<boolean>
   direction: Readonly<ShallowRef<UseSwipeDirection>>
-  readonly posStart: Position
-  readonly posEnd: Position
+  readonly posStart: DeepReadonly<Position>
+  readonly posEnd: DeepReadonly<Position>
   distanceX: Readonly<ComputedRef<number>>
   distanceY: Readonly<ComputedRef<number>>
   stop: () => void

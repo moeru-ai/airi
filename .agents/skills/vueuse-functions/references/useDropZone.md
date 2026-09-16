@@ -78,6 +78,6 @@ export interface UseDropZoneOptions {
 }
 export declare function useDropZone(
   target: MaybeRefOrGetter<HTMLElement | Document | null | undefined>,
-  options?: UseDropZoneOptions | UseDropZoneOptions['onDrop'],
+  options?: UseDropZoneOptions | UseDropZoneOptions["onDrop"],
 ): UseDropZoneReturn
 ```

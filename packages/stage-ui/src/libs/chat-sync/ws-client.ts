@@ -1,10 +1,10 @@
-import type { NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from '@proj-airi/server-sdk-shared'
+import type { NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from '@proj-airi/server-sdk-shared/v2'
 import type { ComputedRef, Ref } from 'vue'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext as createWsContext, wsErrorEvent } from '@moeru/eventa/adapters/websocket/native'
 import { errorMessageFrom } from '@moeru/std'
-import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
+import { authenticate, newMessages, parseAuthenticateResponse, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v2'
 import { useWebSocket } from '@vueuse/core'
 import { computed, ref, shallowRef, watch } from 'vue'
 
@@ -28,7 +28,7 @@ export const WS_CLOSE_UNAUTHORIZED = 4001
 // The native ws adapter's context type is not directly exported from
 // `@moeru/eventa/adapters/websocket/native`; use the inferred return type so
 // `ctx.on` / `ctx.emit` overloads stay accurate.
-// Source: @moeru/eventa@0.3.0 — adapter exports only `createContext` and the
+// Source: @moeru/eventa@1.0.0-beta.15 — adapter exports only `createContext` and the
 // event constants.
 // Removal condition: the adapter exports a public `EventContext` type.
 type WsEventContext = ReturnType<typeof createWsContext>['context']
@@ -55,7 +55,7 @@ const NewMessagesPayloadSchema = v.object({
  * - `idle`: never connected, or `disconnect()` was called and we are not
  *   trying to reconnect.
  * - `connecting`: WebSocket handshake in flight (initial or reconnect attempt).
- * - `open`: socket open and `wsConnectedEvent` fired.
+ * - `open`: socket open and `chat:authenticate` succeeded.
  * - `closed`: lost the socket; auto-reconnect may bring it back to `connecting`.
  */
 export type ChatWsStatus = 'idle' | 'connecting' | 'open' | 'closed'
@@ -69,7 +69,7 @@ export type ChatWsUnsubscribe = () => void
 export interface CreateChatWsClientOptions {
   /**
    * Base server URL, e.g. `https://api.airi.build`. The client appends
-   * `/ws/chat?token=<jwt>` to build the WebSocket URL.
+   * `/ws/v2/chat` to build the WebSocket URL.
    */
   serverUrl: string
   /**
@@ -103,23 +103,26 @@ export interface ChatWsClient {
 }
 
 /**
- * Build the `/ws/chat?token=<jwt>` URL from a base server URL.
+ * Build the `/ws/v2/chat` URL from a base server URL.
  *
  * Before:
- * - "https://api.airi.build", token="abc"
+ * - "https://api.airi.build"
  *
  * After:
- * - "wss://api.airi.build/ws/chat?token=abc"
+ * - "wss://api.airi.build/ws/v2/chat"
+ *
+ * The v2 bearer token is sent through `chat:authenticate` after the socket
+ * opens, so it must never be serialized into the WebSocket URL.
  *
  * @internal
  */
-export function buildChatWsUrl(serverUrl: string, token: string): string {
+export function buildChatWsUrl(serverUrl: string): string {
   // Use URL parsing instead of string concat so trailing slashes / paths in
   // serverUrl are normalized cleanly.
   const url = new URL(serverUrl)
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-  url.pathname = `${url.pathname.replace(/\/+$/, '')}/ws/chat`
-  url.searchParams.set('token', token)
+  url.pathname = `${url.pathname.replace(/\/+$/, '')}/ws/v2/chat`
+  url.search = ''
   return url.toString()
 }
 
@@ -149,9 +152,9 @@ export function computeReconnectDelay(retries: number, baseMs: number, maxMs: nu
  *
  * @internal
  */
-export function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolean): ChatWsStatus {
+export function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolean, authenticated = true): ChatWsStatus {
   if (vue === 'OPEN')
-    return 'open'
+    return authenticated ? 'open' : 'connecting'
   if (vue === 'CONNECTING')
     return 'connecting'
   return enabled ? 'closed' : 'idle'
@@ -166,27 +169,25 @@ export function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolea
  * - The user is signed in and the chat store wants real-time sync.
  *
  * Expects:
- * - `serverUrl` includes scheme (https/http). Token must be a valid JWT;
- *   401s during the WebSocket upgrade close the socket immediately and the
- *   auto-reconnect loop will keep retrying with whatever `getToken()`
- *   returns next.
+ * - `serverUrl` includes scheme (https/http). `getToken()` returns a valid JWT
+ *   when the socket opens. The token is sent through `chat:authenticate` after
+ *   the WebSocket upgrade.
  *
  * Returns:
  * - A handle exposing connect/disconnect/destroy, RPC functions, and event
  *   hooks. RPC closures resolve the live `EventContext` per invocation so a
  *   reconnect-induced context swap is transparent. In-flight RPCs reject on
  *   disconnect with `chat-ws: rpc cancelled` so callers do not hang
- *   indefinitely (eventa@0.3.0 does not flush its internal pending maps when
- *   the underlying context is disposed; we wrap each invoke in a race).
+ *   indefinitely. Eventa `1.0.0-beta.15` aborts pending invokes when the
+ *   native WebSocket closes.
  */
 /**
  * Build the reactive ws URL ref `useWebSocket` watches.
  *
  * `getToken` MUST read from a reactive source (Pinia store ref, Vue ref,
- * computed). A non-reactive read (e.g. `localStorage.getItem`) freezes the
- * URL at first evaluation and `useWebSocket` will reconnect forever with
- * the stale token after the next OIDC refresh — verified by
- * `freezes ws URL when getToken is non-reactive` in ws-client.test.ts.
+ * computed). The reactive dependency controls whether the client has a token
+ * available to authenticate after the socket opens; the token is not part of
+ * the URL.
  */
 export function createChatWsUrlRef(
   enabled: Ref<boolean>,
@@ -199,7 +200,7 @@ export function createChatWsUrlRef(
     const token = getToken()
     if (!token)
       return undefined
-    return buildChatWsUrl(serverUrl, token)
+    return buildChatWsUrl(serverUrl)
   })
 }
 
@@ -208,7 +209,14 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   // The url ref returns `undefined` when disabled, which makes useWebSocket
   // close cleanly without firing the auto-reconnect loop.
   const enabled = ref(false)
-  const urlRef = createChatWsUrlRef(enabled, options.getToken, options.serverUrl)
+  const tokenRef = computed(options.getToken)
+  const urlRef = createChatWsUrlRef(enabled, () => tokenRef.value, options.serverUrl)
+  const authenticated = ref(false)
+  let authenticationFailures = 0
+  let reopenAfterDisconnect = false
+  // The socket object is the connection generation. Authentication callbacks
+  // must match it before they can update the shared client state.
+  let activeSocket: WebSocket | undefined
 
   // The eventa context is rebuilt on every `onConnected` so RPC + push
   // listeners survive a reconnect by re-binding to the fresh ws.
@@ -274,23 +282,61 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
     }))
   }
 
-  // The url-as-ref form lets useWebSocket reconnect when `urlRef` changes
-  // (token rotation, disconnect intent). VueUse internally compares the
-  // value and reopens; passing `undefined` cleanly closes any open socket.
+  // The URL ref controls the user connection intent and token presence. The
+  // token itself is sent only after the socket opens through Eventa.
   const ws = useWebSocket<string>(urlRef, {
     immediate: false,
     autoClose: true,
     autoReconnect: {
       retries: RECONNECT_RETRIES,
-      delay: r => computeReconnectDelay(r, RECONNECT_BASE_MS, RECONNECT_MAX_MS),
+      delay: retries => computeReconnectDelay(
+        Math.max(retries, authenticationFailures),
+        RECONNECT_BASE_MS,
+        RECONNECT_MAX_MS,
+      ),
     },
     onConnected(rawWs) {
+      activeSocket = rawWs
       const created = createWsContext(rawWs)
       context.value = created.context
       attachContextListeners(created.context)
+      authenticated.value = false
+
+      const token = tokenRef.value
+      if (!token) {
+        rawWs.close()
+        return
+      }
+
+      void defineInvoke(getAuthenticationContext, authenticate)({ token })
+        .then((response) => {
+          parseAuthenticateResponse(response)
+          if (activeSocket !== rawWs || context.value !== created.context)
+            return
+          authenticated.value = true
+          authenticationFailures = 0
+        })
+        .catch((error) => {
+          if (activeSocket !== rawWs || context.value !== created.context)
+            return
+          console.warn('[chat-ws] post-connect authentication failed:', errorMessageFrom(error))
+          // Close the native socket, not VueUse's wrapper. The wrapper marks
+          // this as an explicit disconnect and disables the retry schedule.
+          rawWs.close(1011, 'invalid authentication response')
+        })
     },
-    onDisconnected(_rawWs, ev) {
+    onDisconnected(rawWs, ev) {
+      if (rawWs !== activeSocket)
+        return
+
+      const wasAuthenticated = authenticated.value
+      const restartForNewToken = reopenAfterDisconnect
+      reopenAfterDisconnect = false
+      activeSocket = undefined
       disposeContext()
+      authenticated.value = false
+      if (!wasAuthenticated && enabled.value && ev.code !== WS_CLOSE_UNAUTHORIZED)
+        authenticationFailures += 1
       // ROOT CAUSE:
       //
       // useWebSocket's autoReconnect treats every onclose as worth
@@ -300,10 +346,13 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       // protocol signal for "this token will never succeed without
       // rotation"; calling `ws.close()` here sets
       // useWebSocket's internal `explicitlyClosed` flag so the next
-      // onclose path skips the reconnect schedule. The next time
-      // `urlRef` changes (token refresh), `watch(urlRef, open)` calls
-      // `open()` which resets `explicitlyClosed` to false and re-inits.
-      if (ev.code === WS_CLOSE_UNAUTHORIZED) {
+      // onclose path skips the reconnect schedule. A token change below
+      // closes the old context and starts a new connection that authenticates
+      // with the new token after opening.
+      if (restartForNewToken && enabled.value && tokenRef.value) {
+        ws.open()
+      }
+      else if (ev.code === WS_CLOSE_UNAUTHORIZED) {
         console.warn('[chat-ws] server rejected auth (4001), pausing reconnect until token rotates')
         ws.close()
       }
@@ -323,12 +372,36 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   // watcher is idle while the socket is closed, so leaving it attached
   // costs nothing. Use `destroy()` for terminal cleanup.
   const stopStatusWatch = watch(
-    [ws.status, enabled],
-    ([rawStatus, isEnabled]) => notifyStatus(mapStatus(rawStatus, isEnabled)),
+    [ws.status, enabled, authenticated],
+    ([rawStatus, isEnabled, isAuthenticated]) => notifyStatus(mapStatus(rawStatus, isEnabled, isAuthenticated)),
     { immediate: true },
   )
 
+  const stopTokenWatch = watch(tokenRef, (token, previousToken) => {
+    if (!enabled.value || !token || !previousToken || token === previousToken)
+      return
+
+    authenticated.value = false
+    disposeContext()
+    if (ws.status.value === 'CLOSED') {
+      if (token)
+        ws.open()
+      return
+    }
+
+    // Wait for the old close event before opening its replacement. VueUse owns
+    // one status ref, so opening early lets that old close overwrite OPEN.
+    reopenAfterDisconnect = token !== null
+    ws.close()
+  })
+
   function getContext(): WsEventContext {
+    if (!context.value || !authenticated.value)
+      throw new Error('chat-ws not authenticated')
+    return context.value
+  }
+
+  function getAuthenticationContext(): WsEventContext {
     if (!context.value)
       throw new Error('chat-ws not connected')
     return context.value
@@ -343,7 +416,7 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   const invokePullMessages = defineInvoke(getContext, pullMessages)
 
   return {
-    status: () => mapStatus(ws.status.value, enabled.value),
+    status: () => mapStatus(ws.status.value, enabled.value, authenticated.value),
     connect() {
       if (enabled.value && ws.status.value === 'OPEN')
         return
@@ -360,14 +433,17 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       // Status watcher stays attached so callers can disconnect/connect on
       // the same handle.
       enabled.value = false
+      activeSocket = undefined
       ws.close()
       disposeContext()
     },
     destroy() {
       enabled.value = false
+      activeSocket = undefined
       ws.close()
       disposeContext()
       stopStatusWatch()
+      stopTokenWatch()
     },
     sendMessages: req => invokeSendMessages(req),
     pullMessages: req => invokePullMessages(req),

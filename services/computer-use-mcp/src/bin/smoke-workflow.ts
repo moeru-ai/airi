@@ -44,7 +44,7 @@ function requireStructuredContent(result: unknown, label: string) {
   return structuredContent as Record<string, unknown>
 }
 
-function assert(condition: boolean, message: string) {
+function assert(condition: boolean, message: string): asserts condition {
   if (!condition) {
     throw new Error(`Assertion failed: ${message}`)
   }

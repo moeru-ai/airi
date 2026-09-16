@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PageHeader } from '@proj-airi/stage-ui/components'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useTheme } from '@proj-airi/ui'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -14,7 +14,7 @@ import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
 const route = useRoute()
 const { isDark: dark } = useTheme()
 const { t } = useI18n()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 const routeMeta = computed(() => route.meta as {
   titleKey?: string
   subtitleKey?: string
@@ -33,13 +33,7 @@ const providerTitle = computed(() => {
   if (!providerId)
     return undefined
 
-  try {
-    const metadata = providersStore.getProviderMetadata(providerId)
-    return t(metadata.nameKey)
-  }
-  catch {
-    return undefined
-  }
+  return providersStore.findProviderDefinition(providerId)?.nameLocalize({ t })
 })
 
 // const activeSettingsTutorial = ref('default')

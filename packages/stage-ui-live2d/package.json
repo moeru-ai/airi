@@ -50,6 +50,7 @@
     "@pixi/sprite": "catalog:",
     "@pixi/ticker": "catalog:",
     "@pixi/utils": "catalog:",
+    "@proj-airi/model-driver-magic-live2d": "workspace:^",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@vueuse/core": "catalog:",
