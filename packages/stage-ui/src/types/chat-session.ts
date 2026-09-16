@@ -4,6 +4,8 @@ export interface ChatSessionMeta {
   sessionId: string
   userId: string
   characterId: string
+  /** Adopted chats use the default UI group until the server supplies their character identity. */
+  characterIdUnknown?: boolean
   title?: string
   createdAt: number
   updatedAt: number

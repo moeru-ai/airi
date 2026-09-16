@@ -6,7 +6,7 @@ import type { AiriCard } from '../../types/airiCard'
 
 import { chatMessagesToTurns, renderConversationPreview } from '@proj-airi/core-agent'
 
-import { matchRegexKeys } from './regex-matcher'
+import { createRegexMatcher } from './regex-matcher'
 
 /** Values that vary between one character-card runtime and another. */
 export interface CharacterCardRuntimeOptions {
@@ -194,59 +194,65 @@ async function compileLorebookEntries(
   if (!book)
     return []
 
-  const matchedContents: string[] = []
-  const compiled: CompiledLorebookEntry[] = []
-  const remaining = book.entries.map((entry, sourceIndex) => ({
-    entry,
-    parsed: parseLorebookContent(entry.content),
-    sourceIndex,
-  }))
+  const regexMatcher = createRegexMatcher()
+  try {
+    const matchedContents: string[] = []
+    const compiled: CompiledLorebookEntry[] = []
+    const remaining = book.entries.map((entry, sourceIndex) => ({
+      entry,
+      parsed: parseLorebookContent(entry.content),
+      sourceIndex,
+    }))
 
-  // Recursive scanning can activate entries from earlier matched content.
-  // Every entry is removed after its first evaluation so content is injected
-  // at most once and a cyclic Lorebook cannot loop forever.
-  let activatedInPass = true
-  while (remaining.length > 0 && activatedInPass) {
-    activatedInPass = false
+    // Recursive scanning can activate entries from earlier matched content.
+    // Every entry is removed after its first evaluation so content is injected
+    // at most once and a cyclic Lorebook cannot loop forever.
+    let activatedInPass = true
+    while (remaining.length > 0 && activatedInPass) {
+      activatedInPass = false
 
-    for (let index = remaining.length - 1; index >= 0; index -= 1) {
-      const candidate = remaining[index]
-      if (!candidate)
-        continue
+      for (let index = remaining.length - 1; index >= 0; index -= 1) {
+        const candidate = remaining[index]
+        if (!candidate)
+          continue
 
-      const { parsed } = candidate
-      const scanText = buildLorebookScanText(
-        messages,
-        parsed.decorators.scanDepth ?? book.scan_depth,
-        book.recursive_scanning ? matchedContents : [],
-      )
-      if (!await matchesLorebookEntry(candidate.entry, parsed.decorators, scanText, messages, options))
-        continue
+        const { parsed } = candidate
+        const scanText = buildLorebookScanText(
+          messages,
+          parsed.decorators.scanDepth ?? book.scan_depth,
+          book.recursive_scanning ? matchedContents : [],
+        )
+        if (!await matchesLorebookEntry(candidate.entry, parsed.decorators, scanText, messages, options, regexMatcher))
+          continue
 
-      remaining.splice(index, 1)
-      activatedInPass = true
-      if (!parsed.content)
-        continue
+        remaining.splice(index, 1)
+        activatedInPass = true
+        if (!parsed.content)
+          continue
 
-      const compiledContent = expandCharacterCardMacros(parsed.content, card, options)
-      matchedContents.push(compiledContent, expandCharacterCardMacros(parsed.recursiveScanText, card, options))
-      compiled.push({
-        content: compiledContent,
-        depth: parsed.decorators.position ? undefined : parsed.decorators.depth,
-        insertionOrder: candidate.entry.insertion_order,
-        position: parsed.decorators.position ?? candidate.entry.position ?? 'after_char',
-        role: parsed.decorators.role ?? 'system',
-        sourceIndex: candidate.sourceIndex,
-      })
+        const compiledContent = expandCharacterCardMacros(parsed.content, card, options)
+        matchedContents.push(compiledContent, expandCharacterCardMacros(parsed.recursiveScanText, card, options))
+        compiled.push({
+          content: compiledContent,
+          depth: parsed.decorators.position ? undefined : parsed.decorators.depth,
+          insertionOrder: candidate.entry.insertion_order,
+          position: parsed.decorators.position ?? candidate.entry.position ?? 'after_char',
+          role: parsed.decorators.role ?? 'system',
+          sourceIndex: candidate.sourceIndex,
+        })
+      }
+
+      if (!book.recursive_scanning)
+        break
     }
 
-    if (!book.recursive_scanning)
-      break
+    return compiled.sort((left, right) =>
+      left.insertionOrder - right.insertionOrder || left.sourceIndex - right.sourceIndex,
+    )
   }
-
-  return compiled.sort((left, right) =>
-    left.insertionOrder - right.insertionOrder || left.sourceIndex - right.sourceIndex,
-  )
+  finally {
+    regexMatcher.dispose()
+  }
 }
 
 async function matchesLorebookEntry(
@@ -255,6 +261,7 @@ async function matchesLorebookEntry(
   scanText: string,
   messages: Message[],
   options: CharacterCardRuntimeOptions,
+  regexMatcher: ReturnType<typeof createRegexMatcher>,
 ): Promise<boolean> {
   if (!entry.enabled || (decorators.dontActivate && !decorators.activate))
     return false
@@ -267,7 +274,7 @@ async function matchesLorebookEntry(
   if (decorators.greetingIndex !== undefined && decorators.greetingIndex !== (options.activeGreetingIndex ?? 0))
     return false
 
-  const matches = (keys: string[]) => matchesAnyKey(keys, scanText, entry.use_regex, entry.case_sensitive)
+  const matches = (keys: string[]) => matchesAnyKey(keys, scanText, entry.use_regex, entry.case_sensitive, regexMatcher)
   if (decorators.excludeKeys.length > 0 && await matches(decorators.excludeKeys))
     return false
   for (const keys of decorators.additionalKeys) {
@@ -287,11 +294,11 @@ async function matchesLorebookEntry(
   return !entry.selective || await matches(entry.secondary_keys ?? [])
 }
 
-async function matchesAnyKey(keys: string[], text: string, useRegex: boolean, caseSensitive = false): Promise<boolean> {
+async function matchesAnyKey(keys: string[], text: string, useRegex: boolean, caseSensitive: boolean | undefined, regexMatcher: ReturnType<typeof createRegexMatcher>): Promise<boolean> {
   if (keys.length === 0)
     return false
   if (useRegex)
-    return matchRegexKeys(keys, text, caseSensitive)
+    return regexMatcher.match(keys, text, caseSensitive ?? false)
   const haystack = caseSensitive ? text : text.toLowerCase()
   return keys.some((key) => {
     const needle = caseSensitive ? key : key.toLowerCase()

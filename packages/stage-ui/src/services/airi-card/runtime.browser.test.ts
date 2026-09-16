@@ -2,7 +2,7 @@ import type { Conversation } from '@proj-airi/core-agent'
 
 import type { AiriCard } from '../../types/airiCard'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   compileCharacterCardConversation,
@@ -455,4 +455,30 @@ it('scans authored text without timestamp or side-channel context matches', asyn
   expect(JSON.stringify(result)).toContain('Authored match.')
   expect(JSON.stringify(result)).not.toContain('Context-only match.')
   expect(result.turns).toContain(conversation.turns[0])
+})
+
+it('reuses one real Worker for all regex checks in a compilation', async () => {
+  const NativeWorker = globalThis.Worker
+  let created = 0
+  vi.stubGlobal('Worker', class extends NativeWorker {
+    constructor(url: string | URL, options?: WorkerOptions) {
+      super(url, options)
+      created += 1
+    }
+  })
+  try {
+    const card = createCard({ characterBook: { extensions: {}, entries: Array.from({ length: 40 }, (_, index) => loreEntry({
+      keys: ['^show'],
+      use_regex: true,
+      selective: true,
+      secondary_keys: ['comet'],
+      content: `Lore ${index}.`,
+    })) } })
+    const result = await compileCharacterCardMessages(card, [{ role: 'user', content: 'show a comet' }])
+    expect(JSON.stringify(result)).toContain('Lore 39.')
+    expect(created).toBe(1)
+  }
+  finally {
+    vi.unstubAllGlobals()
+  }
 })
