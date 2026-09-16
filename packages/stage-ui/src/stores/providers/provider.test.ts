@@ -1,3 +1,4 @@
+import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Session, User } from 'better-auth'
 
 import { isGenerationProvider } from '@proj-airi/provider-inference'

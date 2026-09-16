@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { allowsManualModelInput } from '../../../../stage-pages/src/pages/settings/modules/hearing-model-selection'
+import { allowsManualModelInput } from './hearing-model-selection'
 
 describe('hearing model selection', () => {
   it('allows a bypassed FunASR instance with an empty failed catalog to accept a manual model', () => {
