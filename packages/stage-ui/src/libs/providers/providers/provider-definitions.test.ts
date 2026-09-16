@@ -2,7 +2,7 @@ import type { ProviderTranslator } from '@proj-airi/provider-inference'
 
 import type { StageProviderId } from './registry'
 
-import { describe, expect, expectTypeOf, it } from 'vitest'
+import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { z } from 'zod'
 
 import { providerAliyunNlsTranscription } from './aliyun-nls'
@@ -27,6 +27,18 @@ function getRequiredProvider(id: string) {
 }
 
 describe('migrated provider definitions', () => {
+  it('hides the browser local transcription provider on a capable browser', async () => {
+    // The shared helper reports this browser as capable. This provider used to
+    // follow it, but its settings page is still a <WIP /> placeholder.
+    vi.stubGlobal('navigator', { deviceMemory: 16 })
+    try {
+      expect(await providerBrowserLocalAudioTranscription.isAvailableBy?.()).toBe(false)
+    }
+    finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('exposes a closed provider id union to stage-ui consumers', () => {
     expectTypeOf<'openai'>().toExtend<StageProviderId>()
     expectTypeOf<'official-provider'>().toExtend<StageProviderId>()
