@@ -157,10 +157,10 @@ it('discards greeting edits without mutating the stored card', async () => {
 })
 
 // Query links must not close an edited card behind the discard confirmation.
-it('guards query-driven navigation with the mounted editor dirty state', async () => {
+it.each(['detail', 'page'])('guards %s navigation with the mounted editor dirty state', async (destination) => {
   localStorage.clear()
   const pinia = createPinia()
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: CardsPage }] })
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: CardsPage }, { path: '/other', component: { render: () => h('div', 'Other settings') } }] })
   const container = document.createElement('div')
   document.body.append(container)
   const app = createApp({
@@ -184,8 +184,22 @@ it('guards query-driven navigation with the mounted editor dirty state', async (
     await page.getByRole('button', { name: 'Keep editing', exact: true }).click()
     expect(input.isConnected).toBe(true)
     expect(input.value).toBe('Unsaved route greeting')
-    await router.push({ query: { cardId: id, tab: 'description' } })
-    await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
+    await vi.waitFor(() => expect(router.currentRoute.value.query).toEqual({}))
+    if (destination === 'page') {
+      const rejected = router.push('/other')
+      await page.getByRole('button', { name: 'Keep editing', exact: true }).click()
+      await rejected
+      expect(router.currentRoute.value.path).toBe('/')
+      expect(input.isConnected).toBe(true)
+      const accepted = router.push('/other')
+      await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
+      await accepted
+      expect(router.currentRoute.value.path).toBe('/other')
+    }
+    else {
+      await router.push({ query: { cardId: id, tab: 'description' } })
+      await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
+    }
     await vi.waitFor(() => expect(input.isConnected).toBe(false))
     expect(cards.getCard(id)?.greetings).toEqual(['Original route greeting'])
   }

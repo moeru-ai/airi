@@ -8,7 +8,7 @@ import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 import CardEditorDialog from './components/card-editor/dialog.vue'
@@ -176,6 +176,12 @@ watch(isCardDialogOpen, (isOpen) => {
   }
 })
 
+onBeforeRouteLeave(async () => {
+  if (!isCardEditorDialogOpen.value)
+    return true
+  return await cardEditorDialog.value?.requestClose() ?? false
+})
+
 // Handle deep-linking from query params
 watch(() => [route.query.cardId, route.query.tab], async ([cardId, tab], _previous, onCleanup) => {
   if (!cardId || typeof cardId !== 'string' || !cards.value.has(cardId))
@@ -187,8 +193,12 @@ watch(() => [route.query.cardId, route.query.tab], async ([cardId, tab], _previo
   })
   if (isCardEditorDialogOpen.value) {
     const closed = await cardEditorDialog.value?.requestClose()
-    if (stale || !closed)
+    if (stale)
       return
+    if (!closed) {
+      await router.replace({ query: {} })
+      return
+    }
   }
 
   const targetTab = typeof tab === 'string' ? tab : ''
