@@ -1485,6 +1485,9 @@ pages:
       n1n:
         description: n1n.ai - High-performance AI API provider.
         title: n1n
+      anonrouter:
+        description: anonrouter.ai
+        title: AnonRouter
       openpaths:
         description: openpaths.io
         title: OpenPaths
