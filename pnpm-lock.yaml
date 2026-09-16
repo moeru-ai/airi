@@ -24,6 +24,12 @@ catalogs:
     '@arethetypeswrong/core':
       specifier: ^0.18.5
       version: 0.18.5
+    '@auv-js/cli':
+      specifier: 0.0.16
+      version: 0.0.16
+    '@auv-js/sdk':
+      specifier: 0.0.16
+      version: 0.0.16
     '@ax-llm/ax':
       specifier: ^24.0.5
       version: 24.0.5
@@ -1848,6 +1854,12 @@ importers:
 
   apps/stage-tamagotchi:
     dependencies:
+      '@auv-js/cli':
+        specifier: 'catalog:'
+        version: 0.0.16
+      '@auv-js/sdk':
+        specifier: 'catalog:'
+        version: 0.0.16
       '@date-fns/utc':
         specifier: 'catalog:'
         version: 2.1.1
@@ -6089,6 +6101,48 @@ packages:
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
 
+  '@auv-js/api-client@0.0.16':
+    resolution: {integrity: sha512-02uUXhJLgolpYeFP5Y0FPoFBCt8ZxRH0HcSIj9Ac3aXfHNJdXFWxDtiWhtVIcviW8oEPyMWJkqCl5/f3IUFB2w==}
+
+  '@auv-js/cli-darwin-arm64@0.0.16':
+    resolution: {integrity: sha512-hBHOxWzZjsrPukczXxAWc65LR+tZcE2oEpJVI7yBSqOQtVHNomHWStXGT/ezArxWfPSmNi7qOqlvL3VTsp87Hw==}
+    engines: {node: '>=20.19.0'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@auv-js/cli-darwin-x64@0.0.16':
+    resolution: {integrity: sha512-JMGECPuQqVTq4eHPN4MWUWQuLt5jueiZR+apMvzYabc+MmZ4GxZQYFwgqQdi221izI9DaeePMVYr80K4ievJzA==}
+    engines: {node: '>=20.19.0'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@auv-js/cli-linux-arm64-gnu@0.0.16':
+    resolution: {integrity: sha512-7IWFqrt3kXZacoToP/fCV7ExTSXwaJYi3C3lVZmBK6AybpNo/urtdRmzCRUim76K1B3Bysrjkjqvjp0+SXZ2VQ==}
+    engines: {node: '>=20.19.0'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@auv-js/cli-linux-x64-gnu@0.0.16':
+    resolution: {integrity: sha512-IO0WDFMbW2su0FWQGSjkcZ7lVBS0iJmgGUpqULmpa3EKC9iunaCa14DaTOVGXpBnlonxmf0LHylVF1eoJE33qA==}
+    engines: {node: '>=20.19.0'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@auv-js/cli-win32-x64-msvc@0.0.16':
+    resolution: {integrity: sha512-o+WaLSTLTamEYkOnhmy9kOS9yxp5j7HqoZexBucoyN4SlteKxJ+ICeX/Zn0CxjJH87qYZbB1XPmkayGcIbZdrw==}
+    engines: {node: '>=20.19.0'}
+    cpu: [x64]
+    os: [win32]
+
+  '@auv-js/cli@0.0.16':
+    resolution: {integrity: sha512-150MGYEsLLayQkFjGGGDD3F9tJZxE080Mp1z9vPYnd7AOlnJrCtIFpDKgQ6Wnzv+cjiDpE5KAdzPJg3DwaJT9A==}
+    hasBin: true
+
+  '@auv-js/sdk@0.0.16':
+    resolution: {integrity: sha512-0pm+8Y1N2dNtApHQJZvglJatBtVUew8lfkaIqYNHCluwIq+wAtfcsryrwnqxtXluZYcAgiBNmmD9+uHuWB5XGg==}
+
   '@ax-llm/ax@24.0.5':
     resolution: {integrity: sha512-hQoHPWRCumvZJ1YyLWQwH17gDhIcREUZoP5UFQUS0l6Y4L8qkEKBJ1qfbtUjta+ah7stkzctewDfUzdi+Svzew==}
     hasBin: true
@@ -6829,6 +6883,9 @@ packages:
   '@bramus/specificity@2.4.2':
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
     hasBin: true
+
+  '@bufbuild/protobuf@2.13.0':
+    resolution: {integrity: sha512-acq7c49vxfm1ggJ95P70TX7ABDM0vxr1SYD3BB0o0jnBLB4OAqeHyKuN+cD3w80gXEDQ2zxHpR6CUeA+O/aU9g==}
 
   '@bufbuild/protobuf@2.14.0':
     resolution: {integrity: sha512-C3UGsiCwSprE2NKIIFA3hCDlpXTMCAXRZuEVp88L1GY36Y41+rYL5fryE+nOFhp4p4JPQvdV8PQ4DWgHgeTE+w==}
@@ -20291,6 +20348,42 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
+  '@auv-js/api-client@0.0.16': {}
+
+  '@auv-js/cli-darwin-arm64@0.0.16':
+    optional: true
+
+  '@auv-js/cli-darwin-x64@0.0.16':
+    optional: true
+
+  '@auv-js/cli-linux-arm64-gnu@0.0.16':
+    optional: true
+
+  '@auv-js/cli-linux-x64-gnu@0.0.16':
+    optional: true
+
+  '@auv-js/cli-win32-x64-msvc@0.0.16':
+    optional: true
+
+  '@auv-js/cli@0.0.16':
+    optionalDependencies:
+      '@auv-js/cli-darwin-arm64': 0.0.16
+      '@auv-js/cli-darwin-x64': 0.0.16
+      '@auv-js/cli-linux-arm64-gnu': 0.0.16
+      '@auv-js/cli-linux-x64-gnu': 0.0.16
+      '@auv-js/cli-win32-x64-msvc': 0.0.16
+
+  '@auv-js/sdk@0.0.16':
+    dependencies:
+      '@auv-js/api-client': 0.0.16
+      '@bufbuild/protobuf': 2.13.0
+      '@grpc/grpc-js': 1.14.4
+      '@moeru/std': 0.1.0-beta.20
+      date-fns: 4.4.0
+      es-toolkit: 1.51.0
+      std-env: 4.2.0
+      tinyexec: 1.3.0
+
   '@ax-llm/ax@24.0.5(zod@4.4.3)':
     dependencies:
       '@opentelemetry/api': 1.9.1
@@ -21287,6 +21380,8 @@ snapshots:
   '@bramus/specificity@2.4.2':
     dependencies:
       css-tree: 3.2.1
+
+  '@bufbuild/protobuf@2.13.0': {}
 
   '@bufbuild/protobuf@2.14.0': {}
 
