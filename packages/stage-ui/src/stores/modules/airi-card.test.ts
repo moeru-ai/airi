@@ -544,6 +544,7 @@ describe('airi-card store', () => {
 
     const sourceCard: AiriCard = {
       name: 'Lorebook import',
+      nickname: 'Nova',
       version: '1.0.0',
       greetings: [],
       messageExample: [],
@@ -575,6 +576,7 @@ describe('airi-card store', () => {
     const cardId = await cardStore.addCard(exportToJSON(sourceCard), 'import')
 
     expect(cardStore.getCard(cardId)?.characterBook).toEqual(sourceCard.characterBook)
+    expect(cardStore.getCard(cardId)?.nickname).toBe('Nova')
   })
 
   it('falls back to the default card when the active custom card is deleted', async () => {

@@ -404,6 +404,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       const ccv3Card = card as ccv3.CharacterCardV3
       return {
         name: ccv3Card.data.name,
+        nickname: ccv3Card.data.nickname,
         version: ccv3Card.data.character_version ?? '1.0.0',
         description: ccv3Card.data.description ?? '',
         creator: ccv3Card.data.creator ?? '',
