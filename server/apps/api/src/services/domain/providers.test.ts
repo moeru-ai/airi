@@ -133,4 +133,39 @@ describe('providerService', () => {
     expect(otherRows[0]?.id).not.toBe(ownerRows.find(row => row.configId === 'prov-1')?.id)
     expect(otherRows[0]?.config).toEqual({ apiKey: 'sk-other' })
   })
+
+  // https://github.com/moeru-ai/airi/pull/2471#discussion_r3999470562
+  it('accepts concurrent first writes of the same owner and config id', async () => {
+    // ROOT CAUSE:
+    //
+    // upsert selected insert vs update after findOwnedRow. Two first PUTs
+    // for a fixed client id could both see no row. The unique index then
+    // rejected one write with 500.
+    //
+    // INSERT ON CONFLICT DO UPDATE makes both requests succeed as one row.
+    const results = await Promise.all([
+      service.upsert({
+        configId: 'openai',
+        ownerId: testUser.id,
+        definitionId: 'openai',
+        config: { apiKey: 'sk-a' },
+      }),
+      service.upsert({
+        configId: 'openai',
+        ownerId: testUser.id,
+        definitionId: 'openai',
+        config: { apiKey: 'sk-b' },
+      }),
+    ])
+
+    expect(results).toHaveLength(2)
+    expect(results[0]?.configId).toBe('openai')
+    expect(results[1]?.configId).toBe('openai')
+    expect(results[0]?.id).toBe(results[1]?.id)
+
+    const listed = await service.listAll(testUser.id)
+    const openaiRows = listed.filter(row => row.configId === 'openai')
+    expect(openaiRows).toHaveLength(1)
+    expect(['sk-a', 'sk-b']).toContain(openaiRows[0]?.config.apiKey)
+  })
 })

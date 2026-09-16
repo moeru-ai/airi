@@ -78,36 +78,26 @@ export function createProviderService(db: Database, envelopeCrypto: EnvelopeCryp
     },
 
     async upsert(input: UpsertProviderConfigInput): Promise<ProviderConfigDto> {
-      const existing = await findOwnedRow(input.configId, input.ownerId)
       const now = new Date()
-
-      if (!existing) {
-        const [inserted] = await db.insert(schema.userProviderConfigs).values({
-          ownerId: input.ownerId,
-          configId: input.configId,
+      const ciphertext = encryptConfig(input.ownerId, input.configId, input.config)
+      const [row] = await db.insert(schema.userProviderConfigs).values({
+        ownerId: input.ownerId,
+        configId: input.configId,
+        definitionId: input.definitionId,
+        config: ciphertext,
+        createdAt: now,
+        updatedAt: now,
+      }).onConflictDoUpdate({
+        target: [schema.userProviderConfigs.ownerId, schema.userProviderConfigs.configId],
+        set: {
           definitionId: input.definitionId,
-          config: encryptConfig(input.ownerId, input.configId, input.config),
-          createdAt: now,
-          updatedAt: now,
-        }).returning()
-        logger.withFields({ id: inserted.id, configId: inserted.configId, ownerId: input.ownerId, definitionId: input.definitionId }).log('Created user provider config')
-        return toDto(inserted)
-      }
-
-      const [updated] = await db.update(schema.userProviderConfigs)
-        .set({
-          definitionId: input.definitionId,
-          config: encryptConfig(input.ownerId, input.configId, input.config),
+          config: ciphertext,
           updatedAt: now,
           deletedAt: null,
-        })
-        .where(and(
-          eq(schema.userProviderConfigs.id, existing.id),
-          eq(schema.userProviderConfigs.ownerId, input.ownerId),
-        ))
-        .returning()
-      logger.withFields({ id: existing.id, configId: input.configId, ownerId: input.ownerId }).log('Updated user provider config')
-      return toDto(updated)
+        },
+      }).returning()
+      logger.withFields({ id: row.id, configId: row.configId, ownerId: input.ownerId, definitionId: input.definitionId }).log('Upserted user provider config')
+      return toDto(row)
     },
 
     async tombstone(configId: string, ownerId: string): Promise<void> {
