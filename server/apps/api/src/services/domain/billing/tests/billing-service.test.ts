@@ -276,6 +276,20 @@ describe('billingService', () => {
     expect(await redis.ttl(userFluxRedisKey('user-billing-1'))).toBeGreaterThan(0)
   })
 
+  it('keeps a committed credit when the cache write fails', async () => {
+    vi.spyOn(redis, 'set').mockRejectedValueOnce(new Error('redis unavailable'))
+    const result = await billingService.creditFlux({
+      userId: 'user-billing-1',
+      amount: 50,
+      description: 'grant',
+      source: 'test',
+    })
+    expect(result.balanceAfter).toBe(50)
+    const [row] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
+    expect(row?.flux).toBe(50)
+    expect(await db.select().from(schema.fluxTransaction)).toHaveLength(1)
+  })
+
   describe('setFlux', () => {
     it('sets the balance to an absolute value and records an admin_set ledger row', async () => {
       // Start from a known balance so the delta direction is observable.
