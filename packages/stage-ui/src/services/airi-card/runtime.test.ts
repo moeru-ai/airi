@@ -380,3 +380,40 @@ describe('character policy on portable conversations', () => {
     expect(conversation).toEqual(before)
   })
 })
+
+describe('character card review regressions', () => {
+  it('keeps equal-depth order and anchors against authored history', () => {
+    const card = createCard({ characterBook: { extensions: {}, entries: [
+      loreEntry({ constant: true, insertion_order: 1, content: '@@role assistant\n@@depth 1\nFirst' }),
+      loreEntry({ constant: true, insertion_order: 2, content: '@@depth 1\nSecond' }),
+      loreEntry({ constant: true, insertion_order: 3, content: '@@depth 2\nEarlier' }),
+    ] } })
+    card.extensions.airi.modules.artistry = undefined
+    expect(compileCharacterCardMessages(card, [{ role: 'user', content: 'old' }, { role: 'assistant', content: 'answer' }, { role: 'user', content: 'latest' }]).map(message => message.content)).toEqual(['old', 'Earlier', 'answer', 'First', 'Second', 'latest'])
+  })
+
+  it('does not scan history when scan depth is zero', () => {
+    const card = createCard({ characterBook: { extensions: {}, scan_depth: 0, entries: [loreEntry({ keys: ['comet'], content: 'matched' })] } })
+    card.extensions.airi.modules.artistry = undefined
+    expect(compileCharacterCardMessages(card, [{ role: 'user', content: 'comet' }])).toEqual([{ role: 'user', content: 'comet' }])
+  })
+
+  it('uses locale-neutral matching and merges regex case flags', () => {
+    const card = createCard({ characterBook: { extensions: {}, entries: [
+      loreEntry({ keys: ['i'], content: '@@depth 0\nplain' }),
+      loreEntry({ keys: ['/comet/m'], use_regex: true, content: '@@depth 0\nregex' }),
+    ] } })
+    card.extensions.airi.modules.artistry = undefined
+    expect(compileCharacterCardMessages(card, [{ role: 'user', content: 'I COMET' }]).map(message => message.content)).toEqual(['I COMET', 'plain', 'regex'])
+  })
+
+  it('expands legacy user names and inserts the card depth prompt', () => {
+    const card = createCard({ greetings: ['Hello <USER>'] })
+    card.extensions.depth_prompt = { depth: 1, role: 'system', prompt: 'Help <user>' }
+    card.extensions.airi.modules.artistry = undefined
+    expect(compileCharacterCardGreeting(card, { userName: 'Mira' })).toBe('Hello Mira')
+    card.extensions.airi.modules.artistry = undefined
+    expect(compileCharacterCardMessages(card, [{ role: 'user', content: 'question' }], { userName: 'Mira' })).toEqual([{ role: 'system', content: 'Help Mira' }, { role: 'user', content: 'question' }])
+  })
+
+})

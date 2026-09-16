@@ -132,8 +132,8 @@ it('persists configured credentials through the leader and loads the model list'
 
   // The leader owns persistence and must hold the saved credentials.
   await expect.poll(() => leader.providerConfigStore.getProviderConfig(providerId)).toMatchObject(expectedConfig)
-  expect(leader.providerConfigStore.providers[providerId]?.status).toBe('configured')
-  expect(leader.providerConfigStore.addedProviders[providerId]).toBe(true)
+  await expect.poll(() => leader.providerConfigStore.providers[providerId]?.status).toBe('configured')
+  await expect.poll(() => leader.providerConfigStore.addedProviders[providerId]).toBe(true)
 
   await expect.poll(() => JSON.parse(localStorage.getItem('settings/providers/configured') ?? '{}')).toMatchObject({
     [providerId]: { config: expectedConfig },
