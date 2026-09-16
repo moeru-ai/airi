@@ -10,6 +10,7 @@ import { nextTick, ref } from 'vue'
 const userIdRef = ref<string>('local')
 const userRef = ref<{ name: string } | null>(null)
 const activeCardRef = ref<AiriCard>()
+const cards = new Map<string, AiriCard>()
 const activeCardIdRef = ref<string>('default')
 const systemPromptRef = ref<string>('')
 
@@ -46,6 +47,7 @@ vi.mock('../auth', () => ({
 vi.mock('../modules/airi-card', () => ({
   useAiriCardStore: () => ({
     activeCard: activeCardRef,
+    getCard: (id: string) => cards.get(id),
     activeCardId: activeCardIdRef,
     systemPrompt: systemPromptRef,
   }),
@@ -1080,6 +1082,27 @@ describe('chat-session-store · character greeting', () => {
       slices: [{ type: 'text', text: 'Hello, Mira. I am Nova.' }],
       tool_results: [],
     })
+  })
+
+  it('uses the target card when creating or resetting a non-active session', async () => {
+    const card: AiriCard = {
+      name: 'Other',
+      version: '1.0.0',
+      greetings: ['Other greeting'],
+      messageExample: [],
+      systemPrompt: 'Other policy',
+      extensions: { airi: { modules: { consciousness: { provider: '', model: '' }, vision: { provider: '', model: '' }, speech: { provider: '', model: '', voice_id: '' } }, agents: {} } },
+    }
+    cards.set('other', card)
+    const store = useChatSessionStore()
+    await store.initialize()
+    const id = await store.createSession('other', { setActive: false })
+    store.cleanupMessages(id)
+    expect(store.getSnapshot().sessionMessages[id]).toEqual([
+      expect.objectContaining({ role: 'system', content: expect.stringContaining('Other policy') }),
+      expect.objectContaining({ role: 'assistant', content: 'Other greeting' }),
+    ])
+    cards.clear()
   })
 
   // https://github.com/moeru-ai/airi/pull/2119#discussion_r3656443756
