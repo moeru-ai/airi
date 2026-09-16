@@ -28,12 +28,12 @@ import {
 import { computed, nextTick, ref, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import ArtistryFields from './artistryFields.vue'
-import BehaviorFields from './behaviorFields.vue'
-import DiscardChangesDialog from './discardChangesDialog.vue'
-import IdentityFields from './identityFields.vue'
-import ModuleFields from './moduleFields.vue'
-import PromptFields from './promptFields.vue'
+import ArtistryFields from './artistry-fields.vue'
+import BehaviorFields from './behavior-fields.vue'
+import DiscardChangesDialog from './discard-changes-dialog.vue'
+import IdentityFields from './identity-fields.vue'
+import ModuleFields from './module-fields.vue'
+import PromptFields from './prompt-fields.vue'
 
 import { createDraftInitializationCoordinator } from './draft-initialization'
 
@@ -321,22 +321,22 @@ interface Tab {
 const activeTabId = shallowRef('')
 
 // Tabs for card details
-const tabs: Tab[] = [
+const tabs = computed<Tab[]>(() => [
   { id: 'identity', label: t('settings.pages.card.creation.identity'), icon: 'i-solar:emoji-funny-square-bold-duotone' },
   { id: 'behavior', label: t('settings.pages.card.creation.behavior'), icon: 'i-solar:chat-round-line-bold-duotone' },
   { id: 'modules', label: t('settings.pages.card.modules'), icon: 'i-solar:widget-4-bold-duotone' },
   { id: 'artistry', label: t('settings.pages.modules.artistry.title'), icon: 'i-solar:gallery-bold-duotone' },
   { id: 'settings', label: t('settings.pages.card.creation.settings'), icon: 'i-solar:settings-bold-duotone' },
-]
+])
 
 // Active tab state - set to first available tab by default
 const activeTab = computed({
   get: () => {
     // If current active tab is not in available tabs, reset to first tab
-    if (!tabs.some(tab => tab.id === activeTabId.value)) {
-      if (props.initialTab && tabs.some(tab => tab.id === props.initialTab))
+    if (!tabs.value.some(tab => tab.id === activeTabId.value)) {
+      if (props.initialTab && tabs.value.some(tab => tab.id === props.initialTab))
         return props.initialTab
-      return tabs[0]?.id || ''
+      return tabs.value[0]?.id || ''
     }
     return activeTabId.value
   },
@@ -382,7 +382,7 @@ watch([
 // Reset active tab when dialog opens
 watch(modelValue, (isOpen) => {
   if (isOpen) {
-    if (props.initialTab && tabs.some(tab => tab.id === props.initialTab))
+    if (props.initialTab && tabs.value.some(tab => tab.id === props.initialTab))
       activeTabId.value = props.initialTab
     else
       activeTabId.value = '' // Let computed handle default
@@ -742,13 +742,11 @@ function discardChanges() {
 
               icon="i-solar:undo-left-bold-duotone"
               :label="t('settings.pages.card.cancel')"
-              :disabled="false"
               @click="requestClose"
             />
             <Button
               icon="i-solar:check-circle-bold-duotone"
               :label="t('settings.pages.card.save')"
-              :disabled="false"
               @click="saveCard(card, false)"
             />
             <Button
@@ -756,7 +754,6 @@ function discardChanges() {
 
               icon="i-solar:play-circle-bold-duotone"
               :label="t('settings.pages.card.save_and_activate')"
-              :disabled="false"
               @click="saveCard(card, true)"
             />
           </div>

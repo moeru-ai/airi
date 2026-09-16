@@ -772,6 +772,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       const historyContext = buildContext(sessionMessagesForSend)
+      const contextsSnapshot = deps.context.snapshot()
+      const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
+      if (entries.length) {
+        const lastMessage = historyContext.turns.at(-1)
+        if (lastMessage?.type === 'user')
+          lastMessage.content.push({ type: 'runtime-context', entries })
+        deps.onLifecycle?.({ phase: 'prompt-context-built', channel: 'chat', sessionId, details: { contexts: contextsSnapshot } })
+      }
+
       const context = deps.composeConversation?.(historyContext, { sessionId }) ?? historyContext
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
@@ -780,15 +789,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           systemMessage.content.push({ type: 'text', text: `\n\n${systemPromptSupplement}` })
         else
           context.turns.unshift({ id: 'system-supplement', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPromptSupplement }] })
-      }
-
-      const contextsSnapshot = deps.context.snapshot()
-      const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
-      if (entries.length) {
-        const lastMessage = context.turns.at(-1)
-        if (lastMessage?.type === 'user')
-          lastMessage.content.push({ type: 'runtime-context', entries })
-        deps.onLifecycle?.({ phase: 'prompt-context-built', channel: 'chat', sessionId, details: { contexts: contextsSnapshot } })
       }
 
       // Hooks, diagnostics, and the plugin bridge consume a display projection. It contains

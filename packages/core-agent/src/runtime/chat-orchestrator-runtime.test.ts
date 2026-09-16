@@ -530,12 +530,15 @@ describe('createChatOrchestratorRuntime', () => {
     const harness = createHarness()
     let composedMessages: Message[] = []
     harness.systemPromptSupplement.set('Plugin toolset guidance.')
+    harness.contextSnapshot.account = [{ id: 'account', contextId: 'account', strategy: ContextUpdateStrategy.ReplaceSelf, text: 'Current account', createdAt: 1 }]
     harness.composeConversation.set((conversation, context) => ({
       turns: [...conversation.turns, { id: 'policy', type: 'system', authority: 'system', content: [{ type: 'text', text: `Runtime policy for ${context.sessionId}.` }] }],
     }))
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
+      const authoredTurn = messages.turns.find(turn => turn.type === 'user')
+      expect(authoredTurn).toMatchObject({ content: expect.arrayContaining([{ type: 'runtime-context', entries: [{ source: 'account', text: 'Current account' }] }]) })
       composedMessages = conversationToChatMessages(messages)
-      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
     await harness.runtime.ingest('hello from user', {

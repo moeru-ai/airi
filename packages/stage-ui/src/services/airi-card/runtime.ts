@@ -116,7 +116,7 @@ export function compileCharacterCardMessages(
   const projected = messages.map(cloneMessage)
   const activeLorebookEntries = compileLorebookEntries(card.characterBook, projected, card, options)
   replaceStableSystemPrompt(projected, card, activeLorebookEntries, options)
-  insertDepthMessages(projected, activeLorebookEntries)
+  insertDepthMessages(projected, [...activeLorebookEntries, ...compileDepthPrompt(card, options)])
   insertMessageExamples(projected, card, options)
   appendPostHistoryInstructions(projected, card, options)
   return projected
@@ -144,7 +144,7 @@ export function compileCharacterCardConversation(
   })
   const entries = compileLorebookEntries(card.characterBook, messages, card, options)
   replaceStableSystemPrompt(messages, card, entries, options)
-  insertDepthMessages(messages, entries)
+  insertDepthMessages(messages, [...entries, ...compileDepthPrompt(card, options)])
   insertMessageExamples(messages, card, options)
   appendPostHistoryInstructions(messages, card, options)
 
@@ -299,9 +299,9 @@ function matchesAnyKey(keys: string[], text: string, useRegex: boolean, caseSens
     return patterns.some(pattern => pattern.test(text))
   }
 
-  const haystack = caseSensitive ? text : text.toLocaleLowerCase()
+  const haystack = caseSensitive ? text : text.toLowerCase()
   return keys.some((key) => {
-    const needle = caseSensitive ? key : key.toLocaleLowerCase()
+    const needle = caseSensitive ? key : key.toLowerCase()
     return needle.length > 0 && haystack.includes(needle)
   })
 }
@@ -309,7 +309,7 @@ function matchesAnyKey(keys: string[], text: string, useRegex: boolean, caseSens
 function createLorebookPattern(value: string, caseSensitive: boolean): RegExp {
   const delimitedPattern = value.match(/^\/([\s\S]*)\/([dgimsuvy]*)$/)
   if (delimitedPattern)
-    return new RegExp(delimitedPattern[1], delimitedPattern[2])
+    return new RegExp(delimitedPattern[1], [...new Set(delimitedPattern[2] + (caseSensitive ? '' : 'i'))].join(''))
 
   return new RegExp(value, caseSensitive ? '' : 'i')
 }
@@ -318,7 +318,7 @@ function buildLorebookScanText(messages: Message[], scanDepth: number | undefine
   const chatMessages = messages.filter(message => message.role === 'assistant' || message.role === 'user')
   const boundedMessages = scanDepth === undefined
     ? chatMessages
-    : chatMessages.slice(-Math.max(0, Math.trunc(scanDepth)))
+    : scanDepth < 1 ? [] : chatMessages.slice(-Math.trunc(scanDepth))
 
   return [
     ...boundedMessages.map(messageText),
@@ -464,26 +464,35 @@ function insertDepthMessages(
   messages: Message[],
   entries: CompiledLorebookEntry[],
 ) {
+  const original = [...messages]
+  const chatMessages = original.filter(message => message.role === 'assistant' || message.role === 'user')
+  const firstChat = original.find(message => message.role !== 'system')
+  const insertions = new Map<Message | undefined, Message[]>()
   for (const entry of entries) {
     if (entry.depth === undefined && entry.role === 'system')
       continue
-
-    const generatedMessage: Message = {
-      role: entry.role,
-      content: entry.content,
-    }
-    if (entry.depth === undefined || entry.depth < 1) {
-      messages.push(generatedMessage)
-      continue
-    }
-
-    const chatMessageIndexes = messages
-      .map((message, index) => ({ index, role: message.role }))
-      .filter(message => message.role === 'assistant' || message.role === 'user')
-    const anchor = chatMessageIndexes.at(-entry.depth)
-    const firstNonSystemIndex = messages.findIndex(message => message.role !== 'system')
-    messages.splice(anchor?.index ?? (firstNonSystemIndex < 0 ? messages.length : firstNonSystemIndex), 0, generatedMessage)
+    const anchor = entry.depth === undefined
+      ? original.findLast(message => message.role === 'user')
+      : entry.depth < 1 ? undefined : chatMessages.at(-entry.depth) ?? firstChat
+    const group = insertions.get(anchor) ?? []
+    group.push({ role: entry.role, content: entry.content })
+    insertions.set(anchor, group)
   }
+  messages.splice(0, messages.length, ...original.flatMap(message => [...(insertions.get(message) ?? []), message]), ...(insertions.get(undefined) ?? []))
+}
+
+function compileDepthPrompt(card: AiriCard, options: CharacterCardRuntimeOptions): CompiledLorebookEntry[] {
+  const prompt = card.extensions.depth_prompt
+  if (!prompt || !isNonEmptyString(prompt.prompt) || !isGeneratedMessageRole(prompt.role))
+    return []
+  return [{
+    content: expandCharacterCardMacros(prompt.prompt, card, options),
+    depth: Math.max(0, Math.trunc(prompt.depth)),
+    role: prompt.role,
+    insertionOrder: 0,
+    sourceIndex: 0,
+    position: 'after_char',
+  }]
 }
 
 function appendPostHistoryInstructions(messages: Message[], card: Card, options: CharacterCardRuntimeOptions) {
@@ -507,7 +516,7 @@ function expandCharacterCardMacros(
 
   return source
     .replace(/\{\{char\}\}|<char>|<bot>/gi, characterName)
-    .replace(/\{\{user\}\}/gi, userName)
+    .replace(/\{\{user\}\}|<user>/gi, userName)
     .replace(/\{\{\/\/[^}]*\}\}/g, '')
     .replace(/\{\{(?:hidden_key|comment):[^}]*\}\}/gi, '')
     .replace(/\{\{reverse:([^}]*)\}\}/gi, (_, value: string) => [...value].reverse().join(''))

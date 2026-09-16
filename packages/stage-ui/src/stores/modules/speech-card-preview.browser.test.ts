@@ -8,7 +8,7 @@ import { createApp, h, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-import CardCreationDialog from '../../../../stage-pages/src/pages/settings/airi-card/components/CardCreationDialog.vue'
+import CardCreationDialog from '../../../../stage-pages/src/pages/settings/airi-card/components/card-editor/dialog.vue'
 
 import { useProviderConfigStore } from '../providers/config'
 import { useAiriCardStore } from './airi-card'

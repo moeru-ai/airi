@@ -213,5 +213,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * currently visible still prevent accidental dialog closure.
  */
 export function serializeAiriCardEditorDraft(card: Card, state: Record<string, unknown>): string {
-  return JSON.stringify({ card, state })
+  const normalizedCard = {
+    ...card,
+    nickname: card.nickname ?? '',
+    description: card.description ?? '',
+    personality: card.personality ?? '',
+    scenario: card.scenario ?? '',
+    systemPrompt: card.systemPrompt ?? '',
+    postHistoryInstructions: card.postHistoryInstructions ?? '',
+  }
+  return JSON.stringify({ card: normalizedCard, state }, (_key, value) =>
+    isRecord(value) ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) : value)
 }
