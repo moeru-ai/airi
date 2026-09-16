@@ -26,16 +26,3 @@ const { t } = useI18n()
     </div>
   </div>
 </template>
-
-<style scoped>
-.card-editor-field-grid > * {
-  min-width: 45%;
-}
-
-@media (max-width: 641px) {
-  .card-editor-field-grid > * {
-    min-width: unset;
-    width: 100%;
-  }
-}
-</style>
