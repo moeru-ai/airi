@@ -180,7 +180,7 @@ export function usePrevNext() {
  * Keeps navigation within the same section to avoid crossing into unrelated docs.
  */
 function getDocsSectionPrefix(fullUrl: string): string | undefined {
-  const m = fullUrl.match(/\/(en|zh-Hans)\/docs\/([^/]+)\//)
+  const m = fullUrl.match(/\/(en|zh-Hans|ja|ko)\/docs\/([^/]+)\//)
   return m ? `/${m[1]}/docs/${m[2]}/` : undefined
 }
 

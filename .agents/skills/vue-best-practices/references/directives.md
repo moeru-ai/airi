@@ -45,11 +45,11 @@ Directives apply to DOM elements. When used on components, they attach to the ro
 ```vue
 <!-- MyInput.vue -->
 <script setup>
-const vFocus = el => el.focus()
+const vFocus = (el) => el.focus()
 </script>
 
 <template>
-  <input v-focus>
+  <input v-focus />
 </template>
 ```
 
@@ -75,18 +75,18 @@ const vResize = {
 If you only need `mounted`/`updated`, use the function form.
 
 ```ts
-const vAutofocus = el => el.focus()
+const vAutofocus = (el) => el.focus()
 ```
 
 ## Use the `v-` Prefix and Script Setup Registration
 
 ```vue
 <script setup>
-const vFocus = el => el.focus()
+const vFocus = (el) => el.focus()
 </script>
 
 <template>
-  <input v-focus>
+  <input v-focus />
 </template>
 ```
 
@@ -147,7 +147,7 @@ const vTooltip = {
   getSSRProps(binding) {
     return {
       'data-tooltip': binding.value,
-      'class': 'has-tooltip'
+      class: 'has-tooltip'
     }
   }
 }

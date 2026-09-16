@@ -35,21 +35,21 @@ const diagnosticsEntries = computed(() => {
   <div :class="['flex flex-col gap-4', 'pb-8']">
     <div :class="['flex flex-wrap gap-2']">
       <Button
-        variant="secondary"
+
         :loading="isBusy"
         icon="i-solar:refresh-outline"
         label="Check for updates"
         @click="checkForUpdates()"
       />
       <Button
-        variant="secondary"
+
         :disabled="updateState.status !== 'available'"
         icon="i-solar:download-minimalistic-outline"
         label="Download update"
         @click="downloadUpdate()"
       />
       <Button
-        variant="secondary"
+
         :disabled="updateState.status !== 'downloaded'"
         icon="i-solar:restart-bold-duotone"
         label="Restart to install"

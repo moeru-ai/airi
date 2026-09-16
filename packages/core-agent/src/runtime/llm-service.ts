@@ -1,99 +1,15 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message, Tool, Usage } from '@xsai/shared-chat'
+import type { GenerationRequest } from '@proj-airi/provider-inference'
+import type { Usage } from '@xsai/shared-chat'
 
-import type { StreamFromOptions, StreamOptions } from '../types/llm'
+import type { StreamEvent, StreamFromOptions, StreamOptions } from '../types/llm'
 
-import { stepCountAtLeast } from '@xsai/shared-chat'
-import { streamText } from '@xsai/stream-text'
+import { streamChatCompletions } from './chat-completions'
+import { createContinuationScope } from './request-context'
+import { streamResponses } from './responses'
 
-import { errorMessageFromValue } from '../utils/error-message'
-
-/**
- * Normalize chat messages so they match the wire format the active provider
- * actually accepts, flattening content-part arrays back to plain strings when
- * the provider can't deserialize arrays.
- *
- * Use when:
- * - Composing the final message list right before handing it to the OpenAI-
- *   compatible chat SDK.
- *
- * Expects:
- * - `role: 'error'` entries (AIRI-internal markers from the chat UI). They are
- *   rewritten as user-role narrations so the provider doesn't reject them.
- * - `content` may be a string, a content-part array, or undefined.
- *
- * Returns:
- * - A new array of `Message` values; original objects are not mutated.
- *
- * @param messages - Raw messages from the chat session, may include AIRI's
- *   `error` role.
- * @param supportsContentArray - When `false`, force-flatten every array
- *   content (including text + `image_url` mixes) to a text-only string and
- *   drop non-text parts. Drives the runtime auto-degrade for strict providers.
- *   Defaults to `true` to preserve vision/multimodal payloads on capable
- *   providers.
- */
-export function sanitizeMessages(messages: unknown[], supportsContentArray: boolean = true): Message[] {
-  return messages.map((message: any) => {
-    if (message && message.role === 'error') {
-      return {
-        role: 'user',
-        content: `User encountered error: ${String(message.content ?? '')}`,
-      } as Message
-    }
-
-    // NOTICE:
-    // Flatten array content for providers (e.g. DeepSeek and other Rust/serde-
-    // strict OpenAI-compatible gateways) that only accept `messages[].content`
-    // as a plain string and reject arrays with `Failed to deserialize the JSON
-    // body into the target type: messages[N]: invalid type: sequence, expected
-    // a string`.
-    // Root cause: OpenAI's chat API permits `content` as either `string` or an
-    // array of content parts; some compatible servers only implement the
-    // string variant.
-    // Source/context: https://github.com/moeru-ai/airi/issues/1500
-    // Removal condition: when every supported provider accepts content-part
-    // arrays uniformly (no longer realistic for the OpenAI-compatible
-    // ecosystem, so this is effectively load-bearing).
-    if (message && Array.isArray(message.content)) {
-      const contentParts = message.content as { type?: string, text?: string }[]
-      const hasNonTextPart = contentParts.some(part => part?.type && part.type !== 'text')
-      // When the provider supports arrays, only flatten pure-text arrays so we
-      // never silently drop image / audio / file parts on a vision-capable
-      // model. When it doesn't, flatten unconditionally; non-text parts are
-      // dropped because the provider can't carry them anyway.
-      if (!supportsContentArray || !hasNonTextPart) {
-        return { ...message, content: contentParts.map(part => part?.text ?? '').join('') } as Message
-      }
-    }
-
-    return message as Message
-  })
-}
-
-export function modelKey(model: string, chatProvider: ChatProvider): string {
-  return `${chatProvider.chat(model).baseURL}-${model}`
-}
-
-export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
-  if (options?.supportsTools !== undefined)
-    return options.supportsTools
-  const key = modelKey(model, chatProvider)
-  return options?.toolsCompatibility?.get(key) !== false
-}
-
-/**
- * Resolve whether the active model+provider currently supports content-part
- * arrays. Defaults to `true` so first-time calls keep multimodal payloads;
- * flips to `false` once {@link isContentArrayRelatedError} has fired on this
- * model key and the caller has cached the degrade in
- * {@link StreamOptions.contentArrayCompatibility}.
- */
-export function streamOptionsContentArrayCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
-  if (options?.supportsContentArray !== undefined)
-    return options.supportsContentArray
-  const key = modelKey(model, chatProvider)
-  return options?.contentArrayCompatibility?.get(key) !== false
+/** Builds a compatibility-cache key from the same configuration used by the request. */
+export function modelKey(model: string, { protocol, config }: GenerationRequest): string {
+  return `${protocol === 'responses' ? 'responses:' : ''}${config.baseURL}-${model}`
 }
 
 async function resolveTools(options?: StreamOptions) {
@@ -103,100 +19,27 @@ async function resolveTools(options?: StreamOptions) {
   return tools ?? []
 }
 
-function isAbortError(error: unknown): boolean {
-  return typeof error === 'object'
-    && error !== null
-    && (error as { name?: unknown }).name === 'AbortError'
-}
-
-function createCapturedToolErrorResult(toolName: string, error: unknown): string {
-  return `Tool call error for "${toolName}": ${errorMessageFromValue(error)}`
-}
-
-function normalizeUsage(usage: Usage | undefined) {
-  if (!usage || (usage.prompt_tokens == null && usage.completion_tokens == null && usage.total_tokens == null)) {
-    return { source: 'unavailable' as const }
-  }
-
-  return {
-    inputTokens: usage.prompt_tokens,
-    outputTokens: usage.completion_tokens,
-    totalTokens: usage.total_tokens,
-    source: 'reported' as const,
-  }
-}
-
-function withCapturedToolErrors(
-  tools: Tool[],
-  capturedToolErrorByCallId: Map<string, string>,
-): Tool[] {
-  return tools.map(tool => ({
-    ...tool,
-    execute: async (input, executeOptions) => {
-      try {
-        return await tool.execute(input, executeOptions)
-      }
-      catch (error) {
-        if (isAbortError(error))
-          throw error
-
-        const result = createCapturedToolErrorResult(tool.function.name, error)
-        capturedToolErrorByCallId.set(executeOptions.toolCallId, result)
-        return result
-      }
-    },
-  }))
-}
-
-function resolveCapturedToolErrorEvent(
-  event: unknown,
-  capturedToolErrorByCallId: Map<string, string>,
-) {
-  if (
-    typeof event !== 'object'
-    || event === null
-    || (event as { type?: unknown }).type !== 'tool-result'
-    || typeof (event as { toolCallId?: unknown }).toolCallId !== 'string'
-  ) {
-    return event
-  }
-
-  const toolCallId = (event as { toolCallId: string }).toolCallId
-  const result = capturedToolErrorByCallId.get(toolCallId)
-  if (result == null)
-    return event
-
-  capturedToolErrorByCallId.delete(toolCallId)
-  return {
-    ...event,
-    type: 'tool-error',
-    isError: true,
-    result,
-  }
-}
-
+/** Runs the selected protocol adapter and waits for its generated turn and event consumers. */
 export async function streamFrom({
   model,
   chatProvider,
-  messages,
+  conversation,
   options,
   builtinToolsResolver,
 }: StreamFromOptions) {
-  const chatConfig = chatProvider.chat(model)
-  const supportsContentArray = streamOptionsContentArrayCompatibilityOk(model, chatProvider, options)
-  const sanitized = sanitizeMessages(messages as unknown[], supportsContentArray)
-
-  const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, options)
+  // Resolve before async tool loading so all decisions use this request's configuration.
+  const request = chatProvider.generation(model)
+  const key = modelKey(model, request)
+  const supportedTools = options?.supportsTools ?? (options?.toolsCompatibility?.get(key) !== false)
+  const supportsContentArray = options?.supportsContentArray ?? (options?.contentArrayCompatibility?.get(key) !== false)
   const builtinTools = supportedTools
     ? await (builtinToolsResolver?.(model, chatProvider) ?? Promise.resolve([]))
     : []
   const customTools = supportedTools ? await resolveTools(options) : []
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
-  const capturedToolErrorByCallId = new Map<string, string>()
-  const streamTools = options?.captureToolErrors && tools != null
-    ? withCapturedToolErrors(tools, capturedToolErrorByCallId)
-    : tools
+
+  const scope = createContinuationScope(request.config, options)
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
@@ -214,35 +57,24 @@ export async function streamFrom({
       reject(error)
     }
 
-    const onEvent = async (event: unknown) => {
+    const onEvent = async (streamEvent: StreamEvent) => {
       try {
-        const streamEvent = resolveCapturedToolErrorEvent(event, capturedToolErrorByCallId)
-        await options?.onStreamEvent?.(streamEvent as any)
-        if (event && (event as any).type === 'error') {
-          rejectOnce((event as any).error ?? new Error('Stream error'))
-        }
+        if (streamEvent != null)
+          await options?.onStreamEvent?.(streamEvent)
+        if (streamEvent?.type === 'error')
+          rejectOnce(streamEvent.error)
       }
       catch (error) {
         rejectOnce(error)
+        if (request.protocol === 'responses')
+          throw error
       }
     }
 
     try {
-      const streamResult = streamText({
-        ...chatConfig,
-        abortSignal: options?.abortSignal,
-        messages: sanitized,
-        headers: options?.headers,
-        streamOptions: { includeUsage: true },
-        stopWhen: stepCountAtLeast(10),
-        // NOTICE:
-        // Do not pass xsAI's `captureToolErrors` option here. In the installed
-        // @xsai/stream-text version, stream options are spread into the provider
-        // chat body, so unknown runtime-only fields can be rejected upstream.
-        // AIRI captures tool failures by wrapping local tool executors instead.
-        tools: streamTools,
-        onEvent,
-      })
+      const streamResult = request.protocol === 'responses'
+        ? streamResponses({ config: request.config, webSearch: supportedTools && request.webSearch, conversation, scope, options, tools, onEvent })
+        : streamChatCompletions({ config: request.config, conversation, scope, options, tools, onEvent, supportsContentArray })
 
       // NOTICE: Consume underlying promises to prevent unhandled rejections from
       // @xsai/stream-text's SSE parser surfacing as faulted app state.
@@ -259,9 +91,27 @@ export async function streamFrom({
       // Keep `steps.then(resolveOnce)` so evaluation runners observe the real end
       // of the stream lifecycle instead of an intermediate tool boundary.
       void streamResult.steps.then(async () => {
+        if (settled)
+          return
         // Ignore any late provider error event emitted after xsAI has already
         // resolved the authoritative full-step lifecycle.
         stepsSettled = true
+        try {
+          const generatedTurn = await streamResult.generatedTurn
+          await options?.onStreamEvent?.({ type: 'finish' })
+          if (options?.abortSignal?.aborted)
+            throw options.abortSignal.reason
+          await options?.onGeneratedTurn?.(generatedTurn)
+        }
+        catch (error) {
+          // Terminal consumers and generated turn persistence belong to generation
+          // completion. Their failures are not ignorable late provider events.
+          if (!settled) {
+            settled = true
+            reject(error)
+          }
+          return
+        }
         let usage: Usage | undefined
         try {
           usage = await streamResult.totalUsage
@@ -270,7 +120,11 @@ export async function streamFrom({
           console.error('Stream totalUsage error:', error)
         }
         try {
-          await options?.onUsage?.(normalizeUsage(usage))
+          const normalizedUsage = !usage
+            || (usage.inputTokens == null && usage.outputTokens == null && usage.totalTokens == null)
+            ? { source: 'unavailable' as const }
+            : { ...usage, source: 'reported' as const }
+          await options?.onUsage?.(normalizedUsage)
         }
         catch (error) {
           // Usage observers are telemetry-only and must not turn a completed
@@ -289,7 +143,9 @@ export async function streamFrom({
         rejectOnce(error)
         console.error('Stream steps error:', error)
       })
-      void streamResult.messages.catch(error => console.error('Stream messages error:', error))
+      // `steps` can reject before the success path awaits `messages`.
+      // Keep this rejection sink so xsAI cannot create an unhandled rejection.
+      void streamResult.generatedTurn.catch(error => console.error('Stream generated turn error:', error))
       void streamResult.usage.catch(error => console.error('Stream usage error:', error))
       // `steps` and `totalUsage` reject independently when xsAI fails a
       // stream. The success path awaits `totalUsage`, but if `steps` rejects

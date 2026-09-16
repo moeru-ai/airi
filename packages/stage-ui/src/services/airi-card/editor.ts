@@ -37,6 +37,34 @@ interface AiriCardEditorModules {
   >
 }
 
+/**
+ * Reads the module fields that the AIRI Card editor owns.
+ *
+ * Empty strings mean that the card inherits the corresponding global setting.
+ */
+export function getAiriCardEditorModuleSettings(
+  card: Card | undefined,
+): Pick<AiriCardEditorModules, 'consciousness' | 'vision' | 'speech' | 'displayModelId'> {
+  const modules = getAiriCardModules(card?.extensions?.airi)
+
+  return {
+    consciousness: {
+      provider: getModuleString(modules?.consciousness, 'provider'),
+      model: getModuleString(modules?.consciousness, 'model'),
+    },
+    vision: {
+      provider: getModuleString(modules?.vision, 'provider'),
+      model: getModuleString(modules?.vision, 'model'),
+    },
+    speech: {
+      provider: getModuleString(modules?.speech, 'provider'),
+      model: getModuleString(modules?.speech, 'model'),
+      voice_id: getModuleString(modules?.speech, 'voice_id'),
+    },
+    displayModelId: getModuleString(modules, 'displayModelId'),
+  }
+}
+
 type CardWithAiriExtension = Card & {
   extensions: NonNullable<Card['extensions']> & {
     airi: AiriExtension
@@ -68,16 +96,6 @@ const artistryOptionsSchema = pipe(
   check(isRecord),
   objectWithRest({}, unknown()),
 )
-
-/**
- * Serializes all editor-owned fields into a stable dirty-check snapshot.
- *
- * The card and module state share one boundary so edits on tabs that are not
- * currently visible still prevent accidental dialog closure.
- */
-export function serializeAiriCardEditorDraft(card: Card, state: Record<string, unknown>): string {
-  return JSON.stringify({ card, state })
-}
 
 /**
  * Validates and normalizes the fields owned by the AIRI Card editor.
@@ -169,6 +187,31 @@ function isAiriExtension(value: unknown): value is AiriExtension {
     && isRecord(value.agents)
 }
 
+function getAiriCardModules(value: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(value) || !isRecord(value.modules))
+    return undefined
+
+  return value.modules
+}
+
+function getModuleString(module: unknown, key: string): string {
+  if (!isRecord(module))
+    return ''
+
+  const value = module[key]
+  return typeof value === 'string' ? value : ''
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Serializes all editor-owned fields into a stable dirty-check snapshot.
+ *
+ * The card and module state share one boundary so edits on tabs that are not
+ * currently visible still prevent accidental dialog closure.
+ */
+export function serializeAiriCardEditorDraft(card: Card, state: Record<string, unknown>): string {
+  return JSON.stringify({ card, state })
 }

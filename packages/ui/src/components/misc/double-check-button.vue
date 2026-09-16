@@ -1,21 +1,20 @@
 <script setup lang="ts">
+import type { ButtonColor, ButtonSize, ButtonVariant } from './button-types'
+
 import { computed, ref, watch } from 'vue'
 
 import Button from './button.vue'
 
-type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger' | 'caution'
-type ButtonSize = 'sm' | 'md' | 'lg'
-
 const props = withDefaults(defineProps<{
+  color?: ButtonColor
   variant?: ButtonVariant
-  cancelVariant?: ButtonVariant
   size?: ButtonSize
   block?: boolean
   disabled?: boolean
   loading?: boolean
 }>(), {
-  variant: 'danger',
-  cancelVariant: 'secondary',
+  color: 'red',
+  variant: 'primary',
   size: 'md',
   block: false,
   disabled: false,
@@ -64,28 +63,33 @@ function handleCancel() {
 
 <template>
   <div :class="wrapperClasses">
-    <div class="flex flex-wrap items-center gap-2">
-      <Transition name="double-check-slide">
-        <Button
-          v-if="confirming"
-          key="cancel"
-          :variant="cancelVariant"
-          :size="size"
-          :block="block"
-          class="whitespace-nowrap"
-          @click="handleCancel"
-        >
-          <div class="flex items-center gap-2">
-            <slot
-              v-if="slots['cancel-botton-icon']"
-              name="cancel-botton-icon"
-            />
-            <span><slot name="cancel">Cancel</slot></span>
-          </div>
-        </Button>
-      </Transition>
+    <TransitionGroup
+      name="double-check-slide"
+      tag="div"
+      :class="['relative flex flex-wrap items-center gap-2']"
+    >
+      <Button
+        v-if="confirming"
+        key="cancel"
+        color="neutral"
+        variant="secondary"
+        :size="size"
+        :block="block"
+        class="whitespace-nowrap"
+        @click="handleCancel"
+      >
+        <div class="flex items-center gap-2">
+          <slot
+            v-if="slots['cancel-botton-icon']"
+            name="cancel-botton-icon"
+          />
+          <span><slot name="cancel">Cancel</slot></span>
+        </div>
+      </Button>
 
       <Button
+        key="primary"
+        :color="color"
         :variant="variant"
         :size="size"
         :block="block"
@@ -107,14 +111,23 @@ function handleCancel() {
           </slot>
         </span>
       </Button>
-    </div>
+    </TransitionGroup>
   </div>
 </template>
 
 <style scoped>
+.double-check-slide-move {
+  transition: transform 180ms ease;
+}
+
 .double-check-slide-enter-active,
 .double-check-slide-leave-active {
   transition: opacity 160ms ease, transform 160ms ease;
+}
+
+/* Removing the cancel button from flex flow lets TransitionGroup animate the primary button's layout shift. */
+.double-check-slide-leave-active {
+  position: absolute;
 }
 
 .double-check-slide-enter-from,
@@ -124,7 +137,7 @@ function handleCancel() {
 }
 
 .double-check-primary {
-  transition: min-width 180ms ease, padding 180ms ease;
+  transition: min-width 180ms ease, padding 180ms ease, transform 180ms ease;
 }
 
 .double-check-primary--default {

@@ -91,6 +91,23 @@ export default defineConfig({
     },
   },
   build: {
+    manifest: true,
+    rolldownOptions: {
+      output: {
+        chunkFileNames: (chunkInfo) => {
+          const containsAnalyticsModule = chunkInfo.moduleIds.some((moduleId) => {
+            const normalizedModuleId = moduleId.replaceAll('\\', '/').toLowerCase()
+            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('openpanel')
+          })
+
+          // Only analytics/provider chunks receive the manual neutral mapping;
+          // all unrelated chunks retain Vite's readable default naming.
+          return containsAnalyticsModule
+            ? 'assets/auxiliary-[hash].js'
+            : 'assets/[name]-[hash].js'
+        },
+      },
+    },
     sourcemap: true,
   },
   worker: {
@@ -201,6 +218,10 @@ export default defineConfig({
           },
           workbox: {
             maximumFileSizeToCacheInBytes: 64 * 1024 * 1024,
+            // Cloudflare redirects /index.html to /. Cache the canonical response
+            // so navigation fallbacks never replay a redirected response.
+            modifyURLPrefix: { 'index.html': './' },
+            navigateFallback: './',
             navigateFallbackDenylist: [
               /^\/docs\//,
               /^\/ui\//,
@@ -217,8 +238,9 @@ export default defineConfig({
       fullInstall: true,
     }),
 
-    // https://github.com/webfansplz/vite-plugin-vue-devtools
-    VueDevTools(),
+    // Browser tests mount short-lived apps. A delayed DevTools setup can run
+    // after the test app is gone, so only load this plugin for the real app.
+    ...(env.VITEST ? [] : [VueDevTools()]),
 
     DownloadLive2DSDK(),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),

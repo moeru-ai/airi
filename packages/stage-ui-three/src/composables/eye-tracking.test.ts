@@ -9,7 +9,6 @@ vi.mock('@vueuse/core', async () => {
       post: vi.fn(),
       data: vue.ref(null),
     })),
-    useLocalStorage: vi.fn((_key, initialValue) => vue.ref(initialValue)),
   }
 })
 

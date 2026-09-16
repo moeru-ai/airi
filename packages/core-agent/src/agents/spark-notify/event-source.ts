@@ -16,17 +16,6 @@ function formatMetadataSource(source?: MetadataEventSource) {
   return source.id
 }
 
-/**
- * Resolves a stable source key for websocket-originated events.
- *
- * Before:
- * - `{ source: "minecraft" }`
- * - `{ metadata: { source: { extension: { id: "p" }, id: "i" } } }`
- *
- * After:
- * - `"minecraft"`
- * - `"p:i"`
- */
 export function getEventSourceKey(event: EventSourcePayload, fallback = 'unknown') {
   return (
     formatMetadataSource(event.metadata?.source)

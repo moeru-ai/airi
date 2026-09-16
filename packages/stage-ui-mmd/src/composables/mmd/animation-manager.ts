@@ -1,107 +1,109 @@
-import type { AnimationAction, AnimationClip, AnimationMixer, SkinnedMesh } from 'three'
+import type { MMD } from '@moeru/three-mmd'
+import type { AnimationAction, AnimationClip } from 'three'
 
-import { AnimationClip as AnimationClipCtor, LoopOnce, LoopRepeat, Vector3 } from 'three'
-import { MMDAnimationHelper } from 'three-stdlib'
+import { AnimationMixer, LoopOnce, LoopRepeat, Vector3 } from 'three'
 
 import { ensureAmmo } from '../../utils/ammo'
 
 const DEFAULT_CROSSFADE = 0.4
 
 export interface MMDAnimationManagerOptions {
-  /** Initial physics enablement. Ammo always loads so it can be toggled later. */
+  /**
+   * Initial physics enablement. Ammo is still installed so physics can be
+   * enabled later without rebuilding the model runtime.
+   *
+   * @default true
+   */
   physicsEnabled?: boolean
 }
 
 export interface PlayActionOptions {
-  /** Loop the action instead of reverting to idle when it finishes. */
+  /**
+   * Loop the action instead of reverting to idle when it finishes.
+   *
+   * @default false
+   */
   loop?: boolean
-  /** Cross-fade duration in seconds. */
+  /**
+   * Cross-fade duration in seconds.
+   *
+   * @default 0.4
+   */
   crossfade?: number
 }
 
 /**
- * Owns the per-model {@link MMDAnimationHelper} and the catalog of importable
- * VMD motions, exposing a play/crossfade API and physics/IK/grant toggles.
+ * Owns a model's animation mixer, imported VMD catalog, solver feature gates,
+ * and lazily installed Ammo runtime.
  *
- * Design:
- * - The helper auto-plays whatever clip it is constructed with, so we hand it
- *   only the idle clip (or an empty placeholder so a mixer always exists for
- *   physics warmup) and layer every other motion on the same mixer ourselves.
- * - Physics is created up front (it cannot be added after the fact) and merely
- *   toggled via `helper.enable('physics', …)`, so Ammo is required before the
- *   mesh is added. Ammo is still lazy at the app level: it only loads once an
- *   MMD model is actually mounted.
- * - One-shot actions register a `finished` listener that fades back to idle,
- *   mirroring how the Spine manager layers emotion clips over the idle track.
- *
- * `update(delta)` must be called once per frame; it drives animation, IK,
- * append-bone (grant) propagation, and the physics simulation in one step.
+ * `update(delta)` must run once per frame before AIRI-owned expression,
+ * lip-sync, blink, and gaze overrides. Disposal stops actions before ending
+ * the MMD runtime so no frame can observe a partially torn-down model.
  */
-export function createMMDAnimationManager(mesh: SkinnedMesh, options: MMDAnimationManagerOptions = {}) {
-  // NOTICE:
-  // resetPhysicsOnLoop must stay false. When true, MMDAnimationHelper calls
-  // physics.reset() every time the mixer's clip loops, which snaps every rigid
-  // body back to its bone pose and re-seeds the sim — a visible periodic
-  // "fling" of hair/skirt. Continuous simulation looks correct for an idle
-  // character and avoids the jolt.
-  const helper = new MMDAnimationHelper({ afterglow: 2.0, resetPhysicsOnLoop: false })
+export function createMMDAnimationManager(mmd: MMD, options: MMDAnimationManagerOptions = {}) {
+  const mixer = new AnimationMixer(mmd.mesh)
   const registry = new Map<string, AnimationClip>()
+  const finishListeners = new Map<AnimationAction, (event: { action: AnimationAction }) => void>()
 
-  let mixer: AnimationMixer | undefined
-  let idleClip: AnimationClip | undefined
   let idleAction: AnimationAction | undefined
   let currentAction: AnimationAction | undefined
   let initialized = false
+  let disposed = false
+  let initialization: Promise<void> | undefined
+  let physicsEnabled = options.physicsEnabled ?? true
+  let ikEnabled = true
+  let grantEnabled = true
+  let gravity: number | undefined
 
-  function getMixer(): AnimationMixer | undefined {
-    if (!mixer)
-      mixer = helper.objects.get(mesh)?.mixer
-    return mixer
+  function removeFinishListener(action: AnimationAction): void {
+    const listener = finishListeners.get(action)
+    if (!listener)
+      return
+    mixer.removeEventListener('finished', listener)
+    finishListeners.delete(action)
   }
 
-  function revertToIdleOnFinish(action: AnimationAction) {
-    const m = getMixer()
-    if (!m)
-      return
+  function revertToIdleOnFinish(action: AnimationAction): void {
+    removeFinishListener(action)
     const onFinished = (event: { action: AnimationAction }) => {
       if (event.action !== action)
         return
-      m.removeEventListener('finished', onFinished)
+      removeFinishListener(action)
       playIdle()
     }
-    m.addEventListener('finished', onFinished)
+    finishListeners.set(action, onFinished)
+    mixer.addEventListener('finished', onFinished)
   }
 
   /**
-   * Builds the helper, physics, IK, and grant solvers for the mesh.
-   *
-   * `idle` is the persistent looping motion (optional). Ammo is initialized
-   * before the mesh is added so the physics world can be constructed.
+   * Installs the lazy Ammo backend and optionally starts an initial idle clip.
+   * Concurrent calls share one initialization; disposal while Ammo loads
+   * prevents the completed promise from reviving the manager.
    */
   async function init(idle?: AnimationClip): Promise<void> {
-    if (initialized)
+    if (initialized || disposed)
       return
+    if (initialization)
+      return initialization
 
-    await ensureAmmo()
+    initialization = (async () => {
+      const createPhysics = await ensureAmmo()
+      if (disposed)
+        return
 
-    // The helper needs at least one clip to create a mixer (required for action
-    // playback). When there is no real idle motion we use a long, track-less
-    // placeholder: a zero-length clip would fire the mixer's "loop" event every
-    // frame, so the large duration keeps it from ever looping.
-    idleClip = idle ?? new AnimationClipCtor('__mmd_empty__', Number.MAX_SAFE_INTEGER, [])
+      mmd.setPhysics(createPhysics)
+      if (gravity !== undefined)
+        mmd.physics?.setGravity?.(new Vector3(0, -gravity, 0))
 
-    helper.add(mesh, {
-      animation: idleClip,
-      physics: true,
-    })
+      if (idle) {
+        idleAction = mixer.clipAction(idle)
+        idleAction.setLoop(LoopRepeat, Number.POSITIVE_INFINITY).play()
+      }
+      currentAction = idleAction
+      initialized = true
+    })()
 
-    helper.enable('physics', options.physicsEnabled ?? true)
-
-    mixer = helper.objects.get(mesh)?.mixer
-    if (mixer && idle)
-      idleAction = mixer.existingAction(idleClip) ?? undefined
-    currentAction = idleAction
-    initialized = true
+    return initialization
   }
 
   /** Registers a VMD-derived clip under a name for later playback. */
@@ -116,134 +118,138 @@ export function createMMDAnimationManager(mesh: SkinnedMesh, options: MMDAnimati
 
   /** Cross-fades back to the persistent idle loop. */
   function playIdle(crossfade = DEFAULT_CROSSFADE): void {
-    const m = getMixer()
-    if (!m)
-      return
+    if (currentAction)
+      removeFinishListener(currentAction)
 
-    // No idle clip registered (e.g. empty placeholder): just fade the current
-    // motion out so bones relax to rest instead of clamping on the last frame.
+    // With no configured idle, fade the active motion out so the skeleton
+    // returns to its rest pose instead of clamping on the final keyframe.
     if (!idleAction) {
-      if (currentAction)
-        currentAction.fadeOut(crossfade)
+      currentAction?.fadeOut(crossfade)
       currentAction = undefined
       return
     }
 
     if (currentAction && currentAction !== idleAction)
       currentAction.fadeOut(crossfade)
-    // Restore LoopRepeat: a one-shot may have reused this same action with
-    // LoopOnce, which would otherwise leave the idle no longer looping.
+    // A one-shot may reuse the same action, so restore its looping contract.
     idleAction.reset().setLoop(LoopRepeat, Number.POSITIVE_INFINITY).setEffectiveWeight(1).fadeIn(crossfade).play()
     currentAction = idleAction
   }
 
   /**
-   * Plays a registered motion, cross-fading from the current one. One-shots
-   * revert to idle on completion; looping motions stay until replaced.
+   * Plays a registered motion and cross-fades from the current action.
+   * One-shots return to idle; looping actions remain active until replaced.
    *
-   * Returns `false` when the name is not registered so callers can fall back.
+   * @returns `false` when no clip is registered under `name`.
    */
-  function playAction(name: string, opts: PlayActionOptions = {}): boolean {
-    const m = getMixer()
+  function playAction(name: string, actionOptions: PlayActionOptions = {}): boolean {
     const clip = registry.get(name)
-    if (!m || !clip) {
-      console.warn(`[mmd] playAction skipped: "${name}" is ${clip ? 'present' : 'not registered'}, mixer ${m ? 'ready' : 'missing'}`)
+    if (!clip) {
+      console.warn(`[mmd] playAction skipped: "${name}" is not registered`)
       return false
     }
 
-    const loop = opts.loop ?? false
-    const crossfade = opts.crossfade ?? DEFAULT_CROSSFADE
-
-    const action = m.clipAction(clip)
+    const loop = actionOptions.loop ?? false
+    const crossfade = actionOptions.crossfade ?? DEFAULT_CROSSFADE
+    const action = mixer.clipAction(clip)
     action.reset()
     action.setLoop(loop ? LoopRepeat : LoopOnce, loop ? Number.POSITIVE_INFINITY : 1)
     action.clampWhenFinished = !loop
     action.setEffectiveWeight(1)
     action.fadeIn(crossfade).play()
 
-    if (currentAction && currentAction !== action)
+    if (currentAction && currentAction !== action) {
+      removeFinishListener(currentAction)
       currentAction.fadeOut(crossfade)
+    }
     currentAction = action
 
-    if (!loop)
+    if (loop)
+      removeFinishListener(action)
+    else
       revertToIdleOnFinish(action)
 
     return true
   }
 
   /**
-   * Makes a registered motion the persistent looping base (the idle the
-   * character returns to). Cross-fades from whatever is currently playing.
+   * Makes a registered motion the looping base that one-shots return to.
    *
-   * Returns `false` when the name is not registered.
+   * @returns `false` when no clip is registered under `name`.
    */
   function setIdleMotion(name: string, crossfade = DEFAULT_CROSSFADE): boolean {
-    const m = getMixer()
     const clip = registry.get(name)
-    if (!m || !clip) {
-      console.warn(`[mmd] setIdleMotion skipped: "${name}" is ${clip ? 'present' : 'not registered'}, mixer ${m ? 'ready' : 'missing'}`)
+    if (!clip) {
+      console.warn(`[mmd] setIdleMotion skipped: "${name}" is not registered`)
       return false
     }
 
-    const action = m.clipAction(clip)
+    const action = mixer.clipAction(clip)
     action.reset()
     action.setLoop(LoopRepeat, Number.POSITIVE_INFINITY)
     action.clampWhenFinished = false
     action.setEffectiveWeight(1)
     action.fadeIn(crossfade).play()
 
-    const previous = idleAction
-    idleClip = clip
+    const previousIdle = idleAction
     idleAction = action
-    if (currentAction && currentAction !== action)
+    if (currentAction && currentAction !== action) {
+      removeFinishListener(currentAction)
       currentAction.fadeOut(crossfade)
-    else if (previous && previous !== action)
-      previous.fadeOut(crossfade)
+    }
+    else if (previousIdle && previousIdle !== action) {
+      previousIdle.fadeOut(crossfade)
+    }
     currentAction = action
     return true
   }
 
   function setPhysicsEnabled(enabled: boolean): void {
-    helper.enable('physics', enabled)
+    physicsEnabled = enabled
   }
 
-  /** Sets the physics world gravity strength, applied as (0, -magnitude, 0). */
+  /** Sets physics gravity to `(0, -magnitude, 0)`, including during init. */
   function setGravity(magnitude: number): void {
-    helper.objects.get(mesh)?.physics?.setGravity(new Vector3(0, -magnitude, 0))
+    gravity = magnitude
+    mmd.physics?.setGravity?.(new Vector3(0, -magnitude, 0))
   }
 
   function setIKEnabled(enabled: boolean): void {
-    helper.enable('ik', enabled)
+    ikEnabled = enabled
   }
 
   function setGrantEnabled(enabled: boolean): void {
-    helper.enable('grant', enabled)
+    grantEnabled = enabled
   }
 
   function update(delta: number): void {
-    if (!initialized)
+    if (!initialized || disposed)
       return
-    helper.update(delta)
+    mmd.updateWithMixer(delta, mixer, {
+      grant: grantEnabled,
+      ik: ikEnabled,
+      physics: physicsEnabled,
+    })
   }
 
   function dispose(): void {
-    const m = getMixer()
-    m?.stopAllAction()
-    if (initialized) {
-      try {
-        helper.remove(mesh)
-      }
-      catch {}
-    }
+    if (disposed)
+      return
+    disposed = true
+
+    for (const listener of finishListeners.values())
+      mixer.removeEventListener('finished', listener)
+    finishListeners.clear()
+    mixer.stopAllAction()
+    mixer.uncacheRoot(mmd.mesh)
+    mmd.dispose()
     registry.clear()
-    mixer = undefined
     idleAction = undefined
     currentAction = undefined
     initialized = false
   }
 
   return {
-    helper,
     init,
     registerClip,
     availableClips,

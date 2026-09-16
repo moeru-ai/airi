@@ -54,7 +54,9 @@ export default {
   setup() {
     const items = ref([{ id: 1, name: 'Apple' }])
 
-    return () => h('ul', items.value.map(item => h('li', item.name)))
+    return () => h('ul',
+      items.value.map(item => h('li', item.name))
+    )
   }
 }
 ```
@@ -67,7 +69,9 @@ export default {
   setup() {
     const items = ref([{ id: 1, name: 'Apple' }])
 
-    return () => h('ul', items.value.map(item => h('li', { key: item.id }, item.name)))
+    return () => h('ul',
+      items.value.map(item => h('li', { key: item.id }, item.name))
+    )
   }
 }
 ```
@@ -92,7 +96,7 @@ export default {
 
 **GOOD:**
 ```javascript
-import { h, withKeys, withModifiers } from 'vue'
+import { h, withModifiers, withKeys } from 'vue'
 
 export default {
   setup() {
@@ -116,7 +120,6 @@ export default {
 **BAD:**
 ```javascript
 import { h, ref } from 'vue'
-
 import CustomInput from './CustomInput.vue'
 
 export default {
@@ -130,14 +133,13 @@ export default {
 **GOOD:**
 ```javascript
 import { h, ref } from 'vue'
-
 import CustomInput from './CustomInput.vue'
 
 export default {
   setup() {
     const text = ref('')
     return () => h(CustomInput, {
-      'modelValue': text.value,
+      modelValue: text.value,
       'onUpdate:modelValue': (value) => { text.value = value }
     })
   }
@@ -150,7 +152,7 @@ export default {
 ```javascript
 import { h } from 'vue'
 
-const vFocus = { mounted: el => el.focus() }
+const vFocus = { mounted: (el) => el.focus() }
 
 export default {
   setup() {
@@ -163,7 +165,7 @@ export default {
 ```javascript
 import { h, withDirectives } from 'vue'
 
-const vFocus = { mounted: el => el.focus() }
+const vFocus = { mounted: (el) => el.focus() }
 
 export default {
   setup() {

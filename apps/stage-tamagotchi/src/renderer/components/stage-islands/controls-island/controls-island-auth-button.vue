@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { Avatar } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -13,6 +14,7 @@ import {
 } from '../../../../shared/eventa'
 
 const props = defineProps<{
+  active: boolean
   buttonStyle?: string
   iconClass?: string
 }>()
@@ -44,18 +46,22 @@ function doSigningIn() {
   startSigningIn()
 }
 
-// Clear loading state on callback or error from main process.
-// No cleanup needed — this component lives for the window's lifetime.
-context.value.on(electronAuthCallback, () => {
+// Each listener belongs to this mounted menu, including its hidden measurement state.
+const stopCallback = context.value.on(electronAuthCallback, () => {
   signingIn.value = false
 })
-context.value.on(electronAuthCallbackError, () => {
+const stopError = context.value.on(electronAuthCallbackError, () => {
   signingIn.value = false
+})
+onScopeDispose(() => {
+  stopCallback()
+  stopError()
 })
 
-// React to needsLogin from other components (e.g. onboarding)
-watch(needsLogin, (val) => {
-  if (val && !isAuthenticated.value) {
+// Hidden measurement must not initiate login requests. Keep the request until
+// the menu becomes visible, then preserve the original transition behavior.
+watch([needsLogin, () => props.active], ([requested, active]) => {
+  if (active && requested && !isAuthenticated.value) {
     doSigningIn()
     needsLogin.value = false
   }
@@ -104,21 +110,14 @@ watch(isAuthenticated, (val) => {
       ]"
       @click="handleClick"
     >
-      <div
+      <Avatar
+        :src="userAvatar"
         :class="[
           'size-8 shrink-0 overflow-hidden rounded-full',
           'bg-primary-100 dark:bg-primary-900/40',
           'flex items-center justify-center',
         ]"
-      >
-        <img
-          v-if="userAvatar"
-          :src="userAvatar"
-          :alt="userName ?? ''"
-          class="size-full object-cover"
-        >
-        <div v-else i-solar:user-check-rounded-bold class="size-4 text-primary-500 dark:text-primary-400" />
-      </div>
+      />
       <div class="min-w-0 flex flex-1 flex-col items-start gap-0.5">
         <span
           :class="[

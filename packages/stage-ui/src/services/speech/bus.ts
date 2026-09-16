@@ -1,4 +1,4 @@
-import { defineEventa } from '@moeru/eventa'
+import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 import { createContext as createBroadcastChannelContext } from '@moeru/eventa/adapters/broadcast-channel'
 
 export interface SpeechIntentStartPayload {
@@ -41,6 +41,15 @@ export const speechIntentSpecialEvent = defineEventa<SpeechIntentTokenPayload>('
 export const speechIntentFlushEvent = defineEventa<SpeechIntentTokenPayload>('eventa:audio:speech:intent:flush')
 export const speechIntentEndEvent = defineEventa<SpeechIntentEndPayload>('eventa:audio:speech:intent:end')
 export const speechIntentCancelEvent = defineEventa<SpeechIntentCancelPayload>('eventa:audio:speech:intent:cancel')
+
+/** Snapshot served by the renderer that owns active speech playback. */
+export interface SpeechOutputPlaybackState {
+  /** Whether the output host is currently playing assistant speech. */
+  speaking: boolean
+}
+
+/** Cross-renderer request for the active speech output host's playback state. */
+export const speechOutputGetPlaybackState = defineInvokeEventa<SpeechOutputPlaybackState>('eventa:audio:speech:output:get-playback-state')
 
 const BUS_CHANNEL_NAME = 'proj-airi:pipelines:outputs:speech'
 

@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/electron-vueuse",
   "type": "module",
-  "version": "0.11.3",
+  "version": "0.12.0-beta.5",
   "private": true,
   "description": "VueUse-like composables and helpers for Electron apps",
   "author": {
@@ -32,7 +32,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "electron": ">=39 <41",
+    "electron": ">=39 <44",
     "vue": ">=3"
   },
   "dependencies": {
@@ -43,6 +43,7 @@
     "std-env": "catalog:"
   },
   "devDependencies": {
-    "@proj-airi/electron-eventa": "workspace:^"
+    "@proj-airi/electron-eventa": "workspace:^",
+    "vue": "catalog:"
   }
 }

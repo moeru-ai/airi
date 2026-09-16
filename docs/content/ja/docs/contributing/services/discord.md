@@ -6,7 +6,7 @@ description: Project AIRI への貢献
 ### Discord bot 統合
 
 ```shell
-cd services/discord-bot
+cd integrations/discord-bot
 ```
 
 `.env` の設定

@@ -1,8 +1,8 @@
-import type { MediaAccessPermissionRequest, PermissionCheckHandlerHandlerDetails, WebContents } from 'electron'
+import type { DevicePermissionHandlerHandlerDetails, HIDDevice, MediaAccessPermissionRequest, PermissionCheckHandlerHandlerDetails, Session, WebContents } from 'electron'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { shouldGrantAudioCapturePermission, shouldGrantElectronPermission } from './media-permissions'
+import { setupPermissionHandlers, shouldGrantAudioCapturePermission, shouldGrantElectronPermission } from './media-permissions'
 
 const localWebContents = {
   getURL: () => 'file:///app/index.html',
@@ -25,6 +25,31 @@ function createMediaRequestDetails(overrides: Partial<MediaAccessPermissionReque
 function createPermissionCheckDetails(overrides: Partial<PermissionCheckHandlerHandlerDetails> = {}): PermissionCheckHandlerHandlerDetails {
   return {
     isMainFrame: true,
+    ...overrides,
+  }
+}
+
+function createHIDPermissionDetails(overrides: Partial<DevicePermissionHandlerHandlerDetails> = {}): DevicePermissionHandlerHandlerDetails {
+  const device: HIDDevice = {
+    collections: [{
+      children: [],
+      featureReports: [],
+      inputReports: [],
+      outputReports: [],
+      type: 1,
+      usage: 0x05,
+      usagePage: 0x01,
+    }],
+    deviceId: 'dualsense-1',
+    name: 'DualSense Wireless Controller',
+    productId: 0x0CE6,
+    vendorId: 0x054C,
+  }
+
+  return {
+    device,
+    deviceType: 'hid',
+    origin: 'file://',
     ...overrides,
   }
 }
@@ -203,6 +228,86 @@ describe('media permissions', () => {
     )).toBe(false)
   })
 
+  // https://github.com/moeru-ai/airi/issues/2177
+  it('grants screen capture requests reported as media from local app pages (Issue #2177)', () => {
+    // ROOT CAUSE:
+    //
+    // `navigator.mediaDevices.getDisplayMedia()` reaches `setPermissionRequestHandler` as the `media`
+    // permission, and Electron only appends `audio` or `video` to `mediaTypes` for device capture, so a
+    // desktop capture request arrives with an empty `mediaTypes` list.
+    //
+    // `shouldGrantElectronPermission` returned early for every `media` operation and demanded audio-only
+    // details, so screen capture was denied before the allowlisted `display-capture` entry was reached:
+    //
+    // if (permission === 'media')
+    //   return shouldGrantAudioCapturePermission(webContents, permission, requestingOrigin, details)
+    //
+    // We fixed this by resolving a `media` operation without device media types to `display-capture`, so
+    // the existing allowlist and local-frame checks decide the outcome.
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: [], securityOrigin: 'file:///app/index.html' }),
+      () => true,
+    )).toBe(true)
+  })
+
+  it('rejects screen capture requests reported as media from remote pages', () => {
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'media',
+      undefined,
+      createMediaRequestDetails({
+        mediaTypes: [],
+        requestingUrl: 'https://example.com/capture.html',
+        securityOrigin: 'https://example.com',
+      }),
+      () => true,
+    )).toBe(false)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2178#discussion_r3681573150
+  it('rejects desktop capture that no renderer asked for', () => {
+    // ROOT CAUSE:
+    //
+    // Electron reports the legacy `chromeMediaSource: 'desktop'` constraint with the same empty
+    // `mediaTypes` list as `getDisplayMedia()`, but serves it from `HandleUserMediaRequest` instead of
+    // `setDisplayMediaRequestHandler`. Granting on empty `mediaTypes` alone therefore also handed a local
+    // page the full desktop through `getUserMedia()`, skipping AIRI's own source selection:
+    //
+    // const allowlistPermission = isDisplayCaptureMediaPermission(permission, details) ? 'display-capture' : permission
+    //
+    // We fixed this by additionally requiring an authorized capture source, which only AIRI's selected
+    // source flow installs.
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: [], securityOrigin: 'file:///app/index.html' }),
+      () => false,
+    )).toBe(false)
+  })
+
+  it('denies desktop capture when no authorization callback is supplied', () => {
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: [], securityOrigin: 'file:///app/index.html' }),
+    )).toBe(false)
+  })
+
+  it('keeps camera requests denied now that screen capture shares the media permission', () => {
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: ['video'], securityOrigin: 'file:///app/index.html' }),
+      () => true,
+    )).toBe(false)
+  })
+
   /** @example Local AIRI pages retain sanitized clipboard writes used by chat copy actions. */
   it('grants sanitized clipboard writes from local app pages', () => {
     expect(shouldGrantElectronPermission(
@@ -219,6 +324,39 @@ describe('media permissions', () => {
       localWebContents,
       'notifications',
       'file:///app/index.html',
+      createPermissionCheckDetails(),
+    )).toBe(false)
+  })
+
+  it('grants local AIRI pages access to HID devices through the device permission handler', () => {
+    const targetSession = {
+      setDevicePermissionHandler: vi.fn<Session['setDevicePermissionHandler']>(),
+      setPermissionCheckHandler: vi.fn<Session['setPermissionCheckHandler']>(),
+      setPermissionRequestHandler: vi.fn<Session['setPermissionRequestHandler']>(),
+    }
+
+    setupPermissionHandlers(targetSession, () => false)
+
+    expect(targetSession.setDevicePermissionHandler).toHaveBeenCalledOnce()
+
+    const handler = targetSession.setDevicePermissionHandler.mock.calls[0]?.[0]
+    expect(handler).not.toBeNull()
+    expect(handler?.(createHIDPermissionDetails())).toBe(true)
+    expect(handler?.(createHIDPermissionDetails({ origin: 'https://example.com' }))).toBe(false)
+    expect(handler?.(createHIDPermissionDetails({ deviceType: 'usb' }))).toBe(false)
+  })
+
+  it('allows HID permission checks only for local AIRI pages', () => {
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'hid',
+      'file:///app/index.html',
+      createPermissionCheckDetails(),
+    )).toBe(true)
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'hid',
+      'https://example.com',
       createPermissionCheckDetails(),
     )).toBe(false)
   })

@@ -161,7 +161,7 @@ const { status, data, send, open, close } = useWebSocket('ws://websocketurl', {
 ## Type Declarations
 
 ```ts
-export type WebSocketStatus = 'OPEN' | 'CONNECTING' | 'CLOSED'
+export type WebSocketStatus = "OPEN" | "CONNECTING" | "CLOSED"
 export type WebSocketHeartbeatMessage = string | ArrayBuffer | Blob
 export interface UseWebSocketOptions {
   onConnected?: (ws: WebSocket) => void
@@ -176,30 +176,30 @@ export interface UseWebSocketOptions {
   heartbeat?:
     | boolean
     | (ConfigurableScheduler & {
-      /**
-       * Message for the heartbeat
-       *
-       * @default 'ping'
-       */
-      message?: MaybeRefOrGetter<WebSocketHeartbeatMessage>
-      /**
-       * Response message for the heartbeat, if undefined the message will be used
-       */
-      responseMessage?: MaybeRefOrGetter<WebSocketHeartbeatMessage>
-      /**
-       * Interval, in milliseconds
-       *
-       * @deprecated Please use `scheduler` option instead
-       * @default 1000
-       */
-      interval?: number
-      /**
-       * Heartbeat response timeout, in milliseconds
-       *
-       * @default 1000
-       */
-      pongTimeout?: number
-    })
+        /**
+         * Message for the heartbeat
+         *
+         * @default 'ping'
+         */
+        message?: MaybeRefOrGetter<WebSocketHeartbeatMessage>
+        /**
+         * Response message for the heartbeat, if undefined the message will be used
+         */
+        responseMessage?: MaybeRefOrGetter<WebSocketHeartbeatMessage>
+        /**
+         * Interval, in milliseconds
+         *
+         * @deprecated Please use `scheduler` option instead
+         * @default 1000
+         */
+        interval?: number
+        /**
+         * Heartbeat response timeout, in milliseconds
+         *
+         * @default 1000
+         */
+        pongTimeout?: number
+      })
   /**
    * Enabled auto reconnect
    *
@@ -208,27 +208,27 @@ export interface UseWebSocketOptions {
   autoReconnect?:
     | boolean
     | {
-      /**
-       * Maximum retry times.
-       *
-       * Or you can pass a predicate function (which returns true if you want to retry).
-       *
-       * @default -1
-       */
-      retries?: number | ((retried: number) => boolean)
-      /**
-       * Delay for reconnect, in milliseconds
-       *
-       * Or you can pass a function to calculate the delay based on the number of retries.
-       *
-       * @default 1000
-       */
-      delay?: number | ((retries: number) => number)
-      /**
-       * On maximum retry times reached.
-       */
-      onFailed?: Fn
-    }
+        /**
+         * Maximum retry times.
+         *
+         * Or you can pass a predicate function (which returns true if you want to retry).
+         *
+         * @default -1
+         */
+        retries?: number | ((retried: number) => boolean)
+        /**
+         * Delay for reconnect, in milliseconds
+         *
+         * Or you can pass a function to calculate the delay based on the number of retries.
+         *
+         * @default 1000
+         */
+        delay?: number | ((retries: number) => number)
+        /**
+         * On maximum retry times reached.
+         */
+        onFailed?: Fn
+      }
   /**
    * Immediately open the connection when calling this composable
    *
@@ -259,7 +259,7 @@ export interface UseWebSocketReturn<T> {
    * Reference to the latest data received via the websocket,
    * can be watched to respond to incoming messages
    */
-  data: Ref<T | null>
+  data: ShallowRef<T | null>
   /**
    * The current websocket status, can be only one of:
    * 'OPEN', 'CONNECTING', 'CLOSED'
@@ -268,7 +268,7 @@ export interface UseWebSocketReturn<T> {
   /**
    * Closes the websocket connection gracefully.
    */
-  close: WebSocket['close']
+  close: WebSocket["close"]
   /**
    * Reopen the websocket connection.
    * If there the current one is active, will close it before opening a new one.
@@ -284,7 +284,7 @@ export interface UseWebSocketReturn<T> {
   /**
    * Reference to the WebSocket instance.
    */
-  ws: Ref<WebSocket | undefined>
+  ws: ShallowRef<WebSocket | undefined>
 }
 /**
  * Reactive WebSocket client.

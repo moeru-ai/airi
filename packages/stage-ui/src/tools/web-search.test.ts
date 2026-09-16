@@ -13,7 +13,10 @@ interface TavilyResult {
 /** Minimal shape of the emitted tool JSON Schema this suite asserts against. */
 interface ToolParametersSchema {
   required?: string[]
-  properties?: Record<string, { type?: unknown }>
+  properties?: Record<string, {
+    type?: unknown
+    anyOf?: Array<{ type?: unknown }>
+  }>
 }
 
 function stubTavily(payload: { results?: TavilyResult[] } | string, ok = true, status = 200) {
@@ -141,8 +144,7 @@ describe('createWebSearchTools', () => {
     expect(body.exclude_domains).toBeUndefined()
   })
 
-  // normalizeNullableAnyOf drops the schema's 1..10 bound (it does not survive
-  // the anyOf -> type[] collapse), so the count must be clamped at runtime.
+  // Keep the runtime range check because rawTool does not validate tool input.
   it('clamps out-of-range max_results at runtime', async () => {
     const fetchMock = stubTavily({ results: [] })
 
@@ -208,15 +210,20 @@ describe('createWebSearchTools', () => {
       .toThrow('web search failed: tavily returned a non-JSON response')
   })
 
-  // Strict OpenAI-compatible providers reject `.optional()` properties and the
-  // anyOf-with-null form; the emitted schema must list every field as required
-  // and collapse scalar nullable unions to `type: ['x', 'null']`.
-  it('emits a provider-safe schema (all fields required, scalar nullables collapsed)', async () => {
+  it('emits a provider-neutral schema with every field required', async () => {
     const [tool] = await createWebSearchTools({ apiKey: 'key' })
     const parameters = (tool as { function?: { parameters?: ToolParametersSchema } }).function?.parameters
 
     expect(parameters?.required).toEqual(expect.arrayContaining(['query', 'max_results', 'time_range', 'include_domains', 'exclude_domains']))
-    expect(parameters?.properties?.max_results?.type).toEqual(['integer', 'null'])
-    expect(parameters?.properties?.time_range?.type).toEqual(['string', 'null'])
+    expect(parameters?.properties?.max_results?.type).toBeUndefined()
+    expect(parameters?.properties?.max_results?.anyOf).toEqual([
+      expect.objectContaining({ type: 'integer' }),
+      { type: 'null' },
+    ])
+    expect(parameters?.properties?.time_range?.type).toBeUndefined()
+    expect(parameters?.properties?.time_range?.anyOf).toEqual([
+      expect.objectContaining({ type: 'string' }),
+      { type: 'null' },
+    ])
   })
 })

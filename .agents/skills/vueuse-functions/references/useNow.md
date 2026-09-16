@@ -61,13 +61,13 @@ export interface UseNowOptions<
    * @deprecated Please use `scheduler` option instead
    * @default requestAnimationFrame
    */
-  interval?: 'requestAnimationFrame' | number
+  interval?: "requestAnimationFrame" | number
 }
 export type UseNowReturn<Controls extends boolean> = Controls extends true
   ? {
-    now: Ref<Date>
-  } & Pausable
-  : Ref<Date>
+      now: ShallowRef<Date>
+    } & Pausable
+  : ShallowRef<Date>
 /**
  * Reactive current Date instance.
  *
@@ -76,8 +76,8 @@ export type UseNowReturn<Controls extends boolean> = Controls extends true
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useNow(options?: UseNowOptions<false>): Ref<Date>
+export declare function useNow(options?: UseNowOptions<false>): ShallowRef<Date>
 export declare function useNow(options: UseNowOptions<true>): {
-  now: Ref<Date>
+  now: ShallowRef<Date>
 } & Pausable
 ```

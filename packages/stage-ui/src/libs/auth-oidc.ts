@@ -17,7 +17,7 @@ export interface OIDCFlowParams {
    */
   clientSecret?: string
   /** Social provider hint — skips the server-side picker page. */
-  provider?: 'google' | 'github'
+  provider?: 'google' | 'github' | 'steam'
 }
 
 export interface OIDCFlowState {

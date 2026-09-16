@@ -18,10 +18,10 @@ Satori Token、消息平台凭据和模型 API Key 只应保存在本地 **.env.
 ## 配置
 
 ~~~bash
-cp services/satori-bot/.env services/satori-bot/.env.local
+cp integrations/satori-bot/.env integrations/satori-bot/.env.local
 ~~~
 
-编辑 **services/satori-bot/.env.local**，填写 **SATORI_WS_URL**、**SATORI_API_BASE_URL**、可选的 **SATORI_TOKEN**，以及 LLM 的地址、密钥和模型。
+编辑 **integrations/satori-bot/.env.local**，填写 **SATORI_WS_URL**、**SATORI_API_BASE_URL**、可选的 **SATORI_TOKEN**，以及 LLM 的地址、密钥和模型。
 
 ## 启动
 

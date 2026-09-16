@@ -1,7 +1,6 @@
 <script setup lang="ts">
+import type { CaptionChannelEvent, HearingInputChannelEvent } from '@proj-airi/stage-shared'
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
-
-import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
 
 import { errorMessageFrom, tryCatch } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
@@ -13,7 +12,8 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { createTranscriptBuffer } from '@proj-airi/pipelines-audio'
-import { IS_DEV } from '@proj-airi/stage-shared'
+import { hearingInputChannelName } from '@proj-airi/stage-shared'
+import { useExpressionStore } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
@@ -24,6 +24,8 @@ import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -32,15 +34,15 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
+import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
-import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
-import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
-import { useChatSyncStore } from '../stores/chat-sync'
+import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
+import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 import { createVoiceInputInteractionLifecycle } from '../utils/voice-input-lifecycle'
 import {
@@ -50,7 +52,8 @@ import {
 } from '../utils/voice-input-suppression'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
-const statusIslandRef = ref<InstanceType<typeof StatusIsland>>()
+const controlsIslandInteractionActive = shallowRef(false)
+const controlsIslandElement = toRef(() => controlsIslandRef.value?.element)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
@@ -64,10 +67,8 @@ const onboardingStore = useOnboardingStore()
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
-const { isOutside } = useElectronMouseInElement(controlsIslandRef)
-const { isOutside: isOutsideStatusIsland } = useElectronMouseInElement(statusIslandRef)
+const { isOutside } = useElectronMouseInElement(controlsIslandElement)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
-const isOutsideStatusIslandFor250Ms = refDebounced(isOutsideStatusIsland, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
 // model rapidly, causing flickering effects when checking pixel transparency strictly.
@@ -98,11 +99,11 @@ const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
 const modelStore = useModelStore()
+const expressionStore = useExpressionStore()
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 const modelSettingsRuntimeOwnerInstanceId = `tamagotchi-main-stage:${Math.random().toString(36).slice(2, 10)}`
-const { data: modelSettingsRuntimeChannelEvent, post: postModelSettingsRuntimeChannelEvent } = useBroadcastChannel<ModelSettingsRuntimeChannelEvent, ModelSettingsRuntimeChannelEvent>({ name: modelSettingsRuntimeSnapshotChannelName })
 const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransparency({
   componentState: componentStateStage.value,
   fadeOnHoverEnabled: fadeOnHoverEnabled.value,
@@ -116,7 +117,7 @@ const isTransparent = computed(() => {
   if (stageModelRenderer.value === 'vrm')
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThree.value : true
 
-  if (stageModelRenderer.value === 'live2d')
+  if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
     return isTransparentByPixels.value
 
   return true
@@ -128,7 +129,7 @@ const isTransparentForMouseEvents = computed(() => {
   if (stageModelRenderer.value === 'vrm')
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThreeExact.value : true
 
-  if (stageModelRenderer.value === 'live2d')
+  if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
     return isTransparentByPixelsExact.value
 
   return true
@@ -139,11 +140,7 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
-const { pause, resume } = watch(isTransparent, (transparent) => {
-  shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
-}, { immediate: true })
-
-const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
+const controlsOverlayActive = computed(() => controlsIslandRef.value?.overlayActive ?? false)
 
 const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
   const hasModel = !!stageModelSelectedUrl.value
@@ -153,11 +150,13 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
 
     return createEmptyModelSettingsRuntimeSnapshot({
       ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      modelId: expressionStore.modelId,
       renderer: 'live2d',
       phase,
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,
       canCapturePreview: false,
+      live2dExpressions: expressionStore.settingsSnapshot,
       updatedAt: Date.now(),
     })
   }
@@ -182,6 +181,20 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
     return createEmptyModelSettingsRuntimeSnapshot({
       ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
       renderer: 'spine',
+      phase,
+      controlsLocked: hasModel ? phase !== 'mounted' : false,
+      previewAvailable: hasModel,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
+  if (stageModelRenderer.value === 'tachie') {
+    const phase = resolveComponentStateToRuntimePhase(componentStateStage.value, { hasModel })
+
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      renderer: 'tachie',
       phase,
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,
@@ -222,25 +235,41 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
   })
 })
 
-watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
+/**
+ * Keeps the rendered fade state and Electron click-through state synchronized.
+ *
+ * Triggering workflow:
+ *
+ * {@link watch}
+ *   -> `fade-on-hover reactive state change`
+ *     -> {@link handleFadeOnHoverInteractionChange}
+ *
+ * Upstream:
+ * - {@link isOutsideFor250Ms} and {@link isAroundWindowBorderFor250Ms}
+ * - {@link isOutsideWindow}, {@link isTransparent}, and {@link isTransparentForMouseEvents}
+ * - {@link controlsOverlayActive}, {@link fadeOnHoverEnabled}, and {@link stagePaused}
+ *
+ * Downstream:
+ * - {@link resolveFadeOnHoverInteraction}
+ * - {@link setIgnoreMouseEvents}
+ */
+function handleFadeOnHoverInteractionChange() {
   if (stagePaused.value) {
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
     return
   }
 
-  if (hearingDialogOpen.value) {
-    // Hearing dialog/drawer is open; keep window interactive
+  if (controlsOverlayActive.value) {
+    // Portaled controls must receive clicks even outside the Island's bounds.
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
     return
   }
 
-  const insideControls = !isOutsideFor250Ms.value || !isOutsideStatusIslandFor250Ms.value
+  const insideControls = !isOutsideFor250Ms.value
   const nearBorder = isAroundWindowBorderFor250Ms.value
 
   if (insideControls || nearBorder) {
@@ -248,43 +277,34 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
   }
   else {
-    const fadeEnabled = fadeOnHoverEnabled.value
-    // Keep visible model pixels interactive; only the exact transparent pixel under the cursor
-    // should pass clicks through. The fuzzy transparency value above is intentionally reserved
-    // for fade stability near model edges.
-    const shouldIgnoreMouseEvents = fadeEnabled && isTransparentForMouseEvents.value
-    isIgnoringMouseEvents.value = shouldIgnoreMouseEvents
-    shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
-    setIgnoreMouseEvents([shouldIgnoreMouseEvents, { forward: true }])
-    if (fadeEnabled)
-      resume()
-    else
-      pause()
-  }
-})
+    const interaction = resolveFadeOnHoverInteraction({
+      cursorInsideWindow: !isOutsideWindow.value,
+      enabled: fadeOnHoverEnabled.value,
+      transparentForFade: isTransparent.value,
+      transparentForPointer: isTransparentForMouseEvents.value,
+    })
 
-// Emit runtime snapshot on change and on request from settings panel
-/**
- * Sends model-settings runtime events without letting closed HMR channels break the stage.
- */
-function postModelSettingsRuntimeEvent(event: ModelSettingsRuntimeChannelEvent) {
-  const { error } = tryCatch(() => postModelSettingsRuntimeChannelEvent(event))
-  if (error)
-    console.warn('[Main Page] Failed to post model settings runtime event:', error)
+    isIgnoringMouseEvents.value = interaction.ignoreMouseEvents
+    shouldFadeOnCursorWithin.value = interaction.fadeStage
+    setIgnoreMouseEvents([interaction.ignoreMouseEvents, { forward: true }])
+  }
 }
 
-watch(modelSettingsRuntimeSnapshot, (snapshot) => {
-  postModelSettingsRuntimeEvent({ type: 'snapshot', snapshot })
-}, { immediate: true })
+watch(
+  [isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, stagePaused],
+  handleFadeOnHoverInteractionChange,
+  { immediate: true },
+)
 
-watch(modelSettingsRuntimeChannelEvent, (event) => {
-  if (event?.type !== 'request-current')
-    return
-
-  postModelSettingsRuntimeEvent({ type: 'snapshot', snapshot: modelSettingsRuntimeSnapshot.value })
+useModelSettingsRuntimeOwner({
+  ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+  renderer: () => stageModelRenderer.value,
+  runtimeSnapshot: modelSettingsRuntimeSnapshot,
+  applyLive2DExpressionCommand: (command) => {
+    expressionStore.applySettingsCommand(command)
+  },
 })
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
@@ -294,9 +314,11 @@ const { nowSpeaking } = storeToRefs(useSpeakingStore())
 const hearingStore = useHearingStore()
 const { activeTranscriptionModel, activeTranscriptionProvider } = storeToRefs(hearingStore)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
-const chatSyncStore = useChatSyncStore()
+const transcriptionConsumerId = 'stage-tamagotchi:voice-input'
+const chatStore = useChatStore()
+const chatSession = useChatSessionStore()
 const streamingTranscriptionUnavailable = ref(false)
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
 const voiceTranscriptBuffer = createTranscriptBuffer({
@@ -323,10 +345,47 @@ const voiceInputInteractionLifecycle = createVoiceInputInteractionLifecycle<Stop
 })
 
 // Caption overlay broadcast channel
-type CaptionChannelEvent
-  = | { type: 'caption-speaker', text: string }
-    | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
+const { post: postHearingInput } = useBroadcastChannel<HearingInputChannelEvent, HearingInputChannelEvent>({ name: hearingInputChannelName })
+const hearingInputClearTimers = new Map<ReturnType<typeof setTimeout>, string>()
+let hearingInputSequence = 0
+let activeHearingInputSourceId: string | undefined
+
+function currentHearingInputSourceId() {
+  activeHearingInputSourceId ??= `stage-tamagotchi:${++hearingInputSequence}`
+  return activeHearingInputSourceId
+}
+
+function postHearingInputEvent(event: HearingInputChannelEvent) {
+  const { error } = tryCatch(() => postHearingInput(event))
+  if (error)
+    console.warn('[Main Page] Failed to post Hearing input text:', error)
+}
+
+function replaceHearingInput(text: string) {
+  postHearingInputEvent({
+    operation: 'replace',
+    sourceId: currentHearingInputSourceId(),
+    text,
+  })
+}
+
+function clearHearingInput(sourceId = activeHearingInputSourceId) {
+  if (!sourceId)
+    return
+
+  postHearingInputEvent({ operation: 'clear', sourceId })
+  if (sourceId === activeHearingInputSourceId)
+    activeHearingInputSourceId = undefined
+}
+
+function scheduleHearingInputClear(sourceId: string) {
+  const timer = setTimeout(() => {
+    hearingInputClearTimers.delete(timer)
+    clearHearingInput(sourceId)
+  }, 250)
+  hearingInputClearTimers.set(timer, sourceId)
+}
 
 /**
  * Reports a voice input pipeline failure to both the console and visible app UI.
@@ -465,8 +524,8 @@ async function ensureLiveAudioInputStream() {
 /**
  * Sends voice captions as best-effort overlay updates without interrupting chat ingestion.
  */
-function postSpeakerCaption(text: string) {
-  const { error } = tryCatch(() => postCaption({ type: 'caption-speaker', text }))
+function postSpeakerCaption(text: string, operation: NonNullable<CaptionChannelEvent['operation']> = 'append') {
+  const { error } = tryCatch(() => postCaption({ operation, type: 'caption-speaker', text }))
   if (error)
     console.warn('[Main Page] Failed to post voice input caption:', error)
 }
@@ -476,7 +535,10 @@ function postSpeakerCaption(text: string) {
  */
 async function sendVoiceInputTextToChat(text: string) {
   try {
-    await chatSyncStore.requestIngest({ text })
+    await chatStore.send({
+      sessionId: chatSession.activeSessionId,
+      text,
+    })
   }
   catch (err) {
     reportVoiceInputFailure('send to chat', err)
@@ -492,8 +554,21 @@ function handleStreamingSentenceEnd(delta: string) {
   if (!finalText || !finalText.trim())
     return
 
-  postSpeakerCaption(finalText)
+  const sourceId = currentHearingInputSourceId()
+  replaceHearingInput(finalText)
+  scheduleHearingInputClear(sourceId)
+  activeHearingInputSourceId = undefined
+  postSpeakerCaption(finalText, 'replace')
   void sendVoiceInputTextToChat(finalText)
+}
+
+/** Replaces the caption with the provider's current volatile transcript. */
+function handleStreamingTranscriptionUpdate(text: string) {
+  if (isVoiceInputSuppressed())
+    return
+
+  replaceHearingInput(text)
+  postSpeakerCaption(text, 'replace')
 }
 
 /** Publishes the provider's final streaming-ASR text to the caption overlay. */
@@ -501,7 +576,7 @@ function handleStreamingSpeechEnd(text: string) {
   if (isVoiceInputSuppressed())
     return
 
-  postSpeakerCaption(text)
+  postSpeakerCaption(text, 'replace')
 }
 
 /** Reads the listening generation attached to recorder-backed transcription metadata. */
@@ -511,6 +586,18 @@ function getVoiceInputGeneration(metadata?: Record<string, unknown>) {
 
 const voiceInputSession = useVoiceInputSession(stream, {
   shouldUseStreamInput,
+  onLog(level, event, message, details) {
+    const output = `[Voice Input] ${event}: ${message}`
+    if (level === 'error') {
+      console.error(output, details ?? {})
+      return
+    }
+    if (level === 'warn') {
+      console.warn(output, details ?? {})
+      return
+    }
+    console.info(output, details ?? {})
+  },
   canStartSegment: () => enabled.value && !isVoiceInputSuppressed(),
   inspectBeforeTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
   inspectAfterTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
@@ -553,8 +640,10 @@ async function startAudioInteractionConsumers() {
       return
 
     await transcribeForMediaStream(currentStream, {
+      consumerId: transcriptionConsumerId,
       onSentenceEnd: handleStreamingSentenceEnd,
       onSpeechEnd: handleStreamingSpeechEnd,
+      onTranscriptionUpdate: handleStreamingTranscriptionUpdate,
     })
 
     if (inspectVoiceInputStreamingRequestGate().skip) {
@@ -580,6 +669,7 @@ async function stopAudioInteractionConsumers(options: StopAudioInteractionOption
   const flushTranscript = options.flushTranscript ?? true
 
   clearAssistantSpeechResumeTimer()
+  clearHearingInput()
   voiceInputGeneration += 1
 
   await Promise.all([
@@ -648,10 +738,13 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  postModelSettingsRuntimeEvent({
-    type: 'owner-gone',
-    ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
-  })
+  removeStreamingTranscriptionConsumer(transcriptionConsumerId)
+  for (const [timer, sourceId] of hearingInputClearTimers) {
+    clearTimeout(timer)
+    clearHearingInput(sourceId)
+  }
+  hearingInputClearTimers.clear()
+  clearHearingInput()
   clearAssistantSpeechResumeTimer()
   void voiceInputInteractionLifecycle.stop().catch(error => reportVoiceInputFailure('stop listening', error))
 })
@@ -707,7 +800,6 @@ const cursorPosition = computed(() => ({
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
-        <StatusIsland v-if="IS_DEV" ref="statusIslandRef" />
         <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"
@@ -718,7 +810,12 @@ const cursorPosition = computed(() => ({
           :paused="stagePaused"
         />
         <HoloCoupon />
-        <ControlsIsland ref="controlsIslandRef" />
+        <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
+          <ControlsIsland
+            ref="controlsIslandRef"
+            @interaction-change="controlsIslandInteractionActive = $event"
+          />
+        </ControlsIslandRoot>
       </div>
     </div>
     <!-- Loading overlay sits on top, does not hide the stage -->

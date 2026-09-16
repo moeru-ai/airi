@@ -20,7 +20,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const { audioInputs, selectedAudioInput, stream, stopStream, startStream } = useAudioDevice()
+const { audioInputs, audioInputOptions, selectedAudioInput, stream, stopStream, startStream } = useAudioDevice()
 const { volumeLevel, stopAnalyzer, startAnalyzer } = useAudioAnalyzer()
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 
@@ -178,10 +178,7 @@ onUnmounted(() => {
         v-model="selectedAudioInput"
         label="Audio Input Device"
         description="Select the audio input device for your hearing module."
-        :options="audioInputs.map(input => ({
-          label: input.label || input.deviceId,
-          value: input.deviceId,
-        }))"
+        :options="audioInputOptions"
         placeholder="Select an audio input device"
         layout="vertical"
         h-fit w-full

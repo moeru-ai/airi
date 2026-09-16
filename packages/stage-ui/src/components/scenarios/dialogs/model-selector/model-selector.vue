@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { Live2DValidationReport } from '@proj-airi/stage-ui-live2d'
+import type { TachieValidationReport } from '@proj-airi/stage-ui-tachie'
 
 import type { DisplayModel } from '../../../../stores/display-models'
 
 import { validateLive2DZip } from '@proj-airi/stage-ui-live2d'
+import { TACHIE_ARCHIVE_SUFFIX, validateTachieZip } from '@proj-airi/stage-ui-tachie'
 import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -11,7 +13,8 @@ import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenu
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import Live2DReportModal from './Live2DReportModal.vue'
+import Live2DReportModal from './reports/live2d/modal.vue'
+import TachieReportModal from './tachieReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
@@ -43,6 +46,9 @@ const highlightDisplayModelCard = ref<string | undefined>(props.selectedModel?.i
 const showReportModal = ref(false)
 const pendingFile = ref<File | null>(null)
 const validationReport = ref<Live2DValidationReport | null>(null)
+const showTachieReportModal = ref(false)
+const pendingTachieFile = ref<File | null>(null)
+const tachieValidationReport = ref<TachieValidationReport | null>(null)
 
 watch(() => props.selectedModel?.id, (modelId) => {
   highlightDisplayModelCard.value = modelId
@@ -58,7 +64,7 @@ async function handleAddLive2DModel(file: FileList | null) {
   validationReport.value = report
   pendingFile.value = file[0]
 
-  if (report.status === 'VALID' && report.errors.length === 0) {
+  if (report.status === 'VALID') {
     await confirmImport()
     return
   }
@@ -81,8 +87,34 @@ async function confirmImport() {
   pendingFile.value = null
 }
 
-function handleFixError(error: string) {
-  void error
+async function handleAddTachieModel(file: FileList | null) {
+  if (file === null || file.length === 0)
+    return
+
+  const picked = file[0]
+  if (!picked.name.toLowerCase().endsWith(TACHIE_ARCHIVE_SUFFIX))
+    return
+
+  const report = await validateTachieZip(picked)
+  pendingTachieFile.value = picked
+  tachieValidationReport.value = report
+
+  if (report.status === 'VALID') {
+    await confirmTachieImport()
+    return
+  }
+
+  showTachieReportModal.value = true
+}
+
+async function confirmTachieImport() {
+  if (!pendingTachieFile.value || tachieValidationReport.value?.status === 'INVALID')
+    return
+
+  const displayModel = await displayModelStore.addDisplayModel(DisplayModelFormat.TachieZip, pendingTachieFile.value)
+  highlightDisplayModelCard.value = displayModel.id
+  pendingTachieFile.value = null
+  tachieValidationReport.value = null
 }
 
 function handlePick(m: DisplayModel) {
@@ -162,6 +194,7 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
   [DisplayModelFormat.Live2dDirectory]: 'Live2D',
   [DisplayModelFormat.VRM]: 'VRM',
   [DisplayModelFormat.SpineZip]: 'Spine',
+  [DisplayModelFormat.TachieZip]: 'Tachie',
   [DisplayModelFormat.PMXDirectory]: 'MMD',
   [DisplayModelFormat.PMXZip]: 'MMD',
   [DisplayModelFormat.PMD]: 'MMD',
@@ -170,11 +203,13 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
 const live2dDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 const vrmDialog = useFileDialog({ accept: '.vrm', multiple: false, reset: true })
 const spineDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
+const tachieDialog = useFileDialog({ accept: TACHIE_ARCHIVE_SUFFIX, multiple: false, reset: true })
 const mmdDialog = useFileDialog({ accept: '.zip,.pmx,.pmd', multiple: false, reset: true })
 
 live2dDialog.onChange(handleAddLive2DModel)
 vrmDialog.onChange(handleAddVRMModel)
 spineDialog.onChange(handleAddSpineModel)
+tachieDialog.onChange(handleAddTachieModel)
 mmdDialog.onChange(handleAddMMDModel)
 </script>
 
@@ -184,7 +219,11 @@ mmdDialog.onChange(handleAddMMDModel)
       v-model:open="showReportModal"
       :report="validationReport"
       @confirm="confirmImport"
-      @fix-error="handleFixError"
+    />
+    <TachieReportModal
+      v-model:open="showTachieReportModal"
+      :report="tachieValidationReport"
+      @confirm="confirmTachieImport"
     />
 
     <div flex items-center>
@@ -256,6 +295,18 @@ mmdDialog.onChange(handleAddMMDModel)
                 transition="colors duration-200 ease-in-out" @click="mmdDialog.open()"
               >
                 MMD
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                :class="[
+                  'data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 leading-none outline-none data-[disabled]:pointer-events-none',
+                  'text-base sm:text-sm',
+                  'data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20',
+                  'data-[highlighted]:text-primary-400 dark:data-[highlighted]:text-primary-200',
+                ]"
+                transition="colors duration-200 ease-in-out"
+                @click="tachieDialog.open()"
+              >
+                Tachie
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenuPortal>
@@ -374,7 +425,7 @@ mmdDialog.onChange(handleAddMMDModel)
                 <div>{{ mapFormatRenderer[model.format] }}</div>
               </div>
             </div>
-            <Button class="hidden md:block" variant="secondary" @click="handlePick(model)">
+            <Button class="hidden md:block" @click="handlePick(model)">
               {{ t('settings.model-select.select-model.select') }}
             </Button>
           </div>

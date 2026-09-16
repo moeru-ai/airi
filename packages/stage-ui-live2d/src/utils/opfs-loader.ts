@@ -46,12 +46,6 @@ function blobFromBytes(data: Uint8Array): Blob {
   return new Blob([buffer])
 }
 
-declare global {
-  interface FileSystemDirectoryHandle {
-    values: () => FileSystemDirectoryHandleAsyncIterator<FileSystemHandle>
-  }
-}
-
 export class OPFSCache {
   static async clearAll(): Promise<void> {
     try {
@@ -266,7 +260,9 @@ export class OPFSCache {
 
     try {
       const res = await fetch(blobUrl)
-      const blob = await res.blob()
+      const blob = new Blob([await res.arrayBuffer()], {
+        type: res.headers.get('content-type') ?? '',
+      })
       const fileName = `${key}.zip`
       context.opfsZipBlob = blob
       context.source = [new File([blob], fileName)]

@@ -1,7 +1,8 @@
+import type { MMD } from '@moeru/three-mmd'
 import type { AnimationClip, SkinnedMesh } from 'three'
 
+import { buildAnimation, MMDLoader, VMDLoader } from '@moeru/three-mmd'
 import { LoadingManager } from 'three'
-import { MMDLoader } from 'three-stdlib'
 
 /** Maps in-archive relative asset paths to blob URLs for ZIP-loaded models. */
 export type UrlModifier = (url: string) => string
@@ -43,43 +44,24 @@ export function createMMDLoaderContext(urlModifier?: UrlModifier): MMDLoaderCont
   return { loader: new MMDLoader(manager), manager }
 }
 
-/** Loads a PMX/PMD model URL into a {@link SkinnedMesh}. */
-export function loadMMDMesh(
+/** Loads a PMX/PMD model URL while retaining its MMD runtime. */
+export function loadMMD(
   loader: MMDLoader,
   url: string,
   onProgress?: (event: ProgressEvent) => void,
-): Promise<SkinnedMesh> {
-  return new Promise((resolve, reject) => {
-    loader.load(url, resolve, onProgress, reject)
-  })
+): Promise<MMD> {
+  return loader.loadAsync(url, onProgress)
 }
 
 /**
- * Loads a VMD motion file and binds it to `mesh`, producing an
- * {@link AnimationClip} ready for the mesh's `AnimationMixer`.
- *
- * `loadAnimation` may hand back either a clip or (for camera motions) a mesh;
- * AIRI only consumes model motions, so a non-clip result is rejected.
+ * Parses a VMD model motion and binds its bone and morph tracks to `mesh`.
+ * AIRI intentionally does not consume camera motion from this adapter.
  */
-export function loadMMDAnimationClip(
-  loader: MMDLoader,
+export async function loadMMDAnimationClip(
   url: string,
   mesh: SkinnedMesh,
   onProgress?: (event: ProgressEvent) => void,
 ): Promise<AnimationClip> {
-  return new Promise((resolve, reject) => {
-    loader.loadAnimation(
-      url,
-      mesh,
-      (result) => {
-        // A bound model motion resolves to an AnimationClip (has `.tracks`).
-        if (result && 'tracks' in result)
-          resolve(result as AnimationClip)
-        else
-          reject(new Error('Loaded VMD did not produce a model animation clip'))
-      },
-      onProgress,
-      reject,
-    )
-  })
+  const vmd = await new VMDLoader().loadAsync(url, onProgress)
+  return buildAnimation(vmd, mesh)
 }

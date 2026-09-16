@@ -1,15 +1,21 @@
 import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
 import type { Ref } from 'vue'
 
+import type { Live2DBreathControlState, Live2DMotionControlState } from '../../stores/motion-control'
 import type { BeatSyncController } from './beat-sync'
 import type { useExpressionController } from './expression-controller'
+import type { Live2DMotionSpringController } from './motion-control-spring'
 
+import { sampleLive2DBreath } from '../../stores/motion-control'
 import { useLive2DIdleEyeFocus } from './animation'
 
 type CubismModel = Cubism4InternalModel['coreModel']
 type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
 
+/** The Pixi internal-model surface that AIRI motion plugins consume. */
 export type PixiLive2DInternalModel = InternalModel & {
+  /** Cubism's breath controller, which AIRI removes before it applies its own curve. */
+  breath?: unknown
   eyeBlink?: CubismEyeBlink
   coreModel: CubismModel
 }
@@ -51,6 +57,41 @@ export interface UseLive2DMotionManagerUpdateOptions {
   live2dAutoBlinkEnabled: Ref<boolean>
   live2dForceAutoBlinkEnabled: Ref<boolean>
   lastUpdateTime: Ref<number>
+}
+
+/**
+ * Disables the periodic breath pass that the Cubism runtime applies after AIRI's motion plugins.
+ */
+export function disableLive2DSdkBreath(internalModel: { breath?: unknown }) {
+  delete internalModel.breath
+}
+
+/**
+ * Applies AIRI's manual breath curve after normal motion updates.
+ *
+ * A release restores the configured static breath value once. Normal model
+ * motion can own the parameter again on later frames.
+ */
+export function useMotionUpdatePluginBreathControl(
+  control: Ref<Live2DBreathControlState>,
+  nowMs: () => number = Date.now,
+): MotionManagerPlugin {
+  let activeOwnerId: string | null = null
+
+  return (ctx) => {
+    const state = control.value
+    if (!state.active) {
+      if (activeOwnerId !== null)
+        ctx.model.setParameterValueById('ParamBreath', ctx.modelParameters.value.breath)
+      activeOwnerId = null
+      return
+    }
+
+    activeOwnerId = state.ownerId
+    const elapsedSeconds = Math.max(0, nowMs() - state.startedAtMs) / 1000
+    const sample = sampleLive2DBreath(state.options, elapsedSeconds)
+    ctx.model.setParameterValueById('ParamBreath', sample.value)
+  }
 }
 
 export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpdateOptions) {
@@ -335,7 +376,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
     // logic from main so that hookUpdate returns the same handled state and
     // the SDK eyeBlink/motion pipeline is not disrupted.
     if (!live2dExpressionEnabled?.value) {
-      if (!ctx.isIdleMotion || ctx.handled)
+      if (!ctx.isIdleMotion || (ctx.handled && !ctx.live2dForceAutoBlinkEnabled.value))
         return
 
       const baseLeft = clamp01(ctx.modelParameters.value.leftEyeOpen)
@@ -453,6 +494,38 @@ export function useMotionUpdatePluginExpression(
   return (ctx) => {
     // Always apply regardless of handled state – expressions layer on top.
     controller.applyExpressions(ctx.model)
+  }
+}
+
+/**
+ * Applies the active manual pose after normal Live2D motion updates.
+ *
+ * The normalized joystick range maps to each standard parameter range. Models
+ * that omit one of these parameters ignore that write through the Cubism API.
+ */
+export function useMotionUpdatePluginManualControl(
+  control: Ref<Live2DMotionControlState>,
+  spring: Live2DMotionSpringController,
+): MotionManagerPlugin {
+  return (ctx) => {
+    const output = spring.step(control.value, ctx.timeDelta)
+    if (!output.active)
+      return
+
+    const { eyeX, eyeY, eyeSquint, headX, headY, headZ, bodyX, bodyY, bodyZ, mouthForm, mouthOpen } = output.pose
+    ctx.model.setParameterValueById('ParamEyeBallX', eyeX)
+    ctx.model.setParameterValueById('ParamEyeBallY', eyeY)
+    const remainingEyeOpen = 1 - eyeSquint
+    ctx.model.setParameterValueById('ParamEyeLOpen', ctx.model.getParameterValueById('ParamEyeLOpen') * remainingEyeOpen)
+    ctx.model.setParameterValueById('ParamEyeROpen', ctx.model.getParameterValueById('ParamEyeROpen') * remainingEyeOpen)
+    ctx.model.setParameterValueById('ParamAngleX', headX * 30)
+    ctx.model.setParameterValueById('ParamAngleY', headY * 30)
+    ctx.model.setParameterValueById('ParamAngleZ', headZ * 30)
+    ctx.model.setParameterValueById('ParamBodyAngleX', bodyX * 10)
+    ctx.model.setParameterValueById('ParamBodyAngleY', bodyY * 10)
+    ctx.model.setParameterValueById('ParamBodyAngleZ', bodyZ * 10)
+    ctx.model.setParameterValueById('ParamMouthForm', mouthForm)
+    ctx.model.setParameterValueById('ParamMouthOpenY', mouthOpen)
   }
 }
 

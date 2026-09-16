@@ -7,7 +7,7 @@ import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, on
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
-import { widgetsClearEvent, widgetsFetch, widgetsIframeRequestEvent, widgetsIframeRequestResultEvent, widgetsRemove, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdate, widgetsUpdateEvent } from '../../shared/eventa'
+import { widgetsClearEvent, widgetsFetch, widgetsIframeRequestEvent, widgetsIframeRequestResultEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdate, widgetsUpdateEvent } from '../../shared/eventa'
 
 const { t } = useI18n()
 
@@ -20,7 +20,6 @@ interface WidgetItem {
   alwaysOnTop: boolean
   size: SizePreset
   windowSize?: WidgetWindowSize
-  ttlMs: number
 }
 
 const route = useRoute()
@@ -38,34 +37,13 @@ const widget = ref<WidgetItem | null>(null)
 const loading = ref(false)
 
 const context = useElectronEventaContext()
-const removeWidgetInvoke = useElectronEventaInvoke(widgetsRemove)
 const fetchWidget = useElectronEventaInvoke(widgetsFetch)
 const updateWidgetInvoke = useElectronEventaInvoke(widgetsUpdate)
 const pinUpdating = shallowRef(false)
 const pendingIframeRequests = shallowRef<WidgetsIframeRequestPayload[]>([])
 const eventDisposers: Array<() => void> = []
 
-let ttlTimer: ReturnType<typeof setTimeout> | undefined
-
-function clearTtl() {
-  if (ttlTimer) {
-    clearTimeout(ttlTimer)
-    ttlTimer = undefined
-  }
-}
-
-async function requestRemoval(id: string) {
-  clearTtl()
-  try {
-    await removeWidgetInvoke({ id })
-  }
-  catch (error) {
-    console.warn('Failed to remove widget', error)
-  }
-}
-
 function applySnapshot(snapshot: WidgetSnapshot) {
-  clearTtl()
   widget.value = {
     id: snapshot.id,
     componentName: snapshot.componentName,
@@ -73,11 +51,6 @@ function applySnapshot(snapshot: WidgetSnapshot) {
     alwaysOnTop: snapshot.alwaysOnTop ?? false,
     size: snapshot.size ?? 'm',
     windowSize: snapshot.windowSize,
-    ttlMs: snapshot.ttlMs ?? 0,
-  }
-
-  if (snapshot.ttlMs && snapshot.ttlMs > 0) {
-    ttlTimer = setTimeout(requestRemoval, snapshot.ttlMs, snapshot.id)
   }
 }
 
@@ -104,7 +77,6 @@ async function requestSnapshot(id: string) {
 const { trackWidgetOpened } = useAnalytics()
 
 watch(widgetId, (id) => {
-  clearTtl()
   widget.value = null
   pendingIframeRequests.value = []
   loading.value = false
@@ -149,14 +121,13 @@ onMounted(() => {
         return
       }
 
-      applySnapshot({
+      widget.value = {
         ...widget.value,
         componentProps: body.componentProps ?? widget.value.componentProps,
         alwaysOnTop: body.alwaysOnTop ?? widget.value.alwaysOnTop,
         size: body.size ?? widget.value.size,
-        windowSize: body.windowSize ?? widget.value.windowSize,
-        ttlMs: body.ttlMs ?? widget.value.ttlMs,
-      })
+        windowSize: body.windowSize as WidgetWindowSize | undefined ?? widget.value.windowSize,
+      }
     }))
   }
   catch {}
@@ -166,7 +137,6 @@ onMounted(() => {
       const body = evt?.body
       if (!body || body.id !== widgetId.value)
         return
-      clearTtl()
       widget.value = null
       pendingIframeRequests.value = []
       loading.value = false
@@ -176,7 +146,6 @@ onMounted(() => {
 
   try {
     eventDisposers.push(context.value.on(widgetsClearEvent, () => {
-      clearTtl()
       widget.value = null
       pendingIframeRequests.value = []
       loading.value = false
@@ -189,7 +158,6 @@ onBeforeUnmount(() => {
   for (const dispose of eventDisposers.splice(0)) {
     dispose()
   }
-  clearTtl()
 })
 
 const Registry: Record<string, ReturnType<typeof defineAsyncComponent>> = {
@@ -230,7 +198,6 @@ function resolveWidgetComponent(name: string) {
 }
 
 function handleClose() {
-  clearTtl()
   window.close()
 }
 

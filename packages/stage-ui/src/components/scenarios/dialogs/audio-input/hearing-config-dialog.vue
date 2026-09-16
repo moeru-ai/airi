@@ -6,8 +6,8 @@ import { onMounted, watch } from 'vue'
 
 import HearingConfig from './hearing-config.vue'
 
-import { useAudioDevice } from '../../../../composables'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
+import { useSettingsAudioDevice } from '../../../../stores'
 
 const props = defineProps<{
   overlayDim?: boolean
@@ -19,7 +19,7 @@ const showDialog = defineModel('show', { type: Boolean, default: false, required
 const autoSend = defineModel<boolean | undefined>('autoSend')
 
 const { isDesktop } = useBreakpoints()
-const { askPermission } = useAudioDevice()
+const { askPermission } = useSettingsAudioDevice()
 const screenSafeArea = useScreenSafeArea()
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())

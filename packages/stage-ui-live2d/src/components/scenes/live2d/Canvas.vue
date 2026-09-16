@@ -3,7 +3,7 @@ import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
 import { Live2DModel } from 'pixi-live2d-display/cubism4'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   width: number
@@ -15,11 +15,15 @@ const props = withDefaults(defineProps<{
   maxFps: 0,
 })
 
+const emit = defineEmits<{
+  error: [error: Error]
+}>()
+
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
 const containerRef = ref<HTMLDivElement>()
 const isPixiCanvasReady = ref(false)
-const pixiApp = ref<Application>()
+const pixiApp = shallowRef<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
 
 function resolveMaxFps(limit?: number) {
@@ -37,6 +41,7 @@ function installRenderGuard(app: Application) {
     catch (error) {
       console.error('[Live2D] Pixi render error.', error)
       app.ticker.stop()
+      emit('error', error instanceof Error ? error : new Error(String(error)))
     }
   }
 
@@ -97,7 +102,18 @@ watch(() => props.maxFps, (limit) => {
     pixiApp.value.ticker.maxFPS = resolveMaxFps(limit)
 })
 
-onMounted(async () => containerRef.value && await initLive2DPixiStage(containerRef.value))
+onMounted(async () => {
+  if (!containerRef.value)
+    return
+
+  try {
+    await initLive2DPixiStage(containerRef.value)
+  }
+  catch (error) {
+    console.error('[Live2D] Failed to initialize Pixi stage.', error)
+    emit('error', error instanceof Error ? error : new Error(String(error)))
+  }
+})
 onUnmounted(() => pixiApp.value?.destroy())
 
 async function captureFrame() {
@@ -110,6 +126,7 @@ async function captureFrame() {
     }
     catch (error) {
       console.error('[Live2D] Pixi render error during capture.', error)
+      emit('error', error instanceof Error ? error : new Error(String(error)))
       return resolve(null)
     }
 
@@ -135,7 +152,11 @@ import.meta.hot?.dispose(() => {
 </script>
 
 <template>
-  <div ref="containerRef" h-full w-full>
+  <div
+    ref="containerRef"
+    class="w-full"
+    :style="{ height: `${props.height}px` }"
+  >
     <slot v-if="isPixiCanvasReady" :app="pixiApp" />
   </div>
 </template>

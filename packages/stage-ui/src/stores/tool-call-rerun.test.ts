@@ -42,6 +42,85 @@ function tool(name: string, execute: Tool['execute']): Tool {
 }
 
 describe('replaceToolCallResult', () => {
+  it('updates portable history and invalidates native state after a local tool rerun', () => {
+    // ROOT CAUSE:
+    // A rerun updates UI tool results, but replaying the old native transcript
+    // sends the previous result again. Editing a turn must invalidate native
+    // state so its adapter renders the updated portable messages.
+    const message = assistantMessage({ generationTranscript: {
+      type: 'assistant',
+      id: 'turn',
+      status: 'completed',
+      rounds: [{
+        id: 'round',
+        content: [{ type: 'tool', invocationId: 'invocation' }],
+        projectionIssues: [],
+        toolInvocations: [{ id: 'invocation', callId: 'call-weather', name: 'weather', arguments: '{}', execution: { status: 'succeeded', output: [{ type: 'text', text: 'old weather' }] } }],
+        continuation: { protocol: 'responses', scope: 'session', data: [{ type: 'function_call_output', call_id: 'call-weather', output: 'old weather' }] },
+      }],
+    } })
+    const next = replaceToolCallResult(message, { id: 'call-weather', result: 'new weather' })
+    expect(next.generationTranscript?.rounds[0].continuation).toBeUndefined()
+    expect(next.generationTranscript?.rounds[0].toolInvocations[0].execution).toEqual({ status: 'succeeded', output: [{ type: 'text', text: 'new weather' }] })
+    expect(message.generationTranscript?.rounds[0].continuation).toBeDefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2477
+  it('updates only the selected invocation when rounds reuse a call id (PR #2477)', () => {
+    // ROOT CAUSE:
+    // Provider call ids can repeat across rounds. Matching every call id replaced
+    // unrelated executions. AIRI invocation ids identify the selected execution.
+    const message = assistantMessage({ generationTranscript: {
+      type: 'assistant',
+      id: 'turn',
+      status: 'completed',
+      rounds: [0, 1, 2].map(index => ({
+        id: `round-${index}`,
+        content: [],
+        projectionIssues: [],
+        toolInvocations: [{ id: `invocation-${index}`, callId: 'call-weather', name: 'weather', arguments: '{}', execution: { status: 'succeeded', output: [{ type: 'text', text: `old-${index}` }] } }],
+        continuation: { protocol: 'responses', scope: 'session', data: [] },
+      })),
+    }, tool_results: [0, 1, 2].map(index => ({ id: 'call-weather', result: `old-${index}` })) })
+    const next = replaceToolCallResult(message, { id: 'call-weather', result: 'new' }, 'invocation-1')
+    expect(next.generationTranscript?.rounds.map(round => round.toolInvocations[0].execution)).toEqual([
+      { status: 'succeeded', output: [{ type: 'text', text: 'old-0' }] },
+      { status: 'succeeded', output: [{ type: 'text', text: 'new' }] },
+      { status: 'succeeded', output: [{ type: 'text', text: 'old-2' }] },
+    ])
+    expect(next.generationTranscript?.rounds.map(round => round.continuation !== undefined)).toEqual([true, false, false])
+    expect(next.tool_results.map(result => result.result)).toEqual(['old-0', 'new', 'old-2'])
+    expect(() => replaceToolCallResult(message, { id: 'call-weather', result: 'new' })).toThrow('ambiguous')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2477
+  it('validates the selected invocation before executing a repeated call (PR #2477)', async () => {
+    const message = assistantMessage({ generationTranscript: {
+      type: 'assistant',
+      id: 'turn',
+      status: 'completed',
+      rounds: [0, 1].map(index => ({
+        id: `round-${index}`,
+        content: [],
+        projectionIssues: [],
+        toolInvocations: [{ id: `invocation-${index}`, callId: 'call-weather', name: 'weather', arguments: '{}', execution: { status: 'succeeded', output: [{ type: 'text', text: `old-${index}` }] } }],
+      })),
+    } })
+    const execute = vi.fn().mockResolvedValue('updated')
+    const resolveTools = vi.fn().mockResolvedValue([tool('weather', execute)])
+    const payload = { index: 0, toolCallId: 'call-weather', toolName: 'weather', args: '{}' }
+    await expect(executeToolCallRerun({ messages: [message], payload, resolveTools })).rejects.toThrow('ambiguous')
+    expect(resolveTools).not.toHaveBeenCalled()
+    await expect(executeToolCallRerun({ messages: [message], payload: { ...payload, invocationId: 'missing' }, resolveTools })).rejects.toThrow('missing')
+    expect(execute).not.toHaveBeenCalled()
+    const next = await executeToolCallRerun({ messages: [message], payload: { ...payload, invocationId: 'invocation-1' }, resolveTools })
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(next[0]).toMatchObject({ generationTranscript: { rounds: [
+      { toolInvocations: [{ execution: { output: [{ type: 'text', text: 'old-0' }] } }] },
+      { toolInvocations: [{ execution: { output: [{ type: 'text', text: 'updated' }] } }] },
+    ] } })
+  })
+
   it('replaces stored tool_results by id', () => {
     const message = assistantMessage({
       content: 'assistant content',
@@ -59,8 +138,8 @@ describe('replaceToolCallResult', () => {
     expect(next).not.toBe(message)
     expect(next.content).toBe('assistant content')
     expect(next.tool_results).toEqual([
-      { id: 'call-news', result: 'news' },
       { id: 'call-weather', result: 'new weather' },
+      { id: 'call-news', result: 'news' },
     ])
   })
 
@@ -106,6 +185,44 @@ describe('replaceToolCallResult', () => {
         result: 'new error',
       },
     ])
+  })
+
+  it('replaces the matching tool message in the provider transcript', () => {
+    const message = assistantMessage({
+      providerTranscript: [
+        {
+          role: 'assistant',
+          content: '',
+          tool_calls: [
+            {
+              id: 'call-weather',
+              type: 'function',
+              function: { name: 'weather', arguments: '{}' },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          tool_call_id: 'call-weather',
+          content: 'old weather',
+        },
+        {
+          role: 'assistant',
+          content: 'The old result was returned.',
+        },
+      ],
+    })
+
+    const next = replaceToolCallResult(message, {
+      id: 'call-weather',
+      result: 'new weather',
+    })
+
+    expect(next.providerTranscript?.[1]).toEqual({
+      role: 'tool',
+      tool_call_id: 'call-weather',
+      content: 'new weather',
+    })
   })
 })
 

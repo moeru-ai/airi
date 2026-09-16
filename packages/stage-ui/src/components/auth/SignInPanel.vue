@@ -86,7 +86,7 @@ function handleSelect(provider: OAuthProvider) {
         <Button
           v-for="provider in providers"
           :key="provider.id"
-          variant="secondary"
+
           size="lg"
           block
           :icon="provider.icon"

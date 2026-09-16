@@ -42,7 +42,7 @@ async function triggerOpenDesktopUserDataFolder() {
         </p>
       </div>
       <div :class="['flex flex-col items-start gap-2']">
-        <Button variant="secondary" @click="triggerOpenDesktopUserDataFolder">
+        <Button @click="triggerOpenDesktopUserDataFolder">
           {{ t('settings.pages.data.sections.desktop-folder.open') }}
         </Button>
       </div>

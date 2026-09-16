@@ -221,7 +221,7 @@ function hitVSequence() {
           label="Hit V sequence"
           icon="i-solar:repeat-one-minimalistic-bold-duotone"
           size="sm"
-          variant="secondary"
+
           @click="hitVSequence"
         />
         <FieldCheckbox

@@ -7,7 +7,8 @@ import {
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -26,8 +27,9 @@ const defaultVoiceSettings = {
 }
 
 const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore)
 
 const pitch = ref(0)
 const speed = ref(1.0)
@@ -78,7 +80,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, useSSML: boo
   }
 
   // Get provider configuration
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
   const model = providerConfig.model as string | undefined || defaultModel

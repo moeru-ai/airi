@@ -56,7 +56,7 @@ Use a dedicated config file for best IDE support:
 
 ```ts
 // uno.config.ts
-import { defineConfig, presetIcons, presetWind3 } from 'unocss'
+import { defineConfig, presetWind3, presetIcons } from 'unocss'
 
 export default defineConfig({
   presets: [
@@ -64,7 +64,7 @@ export default defineConfig({
     presetIcons(),
   ],
   shortcuts: {
-    btn: 'py-2 px-4 font-semibold rounded-lg',
+    'btn': 'py-2 px-4 font-semibold rounded-lg',
   },
 })
 ```
@@ -96,13 +96,12 @@ Or extend the merged config:
 ```ts
 // uno.config.ts
 import { mergeConfigs } from '@unocss/core'
-
 import config from './.nuxt/uno.config.mjs'
 
 export default mergeConfigs([config, {
   // Your overrides
   shortcuts: {
-    custom: 'text-red-500',
+    'custom': 'text-red-500',
   },
 }])
 ```
@@ -161,7 +160,7 @@ export default defineConfig({
 ```vue
 <template>
   <div class="p-4 text-center">
-    <h1 class="text-3xl text-blue-600 font-bold">
+    <h1 class="text-3xl font-bold text-blue-600">
       Hello UnoCSS!
     </h1>
     <button class="btn mt-4">
@@ -194,7 +193,7 @@ In development, visit `/_nuxt/__unocss` to access the UnoCSS inspector.
 - All Vite plugin features available
 - Nuxt layers config merging available
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/integrations/nuxt
 -->

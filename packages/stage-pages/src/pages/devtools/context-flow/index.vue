@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
-import type { ChatStreamEvent, ContextMessage } from '@proj-airi/stage-ui/types/chat'
 
 import type { FlowDirection, FlowEntry, SparkNotifyEntryState } from './context-flow-types'
 
@@ -8,15 +7,14 @@ import { errorMessageFrom } from '@moeru/std'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { Section } from '@proj-airi/stage-ui/components'
 import { useCharacterOrchestratorStore, useCharacterStore } from '@proj-airi/stage-ui/stores/character'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
-import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '@proj-airi/stage-ui/stores/chat/constants'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { formatContextPromptText } from '@proj-airi/stage-ui/stores/chat/context-prompt'
 import { useChatContextStore } from '@proj-airi/stage-ui/stores/chat/context-store'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useContextObservabilityStore } from '@proj-airi/stage-ui/stores/devtools/context-observability'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
+import { createContextChannel } from '@proj-airi/stage-ui/stores/mods/api/context-channel'
 import { getEventSourceKey } from '@proj-airi/stage-ui/utils'
-import { useBroadcastChannel } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -41,7 +39,7 @@ const {
   truncateText,
 } = useContextFlowFormatters()
 
-const chatStore = useChatOrchestratorStore()
+const chatStore = useChatStore()
 const chatContextStore = useChatContextStore()
 const chatSessionStore = useChatSessionStore()
 const characterStore = useCharacterStore()
@@ -339,12 +337,7 @@ async function sendTestSparkNotify() {
   }
 }
 
-const { data: incomingContext } = useBroadcastChannel<ContextMessage, ContextMessage>({
-  name: CONTEXT_CHANNEL_NAME,
-})
-const { data: incomingStreamEvent } = useBroadcastChannel<ChatStreamEvent, ChatStreamEvent>({
-  name: CHAT_STREAM_CHANNEL_NAME,
-})
+const contextChannel = createContextChannel()
 
 const cleanupFns: Array<() => void> = []
 
@@ -366,6 +359,37 @@ onMounted(() => {
       payload: event,
     })
   }))
+
+  cleanupFns.push(
+    contextChannel.onContext((event) => {
+      pushEntry({
+        direction: 'incoming',
+        channel: 'broadcast',
+        type: 'context:broadcast',
+        summary: [
+          `source=${getEventSourceKey(event)}`,
+          `strategy=${event.strategy}`,
+          summarizeContextUpdate(event),
+        ].filter(Boolean).join(' '),
+        payload: event,
+      })
+    }),
+    contextChannel.onStream((event) => {
+      pushEntry({
+        direction: 'incoming',
+        channel: 'broadcast',
+        type: `stream:${event.type}`,
+        summary: event.type === 'token-literal'
+          ? truncateText(event.literal, 80)
+          : event.type === 'token-special'
+            ? truncateText(event.special, 80)
+            : event.type === 'assistant-message'
+              ? truncateText(event.messageText ?? '', 120)
+              : `session=${event.sessionId}`,
+        payload: event,
+      })
+    }),
+  )
 
   const serverEventTypes = [
     'module:announce',
@@ -503,42 +527,6 @@ onMounted(() => {
   )
 })
 
-watch(incomingContext, (event) => {
-  if (!event)
-    return
-
-  pushEntry({
-    direction: 'incoming',
-    channel: 'broadcast',
-    type: 'context:broadcast',
-    summary: [
-      `source=${getEventSourceKey(event)}`,
-      `strategy=${event.strategy}`,
-      summarizeContextUpdate(event),
-    ].filter(Boolean).join(' '),
-    payload: event,
-  })
-})
-
-watch(incomingStreamEvent, (event) => {
-  if (!event)
-    return
-
-  pushEntry({
-    direction: 'incoming',
-    channel: 'broadcast',
-    type: `stream:${event.type}`,
-    summary: event.type === 'token-literal'
-      ? truncateText(event.literal, 80)
-      : event.type === 'token-special'
-        ? truncateText(event.special, 80)
-        : event.type === 'assistant-message'
-          ? truncateText(event.messageText ?? '', 120)
-          : `session=${event.sessionId}`,
-    payload: event,
-  })
-})
-
 watch(() => characterStore.reactions.length, () => {
   for (const state of sparkNotifyStates.value.values()) {
     if (state.reaction)
@@ -563,6 +551,8 @@ watch(maxEntriesValue, () => {
 onUnmounted(() => {
   for (const cleanup of cleanupFns)
     cleanup()
+
+  contextChannel.dispose(new Error('Context flow devtools unmounted'))
 
   if (nowTimer) {
     clearInterval(nowTimer)

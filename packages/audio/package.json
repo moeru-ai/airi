@@ -42,7 +42,8 @@
   "scripts": {
     "dev": "pnpm run build",
     "build": "tsdown",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:run": "vitest run"
   },
   "peerDependencies": {
     "vue": ">=3"
@@ -57,6 +58,7 @@
     "@moeru/std": "catalog:"
   },
   "devDependencies": {
-    "@types/audioworklet": "catalog:"
+    "@types/audioworklet": "catalog:",
+    "vue": "catalog:"
   }
 }

@@ -183,15 +183,15 @@ export interface SerializerAsync<T> {
   write: (value: T) => Awaitable<string>
 }
 export declare const StorageSerializers: Record<
-  'boolean' | 'object' | 'number' | 'any' | 'string' | 'map' | 'set' | 'date',
+  "boolean" | "object" | "number" | "any" | "string" | "map" | "set" | "date",
   Serializer<any>
 >
-export declare const customStorageEventName = 'vueuse-storage'
+export declare const customStorageEventName = "vueuse-storage"
 export interface StorageEventLike {
   storageArea: StorageLike | null
-  key: StorageEvent['key']
-  oldValue: StorageEvent['oldValue']
-  newValue: StorageEvent['newValue']
+  key: StorageEvent["key"]
+  oldValue: StorageEvent["oldValue"]
+  newValue: StorageEvent["newValue"]
 }
 export interface UseStorageOptions<T>
   extends ConfigurableEventFilter, ConfigurableWindow, ConfigurableFlush {

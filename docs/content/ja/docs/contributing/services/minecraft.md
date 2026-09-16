@@ -6,7 +6,7 @@ description: Project AIRI への貢献
 ### Minecraft エージェント
 
 ```shell
-cd services/minecraft
+cd integrations/minecraft
 ```
 
 Minecraft クライアントを起動し、希望のポートでワールドを公開し、そのポート番号を `.env.local` に記入します。

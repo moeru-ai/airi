@@ -57,10 +57,10 @@ async function handleCenterMainWindow() {
         </p>
       </div>
       <div :class="['flex flex-col items-start gap-2']">
-        <Button variant="caution" icon="i-solar:target-linear" @click="handleCenterMainWindow">
+        <Button icon="i-solar:target-linear" color="orange" variant="primary" @click="handleCenterMainWindow">
           {{ t('settings.pages.data.sections.desktop.center') }}
         </Button>
-        <DoubleCheckButton variant="caution" @confirm="resetDesktopState">
+        <DoubleCheckButton color="orange" @confirm="resetDesktopState">
           {{ t('settings.pages.data.sections.desktop.reset') }}
           <template #confirm>
             {{ t('settings.pages.data.confirmations.yes') }}

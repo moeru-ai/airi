@@ -90,7 +90,7 @@ const {
     <div class="w-full flex-shrink-0">
       <!-- Action Buttons -->
       <Button
-        variant="primary"
+
         class="w-full"
         :disabled="!activeModel"
         :loading="isLoadingActiveProviderModels"

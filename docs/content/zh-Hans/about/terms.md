@@ -14,7 +14,6 @@ description: Project AIRI 的使用条款
 请注意，应用程序使用具有其自己条款与条件的第三方服务。以下是应用程序使用的第三方服务提供商的条款与条件链接：
 
 *   [Posthog](https://posthog.com/terms)
-*   [Plausible Analytics](https://plausible.io/terms)
 
 请注意，服务提供商不对某些方面承担责任。应用程序的某些功能需要有效的互联网连接，可以是 Wi-Fi 或由您的移动网络提供商提供。如果由于缺乏 Wi-Fi 访问权限或您已用尽数据流量限额而导致应用程序无法以满负荷运行，服务提供商概不负责。
 

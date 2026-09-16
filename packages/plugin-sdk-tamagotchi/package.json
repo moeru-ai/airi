@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/plugin-sdk-tamagotchi",
   "type": "module",
-  "version": "0.11.3",
+  "version": "0.12.0-beta.5",
   "private": true,
   "description": "Tamagotchi-specific DX helpers for Project AIRI plugins",
   "author": {

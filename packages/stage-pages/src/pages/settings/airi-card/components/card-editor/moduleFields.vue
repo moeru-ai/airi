@@ -39,10 +39,8 @@ const displayModelId = defineModel<string>('displayModelId', { required: true })
 
 const { t } = useI18n()
 
-function defaultPlaceholder(defaultValue: string | undefined): string {
-  return defaultValue
-    ? `${t('settings.pages.card.creation.use_default')} (${defaultValue})`
-    : t('settings.pages.card.creation.use_default_not_configured')
+function defaultPlaceholder(_defaultValue: string | undefined): string {
+  return t('settings.pages.card.creation.inherit_global_settings')
 }
 </script>
 

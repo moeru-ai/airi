@@ -1,0 +1,35 @@
+{
+  "name": "@proj-airi/testing-audio",
+  "type": "module",
+  "version": "0.12.0-beta.5",
+  "private": true,
+  "description": "AIRI Web and Electron audio pipeline tests",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "build:targets": "pnpm -F @proj-airi/stage-web build && pnpm -F @proj-airi/stage-tamagotchi build",
+    "test": "vitest",
+    "test:run": "pnpm run build:targets && vitest run",
+    "test:existing-builds": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:",
+    "@pnpm/find-workspace-dir": "catalog:",
+    "@proj-airi/provider-inference": "workspace:^",
+    "@proj-airi/stage-shared": "workspace:^",
+    "@proj-airi/stage-ui": "workspace:^",
+    "@proj-airi/vitest-plugin-fakemic": "workspace:^",
+    "playwright": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:vitest"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

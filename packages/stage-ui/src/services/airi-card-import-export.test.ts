@@ -90,6 +90,45 @@ describe('airi card package import/export', () => {
     for (const [file, expected] of cases)
       await expect(importAiriCardPackage({ file, displayModelsStore })).rejects.toMatchObject(expected)
   })
+
+  it('preserves Tachie archives and their compound extension', async () => {
+    const displayModelsStore = useDisplayModelsStore()
+    vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue({
+      id: 'tachie-model',
+      format: DisplayModelFormat.TachieZip,
+      type: 'file',
+      file: new File(['tachie-model'], 'character.tachie.zip'),
+      name: 'character.tachie.zip',
+      importedAt: 1,
+    })
+    mockAddDisplayModel(displayModelsStore, 'imported-tachie')
+
+    const exported = await exportAiriCardPackage({
+      card: createCard('tachie-model'),
+      displayModelsStore,
+    })
+    const zip = await JSZip.loadAsync(await exported.arrayBuffer())
+    const imported = await importAiriCardPackage({
+      file: new File([exported], 'card.zip'),
+      displayModelsStore,
+    })
+
+    expect(await readJson(zip, 'manifest.json')).toMatchObject({
+      resources: {
+        displayModel: {
+          path: 'models/body-model.tachie.zip',
+          format: DisplayModelFormat.TachieZip,
+          name: 'character.tachie.zip',
+        },
+      },
+    })
+    expect(await zip.file('models/body-model.tachie.zip')?.async('string')).toBe('tachie-model')
+    expect(displayModelsStore.addDisplayModel).toHaveBeenCalledWith(
+      DisplayModelFormat.TachieZip,
+      expect.objectContaining({ name: 'character.tachie.zip' }),
+    )
+    expect(airiFrom(imported).modules.displayModelId).toBe('imported-tachie')
+  })
 })
 
 function mockAddDisplayModel(store: ReturnType<typeof useDisplayModelsStore>, id = 'unused') {

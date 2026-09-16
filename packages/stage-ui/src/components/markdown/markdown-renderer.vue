@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import DOMPurify from 'dompurify'
 
-import { onMounted, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 
 import { useMarkdown } from '../../composables/markdown'
 
@@ -14,28 +14,42 @@ const props = defineProps<Props>()
 
 const processedContent = ref('')
 const { process, processSync } = useMarkdown()
+let processRequestId = 0
 
-async function processContent() {
-  if (!props.content) {
+async function processRichContent(content: string, requestId: number) {
+  try {
+    const result = DOMPurify.sanitize(await process(content))
+    if (requestId === processRequestId)
+      processedContent.value = result
+  }
+  catch (error) {
+    console.warn('Failed to process markdown with syntax highlighting, using fallback:', error)
+  }
+}
+
+function processContent() {
+  const content = props.content
+  const requestId = ++processRequestId
+
+  if (!content) {
     processedContent.value = ''
     return
   }
 
   try {
-    processedContent.value = DOMPurify.sanitize(await process(props.content))
+    processedContent.value = DOMPurify.sanitize(processSync(content))
   }
   catch (error) {
-    console.warn('Failed to process markdown with syntax highlighting, using fallback:', error)
-    processedContent.value = DOMPurify.sanitize(processSync(props.content))
+    console.warn('Failed to process markdown:', error)
+    processedContent.value = ''
+    return
   }
+
+  if (/`{3,}/.test(content))
+    void processRichContent(content, requestId)
 }
 
-// Process content when it changes
 watch(() => props.content, processContent, { immediate: true })
-
-onMounted(() => {
-  processContent()
-})
 </script>
 
 <template>

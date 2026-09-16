@@ -45,7 +45,7 @@ import ReLUStickerWow from './assets/relu-sticker-wow.avif'
 
 ### 记忆系统
 
-最近正在重构 [`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/services/telegram-bot) 以为已经准备了数月的 Project AIRI 即将到来的「记忆更新」作准备。
+最近正在重构 [`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/integrations/telegram-bot) 以为已经准备了数月的 Project AIRI 即将到来的「记忆更新」作准备。
 
 我们计划使实现后的记忆系统成为当下最先进、最强大、最健壮的系统，其中很多的思想都深受真实世界中的人类记忆系统的启发。
 

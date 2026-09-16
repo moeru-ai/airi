@@ -24,6 +24,8 @@ const props = withDefaults(defineProps<{
    * the consumer having to drop down to raw HTML.
    */
   required?: boolean
+  /** Disables editing and focus on the native input. */
+  disabled?: boolean
 }>(), {
   variant: 'primary',
   size: 'md',
@@ -79,6 +81,7 @@ const variantClasses: Record<InputVariant, Record<InputTheme, {
       v-model.number="modelValue"
       :type="props.type || 'text'"
       :required="props.required"
+      :disabled="props.disabled"
       :class="[
         'transition-all duration-200 ease-in-out',
         'cursor-disabled:not-allowed',
@@ -91,6 +94,7 @@ const variantClasses: Record<InputVariant, Record<InputTheme, {
       v-model="modelValue"
       :type="props.type || 'text'"
       :required="props.required"
+      :disabled="props.disabled"
       :class="[
         'transition-all duration-200 ease-in-out',
         'cursor-disabled:not-allowed',

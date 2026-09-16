@@ -1,11 +1,3 @@
-# Plausible.io analytics
-#
-# Originally proxying Plausible through Netlify | Plausible docs
-# https://plausible.io/docs/proxy/guides/netlify
-#
-# /remote-assets/page-external-data/js/script.js  https://plausible.io/js/script.js 200
-# /api/v1/page-external-data/submit               https://plausible.io/api/event    200
-
 # i18n
 /docs/    /docs/en/  301
 

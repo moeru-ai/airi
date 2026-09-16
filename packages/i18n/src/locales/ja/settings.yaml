@@ -51,16 +51,14 @@ dialogs:
     no-models-help: >-
       前のステップに戻ってAPIキーを確認するか、ネットワーク接続を確認してください。
     permissions:
-      title: 通知
-      description: 今すぐ通知を許可するか、続行して後で設定できます。
+      title: 権限管理
+      description: 今すぐ必要な権限を許可するか、続行して後で設定できます。
       notificationsTitle: 通知
       notificationsDescription: リマインダーと重要なステータス更新を許可する。
-      notificationsAction: 通知権限を要求
-      notificationsNotGrantedHint: 通知を拒否した場合は、iOS の設定から後で通知を有効にできます。
-      openSettings: iOSの設定を開く
-      optionalHint: 通知権限を許可しない場合でも続行できます。
-      stateUnknown: リクエストされていません
-      stateRequesting: リクエスト中…
+      microphoneTitle: マイク
+      microphoneDescription: AIRI が音声入力と文字起こしにマイクを使用することを許可します。
+      requestAction: アクセスをリクエスト
+      optionalHint: これらの権限を許可しない場合でも続行できます。
       stateGranted: 許可済み
       stateNotGranted: 許可されていません
   bug-report:
@@ -1458,6 +1456,9 @@ pages:
     general:
       description: ダークテーマ、言語など。
       title: 一般
+    permissions:
+      description: 現在の権限状態を確認します。
+      title: 権限管理
     description: ステージをカスタマイズしよう！
     sections:
       section:
@@ -1744,6 +1745,22 @@ mmd:
     no-materials: This model exposes no materials.
     description: >-
       Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
+tachie:
+  title: Tachie Settings
+  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  rendering:
+    title: Rendering
+    render-scale: Render Scale
+    shadow: Theme-colored drop shadow
 websocket-secure-enabled:
   title: セキュア WebSocket (WSS) を有効にする
   description: >-

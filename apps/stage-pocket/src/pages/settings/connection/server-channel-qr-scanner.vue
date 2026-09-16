@@ -3,7 +3,7 @@ import { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint } from '@capac
 import { errorMessageFrom } from '@moeru/std'
 import { parseServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
-import { Button } from '@proj-airi/ui'
+import { GhostButton } from '@proj-airi/ui'
 import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -56,8 +56,8 @@ async function scanServerChannelQrCode() {
         {{ t('settings.pages.connection.qr-scan.description') }}
       </p>
     </div>
-    <Button
-      variant="secondary-muted"
+    <GhostButton
+
       :loading="scanning"
       :label="t('settings.pages.connection.qr-scan.action')"
       @click="scanServerChannelQrCode"

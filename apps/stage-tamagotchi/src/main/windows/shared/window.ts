@@ -7,7 +7,7 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { shell } from 'electron'
-import { isMacOS } from 'std-env'
+import { isMacOS, isWindows } from 'std-env'
 
 import { createServerChannelService } from '../../services/airi/channel-server'
 import { createI18nService } from '../../services/airi/i18n'
@@ -90,6 +90,30 @@ export function spotlightLikeWindowConfig(): BrowserWindowConstructorOptions {
     ...blurryWindowConfig(),
     titleBarStyle: isMacOS ? 'hidden' : undefined,
   }
+}
+
+/**
+ * Sets the window always-on-top level according to the host platform.
+ *
+ * macOS and Windows support the screen-saver level and relative level layering,
+ * while Linux (X11/Wayland) works reliably with standard always-on-top.
+ */
+export function setWindowAlwaysOnTop(
+  window: Pick<BrowserWindow, 'setAlwaysOnTop'>,
+  flag: boolean,
+  relativeLevel = 1,
+): void {
+  if (!flag) {
+    window.setAlwaysOnTop(false)
+    return
+  }
+
+  if (isMacOS || isWindows) {
+    window.setAlwaysOnTop(true, 'screen-saver', relativeLevel)
+    return
+  }
+
+  window.setAlwaysOnTop(true)
 }
 
 export function resizeWindowByDelta(params: {

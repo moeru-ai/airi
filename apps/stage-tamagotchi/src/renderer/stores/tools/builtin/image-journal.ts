@@ -133,7 +133,7 @@ async function executeCreateImageJournalEntry(params: { prompt?: string, title?:
           if (!extension.airi.modules)
             extension.airi.modules = {}
           extension.airi.modules.activeBackgroundId = entryId
-          cardStore.updateCard(cardId, { ...card, extensions: extension })
+          await cardStore.updateCard(cardId, { ...card, extensions: extension })
         }
       }
     }
@@ -204,7 +204,7 @@ async function executeSetAsBackground(params: { query?: string }) {
           if (!extension.airi.modules)
             extension.airi.modules = {}
           extension.airi.modules.activeBackgroundId = entry.id
-          cardStore.updateCard(cardId, { ...card, extensions: extension })
+          await cardStore.updateCard(cardId, { ...card, extensions: extension })
         }
       }
       return `Background set to "${entry.title}".`

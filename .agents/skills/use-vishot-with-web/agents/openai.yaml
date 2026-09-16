@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Vishot with Web"
+  short_description: "Capture browser routes with Vishot"
+  default_prompt: "Use $use-vishot-with-web to capture the requested web UI states."

@@ -61,9 +61,16 @@
   "scripts": {
     "dev": "pnpm run build",
     "build": "tsdown",
+    "glossary:build": "tsx glossary/build-tbx.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "unplugin-yaml": "catalog:"
+    "unplugin-yaml": "catalog:",
+    "valibot": "catalog:",
+    "xast-util-to-xml": "catalog:",
+    "xastscript": "catalog:",
+    "yaml": "catalog:"
   }
 }

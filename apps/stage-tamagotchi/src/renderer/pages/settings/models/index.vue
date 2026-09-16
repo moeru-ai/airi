@@ -16,7 +16,7 @@ import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/el
 import { ModelSettingsPanel } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { Button, Callout } from '@proj-airi/ui'
+import { Callout, GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -61,7 +61,7 @@ const godotStageStatus = ref<ElectronGodotStageStatus>({
 const switchingGodotStage = ref(false)
 const godotViewError = ref<StageViewErrorPayload>()
 const godotViewSnapshot = ref<StageViewSnapshotPayload | null>(null)
-const { runtimeSnapshot } = useModelSettingsRuntimeSnapshot()
+const { runtimeSnapshot, sendLive2DExpressionCommand } = useModelSettingsRuntimeSnapshot()
 
 let sceneSyncGeneration = 0
 let godotSessionEpoch = 0
@@ -383,20 +383,20 @@ onUnmounted(() => {
           'max-w-6xl',
           'h-fit',
           'sm:max-h-[80dvh]',
-          'overflow-y-scroll',
           'relative',
         ]"
+        @live2d-expression-command="sendLive2DExpressionCommand"
         @patch-godot-view-state="handleGodotViewPatch"
       >
         <template #actions>
-          <Button
-            variant="secondary"
+          <GhostButton
+
             :loading="switchingGodotStage"
-            :toggled="usesGodotStage"
+            :active="usesGodotStage"
             @click="handleGodotStageToggle"
           >
             {{ godotToggleLabel }}
-          </Button>
+          </GhostButton>
         </template>
       </ModelSettingsPanel>
     </div>

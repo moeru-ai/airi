@@ -90,7 +90,7 @@ light, or other final-frame judgments.
 Launch the scene with the Godot mono binary:
 
 ```powershell
-C:\Godot_v4.6.2-stable_mono_win64\Godot_v4.6.2-stable_mono_win64.exe `
+C:\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64.exe `
   --path "D:\TAworkspace\AIRIworkspace\airi\engines\stage-tamagotchi-godot" `
   --scene "res://tests/<check-name>/<checkName>.tscn"
 ```

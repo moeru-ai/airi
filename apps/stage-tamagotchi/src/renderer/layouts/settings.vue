@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PageHeader } from '@proj-airi/stage-ui/components'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
@@ -12,7 +12,7 @@ import { useRestoreScroll } from '../composables/use-restore-scroll'
 
 const route = useRoute()
 const { t } = useI18n()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 const scrollContainer = ref<HTMLElement>()
 useRestoreScroll(scrollContainer)
 
@@ -33,13 +33,7 @@ const providerTitle = computed(() => {
   if (!providerId)
     return undefined
 
-  try {
-    const metadata = providersStore.getProviderMetadata(providerId)
-    return t(metadata.nameKey)
-  }
-  catch {
-    return undefined
-  }
+  return providersStore.findProviderDefinition(providerId)?.nameLocalize({ t })
 })
 
 // const activeSettingsTutorial = ref('default')

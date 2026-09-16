@@ -10,6 +10,7 @@ export enum DisplayModelFormat {
   Live2dDirectory = 'live2d-directory',
   VRM = 'vrm',
   SpineZip = 'spine-zip',
+  TachieZip = 'tachie-zip',
   PMXZip = 'pmx-zip',
   PMXDirectory = 'pmx-directory',
   PMD = 'pmd',
@@ -60,6 +61,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   let generateLive2DPreview: (file: File) => Promise<string | undefined>
   let generateVrmPreview: (file: File) => Promise<string | undefined>
   let generateSpinePreview: (file: File) => Promise<string | undefined>
+  let generateTachiePreview: (file: File) => Promise<string | undefined>
   let generateMMDPreview: (file: File) => Promise<string | undefined>
 
   const displayModelsFromIndexedDBLoading = ref(false)
@@ -109,6 +111,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   const loadLive2DModelPreview = (file: File) => generateLive2DPreview(file)
   const loadVrmModelPreview = (file: File) => generateVrmPreview(file)
   const loadSpineModelPreview = (file: File) => generateSpinePreview(file)
+  const loadTachieModelPreview = (file: File) => generateTachiePreview(file)
   const loadMMDModelPreview = (file: File) => generateMMDPreview(file)
 
   async function addDisplayModel(format: DisplayModelFormat, file: File) {
@@ -125,6 +128,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     }
     else if (format === DisplayModelFormat.SpineZip) {
       const previewImage = await loadSpineModelPreview(file)
+      newDisplayModel.previewImage = previewImage
+    }
+    else if (format === DisplayModelFormat.TachieZip) {
+      const previewImage = await loadTachieModelPreview(file)
       newDisplayModel.previewImage = previewImage
     }
     else if (format === DisplayModelFormat.PMXZip || format === DisplayModelFormat.PMXDirectory || format === DisplayModelFormat.PMD) {
@@ -205,10 +212,12 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     const { loadLive2DModelPreview } = await import('@proj-airi/stage-ui-live2d/utils/live2d-preview')
     const { loadVrmModelPreview } = await import('@proj-airi/stage-ui-three/utils/vrm-preview')
     const { loadSpineModelPreview } = await import('@proj-airi/stage-ui-spine/utils/spine-preview')
+    const { loadTachieModelPreview } = await import('@proj-airi/stage-ui-tachie/utils/tachie-preview')
 
     generateLive2DPreview = loadLive2DModelPreview
     generateVrmPreview = loadVrmModelPreview
     generateSpinePreview = loadSpineModelPreview
+    generateTachiePreview = loadTachieModelPreview
 
     // NOTICE:
     // Isolate the MMD preview import. It pulls in three-stdlib's MMD modules,

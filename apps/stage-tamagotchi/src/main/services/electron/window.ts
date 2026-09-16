@@ -6,6 +6,7 @@ import type { ElectronWindowLifecycleState } from '../../../shared/eventa'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
 import { createRendererLoop, safeClose } from '@proj-airi/electron-vueuse/main'
+import { isWindows } from 'std-env'
 
 import {
   electron,
@@ -15,7 +16,7 @@ import {
   electronWindowSetAlwaysOnTop,
 } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
-import { resizeWindowByDelta } from '../../windows/shared/window'
+import { resizeWindowByDelta, setWindowAlwaysOnTop } from '../../windows/shared/window'
 
 export function createWindowService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
   function getWindowLifecycleState(reason: ElectronWindowLifecycleState['reason']): ElectronWindowLifecycleState {
@@ -81,12 +82,7 @@ export function createWindowService(params: { context: ReturnType<typeof createC
 
   defineInvokeHandler(params.context, electronWindowSetAlwaysOnTop, (flag, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
-      if (flag) {
-        params.window.setAlwaysOnTop(true, 'screen-saver', 1)
-      }
-      else {
-        params.window.setAlwaysOnTop(false)
-      }
+      setWindowAlwaysOnTop(params.window, Boolean(flag))
     }
   })
 
@@ -97,7 +93,7 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   })
 
   defineInvokeHandler(params.context, electron.window.setBackgroundMaterial, (backgroundMaterial, options) => {
-    if (backgroundMaterial && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+    if (isWindows && backgroundMaterial && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
       params.window.setBackgroundMaterial(backgroundMaterial[0])
     }
   })

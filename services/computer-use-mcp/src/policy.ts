@@ -105,7 +105,7 @@ export function evaluateActionPolicy(params: {
   operationUnitsConsumed: number
 }): PolicyDecision {
   const reasons: string[] = []
-  const estimatedOperationUnits = estimateOperationUnits(params.action)
+  const estimatedOperationUnits = estimateOperationUnits(params.action)!
   const mutating = isMutatingAction(params.action)
   let allowed = true
   let requiresApproval = false

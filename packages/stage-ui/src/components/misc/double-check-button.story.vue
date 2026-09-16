@@ -34,7 +34,7 @@ function note(message: string) {
           </template>
         </DoubleCheckButton>
         <DoubleCheckButton
-          variant="caution"
+          color="orange"
           @confirm="note('Confirmed reset')"
           @cancel="note('Cancelled reset')"
         >
@@ -66,7 +66,7 @@ function note(message: string) {
           Never mind
         </template>
         <template #cancel-botton-icon>
-          <div class="i-solar:close-square-line-duotone h-4 w-4" />
+          <div class="i-ph:x h-4 w-4" />
         </template>
       </DoubleCheckButton>
     </Variant>

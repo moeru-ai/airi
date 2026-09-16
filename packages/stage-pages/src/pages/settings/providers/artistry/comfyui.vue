@@ -6,7 +6,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { errorMessageFrom } from '@moeru/std'
 import { artistryTestComfyUIConnection, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { Button, FieldInput } from '@proj-airi/ui'
+import { Button, FieldInput, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -299,7 +299,7 @@ function copyToClipboard(text: string) {
         </div>
         <Button
           class="mb-0.5"
-          variant="primary"
+
           size="md"
           :icon="connectionStatus === 'testing' ? undefined : 'i-solar:plug-circle-bold-duotone'"
           :loading="connectionStatus === 'testing'"
@@ -347,7 +347,7 @@ function copyToClipboard(text: string) {
           {{ t('settings.pages.providers.provider.comfyui.settings.workflows.title') }}
         </h3>
         <Button
-          variant="secondary"
+
           size="sm"
           @click="showUploadSection = !showUploadSection"
         >
@@ -384,14 +384,14 @@ function copyToClipboard(text: string) {
               }) }}
             </div>
           </div>
-          <Button
-            variant="ghost"
+          <GhostButton
+
             size="sm"
             class="!text-red-400 hover:!text-red-500"
             @click="removeWorkflow(wf.id)"
           >
             {{ t('settings.pages.providers.provider.comfyui.settings.workflows.remove') }}
-          </Button>
+          </GhostButton>
         </div>
 
         <!-- Expanded Details -->
@@ -424,7 +424,7 @@ function copyToClipboard(text: string) {
                 {{ t('settings.pages.providers.provider.comfyui.settings.workflows.config_snippet') }}
               </div>
               <Button
-                variant="secondary"
+
                 size="sm"
                 @click="copyToClipboard(generateExampleJson(wf))"
               >
@@ -493,39 +493,41 @@ function copyToClipboard(text: string) {
             {{ t('settings.pages.providers.provider.comfyui.settings.upload.select_fields') }}
           </div>
 
-          <div class="max-h-80 flex flex-col gap-2 overflow-y-auto">
-            <div
-              v-for="node in parsedWorkflow.nodes"
-              :key="node.id"
-              class="border border-neutral-200 rounded-lg p-3 dark:border-neutral-700"
-            >
-              <div class="mb-1 text-sm text-neutral-700 font-medium dark:text-neutral-300">
-                {{ node.title }}
-                <span class="ml-1 text-xs text-neutral-400">({{ node.type }})</span>
-              </div>
-              <div class="flex flex-col gap-1 pl-3">
-                <label
-                  v-for="(val, field) in node.inputs"
-                  :key="String(field)"
-                  class="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-xs hover:bg-neutral-50 dark:hover:bg-neutral-800"
-                >
-                  <input
-                    type="checkbox"
-                    class="accent-indigo-500"
-                    :checked="isFieldSelected(node.title, String(field))"
-                    @change="toggleField(node.title, String(field))"
+          <ScrollableArea :class="['max-h-80']">
+            <div :class="['flex flex-col gap-2']">
+              <div
+                v-for="node in parsedWorkflow.nodes"
+                :key="node.id"
+                class="border border-neutral-200 rounded-lg p-3 dark:border-neutral-700"
+              >
+                <div class="mb-1 text-sm text-neutral-700 font-medium dark:text-neutral-300">
+                  {{ node.title }}
+                  <span class="ml-1 text-xs text-neutral-400">({{ node.type }})</span>
+                </div>
+                <div class="flex flex-col gap-1 pl-3">
+                  <label
+                    v-for="(val, field) in node.inputs"
+                    :key="String(field)"
+                    class="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-xs hover:bg-neutral-50 dark:hover:bg-neutral-800"
                   >
-                  <span class="text-neutral-600 font-mono dark:text-neutral-400">{{ field }}</span>
-                  <span class="truncate text-neutral-400 dark:text-neutral-500">= {{ formatValue(val) }}</span>
-                </label>
+                    <input
+                      type="checkbox"
+                      class="accent-indigo-500"
+                      :checked="isFieldSelected(node.title, String(field))"
+                      @change="toggleField(node.title, String(field))"
+                    >
+                    <span class="text-neutral-600 font-mono dark:text-neutral-400">{{ field }}</span>
+                    <span class="truncate text-neutral-400 dark:text-neutral-500">= {{ formatValue(val) }}</span>
+                  </label>
+                </div>
               </div>
             </div>
-          </div>
+          </ScrollableArea>
 
           <div class="mt-2 flex items-center justify-between">
             <span class="text-xs text-neutral-400">{{ t('settings.pages.providers.provider.comfyui.settings.upload.fields_exposed', { count: totalExposed }) }}</span>
             <Button
-              variant="primary"
+
               size="sm"
               :disabled="!pendingWorkflowName.trim() || totalExposed === 0"
               @click="saveWorkflow"

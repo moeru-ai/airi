@@ -177,6 +177,24 @@ describe('setupAutoUpdater', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
+  // https://github.com/moeru-ai/airi/pull/1827
+  it('keeps storefront-managed distributions outside the GitHub updater flow (PR #1827)', async () => {
+    const fetchSpy = mockGitHubReleasesFetch()
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ enabled: false })
+
+    await service.checkForUpdates()
+    await service.downloadUpdate()
+    await service.quitAndInstall()
+
+    expect(service.state.status).toBe('disabled')
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(updaterState.instance.on).not.toHaveBeenCalled()
+    expect(updaterState.instance.checkForUpdates).not.toHaveBeenCalled()
+    expect(updaterState.instance.downloadUpdate).not.toHaveBeenCalled()
+    expect(updaterState.instance.quitAndInstall).not.toHaveBeenCalled()
+  })
+
   it('supports explicit stable lane selection for future dynamic channel switching', async () => {
     process.env.AIRI_UPDATE_CHANNEL = 'stable'
     mockGitHubReleasesFetch([

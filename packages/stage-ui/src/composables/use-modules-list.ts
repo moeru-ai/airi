@@ -1,6 +1,6 @@
 import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
 
-import { getBeatSyncState, listenBeatSyncStateChange } from '@proj-airi/stage-shared/beat-sync'
+import { getBeatSyncState, isBeatSyncSupported, listenBeatSyncStateChange } from '@proj-airi/stage-shared/beat-sync'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -44,6 +44,7 @@ export function useModulesList() {
   const factorioStore = useFactorioStore()
   const artistryStore = useArtistryStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
+  const beatSyncSupported = isBeatSyncSupported()
 
   minecraftStore.initialize()
 
@@ -165,15 +166,17 @@ export function useModulesList() {
       configured: false,
       category: 'essential',
     },
-    {
-      id: 'beat-sync',
-      name: t('settings.pages.modules.beat_sync.title'),
-      description: t('settings.pages.modules.beat_sync.description'),
-      icon: 'i-solar:music-notes-bold-duotone',
-      to: '/settings/modules/beat-sync',
-      configured: beatSyncState.value?.isActive ?? false,
-      category: 'essential',
-    },
+    ...(beatSyncSupported
+      ? [{
+          id: 'beat-sync',
+          name: t('settings.pages.modules.beat_sync.title'),
+          description: t('settings.pages.modules.beat_sync.description'),
+          icon: 'i-solar:music-notes-bold-duotone',
+          to: '/settings/modules/beat-sync',
+          configured: beatSyncState.value?.isActive ?? false,
+          category: 'essential',
+        }]
+      : []),
   ])
 
   const categorizedModules = computed(() => {
@@ -196,6 +199,9 @@ export function useModulesList() {
 
   // TODO(Makito): We can make this a reactive value from a synthetic store.
   onMounted(() => {
+    if (!beatSyncSupported)
+      return
+
     getBeatSyncState().then(initialState => beatSyncState.value = initialState)
     const removeListener = listenBeatSyncStateChange(newState => beatSyncState.value = { ...newState })
     onUnmounted(() => removeListener())

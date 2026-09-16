@@ -7,7 +7,7 @@ description: Resources for referencing and taking inspiration from
 
 One of the greatest CSS stage transition author I know is **[yui540](https://yui540.com/)**, he/she designed so many other stunning looking ACG websites, and the most famous one was [臆病な魔女](https://cowardly-witch.netlify.app/) (source code can be found under [yui540](https://github.com/yui540?tab=repositories)).
 
-To achieve the similar transition effect like the above, you may reference to this repository [yui540/css-animations: 俺流CSSアニメーション](https://github.com/yui540/css-animations), it has a [live demo](https://yui540.github.io/css-animations/2025-02-25/transitions/) you can play around too.
+To achieve the similar transition effect like the above, you may reference to this repository [yui540/css-animations: 俺流CSSアニメーション](https://github.com/yui540/css-animations).
 
 ### [Nihe Works](https://nihe.work/)
 

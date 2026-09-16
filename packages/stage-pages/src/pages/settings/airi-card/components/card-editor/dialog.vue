@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import type { Card } from '@proj-airi/ccc'
 import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import type { VoiceInfo } from '@proj-airi/stage-ui/stores/providers/provider'
+import type { Ref } from 'vue'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
-import { applyAiriCardEditorModules, safeParseAiriCardDraft, serializeAiriCardEditorDraft } from '@proj-airi/stage-ui/services/airi-card/editor'
+import { resolveModuleSelection } from '@proj-airi/stage-ui/services/airi-card-modules'
+import { applyAiriCardEditorModules, getAiriCardEditorModuleSettings, safeParseAiriCardDraft, serializeAiriCardEditorDraft } from '@proj-airi/stage-ui/services/airi-card/editor'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import {
@@ -67,127 +68,167 @@ const { trackCardEdited } = useAnalytics()
 const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const visionStore = useVisionStore()
-const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 const displayModelsStore = useDisplayModelsStore()
-const stageModelStore = useSettingsStageModel()
-const artistryStore = useArtistryStore()
 
-const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
-const { activeProvider: visionProvider, activeModel: defaultVisionModel } = storeToRefs(visionStore)
-const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultSpeechVoiceId } = storeToRefs(speechStore)
+const consciousnessProvider = computed(() => cardStore.moduleDefaults?.consciousness.provider ?? '')
+const visionProvider = computed(() => cardStore.moduleDefaults?.vision.provider ?? '')
+const speechProvider = computed(() => cardStore.moduleDefaults?.speech.provider ?? '')
 const { displayModels } = storeToRefs(displayModelsStore)
-const { stageModelSelected: defaultDisplayModelId } = storeToRefs(stageModelStore)
-const { activeProvider: defaultArtistryProvider } = storeToRefs(artistryStore)
 
 // Determine if we're in edit mode
 const isEditMode = computed(() => !!props.cardId)
 const isEditingActiveCard = computed(() => isEditMode.value && props.cardId === cardStore.activeCardId)
 
 // Modules configuration
-const selectedConsciousnessProvider = shallowRef('')
-const selectedConsciousnessModel = shallowRef('')
-const selectedVisionProvider = shallowRef('')
-const selectedVisionModel = shallowRef('')
-const selectedSpeechProvider = shallowRef('')
-const selectedSpeechModel = shallowRef('')
-const selectedSpeechVoiceId = shallowRef('')
-const selectedDisplayModelId = shallowRef('')
+const selectedConsciousnessProvider = ref<string>('')
+const selectedConsciousnessModel = ref<string>('')
+const selectedVisionProvider = ref<string>('')
+const selectedVisionModel = ref<string>('')
+const selectedSpeechProvider = ref<string>('')
+const selectedSpeechModel = ref<string>('')
+const selectedSpeechVoiceId = ref<string>('')
+const previewVoices = ref<VoiceInfo[]>([])
+const selectedDisplayModelId = ref<string>('')
 const draftInitialization = createDraftInitializationCoordinator()
 
+// NOTICE:
+// The editor needs a non-empty option value for inherited settings.
+// Reka ComboboxItem rejects an empty-string item value.
+// Source/context: packages/ui/src/components/form/combobox/combobox.vue.
+// Removal condition: delete this mapping when Reka accepts empty item values.
+const inheritGlobalSettingOptionValue = '__airi-inherit-global-setting__'
+
+function createInheritableSelection(selection: Ref<string>) {
+  return computed({
+    get: () => selection.value || inheritGlobalSettingOptionValue,
+    set: (value: string) => {
+      selection.value = value === inheritGlobalSettingOptionValue ? '' : value
+    },
+  })
+}
+
+const consciousnessProviderSelection = createInheritableSelection(selectedConsciousnessProvider)
+const consciousnessModelSelection = createInheritableSelection(selectedConsciousnessModel)
+const visionProviderSelection = createInheritableSelection(selectedVisionProvider)
+const visionModelSelection = createInheritableSelection(selectedVisionModel)
+const speechProviderSelection = createInheritableSelection(selectedSpeechProvider)
+const speechModelSelection = createInheritableSelection(selectedSpeechModel)
+const speechVoiceSelection = createInheritableSelection(selectedSpeechVoiceId)
+const displayModelSelection = createInheritableSelection(selectedDisplayModelId)
+
 // Artistry configuration
-const selectedArtistryProvider = shallowRef('')
-const selectedArtistryModel = shallowRef('')
-const selectedArtistryPromptPrefix = shallowRef('')
-const selectedArtistryWidgetInstruction = shallowRef('')
-const selectedArtistrySpawnMode = shallowRef<'bg' | 'widget' | 'inline' | 'bg_widget'>('bg_widget')
-const selectedArtistryAutonomousEnabled = shallowRef(false)
-const selectedArtistryAutonomousThreshold = shallowRef(70)
-const selectedArtistryConfigStr = shallowRef('{\n  \n}')
+const selectedArtistryProvider = ref<string>('')
+const artistryProviderSelection = createInheritableSelection(selectedArtistryProvider)
+const selectedArtistryModel = ref<string>('')
+const selectedArtistryPromptPrefix = ref<string>('')
+const selectedArtistryWidgetInstruction = ref<string>('')
+const selectedArtistrySpawnMode = ref<'bg' | 'widget' | 'inline' | 'bg_widget'>('bg_widget')
+const selectedArtistryAutonomousEnabled = ref<boolean>(false)
+const selectedArtistryAutonomousThreshold = ref<number>(70)
+const selectedArtistryConfigStr = ref<string>('{\n  \n}')
+let isInitializingModuleSelections = false
+let hasLoadedModuleOptions = false
+
+interface ModuleSelectOption {
+  value: string
+  label: string
+}
+
+function withInheritGlobalSetting(options: ModuleSelectOption[], selected = ''): ModuleSelectOption[] {
+  // Imported ids remain visible even when their provider is not configured here.
+  const missingSelection = selected && !options.some(option => option.value === selected)
+    ? [{ value: selected, label: selected }]
+    : []
+  return [
+    { value: inheritGlobalSettingOptionValue, label: t('settings.pages.card.creation.inherit_global_settings') },
+    ...options,
+    ...missingSelection,
+  ]
+}
 
 // Computed: available display model options
 const displayModelOptions = computed(() =>
-  displayModels.value.map(model => ({
+  withInheritGlobalSetting(displayModels.value.map(model => ({
     value: model.id,
     label: model.name,
-  })),
+  })), selectedDisplayModelId.value),
 )
 
 // Computed: available consciousness provider options
 const consciousnessProviderOptions = computed(() => {
-  return providersStore.configuredChatProvidersMetadata.map(provider => ({
+  return withInheritGlobalSetting(providersStore.configuredChatProvidersMetadata.map(provider => ({
     value: provider.id,
     label: provider.localizedName || provider.name,
-  }))
+  })), selectedConsciousnessProvider.value)
 })
 
 // Computed: available consciousness models options
 const consciousnessModelOptions = computed(() => {
   const provider = selectedConsciousnessProvider.value || consciousnessProvider.value
   if (!provider)
-    return []
+    return withInheritGlobalSetting([], selectedConsciousnessModel.value)
   const models = providersStore.getModelsForProvider(provider)
-  return models.map(model => ({
+  return withInheritGlobalSetting(models.map(model => ({
     value: model.id,
     label: model.name || model.id,
-  }))
+  })), selectedConsciousnessModel.value)
 })
 
 // Computed: available vision provider options
 const visionProviderOptions = computed(() => {
-  return providersStore.configuredVisionProvidersMetadata.map(provider => ({
+  return withInheritGlobalSetting(providersStore.configuredVisionProvidersMetadata.map(provider => ({
     value: provider.id,
     label: provider.localizedName || provider.name,
-  }))
+  })), selectedVisionProvider.value)
 })
 
 // Computed: available vision models options
 const visionModelOptions = computed(() => {
   const provider = selectedVisionProvider.value || visionProvider.value
   if (!provider)
-    return []
+    return withInheritGlobalSetting([], selectedVisionModel.value)
   const models = providersStore.getModelsForProvider(provider)
-  return models.map(model => ({
+  return withInheritGlobalSetting(models.map(model => ({
     value: model.id,
     label: model.name || model.id,
-  }))
+  })), selectedVisionModel.value)
 })
 
 // Computed: available speech provider options
 const speechProviderOptions = computed(() => {
-  return providersStore.configuredSpeechProvidersMetadata.map(provider => ({
+  return withInheritGlobalSetting(providersStore.configuredSpeechProvidersMetadata.map(provider => ({
     value: provider.id,
     label: provider.localizedName || provider.name,
-  }))
+  })), selectedSpeechProvider.value)
 })
 
 // Computed: available speech models options
 const speechModelOptions = computed(() => {
   const provider = selectedSpeechProvider.value || speechProvider.value
   if (!provider)
-    return []
+    return withInheritGlobalSetting([], selectedSpeechModel.value)
   const models = providersStore.getModelsForProvider(provider)
-  return models.map(model => ({
+  return withInheritGlobalSetting(models.map(model => ({
     value: model.id,
     label: model.name || model.id,
-  }))
+  })), selectedSpeechModel.value)
 })
 
 // Computed: available speech voices options
 const speechVoiceOptions = computed(() => {
   const provider = selectedSpeechProvider.value || speechProvider.value
   if (!provider)
-    return []
-  const voices = speechStore.getVoicesForProvider(provider)
-  return voices.map(voice => ({
+    return withInheritGlobalSetting([], selectedSpeechVoiceId.value)
+  return withInheritGlobalSetting(previewVoices.value.map(voice => ({
     value: voice.id,
     label: voice.name || voice.id,
-  }))
+  })), selectedSpeechVoiceId.value)
 })
 
 // Computed: available artistry provider options
 const artistryProviderOptions = computed(() => {
-  return [
+  return withInheritGlobalSetting([
     { value: 'none', label: 'None (Disabled)' },
     { value: 'comfyui', label: 'ComfyUI' },
     ...(isCustomProvidersDisabled()
@@ -196,84 +237,78 @@ const artistryProviderOptions = computed(() => {
           { value: 'replicate', label: 'Replicate' },
           { value: 'nanobanana', label: 'Nano Banana' },
         ]),
-  ]
+  ], selectedArtistryProvider.value)
 })
 
-// Load models for current providers on init
-watch(() => [consciousnessProvider.value, visionProvider.value, speechProvider.value], async ([consProvider, visProvider, spProvider]) => {
-  if (consProvider) {
-    await consciousnessStore.loadModelsForProvider(consProvider)
+async function loadSelectedModuleOptions() {
+  if (hasLoadedModuleOptions)
+    return
+
+  hasLoadedModuleOptions = true
+  const loads: Promise<unknown>[] = []
+  const consciousnessProviderId = selectedConsciousnessProvider.value || consciousnessProvider.value
+  if (consciousnessProviderId)
+    loads.push(consciousnessStore.loadModelsForProvider(consciousnessProviderId))
+
+  const visionProviderId = selectedVisionProvider.value || visionProvider.value
+  if (visionProviderId)
+    loads.push(visionStore.loadModelsForProvider(visionProviderId))
+
+  const speechProviderId = selectedSpeechProvider.value || speechProvider.value
+  if (speechProviderId) {
+    if (providersStore.supportsModelListing(speechProviderId))
+      loads.push(providersStore.fetchModelsForProvider(speechProviderId))
   }
-  if (visProvider) {
-    await visionStore.loadModelsForProvider(visProvider)
+
+  try {
+    await Promise.all(loads)
   }
-  if (spProvider) {
-    await speechStore.loadVoicesForProvider(spProvider)
-    const metadata = providersStore.getProviderMetadata(spProvider)
-    if (metadata?.capabilities.listModels) {
-      await providersStore.fetchModelsForProvider(spProvider)
-    }
+  catch (error) {
+    hasLoadedModuleOptions = false
+    throw error
   }
-}, { immediate: true })
+}
+
+watch(selectedArtistryProvider, (provider, previous) => {
+  if (modelValue.value && !isInitializingModuleSelections && provider !== previous)
+    selectedArtistryModel.value = ''
+}, { flush: 'sync' })
 
 // Watch consciousness provider changes and reload models
 watch(selectedConsciousnessProvider, async (newProvider, oldProvider) => {
-  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
-    const effect = draftInitialization.captureWatcherEffect()
-    await consciousnessStore.loadModelsForProvider(newProvider)
-    if (!draftInitialization.canApplyWatcherEffect(effect))
-      return
-
-    // Reset model selection to default or empty
+  if (modelValue.value && !isInitializingModuleSelections && newProvider !== oldProvider) {
     selectedConsciousnessModel.value = ''
+    await consciousnessStore.loadModelsForProvider(newProvider || consciousnessProvider.value)
   }
-})
+}, { flush: 'sync' })
 
 // Watch vision provider changes and reload models
 watch(selectedVisionProvider, async (newProvider, oldProvider) => {
-  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
-    const effect = draftInitialization.captureWatcherEffect()
-    await visionStore.loadModelsForProvider(newProvider)
-    if (!draftInitialization.canApplyWatcherEffect(effect))
-      return
-
+  if (modelValue.value && !isInitializingModuleSelections && newProvider !== oldProvider) {
     selectedVisionModel.value = ''
+    await visionStore.loadModelsForProvider(newProvider || visionProvider.value)
   }
-})
+}, { flush: 'sync' })
 
 // Watch speech provider changes and reload models/voices
 watch(selectedSpeechProvider, async (newProvider, oldProvider) => {
-  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
-    const effect = draftInitialization.captureWatcherEffect()
-    await speechStore.loadVoicesForProvider(newProvider)
-    const metadata = providersStore.getProviderMetadata(newProvider)
-    if (metadata?.capabilities.listModels) {
-      await providersStore.fetchModelsForProvider(newProvider)
-    }
-    if (!draftInitialization.canApplyWatcherEffect(effect))
-      return
-
-    // Reset model and voice selection
+  if (modelValue.value && !isInitializingModuleSelections && newProvider !== oldProvider) {
     selectedSpeechModel.value = ''
     selectedSpeechVoiceId.value = ''
+    const provider = newProvider || speechProvider.value
+    if (provider && providersStore.supportsModelListing(provider))
+      await providersStore.fetchModelsForProvider(provider)
   }
-})
+}, { flush: 'sync' })
 
 // Reset voice when speech model changes (different models may have different voices)
-watch(selectedSpeechModel, async (newModel, oldModel) => {
+watch(selectedSpeechModel, (newModel, oldModel) => {
   // Only reset if model actually changed and we're not initializing
   const provider = selectedSpeechProvider.value || speechProvider.value
-  if (oldModel !== undefined && newModel !== oldModel && provider) {
-    const effect = draftInitialization.captureWatcherEffect()
-    // Reload voices for the current provider
-    await speechStore.loadVoicesForProvider(provider)
-    if (!draftInitialization.canApplyWatcherEffect(effect))
-      return
-
-    // Reset voice selection to default
-    selectedSpeechVoiceId.value = defaultSpeechVoiceId.value || ''
+  if (modelValue.value && !isInitializingModuleSelections && oldModel !== undefined && newModel !== oldModel && provider) {
+    selectedSpeechVoiceId.value = ''
   }
-})
+}, { flush: 'sync' })
 
 // Tab type definition
 interface Tab {
@@ -309,6 +344,40 @@ const activeTab = computed({
     activeTabId.value = value
   },
 })
+
+async function selectTab(tabId: string) {
+  activeTab.value = tabId
+  if (tabId === 'modules')
+    await loadSelectedModuleOptions()
+}
+
+// Preview discovery never commits runtime speech state. Closing the dialog or
+// changing its selection invalidates the response, including in-flight RPCs.
+watch([
+  () => modelValue.value && activeTab.value === 'modules',
+  () => selectedSpeechProvider.value || speechProvider.value,
+  () => selectedSpeechModel.value || ((selectedSpeechProvider.value || speechProvider.value) === speechProvider.value
+    ? cardStore.moduleDefaults?.speech.model
+    : undefined),
+], async ([open, provider, model], _, onCleanup) => {
+  let current = true
+  onCleanup(() => {
+    current = false
+  })
+  previewVoices.value = []
+  if (!open || !provider)
+    return
+  try {
+    const config = providersStore.getVoiceCatalogConfiguration(provider)
+    const voices = await providersStore.listProviderVoices(provider, model || undefined, config)
+    if (current)
+      previewVoices.value = voices ?? []
+  }
+  catch (error) {
+    if (current)
+      console.error('Failed to load card preview voices:', errorMessageFrom(error))
+  }
+}, { immediate: true })
 
 // Reset active tab when dialog opens
 watch(modelValue, (isOpen) => {
@@ -348,7 +417,21 @@ function currentDraftSignature(card: Card): string {
   })
 }
 
-function saveCard(card: Card, activate: boolean): boolean {
+async function saveCard(card: Card, activate: boolean): Promise<boolean> {
+  const defaults = cardStore.moduleDefaults
+  if (defaults) {
+    // A card may inherit an unconfigured global module. A different explicit
+    // provider must have its own model; global model ids are not portable.
+    const missingModel = [
+      { selection: { provider: selectedConsciousnessProvider.value, model: selectedConsciousnessModel.value }, defaults: defaults.consciousness },
+      { selection: { provider: selectedVisionProvider.value, model: selectedVisionModel.value }, defaults: defaults.vision },
+    ].some(({ selection, defaults }) => selection.provider && !resolveModuleSelection(selection, defaults).model)
+    if (missingModel) {
+      showError.value = true
+      errorMessage.value = t('settings.pages.card.creation.errors.model_required')
+      return false
+    }
+  }
   const draftResult = safeParseAiriCardDraft(toRaw(card), selectedArtistryConfigStr.value)
   if (!draftResult.success) {
     showError.value = true
@@ -361,21 +444,21 @@ function saveCard(card: Card, activate: boolean): boolean {
 
   const cardWithModules = applyAiriCardEditorModules(rawCard, {
     consciousness: {
-      provider: selectedConsciousnessProvider.value || consciousnessProvider.value,
-      model: selectedConsciousnessModel.value || defaultConsciousnessModel.value,
+      provider: selectedConsciousnessProvider.value,
+      model: selectedConsciousnessModel.value,
     },
     vision: {
-      provider: selectedVisionProvider.value || visionProvider.value,
-      model: selectedVisionModel.value || defaultVisionModel.value,
+      provider: selectedVisionProvider.value,
+      model: selectedVisionModel.value,
     },
     speech: {
-      provider: selectedSpeechProvider.value || speechProvider.value,
-      model: selectedSpeechModel.value || defaultSpeechModel.value,
-      voice_id: selectedSpeechVoiceId.value || defaultSpeechVoiceId.value,
+      provider: selectedSpeechProvider.value,
+      model: selectedSpeechModel.value,
+      voice_id: selectedSpeechVoiceId.value,
     },
-    displayModelId: selectedDisplayModelId.value || defaultDisplayModelId.value,
+    displayModelId: selectedDisplayModelId.value,
     artistry: {
-      provider: selectedArtistryProvider.value || defaultArtistryProvider.value,
+      provider: selectedArtistryProvider.value,
       model: selectedArtistryModel.value,
       promptPrefix: selectedArtistryPromptPrefix.value,
       widgetInstruction: selectedArtistryWidgetInstruction.value,
@@ -388,7 +471,7 @@ function saveCard(card: Card, activate: boolean): boolean {
   let savedCardId: string
   if (isEditMode.value && props.cardId) {
     // Edit mode: update existing card
-    if (!cardStore.updateCard(props.cardId, cardWithModules)) {
+    if (!await cardStore.updateCard(props.cardId, cardWithModules)) {
       showError.value = true
       errorMessage.value = t('settings.pages.card.card_not_found')
       return false
@@ -397,11 +480,11 @@ function saveCard(card: Card, activate: boolean): boolean {
     trackCardEdited({ card_id: props.cardId })
   }
   else {
-    savedCardId = cardStore.addCard(cardWithModules, 'scratch')
+    savedCardId = await cardStore.addCard(cardWithModules, 'scratch')
   }
 
   if (activate)
-    cardStore.activeCardId = savedCardId
+    await cardStore.activateCard(savedCardId)
 
   initialDraftSignature.value = currentDraftSignature(card)
   modelValue.value = false
@@ -411,43 +494,7 @@ function saveCard(card: Card, activate: boolean): boolean {
 // Cards data holders :
 
 // Initialize card data - load from existing card if in edit mode
-function initializeCard(): Card {
-  // Extract existing card data if in edit mode
-  const existingCard = (isEditMode.value && props.cardId) ? cardStore.getCard(props.cardId) : undefined
-  const airiExt = existingCard?.extensions?.airi as AiriExtensionWithLegacyArtistry | undefined
-
-  // Initialize module selections with fallback logic (handles all cases: create, edit with/without extension)
-  selectedConsciousnessProvider.value = airiExt?.modules?.consciousness?.provider || consciousnessProvider.value
-  selectedConsciousnessModel.value = airiExt?.modules?.consciousness?.model || defaultConsciousnessModel.value
-  selectedVisionProvider.value = airiExt?.modules?.vision?.provider || visionProvider.value
-  selectedVisionModel.value = airiExt?.modules?.vision?.model || defaultVisionModel.value
-  selectedSpeechProvider.value = airiExt?.modules?.speech?.provider || speechProvider.value
-  selectedSpeechModel.value = airiExt?.modules?.speech?.model || defaultSpeechModel.value
-  selectedSpeechVoiceId.value = airiExt?.modules?.speech?.voice_id || defaultSpeechVoiceId.value
-  selectedDisplayModelId.value = airiExt?.modules?.displayModelId || defaultDisplayModelId.value
-
-  // NOTICE: keep legacy `extensions.airi.artistry` fallback so existing cards continue to load.
-  const artistrySettings = airiExt?.modules?.artistry || airiExt?.artistry
-  selectedArtistryProvider.value = artistrySettings?.provider || defaultArtistryProvider.value
-  selectedArtistryModel.value = artistrySettings?.model || ''
-  selectedArtistryPromptPrefix.value = artistrySettings?.promptPrefix || ''
-  selectedArtistryWidgetInstruction.value = artistrySettings?.widgetInstruction || DEFAULT_ARTISTRY_WIDGET_INSTRUCTION
-  selectedArtistrySpawnMode.value = artistrySettings?.spawnMode || 'bg_widget'
-  selectedArtistryAutonomousEnabled.value = artistrySettings?.autonomousEnabled ?? false
-  selectedArtistryAutonomousThreshold.value = artistrySettings?.autonomousThreshold ?? 70
-
-  try {
-    selectedArtistryConfigStr.value = artistrySettings?.options ? JSON.stringify(artistrySettings.options, null, 2) : '{\n  \n}'
-  }
-  catch {
-    selectedArtistryConfigStr.value = '{\n  \n}'
-  }
-
-  // Return existing card data or defaults
-  if (existingCard) {
-    return { ...toRaw(existingCard) }
-  }
-
+function createCardDraft(): Card {
   return {
     name: t('settings.pages.card.creation.defaults.name'),
     nickname: undefined,
@@ -463,8 +510,50 @@ function initializeCard(): Card {
   }
 }
 
+function initializeCard(): Card {
+  // Extract existing card data if in edit mode
+  const existingCard = (isEditMode.value && props.cardId) ? cardStore.getCard(props.cardId) : undefined
+  const airiExt = existingCard?.extensions?.airi as AiriExtensionWithLegacyArtistry | undefined
+
+  const moduleSettings = getAiriCardEditorModuleSettings(existingCard)
+  selectedConsciousnessProvider.value = moduleSettings.consciousness.provider
+  selectedConsciousnessModel.value = moduleSettings.consciousness.model
+  selectedVisionProvider.value = moduleSettings.vision.provider
+  selectedVisionModel.value = moduleSettings.vision.model
+  selectedSpeechProvider.value = moduleSettings.speech.provider
+  selectedSpeechModel.value = moduleSettings.speech.model
+  selectedSpeechVoiceId.value = moduleSettings.speech.voice_id
+  selectedDisplayModelId.value = moduleSettings.displayModelId ?? ''
+
+  // NOTICE: keep legacy `extensions.airi.artistry` fallback so existing cards continue to load.
+  const artistrySettings = airiExt?.modules?.artistry || airiExt?.artistry
+  selectedArtistryProvider.value = artistrySettings?.provider ?? ''
+  selectedArtistryModel.value = artistrySettings?.model || ''
+  selectedArtistryPromptPrefix.value = artistrySettings?.promptPrefix || ''
+  selectedArtistryWidgetInstruction.value = artistrySettings?.widgetInstruction || DEFAULT_ARTISTRY_WIDGET_INSTRUCTION
+  selectedArtistrySpawnMode.value = artistrySettings?.spawnMode || 'bg_widget'
+  selectedArtistryAutonomousEnabled.value = artistrySettings?.autonomousEnabled ?? false
+  selectedArtistryAutonomousThreshold.value = artistrySettings?.autonomousThreshold ?? 70
+
+  try {
+    selectedArtistryConfigStr.value = artistrySettings?.options ? JSON.stringify(artistrySettings.options, null, 2) : ''
+  }
+  catch {
+    selectedArtistryConfigStr.value = ''
+  }
+
+  // Return existing card data or defaults
+  if (existingCard) {
+    return { ...toRaw(existingCard) }
+  }
+
+  return createCardDraft()
+}
+
 const initialDraftInitialization = draftInitialization.begin()
+isInitializingModuleSelections = true
 const card = ref<Card>(initializeCard())
+isInitializingModuleSelections = false
 
 async function captureDraftBaseline(initialization: number): Promise<void> {
   // Vue flushes the provider/model watchers before nextTick resolves. They have
@@ -480,14 +569,21 @@ async function captureDraftBaseline(initialization: number): Promise<void> {
 void captureDraftBaseline(initialDraftInitialization)
 
 // Reinitialize when cardId changes or dialog opens
-watch(() => [modelValue.value, props.cardId], () => {
-  if (modelValue.value) {
-    showError.value = false
-    errorMessage.value = ''
-    const initialization = draftInitialization.begin()
-    card.value = initializeCard()
-    void captureDraftBaseline(initialization)
-  }
+watch(() => [modelValue.value, props.cardId], async () => {
+  if (!modelValue.value)
+    return
+
+  showError.value = false
+  errorMessage.value = ''
+  hasLoadedModuleOptions = false
+  isInitializingModuleSelections = true
+  const initialization = draftInitialization.begin()
+  card.value = initializeCard()
+  await captureDraftBaseline(initialization)
+  isInitializingModuleSelections = false
+
+  if (modelValue.value && activeTab.value === 'modules')
+    await loadSelectedModuleOptions()
 })
 
 function makeComputed<T extends keyof Card>(key: T) {
@@ -544,12 +640,6 @@ function discardChanges() {
   showDiscardChanges.value = false
   modelValue.value = false
 }
-
-function getDefaultPlaceholder(defaultValue: string | undefined): string {
-  return defaultValue
-    ? `${t('settings.pages.card.creation.use_default')} (${defaultValue})`
-    : t('settings.pages.card.creation.use_default_not_configured')
-}
 </script>
 
 <template>
@@ -566,9 +656,9 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
           </DialogDescription>
 
           <!-- Dialog tabs -->
-          <div class="mt-4">
+          <div class="mt-4 overflow-x-auto">
             <div class="border-b border-neutral-200 dark:border-neutral-700">
-              <div class="flex justify-center -mb-px sm:justify-start space-x-1">
+              <div class="min-w-max flex justify-start -mb-px space-x-1">
                 <button
                   v-for="tab in tabs"
                   :key="tab.id"
@@ -578,7 +668,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                       ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500 dark:border-primary-400'
                       : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300',
                   ]"
-                  @click="activeTab = tab.id"
+                  @click="selectTab(tab.id)"
                 >
                   <div class="flex items-center gap-1">
                     <div :class="tab.icon" />
@@ -611,14 +701,14 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
           />
           <ModuleFields
             v-else-if="activeTab === 'modules'"
-            v-model:consciousness-provider="selectedConsciousnessProvider"
-            v-model:consciousness-model="selectedConsciousnessModel"
-            v-model:vision-provider="selectedVisionProvider"
-            v-model:vision-model="selectedVisionModel"
-            v-model:speech-provider="selectedSpeechProvider"
-            v-model:speech-model="selectedSpeechModel"
-            v-model:speech-voice-id="selectedSpeechVoiceId"
-            v-model:display-model-id="selectedDisplayModelId"
+            v-model:consciousness-provider="consciousnessProviderSelection"
+            v-model:consciousness-model="consciousnessModelSelection"
+            v-model:vision-provider="visionProviderSelection"
+            v-model:vision-model="visionModelSelection"
+            v-model:speech-provider="speechProviderSelection"
+            v-model:speech-model="speechModelSelection"
+            v-model:speech-voice-id="speechVoiceSelection"
+            v-model:display-model-id="displayModelSelection"
             :consciousness-provider-options="consciousnessProviderOptions"
             :consciousness-model-options="consciousnessModelOptions"
             :vision-provider-options="visionProviderOptions"
@@ -627,14 +717,6 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             :speech-model-options="speechModelOptions"
             :speech-voice-options="speechVoiceOptions"
             :display-model-options="displayModelOptions"
-            :default-consciousness-provider="consciousnessProvider"
-            :default-consciousness-model="defaultConsciousnessModel"
-            :default-vision-provider="visionProvider"
-            :default-vision-model="defaultVisionModel"
-            :default-speech-provider="speechProvider"
-            :default-speech-model="defaultSpeechModel"
-            :default-speech-voice-id="defaultSpeechVoiceId"
-            :default-display-model-id="defaultDisplayModelId"
           />
           <PromptFields
             v-else-if="activeTab === 'settings'"
@@ -644,7 +726,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
           />
           <ArtistryFields
             v-else-if="activeTab === 'artistry'"
-            v-model:selected-artistry-provider="selectedArtistryProvider"
+            v-model:selected-artistry-provider="artistryProviderSelection"
             v-model:selected-artistry-model="selectedArtistryModel"
             v-model:selected-artistry-prompt-prefix="selectedArtistryPromptPrefix"
             v-model:selected-artistry-widget-instruction="selectedArtistryWidgetInstruction"
@@ -653,19 +735,17 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             v-model:selected-artistry-spawn-mode="selectedArtistrySpawnMode"
             v-model:selected-artistry-config-str="selectedArtistryConfigStr"
             :artistry-provider-options="artistryProviderOptions"
-            :default-artistry-provider-placeholder="getDefaultPlaceholder(defaultArtistryProvider)"
           />
 
           <div class="ml-auto mr-1 flex flex-row gap-2">
             <Button
-              variant="secondary"
+
               icon="i-solar:undo-left-bold-duotone"
               :label="t('settings.pages.card.cancel')"
               :disabled="false"
               @click="requestClose"
             />
             <Button
-              :variant="isEditingActiveCard ? 'primary' : 'secondary'"
               icon="i-solar:check-circle-bold-duotone"
               :label="t('settings.pages.card.save')"
               :disabled="false"
@@ -673,7 +753,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             />
             <Button
               v-if="!isEditingActiveCard"
-              variant="primary"
+
               icon="i-solar:play-circle-bold-duotone"
               :label="t('settings.pages.card.save_and_activate')"
               :disabled="false"

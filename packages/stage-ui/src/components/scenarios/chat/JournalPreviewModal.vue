@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ScrollableArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 
 import { useJournalPreviewStore } from '../../../stores/journal-preview'
@@ -49,12 +50,16 @@ const { closePreview, downloadImage } = store
           </div>
 
           <!-- Content -->
-          <div v-if="previewModal.type === 'text'" class="max-h-[60vh] overflow-y-auto px-4 py-3">
+          <ScrollableArea
+            v-if="previewModal.type === 'text'"
+            :class="['max-h-[60vh]']"
+            :viewport-class="['px-4 py-3']"
+          >
             <MarkdownRenderer
               :content="previewModal.content"
               class="max-w-none prose prose-sm dark:prose-invert"
             />
-          </div>
+          </ScrollableArea>
           <div v-else class="flex items-center justify-center p-2">
             <img :src="previewModal.content" class="max-h-[60vh] w-auto rounded-lg object-contain">
           </div>

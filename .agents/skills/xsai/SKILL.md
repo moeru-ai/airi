@@ -28,7 +28,7 @@ Use this skill for `xsai` code, package selection, API selection, canonical exam
 - If the user has not chosen xsAI yet, confirm the task fits an OpenAI-compatible surface before recommending it.
 - Prefer the smallest package that solves the task. Use the umbrella `xsai` package only when the user needs several features at once or explicitly wants one dependency.
 - When writing or editing code, read `references/recipes.md` first and start from the closest canonical example.
-- Keep examples minimal and runnable. Include `baseURL` and `model` explicitly. Include `apiKey` for hosted providers; omit it only when the target endpoint truly does not need one.
+- Keep examples minimal and runnable. Include `baseURL` and `model` explicitly. For hosted providers, show `apiKey` wired from `process.env` in Node.js and from `localStorage` in the browser; omit it only when the target endpoint truly does not need one. Do not recommend hardcoding secrets.
 - Preserve the project's existing schema library and provider wiring unless there is a clear reason to change them.
 - Keep recommendations aligned with xsAI's scope: OpenAI-compatible, Fetch-based, runtime-portable, and intentionally narrow.
 - If the user is optimizing for bundle or install size, explicitly prefer granular packages such as `@xsai/generate-text` over `xsai`.
@@ -56,11 +56,11 @@ Use this skill for `xsai` code, package selection, API selection, canonical exam
 ## Key constraints
 
 - `baseURL` and `model` are usually required in practice for xsAI calls.
-- `apiKey` is provider-dependent. Most hosted providers need it; local or proxy endpoints may not.
+- `apiKey` is provider-dependent. Most hosted providers need it; local or proxy endpoints may not. In Node.js, prefer `process.env`. In browsers, prefer reading from `localStorage`. Do not recommend hardcoding API keys.
 - xsAI is OpenAI-compatible-first. Do not imply support for non-compatible provider APIs.
 - `streamText()` returns immediately; callers consume `textStream`, `fullStream`, and result promises asynchronously.
 - `streamObject()` is async because schema conversion happens before streaming starts.
-- `maxSteps` controls repeated tool-use loops by issuing additional API calls with tool results appended.
+- `stopWhen` controls repeated tool-use loops with explicit stop predicates such as `stepCountAtLeast()` and `hasToolCall()`.
 - `generateObject()`, `streamObject()`, and `tool()` rely on `xsschema`; some schema vendors need extra JSON Schema converter packages.
 - xsAI is designed to stay small. Avoid recommending the umbrella package when a smaller package is enough.
 

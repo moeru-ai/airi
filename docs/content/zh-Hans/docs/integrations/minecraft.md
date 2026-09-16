@@ -18,10 +18,10 @@ API Key、服务地址和 Minecraft 服务器凭据只应保存在本地 **.env.
 ## 配置
 
 ~~~bash
-cp services/minecraft/.env services/minecraft/.env.local
+cp integrations/minecraft/.env integrations/minecraft/.env.local
 ~~~
 
-编辑 **services/minecraft/.env.local**，填写 Minecraft 服务器、AIRI 与模型服务所需的配置。
+编辑 **integrations/minecraft/.env.local**，填写 Minecraft 服务器、AIRI 与模型服务所需的配置。
 
 ## 启动
 

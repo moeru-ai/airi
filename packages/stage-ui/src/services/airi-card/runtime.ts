@@ -1,9 +1,12 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
+import type { Conversation, Turn } from '@proj-airi/core-agent'
 import type { Message } from '@xsai/shared-chat'
 
 import type { AiriCard } from '../../types/airiCard'
 
-/** Values that vary between one AIRI Card runtime and another. */
+import { chatMessagesToTurns, renderConversationPreview } from '@proj-airi/core-agent'
+
+/** Values that vary between one character-card runtime and another. */
 export interface CharacterCardRuntimeOptions {
   /** Display name substituted for the CCv3 `{{user}}` macro. @default 'User' at provider compilation */
   userName?: string
@@ -117,6 +120,47 @@ export function compileCharacterCardMessages(
   insertMessageExamples(projected, card, options)
   appendPostHistoryInstructions(projected, card, options)
   return projected
+}
+
+/**
+ * Applies character policy without rebuilding authored turns from display text.
+ * Preview messages are used only for Lorebook matching and insertion positions.
+ * Original turns retain media, tool execution, and native continuation data.
+ */
+export function compileCharacterCardConversation(
+  card: AiriCard | undefined,
+  conversation: Conversation,
+  options: CharacterCardRuntimeOptions = {},
+): Conversation {
+  if (!card)
+    return conversation
+
+  const sources = new Map<Message, Turn>()
+  const messages = conversation.turns.map((turn): Message => {
+    const content = renderConversationPreview({ turns: [turn] }).map(messageText).join('\n')
+    const message: Message = { role: turn.type, content }
+    sources.set(message, turn)
+    return message
+  })
+  const entries = compileLorebookEntries(card.characterBook, messages, card, options)
+  replaceStableSystemPrompt(messages, card, entries, options)
+  insertDepthMessages(messages, entries)
+  insertMessageExamples(messages, card, options)
+  appendPostHistoryInstructions(messages, card, options)
+
+  return {
+    turns: messages.flatMap((message, index): Turn[] => {
+      const source = sources.get(message)
+      if (!source)
+        return chatMessagesToTurns([message], `character-policy-${index}`)
+      if (source.type !== 'system')
+        return [source]
+      const originalText = renderConversationPreview({ turns: [source] }).map(messageText).join('\n')
+      if (messageText(message) === originalText)
+        return [source]
+      return [{ ...source, content: [{ type: 'text', text: messageText(message) }] }]
+    }),
+  }
 }
 
 /**

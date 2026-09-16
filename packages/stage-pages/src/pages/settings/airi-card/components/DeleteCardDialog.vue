@@ -55,16 +55,17 @@ function handleConfirm() {
         <div class="flex flex-row justify-end gap-3">
           <AlertDialogCancel as-child>
             <Button
-              variant="secondary"
+
               :label="t('settings.pages.card.cancel')"
               @click="handleCancel"
             />
           </AlertDialogCancel>
           <AlertDialogAction as-child>
             <Button
-              variant="danger"
+
               :label="t('settings.pages.card.delete')"
-              @click="handleConfirm"
+              color="red"
+              variant="primary" @click="handleConfirm"
             />
           </AlertDialogAction>
         </div>

@@ -14,13 +14,6 @@ vi.mock('./camera', async () => {
   }
 })
 
-vi.mock('@vueuse/core', async () => {
-  const vue = await import('vue')
-  return {
-    useLocalStorage: vi.fn((_key, initialValue) => vue.ref(initialValue)),
-  }
-})
-
 describe('useThreeViewControl', () => {
   let composable: ReturnType<typeof useThreeViewControl>
 

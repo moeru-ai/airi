@@ -80,9 +80,9 @@ export interface UseTimeAgoIntlOptions<Controls extends boolean>
 }
 type UseTimeAgoReturn<Controls extends boolean = false> = Controls extends true
   ? {
-    timeAgoIntl: ComputedRef<string>
-    parts: ComputedRef<Intl.RelativeTimeFormatPart[]>
-  } & Pausable
+      timeAgoIntl: ComputedRef<string>
+      parts: ComputedRef<Intl.RelativeTimeFormatPart[]>
+    } & Pausable
   : ComputedRef<string>
 export interface TimeAgoUnit {
   name: Intl.RelativeTimeFormatUnit

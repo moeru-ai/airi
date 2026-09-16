@@ -1,0 +1,324 @@
+import type { Database } from '../../libs/db'
+import type { ConfigKVService } from '../../services/adapters/config-kv'
+import type { PaymentService } from '../../services/domain/payment'
+import type { HonoEnv } from '../../types/hono'
+
+import { Hono } from 'hono'
+import { describe, expect, it, vi } from 'vitest'
+
+import { createStripeRoutes } from '.'
+import { createTestRedis } from '../../libs/tests/redis'
+import { ApiError } from '../../utils/error'
+import { createWebhookOperation } from './operations/webhook'
+
+function unusedWebhookDb(): Database {
+  return {
+    select: () => {
+      throw new Error('db should not be queried for new Sessions')
+    },
+  } as unknown as Database
+}
+
+function webhookDbWithoutOrder(): Database {
+  return {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [],
+        }),
+      }),
+    }),
+  } as unknown as Database
+}
+
+function createMockPayment(overrides: Partial<PaymentService> = {}): PaymentService {
+  return {
+    openPending: vi.fn(async () => ({ id: 'po_mock' })),
+    bindProcessorOrder: vi.fn(async () => {}),
+    abandon: vi.fn(async () => {}),
+    settle: vi.fn(async () => ({ applied: true, userId: 'user-1', fluxAmount: 500, balanceAfter: 500 })),
+    deleteAllForUser: vi.fn(),
+    ...overrides,
+  }
+}
+
+function createMockConfigKV(overrides: Partial<ConfigKVService> = {}): ConfigKVService {
+  return {
+    getOptional: vi.fn(async (key: string) => {
+      if (key === 'STRIPE_FLUX_PRODUCT_ID')
+        return 'prod_flux'
+      return null
+    }),
+    getOrThrow: vi.fn(),
+    get: vi.fn(),
+    refresh: vi.fn(),
+    invalidateCache: vi.fn(),
+    ...overrides,
+  } as ConfigKVService
+}
+
+const testEnv = {
+  STRIPE_SECRET_KEY: 'sk_test_fake',
+  STRIPE_WEBHOOK_SECRET: 'whsec_test_fake',
+  API_SERVER_URL: 'http://localhost:8787',
+  WEB_APP_URL: 'https://airi.moeru.ai',
+  ADDITIONAL_TRUSTED_ORIGINS: [],
+} as any
+
+const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
+
+function createTestApp(
+  payment: PaymentService,
+  envOverrides: Record<string, any> = {},
+  stripe: any = {
+    prices: { list: vi.fn(async () => ({ data: [] })), retrieve: vi.fn() },
+    checkout: { sessions: { create: vi.fn() } },
+    webhooks: { constructEvent: vi.fn() },
+  },
+  configKV: ConfigKVService = createMockConfigKV(),
+) {
+  const stripeClient = envOverrides.STRIPE_SECRET_KEY === '' ? null : stripe
+  const routes = createStripeRoutes(
+    payment,
+    {} as never,
+    stripeClient,
+    createTestRedis(),
+    configKV,
+    { ...testEnv, ...envOverrides },
+    null,
+    null,
+    null,
+  )
+  const app = new Hono<HonoEnv>()
+
+  app.onError((err, c) => {
+    if (err instanceof ApiError) {
+      return c.json({
+        error: err.errorCode,
+        message: err.message,
+        details: err.details,
+      }, err.statusCode)
+    }
+    return c.json({ error: 'Internal Server Error', message: err.message }, 500)
+  })
+
+  app.use('*', async (c, next) => {
+    const user = (c.env as any)?.user
+    if (user)
+      c.set('user', user)
+    await next()
+  })
+
+  app.route('/api/v1/stripe', routes)
+  return app
+}
+
+describe('stripeRoutes', () => {
+  describe('gET /api/v1/stripe/packages', () => {
+    it('returns Stripe product prices as Flux packages', async () => {
+      const stripe = {
+        prices: {
+          list: vi.fn(async () => ({
+            data: [{
+              id: 'price_test_500',
+              currency: 'usd',
+              unit_amount: 500,
+              product: 'prod_flux',
+              active: true,
+              metadata: { fluxAmount: '500' },
+              currency_options: {},
+            }],
+          })),
+        },
+        webhooks: { constructEvent: vi.fn() },
+      }
+      const app = createTestApp(createMockPayment(), {}, stripe)
+
+      const res = await app.request('/api/v1/stripe/packages')
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual([{
+        stripePriceId: 'price_test_500',
+        label: '500 Flux',
+        defaultCurrency: 'usd',
+        currencies: { usd: '$5.00' },
+        recommended: false,
+      }])
+    })
+  })
+
+  describe('pOST /api/v1/stripe/checkout', () => {
+    it('returns 401 when unauthenticated', async () => {
+      const app = createTestApp(createMockPayment())
+      const res = await app.request('/api/v1/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stripePriceId: 'price_starter' }),
+      })
+      expect(res.status).toBe(401)
+    })
+
+    it('returns 400 for an empty body', async () => {
+      const app = createTestApp(createMockPayment())
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        }),
+        { user: testUser } as any,
+      )
+      expect(res.status).toBe(400)
+    })
+  })
+
+  describe('pOST /api/v1/stripe/webhook', () => {
+    it('returns 400 when signature is missing', async () => {
+      const app = createTestApp(createMockPayment())
+      const res = await app.request('/api/v1/stripe/webhook', {
+        method: 'POST',
+        body: '{}',
+      })
+      expect(res.status).toBe(400)
+      const data = await res.json() as any
+      expect(data.error).toBe('MISSING_SIGNATURE')
+    })
+
+    it('returns 400 when signature is invalid', async () => {
+      const stripe = {
+        webhooks: {
+          constructEvent: vi.fn(() => {
+            throw new Error('bad sig')
+          }),
+        },
+      }
+      const app = createTestApp(createMockPayment(), {}, stripe)
+      const res = await app.request('/api/v1/stripe/webhook', {
+        method: 'POST',
+        headers: { 'stripe-signature': 'invalid_sig' },
+        body: '{}',
+      })
+      expect(res.status).toBe(400)
+      const data = await res.json() as any
+      expect(data.error).toBe('WEBHOOK_ERROR')
+    })
+
+    it('returns 503 when Stripe is not configured', async () => {
+      const app = createTestApp(createMockPayment(), { STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: '' })
+      const res = await app.request('/api/v1/stripe/webhook', {
+        method: 'POST',
+        headers: { 'stripe-signature': 'test_sig' },
+        body: '{}',
+      })
+      expect(res.status).toBe(503)
+    })
+
+    it('settles a paid checkout session', async () => {
+      const checkoutEvent = {
+        id: 'evt_checkout_completed',
+        type: 'checkout.session.completed',
+        data: {
+          object: {
+            id: 'cs_1',
+            customer: 'cus_1',
+            mode: 'payment',
+            status: 'complete',
+            payment_status: 'paid',
+            amount_total: 500,
+            currency: 'usd',
+            metadata: {
+              payment_order_id: 'po_1',
+              stripePriceId: 'price_starter',
+              openpanelDeviceId: 'anon-browser-1',
+              openpanelSessionId: 'ph-session-1',
+            },
+          },
+        },
+      }
+      const payment = createMockPayment()
+      const productEventService = { track: vi.fn() }
+      const webhook = createWebhookOperation(
+        {
+          webhooks: {
+            constructEvent: vi.fn(() => checkoutEvent),
+          },
+        } as any,
+        'whsec_test',
+        payment,
+        unusedWebhookDb(),
+        null,
+        productEventService as any,
+      )
+
+      await webhook('test_sig', '{}')
+
+      expect(payment.settle).toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'claim',
+        processor: 'stripe',
+        paymentOrderId: 'po_1',
+        processorOrderId: 'cs_1',
+        status: 'paid',
+      }))
+      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'payment_completed',
+        metadata: expect.objectContaining({
+          openpanel_device_id: 'anon-browser-1',
+          stripe_price_id: 'price_starter',
+        }),
+      }))
+    })
+
+    it('ignores unknown events and does not settle', async () => {
+      const payment = createMockPayment()
+      const webhook = createWebhookOperation(
+        {
+          webhooks: {
+            constructEvent: vi.fn(() => ({
+              id: 'evt_charge',
+              type: 'charge.succeeded',
+              data: { object: { id: 'ch_1' } },
+            })),
+          },
+        } as any,
+        'whsec_test',
+        payment,
+        unusedWebhookDb(),
+        null,
+        null,
+      )
+
+      await webhook('test_sig', '{}')
+      expect(payment.settle).not.toHaveBeenCalled()
+    })
+
+    it('acknowledges a checkout session that is not an AIRI order', async () => {
+      const payment = createMockPayment()
+      const webhook = createWebhookOperation(
+        {
+          webhooks: {
+            constructEvent: vi.fn(() => ({
+              id: 'evt_foreign',
+              type: 'checkout.session.completed',
+              data: {
+                object: {
+                  id: 'cs_foreign',
+                  payment_status: 'paid',
+                  mode: 'payment',
+                  status: 'complete',
+                  metadata: {},
+                },
+              },
+            })),
+          },
+        } as any,
+        'whsec_test',
+        payment,
+        webhookDbWithoutOrder(),
+        null,
+        null,
+      )
+
+      await expect(webhook('test_sig', '{}')).resolves.toEqual({ received: true })
+      expect(payment.settle).not.toHaveBeenCalled()
+    })
+  })
+})
