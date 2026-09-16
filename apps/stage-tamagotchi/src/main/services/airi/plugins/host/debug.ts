@@ -1,8 +1,6 @@
 import type { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
+import type { PluginHostDebugSnapshot } from '@proj-airi/stage-shared/plugin-host'
 
-import type {
-  PluginHostDebugSnapshot,
-} from '../../../../../shared/eventa/plugin/host'
 import type { ExtensionAssetSnapshotService } from '../features/static-assets'
 import type { ExtensionConfig, ManifestEntry } from '../types'
 
