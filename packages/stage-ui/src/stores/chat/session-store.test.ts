@@ -536,6 +536,7 @@ describe('chat-session-store · cloud placeholder hydration', () => {
       }
       return Promise.resolve({ meta: localMeta, messages: [] })
     })
+    systemPromptRef.value = 'Unrelated local policy.'
     listChatsMock.mockResolvedValue([remoteChat])
     reconcileLocalAndRemoteMock.mockReturnValue({ adopt: [remoteChat], claim: [], create: [] })
     pullMessagesMock
@@ -1134,6 +1135,7 @@ describe('chat-session-store · character greeting', () => {
         },
       },
     }
+    systemPromptRef.value = 'Unrelated local policy.'
     listChatsMock.mockResolvedValue([remoteChat])
     reconcileLocalAndRemoteMock.mockReturnValue({
       adopt: [remoteChat],
@@ -1147,6 +1149,10 @@ describe('chat-session-store · character greeting', () => {
       expect(store.sessionMessages[remoteChat.id]).toBeDefined()
     })
 
+    expect(store.sessionMetas[remoteChat.id]?.characterIdUnknown).toBe(true)
+    expect(store.sessionMessages[remoteChat.id]?.[0]?.content).not.toContain('Unrelated local policy.')
+    store.cleanupMessages(remoteChat.id)
+    expect(store.sessionMessages[remoteChat.id]?.[0]?.content).not.toContain('Unrelated local policy.')
     expect(store.sessionMessages[remoteChat.id]).toHaveLength(1)
     expect(store.sessionMessages[remoteChat.id]?.[0]?.role).toBe('system')
     expect(store.sessionMessages[remoteChat.id]?.some(message => message.role === 'assistant')).toBe(false)

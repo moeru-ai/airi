@@ -83,6 +83,7 @@ const activeModelRef = ref('gpt-test')
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 const sessionMessages: Record<string, any[]> = {}
 const sessionCharacterIds: Record<string, string> = {}
+const unknownCharacterSessions = new Set<string>()
 const cardsById = new Map<string, AiriCard>()
 let currentGeneration = 1
 
@@ -174,7 +175,7 @@ vi.mock('./chat/session-store', () => ({
     setSessionMessages: (sessionId: string, messages: any[]) => {
       sessionMessages[sessionId] = messages
     },
-    get sessionMetas() { return Object.fromEntries(Object.entries(sessionCharacterIds).map(([id, characterId]) => [id, { characterId }])) },
+    get sessionMetas() { return Object.fromEntries(Object.entries(sessionCharacterIds).map(([id, characterId]) => [id, { characterId, characterIdUnknown: unknownCharacterSessions.has(id) }])) },
     currentUserName: 'Mira',
     forkSession: forkSessionMock,
     // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
@@ -293,6 +294,7 @@ describe('chat store contract', () => {
     cardsById.clear()
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+    unknownCharacterSessions.clear()
     sessionCharacterIds['session-1'] = 'card-1'
   })
 
@@ -979,6 +981,14 @@ describe('chat store contract', () => {
     expect(await activeOutcome).toBe('Chat session was removed before send completed')
     expect(llmStreamMock).toHaveBeenCalledTimes(1)
     expect(sessionMessages['session-1']).toBeUndefined()
+  })
+
+  it('does not apply a local card to an adopted session with unknown identity', async () => {
+    cardsById.set('card-1', createCard({ postHistoryInstructions: 'Unrelated local card policy.' }))
+    unknownCharacterSessions.add('session-1')
+    const store = useChatStore()
+    await store.ingest('hello from another device', { model: 'gpt-test', chatProvider: provider })
+    expect(JSON.stringify(llmStreamMock.mock.calls[0]?.[2])).not.toContain('Unrelated local card policy.')
   })
 
   it('compiles a queued send with its owning session card after the active session changes', async () => {
