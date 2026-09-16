@@ -1010,6 +1010,12 @@ pages:
           common:
             fields:
               field:
+                web-search:
+                  label: Web search
+                  description: Allow supported OpenAI models to search when needed. Uses your API key and can incur search charges. Requires Responses API.
+                api-protocol:
+                  label: API protocol
+                  description: Choose the API supported by this provider and model.
                 api-key:
                   label: API Key
                   description: API Key used to authorize requests to this provider
