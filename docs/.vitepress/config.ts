@@ -163,6 +163,7 @@ export default defineConfig<ThemeConfig>({
                       { text: 'AIRI Official Provider', link: withBase('/en/docs/manual/config/providers/consciousness/official') },
                       { text: 'AIHubMix', link: withBase('/en/docs/manual/config/providers/consciousness/aihubmix') },
                       { text: 'Amazon Bedrock', link: withBase('/en/docs/manual/config/providers/consciousness/amazon-bedrock') },
+                      { text: 'AnonRouter', link: withBase('/en/docs/manual/config/providers/consciousness/anonrouter') },
                       { text: 'Anthropic', link: withBase('/en/docs/manual/config/providers/consciousness/anthropic') },
                       { text: 'Atlas Cloud', link: withBase('/en/docs/manual/config/providers/consciousness/atlascloud') },
                       { text: 'Azure AI Foundry', link: withBase('/en/docs/manual/config/providers/consciousness/azure-ai-foundry') },
