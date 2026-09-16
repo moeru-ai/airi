@@ -506,26 +506,32 @@ function expandCharacterCardMacros(
   const userName = options.userName?.trim() || 'User'
   const random = options.random ?? Math.random
 
-  return source
-    .replace(/\{\{char\}\}|<char>|<bot>/gi, () => characterName)
-    .replace(/\{\{user\}\}|<user>/gi, () => userName)
-    .replace(/\{\{\/\/[^}]*\}\}/g, '')
-    .replace(/\{\{(?:hidden_key|comment):[^}]*\}\}/gi, '')
-    .replace(/\{\{reverse:([^}]*)\}\}/gi, (_, value: string) => [...value].reverse().join(''))
-    .replace(/\{\{roll:d?(\d+)\}\}/gi, (_, rawSides: string) => {
-      const sides = Number.parseInt(rawSides, 10)
-      if (sides < 1)
-        return ''
-      return String(Math.floor(random() * sides) + 1)
-    })
-    .replace(/\{\{random:([^}]*)\}\}/gi, (_, rawValues: string) => {
-      const values = splitEscapedCommaList(rawValues)
-      return values[Math.floor(random() * values.length)] ?? ''
-    })
-    .replace(/\{\{pick:([^}]*)\}\}/gi, (_, rawValues: string) => {
-      const values = splitEscapedCommaList(rawValues)
-      return values[stableStringHash(rawValues) % values.length] ?? ''
-    })
+  // Replace source tokens once; inserted names are literal, even if they look like macros.
+  return source.replace(/\{\{(char|user|\/\/[^}]*|(?:hidden_key|comment|reverse|random|pick):[^}]*|roll:d?\d+)\}\}|<(char|bot|user)>/gi, (_match, macro: string | undefined, legacy: string | undefined) => {
+    const token = macro ?? legacy!
+    const name = token.toLowerCase()
+    if (name === 'char' || name === 'bot')
+      return characterName
+    if (name === 'user')
+      return userName
+    if (token.startsWith('//'))
+      return ''
+
+    const separator = token.indexOf(':')
+    const kind = token.slice(0, separator).toLowerCase()
+    const value = token.slice(separator + 1)
+    if (kind === 'hidden_key' || kind === 'comment')
+      return ''
+    if (kind === 'reverse')
+      return [...value].reverse().join('')
+    if (kind === 'roll') {
+      const sides = Number.parseInt(value.replace(/^d/i, ''), 10)
+      return sides < 1 ? '' : String(Math.floor(random() * sides) + 1)
+    }
+    const values = splitEscapedCommaList(value)
+    const index = kind === 'pick' ? stableStringHash(value) % values.length : Math.floor(random() * values.length)
+    return values[index] ?? ''
+  })
 }
 
 function splitEscapedCommaList(source: string): string[] {
