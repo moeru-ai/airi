@@ -480,15 +480,18 @@ export const useProviderStore = defineStore('provider', () => {
     return result.valid
   })
 
-  providerConfigStore.onAfterSync(async () => {
+  // Follower windows never run onAfterSync. Drop stale local clients when
+  // replicated credentials change.
+  watch(providerCredentials, () => {
     for (const providerId of [...providerInstanceCache.keys()]) {
       const current = providerCredentials.value[providerId]
       if (current && previousCredentialHashes.get(providerId) === JSON.stringify(current))
         continue
-      await disposeProviderInstance(providerId)
+      void disposeProviderInstance(providerId)
     }
-    await refreshListedProviderValidation()
-  })
+  }, { deep: true, flush: 'sync' })
+
+  providerConfigStore.onAfterSync(refreshListedProviderValidation)
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.values(providerConfigStore.providers)

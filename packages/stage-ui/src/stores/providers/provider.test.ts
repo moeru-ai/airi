@@ -307,6 +307,35 @@ describe('provider store synchronization boundary', () => {
     }
   })
 
+  // https://github.com/moeru-ai/airi/pull/2471#discussion_r3999470560
+  it('drops a cached instance when replicated credentials change without a local sync', async () => {
+    // ROOT CAUSE:
+    //
+    // onAfterSync ran only inside the leader-routed syncProviders action.
+    // The chat window is follower-only. It received the new key in the
+    // replicated snapshot and kept the old client in providerInstanceCache.
+    //
+    // Each renderer now watches replicated credentials and drops its own cache.
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider('openai', 'openai', {
+      apiKey: 'sk-old',
+      baseUrl: 'https://api.openai.com/v1/',
+    })
+    const first = await store.getProviderInstance<ChatProvider>('openai')
+
+    configStore.providers.openai = {
+      ...configStore.providers.openai!,
+      config: {
+        apiKey: 'sk-new',
+        baseUrl: 'https://api.openai.com/v1/',
+      },
+    }
+
+    const second = await store.getProviderInstance<ChatProvider>('openai')
+    expect(second).not.toBe(first)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2471#discussion_r3999454891
   it('adopts a remote addProvider instance on a fresh device', async () => {
     // ROOT CAUSE:
