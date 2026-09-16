@@ -135,6 +135,7 @@ electronApp.setAppUserModelId('ai.moeru.airi')
 // Track the real user-facing AIRI window because the process also owns hidden utility windows.
 // The second-instance handler should restore the main UI instead of accidentally surfacing internals.
 let userFacingMainWindow: BrowserWindow | undefined
+let extensionManagementWebContentsId: number | undefined
 const shouldStartMainProcess = installSingleInstanceGuard({ app, getWindow: () => userFacingMainWindow })
 
 if (shouldStartMainProcess) {
@@ -215,7 +216,10 @@ app.whenReady().then(async () => {
 
   const pluginHost = injeca.provide('modules:plugin-host', {
     dependsOn: { serverChannel, widgetsManager },
-    build: ({ dependsOn }) => setupExtensionHost(dependsOn),
+    build: ({ dependsOn }) => setupExtensionHost({
+      ...dependsOn,
+      getExtensionManagementWebContentsId: () => extensionManagementWebContentsId,
+    }),
   })
 
   const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
@@ -261,6 +265,15 @@ app.whenReady().then(async () => {
       setupSettingsWindowReusableFunc({
         ...dependsOn,
         getMainWindow: () => userFacingMainWindow,
+        onWindowCreated: (window) => {
+          const webContentsId = window.webContents.id
+          extensionManagementWebContentsId = webContentsId
+          window.once('closed', () => {
+            if (extensionManagementWebContentsId === webContentsId) {
+              extensionManagementWebContentsId = undefined
+            }
+          })
+        },
       }),
   })
 
