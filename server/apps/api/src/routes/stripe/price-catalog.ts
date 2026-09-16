@@ -8,7 +8,7 @@ import { redisKeyFrom } from '../../utils/redis-keys'
 
 const logger = useLogger('stripe')
 
-const PRICES_CACHE_KEY = redisKeyFrom('cache', 'stripe', 'prices')
+const PRICES_CACHE_KEY = redisKeyFrom('stripe', 'prices')
 const PRICES_CACHE_TTL_SEC = 5 * 60
 
 interface CachedCurrencyOption {

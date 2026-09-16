@@ -1516,6 +1516,36 @@ describe('chat history', () => {
     expect(trigger.dataset.pressing).toBe('false')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2477
+  it('keeps repeated tool call ids separate when rendering and rerunning (PR #2477)', async () => {
+    // ROOT CAUSE:
+    // A call-id lookup displayed the latest result for every matching invocation.
+    // The rerun event also lost the selected round. Each block needs its own identity.
+    const message: ChatHistoryItem = {
+      role: 'assistant',
+      content: '',
+      slices: [0, 1].map(index => ({ type: 'tool-call', toolCall: { toolCallId: 'same', toolCallType: 'function', toolName: 'weather', args: JSON.stringify({ index }) } })),
+      tool_results: [{ id: 'same', result: 'First result' }, { id: 'same', result: 'Second result' }],
+      generationTranscript: {
+        type: 'assistant',
+        id: 'turn',
+        status: 'completed',
+        rounds: [0, 1].map(index => ({
+          id: `round-${index}`,
+          content: [],
+          projectionIssues: [],
+          toolInvocations: [{ id: `invocation-${index}`, callId: 'same', name: 'weather', arguments: JSON.stringify({ index }), execution: { status: 'succeeded', output: [{ type: 'text', text: index === 0 ? 'First result' : 'Second result' }] } }],
+        })),
+      },
+    }
+    const screen = await render(ChatHistory, {
+      props: { messages: [message], style: 'height: 480px; width: 480px; overflow-y: auto;' },
+      global: { plugins: [createEnglishI18n()] },
+    })
+    await screen.getByLabelText('Re-run tool call').nth(1).click()
+    expect(screen.emitted('toolCallRerun')).toEqual([[expect.objectContaining({ invocationId: 'invocation-1', toolCallId: 'same' })]])
+  })
+
   it('emits tool-call-rerun with message context when a tool call rerun button is clicked', async () => {
     const args = JSON.stringify({ location: 'Tokyo' })
     const assistantMessage: ChatHistoryItem = {
