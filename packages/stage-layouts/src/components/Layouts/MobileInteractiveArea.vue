@@ -473,12 +473,15 @@ onUnmounted(() => {
       >
         <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-6']" />
       </BasicButton>
-      <CharacterSwitcherDrawer />
-      <MobileSettingsDrawer
-        v-model:character-voice-enabled="characterVoiceEnabled"
-        :view-controls-available="viewControlsAvailable"
-        @open-view-controls="openViewControls"
-      />
+      <CharacterSwitcherDrawer :class="['min-w-0 flex flex-1 justify-center']" />
+      <div :class="['flex shrink-0 items-center gap-2']">
+        <slot name="header-actions" />
+        <MobileSettingsDrawer
+          v-model:character-voice-enabled="characterVoiceEnabled"
+          :view-controls-available="viewControlsAvailable"
+          @open-view-controls="openViewControls"
+        />
+      </div>
     </MobileHeader>
     <MobileHeader v-else>
       <BasicButton
