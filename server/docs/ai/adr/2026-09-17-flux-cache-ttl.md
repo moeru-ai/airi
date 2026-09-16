@@ -92,7 +92,7 @@ Verify that a persistent cached balance reloads from PostgreSQL.
 ## Redis key names
 
 Keys identify the owning domain without a `cache:` prefix.
-ConfigKV uses `configkv:{key}`. Stripe prices use `stripe:prices`.
+ConfigKV uses `config:{key}`. Stripe prices use `stripe:prices`.
 Flux keeps `user:{userId}:flux`. TTLs remain unchanged.
 New instances fill the new keys on demand. Existing expiring keys expire naturally.
 During a rolling deployment, old and new instances use separate ConfigKV and Stripe keys.
