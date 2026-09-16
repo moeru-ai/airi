@@ -48,10 +48,12 @@ The gateway retains protocol-specific response lifecycles and shared billing and
 Adding a protocol requires an adapter and gateway input contract; unsupported values never select Chat implicitly.
 Messages API is not implemented or advertised by this change.
 
-The xsai patch exports generated Valibot request schemas through a separate `schema` subpath.
-It follows xsai's OpenResponses OpenAPI generation workflow. AIRI layers its stateless policy over those schemas.
-OpenAI web search extends the OpenResponses contract in that subpath without AIRI-specific restrictions.
-The default xsai entrypoint does not import schema code. Upstream submission is a separate publication step.
+The user requested alignment with xsai's existing package boundaries.
+Its generation packages export TypeScript contracts, not complete wire-request validators.
+`xsschema` validates caller-supplied schemas; it does not own provider request contracts.
+The server therefore owns reusable Valibot schemas in `services/adapters/llm/schemas`.
+Generated OpenResponses definitions and OpenAI extensions stay separate from AIRI's shared-account restrictions.
+No schema export or Valibot peer is added to xsai. The pre-existing client patch remains unchanged.
 
 ## Module dependencies
 
@@ -64,7 +66,7 @@ flowchart LR
   HTTP --> Protocols[Server protocol registry]
   Router --> Protocols
   Observe --> Protocols
-  HTTP --> Schema[xsai schema subpath and AIRI policy]
+  HTTP --> Schema[Server protocol schemas and AIRI policy]
   Router --> Catalog[model-bank OpenAI catalog]
   Router --> Upstream[Responses-capable upstream]
   Operation --> Billing[Existing Flux settlement]
@@ -88,8 +90,8 @@ server/
       domain/llm-router/{router.ts,types.ts,tests/router.test.ts}
       domain/llm-tracing/index.ts
       adapters/llm/{index.ts,chat-completions.ts,responses.ts,types.ts}
+      adapters/llm/schemas/{responses.ts,openresponses-schema.ts,request-openapi.json,README.md}
     src/schemas/generation-protocol.ts
-patches/@xsai-ext__responses@0.5.0.patch
   docs/ai/adr/2026-09-15-hosted-responses.md
 ```
 

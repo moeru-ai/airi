@@ -1,7 +1,7 @@
-import { createResponseSchema } from '@xsai-ext/responses/schema'
 import { safeParse } from 'valibot'
 import { describe, expect, it } from 'vitest'
 
+import { createResponseSchema } from '../../../../../services/adapters/llm/schemas/responses'
 import { parseResponsesRequest } from './request'
 
 describe('stateless Responses request boundary', () => {
@@ -56,7 +56,7 @@ it.each([
   { input: [{ type: 'item_reference', id: 'item-existing' }] },
   { input: [{ role: 'user', content: [{ type: 'input_file', file_id: 'file-existing' }] }] },
   { input: [{ type: 'function_call_output', call_id: 'call-1', output: [{ type: 'input_image', file_id: 'file-existing', image_url: 'https://example.com/image.png' }] }] },
-])('keeps shared-account policy outside the reusable xsai schema: %j', (fields) => {
+])('keeps shared-account policy outside the reusable protocol schema: %j', (fields) => {
   const body = { model: 'gpt-5-mini', input: 'hello', ...fields }
   expect(safeParse(createResponseSchema, body).success).toBe(true)
   expect(() => parseResponsesRequest(body)).toThrow('Invalid stateless Responses request')

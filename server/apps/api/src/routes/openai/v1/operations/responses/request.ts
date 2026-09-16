@@ -1,14 +1,14 @@
-import type { responseItemSchema } from '@xsai-ext/responses/schema'
 import type { InferOutput } from 'valibot'
 
+import type { responseItemSchema } from '../../../../../services/adapters/llm/schemas/responses'
 import type { ChatAppSurface } from '../../analytics'
 
-import { createResponseSchema } from '@xsai-ext/responses/schema'
 import { check, literal, nonEmpty, null_, optional, pick, pipe, safeParse, strictObject, string } from 'valibot'
 
+import { createResponseSchema } from '../../../../../services/adapters/llm/schemas/responses'
 import { createBadRequestError } from '../../../../../utils/error'
 
-// Keep the gateway's supported fields explicit. The dependency owns their wire shapes.
+// Keep the gateway's supported fields explicit. The protocol layer owns their wire shapes.
 const supported = pick(createResponseSchema, [
   'model',
   'input',

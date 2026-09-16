@@ -47,7 +47,6 @@
     "@opentelemetry/semantic-conventions": "catalog:",
     "@proj-airi/auth-shared": "workspace:*",
     "@proj-airi/server-sdk-shared": "workspace:*",
-    "@xsai-ext/responses": "catalog:",
     "@xsai/shared-stream": "catalog:",
     "drizzle-orm": "catalog:",
     "drizzle-valibot": "catalog:",

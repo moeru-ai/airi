@@ -119,8 +119,8 @@ To add a protocol, add its registry entry, wire adapter, gateway input contract,
 The adapter registry and gateway types reject missing implementations during typecheck.
 Messages API remains unsupported until these pieces exist.
 
-Responses validation uses the patched `@xsai-ext/responses/schema` subpath.
-Its Valibot schemas derive from the OpenResponses specification and include OpenAI search extensions.
-The subpath permits provider-side references; the AIRI request policy rejects them for shared upstream accounts.
-See `dist/schema.md` and `dist/request-openapi.json` in the patched package for generation and upstream contribution details.
-The normal xsai entrypoint does not import the schema module. No client behavior changes are required.
+Responses validation reuses `src/services/adapters/llm/schemas/responses.ts`.
+This server-owned protocol layer derives schemas from OpenResponses and adds OpenAI search extensions.
+It permits provider-side references; the AIRI request policy rejects them for shared upstream accounts.
+The schema directory retains its generation input and instructions. Compiled JavaScript is not stored in source.
+xsai's existing client patch remains unchanged. No schema export or new peer dependency is added to xsai.
