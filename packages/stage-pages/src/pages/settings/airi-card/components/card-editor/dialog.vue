@@ -16,6 +16,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Button } from '@proj-airi/ui'
+import { cloneDeep } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import {
   DialogContent,
@@ -544,7 +545,7 @@ function initializeCard(): Card {
 
   // Return existing card data or defaults
   if (existingCard) {
-    return { ...toRaw(existingCard) }
+    return cloneDeep(toRaw(existingCard))
   }
 
   return createCardDraft()

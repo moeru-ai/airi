@@ -216,6 +216,7 @@ export function serializeAiriCardEditorDraft(card: Card, state: Record<string, u
   const normalizedCard = {
     ...card,
     nickname: card.nickname ?? '',
+    notes: card.notes ?? '',
     description: card.description ?? '',
     personality: card.personality ?? '',
     scenario: card.scenario ?? '',

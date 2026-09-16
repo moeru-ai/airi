@@ -4,6 +4,7 @@ import { PiniaColada } from '@pinia/colada'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia, disposePinia } from 'pinia'
 import { expect, it, vi } from 'vitest'
+import { page } from 'vitest/browser'
 import { createApp, h, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -92,6 +93,51 @@ it.each(['completed', 'closed', 'replaced'])('isolates card preview responses wh
     disposePinia(pinia)
     container.remove()
     vi.unstubAllGlobals()
+    localStorage.clear()
+  }
+})
+
+it('discards greeting edits without mutating the stored card', async () => {
+  localStorage.clear()
+  const pinia = createPinia()
+  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+  const open = ref(false)
+  const cardId = ref('')
+  const container = document.createElement('div')
+  document.body.append(container)
+  const app = createApp({
+    setup: () => () => h(CardCreationDialog, {
+      'modelValue': open.value,
+      'onUpdate:modelValue': (value: boolean) => { open.value = value },
+      'cardId': cardId.value,
+      'initialTab': 'behavior',
+    }),
+  })
+  app.use(pinia).use(PiniaColada).use(MotionPlugin).use(i18n).use(createRouter({ history: createMemoryHistory(), routes: [] })).mount(container)
+  try {
+    const cards = useAiriCardStore(pinia)
+    cardId.value = await cards.addCard({
+      name: 'Discard greeting',
+      version: '1.0',
+      greetings: ['Original greeting'],
+      extensions: { airi: { modules: {} } },
+    }, 'scratch')
+    open.value = true
+    await vi.waitFor(() => expect(Array.from(document.querySelectorAll('input')).some(input => input.value === 'Original greeting')).toBe(true))
+    const input = Array.from(document.querySelectorAll('input')).find(input => input.value === 'Original greeting')!
+    input.value = 'Changed greeting'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await page.getByRole('button', { name: 'Cancel action', exact: true }).click()
+    await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
+    await vi.waitFor(() => expect(open.value).toBe(false))
+    expect(cards.getCard(cardId.value)?.greetings).toEqual(['Original greeting'])
+    open.value = true
+    await vi.waitFor(() => expect(Array.from(document.querySelectorAll('input')).some(input => input.value === 'Original greeting')).toBe(true))
+  }
+  finally {
+    app.unmount()
+    disposePinia(pinia)
+    container.remove()
     localStorage.clear()
   }
 })

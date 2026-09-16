@@ -148,7 +148,7 @@ function openReplicateModel() {
         <Select
           v-model="selectedArtistryProvider"
           :options="artistryProviderOptions"
-          placeholder="Inherit global settings"
+          :placeholder="t('settings.pages.card.creation.inherit_global_settings')"
           class="w-full"
         />
       </div>

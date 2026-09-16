@@ -75,7 +75,7 @@ describe('airi card editor validation', () => {
     const state = createEditorState()
     const initial = serializeAiriCardEditorDraft(card, state)
 
-    expect(serializeAiriCardEditorDraft({ ...card, nickname: '' }, Object.fromEntries(Object.entries(state).reverse()))).toBe(initial)
+    expect(serializeAiriCardEditorDraft({ ...card, nickname: '', notes: '' }, Object.fromEntries(Object.entries(state).reverse()))).toBe(initial)
     expect(serializeAiriCardEditorDraft({ ...card, name: 'Changed' }, state)).not.toBe(initial)
     expect(serializeAiriCardEditorDraft(card, { ...state, speechVoiceId: 'new-voice' })).not.toBe(initial)
   })
