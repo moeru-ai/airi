@@ -1,5 +1,5 @@
 import type { ProviderReplicaRow } from '../../services/inference-service-providers'
-import type { ProviderSyncRow } from './merge'
+import type { ProviderSyncRow, ProviderSyncSnapshot } from './merge'
 
 import { describe, expect, it } from 'vitest'
 
@@ -22,7 +22,7 @@ function stamps(clock: Clock) {
   return { localAt: OLD, remoteAt: NEW }
 }
 
-function localSnapshot(kind: Local, at: string) {
+function localSnapshot(kind: Local, at: string): ProviderSyncSnapshot {
   if (kind === 'none')
     return { live: {}, pendingDeletes: {} }
   if (kind === 'delete')

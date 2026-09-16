@@ -281,12 +281,12 @@ describe('provider store synchronization boundary', () => {
       baseUrl: 'https://api.openai.com/v1/',
     }
     configStore.ensureProvider('openai', 'openai', openaiConfig)
-    const first = await store.getProviderInstance<ChatProvider>('openai')
+    const first = await store.getProviderInstance('openai')
     let restore = stubOpenAiReplica({ ...openaiConfig })
 
     try {
       await configStore.syncProviders()
-      expect(await store.getProviderInstance<ChatProvider>('openai')).toBe(first)
+      expect(await store.getProviderInstance('openai')).toBe(first)
 
       restore()
       restore = stubOpenAiReplica({
@@ -295,7 +295,7 @@ describe('provider store synchronization boundary', () => {
       })
       await configStore.syncProviders()
 
-      const second = await store.getProviderInstance<ChatProvider>('openai')
+      const second = await store.getProviderInstance('openai')
       expect(second).not.toBe(first)
       expect(configStore.providers.openai?.config).toEqual({
         apiKey: 'sk-new',
@@ -322,7 +322,7 @@ describe('provider store synchronization boundary', () => {
       apiKey: 'sk-old',
       baseUrl: 'https://api.openai.com/v1/',
     })
-    const first = await store.getProviderInstance<ChatProvider>('openai')
+    const first = await store.getProviderInstance('openai')
 
     configStore.providers.openai = {
       ...configStore.providers.openai!,
@@ -332,7 +332,7 @@ describe('provider store synchronization boundary', () => {
       },
     }
 
-    const second = await store.getProviderInstance<ChatProvider>('openai')
+    const second = await store.getProviderInstance('openai')
     expect(second).not.toBe(first)
   })
 
