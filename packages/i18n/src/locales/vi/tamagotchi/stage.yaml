@@ -15,7 +15,7 @@ docs:
   'open-settings': Mở cài đặt
   'open-chat': Mở trò chuyện
   'refresh': Làm mới
-  'center-main-window': Move to screen center
+  'center-main-window': Di chuyển vào giữa màn hình
   'open-hearing-controls': Kiểm soát thính giác mở
   'drag-to-move-window': Kéo để di chuyển cửa sổ
   'stop-speaking': Dừng nói
@@ -36,7 +36,7 @@ widgets:
   close: Đóng tiện ích
   empty:
     title: Không có tiện ích hoạt động
-    description: Widgets will appear here when a tool or plugin spawns one.
+    description: Các widget sẽ xuất hiện tại đây khi một công cụ hoặc plugin tạo ra chúng.
   loading: Đang tải tiện ích…
   waiting: Đang đợi dữ liệu tiện ích cho "{id}"…
 notice:
@@ -55,7 +55,7 @@ notice:
     read-more: Xem thêm
     preview-title: Đây là gì?
 about:
-  subtitle: Desktop ver.
+  subtitle: Phiên bản desktop
   current-version: Phiên Bản Hiện Tại
   common:
     cancel: Hủy
@@ -63,18 +63,18 @@ about:
     title: Các Liên Kết
     home: Trang chủ
     documentation: Tài liệu
-    github: GitHub
+    github:
   update:
     lane:
-      label: Update lane
-      description: Choose channel release to follow
-      placeholder: Choose update lane
+      label: Luồng cập nhật
+      description: Chọn kênh phát hành để theo dõi
+      placeholder: Chọn luồng cập nhật
     channels:
       auto: Tự động
       stable: Ổn định
-      alpha: Alpha
-      beta: Beta
-      nightly: Nightly
+      alpha:
+      beta:
+      nightly: Hàng ngày
       canary: Canary
     status:
       downloading: Đang tải bản cập nhật...
@@ -91,12 +91,12 @@ about:
       checking: Đang kiểm tra...
       latest-version: Phiên bản mới nhất
       disabled-dev: Các bản cập nhật bị vô hiệu trong Dev
-      managed-by-store: Bản cập nhật do cửa hàng ứng dụng quản lý
-      retry-check: Retry Check
+      managed-by-store: Các bản cập nhật do cửa hàng ứng dụng của bạn quản lý
+      retry-check: Thử lại bước kiểm tra
       restart-silent: Khởi động lại để cập nhật trong im lặng
       restart-install: Khởi động lại để tải bản cập nhật
       confirm-restart: Xác Nhận Khởi Động Lại
     dialog:
       title: Có Bản Cập Nhật Mới
       description: Hiện đang có phiên bản mới (v{version}).
-      no-release-notes-markdown: _No release notes provided._
+      no-release-notes-markdown: _Không có ghi chú phát hành nào được cung cấp._
