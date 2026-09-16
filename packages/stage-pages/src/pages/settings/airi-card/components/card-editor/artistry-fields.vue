@@ -7,9 +7,10 @@ import { Button, Checkbox, FieldInput, FieldRange, IconButton, Select } from '@p
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+defineOptions({ name: 'CardEditorArtistryFields' })
+
 defineProps<{
   artistryProviderOptions: { value: string, label: string }[]
-  defaultArtistryProviderPlaceholder: string
 }>()
 
 const selectedArtistryProvider = defineModel<string>('selectedArtistryProvider', { required: true })
@@ -147,7 +148,7 @@ function openReplicateModel() {
         <Select
           v-model="selectedArtistryProvider"
           :options="artistryProviderOptions"
-          :placeholder="defaultArtistryProviderPlaceholder"
+          :placeholder="t('settings.pages.card.creation.inherit_global_settings')"
           class="w-full"
         />
       </div>

@@ -198,6 +198,9 @@ export function sharedUnoConfig() {
         ],
       },
     },
+    shortcuts: {
+      'card-editor-field-grid': '[&>*]:min-w-45% max-[641px]:[&>*]:min-w-unset max-[641px]:[&>*]:w-full',
+    },
     rules: [
 
       [/^mask-\[(.*)\]$/, ([, suffix]) => ({ '-webkit-mask-image': suffix.replace(/_/g, ' ') })],

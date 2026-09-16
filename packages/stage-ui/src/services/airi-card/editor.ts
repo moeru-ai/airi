@@ -1,6 +1,6 @@
 import type { Card } from '@proj-airi/ccc'
 
-import type { AiriExtension } from '../types/airiCard'
+import type { AiriExtension } from '../../types/airiCard'
 
 import {
   check,
@@ -204,4 +204,25 @@ function getModuleString(module: unknown, key: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Serializes all editor-owned fields into a stable dirty-check snapshot.
+ *
+ * The card and module state share one boundary so edits on tabs that are not
+ * currently visible still prevent accidental dialog closure.
+ */
+export function serializeAiriCardEditorDraft(card: Card, state: Record<string, unknown>): string {
+  const normalizedCard = {
+    ...card,
+    nickname: card.nickname ?? '',
+    notes: card.notes ?? '',
+    description: card.description ?? '',
+    personality: card.personality ?? '',
+    scenario: card.scenario ?? '',
+    systemPrompt: card.systemPrompt ?? '',
+    postHistoryInstructions: card.postHistoryInstructions ?? '',
+  }
+  return JSON.stringify({ card: normalizedCard, state }, (_key, value) =>
+    isRecord(value) ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) : value)
 }

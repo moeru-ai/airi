@@ -16,7 +16,7 @@ export default defineConfig({
   // Shared settings pages import these optional UI dependencies through the
   // component barrel. Bundle them before a browser test starts to avoid HMR.
   optimizeDeps: {
-    include: ['embla-carousel-vue', 'html2canvas', 'node-vibrant/browser'],
+    include: ['embla-carousel-vue', 'html2canvas', 'meta-png', 'node-vibrant/browser'],
   },
   plugins: [
     Info(),
