@@ -482,3 +482,15 @@ it('reuses one real Worker for all regex checks in a compilation', async () => {
     vi.unstubAllGlobals()
   }
 })
+
+it('preserves macro-looking names without interpreting inserted text again', async () => {
+  const card = createCard({
+    name: '{{user}} {{reverse:abc}}',
+    greetings: ['{{char}} / {{user}} / <bot> / <user> / {{reverse:abc}}'],
+    systemPrompt: '{{char}} / {{user}} / {{reverse:abc}}',
+  })
+  const userName = '{{roll:d6}} {{comment:keep}}'
+  expect(compileCharacterCardGreeting(card, { userName })).toBe(`${card.name} / ${userName} / ${card.name} / ${userName} / cba`)
+  const result = await compileCharacterCardMessages(card, [{ role: 'system', content: compileCharacterCardSystemPrompt(card) }], { userName })
+  expect(result[0]?.content).toContain(`${card.name} / ${userName} / cba`)
+})
