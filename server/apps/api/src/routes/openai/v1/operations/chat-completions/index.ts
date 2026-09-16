@@ -25,7 +25,7 @@ export interface ChatCompletionsOperationRequest {
   abortSignal?: AbortSignal
 }
 
-export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.completions'> {
+export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-completions.create'> {
   const logger = useLogger('v1-completions').useGlobalConfig()
   const telemetry = createRouteTelemetry({
     genAi: deps.genAi,
@@ -90,6 +90,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
     catch (err) {
       telemetry.failSpan(span, 'Router exhausted or unknown model')
       deps.llmTracing.startChatGeneration({
+        protocol: 'chat-completions',
         input: body.messages,
         model: routeCtx.upstreamModel ?? requestModel,
         requestId,
@@ -111,6 +112,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
     // alias (`auto` / `chat-auto`), so Langfuse model-cost grouping matches the
     // provider model that actually generated the tokens.
     const generationTrace = deps.llmTracing.startChatGeneration({
+      protocol: 'chat-completions',
       input: body.messages,
       model: langfuseModel,
       requestId,

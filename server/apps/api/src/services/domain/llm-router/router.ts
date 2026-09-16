@@ -1,11 +1,10 @@
-import type { Buffer } from 'node:buffer'
-
 import type Redis from 'ioredis'
 import type { Voice } from 'unspeech'
 
 import type { GatewayMetrics } from '../../../otel'
 import type { EnvelopeCrypto } from '../../../utils/envelope-crypto'
 import type { ConfigKVService } from '../../adapters/config-kv'
+import type { GenerationAdapter } from '../../adapters/llm/types'
 import type { TtsAdapterId, TtsInput } from '../../adapters/tts/types'
 import type { ConcurrencyLedger } from './concurrency-ledger'
 import type { UpstreamAttempt } from './error-mapping'
@@ -15,8 +14,9 @@ import { Buffer as NodeBuffer } from 'node:buffer'
 
 import { useLogger } from '@guiiai/logg'
 import { trace } from '@opentelemetry/api'
-import { openaiChatModels } from 'model-bank/openai'
+import { optional, parse } from 'valibot'
 
+import { generationProtocolSchema } from '../../../schemas/generation-protocol'
 import { ApiError, createServiceUnavailableError } from '../../../utils/error'
 import { errorMessageFromUnknown } from '../../../utils/error-message'
 import {
@@ -25,6 +25,7 @@ import {
   AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_INDEX,
   AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL,
 } from '../../../utils/observability'
+import { generationAdapters } from '../../adapters/llm'
 import { getAdapter } from '../../adapters/tts'
 import { TtsUpstreamResponseError } from '../../adapters/tts/types'
 import { createConfigLoader } from './config-loader'
@@ -32,19 +33,6 @@ import { mapUpstreamError } from './error-mapping'
 import { createKeyRotator } from './key-rotator'
 
 const UPSTREAM_BODY_SNIPPET_MAX = 256
-
-// Catalog IDs belong to the upstream API, not the public alias or router key.
-const searchModels = new Set(openaiChatModels.filter(model => model.abilities?.search).map(model => model.id))
-
-function supportsWebSearch(upstream: LlmUpstream, modelName: string): boolean {
-  // A malformed configured endpoint cannot advertise a provider capability.
-  if (!URL.canParse(upstream.baseURL))
-    return false
-  const endpoint = new URL(upstream.baseURL)
-  return endpoint.origin === 'https://api.openai.com'
-    && /^\/v1\/?$/.test(endpoint.pathname)
-    && searchModels.has(upstream.overrideModel ?? modelName)
-}
 
 interface HttpAttemptFailure {
   keyId: string
@@ -99,14 +87,6 @@ async function readUpstreamBodySnippet(response: Response, maxBytes = UPSTREAM_B
     reader.cancel().catch(() => {})
     return undefined
   }
-}
-
-/**
- * Resolved per-attempt token: `'Bearer sk-xxx'` etc. The router substitutes
- * the literal `{KEY}` in `headerTemplate`.
- */
-function renderAuthHeader(headerTemplate: string, plaintext: Buffer): string {
-  return headerTemplate.replace('{KEY}', plaintext.toString('utf8'))
 }
 
 /**
@@ -270,6 +250,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
    * trying further keys.
    */
   async function dispatchOneUpstream(
+    adapter: GenerationAdapter,
     upstream: LlmUpstream,
     upstreamIndex: number,
     req: LlmRouteRequest,
@@ -288,14 +269,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
     for (const key of rotator) {
       try {
-        const headers: Record<string, string> = {
-          ...req.headers,
-          'authorization': renderAuthHeader(upstream.headerTemplate, key.plaintext),
-          'content-type': 'application/json',
-        }
-
         const effectiveModel = upstream.overrideModel ?? req.modelName
-        const body = JSON.stringify({ ...req.body, model: effectiveModel })
+        const request = adapter.request({ upstream, request: req, apiKey: key.plaintext.toString('utf8') })
 
         // NOTICE:
         // We compose two AbortSignals — per-attempt timeout and the caller's
@@ -317,10 +292,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
         let response: Response
         try {
-          response = await fetchImpl(`${upstream.baseURL.replace(/\/+$/, '')}/${req.protocol === 'responses' ? 'responses' : 'chat/completions'}`, {
-            method: 'POST',
-            headers,
-            body,
+          response = await fetchImpl(request.url, {
+            ...request.init,
             signal: attemptCtrl.signal,
           })
         }
@@ -423,12 +396,13 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     }
 
     const llmModel = slice.model
-    const protocol = req.protocol ?? 'chat-completions'
+    const protocol = parse(optional(generationProtocolSchema, 'chat-completions'), req.protocol)
+    const adapter = generationAdapters[protocol]
     const protocolCandidates = llmModel.upstreams.map((upstream, index) => ({ upstream, index }))
       .filter(({ upstream }) => upstream.protocols?.includes(protocol) ?? protocol === 'chat-completions')
     if (protocolCandidates.length === 0)
       throw createServiceUnavailableError('No upstream supports the requested protocol', 'LLM_PROTOCOL_UNAVAILABLE')
-    const candidates = protocolCandidates.filter(({ upstream }) => !req.requiresWebSearch || (protocol === 'responses' && supportsWebSearch(upstream, req.modelName)))
+    const candidates = protocolCandidates.filter(({ upstream }) => !req.requiresWebSearch || adapter.supportsWebSearch(upstream, req.modelName))
     if (candidates.length === 0)
       throw createServiceUnavailableError('No upstream supports web search for the requested model', 'LLM_WEB_SEARCH_UNAVAILABLE')
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
@@ -450,6 +424,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       const perAttemptTimeoutMs = upstream.timeoutMs ?? defaults.perAttemptTimeoutMs ?? 30000
 
       const result = await dispatchOneUpstream(
+        adapter,
         upstream,
         index,
         req,

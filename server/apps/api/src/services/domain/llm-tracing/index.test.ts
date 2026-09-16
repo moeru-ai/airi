@@ -16,6 +16,7 @@ vi.mock('@langfuse/tracing', () => ({
 }))
 
 const BASE_INPUT = {
+  protocol: 'chat-completions' as const,
   input: [{ role: 'user', content: 'hi' }],
   model: 'openai/gpt-5-mini',
   requestId: 'req-1',
@@ -59,7 +60,7 @@ describe('startChatGeneration', () => {
       startChatGeneration({ ...BASE_INPUT, sessionId: 'sess-9', stream: true })
 
       expect(startObservation).toHaveBeenCalledWith(
-        'chat.completion',
+        'chat-completions.create',
         {
           input: BASE_INPUT.input,
           model: BASE_INPUT.model,
@@ -203,4 +204,10 @@ describe('startChatGeneration', () => {
       expect(generationStub.end).toHaveBeenCalledTimes(1)
     })
   })
+})
+
+it('uses the Responses create identity without a Chat fallback', () => {
+  vi.stubEnv('LANGFUSE_TRACING_ACTIVE', '1')
+  startChatGeneration({ ...BASE_INPUT, protocol: 'responses' })
+  expect(startObservation).toHaveBeenCalledWith('responses.create', expect.anything(), expect.anything())
 })

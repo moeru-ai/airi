@@ -1,3 +1,5 @@
+import { createResponseSchema } from '@xsai-ext/responses/schema'
+import { safeParse } from 'valibot'
 import { describe, expect, it } from 'vitest'
 
 import { parseResponsesRequest } from './request'
@@ -45,4 +47,28 @@ it('preserves search options, tool choice, sources and client-owned search histo
   expect(body.tools).toEqual(tools)
   expect(body.tool_choice).toBe('none')
   expect(body.store).toBe(false)
+})
+
+it.each([
+  { store: true },
+  { previous_response_id: 'resp-existing' },
+  { conversation: 'conv-existing' },
+  { input: [{ type: 'item_reference', id: 'item-existing' }] },
+  { input: [{ role: 'user', content: [{ type: 'input_file', file_id: 'file-existing' }] }] },
+  { input: [{ type: 'function_call_output', call_id: 'call-1', output: [{ type: 'input_image', file_id: 'file-existing', image_url: 'https://example.com/image.png' }] }] },
+])('keeps shared-account policy outside the reusable xsai schema: %j', (fields) => {
+  const body = { model: 'gpt-5-mini', input: 'hello', ...fields }
+  expect(safeParse(createResponseSchema, body).success).toBe(true)
+  expect(() => parseResponsesRequest(body)).toThrow('Invalid stateless Responses request')
+})
+
+it('preserves structured output schemas and assistant replay fields', () => {
+  const text = { format: { type: 'json_schema', name: 'answer', strict: true, schema: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'], additionalProperties: false } } }
+  const input = [
+    { type: 'reasoning', summary: [], content: [{ type: 'reasoning_text', text: 'thinking' }], encrypted_content: 'opaque', status: 'completed' },
+    { id: 'msg-1', role: 'assistant', content: [{ type: 'output_text', text: 'answer', annotations: [] }], phase: 'final_answer', status: 'completed' },
+  ]
+  const body = parseResponsesRequest({ input, text, max_output_tokens: 1 })
+  expect(body.text).toEqual(text)
+  expect(body.input).toEqual([input[0], { ...input[1], type: 'message' }])
 })

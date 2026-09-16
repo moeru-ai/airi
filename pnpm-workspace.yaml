@@ -529,6 +529,12 @@ packageExtensions:
   '@unocss/eslint-plugin':
     peerDependencies:
       '@typescript-eslint/types': '*'
+  '@xsai-ext/responses@0.5.0':
+    peerDependencies:
+      valibot: ^1.4.2
+    peerDependenciesMeta:
+      valibot:
+        optional: true
   'vitepress':
     peerDependencies:
       vite: '*'

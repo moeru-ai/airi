@@ -104,3 +104,23 @@ A client disconnect cancels the upstream reader. A delivered terminal event auth
 
 Before release, configure a Responses-capable upstream and verify authenticated requests and Flux settlement in the target environment.
 The architecture and test scope are in [the hosted Responses ADR](../../docs/ai/adr/2026-09-15-hosted-responses.md).
+
+### Generation protocol ownership
+
+The server registry in `src/schemas/generation-protocol.ts` owns supported protocol IDs and create paths.
+Configuration, upstream routing, and gateway operations use its inferred types.
+Gateway and Langfuse names follow `<protocol>.create`: `chat-completions.create` and `responses.create`.
+This changes the old Chat trace name `chat.completion`; update saved trace filters that use it.
+HTTP paths and client protocol values do not change.
+
+Wire adapters live in `src/services/adapters/llm/`. Each adapter owns request headers, serialization, and provider capabilities.
+Protocol operations own native response handling. The router owns credentials, retries, cancellation, and upstream selection.
+To add a protocol, add its registry entry, wire adapter, gateway input contract, and native operation with focused tests.
+The adapter registry and gateway types reject missing implementations during typecheck.
+Messages API remains unsupported until these pieces exist.
+
+Responses validation uses the patched `@xsai-ext/responses/schema` subpath.
+Its Valibot schemas derive from the OpenResponses specification and include OpenAI search extensions.
+The subpath permits provider-side references; the AIRI request policy rejects them for shared upstream accounts.
+See `dist/schema.md` and `dist/request-openapi.json` in the patched package for generation and upstream contribution details.
+The normal xsai entrypoint does not import the schema module. No client behavior changes are required.

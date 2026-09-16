@@ -1,6 +1,10 @@
+import type { GenerationProtocol } from '../../../schemas/generation-protocol'
+
 import process from 'node:process'
 
 import { startObservation } from '@langfuse/tracing'
+
+import { generationOperation } from '../../../schemas/generation-protocol'
 
 /**
  * Upper bound on the assistant text buffered for a streaming generation's
@@ -79,8 +83,8 @@ interface GenerationInput {
 
 /** Parameters identifying the chat request a generation traces. */
 export interface ChatGenerationInput extends Omit<GenerationInput, 'name' | 'metadata'> {
-  /** Provider wire protocol. @default 'chat-completions' */
-  protocol?: 'chat-completions' | 'responses'
+  /** The caller selects the protocol; tracing never infers it from the payload. */
+  protocol: GenerationProtocol
 
   /** Chat messages or Responses input Items, recorded verbatim as trace input. */
   input: unknown
@@ -243,7 +247,7 @@ export function startChatGeneration(input: ChatGenerationInput): ChatGenerationT
     input: input.input,
     model: input.model,
     requestId: input.requestId,
-    name: input.protocol === 'responses' ? 'responses.create' : 'chat.completion',
+    name: generationOperation(input.protocol),
     metadata: { stream: input.stream },
     userId: input.userId,
     sessionId: input.sessionId,

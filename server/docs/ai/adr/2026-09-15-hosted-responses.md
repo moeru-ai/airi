@@ -38,6 +38,21 @@ No production configuration, deployment, database migration, or default client p
 The official provider switch and live Flux acceptance remain release tasks under #2479.
 No new rate, billing reservation, realtime session, or search service is introduced.
 
+## Protocol ownership
+
+The user confirmed a server-only protocol consolidation. Client protocol values remain unchanged.
+A server protocol registry owns identifiers and HTTP create paths. Operation names derive as `<protocol>.create`.
+Config validation, gateway operation keys, routing, and tracing consume that registry.
+Each protocol adapter owns request serialization, authentication, and native search eligibility.
+The gateway retains protocol-specific response lifecycles and shared billing and telemetry boundaries.
+Adding a protocol requires an adapter and gateway input contract; unsupported values never select Chat implicitly.
+Messages API is not implemented or advertised by this change.
+
+The xsai patch exports generated Valibot request schemas through a separate `schema` subpath.
+It follows xsai's OpenResponses OpenAPI generation workflow. AIRI layers its stateless policy over those schemas.
+OpenAI web search extends the OpenResponses contract in that subpath without AIRI-specific restrictions.
+The default xsai entrypoint does not import schema code. Upstream submission is a separate publication step.
+
 ## Module dependencies
 
 ```mermaid
@@ -46,6 +61,10 @@ flowchart LR
   HTTP --> Limit[User rate limit]
   Operation --> Alias[Shared alias routing]
   Alias --> Router[LLM router and key rotation]
+  HTTP --> Protocols[Server protocol registry]
+  Router --> Protocols
+  Observe --> Protocols
+  HTTP --> Schema[xsai schema subpath and AIRI policy]
   Router --> Catalog[model-bank OpenAI catalog]
   Router --> Upstream[Responses-capable upstream]
   Operation --> Billing[Existing Flux settlement]
@@ -68,6 +87,9 @@ server/
       adapters/config-kv/definitions.ts
       domain/llm-router/{router.ts,types.ts,tests/router.test.ts}
       domain/llm-tracing/index.ts
+      adapters/llm/{index.ts,chat-completions.ts,responses.ts,types.ts}
+    src/schemas/generation-protocol.ts
+patches/@xsai-ext__responses@0.5.0.patch
   docs/ai/adr/2026-09-15-hosted-responses.md
 ```
 

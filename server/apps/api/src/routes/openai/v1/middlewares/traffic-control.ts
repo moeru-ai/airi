@@ -1,4 +1,5 @@
 import type { RateLimitMetrics } from '../../../../otel'
+import type { GenerationOperation } from '../../../../schemas/generation-protocol'
 import type { GatewayMiddleware, V1GatewayContext, V1GatewayOperationName } from '../gateway'
 
 type RateLimitKeyType = 'ip' | 'model' | 'user'
@@ -25,7 +26,7 @@ interface RateLimitBucket {
 /** Shares one per-user generation quota across Chat Completions and Responses. */
 export function generationRateLimit(input: {
   metrics?: RateLimitMetrics | null
-}): GatewayMiddleware<'chat.completions' | 'responses.create'> {
+}): GatewayMiddleware<GenerationOperation> {
   return createGatewayRateLimiter({
     classify: context => ({
       key: context.input.userId,

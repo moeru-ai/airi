@@ -5,6 +5,7 @@ import type { LlmTracingDeps, V1RouteDeps } from './types'
 
 import { authGuard } from '../../../middlewares/auth'
 import { configGuard } from '../../../middlewares/config-guard'
+import { generationOperation, generationProtocols } from '../../../schemas/generation-protocol'
 import { createBadRequestError } from '../../../utils/error'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -41,11 +42,11 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
   // at /api/v1/audio (see `audioRoutes` below).
   const rateLimit = generationRateLimit({ metrics: deps.rateLimitMetrics })
   const openai = gateway.route('openai')
-    .use('chat.completions', rateLimit)
-    .use('responses.create', rateLimit)
+    .use(generationOperation('chat-completions'), rateLimit)
+    .use(generationOperation('responses'), rateLimit)
   const openaiRoutes = openai
-    .post('/responses', openai.handler(
-      'responses.create',
+    .post(generationProtocols.responses.createPath, openai.handler(
+      generationOperation('responses'),
       async (c) => {
         let body: unknown
         try {
@@ -65,8 +66,8 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
       },
       responsesCreate(deps),
     ))
-    .post('/chat/completions', openai.handler(
-      'chat.completions',
+    .post(generationProtocols['chat-completions'].createPath, openai.handler(
+      generationOperation('chat-completions'),
       async (c) => {
         const user = c.get('user')!
         const body = await c.req.json() as Record<string, unknown>
