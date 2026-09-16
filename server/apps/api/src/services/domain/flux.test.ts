@@ -119,6 +119,27 @@ describe('fluxService (DB-backed)', () => {
     expect(await redis.ttl(userFluxRedisKey(testUser.id))).toBeGreaterThan(0)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2562
+  // ROOT CAUSE:
+  //
+  // Before: GET could read a persistent snapshot, then PTTL could read the
+  // expiry of a concurrent replacement. The old value incorrectly passed.
+  // After: one Lua operation checks expiry and reads the value without
+  // allowing another command between them.
+  it('does not pair a persistent balance with a concurrent replacement expiry', async () => {
+    await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42 })
+    const key = userFluxRedisKey(testUser.id)
+    await redis.set(key, '999')
+    const get = redis.get.bind(redis)
+    vi.spyOn(redis, 'get').mockImplementationOnce(async (requestedKey) => {
+      const previous = await get(requestedKey)
+      await redis.set(key, '42', 'EX', 60)
+      return previous
+    })
+
+    expect((await service.getFlux(testUser.id)).flux).toBe(42)
+  })
+
   it('reloads malformed cached balances instead of accepting partial numbers', async () => {
     await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42 })
     for (const value of ['12broken', 'NaN', '-1', '1.5', '9007199254740992']) {
