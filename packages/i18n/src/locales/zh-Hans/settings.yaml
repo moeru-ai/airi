@@ -1754,6 +1754,11 @@ theme:
 title: 设置
 voices: 声线
 vrm:
+  fps:
+    title: 帧率上限
+    description: 限制角色和模型预览的 VRM 渲染帧率。降低上限可减少 GPU 占用，不会改变动作播放速度。
+    options:
+      unlimited: 不限
   change-model:
     from-file: 从文件加载
     from-file-select: 选择
