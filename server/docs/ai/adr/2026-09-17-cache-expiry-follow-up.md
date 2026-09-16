@@ -7,7 +7,7 @@ Status: accepted
 Keep the existing 60-second Flux balance cache policy. Do not add revision keys.
 Restore meter debt and its TTL in one Redis Lua operation, including partial debit recovery.
 Expire the TTS pool discovery index after inactivity. During snapshots, atomically remove entries whose counters no longer exist.
-Keep the ConfigKV prefix `cache:config:` shared with the Go admin backend so mutations invalidate the API cache.
+Keep the existing `config:` key namespace. This PR does not change ConfigKV keys.
 
 ## Scope and limits
 
@@ -25,8 +25,6 @@ Reproduce persistent restored debt and retained pool IDs before the fix. Run met
 flowchart LR
   Meter[Flux meter] --> Redis
   Ledger[TTS concurrency ledger] --> Redis
-  Admin[Go ConfigKV writer] --> Shared[cache:config:key]
-  API[TS ConfigKV reader] --> Shared
 ```
 
 ```mermaid
@@ -47,6 +45,5 @@ Affected files:
 server/apps/api/src/
   services/domain/billing/flux-meter.ts
   services/domain/llm-router/concurrency-ledger.ts
-  services/adapters/config-kv/contracts.ts
   utils/redis-keys.ts
 ```

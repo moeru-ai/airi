@@ -23,7 +23,7 @@ queues, Pub/Sub, connections, or database transactions.
 `src/services/domain/flux-cache.ts` owns balance validation and the 60-second
 Flux TTL. Flux services use its read, write, and invalidation functions.
 ConfigKV shares the write function while retaining its existing read policy.
-Keys use domain names: `cache:config:{key}`, `stripe:prices`, and `user:{userId}:flux`.
+Keys use domain names: `config:{key}`, `stripe:prices`, and `user:{userId}:flux`.
 The cache functions do not add a key prefix.
 
 ## Payment
