@@ -1,5 +1,6 @@
 import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
+import type { AiriCard } from '../../types/airiCard'
 import type { ChatSessionMeta } from '../../types/chat-session'
 
 import { createPinia, defineStore, disposePinia, setActivePinia } from 'pinia'
@@ -17,8 +18,9 @@ const useTestAuthStore = defineStore('auth', () => {
 
 const useTestAiriCardStore = defineStore('airi-card', () => {
   const activeCardId = ref('default')
+  const activeCard = ref<AiriCard>()
   const systemPrompt = ref('')
-  return { activeCardId, systemPrompt }
+  return { activeCardId, activeCard, systemPrompt, getCard: (id: string) => id === activeCardId.value ? activeCard.value : undefined }
 })
 
 vi.doMock('../auth', () => {
