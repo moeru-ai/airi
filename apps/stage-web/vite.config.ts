@@ -19,7 +19,8 @@ import VueRouter from 'vue-router/vite'
 import { tryCatch } from '@moeru/std'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
-import { sherpaw } from '@proj-airi/vite-plugin-sherpaw'
+import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
+import { paraformerBilingualZhEn, zipformerMultilingual } from '@proj-airi/vite-plugin-sherpaw/models'
 import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -243,7 +244,7 @@ export default defineConfig({
     // after the test app is gone, so only load this plugin for the real app.
     ...(env.VITEST ? [] : [VueDevTools()]),
 
-    sherpaw({ cacheDir: sharedCacheDir }),
+    Sherpaw({ models: [paraformerBilingualZhEn, zipformerMultilingual], cacheDir: sharedCacheDir }),
     DownloadLive2DSDK(),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),

@@ -1,7 +1,7 @@
-import type { SherpawLanguageGroup } from '@proj-airi/vite-plugin-sherpaw/models'
 import type { SherpawSpeechTransport } from '@sherpaw/xsai-transcription'
 
 import type { AIRIStreamTranscriptionResult, StreamTranscriptionOptions, StreamTranscriptionSnapshot } from '../../stream-transcription'
+import type { SherpawLanguageGroup } from './models'
 
 import workerURL from '@sherpaw/xsai-transcription/worker?worker&url'
 
@@ -9,6 +9,8 @@ import { toFloat32FromPCM16 } from '@proj-airi/audio/encoding'
 import { sherpawModelPath } from '@proj-airi/vite-plugin-sherpaw/models'
 import { OnlineRecognizerTypes } from '@sherpaw/asr'
 import { asRemoteUrl, createSherpawProvider, streamTranscription } from '@sherpaw/xsai-transcription'
+
+import { sherpawModels } from './models'
 
 /**
  * Owns the Workers for one configured Provider instance. Each transcription has
@@ -27,7 +29,7 @@ export function createProvider(config: { languageGroup: SherpawLanguageGroup }) 
     // Resolve against the application base, not the current settings route.
     // Relative bases also work in Electron's packaged file:// renderer.
     const root = new URL(import.meta.env.BASE_URL, document.baseURI)
-    const path = sherpawModelPath(config.languageGroup)
+    const path = sherpawModelPath(sherpawModels[config.languageGroup])
     const transport = provider.speech({
       metadata: asRemoteUrl(new URL(`${path}/preload.js.metadata`, root), { signal: options.abortSignal }),
       data: asRemoteUrl(new URL(`${path}/preload.data`, root), { signal: options.abortSignal }),
