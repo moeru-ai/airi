@@ -277,7 +277,7 @@ export interface ChatOrchestratorRuntimeDeps {
    * is attached before this hook; system supplements and display projection follow.
    * Async policies may await isolated work before the provider request.
    */
-  composeConversation?: (conversation: Conversation, context: { sessionId: string }) => Conversation | Promise<Conversation>
+  composeConversation?: (conversation: Conversation, context: { sessionId: string, authoredMessages: Message[] }) => Conversation | Promise<Conversation>
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -312,8 +312,8 @@ export interface ChatOrchestratorRuntimeDeps {
     source: 'text' | 'voice'
     model: string
     provider: string
-    failureStage: 'llm_response'
-    errorCode: 'llm_response_failed'
+    failureStage: 'llm_response' | 'message_send'
+    errorCode: 'llm_response_failed' | 'prompt_composition_failed'
   }) => void
   /** Called when a user message send begins. */
   onMessageSendStarted?: (event: ChatRoundCorrelation & {
@@ -360,8 +360,8 @@ export interface ChatOrchestratorRuntimeDeps {
     source: 'text' | 'voice'
     model: string
     provider: string
-    failureStage: 'llm_response'
-    errorCode: 'llm_response_failed'
+    failureStage: 'llm_response' | 'message_send'
+    errorCode: 'llm_response_failed' | 'prompt_composition_failed'
   }) => void
   /** Called for context/prompt lifecycle observability. */
   onLifecycle?: (record: ChatOrchestratorLifecycleRecord) => void
@@ -627,6 +627,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       source: sendSource,
       model: options.model,
     })
+    let composingConversation = false
     const roundStartedAt = monotonicNow()
 
     try {
@@ -782,7 +783,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         deps.onLifecycle?.({ phase: 'prompt-context-built', channel: 'chat', sessionId, details: { contexts: contextsSnapshot } })
       }
 
-      const context = await deps.composeConversation?.(historyContext, { sessionId }) ?? historyContext
+      composingConversation = true
+      const context = await deps.composeConversation?.(historyContext, {
+        sessionId,
+        authoredMessages: sessionMessagesForSend.flatMap((message): Message[] => message.role === 'error' ? [] : [structuredClone(unwrapMessage(message))]),
+      }) ?? historyContext
+      composingConversation = false
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
@@ -1018,8 +1024,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         source: sendSource,
         model: options.model,
         provider: activeProvider,
-        failureStage: 'llm_response',
-        errorCode: 'llm_response_failed',
+        failureStage: composingConversation ? 'message_send' : 'llm_response',
+        errorCode: composingConversation ? 'prompt_composition_failed' : 'llm_response_failed',
       })
       if (isActivationAttempt) {
         deps.onChatActivationFailed?.({
@@ -1027,8 +1033,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           source: sendSource,
           model: options.model,
           provider: activeProvider,
-          failureStage: 'llm_response',
-          errorCode: 'llm_response_failed',
+          failureStage: composingConversation ? 'message_send' : 'llm_response',
+          errorCode: composingConversation ? 'prompt_composition_failed' : 'llm_response_failed',
         })
       }
       throw error

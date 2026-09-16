@@ -7,9 +7,10 @@ import { expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 import { createApp, h, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 
 import CardCreationDialog from '../../../../stage-pages/src/pages/settings/airi-card/components/card-editor/dialog.vue'
+import CardsPage from '../../../../stage-pages/src/pages/settings/airi-card/index.vue'
 
 import { useProviderConfigStore } from '../providers/config'
 import { useAiriCardStore } from './airi-card'
@@ -55,7 +56,7 @@ it.each(['completed', 'closed', 'replaced'])('isolates card preview responses wh
         name: 'Preview',
         version: '1.0',
         description: '',
-        extensions: { airi: { modules: { speech: { provider: 'microsoft-speech', model, voice_id: '' } } } },
+        extensions: { airi: { modules: { speech: { provider: 'microsoft-speech', model, voice_id: `saved-${model}` } } } },
       }, 'scratch')
     }
     cardId.value = await draft('preview-model')
@@ -75,6 +76,11 @@ it.each(['completed', 'closed', 'replaced'])('isolates card preview responses wh
     deferred.resolve(Response.json({ voices: [{ id: 'obsolete', name: 'Obsolete', languages: [] }] }))
     await new Promise(resolve => setTimeout(resolve, 100))
     if (scenario !== 'closed') {
+      const expectedModel = scenario === 'replaced' ? 'newer-model' : 'preview-model'
+      for (const [key, expected] of [['model', expectedModel], ['voice', `saved-${expectedModel}`]]) {
+        const field = Array.from(document.querySelectorAll('label')).find(element => element.textContent?.trim() === i18n.global.t(`settings.pages.card.speech.${key}`))
+        expect(field?.parentElement?.querySelector('input')?.value).toBe(expected)
+      }
       const label = Array.from(document.querySelectorAll('label')).find(element => element.textContent?.trim() === i18n.global.t('settings.pages.card.speech.voice'))
       const trigger = label?.parentElement?.querySelector('button')
       expect(trigger).toBeTruthy()
@@ -102,11 +108,13 @@ it('discards greeting edits without mutating the stored card', async () => {
   const pinia = createPinia()
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   const open = ref(false)
+  const dialog = ref<InstanceType<typeof CardCreationDialog>>()
   const cardId = ref('')
   const container = document.createElement('div')
   document.body.append(container)
   const app = createApp({
     setup: () => () => h(CardCreationDialog, {
+      'ref': dialog,
       'modelValue': open.value,
       'onUpdate:modelValue': (value: boolean) => { open.value = value },
       'cardId': cardId.value,
@@ -127,12 +135,59 @@ it('discards greeting edits without mutating the stored card', async () => {
     const input = Array.from(document.querySelectorAll('input')).find(input => input.value === 'Original greeting')!
     input.value = 'Changed greeting'
     input.dispatchEvent(new Event('input', { bubbles: true }))
-    await page.getByRole('button', { name: 'Cancel action', exact: true }).click()
+    const keepEditing = dialog.value!.requestClose()
+    await page.getByRole('button', { name: 'Keep editing', exact: true }).click()
+    expect(await keepEditing).toBe(false)
+    expect(open.value).toBe(true)
+    expect(input.value).toBe('Changed greeting')
+    const discard = dialog.value!.requestClose()
     await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
+    expect(await discard).toBe(true)
     await vi.waitFor(() => expect(open.value).toBe(false))
     expect(cards.getCard(cardId.value)?.greetings).toEqual(['Original greeting'])
     open.value = true
     await vi.waitFor(() => expect(Array.from(document.querySelectorAll('input')).some(input => input.value === 'Original greeting')).toBe(true))
+  }
+  finally {
+    app.unmount()
+    disposePinia(pinia)
+    container.remove()
+    localStorage.clear()
+  }
+})
+
+// Query links must not close an edited card behind the discard confirmation.
+it('guards query-driven navigation with the mounted editor dirty state', async () => {
+  localStorage.clear()
+  const pinia = createPinia()
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: CardsPage }] })
+  const container = document.createElement('div')
+  document.body.append(container)
+  const app = createApp({
+    setup() {
+      useAiriCardStore()
+      return () => h(RouterView)
+    },
+  })
+  app.use(pinia).use(PiniaColada).use(MotionPlugin).use(createI18n({ legacy: false, locale: 'en', messages: { en } })).use(router)
+  try {
+    await router.push('/')
+    app.mount(container)
+    const cards = useAiriCardStore(pinia)
+    const id = await cards.addCard({ name: 'Query guard', version: '1.0', greetings: ['Original route greeting'], extensions: { airi: { modules: {} } } }, 'scratch')
+    await router.push({ path: '/', query: { cardId: id, tab: 'behavior' } })
+    await vi.waitFor(() => expect(Array.from(document.querySelectorAll('input')).some(input => input.value === 'Original route greeting')).toBe(true))
+    const input = Array.from(document.querySelectorAll('input')).find(input => input.value === 'Original route greeting')!
+    input.value = 'Unsaved route greeting'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await router.push({ query: { cardId: id, tab: 'gallery' } })
+    await page.getByRole('button', { name: 'Keep editing', exact: true }).click()
+    expect(input.isConnected).toBe(true)
+    expect(input.value).toBe('Unsaved route greeting')
+    await router.push({ query: { cardId: id, tab: 'description' } })
+    await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
+    await vi.waitFor(() => expect(input.isConnected).toBe(false))
+    expect(cards.getCard(id)?.greetings).toEqual(['Original route greeting'])
   }
   finally {
     app.unmount()

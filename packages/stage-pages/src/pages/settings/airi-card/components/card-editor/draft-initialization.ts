@@ -1,14 +1,7 @@
-interface DraftWatcherEffect {
-  generation: number
-  startedDuringInitialization: boolean
-}
-
 /**
- * Coordinates editor initialization with asynchronous field watchers.
+ * Tracks the current editor initialization while Vue flushes draft changes.
  *
- * Each initialization invalidates effects captured by an older draft. Effects
- * caused by initialization itself also remain ineligible after their awaited
- * provider request completes, so they cannot overwrite persisted card values.
+ * A stale completion must not replace the baseline of a newer draft.
  */
 export function createDraftInitializationCoordinator() {
   let generation = 0
@@ -29,17 +22,6 @@ export function createDraftInitializationCoordinator() {
 
       initializing = false
       return true
-    },
-    captureWatcherEffect(): DraftWatcherEffect {
-      return {
-        generation,
-        startedDuringInitialization: initializing,
-      }
-    },
-    canApplyWatcherEffect(effect: DraftWatcherEffect): boolean {
-      return !initializing
-        && !effect.startedDuringInitialization
-        && effect.generation === generation
     },
   }
 }

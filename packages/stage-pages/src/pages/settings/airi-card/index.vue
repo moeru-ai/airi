@@ -35,6 +35,7 @@ const initialTabId = ref<string>('')
 // Dialog state
 const isCardDialogOpen = ref(false)
 const isCardEditorDialogOpen = ref(false)
+const cardEditorDialog = ref<InstanceType<typeof CardEditorDialog>>()
 
 // Search query
 const searchQuery = ref('')
@@ -176,9 +177,19 @@ watch(isCardDialogOpen, (isOpen) => {
 })
 
 // Handle deep-linking from query params
-watch(() => [route.query.cardId, route.query.tab], ([cardId, tab]) => {
+watch(() => [route.query.cardId, route.query.tab], async ([cardId, tab], _previous, onCleanup) => {
   if (!cardId || typeof cardId !== 'string' || !cards.value.has(cardId))
     return
+
+  let stale = false
+  onCleanup(() => {
+    stale = true
+  })
+  if (isCardEditorDialogOpen.value) {
+    const closed = await cardEditorDialog.value?.requestClose()
+    if (stale || !closed)
+      return
+  }
 
   const targetTab = typeof tab === 'string' ? tab : ''
   selectedCardId.value = cardId
@@ -361,6 +372,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 
   <!-- Card creation/edit dialog -->
   <CardEditorDialog
+    ref="cardEditorDialog"
     v-model="isCardEditorDialogOpen"
     :card-id="editingCardId"
     :initial-tab="initialTabId"

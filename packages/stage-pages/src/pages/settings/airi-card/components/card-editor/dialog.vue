@@ -26,7 +26,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import { computed, nextTick, ref, shallowRef, toRaw, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ArtistryFields from './artistry-fields.vue'
@@ -557,8 +557,7 @@ const card = ref<Card>(initializeCard())
 isInitializingModuleSelections = false
 
 async function captureDraftBaseline(initialization: number): Promise<void> {
-  // Vue flushes the provider/model watchers before nextTick resolves. They have
-  // captured this initialization generation by the time we record the baseline.
+  // Record the baseline after synchronous provider/model watchers have settled.
   await nextTick()
   if (!draftInitialization.isCurrent(initialization))
     return
@@ -622,25 +621,45 @@ const hasUnsavedChanges = computed(() =>
   modelValue.value && currentDraftSignature(card.value) !== initialDraftSignature.value,
 )
 
-function requestClose() {
+let pendingClose: { promise: Promise<boolean>, resolve: (closed: boolean) => void } | undefined
+
+function settleClose(closed: boolean) {
+  pendingClose?.resolve(closed)
+  pendingClose = undefined
+}
+
+function requestClose(): Promise<boolean> {
+  if (pendingClose)
+    return pendingClose.promise
   if (hasUnsavedChanges.value) {
+    const deferred = Promise.withResolvers<boolean>()
+    pendingClose = deferred
     showDiscardChanges.value = true
-    return
+    return deferred.promise
   }
   modelValue.value = false
+  return Promise.resolve(true)
 }
 
 function handleOpenChange(open: boolean) {
   if (open)
     modelValue.value = true
   else
-    requestClose()
+    void requestClose()
 }
 
 function discardChanges() {
+  settleClose(true)
   showDiscardChanges.value = false
   modelValue.value = false
 }
+
+watch(showDiscardChanges, (open) => {
+  if (!open)
+    settleClose(false)
+})
+onScopeDispose(() => settleClose(false))
+defineExpose({ requestClose })
 </script>
 
 <template>

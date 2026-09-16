@@ -317,11 +317,12 @@ export const useChatStore = defineStore('chat', () => {
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
-    composeConversation: (conversation, { sessionId }) => {
+    composeConversation: (conversation, { sessionId, authoredMessages }) => {
       const characterId = chatSession.sessionMetas[sessionId]?.characterId
       const sessionCard = characterId ? cardStore.getCard(characterId) : undefined
       return compileCharacterCardConversation(sessionCard, conversation, {
         userName: chatSession.currentUserName,
+        lorebookMessages: authoredMessages,
       })
     },
     runtimeContextProviders: [
