@@ -45,6 +45,7 @@
     "animejs": "catalog:",
     "d3": "catalog:",
     "dompurify": "catalog:",
+    "es-toolkit": "catalog:",
     "nanoid": "catalog:",
     "node-vibrant": "catalog:",
     "pinia": "catalog:",

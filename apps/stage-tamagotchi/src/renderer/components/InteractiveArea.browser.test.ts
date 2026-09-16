@@ -13,11 +13,12 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
+import { BasicContentEditable } from '@proj-airi/ui'
 import { createPinia, disposePinia } from 'pinia'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page, userEvent } from 'vitest/browser'
-import { nextTick } from 'vue'
+import { defineComponent, nextTick, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -35,6 +36,25 @@ function createTestI18n() {
     messages: { en: {} },
   })
 }
+
+const ContentEditableHarness = defineComponent({
+  components: { BasicContentEditable },
+  setup() {
+    const defaultHeight = ref('32px')
+    const message = ref('')
+
+    return { defaultHeight, message }
+  },
+  template: `
+    <output>{{ JSON.stringify(message) }}</output>
+    <button type="button" @click="defaultHeight = '48px'">Expand editor</button>
+    <BasicContentEditable
+      v-model="message"
+      :default-height="defaultHeight"
+      placeholder="Write a message"
+    />
+  `,
+})
 
 async function renderArea(component: Component = InteractiveArea) {
   useL2dViewControl().viewControlsEnabled.value = false
@@ -182,14 +202,14 @@ describe('interactive area synchronized state', () => {
     await page.viewport(1280, 720)
   })
 
-  it('centers the mobile textarea when no reply preview is visible', async () => {
+  it('centers the mobile editor when no reply preview is visible', async () => {
     // ROOT CAUSE:
     //
     // Without a reply preview, the 40px bubble has spare height around its
-    // 32px textarea and borders. Before the fix, justify-end put all spare
-    // height above the textarea: 6px above and 2px below.
+    // 32px editor and borders. Before the fix, justify-end put all spare
+    // height above the editor: 6px above and 2px below.
     //
-    // We fixed this with justify-center. The empty and single-line textarea
+    // We fixed this with justify-center. The empty and single-line editor
     // now has 4px on each side, and multiline input stays centered.
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
@@ -515,8 +535,11 @@ describe('interactive area synchronized state', () => {
   // its cancel button. Keyboard focus then remained in an aria-hidden subtree.
   //
   // Each composer owner now clears the reply and restores focus to its input.
-  it('restores composer focus after a keyboard user cancels a reply', async () => {
-    const { chatSession, screen } = await renderArea()
+  it.each([
+    { name: 'Electron', component: InteractiveArea },
+    { name: 'mobile', component: MobileInteractiveArea },
+  ])('restores composer focus after a keyboard user cancels a reply ($name)', async ({ component }) => {
+    const { chatSession, screen } = await renderArea(component)
     chatSession.$patch((state) => {
       state.sessionMessages['session-b'] = [{ id: 'reply-target', role: 'user', content: 'Reply target' }]
     })
@@ -528,7 +551,22 @@ describe('interactive area synchronized state', () => {
     if (!swipeable)
       throw new Error('Expected a swipeable message.')
 
-    dispatchHorizontalPan(swipeable)
+    if (component === MobileInteractiveArea) {
+      for (const [type, clientX] of [['touchstart', 100], ['touchmove', 40], ['touchend', 40]] as const) {
+        const touch = new Touch({ identifier: 1, target: swipeable, clientX, clientY: 60 })
+        const touches = type === 'touchend' ? [] : [touch]
+        swipeable.dispatchEvent(new TouchEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          touches,
+          targetTouches: touches,
+          changedTouches: [touch],
+        }))
+      }
+    }
+    else {
+      dispatchHorizontalPan(swipeable)
+    }
     await vi.waitFor(() => {
       const button = screen.container.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
       expect(button?.parentElement?.getAttribute('aria-hidden')).toBe('false')
@@ -536,6 +574,7 @@ describe('interactive area synchronized state', () => {
     const cancelButton = screen.container.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
     if (!cancelButton)
       throw new Error('Expected a reply cancel button.')
+    await expect.element(screen.getByRole('textbox')).toHaveFocus()
     cancelButton.focus()
     expect(document.activeElement).toBe(cancelButton)
 
@@ -942,14 +981,97 @@ describe('interactive area synchronized state', () => {
     }))
   })
 
-  it('opts the mobile composer out of browser form assistance', async () => {
+  it('keeps the mobile composer outside Safari form controls', async () => {
+    // ROOT CAUSE:
+    //
+    // Safari displays Form Assistant above its keyboard for a textarea, even
+    // when autocomplete and text-correction attributes are disabled.
+    //
+    // The mobile chat composer uses a plain-text contenteditable element.
+    // It remains a keyboard target without becoming a Safari form control.
     const { screen } = await renderArea(MobileInteractiveArea)
-    const input = screen.getByRole('textbox').element() as HTMLTextAreaElement
+    const input = screen.getByRole('textbox').element()
 
-    expect(input.getAttribute('autocomplete')).toBe('off')
+    expect(input.tagName).toBe('DIV')
+    expect(input.getAttribute('contenteditable')).toBe('plaintext-only')
+    expect(input.getAttribute('aria-multiline')).toBe('true')
     expect(input.getAttribute('autocapitalize')).toBe('off')
     expect(input.getAttribute('autocorrect')).toBe('off')
-    expect(input.spellcheck).toBe(false)
+    expect(input.getAttribute('spellcheck')).toBe('false')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r3932375161
+  it('restores the mobile placeholder after a draft is cleared', async () => {
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const input = screen.getByRole('textbox').element()
+
+    await userEvent.fill(input, 'draft')
+    await userEvent.clear(input)
+
+    await vi.waitFor(() => expect(input.getAttribute('data-empty')).toBe(''))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r3932701283
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r3932882973
+  it('reacts to default height changes', async () => {
+    const screen = await render(ContentEditableHarness)
+    const input = screen.getByRole('textbox').element()
+
+    await userEvent.fill(input, 'draft')
+    await vi.waitFor(() => expect(input.style.height).toBe('32px'))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Expand editor' }))
+
+    await vi.waitFor(() => expect(input.style.height).toBe('48px'))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2461#discussion_r3935363246
+  it('does not serialize the Shift+Enter caret filler as another line', async () => {
+    const screen = await render(ContentEditableHarness)
+    const input = screen.getByRole('textbox').element()
+
+    await userEvent.fill(input, 'draft')
+    await userEvent.click(input)
+    await userEvent.keyboard('{End}{Shift>}{Enter}{/Shift}')
+
+    await expect.element(screen.getByRole('status')).toHaveTextContent(JSON.stringify('draft\n'))
+  })
+
+  it('keeps a one-line mobile draft at the composer height', async () => {
+    // ROOT CAUSE:
+    //
+    // An empty contenteditable has different intrinsic sizing from a typed
+    // contenteditable. On a phone, that made the composer visibly taller after
+    // the first character.
+    //
+    // The shared editor measures overflow against its explicit empty height. A
+    // one-line draft must retain the empty composer height.
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const input = screen.getByRole('textbox').element()
+    const emptyHeight = input.getBoundingClientRect().height
+
+    await userEvent.fill(input, 'hi')
+
+    await vi.waitFor(() => expect(input.style.height).toMatch(/px$/))
+    expect(input.getBoundingClientRect().height).toBe(emptyHeight)
+  })
+
+  it('keeps a one-line mobile draft at the composer width', async () => {
+    // ROOT CAUSE:
+    //
+    // The mobile composer expanded when its editor received focus. A one-line
+    // draft must keep the resting composer width.
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const inputBubble = screen.getByTestId('mobile-input-bubble').element()
+    const input = screen.getByRole('textbox')
+    const emptyWidth = inputBubble.getBoundingClientRect().width
+
+    expect(emptyWidth).toBeGreaterThan(0)
+
+    await userEvent.fill(input, 'hi')
+    await new Promise(resolve => setTimeout(resolve, 400))
+
+    expect(inputBubble.getBoundingClientRect().width).toBe(emptyWidth)
   })
 
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755530944
@@ -968,7 +1090,7 @@ describe('interactive area synchronized state', () => {
     chatSession.activeSessionId = 'session-a'
     rejectSend?.(new Error('send failed'))
 
-    await expect.element(input).toHaveValue('')
+    await expect.element(input).toHaveTextContent('')
   })
 
   it('does not restore a deleted-session draft in the shared chat widget', async () => {

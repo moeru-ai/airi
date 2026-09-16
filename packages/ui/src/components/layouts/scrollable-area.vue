@@ -16,6 +16,11 @@ const props = withDefaults(defineProps<ScrollableAreaProps>(), {
   viewportClass: undefined,
 })
 
+const emit = defineEmits<{
+  /** Fired before a scrollbar pointer action changes the viewport position. */
+  scrollbarPointerdown: [event: PointerEvent]
+}>()
+
 type ScrollableAreaOrientation = 'vertical' | 'horizontal' | 'both'
 
 // NOTICE:
@@ -101,6 +106,7 @@ defineExpose({
         'z-10 touch-none select-none p-0.5',
         'transition-colors duration-150',
       ]"
+      @pointerdown.capture="emit('scrollbarPointerdown', $event)"
     >
       <ScrollAreaThumb
         :style="{
@@ -128,6 +134,7 @@ defineExpose({
         'z-10 touch-none select-none p-0.5',
         'transition-colors duration-150',
       ]"
+      @pointerdown.capture="emit('scrollbarPointerdown', $event)"
     >
       <ScrollAreaThumb
         :style="{
