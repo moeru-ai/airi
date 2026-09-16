@@ -13,6 +13,9 @@ export function redisKeyFrom(...parts: RedisKeyPart[]): string {
   }).join(':')
 }
 
+/** Balance snapshots expire after one minute so failed invalidation cannot leave them cached indefinitely. */
+export const USER_FLUX_CACHE_TTL_SECONDS = 60
+
 export function userFluxRedisKey(userId: string): string {
   return redisKeyFrom('user', userId, 'flux')
 }
