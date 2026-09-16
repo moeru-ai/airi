@@ -80,5 +80,6 @@ errors.
 slot receives business content: Hearing owns the audio bars, while sign-in owns
 its waiting and result icons. The shell has no request or microphone state. Its details
 stay inside its layout bounds so Electron can include them in mouse hit testing.
-The component supports reduced motion. Desktop users can hide these overlays in
-General settings without stopping microphone input or sign-in.
+The component supports reduced motion. Desktop users can enable Streamer mode in
+General settings to hide these overlays without stopping microphone input or sign-in.
+Streamer mode is off by default.

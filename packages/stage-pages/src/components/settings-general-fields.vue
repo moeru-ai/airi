@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
 })
 
 const settings = useSettings()
+const showStreamerMode = import.meta.env.RUNTIME_ENVIRONMENT === 'electron'
 
 const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
 const showAnalyticsSettings = computed(() => isAnalyticsAvailableInBuild())
@@ -78,10 +79,10 @@ const languages = computed(() => {
     />
 
     <FieldCheckbox
-      v-if="showControlsIsland"
-      v-model="settings.showStageStatus"
-      :label="t('settings.stage-status.title')"
-      :description="t('settings.stage-status.description')"
+      v-if="showStreamerMode"
+      v-model="settings.streamerMode"
+      :label="t('settings.streamer-mode.title')"
+      :description="t('settings.streamer-mode.description')"
     />
 
     <FieldCheckbox

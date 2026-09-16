@@ -6,20 +6,16 @@ export const useSettingsControlsIsland = defineStore('settings-controls-island',
   const alwaysOnTop = useLocalStorageManualReset<boolean>('settings/always-on-top', true)
   const controlsIslandIconSize = useLocalStorageManualReset<'auto' | 'large' | 'small'>('settings/controls-island/icon-size', 'auto')
 
-  const showStageStatus = useLocalStorageManualReset<boolean>('settings/controls-island/show-stage-status', true)
-
   function resetState() {
     allowVisibleOnAllWorkspaces.reset()
     alwaysOnTop.reset()
     controlsIslandIconSize.reset()
-    showStageStatus.reset()
   }
 
   return {
     allowVisibleOnAllWorkspaces,
     alwaysOnTop,
     controlsIslandIconSize,
-    showStageStatus,
     resetState,
   }
 })

@@ -64,6 +64,7 @@ export const useSettings = defineStore('settings', () => {
     disableTransitions: generalRefs.disableTransitions,
     usePageSpecificTransitions: generalRefs.usePageSpecificTransitions,
     language: generalRefs.language,
+    streamerMode: generalRefs.streamerMode,
     analyticsEnabled: analyticsRefs.analyticsEnabled,
     websocketSecureEnabled: generalRefs.websocketSecureEnabled,
 
@@ -89,7 +90,6 @@ export const useSettings = defineStore('settings', () => {
     allowVisibleOnAllWorkspaces: controlsIslandRefs.allowVisibleOnAllWorkspaces,
     alwaysOnTop: controlsIslandRefs.alwaysOnTop,
     controlsIslandIconSize: controlsIslandRefs.controlsIslandIconSize,
-    showStageStatus: controlsIslandRefs.showStageStatus,
     inspectUpdaterDiagnostics: developerRefs.inspectUpdaterDiagnostics,
 
     // Methods
