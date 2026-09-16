@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { VirtualizerHandle } from 'virtua/vue'
 
+import type { ChatToolCallRerunEvent, ToolCallRerunRequest } from '../../../../stores/tool-call-rerun'
 import type { ChatHistoryItem, StreamingAssistantMessage } from '../../../../types/chat'
 import type { ChatHistoryReplyPayload } from '../reply'
 import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
@@ -48,7 +49,7 @@ const emit = defineEmits<{
   (e: 'deleteMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
   (e: 'replyMessage', payload: ChatHistoryReplyPayload): void
   (e: 'retryMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
-  (e: 'toolCallRerun', payload: { message: ChatHistoryItem, index: number, key: string | number, toolCallId: string, toolName: string, args: string }): void
+  (e: 'toolCallRerun', payload: ChatToolCallRerunEvent): void
 }>()
 
 /** Keeps about two mobile viewports ready so fast flicks do not expose an unmounted gap. */
@@ -114,7 +115,7 @@ const { itemProps } = useVirtualizerBottomAlignment({
   virtualizer: virtualizerRef,
 })
 
-useChatHistoryScroll({
+const { onUserScroll } = useChatHistoryScroll({
   container: chatHistoryRef,
   messages: renderMessages,
   getKey: getChatHistoryItemKey,
@@ -174,10 +175,14 @@ function getReplyTarget(message: ChatHistoryItem): ChatHistoryReplyPayload | und
   }
 }
 
+/**
+ * Triggering workflow: ChatAssistantItem `toolCallRerun` -> emitToolCallRerun
+ * -> the parent runtime's tool rerun handler, with this message location.
+ */
 function emitToolCallRerun(
   message: ChatHistoryItem,
   index: number,
-  payload: { toolCallId: string, toolName: string, args: string },
+  payload: ToolCallRerunRequest,
 ) {
   emit('toolCallRerun', {
     message,
@@ -193,6 +198,7 @@ function emitToolCallRerun(
     ref="scroll-container"
     v-bind="$attrs"
     :variant="variant"
+    @scrollbar-pointerdown="onUserScroll"
   >
     <Virtualizer
       ref="virtualizer"

@@ -94,6 +94,35 @@ describe('useChatHistoryScroll', () => {
     expect(scrollToIndex).toHaveBeenCalledWith(1, 'end')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2461
+  it('follows late message growth until the reader scrolls away for Issue #2461', async () => {
+    // ROOT CAUSE:
+    // Only model changes requested alignment. A later DOM resize left the
+    // tail behind the composer. Resize handling must preserve reader intent.
+    const currentContainer = createScrollContainer(2)
+    const container = shallowRef<HTMLElement | null>(currentContainer)
+    const messages = shallowRef<TestMessage[]>([{ id: 'user-1' }, { id: 'assistant-1' }])
+    const scrollToIndex = vi.fn(() => {
+      currentContainer.scrollTop = currentContainer.scrollHeight
+    })
+    startScrollBehavior({ container, messages, scrollToIndex })
+    // Deliver the initial size observations before changing an existing item.
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    const tail = currentContainer.lastElementChild as HTMLElement
+    tail.style.height = '240px'
+    await expect.poll(() => currentContainer.scrollTop).toBe(240)
+
+    currentContainer.dispatchEvent(new WheelEvent('wheel', { deltaY: -120 }))
+    currentContainer.scrollTop = 0
+    currentContainer.dispatchEvent(new Event('scroll'))
+    scrollToIndex.mockClear()
+    tail.style.height = '360px'
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+
+    expect(currentContainer.scrollTop).toBe(0)
+    expect(scrollToIndex).not.toHaveBeenCalled()
+  })
+
   it('aligns a new tail message to the viewport end', async () => {
     const currentContainer = createScrollContainer(2)
     currentContainer.scrollTop = currentContainer.scrollHeight

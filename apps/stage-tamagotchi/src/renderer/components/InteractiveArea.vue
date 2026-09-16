@@ -2,6 +2,7 @@
 import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/components'
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatSendPayload } from '@proj-airi/stage-ui/stores/chat'
+import type { ChatToolCallRerunEvent } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
@@ -240,12 +241,17 @@ async function handleRetryMessage(index: number) {
   })
 }
 
-async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: number, key: string | number, toolCallId: string, toolName: string, args: string }) {
+/**
+ * Triggering workflow: {@link ChatHistory} `toolCallRerun` -> handleToolCallRerun
+ * -> chatStore.rerunToolCall for the selected invocation in this message.
+ */
+async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
   await chatStore.rerunToolCall({
     sessionId: chatSession.activeSessionId,
     messageId: payload.message.id,
     index: payload.index,
     toolCallId: payload.toolCallId,
+    invocationId: payload.invocationId,
     toolName: payload.toolName,
     args: payload.args,
   })

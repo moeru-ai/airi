@@ -1,4 +1,5 @@
-import type { Message, RawMessage } from './types'
+import type { ProjectionEntry } from './turns'
+import type { RawMessage } from './types'
 
 import { describe, expect, it } from 'vitest'
 
@@ -17,7 +18,7 @@ describe('projectProjection', () => {
     })
 
     expect(result).toHaveLength(1)
-    const projected = result[0] as Message
+    const projected = result[0] as ProjectionEntry
     expect(projected.role).toBe('event')
     expect(projected.segments[0].type).toBe('domain-event')
     expect(projected.segments[1].type).toBe('reference')
@@ -26,7 +27,7 @@ describe('projectProjection', () => {
 
 describe('projectConversationEntries', () => {
   it('keeps existing entries before projected entries', () => {
-    const entries: Array<Message | RawMessage> = [
+    const entries: Array<ProjectionEntry | RawMessage> = [
       {
         role: 'system',
         content: 'system',
@@ -78,8 +79,8 @@ describe('projectConversationEntries', () => {
     })
 
     expect(result).toHaveLength(2)
-    const notify = result[0] as Message
-    const command = result[1] as Message
+    const notify = result[0] as ProjectionEntry
+    const command = result[1] as ProjectionEntry
     expect(notify.segments[0].type).toBe('instruction')
     expect(notify.segments[1].type).toBe('tagged-text')
     expect(notify.segments[2].type).toBe('reference')
