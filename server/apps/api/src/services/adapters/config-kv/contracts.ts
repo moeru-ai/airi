@@ -34,7 +34,7 @@ export type ConfigKVInvalidation = InferOutput<typeof configKVInvalidationPayloa
 
 /** Returns the Redis cache key for one ConfigKV entry. */
 export function configKVCacheKey(key: ConfigKey): string {
-  return `cache:config:${key}`
+  return `configkv:${key}`
 }
 
 /** Parses one ConfigKV invalidation message. */

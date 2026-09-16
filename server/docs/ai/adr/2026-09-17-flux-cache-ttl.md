@@ -88,3 +88,13 @@ Use the existing PGlite and Redis test boundary.
 Verify expiring initialization, database reload, debit, credit, and payment synchronization.
 Advance the test clock to verify that cache hits do not renew expiry and expired balances reload without another initial grant.
 Verify that a persistent cached balance reloads from PostgreSQL.
+
+## Redis key names
+
+Keys identify the owning domain without a `cache:` prefix.
+ConfigKV uses `configkv:{key}`. Stripe prices use `stripe:prices`.
+Flux keeps `user:{userId}:flux`. TTLs remain unchanged.
+New instances fill the new keys on demand. Existing expiring keys expire naturally.
+During a rolling deployment, old and new instances use separate ConfigKV and Stripe keys.
+Invalidation reaches only the caller's namespace, so the other namespace can remain stale until its existing 300-second TTL expires.
+No key scan, deletion job, or fallback to the old names is added.
