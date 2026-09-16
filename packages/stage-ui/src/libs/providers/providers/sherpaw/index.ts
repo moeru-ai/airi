@@ -1,9 +1,9 @@
 import type { AIRIStreamTranscriptionResult, StreamTranscriptionOptions } from '../../stream-transcription'
 
-import { sherpawModels } from '@proj-airi/vite-plugin-sherpaw/models'
 import { z } from 'zod'
 
 import { defineProvider } from '../registry'
+import { sherpawModels } from './models'
 
 export const SHERPAW_TRANSCRIPTION_PROVIDER_ID = 'sherpaw-transcription'
 
