@@ -273,10 +273,11 @@ export interface ChatOrchestratorRuntimeDeps {
   /**
    * Applies platform-owned prompt policy to portable conversation turns.
    *
-   * The returned conversation retains native continuation data. Generic context
-   * supplements and display projections are applied after this boundary.
+   * The returned conversation retains native continuation data. Runtime context
+   * is attached before this hook; system supplements and display projection follow.
+   * Async policies may await isolated work before the provider request.
    */
-  composeConversation?: (conversation: Conversation, context: { sessionId: string }) => Conversation
+  composeConversation?: (conversation: Conversation, context: { sessionId: string }) => Conversation | Promise<Conversation>
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -781,7 +782,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         deps.onLifecycle?.({ phase: 'prompt-context-built', channel: 'chat', sessionId, details: { contexts: contextsSnapshot } })
       }
 
-      const context = deps.composeConversation?.(historyContext, { sessionId }) ?? historyContext
+      const context = await deps.composeConversation?.(historyContext, { sessionId }) ?? historyContext
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
