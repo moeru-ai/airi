@@ -24,7 +24,7 @@ function createMockConfigKV(overrides: Record<string, number> = {}): ReturnType<
 describe('fluxService (DB-backed)', () => {
   let db: Database
   let redis: ReturnType<typeof createTestRedis>
-  let get: ReturnType<typeof vi.spyOn>
+  let read: ReturnType<typeof vi.spyOn>
   let set: ReturnType<typeof vi.spyOn>
   let service: ReturnType<typeof createFluxService>
   let testUser: any
@@ -42,7 +42,7 @@ describe('fluxService (DB-backed)', () => {
 
   beforeEach(async () => {
     redis = createTestRedis()
-    get = vi.spyOn(redis, 'get')
+    read = vi.spyOn(redis, 'eval')
     set = vi.spyOn(redis, 'set')
     service = createFluxService(db, redis, createMockConfigKV())
 
@@ -74,7 +74,7 @@ describe('fluxService (DB-backed)', () => {
     await service.getFlux(testUser.id)
     await service.getFlux(testUser.id)
     // Second call hits Redis cache
-    expect(get).toHaveBeenCalledTimes(2)
+    expect(read).toHaveBeenCalledTimes(2)
   })
 
   it('getFlux should load from DB when Redis cache misses', async () => {
@@ -87,8 +87,11 @@ describe('fluxService (DB-backed)', () => {
   })
 
   // ROOT CAUSE:
-  // Balance writes had no expiry, so a failed invalidation could leave stale
-  // values indefinitely. Expiring writes let the next read reload Postgres.
+  //
+  // Before: SET without EX retained stale balances after failed invalidation.
+  // Cache hits kept returning that value indefinitely.
+  // After: SET EX 60 bounds each snapshot, and reads never renew its expiry.
+  // Advancing the clock verifies database reload without another initial grant.
   it('reloads the database after expiry without extending TTL on cache hits', async () => {
     await service.getFlux(testUser.id)
     await db.update(schema.userFlux).set({ flux: 42 }).where(eq(schema.userFlux.userId, testUser.id))
@@ -114,5 +117,18 @@ describe('fluxService (DB-backed)', () => {
 
     expect((await service.getFlux(testUser.id)).flux).toBe(42)
     expect(await redis.ttl(userFluxRedisKey(testUser.id))).toBeGreaterThan(0)
+  })
+
+  it('reloads malformed cached balances instead of accepting partial numbers', async () => {
+    await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42 })
+    for (const value of ['12broken', 'NaN', '-1', '1.5', '9007199254740992']) {
+      await redis.set(userFluxRedisKey(testUser.id), value, 'EX', 60)
+      expect((await service.getFlux(testUser.id)).flux).toBe(42)
+    }
+  })
+
+  it('propagates cache read failures', async () => {
+    vi.spyOn(redis, 'eval').mockRejectedValueOnce(new Error('redis unavailable'))
+    await expect(service.getFlux(testUser.id)).rejects.toThrow('redis unavailable')
   })
 })
