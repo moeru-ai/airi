@@ -70,4 +70,20 @@ describe('concurrencyLedger', () => {
     // @example fresh ledger -> snapshot returns []
     expect(await ledger.snapshot()).toEqual([])
   })
+  // ROOT CAUSE:
+  // The discovery set retained pool IDs after their counters expired.
+  // Snapshot cleanup now checks and removes missing counters atomically;
+  // acquisition also gives the index an expiry so an idle index disappears.
+  // https://github.com/moeru-ai/airi/pull/2520
+  it('prunes expired pools and expires the discovery index', async () => {
+    const redis = createTestRedis()
+    const subject = createConcurrencyLedger(redis)
+    await subject.tryAcquire('gone', 2)
+    await subject.tryAcquire('active', 2)
+    await redis.del('tts:pool:inflight:gone')
+    await subject.snapshot()
+    expect(await redis.smembers('tts:pool:known')).toEqual(['active'])
+    expect(await redis.ttl('tts:pool:known')).toBeGreaterThan(0)
+    expect(await subject.currentInflight('active')).toBe(1)
+  })
 })

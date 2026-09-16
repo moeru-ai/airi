@@ -36,12 +36,10 @@ function staticRuntime(unitsPerFlux = 1000, debtTtlSeconds = 60) {
 
 describe('fluxMeter', () => {
   let redis: ReturnType<typeof createTestRedis>
-  let incrby: ReturnType<typeof vi.spyOn>
   let billing: BillingService
 
   beforeEach(() => {
     redis = createTestRedis()
-    incrby = vi.spyOn(redis, 'incrby')
     billing = createMockBilling()
   })
 
@@ -157,7 +155,7 @@ describe('fluxMeter', () => {
     // Settlement was rolled back: 2500 units should be fully recovered
     // (500 residual + 2000 rolled back), not 500.
     expect(await meter.peekDebt('u1')).toBe(2500)
-    expect(incrby).toHaveBeenCalledWith(expect.stringContaining('u1'), 2000)
+    expect(await redis.ttl('user:u1:flux-meter:tts:debt')).toBeGreaterThan(0)
   })
 
   // ROOT CAUSE:
@@ -202,7 +200,7 @@ describe('fluxMeter', () => {
     expect(result.balanceAfter).toBe(0)
     // Debt = 500 residual (LUA leftover) + 2000 restored from partial drain.
     expect(await meter.peekDebt('u1')).toBe(2500)
-    expect(incrby).toHaveBeenCalledWith(expect.stringContaining('u1'), 2000)
+    expect(await redis.ttl('user:u1:flux-meter:tts:debt')).toBeGreaterThan(0)
     expect(fluxUnbilled.add).toHaveBeenCalledWith(2, expect.objectContaining({
       'source': 'tts_meter',
       'meter': 'tts',
@@ -220,5 +218,22 @@ describe('fluxMeter', () => {
     expect(result.fluxDebited).toBe(1)
     expect(result.unbilledFlux).toBe(0)
     expect(fluxUnbilled.add).not.toHaveBeenCalled()
+  })
+  // ROOT CAUSE:
+  // Separate INCRBY and EXPIRE could recreate a persistent debt key when
+  // the connection failed between commands. A single Lua restoration now
+  // writes the recovered units and their expiry without that failure window.
+  // https://github.com/moeru-ai/airi/pull/2520
+  it('restores expired debt with its TTL even when separate EXPIRE calls fail', async () => {
+    const failingBilling = createMockBilling()
+    vi.mocked(failingBilling.consumeFluxForLLM).mockImplementationOnce(async () => {
+      await redis.del('user:u1:flux-meter:tts:debt')
+      throw new Error('billing unavailable')
+    })
+    vi.spyOn(redis, 'expire').mockRejectedValue(new Error('connection lost'))
+    const meter = createFluxMeter(redis, failingBilling, { name: 'tts', resolveRuntime: staticRuntime() })
+    await expect(meter.accumulate({ userId: 'u1', units: 2000, currentBalance: 10, requestId: 'expired' })).rejects.toThrow('billing unavailable')
+    expect(await meter.peekDebt('u1')).toBe(2000)
+    expect(await redis.ttl('user:u1:flux-meter:tts:debt')).toBeGreaterThan(0)
   })
 })

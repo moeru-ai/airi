@@ -28,6 +28,7 @@ if current < max then
   local next = redis.call('INCR', inflightKey)
   redis.call('EXPIRE', inflightKey, ttl)
   redis.call('SADD', knownKey, poolId)
+  redis.call('EXPIRE', knownKey, math.max(ttl, redis.call('TTL', knownKey)))
   return next
 end
 
@@ -128,15 +129,23 @@ export function createConcurrencyLedger(redis: Redis, options?: {
 
   /**
    * Snapshot every known pool's in-flight count. Backs the watermark gauge —
-   * reads the known-pools set, then MGETs each counter in one round-trip.
-   * Returns an empty array when no pool has ever been acquired.
+   * removes expired counters from the discovery index atomically with each read.
+   * Reports zero once for removed pools so the gauge can clear its old value.
    */
   async function snapshot(): Promise<Array<{ poolId: string, inflight: number }>> {
     const poolIds = await redis.smembers(knownKey)
     if (poolIds.length === 0)
       return []
 
-    const values = await redis.mget(poolIds.map(ttsPoolInflightRedisKey))
+    // Check and remove in Lua so a concurrent acquire cannot lose its index entry.
+    const values = await Promise.all(poolIds.map(poolId => redis.eval(`
+      local value = redis.call('GET', KEYS[1])
+      if not value then
+        redis.call('SREM', KEYS[2], ARGV[1])
+        return 0
+      end
+      return tonumber(value)
+    `, 2, ttsPoolInflightRedisKey(poolId), knownKey, poolId)))
     return poolIds.map((poolId, i) => ({
       poolId,
       inflight: values[i] == null ? 0 : Number(values[i]),

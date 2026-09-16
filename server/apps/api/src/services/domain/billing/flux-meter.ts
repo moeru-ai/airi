@@ -11,6 +11,13 @@ import { userFluxMeterDebtRedisKey } from '../../../utils/redis-keys'
 
 const logger = useLogger('flux-meter')
 
+// Restoration can recreate an expired key. Attach its expiry in the same command.
+const RESTORE_SCRIPT = `
+local debt = redis.call('INCRBY', KEYS[1], ARGV[1])
+redis.call('EXPIRE', KEYS[1], ARGV[2])
+return debt
+`
+
 // NOTICE: Atomic accumulate-and-settle. Integer Flux is the billing unit, but the
 // metered service (TTS chars, STT seconds, tokens, ...) charges at sub-Flux
 // granularity. We keep unsettled small units in a Redis counter and only debit
@@ -181,8 +188,7 @@ export function createFluxMeter(
       // request to retry.
       const restoreUnits = fluxRequested * runtime.unitsPerFlux
       try {
-        await redis.incrby(key, restoreUnits)
-        await redis.expire(key, runtime.debtTtlSeconds)
+        await redis.eval(RESTORE_SCRIPT, 1, key, restoreUnits, runtime.debtTtlSeconds)
       }
       catch (rollbackError) {
         logger.withError(rollbackError).withFields({
@@ -242,8 +248,7 @@ export function createFluxMeter(
 
       let debtAfterRestore = debtAfterSettlement
       try {
-        debtAfterRestore = await redis.incrby(key, restoreUnits)
-        await redis.expire(key, runtime.debtTtlSeconds)
+        debtAfterRestore = Number(await redis.eval(RESTORE_SCRIPT, 1, key, restoreUnits, runtime.debtTtlSeconds))
       }
       catch (rollbackError) {
         // Log loudly so on-call can reconcile manually; don't shadow the

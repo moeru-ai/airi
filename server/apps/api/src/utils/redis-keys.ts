@@ -61,8 +61,8 @@ export function ttsPoolSaturatedRedisKey(poolId: string): string {
 }
 
 /**
- * Set of everypool id the router has acquired a slot on. The pool watermark
- * gauge reads this set's members, then MGETs each inflight counter — avoids
+ * Expiring index of recently acquired pools. Snapshots remove expired counters
+ * atomically while reading the pool watermark gauge. This avoids
  * parsing LLM_ROUTER_CONFIG inside the metric callback.
  */
 export function ttsPoolKnownRedisKey(): string {
