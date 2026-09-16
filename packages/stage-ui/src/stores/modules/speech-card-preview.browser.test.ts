@@ -103,7 +103,7 @@ it.each(['completed', 'closed', 'replaced'])('isolates card preview responses wh
   }
 })
 
-it('discards greeting edits without mutating the stored card', async () => {
+it.each(['discard', 'restore'])('handles %s greeting edits without mutating the stored card', async (action) => {
   localStorage.clear()
   const pinia = createPinia()
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
@@ -140,9 +140,18 @@ it('discards greeting edits without mutating the stored card', async () => {
     expect(await keepEditing).toBe(false)
     expect(open.value).toBe(true)
     expect(input.value).toBe('Changed greeting')
-    const discard = dialog.value!.requestClose()
-    await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
-    expect(await discard).toBe(true)
+    if (action === 'restore') {
+      input.value = 'Original greeting'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      const close = dialog.value!.requestClose()
+      await vi.waitFor(() => expect(open.value).toBe(false))
+      expect(await close).toBe(true)
+    }
+    else {
+      const discard = dialog.value!.requestClose()
+      await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
+      expect(await discard).toBe(true)
+    }
     await vi.waitFor(() => expect(open.value).toBe(false))
     expect(cards.getCard(cardId.value)?.greetings).toEqual(['Original greeting'])
     open.value = true
@@ -157,7 +166,7 @@ it('discards greeting edits without mutating the stored card', async () => {
 })
 
 // Query links must not close an edited card behind the discard confirmation.
-it.each(['detail', 'page'])('guards %s navigation with the mounted editor dirty state', async (destination) => {
+it.each(['detail', 'page', 'editor'])('guards %s navigation with the mounted editor dirty state', async (destination) => {
   localStorage.clear()
   const pinia = createPinia()
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: CardsPage }, { path: '/other', component: { render: () => h('div', 'Other settings') } }] })
@@ -195,6 +204,13 @@ it.each(['detail', 'page'])('guards %s navigation with the mounted editor dirty 
       await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
       await accepted
       expect(router.currentRoute.value.path).toBe('/other')
+    }
+    else if (destination === 'editor') {
+      await router.push({ query: { cardId: id, tab: 'identity' } })
+      await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
+      await vi.waitFor(() => expect(Array.from(document.querySelectorAll('input')).some(field => field.value === 'Query guard')).toBe(true))
+      await page.getByRole('button', { name: 'Behavior', exact: true }).click()
+      await vi.waitFor(() => expect(Array.from(document.querySelectorAll('input')).some(field => field.value === 'Original route greeting')).toBe(true))
     }
     else {
       await router.push({ query: { cardId: id, tab: 'description' } })

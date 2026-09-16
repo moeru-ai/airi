@@ -398,7 +398,7 @@ const showDiscardChanges = shallowRef(false)
 const initialDraftSignature = shallowRef('')
 
 function currentDraftSignature(card: Card): string {
-  return serializeAiriCardEditorDraft(toRaw(card), {
+  return serializeAiriCardEditorDraft(card, {
     consciousnessProvider: selectedConsciousnessProvider.value,
     consciousnessModel: selectedConsciousnessModel.value,
     visionProvider: selectedVisionProvider.value,

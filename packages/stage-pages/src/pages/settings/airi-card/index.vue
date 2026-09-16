@@ -6,7 +6,7 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { InputFileCard } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
@@ -193,6 +193,7 @@ watch(() => [route.query.cardId, route.query.tab], async ([cardId, tab], _previo
   })
   if (isCardEditorDialogOpen.value) {
     const closed = await cardEditorDialog.value?.requestClose()
+    await nextTick()
     if (stale)
       return
     if (!closed) {
