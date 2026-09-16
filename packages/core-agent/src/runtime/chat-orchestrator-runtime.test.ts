@@ -54,7 +54,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     await options?.onStreamEvent?.({ type: 'finish' })
   })
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
-  let composeConversation: ((messages: Conversation, context: { sessionId: string }) => Conversation) | undefined
+  let composeConversation: ((messages: Conversation, context: { sessionId: string, authoredMessages: Message[] }) => Conversation | Promise<Conversation>) | undefined
   let systemPromptSupplement: string | undefined
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
   let monotonicNowValues = [1000]
@@ -557,7 +557,7 @@ describe('createChatOrchestratorRuntime', () => {
     ])
   })
 
-  /**
+  /*
    * @example
    * A session has only user history.
    * The runtime creates a provider system message for supplemental guidance.
@@ -762,7 +762,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.telemetry.chatActivationFailed).toHaveLength(0)
   })
 
-  /**
+  /*
    * @example
    * await expect(runtime.ingest('hello', { model, chatProvider })).rejects.toThrow('provider rejected')
    */
@@ -1369,4 +1369,28 @@ it('runs consecutive orchestrator turns through the real Responses adapter', asy
   // https://github.com/moeru-ai/airi/pull/2477#discussion_r4015043327
   expect(JSON.stringify(harness.lifecycleRecords)).not.toContain('encrypted_content')
   expect(JSON.stringify(harness.lifecycleRecords)).toContain('answer')
+})
+
+// A card compilation error occurs before the provider request starts.
+it('classifies rejected prompt composition separately from provider failures', async () => {
+  const harness = createHarness()
+  harness.composeConversation.set(async () => {
+    throw new Error('Lorebook regex matching timed out')
+  })
+  await expect(harness.runtime.ingest('hello', { model: 'gpt-test', chatProvider: provider })).rejects.toThrow('Lorebook regex matching timed out')
+  expect(harness.stream).not.toHaveBeenCalled()
+  expect(harness.telemetry.llmRequestStarted).toEqual([])
+  for (const events of [harness.telemetry.messageRoundFailed, harness.telemetry.chatActivationFailed]) {
+    expect(events).toEqual([expect.objectContaining({ failureStage: 'message_send', errorCode: 'prompt_composition_failed' })])
+  }
+})
+
+it('supplies authored history separately from provider decorations', async () => {
+  const harness = createHarness()
+  harness.composeConversation.set((conversation, { authoredMessages }) => {
+    expect(authoredMessages.at(-1)).toMatchObject({ role: 'user', content: 'show a comet' })
+    expect(conversationToChatMessages(conversation).at(-1)?.content).not.toBe('show a comet')
+    return conversation
+  })
+  await harness.runtime.ingest('show a comet', { model: 'gpt-test', chatProvider: provider })
 })

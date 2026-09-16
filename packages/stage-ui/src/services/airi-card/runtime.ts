@@ -12,6 +12,8 @@ import { matchRegexKeys } from './regex-matcher'
 export interface CharacterCardRuntimeOptions {
   /** Display name substituted for the CCv3 `{{user}}` macro. @default 'User' at provider compilation */
   userName?: string
+  /** Authored history before timestamps, reply excerpts, or runtime context are added. */
+  lorebookMessages?: Message[]
   /** Greeting selected for Lorebook `@@is_greeting` conditions. @default 0 */
   activeGreetingIndex?: number
   /** Random source used by `{{random:...}}` and `{{roll:N}}`. @default Math.random */
@@ -80,8 +82,8 @@ function composeSystemPrompt(
 
   const entriesByPosition = groupLorebookEntriesByPosition(lorebookEntries)
   const sections = [
-    ...entryContents(entriesByPosition.get('before_char')),
     card.systemPrompt,
+    ...entryContents(entriesByPosition.get('before_char')),
     ...entryContents(entriesByPosition.get('before_desc')),
     card.description,
     ...entryContents(entriesByPosition.get('after_desc')),
@@ -116,7 +118,7 @@ export async function compileCharacterCardMessages(
     return messages.map(cloneMessage)
 
   const projected = messages.map(cloneMessage)
-  const activeLorebookEntries = await compileLorebookEntries(card.characterBook, projected, card, options)
+  const activeLorebookEntries = await compileLorebookEntries(card.characterBook, options.lorebookMessages ?? projected, card, options)
   replaceStableSystemPrompt(projected, card, activeLorebookEntries, options)
   insertDepthMessages(projected, [...activeLorebookEntries, ...compileDepthPrompt(card, options)])
   insertMessageExamples(projected, card, options)
@@ -144,7 +146,7 @@ export async function compileCharacterCardConversation(
     sources.set(message, turn)
     return message
   })
-  const entries = await compileLorebookEntries(card.characterBook, messages, card, options)
+  const entries = await compileLorebookEntries(card.characterBook, options.lorebookMessages ?? messages, card, options)
   replaceStableSystemPrompt(messages, card, entries, options)
   insertDepthMessages(messages, [...entries, ...compileDepthPrompt(card, options)])
   insertMessageExamples(messages, card, options)

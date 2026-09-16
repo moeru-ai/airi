@@ -429,3 +429,30 @@ it('inserts names containing replacement tokens literally', () => {
   const card = createCard({ name: '$&', greetings: ['Hello {{char}} and {{user}}.'] })
   expect(compileCharacterCardGreeting(card, { userName: '$\'' })).toBe('Hello $& and $\'.')
 })
+
+it('matches valid regex siblings even when an imported key is malformed', async () => {
+  const card = createCard({ characterBook: { extensions: {}, entries: [loreEntry({ keys: ['[', 'comet'], use_regex: true, content: 'Matched comet' })] } })
+  const result = await compileCharacterCardMessages(card, [{ role: 'user', content: 'comet' }])
+  expect(JSON.stringify(result)).toContain('Matched comet')
+})
+
+it('keeps before-char lore after the main system prompt', async () => {
+  const card = createCard({ systemPrompt: 'Main policy.', description: 'Character definition.', characterBook: { extensions: {}, entries: [loreEntry({ constant: true, position: 'before_char', content: 'Before definition.' })] } })
+  const result = await compileCharacterCardMessages(card, [{ role: 'system', content: compileCharacterCardSystemPrompt(card) }])
+  expect(result[0]?.content).toContain('Main policy.\n\nBefore definition.\n\nCharacter definition.')
+})
+
+it('scans authored text without timestamp or side-channel context matches', async () => {
+  const card = createCard({ characterBook: { extensions: {}, entries: [
+    loreEntry({ keys: ['^show'], use_regex: true, content: 'Authored match.' }),
+    loreEntry({ keys: ['secret-context'], content: 'Context-only match.' }),
+  ] } })
+  const conversation: Conversation = { turns: [{ id: 'authored', type: 'user', content: [
+    { type: 'text', text: '[2026-09-16] show a comet' },
+    { type: 'runtime-context', entries: [{ source: 'account', text: 'secret-context' }] },
+  ] }] }
+  const result = await compileCharacterCardConversation(card, conversation, { lorebookMessages: [{ role: 'user', content: 'show a comet' }] })
+  expect(JSON.stringify(result)).toContain('Authored match.')
+  expect(JSON.stringify(result)).not.toContain('Context-only match.')
+  expect(result.turns).toContain(conversation.turns[0])
+})
