@@ -6,7 +6,7 @@ import type { ConfigKVService } from '../adapters/config-kv'
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { userFluxRedisKey } from '../../utils/redis-keys'
+import { USER_FLUX_CACHE_TTL_SECONDS, userFluxRedisKey } from '../../utils/redis-keys'
 
 import * as schema from '../../schemas/flux'
 import * as fluxTxSchema from '../../schemas/flux-transaction'
@@ -23,7 +23,9 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
     async getFlux(userId: string) {
       // 1. Try Redis cache
       const cached = await redis.get(userFluxRedisKey(userId))
-      if (cached !== null) {
+      // Only expiring snapshots are valid cache entries. Persistent values must
+      // reload from Postgres, and cache hits must not extend their lifetime.
+      if (cached !== null && await redis.pttl(userFluxRedisKey(userId)) >= 0) {
         return { userId, flux: Number.parseInt(cached, 10) }
       }
 
@@ -74,7 +76,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       }
 
       // 3. Populate Redis cache
-      await redis.set(userFluxRedisKey(userId), String(record.flux))
+      await redis.set(userFluxRedisKey(userId), String(record.flux), 'EX', USER_FLUX_CACHE_TTL_SECONDS)
 
       return record
     },

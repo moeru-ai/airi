@@ -87,7 +87,7 @@ describe('billingService', () => {
       })
 
       // Verify Redis cache updated
-      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '70')
+      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '70', 'EX', 60)
     })
 
     // ROOT CAUSE:
@@ -138,7 +138,7 @@ describe('billingService', () => {
 
       // Redis cache reflects the zero balance, so the next pre-flight gate
       // (`flux < fallbackRate`) rejects immediately.
-      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '0')
+      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '0', 'EX', 60)
     })
 
     it('throws 402 when balance is already zero (no ledger row, no balance change)', async () => {
@@ -200,6 +200,7 @@ describe('billingService', () => {
       expect(result.balanceAfter).toBe(50)
       expect(result.balanceBefore).toBe(0)
       expect(result.idempotent).toBe(false)
+      expect(await redis.ttl(userFluxRedisKey('user-billing-1'))).toBeGreaterThan(0)
 
       // Verify transaction
       const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
@@ -267,6 +268,12 @@ describe('billingService', () => {
       ))
       expect(txRecords).toHaveLength(1)
     })
+  })
+
+  it('sets a TTL when synchronizing a committed payment balance', async () => {
+    await billingService.syncFluxCache('user-billing-1', 123)
+    expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '123', 'EX', 60)
+    expect(await redis.ttl(userFluxRedisKey('user-billing-1'))).toBeGreaterThan(0)
   })
 
   describe('setFlux', () => {

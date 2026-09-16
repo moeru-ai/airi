@@ -54,7 +54,7 @@ describe('fluxService (DB-backed)', () => {
   it('getFlux should initialize new user with INITIAL_USER_FLUX and populate Redis', async () => {
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(100)
-    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '100')
+    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '100', 'EX', 60)
   })
 
   it('getFlux should write a transaction entry on initialization', async () => {
@@ -83,6 +83,36 @@ describe('fluxService (DB-backed)', () => {
 
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(42)
-    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '42')
+    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '42', 'EX', 60)
+  })
+
+  // ROOT CAUSE:
+  // Balance writes had no expiry, so a failed invalidation could leave stale
+  // values indefinitely. Expiring writes let the next read reload Postgres.
+  it('reloads the database after expiry without extending TTL on cache hits', async () => {
+    await service.getFlux(testUser.id)
+    await db.update(schema.userFlux).set({ flux: 42 }).where(eq(schema.userFlux.userId, testUser.id))
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(Date.now() + 30_000)
+      expect((await service.getFlux(testUser.id)).flux).toBe(100)
+      expect(await redis.ttl(userFluxRedisKey(testUser.id))).toBeGreaterThan(0)
+      expect(await redis.ttl(userFluxRedisKey(testUser.id))).toBeLessThanOrEqual(30)
+      vi.setSystemTime(Date.now() + 31_000)
+      expect((await service.getFlux(testUser.id)).flux).toBe(42)
+      expect(await redis.ttl(userFluxRedisKey(testUser.id))).toBeGreaterThan(0)
+    }
+    finally {
+      vi.useRealTimers()
+    }
+    expect(await db.select().from(schema.fluxTransaction)).toHaveLength(1)
+  })
+
+  it('reloads persistent cached balances from the database', async () => {
+    await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42 })
+    await redis.set(userFluxRedisKey(testUser.id), '999')
+
+    expect((await service.getFlux(testUser.id)).flux).toBe(42)
+    expect(await redis.ttl(userFluxRedisKey(testUser.id))).toBeGreaterThan(0)
   })
 })

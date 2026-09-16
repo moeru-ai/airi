@@ -8,7 +8,7 @@ import { useLogger } from '@guiiai/logg'
 import { and, eq } from 'drizzle-orm'
 
 import { createPaymentRequiredError } from '../../../utils/error'
-import { userFluxRedisKey } from '../../../utils/redis-keys'
+import { USER_FLUX_CACHE_TTL_SECONDS, userFluxRedisKey } from '../../../utils/redis-keys'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
@@ -30,7 +30,7 @@ export function createBillingService(
    */
   async function updateRedisCache(userId: string, balance: number): Promise<void> {
     try {
-      await redis.set(userFluxRedisKey(userId), String(balance))
+      await redis.set(userFluxRedisKey(userId), String(balance), 'EX', USER_FLUX_CACHE_TTL_SECONDS)
     }
     catch {
       logger.withFields({ userId }).warn('Failed to update Redis cache after balance change')
@@ -403,7 +403,7 @@ export function createBillingService(
       // credit/debit already have (a slower concurrent SET can land last and
       // clobber it); DEL keeps setFlux from adding to that and defers to truth.
       // Best-effort: a failed DEL only leaves a stale cache entry that the next
-      // mutation or TTL-less overwrite corrects; Postgres stays authoritative.
+      // mutation or cache expiry corrects; Postgres stays authoritative.
       try {
         await redis.del(userFluxRedisKey(input.userId))
       }
