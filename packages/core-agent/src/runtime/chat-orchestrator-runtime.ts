@@ -789,6 +789,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         authoredMessages: sessionMessagesForSend.flatMap((message): Message[] => message.role === 'error' ? [] : [structuredClone(unwrapMessage(message))]),
       }) ?? historyContext
       composingConversation = false
+      if (shouldAbort())
+        return
+
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')

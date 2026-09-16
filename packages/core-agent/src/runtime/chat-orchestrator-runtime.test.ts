@@ -1394,3 +1394,24 @@ it('supplies authored history separately from provider decorations', async () =>
   })
   await harness.runtime.ingest('show a comet', { model: 'gpt-test', chatProvider: provider })
 })
+
+// Session reset during an async card policy must stop plugin side effects too.
+it('stops projections and hooks when the session resets during composition', async () => {
+  const harness = createHarness()
+  const deferred = Promise.withResolvers<Conversation>()
+  const compose = vi.fn(() => deferred.promise)
+  harness.composeConversation.set(compose)
+  const afterCompose = vi.fn()
+  const beforeSend = vi.fn()
+  harness.runtime.hooks.onAfterMessageComposed(afterCompose)
+  harness.runtime.hooks.onBeforeSend(beforeSend)
+  const sending = harness.runtime.ingest('hello', { model: 'gpt-test', chatProvider: provider })
+  await vi.waitFor(() => expect(compose).toHaveBeenCalled())
+  harness.generation.set(2)
+  deferred.resolve({ turns: [] })
+  await sending
+  expect(harness.promptProjections).toEqual([])
+  expect(afterCompose).not.toHaveBeenCalled()
+  expect(beforeSend).not.toHaveBeenCalled()
+  expect(harness.stream).not.toHaveBeenCalled()
+})
