@@ -91,7 +91,7 @@ export interface StreamTranscriptionFileInputOptions extends Omit<XSAIStreamTran
 }
 
 export interface StreamTranscriptionStreamInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
-  inputAudioStream: ReadableStream<ArrayBuffer>
+  inputAudioStream: ReadableStream<ArrayBuffer | ArrayBufferView>
 }
 
 export type StreamTranscription = (options: WithUnknown<StreamTranscriptionFileInputOptions | StreamTranscriptionStreamInputOptions>) => AIRIStreamTranscriptionResult
@@ -104,7 +104,7 @@ export type HearingTranscriptionResult = HearingTranscriptionGenerateResult | He
 type HearingTranscriptionInput = File | {
   file?: File
   fileName?: string
-  inputAudioStream?: ReadableStream<ArrayBuffer>
+  inputAudioStream?: ReadableStream<ArrayBuffer | ArrayBufferView>
 }
 
 interface HearingTranscriptionInvokeOptions {
@@ -418,7 +418,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const normalizedInput = (input instanceof File ? { file: input } : input ?? {}) as {
       file?: File
       fileName?: string
-      inputAudioStream?: ReadableStream<ArrayBuffer>
+      inputAudioStream?: ReadableStream<ArrayBuffer | ArrayBufferView>
     }
     const features = providersStore.getTranscriptionFeatures(providerId)
     const streamExecutor = resolveStreamTranscriptionExecutor(providerId)
@@ -587,7 +587,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     audioContext?: AudioContext
     workletNode?: AudioWorkletNode
     mediaStreamSource?: MediaStreamAudioSourceNode
-    audioStreamController?: ReadableStreamDefaultController<ArrayBuffer>
+    audioStreamController?: ReadableStreamDefaultController<Uint8Array>
     abortController: AbortController
     result?: HearingTranscriptionResult & { recognition?: any }
     idleTimer?: ReturnType<typeof setTimeout>
@@ -600,8 +600,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     providerId: string
     callbacks: StreamingTranscriptionCallbacks
     activeSegment?: {
-      audioChunks: ArrayBuffer[]
-      audioStreamController?: ReadableStreamDefaultController<ArrayBuffer>
+      audioChunks: Uint8Array[]
+      audioStreamController?: ReadableStreamDefaultController<Uint8Array>
     }
   }>()
 
@@ -804,7 +804,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       return
 
     const pcm16 = toPCM16FromFloat32(buffer)
-    const chunk = pcm16.buffer.slice(0)
+    const chunk = new Uint8Array(pcm16.buffer)
     if (segment.audioStreamController) {
       segment.audioStreamController.enqueue(chunk)
       return
@@ -817,7 +817,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     if (!segment)
       throw new Error('VAD did not create an active speech segment.')
 
-    return new ReadableStream<ArrayBuffer>({
+    return new ReadableStream<Uint8Array>({
       start(controller) {
         segment.audioStreamController = controller
         for (const chunk of segment.audioChunks)
@@ -898,7 +898,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
     const abortController = new AbortController()
     const session: NonNullable<typeof streamingSession.value> = {
-      audioStreamController: undefined as ReadableStreamDefaultController<ArrayBuffer> | undefined,
+      audioStreamController: undefined as ReadableStreamDefaultController<Uint8Array> | undefined,
       abortController,
       providerId,
       callbacks: vadSession.callbacks,
