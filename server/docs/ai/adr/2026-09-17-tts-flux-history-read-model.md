@@ -16,16 +16,18 @@ Valibot validates these values at each HTTP, WebSocket, and Redis boundary.
 Each value contains 1 to 128 characters after trimming.
 An entry without both values stays as one transaction row.
 
-The history query paginates projection rows, not raw ledger entries.
-Each group returns its aggregate count and amount plus at most 50 recent
-ledger entries. `entriesTruncated` tells consumers when the immutable group
-contains more entries than the response sample. The response uses the shared
-`FluxHistoryPage` contract.
+The existing `/api/v1/flux/history` route returns `{ records, hasMore }`.
+Each TTS round appears as one ordinary debit record with its total amount.
+The client does not receive group types, counts, or child entries.
+There is no second history endpoint.
 
-The grouped contract uses `/api/v1/flux/history/v2`. The existing
-`/api/v1/flux/history` route keeps the raw `records` response for released
-clients. One lateral-join query reads each projection page and its bounded
-entry samples. The aggregates and entries therefore use one statement snapshot.
+The history query paginates projection rows, not raw ledger entries.
+One query joins each projection row to its latest ledger entry.
+The amount and entry fields therefore use one statement snapshot.
+The latest entry supplies the ID, time, description, metadata, and request ID.
+Balance fields remain actual snapshots around that latest debit.
+They do not describe the aggregate amount, because other transactions can
+occur between charges in one round.
 
 The ledger stores an optional `historyGroupKey` only after Valibot validates
 the correlation pair. A database trigger uses that key to update the
@@ -54,11 +56,10 @@ It prevents a threshold-crossing request from claiming units from an earlier cha
 - Validate TTS billing correlation for REST and WebSocket requests.
 - Snapshot and send the conversation and round through both client transports.
 - Preserve residual debt ownership in Redis.
-- Return grouped history rows from `/api/v1/flux/history/v2`.
-- Preserve the raw response from `/api/v1/flux/history`.
+- Return combined TTS amounts through the existing `/api/v1/flux/history` response.
 - Maintain an indexed history projection without changing the immutable ledger.
-- Bound the ledger-entry sample returned for one TTS group.
-- Render the returned rows in the shared Flux settings page.
+- Read only one representative ledger entry per display record.
+- Render ordinary records in the shared Flux settings page without client grouping.
 
 ## Non-goals
 
@@ -197,19 +198,20 @@ sequenceDiagram
   participant FluxRoute
   participant History
   participant PostgreSQL
-  Client->>FluxRoute: GET history/v2 with row limit and offset
+  Client->>FluxRoute: GET history with display-record limit and offset
   FluxRoute->>History: Get one display page
-  History->>PostgreSQL: Select projection rows and bounded entries with one lateral join
-  PostgreSQL-->>History: Aggregates and entry samples from one statement snapshot
-  History->>History: Validate database rows and build shared rows
+  History->>PostgreSQL: Join projection rows to their latest ledger entries
+  PostgreSQL-->>History: Total amounts and entry fields from one statement snapshot
+  History->>History: Build ordinary display records
   History-->>FluxRoute: FluxHistoryPage
-  FluxRoute-->>Client: Single and TTS-round rows
+  FluxRoute-->>Client: records and hasMore
 ```
 
 ## Verification
 
-Use PGlite tests for grouped-row pagination, conversation isolation, invalid
-correlation preservation, and the 50-entry response bound.
+Use PGlite tests with the production trigger for display-record pagination,
+conversation and user isolation, invalid correlation preservation, and full round totals.
+Assert that large rounds return one record without changing the ledger.
 Verify the migration creates and backfills the projection plus its ordering
 and group-entry indexes.
 Use Redis tests for same-owner, mixed-owner, concurrent rollback, and residual-owner recovery.

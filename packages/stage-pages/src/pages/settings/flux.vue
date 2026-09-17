@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FluxHistoryEntry, FluxHistoryPage, FluxHistoryRow } from '@proj-airi/server-shared/types'
+import type { FluxHistoryEntry, FluxHistoryPage } from '@proj-airi/server-shared/types'
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
 import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
@@ -106,7 +106,7 @@ function typeLabel(type: string): string {
   return t(TYPE_LABEL_KEY[type] ?? TYPE_LABEL_KEY.initial)
 }
 
-const auditRows = ref<FluxHistoryRow[]>([])
+const auditRecords = ref<FluxHistoryEntry[]>([])
 const auditLoading = ref(false)
 const auditHasMore = ref(false)
 const auditOffset = ref(0)
@@ -137,19 +137,19 @@ async function fetchAuditHistory(loadMore = false) {
   auditLoading.value = true
   try {
     const offset = loadMore ? auditOffset.value : 0
-    const res = await client.api.v1.flux.history.v2.$get({
+    const res = await client.api.v1.flux.history.$get({
       query: { limit: String(AUDIT_PAGE_SIZE), offset: String(offset) },
     })
     if (res.ok) {
       const data = await res.json() as FluxHistoryPage
       if (loadMore) {
-        auditRows.value.push(...data.rows)
+        auditRecords.value.push(...data.records)
       }
       else {
-        auditRows.value = data.rows
+        auditRecords.value = data.records
       }
       auditHasMore.value = data.hasMore
-      auditOffset.value = offset + data.rows.length
+      auditOffset.value = offset + data.records.length
     }
   }
   catch {
@@ -162,15 +162,6 @@ async function fetchAuditHistory(loadMore = false) {
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString()
-}
-
-const expandedGroups = ref<Set<string>>(new Set())
-
-function toggleGroup(key: string) {
-  if (expandedGroups.value.has(key))
-    expandedGroups.value.delete(key)
-  else
-    expandedGroups.value.add(key)
 }
 
 async function fetchPackages() {
@@ -394,11 +385,11 @@ async function handleBuy(stripePriceId: string) {
         </span>
       </div>
 
-      <div v-if="auditLoading && auditRows.length === 0" text="sm neutral-500" py-4 text-center>
+      <div v-if="auditLoading && auditRecords.length === 0" text="sm neutral-500" py-4 text-center>
         {{ t('settings.pages.flux.audit.loading') }}
       </div>
 
-      <div v-else-if="auditRows.length === 0" text="sm neutral-500" py-4 text-center>
+      <div v-else-if="auditRecords.length === 0" text="sm neutral-500" py-4 text-center>
         {{ t('settings.pages.flux.audit.empty') }}
       </div>
 
@@ -422,212 +413,88 @@ async function handleBuy(stripePriceId: string) {
             </tr>
           </thead>
           <tbody>
-            <template v-for="row in auditRows" :key="row.type === 'single' ? row.record.id : row.key">
-              <!-- Single record -->
-              <tr
-                v-if="row.type === 'single'"
-                border="b neutral-100 dark:neutral-800/50 last:none"
-              >
-                <td whitespace-nowrap px-4 py-3 text="neutral-500">
-                  {{ formatDate(row.record.createdAt) }}
-                </td>
-                <td px-4 py-3>
-                  <span
-                    inline-block rounded-full px-2 py-0.5 text-xs font-medium
-                    :class="row.record.type === 'debit'
-                      ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
-                      : 'bg-green-500/10 text-green-600 dark:text-green-400'"
-                  >
-                    {{ typeLabel(row.record.type) }}
-                  </span>
-                </td>
-                <td px-4 py-3>
-                  <span>{{ row.record.description }}</span>
-                  <span
-                    v-if="row.record.metadata?.promptTokens != null"
-                    ml-1 text="xs neutral-400"
-                  >
-                    ({{ row.record.metadata.promptTokens }}+{{ row.record.metadata.completionTokens }} tokens)
-                  </span>
-                  <span
-                    v-else-if="row.record.description === 'tts_request' && row.record.metadata?.model"
-                    ml-1 text="xs neutral-400"
-                  >
-                    ({{ row.record.metadata.model }})
-                  </span>
-                </td>
-                <td px-4 py-3 text-right font-mono>
-                  <span :class="isPositive(row.record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
-                    {{ displayAmount(row.record) }}
-                  </span>
-                </td>
-              </tr>
-
-              <!-- Grouped TTS records -->
-              <tr
-                v-else
-                border="b neutral-100 dark:neutral-800/50"
-              >
-                <td whitespace-nowrap px-4 py-3 text="neutral-500">
-                  {{ formatDate(row.lastTime) }}
-                </td>
-                <td px-4 py-3>
-                  <span
-                    :class="['inline-block', 'rounded-full', 'px-2', 'py-0.5', 'text-xs', 'font-medium',
-                             'bg-orange-500/10', 'text-orange-600', 'dark:text-orange-400']"
-                  >
-                    {{ t('settings.pages.flux.audit.typeConsumption') }}
-                  </span>
-                </td>
-                <td px-4 py-3>
-                  <button
-                    type="button"
-                    :aria-expanded="expandedGroups.has(row.key)"
-                    :aria-controls="`flux-history-${row.entries[0].id}`"
-                    :class="['flex', 'items-center', 'gap-1', 'rounded', 'text-left', 'focus-visible:outline-2', 'focus-visible:outline-primary-500']"
-                    @click="toggleGroup(row.key)"
-                  >
-                    <span
-                      :class="expandedGroups.has(row.key) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone'"
-                      inline-block size-4 text="neutral-400"
-                    />
-                    {{ row.description }}
-                    <span ml-1 text="xs neutral-400">
-                      ({{ row.chargeCount }} {{ t('settings.pages.flux.audit.charges') }})
-                    </span>
-                  </button>
-                  <p
-                    v-if="row.entriesTruncated"
-                    :class="['mt-1 pl-5 text-xs text-neutral-500', 'dark:text-neutral-400']"
-                  >
-                    {{ t('settings.pages.flux.audit.truncatedCharges', { shown: row.entries.length, total: row.chargeCount }) }}
-                  </p>
-                </td>
-                <td px-4 py-3 text-right font-mono>
-                  <span text="orange-600 dark:orange-400">
-                    -{{ formatNumber(row.totalAmount) }}
-                  </span>
-                </td>
-              </tr>
-
-              <!-- Expanded group children -->
-              <tr
-                v-for="(child, childIndex) in (row.type === 'group' && expandedGroups.has(row.key) ? row.entries : [])"
-                :id="row.type === 'group' && childIndex === 0 ? `flux-history-${row.entries[0].id}` : undefined"
-                :key="child.id"
-                border="b neutral-100 dark:neutral-800/50 last:none" bg="neutral-50/50 dark:neutral-800/20"
-              >
-                <td whitespace-nowrap px-4 py-2 pl-8 text="xs neutral-400">
-                  {{ formatDate(child.createdAt) }}
-                </td>
-                <td px-4 py-2 />
-                <td px-4 py-2 text="xs neutral-400">
-                  {{ child.description }}
-                </td>
-                <td px-4 py-2 text-right font-mono text="xs orange-500 dark:orange-400">
-                  {{ displayAmount(child) }}
-                </td>
-              </tr>
-            </template>
+            <tr
+              v-for="record in auditRecords"
+              :key="record.id"
+              :class="['border-b border-neutral-100 last:border-none', 'dark:border-neutral-800/50']"
+            >
+              <td :class="['whitespace-nowrap px-4 py-3', 'text-neutral-500']">
+                {{ formatDate(record.createdAt) }}
+              </td>
+              <td :class="['px-4 py-3']">
+                <span
+                  :class="[
+                    'inline-block rounded-full px-2 py-0.5 text-xs font-medium',
+                    record.type === 'debit' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' : 'bg-green-500/10 text-green-600 dark:text-green-400',
+                  ]"
+                >
+                  {{ typeLabel(record.type) }}
+                </span>
+              </td>
+              <td :class="['px-4 py-3']">
+                <span>{{ record.description }}</span>
+                <span
+                  v-if="record.metadata?.promptTokens != null"
+                  :class="['ml-1 text-xs text-neutral-400']"
+                >
+                  ({{ record.metadata.promptTokens }}+{{ record.metadata.completionTokens }} tokens)
+                </span>
+                <span
+                  v-else-if="record.description === 'tts_request' && record.metadata?.model"
+                  :class="['ml-1 text-xs text-neutral-400']"
+                >
+                  ({{ record.metadata.model }})
+                </span>
+              </td>
+              <td :class="['px-4 py-3 text-right font-mono']">
+                <span :class="isPositive(record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
+                  {{ displayAmount(record) }}
+                </span>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
 
       <!-- Mobile: card list -->
-      <div v-if="auditRows.length > 0" flex="~ col gap-2" sm:hidden>
-        <template v-for="row in auditRows" :key="row.type === 'single' ? row.record.id : row.key">
-          <!-- Single record card -->
-          <div
-            v-if="row.type === 'single'"
-            border="1 neutral-200 dark:neutral-800" flex="~ col gap-1.5" rounded-lg px-3 py-2.5
-          >
-            <div flex="~ items-center justify-between">
-              <span
-                inline-block rounded-full px-2 py-0.5 text-xs font-medium
-                :class="row.record.type === 'debit'
-                  ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
-                  : 'bg-green-500/10 text-green-600 dark:text-green-400'"
-              >
-                {{ typeLabel(row.record.type) }}
-              </span>
-              <span text-sm font-semibold font-mono :class="isPositive(row.record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
-                {{ displayAmount(row.record) }}
-              </span>
-            </div>
-            <div text="sm neutral-600 dark:neutral-300" truncate>
-              {{ row.record.description }}
-              <span
-                v-if="row.record.metadata?.promptTokens != null"
-                ml-1 text="xs neutral-400"
-              >
-                ({{ row.record.metadata.promptTokens }}+{{ row.record.metadata.completionTokens }} tokens)
-              </span>
-              <span
-                v-else-if="row.record.description === 'tts_request' && row.record.metadata?.model"
-                ml-1 text="xs neutral-400"
-              >
-                ({{ row.record.metadata.model }})
-              </span>
-            </div>
-            <div text="xs neutral-400">
-              {{ formatDate(row.record.createdAt) }}
-            </div>
-          </div>
-
-          <!-- Grouped TTS card -->
-          <div
-            v-else
-            border="1 neutral-200 dark:neutral-800" flex="~ col gap-1.5" rounded-lg px-3 py-2.5
-          >
-            <button
-              type="button"
-              :aria-expanded="expandedGroups.has(row.key)"
-              :aria-controls="`flux-history-mobile-${row.entries[0].id}`"
-              :class="['flex', 'w-full', 'flex-col', 'gap-1.5', 'rounded', 'text-left', 'focus-visible:outline-2', 'focus-visible:outline-primary-500']"
-              @click="toggleGroup(row.key)"
+      <div v-if="auditRecords.length > 0" :class="['flex flex-col gap-2 sm:hidden']">
+        <div
+          v-for="record in auditRecords"
+          :key="record.id"
+          :class="['flex flex-col gap-1.5 rounded-lg px-3 py-2.5', 'border border-neutral-200 dark:border-neutral-800']"
+        >
+          <div :class="['flex items-center justify-between']">
+            <span
+              :class="[
+                'inline-block rounded-full px-2 py-0.5 text-xs font-medium',
+                record.type === 'debit' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' : 'bg-green-500/10 text-green-600 dark:text-green-400',
+              ]"
             >
-              <div flex="~ items-center justify-between" w-full>
-                <span
-                  :class="['inline-block', 'rounded-full', 'px-2', 'py-0.5', 'text-xs', 'font-medium',
-                           'bg-orange-500/10', 'text-orange-600', 'dark:text-orange-400']"
-                >
-                  {{ t('settings.pages.flux.audit.typeConsumption') }}
-                </span>
-                <span text-sm font-semibold font-mono text="orange-600 dark:orange-400">
-                  -{{ formatNumber(row.totalAmount) }}
-                </span>
-              </div>
-              <div flex="~ items-center gap-1" text="sm neutral-600 dark:neutral-300">
-                <span
-                  :class="expandedGroups.has(row.key) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone'"
-                  inline-block size-4 text="neutral-400"
-                />
-                {{ row.description }}
-                <span text="xs neutral-400">({{ row.chargeCount }} {{ t('settings.pages.flux.audit.charges') }})</span>
-              </div>
-              <div text="xs neutral-400">
-                {{ formatDate(row.lastTime) }}
-              </div>
-            </button>
-            <p
-              v-if="row.entriesTruncated"
-              :class="['text-xs text-neutral-500', 'dark:text-neutral-400']"
-            >
-              {{ t('settings.pages.flux.audit.truncatedCharges', { shown: row.entries.length, total: row.chargeCount }) }}
-            </p>
-
-            <!-- Expanded children -->
-            <div v-if="row.type === 'group' && expandedGroups.has(row.key)" :id="`flux-history-mobile-${row.entries[0].id}`" flex="~ col gap-1" mt-1 border="t neutral-200 dark:neutral-700" pt-2>
-              <div
-                v-for="child in row.entries" :key="child.id"
-                flex="~ items-center justify-between" text="xs neutral-400"
-              >
-                <span>{{ formatDate(child.createdAt) }}</span>
-                <span font-mono>{{ displayAmount(child) }}</span>
-              </div>
-            </div>
+              {{ typeLabel(record.type) }}
+            </span>
+            <span :class="['text-sm font-semibold font-mono', isPositive(record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400']">
+              {{ displayAmount(record) }}
+            </span>
           </div>
-        </template>
+          <div :class="['truncate text-sm text-neutral-600 dark:text-neutral-300']">
+            {{ record.description }}
+            <span
+              v-if="record.metadata?.promptTokens != null"
+              :class="['ml-1 text-xs text-neutral-400']"
+            >
+              ({{ record.metadata.promptTokens }}+{{ record.metadata.completionTokens }} tokens)
+            </span>
+            <span
+              v-else-if="record.description === 'tts_request' && record.metadata?.model"
+              :class="['ml-1 text-xs text-neutral-400']"
+            >
+              ({{ record.metadata.model }})
+            </span>
+          </div>
+          <div :class="['text-xs text-neutral-400']">
+            {{ formatDate(record.createdAt) }}
+          </div>
+        </div>
       </div>
 
       <div v-if="auditHasMore" text-center>

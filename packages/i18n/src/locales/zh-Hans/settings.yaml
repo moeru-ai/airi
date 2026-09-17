@@ -945,7 +945,6 @@ pages:
       loadMore: 更多信息
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
       charges: 笔扣费
-      truncatedCharges: 仅显示最近 {shown} 笔扣费，共 {total} 笔。
     packages:
       title: Flux 电池包
       buy: 充值

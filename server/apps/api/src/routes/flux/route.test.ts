@@ -16,26 +16,11 @@ function createMockFluxService(): FluxService {
 
 function createMockFluxTransactionService(): FluxTransactionService {
   return {
-    createEntry: vi.fn(),
-    createEntries: vi.fn(),
+    log: vi.fn(),
+    logBatch: vi.fn(),
+    getStats: vi.fn(async () => ({ capacity: 0 })),
     getHistory: vi.fn(async (_userId: string, limit: number, offset: number) => ({
       records: [{ id: 'legacy-tx-1' }],
-      hasMore: limit === 100 && offset === 0,
-    })),
-    getHistoryRows: vi.fn(async (_userId: string, limit: number, offset: number) => ({
-      rows: [
-        {
-          type: 'single',
-          record: {
-            id: 'tx-1',
-            type: 'credit',
-            amount: 5,
-            description: 'Top up',
-            metadata: { source: 'test' },
-            createdAt: '2026-03-27T10:00:00.000Z',
-          },
-        },
-      ],
       hasMore: limit === 100 && offset === 0,
     })),
   } as any
@@ -104,35 +89,6 @@ describe('fluxRoutes', () => {
     expect(fluxTransactionService.getHistory).toHaveBeenCalledWith('user-1', 100, 0)
     expect(await res.json()).toEqual({
       records: [{ id: 'legacy-tx-1' }],
-      hasMore: true,
-    })
-  })
-
-  it('returns grouped history from the versioned route', async () => {
-    const fluxTransactionService = createMockFluxTransactionService()
-    const app = createTestApp(createMockFluxService(), fluxTransactionService)
-
-    const res = await app.fetch(
-      new Request('http://localhost/api/v1/flux/history/v2?limit=999&offset=-12'),
-      { user: testUser } as any,
-    )
-
-    expect(res.status).toBe(200)
-    expect(fluxTransactionService.getHistoryRows).toHaveBeenCalledWith('user-1', 100, 0)
-    expect(await res.json()).toEqual({
-      rows: [
-        {
-          type: 'single',
-          record: {
-            id: 'tx-1',
-            type: 'credit',
-            amount: 5,
-            description: 'Top up',
-            metadata: { source: 'test' },
-            createdAt: '2026-03-27T10:00:00.000Z',
-          },
-        },
-      ],
       hasMore: true,
     })
   })

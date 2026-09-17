@@ -1,40 +1,23 @@
-/** One immutable Flux ledger entry returned by the history API. */
+/**
+ * One display record. For a TTS round, amount is the total debit.
+ * Other fields describe the latest ledger entry in that round.
+ */
 export interface FluxHistoryEntry {
   id: string
+  userId: string
   type: string
   amount: number
+  /** Actual balances around the latest debit, not around the round total. */
+  balanceBefore: number
+  balanceAfter: number
+  requestId: string | null
   description: string
   metadata: Record<string, unknown> | null
   createdAt: string
 }
 
-/** One ledger entry that has no safe TTS round grouping key. */
-export interface FluxHistorySingleRow {
-  type: 'single'
-  record: FluxHistoryEntry
-}
-
-/** TTS ledger entries that share one validated conversation and round. */
-export interface FluxHistoryGroupRow {
-  type: 'group'
-  key: string
-  conversationId: string
-  roundId: string
-  description: 'tts_request'
-  chargeCount: number
-  totalAmount: number
-  firstTime: string
-  lastTime: string
-  /** Whether the immutable group contains entries outside this recent sample. */
-  entriesTruncated: boolean
-  entries: FluxHistoryEntry[]
-}
-
-/** One row in the server-owned Flux history read model. */
-export type FluxHistoryRow = FluxHistorySingleRow | FluxHistoryGroupRow
-
-/** One page of grouped Flux history rows. The offset counts rows, not ledger entries. */
+/** The existing history response. The offset counts display records. */
 export interface FluxHistoryPage {
-  rows: FluxHistoryRow[]
+  records: FluxHistoryEntry[]
   hasMore: boolean
 }

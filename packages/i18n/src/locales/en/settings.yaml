@@ -983,7 +983,6 @@ pages:
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
       charges: charges
-      truncatedCharges: Showing the most recent {shown} of {total} charges.
     packages:
       title: Flux Packages
       buy: Charge
