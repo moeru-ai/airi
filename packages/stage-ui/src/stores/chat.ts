@@ -1,6 +1,6 @@
-import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
@@ -8,7 +8,7 @@ import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } fr
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
-import { createChatOrchestratorRuntime } from '@proj-airi/core-agent'
+import { createChatOrchestratorRuntime, renderConversationPreview } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -82,6 +82,8 @@ export interface ChatRetryPayload {
 
 /** Identifies one stored tool call that must run again in the leader. */
 export interface ChatToolCallRerunPayload extends Omit<ToolCallRerunPayload, 'sessionId' | 'toolset'> {
+  /** Current selections authorize request-only tools; stored calls do not grant access. */
+  tools?: ChatToolReference[]
   sessionId: string
 }
 
@@ -203,17 +205,19 @@ export const useChatStore = defineStore('chat', () => {
 
   async function streamWithStageAdapters(
     model: string,
-    chatProvider: ChatProvider,
-    messages: Message[],
+    chatProvider: GenerationProvider,
+    context: Conversation,
     options?: StreamOptions,
   ) {
+    // These metrics count display records; the selected adapter owns wire message counts.
+    const messages = renderConversationPreview(context)
     let llmTextLength = 0
     let llmOutputChunkCount = 0
     const llmOutputChunkLengths: number[] = []
     const headers = { ...options?.headers }
     if (getProviderMode(activeProvider.value) === 'official' && options?.requestCorrelation) {
       headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
-      headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.roundId
+      headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
       headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
     }
 
@@ -229,14 +233,14 @@ export const useChatStore = defineStore('chat', () => {
       [IOAttributes.GenAIRequestModel]: model,
       [IOAttributes.LLMInputMessageCount]: messages.length,
       [IOAttributes.LLMInputUserMessageCount]: messages.filter(message => message.role === 'user').length,
-      [IOAttributes.TurnId]: options?.requestCorrelation?.roundId ?? '',
+      [IOAttributes.TurnId]: options?.requestCorrelation?.turnId ?? '',
     })
     llmSpan.setAttribute(IOAttributes.LLMInputMessageRoles, messages.map(message => message.role))
     const llmRequestTs = performance.now()
     let llmFirstTokenEmitted = false
 
     try {
-      await llmStore.stream(model, chatProvider, messages, {
+      await llmStore.stream(model, chatProvider, context, {
         ...options,
         headers,
         onStreamEvent: async (event: StreamEvent) => {
@@ -374,12 +378,19 @@ export const useChatStore = defineStore('chat', () => {
     return runtime.ingest(sendingMessage, options, targetSessionId)
   }
 
+  function requiresToolSelection(name: string) {
+    return llmToolsStore.tools.findLast(tool => tool.function.name === name)?.requiresExplicitSelection === true
+  }
+
   function collectToolReferences(sessionId: string, selectedTools: ChatToolReference[] = []): ChatToolReference[] {
     const names = new Set<string>()
 
     for (const message of chatSession.getSessionMessages(sessionId)) {
-      for (const tool of message.tools ?? [])
-        names.add(tool.name)
+      for (const tool of message.tools ?? []) {
+        // History preserves context, but only this request can grant access to restricted tools.
+        if (!requiresToolSelection(tool.name))
+          names.add(tool.name)
+      }
     }
 
     for (const tool of selectedTools)
@@ -474,7 +485,7 @@ export const useChatStore = defineStore('chat', () => {
         sessionId: payload.sessionId,
         text,
         replyToMessageId: sourceMessage?.replyToMessageId,
-        tools: payload.tools ?? sourceMessage?.tools,
+        tools: payload.tools ?? sourceMessage?.tools?.filter(tool => !requiresToolSelection(tool.name)),
       })
     }
     catch (error) {
@@ -485,6 +496,9 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Runs one stored tool call again and replaces its stored result. */
   async function rerunToolCall(payload: ChatToolCallRerunPayload): Promise<void> {
+    if (requiresToolSelection(payload.toolName) && !payload.tools?.some(tool => tool.name === payload.toolName))
+      throw new Error('Select this tool before running it again.')
+
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 

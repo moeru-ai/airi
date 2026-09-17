@@ -14,7 +14,7 @@ Create a reviewable PR from the exact commits intended for publication.
 3. When the diff changes user-visible UI, follow the visual-evidence workflow below. Do not substitute test output or an assertion that the UI is unchanged for screenshots.
 4. Publish the intended commits through the available GitHub/`gh` workflow.
 5. Compose the PR body with a concise summary, exact verification commands, and the required visual table.
-6. Create the PR, then open it and verify its title, base/head branches, body, and embedded images.
+6. Create the PR, then open it and verify its title, base/head branches, body, and image Markdown against the uploaded URLs.
 7. Get the PR review threads, comments, and check status. If a comment identifies a confirmed error, fix it, run focused checks, push the update, reply with evidence, and resolve the thread.
 
 ## Visual Evidence Workflow
@@ -51,7 +51,7 @@ Create a reviewable PR from the exact commits intended for publication.
    | Settings / Connection | Settings / Connection |
    ```
 
-11. Verify that every user-asset URL matches the PR intent. Remove temporary worktrees only after upload succeeds; clear ignored `.vishot` captures when they are no longer useful locally.
+11. Verify that every user-asset URL matches the intended capture. Follow `$upload-github-attachment` for upload success criteria; do not add GET/HEAD probes or block on anonymous 404 responses. Remove temporary worktrees only after upload succeeds; clear ignored `.vishot` captures when they are no longer useful locally.
 
 ## Visual Evidence Contract
 

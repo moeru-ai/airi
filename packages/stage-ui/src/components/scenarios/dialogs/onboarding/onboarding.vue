@@ -11,7 +11,7 @@ import type {
 
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import StepModelSelection from './step-model-selection.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
@@ -42,7 +42,6 @@ const { trackOnboardingCompleted, trackOnboardingStarted, trackOnboardingStepCom
 const providersStore = useProviderStore()
 
 const providerStore = useProviderConfigStore()
-const { configs: providers } = storeToRefs(providerStore)
 const { allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
 const {
@@ -104,14 +103,14 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
     }
   }
 
-  providers.value[selectedProvider.value.id] = {
-    ...providers.value[selectedProvider.value.id],
-    ...config,
-  }
+  // Provider configuration is leader-owned synchronized state. Route the save
+  // through synced actions so the leader persists it and replicates it back;
+  // the `configs` computed projection discards direct writes on recompute.
+  await providersStore.initializeProvider(selectedProvider.value.id)
+  await providerStore.patchProviderConfig(selectedProvider.value.id, config)
+  await providersStore.forceProviderConfigured(selectedProvider.value.id)
 
   activeProvider.value = selectedProvider.value.id
-
-  await nextTick()
 
   try {
     await consciousnessStore.loadModelsForProvider(selectedProvider.value.id)

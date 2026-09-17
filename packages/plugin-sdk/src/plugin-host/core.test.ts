@@ -1,20 +1,25 @@
-import type { ExtensionManifestV1, ModulePermissionDeclaration } from './shared/types'
+import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/types'
 
 import { join } from 'node:path'
 
 import { safeParse } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ExtensionHost, extensionManifestV1Schema, FileSystemLoader } from '.'
+import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
 import { defineExtension } from '../extension'
 import { defineKit } from '../kit'
 
 describe('extension manifest schema', () => {
-  it('accepts extension.airi.json v1 manifests', () => {
-    const result = safeParse(extensionManifestV1Schema, {
-      apiVersion: 'v1',
+  it('accepts extension.airi.json v2 manifests', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'airi-extension-test',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
       permissions: {},
       entrypoints: {
         electron: './extension.mjs',
@@ -24,8 +29,32 @@ describe('extension manifest schema', () => {
     expect(result.success).toBe(true)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013407993
+  it('rejects non-semantic Extension package versions (PR #2506)', () => {
+    // ROOT CAUSE:
+    //
+    // The manifest schema only required a non-empty package version, so an
+    // invalid value could become the installed package and session identity.
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'airi-extension-test',
+      version: 'release-1',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
   it('rejects legacy extension manifests', () => {
-    const result = safeParse(extensionManifestV1Schema, {
+    const result = safeParse(extensionManifestV2Schema, {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'airi-plugin-test',
@@ -37,9 +66,263 @@ describe('extension manifest schema', () => {
 
     expect(result.success).toBe(false)
   })
+
+  it('rejects unknown manifest fields', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'airi-extension-test',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      permisisons: {},
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects manifests without a runtime entrypoint', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'airi-extension-test',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {},
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects Extension ids that cannot name an installation folder', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: '../outside',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4014945385
+  it('rejects Extension ids longer than one portable folder component (PR #2506)', () => {
+    // ROOT CAUSE:
+    //
+    // The schema accepted an ID that exceeds the 255-byte component limit on
+    // common file systems. Folder import then failed with ENAMETOOLONG.
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'a'.repeat(256),
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4014945385
+  it('rejects Windows device names as Extension ids (PR #2506)', () => {
+    // ROOT CAUSE:
+    //
+    // Windows reserves device names even when a file extension follows them.
+    // The schema accepted these names as normal installation folders.
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'con.tools',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts extension-hosted kit declarations', () => {
+    const manifest = {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai' as const,
+      id: 'agent-activity-provider',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron' as const],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        provides: [{
+          id: 'dev.airi.agent-activity',
+          version: '1.0.0',
+          exposure: 'local-only' as const,
+        }],
+        uses: [{
+          id: 'dev.airi.character-reaction',
+          version: '1.0.0',
+          optional: true,
+        }],
+      },
+    } satisfies ExtensionManifestV2
+
+    expect(safeParse(extensionManifestV2Schema, manifest).success).toBe(true)
+  })
+
+  it('rejects duplicate provided Kit ids', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'duplicate-kit-provider',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        provides: [
+          {
+            id: 'dev.airi.agent-activity',
+            version: '1.0.0',
+            exposure: 'local-only',
+          },
+          {
+            id: 'dev.airi.agent-activity',
+            version: '2.0.0',
+            exposure: 'remote-callable',
+          },
+        ],
+      },
+    })
+
+    // ROOT CAUSE:
+    //
+    // Preflight and runtime resolution find Kit declarations by id. If the
+    // manifest repeats an id, those stages can select different contracts.
+    // The schema now rejects that ambiguity before Extension code can run.
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.issues).toContainEqual(expect.objectContaining({
+        message: 'Declare each provided Kit once.',
+      }))
+    }
+  })
+
+  it('rejects duplicate used Kit ids', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'duplicate-kit-consumer',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        uses: [
+          {
+            id: 'dev.airi.agent-activity',
+            version: '2.0.0',
+            optional: true,
+          },
+          {
+            id: 'dev.airi.agent-activity',
+            version: '1.0.0',
+          },
+        ],
+      },
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.issues).toContainEqual(expect.objectContaining({
+        message: 'Declare each used Kit once.',
+      }))
+    }
+  })
+
+  it('rejects Kit version ranges until the Host supports range resolution', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'agent-activity-consumer',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        uses: [{
+          id: 'dev.airi.agent-activity',
+          version: '^1.0.0',
+        }],
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
 })
 
 describe('for ExtensionHost', () => {
+  it('rejects an incompatible AIRI version before importing the entrypoint', async () => {
+    const host = new ExtensionHost({ runtime: 'node', airiVersion: '1.0.0' })
+
+    await expect(host.start({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'future-extension',
+      version: '1.0.0',
+      engines: { airi: '>=99.0.0', runtimes: ['node'] },
+      permissions: {},
+      entrypoints: { node: './missing-entrypoint.mjs' },
+    })).rejects.toThrow('requires AIRI `>=99.0.0`')
+  })
+
   it('runs extension setup and registers multiple module sessions', async () => {
     const host = new ExtensionHost()
     const extension = defineExtension({
@@ -52,15 +335,18 @@ describe('for ExtensionHost', () => {
 
     const session = await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-test',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {},
         entrypoints: {},
       },
     })
 
     expect(session.extension.id).toBe('airi-extension-test')
+    expect(session.extension.version).toBe('1.0.0')
     expect(host.listModules().map(module => module.id)).toEqual(['module-a', 'module-b'])
   })
 
@@ -73,9 +359,11 @@ describe('for ExtensionHost', () => {
 
     await expect(host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-manifest-id',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {},
         entrypoints: {},
       },
@@ -108,9 +396,11 @@ describe('for ExtensionHost', () => {
 
     await expect(host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-failing',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {},
         entrypoints: {},
       },
@@ -154,9 +444,11 @@ describe('for ExtensionHost', () => {
 
     await expect(host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-cleanup-failure',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [
             { key: 'kit.cleanup-failure', actions: ['invoke'] },
@@ -223,9 +515,11 @@ describe('for ExtensionHost', () => {
 
     const session = await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-module-dispose',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions,
         entrypoints: {},
       },
@@ -258,9 +552,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-direct-kit',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.extension-direct', actions: ['invoke'] }],
         },
@@ -296,9 +592,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-direct-kit-denied',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.other', actions: ['invoke'] }],
         },
@@ -334,9 +632,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-direct-kit-resolver-denied',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.extension-resolver-denied', actions: ['invoke'] }],
         },
@@ -363,14 +663,16 @@ describe('for ExtensionHost', () => {
     host.registerKitApi(kit)
 
     const manifest = {
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'airi-extension-direct-kit-persisted-revoked',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {
         apis: [{ key: 'kit.extension-persisted-revoked', actions: ['invoke'] }],
       },
       entrypoints: {},
-    } satisfies ExtensionManifestV1
+    } satisfies ExtensionManifestV2
 
     const grantedExtension = defineExtension({
       id: 'airi-extension-direct-kit-persisted-revoked',
@@ -423,9 +725,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-module-inherited-grant',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.module-inherited-grant', actions: ['invoke'] }],
         },
@@ -467,9 +771,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-module-kit-resolver-denied',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.module-resolver-denied', actions: ['invoke'] }],
         },
@@ -498,9 +804,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-direct-kit-watch',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.extension-watch', actions: ['invoke'] }],
         },
@@ -533,9 +841,11 @@ describe('for ExtensionHost', () => {
 
     const session = await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-direct-kit-watch-dispose',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.extension-watch-dispose', actions: ['invoke'] }],
         },
@@ -582,9 +892,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-kit-test',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.*', actions: ['invoke'] }],
         },
@@ -623,9 +935,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-module-kit-watch-dispose',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.module-watch-dispose', actions: ['invoke'] }],
         },
@@ -663,9 +977,11 @@ describe('for ExtensionHost', () => {
 
     const session = await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-duplicate-module',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {},
         entrypoints: {},
       },
@@ -696,9 +1012,11 @@ describe('for ExtensionHost', () => {
 
     const session = await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-async-stop-cleanup',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {},
         entrypoints: {},
       },
@@ -742,9 +1060,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-kit-denied',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.other', actions: ['invoke'] }],
         },
@@ -776,9 +1096,11 @@ describe('for FileSystemLoader', () => {
     const host = new ExtensionHost()
 
     await host.start({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-define-extension-entrypoint',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {},
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-define-extension-entrypoint.ts'),
@@ -799,9 +1121,11 @@ describe('for FileSystemLoader', () => {
     testEntrypoint.disposedSessionIds.splice(0)
 
     const session = await host.start({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-stoppable-extension-entrypoint',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {},
       entrypoints: {
         electron: entrypointPath,
@@ -829,9 +1153,11 @@ describe('for FileSystemLoader', () => {
     testEntrypoint.disposedSessionIds.splice(0)
 
     const session = await host.start({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-stoppable-extension-entrypoint',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {},
       entrypoints: {
         electron: entrypointPath,
@@ -845,13 +1171,15 @@ describe('for FileSystemLoader', () => {
     expect(host.listModules().map(module => module.id)).toEqual(['stoppable-extension-module'])
   })
 
-  it('should resolve runtime-specific extension entrypoint with node fallback', async () => {
+  it('should load a runtime-specific extension entrypoint', async () => {
     const host = new FileSystemLoader()
 
     const extension = await host.loadExtensionFor({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
       entrypoints: {
         node: join(import.meta.dirname, 'testdata', 'test-define-extension-entrypoint.ts'),
@@ -867,9 +1195,11 @@ describe('for FileSystemLoader', () => {
     const host = new FileSystemLoader()
 
     await expect(host.loadExtensionFor({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: testPermissions,
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-invalid-extension-entrypoint.ts'),
@@ -877,14 +1207,16 @@ describe('for FileSystemLoader', () => {
     }, { cwd: '', runtime: 'electron' })).rejects.toThrow('Failed to resolve extension module. The entrypoint must export defineExtension(...).')
   })
 
-  it('should resolve entrypoint by runtime then default then electron', () => {
+  it('should resolve entrypoint by runtime then default', () => {
     const host = new FileSystemLoader()
     const baseManifest = {
-      apiVersion: 'v1' as const,
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
-    }
+    } satisfies Omit<ExtensionManifestV2, 'entrypoints'>
 
     const runtimeEntryManifest = {
       ...baseManifest,
@@ -901,13 +1233,6 @@ describe('for FileSystemLoader', () => {
         electron: './electron-entry.ts',
       },
     }
-    const electronFallbackManifest = {
-      ...baseManifest,
-      entrypoints: {
-        electron: './electron-entry.ts',
-      },
-    }
-
     expect(host.resolveEntrypointFor(runtimeEntryManifest, {
       cwd: '/tmp/extension',
       runtime: 'node',
@@ -917,20 +1242,42 @@ describe('for FileSystemLoader', () => {
       cwd: '/tmp/extension',
       runtime: 'node',
     })).toBe('/tmp/extension/default-entry.ts')
+  })
 
-    expect(host.resolveEntrypointFor(electronFallbackManifest, {
+  it('should reject a runtime that the extension does not support', () => {
+    const host = new FileSystemLoader()
+
+    // ROOT CAUSE:
+    //
+    // Entrypoint resolution ignored engines.runtimes. A host could therefore
+    // execute a default or runtime-named entrypoint even when the manifest
+    // explicitly excluded the active runtime.
+    expect(() => host.resolveEntrypointFor({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai' as const,
+      id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['web'] },
+      permissions: testPermissions,
+      entrypoints: {
+        default: './default-entry.ts',
+        electron: './electron-entry.ts',
+      },
+    }, {
       cwd: '/tmp/extension',
-      runtime: 'node',
-    })).toBe('/tmp/extension/electron-entry.ts')
+      runtime: 'electron',
+    })).toThrow('does not support runtime `electron`')
   })
 
   it('should preserve absolute runtime entrypoints', () => {
     const host = new FileSystemLoader()
 
     expect(host.resolveEntrypointFor({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
       entrypoints: {
         node: '/opt/extensions/entry.ts',
@@ -945,9 +1292,11 @@ describe('for FileSystemLoader', () => {
     const host = new FileSystemLoader()
 
     expect(() => host.resolveEntrypointFor({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
       entrypoints: {},
     }, { runtime: 'node' })).toThrow('Extension entrypoint is required for runtime `node`.')
@@ -959,9 +1308,11 @@ describe('for migrated extension testdata', () => {
     const host = new ExtensionHost()
 
     const session = await host.start({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-plugin',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {},
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
@@ -976,9 +1327,11 @@ describe('for migrated extension testdata', () => {
     const host = new ExtensionHost()
 
     await expect(host.start({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-plugin-no-connect',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {},
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-no-connect-plugin.ts'),
@@ -994,9 +1347,11 @@ describe('for migrated extension testdata', () => {
     host.registerKitApi(testWidgetKit)
 
     const session = await host.start({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-plugin-injected-host-apis',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {
         apis: [{ key: testWidgetKit.id, actions: ['invoke'] }],
       },

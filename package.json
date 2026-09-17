@@ -74,6 +74,7 @@
     "eslint-plugin-format": "catalog:",
     "eslint-plugin-oxlint": "catalog:",
     "eslint-plugin-perfectionist": "catalog:",
+    "eslint-plugin-slop": "catalog:",
     "knip": "catalog:",
     "nano-staged": "catalog:",
     "oxc-minify": "catalog:",
