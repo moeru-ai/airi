@@ -7,6 +7,8 @@ import { z } from 'zod'
 
 const discoveredModelSchema = z.object({
   id: z.string(),
+  inputModalities: z.array(z.string()).optional(),
+  architecture: z.object({ input_modalities: z.array(z.string()).optional() }).optional(),
   name: z.string().optional(),
   display_name: z.string().optional(),
   description: z.string().optional(),
@@ -29,6 +31,7 @@ export async function listModelCatalog(
     const model = discoveredModelSchema.parse(value)
     return {
       id: model.id,
+      inputModalities: model.inputModalities ?? model.architecture?.input_modalities,
       name: model.name ?? model.display_name ?? model.id,
       provider: route.providerId,
       description: model.description,
