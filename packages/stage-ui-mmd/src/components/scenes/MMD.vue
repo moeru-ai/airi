@@ -319,6 +319,10 @@ async function syncBackground() {
   // second time, and marks the background as already display-referred so tone mapping
   // leaves it alone.
   texture.colorSpace = SRGBColorSpace
+  // This renderer keeps three's premultiplied drawing buffer, and a background is
+  // written to it unblended, so the scene has to arrive premultiplied as well. Scene art
+  // is roughly half soft alpha, which is where the difference would show.
+  texture.premultiplyAlpha = true
 
   // A later scene wins, and so does a later stage: both can be replaced while the
   // texture loads.
