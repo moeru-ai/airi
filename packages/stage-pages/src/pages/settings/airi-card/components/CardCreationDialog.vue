@@ -15,10 +15,11 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
+import { Button, FieldInput, FieldValues, SelectTab } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import {
+  DialogClose,
   DialogContent,
   DialogOverlay,
   DialogPortal,
@@ -311,26 +312,46 @@ interface Tab {
   icon: string
 }
 
+// Module section styling shared by the chat / vision / speech / body groups.
+const moduleSectionClasses = [
+  'rounded-xl border border-neutral-200/70 dark:border-neutral-800',
+  'bg-neutral-50/60 dark:bg-neutral-900/40',
+  'p-4',
+]
+const moduleSectionHeaderClasses = [
+  'mb-3 flex items-center gap-2',
+  'text-sm font-semibold text-neutral-700 dark:text-neutral-200',
+]
+const moduleFieldLabelClasses = [
+  'text-xs font-medium text-neutral-500 dark:text-neutral-400',
+]
+
 // Active tab ID state
 const activeTabId = ref('')
 
 // Tabs for card details
-const tabs: Tab[] = [
+const tabs = computed<Tab[]>(() => [
   { id: 'identity', label: t('settings.pages.card.creation.identity'), icon: 'i-solar:emoji-funny-square-bold-duotone' },
   { id: 'behavior', label: t('settings.pages.card.creation.behavior'), icon: 'i-solar:chat-round-line-bold-duotone' },
   { id: 'modules', label: t('settings.pages.card.modules'), icon: 'i-solar:widget-4-bold-duotone' },
   { id: 'artistry', label: t('settings.pages.modules.artistry.title'), icon: 'i-solar:gallery-bold-duotone' },
   { id: 'settings', label: t('settings.pages.card.creation.settings'), icon: 'i-solar:settings-bold-duotone' },
-]
+])
+
+const tabOptions = computed(() => tabs.value.map(tab => ({
+  value: tab.id,
+  label: tab.label,
+  icon: tab.icon,
+})))
 
 // Active tab state - set to first available tab by default
 const activeTab = computed({
   get: () => {
     // If current active tab is not in available tabs, reset to first tab
-    if (!tabs.some(tab => tab.id === activeTabId.value)) {
-      if (props.initialTab && tabs.some(tab => tab.id === props.initialTab))
+    if (!tabs.value.some(tab => tab.id === activeTabId.value)) {
+      if (props.initialTab && tabs.value.some(tab => tab.id === props.initialTab))
         return props.initialTab
-      return tabs[0]?.id || ''
+      return tabs.value[0]?.id || ''
     }
     return activeTabId.value
   },
@@ -339,11 +360,10 @@ const activeTab = computed({
   },
 })
 
-async function selectTab(tabId: string) {
-  activeTab.value = tabId
-  if (tabId === 'modules')
+watch(activeTab, async (tabId) => {
+  if (props.modelValue && tabId === 'modules')
     await loadSelectedModuleOptions()
-}
+})
 
 // Preview discovery never commits runtime speech state. Closing the dialog or
 // changing its selection invalidates the response, including in-flight RPCs.
@@ -376,7 +396,7 @@ watch([
 // Reset active tab when dialog opens
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
-    if (props.initialTab && tabs.some(tab => tab.id === props.initialTab))
+    if (props.initialTab && tabs.value.some(tab => tab.id === props.initialTab))
       activeTabId.value = props.initialTab
     else
       activeTabId.value = '' // Let computed handle default
@@ -580,174 +600,218 @@ function getDefaultPlaceholder(): string {
   <DialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800 sm:p-6" @interact-outside.prevent>
-        <div class="w-full flex flex-col gap-5">
-          <DialogTitle text-2xl font-normal class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent">
-            {{ isEditMode ? t("settings.pages.card.edit_card") : t("settings.pages.card.create_card") }}
-          </DialogTitle>
-
-          <!-- Dialog tabs -->
-          <div class="mt-4">
-            <div class="border-b border-neutral-200 dark:border-neutral-700">
-              <div class="flex justify-center -mb-px sm:justify-start space-x-1">
-                <button
-                  v-for="tab in tabs"
-                  :key="tab.id"
-                  class="px-4 py-2 text-sm font-medium"
-                  :class="[
-                    activeTab === tab.id
-                      ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500 dark:border-primary-400'
-                      : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300',
-                  ]"
-                  @click="selectTab(tab.id)"
-                >
-                  <div class="flex items-center gap-1">
-                    <div :class="tab.icon" />
-                    {{ tab.label }}
-                  </div>
-                </button>
-              </div>
+      <DialogContent
+        :class="[
+          'fixed left-1/2 top-1/2 z-100 m-0 -translate-x-1/2 -translate-y-1/2',
+          'w-[92vw] max-w-3xl max-h-[85vh]',
+          'lg:w-[70vw] xl:w-[55vw]',
+          'flex flex-col overflow-hidden',
+          'rounded-2xl border border-neutral-200/70 dark:border-neutral-800',
+          'bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md',
+          'shadow-2xl',
+          'data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow',
+        ]"
+        @interact-outside.prevent
+      >
+        <!-- Header -->
+        <div :class="['flex items-center justify-between gap-4', 'px-6 pt-5']">
+          <div :class="['flex items-center gap-3']">
+            <div
+              :class="[
+                'flex size-10 shrink-0 items-center justify-center',
+                'rounded-xl bg-primary-500/10',
+                'text-xl text-primary-500 dark:text-primary-400',
+              ]"
+            >
+              <div :class="isEditMode ? 'i-solar:pen-new-square-bold-duotone' : 'i-solar:add-square-bold-duotone'" />
             </div>
+            <DialogTitle :class="['text-xl font-semibold', 'text-neutral-900 dark:text-neutral-100']">
+              {{ isEditMode ? t("settings.pages.card.edit_card") : t("settings.pages.card.create_card") }}
+            </DialogTitle>
+          </div>
+          <DialogClose
+            :class="[
+              'rounded-lg p-1.5',
+              'text-neutral-400',
+              'transition-colors',
+              'hover:bg-neutral-100 hover:text-neutral-600',
+              'dark:hover:bg-neutral-800 dark:hover:text-neutral-300',
+            ]"
+          >
+            <div class="i-solar:close-circle-bold-duotone text-xl" />
+          </DialogClose>
+        </div>
+
+        <!-- Dialog tabs -->
+        <div :class="['px-6 pt-4']">
+          <SelectTab
+            v-model="activeTab"
+            :options="tabOptions"
+            size="sm"
+            tab-space="compact"
+            class="w-full"
+          />
+        </div>
+
+        <!-- Scrollable content -->
+        <div :class="['min-h-0 flex-1 overflow-y-auto', 'px-6 py-5']">
+          <!-- Error banner -->
+          <div
+            v-if="showError"
+            :class="[
+              'mb-5 flex items-center gap-3',
+              'rounded-xl border border-red-500/30 bg-red-500/10',
+              'px-4 py-3 text-sm',
+              'text-red-600 dark:text-red-400',
+            ]"
+          >
+            <div class="i-solar:danger-triangle-bold-duotone shrink-0 text-lg" />
+            <p>{{ errorMessage }}</p>
           </div>
 
-          <!-- Error div -->
-          <div v-if="showError" class="w-full rounded-xl bg-red900">
-            <p class="w-full p-4">
-              {{ errorMessage }}
-            </p>
-          </div>
-
-          <!-- Actual content -->
           <!-- Identity details -->
-          <div v-if="activeTab === 'identity'" class="tab-content ml-auto mr-auto w-95%">
-            <p class="mb-3">
+          <div v-if="activeTab === 'identity'" :class="['flex flex-col gap-6']">
+            <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
               {{ t('settings.pages.card.creation.fields_info.subtitle') }}
             </p>
 
-            <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
+            <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
               <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
               <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
-              <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.description')" />
-              <FieldInput v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.notes')" />
+            </div>
+
+            <div :class="['grid grid-cols-1 gap-5']">
+              <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.description')" input-class="min-h-24" />
+              <FieldInput v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.notes')" input-class="min-h-24" />
             </div>
           </div>
           <!-- Behavior -->
-          <div v-else-if="activeTab === 'behavior'" class="tab-content ml-auto mr-auto w-95%">
-            <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.personality')" />
-              <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.scenario')" />
-              <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :description="t('settings.pages.card.creation.fields_info.greetings')" />
-            </div>
+          <div v-else-if="activeTab === 'behavior'" :class="['flex flex-col gap-5']">
+            <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.personality')" input-class="min-h-28" />
+            <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.scenario')" input-class="min-h-28" />
+            <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :description="t('settings.pages.card.creation.fields_info.greetings')" :required="false" />
           </div>
           <!-- Modules -->
-          <div v-else-if="activeTab === 'modules'" class="tab-content ml-auto mr-auto w-95%">
-            <p class="mb-3">
+          <div v-else-if="activeTab === 'modules'" :class="['flex flex-col gap-5']">
+            <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
               {{ t('settings.pages.card.creation.modules_info') }}
             </p>
 
-            <div :class="['grid', 'grid-cols-1', 'sm:grid-cols-2', 'gap-4', 'ml-auto', 'mr-auto', 'w-90%']">
-              <!-- Consciousness Provider -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:brain />
-                  {{ t('settings.pages.card.chat.provider') }}
-                </label>
-                <ComboboxSelect
-                  v-model="consciousnessProviderSelection"
-                  :options="consciousnessProviderOptions"
-                  :placeholder="getDefaultPlaceholder()"
-                  class="w-full"
-                />
+            <!-- Chat -->
+            <section :class="moduleSectionClasses">
+              <div :class="moduleSectionHeaderClasses">
+                <div i-lucide:brain :class="['text-base text-primary-500 dark:text-primary-400']" />
+                {{ t('settings.pages.card.creation.sections.chat') }}
               </div>
-
-              <!-- Consciousness Model -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:ghost />
-                  {{ t('settings.pages.card.consciousness.model') }}
-                </label>
-                <ComboboxSelect
-                  v-model="consciousnessModelSelection"
-                  :options="consciousnessModelOptions"
-                  :placeholder="getDefaultPlaceholder()"
-                  class="w-full"
-                />
+              <div :class="['grid grid-cols-1 gap-4', 'sm:grid-cols-2']">
+                <div :class="['flex flex-col gap-1.5']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.chat.provider') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="consciousnessProviderSelection"
+                    :options="consciousnessProviderOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
+                <div :class="['flex flex-col gap-1.5']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.consciousness.model') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="consciousnessModelSelection"
+                    :options="consciousnessModelOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
               </div>
+            </section>
 
-              <!-- Vision Provider -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:eye />
-                  {{ t('settings.pages.card.vision.provider') }}
-                </label>
-                <ComboboxSelect
-                  v-model="visionProviderSelection"
-                  :options="visionProviderOptions"
-                  :placeholder="getDefaultPlaceholder()"
-                  class="w-full"
-                />
+            <!-- Vision -->
+            <section :class="moduleSectionClasses">
+              <div :class="moduleSectionHeaderClasses">
+                <div i-lucide:eye :class="['text-base text-primary-500 dark:text-primary-400']" />
+                {{ t('settings.pages.card.creation.sections.vision') }}
               </div>
-
-              <!-- Vision Model -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:scan-eye />
-                  {{ t('settings.pages.card.vision.model') }}
-                </label>
-                <ComboboxSelect
-                  v-model="visionModelSelection"
-                  :options="visionModelOptions"
-                  :placeholder="getDefaultPlaceholder()"
-                  class="w-full"
-                />
+              <div :class="['grid grid-cols-1 gap-4', 'sm:grid-cols-2']">
+                <div :class="['flex flex-col gap-1.5']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.vision.provider') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="visionProviderSelection"
+                    :options="visionProviderOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
+                <div :class="['flex flex-col gap-1.5']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.vision.model') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="visionModelSelection"
+                    :options="visionModelOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
               </div>
+            </section>
 
-              <!-- Speech Provider -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:radio />
-                  {{ t('settings.pages.card.speech.provider') }}
-                </label>
-                <ComboboxSelect
-                  v-model="speechProviderSelection"
-                  :options="speechProviderOptions"
-                  :placeholder="getDefaultPlaceholder()"
-                  class="w-full"
-                />
+            <!-- Speech -->
+            <section :class="moduleSectionClasses">
+              <div :class="moduleSectionHeaderClasses">
+                <div i-lucide:mic :class="['text-base text-primary-500 dark:text-primary-400']" />
+                {{ t('settings.pages.card.creation.sections.speech') }}
               </div>
-
-              <!-- Speech Model -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:mic />
-                  {{ t('settings.pages.card.speech.model') }}
-                </label>
-                <ComboboxSelect
-                  v-model="speechModelSelection"
-                  :options="speechModelOptions"
-                  :placeholder="getDefaultPlaceholder()"
-                  class="w-full"
-                />
+              <div :class="['grid grid-cols-1 gap-4', 'sm:grid-cols-2']">
+                <div :class="['flex flex-col gap-1.5']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.speech.provider') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="speechProviderSelection"
+                    :options="speechProviderOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
+                <div :class="['flex flex-col gap-1.5']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.speech.model') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="speechModelSelection"
+                    :options="speechModelOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
+                <div :class="['flex flex-col gap-1.5', 'sm:col-span-2']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.speech.voice') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="speechVoiceSelection"
+                    :options="speechVoiceOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
               </div>
+            </section>
 
-              <!-- Speech Voice -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:music />
-                  {{ t('settings.pages.card.speech.voice') }}
-                </label>
-                <ComboboxSelect
-                  v-model="speechVoiceSelection"
-                  :options="speechVoiceOptions"
-                  :placeholder="getDefaultPlaceholder()"
-                  class="w-full"
-                />
+            <!-- Body -->
+            <section :class="moduleSectionClasses">
+              <div :class="moduleSectionHeaderClasses">
+                <div i-solar:ghost-bold-duotone :class="['text-base text-primary-500 dark:text-primary-400']" />
+                {{ t('settings.pages.card.creation.sections.body') }}
               </div>
-
-              <!-- Display Model (Body) -->
-              <div :class="['flex', 'flex-col', 'gap-2', 'sm:col-span-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-solar:ghost-bold-duotone />
+              <div :class="['flex flex-col gap-1.5']">
+                <label :class="moduleFieldLabelClasses">
                   {{ t('settings.pages.card.body-model') }}
                 </label>
                 <ComboboxSelect
@@ -757,13 +821,13 @@ function getDefaultPlaceholder(): string {
                   class="w-full"
                 />
               </div>
-            </div>
+            </section>
           </div>
           <!-- Settings -->
-          <div v-else-if="activeTab === 'settings'" class="tab-content ml-auto mr-auto w-95%">
-            <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.systemprompt')" />
-              <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" />
+          <div v-else-if="activeTab === 'settings'" :class="['flex flex-col gap-5']">
+            <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.systemprompt')" input-class="min-h-32" />
+            <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" input-class="min-h-24" />
+            <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
               <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
             </div>
           </div>
@@ -781,45 +845,38 @@ function getDefaultPlaceholder(): string {
             :artistry-provider-options="artistryProviderOptions"
             :default-artistry-provider-placeholder="getDefaultPlaceholder()"
           />
+        </div>
 
-          <div class="ml-auto mr-1 flex flex-row gap-2">
-            <Button
-
-              icon="i-solar:undo-left-bold-duotone"
-              :label="t('settings.pages.card.cancel')"
-              :disabled="false"
-              @click="modelValue = false"
-            />
-            <Button
-              icon="i-solar:check-circle-bold-duotone"
-              :label="t('settings.pages.card.save')"
-              :disabled="false"
-              @click="saveCard(card, false)"
-            />
-            <Button
-              v-if="!isEditingActiveCard"
-
-              icon="i-solar:play-circle-bold-duotone"
-              :label="t('settings.pages.card.save_and_activate')"
-              :disabled="false"
-              @click="saveCard(card, true)"
-            />
-          </div>
+        <!-- Footer -->
+        <div
+          :class="[
+            'flex items-center justify-end gap-2',
+            'border-t border-neutral-200/70 dark:border-neutral-800',
+            'px-6 py-4',
+          ]"
+        >
+          <Button
+            icon="i-solar:undo-left-bold-duotone"
+            :label="t('settings.pages.card.cancel')"
+            @click="modelValue = false"
+          />
+          <Button
+            icon="i-solar:check-circle-bold-duotone"
+            :label="t('settings.pages.card.save')"
+            color="primary"
+            variant="secondary"
+            @click="saveCard(card, false)"
+          />
+          <Button
+            v-if="!isEditingActiveCard"
+            icon="i-solar:play-circle-bold-duotone"
+            :label="t('settings.pages.card.save_and_activate')"
+            color="primary"
+            variant="primary"
+            @click="saveCard(card, true)"
+          />
         </div>
       </DialogContent>
     </DialogPortal>
   </DialogRoot>
 </template>
-
-<style scoped>
-.input-list > * {
-  min-width: 45%;
-}
-
-@media (max-width: 641px) {
-  .input-list > * {
-    min-width: unset;
-    width: 100%;
-  }
-}
-</style>
