@@ -60,8 +60,11 @@ describe('useCanvasPixelAtPoint', () => {
     const getContext = vi.fn(() => null)
     const canvas = { width: 200, height: 100, getContext } as unknown as HTMLCanvasElement
 
-    useCanvasPixelAtPoint(ref(canvas), ref(60), ref(30), '2d').pixel.value
+    const { pixel } = useCanvasPixelAtPoint(ref(canvas), ref(60), ref(30), '2d')
 
+    // Reading the pixel is what asks for the context, and a canvas that cannot give
+    // one reads as clear.
+    expect(Array.from(pixel.value)).toEqual([0, 0, 0, 0])
     expect(getContext).toHaveBeenCalledTimes(1)
     expect(getContext).toHaveBeenCalledWith('2d', { willReadFrequently: true })
   })
