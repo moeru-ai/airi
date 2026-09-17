@@ -11,7 +11,11 @@ export function createAppService(params: { context: ReturnType<typeof createCont
   defineInvokeHandler(params.context, electron.app.isMacOS, () => isMacOS)
   defineInvokeHandler(params.context, electron.app.isWindows, () => isWindows)
   defineInvokeHandler(params.context, electron.app.isLinux, () => isLinux)
-  defineInvokeHandler(params.context, electronAppOpenUserDataFolder, async () => {
+  defineInvokeHandler(params.context, electronAppOpenUserDataFolder, async (_, options) => {
+    if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
+      return
+    }
+
     const path = app.getPath('userData')
     const openResult = await shell.openPath(path)
     if (openResult) {
