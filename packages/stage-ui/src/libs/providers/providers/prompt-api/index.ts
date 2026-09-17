@@ -31,9 +31,7 @@ export const providerPromptAPICompatible = defineProvider<OpenAICompatibleConfig
     return createChatProvider()
   },
 
-  validationRequiredWhen(config) {
-    return !!config.apiKey?.trim()
-  },
+  validationRequiredWhen: () => true,
   validators: {
     validateConfig: [
       ({ t }) => ({
@@ -45,11 +43,12 @@ export const providerPromptAPICompatible = defineProvider<OpenAICompatibleConfig
         },
         validator: async () => {
           const errors: Array<{ error: unknown }> = []
-          let reason = 'Please refresh the page'
+          let reason = ''
           try {
             const availability = await checkPromptAvailability()
             switch (availability) {
               case 'available':
+                errors.length = 0
                 break
               case 'downloadable':
                 reason = 'The model is downloadable'
@@ -63,6 +62,9 @@ export const providerPromptAPICompatible = defineProvider<OpenAICompatibleConfig
                 reason = 'The Prompt API is unavailable'
                 errors.push({ error: new Error(reason) })
                 break
+              default:
+                reason = 'Please refresh the page'
+                errors.push({ error: new Error(reason) })
             }
           }
           catch (e) {
