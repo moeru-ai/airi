@@ -412,7 +412,7 @@ export const useChatStore = defineStore('chat', () => {
   async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
     const providerId = activeProvider.value
     const modelId = activeModel.value
-    if (!providerId || !modelId)
+    if ((!providerId || !modelId) && (providerId !== 'prompt-api'))
       throw new Error('No active chat provider or model configured')
 
     if (!await chatSession.loadSession(payload.sessionId))
