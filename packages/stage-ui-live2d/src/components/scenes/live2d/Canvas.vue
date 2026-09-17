@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { Application } from '@pixi/app'
+import { BatchRenderer, Texture } from '@pixi/core'
 import { extensions } from '@pixi/extensions'
+import { Sprite } from '@pixi/sprite'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
+import { coverRect } from '@proj-airi/stage-shared'
 import { Live2DModel } from 'pixi-live2d-display/cubism4'
 import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   width: number
   height: number
+  /**
+   * Scene painted behind the model, inside this canvas rather than under it, so one
+   * readback answers for the whole stage.
+   */
+  backgroundUrl?: string | null
   resolution?: number
   maxFps?: number
 }>(), {
@@ -57,6 +65,10 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
+  // The Live2D model draws through its own pipeline, so nothing here needed the batch
+  // renderer until the scene arrived as a sprite. Without it a sprite reaches a batch
+  // system that was never installed.
+  extensions.add(BatchRenderer)
   // We handle the interactions (e.g., mouse-based focusing at) manually
   // extensions.add(InteractionManager)
 
@@ -84,6 +96,56 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
 
   isPixiCanvasReady.value = true
   componentState.value = 'mounted'
+
+  await syncBackground()
+}
+
+const backgroundSprite = shallowRef<Sprite>()
+
+/** Fits the scene over the stage, matching the `cover` framing it had as a CSS layer. */
+function layoutBackground() {
+  const sprite = backgroundSprite.value
+  if (!sprite || !props.width || !props.height)
+    return
+
+  const rect = coverRect({ width: props.width, height: props.height }, sprite.texture)
+  sprite.x = rect.x
+  sprite.y = rect.y
+  sprite.width = rect.width
+  sprite.height = rect.height
+}
+
+async function syncBackground() {
+  const app = pixiApp.value
+  if (!app)
+    return
+
+  const url = props.backgroundUrl
+  if (!url) {
+    if (backgroundSprite.value) {
+      app.stage.removeChild(backgroundSprite.value)
+      backgroundSprite.value.destroy()
+      backgroundSprite.value = undefined
+    }
+    return
+  }
+
+  const texture = await Texture.fromURL(url)
+  // A later scene wins: loading is async and the card can change mid-flight.
+  if (props.backgroundUrl !== url || !pixiApp.value)
+    return
+
+  if (backgroundSprite.value) {
+    backgroundSprite.value.texture = texture
+  }
+  else {
+    const sprite = new Sprite(texture)
+    backgroundSprite.value = sprite
+    // Index 0 keeps it under the model, wherever the model lands in the stage.
+    app.stage.addChildAt(sprite, 0)
+  }
+
+  layoutBackground()
 }
 
 function handleResize() {
@@ -93,10 +155,13 @@ function handleResize() {
     pixiApp.value.stage.scale.set(props.resolution)
   }
 
+  layoutBackground()
+
   // The CSS styles handle the display size, so we don't need to manually set view dimensions
 }
 
 watch([() => props.width, () => props.height, () => props.resolution], handleResize)
+watch(() => props.backgroundUrl, () => void syncBackground())
 watch(() => props.maxFps, (limit) => {
   if (pixiApp.value)
     pixiApp.value.ticker.maxFPS = resolveMaxFps(limit)

@@ -249,6 +249,16 @@ const speechRuntimeStore = useSpeechRuntimeStore()
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
+/**
+ * Whether the active renderer draws the scene into its own canvas.
+ *
+ * One canvas holding both the scene and the model is what lets a single readback
+ * answer for the stage, which is how the desktop window decides where a click lands.
+ */
+const rendererPaintsScene = computed(() =>
+  stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie',
+)
+
 const { currentMotion } = storeToRefs(useLive2dParams())
 
 const emotionsQueue = createQueue<EmotionPayload>({
@@ -1070,9 +1080,14 @@ defineExpose({
 
 <template>
   <div relative h-full w-full>
-    <!-- Scene Background Layer -->
+    <!--
+      Scene Background Layer, for the renderers that do not paint the scene themselves
+      yet. A renderer that paints it inside its own canvas lets one readback answer for
+      the whole stage, which is what the desktop window hit-tests. Remove this layer,
+      and the list it is keyed on, once every renderer paints its own.
+    -->
     <div
-      v-if="activeBackgroundUrl"
+      v-if="activeBackgroundUrl && !rendererPaintsScene"
       :class="[
         'absolute left-0 top-0 z-0 h-full w-full',
         'transition-opacity duration-500',
@@ -1094,6 +1109,7 @@ defineExpose({
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
+        :background-url="activeBackgroundUrl"
         :cursor-position="cursorPosition"
         :mouth-open-size="mouthOpenSize"
         :now-speaking="nowSpeaking"
@@ -1141,6 +1157,7 @@ defineExpose({
         v-if="stageModelRenderer === 'tachie' && showStage"
         ref="tachieSceneRef"
         v-model:state="componentState"
+        :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" min-h="100 sm:100"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"

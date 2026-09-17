@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { Application } from '@pixi/app'
-import { BatchRenderer } from '@pixi/core'
+import { BatchRenderer, Texture } from '@pixi/core'
 import { extensions } from '@pixi/extensions'
+import { Sprite } from '@pixi/sprite'
+import { coverRect } from '@proj-airi/stage-shared'
 import { onMounted, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   width: number
   height: number
+  /**
+   * Scene painted behind the model, inside this canvas rather than under it, so one
+   * readback answers for the whole stage.
+   */
+  backgroundUrl?: string | null
   resolution?: number
 }>(), {
   resolution: 2,
@@ -34,6 +41,56 @@ function render() {
   }
 }
 
+const backgroundSprite = shallowRef<Sprite>()
+
+/** Fits the scene over the stage, matching the `cover` framing it had as a CSS layer. */
+function layoutBackground() {
+  const sprite = backgroundSprite.value
+  if (!sprite || !props.width || !props.height)
+    return
+
+  const rect = coverRect({ width: props.width, height: props.height }, sprite.texture)
+  sprite.x = rect.x
+  sprite.y = rect.y
+  sprite.width = rect.width
+  sprite.height = rect.height
+}
+
+async function syncBackground() {
+  const current = app.value
+  if (!current)
+    return
+
+  const url = props.backgroundUrl
+  if (!url) {
+    if (backgroundSprite.value) {
+      current.stage.removeChild(backgroundSprite.value)
+      backgroundSprite.value.destroy()
+      backgroundSprite.value = undefined
+      render()
+    }
+    return
+  }
+
+  const texture = await Texture.fromURL(url)
+  // A later scene wins: loading is async and the card can change mid-flight.
+  if (props.backgroundUrl !== url || app.value !== current)
+    return
+
+  if (backgroundSprite.value) {
+    backgroundSprite.value.texture = texture
+  }
+  else {
+    const sprite = new Sprite(texture)
+    backgroundSprite.value = sprite
+    // Index 0 keeps it under the model, wherever the model lands in the stage.
+    current.stage.addChildAt(sprite, 0)
+  }
+
+  layoutBackground()
+  render()
+}
+
 function resize() {
   if (!app.value)
     return
@@ -46,6 +103,7 @@ function resize() {
   // Model transforms use logical CSS pixels. Scaling the root stage maps those
   // coordinates onto the higher-resolution backing canvas.
   app.value.stage.scale.set(resolution)
+  layoutBackground()
   render()
 }
 
@@ -74,6 +132,8 @@ function initialize(parent: HTMLDivElement) {
   canvas.value = nextCanvas
   componentState.value = 'mounted'
   render()
+
+  void syncBackground()
 }
 
 async function captureFrame() {
@@ -87,6 +147,7 @@ async function captureFrame() {
 }
 
 watch([() => props.width, () => props.height, () => props.resolution], resize)
+watch(() => props.backgroundUrl, () => void syncBackground())
 
 onMounted(() => {
   if (containerRef.value)
