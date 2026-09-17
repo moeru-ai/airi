@@ -1530,7 +1530,8 @@ describe('setupExtensionHost', () => {
     const { service } = await setupExtensionHostServiceInternalForTest()
     await service.load(extensionId)
     const firstSessionId = service.host.listSessions()
-      .find(session => session.extension.id === extensionId)?.id
+      .find(session => session.extension.id === extensionId)
+      ?.id
     const stopSpy = vi.spyOn(service.host, 'stop')
     stopSpy.mockRejectedValueOnce(new Error('runtime stop failed'))
 
@@ -1538,7 +1539,8 @@ describe('setupExtensionHost', () => {
     await service.load(extensionId)
 
     const secondSessionId = service.host.listSessions()
-      .find(session => session.extension.id === extensionId)?.id
+      .find(session => session.extension.id === extensionId)
+      ?.id
     expect(stopSpy).toHaveBeenCalledTimes(2)
     expect(secondSessionId).toBeDefined()
     expect(secondSessionId).not.toBe(firstSessionId)

@@ -274,7 +274,8 @@ describe('createExtensionAssetService', () => {
     // cookie. If cookie removal fails, asking the server again returns no session
     // metadata, so the stale cookie cannot be retried without a separate ledger.
     await expect(service.revokeByOwnerSessionId('owner-session-1'))
-      .rejects.toThrow('cookie jar unavailable')
+      .rejects
+      .toThrow('cookie jar unavailable')
     await service.revokeByOwnerSessionId('owner-session-1')
 
     expect(server.revokeByOwnerSessionId).toHaveBeenCalledTimes(2)

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { ManagedExtensionSessions } from './managed-sessions'
 
-describe('ManagedExtensionSessions', () => {
+describe('managedExtensionSessions', () => {
   it('correlates loaded ownership with the exact session identity', () => {
     const extensionId = 'session-correlation-extension'
     const sessionId = 'loaded-session'

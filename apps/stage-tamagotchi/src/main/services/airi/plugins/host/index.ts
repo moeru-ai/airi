@@ -536,9 +536,7 @@ export async function setupExtensionHostServiceInternal(
     // Retry owners that are also absent from the target state after planned stops.
     const targetLoadedExtensionIdSet = new Set(plan.targetLoadedExtensionIds)
     const plannedUnloadExtensionIdSet = new Set(plan.unloadOrder)
-    const pendingCleanupExtensionIds = managedSessions.snapshot().cleanupPendingExtensionIds
-      .filter(extensionId => !targetLoadedExtensionIdSet.has(extensionId))
-      .filter(extensionId => !plannedUnloadExtensionIdSet.has(extensionId))
+    const pendingCleanupExtensionIds = managedSessions.snapshot().cleanupPendingExtensionIds.filter(extensionId => !targetLoadedExtensionIdSet.has(extensionId)).filter(extensionId => !plannedUnloadExtensionIdSet.has(extensionId))
     for (const extensionId of pendingCleanupExtensionIds) {
       await executeUnload(extensionId)
     }
