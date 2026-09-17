@@ -15,7 +15,7 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { BasicTextarea } from '@proj-airi/ui'
+import { BasicTextarea, GhostButton } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
@@ -28,11 +28,13 @@ import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
-import { artistryToolReferences, widgetToolReferences } from '../stores/tools'
+import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
 
 const router = useRouter()
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
 const lastEnterTime = ref(0)
+// Each request captures this composer selection, including retries and tool reruns.
+const computerUseEnabled = ref(true)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -64,7 +66,7 @@ const composer = useChatComposer<ImageComposerAttachment>({
       data: attachment.data,
       mimeType: attachment.mimeType,
     })),
-    tools: artistryToolReferences,
+    tools: computerUseEnabled.value ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences,
   }),
 })
 const {
@@ -234,7 +236,7 @@ async function handleRetryMessage(index: number) {
   await chatStore.retry({
     sessionId: chatSession.activeSessionId,
     index,
-    tools: widgetToolReferences,
+    tools: computerUseEnabled.value ? [...widgetToolReferences, ...computerUseToolReferences] : widgetToolReferences,
   })
   trackChatMessageRetried({
     source: 'history',
@@ -254,6 +256,7 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
     invocationId: payload.invocationId,
     toolName: payload.toolName,
     args: payload.args,
+    tools: computerUseEnabled.value ? computerUseToolReferences : [],
   })
 }
 </script>
@@ -333,19 +336,30 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
           </div>
         </div>
         <div :class="['flex shrink-0 items-center justify-end gap-2 py-1']">
+          <GhostButton
+            data-testid="computer-use-toggle"
+            size="unset"
+            :class="['h-9 gap-2 px-2 text-xs']"
+            :aria-label="t('stage.computer-use.label')"
+            :title="t('stage.computer-use.description')"
+            :active="computerUseEnabled"
+            :aria-pressed="computerUseEnabled"
+            :disabled="isActiveSessionSending"
+            @click="computerUseEnabled = !computerUseEnabled"
+          >
+            <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
+            <span>{{ t('stage.computer-use.label') }}</span>
+          </GhostButton>
           <DropdownMenuRoot>
             <DropdownMenuTrigger as-child>
-              <button
-                :class="[
-                  'max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none',
-                  'transition-colors transition-transform active:scale-95',
-                ]"
-                bg="neutral-100 dark:neutral-800"
-                text="lg neutral-500 dark:neutral-400"
+              <GhostButton
+                size="unset"
+                :class="['h-9 w-9']"
                 :title="t('stage.send-mode.title')"
+                :aria-label="t('stage.send-mode.title')"
               >
-                <div class="i-solar:keyboard-bold-duotone" />
-              </button>
+                <span :class="['i-solar:keyboard-bold-duotone h-5 w-5']" />
+              </GhostButton>
             </DropdownMenuTrigger>
             <DropdownMenuPortal>
               <DropdownMenuContent
@@ -381,51 +395,37 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
             </DropdownMenuPortal>
           </DropdownMenuRoot>
 
-          <button
+          <GhostButton
             v-if="showStopSpeakingButton"
+            size="unset"
+            :class="['h-9 w-9']"
             data-testid="stop-speaking-button"
-            :class="[
-              'max-h-[10lh] min-h-[1lh]',
-            ]"
-            bg="neutral-100 dark:neutral-800"
-            text="lg neutral-500 dark:neutral-400"
-            hover:text="primary-500 dark:primary-400"
-            flex items-center justify-center rounded-md p-2 outline-none
-            transition-colors transition-transform active:scale-95
             title="Stop speaking"
             aria-label="Stop speaking"
             @click="stopSpeakingFromChat"
           >
-            <div class="i-solar:stop-circle-bold-duotone" />
-          </button>
+            <span :class="['i-solar:stop-circle-bold-duotone h-5 w-5']" />
+          </GhostButton>
 
-          <!-- Image Journal Deep Link -->
-          <button
-            class="max-h-[10lh] min-h-[1lh]"
-            bg="neutral-100 dark:neutral-800"
-            text="lg neutral-500 dark:neutral-400"
-            hover:text="primary-500 dark:primary-400"
-            flex items-center justify-center rounded-md p-2 outline-none
-            transition-colors transition-transform active:scale-95
+          <GhostButton
+            size="unset"
+            :class="['h-9 w-9']"
             title="Image Journal"
+            aria-label="Image Journal"
             @click="navigateToImageJournal"
           >
-            <div class="i-solar:gallery-bold-duotone" />
-          </button>
+            <span :class="['i-solar:gallery-bold-duotone h-5 w-5']" />
+          </GhostButton>
 
-          <!-- Attach Image -->
-          <button
-            class="max-h-[10lh] min-h-[1lh]"
-            bg="neutral-100 dark:neutral-800"
-            text="lg neutral-500 dark:neutral-400"
-            hover:text="primary-500 dark:primary-400"
-            flex items-center justify-center rounded-md p-2 outline-none
-            transition-colors transition-transform active:scale-95
+          <GhostButton
+            size="unset"
+            :class="['h-9 w-9']"
             title="Attach Image"
+            aria-label="Attach Image"
             @click="handleManualAttach"
           >
-            <div class="i-solar:camera-add-bold-duotone" />
-          </button>
+            <span :class="['i-solar:camera-add-bold-duotone h-5 w-5']" />
+          </GhostButton>
           <input
             ref="fileInput"
             type="file"
