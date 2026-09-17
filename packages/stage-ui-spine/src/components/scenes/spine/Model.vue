@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { AnimationState, AssetManager, Skeleton, SpineCanvas, SpineCanvasApp } from '@esotericsoftware/spine-webgl'
+import type { AnimationState, AssetManager, GLTexture, Skeleton, SpineCanvas, SpineCanvasApp } from '@esotericsoftware/spine-webgl'
 
 import type { SpineAnimationManager } from '../../../composables/spine'
 import type { Emotion } from '../../../constants/emotions'
 import type { SpineModelVariant } from '../../../utils/spine-zip-loader'
 
+import { coverRect } from '@proj-airi/stage-shared'
 import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { nextTick, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
@@ -17,6 +18,11 @@ import { detectSpineVersionFromBinary, detectSpineVersionFromJson } from '../../
 import { loadSpineZip } from '../../../utils/spine-zip-loader'
 
 const props = withDefaults(defineProps<{
+  /**
+   * Scene painted behind the model, inside this canvas rather than under it, so one
+   * readback answers for the whole stage.
+   */
+  backgroundUrl?: string | null
   modelSrc?: string
   modelId?: string
   canvas?: HTMLCanvasElement
@@ -65,6 +71,43 @@ const modelLoading = ref(false)
 
 // Live runtime objects.
 let spineCanvas: SpineCanvas | undefined
+let backgroundTexture: GLTexture | undefined
+/** The runtime is version-detected per model load; the scene needs it to make a texture. */
+let spineRuntime: Awaited<ReturnType<typeof loadSpineRuntime>> | undefined
+
+async function syncBackground() {
+  const canvas = spineCanvas
+  const url = props.backgroundUrl
+
+  backgroundTexture?.dispose()
+  backgroundTexture = undefined
+  if (!canvas || !url || !spineRuntime)
+    return
+
+  // A scene that cannot decode leaves the stage as it is, rather than throwing where
+  // nothing is waiting to catch it.
+  let image: HTMLImageElement
+  try {
+    image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const next = new Image()
+      next.onload = () => resolve(next)
+      next.onerror = () => reject(new Error(`failed to load ${url}`))
+      next.src = url
+    })
+  }
+  catch {
+    return
+  }
+
+  // A later scene wins, and so does a later canvas: both can be replaced while the
+  // image loads.
+  if (props.backgroundUrl !== url || spineCanvas !== canvas)
+    return
+
+  backgroundTexture = new spineRuntime.GLTexture(canvas.context, image)
+}
+
+watch(() => props.backgroundUrl, () => void syncBackground())
 let assetCleanup: (() => void) | undefined
 let animationManager: SpineAnimationManager | undefined
 let skeleton: Skeleton | undefined
@@ -183,6 +226,7 @@ async function loadModel() {
     if (!detectedVersion)
       detectedVersion = '4.2'
     const spine = await loadSpineRuntime(detectedVersion)
+    spineRuntime = spine
     console.info(`[Spine] Detected skeleton version: ${detectedVersion}`)
 
     if (isUnmounted) {
@@ -305,6 +349,16 @@ async function loadModel() {
           sc.gl.clearColor(0, 0, 0, 0)
           sc.gl.clear(sc.gl.COLOR_BUFFER_BIT)
           renderer.begin()
+          if (backgroundTexture) {
+            // The camera sits at world origin, so a centred `cover` rectangle is just
+            // half its own size either side of it.
+            const camera = renderer.camera
+            const rect = coverRect(
+              { width: camera.viewportWidth, height: camera.viewportHeight },
+              { width: backgroundTexture.getImage().width, height: backgroundTexture.getImage().height },
+            )
+            renderer.drawTexture(backgroundTexture, -rect.width / 2, -rect.height / 2, rect.width, rect.height)
+          }
           renderer.drawSkeleton(skeleton, props.premultipliedAlpha)
           renderer.end()
         },

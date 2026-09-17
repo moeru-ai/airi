@@ -9,12 +9,13 @@
   * contract Stage.vue expects from every renderer.
 */
 
-import type { SkinnedMesh } from 'three'
+import type { SkinnedMesh, Texture } from 'three'
 
 import type { GazeOffset, MMDAnimationManager, MorphController } from '../../composables/mmd'
 import type { ResolvedMMDModel } from '../../utils/mmd-loader'
 
 import { errorMessageFrom } from '@moeru/std'
+import { coverRect } from '@proj-airi/stage-shared'
 import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import {
@@ -29,6 +30,8 @@ import {
   Quaternion,
   Scene,
   SRGBColorSpace,
+  TextureLoader,
+  Vector2,
   Vector3,
   WebGLRenderer,
 } from 'three'
@@ -63,6 +66,11 @@ const props = withDefaults(defineProps<{
   modelId?: string
   paused?: boolean
   cursorPosition?: { x: number, y: number }
+  /**
+   * Scene painted behind the model, inside this canvas rather than under it, so one
+   * readback answers for the whole stage.
+   */
+  backgroundUrl?: string | null
   currentAudioSource?: AudioBufferSourceNode
   enableOrbitControls?: boolean
 }>(), {
@@ -252,6 +260,71 @@ function frameCamera() {
   controls.update()
 }
 
+let backgroundTexture: Texture | undefined
+
+/**
+ * Fits the scene over the canvas, matching the `cover` framing it had as a CSS layer.
+ *
+ * A background texture covers the viewport whatever its own shape, so the fit is
+ * expressed by sampling a smaller window of it rather than by placing a rectangle.
+ */
+function layoutBackground() {
+  if (!backgroundTexture || !renderer)
+    return
+
+  // `Texture.image` is whatever the loader produced; a decoded image carries its size.
+  const image = backgroundTexture.image as { width?: number, height?: number } | undefined
+  if (!image?.width || !image?.height)
+    return
+
+  const size = renderer.getSize(new Vector2())
+  if (!size.x || !size.y)
+    return
+
+  const rect = coverRect({ width: size.x, height: size.y }, { width: image.width, height: image.height })
+  backgroundTexture.repeat.set(size.x / rect.width, size.y / rect.height)
+  backgroundTexture.offset.set(-rect.x / rect.width, -rect.y / rect.height)
+  backgroundTexture.needsUpdate = true
+}
+
+async function syncBackground() {
+  if (!scene)
+    return
+
+  const url = props.backgroundUrl
+  if (!url) {
+    scene.background = null
+    backgroundTexture?.dispose()
+    backgroundTexture = undefined
+    return
+  }
+
+  const owner = scene
+  // A scene that cannot decode leaves the stage as it is, rather than throwing where
+  // nothing is waiting to catch it.
+  let texture: Texture
+  try {
+    texture = await new TextureLoader().loadAsync(url)
+  }
+  catch {
+    return
+  }
+
+  // A later scene wins, and so does a later stage: both can be replaced while the
+  // texture loads.
+  if (props.backgroundUrl !== url || scene !== owner) {
+    texture.dispose()
+    return
+  }
+
+  backgroundTexture?.dispose()
+  backgroundTexture = texture
+  scene.background = texture
+  layoutBackground()
+}
+
+watch(() => props.backgroundUrl, () => void syncBackground())
+
 function resize() {
   if (!renderer || !camera || !canvasRef.value)
     return
@@ -262,6 +335,7 @@ function resize() {
   renderer.setSize(w, h, false)
   camera.aspect = w / h
   camera.updateProjectionMatrix()
+  layoutBackground()
 }
 
 function renderLoop() {

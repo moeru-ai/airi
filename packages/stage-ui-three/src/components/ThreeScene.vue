@@ -15,6 +15,7 @@ import type { VrmInteractionTarget } from '../composables/vrm/interaction'
 import type { SceneBootstrap, ScenePhase, Vec3 } from '../stores/model-store'
 import type { VrmLifecycleReason } from '../trace'
 
+import { coverRect } from '@proj-airi/stage-shared'
 import { Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
@@ -27,6 +28,7 @@ import {
   MathUtils,
   PerspectiveCamera,
   Raycaster,
+  TextureLoader,
   Vector2,
   Vector3,
 } from 'three'
@@ -56,6 +58,11 @@ const props = withDefaults(defineProps<{
   audioContext?: AudioContext
   currentAudioSource?: AudioBufferSourceNode
   cursorPosition?: { x: number, y: number }
+  /**
+   * Scene painted behind the model, inside this canvas rather than under it, so one
+   * readback answers for the whole stage.
+   */
+  backgroundUrl?: string | null
   /** Stable display model identity. Runtime resource URLs can change across reloads. */
   modelId: string
   modelSrc?: string
@@ -164,6 +171,74 @@ const vrmFrameRuntimeHook = shallowRef<VrmFrameRuntimeHook>()
 const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
 const tresContextRef = shallowRef<TresContext>()
+
+const backgroundTexture = shallowRef<Texture>()
+
+/**
+ * Fits the scene over the canvas, matching the `cover` framing it had as a CSS layer.
+ *
+ * A background texture covers the viewport whatever its own shape, so the fit is
+ * expressed by sampling a smaller window of it rather than by placing a rectangle.
+ */
+function layoutBackground() {
+  const texture = backgroundTexture.value
+  const renderer = tresContextRef.value?.renderer.instance
+  if (!texture || !renderer)
+    return
+
+  // `Texture.image` is whatever the loader produced; a decoded image carries its size.
+  const image = texture.image as { width?: number, height?: number } | undefined
+  if (!image?.width || !image?.height)
+    return
+
+  const size = renderer.getSize(new Vector2())
+  if (!size.x || !size.y)
+    return
+
+  const rect = coverRect({ width: size.x, height: size.y }, { width: image.width, height: image.height })
+  texture.repeat.set(size.x / rect.width, size.y / rect.height)
+  texture.offset.set(-rect.x / rect.width, -rect.y / rect.height)
+  texture.needsUpdate = true
+}
+
+async function syncBackground() {
+  const context = tresContextRef.value
+  const scene = context?.scene.value
+  if (!scene)
+    return
+
+  const url = props.backgroundUrl
+  if (!url) {
+    scene.background = null
+    backgroundTexture.value?.dispose()
+    backgroundTexture.value = undefined
+    return
+  }
+
+  // A scene that cannot decode leaves the stage as it is, rather than throwing where
+  // nothing is waiting to catch it.
+  let texture: Texture
+  try {
+    texture = await new TextureLoader().loadAsync(url)
+  }
+  catch {
+    return
+  }
+
+  // A later scene wins, and so does a later context: both can be replaced while the
+  // texture loads.
+  if (props.backgroundUrl !== url || tresContextRef.value !== context) {
+    texture.dispose()
+    return
+  }
+
+  backgroundTexture.value?.dispose()
+  backgroundTexture.value = texture
+  scene.background = texture
+  layoutBackground()
+}
+
+watch(() => props.backgroundUrl, () => void syncBackground())
 const screenRef = ref<InstanceType<typeof Screen>>()
 const skyBoxEnvRef = ref<InstanceType<typeof SkyBox>>()
 const dirLightRef = ref<InstanceType<typeof DirectionalLight>>()
@@ -525,6 +600,7 @@ function onSkyBoxReady(EnvPayload: {
 // === Tres Canvas ===
 function onTresReady(context: TresContext) {
   tresContextRef.value = context
+  void syncBackground()
   canvasReady.value = true
   context.renderer.instance.domElement.addEventListener('pointerdown', onCanvasPointerDown)
   context.renderer.instance.domElement.addEventListener('pointerup', onCanvasPointerUp)

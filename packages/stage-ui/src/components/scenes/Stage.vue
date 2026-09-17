@@ -14,7 +14,6 @@ import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
-import { coverRect } from '@proj-airi/stage-shared'
 import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
@@ -249,16 +248,6 @@ const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
-
-/**
- * Whether the active renderer draws the scene into its own canvas.
- *
- * One canvas holding both the scene and the model is what lets a single readback
- * answer for the stage, which is how the desktop window decides where a click lands.
- */
-const rendererPaintsScene = computed(() =>
-  stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie',
-)
 
 const { currentMotion } = storeToRefs(useLive2dParams())
 
@@ -1009,52 +998,12 @@ async function captureCharacterFrame() {
     return mmdSceneRef.value?.captureFrame()
 }
 
+/**
+ * The frame already carries the scene: every renderer paints it into the canvas it
+ * draws to, so what comes back is the whole picture.
+ */
 async function captureFrame() {
-  const charBlob = await captureCharacterFrame()
-
-  if (!activeBackgroundUrl.value || !charBlob)
-    return charBlob
-
-  // A renderer that paints the scene itself already returned it inside the frame.
-  // Compositing again would redraw the same picture over itself.
-  if (rendererPaintsScene.value)
-    return charBlob
-
-  try {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    if (!ctx)
-      return charBlob
-
-    // Load background image
-    const bgImg = new Image()
-    bgImg.crossOrigin = 'anonymous'
-    bgImg.src = activeBackgroundUrl.value
-    await new Promise((resolve, reject) => {
-      bgImg.onload = resolve
-      bgImg.onerror = reject
-    })
-
-    // Load character frame
-    const charImg = await createImageBitmap(charBlob)
-
-    // Match canvas size to the captured frame (respects DPI/Render Scale)
-    canvas.width = charImg.width
-    canvas.height = charImg.height
-
-    const { x, y, width: w, height: h } = coverRect(canvas, bgImg)
-
-    ctx.drawImage(bgImg, x, y, w, h)
-
-    // Draw character on top
-    ctx.drawImage(charImg, 0, 0)
-
-    return new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
-  }
-  catch (error) {
-    console.error('[Stage] Failed to composite photo with background:', error)
-    return charBlob // Fallback to character-only
-  }
+  return captureCharacterFrame()
 }
 
 onUnmounted(() => {
@@ -1081,26 +1030,6 @@ defineExpose({
 
 <template>
   <div relative h-full w-full>
-    <!--
-      Scene Background Layer, for the renderers that do not paint the scene themselves
-      yet. A renderer that paints it inside its own canvas lets one readback answer for
-      the whole stage, which is what the desktop window hit-tests. Remove this layer,
-      and the list it is keyed on, once every renderer paints its own.
-    -->
-    <div
-      v-if="activeBackgroundUrl && !rendererPaintsScene"
-      :class="[
-        'absolute left-0 top-0 z-0 h-full w-full',
-        'transition-opacity duration-500',
-      ]"
-      :style="{
-        backgroundImage: `url(${activeBackgroundUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }"
-    />
-
     <div relative h-full w-full>
       <Live2DScene
         v-if="stageModelRenderer === 'live2d' && showStage"
@@ -1126,6 +1055,7 @@ defineExpose({
         v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
         v-model:state="componentState"
+        :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :model-id="stageModelSelected"
         :model-src="stageModelSelectedUrl"
@@ -1143,6 +1073,7 @@ defineExpose({
         v-if="stageModelRenderer === 'spine' && showStage"
         ref="spineSceneRef"
         v-model:state="componentState"
+        :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" min-h="100 sm:100"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
@@ -1172,6 +1103,7 @@ defineExpose({
         v-if="stageModelRenderer === 'mmd' && showStage"
         ref="mmdSceneRef"
         v-model:state="componentState"
+        :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" min-h="100 sm:100"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
