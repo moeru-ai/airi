@@ -96,6 +96,7 @@ export function useCanvasPixelAtPoint(
   canvas: MaybeRefOrGetter<HTMLCanvasElement | undefined>,
   pointX: MaybeRefOrGetter<number>,
   pointY: MaybeRefOrGetter<number>,
+  context: CanvasPixelContext = 'webgl',
 ): {
   inCanvas: Ref<boolean>
   pixel: Ref<Uint8Array | number[]>
@@ -121,12 +122,27 @@ export function useCanvasPixelAtPoint(
     if (!el || !inCanvas.value)
       return new Uint8Array([0, 0, 0, 0])
 
+    const xIn = xRef.value - left.value
+    const yIn = yRef.value - top.value
+
+    if (context === '2d') {
+      const context2d = el.getContext('2d', { willReadFrequently: true })
+      if (!context2d)
+        return new Uint8Array([0, 0, 0, 0])
+
+      const pixelX = Math.floor(xIn * (el.width / width.value))
+      const pixelY = Math.floor(yIn * (el.height / height.value))
+      try {
+        return Array.from(context2d.getImageData(pixelX, pixelY, 1, 1).data)
+      }
+      catch {
+        return new Uint8Array([0, 0, 0, 0])
+      }
+    }
+
     const gl = (el.getContext('webgl2') || el.getContext('webgl')) as WebGL2RenderingContext | WebGLRenderingContext | null
     if (!gl)
       return new Uint8Array([0, 0, 0, 0])
-
-    const xIn = xRef.value - left.value
-    const yIn = yRef.value - top.value
 
     const scaleX = gl.drawingBufferWidth / width.value
     const scaleY = gl.drawingBufferHeight / height.value
@@ -158,11 +174,24 @@ export function useCanvasPixelIsTransparent(
   return computed(() => pixel.value[3] < threshold)
 }
 
+/**
+ * Which context reads the pixels.
+ *
+ * It is declared rather than discovered: `getContext` creates a context on a canvas
+ * that has none, and a canvas locked to one kind can never serve the other.
+ */
+export type CanvasPixelContext = '2d' | 'webgl'
+
 export function useCanvasPixelIsTransparentAtPoint(
   canvas: MaybeRefOrGetter<HTMLCanvasElement | undefined>,
   pointX: MaybeRefOrGetter<number>,
   pointY: MaybeRefOrGetter<number>,
-  optionsOrThreshold: number | { threshold?: number, regionRadius?: number } = 10,
+  optionsOrThreshold: number | {
+    threshold?: number
+    regionRadius?: number
+    /** @default 'webgl' — `regionRadius` reads WebGL whatever this says. */
+    context?: CanvasPixelContext
+  } = 10,
 ): Ref<boolean> {
   const options = typeof optionsOrThreshold === 'number'
     ? { threshold: optionsOrThreshold, regionRadius: 0 }
@@ -172,7 +201,7 @@ export function useCanvasPixelIsTransparentAtPoint(
   const radius = Math.max(0, options?.regionRadius ?? 0)
 
   if (radius === 0) {
-    const { pixel } = useCanvasPixelAtPoint(canvas, pointX, pointY)
+    const { pixel } = useCanvasPixelAtPoint(canvas, pointX, pointY, options?.context ?? 'webgl')
     return useCanvasPixelIsTransparent(pixel, threshold)
   }
 

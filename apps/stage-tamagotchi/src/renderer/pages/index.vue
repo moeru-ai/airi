@@ -54,6 +54,7 @@ const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
+const stageBackgroundCanvas = toRef(() => widgetStageRef.value?.backgroundCanvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
 const stageMounted = computed(() => componentStateStage.value === 'mounted')
 const isLoading = computed(() => !stageMounted.value)
@@ -89,6 +90,13 @@ const isTransparentByPixelsExact = useCanvasPixelIsTransparentAtPoint(
   stageCanvas,
   relativeMouseX,
   relativeMouseY,
+)
+// The scene draws into its own canvas, so the same sampler answers for it.
+const isBackgroundTransparentExact = useCanvasPixelIsTransparentAtPoint(
+  stageBackgroundCanvas,
+  relativeMouseX,
+  relativeMouseY,
+  { context: '2d' },
 )
 const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
   widgetStageRef,
@@ -154,6 +162,11 @@ const isTransparentForMouseEvents = computed(() => {
   // report a missing canvas as transparent, which would hand the whole window away,
   // character included, until the next scene reports itself.
   if (!stageCanvas.value)
+    return false
+
+  // The scene paints behind the model, so a pixel it covers is not see-through even
+  // where the model canvas is empty.
+  if (!isBackgroundTransparentExact.value)
     return false
 
   if (!isPointerOverStageCanvas.value)
@@ -330,7 +343,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
+  [isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isBackgroundTransparentExact, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
