@@ -26,10 +26,13 @@ function handleClick() {
 
 const pillElement = useTemplateRef<HTMLElement>('pill')
 
-// The stage page observes this element for cursor hit testing. It is the pill rather
-// than the container, which spans the full stage width and is not interactive.
+// The stage page observes these for cursor hit testing. The element is the pill rather
+// than the container, which spans the full stage width and is not interactive, and the
+// progress panel is reported separately because it renders through a portal, outside
+// the pill's bounds.
 defineExpose({
   get element() { return pillElement.value },
+  get overlayActive() { return loadingProgressOpen.value },
 })
 </script>
 

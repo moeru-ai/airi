@@ -29,7 +29,7 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { refDebounced, useBroadcastChannel, useMouseInElement } from '@vueuse/core'
+import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
@@ -53,7 +53,6 @@ import {
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
-const controlsIslandElement = toRef(() => controlsIslandRef.value?.element)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const resourceStatusIslandRef = ref<InstanceType<typeof ResourceStatusIsland>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
@@ -68,15 +67,9 @@ const onboardingStore = useOnboardingStore()
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
-// NOTICE:
-// The absolute cursor position can freeze on Ozone/Wayland, which would leave the
-// island click-through and its own buttons unreachable. Pair it with the DOM signal,
-// the same fallback the island itself uses, and treat either one as authoritative.
-// Source: https://github.com/moeru-ai/airi/issues/2521
-// Removal: when Ozone/Wayland reports the cursor position reliably.
-const { isOutside: isOutsideByCursor } = useElectronMouseInElement(controlsIslandElement)
-const { isOutside: isOutsideByDom } = useMouseInElement(controlsIslandElement)
-const isOutside = computed(() => isOutsideByCursor.value && isOutsideByDom.value)
+// The island already pairs its cursor signal with a DOM one and owns that decision, so
+// read its answer rather than mounting a second set of listeners over the same element.
+const isOutside = computed(() => controlsIslandRef.value?.isOutside ?? true)
 const resourceStatusElement = toRef(() => resourceStatusIslandRef.value?.element)
 const { isOutside: isOutsideResourceStatus } = useElectronMouseInElement(resourceStatusElement)
 /**
@@ -129,8 +122,7 @@ const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransp
 }))
 /**
  * Drives the Auto Hide fade. `true` means "do not fade", so any case without a usable
- * region sampler reports `true` and the stage stays visible. Gating on
- * `fadeOnHoverEnabled` also skips the region sampling, which is the expensive one.
+ * region sampler reports `true` and the stage stays visible.
  */
 const isTransparent = computed(() => {
   if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
@@ -178,6 +170,7 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
 const controlsOverlayActive = computed(() => controlsIslandRef.value?.overlayActive ?? false)
+const resourceStatusOverlayActive = computed(() => resourceStatusIslandRef.value?.overlayActive ?? false)
 
 const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
   const hasModel = !!stageModelSelectedUrl.value
@@ -298,7 +291,7 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  if (controlsOverlayActive.value) {
+  if (controlsOverlayActive.value || resourceStatusOverlayActive.value) {
     // Portaled controls must receive clicks even outside the Island's bounds.
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
@@ -334,7 +327,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [isOutside, isOutsideFor250Ms, isOverResourceStatus, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
+  [isOutside, isOutsideFor250Ms, isOverResourceStatus, resourceStatusOverlayActive, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
