@@ -71,6 +71,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const websocketAuthToken = useLocalStorage('settings/connection/websocket-auth-token', '')
   const registeredListeners: ChannelListenerEntry[] = []
   const replayableEvents = new Map<keyof WebSocketEvents, WebSocketBaseEvent<any, any>>()
+  const moduleStatusEvents = new Map<string, WebSocketBaseEvent<'module:status', WebSocketEvents['module:status']>>()
 
   const basePossibleEvents: Array<keyof WebSocketEvents> = [
     'context:update',
@@ -79,6 +80,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'module:announced',
     'module:configure',
     'module:de-announced',
+    'module:status',
+    'extension:module:de-announced',
     'module:consumer:register',
     'module:consumer:unregister',
     'module:authenticated',
@@ -144,8 +147,17 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         },
         possibleEvents,
         onAnyMessage: (event) => {
-          if (REPLAYABLE_EVENT_TYPES.has(event.type as keyof WebSocketEvents))
+          if (event.type === 'module:status') {
+            const moduleStatusEvent = event as WebSocketBaseEvent<'module:status', WebSocketEvents['module:status']>
+            moduleStatusEvents.set(moduleStatusEvent.data.identity.id, moduleStatusEvent)
+          }
+          else if (event.type === 'module:de-announced' || event.type === 'extension:module:de-announced') {
+            const { identity } = event.data as { identity: { id: string } }
+            moduleStatusEvents.delete(identity.id)
+          }
+          else if (REPLAYABLE_EVENT_TYPES.has(event.type as keyof WebSocketEvents)) {
             replayableEvents.set(event.type as keyof WebSocketEvents, event as WebSocketBaseEvent<any, any>)
+          }
 
           useWebSocketInspectorStore().add('incoming', event)
         },
@@ -284,9 +296,16 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     registeredListeners.push(entry)
     initializeListeners()
 
-    const replayableEvent = replayableEvents.get(type)
-    if (replayableEvent)
-      void Promise.resolve(callback(replayableEvent as WebSocketBaseEvent<E, WebSocketEvents[E]>))
+    if (type === 'module:status') {
+      for (const moduleStatusEvent of moduleStatusEvents.values()) {
+        void Promise.resolve(callback(moduleStatusEvent as WebSocketBaseEvent<E, WebSocketEvents[E]>))
+      }
+    }
+    else {
+      const replayableEvent = replayableEvents.get(type)
+      if (replayableEvent)
+        void Promise.resolve(callback(replayableEvent as WebSocketBaseEvent<E, WebSocketEvents[E]>))
+    }
 
     return () => {
       const index = registeredListeners.indexOf(entry)
@@ -356,6 +375,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     initializing.value = null
     clearListeners()
     replayableEvents.clear()
+    moduleStatusEvents.clear()
 
     if (client.value) {
       client.value.close()
