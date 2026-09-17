@@ -7,7 +7,6 @@ import { electron } from '@proj-airi/electron-eventa'
 import {
   useElectronEventaInvoke,
   useElectronMouseAroundWindowBorder,
-  useElectronMouseInElement,
   useElectronMouseInWindow,
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
@@ -53,7 +52,6 @@ import {
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
-const controlsIslandElement = toRef(() => controlsIslandRef.value?.element)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
@@ -67,7 +65,9 @@ const onboardingStore = useOnboardingStore()
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
-const { isOutside } = useElectronMouseInElement(controlsIslandElement)
+// The island already pairs its cursor signal with a DOM one and owns that decision, so
+// read its answer rather than mounting a second set of listeners over the same element.
+const isOutside = computed(() => controlsIslandRef.value?.isOutside ?? true)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
@@ -97,7 +97,7 @@ const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
 )
 
 const settingsStore = useSettings()
-const { stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
+const { alwaysOnTop, stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
 const modelStore = useModelStore()
 const expressionStore = useExpressionStore()
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
@@ -106,10 +106,13 @@ const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 const modelSettingsRuntimeOwnerInstanceId = `tamagotchi-main-stage:${Math.random().toString(36).slice(2, 10)}`
 const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransparency({
   componentState: componentStateStage.value,
-  fadeOnHoverEnabled: fadeOnHoverEnabled.value,
   stageModelRenderer: stageModelRenderer.value,
   stagePaused: stagePaused.value,
 }))
+/**
+ * Drives the Auto Hide fade. `true` means "do not fade", so any case without a usable
+ * region sampler reports `true` and the stage stays visible.
+ */
 const isTransparent = computed(() => {
   if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
     return true
@@ -122,17 +125,47 @@ const isTransparent = computed(() => {
 
   return true
 })
+/**
+ * Whether the cursor sits on the stage canvas rather than on interface drawn over it.
+ *
+ * The pixel test can only answer for the canvas, and the canvas draws nothing beneath a
+ * DOM overlay, so a button, a toast or a portaled panel floating over blank canvas
+ * would read as empty space and lose its clicks. Ask the document what is really under
+ * the cursor instead. This is a hit test, not an event, so it still answers while the
+ * window is click-through.
+ */
+const isPointerOverStageCanvas = computed(() =>
+  document.elementFromPoint(relativeMouseX.value, relativeMouseY.value) === stageCanvas.value,
+)
+/**
+ * Drives native click-through, and runs whether or not Auto Hide is on.
+ *
+ * `true` surrenders the pixel to the app below, the opposite sense of
+ * {@link isTransparent}. Every branch that cannot answer reports `false` and keeps the
+ * window interactive: an unmounted stage, a scene swap that left no canvas behind, and
+ * the renderers this does not cover yet. Godot needs that `false`, because it draws a
+ * DOM panel rather than to the canvas.
+ */
 const isTransparentForMouseEvents = computed(() => {
-  if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
-    return true
+  if (stagePaused.value || componentStateStage.value !== 'mounted')
+    return false
+
+  // A scene swap unmounts the canvas while the state still reads mounted. The samplers
+  // report a missing canvas as transparent, which would hand the whole window away,
+  // character included, until the next scene reports itself.
+  if (!stageCanvas.value)
+    return false
+
+  if (!isPointerOverStageCanvas.value)
+    return false
 
   if (stageModelRenderer.value === 'vrm')
-    return shouldUseThreeTransparencyHitTest.value ? isTransparentByThreeExact.value : true
+    return shouldUseThreeTransparencyHitTest.value ? isTransparentByThreeExact.value : false
 
   if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
     return isTransparentByPixelsExact.value
 
-  return true
+  return false
 })
 
 const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 10 })
@@ -247,7 +280,7 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
  * Upstream:
  * - {@link isOutsideFor250Ms} and {@link isAroundWindowBorderFor250Ms}
  * - {@link isOutsideWindow}, {@link isTransparent}, and {@link isTransparentForMouseEvents}
- * - {@link controlsOverlayActive}, {@link fadeOnHoverEnabled}, and {@link stagePaused}
+ * - {@link controlsOverlayActive}, {@link fadeOnHoverEnabled}, {@link alwaysOnTop}, and {@link stagePaused}
  *
  * Downstream:
  * - {@link resolveFadeOnHoverInteraction}
@@ -269,8 +302,11 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  const insideControls = !isOutsideFor250Ms.value
-  const nearBorder = isAroundWindowBorderFor250Ms.value
+  // Entering counts at once and leaving keeps the region for the debounce window.
+  // Waiting for the debounce on the way in would leave the button click-through for
+  // 250ms, which the pixel hit test reads as blank canvas and passes to the app below.
+  const insideControls = !isOutside.value || !isOutsideFor250Ms.value
+  const nearBorder = isAroundWindowBorder.value || isAroundWindowBorderFor250Ms.value
 
   if (insideControls || nearBorder) {
     // Inside interactive controls or near resize border: do NOT ignore events
@@ -280,6 +316,7 @@ function handleFadeOnHoverInteractionChange() {
   }
   else {
     const interaction = resolveFadeOnHoverInteraction({
+      alwaysOnTop: alwaysOnTop.value,
       cursorInsideWindow: !isOutsideWindow.value,
       enabled: fadeOnHoverEnabled.value,
       transparentForFade: isTransparent.value,
@@ -293,7 +330,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, stagePaused],
+  [isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -882,7 +919,7 @@ const cursorPosition = computed(() => ({
     leave-from-class="opacity-100"
     leave-to-class="opacity-50"
   >
-    <div v-if="isAroundWindowBorderFor250Ms && !isLoading" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
+    <div v-if="(isAroundWindowBorder || isAroundWindowBorderFor250Ms) && !isLoading" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
       <div
         :class="[
           'b-primary/50',
