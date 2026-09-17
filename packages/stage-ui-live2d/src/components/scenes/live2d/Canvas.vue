@@ -115,14 +115,15 @@ function layoutBackground() {
   sprite.height = rect.height
 }
 
-// Texture.fromURL hands back the cached instance for a URL, so returning to a scene
-// that is still on screen yields the very texture the sprite already holds. Freeing
-// that one would blank the stage, so the sprite's own texture is never ours to release.
-function releaseBackgroundTexture(texture: Texture) {
-  if (backgroundSprite.value?.texture === texture)
-    return
+// Pixi keys its texture cache on the URL, so Texture.fromURL hands the same instance to
+// every caller. Decoding here gives each sync a texture of its own, which is what lets
+// the release below be unconditional.
+async function loadBackgroundTexture(url: string) {
+  const image = new Image()
+  image.src = url
+  await image.decode()
 
-  texture.destroy(true)
+  return Texture.from(image)
 }
 
 async function syncBackground() {
@@ -144,7 +145,7 @@ async function syncBackground() {
   // the stage error surface and take a working model down with it.
   let texture: Texture
   try {
-    texture = await Texture.fromURL(url)
+    texture = await loadBackgroundTexture(url)
   }
   catch {
     return
@@ -153,14 +154,14 @@ async function syncBackground() {
   // A later scene wins, and so does a later app: both the source and the stage can be
   // replaced while the texture loads.
   if (props.backgroundUrl !== url || pixiApp.value !== current) {
-    releaseBackgroundTexture(texture)
+    texture.destroy(true)
     return
   }
 
   if (backgroundSprite.value) {
     const previous = backgroundSprite.value.texture
     backgroundSprite.value.texture = texture
-    releaseBackgroundTexture(previous)
+    previous.destroy(true)
   }
   else {
     const sprite = new Sprite(texture)
