@@ -315,6 +315,11 @@ async function syncBackground() {
     return
   }
 
+  // Scene art is authored in sRGB. Saying so keeps the renderer from encoding it a
+  // second time, and marks the background as already display-referred so tone mapping
+  // leaves it alone.
+  texture.colorSpace = SRGBColorSpace
+
   // A later scene wins, and so does a later stage: both can be replaced while the
   // texture loads.
   if (props.backgroundUrl !== url || scene !== owner) {
@@ -524,6 +529,8 @@ onUnmounted(() => {
   resizeObserver?.disconnect()
   disposeModel()
   controls?.dispose()
+  backgroundTexture?.dispose()
+  backgroundTexture = undefined
   if (renderer) {
     renderer.dispose()
     renderer.forceContextLoss()

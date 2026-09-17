@@ -65,7 +65,7 @@ async function syncBackground() {
   if (!url) {
     if (backgroundSprite.value) {
       current.stage.removeChild(backgroundSprite.value)
-      backgroundSprite.value.destroy()
+      backgroundSprite.value.destroy({ baseTexture: true, texture: true })
       backgroundSprite.value = undefined
       render()
     }
@@ -88,7 +88,11 @@ async function syncBackground() {
     return
 
   if (backgroundSprite.value) {
+    const previous = backgroundSprite.value.texture
     backgroundSprite.value.texture = texture
+    // A scene is a per-entry image that nothing else draws, so the one being replaced
+    // leaves the GPU with its sprite instead of outliving it in pixi's texture cache.
+    previous.destroy(true)
   }
   else {
     const sprite = new Sprite(texture)
@@ -165,10 +169,11 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  backgroundSprite.value?.destroy({ baseTexture: true, texture: true })
+  backgroundSprite.value = undefined
   app.value?.destroy(true)
   app.value = undefined
   canvas.value = undefined
-  backgroundSprite.value = undefined
 })
 
 defineExpose({

@@ -151,6 +151,10 @@ function disposeSpine() {
     }
     spineCanvas = undefined
   }
+  // The texture belongs to the disposed canvas's GL context. Keeping it would leave the
+  // next canvas drawing a handle registered against a context it does not own.
+  backgroundTexture?.dispose()
+  backgroundTexture = undefined
   assetCleanup?.()
   assetCleanup = undefined
   animationManager = undefined
@@ -356,6 +360,19 @@ async function loadModel() {
           sc.gl.clear(sc.gl.COLOR_BUFFER_BIT)
           renderer.begin()
           if (backgroundTexture) {
+            // The batcher keeps the blend the previous frame's last slot left, so the
+            // scene sets its own. drawSkeleton then sets one per slot.
+            const batcher = renderer.batcher
+            // NOTICE: spine 4.0 takes raw GL factors; 4.1+ takes a BlendMode. The
+            // loader types every runtime as 4.2. Both branches set the same blend.
+            // Removal condition: when 4.0 support is dropped.
+            if (batcher.setBlendMode.length === 3) {
+              const setGLBlend = batcher.setBlendMode as unknown as (src: number, srcAlpha: number, dst: number) => void
+              setGLBlend.call(batcher, sc.gl.SRC_ALPHA, sc.gl.ONE, sc.gl.ONE_MINUS_SRC_ALPHA)
+            }
+            else {
+              batcher.setBlendMode(spine.BlendMode.Normal, false)
+            }
             // The camera sits at world origin, so a centred `cover` rectangle is just
             // half its own size either side of it.
             const camera = renderer.camera

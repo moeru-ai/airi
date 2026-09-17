@@ -29,6 +29,7 @@ import {
   MathUtils,
   PerspectiveCamera,
   Raycaster,
+  SRGBColorSpace,
   TextureLoader,
   Vector2,
   Vector3,
@@ -232,6 +233,11 @@ async function syncBackground() {
   catch {
     return
   }
+
+  // Scene art is authored in sRGB. Saying so keeps the renderer from encoding it a
+  // second time, and marks the background as already display-referred so tone mapping
+  // leaves it alone.
+  texture.colorSpace = SRGBColorSpace
 
   // A later scene wins, and so does a later context: both can be replaced while the
   // texture loads.
@@ -712,6 +718,8 @@ onUnmounted(() => {
   emitSceneTransactionTrace('reset', 'component-unmount')
   setScenePhaseWithTrace('pending', 'component:unmount')
   disposeRenderTarget()
+  backgroundTexture.value?.dispose()
+  backgroundTexture.value = undefined
 })
 
 const effectProps = {

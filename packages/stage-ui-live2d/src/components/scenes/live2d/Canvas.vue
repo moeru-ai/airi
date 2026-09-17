@@ -124,7 +124,7 @@ async function syncBackground() {
   if (!url) {
     if (backgroundSprite.value) {
       current.stage.removeChild(backgroundSprite.value)
-      backgroundSprite.value.destroy()
+      backgroundSprite.value.destroy({ baseTexture: true, texture: true })
       backgroundSprite.value = undefined
     }
     return
@@ -146,7 +146,11 @@ async function syncBackground() {
     return
 
   if (backgroundSprite.value) {
+    const previous = backgroundSprite.value.texture
     backgroundSprite.value.texture = texture
+    // A scene is a per-entry image that nothing else draws, so the one being replaced
+    // leaves the GPU with its sprite instead of outliving it in pixi's texture cache.
+    previous.destroy(true)
   }
   else {
     const sprite = new Sprite(texture)
@@ -190,11 +194,14 @@ onMounted(async () => {
   }
 })
 onUnmounted(() => {
+  // Destroying the application detaches its children without freeing them, so the
+  // scene texture is released before the stage it hangs from disappears.
+  backgroundSprite.value?.destroy({ baseTexture: true, texture: true })
+  backgroundSprite.value = undefined
   pixiApp.value?.destroy()
   // Destroy leaves the ref truthy while nulling the stage, so anything still in flight
   // would reach for a stage that is gone.
   pixiApp.value = undefined
-  backgroundSprite.value = undefined
 })
 
 async function captureFrame() {
