@@ -2,7 +2,7 @@
 import { TransitionVertical } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
-import { ref, watch } from 'vue'
+import { ref, useTemplateRef, watch } from 'vue'
 
 import LoadingModules from './loading-modules.vue'
 
@@ -23,6 +23,14 @@ watch(atLeastOneLoading, (newVal) => {
 function handleClick() {
   loadingProgressOpen.value = !loadingProgressOpen.value
 }
+
+const pillElement = useTemplateRef<HTMLElement>('pill')
+
+// The stage page observes this element for cursor hit testing. It is the pill rather
+// than the container, which spans the full stage width and is not interactive.
+defineExpose({
+  get element() { return pillElement.value },
+})
 </script>
 
 <template>
@@ -33,6 +41,7 @@ function handleClick() {
           <Transition name="fade">
             <div
               v-if="atLeastOneLoadingDelay5s"
+              ref="pill"
               w="fit"
               bg="white/80 dark:neutral-900/80"
               mb-1 flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 text-sm shadow-md backdrop-blur-md
