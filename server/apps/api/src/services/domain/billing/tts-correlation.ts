@@ -34,6 +34,17 @@ export function resolveTtsBillingCorrelation(input: unknown): TtsBillingCorrelat
   return result.success ? result.output : undefined
 }
 
+/**
+ * Builds the persisted history key for one validated TTS round.
+ *
+ * @example
+ * createTtsBillingHistoryGroupKey({ conversationId: 'chat-1', roundId: 'turn-1' })
+ * // => '["tts_round","chat-1","turn-1"]'
+ */
+export function createTtsBillingHistoryGroupKey(correlation: TtsBillingCorrelation): string {
+  return JSON.stringify(['tts_round', correlation.conversationId, correlation.roundId])
+}
+
 /** Serializes a validated correlation pair for the Redis residual-owner key. */
 export function serializeTtsBillingCorrelation(correlation: TtsBillingCorrelation): string {
   return JSON.stringify(correlation)

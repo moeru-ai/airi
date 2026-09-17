@@ -85,6 +85,8 @@ describe('fluxTransactionService', () => {
   //
   // The server now pages display rows and uses both correlation fields.
   it('groups TTS charges by conversation and round before pagination', async () => {
+    const historyAKey = '["tts_round","conversation-a","round-1"]'
+    const historyBKey = '["tts_round","conversation-b","round-1"]'
     await db.insert(schema.fluxTransaction).values([
       {
         id: 'history-a-1',
@@ -94,6 +96,7 @@ describe('fluxTransactionService', () => {
         balanceBefore: 10,
         balanceAfter: 9,
         description: 'tts_request',
+        historyGroupKey: historyAKey,
         metadata: { conversationId: 'conversation-a', roundId: 'round-1' },
         createdAt: new Date('2026-09-17T12:00:01.000Z'),
       },
@@ -105,6 +108,7 @@ describe('fluxTransactionService', () => {
         balanceBefore: 9,
         balanceAfter: 7,
         description: 'tts_request',
+        historyGroupKey: historyAKey,
         metadata: { conversationId: 'conversation-a', roundId: 'round-1' },
         createdAt: new Date('2026-09-17T12:00:02.000Z'),
       },
@@ -116,8 +120,37 @@ describe('fluxTransactionService', () => {
         balanceBefore: 7,
         balanceAfter: 4,
         description: 'tts_request',
+        historyGroupKey: historyBKey,
         metadata: { conversationId: 'conversation-b', roundId: 'round-1' },
         createdAt: new Date('2026-09-17T12:00:03.000Z'),
+      },
+    ])
+    await db.insert(schema.fluxHistoryRow).values([
+      {
+        userId: 'user-history',
+        key: historyAKey,
+        kind: 'tts_round',
+        conversationId: 'conversation-a',
+        roundId: 'round-1',
+        description: 'tts_request',
+        chargeCount: 2,
+        totalAmount: 3,
+        firstTime: new Date('2026-09-17T12:00:01.000Z'),
+        lastTime: new Date('2026-09-17T12:00:02.000Z'),
+        latestEntryId: 'history-a-2',
+      },
+      {
+        userId: 'user-history',
+        key: historyBKey,
+        kind: 'tts_round',
+        conversationId: 'conversation-b',
+        roundId: 'round-1',
+        description: 'tts_request',
+        chargeCount: 1,
+        totalAmount: 3,
+        firstTime: new Date('2026-09-17T12:00:03.000Z'),
+        lastTime: new Date('2026-09-17T12:00:03.000Z'),
+        latestEntryId: 'history-b-1',
       },
     ])
 
@@ -168,6 +201,30 @@ describe('fluxTransactionService', () => {
         createdAt: new Date('2026-09-17T12:00:02.000Z'),
       },
     ])
+    await db.insert(schema.fluxHistoryRow).values([
+      {
+        userId: 'user-legacy-history',
+        key: 'transaction:legacy-tts-1',
+        kind: 'single',
+        description: 'tts_request',
+        chargeCount: 1,
+        totalAmount: 1,
+        firstTime: new Date('2026-09-17T12:00:01.000Z'),
+        lastTime: new Date('2026-09-17T12:00:01.000Z'),
+        latestEntryId: 'legacy-tts-1',
+      },
+      {
+        userId: 'user-legacy-history',
+        key: 'transaction:legacy-tts-2',
+        kind: 'single',
+        description: 'tts_request',
+        chargeCount: 1,
+        totalAmount: 1,
+        firstTime: new Date('2026-09-17T12:00:02.000Z'),
+        lastTime: new Date('2026-09-17T12:00:02.000Z'),
+        latestEntryId: 'legacy-tts-2',
+      },
+    ])
 
     const page = await service.getHistoryRows('user-legacy-history', 10, 0)
 
@@ -175,5 +232,111 @@ describe('fluxTransactionService', () => {
       { type: 'single', record: expect.objectContaining({ id: 'legacy-tts-2' }) },
       { type: 'single', record: expect.objectContaining({ id: 'legacy-tts-1' }) },
     ])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2491#discussion_r4034741609
+  it('preserves every entry when stored correlation is invalid', async () => {
+    // ROOT CAUSE:
+    //
+    // PostgreSQL btrim accepted a tab-only conversation ID that Valibot
+    // rejected. The grouped fallback then returned only the newest entry.
+    await db.insert(schema.fluxTransaction).values([
+      {
+        id: 'invalid-correlation-1',
+        userId: 'user-invalid-correlation',
+        type: 'debit',
+        amount: 1,
+        balanceBefore: 2,
+        balanceAfter: 1,
+        description: 'tts_request',
+        metadata: { conversationId: '\t', roundId: 'round-1' },
+        createdAt: new Date('2026-09-17T12:00:01.000Z'),
+      },
+      {
+        id: 'invalid-correlation-2',
+        userId: 'user-invalid-correlation',
+        type: 'debit',
+        amount: 1,
+        balanceBefore: 1,
+        balanceAfter: 0,
+        description: 'tts_request',
+        metadata: { conversationId: '\t', roundId: 'round-1' },
+        createdAt: new Date('2026-09-17T12:00:02.000Z'),
+      },
+    ])
+    await db.insert(schema.fluxHistoryRow).values([
+      {
+        userId: 'user-invalid-correlation',
+        key: 'transaction:invalid-correlation-1',
+        kind: 'single',
+        description: 'tts_request',
+        chargeCount: 1,
+        totalAmount: 1,
+        firstTime: new Date('2026-09-17T12:00:01.000Z'),
+        lastTime: new Date('2026-09-17T12:00:01.000Z'),
+        latestEntryId: 'invalid-correlation-1',
+      },
+      {
+        userId: 'user-invalid-correlation',
+        key: 'transaction:invalid-correlation-2',
+        kind: 'single',
+        description: 'tts_request',
+        chargeCount: 1,
+        totalAmount: 1,
+        firstTime: new Date('2026-09-17T12:00:02.000Z'),
+        lastTime: new Date('2026-09-17T12:00:02.000Z'),
+        latestEntryId: 'invalid-correlation-2',
+      },
+    ])
+
+    const page = await service.getHistoryRows('user-invalid-correlation', 10, 0)
+
+    expect(page.rows).toEqual([
+      { type: 'single', record: expect.objectContaining({ id: 'invalid-correlation-2' }) },
+      { type: 'single', record: expect.objectContaining({ id: 'invalid-correlation-1' }) },
+    ])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2491#discussion_r4034741620
+  it('bounds the entry sample for one large billing-history group', async () => {
+    const historyGroupKey = '["tts_round","conversation-1","round-1"]'
+    await db.insert(schema.fluxTransaction).values(Array.from({ length: 51 }, (_, index) => ({
+      id: `bounded-group-${index}`,
+      userId: 'user-bounded-group',
+      type: 'debit',
+      amount: 1,
+      balanceBefore: 51 - index,
+      balanceAfter: 50 - index,
+      description: 'tts_request',
+      historyGroupKey,
+      metadata: { conversationId: 'conversation-1', roundId: 'round-1' },
+      createdAt: new Date(Date.UTC(2026, 8, 17, 12, 0, index)),
+    })))
+    await db.insert(schema.fluxHistoryRow).values({
+      userId: 'user-bounded-group',
+      key: historyGroupKey,
+      kind: 'tts_round',
+      conversationId: 'conversation-1',
+      roundId: 'round-1',
+      description: 'tts_request',
+      chargeCount: 51,
+      totalAmount: 51,
+      firstTime: new Date('2026-09-17T12:00:00.000Z'),
+      lastTime: new Date('2026-09-17T12:00:50.000Z'),
+      latestEntryId: 'bounded-group-50',
+    })
+
+    const page = await service.getHistoryRows('user-bounded-group', 10, 0)
+
+    expect(page.rows).toEqual([
+      expect.objectContaining({
+        type: 'group',
+        chargeCount: 51,
+        totalAmount: 51,
+        entriesTruncated: true,
+        entries: expect.any(Array),
+      }),
+    ])
+    expect(page.rows[0]?.type === 'group' && page.rows[0].entries).toHaveLength(50)
   })
 })

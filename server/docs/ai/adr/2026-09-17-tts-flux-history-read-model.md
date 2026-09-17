@@ -5,8 +5,9 @@ Status: accepted
 ## Decision
 
 PostgreSQL keeps each `flux_transaction` as an immutable financial ledger entry.
-The Flux history service groups eligible TTS debit entries for display.
-The client renders the returned rows and does not own grouping policy.
+PostgreSQL maintains `flux_history_row` as a bounded-read projection when a
+ledger entry is inserted. The client renders the returned rows and does not
+own grouping policy.
 
 A TTS group uses both `conversationId` and `roundId`.
 The client snapshots the pair when a speech intent opens, so delayed REST
@@ -15,9 +16,17 @@ Valibot validates these values at each HTTP, WebSocket, and Redis boundary.
 Each value contains 1 to 128 characters after trimming.
 An entry without both values stays as one transaction row.
 
-The history query paginates grouped rows, not raw ledger entries.
-One page always contains every ledger entry for each selected TTS group.
-The response uses the shared `FluxHistoryPage` contract.
+The history query paginates projection rows, not raw ledger entries.
+Each group returns its aggregate count and amount plus at most 50 recent
+ledger entries. `entriesTruncated` tells consumers when the immutable group
+contains more entries than the response sample. The response uses the shared
+`FluxHistoryPage` contract.
+
+The ledger stores an optional `historyGroupKey` only after Valibot validates
+the correlation pair. A database trigger uses that key to update the
+projection in the same transaction. Entries without the key receive one
+projection row per transaction. The projection index orders one user's rows
+by latest activity, so a page read does not regroup the user's full ledger.
 
 ## Meter ownership
 
@@ -41,6 +50,8 @@ It prevents a threshold-crossing request from claiming units from an earlier cha
 - Snapshot and send the conversation and round through both client transports.
 - Preserve residual debt ownership in Redis.
 - Return grouped history rows from `/api/v1/flux/history`.
+- Maintain an indexed history projection without changing the immutable ledger.
+- Bound the ledger-entry sample returned for one TTS group.
 - Render the returned rows in the shared Flux settings page.
 
 ## Non-goals
@@ -50,6 +61,7 @@ It prevents a threshold-crossing request from claiming units from an earlier cha
 - Do not change Flux prices or rounding.
 - Do not report ledger-entry count as the TTS request count.
 - Do not migrate existing Redis debt or ledger metadata.
+- Do not infer group keys for existing ledger rows during projection backfill.
 
 ## Module dependencies
 
@@ -64,7 +76,9 @@ graph TD
   Meter --> Redis[(Redis debt and owner)]
   Meter --> Billing[Billing service]
   Billing --> Ledger[(flux_transaction)]
-  Ledger --> History[Flux history projection]
+  Ledger --> Projection[(flux_history_row)]
+  Projection --> History[Flux history service]
+  Ledger --> History
   History --> FluxRoute[/api/v1/flux/history]
   FluxRoute --> StagePages[Flux settings page]
   SharedContract[Flux history contract] --> History
@@ -111,6 +125,11 @@ packages/
       modules/speech.ts
 server/
   apps/api/
+    drizzle/
+      0024_tts_history_projection.sql
+      meta/
+        0024_snapshot.json
+        _journal.json
     package.json
     src/
       app.ts
@@ -134,6 +153,7 @@ server/
         flux-transaction.test.ts
         flux-transaction.ts
         openai-speech/index.ts
+      schemas/flux-transaction.ts
       utils/redis-keys.ts
   docs/ai/adr/2026-09-17-tts-flux-history-read-model.md
 packages/i18n/src/locales/{en,zh-Hans}/settings.yaml
@@ -160,6 +180,7 @@ sequenceDiagram
     Meter->>Billing: Debit Flux without correlation
   end
   Billing->>PostgreSQL: Insert one immutable ledger entry
+  PostgreSQL->>PostgreSQL: Update the history projection in the same transaction
 ```
 
 ## History sequence
@@ -172,16 +193,21 @@ sequenceDiagram
   participant PostgreSQL
   Client->>FluxRoute: GET history with row limit and offset
   FluxRoute->>History: Get one display page
-  History->>PostgreSQL: Select grouped row keys
-  PostgreSQL-->>History: Selected groups and all member entries
-  History->>History: Validate metadata and build shared rows
+  History->>PostgreSQL: Select indexed projection rows
+  PostgreSQL-->>History: Selected aggregates
+  History->>PostgreSQL: Select at most 50 recent entries per group
+  PostgreSQL-->>History: Bounded entry samples
+  History->>History: Validate database rows and build shared rows
   History-->>FluxRoute: FluxHistoryPage
   FluxRoute-->>Client: Single and TTS-round rows
 ```
 
 ## Verification
 
-Use PGlite tests for grouped-row pagination and conversation isolation.
+Use PGlite tests for grouped-row pagination, conversation isolation, invalid
+correlation preservation, and the 50-entry response bound.
+Verify the migration creates and backfills the projection plus its ordering
+and group-entry indexes.
 Use Redis tests for same-owner, mixed-owner, concurrent rollback, and residual-owner recovery.
 Use route tests for the shared response contract.
 Use speech tests for REST and WebSocket correlation.

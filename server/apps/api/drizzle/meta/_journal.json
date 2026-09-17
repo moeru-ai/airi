@@ -169,6 +169,13 @@
       "when": 1789035949919,
       "tag": "0023_payment_order",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789634838168,
+      "tag": "0024_tts_history_projection",
+      "breakpoints": true
     }
   ]
 }

@@ -55,7 +55,7 @@ describe('billingService', () => {
         userId: 'user-billing-1',
         amount: 30,
         requestId: 'req-1',
-        description: 'gpt-4',
+        description: 'tts_request',
         correlation: { conversationId: 'conversation-1', roundId: 'round-1' },
         promptTokens: 120,
         completionTokens: 80,
@@ -79,7 +79,8 @@ describe('billingService', () => {
         balanceBefore: 100,
         balanceAfter: 70,
         requestId: 'req-1',
-        description: 'gpt-4',
+        description: 'tts_request',
+        historyGroupKey: '["tts_round","conversation-1","round-1"]',
       })
       expect(txRecord?.metadata).toMatchObject({
         conversationId: 'conversation-1',

@@ -10,6 +10,7 @@ import { and, eq } from 'drizzle-orm'
 
 import { createPaymentRequiredError } from '../../../utils/error'
 import { invalidateBalanceCache, writeBalanceCache } from '../flux-cache'
+import { createTtsBillingHistoryGroupKey } from './tts-correlation'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
@@ -65,6 +66,7 @@ export function createBillingService(
     description?: string
     source: string
     metadata?: Record<string, unknown>
+    historyGroupKey?: string
   }): Promise<{ userId: string, flux: number, charged: number, requested: number }> {
     const result = await db.transaction(async (tx) => {
       // Idempotency: a previous successful debit with the same requestId
@@ -138,6 +140,7 @@ export function createBillingService(
         balanceAfter,
         requestId: input.requestId,
         description: input.description ?? input.source,
+        historyGroupKey: input.historyGroupKey,
         metadata: {
           ...input.metadata,
           source: input.source,
@@ -198,6 +201,9 @@ export function createBillingService(
         requestId: input.requestId,
         description: input.description,
         source: 'llm.request',
+        historyGroupKey: input.correlation == null || input.description !== 'tts_request'
+          ? undefined
+          : createTtsBillingHistoryGroupKey(input.correlation),
         metadata: {
           ...(input.model != null && { model: input.model }),
           ...input.correlation,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveTtsBillingCorrelation, resolveTtsBillingCorrelationToken, serializeTtsBillingCorrelation } from '../tts-correlation'
+import { createTtsBillingHistoryGroupKey, resolveTtsBillingCorrelation, resolveTtsBillingCorrelationToken, serializeTtsBillingCorrelation } from '../tts-correlation'
 
 describe('ttsBillingCorrelation', () => {
   // https://github.com/moeru-ai/airi/pull/2491#discussion_r3960258109
@@ -32,5 +32,12 @@ describe('ttsBillingCorrelation', () => {
     const correlation = { conversationId: 'conversation-1', roundId: 'round-1' }
     expect(resolveTtsBillingCorrelationToken(serializeTtsBillingCorrelation(correlation))).toEqual(correlation)
     expect(resolveTtsBillingCorrelationToken('__mixed__')).toBeUndefined()
+  })
+
+  it('builds a stable persisted history group key', () => {
+    expect(createTtsBillingHistoryGroupKey({
+      conversationId: 'conversation-1',
+      roundId: 'round-1',
+    })).toBe('["tts_round","conversation-1","round-1"]')
   })
 })

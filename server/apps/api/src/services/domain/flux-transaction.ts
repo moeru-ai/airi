@@ -3,7 +3,7 @@ import type { FluxHistoryEntry, FluxHistoryPage, FluxHistoryRow } from '@proj-ai
 import type { Database } from '../../libs/db'
 
 import { useLogger } from '@guiiai/logg'
-import { and, desc, eq, inArray, max, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { nullable, record, safeParse, string, unknown } from 'valibot'
 
 import { resolveTtsBillingCorrelation } from './billing/tts-correlation'
@@ -13,21 +13,7 @@ import * as schema from '../../schemas/flux-transaction'
 const logger = useLogger('flux-transaction')
 
 const fluxHistoryMetadataSchema = nullable(record(string(), unknown()))
-
-const historyRowKey = sql<string>`CASE
-  WHEN ${schema.fluxTransaction.type} = 'debit'
-    AND ${schema.fluxTransaction.description} = 'tts_request'
-    AND jsonb_typeof(${schema.fluxTransaction.metadata}->'conversationId') = 'string'
-    AND jsonb_typeof(${schema.fluxTransaction.metadata}->'roundId') = 'string'
-    AND char_length(btrim(${schema.fluxTransaction.metadata}->>'conversationId')) BETWEEN 1 AND 128
-    AND char_length(btrim(${schema.fluxTransaction.metadata}->>'roundId')) BETWEEN 1 AND 128
-  THEN jsonb_build_array(
-    'tts_round',
-    btrim(${schema.fluxTransaction.metadata}->>'conversationId'),
-    btrim(${schema.fluxTransaction.metadata}->>'roundId')
-  )::text
-  ELSE jsonb_build_array('transaction', ${schema.fluxTransaction.id})::text
-END`
+const historyGroupEntryLimit = 50
 
 export interface TransactionEntry {
   userId: string
@@ -72,81 +58,97 @@ export function createFluxTransactionService(db: Database) {
     /**
      * Returns the server-owned Flux history read model.
      *
-     * Pagination counts rendered rows. A validated TTS conversation and round
-     * therefore remains on one page even when it contains several ledger entries.
+     * Pagination counts rendered rows. Group aggregates come from the indexed
+     * projection, while each group includes a bounded recent-entry sample.
      */
     async getHistoryRows(userId: string, limit: number, offset: number): Promise<FluxHistoryPage> {
-      const pageKeys = await db.select({
-        key: historyRowKey,
-        lastCreatedAt: max(schema.fluxTransaction.createdAt),
-      })
-        .from(schema.fluxTransaction)
-        .where(eq(schema.fluxTransaction.userId, userId))
-        .groupBy(historyRowKey)
-        .orderBy(desc(max(schema.fluxTransaction.createdAt)), desc(historyRowKey))
+      const pageRows = await db.select()
+        .from(schema.fluxHistoryRow)
+        .where(eq(schema.fluxHistoryRow.userId, userId))
+        .orderBy(desc(schema.fluxHistoryRow.lastTime), desc(schema.fluxHistoryRow.key))
         .limit(limit + 1)
         .offset(offset)
 
-      const hasMore = pageKeys.length > limit
-      const visibleKeys = pageKeys.slice(0, limit).map(row => row.key)
-      if (visibleKeys.length === 0)
+      const hasMore = pageRows.length > limit
+      const visibleRows = pageRows.slice(0, limit)
+      if (visibleRows.length === 0)
         return { rows: [], hasMore }
 
-      const records = await db.select({
-        key: historyRowKey,
-        id: schema.fluxTransaction.id,
-        type: schema.fluxTransaction.type,
-        amount: schema.fluxTransaction.amount,
-        description: schema.fluxTransaction.description,
-        metadata: schema.fluxTransaction.metadata,
-        createdAt: schema.fluxTransaction.createdAt,
-      })
-        .from(schema.fluxTransaction)
-        .where(and(
-          eq(schema.fluxTransaction.userId, userId),
-          inArray(historyRowKey, visibleKeys),
-        ))
-        .orderBy(desc(schema.fluxTransaction.createdAt), desc(schema.fluxTransaction.id))
+      const singleEntryIds = visibleRows
+        .filter(row => row.kind === 'single')
+        .map(row => row.latestEntryId)
+      const singleRecords = singleEntryIds.length === 0
+        ? []
+        : await db.select({
+            id: schema.fluxTransaction.id,
+            type: schema.fluxTransaction.type,
+            amount: schema.fluxTransaction.amount,
+            description: schema.fluxTransaction.description,
+            metadata: schema.fluxTransaction.metadata,
+            createdAt: schema.fluxTransaction.createdAt,
+          })
+            .from(schema.fluxTransaction)
+            .where(and(
+              eq(schema.fluxTransaction.userId, userId),
+              inArray(schema.fluxTransaction.id, singleEntryIds),
+            ))
 
-      const entriesByKey = new Map<string, FluxHistoryEntry[]>()
-      for (const record of records) {
-        const metadataResult = safeParse(fluxHistoryMetadataSchema, record.metadata)
-        const entry: FluxHistoryEntry = {
-          id: record.id,
-          type: record.type,
-          amount: record.amount,
-          description: record.description,
-          metadata: metadataResult.success ? metadataResult.output : null,
-          createdAt: record.createdAt.toISOString(),
-        }
-        const entries = entriesByKey.get(record.key)
-        if (entries)
-          entries.push(entry)
-        else
-          entriesByKey.set(record.key, [entry])
-      }
+      const singleEntries = new Map(singleRecords.map(record => [record.id, toHistoryEntry(record)]))
+      const groupEntries = new Map<string, FluxHistoryEntry[]>()
+      await Promise.all(visibleRows
+        .filter(row => row.kind === 'tts_round')
+        .map(async (row) => {
+          const records = await db.select({
+            id: schema.fluxTransaction.id,
+            type: schema.fluxTransaction.type,
+            amount: schema.fluxTransaction.amount,
+            description: schema.fluxTransaction.description,
+            metadata: schema.fluxTransaction.metadata,
+            createdAt: schema.fluxTransaction.createdAt,
+          })
+            .from(schema.fluxTransaction)
+            .where(and(
+              eq(schema.fluxTransaction.userId, userId),
+              eq(schema.fluxTransaction.historyGroupKey, row.key),
+            ))
+            .orderBy(desc(schema.fluxTransaction.createdAt), desc(schema.fluxTransaction.id))
+            .limit(historyGroupEntryLimit)
+
+          groupEntries.set(row.key, records.map(toHistoryEntry))
+        }))
 
       const rows: FluxHistoryRow[] = []
-      for (const key of visibleKeys) {
-        const entries = entriesByKey.get(key)
-        if (!entries || entries.length === 0)
-          continue
+      for (const row of visibleRows) {
+        if (row.kind === 'single') {
+          const entry = singleEntries.get(row.latestEntryId)
+          if (!entry)
+            throw new Error(`Flux history projection references missing entry ${row.latestEntryId}`)
 
-        const correlation = resolveTtsBillingCorrelation(entries[0].metadata)
-        if (!correlation || entries[0].type !== 'debit' || entries[0].description !== 'tts_request') {
-          rows.push({ type: 'single', record: entries[0] })
+          rows.push({ type: 'single', record: entry })
           continue
         }
+
+        const correlation = resolveTtsBillingCorrelation({
+          conversationId: row.conversationId,
+          roundId: row.roundId,
+        })
+        if (!correlation)
+          throw new Error(`Flux history projection contains invalid correlation for ${row.key}`)
+
+        const entries = groupEntries.get(row.key)
+        if (!entries || entries.length === 0)
+          throw new Error(`Flux history projection references an empty group ${row.key}`)
 
         rows.push({
           type: 'group',
-          key,
+          key: row.key,
           ...correlation,
           description: 'tts_request',
-          chargeCount: entries.length,
-          totalAmount: entries.reduce((total, entry) => total + entry.amount, 0),
-          firstTime: entries[entries.length - 1].createdAt,
-          lastTime: entries[0].createdAt,
+          chargeCount: row.chargeCount,
+          totalAmount: row.totalAmount,
+          firstTime: row.firstTime.toISOString(),
+          lastTime: row.lastTime.toISOString(),
+          entriesTruncated: row.chargeCount > entries.length,
           entries,
         })
       }
@@ -173,6 +175,25 @@ export function createFluxTransactionService(db: Database) {
 
       return { capacity: latestCredit?.balanceAfter ?? 0 }
     },
+  }
+}
+
+function toHistoryEntry(record: {
+  id: string
+  type: string
+  amount: number
+  description: string
+  metadata: unknown
+  createdAt: Date
+}): FluxHistoryEntry {
+  const metadataResult = safeParse(fluxHistoryMetadataSchema, record.metadata)
+  return {
+    id: record.id,
+    type: record.type,
+    amount: record.amount,
+    description: record.description,
+    metadata: metadataResult.success ? metadataResult.output : null,
+    createdAt: record.createdAt.toISOString(),
   }
 }
 

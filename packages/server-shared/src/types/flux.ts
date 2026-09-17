@@ -25,6 +25,8 @@ export interface FluxHistoryGroupRow {
   totalAmount: number
   firstTime: string
   lastTime: string
+  /** Whether the immutable group contains entries outside this recent sample. */
+  entriesTruncated: boolean
   entries: FluxHistoryEntry[]
 }
 
