@@ -117,13 +117,13 @@ const isTransparent = computed(() => {
   if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
     return true
 
+  // TresCanvas leaves preserveDrawingBuffer off, so VRM's canvas reads back empty and
+  // has to sample an offscreen render target. Every other renderer keeps its last frame
+  // readable, and a renderer with no canvas samples nothing and stays visible.
   if (stageModelRenderer.value === 'vrm')
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThree.value : true
 
-  if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
-    return isTransparentByPixels.value
-
-  return true
+  return isTransparentByPixels.value
 })
 /**
  * Whether the cursor sits on the stage canvas rather than on interface drawn over it.
@@ -141,10 +141,9 @@ const isPointerOverStageCanvas = computed(() =>
  * Drives native click-through, and runs whether or not Auto Hide is on.
  *
  * `true` surrenders the pixel to the app below, the opposite sense of
- * {@link isTransparent}. Every branch that cannot answer reports `false` and keeps the
- * window interactive: an unmounted stage, a scene swap that left no canvas behind, and
- * the renderers this does not cover yet. Godot needs that `false`, because it draws a
- * DOM panel rather than to the canvas.
+ * {@link isTransparent}. Anything that cannot answer reports `false` and keeps the
+ * window interactive, which is where Godot lands: it draws a DOM panel and exposes no
+ * canvas to read.
  */
 const isTransparentForMouseEvents = computed(() => {
   if (stagePaused.value || componentStateStage.value !== 'mounted')
@@ -162,10 +161,7 @@ const isTransparentForMouseEvents = computed(() => {
   if (stageModelRenderer.value === 'vrm')
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThreeExact.value : false
 
-  if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
-    return isTransparentByPixelsExact.value
-
-  return false
+  return isTransparentByPixelsExact.value
 })
 
 const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 10 })
