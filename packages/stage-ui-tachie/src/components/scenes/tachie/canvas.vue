@@ -56,6 +56,16 @@ function layoutBackground() {
   sprite.height = rect.height
 }
 
+// Texture.fromURL hands back the cached instance for a URL, so returning to a scene
+// that is still on screen yields the very texture the sprite already holds. Freeing
+// that one would blank the stage, so the sprite's own texture is never ours to release.
+function releaseBackgroundTexture(texture: Texture) {
+  if (backgroundSprite.value?.texture === texture)
+    return
+
+  texture.destroy(true)
+}
+
 async function syncBackground() {
   const current = app.value
   if (!current)
@@ -84,15 +94,15 @@ async function syncBackground() {
 
   // A later scene wins, and so does a later app: both the source and the stage can be
   // replaced while the texture loads.
-  if (props.backgroundUrl !== url || app.value !== current)
+  if (props.backgroundUrl !== url || app.value !== current) {
+    releaseBackgroundTexture(texture)
     return
+  }
 
   if (backgroundSprite.value) {
     const previous = backgroundSprite.value.texture
     backgroundSprite.value.texture = texture
-    // A scene is a per-entry image that nothing else draws, so the one being replaced
-    // leaves the GPU with its sprite instead of outliving it in pixi's texture cache.
-    previous.destroy(true)
+    releaseBackgroundTexture(previous)
   }
   else {
     const sprite = new Sprite(texture)
