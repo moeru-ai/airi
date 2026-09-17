@@ -11,8 +11,6 @@ export function resolveFadeOnHoverInteraction(params: {
   cursorInsideWindow: boolean
   /** Whether Auto Hide is on. Drives the fade, never the blank-area click-through. */
   enabled: boolean
-  /** Whether the stage paints an opaque layer of its own, such as a scene background. */
-  stageHasOpaqueBackground: boolean
   transparentForFade: boolean
   transparentForPointer: boolean
 }) {
@@ -31,12 +29,8 @@ export function resolveFadeOnHoverInteraction(params: {
   // content cannot block the app below.
   // Source: `apps/stage-tamagotchi/src/renderer/pages/index.vue` samplers.
   // Removal: when the fade stops covering pixels hit-testing calls opaque.
-  // A scene fills the window behind the model, so a painted pixel is not see-through
-  // even where the canvas is empty. It cannot veto the fade: fading takes the scene
-  // with it, and what is invisible must not block the app below.
   return {
     fadeStage,
-    ignoreMouseEvents: fadeStage
-      || (!params.stageHasOpaqueBackground && transparentPixelsClickThrough && params.transparentForPointer),
+    ignoreMouseEvents: fadeStage || (transparentPixelsClickThrough && params.transparentForPointer),
   }
 }

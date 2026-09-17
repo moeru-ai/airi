@@ -151,7 +151,8 @@ const isPointerOverStageCanvas = computed(() =>
  * Drives native click-through, and runs whether or not Auto Hide is on.
  *
  * `true` surrenders the pixel to the app below, the opposite sense of
- * {@link isTransparent}. Every branch that cannot answer reports `false` and keeps the
+ * {@link isTransparent}. Every layer that paints there is asked, and every branch that
+ * cannot answer reports `false` and keeps the
  * window interactive: an unmounted stage, a scene swap that left no canvas behind, and
  * the renderers this does not cover yet. Godot needs that `false`, because it draws a
  * DOM panel rather than to the canvas.
@@ -167,6 +168,11 @@ const isTransparentForMouseEvents = computed(() => {
     return false
 
   if (!isPointerOverStageCanvas.value)
+    return false
+
+  // A scene paints behind the model, so a pixel it covers is not see-through even
+  // where the canvas is empty.
+  if (!isSceneTransparent.value)
     return false
 
   if (stageModelRenderer.value === 'vrm')
@@ -330,7 +336,6 @@ function handleFadeOnHoverInteractionChange() {
       alwaysOnTop: alwaysOnTop.value,
       cursorInsideWindow: !isOutsideWindow.value,
       enabled: fadeOnHoverEnabled.value,
-      stageHasOpaqueBackground: !isSceneTransparent.value,
       transparentForFade: isTransparent.value,
       transparentForPointer: isTransparentForMouseEvents.value,
     })
