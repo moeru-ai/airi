@@ -137,7 +137,7 @@ async function fetchAuditHistory(loadMore = false) {
   auditLoading.value = true
   try {
     const offset = loadMore ? auditOffset.value : 0
-    const res = await client.api.v1.flux.history.$get({
+    const res = await client.api.v1.flux.history.v2.$get({
       query: { limit: String(AUDIT_PAGE_SIZE), offset: String(offset) },
     })
     if (res.ok) {
@@ -496,6 +496,12 @@ async function handleBuy(stripePriceId: string) {
                       ({{ row.chargeCount }} {{ t('settings.pages.flux.audit.charges') }})
                     </span>
                   </button>
+                  <p
+                    v-if="row.entriesTruncated"
+                    :class="['mt-1 pl-5 text-xs text-neutral-500', 'dark:text-neutral-400']"
+                  >
+                    {{ t('settings.pages.flux.audit.truncatedCharges', { shown: row.entries.length, total: row.chargeCount }) }}
+                  </p>
                 </td>
                 <td px-4 py-3 text-right font-mono>
                   <span text="orange-600 dark:orange-400">
@@ -603,6 +609,12 @@ async function handleBuy(stripePriceId: string) {
                 {{ formatDate(row.lastTime) }}
               </div>
             </button>
+            <p
+              v-if="row.entriesTruncated"
+              :class="['text-xs text-neutral-500', 'dark:text-neutral-400']"
+            >
+              {{ t('settings.pages.flux.audit.truncatedCharges', { shown: row.entries.length, total: row.chargeCount }) }}
+            </p>
 
             <!-- Expanded children -->
             <div v-if="row.type === 'group' && expandedGroups.has(row.key)" :id="`flux-history-mobile-${row.entries[0].id}`" flex="~ col gap-1" mt-1 border="t neutral-200 dark:neutral-700" pt-2>

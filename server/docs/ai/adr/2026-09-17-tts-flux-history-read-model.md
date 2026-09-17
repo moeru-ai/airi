@@ -22,6 +22,11 @@ ledger entries. `entriesTruncated` tells consumers when the immutable group
 contains more entries than the response sample. The response uses the shared
 `FluxHistoryPage` contract.
 
+The grouped contract uses `/api/v1/flux/history/v2`. The existing
+`/api/v1/flux/history` route keeps the raw `records` response for released
+clients. One lateral-join query reads each projection page and its bounded
+entry samples. The aggregates and entries therefore use one statement snapshot.
+
 The ledger stores an optional `historyGroupKey` only after Valibot validates
 the correlation pair. A database trigger uses that key to update the
 projection in the same transaction. Entries without the key receive one
@@ -49,7 +54,8 @@ It prevents a threshold-crossing request from claiming units from an earlier cha
 - Validate TTS billing correlation for REST and WebSocket requests.
 - Snapshot and send the conversation and round through both client transports.
 - Preserve residual debt ownership in Redis.
-- Return grouped history rows from `/api/v1/flux/history`.
+- Return grouped history rows from `/api/v1/flux/history/v2`.
+- Preserve the raw response from `/api/v1/flux/history`.
 - Maintain an indexed history projection without changing the immutable ledger.
 - Bound the ledger-entry sample returned for one TTS group.
 - Render the returned rows in the shared Flux settings page.
@@ -191,12 +197,10 @@ sequenceDiagram
   participant FluxRoute
   participant History
   participant PostgreSQL
-  Client->>FluxRoute: GET history with row limit and offset
+  Client->>FluxRoute: GET history/v2 with row limit and offset
   FluxRoute->>History: Get one display page
-  History->>PostgreSQL: Select indexed projection rows
-  PostgreSQL-->>History: Selected aggregates
-  History->>PostgreSQL: Select at most 50 recent entries per group
-  PostgreSQL-->>History: Bounded entry samples
+  History->>PostgreSQL: Select projection rows and bounded entries with one lateral join
+  PostgreSQL-->>History: Aggregates and entry samples from one statement snapshot
   History->>History: Validate database rows and build shared rows
   History-->>FluxRoute: FluxHistoryPage
   FluxRoute-->>Client: Single and TTS-round rows
