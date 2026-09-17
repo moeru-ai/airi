@@ -242,6 +242,45 @@ describe('createExtensionAssetService', () => {
     ])
   })
 
+  it('retries a cookie removal after the server session was already revoked', async () => {
+    const session = createSession('retry-cookie-session')
+    const server = createFakeServer({
+      baseUrl: 'http://127.0.0.1:48123',
+      createSessionResult: session,
+    })
+    server.revokeByOwnerSessionId
+      .mockReturnValueOnce([session])
+      .mockReturnValue([])
+    const { adapter } = createFakeCookieAdapter()
+    adapter.removeCookie.mockRejectedValueOnce(new Error('cookie jar unavailable'))
+    mockState.createStaticAssetService.mockReturnValue(server)
+
+    const service = createExtensionAssetService({
+      getManifestEntryByExtensionId: () => new Map(),
+      cookieAdapter: adapter,
+    })
+    await service.createAssetSession({
+      extensionId: 'airi-plugin-game-chess',
+      version: '1.0.0',
+      ownerSessionId: 'owner-session-1',
+      routeAssetPath: 'assets/app.js',
+      pathPrefix: 'assets/',
+      ttlMs: 60_000,
+    })
+
+    // ROOT CAUSE:
+    //
+    // The server forgets a revoked asset session before Electron removes its
+    // cookie. If cookie removal fails, asking the server again returns no session
+    // metadata, so the stale cookie cannot be retried without a separate ledger.
+    await expect(service.revokeByOwnerSessionId('owner-session-1'))
+      .rejects.toThrow('cookie jar unavailable')
+    await service.revokeByOwnerSessionId('owner-session-1')
+
+    expect(server.revokeByOwnerSessionId).toHaveBeenCalledTimes(2)
+    expect(adapter.removeCookie).toHaveBeenCalledTimes(2)
+  })
+
   it('revokes all sessions and removes cookies before stopping the server', async () => {
     const allSession = createSession('stop-asset-session')
     const server = createFakeServer({
@@ -270,5 +309,24 @@ describe('createExtensionAssetService', () => {
         expiresAt: 123_456,
       },
     ])
+  })
+
+  it('stops the server when cookie cleanup fails', async () => {
+    const session = createSession('failed-stop-cookie-session')
+    const server = createFakeServer({
+      baseUrl: 'http://127.0.0.1:48123',
+      revokeAllResult: [session],
+    })
+    const { adapter } = createFakeCookieAdapter()
+    adapter.removeCookie.mockRejectedValue(new Error('cookie removal failed'))
+    mockState.createStaticAssetService.mockReturnValue(server)
+
+    const service = createExtensionAssetService({
+      getManifestEntryByExtensionId: () => new Map(),
+      cookieAdapter: adapter,
+    })
+
+    await expect(service.stop()).rejects.toThrow('cookie removal failed')
+    expect(server.stop).toHaveBeenCalledOnce()
   })
 })
