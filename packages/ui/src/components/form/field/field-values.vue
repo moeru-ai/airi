@@ -59,7 +59,8 @@ function removeItem(index: number) {
           <button i-solar:minus-circle-line-duotone size="6" :class="['min-w-20px', 'w-10%', 'flex', 'text-red-500']" @click="removeItem(index)" />
         </div>
 
-        <div i-solar:add-circle-line-duotone size="6" :class="['mt-2', 'w-4/5', 'text-blue-500']" @click="addItem" />
+        <!-- The icon is the box's background, so the box itself has to carry the centering. -->
+        <div i-solar:add-circle-line-duotone size="6" :class="['mt-2', 'mx-auto', 'block', 'text-blue-500']" @click="addItem" />
       </div>
     </label>
   </div>
