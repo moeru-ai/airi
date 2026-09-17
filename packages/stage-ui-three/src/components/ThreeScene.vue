@@ -179,7 +179,7 @@ const backgroundTexture = shallowRef<Texture>()
 const skyBoxEnvRef = ref<InstanceType<typeof SkyBox>>()
 // The composer owns render targets of its own and follows TresCanvas's debounced sizing,
 // so it has to be resized alongside the renderer or it draws nothing for those frames.
-const effectComposerRef = ref<{ composer?: { setSize: (width: number, height: number) => void, render: () => void } }>()
+const effectComposerRef = ref<{ composer?: { setSize: (width: number, height: number, updateStyle?: boolean) => void, render: () => void } }>()
 
 /** Last size handed to the renderer, so an unchanged box does not reallocate the buffer. */
 let rendererWidth = 0
@@ -277,7 +277,10 @@ useResizeObserver(() => tresContextRef.value?.renderer.instance.domElement, ([en
     // The canvas keeps its own styled size; only the drawing buffer is being corrected.
     renderer.setSize(width, height, false)
     const composer = effectComposerRef.value?.composer
-    composer?.setSize(width, height)
+    // EffectComposer forwards this flag to renderer.setSize, where three defaults it to
+    // true and writes pixel sizes onto the canvas. Saying false keeps that off whatever
+    // order these two run in.
+    composer?.setSize(width, height, false)
     for (const camera of context.camera.cameras.value) {
       if (camera instanceof PerspectiveCamera) {
         camera.aspect = width / height
@@ -654,6 +657,9 @@ function onSkyBoxReady(EnvPayload: {
 // === Tres Canvas ===
 function onTresReady(context: TresContext) {
   tresContextRef.value = context
+  // The size memo below describes one renderer. A new context starts with none.
+  rendererWidth = 0
+  rendererHeight = 0
   void syncBackground()
   canvasReady.value = true
   context.renderer.instance.domElement.addEventListener('pointerdown', onCanvasPointerDown)
