@@ -2,7 +2,7 @@
 import { TransitionVertical } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
-import { ref, useTemplateRef, watch } from 'vue'
+import { ref, watch } from 'vue'
 
 import LoadingModules from './loading-modules.vue'
 
@@ -23,31 +23,25 @@ watch(atLeastOneLoading, (newVal) => {
 function handleClick() {
   loadingProgressOpen.value = !loadingProgressOpen.value
 }
-
-const pillElement = useTemplateRef<HTMLElement>('pill')
-
-// The stage page observes these for cursor hit testing. The element is the pill rather
-// than the container, which spans the full stage width and is not interactive, and the
-// progress panel is reported separately because it renders through a portal, outside
-// the pill's bounds.
-defineExpose({
-  get element() { return pillElement.value },
-  get overlayActive() { return loadingProgressOpen.value },
-})
 </script>
 
 <template>
-  <div fixed left-0 top-3 w-full flex flex-col items-center>
+  <!--
+    The container spans the whole stage width while only its pill is interactive. The
+    stage window asks the document what sits under the cursor before it passes a click
+    to the application behind, so a container that answers would take the strip beside
+    the pill with it.
+  -->
+  <div pointer-events-none fixed left-0 top-3 w-full flex flex-col items-center>
     <TooltipProvider v-if="atLeastOneLoadingDelay10s" :delay-duration="150">
       <TooltipRoot :open="loadingProgressOpen" disable-closing-trigger @update:open="(state) => loadingProgressOpen = state">
         <TooltipTrigger>
           <Transition name="fade">
             <div
               v-if="atLeastOneLoadingDelay5s"
-              ref="pill"
               w="fit"
               bg="white/80 dark:neutral-900/80"
-              mb-1 flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 text-sm shadow-md backdrop-blur-md
+              pointer-events-auto mb-1 flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 text-sm shadow-md backdrop-blur-md
               @click="handleClick"
             >
               <div v-if="atLeastOneLoading" i-svg-spinners:pulse-ring pointer-events-none />

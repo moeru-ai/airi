@@ -7,7 +7,6 @@ import { electron } from '@proj-airi/electron-eventa'
 import {
   useElectronEventaInvoke,
   useElectronMouseAroundWindowBorder,
-  useElectronMouseInElement,
   useElectronMouseInWindow,
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
@@ -54,7 +53,6 @@ import {
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
-const resourceStatusIslandRef = ref<InstanceType<typeof ResourceStatusIsland>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
 const stageMounted = computed(() => componentStateStage.value === 'mounted')
@@ -70,15 +68,6 @@ const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 // The island already pairs its cursor signal with a DOM one and owns that decision, so
 // read its answer rather than mounting a second set of listeners over the same element.
 const isOutside = computed(() => controlsIslandRef.value?.isOutside ?? true)
-const resourceStatusElement = toRef(() => resourceStatusIslandRef.value?.element)
-const { isOutside: isOutsideResourceStatus } = useElectronMouseInElement(resourceStatusElement)
-/**
- * The resource pill floats over the canvas, which draws nothing beneath it, so the
- * pixel hit test alone would read it as blank and pass its clicks to the app below.
- * The element is absent while the pill is hidden, and an absent element holds its last
- * reading, so require both.
- */
-const isOverResourceStatus = computed(() => !!resourceStatusElement.value && !isOutsideResourceStatus.value)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
@@ -137,6 +126,18 @@ const isTransparent = computed(() => {
   return true
 })
 /**
+ * Whether the cursor sits on the stage canvas rather than on interface drawn over it.
+ *
+ * The pixel test can only answer for the canvas, and the canvas draws nothing beneath a
+ * DOM overlay, so a button, a toast or a portaled panel floating over blank canvas
+ * would read as empty space and lose its clicks. Ask the document what is really under
+ * the cursor instead. This is a hit test, not an event, so it still answers while the
+ * window is click-through.
+ */
+const isPointerOverStageCanvas = computed(() =>
+  document.elementFromPoint(relativeMouseX.value, relativeMouseY.value) === stageCanvas.value,
+)
+/**
  * Drives native click-through, and runs whether or not Auto Hide is on.
  *
  * `true` surrenders the pixel to the app below, the opposite sense of
@@ -155,6 +156,9 @@ const isTransparentForMouseEvents = computed(() => {
   if (!stageCanvas.value)
     return false
 
+  if (!isPointerOverStageCanvas.value)
+    return false
+
   if (stageModelRenderer.value === 'vrm')
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThreeExact.value : false
 
@@ -170,7 +174,6 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
 const controlsOverlayActive = computed(() => controlsIslandRef.value?.overlayActive ?? false)
-const resourceStatusOverlayActive = computed(() => resourceStatusIslandRef.value?.overlayActive ?? false)
 
 const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
   const hasModel = !!stageModelSelectedUrl.value
@@ -291,7 +294,7 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  if (controlsOverlayActive.value || resourceStatusOverlayActive.value) {
+  if (controlsOverlayActive.value) {
     // Portaled controls must receive clicks even outside the Island's bounds.
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
@@ -302,7 +305,7 @@ function handleFadeOnHoverInteractionChange() {
   // Entering counts at once and leaving keeps the region for the debounce window.
   // Waiting for the debounce on the way in would leave the button click-through for
   // 250ms, which the pixel hit test reads as blank canvas and passes to the app below.
-  const insideControls = !isOutside.value || !isOutsideFor250Ms.value || isOverResourceStatus.value
+  const insideControls = !isOutside.value || !isOutsideFor250Ms.value
   const nearBorder = isAroundWindowBorder.value || isAroundWindowBorderFor250Ms.value
 
   if (insideControls || nearBorder) {
@@ -327,7 +330,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [isOutside, isOutsideFor250Ms, isOverResourceStatus, resourceStatusOverlayActive, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
+  [isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -834,7 +837,7 @@ const cursorPosition = computed(() => ({
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
-        <ResourceStatusIsland ref="resourceStatusIslandRef" />
+        <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"
           v-model:state="componentStateStage"
