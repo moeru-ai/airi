@@ -19,6 +19,7 @@ import { coverRect } from '@proj-airi/stage-shared'
 import { Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
+import { useResizeObserver } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { BlendFunction } from 'postprocessing'
@@ -179,6 +180,9 @@ const backgroundTexture = shallowRef<Texture>()
  *
  * A background texture covers the viewport whatever its own shape, so the fit is
  * expressed by sampling a smaller window of it rather than by placing a rectangle.
+ *
+ * Nothing is marked dirty: a background rebuilds its own texture matrix each frame,
+ * while marking the texture would re-upload it and recompile the background shader.
  */
 function layoutBackground() {
   const texture = backgroundTexture.value
@@ -198,7 +202,6 @@ function layoutBackground() {
   const rect = coverRect({ width: size.x, height: size.y }, { width: image.width, height: image.height })
   texture.repeat.set(size.x / rect.width, size.y / rect.height)
   texture.offset.set(-rect.x / rect.width, -rect.y / rect.height)
-  texture.needsUpdate = true
 }
 
 async function syncBackground() {
@@ -239,6 +242,9 @@ async function syncBackground() {
 }
 
 watch(() => props.backgroundUrl, () => void syncBackground())
+// TresCanvas resizes the renderer on its own, and the fit is expressed in texture
+// coordinates, so it has to be recomputed against the new size.
+useResizeObserver(() => tresContextRef.value?.renderer.instance.domElement, layoutBackground)
 const screenRef = ref<InstanceType<typeof Screen>>()
 const skyBoxEnvRef = ref<InstanceType<typeof SkyBox>>()
 const dirLightRef = ref<InstanceType<typeof DirectionalLight>>()

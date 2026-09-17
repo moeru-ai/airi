@@ -79,9 +79,13 @@ async function syncBackground() {
   const canvas = spineCanvas
   const url = props.backgroundUrl
 
-  backgroundTexture?.dispose()
-  backgroundTexture = undefined
-  if (!canvas || !url || !spineRuntime)
+  if (!url) {
+    backgroundTexture?.dispose()
+    backgroundTexture = undefined
+    return
+  }
+
+  if (!canvas || !spineRuntime)
     return
 
   // A scene that cannot decode leaves the stage as it is, rather than throwing where
@@ -104,6 +108,8 @@ async function syncBackground() {
   if (props.backgroundUrl !== url || spineCanvas !== canvas)
     return
 
+  // Replace only once the new one is ready, so a scene change never shows a gap.
+  backgroundTexture?.dispose()
   backgroundTexture = new spineRuntime.GLTexture(canvas.context, image)
 }
 
@@ -375,6 +381,9 @@ async function loadModel() {
         pathPrefix,
         webglConfig: { alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true },
       })
+      // The scene is already chosen before the runtime is detected, so the watcher
+      // below has already fired and found nothing to draw with.
+      void syncBackground()
     })
   }
   catch (err) {

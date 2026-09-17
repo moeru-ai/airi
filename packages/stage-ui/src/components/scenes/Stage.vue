@@ -998,14 +998,6 @@ async function captureCharacterFrame() {
     return mmdSceneRef.value?.captureFrame()
 }
 
-/**
- * The frame already carries the scene: every renderer paints it into the canvas it
- * draws to, so what comes back is the whole picture.
- */
-async function captureFrame() {
-  return captureCharacterFrame()
-}
-
 onUnmounted(() => {
   disposePlaybackStateHandler()
   resetLive2dLipSync()
@@ -1023,7 +1015,11 @@ onUnmounted(() => {
 
 defineExpose({
   canvasElement,
-  captureFrame,
+  /**
+   * The frame already carries the scene: every renderer paints it into the canvas it
+   * draws to, so what comes back is the whole picture.
+   */
+  captureFrame: captureCharacterFrame,
   readRenderTargetRegionAtClientPoint,
 })
 </script>

@@ -216,6 +216,9 @@ function setupScene() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2) * renderScale.value)
 
   scene = new Scene()
+  // The scene is already chosen when the renderer mounts, so the watcher below never
+  // fires for it.
+  void syncBackground()
   camera = new PerspectiveCamera(cameraFov.value, 1, 0.1, 1000)
   camera.position.set(0, 1, 3)
 
@@ -267,6 +270,9 @@ let backgroundTexture: Texture | undefined
  *
  * A background texture covers the viewport whatever its own shape, so the fit is
  * expressed by sampling a smaller window of it rather than by placing a rectangle.
+ *
+ * Nothing is marked dirty: a background rebuilds its own texture matrix each frame,
+ * while marking the texture would re-upload it and recompile the background shader.
  */
 function layoutBackground() {
   if (!backgroundTexture || !renderer)
@@ -284,7 +290,6 @@ function layoutBackground() {
   const rect = coverRect({ width: size.x, height: size.y }, { width: image.width, height: image.height })
   backgroundTexture.repeat.set(size.x / rect.width, size.y / rect.height)
   backgroundTexture.offset.set(-rect.x / rect.width, -rect.y / rect.height)
-  backgroundTexture.needsUpdate = true
 }
 
 async function syncBackground() {
