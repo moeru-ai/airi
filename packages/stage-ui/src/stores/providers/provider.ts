@@ -1013,7 +1013,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   function shouldListProviderForPromptApi(providerId: string) {
-    return providerId === 'prompt-api' && (typeof LanguageModel === 'function')
+    return providerId === 'prompt-api' && 'LanguageModel' in globalThis
   }
 
   function isProviderAvailableWithoutConfiguration(providerId: string) {
