@@ -2,9 +2,9 @@ import type { Ref } from 'vue'
 
 import { defineInvoke } from '@moeru/eventa'
 import { electron } from '@proj-airi/electron-eventa'
-import { useAsyncState, usePermission } from '@vueuse/core'
-import { computed } from 'vue'
+import { useAsyncState } from '@vueuse/core'
 
+import { useHostMicrophonePermission } from './microphone-permission'
 import { initializeHostContext } from './owner'
 
 export type HostMediaAccessStatus = 'not-determined' | 'granted' | 'denied' | 'restricted' | 'unknown'
@@ -16,8 +16,9 @@ export function useHostMediaAccessStatus(type: 'microphone'): Readonly<Ref<HostM
     return useAsyncState(() => getStatus([type]), 'not-determined').state
   }
 
-  const permission = usePermission(type)
-  return computed(() => permission.value === 'granted' || permission.value === 'denied'
-    ? permission.value
-    : 'not-determined')
+  const permission = useHostMicrophonePermission()
+  void permission.refresh().catch((error) => {
+    console.warn('[host-context] Failed to read microphone permission state:', error)
+  })
+  return permission.status
 }

@@ -30,9 +30,11 @@ import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage
 import { useTheme } from '@proj-airi/ui'
 import { isEqual } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
+
+import MicrophonePermissionPrompt from './components/microphone-permission-prompt.vue'
 
 import {
   electronChatReady,
@@ -61,6 +63,7 @@ import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
+import { initializeHostContext, useHostMicrophonePermission } from './host-context'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import {
@@ -88,6 +91,39 @@ const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
 const isChatWindow = initialRoutePath === '/chat'
+const isMainRenderer = windowContext.leadership === 'leader-only'
+const microphonePermission = initializeHostContext().runtime === 'kirie'
+  ? useHostMicrophonePermission()
+  : undefined
+const microphonePermissionPrompt = microphonePermission?.prompt
+const microphonePermissionBusy = ref(false)
+
+if (microphonePermission) {
+  watch(microphonePermission.status, (state, previousState) => {
+    if (previousState !== 'granted' || state === 'granted')
+      return
+
+    const settingsAudioDeviceStore = useSettingsAudioDevice()
+    settingsAudioDeviceStore.enabled = false
+    settingsAudioDeviceStore.stopStream()
+  })
+}
+
+async function resolveMicrophonePermission(decision: 'granted' | 'denied') {
+  if (!microphonePermission || microphonePermissionBusy.value)
+    return
+
+  microphonePermissionBusy.value = true
+  try {
+    await microphonePermission.resolvePrompt(decision)
+  }
+  catch (error) {
+    console.error('[App] Failed to resolve microphone permission:', error)
+  }
+  finally {
+    microphonePermissionBusy.value = false
+  }
+}
 
 async function refreshPluginRuntimeTools() {
   try {
@@ -348,6 +384,10 @@ onMounted(async () => {
   // https://github.com/moeru-ai/airi/issues/1658
   await restoreLocale()
 
+  await microphonePermission?.refresh().catch((error) => {
+    console.warn('[App] Failed to load microphone permission state:', error)
+  })
+
   await chatStore.initialize(syncedPinia)
   await fullStageRuntime?.initialize()
 })
@@ -371,6 +411,13 @@ onUnmounted(() => {
   <ToasterRoot @close="id => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
+  <MicrophonePermissionPrompt
+    v-if="isMainRenderer && microphonePermission"
+    :busy="microphonePermissionBusy"
+    :open="Boolean(microphonePermissionPrompt)"
+    @allow="resolveMicrophonePermission('granted')"
+    @deny="resolveMicrophonePermission('denied')"
+  />
   <RouterView />
 </template>
 

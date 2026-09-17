@@ -11,6 +11,10 @@ internal static class Program
             TestsDesktopWindowGeometry();
             TestsNativeResizeEdges();
             TestsOnboardingTitleBarDragRegion();
+            TestsMicrophonePermissionPromptCoalescing();
+            TestsMicrophonePermissionPersistencePolicy();
+            TestsMicrophonePermissionPromptTimeout();
+            TestsMicrophonePermissionShutdown();
             await ReturnsCodeForExpectedState();
             await RejectsForgedStateWithoutConsumingServer();
             await SendsRelayCorsWithoutPrivateNetworkHeader();
@@ -22,6 +26,82 @@ internal static class Program
             Console.Error.WriteLine(error);
             return 1;
         }
+    }
+
+    private static void TestsMicrophonePermissionPromptCoalescing()
+    {
+        // ROOT CAUSE:
+        //
+        // CEF can issue concurrent requests while one AIRI permission prompt is open.
+        // Showing one modal per raw request creates conflicting decisions and exposes
+        // native request identifiers to the renderer.
+        //
+        // We fixed this by keeping native requests in one host-owned prompt generation.
+        using var permissions = new MicrophonePermissionCoordinator(
+            MicrophonePermissionState.NotDetermined,
+            TimeSpan.FromMinutes(2));
+        var decisions = new List<bool>();
+
+        var prompt = permissions.Request(decisions.Add, 10);
+        var duplicatePrompt = permissions.Request(decisions.Add, 20);
+
+        AssertEqual(true, prompt is not null, "first microphone permission prompt");
+        AssertEqual<MicrophonePermissionPromptPayload?>(
+            null,
+            duplicatePrompt,
+            "coalesced microphone permission prompt");
+        permissions.Resolve(prompt!.PromptId, MicrophonePermissionState.Granted);
+        AssertEqual("True,True", string.Join(',', decisions), "coalesced permission decisions");
+    }
+
+    private static void TestsMicrophonePermissionPersistencePolicy()
+    {
+        using var permissions = new MicrophonePermissionCoordinator(
+            MicrophonePermissionState.Denied,
+            TimeSpan.FromMinutes(2));
+        bool? decision = null;
+
+        var prompt = permissions.Request(value => decision = value, 10);
+
+        AssertEqual<MicrophonePermissionPromptPayload?>(
+            null,
+            prompt,
+            "persisted denial prompt");
+        AssertEqual(false, decision, "persisted denial decision");
+
+        permissions.Reset();
+        prompt = permissions.Request(value => decision = value, 20);
+        AssertEqual(true, prompt is not null, "prompt after permission reset");
+    }
+
+    private static void TestsMicrophonePermissionPromptTimeout()
+    {
+        using var permissions = new MicrophonePermissionCoordinator(
+            MicrophonePermissionState.NotDetermined,
+            TimeSpan.FromMilliseconds(100));
+        bool? decision = null;
+        var prompt = permissions.Request(value => decision = value, 10);
+
+        AssertEqual<string?>(null, permissions.Expire(109), "permission prompt before timeout");
+        AssertEqual(prompt!.PromptId, permissions.Expire(110), "expired permission prompt");
+        AssertEqual(false, decision, "expired permission decision");
+        AssertEqual(
+            MicrophonePermissionState.NotDetermined,
+            permissions.State,
+            "permission state after timeout");
+    }
+
+    private static void TestsMicrophonePermissionShutdown()
+    {
+        var permissions = new MicrophonePermissionCoordinator(
+            MicrophonePermissionState.NotDetermined,
+            TimeSpan.FromMinutes(2));
+        bool? decision = null;
+        permissions.Request(value => decision = value, 10);
+
+        permissions.Dispose();
+
+        AssertEqual(false, decision, "permission decision during shutdown");
     }
 
     private static void TestsDesktopWindowGeometry()

@@ -2,6 +2,6 @@
   "addon_path": "res://addons/godot_cef",
   "class_name": "CefTexture",
   "setup_command": "pnpm kirie doctor --fix godot-cef",
-  "sha256": "37420fb0929987faf3d349194c68a9ba13a60fbf4075a5c5e4d5cf20ddcf1c8f",
-  "version": "1.15.3"
+  "sha256": "57fd97694e9387a44f67d5afab36d0b8407abdae0241de8f4c0c74bd75c26a1c",
+  "version": "1.15.4"
 }
