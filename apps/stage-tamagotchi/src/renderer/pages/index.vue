@@ -141,17 +141,17 @@ const isPointerOverStageCanvas = computed(() =>
  * Drives native click-through, and runs whether or not Auto Hide is on.
  *
  * `true` surrenders the pixel to the app below, the opposite sense of
- * {@link isTransparent}. Anything that cannot answer reports `false` and keeps the
- * window interactive, which is where Godot lands: it draws a DOM panel and exposes no
- * canvas to read.
+ * {@link isTransparent}. The samplers report a missing canvas as transparent, so the
+ * guards below are what keep the window interactive when nothing can answer. Godot
+ * lands there: it draws a DOM panel and exposes no canvas to read.
  */
 const isTransparentForMouseEvents = computed(() => {
   if (stagePaused.value || componentStateStage.value !== 'mounted')
     return false
 
-  // A scene swap unmounts the canvas while the state still reads mounted. The samplers
-  // report a missing canvas as transparent, which would hand the whole window away,
-  // character included, until the next scene reports itself.
+  // Load-bearing, not a convenience. A scene swap unmounts the canvas while the state
+  // still reads mounted, and both samplers answer "transparent" without one, which would
+  // hand the whole window away, character included, until the next scene reports itself.
   if (!stageCanvas.value)
     return false
 
