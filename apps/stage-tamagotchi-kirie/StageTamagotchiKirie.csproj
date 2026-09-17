@@ -9,9 +9,8 @@
 
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
-    <Compile Include="../../../godot-kirie/packages/GdKirie.EventaAdapter/contentFiles/cs/any/GdKirie.EventaAdapter/KirieClientEventaBridge.cs" Link="KirieClientEventaBridge.cs" />
-    <ProjectReference Include="../../../godot-kirie/packages/GdKirie.EventaAdapter/GdKirie.EventaAdapter.csproj" />
-    <ProjectReference Include="../../../godot-kirie/packages/GdKirie.Platform/GdKirie.Platform.csproj" />
+    <PackageReference Include="GdKirie.EventaAdapter" Version="0.3.0" />
+    <PackageReference Include="GdKirie.Platform" Version="0.3.0" />
   </ItemGroup>
 
 </Project>

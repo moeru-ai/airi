@@ -46,6 +46,37 @@ export interface AiriDesktopDisplaySnapshot {
 
 export const airiGetCurrentDisplaySnapshot = defineInvokeEventa<AiriDesktopDisplaySnapshot, Record<string, never>>('eventa:invoke:airi:desktop:current-display:get')
 
+export type AiriMicrophonePermissionState = 'not-determined' | 'granted' | 'denied'
+export type AiriMicrophonePermissionDecision = Exclude<AiriMicrophonePermissionState, 'not-determined'>
+
+export interface AiriMicrophonePermissionStatePayload {
+  permission: 'microphone'
+  state: AiriMicrophonePermissionState
+}
+
+export interface AiriMicrophonePermissionPromptPayload {
+  permission: 'microphone'
+  promptId: string
+}
+
+export interface AiriMicrophonePermissionPromptSnapshotPayload {
+  permission: 'microphone'
+  promptId: string | null
+}
+
+export interface AiriMicrophonePermissionDecisionPayload {
+  decision: AiriMicrophonePermissionDecision
+  promptId: string
+}
+
+export const airiMicrophonePermissionGetState = defineInvokeEventa<AiriMicrophonePermissionStatePayload, Record<string, never>>('eventa:invoke:airi:permissions:microphone:get-state')
+export const airiMicrophonePermissionGetPrompt = defineInvokeEventa<AiriMicrophonePermissionPromptSnapshotPayload, Record<string, never>>('eventa:invoke:airi:permissions:microphone:get-prompt')
+export const airiMicrophonePermissionReset = defineInvokeEventa<AiriMicrophonePermissionStatePayload, Record<string, never>>('eventa:invoke:airi:permissions:microphone:reset')
+export const airiMicrophonePermissionResolvePrompt = defineInvokeEventa<void, AiriMicrophonePermissionDecisionPayload>('eventa:invoke:airi:permissions:microphone:resolve-prompt')
+export const airiMicrophonePermissionStateChanged = defineEventa<AiriMicrophonePermissionStatePayload>('eventa:event:airi:permissions:microphone:state-changed')
+export const airiMicrophonePermissionPromptRequested = defineEventa<AiriMicrophonePermissionPromptPayload>('eventa:event:airi:permissions:microphone:prompt-requested')
+export const airiMicrophonePermissionPromptDismissed = defineEventa<{ promptId: string }>('eventa:event:airi:permissions:microphone:prompt-dismissed')
+
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 

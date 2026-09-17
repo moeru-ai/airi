@@ -1,6 +1,21 @@
 allow-visible-on-all-workspaces:
   title: 跨桌面可见性
   description: 允许窗口在所有虚拟桌面中可见，仅限 macOS。
+microphone-permission:
+  prompt:
+    title: 允许使用麦克风吗？
+    description: AIRI 会使用麦克风进行语音输入和转写。此选择会一直生效，直到你在设置中重置。
+    allow: 允许
+    deny: 拒绝
+  states:
+    not-determined: 未设置
+    granted: 已允许
+    denied: 已拒绝
+  settings:
+    title: 麦克风
+    description: 控制 AIRI 是否可以使用麦克风。重置后会停止当前麦克风流，并在下次使用时重新询问。
+    revoke: 撤销权限
+    reset: 重置选择
 spotlight:
   errors:
     unknown: 未知错误

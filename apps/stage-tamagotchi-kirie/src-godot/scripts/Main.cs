@@ -19,6 +19,8 @@ public partial class Main : Node
     private IDisposable? _authRegistration;
     private IDisposable? _displaySnapshotRegistration;
     private WebViewPermissionHandler? _permissions;
+    private MicrophonePermissionService? _microphonePermissions;
+    private IDisposable? _microphonePermissionRegistration;
     private IDisposable? _quitRegistration;
     private NativeWindowResizeController? _nativeResize;
 
@@ -43,6 +45,10 @@ public partial class Main : Node
             window);
         _auth = new AuthService();
         _authRegistration = _auth.Attach(_eventa.Context);
+        _microphonePermissions = new MicrophonePermissionService();
+        _microphonePermissionRegistration = _microphonePermissions.Attach(
+            _eventa.Context,
+            ownsPrompt: true);
         _quitRegistration = _eventa.Context.RegisterInvokeHandler(
             AiriDesktopEvents.QuitApp,
             (EmptyPayload _, CancellationToken _) =>
@@ -60,7 +66,10 @@ public partial class Main : Node
         {
             var rendererUrl = ResolveInitialUrl();
             initialUrl = RendererUrl.ForMain(rendererUrl);
-            _permissions = new WebViewPermissionHandler(_kirie, rendererUrl, "microphone");
+            _permissions = new WebViewPermissionHandler(
+                _kirie,
+                rendererUrl,
+                _microphonePermissions);
             _onboarding = new OnboardingWindowManager(
                 _eventa.Context,
                 this,
@@ -74,7 +83,8 @@ public partial class Main : Node
                 GetWindow(),
                 registry,
                 rendererUrl,
-                _auth);
+                _auth,
+                _microphonePermissions);
             _chat = new ChatWindowManager(
                 _eventa.Context,
                 this,
@@ -109,6 +119,8 @@ public partial class Main : Node
         _chat?.Dispose();
         _settings?.Dispose();
         _onboarding?.Dispose();
+        _microphonePermissions?.Dispose();
+        _microphonePermissionRegistration?.Dispose();
         _permissions?.Dispose();
         _platform?.Dispose();
         _eventa?.Dispose();
@@ -118,6 +130,7 @@ public partial class Main : Node
     public override void _Process(double delta)
     {
         _auth?.ProcessPending();
+        _microphonePermissions?.Process();
     }
 
     private string ResolveInitialUrl()

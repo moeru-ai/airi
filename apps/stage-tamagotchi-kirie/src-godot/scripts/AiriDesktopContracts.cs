@@ -29,6 +29,11 @@ internal sealed record DesktopDisplaySnapshotPayload(
     DesktopDisplayBoundsPayload Bounds,
     DesktopDisplayBoundsPayload WorkArea,
     float Scale);
+internal sealed record MicrophonePermissionStatePayload(string Permission, string State);
+internal sealed record MicrophonePermissionPromptPayload(string Permission, string PromptId);
+internal sealed record MicrophonePermissionPromptSnapshotPayload(string Permission, string? PromptId);
+internal sealed record MicrophonePermissionDecisionPayload(string PromptId, string Decision);
+internal sealed record MicrophonePermissionPromptDismissedPayload(string PromptId);
 
 internal static class AiriDesktopEvents
 {
@@ -85,6 +90,34 @@ internal static class AiriDesktopEvents
 
     public static readonly InvokeEventDefinition<DesktopDisplaySnapshotPayload, EmptyPayload> GetCurrentDisplaySnapshot =
         new("eventa:invoke:airi:desktop:current-display:get");
+
+    public static readonly InvokeEventDefinition<MicrophonePermissionStatePayload, EmptyPayload>
+        GetMicrophonePermissionState =
+            new("eventa:invoke:airi:permissions:microphone:get-state");
+
+    public static readonly InvokeEventDefinition<MicrophonePermissionPromptSnapshotPayload, EmptyPayload>
+        GetMicrophonePermissionPrompt =
+            new("eventa:invoke:airi:permissions:microphone:get-prompt");
+
+    public static readonly InvokeEventDefinition<MicrophonePermissionStatePayload, EmptyPayload>
+        ResetMicrophonePermission =
+            new("eventa:invoke:airi:permissions:microphone:reset");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, MicrophonePermissionDecisionPayload>
+        ResolveMicrophonePermissionPrompt =
+            new("eventa:invoke:airi:permissions:microphone:resolve-prompt");
+
+    public static readonly EventDefinition<MicrophonePermissionStatePayload>
+        MicrophonePermissionStateChanged =
+            new("eventa:event:airi:permissions:microphone:state-changed");
+
+    public static readonly EventDefinition<MicrophonePermissionPromptPayload>
+        MicrophonePermissionPromptRequested =
+            new("eventa:event:airi:permissions:microphone:prompt-requested");
+
+    public static readonly EventDefinition<MicrophonePermissionPromptDismissedPayload>
+        MicrophonePermissionPromptDismissed =
+            new("eventa:event:airi:permissions:microphone:prompt-dismissed");
 }
 
 internal static class AiriDesktopContracts
@@ -158,7 +191,32 @@ internal static class AiriDesktopContracts
             .RegisterInvoke(
                 AiriDesktopEvents.GetCurrentDisplaySnapshot,
                 AiriDesktopJsonContext.Default.DesktopDisplaySnapshotPayload,
-                AiriDesktopJsonContext.Default.EmptyPayload);
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.GetMicrophonePermissionState,
+                AiriDesktopJsonContext.Default.MicrophonePermissionStatePayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.GetMicrophonePermissionPrompt,
+                AiriDesktopJsonContext.Default.MicrophonePermissionPromptSnapshotPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.ResetMicrophonePermission,
+                AiriDesktopJsonContext.Default.MicrophonePermissionStatePayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.ResolveMicrophonePermissionPrompt,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.MicrophonePermissionDecisionPayload)
+            .RegisterEvent(
+                AiriDesktopEvents.MicrophonePermissionStateChanged,
+                AiriDesktopJsonContext.Default.MicrophonePermissionStatePayload)
+            .RegisterEvent(
+                AiriDesktopEvents.MicrophonePermissionPromptRequested,
+                AiriDesktopJsonContext.Default.MicrophonePermissionPromptPayload)
+            .RegisterEvent(
+                AiriDesktopEvents.MicrophonePermissionPromptDismissed,
+                AiriDesktopJsonContext.Default.MicrophonePermissionPromptDismissedPayload);
     }
 }
 
@@ -176,4 +234,9 @@ internal static class AiriDesktopContracts
 [JsonSerializable(typeof(AuthConfigurationPayload))]
 [JsonSerializable(typeof(DesktopDisplayBoundsPayload))]
 [JsonSerializable(typeof(DesktopDisplaySnapshotPayload))]
+[JsonSerializable(typeof(MicrophonePermissionStatePayload))]
+[JsonSerializable(typeof(MicrophonePermissionPromptPayload))]
+[JsonSerializable(typeof(MicrophonePermissionPromptSnapshotPayload))]
+[JsonSerializable(typeof(MicrophonePermissionDecisionPayload))]
+[JsonSerializable(typeof(MicrophonePermissionPromptDismissedPayload))]
 internal sealed partial class AiriDesktopJsonContext : JsonSerializerContext;

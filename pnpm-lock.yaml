@@ -2432,14 +2432,14 @@ importers:
         specifier: 'catalog:'
         version: 0.10.0(vue@3.5.41(typescript@6.0.3))
       '@gd-kirie/ipc':
-        specifier: link:../../../godot-kirie/packages/ipc
-        version: link:../../../godot-kirie/packages/ipc
+        specifier: 0.3.0
+        version: 0.3.0
       '@gd-kirie/ipc-eventa':
-        specifier: link:../../../godot-kirie/packages/ipc-eventa
-        version: link:../../../godot-kirie/packages/ipc-eventa
+        specifier: 0.3.0
+        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
       '@gd-kirie/platform':
-        specifier: link:../../../godot-kirie/packages/platform
-        version: link:../../../godot-kirie/packages/platform
+        specifier: 0.3.0
+        version: 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.11
@@ -2838,8 +2838,8 @@ importers:
         specifier: 'catalog:'
         version: 43.4.1(supports-color@10.2.2)
       kirie:
-        specifier: link:../../../godot-kirie/packages/cli
-        version: link:../../../godot-kirie/packages/cli
+        specifier: 0.3.0
+        version: 0.3.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       less:
         specifier: 'catalog:'
         version: 4.9.0(supports-color@10.2.2)
@@ -8296,6 +8296,18 @@ packages:
     resolution: {integrity: sha512-KGomRttjUfORuPUaR/ZGQw+6xfMrTM+sxnILv7JAd9AmabU9rg9i6gF/iC0Ih+QpKCubJpCA/1DX9UHKE8cX+A==}
     peerDependencies:
       vue: '*'
+
+  '@gd-kirie/build@0.3.0':
+    resolution: {integrity: sha512-NOsU3JJmPZrpLPJgJ/rdIs6JYlmqkSfs+X3sPI95TISkw8CwTSAjrZ0zFyRs57ppXfpgAR5MEZeOkUKqak7P8A==}
+
+  '@gd-kirie/ipc-eventa@0.3.0':
+    resolution: {integrity: sha512-sWtF9bd8jaX5qTL5uyhwDKLR8VLBYYmn7F+t+tiuQbOTwjO9ITtMEtvJCpXzNOpH+ubMp4QsUMXVS+f+CfCRSw==}
+
+  '@gd-kirie/ipc@0.3.0':
+    resolution: {integrity: sha512-2vsSSIE7borqAxN11TOB1L4wqD69nMUsKs5ZAEocAwGiAo/2hqGwVs+piofdQc8EnW6aI2lHnR3LeZJUr5gMpw==}
+
+  '@gd-kirie/platform@0.3.0':
+    resolution: {integrity: sha512-cwYnzhSESwnyCPM1FAoZMRhPc78bRD9v/k4En7wEszcPk+Vw8LwZw+YqxVDjQRDvPZz9RDTutWrGLdrLEKBJ3A==}
 
   '@grammyjs/files@1.2.0':
     resolution: {integrity: sha512-UhQNGe2gpGgGMdrAUFXrZld3qQjt/3oYBHIo1aU0zIrKKvI5bgxzXSjPaJpx69HUO9mM7TbOaSsJL8lWbqnzJw==}
@@ -13951,6 +13963,10 @@ packages:
   caseless@0.12.0:
     resolution: {integrity: sha512-4tYFyifaFfGacoiObjJegolkwSU4xQNGbVgUiNYVUxbQ2x2lUsFvY4hVgVzGiIe6WLOPqycWXA40l+PWsxthUw==}
 
+  cborg@4.5.8:
+    resolution: {integrity: sha512-6/viltD51JklRhq4L7jC3zgy6gryuG5xfZ3kzpE+PravtyeQLeQmCYLREhQH7pWENg5pY4Yu/XCd6a7dKScVlw==}
+    hasBin: true
+
   ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
 
@@ -15981,6 +15997,10 @@ packages:
   gifwrap@0.10.1:
     resolution: {integrity: sha512-2760b1vpJHNmLzZ/ubTtNnEx5WApN/PYWJvXvgS+tL1egTTthayFYIQQNi136FLEDcN/IyEY2EcGpIITD6eYUw==}
 
+  giget@3.3.0:
+    resolution: {integrity: sha512-gzi2D96p+AMfDcmJHGDj3KJ9NRiwvlFAU5yfa3ROwWZmFUjX4P43x3BcyRaOMMLto1vUo7C+86+MFhYTl6Ryiw==}
+    hasBin: true
+
   giget@3.3.1:
     resolution: {integrity: sha512-r+mvuDjrjMpsdw46Kmeydb8bdHm7wOKw8wNBtTndkjbPjgAp5oUJUxRE76wZFknxIPokfWvep2qSXK37aXE6zg==}
     hasBin: true
@@ -16447,6 +16467,10 @@ packages:
     resolution: {integrity: sha512-X7rqawQBvfdjS10YU1y1YVreA3SsLrW9dX2CewP2EbBJM4ypVNLDkO5y04gejPwKIY9lR+7r9gn3rFPt/kmWFg==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
+  ini@7.0.0:
+    resolution: {integrity: sha512-ifK0CgjALofS5bkrcTy4RaQ9Vx2Knf/eLeIO+NaswQEpH1UblrtTSCIvN71qQDMq0PeQ/SSPojvEJp9vvvfr+w==}
+    engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
+
   injeca@0.2.0:
     resolution: {integrity: sha512-uV++UZJQMx/wGzIFQzPB1/+3Xc3QQxZ0zvFZFyNlcSpbNqcn/8X7vGvRM2K9Nrj1qMsodQhAhCHP4GCMhXrDfQ==}
     peerDependencies:
@@ -16845,6 +16869,10 @@ packages:
   kind-of@6.0.3:
     resolution: {integrity: sha512-dcS1ul+9tmeD95T+x28/ehLgd9mENa3LsvDTtzm3vyBEO7RPptvAD+t44WVXaUjTBRcrpFeFlC8WCruUR456hw==}
     engines: {node: '>=0.10.0'}
+
+  kirie@0.3.0:
+    resolution: {integrity: sha512-C/go/aIylFHrOi4NSj1RC9tXUSnnoUC7wddQazObds/oa182VHOEdve4RX7dsbOIkFk6qtKlmf/3FiRRGkC1cA==}
+    hasBin: true
 
   klaw@1.3.1:
     resolution: {integrity: sha512-TED5xi9gGQjGpNnvRWknrwAB1eL5GciPfVFOt3Vk1OJCVDQbzuSfrF3hkUQKlsgKrG1F+0t5W0m+Fje1jIt8rw==}
@@ -19607,6 +19635,10 @@ packages:
   tagged-tag@1.0.0:
     resolution: {integrity: sha512-yEFYrVhod+hdNyx7g5Bnkkb0G6si8HJurOoOEgC8B/O0uXLHlaey/65KRv6cuWBNhBgHKAROVpc7QyYqE5gFng==}
     engines: {node: '>=20'}
+
+  takanawa-node@0.9.0:
+    resolution: {integrity: sha512-Gf0qk8GIAEXwcxvbu3KxRlFew0fI/IdCcU0nbR/Qp9+/1leLhhAiDPF42GDZ+Ff4Za8lAx/nqyyelzYzmrGqdQ==}
+    engines: {node: '>=18.17.0'}
 
   tapable@2.3.3:
     resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
@@ -23562,6 +23594,51 @@ snapshots:
   '@formkit/auto-animate@0.10.0(vue@3.5.41(typescript@6.0.3))':
     dependencies:
       vue: 3.5.41(typescript@6.0.3)
+
+  '@gd-kirie/build@0.3.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)':
+    dependencies:
+      execa: 9.6.1
+      ini: 7.0.0
+      vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - '@types/node'
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
+
+  '@gd-kirie/ipc-eventa@0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+    dependencies:
+      '@gd-kirie/ipc': 0.3.0
+      '@moeru/eventa': 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
+    transitivePeerDependencies:
+      - '@tauri-apps/api'
+      - electron
+      - h3
+      - hono
+      - web-worker
+
+  '@gd-kirie/ipc@0.3.0':
+    dependencies:
+      cborg: 4.5.8
+
+  '@gd-kirie/platform@0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+    dependencies:
+      '@gd-kirie/ipc-eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
+    transitivePeerDependencies:
+      - '@tauri-apps/api'
+      - electron
+      - h3
+      - hono
+      - web-worker
 
   '@grammyjs/files@1.2.0(grammy@1.45.1(supports-color@10.2.2))':
     dependencies:
@@ -29289,6 +29366,8 @@ snapshots:
 
   caseless@0.12.0: {}
 
+  cborg@4.5.8: {}
+
   ccount@2.0.1: {}
 
   chai@6.2.2: {}
@@ -31487,6 +31566,8 @@ snapshots:
       image-q: 4.0.0
       omggif: 1.0.10
 
+  giget@3.3.0: {}
+
   giget@3.3.1: {}
 
   git-log-parser@1.2.1:
@@ -32132,6 +32213,8 @@ snapshots:
 
   ini@4.1.3: {}
 
+  ini@7.0.0: {}
+
   injeca@0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@6.0.1):
     dependencies:
       error-stack-parser: 2.1.4
@@ -32547,6 +32630,29 @@ snapshots:
       json-buffer: 3.0.1
 
   kind-of@6.0.3: {}
+
+  kirie@0.3.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0):
+    dependencies:
+      '@gd-kirie/build': 0.3.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      citty: 0.2.2
+      execa: 9.6.1
+      giget: 3.3.0
+      jszip: 3.10.1
+      takanawa-node: 0.9.0
+      vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - '@types/node'
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
 
   klaw@1.3.1:
     optionalDependencies:
@@ -35950,6 +36056,8 @@ snapshots:
       strip-ansi: 6.0.1
 
   tagged-tag@1.0.0: {}
+
+  takanawa-node@0.9.0: {}
 
   tapable@2.3.3: {}
 

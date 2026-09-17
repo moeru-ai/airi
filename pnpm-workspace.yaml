@@ -8,6 +8,14 @@ minimumReleaseAgeExclude:
   - dmg-builder@26.16.1
   - electron-builder-squirrel-windows@26.16.1
   - electron-builder@26.16.1
+  # NOTICE:
+  # Kirie 0.3.0 is the reviewed desktop migration baseline.
+  # Keep these exceptions exact so later Kirie releases use the normal age rule.
+  - '@gd-kirie/build@0.3.0'
+  - '@gd-kirie/ipc-eventa@0.3.0'
+  - '@gd-kirie/ipc@0.3.0'
+  - '@gd-kirie/platform@0.3.0'
+  - kirie@0.3.0
   - '@moeru/*'
   - '@proj-airi/*'
   - '@vishot/*'

@@ -4,17 +4,17 @@ internal sealed class WebViewPermissionHandler : IDisposable
 {
     private readonly KirieClient _kirie;
     private readonly Uri _trustedOrigin;
-    private readonly string? _allowedPermission;
+    private readonly MicrophonePermissionService? _microphonePermissions;
     private bool _disposed;
 
     public WebViewPermissionHandler(
         KirieClient kirie,
         string rendererUrl,
-        string? allowedPermission = null)
+        MicrophonePermissionService? microphonePermissions = null)
     {
         _kirie = kirie;
         _trustedOrigin = ParseOrigin(rendererUrl);
-        _allowedPermission = allowedPermission;
+        _microphonePermissions = microphonePermissions;
         _kirie.PermissionRequested += OnPermissionRequested;
     }
 
@@ -31,16 +31,26 @@ internal sealed class WebViewPermissionHandler : IDisposable
 
     private void OnPermissionRequested(string permissionType, string origin, long requestId)
     {
-        var allowed = StringComparer.Ordinal.Equals(permissionType, _allowedPermission)
-            && HasSameOrigin(origin);
-        var resolved = allowed
+        if (StringComparer.Ordinal.Equals(permissionType, "microphone")
+            && HasSameOrigin(origin)
+            && _microphonePermissions is not null)
+        {
+            _microphonePermissions.Request(granted => Resolve(requestId, granted));
+            return;
+        }
+
+        Resolve(requestId, granted: false);
+    }
+
+    private void Resolve(long requestId, bool granted)
+    {
+        var resolved = granted
             ? _kirie.GrantPermission(requestId)
             : _kirie.DenyPermission(requestId);
         if (!resolved)
         {
             GD.PushError(
-                $"Kirie could not resolve WebView permission request {requestId} "
-                + $"for {permissionType} from {origin}.");
+                $"Kirie could not resolve WebView permission request {requestId}.");
         }
     }
 
