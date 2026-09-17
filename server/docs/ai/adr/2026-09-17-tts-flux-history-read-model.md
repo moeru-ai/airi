@@ -24,10 +24,9 @@ There is no second history endpoint.
 The history query paginates projection rows, not raw ledger entries.
 One query joins each projection row to its latest ledger entry.
 The amount and entry fields therefore use one statement snapshot.
-The latest entry supplies the ID, time, description, metadata, and request ID.
-Balance fields remain actual snapshots around that latest debit.
-They do not describe the aggregate amount, because other transactions can
-occur between charges in one round.
+The latest entry supplies the ID, time, type, description, and metadata.
+The response keeps exactly these five fields plus the amount.
+User IDs, balance snapshots, request IDs, and projection keys stay on the server.
 
 The ledger stores an optional `historyGroupKey` only after Valibot validates
 the correlation pair. A database trigger uses that key to update the

@@ -4,13 +4,8 @@
  */
 export interface FluxHistoryEntry {
   id: string
-  userId: string
   type: string
   amount: number
-  /** Actual balances around the latest debit, not around the round total. */
-  balanceBefore: number
-  balanceAfter: number
-  requestId: string | null
   description: string
   metadata: Record<string, unknown> | null
   createdAt: string

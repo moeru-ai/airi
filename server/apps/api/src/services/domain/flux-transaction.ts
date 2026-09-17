@@ -39,8 +39,8 @@ export function createFluxTransactionService(db: Database) {
 
     /**
      * Returns display records through the existing history contract.
-     * TTS amounts cover one conversation round. Other fields describe its latest
-     * ledger entry, including actual balance snapshots, not synthetic balances.
+     * TTS amounts cover one conversation round. Other public fields describe
+     * its latest ledger entry. Private ledger fields stay on the server.
      * The projection and entry use one statement snapshot. Pagination counts
      * display records, so one round cannot split across pages.
      */
@@ -55,12 +55,8 @@ export function createFluxTransactionService(db: Database) {
 
       const entries = await db.select({
         id: schema.fluxTransaction.id,
-        userId: schema.fluxTransaction.userId,
         type: schema.fluxTransaction.type,
         amount: page.totalAmount,
-        balanceBefore: schema.fluxTransaction.balanceBefore,
-        balanceAfter: schema.fluxTransaction.balanceAfter,
-        requestId: schema.fluxTransaction.requestId,
         description: schema.fluxTransaction.description,
         metadata: schema.fluxTransaction.metadata,
         createdAt: schema.fluxTransaction.createdAt,

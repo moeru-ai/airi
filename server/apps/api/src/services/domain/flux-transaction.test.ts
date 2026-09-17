@@ -257,6 +257,19 @@ describe('fluxTransactionService', () => {
     expect(page.records[0]).not.toHaveProperty('entries')
     expect(page.records[0]).not.toHaveProperty('chargeCount')
     expect(page.records[0]).not.toHaveProperty('historyGroupKey')
+    // https://github.com/moeru-ai/airi/pull/2491#discussion_r4035448749
+    // ROOT CAUSE:
+    //
+    // Returning database rows exposed private fields in the existing API.
+    // Keep exactly the original six public fields, with only amount combined.
+    expect(Object.keys(page.records[0]).sort()).toEqual([
+      'amount',
+      'createdAt',
+      'description',
+      'id',
+      'metadata',
+      'type',
+    ])
     expect(page.hasMore).toBe(false)
     const ledger = await db.query.fluxTransaction.findMany({
       where: (transaction, { eq }) => eq(transaction.userId, 'user-bounded-group'),
