@@ -38,4 +38,25 @@ describe('fade on hover interaction', () => {
     expect(interaction.fadeStage).toBe(false)
     expect(interaction.ignoreMouseEvents).toBe(false)
   })
+
+  // https://github.com/moeru-ai/airi/issues/2160
+  it('restores interaction after disabling Auto Hide from a faded state (Issue #2160)', () => {
+    const fadedInteraction = resolveFadeOnHoverInteraction({
+      cursorInsideWindow: true,
+      enabled: true,
+      transparentForFade: false,
+      transparentForPointer: false,
+    })
+    const restoredInteraction = resolveFadeOnHoverInteraction({
+      cursorInsideWindow: true,
+      enabled: false,
+      transparentForFade: false,
+      transparentForPointer: false,
+    })
+
+    expect(fadedInteraction.fadeStage).toBe(true)
+    expect(fadedInteraction.ignoreMouseEvents).toBe(true)
+    expect(restoredInteraction.fadeStage).toBe(false)
+    expect(restoredInteraction.ignoreMouseEvents).toBe(false)
+  })
 })
