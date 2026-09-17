@@ -22,12 +22,13 @@ import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { Callout } from '@proj-airi/ui'
-import { useBroadcastChannel } from '@vueuse/core'
+import { useBroadcastChannel, useDevicePixelRatio, useElementSize } from '@vueuse/core'
+import { attemptAsync } from 'es-toolkit'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
 import StageRenderError from './stage-render-error.vue'
 
@@ -248,6 +249,82 @@ const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error(`failed to load ${src}`))
+    image.src = src
+  })
+}
+
+const backgroundCanvas = useTemplateRef<HTMLCanvasElement>('backgroundCanvas')
+const { width: backgroundWidth, height: backgroundHeight } = useElementSize(backgroundCanvas)
+const { pixelRatio } = useDevicePixelRatio()
+
+/** The scene held ready to paint, so a resize never waits on a decode. */
+const backgroundImage = shallowRef<HTMLImageElement | undefined>()
+
+/**
+ * Paints the scene into its canvas at the size the stage currently shows it.
+ *
+ * `cover` is applied here rather than by CSS because the pixels have to be readable:
+ * the stage window samples this canvas to decide whether a click belongs to the scene
+ * or to the application behind it.
+ *
+ * Synchronous on purpose. Sizing the backing store clears it, so anything awaited
+ * between the clear and the draw shows as a blank frame, once per frame of a resize.
+ */
+function paintBackground() {
+  const canvas = backgroundCanvas.value
+  if (!canvas || !backgroundWidth.value || !backgroundHeight.value)
+    return
+
+  const width = Math.round(backgroundWidth.value * pixelRatio.value)
+  const height = Math.round(backgroundHeight.value * pixelRatio.value)
+
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (!context)
+    return
+
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width
+    canvas.height = height
+  }
+
+  context.clearRect(0, 0, canvas.width, canvas.height)
+
+  const image = backgroundImage.value
+  // No scene, or one that never decoded, leaves the canvas clear, which reads as clear
+  // rather than as a surface that swallows clicks.
+  if (!image)
+    return
+
+  const scale = Math.max(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight)
+  const drawWidth = image.naturalWidth * scale
+  const drawHeight = image.naturalHeight * scale
+  context.drawImage(image, (canvas.width - drawWidth) / 2, (canvas.height - drawHeight) / 2, drawWidth, drawHeight)
+}
+
+watch(activeBackgroundUrl, async (url) => {
+  if (!url) {
+    backgroundImage.value = undefined
+    paintBackground()
+    return
+  }
+
+  const [error, image] = await attemptAsync(() => loadImage(url))
+  // A later scene wins: decoding is async and the card can change mid-flight.
+  if (activeBackgroundUrl.value !== url)
+    return
+
+  backgroundImage.value = error ? undefined : image ?? undefined
+  paintBackground()
+}, { immediate: true })
+
+watch([backgroundWidth, backgroundHeight, pixelRatio], paintBackground)
+onMounted(paintBackground)
 
 const { currentMotion } = storeToRefs(useLive2dParams())
 
@@ -1063,6 +1140,8 @@ onUnmounted(() => {
 
 defineExpose({
   canvasElement,
+  /** The scene layer, hit-tested with the same sampler the model canvas uses. */
+  backgroundCanvasElement: () => backgroundCanvas.value ?? undefined,
   captureFrame,
   readRenderTargetRegionAtClientPoint,
 })
@@ -1070,19 +1149,18 @@ defineExpose({
 
 <template>
   <div relative h-full w-full>
-    <!-- Scene Background Layer -->
-    <div
-      v-if="activeBackgroundUrl"
+    <!--
+      Scene Background Layer. It is a canvas rather than a CSS background so the stage
+      window can hit-test it the way it hit-tests a model: reading the pixel under the
+      cursor. A scene with transparent margins then reports them as clear.
+    -->
+    <canvas
+      v-show="activeBackgroundUrl"
+      ref="backgroundCanvas"
       :class="[
         'absolute left-0 top-0 z-0 h-full w-full',
         'transition-opacity duration-500',
       ]"
-      :style="{
-        backgroundImage: `url(${activeBackgroundUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }"
     />
 
     <div relative h-full w-full>
