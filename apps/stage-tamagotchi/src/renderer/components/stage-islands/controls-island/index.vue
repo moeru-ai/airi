@@ -277,7 +277,7 @@ function resetMainWindowPosition() {
             data-testid="controls-menu"
             orientation="both"
             :style="panelStyle"
-            :class="['w-max shrink-0', panelPositionClasses]"
+            :class="['w-max shrink-0 rounded-2xl', panelPositionClasses]"
             viewport-class="overscroll-contain"
           >
             <div
