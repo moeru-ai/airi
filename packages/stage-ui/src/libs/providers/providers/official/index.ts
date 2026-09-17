@@ -20,19 +20,6 @@ function authHeaders(): Record<string, string> {
   return headers
 }
 
-function resolveSpeechConversationId(extraOptions?: Record<string, unknown>): string | undefined {
-  const extraBody = extraOptions?.extraBody
-  if (extraBody == null || typeof extraBody !== 'object' || Array.isArray(extraBody))
-    return undefined
-
-  const analytics = (extraBody as Record<string, unknown>).airi_analytics
-  if (analytics == null || typeof analytics !== 'object' || Array.isArray(analytics))
-    return undefined
-
-  const conversationId = (analytics as Record<string, unknown>).conversation_id
-  return typeof conversationId === 'string' && conversationId.length > 0 ? conversationId : undefined
-}
-
 async function listStreamingModelCatalog(): Promise<ProviderModelCatalog> {
   // Streaming TTS catalog is operator-controlled via configKV
   // (`UNSPEECH_UPSTREAM.streaming`). Wire shape uses `<backend>/<api_resource_id>`
@@ -118,7 +105,7 @@ export const providerOfficialSpeech = defineProvider({
         ...originalSpeech(model),
         ...extraOptions,
       }
-      result.fetch = withCredentials(resolveSpeechConversationId(extraOptions))
+      result.fetch = withCredentials()
       return result
     }
     return provider
@@ -248,7 +235,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
         ...originalSpeech(model),
         ...extraOptions,
       }
-      result.fetch = withCredentials(resolveSpeechConversationId(extraOptions))
+      result.fetch = withCredentials()
       return result
     }
     return provider

@@ -72,10 +72,8 @@ export interface StreamingSessionSnapshot {
   model: string
   voice: string
   voiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
-  /** Conversation that owns this TTS session's ledger entries. */
-  conversationId?: string
-  /** Chat round within the conversation that owns this TTS session. */
-  roundId?: string
+  /** Existing chat turn ID used to group this session's billing entries. */
+  turnId?: string
   bufferEntireSession: boolean
   extraBody: Record<string, unknown>
   /**
@@ -164,8 +162,7 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
     model: snapshot.model,
     voice: snapshot.voice,
     ttsVoiceType: snapshot.voiceType,
-    conversationId: snapshot.conversationId,
-    roundId: snapshot.roundId,
+    turnId: snapshot.turnId,
     audioContext,
     bufferEntireSession: snapshot.bufferEntireSession,
     extraBody: snapshot.extraBody,

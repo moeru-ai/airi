@@ -3,7 +3,6 @@ import { createContext as createBroadcastChannelContext } from '@moeru/eventa/ad
 
 export interface SpeechIntentStartPayload {
   originId: string
-  conversationId?: string
   turnId?: string
   intentId: string
   streamId: string
@@ -14,7 +13,6 @@ export interface SpeechIntentStartPayload {
 
 export interface SpeechIntentTokenPayload {
   originId: string
-  conversationId?: string
   turnId?: string
   intentId: string
   streamId: string

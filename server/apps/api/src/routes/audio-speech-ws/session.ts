@@ -60,7 +60,7 @@ export interface AudioSpeechSessionAnalytics {
   trigger?: StreamingTtsTrigger
   source?: StreamingTtsSource
   voiceType?: StreamingTtsVoiceType
-  /** Conversation and chat round that own this session's ledger entries. */
+  /** Chat turn that owns this session's ledger entries. */
   correlation?: TtsBillingCorrelation
 }
 
@@ -461,9 +461,7 @@ export function createSessionState(
           units,
           currentBalance: flux.flux,
           requestId,
-          metadata: {
-            model: modelLabel,
-          },
+          metadata: { model: modelLabel },
           correlation: analyticsInput.correlation,
         }))
       fluxConsumed = result.fluxDebited

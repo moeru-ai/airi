@@ -82,11 +82,10 @@ function createPlaybackSpy(options?: { autoEnd?: boolean }) {
 }
 
 describe('createSpeechPipeline', () => {
-  it('keeps the intent conversation on every delayed TTS request', async () => {
+  it('keeps the intent turn ID on every delayed TTS request', async () => {
     const { playback } = createPlaybackSpy()
     const requests: TtsRequest[] = []
     const pipeline = createSpeechPipeline<string>({
-      segmenter: createSegmenter(['first', 'second']),
       playback,
       async tts(request) {
         requests.push(request)
@@ -97,12 +96,15 @@ describe('createSpeechPipeline', () => {
       pipeline.on('onIntentEnd', () => resolve())
     })
 
-    const intent = pipeline.openIntent({ conversationId: 'conversation-at-open' })
+    const intent = pipeline.openIntent({ turnId: 'turn-at-open' })
+    intent.writeLiteral('first')
+    intent.writeFlush()
+    intent.writeLiteral('second')
     intent.end()
     await intentFinished
 
     expect(requests).toHaveLength(2)
-    expect(requests.every(request => request.conversationId === 'conversation-at-open')).toBe(true)
+    expect(requests.every(request => request.turnId === 'turn-at-open')).toBe(true)
   })
 
   it('preserves playback order when TTS completes out of order', async () => {

@@ -8,7 +8,7 @@ The existing `GET /api/v1/flux/history` endpoint returns `{ records, hasMore }`.
 Each record keeps the six public fields: `id`, `type`, `amount`,
 `description`, `metadata`, and `createdAt`.
 
-The server combines TTS debits with the same conversation and round for one user.
+The server combines TTS debits with the same `turnId` for one user.
 It reads the existing `flux_transaction` table in one SQL statement.
 A window sum calculates the full amount. A row number selects the latest entry.
 The query applies pagination after aggregation. Equal timestamps use the entry ID
@@ -24,13 +24,52 @@ The client displays ordinary records without group counts or expandable children
 
 ## Correlation
 
-The speech pipeline reuses the existing chat `turnId` as `roundId`.
-It snapshots the conversation at intent creation, including queued chats and
-cross-renderer speech. Later session switches cannot change that snapshot.
+The speech pipeline reuses the existing chat `turnId` without a second identifier.
+The existing speech intent preserves this ID across queues and renderer boundaries.
+The chat runtime generates each turn ID with the configured ID factory (`nanoid` in stage-ui).
+Billing does not require a local session ID or a cloud chat ID.
 
-REST and WebSocket requests carry the pair.
+REST and WebSocket requests carry `turn_id`.
 Valibot validates it at the request boundary.
-Billing stores the pair in the existing metadata column.
+Billing stores `turnId` in the existing metadata column.
+
+## Boundaries and flow
+
+Module dependencies:
+
+```text
+Stage -> speech intent / streaming session -> HTTP / WebSocket
+HTTP / WebSocket -> TTS correlation schema -> meter -> billing -> ledger
+Flux history route -> transaction service -> ledger
+```
+
+Affected files:
+
+```text
+packages/stage-ui/src/
+  components/scenes/Stage.vue
+  libs/speech/{tts-session,streaming-pipeline}.ts
+  stores/modules/speech.ts
+server/apps/api/src/
+  app.ts
+  routes/audio-speech-ws/session.ts
+  services/domain/
+    openai-speech/index.ts
+    billing/{tts-correlation,flux-meter,billing-service}.ts
+    flux-transaction.ts
+```
+
+Request sequence:
+
+```text
+Chat -> Speech: existing turnId
+Speech -> API: turn_id on each TTS request
+API -> Meter -> Billing: validated turnId
+Billing -> Ledger: debit with metadata.turnId
+Client -> History API: existing page request
+History API -> Ledger: user filter, turn aggregation, pagination
+History API -> Client: ordinary records and hasMore
+```
 
 ## Settlement semantics
 
@@ -56,7 +95,7 @@ None of these changes is part of this PR.
 
 ## Verification
 
-PGlite tests cover aggregation before pagination, conversation and user isolation,
+PGlite tests cover aggregation before pagination and user isolation,
 different rounds, malformed metadata, timestamp ties, and unchanged ledger entries.
 A 51-charge round returns one record with its full amount.
 A contract assertion limits records to the original six fields.

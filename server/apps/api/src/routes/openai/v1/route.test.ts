@@ -1316,7 +1316,7 @@ describe('v1CompletionsRoutes', () => {
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
     })
 
-    it('records the conversation and round on automatic TTS billing', async () => {
+    it('records the existing turnId without a chat session header', async () => {
       globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
         status: 200,
         headers: { 'Content-Type': 'audio/mpeg' },
@@ -1336,7 +1336,6 @@ describe('v1CompletionsRoutes', () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            [AIRI_CHAT_SESSION_ID_HEADER]: 'conversation-1',
           },
           body: JSON.stringify({
             model: 'auto',
@@ -1346,7 +1345,7 @@ describe('v1CompletionsRoutes', () => {
               airi_analytics: {
                 trigger: 'auto',
                 source: 'chat_auto_tts',
-                round_id: 'round-1',
+                turn_id: 'round-1',
               },
             },
           }),
@@ -1357,8 +1356,7 @@ describe('v1CompletionsRoutes', () => {
       expect(response.status).toBe(200)
       expect(ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({
         correlation: {
-          conversationId: 'conversation-1',
-          roundId: 'round-1',
+          turnId: 'round-1',
         },
       }))
     })

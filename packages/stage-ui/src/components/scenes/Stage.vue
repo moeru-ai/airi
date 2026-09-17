@@ -546,8 +546,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
           trigger: 'auto',
           source: 'chat_auto_tts',
           voice_type: resolveStageVoiceType(),
-          ...(request.conversationId != null && { conversation_id: request.conversationId }),
-          ...(request.turnId != null && { round_id: request.turnId }),
+          ...(request.turnId != null && { turn_id: request.turnId }),
         },
       )
 
@@ -739,7 +738,7 @@ function resolveStreamingSessionModel(): string | null {
   return sessionModel
 }
 
-function buildStreamingSnapshot(conversationId: string, turnId: string): StreamingSessionSnapshot | null {
+function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null {
   if (speechMuted.value)
     return null
 
@@ -770,8 +769,7 @@ function buildStreamingSnapshot(conversationId: string, turnId: string): Streami
     model: sessionModel,
     voice: voiceId,
     voiceType: resolveStageVoiceType(),
-    conversationId,
-    roundId: turnId,
+    turnId,
     bufferEntireSession,
     extraBody: {
       api_resource_id: apiResourceId,
@@ -792,7 +790,7 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
   return getDefinedProvider(providerId)?.capabilities?.speech?.transport
 }
 
-function openTtsSession(conversationId: string, turnId: string): StageTtsSession {
+function openTtsSession(turnId: string): StageTtsSession {
   // A session must only clear the module-level `currentSession` if it IS that session. The previous
   // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
   // are not assigned to `currentSession` (e.g. one-off read-aloud sessions): one of those finishing
@@ -805,12 +803,11 @@ function openTtsSession(conversationId: string, turnId: string): StageTtsSession
   }
   session = createStageTtsSession<AudioBuffer>({
     transport: resolveSpeechTransport(activeSpeechProvider.value),
-    streaming: () => buildStreamingSnapshot(conversationId, turnId),
+    streaming: () => buildStreamingSnapshot(turnId),
     audioContext,
     playbackManager,
     openIntent: opts => speechRuntimeStore.openIntent(opts),
     intentOptions: () => ({
-      conversationId,
       turnId,
       ownerId: activeCardId.value,
       priority: 'normal',
@@ -861,7 +858,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
 
   setupAnalyser()
   await setupLipSync()
-  currentSession = openTtsSession(context.conversationId, context.turnId)
+  currentSession = openTtsSession(context.turnId)
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {

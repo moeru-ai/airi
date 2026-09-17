@@ -81,10 +81,10 @@ describe('fluxTransactionService', () => {
   // ROOT CAUSE:
   //
   // The client grouped only its current raw page. One TTS round could split
-  // across pages, and equal round IDs from two conversations could merge.
+  // across pages. The server must group all charges before pagination.
   //
-  // The server now pages display rows and uses both correlation fields.
-  it('groups TTS charges by conversation and round before pagination', async () => {
+  // The server now pages display rows and reuses the existing turn ID.
+  it('groups TTS charges by turnId alone before pagination', async () => {
     await db.insert(schema.fluxTransaction).values([
       {
         id: 'history-a-1',
@@ -94,7 +94,7 @@ describe('fluxTransactionService', () => {
         balanceBefore: 10,
         balanceAfter: 9,
         description: 'tts_request',
-        metadata: { conversationId: 'conversation-a', roundId: 'round-1' },
+        metadata: { turnId: 'turn-1' },
         createdAt: new Date('2026-09-17T12:00:01.000Z'),
       },
       {
@@ -105,7 +105,7 @@ describe('fluxTransactionService', () => {
         balanceBefore: 9,
         balanceAfter: 7,
         description: 'tts_request',
-        metadata: { conversationId: 'conversation-a', roundId: 'round-1' },
+        metadata: { turnId: 'turn-1' },
         createdAt: new Date('2026-09-17T12:00:02.000Z'),
       },
       {
@@ -116,7 +116,7 @@ describe('fluxTransactionService', () => {
         balanceBefore: 7,
         balanceAfter: 4,
         description: 'tts_request',
-        metadata: { conversationId: 'conversation-b', roundId: 'round-1' },
+        metadata: { turnId: 'turn-2' },
         createdAt: new Date('2026-09-17T12:00:03.000Z'),
       },
     ])
@@ -129,7 +129,7 @@ describe('fluxTransactionService', () => {
       type: 'debit',
       id: 'history-b-1',
       amount: 3,
-      metadata: { conversationId: 'conversation-b', roundId: 'round-1' },
+      metadata: { turnId: 'turn-2' },
     })
     expect(firstPage.hasMore).toBe(true)
     expect(secondPage.records).toHaveLength(1)
@@ -137,13 +137,13 @@ describe('fluxTransactionService', () => {
       type: 'debit',
       id: 'history-a-2',
       amount: 3,
-      metadata: { conversationId: 'conversation-a', roundId: 'round-1' },
+      metadata: { turnId: 'turn-1' },
     })
     expect(secondPage.hasMore).toBe(false)
     expect(await service.getHistory('user-history', 1, 2)).toEqual({ records: [], hasMore: false })
   })
 
-  it('keeps TTS entries without a complete correlation pair separate', async () => {
+  it('keeps TTS entries without a turnId separate', async () => {
     await db.insert(schema.fluxTransaction).values([
       {
         id: 'legacy-tts-1',
@@ -153,7 +153,7 @@ describe('fluxTransactionService', () => {
         balanceBefore: 2,
         balanceAfter: 1,
         description: 'tts_request',
-        metadata: { roundId: 'round-1' },
+        metadata: { model: 'tts-model' },
         createdAt: new Date('2026-09-17T12:00:01.000Z'),
       },
       {
@@ -164,7 +164,7 @@ describe('fluxTransactionService', () => {
         balanceBefore: 1,
         balanceAfter: 0,
         description: 'tts_request',
-        metadata: { roundId: 'round-1' },
+        metadata: { model: 'tts-model' },
         createdAt: new Date('2026-09-17T12:00:02.000Z'),
       },
     ])
@@ -181,7 +181,7 @@ describe('fluxTransactionService', () => {
   it('preserves every entry when stored correlation is invalid', async () => {
     // ROOT CAUSE:
     //
-    // PostgreSQL btrim accepted a tab-only conversation ID that Valibot
+    // PostgreSQL btrim accepted a tab-only turn ID that Valibot
     // rejected. The grouped fallback then returned only the newest entry.
     await db.insert(schema.fluxTransaction).values([
       {
@@ -192,7 +192,7 @@ describe('fluxTransactionService', () => {
         balanceBefore: 2,
         balanceAfter: 1,
         description: 'tts_request',
-        metadata: { conversationId: '\t', roundId: 'round-1' },
+        metadata: { turnId: '\t' },
         createdAt: new Date('2026-09-17T12:00:01.000Z'),
       },
       {
@@ -203,7 +203,7 @@ describe('fluxTransactionService', () => {
         balanceBefore: 1,
         balanceAfter: 0,
         description: 'tts_request',
-        metadata: { conversationId: '\t', roundId: 'round-1' },
+        metadata: { turnId: '\t' },
         createdAt: new Date('2026-09-17T12:00:02.000Z'),
       },
     ])
@@ -226,7 +226,7 @@ describe('fluxTransactionService', () => {
       balanceBefore: 51 - index,
       balanceAfter: 50 - index,
       description: 'tts_request',
-      metadata: { conversationId: 'conversation-1', roundId: 'round-1' },
+      metadata: { turnId: 'round-1' },
       createdAt: new Date(Date.UTC(2026, 8, 17, 12, 0, index)),
     })))
 
@@ -273,7 +273,7 @@ describe('fluxTransactionService', () => {
         balanceBefore: 10,
         balanceAfter: 8,
         description: 'tts_request',
-        metadata: { conversationId: 'shared-chat', roundId: 'shared-round' },
+        metadata: { turnId: 'shared-round' },
       },
       {
         id: 'owner-b',
@@ -283,7 +283,7 @@ describe('fluxTransactionService', () => {
         balanceBefore: 10,
         balanceAfter: 5,
         description: 'tts_request',
-        metadata: { conversationId: 'shared-chat', roundId: 'shared-round' },
+        metadata: { turnId: 'shared-round' },
       },
     ])
 
@@ -295,11 +295,11 @@ describe('fluxTransactionService', () => {
   it('keeps different rounds and non-TTS transactions separate with tied timestamps', async () => {
     const createdAt = new Date('2026-09-17T12:00:00.000Z')
     await db.insert(schema.fluxTransaction).values([
-      { id: 'tie-a', type: 'debit', description: 'tts_request', amount: 1, metadata: { conversationId: 'chat', roundId: 'round-a' } },
-      { id: 'tie-b', type: 'debit', description: 'tts_request', amount: 2, metadata: { conversationId: 'chat', roundId: 'round-a' } },
-      { id: 'tie-c', type: 'debit', description: 'tts_request', amount: 4, metadata: { conversationId: 'chat', roundId: 'round-b' } },
-      { id: 'tie-d', type: 'credit', description: 'tts_request', amount: 5, metadata: { conversationId: 'chat', roundId: 'round-a' } },
-      { id: 'tie-e', type: 'debit', description: 'llm_request', amount: 6, metadata: { conversationId: 'chat', roundId: 'round-a' } },
+      { id: 'tie-a', type: 'debit', description: 'tts_request', amount: 1, metadata: { turnId: 'round-a' } },
+      { id: 'tie-b', type: 'debit', description: 'tts_request', amount: 2, metadata: { turnId: 'round-a' } },
+      { id: 'tie-c', type: 'debit', description: 'tts_request', amount: 4, metadata: { turnId: 'round-b' } },
+      { id: 'tie-d', type: 'credit', description: 'tts_request', amount: 5, metadata: { turnId: 'round-a' } },
+      { id: 'tie-e', type: 'debit', description: 'llm_request', amount: 6, metadata: { turnId: 'round-a' } },
     ].map(entry => ({ ...entry, userId: 'user-ties', balanceBefore: 100, balanceAfter: 90, createdAt })))
 
     const first = await service.getHistory('user-ties', 2, 0)
@@ -323,10 +323,10 @@ describe('fluxTransactionService', () => {
     // Match the request validator so malformed IDs cannot merge ledger entries.
     const metadata = [
       null,
-      { conversationId: 123, roundId: 'round' },
-      { conversationId: '\uFEFF\u3000', roundId: 'round' },
-      { conversationId: 'chat', roundId: 'x'.repeat(129) },
-      { conversationId: 'chat', roundId: '😀'.repeat(65) },
+      { turnId: 123 },
+      { turnId: '\uFEFF\u3000' },
+      { turnId: 'x'.repeat(129) },
+      { turnId: '😀'.repeat(65) },
     ]
     await db.insert(schema.fluxTransaction).values(metadata.flatMap((metadata, index) => [0, 1].map(copy => ({
       id: `malformed-${index}-${copy}`,

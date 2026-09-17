@@ -87,8 +87,8 @@ describe('fluxMeter', () => {
 
   it('records the settling request round without changing cross-round accumulation', async () => {
     const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() })
-    const roundA = { conversationId: 'conversation-1', roundId: 'round-a' }
-    const roundB = { conversationId: 'conversation-1', roundId: 'round-b' }
+    const roundA = { turnId: 'round-a' }
+    const roundB = { turnId: 'round-b' }
 
     await meter.accumulate({ userId: 'u1', units: 700, currentBalance: 10, requestId: 'a', correlation: roundA })
     const result = await meter.accumulate({ userId: 'u1', units: 400, currentBalance: 10, requestId: 'b', correlation: roundB })

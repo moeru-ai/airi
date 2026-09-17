@@ -72,7 +72,7 @@ type TtsTrigger = 'auto' | 'manual'
 interface TtsAnalyticsContext {
   trigger: TtsTrigger
   source: 'audio.speech' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
-  roundId?: unknown
+  turnId?: unknown
 }
 
 /**
@@ -222,8 +222,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
           costMultiplier: voicePackRequest.costMultiplier,
         },
         correlation: resolveTtsBillingCorrelation({
-          conversationId: input.sessionId,
-          roundId: analytics.roundId,
+          turnId: analytics.turnId,
         }),
       })
       fluxConsumed = result.fluxDebited
@@ -298,7 +297,7 @@ function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext
     || rawSource === 'settings_test'
     ? rawSource
     : 'audio.speech'
-  return { trigger, source, roundId: analytics?.round_id }
+  return { trigger, source, turnId: analytics?.turn_id }
 }
 
 async function voicePackRequestOptions(

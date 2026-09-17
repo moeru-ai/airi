@@ -69,11 +69,11 @@ describe('speech pipeline runtime', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2491#discussion_r4030127302
-  it('keeps the conversation ID when an intent crosses the speech bus', async () => {
+  it('keeps the turn ID when an intent crosses the speech bus', async () => {
     // ROOT CAUSE:
     //
-    // The remote renderer omitted the conversation ID from the start event.
-    // The speech host therefore opened the intent without its billing owner.
+    // TTS billing needs the existing turn ID on the speech host.
+    // This assertion protects the existing cross-renderer propagation.
     const host = createSpeechPipelineRuntime()
     const remote = createSpeechPipelineRuntime()
     const pipeline = createHostPipeline()
@@ -81,12 +81,10 @@ describe('speech pipeline runtime', () => {
     await host.registerHost(pipeline)
 
     const intent = remote.openIntent({
-      conversationId: 'conversation-1',
       turnId: 'turn-1',
     })
 
     expect(openIntent).toHaveBeenCalledWith(expect.objectContaining({
-      conversationId: 'conversation-1',
       turnId: 'turn-1',
     }))
 

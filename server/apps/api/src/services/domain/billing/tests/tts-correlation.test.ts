@@ -9,22 +9,20 @@ describe('ttsBillingCorrelation', () => {
   // Correlation values crossed HTTP and WebSocket boundaries
   // without one schema. Manual checks could accept different shapes at each path.
   //
-  // One Valibot schema now validates the complete pair at every boundary.
-  it('normalizes a complete conversation and round pair', () => {
+  // One Valibot schema validates the existing turn ID at every boundary.
+  it('normalizes a turnId without a conversation identifier', () => {
     expect(resolveTtsBillingCorrelation({
-      conversationId: ' conversation-1 ',
-      roundId: ' round-1 ',
+      turnId: ' turn-1 ',
     })).toEqual({
-      conversationId: 'conversation-1',
-      roundId: 'round-1',
+      turnId: 'turn-1',
     })
   })
 
-  it('rejects incomplete and oversized pairs', () => {
-    expect(resolveTtsBillingCorrelation({ roundId: 'round-1' })).toBeUndefined()
-    expect(resolveTtsBillingCorrelation({
-      conversationId: 'conversation-1',
-      roundId: 'x'.repeat(129),
-    })).toBeUndefined()
+  it('rejects missing, blank, non-string, and oversized turn IDs', () => {
+    expect(resolveTtsBillingCorrelation({})).toBeUndefined()
+    expect(resolveTtsBillingCorrelation({ turnId: '\t' })).toBeUndefined()
+    expect(resolveTtsBillingCorrelation({ turnId: 123 })).toBeUndefined()
+    expect(resolveTtsBillingCorrelation({ turnId: 'x'.repeat(129) })).toBeUndefined()
+    expect(resolveTtsBillingCorrelation({ turnId: '😀'.repeat(65) })).toBeUndefined()
   })
 })

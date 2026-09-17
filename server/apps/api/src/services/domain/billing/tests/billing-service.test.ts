@@ -56,7 +56,7 @@ describe('billingService', () => {
         amount: 30,
         requestId: 'req-1',
         description: 'tts_request',
-        correlation: { conversationId: 'conversation-1', roundId: 'round-1' },
+        correlation: { turnId: 'round-1' },
         promptTokens: 120,
         completionTokens: 80,
       })
@@ -82,8 +82,7 @@ describe('billingService', () => {
         description: 'tts_request',
       })
       expect(txRecord?.metadata).toMatchObject({
-        conversationId: 'conversation-1',
-        roundId: 'round-1',
+        turnId: 'round-1',
         promptTokens: 120,
         completionTokens: 80,
         source: 'llm.request',

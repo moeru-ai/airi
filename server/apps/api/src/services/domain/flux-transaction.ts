@@ -48,8 +48,7 @@ export function createFluxTransactionService(db: Database) {
       // Match JavaScript trim characters so blank historical IDs stay separate.
       const whitespace = '\u0009\u000A\u000B\u000C\u000D\u0020\u00A0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF'
       const metadata = schema.fluxTransaction.metadata
-      const conversationId = sql`btrim(${metadata}->>'conversationId', ${whitespace})`
-      const roundId = sql`btrim(${metadata}->>'roundId', ${whitespace})`
+      const turnId = sql`btrim(${metadata}->>'turnId', ${whitespace})`
       // Valibot counts UTF-16 code units. PostgreSQL counts code points, so each
       // supplementary character must count twice at the same 128-unit boundary.
       const supplementaryCharacters = '[\u{10000}-\u{10FFFF}]'
@@ -59,11 +58,9 @@ export function createFluxTransactionService(db: Database) {
         groupKey: sql`CASE WHEN
           ${schema.fluxTransaction.type} = 'debit'
           AND ${schema.fluxTransaction.description} = 'tts_request'
-          AND jsonb_typeof(${metadata}->'conversationId') = 'string'
-          AND jsonb_typeof(${metadata}->'roundId') = 'string'
-          AND char_length(regexp_replace(${conversationId}, ${supplementaryCharacters}, '..', 'g')) BETWEEN 1 AND 128
-          AND char_length(regexp_replace(${roundId}, ${supplementaryCharacters}, '..', 'g')) BETWEEN 1 AND 128
-          THEN jsonb_build_array('tts_round', ${conversationId}, ${roundId})
+          AND jsonb_typeof(${metadata}->'turnId') = 'string'
+          AND char_length(regexp_replace(${turnId}, ${supplementaryCharacters}, '..', 'g')) BETWEEN 1 AND 128
+          THEN jsonb_build_array('tts_round', ${turnId})
           ELSE jsonb_build_array('transaction', ${schema.fluxTransaction.id})
         END`.as('group_key'),
       })

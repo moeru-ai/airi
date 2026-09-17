@@ -430,15 +430,20 @@ describe('createChatOrchestratorRuntime', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2491#discussion_r4030127318
-  it('keeps the target conversation in the turn hook context', async () => {
+  it('keeps the same turnId across hooks for a target session', async () => {
     // ROOT CAUSE:
     //
-    // The hook context identified the round but not its conversation.
-    // A queued send could therefore use the window's selected conversation.
+    // Billing must use the turn ID from the hook, not the selected session.
+    // Both hooks must carry the same ID when a send targets another session.
     const harness = createHarness()
-    let conversationId: string | undefined
+    let turnId: string | undefined
     harness.runtime.hooks.onBeforeMessageComposed(async (_message, context) => {
-      conversationId = context.conversationId
+      turnId = context.turnId
+    })
+
+    let sentTurnId: string | undefined
+    harness.runtime.hooks.onBeforeSend(async (_message, context) => {
+      sentTurnId = context.turnId
     })
 
     await harness.runtime.ingest('target another conversation', {
@@ -446,7 +451,9 @@ describe('createChatOrchestratorRuntime', () => {
       chatProvider: provider,
     }, 'session-2')
 
-    expect(conversationId).toBe('session-2')
+    expect(turnId).toBeTruthy()
+    expect(turnId).not.toBe('session-2')
+    expect(sentTurnId).toBe(turnId)
   })
 
   // ROOT CAUSE:

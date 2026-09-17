@@ -236,8 +236,7 @@ export async function buildApp(deps: AppDeps) {
       source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
       voiceType: parseTtsVoiceType(c.req.query('tts_voice_type')),
       correlation: resolveTtsBillingCorrelation({
-        conversationId: c.req.query('conversation_id'),
-        roundId: c.req.query('round_id'),
+        turnId: c.req.query('turn_id'),
       }),
     })
   }))

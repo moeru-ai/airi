@@ -54,10 +54,8 @@ export interface StreamingTtsPipelineOptions extends StreamingTtsPipelineEvents 
   ttsSource?: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
   /** Low-cardinality voice bucket sent to server-side product analytics. */
   ttsVoiceType?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
-  /** Conversation that owns this TTS session. Used only for billing-history grouping. */
-  conversationId?: string
-  /** Chat round within the conversation that owns this TTS session. */
-  roundId?: string
+  /** Existing chat turn ID used to group this session's billing entries. */
+  turnId?: string
   /**
    * Decoder context. The pipeline calls `decodeAudioData` on it for each
    * sentence (or once at session end in buffered mode). Reusing the page's
@@ -129,8 +127,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     ttsTrigger: options.ttsTrigger ?? 'auto',
     ttsSource: options.ttsSource ?? 'chat_auto_tts',
     ttsVoiceType: options.ttsVoiceType ?? 'unknown',
-    conversationId: options.conversationId,
-    roundId: options.roundId,
+    turnId: options.turnId,
   })
   const ws = new WebSocket(wsUrl)
   ws.binaryType = 'arraybuffer'
@@ -424,8 +421,7 @@ function toWebSocketUrl(
     ttsTrigger: 'auto' | 'manual'
     ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
     ttsVoiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
-    conversationId?: string
-    roundId?: string
+    turnId?: string
   },
 ): string {
   const u = new URL(path, httpBase)
@@ -434,10 +430,8 @@ function toWebSocketUrl(
   u.searchParams.set('tts_trigger', analytics.ttsTrigger)
   u.searchParams.set('tts_source', analytics.ttsSource)
   u.searchParams.set('tts_voice_type', analytics.ttsVoiceType)
-  if (analytics.conversationId)
-    u.searchParams.set('conversation_id', analytics.conversationId)
-  if (analytics.roundId)
-    u.searchParams.set('round_id', analytics.roundId)
+  if (analytics.turnId)
+    u.searchParams.set('turn_id', analytics.turnId)
   return u.toString()
 }
 

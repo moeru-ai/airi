@@ -11,16 +11,15 @@ const correlationIdSchema = pipe(
 
 /** Identifies one chat round that can own TTS billing entries. */
 export const TtsBillingCorrelationSchema = object({
-  conversationId: correlationIdSchema,
-  roundId: correlationIdSchema,
+  turnId: correlationIdSchema,
 })
 
 export type TtsBillingCorrelation = InferOutput<typeof TtsBillingCorrelationSchema>
 
 /**
- * Validates a correlation pair from an HTTP or WebSocket boundary.
+ * Validates a turn ID from an HTTP or WebSocket boundary.
  *
- * Invalid or incomplete pairs stay absent. Billing then keeps the ledger entry
+ * Invalid or missing turn IDs stay absent. Billing then keeps the ledger entry
  * separate instead of assigning it to an unsafe owner.
  */
 export function resolveTtsBillingCorrelation(input: unknown): TtsBillingCorrelation | undefined {

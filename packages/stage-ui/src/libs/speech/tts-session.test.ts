@@ -49,8 +49,7 @@ function makeStreamingSnapshot(overrides: Partial<StreamingSessionSnapshot> = {}
     model: 'volcengine/seed-tts-2.0',
     voice: 'mock-voice',
     voiceType: 'official_selected',
-    conversationId: 'conversation-1',
-    roundId: 'round-1',
+    turnId: 'round-1',
     bufferEntireSession: false,
     extraBody: { api_resource_id: 'seed-tts-2.0' },
     ownerId: 'card-1',
@@ -195,8 +194,7 @@ describe('createStreamingTtsSession (adapter)', () => {
     })
 
     expect(pipe.options.ttsVoiceType).toBe('official_selected')
-    expect(pipe.options.conversationId).toBe('conversation-1')
-    expect(pipe.options.roundId).toBe('round-1')
+    expect(pipe.options.turnId).toBe('round-1')
 
     // Simulate the pipeline emitting two sentences.
     const audio0 = { __id: 0 } as unknown as AudioBuffer
