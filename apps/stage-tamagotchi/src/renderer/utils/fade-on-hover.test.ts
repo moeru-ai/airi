@@ -8,6 +8,7 @@ describe('fade on hover interaction', () => {
       alwaysOnTop: true,
       cursorInsideWindow: true,
       enabled: true,
+      stageHasOpaqueBackground: false,
       transparentForFade: false,
       transparentForPointer: false,
     })
@@ -21,6 +22,7 @@ describe('fade on hover interaction', () => {
       alwaysOnTop: true,
       cursorInsideWindow: true,
       enabled: true,
+      stageHasOpaqueBackground: false,
       transparentForFade: true,
       transparentForPointer: true,
     })
@@ -34,6 +36,7 @@ describe('fade on hover interaction', () => {
       alwaysOnTop: true,
       cursorInsideWindow: true,
       enabled: false,
+      stageHasOpaqueBackground: false,
       transparentForFade: true,
       transparentForPointer: true,
     })
@@ -47,6 +50,7 @@ describe('fade on hover interaction', () => {
       alwaysOnTop: true,
       cursorInsideWindow: true,
       enabled: false,
+      stageHasOpaqueBackground: false,
       transparentForFade: false,
       transparentForPointer: false,
     })
@@ -60,10 +64,41 @@ describe('fade on hover interaction', () => {
       alwaysOnTop: false,
       cursorInsideWindow: true,
       enabled: false,
+      stageHasOpaqueBackground: false,
       transparentForFade: true,
       transparentForPointer: true,
     })
 
     expect(interaction.ignoreMouseEvents).toBe(false)
+  })
+  // A scene fills the window behind the model, so the stage is opaque everywhere even
+  // where the canvas is not.
+  it('holds every click while a scene backs the stage', () => {
+    const interaction = resolveFadeOnHoverInteraction({
+      alwaysOnTop: true,
+      cursorInsideWindow: true,
+      enabled: false,
+      stageHasOpaqueBackground: true,
+      transparentForFade: true,
+      transparentForPointer: true,
+    })
+
+    expect(interaction.ignoreMouseEvents).toBe(false)
+  })
+
+  // Fading hides the scene along with the model, so the window really is see-through
+  // and a scene must not hold the click.
+  it('passes clicks through a faded stage even when a scene backs it', () => {
+    const interaction = resolveFadeOnHoverInteraction({
+      alwaysOnTop: true,
+      cursorInsideWindow: true,
+      enabled: true,
+      stageHasOpaqueBackground: true,
+      transparentForFade: false,
+      transparentForPointer: false,
+    })
+
+    expect(interaction.fadeStage).toBe(true)
+    expect(interaction.ignoreMouseEvents).toBe(true)
   })
 })

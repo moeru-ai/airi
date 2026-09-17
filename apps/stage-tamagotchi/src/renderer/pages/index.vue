@@ -21,8 +21,9 @@ import {
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useVoiceInputSession } from '@proj-airi/stage-ui/composables'
-import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
+import { useCanvasPixelIsTransparentAtPoint, useCoverBackgroundIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
+import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -101,6 +102,15 @@ const { alwaysOnTop, stageModelRenderer, stageModelSelectedUrl } = storeToRefs(s
 const modelStore = useModelStore()
 const expressionStore = useExpressionStore()
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
+// A scene renders behind the model, on the stage rather than the canvas, so no canvas
+// readback can see it. Its own art carries transparency, so it answers per pixel.
+const { activeBackgroundUrl } = storeToRefs(useBackgroundStore())
+const isSceneTransparent = useCoverBackgroundIsTransparentAtPoint(
+  activeBackgroundUrl,
+  stageCanvas,
+  relativeMouseX,
+  relativeMouseY,
+)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 const modelSettingsRuntimeOwnerInstanceId = `tamagotchi-main-stage:${Math.random().toString(36).slice(2, 10)}`
@@ -280,7 +290,8 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
  * Upstream:
  * - {@link isOutsideFor250Ms} and {@link isAroundWindowBorderFor250Ms}
  * - {@link isOutsideWindow}, {@link isTransparent}, and {@link isTransparentForMouseEvents}
- * - {@link controlsOverlayActive}, {@link fadeOnHoverEnabled}, {@link alwaysOnTop}, and {@link stagePaused}
+ * - {@link controlsOverlayActive}, {@link fadeOnHoverEnabled}, {@link alwaysOnTop},
+ *   {@link isSceneTransparent}, and {@link stagePaused}
  *
  * Downstream:
  * - {@link resolveFadeOnHoverInteraction}
@@ -319,6 +330,7 @@ function handleFadeOnHoverInteractionChange() {
       alwaysOnTop: alwaysOnTop.value,
       cursorInsideWindow: !isOutsideWindow.value,
       enabled: fadeOnHoverEnabled.value,
+      stageHasOpaqueBackground: !isSceneTransparent.value,
       transparentForFade: isTransparent.value,
       transparentForPointer: isTransparentForMouseEvents.value,
     })
@@ -330,7 +342,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
+  [isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isSceneTransparent, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )

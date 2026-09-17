@@ -2,7 +2,7 @@ import type { MaybeRefOrGetter, Ref } from 'vue'
 
 import { toRef, unrefElement, useElementBounding } from '@vueuse/core'
 import { clamp } from 'es-toolkit/math'
-import { computed } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 
 interface CircleHitTestInput {
   gl: WebGL2RenderingContext | WebGLRenderingContext
@@ -201,5 +201,105 @@ export function useCanvasPixelIsTransparentAtPoint(
       radius,
       threshold,
     })
+  })
+}
+
+/**
+ * Reports whether a `cover` background image is transparent at a point.
+ *
+ * A scene sits behind the stage as a CSS background, so no readback reaches it and a
+ * canvas sampler alone would call a painted pixel empty. This decodes the image once
+ * and samples the pixel the browser paints there.
+ *
+ * Reports `true` when no image is set, and `false` until one finishes decoding, since
+ * a caller that cannot yet answer should treat the surface as painted. An image that
+ * fails to decode or read back reports `true`: the browser paints it from the same
+ * source, so a surface this cannot read is one the viewer cannot see either.
+ *
+ * @param source URL of the background image, or null when the surface has none.
+ * @param target Element the background covers; supplies the geometry to map through.
+ */
+export function useCoverBackgroundIsTransparentAtPoint(
+  source: MaybeRefOrGetter<string | null | undefined>,
+  target: MaybeRefOrGetter<HTMLElement | undefined>,
+  pointX: MaybeRefOrGetter<number>,
+  pointY: MaybeRefOrGetter<number>,
+  threshold = 10,
+): Ref<boolean> {
+  const sourceRef = toRef(source)
+  const targetRef = toRef(target)
+  const xRef = toRef(pointX)
+  const yRef = toRef(pointY)
+  const { left, top, width, height } = useElementBounding(targetRef)
+
+  // An entry without `data` is a source that settled as unreadable, which the getter
+  // reads as transparent. An absent entry is one still in flight.
+  const decoded = shallowRef<{ url: string, data?: ImageData } | undefined>()
+
+  watch(sourceRef, (url) => {
+    if (!url) {
+      decoded.value = undefined
+      return
+    }
+
+    const image = new Image()
+
+    // A later source wins: decoding is async and the scene can change mid-flight.
+    const settle = (data?: ImageData) => {
+      if (sourceRef.value === url)
+        decoded.value = { url, data }
+    }
+
+    image.onerror = () => settle()
+    image.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = image.naturalWidth
+      canvas.height = image.naturalHeight
+
+      const context = canvas.getContext('2d', { willReadFrequently: true })
+      if (!context) {
+        settle()
+        return
+      }
+
+      // A cross-origin source taints the canvas and a very large one can exhaust it,
+      // and both surface here rather than at draw time.
+      try {
+        context.drawImage(image, 0, 0)
+        settle(context.getImageData(0, 0, canvas.width, canvas.height))
+      }
+      catch {
+        settle()
+      }
+    }
+    image.src = url
+  }, { immediate: true })
+
+  return computed(() => {
+    if (!sourceRef.value)
+      return true
+
+    const image = decoded.value
+    if (!image || image.url !== sourceRef.value)
+      return false
+
+    if (!image.data)
+      return true
+
+    if (!width.value || !height.value)
+      return false
+
+    // `cover` scales by the larger ratio and centres the overflow, so the same
+    // transform has to run backwards to find the pixel under the cursor.
+    const scale = Math.max(width.value / image.data.width, height.value / image.data.height)
+    const offsetX = (width.value - image.data.width * scale) / 2
+    const offsetY = (height.value - image.data.height * scale) / 2
+
+    const imageX = Math.floor((xRef.value - left.value - offsetX) / scale)
+    const imageY = Math.floor((yRef.value - top.value - offsetY) / scale)
+    if (imageX < 0 || imageY < 0 || imageX >= image.data.width || imageY >= image.data.height)
+      return true
+
+    return image.data.data[(imageY * image.data.width + imageX) * 4 + 3] < threshold
   })
 }
