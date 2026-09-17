@@ -1,6 +1,6 @@
 import type { InferOutput } from 'valibot'
 
-import { maxLength, nonEmpty, object, parseJson, pipe, safeParse, string, trim } from 'valibot'
+import { maxLength, nonEmpty, object, pipe, safeParse, string, trim } from 'valibot'
 
 const correlationIdSchema = pipe(
   string(),
@@ -17,41 +17,13 @@ export const TtsBillingCorrelationSchema = object({
 
 export type TtsBillingCorrelation = InferOutput<typeof TtsBillingCorrelationSchema>
 
-const ttsBillingCorrelationTokenSchema = pipe(
-  string(),
-  parseJson(),
-  TtsBillingCorrelationSchema,
-)
-
 /**
- * Validates a correlation pair from an HTTP, WebSocket, database, or Redis boundary.
+ * Validates a correlation pair from an HTTP or WebSocket boundary.
  *
  * Invalid or incomplete pairs stay absent. Billing then keeps the ledger entry
  * separate instead of assigning it to an unsafe owner.
  */
 export function resolveTtsBillingCorrelation(input: unknown): TtsBillingCorrelation | undefined {
   const result = safeParse(TtsBillingCorrelationSchema, input)
-  return result.success ? result.output : undefined
-}
-
-/**
- * Builds the persisted history key for one validated TTS round.
- *
- * @example
- * createTtsBillingHistoryGroupKey({ conversationId: 'chat-1', roundId: 'turn-1' })
- * // => '["tts_round","chat-1","turn-1"]'
- */
-export function createTtsBillingHistoryGroupKey(correlation: TtsBillingCorrelation): string {
-  return JSON.stringify(['tts_round', correlation.conversationId, correlation.roundId])
-}
-
-/** Serializes a validated correlation pair for the Redis residual-owner key. */
-export function serializeTtsBillingCorrelation(correlation: TtsBillingCorrelation): string {
-  return JSON.stringify(correlation)
-}
-
-/** Validates a correlation token read from Redis. */
-export function resolveTtsBillingCorrelationToken(input: unknown): TtsBillingCorrelation | undefined {
-  const result = safeParse(ttsBillingCorrelationTokenSchema, input)
   return result.success ? result.output : undefined
 }

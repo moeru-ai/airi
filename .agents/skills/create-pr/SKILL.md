@@ -41,7 +41,7 @@ Create a reviewable PR from the exact commits intended for publication.
    ```
 
    Use `before: absent` for a new state and `after: removed` for a deleted state. A capture failure is blocking; record its reason instead of silently omitting the state.
-9. Invoke `$upload-github-attachment` while creating or editing the PR. Put each local image path in the body and pass each image with `gh --attach`.
+9. Upload every local image as a GitHub user asset by invoking `$upload-github-attachment` while composing the PR.
 10. Put all pairs under `## Visual changes`, with an image row followed by its component or page name row:
 
    ```markdown
@@ -51,7 +51,7 @@ Create a reviewable PR from the exact commits intended for publication.
    | Settings / Connection | Settings / Connection |
    ```
 
-11. Verify that every user-asset URL matches the PR intent. For a public repository, require anonymous HTTP 200 for every URL. Remove temporary worktrees only after upload succeeds. Clear ignored `.vishot` captures when they are no longer useful locally.
+11. Verify that every user-asset URL matches the intended capture. Follow `$upload-github-attachment` for upload success criteria; do not add GET/HEAD probes or block on anonymous 404 responses. Remove temporary worktrees only after upload succeeds; clear ignored `.vishot` captures when they are no longer useful locally.
 
 ## Visual Evidence Contract
 

@@ -80,7 +80,6 @@ describe('billingService', () => {
         balanceAfter: 70,
         requestId: 'req-1',
         description: 'tts_request',
-        historyGroupKey: '["tts_round","conversation-1","round-1"]',
       })
       expect(txRecord?.metadata).toMatchObject({
         conversationId: 'conversation-1',

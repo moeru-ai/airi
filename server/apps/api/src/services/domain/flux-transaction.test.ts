@@ -1,6 +1,3 @@
-import { readFile } from 'node:fs/promises'
-
-import { sql } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
@@ -14,11 +11,6 @@ describe('fluxTransactionService', () => {
 
   beforeAll(async () => {
     db = await mockDB(schema)
-    // mockDB applies table schemas, so install the production projection trigger too.
-    const migration = await readFile(new URL('../../../drizzle/0024_tts_history_projection.sql', import.meta.url), 'utf8')
-    for (const statement of migration.split('--> statement-breakpoint').filter(statement => statement.trim().startsWith('CREATE FUNCTION') || statement.trim().startsWith('CREATE TRIGGER'))) {
-      await db.execute(sql.raw(statement))
-    }
     await db.insert(schema.user).values({
       id: 'user-tx',
       name: 'Transaction User',
@@ -93,8 +85,6 @@ describe('fluxTransactionService', () => {
   //
   // The server now pages display rows and uses both correlation fields.
   it('groups TTS charges by conversation and round before pagination', async () => {
-    const historyAKey = '["tts_round","conversation-a","round-1"]'
-    const historyBKey = '["tts_round","conversation-b","round-1"]'
     await db.insert(schema.fluxTransaction).values([
       {
         id: 'history-a-1',
@@ -104,7 +94,6 @@ describe('fluxTransactionService', () => {
         balanceBefore: 10,
         balanceAfter: 9,
         description: 'tts_request',
-        historyGroupKey: historyAKey,
         metadata: { conversationId: 'conversation-a', roundId: 'round-1' },
         createdAt: new Date('2026-09-17T12:00:01.000Z'),
       },
@@ -116,7 +105,6 @@ describe('fluxTransactionService', () => {
         balanceBefore: 9,
         balanceAfter: 7,
         description: 'tts_request',
-        historyGroupKey: historyAKey,
         metadata: { conversationId: 'conversation-a', roundId: 'round-1' },
         createdAt: new Date('2026-09-17T12:00:02.000Z'),
       },
@@ -128,7 +116,6 @@ describe('fluxTransactionService', () => {
         balanceBefore: 7,
         balanceAfter: 4,
         description: 'tts_request',
-        historyGroupKey: historyBKey,
         metadata: { conversationId: 'conversation-b', roundId: 'round-1' },
         createdAt: new Date('2026-09-17T12:00:03.000Z'),
       },
@@ -231,7 +218,6 @@ describe('fluxTransactionService', () => {
 
   // https://github.com/moeru-ai/airi/pull/2491#discussion_r4034741620
   it('returns the full round total as one ordinary record without child entries', async () => {
-    const historyGroupKey = '["tts_round","conversation-1","round-1"]'
     await db.insert(schema.fluxTransaction).values(Array.from({ length: 51 }, (_, index) => ({
       id: `bounded-group-${index}`,
       userId: 'user-bounded-group',
@@ -240,7 +226,6 @@ describe('fluxTransactionService', () => {
       balanceBefore: 51 - index,
       balanceAfter: 50 - index,
       description: 'tts_request',
-      historyGroupKey,
       metadata: { conversationId: 'conversation-1', roundId: 'round-1' },
       createdAt: new Date(Date.UTC(2026, 8, 17, 12, 0, index)),
     })))
@@ -279,7 +264,6 @@ describe('fluxTransactionService', () => {
   })
 
   it('keeps equal correlation keys isolated between users', async () => {
-    const historyGroupKey = '["tts_round","shared-chat","shared-round"]'
     await db.insert(schema.fluxTransaction).values([
       {
         id: 'owner-a',
@@ -289,7 +273,6 @@ describe('fluxTransactionService', () => {
         balanceBefore: 10,
         balanceAfter: 8,
         description: 'tts_request',
-        historyGroupKey,
         metadata: { conversationId: 'shared-chat', roundId: 'shared-round' },
       },
       {
@@ -300,13 +283,65 @@ describe('fluxTransactionService', () => {
         balanceBefore: 10,
         balanceAfter: 5,
         description: 'tts_request',
-        historyGroupKey,
         metadata: { conversationId: 'shared-chat', roundId: 'shared-round' },
       },
     ])
 
     const page = await service.getHistory('history-owner-a', 10, 0)
     expect(page.records).toEqual([expect.objectContaining({ id: 'owner-a', amount: 2 })])
+    expect(page.hasMore).toBe(false)
+  })
+
+  it('keeps different rounds and non-TTS transactions separate with tied timestamps', async () => {
+    const createdAt = new Date('2026-09-17T12:00:00.000Z')
+    await db.insert(schema.fluxTransaction).values([
+      { id: 'tie-a', type: 'debit', description: 'tts_request', amount: 1, metadata: { conversationId: 'chat', roundId: 'round-a' } },
+      { id: 'tie-b', type: 'debit', description: 'tts_request', amount: 2, metadata: { conversationId: 'chat', roundId: 'round-a' } },
+      { id: 'tie-c', type: 'debit', description: 'tts_request', amount: 4, metadata: { conversationId: 'chat', roundId: 'round-b' } },
+      { id: 'tie-d', type: 'credit', description: 'tts_request', amount: 5, metadata: { conversationId: 'chat', roundId: 'round-a' } },
+      { id: 'tie-e', type: 'debit', description: 'llm_request', amount: 6, metadata: { conversationId: 'chat', roundId: 'round-a' } },
+    ].map(entry => ({ ...entry, userId: 'user-ties', balanceBefore: 100, balanceAfter: 90, createdAt })))
+
+    const first = await service.getHistory('user-ties', 2, 0)
+    const second = await service.getHistory('user-ties', 2, 2)
+    expect(first.records.map(({ id, amount }) => ({ id, amount }))).toEqual([
+      { id: 'tie-e', amount: 6 },
+      { id: 'tie-d', amount: 5 },
+    ])
+    expect(second.records.map(({ id, amount }) => ({ id, amount }))).toEqual([
+      { id: 'tie-c', amount: 4 },
+      { id: 'tie-b', amount: 3 },
+    ])
+    expect(first.hasMore).toBe(true)
+    expect(second.hasMore).toBe(false)
+  })
+
+  it('keeps malformed historical metadata as individual records', async () => {
+    // ROOT CAUSE:
+    //
+    // SQL character counts and default trimming differ from JavaScript.
+    // Match the request validator so malformed IDs cannot merge ledger entries.
+    const metadata = [
+      null,
+      { conversationId: 123, roundId: 'round' },
+      { conversationId: '\uFEFF\u3000', roundId: 'round' },
+      { conversationId: 'chat', roundId: 'x'.repeat(129) },
+      { conversationId: 'chat', roundId: '😀'.repeat(65) },
+    ]
+    await db.insert(schema.fluxTransaction).values(metadata.flatMap((metadata, index) => [0, 1].map(copy => ({
+      id: `malformed-${index}-${copy}`,
+      userId: 'user-malformed',
+      type: 'debit',
+      description: 'tts_request',
+      amount: 1,
+      balanceBefore: 10,
+      balanceAfter: 9,
+      metadata,
+    }))))
+
+    const page = await service.getHistory('user-malformed', 20, 0)
+    expect(page.records).toHaveLength(10)
+    expect(page.records.every(record => record.amount === 1)).toBe(true)
     expect(page.hasMore).toBe(false)
   })
 })
