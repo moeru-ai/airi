@@ -177,6 +177,13 @@ const tresContextRef = shallowRef<TresContext>()
 const backgroundTexture = shallowRef<Texture>()
 
 const skyBoxEnvRef = ref<InstanceType<typeof SkyBox>>()
+// The composer owns render targets of its own and follows TresCanvas's debounced sizing,
+// so it has to be resized alongside the renderer or it draws nothing for those frames.
+const effectComposerRef = ref<{ composer?: { setSize: (width: number, height: number) => void, render: () => void } }>()
+
+/** Last size handed to the renderer, so an unchanged box does not reallocate the buffer. */
+let rendererWidth = 0
+let rendererHeight = 0
 
 /**
  * Fits the scene over the canvas, matching the `cover` framing it had as a CSS layer.
@@ -253,9 +260,40 @@ async function syncBackground() {
 }
 
 watch(() => props.backgroundUrl, () => void syncBackground())
-// TresCanvas resizes the renderer on its own, and the fit is expressed in texture
-// coordinates, so it has to be recomputed against the new size.
-useResizeObserver(() => tresContextRef.value?.renderer.instance.domElement, layoutBackground)
+// TresCanvas pins the canvas to 100% of its parent but debounces its own sizing, so a
+// drag leaves the element at the new size and the buffer at the old one, scaled to fill
+// it. Sizing here closes that gap; the debounced pass reaches the same values.
+useResizeObserver(() => tresContextRef.value?.renderer.instance.domElement, ([entry]) => {
+  const context = tresContextRef.value
+  const renderer = context?.renderer.instance
+  if (!renderer || !entry)
+    return
+
+  const { width, height } = entry.contentRect
+  if (width > 0 && height > 0 && (width !== rendererWidth || height !== rendererHeight)) {
+    rendererWidth = width
+    rendererHeight = height
+
+    // The canvas keeps its own styled size; only the drawing buffer is being corrected.
+    renderer.setSize(width, height, false)
+    const composer = effectComposerRef.value?.composer
+    composer?.setSize(width, height)
+    for (const camera of context.camera.cameras.value) {
+      if (camera instanceof PerspectiveCamera) {
+        camera.aspect = width / height
+        camera.updateProjectionMatrix()
+      }
+    }
+
+    layoutBackground()
+    // Resizing reallocates the drawing buffer and leaves it empty. Drawing now means the
+    // frame the compositor picks up during a drag is never the blank one.
+    composer?.render()
+    return
+  }
+
+  layoutBackground()
+})
 const screenRef = ref<InstanceType<typeof Screen>>()
 const dirLightRef = ref<InstanceType<typeof DirectionalLight>>()
 const stageThreeRuntimeTraceContext = getStageThreeRuntimeTraceContext()
@@ -957,7 +995,7 @@ defineExpose({
         cast-shadow
       />
       <Suspense>
-        <EffectComposerPmndrs :multisampling="multisampling">
+        <EffectComposerPmndrs ref="effectComposerRef" :multisampling="multisampling">
           <HueSaturationPmndrs v-bind="effectProps" />
         </EffectComposerPmndrs>
       </Suspense>
