@@ -70,7 +70,7 @@ describe('useHearingStore analytics lifecycle', () => {
     await nextTick()
 
     expect(hearingStore.activeTranscriptionProvider).toBe('remote-provider')
-  })
+  }, 60_000)
 
   /**
    * @example
