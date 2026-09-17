@@ -343,6 +343,16 @@ devtools:
         seconds-ago: '-{seconds} s'
         end: 0 s
         empty: No FPS samples. Enable FPS to collect samples.
+      resource-events:
+        title: Recent resource events
+        empty: No resource events recorded yet.
+        time: Time
+        phase: Phase
+        reason: Reason
+        textures: Textures
+        geometries: Geometries
+        meshes: Meshes
+        materials: Materials
       overlay:
         title: Performance
         move: Move performance overlay

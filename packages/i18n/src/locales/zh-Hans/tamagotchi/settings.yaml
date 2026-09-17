@@ -92,6 +92,16 @@ devtools:
         seconds-ago: '-{seconds} 秒'
         end: 0 秒
         empty: 暂无 FPS 样本，请启用 FPS 采集。
+      resource-events:
+        title: 最近的资源事件
+        empty: 尚未记录资源事件。
+        time: 时间
+        phase: 阶段
+        reason: 原因
+        textures: 纹理
+        geometries: 几何体
+        meshes: 网格
+        materials: 材质
       overlay:
         title: 性能
         move: 移动性能浮窗

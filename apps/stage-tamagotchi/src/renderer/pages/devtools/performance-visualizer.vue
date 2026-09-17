@@ -4,6 +4,8 @@ import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import RecentResourceEvents from '../../components/devtools/recent-resource-events.vue'
+
 import { useStageThreeRuntimeDiagnosticsStore } from '../../stores/stage-three-runtime-diagnostics'
 import { useStageWindowLifecycleStore } from '../../stores/stage-window-lifecycle'
 
@@ -181,6 +183,13 @@ function formatCount(value?: number) {
         <div :class="['mt-3 text-xs text-neutral-400']">
           history entries: {{ resourceSnapshots.history.length }}
         </div>
+      </section>
+
+      <section :class="['rounded-2xl border border-neutral-700/60', 'bg-neutral-950/40 p-4', 'md:col-span-2']">
+        <div :class="['mb-2 text-sm text-neutral-400']">
+          {{ t('tamagotchi.settings.devtools.pages.performance-visualizer.resource-events.title') }}
+        </div>
+        <RecentResourceEvents :events="resourceSnapshots.history" />
       </section>
     </div>
 
