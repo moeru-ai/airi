@@ -14,6 +14,7 @@ import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
+import { coverRect } from '@proj-airi/stage-shared'
 import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
@@ -1014,6 +1015,11 @@ async function captureFrame() {
   if (!activeBackgroundUrl.value || !charBlob)
     return charBlob
 
+  // A renderer that paints the scene itself already returned it inside the frame.
+  // Compositing again would redraw the same picture over itself.
+  if (rendererPaintsScene.value)
+    return charBlob
+
   try {
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
@@ -1036,12 +1042,7 @@ async function captureFrame() {
     canvas.width = charImg.width
     canvas.height = charImg.height
 
-    // Draw background with "cover" logic
-    const scale = Math.max(canvas.width / bgImg.width, canvas.height / bgImg.height)
-    const w = bgImg.width * scale
-    const h = bgImg.height * scale
-    const x = (canvas.width - w) / 2
-    const y = (canvas.height - h) / 2
+    const { x, y, width: w, height: h } = coverRect(canvas, bgImg)
 
     ctx.drawImage(bgImg, x, y, w, h)
 

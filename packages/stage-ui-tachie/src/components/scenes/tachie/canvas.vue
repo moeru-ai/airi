@@ -72,8 +72,18 @@ async function syncBackground() {
     return
   }
 
-  const texture = await Texture.fromURL(url)
-  // A later scene wins: loading is async and the card can change mid-flight.
+  // A scene that cannot decode leaves the stage as it is. Letting it throw would reach
+  // the stage error surface and take a working model down with it.
+  let texture: Texture
+  try {
+    texture = await Texture.fromURL(url)
+  }
+  catch {
+    return
+  }
+
+  // A later scene wins, and so does a later app: both the source and the stage can be
+  // replaced while the texture loads.
   if (props.backgroundUrl !== url || app.value !== current)
     return
 
@@ -158,6 +168,7 @@ onUnmounted(() => {
   app.value?.destroy(true)
   app.value = undefined
   canvas.value = undefined
+  backgroundSprite.value = undefined
 })
 
 defineExpose({

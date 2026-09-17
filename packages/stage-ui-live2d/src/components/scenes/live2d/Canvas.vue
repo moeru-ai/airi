@@ -116,23 +116,33 @@ function layoutBackground() {
 }
 
 async function syncBackground() {
-  const app = pixiApp.value
-  if (!app)
+  const current = pixiApp.value
+  if (!current)
     return
 
   const url = props.backgroundUrl
   if (!url) {
     if (backgroundSprite.value) {
-      app.stage.removeChild(backgroundSprite.value)
+      current.stage.removeChild(backgroundSprite.value)
       backgroundSprite.value.destroy()
       backgroundSprite.value = undefined
     }
     return
   }
 
-  const texture = await Texture.fromURL(url)
-  // A later scene wins: loading is async and the card can change mid-flight.
-  if (props.backgroundUrl !== url || !pixiApp.value)
+  // A scene that cannot decode leaves the stage as it is. Letting it throw would reach
+  // the stage error surface and take a working model down with it.
+  let texture: Texture
+  try {
+    texture = await Texture.fromURL(url)
+  }
+  catch {
+    return
+  }
+
+  // A later scene wins, and so does a later app: both the source and the stage can be
+  // replaced while the texture loads.
+  if (props.backgroundUrl !== url || pixiApp.value !== current)
     return
 
   if (backgroundSprite.value) {
@@ -142,7 +152,7 @@ async function syncBackground() {
     const sprite = new Sprite(texture)
     backgroundSprite.value = sprite
     // Index 0 keeps it under the model, wherever the model lands in the stage.
-    app.stage.addChildAt(sprite, 0)
+    current.stage.addChildAt(sprite, 0)
   }
 
   layoutBackground()
@@ -179,7 +189,13 @@ onMounted(async () => {
     emit('error', error instanceof Error ? error : new Error(String(error)))
   }
 })
-onUnmounted(() => pixiApp.value?.destroy())
+onUnmounted(() => {
+  pixiApp.value?.destroy()
+  // Destroy leaves the ref truthy while nulling the stage, so anything still in flight
+  // would reach for a stage that is gone.
+  pixiApp.value = undefined
+  backgroundSprite.value = undefined
+})
 
 async function captureFrame() {
   const frame = new Promise<Blob | null>((resolve) => {
