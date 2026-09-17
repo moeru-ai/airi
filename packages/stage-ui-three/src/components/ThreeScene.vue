@@ -175,6 +175,8 @@ const tresContextRef = shallowRef<TresContext>()
 
 const backgroundTexture = shallowRef<Texture>()
 
+const skyBoxEnvRef = ref<InstanceType<typeof SkyBox>>()
+
 /**
  * Fits the scene over the canvas, matching the `cover` framing it had as a CSS layer.
  *
@@ -215,6 +217,9 @@ async function syncBackground() {
     scene.background = null
     backgroundTexture.value?.dispose()
     backgroundTexture.value = undefined
+    // The skybox shares this slot and steps aside while a scene is set. Handing it
+    // back costs nothing, where reloading the HDRI would.
+    skyBoxEnvRef.value?.restoreBackground()
     return
   }
 
@@ -246,7 +251,6 @@ watch(() => props.backgroundUrl, () => void syncBackground())
 // coordinates, so it has to be recomputed against the new size.
 useResizeObserver(() => tresContextRef.value?.renderer.instance.domElement, layoutBackground)
 const screenRef = ref<InstanceType<typeof Screen>>()
-const skyBoxEnvRef = ref<InstanceType<typeof SkyBox>>()
 const dirLightRef = ref<InstanceType<typeof DirectionalLight>>()
 const stageThreeRuntimeTraceContext = getStageThreeRuntimeTraceContext()
 const stageThreeSceneTraceOriginId = `three-scene:${Math.random().toString(36).slice(2, 10)}`
@@ -921,7 +925,7 @@ defineExpose({
         v-if="envSelect === 'skyBox'"
         ref="skyBoxEnvRef"
         :sky-box-src="skyBoxSrc"
-        :as-background="true"
+        :as-background="!backgroundUrl"
         @sky-box-ready="onSkyBoxReady"
       />
       <TresHemisphereLight
