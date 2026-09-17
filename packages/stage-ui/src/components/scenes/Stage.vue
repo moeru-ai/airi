@@ -45,7 +45,6 @@ import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatStore } from '../../stores/chat'
-import { useChatSessionStore } from '../../stores/chat/session-store'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProviderConfigStore } from '../../stores/providers/config'
@@ -75,7 +74,6 @@ const tachieSceneRef = ref<InstanceType<typeof TachieScene>>()
 const mmdSceneRef = ref<InstanceType<typeof MMDScene>>()
 
 const settingsStore = useSettings()
-const chatSessionStore = useChatSessionStore()
 const {
   stageModelRenderer,
   stageViewControlsEnabled,
@@ -741,7 +739,7 @@ function resolveStreamingSessionModel(): string | null {
   return sessionModel
 }
 
-function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null {
+function buildStreamingSnapshot(conversationId: string, turnId: string): StreamingSessionSnapshot | null {
   if (speechMuted.value)
     return null
 
@@ -772,7 +770,7 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
     model: sessionModel,
     voice: voiceId,
     voiceType: resolveStageVoiceType(),
-    conversationId: chatSessionStore.activeSessionId,
+    conversationId,
     roundId: turnId,
     bufferEntireSession,
     extraBody: {
@@ -794,7 +792,7 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
   return getDefinedProvider(providerId)?.capabilities?.speech?.transport
 }
 
-function openTtsSession(turnId: string): StageTtsSession {
+function openTtsSession(conversationId: string, turnId: string): StageTtsSession {
   // A session must only clear the module-level `currentSession` if it IS that session. The previous
   // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
   // are not assigned to `currentSession` (e.g. one-off read-aloud sessions): one of those finishing
@@ -807,12 +805,12 @@ function openTtsSession(turnId: string): StageTtsSession {
   }
   session = createStageTtsSession<AudioBuffer>({
     transport: resolveSpeechTransport(activeSpeechProvider.value),
-    streaming: () => buildStreamingSnapshot(turnId),
+    streaming: () => buildStreamingSnapshot(conversationId, turnId),
     audioContext,
     playbackManager,
     openIntent: opts => speechRuntimeStore.openIntent(opts),
     intentOptions: () => ({
-      conversationId: chatSessionStore.activeSessionId,
+      conversationId,
       turnId,
       ownerId: activeCardId.value,
       priority: 'normal',
@@ -863,7 +861,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
 
   setupAnalyser()
   await setupLipSync()
-  currentSession = openTtsSession(context.turnId)
+  currentSession = openTtsSession(context.conversationId, context.turnId)
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {

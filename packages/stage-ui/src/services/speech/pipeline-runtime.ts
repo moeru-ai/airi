@@ -55,6 +55,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
         return
 
       const intent = hostPipeline.openIntent({
+        conversationId: payload.conversationId,
         turnId: payload.turnId,
         intentId: payload.intentId,
         streamId: payload.streamId,
@@ -73,7 +74,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
       if (!intent) {
         if (!hostPipeline)
           return
-        const fallback = hostPipeline.openIntent({ turnId: payload.turnId, intentId: payload.intentId, streamId: payload.streamId })
+        const fallback = hostPipeline.openIntent({ conversationId: payload.conversationId, turnId: payload.turnId, intentId: payload.intentId, streamId: payload.streamId })
         remoteIntentMap.set(payload.intentId, fallback)
         writer(fallback, payload.value)
         return
@@ -138,6 +139,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
 
   function createRemoteIntent(options?: IntentOptions): IntentHandle {
     const intentId = options?.intentId ?? createId('intent')
+    const conversationId = options?.conversationId
     const turnId = options?.turnId
     const streamId = options?.streamId ?? createId('stream')
     const priority = typeof options?.priority === 'number' ? options?.priority : undefined
@@ -150,6 +152,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
 
     context.emit(speechIntentStartEvent, {
       originId,
+      conversationId,
       turnId,
       intentId,
       streamId,
@@ -171,6 +174,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
         write({ type: 'literal', value, turnId, streamId, intentId, sequence, createdAt: Date.now() })
         context.emit(speechIntentLiteralEvent, {
           originId,
+          conversationId,
           turnId,
           intentId,
           streamId,
@@ -184,6 +188,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
         write({ type: 'special', value, turnId, streamId, intentId, sequence, createdAt: Date.now() })
         context.emit(speechIntentSpecialEvent, {
           originId,
+          conversationId,
           turnId,
           intentId,
           streamId,
@@ -197,6 +202,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
         write({ type: 'flush', turnId, streamId, intentId, sequence, createdAt: Date.now() })
         context.emit(speechIntentFlushEvent, {
           originId,
+          conversationId,
           turnId,
           intentId,
           streamId,

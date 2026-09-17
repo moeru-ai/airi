@@ -75,32 +75,69 @@ graph TD
 
 ```text
 packages/
+  core-agent/src/
+    runtime/
+      chat-orchestrator-runtime.test.ts
+      chat-orchestrator-runtime.ts
+    types/chat.ts
+  pipelines-audio/src/
+    speech-pipeline.test.ts
+    speech-pipeline.ts
+    types.ts
   server-shared/
     README.md
     src/types/flux.ts
     src/types/index.ts
-  stage-pages/src/pages/settings/flux.vue
+  stage-pages/
+    package.json
+    src/pages/settings/flux.vue
   stage-ui/src/
     components/scenes/Stage.vue
+    libs/providers/providers/official/
+      index.test.ts
+      index.ts
+      shared.ts
     libs/speech/
       streaming-pipeline.ts
       streaming-pipeline.test.ts
       tts-session.ts
       tts-session.test.ts
+    services/speech/
+      bus.ts
+      pipeline-runtime.test.ts
+      pipeline-runtime.ts
+    stores/
+      mods/api/context-bridge.contract.browser.test.ts
+      modules/speech.ts
 server/
-  apps/api/src/
-    app.ts
-    routes/
-      audio-speech-ws/
-      flux/
-      openai/v1/
-    services/domain/
-      billing/
-      flux-transaction.ts
-      flux-transaction.test.ts
-    utils/redis-keys.ts
+  apps/api/
+    package.json
+    src/
+      app.ts
+      routes/
+        audio-speech-ws/
+          route.test.ts
+          session.ts
+        flux/
+          index.ts
+          route.test.ts
+        openai/v1/route.test.ts
+      services/domain/
+        billing/
+          billing-service.ts
+          flux-meter.ts
+          tests/
+            billing-service.test.ts
+            flux-meter.test.ts
+            tts-correlation.test.ts
+          tts-correlation.ts
+        flux-transaction.test.ts
+        flux-transaction.ts
+        openai-speech/index.ts
+      utils/redis-keys.ts
   docs/ai/adr/2026-09-17-tts-flux-history-read-model.md
 packages/i18n/src/locales/{en,zh-Hans}/settings.yaml
+pnpm-lock.yaml
 ```
 
 ## Billing sequence

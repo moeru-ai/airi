@@ -549,6 +549,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
 
     const context = {
+      conversationId: 'session-1',
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
@@ -588,6 +589,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
 
     const context = {
+      conversationId: 'session-1',
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
@@ -612,6 +614,7 @@ describe('context bridge contract', () => {
     const store = useContextBridgeStore()
     await store.initialize()
     const context = {
+      conversationId: 'session-a',
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
@@ -632,6 +635,7 @@ describe('context bridge contract', () => {
     await store.initialize()
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
+      conversationId: 'session-1',
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
@@ -656,6 +660,7 @@ describe('context bridge contract', () => {
     await store.initialize()
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
+      conversationId: 'session-1',
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
@@ -680,6 +685,7 @@ describe('context bridge contract', () => {
     await store.initialize()
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
+      conversationId: 'session-2',
       turnId: 'turn-2',
       message: { role: 'user', content: 'background ping' },
       contexts: {},
@@ -708,6 +714,7 @@ describe('context bridge contract', () => {
     await store.initialize()
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
+      conversationId: 'session-1',
       turnId: 'turn-3',
       message: { role: 'user', content: 'background ping' },
       contexts: {},
@@ -742,6 +749,7 @@ describe('context bridge contract', () => {
     await store.initialize()
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
+      conversationId: 'session-2',
       turnId: 'turn-4',
       message: { role: 'user', content: 'background ping' },
       contexts: {},
@@ -773,6 +781,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
 
     const context = {
+      conversationId: 'session-1',
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},

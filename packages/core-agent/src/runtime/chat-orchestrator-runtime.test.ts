@@ -429,6 +429,26 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.promptProjections).toHaveLength(1)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2491#discussion_r4030127318
+  it('keeps the target conversation in the turn hook context', async () => {
+    // ROOT CAUSE:
+    //
+    // The hook context identified the round but not its conversation.
+    // A queued send could therefore use the window's selected conversation.
+    const harness = createHarness()
+    let conversationId: string | undefined
+    harness.runtime.hooks.onBeforeMessageComposed(async (_message, context) => {
+      conversationId = context.conversationId
+    })
+
+    await harness.runtime.ingest('target another conversation', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    }, 'session-2')
+
+    expect(conversationId).toBe('session-2')
+  })
+
   // ROOT CAUSE:
   //
   // Speech-muted consumers dispatch plugin CALL markers without a TTS
