@@ -45,7 +45,7 @@ export const providerPromptAPICompatible = defineProvider<OpenAICompatibleConfig
         },
         validator: async () => {
           const errors: Array<{ error: unknown }> = []
-          let reason = ''
+          let reason = 'Please refresh the page'
           try {
             const availability = await checkPromptAvailability()
             switch (availability) {
