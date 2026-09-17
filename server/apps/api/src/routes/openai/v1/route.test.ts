@@ -1355,9 +1355,7 @@ describe('v1CompletionsRoutes', () => {
 
       expect(response.status).toBe(200)
       expect(ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({
-        correlation: {
-          turnId: 'round-1',
-        },
+        turnId: 'round-1',
       }))
     })
 

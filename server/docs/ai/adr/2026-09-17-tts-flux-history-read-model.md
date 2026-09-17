@@ -31,6 +31,8 @@ Billing does not require a local session ID or a cloud chat ID.
 
 REST and WebSocket requests carry `turn_id`.
 Valibot validates it at the request boundary.
+The meter and billing service pass `turnId?: string` directly.
+No correlation object or wrapper type is required.
 Billing stores `turnId` in the existing metadata column.
 
 ## Boundaries and flow
@@ -39,13 +41,17 @@ Module dependencies:
 
 ```text
 Stage -> speech intent / streaming session -> HTTP / WebSocket
-HTTP / WebSocket -> TTS correlation schema -> meter -> billing -> ledger
-Flux history route -> transaction service -> ledger
+HTTP / WebSocket -> turn ID validator -> meter -> billing -> ledger
+Flux settings -> Flux history route -> transaction service -> ledger
+Flux settings / transaction service -> server-shared history contract
 ```
 
 Affected files:
 
 ```text
+packages/server-shared/src/types/{flux,index}.ts
+packages/stage-pages/src/pages/settings/flux.vue
+packages/i18n/src/locales/{en,zh-Hans}/settings.yaml
 packages/stage-ui/src/
   components/scenes/Stage.vue
   libs/speech/{tts-session,streaming-pipeline}.ts
@@ -53,9 +59,10 @@ packages/stage-ui/src/
 server/apps/api/src/
   app.ts
   routes/audio-speech-ws/session.ts
+  routes/flux/index.ts
   services/domain/
     openai-speech/index.ts
-    billing/{tts-correlation,flux-meter,billing-service}.ts
+    billing/{turn-id,flux-meter,billing-service}.ts
     flux-transaction.ts
 ```
 
@@ -103,3 +110,14 @@ A contract assertion limits records to the original six fields.
 Meter tests keep the existing settlement checks and cover the cross-round example.
 Speech tests cover REST, WebSocket, queued chats, and cross-renderer correlation.
 Full typecheck and lint remain required.
+
+Ablation checks removed one part at a time from the 14 history tests:
+
+| Removed part | Result | Decision |
+| --- | --- | --- |
+| Window sum | 3 failures: round totals are incomplete | Keep |
+| User filter | 7 failures, including user isolation | Keep |
+| Stored ID validation | 3 failures: unrelated entries merge | Keep |
+
+All 14 tests pass after restoration. Removing the correlation object preserves
+all 135 affected backend tests, so only the scalar turn ID remains.

@@ -18,7 +18,7 @@ import {
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
   GEN_AI_ATTR_REQUEST_MODEL,
 } from '../../../utils/observability'
-import { resolveTtsBillingCorrelation } from '../billing/tts-correlation'
+import { parseTurnId } from '../billing/turn-id'
 
 const tracer = trace.getTracer('v1-completions')
 
@@ -221,9 +221,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
           model: requestModel,
           costMultiplier: voicePackRequest.costMultiplier,
         },
-        correlation: resolveTtsBillingCorrelation({
-          turnId: analytics.turnId,
-        }),
+        turnId: parseTurnId(analytics.turnId),
       })
       fluxConsumed = result.fluxDebited
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)

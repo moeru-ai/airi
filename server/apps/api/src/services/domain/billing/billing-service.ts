@@ -3,7 +3,6 @@ import type Redis from 'ioredis'
 import type { Database } from '../../../libs/db'
 import type { RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
-import type { TtsBillingCorrelation } from './tts-correlation'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq } from 'drizzle-orm'
@@ -188,7 +187,7 @@ export function createBillingService(
       requestId?: string
       description?: string
       model?: string
-      correlation?: TtsBillingCorrelation
+      turnId?: string
       promptTokens?: number
       completionTokens?: number
     }): Promise<{ userId: string, flux: number, charged: number, requested: number }> {
@@ -200,7 +199,7 @@ export function createBillingService(
         source: 'llm.request',
         metadata: {
           ...(input.model != null && { model: input.model }),
-          ...input.correlation,
+          ...(input.turnId != null && { turnId: input.turnId }),
           ...(input.promptTokens != null && { promptTokens: input.promptTokens }),
           ...(input.completionTokens != null && { completionTokens: input.completionTokens }),
         },

@@ -247,7 +247,7 @@ describe('audio-speech-ws route', () => {
     const handlers = createAudioSpeechWsHandlers(deps as any)
     const events = handlers('user-123', {
       voiceType: 'official_selected',
-      correlation: { turnId: 'round-1' },
+      turnId: 'round-1',
     })
     const client = makeMockClientWs()
 
@@ -286,7 +286,7 @@ describe('audio-speech-ws route', () => {
       userId: 'user-123',
       units: 42,
       metadata: { model: 'volcengine/seed-tts-2.0' },
-      correlation: { turnId: 'round-1' },
+      turnId: 'round-1',
     })
 
     // Request log gets the model label from the start frame, not the

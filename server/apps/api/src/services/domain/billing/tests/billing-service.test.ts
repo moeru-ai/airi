@@ -56,7 +56,7 @@ describe('billingService', () => {
         amount: 30,
         requestId: 'req-1',
         description: 'tts_request',
-        correlation: { turnId: 'round-1' },
+        turnId: 'round-1',
         promptTokens: 120,
         completionTokens: 80,
       })

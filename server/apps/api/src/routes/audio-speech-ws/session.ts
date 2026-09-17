@@ -1,7 +1,6 @@
 import type { WSContext } from 'hono/ws'
 import type { RawData } from 'ws'
 
-import type { TtsBillingCorrelation } from '../../services/domain/billing/tts-correlation'
 import type { FluxService } from '../../services/domain/flux'
 import type { AudioSpeechWsHandlersOptions } from './types'
 
@@ -61,7 +60,7 @@ export interface AudioSpeechSessionAnalytics {
   source?: StreamingTtsSource
   voiceType?: StreamingTtsVoiceType
   /** Chat turn that owns this session's ledger entries. */
-  correlation?: TtsBillingCorrelation
+  turnId?: string
 }
 
 /**
@@ -462,7 +461,7 @@ export function createSessionState(
           currentBalance: flux.flux,
           requestId,
           metadata: { model: modelLabel },
-          correlation: analyticsInput.correlation,
+          turnId: analyticsInput.turnId,
         }))
       fluxConsumed = result.fluxDebited
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)

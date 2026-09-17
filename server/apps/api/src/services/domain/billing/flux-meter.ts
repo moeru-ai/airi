@@ -2,7 +2,6 @@ import type Redis from 'ioredis'
 
 import type { RevenueMetrics } from '../../../otel'
 import type { BillingService } from './billing-service'
-import type { TtsBillingCorrelation } from './tts-correlation'
 
 import { useLogger } from '@guiiai/logg'
 
@@ -65,7 +64,7 @@ interface AccumulateInput {
   requestId: string
   metadata?: Record<string, unknown>
   /** The request that triggers settlement owns the recorded debit. */
-  correlation?: TtsBillingCorrelation
+  turnId?: string
 }
 
 interface AccumulateResult {
@@ -174,7 +173,7 @@ export function createFluxMeter(
         amount: fluxRequested,
         requestId: input.requestId,
         description: `${config.name}_request`,
-        correlation: input.correlation,
+        turnId: input.turnId,
         ...(typeof input.metadata?.model === 'string' && { model: input.metadata.model }),
       })
     }
