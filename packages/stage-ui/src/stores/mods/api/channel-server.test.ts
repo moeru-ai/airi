@@ -8,6 +8,10 @@ const serverSdkMocks = vi.hoisted(() => {
 
     readonly listeners = new Map<string, Set<(event: any) => void | Promise<void>>>()
     readonly sent: any[] = []
+    // Mirrors better-ws: the real transport only accepts sends in state `ready`.
+    // Defaults to true so existing tests are unaffected; set false to model the
+    // prepare phase where Client.send() returns false.
+    ready = true
 
     constructor(public readonly options: Record<string, any>) {
       MockClient.instances.push(this)
@@ -45,6 +49,8 @@ const serverSdkMocks = vi.hoisted(() => {
     }
 
     send(event: any) {
+      if (!this.ready)
+        return false
       this.sent.push(event)
       return true
     }
@@ -373,6 +379,56 @@ describe('channel-server store reconnect', () => {
       expect.objectContaining({
         type: 'spark:notify',
         data: { message: 'reconnect-authenticated-queued' },
+      }),
+    ]))
+  })
+
+  // ROOT CAUSE:
+  //
+  // On a fresh connect, `module:authenticated` marks the store connected while
+  // the better-ws transport is still in its prepare phase, so `Client.send()`
+  // returns false. Both `send()` and `flush()` ignored that result — `send()`
+  // dropped the message and `flush()` cleared the queue unconditionally — so
+  // the stage's consumer registration (sent in exactly this window) never
+  // reached the server, and external `input:text` was dropped until the first
+  // reconnect. Regressed silently when the SDK moved onto better-ws (#1989).
+  //
+  // Before the fix this test fails: the send issued during `preparing` is
+  // dropped, so `pendingSendCount` is 0 instead of 1. The fix keeps unsent
+  // messages queued so the `onReady` flush delivers them.
+  //
+  // Regression coverage for https://github.com/moeru-ai/airi/issues/2305
+  it('issue #2305: queues sends issued while the transport is preparing and delivers them on ready', async () => {
+    const store = useModsServerChannelStore()
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const client = serverSdkMocks.MockClient.instances.at(-1)!
+
+    // Authenticated but not yet `ready` — the prepare phase, where send() fails.
+    client.ready = false
+    client.simulateAuthenticated()
+    await initializePromise
+
+    store.send({
+      type: 'spark:notify',
+      data: { message: 'sent-while-preparing' },
+    } as any)
+
+    // Held, not dropped.
+    expect(store.pendingSendCount).toBe(1)
+    expect(client.sent).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ data: { message: 'sent-while-preparing' } }),
+    ]))
+
+    // Transport reaches ready → the onReady flush delivers the queued send.
+    client.ready = true
+    client.simulateReconnectReady()
+
+    expect(store.pendingSendCount).toBe(0)
+    expect(client.sent).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'spark:notify',
+        data: { message: 'sent-while-preparing' },
       }),
     ]))
   })
