@@ -2521,11 +2521,17 @@ function responsesResult(status = 'completed') {
   }
 }
 
-function responsesHarness(response: () => Response, balance = 100, genAi: GenAiMetrics | null = null) {
+function responsesHarness(response: () => Response, balance = 100, genAi: GenAiMetrics | null = null, provider?: string) {
   const billing = createMockBillingService(balance)
   const logs = createMockRequestLogService()
   const tracing = createMockLlmTracing()
-  const router = createMockLlmRouter({ route: vi.fn(async () => response()) })
+  const router = createMockLlmRouter({
+    route: vi.fn(async (_request, ctx) => {
+      if (ctx && provider)
+        ctx.provider = provider
+      return response()
+    }),
+  })
   const app = createTestApp(createMockFluxService(balance), createMockConfigKV({ FLUX_PER_1K_TOKENS: 20 }), billing, logs, undefined, router, tracing, undefined, undefined, undefined, genAi)
   const send = (body: object, signal?: AbortSignal) => app.request('/api/v1/openai/responses', {
     method: 'POST',
@@ -2745,6 +2751,56 @@ describe('issue #2479 hosted Responses', () => {
     await expect(response.text()).rejects.toThrow()
     expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
     expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0 }))
+  })
+
+  // ROOT CAUSE:
+  //
+  // OpenRouter can close a Responses stream after every output item reports
+  // `completed` without sending the required `response.completed` event. The
+  // gateway treated this provider-specific EOF as a truncated response.
+  it('completes an OpenRouter stream after every output item finishes', async () => {
+    const response = { ...responsesResult('in_progress'), output: [], usage: null }
+    const reasoning = { id: 'rs-1', type: 'reasoning', status: 'completed', summary: [] }
+    const message = { id: 'msg-1', type: 'message', status: 'completed', role: 'assistant', content: [{ type: 'output_text', text: 'hello', annotations: [] }] }
+    const frames = [
+      { type: 'response.created', response, sequence_number: 0 },
+      { type: 'response.output_item.added', output_index: 0, item: { ...reasoning, status: 'in_progress' }, sequence_number: 1 },
+      { type: 'response.output_item.done', output_index: 0, item: reasoning, sequence_number: 2 },
+      { type: 'response.output_item.added', output_index: 1, item: { ...message, status: 'in_progress', content: [] }, sequence_number: 3 },
+      { type: 'response.output_item.done', output_index: 1, item: message, sequence_number: 4 },
+    ].map(event => `data: ${JSON.stringify(event)}\n\n`).join('')
+    const harness = responsesHarness(() => new Response(frames), 100, null, 'openrouter.ai')
+    const result = await harness.send({ stream: true })
+    const body = await result.text()
+    const terminal = JSON.parse(body.split('data: ').at(-1)!.trim())
+
+    expect(body).toContain('event: response.completed')
+    expect(terminal).toEqual({
+      type: 'response.completed',
+      response: { ...response, status: 'completed', output: [reasoning, message] },
+      sequence_number: 5,
+    })
+    expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['another provider', 'openai', true],
+    ['unfinished OpenRouter output', 'openrouter.ai', false],
+  ])('does not recover EOF for %s', async (_case, provider, outputCompleted) => {
+    const response = { ...responsesResult('in_progress'), output: [], usage: null }
+    const item = { id: 'msg-1', type: 'message', status: 'completed', role: 'assistant', content: [] }
+    const events = [
+      { type: 'response.created', response, sequence_number: 0 },
+      { type: 'response.output_item.added', output_index: 0, item: { ...item, status: 'in_progress' }, sequence_number: 1 },
+      ...(outputCompleted ? [{ type: 'response.output_item.done', output_index: 0, item, sequence_number: 2 }] : []),
+    ]
+    const frames = events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')
+    const harness = responsesHarness(() => new Response(frames), 100, null, provider)
+
+    const result = await harness.send({ stream: true })
+
+    await expect(result.text()).rejects.toThrow('Responses stream ended before a terminal event')
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
   })
 
   it('forwards SSE error events and records a failed generation', async () => {
