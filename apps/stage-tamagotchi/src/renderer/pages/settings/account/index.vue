@@ -2,7 +2,6 @@
 import AccountSettingsPage from '@proj-airi/stage-pages/pages/settings/account/account-settings-page.vue'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useRouter } from 'vue-router'
 
 import { electronAuthLogout, electronAuthStartLogin } from '../../../../shared/eventa'
@@ -15,15 +14,14 @@ async function handleLogin() {
   await startLogin()
 }
 
-async function handleLogout() {
-  await signOut()
+async function handleSignedOut() {
   await logout()
   router.push('/settings')
 }
 </script>
 
 <template>
-  <AccountSettingsPage @login="handleLogin" @logout="handleLogout" />
+  <AccountSettingsPage @login="handleLogin" @signed-out="handleSignedOut" />
 </template>
 
 <route lang="yaml">

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
+import { SignOutDialog } from '@proj-airi/stage-ui/components'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
 import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
@@ -16,7 +17,7 @@ type SectionId = 'profile' | 'security' | 'connections' | 'danger'
 
 const emit = defineEmits<{
   login: []
-  logout: []
+  signedOut: []
 }>()
 
 const { t } = useI18n()
@@ -344,6 +345,7 @@ async function handleSendSetPasswordLink() {
 //     own a dedicated post-delete route, and ui-server-auth is reachable
 //     from every embedding app.
 const deleteDialogOpen = ref(false)
+const signOutDialogOpen = shallowRef(false)
 const deleteSent = shallowRef(false)
 const deleteForm = reactive({ confirmEmail: '' })
 const deleteLoading = shallowRef(false)
@@ -444,7 +446,7 @@ async function handleConfirmDelete(event: Event) {
             :class="['justify-start!']"
             icon="i-solar:logout-3-bold-duotone"
             :label="t('settings.pages.account.logout')"
-            @click="emit('logout')"
+            @click="signOutDialogOpen = true"
           />
         </aside>
 
@@ -902,7 +904,7 @@ async function handleConfirmDelete(event: Event) {
             <GhostButton
               icon="i-solar:logout-3-bold-duotone"
               :label="t('settings.pages.account.logout')"
-              @click="emit('logout')"
+              @click="signOutDialogOpen = true"
             />
           </div>
         </div>
@@ -929,5 +931,6 @@ async function handleConfirmDelete(event: Event) {
         </button>
       </div>
     </template>
+    <SignOutDialog v-model="signOutDialogOpen" @signed-out="emit('signedOut')" />
   </div>
 </template>
