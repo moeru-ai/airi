@@ -112,6 +112,18 @@ describe('startChatGeneration', () => {
       )
     })
 
+    it('bounds large terminal output before updating the trace', () => {
+      const trace = startChatGeneration(BASE_INPUT)
+      trace.succeed({ output: { text: 'x'.repeat(1_000_001), image_url: 'data:image/png;base64,AAAA' } })
+
+      expect(generationStub.update).toHaveBeenCalledWith(expect.objectContaining({
+        output: {
+          text: `${'x'.repeat(1_000_000)}[truncated 1 chars]`,
+          image_url: '[inline data URL omitted: 26 chars]',
+        },
+      }))
+    })
+
     it('omits session attribute when no sessionId is supplied', () => {
       // @example a request without x-airi-session-id → user-only attribution
       startChatGeneration(BASE_INPUT)

@@ -46,6 +46,7 @@ export async function routeModelAliasCandidates(input: {
   deps: V1RouteDeps
   body: Record<string, unknown>
   modelIds: string[]
+  routeCtx: ReturnType<typeof newRouteContext>
   abortSignal?: AbortSignal
   protocol?: LlmRouteRequest['protocol']
   requiresWebSearch?: boolean
@@ -59,7 +60,8 @@ export async function routeModelAliasCandidates(input: {
   let lastResponse: { modelId: string, response: Response, routeCtx: ReturnType<typeof newRouteContext> } | undefined
   for (let index = 0; index < input.modelIds.length; index += 1) {
     const modelId = input.modelIds[index]
-    const routeCtx = newRouteContext()
+    Object.assign(input.routeCtx, newRouteContext())
+    const routeCtx = input.routeCtx
     try {
       const response = await input.deps.llmRouter.route({
         modelName: modelId,
@@ -71,10 +73,10 @@ export async function routeModelAliasCandidates(input: {
       }, routeCtx)
       await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
       if (response.ok || index === input.modelIds.length - 1)
-        return { modelId, response, routeCtx }
+        return { modelId, response, routeCtx: { ...routeCtx } }
       // Keep the last HTTP failure until another candidate produces a response.
       // An incompatible alias candidate must not erase the upstream error.
-      lastResponse = { modelId, response, routeCtx }
+      lastResponse = { modelId, response, routeCtx: { ...routeCtx } }
     }
     catch (err) {
       if (input.abortSignal?.aborted) {

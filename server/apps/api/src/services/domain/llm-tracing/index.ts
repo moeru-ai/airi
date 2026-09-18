@@ -15,9 +15,9 @@ import { generationOperation } from '../../../schemas/generation-protocol'
 const STREAM_OUTPUT_CHAR_CAP = 1_000_000
 const TRACE_INPUT_STRING_CHAR_CAP = 1_000_000
 
-function traceInput(input: unknown): unknown {
+function tracePayload(input: unknown): unknown {
   if (Array.isArray(input))
-    return input.map(traceInput)
+    return input.map(tracePayload)
   if (typeof input === 'string' && input.length > TRACE_INPUT_STRING_CHAR_CAP)
     return `${input.slice(0, TRACE_INPUT_STRING_CHAR_CAP)}[truncated ${input.length - TRACE_INPUT_STRING_CHAR_CAP} chars]`
   if (input == null || typeof input !== 'object')
@@ -28,7 +28,7 @@ function traceInput(input: unknown): unknown {
       return [key, `[inline data omitted: ${value.length} chars]`]
     if ((key === 'image_url' || key === 'video_url') && typeof value === 'string' && value.startsWith('data:'))
       return [key, `[inline data URL omitted: ${value.length} chars]`]
-    return [key, traceInput(value)]
+    return [key, tracePayload(value)]
   }))
 }
 
@@ -211,7 +211,7 @@ function startGeneration(input: GenerationInput): {
 
   const baseMetadata = { requestId: input.requestId, ...input.metadata }
   const generation = startObservation(input.name, {
-    input: traceInput(input.input),
+    input: tracePayload(input.input),
     model: input.model,
     metadata: baseMetadata,
   }, { asType: 'generation' })
@@ -229,7 +229,7 @@ function startGeneration(input: GenerationInput): {
         return
       ended = true
       generation.update({
-        output: result.output,
+        output: tracePayload(result.output),
         usageDetails: result.usageDetails,
         metadata: { ...baseMetadata, ...result.metadata, fluxConsumed: result.fluxConsumed ?? 0 },
       })

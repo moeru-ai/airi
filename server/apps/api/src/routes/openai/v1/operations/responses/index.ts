@@ -59,6 +59,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         deps,
         body: input.body,
         modelIds: alias.modelIds,
+        routeCtx,
         protocol: 'responses',
         requiresWebSearch,
         abortSignal: input.abortSignal,
@@ -147,7 +148,9 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         return Response.json(value, { status: upstream.status, headers: { 'Cache-Control': 'no-store' } })
       }
       catch (error) {
-        fail(input.abortSignal?.aborted ? 499 : 502, 'Responses JSON body failed')
+        const status = input.abortSignal?.aborted ? 499 : 502
+        telemetry.setHttpStatus(span, status)
+        fail(status, 'Responses JSON body failed')
         if (input.abortSignal?.aborted)
           throw error
         throw createBadGatewayError('Invalid Responses JSON response')
@@ -200,6 +203,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
           if (response?.success) {
             // A successful write makes the terminal result observable to the client.
             // A later cancellation cannot replace that result or suppress settlement.
+            await reader.cancel().catch(error => logger.withError(error).warn('Failed to close terminal Responses reader'))
             await complete(response.output)
             break
           }

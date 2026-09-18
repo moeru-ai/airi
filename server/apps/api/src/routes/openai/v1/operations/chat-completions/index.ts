@@ -81,6 +81,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
           deps,
           body,
           modelIds: aliasPlan.modelIds,
+          routeCtx,
           abortSignal: clientAbort,
         }))
       response = routed.response

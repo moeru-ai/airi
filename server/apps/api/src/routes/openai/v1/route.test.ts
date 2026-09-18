@@ -20,6 +20,7 @@ import {
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
 } from './analytics'
+import { tracer } from './middlewares/telemetry'
 
 function createMockFluxService(flux = 100): FluxService {
   return {
@@ -2616,6 +2617,26 @@ describe('issue #2479 hosted Responses', () => {
     expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 429, fluxConsumed: 0 }))
   })
 
+  it('attributes alias routing failures to the last attempted provider', async () => {
+    const metrics = createMockGenAiMetrics()
+    const router = createMockLlmRouter({
+      route: vi.fn(async (_request, routeCtx) => {
+        routeCtx.provider = 'openai'
+        throw new ApiError(502, 'BAD_GATEWAY', 'network failed')
+      }),
+    })
+    const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, router, undefined, undefined, undefined, undefined, metrics)
+
+    const response = await app.request('/api/v1/openai/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: 'hello' }),
+    }, { user: testUser })
+
+    expect(response.status).toBe(502)
+    expect(metrics.operationCount.add).toHaveBeenCalledWith(1, expect.objectContaining({ provider: 'openai' }))
+  })
+
   it('rejects invalid JSON and insufficient balance before routing', async () => {
     const harness = responsesHarness(() => Response.json(responsesResult()), 0)
     const response = await harness.send({})
@@ -2623,6 +2644,23 @@ describe('issue #2479 hosted Responses', () => {
     const malformed = await harness.app.request('/api/v1/openai/responses', { method: 'POST', body: '{' }, { user: testUser })
     expect(malformed.status).toBe(400)
     expect(harness.router.route).not.toHaveBeenCalled()
+  })
+
+  it('records the gateway 502 status when an upstream JSON response is invalid', async () => {
+    const span = tracer.startSpan('responses-invalid-json-test')
+    const setAttribute = vi.spyOn(span, 'setAttribute')
+    const startSpan = vi.spyOn(tracer, 'startSpan').mockReturnValue(span)
+    try {
+      const harness = responsesHarness(() => Response.json({ invalid: true }))
+      const response = await harness.send({})
+
+      expect(response.status).toBe(502)
+      expect(setAttribute).toHaveBeenCalledWith('http.response.status_code', 502)
+    }
+    finally {
+      startSpan.mockRestore()
+      span.end()
+    }
   })
 
   it('does not retry or alter a completed result when settlement fails', async () => {
@@ -2972,4 +3010,26 @@ it('preserves native search SSE output and citation annotations', async () => {
   const response = await harness.send({ stream: true, tools: [{ type: 'web_search' }], include: ['web_search_call.action.sources'] })
   expect(await response.text()).toBe(frame)
   expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+})
+
+it('releases the terminal upstream stream before settlement completes', async () => {
+  const cancel = vi.fn()
+  const upstream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(responsesFrame()))
+    },
+    cancel,
+  })
+  let resolveSettlement!: () => void
+  const settlement = new Promise<{ userId: string, flux: number, charged: number, requested: number }>((resolve) => {
+    resolveSettlement = () => resolve({ userId: testUser.id, flux: 97, charged: 3, requested: 3 })
+  })
+  const harness = responsesHarness(() => new Response(upstream))
+  vi.mocked(harness.billing.consumeFluxForLLM).mockImplementationOnce(async () => settlement)
+
+  const response = await harness.send({ stream: true })
+  const body = response.text()
+  await vi.waitFor(() => expect(cancel).toHaveBeenCalledTimes(1))
+  resolveSettlement()
+  await expect(body).resolves.toContain('response.completed')
 })
