@@ -143,10 +143,9 @@ const repoRoot = resolve(
   '..',
   '..',
 )
-const samplePluginRoot = resolve(
+const pluginExamplesRoot = resolve(
   import.meta.dirname,
   'examples',
-  'devtools-sample-plugin',
 )
 const extensionManifestFileName = 'extension.airi.json'
 let extensionManagementWebContentsId = 42
@@ -235,6 +234,24 @@ async function writeEntrypoint(params: { dir: string, name: string, contents: st
   const destination = join(params.dir, params.name)
   await writeFile(destination, params.contents)
   return destination
+}
+
+async function installExampleExtension(pluginsRoot: string, extensionId: string, entrypointFileName: string) {
+  const sourceDir = join(pluginExamplesRoot, extensionId)
+  const destinationDir = join(pluginsRoot, extensionId)
+  await mkdir(destinationDir, { recursive: true })
+  await writeFile(
+    join(destinationDir, extensionManifestFileName),
+    await readFile(join(sourceDir, extensionManifestFileName), 'utf-8'),
+  )
+  await writeFile(
+    join(destinationDir, entrypointFileName),
+    (await readFile(join(sourceDir, entrypointFileName), 'utf-8'))
+      .replace(
+        '\'@proj-airi/plugin-sdk\'',
+        JSON.stringify(pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href),
+      ),
+  )
 }
 
 async function linkWorkspacePackageForPlugin(pluginDir: string, packageName: '@proj-airi/plugin-sdk' | '@proj-airi/plugin-sdk-tamagotchi') {
@@ -1077,6 +1094,39 @@ describe('setupExtensionHost', () => {
     expect(startSpy.mock.calls.map(([manifest]) => manifest.id)).toEqual([
       'ordered-provider',
       'ordered-consumer',
+    ])
+  })
+
+  it('runs the Activation Planner examples in dependency order', async () => {
+    await installExampleExtension(pluginsDir, 'activation-planner-provider', 'activation-planner-provider.mjs')
+    await installExampleExtension(pluginsDir, 'activation-planner-consumer', 'activation-planner-consumer.mjs')
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.setEnabled({ extensionId: 'activation-planner-provider', enabled: true })
+    await service.setEnabled({ extensionId: 'activation-planner-consumer', enabled: true })
+    const startSpy = vi.spyOn(service.host, 'start')
+
+    const loadedSnapshot = await service.loadEnabled()
+
+    expect(startSpy.mock.calls.map(([manifest]) => manifest.id)).toEqual([
+      'activation-planner-provider',
+      'activation-planner-consumer',
+    ])
+    expect(loadedSnapshot.plugins).toEqual(expect.arrayContaining([
+      expect.objectContaining({ extensionId: 'activation-planner-provider', loaded: true }),
+      expect.objectContaining({ extensionId: 'activation-planner-consumer', loaded: true }),
+    ]))
+
+    const extensionIdBySessionId = new Map(
+      service.host.listSessions().map(session => [session.id, session.extension.id]),
+    )
+    const stopSpy = vi.spyOn(service.host, 'stop')
+
+    await service.setSystemEnabled(false)
+
+    expect(stopSpy.mock.calls.map(([sessionId]) => extensionIdBySessionId.get(sessionId))).toEqual([
+      'activation-planner-consumer',
+      'activation-planner-provider',
     ])
   })
 
@@ -2262,20 +2312,7 @@ describe('setupExtensionHost', () => {
   })
 
   it('loads the devtools sample plugin with its declared protocol permissions', async () => {
-    const pluginDir = join(pluginsDir, 'devtools-sample-plugin')
-    await mkdir(pluginDir, { recursive: true })
-    await writeFile(
-      join(pluginDir, extensionManifestFileName),
-      await readFile(join(samplePluginRoot, extensionManifestFileName), 'utf-8'),
-    )
-    await writeFile(
-      join(pluginDir, 'devtools-sample-plugin.mjs'),
-      (await readFile(join(samplePluginRoot, 'devtools-sample-plugin.mjs'), 'utf-8'))
-        .replace(
-          '\'@proj-airi/plugin-sdk\'',
-          JSON.stringify(pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href),
-        ),
-    )
+    await installExampleExtension(pluginsDir, 'devtools-sample-plugin', 'devtools-sample-plugin.mjs')
 
     await setupExtensionHost()
 
