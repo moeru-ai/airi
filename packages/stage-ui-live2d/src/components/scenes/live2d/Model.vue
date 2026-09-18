@@ -902,6 +902,15 @@ onUnmounted(() => {
   disposeShouldUpdateView?.()
   expressionController.dispose()
   loadedModelId = undefined
+
+  // Destroying a display object does not destroy its filters, and each mount
+  // creates its own pair, so the light-map textures and the blur pass would
+  // stay on the GPU for every renderer switch. The stack comes off the model
+  // first so that nothing can reference a destroyed filter.
+  if (model.value)
+    model.value.filters = []
+  screenAmbientLightFilter.value.destroy()
+  dropShadowFilter.value.destroy()
 })
 
 function listMotionGroups() {

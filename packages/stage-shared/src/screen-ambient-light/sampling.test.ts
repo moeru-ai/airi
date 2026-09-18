@@ -42,6 +42,37 @@ describe('screen ambient light sampling', () => {
     })
   })
 
+  it('meters the display luminance over the whole frame outside the window', () => {
+    // The window sits over a white patch and the rest of the display is a mid
+    // gray. The maps read the window neighborhood, but the exposure meter has to
+    // read the whole display and leave the window out, or the character would
+    // meter its own pixels.
+    const frame = createFrame(64, 48, [128, 128, 128, 255])
+    fillPixels(frame, 24, 12, 16, 24, [255, 255, 255, 255])
+
+    const result = sampleScreenAmbientLight(frame, { exclude: centeredWindow }, samplingOptions)
+
+    // sRGB 128 is 0.2158 in linear light.
+    expect(result.environment.displayLuminance).toBeCloseTo(0.2158, 3)
+  })
+
+  it('keeps the metered display luminance when no pixel carries color weight', () => {
+    // ROOT CAUSE:
+    //
+    // At a neutral-color weight of 0 a gray desktop gives every pixel a map
+    // weight of 0, so no texel has support and buildEnvironment reports
+    // nothing. The fallback was the whole neutral environment, whose
+    // displayLuminance is 1, so a dark desktop left the model fully exposed.
+    // The display meter ignores the weight, so the fallback keeps its reading.
+    const frame = createFrame(64, 48, [64, 64, 64, 255])
+
+    const result = sampleScreenAmbientLight(frame, { exclude: centeredWindow }, { neutralColorWeight: 0 })
+
+    expect(result.diagnostics.acceptedPixelCount).toBeGreaterThan(0)
+    // sRGB 64 is 0.0513 in linear light.
+    expect(result.environment.displayLuminance).toBeCloseTo(0.0513, 3)
+  })
+
   it('measures the same maps whatever the frame resolution is', () => {
     // ROOT CAUSE:
     //

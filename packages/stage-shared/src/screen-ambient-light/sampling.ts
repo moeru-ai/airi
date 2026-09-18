@@ -266,10 +266,14 @@ export function sampleScreenAmbientLight(
     mapMargin,
   )
 
-  return {
-    environment: buildEnvironment(surround, contact, mapMargin, displayLuminanceOf(frame, region)) ?? ambientLightNeutralEnvironment,
-    diagnostics,
-  }
+  // The display meter counts every visible pixel, so it holds a reading even
+  // when the color weighting leaves no map texel with support. Only the maps
+  // fall back to neutral in that case; the exposure keeps what was measured.
+  const displayLuminance = displayLuminanceOf(frame, region)
+  const environment = buildEnvironment(surround, contact, mapMargin, displayLuminance)
+    ?? { ...ambientLightNeutralEnvironment, displayLuminance }
+
+  return { environment, diagnostics }
 }
 
 /**

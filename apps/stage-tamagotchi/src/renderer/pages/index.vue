@@ -838,7 +838,11 @@ const cursorPosition = computed(() => ({
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
-        <!-- The island paints over the window, so the screen sampler must not read the desktop through it. -->
+        <!--
+          Every element that paints over the stage carries this marker, so that
+          the screen sampler does not read AIRI's own colors as desktop light.
+          HoloCoupon has no marker because it never renders (v-if="false").
+        -->
         <ResourceStatusIsland :[stageOpaqueAttribute]="true" />
         <WidgetStage
           ref="widgetStageRef"
@@ -852,6 +856,7 @@ const cursorPosition = computed(() => ({
         <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
           <ControlsIsland
             ref="controlsIslandRef"
+            :[stageOpaqueAttribute]="true"
             @interaction-change="controlsIslandInteractionActive = $event"
           />
         </ControlsIslandRoot>

@@ -17,7 +17,7 @@ import {
   wholeWindowRectangle,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
-import { until, useBroadcastChannel } from '@vueuse/core'
+import { until, useBroadcastChannel, watchDebounced } from '@vueuse/core'
 import { clamp } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
@@ -52,6 +52,17 @@ const captureOversampling = 4
  * frames per second the draw alone took 4.4 ms per frame.
  */
 const maximumCaptureWidth = 512
+
+/**
+ * How long the window has to sit on another display before the capture
+ * follows it, in milliseconds.
+ *
+ * A capture is pinned to the display it opened on. Dragging the window across
+ * the seam flips the dominant display on every frame near the midpoint, and a
+ * restart costs a new getDisplayMedia call and a gap in the light, so the
+ * capture waits until the window has settled on the other side.
+ */
+const displaySettleMs = 500
 
 /**
  * Captures and samples the display behind the stage window for ambient lighting.
@@ -131,17 +142,38 @@ export function useScreenAmbientLight(sources: {
     requestMacOSPermission,
   } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
 
-  watch([screenAmbientLightEnabled, screenAmbientLightSource], async ([enabled, source]) => {
+  // The display the window mostly covers. It decides which screen the capture
+  // opens, and `undefined` means the answer is not known yet: the display list
+  // and the window bounds both arrive over IPC after mount.
+  const dominantDisplayId = computed(() => {
+    if (!hasWindowBounds.value || displays.value.length === 0)
+      return undefined
+    return findDominantDisplayArea(currentWindowBounds(), displays.value)?.id
+  })
+
+  watch([screenAmbientLightEnabled, screenAmbientLightSource], () => void restart(), { immediate: true })
+
+  // A capture shows the display it opened on. Once the window has settled on
+  // another display, the stream and its bounds are stale, so the capture opens
+  // again there. The captured display is a source too, so a move during
+  // start() is checked once the stream is up.
+  watchDebounced([dominantDisplayId, capturedDisplay], ([id, captured]) => {
+    if (id === undefined || !captured || id === captured.id)
+      return
+    void restart()
+  }, { debounce: displaySettleMs })
+
+  async function restart() {
     const version = ++startVersion
     stop()
-    if (!enabled) {
+    if (!screenAmbientLightEnabled.value) {
       publishDiagnostics(lastCaptureError ? 'error' : 'disabled')
       return
     }
 
     lastCaptureError = undefined
 
-    if (source === 'forced-color') {
+    if (screenAmbientLightSource.value === 'forced-color') {
       applyForcedColor()
       return
     }
@@ -159,7 +191,7 @@ export function useScreenAmbientLight(sources: {
       publishDiagnostics('error')
       screenAmbientLightEnabled.value = false
     }
-  }, { immediate: true })
+  }
 
   watch(diagnosticsChannelEvent, (event) => {
     if (event?.type !== 'request-current')
