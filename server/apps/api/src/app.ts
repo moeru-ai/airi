@@ -39,7 +39,7 @@ import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
 import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
-import { sessionMiddleware } from './middlewares/auth'
+import { authGuard, sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
 import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
@@ -105,6 +105,16 @@ interface AppDeps {
 }
 
 const MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES = 8192
+/** Allows one maximum-size inline file plus JSON envelope overhead. */
+const RESPONSES_MAX_REQUEST_BYTES = 40 * 1024 * 1024
+const DEFAULT_API_MAX_REQUEST_BYTES = 1024 * 1024
+
+function apiBodyLimit(maxSize: number) {
+  return bodyLimit({
+    maxSize,
+    onError: c => c.json({ error: 'PAYLOAD_TOO_LARGE', message: 'Payload Too Large' }, 413),
+  })
+}
 
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
@@ -276,10 +286,20 @@ export async function buildApp(deps: AppDeps) {
     revenue: deps.otel?.revenue,
     rateLimitMetrics: deps.otel?.rateLimit,
   })
+  const defaultApiBodyLimit = apiBodyLimit(DEFAULT_API_MAX_REQUEST_BYTES)
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.db, deps.env))
-    .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
+    // Authenticate before accepting the larger Responses envelope. The route
+    // supports inline image, file, and video data that exceed the default API
+    // limit, but unauthenticated callers must not get the larger allowance.
+    .use('/api/v1/openai/responses', authGuard)
+    .use('/api/v1/openai/responses', apiBodyLimit(RESPONSES_MAX_REQUEST_BYTES))
+    .use('*', async (c, next) => {
+      if (c.req.path === '/api/v1/openai/responses')
+        return next()
+      return defaultApiBodyLimit(c, next)
+    })
     .onError((err, c) => {
       if (err instanceof ApiError) {
         // Surface details + cause to the server-side log only. SEC-5 keeps

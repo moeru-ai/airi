@@ -36,9 +36,10 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
 
   return async ({ input }) => {
     const requestId = nanoid()
-    const startedAt = Date.now()
     const policy = await billing.authorizeChat(input.userId)
     let model = input.body.model
+    const alias = await resolveModelAliasPlan(deps, model)
+    const startedAt = Date.now()
     let routeCtx = newRouteContext()
     const span = telemetry.startGenerationSpan({ model, stream: input.body.stream, operation: 'responses' })
     const startTrace = () => deps.llmTracing.startChatGeneration({
@@ -52,7 +53,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     })
     let upstream: Response
     try {
-      const alias = await resolveModelAliasPlan(deps, model)
       const requiresWebSearch = input.body.tools?.some(tool => tool.type === 'web_search') === true
         || (Array.isArray(input.body.input) && input.body.input.some(item => item.type === 'web_search_call'))
       const routed = await telemetry.runWithSpan(span, () => routeModelAliasCandidates({
@@ -188,9 +188,9 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
           if (!event.success)
             throw new Error('Invalid Responses SSE event')
           const type = event.output.type
-          if (value.event && value.event !== type)
-            throw new Error('Responses SSE event name does not match its payload type')
           const terminalEvent = ['response.completed', 'response.failed', 'response.incomplete'].includes(type)
+          if ((terminalEvent && value.event !== type) || (!terminalEvent && value.event && value.event !== type))
+            throw new Error('Responses SSE event name does not match its payload type')
           const response = terminalEvent ? safeParse(responseSchema, event.output.response) : undefined
           if (response && (!response.success || type !== `response.${response.output.status}`))
             throw new Error('Invalid Responses terminal event')

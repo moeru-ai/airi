@@ -2487,6 +2487,46 @@ describe('issue #2479 hosted Responses', () => {
     expect(harness.tracing.startChatGeneration).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses' }))
   })
 
+  // ROOT CAUSE:
+  //
+  // Responses started its latency clock before Flux authorization and alias
+  // resolution, unlike Chat Completions, so protocol latency was not
+  // comparable. The operation clock now starts at the shared routing boundary.
+  it('excludes authorization and alias resolution from generation duration', async () => {
+    const catalog = createMockProviderCatalogService()
+    const alias = await catalog.resolveEnabledAlias('llm', 'auto')
+    const flux = createMockFluxService()
+    const logs = createMockRequestLogService()
+    let now = 0
+    const router = createMockLlmRouter({ route: vi.fn(async () => {
+      now = 2500
+      return Response.json(responsesResult())
+    }) })
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    vi.mocked(flux.getFlux).mockImplementation(async () => {
+      now = 1000
+      return { userId: 'user-1', flux: 100 }
+    })
+    vi.mocked(catalog.resolveEnabledAlias).mockImplementation(async () => {
+      now = 2000
+      return alias
+    })
+
+    try {
+      const app = createTestApp(flux, createMockConfigKV(), createMockBillingService(), logs, undefined, router, createMockLlmTracing(), createMockProductEventService(), createMockVoicePackService(), catalog)
+      await app.request('/api/v1/openai/responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: 'hello' }),
+      }, { user: testUser })
+
+      expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ durationMs: 500 }))
+    }
+    finally {
+      nowSpy.mockRestore()
+    }
+  })
+
   it.each(['failed', 'incomplete', 'cancelled'])('does not charge a %s JSON result', async (status) => {
     const harness = responsesHarness(() => Response.json(responsesResult(status)))
     const response = await harness.send({})
@@ -2581,6 +2621,21 @@ describe('issue #2479 hosted Responses', () => {
 
   it('rejects mismatched SSE event and payload types before settlement', async () => {
     const frame = `event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.completed', response: responsesResult() })}\n\n`
+    const harness = responsesHarness(() => new Response(frame))
+    const response = await harness.send({ stream: true })
+
+    await expect(response.text()).rejects.toThrow()
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0 }))
+  })
+
+  // ROOT CAUSE:
+  //
+  // A terminal payload without an `event:` field is delivered to EventSource
+  // clients as `message`, so settling it would charge for a completion that
+  // named-event consumers never observe.
+  it('rejects a terminal SSE payload without its matching event name', async () => {
+    const frame = `data: ${JSON.stringify({ type: 'response.completed', response: responsesResult() })}\n\n`
     const harness = responsesHarness(() => new Response(frame))
     const response = await harness.send({ stream: true })
 

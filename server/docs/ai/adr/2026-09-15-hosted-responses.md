@@ -10,6 +10,8 @@ Issue #2479 defines an authenticated, stateless Responses create endpoint.
 This PR implements its server boundary on top of the existing gateway and Flux policy.
 The client sends complete input Items. The gateway forces `store: false`.
 It rejects conversation references, file IDs, background execution, and hosted tools other than web search.
+After authentication, the Responses endpoint accepts a 40 MiB request body so one maximum-size inline file fits with its JSON envelope.
+Other API routes keep the 1 MiB default. Larger requests must use remote URLs or smaller payloads.
 The user confirmed native web search support for OpenAI upstreams.
 The server reuses `model-bank/openai` search capabilities for the effective upstream model.
 Only the canonical OpenAI endpoint advertises this provider capability.
@@ -83,18 +85,19 @@ server/
   apps/api/
     README.md
     package.json
+    src/{app.ts,app.test.ts}
     src/routes/openai/v1/
       index.ts, gateway.ts, model-routing.ts, route.test.ts
-      middlewares/traffic-control.ts
+      middlewares/{telemetry.ts,telemetry.test.ts,traffic-control.ts}
       operations/chat-completions/index.ts
       operations/responses/{index.ts,request.ts,request.test.ts}
     src/services/
       adapters/config-kv/definitions.ts
       domain/llm-router/{router.ts,types.ts,tests/router.test.ts}
-      domain/llm-tracing/index.ts
+      domain/llm-tracing/{index.ts,index.test.ts}
       adapters/llm/{index.ts,chat-completions.ts,responses.ts,types.ts}
       adapters/llm/schemas/{responses.ts,openresponses-schema.ts,request-openapi.json,README.md}
-    src/schemas/generation-protocol.ts
+    src/schemas/{generation-protocol.ts,generation-protocol.test.ts}
   docs/ai/adr/2026-09-15-hosted-responses.md
 ```
 

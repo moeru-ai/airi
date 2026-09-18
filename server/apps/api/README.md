@@ -97,6 +97,8 @@ The request uses `store: false`, which is also the default. Send complete messag
 and function outputs in `input`. The endpoint rejects `previous_response_id`, `conversation`, file IDs,
 background generation, item references, file search, and code interpreter.
 Do not use this endpoint for provider-side history.
+The total request body limit is 40 MiB after authentication. Other API routes keep the 1 MiB default.
+This allows one maximum-size inline file plus the JSON envelope. Use remote URLs or reduce the payload if the total exceeds 40 MiB.
 
 For a Responses-enabled OpenAI upstream at `https://api.openai.com/v1`, web search needs no separate capability flag.
 The server reads `abilities.search` from `model-bank/openai` using `overrideModel`, or the dispatched model name when no override exists.
