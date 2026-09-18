@@ -104,6 +104,7 @@ A compatible proxy is not treated as OpenAI. Unknown or unsupported models do no
 If all protocol-compatible candidates lack search support, the endpoint returns `503 LLM_WEB_SEARCH_UNAVAILABLE`.
 Send `tools: [{ "type": "web_search" }]` to make search available. The gateway does not inject tools or change `tool_choice`.
 Search filters, approximate location, source inclusion, and `web_search_call` Items pass through the validated request boundary.
+A replayed `web_search_call` also selects only a search-capable route, even when the next request omits the search tool.
 Keep search Items and citation annotations in the client history for replay and editing.
 
 The Responses operation lives in `operations/responses/index.ts`. Its request contract lives in `operations/responses/request.ts`.

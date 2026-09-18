@@ -42,6 +42,32 @@ describe('stateless Responses request boundary', () => {
     expect(body.tools?.[0]).toMatchObject({ name: 'read' })
   })
 
+  it('preserves nullable reasoning replay fields', () => {
+    const input = [{ type: 'reasoning', summary: [], content: null, status: null, encrypted_content: 'opaque' }]
+
+    expect(parseResponsesRequest({ input }).input).toEqual(input)
+  })
+
+  it('preserves nullable image options when inline content is portable', () => {
+    const input = [{ role: 'user', content: [{ type: 'input_image', file_id: null, image_url: 'https://example.com/image.png', detail: null }] }]
+
+    expect(parseResponsesRequest({ input }).input).toEqual([{ ...input[0], type: 'message' }])
+  })
+
+  it('accepts a function tool with a minimal object parameter schema', () => {
+    const tool = { type: 'function', name: 'ping', parameters: { type: 'object' } }
+
+    expect(parseResponsesRequest({ input: 'hello', tools: [tool] }).tools).toEqual([tool])
+  })
+
+  it.each([
+    { role: 'user', content: [{ type: 'output_text', text: 'answer' }] },
+    { role: 'system', content: [{ type: 'input_image', image_url: 'https://example.com/image.png' }] },
+    { role: 'assistant', content: [{ type: 'input_text', text: 'question' }] },
+  ])('rejects content parts that do not belong to the message role: %j', (message) => {
+    expect(() => parseResponsesRequest({ input: [message] })).toThrow('Invalid stateless Responses request')
+  })
+
   it('keeps inline video parts in function outputs', () => {
     const output = [{ type: 'input_video', video_url: 'data:video/mp4;base64,AAAA' }]
     const body = parseResponsesRequest({ input: [{ type: 'function_call_output', call_id: 'call-1', output }] })
@@ -74,8 +100,8 @@ describe('stateless Responses request boundary', () => {
   it.each([
     {},
     { type: 'array', items: { type: 'string' } },
-    { type: 'object', properties: {} },
     { type: 'object', properties: [], required: [] },
+    { type: 'object', required: ['missing'] },
     { type: 'object', properties: { query: { type: 'string' } }, required: ['missing'] },
   ])('pR #2554 rejects an invalid function parameter schema: %j', (parameters) => {
     expect(() => parseResponsesRequest({
@@ -90,6 +116,8 @@ describe('stateless Responses request boundary', () => {
     { type: 'json_schema', schema: { type: 'object' } },
     { type: 'json_schema', name: 'answer', schema: [] },
     { type: 'json_schema', name: 'answer', schema: { type: 'array' } },
+    { type: 'json_schema', name: 'answer', schema: { type: 'object', properties: [] } },
+    { type: 'json_schema', name: 'answer', schema: { type: 'object', required: ['missing'] } },
   ])('pR #2554 rejects an incomplete structured output schema: %j', (format) => {
     expect(() => parseResponsesRequest({ input: 'hello', text: { format } })).toThrow('Invalid stateless Responses request')
   })
@@ -103,6 +131,12 @@ it('preserves search options, tool choice, sources and client-owned search histo
   expect(body.tools).toEqual(tools)
   expect(body.tool_choice).toBe('none')
   expect(body.store).toBe(false)
+})
+
+it('preserves a live find-in-page search item without a URL', () => {
+  const input = [{ type: 'web_search_call', id: 'ws-1', status: 'completed', action: { type: 'find_in_page', pattern: 'AIRI' } }]
+
+  expect(parseResponsesRequest({ input }).input).toEqual(input)
 })
 
 it.each([
