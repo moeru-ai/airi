@@ -80,9 +80,8 @@ export const airiMicrophonePermissionPromptDismissed = defineEventa<{ promptId: 
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
-export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electron:windows:main:devtools:open')
+export const electronOpenMainDevtools = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:electron:windows:main:devtools:open')
 export const electronCenterMainWindow = defineInvokeEventa<Rectangle>('eventa:invoke:electron:windows:main:center')
-export const electronOpenEditor = defineInvokeEventa<void>('eventa:invoke:electron:windows:editor:open')
 export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronSettingsReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:settings:ready')

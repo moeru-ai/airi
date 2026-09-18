@@ -47,7 +47,7 @@ The status values have these meanings:
 | GAP-024 | Main, onboarding, and Artistry consumers | Initialize or use Artistry | Electron owns Artistry configuration, connection tests, and headless generation | Define and own the Artistry service outside the Electron main process | AIRI desktop service | Open | Configuration-sync error reproduced on 2026-09-17 |
 | GAP-025 | MCP settings and MCP tool consumers | Open MCP settings | Electron owns the MCP configuration file and Node.js stdio server processes | Persist MCP configuration, manage stdio server lifecycles, and expose tool discovery and invocation outside Kirie Platform | AIRI desktop service | Blocked | AIRI sidecar artifact decision required |
 | GAP-026 | About and updater devtools | Open the About page | `useElectronAutoUpdater` creates its own Electron Eventa context and Electron owns update preferences and lifecycle | Mount updater UI through the shared host context and define AIRI update check, download, install, state, and preference behavior | AIRI renderer bridge and desktop update service | Open | `Electron ipcRenderer is not available` reproduced on 2026-09-17 |
-| GAP-027 | Developer settings | Open main DevTools, the editor, or a standalone devtools page | Electron opens WebContents DevTools and dedicated `BrowserWindow` instances | Open a connected CEF Inspector and reusable native devtools windows | AIRI developer tooling and window orchestration | Accepted | CEF Inspector and devtools pages work; the empty Editor route matches Electron |
+| GAP-027 | Developer settings | Open main DevTools or a standalone devtools page | Electron opens WebContents DevTools and dedicated `BrowserWindow` instances | Open a connected CEF Inspector and reusable native devtools windows | AIRI developer tooling and window orchestration | Accepted | CEF Inspector and devtools pages work; Editor is outside the migration scope |
 | GAP-028 | All AIRI WebViews | Open more than one AIRI application window | Electron windows use a shared persistent browser session | Share one persistent CEF request context for cookies, storage, BroadcastChannel, Web Locks, and Pinia coordination | Godot CEF and AIRI dependency integration | Blocked | The upstream branch works locally but has no published release artifact |
 
 ## Audited but not reproduced
@@ -335,7 +335,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 
 ## GAP-027 evidence
 
-- Input: Navigate the main Kirie renderer to `#/settings/system/developer`, then click **Open**, **Open Editor**, **Markdown Stress**, and **IO Tracer**.
+- Input: Navigate the main Kirie renderer to `#/settings/system/developer`, then click **Open**, **Markdown Stress**, and **IO Tracer**.
 - Original result: Godot reports unregistered `windows:main:devtools:open`, `windows:editor:open`, and `windows:devtools:open` requests.
 - Electron source: [application window composition](../stage-tamagotchi/src/main/index.ts).
 - Required result: AIRI opens a connected CEF Inspector and reusable native devtools windows without an Electron runtime.
@@ -345,16 +345,15 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Inspector security: Godot CEF permits only `https://chrome-devtools-frontend.appspot.com` as the remote debugging WebSocket origin. Production builds keep remote debugging disabled.
 - Inspector runtime result: Chrome opened a connected Elements panel for the main AIRI developer-settings page on 2026-09-18.
 - Godot CEF source: The configured backend documents the `godot_cef/debug/remote_devtools_port` and `godot_cef/advanced/custom_command_line_switches` settings. See the [property reference](https://github.com/dsh0416/godot-cef/blob/v1.15.4/docs/api/properties.md) and [security baseline](https://github.com/dsh0416/godot-cef/blob/v1.15.4/docs/api/security-baseline.md).
-- Editor host result: AIRI opens one native `1200 x 800` window at `#/editor` with `stage-runtime=minimal` and `synced-leader=false`.
-- Editor product result: The Kirie and Electron `/editor` routes both render an empty `<main>`. The migration preserves this existing product behavior and does not add an Editor feature.
+- Editor result: The Electron `/editor` route renders an empty `<main>`. Kirie omits the Editor action and does not create an empty native window.
 - Devtools result: AIRI opens keyed native windows with validated `/devtools` routes and optional geometry. Markdown Stress used the default `1020 x 720` size. IO Tracer requested `1600 x 900`.
-- Reuse result: Repeated requests left exactly one Editor page, one Markdown Stress page, and one IO Tracer page in the live CEF target list.
-- Contract result: The renderer preserves Electron's parameterless invokes and sends explicit empty payloads through Kirie, as required by the C# Eventa boundary.
+- Reuse result: Repeated requests left exactly one Markdown Stress page and one IO Tracer page in the live CEF target list.
+- Contract result: The developer page invokes the shared Eventa contracts through the existing host context. It does not add a developer-tools adapter.
 - Route-isolation result: The root router now contains route setup and render failures. The boundary is keyed by the full route, so leaving a failed page recreates the route subtree instead of leaving the previous page blank.
 - Route audit result: All 117 unique static renderer paths and representative values for the three parameterized paths rendered in real CEF. Electron-only updater and screen-capture tools show an explicit unavailable state. Mouse and display devtools use the shared host context.
 - Regression result: The audit found and fixed an Electron-only Live2D system-audio driver, a non-serializable provider action result, and an immediate watcher that ran before its request counter was initialized. The Developers page still rendered after navigating back from each repaired route.
 - Native-window result: A standalone Markdown Stress window rendered its full page over the shared opaque white native background.
-- Test result: The C# tests cover the leader Inspector target and developer-window requests. All 33 renderer unit tests also pass.
+- Test result: The C# tests cover the leader Inspector target. All 31 renderer unit tests also pass.
 - Acceptance result: The user confirmed that the empty Electron Editor is outside the migration scope. GAP-027 is accepted.
 
 ## GAP-028 evidence

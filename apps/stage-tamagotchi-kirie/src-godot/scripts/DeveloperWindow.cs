@@ -10,7 +10,9 @@ public partial class DeveloperWindow : Window
     private GdKiriePlatformHost? _platform;
     private WebViewPermissionHandler? _permissions;
     private Action? _onClosed;
-    private DeveloperWindowRequest? _request;
+    private OpenDevtoolsWindowPayload? _request;
+    private Vector2I _defaultSize;
+    private Vector2I _minimumSize;
     private bool _ready;
     private bool _closing;
     private bool _showRequested;
@@ -18,7 +20,7 @@ public partial class DeveloperWindow : Window
     internal void Initialize(
         KirieEventaJsonRegistry registry,
         string rendererUrl,
-        DeveloperWindowRequest request,
+        OpenDevtoolsWindowPayload request,
         Action onClosed)
     {
         if (!IsInsideTree())
@@ -33,9 +35,8 @@ public partial class DeveloperWindow : Window
 
         _request = request;
         _onClosed = onClosed;
-        Title = request.Title;
-        MinSize = new Vector2I(request.MinWidth, request.MinHeight);
-        Size = new Vector2I(request.Width, request.Height);
+        _defaultSize = Size;
+        _minimumSize = MinSize;
         DesktopWindowSizing.ApplyInitialDisplayScale(this);
 
         _kirie = KirieClient.FromNode(GetNode("KirieNode"));
@@ -53,13 +54,10 @@ public partial class DeveloperWindow : Window
         _eventa.Adapter.Error += OnEventaError;
         CloseRequested += RequestClose;
 
-        var initialUrl = request.UsesMinimalRuntime
-            ? RendererUrl.ForMinimalFollowerRoute(rendererUrl, request.Route)
-            : RendererUrl.ForFollowerRoute(rendererUrl, request.Route);
-        _kirie.CreateWebView(initialUrl);
+        _kirie.CreateWebView(RendererUrl.ForFollowerRoute(rendererUrl, request.Route ?? "/devtools"));
     }
 
-    internal void Open(int screen, DeveloperWindowRequest request)
+    internal void Open(int screen, OpenDevtoolsWindowPayload request)
     {
         CurrentScreen = screen;
         _request = request;
@@ -68,11 +66,6 @@ public partial class DeveloperWindow : Window
         {
             ShowAndFocus();
         }
-    }
-
-    internal void Close()
-    {
-        RequestClose();
     }
 
     public override void _ExitTree()
@@ -110,17 +103,17 @@ public partial class DeveloperWindow : Window
         var request = _request
             ?? throw new InvalidOperationException("The developer window request is missing.");
         var scale = DesktopWindowSizing.GetDisplayScale(this);
-        MinSize = Scale(new Vector2I(request.MinWidth, request.MinHeight), scale);
-        Size = Scale(new Vector2I(request.Width, request.Height), scale);
+        MinSize = Scale(_minimumSize, scale);
+        Size = Scale(
+            new Vector2I(
+                Math.Max(request.Width ?? _defaultSize.X, _minimumSize.X),
+                Math.Max(request.Height ?? _defaultSize.Y, _minimumSize.Y)),
+            scale);
         DesktopWindowSizing.FitDecoratedSizeToInitialSize(this);
 
-        if (request.X is null && request.Y is null)
+        DesktopWindowSizing.MoveToUsableCenter(this);
+        if (request.X is not null || request.Y is not null)
         {
-            DesktopWindowSizing.MoveToUsableCenter(this);
-        }
-        else
-        {
-            DesktopWindowSizing.MoveToUsableCenter(this);
             var centeredPosition = Position;
             Position = new Vector2I(
                 request.X is null ? centeredPosition.X : Mathf.RoundToInt(request.X.Value * scale),
@@ -136,7 +129,7 @@ public partial class DeveloperWindow : Window
         GrabFocus();
     }
 
-    private void RequestClose()
+    internal void RequestClose()
     {
         if (_closing)
         {
