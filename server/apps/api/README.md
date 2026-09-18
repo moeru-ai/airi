@@ -96,6 +96,7 @@ This PR does not update live routing configuration or switch the official client
 The request uses `store: false`, which is also the default. Send complete messages, reasoning Items, function calls,
 and function outputs in `input`. The endpoint rejects `previous_response_id`, `conversation`, file IDs,
 background generation, item references, file search, and code interpreter.
+Function and web-search choices must reference tools declared in the same request. An `allowed_tools` choice supports at most 128 references.
 Do not use this endpoint for provider-side history.
 The total request body limit is 40 MiB after authentication. Other API routes keep the 1 MiB default.
 This allows one maximum-size inline file plus the JSON envelope. Use remote URLs or reduce the payload if the total exceeds 40 MiB.

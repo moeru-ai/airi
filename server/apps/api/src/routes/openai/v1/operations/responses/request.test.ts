@@ -60,6 +60,24 @@ describe('stateless Responses request boundary', () => {
     expect(parseResponsesRequest({ input: 'hello', tools: [tool] }).tools).toEqual([tool])
   })
 
+  it('rejects more than 128 allowed tool references', () => {
+    const ping = { type: 'function', name: 'ping' }
+
+    expect(() => parseResponsesRequest({
+      input: 'hello',
+      tools: [{ ...ping, parameters: { type: 'object' } }],
+      tool_choice: { type: 'allowed_tools', mode: 'auto', tools: Array.from({ length: 129 }).fill(ping) },
+    })).toThrow('Invalid stateless Responses request')
+  })
+
+  it.each([
+    { tools: [{ type: 'function', name: 'write', parameters: { type: 'object' } }], tool_choice: { type: 'function', name: 'read' } },
+    { tools: [{ type: 'function', name: 'read', parameters: { type: 'object' } }], tool_choice: { type: 'web_search' } },
+    { tools: [{ type: 'web_search' }], tool_choice: { type: 'allowed_tools', mode: 'required', tools: [{ type: 'function', name: 'read' }] } },
+  ])('rejects a tool choice that references an undeclared tool: %j', (selection) => {
+    expect(() => parseResponsesRequest({ input: 'hello', ...selection })).toThrow('Invalid stateless Responses request')
+  })
+
   it.each([
     { role: 'user', content: [{ type: 'output_text', text: 'answer' }] },
     { role: 'system', content: [{ type: 'input_image', image_url: 'https://example.com/image.png' }] },

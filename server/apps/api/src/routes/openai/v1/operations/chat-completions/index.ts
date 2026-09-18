@@ -45,7 +45,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
 
     const body = input.body
     const requestedAlias = typeof body.model === 'string' && body.model.length > 0 ? body.model : 'auto'
-    const aliasPlan = await resolveModelAliasPlan(deps, requestedAlias)
+    const aliasPlan = await resolveModelAliasPlan(deps, requestedAlias, { protocol: 'chat-completions' })
     let requestModel = aliasPlan.modelIds[0]
 
     const stream = !!body.stream

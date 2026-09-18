@@ -125,6 +125,7 @@ function createMockLlmRouter(impl?: Partial<LlmRouterService>): LlmRouterService
         signal: abortSignal,
       })
     }),
+    supportsLlmRoute: vi.fn(async () => true),
     // TTS default also forwards to fetch, against a stable path tests can
     // assert on. The mocked response body becomes the audio payload.
     routeTts: vi.fn(async ({ modelName, input, abortSignal }) => {
@@ -902,6 +903,55 @@ describe('v1CompletionsRoutes', () => {
         expect(res.status).toBe(200)
         expect(route).toHaveBeenCalledTimes(1)
         expect(route).toHaveBeenCalledWith(expect.objectContaining({ modelName: 'openai/heavy' }), expect.any(Object))
+      }
+      finally {
+        randomSpy.mockRestore()
+      }
+    })
+
+    it('filters incompatible models before weighted alias selection', async () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.75)
+      const route = vi.fn(async ({ modelName }) => {
+        if (modelName === 'chat-only')
+          throw new ApiError(503, 'LLM_PROTOCOL_UNAVAILABLE', 'No Responses upstream')
+        return Response.json(responsesResult())
+      })
+      const llmRouter = createMockLlmRouter({
+        route,
+        supportsLlmRoute: vi.fn(async ({ modelName }) => modelName !== 'chat-only'),
+      })
+      const now = new Date()
+      const providerCatalogService = createMockProviderCatalogService({
+        resolveEnabledAlias: vi.fn(async () => ({
+          id: 'alias-auto',
+          surface: 'llm' as const,
+          aliasId: 'auto',
+          displayName: 'Auto',
+          enabled: true,
+          displayOrder: 0,
+          fallbackEnabled: false,
+          loadBalancingEnabled: true,
+          createdAt: now,
+          updatedAt: now,
+          routes: [
+            { id: 'route-chat', aliasId: 'alias-auto', routerModelId: 'chat-only', pool: 'primary' as const, enabled: true, weight: 90, displayOrder: 0, createdAt: now, updatedAt: now },
+            { id: 'route-a', aliasId: 'alias-auto', routerModelId: 'responses-a', pool: 'primary' as const, enabled: true, weight: 5, displayOrder: 1, createdAt: now, updatedAt: now },
+            { id: 'route-b', aliasId: 'alias-auto', routerModelId: 'responses-b', pool: 'primary' as const, enabled: true, weight: 5, displayOrder: 2, createdAt: now, updatedAt: now },
+          ],
+        })),
+      })
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter, createMockLlmTracing(), createMockProductEventService(), createMockVoicePackService(), providerCatalogService)
+
+      try {
+        const response = await app.request('/api/v1/openai/responses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input: 'hello' }),
+        }, { user: testUser })
+
+        expect(response.status).toBe(200)
+        expect(route).toHaveBeenCalledTimes(1)
+        expect(route).toHaveBeenCalledWith(expect.objectContaining({ modelName: 'responses-b', protocol: 'responses' }), expect.any(Object))
       }
       finally {
         randomSpy.mockRestore()

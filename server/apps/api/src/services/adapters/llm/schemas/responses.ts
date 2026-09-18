@@ -95,7 +95,7 @@ export const createResponseSchema = v.strictObject({
   input: v.union([v.pipe(v.string(), v.maxLength(10485760)), v.array(responseItemSchema)]),
   conversation: v.optional(v.nullable(v.union([v.string(), v.strictObject({ id: v.string() })]))),
   tools: v.nullish(v.array(v.union([webSearchToolSchema, functionToolSchema]))),
-  tool_choice: v.nullish(v.union([base.vToolChoiceValueEnum, toolReference, v.strictObject({ ...base.vAllowedToolsParam.entries, mode: v.picklist(['auto', 'required']), tools: v.pipe(v.array(toolReference), v.minLength(1)) })])),
+  tool_choice: v.nullish(v.union([base.vToolChoiceValueEnum, toolReference, v.strictObject({ ...base.vAllowedToolsParam.entries, mode: v.picklist(['auto', 'required']), tools: v.pipe(v.array(toolReference), v.minLength(1), v.maxLength(128)) })])),
   include: v.optional(v.array(v.union([base.vIncludeEnum, v.literal('web_search_call.action.sources')]))),
   max_output_tokens: v.nullish(v.pipe(v.number(), v.integer(), v.minValue(1))),
   reasoning: v.nullish(reasoning),

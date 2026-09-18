@@ -1912,6 +1912,18 @@ it('issue #2479 rejects Responses when no upstream opts in', async () => {
   expect(fetchImpl).not.toHaveBeenCalled()
 })
 
+it('checks alias model compatibility without dispatching upstream traffic', async () => {
+  const { config, crypto } = makeConfig({ upstreams: [{ baseURL: 'https://api.openai.com/v1', keyIds: ['o'], overrideModel: 'gpt-5-mini' }] })
+  config.llm.models['openai/gpt-5-mini'].upstreams[0].protocols = ['responses']
+  const fetchImpl = vi.fn<typeof fetch>()
+  const router = createLlmRouterService({ gatewayMetrics: null, configKV: makeConfigKV(config), envelopeCrypto: crypto, fetchImpl, redis: makeRedisStub(), concurrencyLedger: makeLedger() })
+
+  await expect(router.supportsLlmRoute({ modelName: 'openai/gpt-5-mini', protocol: 'responses', requiresWebSearch: true })).resolves.toBe(true)
+  await expect(router.supportsLlmRoute({ modelName: 'openai/gpt-5-mini', protocol: 'chat-completions' })).resolves.toBe(false)
+  await expect(router.supportsLlmRoute({ modelName: 'missing', protocol: 'responses' })).resolves.toBe(false)
+  expect(fetchImpl).not.toHaveBeenCalled()
+})
+
 it.each([false, true])('routes web search only to a catalog-capable OpenAI model (grouped: %s)', async (grouped) => {
   const { config, crypto } = makeConfig({ upstreams: [
     { baseURL: 'https://compatible.example/v1', keyIds: ['c'], overrideModel: 'gpt-5-mini' },

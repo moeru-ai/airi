@@ -12,15 +12,23 @@ interface ModelAliasPlan {
 }
 
 /** Resolves configured primary and fallback models in alias policy order. */
-export async function resolveModelAliasPlan(deps: V1RouteDeps, aliasId: string): Promise<ModelAliasPlan> {
+export async function resolveModelAliasPlan(deps: V1RouteDeps, aliasId: string, capability?: Pick<LlmRouteRequest, 'protocol' | 'requiresWebSearch'>): Promise<ModelAliasPlan> {
   const alias = await deps.providerCatalogService.resolveEnabledAlias('llm', aliasId)
   const primaryRoutes = alias.routes.filter(route => route.pool === 'primary')
   const fallbackRoutes = alias.fallbackEnabled
     ? alias.routes.filter(route => route.pool === 'fallback')
     : []
-  const orderedPrimaryRoutes = alias.loadBalancingEnabled
-    ? weightedRouteOrder(primaryRoutes)
-    : primaryRoutes
+  let orderedPrimaryRoutes = primaryRoutes
+  if (alias.loadBalancingEnabled) {
+    const compatibility = capability == null
+      ? primaryRoutes.map(() => true)
+      : await Promise.all(primaryRoutes.map(route => deps.llmRouter.supportsLlmRoute({ modelName: route.routerModelId, ...capability })))
+    const compatibleRoutes = primaryRoutes.filter((_, index) => compatibility[index])
+    const incompatibleRoutes = primaryRoutes.filter((_, index) => !compatibility[index])
+    orderedPrimaryRoutes = compatibleRoutes.length > 0
+      ? [...weightedRouteOrder(compatibleRoutes), ...incompatibleRoutes]
+      : weightedRouteOrder(primaryRoutes)
+  }
   const routedModelIds = uniqueModelIds([...orderedPrimaryRoutes, ...fallbackRoutes])
 
   if (routedModelIds.length === 0) {

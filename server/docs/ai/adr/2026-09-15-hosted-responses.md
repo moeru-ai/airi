@@ -20,10 +20,11 @@ Search calls and sources remain portable input Items. Unsupported search candida
 
 Function tools run on the client and return their output on the next request.
 Each function tool must include an object parameter schema. Its `required` entries must name declared properties.
+Tool choices may reference only tools declared in the same request. An `allowed_tools` choice contains at most 128 references.
 
 Each upstream explicitly opts into Responses through `protocols: ['responses']`.
 An omitted list supports Chat Completions only. This preserves the current configured service contract.
-Aliases keep their primary, weighted, and fallback order. Protocol filtering precedes candidate selection.
+Aliases keep their primary and fallback order. Compatibility filtering precedes weighted selection so unsupported routes do not skew traffic.
 Unsupported candidates never receive a request. The last attempted HTTP error remains available to the caller.
 This retention applies only when a later candidate lacks protocol or search support.
 Other routing errors replace an earlier HTTP response.

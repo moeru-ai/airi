@@ -8,7 +8,7 @@ import type { GenerationAdapter } from '../../adapters/llm/types'
 import type { TtsAdapterId, TtsInput } from '../../adapters/tts/types'
 import type { ConcurrencyLedger } from './concurrency-ledger'
 import type { UpstreamAttempt } from './error-mapping'
-import type { LlmRouteContext, LlmRouteRequest, LlmRoutingGroup, LlmUpstream, RouteFailureTriggers, TtsRoutingGroup, TtsUpstream } from './types'
+import type { LlmModel, LlmRouteContext, LlmRouteRequest, LlmRoutingGroup, LlmUpstream, RouteFailureTriggers, TtsRoutingGroup, TtsUpstream } from './types'
 
 import { Buffer as NodeBuffer } from 'node:buffer'
 
@@ -210,6 +210,15 @@ function ttsVoicesCacheKey(provider: string, modelName: string): string {
   return `tts:voices:${provider}:${modelName}`
 }
 
+function selectLlmCandidates(model: LlmModel, request: Pick<LlmRouteRequest, 'modelName' | 'protocol' | 'requiresWebSearch'>) {
+  const protocol = parse(optional(generationProtocolSchema, 'chat-completions'), request.protocol)
+  const adapter = generationAdapters[protocol]
+  const protocolCandidates = model.upstreams.map((upstream, index) => ({ upstream, index }))
+    .filter(({ upstream }) => upstream.protocols?.includes(protocol) ?? protocol === 'chat-completions')
+  const candidates = protocolCandidates.filter(({ upstream }) => !request.requiresWebSearch || adapter.supportsWebSearch(upstream, request.modelName))
+  return { adapter, candidates, protocolCandidates }
+}
+
 /**
  * Build the in-process LLM router service.
  *
@@ -240,6 +249,22 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
   const ledger = options.concurrencyLedger
   const ttsPoolSaturationTtlSeconds = options.ttsPoolSaturationTtlSeconds ?? 15
   const ttsVoiceCatalogLoads = new Map<string, Promise<Voice[]>>()
+
+  /** Checks model-level protocol and hosted-search support without dispatching upstream traffic. */
+  async function supportsLlmRoute(request: Pick<LlmRouteRequest, 'modelName' | 'protocol' | 'requiresWebSearch'>): Promise<boolean> {
+    let slice: Awaited<ReturnType<typeof configLoader.getModelConfig>>
+    try {
+      slice = await configLoader.getModelConfig('llm', request.modelName)
+    }
+    catch (error) {
+      if (error instanceof ApiError && error.statusCode === 400)
+        return false
+      throw error
+    }
+    if (slice.kind !== 'llm')
+      return false
+    return selectLlmCandidates(slice.model, request).candidates.length > 0
+  }
 
   /**
    * Run one upstream's key list in order, returning either:
@@ -396,13 +421,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     }
 
     const llmModel = slice.model
-    const protocol = parse(optional(generationProtocolSchema, 'chat-completions'), req.protocol)
-    const adapter = generationAdapters[protocol]
-    const protocolCandidates = llmModel.upstreams.map((upstream, index) => ({ upstream, index }))
-      .filter(({ upstream }) => upstream.protocols?.includes(protocol) ?? protocol === 'chat-completions')
+    const { adapter, candidates, protocolCandidates } = selectLlmCandidates(llmModel, req)
     if (protocolCandidates.length === 0)
       throw createServiceUnavailableError('No upstream supports the requested protocol', 'LLM_PROTOCOL_UNAVAILABLE')
-    const candidates = protocolCandidates.filter(({ upstream }) => !req.requiresWebSearch || adapter.supportsWebSearch(upstream, req.modelName))
     if (candidates.length === 0)
       throw createServiceUnavailableError('No upstream supports web search for the requested model', 'LLM_WEB_SEARCH_UNAVAILABLE')
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
@@ -1157,6 +1178,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
   return {
     route,
+    supportsLlmRoute,
     routeTts,
     listTtsVoices,
     /**

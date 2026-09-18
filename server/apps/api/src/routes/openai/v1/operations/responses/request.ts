@@ -29,7 +29,7 @@ const supported = pick(createResponseSchema, [
   'parallel_tool_calls',
   'truncation',
 ])
-const requestSchema = pipe(strictObject({
+const requestObjectSchema = strictObject({
   ...supported.entries,
   input: createResponseSchema.entries.input,
   model: optional(pipe(string(), nonEmpty()), 'auto'),
@@ -38,7 +38,23 @@ const requestSchema = pipe(strictObject({
   background: optional(literal(false)),
   previous_response_id: optional(null_()),
   conversation: optional(null_()),
-}), check(body => typeof body.input === 'string' || body.input.every(isPortableItem), 'Provider-side item and file references are not allowed'))
+})
+const requestSchema = pipe(
+  requestObjectSchema,
+  check(body => typeof body.input === 'string' || body.input.every(isPortableItem), 'Provider-side item and file references are not allowed'),
+  check(toolChoiceUsesDeclaredTools, 'Tool choices must reference declared tools'),
+)
+
+function toolChoiceUsesDeclaredTools(body: InferOutput<typeof requestObjectSchema>): boolean {
+  const choice = body.tool_choice
+  if (choice == null || typeof choice === 'string')
+    return true
+
+  const declaredFunctionNames = new Set(body.tools?.filter(tool => tool.type === 'function').map(tool => tool.name))
+  const hasWebSearch = body.tools?.some(tool => tool.type === 'web_search') === true
+  const references = choice.type === 'allowed_tools' ? choice.tools : [choice]
+  return references.every(reference => reference.type === 'web_search' ? hasWebSearch : declaredFunctionNames.has(reference.name))
+}
 
 function isPortableItem(item: InferOutput<typeof responseItemSchema>): boolean {
   // Gateway keys belong to a shared account. Input must carry its own content.

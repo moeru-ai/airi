@@ -38,7 +38,9 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const requestId = nanoid()
     const policy = await billing.authorizeChat(input.userId)
     let model = input.body.model
-    const alias = await resolveModelAliasPlan(deps, model)
+    const requiresWebSearch = input.body.tools?.some(tool => tool.type === 'web_search') === true
+      || (Array.isArray(input.body.input) && input.body.input.some(item => item.type === 'web_search_call'))
+    const alias = await resolveModelAliasPlan(deps, model, { protocol: 'responses', requiresWebSearch })
     const startedAt = Date.now()
     let routeCtx = newRouteContext()
     const span = telemetry.startGenerationSpan({ model, stream: input.body.stream, operation: 'responses' })
@@ -53,8 +55,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     })
     let upstream: Response
     try {
-      const requiresWebSearch = input.body.tools?.some(tool => tool.type === 'web_search') === true
-        || (Array.isArray(input.body.input) && input.body.input.some(item => item.type === 'web_search_call'))
       const routed = await telemetry.runWithSpan(span, () => routeModelAliasCandidates({
         deps,
         body: input.body,
