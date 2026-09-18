@@ -1,5 +1,6 @@
 import type { AIRIStreamTranscriptionResult, StreamTranscriptionOptions } from '../../stream-transcription'
 
+import { assets } from '@proj-airi/vite-plugin-sherpaw/assets'
 import { z } from 'zod'
 
 import { defineProvider } from '../registry'
@@ -8,10 +9,10 @@ import { sherpawModels } from './models'
 export const SHERPAW_TRANSCRIPTION_PROVIDER_ID = 'sherpaw-transcription'
 
 const configSchema = z.object({
-  languageGroup: z.enum(['zh-en', 'multilingual']).default('zh-en'),
+  model: z.enum(Object.values(sherpawModels).map(model => model.id)).default('paraformer-zh-en'),
 })
 
-/** Persisted model group. Recognition detects a language within that group. */
+/** Persisted model selection. Recognition detects one of its supported languages. */
 export type SherpawConfig = z.input<typeof configSchema>
 
 /** Runs the local request created by the Sherpaw Provider. */
@@ -29,7 +30,7 @@ export const providerSherpawTranscription = defineProvider<SherpawConfig, typeof
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.sherpaw-transcription.description'),
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
   requiresCredentials: false,
-  isAvailableBy: () => typeof Worker !== 'undefined' && typeof WebAssembly !== 'undefined',
+  isAvailableBy: () => Object.keys(assets).length > 0 && typeof Worker !== 'undefined' && typeof WebAssembly !== 'undefined',
   views: {
     hearing: () => import('./hearing-settings.vue'),
   },
@@ -42,13 +43,13 @@ export const providerSherpawTranscription = defineProvider<SherpawConfig, typeof
     },
   },
   createProviderConfig: ({ t }) => configSchema.extend({
-    languageGroup: configSchema.shape.languageGroup.meta({
+    model: configSchema.shape.model.meta({
       type: 'select',
-      labelLocalized: t('settings.pages.providers.provider.sherpaw-transcription.language-group.label'),
-      descriptionLocalized: t('settings.pages.providers.provider.sherpaw-transcription.language-group.description'),
+      labelLocalized: t('settings.pages.providers.provider.sherpaw-transcription.model.label'),
+      descriptionLocalized: t('settings.pages.providers.provider.sherpaw-transcription.model.description'),
       options: Object.keys(sherpawModels).map(value => ({
         value,
-        label: t(`settings.pages.providers.provider.sherpaw-transcription.language-group.${value}`),
+        label: t(`settings.pages.providers.provider.sherpaw-transcription.model.${value}`),
       })),
     }),
   }),
@@ -62,7 +63,7 @@ export const providerSherpawTranscription = defineProvider<SherpawConfig, typeof
       id: 'sherpaw',
       name: 'Sherpaw',
       provider: SHERPAW_TRANSCRIPTION_PROVIDER_ID,
-      description: 'Bundled model selected by the language group.',
+      description: 'Bundled model selected in Hearing settings.',
     }],
   },
 })

@@ -426,9 +426,6 @@ catalogs:
     '@rive-app/canvas-lite':
       specifier: ^2.40.1
       version: 2.40.1
-    '@sherpaw/preloader':
-      specifier: 0.0.2
-      version: 0.0.2
     '@sherpaw/xsai-transcription':
       specifier: 0.0.2
       version: 0.0.2
@@ -5413,9 +5410,6 @@ importers:
       '@proj-airi/unplugin-fetch':
         specifier: 'catalog:'
         version: 0.2.3(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
-      '@sherpaw/preloader':
-        specifier: 'catalog:'
-        version: 0.0.2
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -5423,6 +5417,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      unplugin-basemove:
+        specifier: 'catalog:'
+        version: 0.0.1(esbuild@0.28.2)(rolldown@1.2.5)(rollup@4.62.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       vite:
         specifier: 'catalog:'
         version: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
