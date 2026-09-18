@@ -1895,12 +1895,14 @@ it.each([false, true])('issue #2479 filters incompatible upstreams before termin
     ] }
   }
   const fetchImpl = vi.fn<typeof fetch>(async () => failResponse(402, { error: 'quota' }))
-  const router = createLlmRouterService({ gatewayMetrics: null, configKV: makeConfigKV(config), envelopeCrypto: crypto, fetchImpl, redis: makeRedisStub(), concurrencyLedger: makeLedger() })
+  const metrics = makeMetrics()
+  const router = createLlmRouterService({ gatewayMetrics: metrics, configKV: makeConfigKV(config), envelopeCrypto: crypto, fetchImpl, redis: makeRedisStub(), concurrencyLedger: makeLedger() })
   const response = await router.route({ modelName: 'openai/gpt-5-mini', protocol: 'responses', body: { input: 'hello', store: false } })
   expect(fetchImpl).toHaveBeenCalledTimes(1)
   expect(fetchImpl.mock.calls[0][0]).toBe('https://responses.example/v1/responses')
   expect(response.status).toBe(402)
   expect(await response.json()).toEqual({ error: 'quota' })
+  expect(metrics.keyExhaustedCount.add).toHaveBeenCalledWith(1, expect.objectContaining({ surface: 'responses' }))
 })
 
 // https://github.com/moeru-ai/airi/issues/2479

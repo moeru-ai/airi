@@ -1,3 +1,4 @@
+import type { GenAiMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { BillingService } from '../../../services/domain/billing/billing-service'
 import type { FluxService } from '../../../services/domain/flux'
@@ -40,6 +41,18 @@ function createMockBillingService(flux = 100): BillingService {
     }),
     creditFlux: vi.fn(),
   } as any
+}
+
+function createMockGenAiMetrics(): GenAiMetrics {
+  return {
+    operationDuration: { record: vi.fn() },
+    operationCount: { add: vi.fn() },
+    tokenUsageInput: { add: vi.fn() },
+    tokenUsageOutput: { add: vi.fn() },
+    fluxConsumed: { add: vi.fn() },
+    firstTokenDuration: { record: vi.fn() },
+    streamInterrupted: { add: vi.fn() },
+  } as unknown as GenAiMetrics
 }
 
 function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVService {
@@ -323,6 +336,7 @@ function createTestApp(
   productEventService = createMockProductEventService(),
   voicePackService = createMockVoicePackService(),
   providerCatalogService = createMockProviderCatalogService(),
+  genAi: GenAiMetrics | null = null,
 ) {
   const { openaiRoutes, audioRoutes } = createV1Routes({
     fluxService,
@@ -334,7 +348,7 @@ function createTestApp(
     llmRouter: llmRouter ?? createMockLlmRouter(),
     voicePackService,
     providerCatalogService,
-    genAi: null,
+    genAi,
     revenue: null,
     rateLimitMetrics: null,
     llmTracing,
@@ -2506,12 +2520,12 @@ function responsesResult(status = 'completed') {
   }
 }
 
-function responsesHarness(response: () => Response, balance = 100) {
+function responsesHarness(response: () => Response, balance = 100, genAi: GenAiMetrics | null = null) {
   const billing = createMockBillingService(balance)
   const logs = createMockRequestLogService()
   const tracing = createMockLlmTracing()
   const router = createMockLlmRouter({ route: vi.fn(async () => response()) })
-  const app = createTestApp(createMockFluxService(balance), createMockConfigKV({ FLUX_PER_1K_TOKENS: 20 }), billing, logs, undefined, router, tracing)
+  const app = createTestApp(createMockFluxService(balance), createMockConfigKV({ FLUX_PER_1K_TOKENS: 20 }), billing, logs, undefined, router, tracing, undefined, undefined, undefined, genAi)
   const send = (body: object, signal?: AbortSignal) => app.request('/api/v1/openai/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -2637,6 +2651,41 @@ describe('issue #2479 hosted Responses', () => {
     expect(await response.text()).toBe(frame)
     expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
     await vi.waitFor(() => expect(cancel).toHaveBeenCalled())
+  })
+
+  it('records first-token latency on the first output delta, not metadata', async () => {
+    const metrics = createMockGenAiMetrics()
+    let upstream: ReadableStreamDefaultController<Uint8Array>
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        upstream = controller
+        controller.enqueue(encoder.encode('event: response.created\ndata: {"type":"response.created"}\n\n'))
+      },
+    })
+    let now = 1000
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    const harness = responsesHarness(() => new Response(stream), 100, metrics)
+
+    try {
+      const response = await harness.send({ stream: true })
+      const reader = response.body!.getReader()
+      await reader.read()
+      expect(metrics.firstTokenDuration.record).not.toHaveBeenCalled()
+
+      now = 1500
+      upstream!.enqueue(encoder.encode('event: response.output_text.delta\ndata: {"type":"response.output_text.delta","delta":"hello"}\n\n'))
+      upstream!.enqueue(encoder.encode(responsesFrame()))
+      upstream!.close()
+      let result = await reader.read()
+      while (!result.done)
+        result = await reader.read()
+
+      expect(metrics.firstTokenDuration.record).toHaveBeenCalledWith(0.5, expect.objectContaining({ 'gen_ai.operation.name': 'responses' }))
+    }
+    finally {
+      nowSpy.mockRestore()
+    }
   })
 
   it.each(['failed', 'incomplete'])('forwards a %s terminal SSE event without charging', async (status) => {

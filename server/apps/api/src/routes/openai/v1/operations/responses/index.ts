@@ -161,7 +161,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const writer = writable.getWriter()
     const encoder = new TextEncoder()
     let cancelled = false
-    let firstEvent = true
+    let firstOutputDelta = true
     const cancel = () => {
       cancelled = true
       void reader.cancel().catch(error => logger.withError(error).warn('Failed to cancel Responses reader'))
@@ -180,14 +180,14 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
             throw new Error('Responses downstream cancelled')
           if (done)
             throw new Error('Responses stream ended before a terminal event')
-          if (firstEvent) {
-            firstEvent = false
-            telemetry.recordFirstToken({ model, provider: routeCtx.provider, startedAt, firstChunkAt: Date.now(), operation: 'responses' })
-          }
           const event = safeParse(eventSchema, JSON.parse(value.data))
           if (!event.success)
             throw new Error('Invalid Responses SSE event')
           const type = event.output.type
+          if (firstOutputDelta && type.endsWith('.delta')) {
+            firstOutputDelta = false
+            telemetry.recordFirstToken({ model, provider: routeCtx.provider, startedAt, firstChunkAt: Date.now(), operation: 'responses' })
+          }
           const terminalEvent = ['response.completed', 'response.failed', 'response.incomplete'].includes(type)
           if ((terminalEvent && value.event !== type) || (!terminalEvent && value.event && value.event !== type))
             throw new Error('Responses SSE event name does not match its payload type')

@@ -216,7 +216,7 @@ function selectLlmCandidates(model: LlmModel, request: Pick<LlmRouteRequest, 'mo
   const protocolCandidates = model.upstreams.map((upstream, index) => ({ upstream, index }))
     .filter(({ upstream }) => upstream.protocols?.includes(protocol) ?? protocol === 'chat-completions')
   const candidates = protocolCandidates.filter(({ upstream }) => !request.requiresWebSearch || adapter.supportsWebSearch(upstream, request.modelName))
-  return { adapter, candidates, protocolCandidates }
+  return { adapter, candidates, protocol, protocolCandidates }
 }
 
 /**
@@ -421,7 +421,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     }
 
     const llmModel = slice.model
-    const { adapter, candidates, protocolCandidates } = selectLlmCandidates(llmModel, req)
+    const { adapter, candidates, protocol, protocolCandidates } = selectLlmCandidates(llmModel, req)
     if (protocolCandidates.length === 0)
       throw createServiceUnavailableError('No upstream supports the requested protocol', 'LLM_PROTOCOL_UNAVAILABLE')
     if (candidates.length === 0)
@@ -542,7 +542,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     options.gatewayMetrics?.keyExhaustedCount.add(1, {
       provider: lastFailure.provider,
       status_code: typeof lastFailure.status === 'number' ? lastFailure.status : 'timeout',
-      surface: 'chat',
+      surface: protocol === 'chat-completions' ? 'chat' : protocol,
     })
 
     // Same-status exhaustion: every recorded failure shares one status (or
