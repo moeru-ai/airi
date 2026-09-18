@@ -38,6 +38,13 @@ describe('stateless Responses request boundary', () => {
     expect(body.tools?.[0]).toMatchObject({ name: 'read' })
   })
 
+  it('keeps inline video parts in function outputs', () => {
+    const output = [{ type: 'input_video', video_url: 'data:video/mp4;base64,AAAA' }]
+    const body = parseResponsesRequest({ input: [{ type: 'function_call_output', call_id: 'call-1', output }] })
+
+    expect(body.input).toEqual([{ type: 'function_call_output', call_id: 'call-1', output }])
+  })
+
   // https://github.com/moeru-ai/airi/pull/2554#discussion_r4044384483
   it.each([
     {},
@@ -50,6 +57,16 @@ describe('stateless Responses request boundary', () => {
       input: 'hello',
       tools: [{ type: 'function', name: 'search', parameters }],
     })).toThrow('Invalid stateless Responses request')
+  })
+
+  it.each([
+    { type: 'json_schema' },
+    { type: 'json_schema', name: 'answer' },
+    { type: 'json_schema', schema: { type: 'object' } },
+    { type: 'json_schema', name: 'answer', schema: [] },
+    { type: 'json_schema', name: 'answer', schema: { type: 'array' } },
+  ])('pR #2554 rejects an incomplete structured output schema: %j', (format) => {
+    expect(() => parseResponsesRequest({ input: 'hello', text: { format } })).toThrow('Invalid stateless Responses request')
   })
 })
 

@@ -38,6 +38,8 @@ export interface RequestLogInput extends UsageInfo {
   fluxConsumed: number
 }
 
+type GenerationOperation = 'chat' | 'responses'
+
 export function getLlmMetricAttributes(opts: { model: string, type: string, status: number, provider: string }): Record<string, string | number> {
   // `provider` is the upstream the router actually used (winning upstream on
   // success, last-tried on exhaustion), so per-provider rollups in Grafana
@@ -95,10 +97,10 @@ export function createRouteTelemetry(deps: {
     deps.requestLogService.logRequest(entry).catch(err => logger.withError(err).warn('Failed to write llm_request_log row'))
   }
 
-  function startChatSpan(input: { model: string, stream: boolean }): GatewaySpan {
-    return tracer.startSpan('llm.gateway.chat', {
+  function startGenerationSpan(input: { model: string, stream: boolean, operation: GenerationOperation }): GatewaySpan {
+    return tracer.startSpan(`llm.gateway.${input.operation}`, {
       attributes: {
-        [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
+        [GEN_AI_ATTR_OPERATION_NAME]: input.operation,
         [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
         [AIRI_ATTR_GEN_AI_STREAM]: input.stream,
       },
@@ -148,10 +150,11 @@ export function createRouteTelemetry(deps: {
     provider: string
     startedAt: number
     firstChunkAt: number
+    operation: GenerationOperation
   }): void {
     deps.genAi?.firstTokenDuration.record((input.firstChunkAt - input.startedAt) / 1000, {
       [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
-      [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
+      [GEN_AI_ATTR_OPERATION_NAME]: input.operation,
       provider: input.provider,
     })
   }
@@ -182,7 +185,7 @@ export function createRouteTelemetry(deps: {
     recordUsageOnSpan,
     runWithSpan,
     setHttpStatus,
-    startChatSpan,
+    startGenerationSpan,
     startTtsSpan,
   }
 }

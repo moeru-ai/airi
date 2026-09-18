@@ -59,7 +59,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
     // Server-connection attrs come from the router (which knows the actual
     // upstream baseURL it dispatched to) — it enriches the active span with
     // its own `airi.gen_ai.gateway.*` attrs on success.
-    const span = telemetry.startChatSpan({ model: requestModel, stream })
+    const span = telemetry.startGenerationSpan({ model: requestModel, stream, operation: 'chat' })
 
     const startedAt = Date.now()
 
@@ -218,6 +218,7 @@ function streamChatCompletion(input: {
             model: input.requestModel,
             provider: input.routeCtxProvider,
             startedAt: input.startedAt,
+            operation: 'chat',
           })
         }
         await writer.write(value)

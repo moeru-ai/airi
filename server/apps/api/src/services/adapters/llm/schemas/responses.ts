@@ -7,7 +7,7 @@ import * as base from './openresponses-schema'
 // https://github.com/openai/openai-python/tree/main/src/openai/types/responses
 const file = v.pipe(v.strictObject({ ...base.vInputFileContentParam.entries, file_id: v.optional(v.string()) }), v.check(part => Boolean(part.file_id || part.file_data || part.file_url), 'A file needs an ID, inline data or a URL'))
 const image = v.pipe(v.strictObject({ ...base.vInputImageContentParamAutoParam.entries, file_id: v.optional(v.string()), detail: v.optional(v.picklist(['auto', 'low', 'high', 'original'])) }), v.check(part => Boolean(part.file_id || part.image_url), 'An image needs an ID or URL'))
-const inputPart = v.union([base.vInputTextContentParam, image, file])
+const inputPart = v.union([base.vInputTextContentParam, image, file, v.strictObject(base.vInputVideoContent.entries)])
 const outputPart = v.union([
   v.looseObject({ ...base.vOutputTextContentParam.entries, annotations: v.optional(v.array(v.unknown())) }),
   base.vRefusalContentParam,
@@ -31,6 +31,16 @@ const functionToolSchema = v.strictObject({
   ...base.vFunctionToolParam.entries,
   parameters: functionParametersSchema,
   strict: v.optional(v.nullable(v.boolean())),
+})
+const jsonSchemaResponseFormat = v.strictObject({
+  ...base.vJsonSchemaResponseFormatParam.entries,
+  type: v.literal('json_schema'),
+  name: v.pipe(v.string(), v.minLength(1), v.maxLength(64), v.regex(/^[\w-]+$/)),
+  schema: v.pipe(jsonSchemaObject, v.check(value => value.type === 'object', 'A structured output JSON Schema must have an object root')),
+})
+const text = v.strictObject({
+  ...base.vTextParam.entries,
+  format: v.optional(v.nullable(v.union([base.vTextResponseFormat, jsonSchemaResponseFormat]))),
 })
 const message = v.strictObject({
   ...base.vUserMessageItemParam.entries,
@@ -78,4 +88,5 @@ export const createResponseSchema = v.strictObject({
   tool_choice: v.optional(v.union([base.vToolChoiceValueEnum, toolReference, v.strictObject({ ...base.vAllowedToolsParam.entries, mode: v.picklist(['auto', 'required']), tools: v.pipe(v.array(toolReference), v.minLength(1)) })])),
   include: v.optional(v.array(v.union([base.vIncludeEnum, v.literal('web_search_call.action.sources')]))),
   max_output_tokens: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
+  text: v.optional(v.nullable(text)),
 })

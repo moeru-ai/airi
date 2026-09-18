@@ -2579,6 +2579,16 @@ describe('issue #2479 hosted Responses', () => {
     expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502 }))
   })
 
+  it('rejects mismatched SSE event and payload types before settlement', async () => {
+    const frame = `event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.completed', response: responsesResult() })}\n\n`
+    const harness = responsesHarness(() => new Response(frame))
+    const response = await harness.send({ stream: true })
+
+    await expect(response.text()).rejects.toThrow()
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0 }))
+  })
+
   it.each(['request', 'reader'] as const)('cancels an idle upstream when the %s is cancelled', async (source) => {
     const cancelled = vi.fn()
     const upstream = new ReadableStream<Uint8Array>({ cancel: cancelled })

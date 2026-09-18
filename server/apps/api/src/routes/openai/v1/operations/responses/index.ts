@@ -40,7 +40,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const policy = await billing.authorizeChat(input.userId)
     let model = input.body.model
     let routeCtx = newRouteContext()
-    const span = telemetry.startChatSpan({ model, stream: input.body.stream })
+    const span = telemetry.startGenerationSpan({ model, stream: input.body.stream, operation: 'responses' })
     const startTrace = () => deps.llmTracing.startChatGeneration({
       protocol: 'responses',
       input: input.body.input,
@@ -180,12 +180,14 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
             throw new Error('Responses stream ended before a terminal event')
           if (firstEvent) {
             firstEvent = false
-            telemetry.recordFirstToken({ model, provider: routeCtx.provider, startedAt, firstChunkAt: Date.now() })
+            telemetry.recordFirstToken({ model, provider: routeCtx.provider, startedAt, firstChunkAt: Date.now(), operation: 'responses' })
           }
           const event = safeParse(eventSchema, JSON.parse(value.data))
           if (!event.success)
             throw new Error('Invalid Responses SSE event')
           const type = event.output.type
+          if (value.event && value.event !== type)
+            throw new Error('Responses SSE event name does not match its payload type')
           const terminalEvent = ['response.completed', 'response.failed', 'response.incomplete'].includes(type)
           const response = terminalEvent ? safeParse(responseSchema, event.output.response) : undefined
           if (response && (!response.success || type !== `response.${response.output.status}`))
