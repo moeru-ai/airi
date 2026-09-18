@@ -1,12 +1,12 @@
 import type { SherpawSpeechTransport } from '@sherpaw/xsai-transcription'
 
 import type { AIRIStreamTranscriptionResult, StreamTranscriptionOptions, StreamTranscriptionSnapshot } from '../../stream-transcription'
-import type { SherpawLanguageGroup } from './models'
+import type { SherpawModelId } from './models'
 
 import workerURL from '@sherpaw/xsai-transcription/worker?worker&url'
 
 import { toFloat32FromPCM16 } from '@proj-airi/audio/encoding'
-import { sherpawModelPath } from '@proj-airi/vite-plugin-sherpaw/models'
+import { assets } from '@proj-airi/vite-plugin-sherpaw/assets'
 import { OnlineRecognizerTypes } from '@sherpaw/asr'
 import { asRemoteUrl, createSherpawProvider, streamTranscription } from '@sherpaw/xsai-transcription'
 
@@ -15,9 +15,9 @@ import { sherpawModels } from './models'
 /**
  * Owns the Workers for one configured Provider instance. Each transcription has
  * its own Worker and model memory. Completion, cancellation, or Provider disposal
- * releases that Worker, so language changes cannot reuse an earlier recognizer.
+ * releases that Worker, so model changes cannot reuse an earlier recognizer.
  */
-export function createProvider(config: { languageGroup: SherpawLanguageGroup }) {
+export function createProvider(config: { model: SherpawModelId }) {
   const active = new Set<SherpawSpeechTransport>()
   const provider = createSherpawProvider({ workerURL })
 
@@ -26,16 +26,17 @@ export function createProvider(config: { languageGroup: SherpawLanguageGroup }) 
       throw new TypeError('Sherpaw requires a mono PCM16 audio stream at 16000 Hz.')
     options.abortSignal?.throwIfAborted()
 
-    // Resolve against the application base, not the current settings route.
-    // Relative bases also work in Electron's packaged file:// renderer.
-    const root = new URL(import.meta.env.BASE_URL, document.baseURI)
-    const path = sherpawModelPath(sherpawModels[config.languageGroup])
+    const model = sherpawModels[config.model]
+    const files = assets[model.id]
+    if (!files)
+      throw new Error(`Sherpaw model "${model.id}" is not bundled by this application.`)
+    // Vite resolves local URLs for development/Electron and remote URLs for Basemove builds.
     const transport = provider.speech({
-      metadata: asRemoteUrl(new URL(`${path}/preload.js.metadata`, root), { signal: options.abortSignal }),
-      data: asRemoteUrl(new URL(`${path}/preload.data`, root), { signal: options.abortSignal }),
+      metadata: asRemoteUrl(new URL(files.metadata, document.baseURI), { signal: options.abortSignal }),
+      data: asRemoteUrl(new URL(files.data, document.baseURI), { signal: options.abortSignal }),
       sampleRate: 16000,
       recognizerConfig: {
-        type: config.languageGroup === 'zh-en' ? OnlineRecognizerTypes.Paraformer : OnlineRecognizerTypes.Transducer,
+        type: model.recognizer === 'paraformer' ? OnlineRecognizerTypes.Paraformer : OnlineRecognizerTypes.Transducer,
       },
     })
     active.add(transport)

@@ -71,13 +71,17 @@ compare gesture presentation, not conversation storage behavior.
 
 ## Local Hearing with Sherpaw
 
-Select **Sherpaw** in Hearing settings, then choose **Chinese / English** or the
-**eight-language** group. The model detects the language within that group.
-Changing the group saves the Provider configuration and replaces its runtime.
+Select **Sherpaw** in Hearing settings, then choose **Paraformer — Chinese / English**,
+**Zipformer — Chinese / English**, or the **eight-language Zipformer** model.
+The model detects one of its supported languages. Changing the model saves
+the Provider configuration and replaces its runtime.
 Each speech session owns a Worker, released when the session ends or is cancelled.
 
 Hosts must enable `@proj-airi/vite-plugin-sherpaw` to include the model assets.
+The Provider is unavailable when the host does not include models.
 Use this Provider for local streaming recognition without API credentials.
-It requires Workers and WebAssembly and adds about 576 MB to the build. Use a
+It requires Workers and WebAssembly. The three models occupy about 775 MB.
+Web deployments with Basemove serve these files from object storage. Electron
+builds retain local copies. Use a
 remote Provider when model download size or local memory makes that unsuitable.
 The existing VAD pipeline has separate model and runtime downloads.

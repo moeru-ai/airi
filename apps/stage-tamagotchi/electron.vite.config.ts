@@ -15,7 +15,7 @@ import VueRouter from 'vue-router/vite'
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
-import { paraformerBilingualZhEn, zipformerMultilingual } from '@proj-airi/vite-plugin-sherpaw/models'
+import { paraformerBilingualZhEn, zipformerBilingualZhEn, zipformerMultilingual } from '@proj-airi/vite-plugin-sherpaw/models'
 import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
@@ -254,7 +254,7 @@ export default defineConfig({
         fullInstall: true,
       }),
 
-      Sherpaw({ models: [paraformerBilingualZhEn, zipformerMultilingual], cacheDir: sharedCacheDir }),
+      Sherpaw({ models: [paraformerBilingualZhEn, zipformerBilingualZhEn, zipformerMultilingual], cacheDir: sharedCacheDir }),
       DownloadLive2DSDK(),
       Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
       Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),

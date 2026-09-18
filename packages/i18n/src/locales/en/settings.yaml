@@ -1156,11 +1156,12 @@ pages:
       sherpaw-transcription:
         title: Sherpaw
         description: Local speech recognition with bundled models. No API key is required.
-        language-group:
-          label: Language group
-          description: Select a bundled model. Recognition detects the language within this group. A change restarts the current session.
-          zh-en: Chinese / English
-          multilingual: Arabic / English / Indonesian / Japanese / Russian / Thai / Vietnamese / Chinese
+        model:
+          label: Model
+          description: Select a bundled model. Recognition detects one of its supported languages. A change restarts the current session.
+          paraformer-zh-en: Paraformer — Chinese / English
+          zipformer-zh-en: Zipformer — Chinese / English
+          zipformer-multilingual: Zipformer — Arabic / English / Indonesian / Japanese / Russian / Thai / Vietnamese / Chinese
       apple-speech-transcription:
         title: Apple Speech
         description: On-device speech recognition on macOS 26 or later. No API key is required.
