@@ -56,7 +56,7 @@ internal sealed class DeveloperToolsService : IDisposable
 
         foreach (var window in _windows.Values.ToArray())
         {
-            window.Close();
+            window.RequestClose();
         }
 
         _windows.Clear();
@@ -92,19 +92,10 @@ internal sealed class DeveloperToolsService : IDisposable
         }
     }
 
-    private void OpenEditor()
-    {
-        OpenWindow(DeveloperWindowRequest.ForEditor());
-    }
-
-    private void OpenDevtools(OpenDevtoolsWindowPayload payload)
-    {
-        OpenWindow(DeveloperWindowRequest.ForDevtools(payload));
-    }
-
-    private void OpenWindow(DeveloperWindowRequest request)
+    private void OpenWindow(OpenDevtoolsWindowPayload request)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        ValidateWindowRequest(request);
         if (!_windows.TryGetValue(request.Key, out var window)
             || !GodotObject.IsInstanceValid(window)
             || window.IsQueuedForDeletion())
@@ -134,6 +125,26 @@ internal sealed class DeveloperToolsService : IDisposable
         window.Open(_mainWindow.CurrentScreen, request);
     }
 
+    private static void ValidateWindowRequest(OpenDevtoolsWindowPayload request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Key))
+        {
+            throw new ArgumentException("The developer window key must not be empty.", nameof(request));
+        }
+
+        var route = request.Route ?? "/devtools";
+        if (!StringComparer.Ordinal.Equals(route, "/devtools")
+            && !route.StartsWith("/devtools/", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("The developer window route must start with /devtools.", nameof(request));
+        }
+
+        if (request.Width is <= 0 || request.Height is <= 0)
+        {
+            throw new ArgumentException("The developer window size must be positive.", nameof(request));
+        }
+    }
+
     private void OnWindowClosed(string key, DeveloperWindow window)
     {
         if (_windows.TryGetValue(key, out var current) && current == window)
@@ -151,7 +162,6 @@ internal sealed class DeveloperToolsService : IDisposable
     {
         private readonly DeveloperToolsService _owner;
         private readonly IDisposable _openWebInspector;
-        private readonly IDisposable _openEditor;
         private readonly IDisposable _openDevtools;
         private bool _disposed;
 
@@ -165,18 +175,11 @@ internal sealed class DeveloperToolsService : IDisposable
                     await owner.OpenWebInspector(cancellationToken);
                     return new EmptyPayload();
                 });
-            _openEditor = context.RegisterInvokeHandler(
-                AiriDesktopEvents.OpenEditor,
-                (EmptyPayload _, CancellationToken _) =>
-                {
-                    owner.OpenEditor();
-                    return Task.FromResult(new EmptyPayload());
-                });
             _openDevtools = context.RegisterInvokeHandler(
                 AiriDesktopEvents.OpenDevtoolsWindow,
                 (OpenDevtoolsWindowPayload payload, CancellationToken _) =>
                 {
-                    owner.OpenDevtools(payload);
+                    owner.OpenWindow(payload);
                     return Task.FromResult(new EmptyPayload());
                 });
         }
@@ -190,7 +193,6 @@ internal sealed class DeveloperToolsService : IDisposable
 
             _disposed = true;
             _openDevtools.Dispose();
-            _openEditor.Dispose();
             _openWebInspector.Dispose();
             _owner.Detach(this);
         }

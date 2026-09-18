@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://src-godot/window-background.tscn" id="3_background"]
 
 [node name="DeveloperWindow" type="Window"]
+title = "AIRI Devtools"
 position = Vector2i(0, 0)
 size = Vector2i(1020, 720)
 min_size = Vector2i(640, 480)

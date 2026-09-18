@@ -112,7 +112,7 @@ The 2026-09-18 verification passed these operations:
 
 - Frozen-lockfile workspace installation.
 - TypeScript type verification.
-- Twelve unit-test files with 33 passing tests.
+- Eleven unit-test files with 31 passing tests.
 - C# build with no warnings or errors.
 - Kirie build.
 - Development startup of the main and onboarding renderers.
@@ -125,10 +125,9 @@ large-chunk warnings.
 ## Runtime architecture
 
 The main renderer starts with `synced-leader=true`. AIRI creates onboarding,
-settings, chat, notice, Editor, and standalone devtools renderers in separate
-native Godot windows. These renderers start with `synced-leader=false`. The
-Editor route is an empty product shell in both desktop hosts and requires no
-migration-specific feature work. Each native window except the main Stage
+settings, chat, notice, and standalone devtools renderers in separate native
+Godot windows. These renderers start with `synced-leader=false`. Kirie omits
+the empty Electron Editor shell. Each native window except the main Stage
 window has a shared opaque white background.
 
 The native windows use Godot multi-window and close-request behavior. See the

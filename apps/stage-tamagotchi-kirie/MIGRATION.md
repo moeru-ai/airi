@@ -50,7 +50,7 @@ The latest published-package verification passed these operations:
 
 - Frozen-lockfile installation.
 - TypeScript type verification.
-- Twelve unit-test files with 33 passing tests.
+- Eleven unit-test files with 31 passing tests.
 - C# build with no warnings or errors.
 - Kirie build.
 - Development startup of the main and onboarding renderers.

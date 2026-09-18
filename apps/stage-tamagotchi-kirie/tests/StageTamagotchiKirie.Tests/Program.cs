@@ -11,7 +11,6 @@ internal static class Program
             TestsDesktopWindowGeometry();
             TestsNativeResizeEdges();
             TestsOnboardingTitleBarDragRegion();
-            TestsDeveloperWindowRequests();
             TestsCefInspectorTargetSelection();
             TestsMicrophonePermissionPromptCoalescing();
             TestsMicrophonePermissionPersistencePolicy();
@@ -221,43 +220,6 @@ internal static class Program
             "window interior");
     }
 
-    private static void TestsDeveloperWindowRequests()
-    {
-        // ROOT CAUSE:
-        //
-        // The Kirie host did not register the Electron developer-window contracts.
-        // Each developer action reached Godot as an unregistered Eventa request.
-        //
-        // We fixed this with one validated request model for reusable native windows.
-        var editor = DeveloperWindowRequest.ForEditor();
-        AssertEqual("/editor", editor.Route, "editor route");
-        AssertEqual(true, editor.UsesMinimalRuntime, "editor runtime");
-
-        var devtools = DeveloperWindowRequest.ForDevtools(
-            new OpenDevtoolsWindowPayload(
-                "io-tracer",
-                "/devtools/io-tracer",
-                1600,
-                900,
-                null,
-                null));
-        AssertEqual("io-tracer", devtools.Key, "developer window key");
-        AssertEqual(1600, devtools.Width, "developer window width");
-        AssertEqual(900, devtools.Height, "developer window height");
-        AssertEqual(false, devtools.UsesMinimalRuntime, "developer window runtime");
-
-        AssertThrows<ArgumentException>(
-            () => DeveloperWindowRequest.ForDevtools(
-                new OpenDevtoolsWindowPayload(
-                    "settings",
-                    "/settings",
-                    null,
-                    null,
-                    null,
-                    null)),
-            "developer window route validation");
-    }
-
     private static void TestsCefInspectorTargetSelection()
     {
         // ROOT CAUSE:
@@ -354,18 +316,4 @@ internal static class Program
             $"Expected {label} to be '{expected}', got '{actual}'.");
     }
 
-    private static void AssertThrows<TException>(Action action, string label)
-        where TException : Exception
-    {
-        try
-        {
-            action();
-        }
-        catch (TException)
-        {
-            return;
-        }
-
-        throw new InvalidOperationException($"Expected {label} to throw {typeof(TException).Name}.");
-    }
 }

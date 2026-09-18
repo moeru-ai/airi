@@ -65,9 +65,6 @@ internal static class AiriDesktopEvents
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenMainDevtools =
         new("eventa:invoke:electron:windows:main:devtools:open");
 
-    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenEditor =
-        new("eventa:invoke:electron:windows:editor:open");
-
     public static readonly InvokeEventDefinition<EmptyPayload, OpenDevtoolsWindowPayload> OpenDevtoolsWindow =
         new("eventa:invoke:electron:windows:devtools:open");
 
@@ -165,10 +162,6 @@ internal static class AiriDesktopContracts
                 AiriDesktopJsonContext.Default.EmptyPayload)
             .RegisterInvoke(
                 AiriDesktopEvents.OpenMainDevtools,
-                AiriDesktopJsonContext.Default.EmptyPayload,
-                AiriDesktopJsonContext.Default.EmptyPayload)
-            .RegisterInvoke(
-                AiriDesktopEvents.OpenEditor,
                 AiriDesktopJsonContext.Default.EmptyPayload,
                 AiriDesktopJsonContext.Default.EmptyPayload)
             .RegisterInvoke(
