@@ -11,6 +11,7 @@ export const providerVolcengineCodingPlan = createArkChatProviderDefinition({
   defaultBaseUrl: 'https://ark.cn-beijing.volces.com/api/coding/v3',
   icon: 'i-lobe-icons:volcengine',
   iconColor: 'i-lobe-icons:volcengine',
+  refreshModelsFromEndpoint: true,
   models: [
     {
       id: 'ark-code-latest',
