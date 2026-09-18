@@ -79,7 +79,10 @@ interface GenerationInput {
 
 /** Parameters identifying the chat request a generation traces. */
 export interface ChatGenerationInput extends Omit<GenerationInput, 'name' | 'metadata'> {
-  /** OpenAI chat `messages` array (the prompt), recorded verbatim as trace input. */
+  /** Provider wire protocol. @default 'chat-completions' */
+  protocol?: 'chat-completions' | 'responses'
+
+  /** Chat messages or Responses input Items, recorded verbatim as trace input. */
   input: unknown
   /** Whether the response is streamed (affects how output is captured). */
   stream: boolean
@@ -240,7 +243,7 @@ export function startChatGeneration(input: ChatGenerationInput): ChatGenerationT
     input: input.input,
     model: input.model,
     requestId: input.requestId,
-    name: 'chat.completion',
+    name: input.protocol === 'responses' ? 'responses.create' : 'chat.completion',
     metadata: { stream: input.stream },
     userId: input.userId,
     sessionId: input.sessionId,
