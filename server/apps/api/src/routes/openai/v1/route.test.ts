@@ -2521,11 +2521,16 @@ function responsesResult(status = 'completed') {
   }
 }
 
-function responsesHarness(response: () => Response, balance = 100, genAi: GenAiMetrics | null = null) {
+function responsesHarness(response: () => Response, balance = 100, genAi: GenAiMetrics | null = null, provider = 'unknown') {
   const billing = createMockBillingService(balance)
   const logs = createMockRequestLogService()
   const tracing = createMockLlmTracing()
-  const router = createMockLlmRouter({ route: vi.fn(async () => response()) })
+  const router = createMockLlmRouter({
+    route: vi.fn(async (_request, routeCtx) => {
+      routeCtx.provider = provider
+      return response()
+    }),
+  })
   const app = createTestApp(createMockFluxService(balance), createMockConfigKV({ FLUX_PER_1K_TOKENS: 20 }), billing, logs, undefined, router, tracing, undefined, undefined, undefined, genAi)
   const send = (body: object, signal?: AbortSignal) => app.request('/api/v1/openai/responses', {
     method: 'POST',
@@ -2689,6 +2694,80 @@ describe('issue #2479 hosted Responses', () => {
     expect(await response.text()).toBe(frame)
     expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
     await vi.waitFor(() => expect(cancel).toHaveBeenCalled())
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2479
+  it('issue #2479 ignores empty SSE messages before a terminal event', async () => {
+    // ROOT CAUSE:
+    //
+    // OpenRouter can send an empty `data:` message near the end of a stream.
+    // The gateway parsed it as JSON. This caused `Unexpected end of JSON input`
+    // after the gateway forwarded all response text. The gateway must ignore
+    // empty messages and continue to the terminal event.
+    const frame = `data:\n\n${responsesFrame()}`
+    const harness = responsesHarness(() => new Response(frame))
+    const response = await harness.send({ stream: true })
+
+    expect(await response.text()).toBe(responsesFrame())
+    expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200 }))
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2479
+  it('issue #2479 rejects a named empty SSE message before completion', async () => {
+    const frame = `event: error\ndata:\n\n${responsesFrame()}`
+    const harness = responsesHarness(() => new Response(frame))
+    const response = await harness.send({ stream: true })
+
+    await expect(response.text()).rejects.toThrow('Invalid Responses SSE event')
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0 }))
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2479
+  it('issue #2479 reports a premature done marker without a JSON parse error', async () => {
+    const harness = responsesHarness(() => new Response('data: [DONE]\n\n'))
+    const response = await harness.send({ stream: true })
+
+    await expect(response.text()).rejects.toThrow('Responses stream ended before a terminal event')
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0 }))
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2479
+  it('issue #2479 completes an OpenRouter stream that ends after completed output items', async () => {
+    // ROOT CAUSE:
+    //
+    // OpenRouter can close a Responses stream after the last
+    // `response.output_item.done`. It omits `response.completed`, so the client
+    // receives all text but rejects the generation when the stream closes.
+    const responseId = 'gen-openrouter'
+    const message = { type: 'message', id: 'msg-openrouter', status: 'completed', role: 'assistant', content: [{ type: 'output_text', text: 'Hello.', annotations: [] }] }
+    const frames = [
+      { type: 'response.created', response: { id: responseId, status: 'in_progress', output: [] } },
+      { type: 'response.output_item.done', output_index: 0, item: message },
+    ].map(event => `data: ${JSON.stringify(event)}\n\n`).join('')
+    const harness = responsesHarness(() => new Response(frames), 100, null, 'openrouter.ai')
+    const response = await harness.send({ stream: true })
+    const body = await response.text()
+
+    expect(body).toContain('event: response.completed')
+    expect(body).toContain(JSON.stringify({ type: 'response.completed', response: { id: responseId, status: 'completed', output: [message] } }))
+    expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200 }))
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2479
+  it('issue #2479 keeps terminal events mandatory for other upstreams', async () => {
+    const frames = [
+      { type: 'response.created', response: { id: 'response-1', status: 'in_progress', output: [] } },
+      { type: 'response.output_item.done', output_index: 0, item: { type: 'message', id: 'message-1', status: 'completed', role: 'assistant', content: [] } },
+    ].map(event => `data: ${JSON.stringify(event)}\n\n`).join('')
+    const harness = responsesHarness(() => new Response(frames))
+    const response = await harness.send({ stream: true })
+
+    await expect(response.text()).rejects.toThrow('Responses stream ended before a terminal event')
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
   })
 
   it('records first-token latency on the first output delta, not metadata', async () => {
