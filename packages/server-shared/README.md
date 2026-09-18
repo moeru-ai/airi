@@ -12,11 +12,8 @@ npm i @proj-airi/server-shared -D
 ```
 
 ```typescript
-import type { FluxHistoryPage, WebSocketEvents } from '@proj-airi/server-shared'
+import type { WebSocketEvents } from '@proj-airi/server-shared'
 ```
-
-Use `FluxHistoryPage` for the hosted Flux history response. The server returns
-ordinary `records` with each TTS round amount combined before pagination.
 
 ## How to use the events in distributed use cases?
 

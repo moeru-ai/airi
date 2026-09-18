@@ -5,6 +5,9 @@ Status: accepted
 ## Decision
 
 The existing `GET /api/v1/flux/history` endpoint returns `{ records, hasMore }`.
+The hosted `server/packages/server-sdk-shared` package owns the response types through its `./flux` export.
+The separate Server Channel packages do not own hosted billing contracts.
+
 Each record keeps the six public fields: `id`, `type`, `amount`,
 `description`, `metadata`, and `createdAt`.
 
@@ -43,13 +46,13 @@ Module dependencies:
 Stage -> speech intent / streaming session -> HTTP / WebSocket
 HTTP / WebSocket -> turn ID validator -> meter -> billing -> ledger
 Flux settings -> Flux history route -> transaction service -> ledger
-Flux settings / transaction service -> server-shared history contract
+Flux settings / transaction service -> hosted server-sdk-shared/flux contract
 ```
 
 Affected files:
 
 ```text
-packages/server-shared/src/types/{flux,index}.ts
+server/packages/server-sdk-shared/src/flux.ts
 packages/stage-pages/src/pages/settings/flux.vue
 packages/i18n/src/locales/{en,zh-Hans}/settings.yaml
 packages/stage-ui/src/

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FluxHistoryEntry, FluxHistoryPage } from '@proj-airi/server-shared/types'
+import type { FluxHistoryEntry, FluxHistoryPage } from '@proj-airi/server-sdk-shared/flux'
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
 import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'

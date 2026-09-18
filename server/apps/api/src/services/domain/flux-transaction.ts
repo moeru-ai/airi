@@ -1,4 +1,4 @@
-import type { FluxHistoryPage } from '@proj-airi/server-shared/types'
+import type { FluxHistoryPage } from '@proj-airi/server-sdk-shared/flux'
 
 import type { Database } from '../../libs/db'
 
