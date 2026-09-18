@@ -63,7 +63,6 @@ import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
-import { parseTurnId } from './services/domain/billing/turn-id'
 import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
 import { createFluxService } from './services/domain/flux'
@@ -235,7 +234,7 @@ export async function buildApp(deps: AppDeps) {
       trigger: c.req.query('tts_trigger') === 'auto' ? 'auto' : 'manual',
       source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
       voiceType: parseTtsVoiceType(c.req.query('tts_voice_type')),
-      turnId: parseTurnId(c.req.query('turn_id')),
+      turnId: c.req.query('turn_id'),
     })
   }))
 

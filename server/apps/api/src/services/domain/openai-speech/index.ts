@@ -18,7 +18,6 @@ import {
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
   GEN_AI_ATTR_REQUEST_MODEL,
 } from '../../../utils/observability'
-import { parseTurnId } from '../billing/turn-id'
 
 const tracer = trace.getTracer('v1-completions')
 
@@ -72,7 +71,7 @@ type TtsTrigger = 'auto' | 'manual'
 interface TtsAnalyticsContext {
   trigger: TtsTrigger
   source: 'audio.speech' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
-  turnId?: unknown
+  turnId?: string
 }
 
 /**
@@ -217,11 +216,8 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         units: billingUnits,
         currentBalance: flux.flux,
         requestId,
-        metadata: {
-          model: requestModel,
-          costMultiplier: voicePackRequest.costMultiplier,
-        },
-        turnId: parseTurnId(analytics.turnId),
+        metadata: { model: requestModel, costMultiplier: voicePackRequest.costMultiplier },
+        turnId: analytics.turnId,
       })
       fluxConsumed = result.fluxDebited
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
@@ -295,7 +291,8 @@ function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext
     || rawSource === 'settings_test'
     ? rawSource
     : 'audio.speech'
-  return { trigger, source, turnId: analytics?.turn_id }
+  const turnId = typeof analytics?.turn_id === 'string' ? analytics.turn_id : undefined
+  return { trigger, source, turnId }
 }
 
 async function voicePackRequestOptions(

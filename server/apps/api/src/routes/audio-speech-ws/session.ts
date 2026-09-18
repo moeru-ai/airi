@@ -59,7 +59,6 @@ export interface AudioSpeechSessionAnalytics {
   trigger?: StreamingTtsTrigger
   source?: StreamingTtsSource
   voiceType?: StreamingTtsVoiceType
-  /** Chat turn that owns this session's ledger entries. */
   turnId?: string
 }
 

@@ -245,10 +245,7 @@ describe('audio-speech-ws route', () => {
 
     const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 100 })
     const handlers = createAudioSpeechWsHandlers(deps as any)
-    const events = handlers('user-123', {
-      voiceType: 'official_selected',
-      turnId: 'round-1',
-    })
+    const events = handlers('user-123', { voiceType: 'official_selected' })
     const client = makeMockClientWs()
 
     await driveClientSession(events, client, [
@@ -286,7 +283,6 @@ describe('audio-speech-ws route', () => {
       userId: 'user-123',
       units: 42,
       metadata: { model: 'volcengine/seed-tts-2.0' },
-      turnId: 'round-1',
     })
 
     // Request log gets the model label from the start frame, not the

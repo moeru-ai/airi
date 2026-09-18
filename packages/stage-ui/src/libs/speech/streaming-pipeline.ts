@@ -54,7 +54,6 @@ export interface StreamingTtsPipelineOptions extends StreamingTtsPipelineEvents 
   ttsSource?: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
   /** Low-cardinality voice bucket sent to server-side product analytics. */
   ttsVoiceType?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
-  /** Existing chat turn ID used to group this session's billing entries. */
   turnId?: string
   /**
    * Decoder context. The pipeline calls `decodeAudioData` on it for each

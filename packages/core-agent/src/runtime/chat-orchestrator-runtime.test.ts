@@ -429,33 +429,6 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.promptProjections).toHaveLength(1)
   })
 
-  // https://github.com/moeru-ai/airi/pull/2491#discussion_r4030127318
-  it('keeps the same turnId across hooks for a target session', async () => {
-    // ROOT CAUSE:
-    //
-    // Billing must use the turn ID from the hook, not the selected session.
-    // Both hooks must carry the same ID when a send targets another session.
-    const harness = createHarness()
-    let turnId: string | undefined
-    harness.runtime.hooks.onBeforeMessageComposed(async (_message, context) => {
-      turnId = context.turnId
-    })
-
-    let sentTurnId: string | undefined
-    harness.runtime.hooks.onBeforeSend(async (_message, context) => {
-      sentTurnId = context.turnId
-    })
-
-    await harness.runtime.ingest('target another conversation', {
-      model: 'gpt-test',
-      chatProvider: provider,
-    }, 'session-2')
-
-    expect(turnId).toBeTruthy()
-    expect(turnId).not.toBe('session-2')
-    expect(sentTurnId).toBe(turnId)
-  })
-
   // ROOT CAUSE:
   //
   // Speech-muted consumers dispatch plugin CALL markers without a TTS

@@ -63,7 +63,6 @@ interface AccumulateInput {
   currentBalance: number
   requestId: string
   metadata?: Record<string, unknown>
-  /** The request that triggers settlement owns the recorded debit. */
   turnId?: string
 }
 

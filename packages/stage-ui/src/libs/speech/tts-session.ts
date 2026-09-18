@@ -72,7 +72,6 @@ export interface StreamingSessionSnapshot {
   model: string
   voice: string
   voiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
-  /** Existing chat turn ID used to group this session's billing entries. */
   turnId?: string
   bufferEntireSession: boolean
   extraBody: Record<string, unknown>

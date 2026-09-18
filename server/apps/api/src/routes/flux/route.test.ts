@@ -16,11 +16,19 @@ function createMockFluxService(): FluxService {
 
 function createMockFluxTransactionService(): FluxTransactionService {
   return {
-    log: vi.fn(),
-    logBatch: vi.fn(),
-    getStats: vi.fn(async () => ({ capacity: 0 })),
+    createEntry: vi.fn(),
+    createEntries: vi.fn(),
     getHistory: vi.fn(async (_userId: string, limit: number, offset: number) => ({
-      records: [{ id: 'legacy-tx-1' }],
+      records: [
+        {
+          id: 'tx-1',
+          type: 'credit',
+          amount: 5,
+          description: 'Top up',
+          metadata: { source: 'test' },
+          createdAt: new Date('2026-03-27T10:00:00.000Z'),
+        },
+      ],
       hasMore: limit === 100 && offset === 0,
     })),
   } as any
@@ -71,12 +79,7 @@ describe('fluxRoutes', () => {
     expect(fluxService.getFlux).toHaveBeenCalledWith('user-1')
   })
 
-  // https://github.com/moeru-ai/airi/pull/2491#discussion_r4035018237
-  it('keeps the existing history response for released clients', async () => {
-    // ROOT CAUSE:
-    //
-    // The grouped response replaced records with rows at the existing route.
-    // Released clients then read data.records.length from an undefined value.
+  it('get /api/v1/flux/history should clamp pagination query values', async () => {
     const fluxTransactionService = createMockFluxTransactionService()
     const app = createTestApp(createMockFluxService(), fluxTransactionService)
 
@@ -88,7 +91,16 @@ describe('fluxRoutes', () => {
     expect(res.status).toBe(200)
     expect(fluxTransactionService.getHistory).toHaveBeenCalledWith('user-1', 100, 0)
     expect(await res.json()).toEqual({
-      records: [{ id: 'legacy-tx-1' }],
+      records: [
+        {
+          id: 'tx-1',
+          type: 'credit',
+          amount: 5,
+          description: 'Top up',
+          metadata: { source: 'test' },
+          createdAt: '2026-03-27T10:00:00.000Z',
+        },
+      ],
       hasMore: true,
     })
   })

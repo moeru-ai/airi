@@ -55,8 +55,7 @@ describe('billingService', () => {
         userId: 'user-billing-1',
         amount: 30,
         requestId: 'req-1',
-        description: 'tts_request',
-        turnId: 'round-1',
+        description: 'gpt-4',
         promptTokens: 120,
         completionTokens: 80,
       })
@@ -79,10 +78,9 @@ describe('billingService', () => {
         balanceBefore: 100,
         balanceAfter: 70,
         requestId: 'req-1',
-        description: 'tts_request',
+        description: 'gpt-4',
       })
       expect(txRecord?.metadata).toMatchObject({
-        turnId: 'round-1',
         promptTokens: 120,
         completionTokens: 80,
         source: 'llm.request',

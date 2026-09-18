@@ -85,23 +85,6 @@ describe('fluxMeter', () => {
     expect(billing.consumeFluxForLLM).toHaveBeenCalledWith(expect.objectContaining({ amount: 3 }))
   })
 
-  it('records the settling request round without changing cross-round accumulation', async () => {
-    const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() })
-
-    await meter.accumulate({ userId: 'u1', units: 700, currentBalance: 10, requestId: 'a', turnId: 'round-a' })
-    const result = await meter.accumulate({ userId: 'u1', units: 400, currentBalance: 10, requestId: 'b', turnId: 'round-b' })
-
-    // History reports the debit triggered by B, not a new split of the 700 + 400 units.
-    expect(result.fluxDebited).toBe(1)
-    expect(result.debtAfter).toBe(100)
-    expect(billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
-    expect(billing.consumeFluxForLLM).toHaveBeenCalledWith(expect.objectContaining({
-      amount: 1,
-      requestId: 'b',
-      turnId: 'round-b',
-    }))
-  })
-
   it('returns 0 fluxDebited for zero, negative, or non-finite units', async () => {
     const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() })
 

@@ -31,6 +31,18 @@ export function createFluxRoutes(
         offset: c.req.query('offset'),
       })
 
-      return c.json(await fluxTransactionService.getHistory(user.id, limit, offset))
+      const { records, hasMore } = await fluxTransactionService.getHistory(user.id, limit, offset)
+
+      return c.json({
+        records: records.map(r => ({
+          id: r.id,
+          type: r.type,
+          amount: r.amount,
+          description: r.description,
+          metadata: r.metadata,
+          createdAt: r.createdAt.toISOString(),
+        })),
+        hasMore,
+      })
     })
 }

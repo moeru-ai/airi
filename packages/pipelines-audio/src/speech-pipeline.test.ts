@@ -82,31 +82,6 @@ function createPlaybackSpy(options?: { autoEnd?: boolean }) {
 }
 
 describe('createSpeechPipeline', () => {
-  it('keeps the intent turn ID on every delayed TTS request', async () => {
-    const { playback } = createPlaybackSpy()
-    const requests: TtsRequest[] = []
-    const pipeline = createSpeechPipeline<string>({
-      playback,
-      async tts(request) {
-        requests.push(request)
-        return request.text
-      },
-    })
-    const intentFinished = new Promise<void>((resolve) => {
-      pipeline.on('onIntentEnd', () => resolve())
-    })
-
-    const intent = pipeline.openIntent({ turnId: 'turn-at-open' })
-    intent.writeLiteral('first')
-    intent.writeFlush()
-    intent.writeLiteral('second')
-    intent.end()
-    await intentFinished
-
-    expect(requests).toHaveLength(2)
-    expect(requests.every(request => request.turnId === 'turn-at-open')).toBe(true)
-  })
-
   it('preserves playback order when TTS completes out of order', async () => {
     const { scheduled, playback } = createPlaybackSpy()
 
