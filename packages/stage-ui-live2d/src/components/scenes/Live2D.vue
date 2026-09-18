@@ -17,6 +17,8 @@ const props = withDefaults(defineProps<{
   cursorPosition?: Live2DEyeFocusSource
   modelSrc?: string
   modelId?: string
+  /** Scene painted inside the canvas, behind the model. */
+  backgroundUrl?: string | null
 
   paused?: boolean
   mouthOpenSize?: number
@@ -102,6 +104,7 @@ defineExpose({
       ref="live2dCanvasRef"
       v-slot="{ app }"
       v-model:state="componentStateCanvas"
+      :background-url="props.backgroundUrl"
       :width="width"
       :height="height"
       :resolution="live2dRenderScale"

@@ -15,9 +15,11 @@ import type { VrmInteractionTarget } from '../composables/vrm/interaction'
 import type { SceneBootstrap, ScenePhase, Vec3 } from '../stores/model-store'
 import type { VrmLifecycleReason } from '../trace'
 
+import { coverRect } from '@proj-airi/stage-shared'
 import { Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
+import { useResizeObserver } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { BlendFunction } from 'postprocessing'
@@ -27,6 +29,8 @@ import {
   MathUtils,
   PerspectiveCamera,
   Raycaster,
+  SRGBColorSpace,
+  TextureLoader,
   Vector2,
   Vector3,
 } from 'three'
@@ -56,6 +60,11 @@ const props = withDefaults(defineProps<{
   audioContext?: AudioContext
   currentAudioSource?: AudioBufferSourceNode
   cursorPosition?: { x: number, y: number }
+  /**
+   * Scene painted behind the model, inside this canvas rather than under it, so one
+   * readback answers for the whole stage.
+   */
+  backgroundUrl?: string | null
   /** Stable display model identity. Runtime resource URLs can change across reloads. */
   modelId: string
   modelSrc?: string
@@ -164,8 +173,131 @@ const vrmFrameRuntimeHook = shallowRef<VrmFrameRuntimeHook>()
 const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
 const tresContextRef = shallowRef<TresContext>()
-const screenRef = ref<InstanceType<typeof Screen>>()
+
+const backgroundTexture = shallowRef<Texture>()
+
 const skyBoxEnvRef = ref<InstanceType<typeof SkyBox>>()
+// The composer owns render targets of its own and follows TresCanvas's debounced sizing,
+// so it has to be resized alongside the renderer or it draws nothing for those frames.
+const effectComposerRef = ref<{ composer?: { setSize: (width: number, height: number, updateStyle?: boolean) => void, render: () => void } }>()
+
+/** Last size handed to the renderer, so an unchanged box does not reallocate the buffer. */
+let rendererWidth = 0
+let rendererHeight = 0
+
+/**
+ * Fits the scene over the canvas, matching the `cover` framing it had as a CSS layer.
+ *
+ * A background texture covers the viewport whatever its own shape, so the fit is
+ * expressed by sampling a smaller window of it rather than by placing a rectangle.
+ *
+ * Nothing is marked dirty: a background rebuilds its own texture matrix each frame,
+ * while marking the texture would re-upload it and recompile the background shader.
+ */
+function layoutBackground() {
+  const texture = backgroundTexture.value
+  const renderer = tresContextRef.value?.renderer.instance
+  if (!texture || !renderer)
+    return
+
+  // `Texture.image` is whatever the loader produced; a decoded image carries its size.
+  const image = texture.image as { width?: number, height?: number } | undefined
+  if (!image?.width || !image?.height)
+    return
+
+  const size = renderer.getSize(new Vector2())
+  if (!size.x || !size.y)
+    return
+
+  const rect = coverRect({ width: size.x, height: size.y }, { width: image.width, height: image.height })
+  texture.repeat.set(size.x / rect.width, size.y / rect.height)
+  texture.offset.set(-rect.x / rect.width, -rect.y / rect.height)
+}
+
+async function syncBackground() {
+  const context = tresContextRef.value
+  const scene = context?.scene.value
+  if (!scene)
+    return
+
+  const url = props.backgroundUrl
+  if (!url) {
+    scene.background = null
+    backgroundTexture.value?.dispose()
+    backgroundTexture.value = undefined
+    // The skybox shares this slot and steps aside while a scene is set. Handing it
+    // back costs nothing, where reloading the HDRI would.
+    skyBoxEnvRef.value?.restoreBackground()
+    return
+  }
+
+  // A scene that cannot decode leaves the stage as it is, rather than throwing where
+  // nothing is waiting to catch it.
+  let texture: Texture
+  try {
+    texture = await new TextureLoader().loadAsync(url)
+  }
+  catch {
+    return
+  }
+
+  // Scene art is authored in sRGB. Saying so keeps the renderer from encoding it a
+  // second time, and marks the background as already display-referred so tone mapping
+  // leaves it alone.
+  texture.colorSpace = SRGBColorSpace
+
+  // A later scene wins, and so does a later context: both can be replaced while the
+  // texture loads.
+  if (props.backgroundUrl !== url || tresContextRef.value !== context) {
+    texture.dispose()
+    return
+  }
+
+  backgroundTexture.value?.dispose()
+  backgroundTexture.value = texture
+  scene.background = texture
+  layoutBackground()
+}
+
+watch(() => props.backgroundUrl, () => void syncBackground())
+// TresCanvas pins the canvas to 100% of its parent but debounces its own sizing, so a
+// drag leaves the element at the new size and the buffer at the old one, scaled to fill
+// it. Sizing here closes that gap; the debounced pass reaches the same values.
+useResizeObserver(() => tresContextRef.value?.renderer.instance.domElement, ([entry]) => {
+  const context = tresContextRef.value
+  const renderer = context?.renderer.instance
+  if (!renderer || !entry)
+    return
+
+  const { width, height } = entry.contentRect
+  if (width > 0 && height > 0 && (width !== rendererWidth || height !== rendererHeight)) {
+    rendererWidth = width
+    rendererHeight = height
+
+    // The canvas keeps its own styled size; only the drawing buffer is being corrected.
+    renderer.setSize(width, height, false)
+    const composer = effectComposerRef.value?.composer
+    // EffectComposer forwards this flag to renderer.setSize, where three defaults it to
+    // true and writes pixel sizes onto the canvas. Saying false keeps that off whatever
+    // order these two run in.
+    composer?.setSize(width, height, false)
+    for (const camera of context.camera.cameras.value) {
+      if (camera instanceof PerspectiveCamera) {
+        camera.aspect = width / height
+        camera.updateProjectionMatrix()
+      }
+    }
+
+    layoutBackground()
+    // Resizing reallocates the drawing buffer and leaves it empty. Drawing now means the
+    // frame the compositor picks up during a drag is never the blank one.
+    composer?.render()
+    return
+  }
+
+  layoutBackground()
+})
+const screenRef = ref<InstanceType<typeof Screen>>()
 const dirLightRef = ref<InstanceType<typeof DirectionalLight>>()
 const stageThreeRuntimeTraceContext = getStageThreeRuntimeTraceContext()
 const stageThreeSceneTraceOriginId = `three-scene:${Math.random().toString(36).slice(2, 10)}`
@@ -525,6 +657,10 @@ function onSkyBoxReady(EnvPayload: {
 // === Tres Canvas ===
 function onTresReady(context: TresContext) {
   tresContextRef.value = context
+  // The size memo below describes one renderer. A new context starts with none.
+  rendererWidth = 0
+  rendererHeight = 0
+  void syncBackground()
   canvasReady.value = true
   context.renderer.instance.domElement.addEventListener('pointerdown', onCanvasPointerDown)
   context.renderer.instance.domElement.addEventListener('pointerup', onCanvasPointerUp)
@@ -626,6 +762,8 @@ onUnmounted(() => {
   emitSceneTransactionTrace('reset', 'component-unmount')
   setScenePhaseWithTrace('pending', 'component:unmount')
   disposeRenderTarget()
+  backgroundTexture.value?.dispose()
+  backgroundTexture.value = undefined
 })
 
 const effectProps = {
@@ -839,7 +977,7 @@ defineExpose({
         v-if="envSelect === 'skyBox'"
         ref="skyBoxEnvRef"
         :sky-box-src="skyBoxSrc"
-        :as-background="true"
+        :as-background="!backgroundUrl"
         @sky-box-ready="onSkyBoxReady"
       />
       <TresHemisphereLight
@@ -863,7 +1001,7 @@ defineExpose({
         cast-shadow
       />
       <Suspense>
-        <EffectComposerPmndrs :multisampling="multisampling">
+        <EffectComposerPmndrs ref="effectComposerRef" :multisampling="multisampling">
           <HueSaturationPmndrs v-bind="effectProps" />
         </EffectComposerPmndrs>
       </Suspense>
