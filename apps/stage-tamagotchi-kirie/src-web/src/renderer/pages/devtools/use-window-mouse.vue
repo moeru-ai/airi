@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useElectronMouse } from '@proj-airi/electron-vueuse'
+import { useHostRelativeMouse } from '@proj-airi/stage-host-context'
 
-const { x, y } = useElectronMouse()
+const { x, y } = useHostRelativeMouse()
 </script>
 
 <template>

@@ -8,7 +8,7 @@ AIRI C# handlers provide the application services and native windows that the
 current migration implements. Some Electron services do not yet have a Kirie
 implementation.
 
-Status last verified: 2026-09-17.
+Status last verified: 2026-09-18.
 
 ## When to use this application
 
@@ -64,6 +64,11 @@ Install the pinned Godot CEF backend when it is absent or out of date:
 mise x -- pnpm kirie doctor --fix godot-cef
 ```
 
+The tracked configuration still selects official Godot CEF 1.15.4. That build
+does not share browser state between AIRI WebViews. The 2026-09-18 local
+verification uses the unpublished `lemonnekogh/shared-request-context` branch.
+See GAP-028 in [`API-GAPS.md`](API-GAPS.md) before an acceptance run.
+
 The configured Godot CEF version does not prove the version of an installed
 native artifact. Reinstall the artifact after the configured version changes.
 Then verify its version and signature before an acceptance run.
@@ -86,8 +91,7 @@ The development session currently reports some known IPC errors. See
 - `plugins:tools:list-xsai` is blocked by the AIRI plugin-host decision.
 - `artistry:sync-config` is open and needs an AIRI ownership decision.
 - MCP runtime and configuration requests are blocked by the AIRI sidecar decision.
-- The About page still uses an Electron-only updater composable.
-- Developer-tool and editor window requests do not have Kirie handlers.
+- The updater is disabled while GAP-026 defines Godot packaging and update policy.
 - `godot-stage:get-status` belongs to the excluded model-rendering scope.
 
 ## Verification
@@ -104,14 +108,16 @@ mise x -- pnpm build
 `pnpm build` runs `kirie build`. It builds the Web assets in `src-web/dist` and
 the Godot C# project. It does not export or package a desktop application.
 
-The 2026-09-17 verification passed these operations:
+The 2026-09-18 verification passed these operations:
 
 - Frozen-lockfile workspace installation.
 - TypeScript type verification.
-- Ten unit-test files with 29 passing tests.
+- Twelve unit-test files with 33 passing tests.
 - C# build with no warnings or errors.
 - Kirie build.
 - Development startup of the main and onboarding renderers.
+- A real-CEF route audit of all unique static paths and representative parameterized paths.
+- Back navigation after repaired route failures.
 
 The build still reports non-blocking Vite, UnoCSS, browser-externalization, and
 large-chunk warnings.
@@ -119,8 +125,11 @@ large-chunk warnings.
 ## Runtime architecture
 
 The main renderer starts with `synced-leader=true`. AIRI creates onboarding,
-settings, chat, and notice renderers in separate native Godot windows. These
-renderers start with `synced-leader=false`.
+settings, chat, notice, Editor, and standalone devtools renderers in separate
+native Godot windows. These renderers start with `synced-leader=false`. The
+Editor route is an empty product shell in both desktop hosts and requires no
+migration-specific feature work. Each native window except the main Stage
+window has a shared opaque white background.
 
 The native windows use Godot multi-window and close-request behavior. See the
 [Godot Window documentation](https://docs.godotengine.org/en/4.7/classes/class_window.html)
@@ -155,8 +164,8 @@ and Deny returned `NotAllowedError`. The browser state stays at `prompt`
 because CEF only provides request-scoped permission decisions. AIRI host state
 is authoritative in Kirie.
 
-The installed Godot CEF application still fails strict code-signature
-verification. Fix the artifact before final migration acceptance.
+The local shared-context Godot CEF build passes strict code-signature
+verification. Final acceptance still requires a published and tracked artifact.
 
 ## Account sign-in
 
@@ -168,8 +177,8 @@ not depend on the deferred server sidecar. The renderer supplies its server URL
 and client ID before each login attempt.
 
 The loopback listener and callback behavior have automated coverage. A live
-sign-in completed on 2026-09-17. AIRI stored the OIDC tokens and loaded the
-authenticated server session.
+sign-in completed with the shared CEF request context on 2026-09-18. AIRI
+stored the OIDC tokens and showed the authenticated account state.
 
 ## Troubleshooting
 

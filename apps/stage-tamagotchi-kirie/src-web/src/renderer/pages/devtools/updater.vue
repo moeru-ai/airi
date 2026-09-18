@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { useElectronAutoUpdater } from '@proj-airi/electron-vueuse'
-import { Button, Progress } from '@proj-airi/ui'
+import { useHostAutoUpdater } from '@proj-airi/stage-host-context'
+import { Button, Callout, Progress } from '@proj-airi/ui'
 import { computed } from 'vue'
 
 const {
   state: updateState,
   isBusy,
+  isSupported,
   checkForUpdates,
   downloadUpdate,
   quitAndInstall,
-} = useElectronAutoUpdater()
+} = useHostAutoUpdater()
 
 const diagnosticsEntries = computed(() => {
   const diagnostics = updateState.value.diagnostics
@@ -33,9 +34,13 @@ const diagnosticsEntries = computed(() => {
 
 <template>
   <div :class="['flex flex-col gap-4', 'pb-8']">
+    <Callout v-if="!isSupported" theme="orange" label="Updater unavailable">
+      The Kirie host does not provide the Electron updater API.
+    </Callout>
+
     <div :class="['flex flex-wrap gap-2']">
       <Button
-
+        :disabled="!isSupported"
         :loading="isBusy"
         icon="i-solar:refresh-outline"
         label="Check for updates"
@@ -43,14 +48,14 @@ const diagnosticsEntries = computed(() => {
       />
       <Button
 
-        :disabled="updateState.status !== 'available'"
+        :disabled="!isSupported || updateState.status !== 'available'"
         icon="i-solar:download-minimalistic-outline"
         label="Download update"
         @click="downloadUpdate()"
       />
       <Button
 
-        :disabled="updateState.status !== 'downloaded'"
+        :disabled="!isSupported || updateState.status !== 'downloaded'"
         icon="i-solar:restart-bold-duotone"
         label="Restart to install"
         @click="quitAndInstall()"

@@ -27,7 +27,7 @@ import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
-import { useTheme } from '@proj-airi/ui'
+import { ErrorBoundary, useTheme } from '@proj-airi/ui'
 import { isEqual } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
@@ -405,6 +405,10 @@ onUnmounted(() => {
   chatStore.dispose()
   fullStageRuntime?.dispose()
 })
+
+function handleRouteRenderError(error: unknown, _instance: unknown, info: string) {
+  console.error(`[App] Failed to render route ${route.fullPath} during ${info}:`, error)
+}
 </script>
 
 <template>
@@ -418,7 +422,15 @@ onUnmounted(() => {
     @allow="resolveMicrophonePermission('granted')"
     @deny="resolveMicrophonePermission('denied')"
   />
-  <RouterView />
+  <RouterView v-slot="{ Component }">
+    <ErrorBoundary
+      :key="route.fullPath"
+      title="This page could not be displayed."
+      @error="handleRouteRenderError"
+    >
+      <component :is="Component" />
+    </ErrorBoundary>
+  </RouterView>
 </template>
 
 <style>

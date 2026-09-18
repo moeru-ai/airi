@@ -2,7 +2,7 @@
 
 Status: In progress.
 
-Evidence last verified: 2026-09-17.
+Evidence last verified: 2026-09-18.
 
 The application targets the published Kirie 0.3.0 release.
 
@@ -29,15 +29,16 @@ an API for a feature that has no current in-scope failure.
 
 ## Current status
 
-`API-GAPS.md` contains 27 reproduced gaps:
+`API-GAPS.md` contains 28 reproduced gaps:
 
 | Status | Count | Gaps |
 | --- | ---: | --- |
-| Accepted | 20 | GAP-001 through GAP-006, GAP-008, GAP-009, and GAP-011 through GAP-022 |
+| Accepted | 21 | GAP-001 through GAP-006, GAP-008, GAP-009, GAP-011 through GAP-022, and GAP-027 |
+| In progress | 0 | None |
 | Review pending | 0 | None |
 | Runtime verification pending | 0 | None |
-| Open | 3 | GAP-024, GAP-026, and GAP-027 |
-| Blocked | 3 | GAP-010, GAP-023, and GAP-025 |
+| Open | 2 | GAP-024 and GAP-026 |
+| Blocked | 4 | GAP-010, GAP-023, GAP-025, and GAP-028 |
 | Deferred | 1 | GAP-007 |
 
 The dependency files select the published Kirie 0.3.0 npm and NuGet packages.
@@ -49,7 +50,7 @@ The latest published-package verification passed these operations:
 
 - Frozen-lockfile installation.
 - TypeScript type verification.
-- Ten unit-test files with 29 passing tests.
+- Twelve unit-test files with 33 passing tests.
 - C# build with no warnings or errors.
 - Kirie build.
 - Development startup of the main and onboarding renderers.
@@ -63,9 +64,13 @@ The development runtime still reports these known requests:
 - `plugins:tools:list-xsai` maps to blocked GAP-023.
 - `artistry:sync-config` maps to open GAP-024.
 - `mcp:get-runtime-status` and `mcp:read-config-text` map to blocked GAP-025.
-- The About page's direct `ipcRenderer` dependency maps to open GAP-026.
-- Developer-tool window requests map to open GAP-027.
+- The updater remains disabled in Kirie while GAP-026 defines Godot packaging and update policy.
 - `godot-stage:get-status` belongs to the excluded model-rendering scope.
+
+The 2026-09-18 route audit covered every unique static renderer path and
+representative values for all parameterized paths in real CEF. Route failures
+are isolated by a route-keyed error boundary, so navigation can recover without
+blanking the previous page.
 
 ## Runtime path
 
@@ -176,12 +181,14 @@ batch. Return AIRI to one coordinated published version before acceptance.
 recognizes that configured backend. This result does not verify the installed
 framework binary or its signature.
 
-The 2026-09-17 comparison found that the installed macOS native files matched
-the official 1.15.3 files. The current local framework also fails strict code
-signature verification.
+The local 2026-09-18 runtime uses commit
+`59ad13cebfb11f2062816310ad1c4d89ab71dc62` from the Godot CEF
+`lemonnekogh/shared-request-context` branch. The leader and follower WebViews
+share storage, BroadcastChannel messages, and Web Locks with this build.
 
-Reinstall the official 1.15.4 artifact before final acceptance. Then verify
-the installed files and their signature.
+The branch does not provide a published release artifact. The tracked 1.15.4
+configuration cannot reproduce the shared browser context. GAP-028 remains
+blocked until a reproducible artifact is published and selected by the project.
 
 Kirie 0.3.0 resolves each WebView permission request through an application
 policy. It does not provide an operating-system prompt or persistent browser
@@ -213,10 +220,9 @@ Do not repeat a completed phase unless current evidence shows a regression.
 
 1. Decide the AIRI service and persistence boundary for GAP-024.
 2. Define the host-neutral updater bridge and Godot update policy for GAP-026.
-3. Decide the supported Kirie developer-tool surface for GAP-027.
-4. Reinstall and verify the official Godot CEF 1.15.4 artifact.
-5. Run the full published-package desktop smoke flow.
-6. Resolve all blocking findings from the dependency review.
+3. Publish and select a reproducible shared-context artifact for GAP-028.
+4. Run the full published-package desktop smoke flow.
+5. Resolve all blocking findings from the dependency review.
 
 The full smoke flow includes these areas:
 
@@ -246,7 +252,8 @@ These surfaces were not part of the latest runtime session:
 
 - Widget flows.
 - Desktop-overlay startup and polling.
-- Devtools pages other than the developer launcher and updater entry points.
+- Devtools pages other than the developer launcher, Markdown Stress, IO Tracer,
+  and updater entry points.
 - Updater operations after route setup and MCP actions after initial status and
   configuration reads.
 
@@ -276,7 +283,7 @@ The migration milestone is accepted only when all statements are true:
 
 - Every in-scope gap is accepted, blocked, or deferred.
 - No in-scope gap remains open.
-- The installed Godot CEF 1.15.4 artifact passes file and signature verification.
+- The installed Godot CEF artifact matches the tracked shared-context dependency and passes signature verification.
 - The published packages pass the full desktop smoke flow.
 - TypeScript and C# contracts agree.
 - Required errors propagate to the caller.

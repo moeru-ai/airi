@@ -93,7 +93,15 @@ export const electronSpotlightShowResultNotification = defineInvokeEventa<void, 
 export const electronSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:electron:windows:spotlight:shortcut:get')
 export const electronSpotlightShortcutSet = defineInvokeEventa<ShortcutRegistrationResult, { accelerator: ShortcutAccelerator | null }>('eventa:invoke:electron:windows:spotlight:shortcut:set')
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
-export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { key: string, route?: string, width?: number, height?: number, x?: number, y?: number }>('eventa:invoke:electron:windows:devtools:open')
+export interface OpenDevtoolsWindowPayload {
+  key: string
+  route?: string
+  width?: number
+  height?: number
+  x?: number
+  y?: number
+}
+export const electronOpenDevtoolsWindow = defineInvokeEventa<void, OpenDevtoolsWindowPayload>('eventa:invoke:electron:windows:devtools:open')
 
 export interface ElectronServerChannelConfig {
   tlsConfig?: ServerOptions['tlsConfig'] | null

@@ -1,14 +1,18 @@
 # Kirie API gaps
 
 This log contains only errors reproduced with the Stage Tamagotchi renderer in
-the Kirie desktop host. The evidence was last verified on 2026-09-17 with
+the Kirie desktop host. Most evidence was last verified on 2026-09-17 with
 Godot 4.7.1, Kirie 0.3.0, and the configured Godot CEF 1.15.4 backend.
+GAP-019, GAP-027, and GAP-028 have additional evidence from 2026-09-18. The
+GAP-028 evidence uses a local Godot CEF `lemonnekogh/shared-request-context`
+build.
 
 Model rendering, model assets, Live2D, VRM, and MMD are outside the current scope.
 
 The status values have these meanings:
 
 - `Accepted`: Implementation, runtime verification, and required review are complete.
+- `In progress`: Implementation exists, but required behavior is not complete.
 - `Review pending`: Implementation and runtime verification are complete. Review is not complete.
 - `Runtime verification pending`: Implementation and review are complete. A required live flow is not complete.
 - `Open`: AIRI reproduced the gap, but implementation work has not started.
@@ -35,7 +39,7 @@ The status values have these meanings:
 | GAP-016 | Controls Island and permission settings | Read or reset microphone permission status | Electron `system-preferences:get-media-access-status` contract | Use AIRI-owned persistent permission state in Kirie while preserving the Electron RPC | AIRI Godot host and host context | Accepted | Persistent grant, denial, reset, and stream shutdown verified; UI review approved |
 | GAP-017 | Main renderer | Start microphone capture | Browser `getUserMedia({ audio: true })` behind Electron's WebContents permission policy | Ask in the AIRI Renderer, persist the decision, resolve trusted same-origin requests, and deny every other WebView permission | AIRI Godot host and Renderer | Accepted | Allow, repeated allow, revoke, and deny verified in real CEF; permission dialog review approved |
 | GAP-018 | Controls Island | Enable fade on hover for the first time | Electron notice-window request and action contracts | Open the fade-on-hover tutorial in a native Godot window and return its confirmation result | AIRI window orchestration | Accepted | Real CEF runtime verified |
-| GAP-019 | Controls Island, onboarding, and account settings | Start or cancel account sign-in | Electron OIDC service with a temporary loopback callback listener | Run PKCE sign-in through the system browser and preserve the existing auth events | AIRI authentication service | Accepted | Live OIDC token exchange and session verified |
+| GAP-019 | Controls Island, onboarding, and account settings | Start or cancel account sign-in | Electron OIDC service with a temporary loopback callback listener | Run PKCE sign-in through the system browser and share the authenticated session with each AIRI WebView | AIRI authentication service | Accepted | Shared-context sign-in and account state verified |
 | GAP-020 | Main window | Render the Stage over the desktop | Electron creates a frameless transparent `BrowserWindow` | Preserve renderer alpha through CEF, the root viewport, and the native window | AIRI Godot project configuration | Accepted | Real Godot runtime and independent review approved |
 | GAP-021 | Settings pages | Open an external link | Electron forwards new-window requests to `shell.openExternal` | Open external HTTP and HTTPS links with the system browser | Kirie Platform and AIRI host context | Accepted | Code, tests, and real CEF runtime approved |
 | GAP-022 | Data settings | Click `Open data folder` | Electron opens and returns its `userData` path | Open the current Godot application data directory | Kirie Platform and AIRI host context | Accepted | Code, tests, and real CEF runtime approved |
@@ -43,7 +47,8 @@ The status values have these meanings:
 | GAP-024 | Main, onboarding, and Artistry consumers | Initialize or use Artistry | Electron owns Artistry configuration, connection tests, and headless generation | Define and own the Artistry service outside the Electron main process | AIRI desktop service | Open | Configuration-sync error reproduced on 2026-09-17 |
 | GAP-025 | MCP settings and MCP tool consumers | Open MCP settings | Electron owns the MCP configuration file and Node.js stdio server processes | Persist MCP configuration, manage stdio server lifecycles, and expose tool discovery and invocation outside Kirie Platform | AIRI desktop service | Blocked | AIRI sidecar artifact decision required |
 | GAP-026 | About and updater devtools | Open the About page | `useElectronAutoUpdater` creates its own Electron Eventa context and Electron owns update preferences and lifecycle | Mount updater UI through the shared host context and define AIRI update check, download, install, state, and preference behavior | AIRI renderer bridge and desktop update service | Open | `Electron ipcRenderer is not available` reproduced on 2026-09-17 |
-| GAP-027 | Developer settings | Open main DevTools, the editor, or a standalone devtools page | Electron opens WebContents DevTools and dedicated `BrowserWindow` instances | Provide equivalent Kirie development tools or hide actions that the host does not support | AIRI developer tooling and window orchestration | Open | Three unregistered window requests reproduced on 2026-09-17 |
+| GAP-027 | Developer settings | Open main DevTools, the editor, or a standalone devtools page | Electron opens WebContents DevTools and dedicated `BrowserWindow` instances | Open a connected CEF Inspector and reusable native devtools windows | AIRI developer tooling and window orchestration | Accepted | CEF Inspector and devtools pages work; the empty Editor route matches Electron |
+| GAP-028 | All AIRI WebViews | Open more than one AIRI application window | Electron windows use a shared persistent browser session | Share one persistent CEF request context for cookies, storage, BroadcastChannel, Web Locks, and Pinia coordination | Godot CEF and AIRI dependency integration | Blocked | The upstream branch works locally but has no published release artifact |
 
 ## Audited but not reproduced
 
@@ -211,7 +216,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Policy result: The host coalesces concurrent native request IDs behind one opaque renderer prompt ID. Closing or denying the modal denies the request. A two-minute timeout and host shutdown also deny pending requests.
 - Runtime result: Allow returned a live audio track, which the test stopped immediately. A second request completed without another modal. Reset caused the next request to show the modal again. Deny returned `NotAllowedError`.
 - Permission result: The modal uses the screen-capture dialog shade and blur. The overlay follows the rounded Stage boundary, and the card uses the existing AIRI dialog shadow.
-- Artifact result: The installed Godot CEF application still fails strict code-signature verification. This remains a separate migration acceptance item.
+- Artifact result: The local shared-context Godot CEF build passes strict code-signature verification. GAP-028 tracks the missing published artifact.
 - Review result: Runtime verification and UI review are complete.
 
 ## GAP-018 evidence
@@ -231,13 +236,15 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Configuration: The renderer sends its build-time server URL and client ID through the AIRI application context before login. The Godot host validates and uses that same configuration for authorization and token exchange.
 - Redirect flow: The authorization request uses the server's `/api/auth/oidc/electron-callback` endpoint. The state carries the loopback port and nonce so that the server can relay the result to the temporary local `/callback` listener.
 - Security source: [RFC 8252](https://www.rfc-editor.org/rfc/rfc8252.html) requires native apps to use an external user-agent and recommends PKCE and loopback redirects.
-- Runtime result: A real Controls Island sign-in completed on 2026-09-17. The hosted callback page reported that AIRI received the sign-in result.
+- Previous runtime result: A real Controls Island sign-in completed on 2026-09-17. The hosted callback page reported that AIRI received the sign-in result.
 - Token result: CEF stored the access token, refresh token, ID token, client ID, and future expiry. No token value was recorded in this document.
 - State result: The temporary OIDC flow state and parameters were absent after completion.
 - Session result: The authenticated session request returned `200` with a user, a session, and a session expiry.
 - Test result: The C# test executable passed. The focused renderer host-context tests passed with two tests.
 - Security result: Focused tests cover the loopback callback, forged-state rejection without consuming the listener, and relay CORS.
-- Review result: Approved on 2026-09-17 with no blocking findings.
+- Review result: The OIDC implementation was approved on 2026-09-17 with no blocking findings.
+- Shared-context result: Sign-in with the shared-context build updated the account page with the authenticated state on 2026-09-18.
+- Acceptance result: The user verified the complete sign-in and account flow with the running AIRI application.
 
 ## GAP-020 evidence
 
@@ -321,15 +328,45 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Original result: The About component calls `useElectronAutoUpdater()` during setup. That composable requests `window.electron.ipcRenderer` before the component mounts.
 - Original error: `Electron ipcRenderer is not available. Pass it explicitly to useElectronEventaContext().`
 - Impact: The whole About route fails before it can read update preferences or render the updater controls. The updater devtools route uses the same Electron-only composable.
+- Renderer result: Both routes now use the AIRI host boundary. Kirie renders the About page and an explicit disabled updater state without accessing the Electron preload API.
 - Electron sources: [renderer composable](../../packages/electron-vueuse/src/composables/use-electron-auto-updater.ts) and [update service](../stage-tamagotchi/src/main/services/electron/auto-updater.ts).
 - Required result: The renderer must use the shared AIRI host context. AIRI must also define update state, checking, download, installation, channel preferences, packaging, and release-feed policy for the Godot application.
-- Current decision: Keep the gap open until the renderer bridge and Godot update policy have an owner.
+- Current decision: Keep the gap open until the Godot update policy and implementation have an owner.
 
 ## GAP-027 evidence
 
-- Input: Navigate the main Kirie renderer to `#/settings/system/developer`, then click **Open**, **Open Editor**, and **Markdown Stress**.
+- Input: Navigate the main Kirie renderer to `#/settings/system/developer`, then click **Open**, **Open Editor**, **Markdown Stress**, and **IO Tracer**.
 - Original result: Godot reports unregistered `windows:main:devtools:open`, `windows:editor:open`, and `windows:devtools:open` requests.
 - Electron source: [application window composition](../stage-tamagotchi/src/main/index.ts).
-- Required result: AIRI must either provide equivalent Kirie developer tools and native windows or remove actions that this host cannot fulfill.
+- Required result: AIRI opens a connected CEF Inspector and reusable native devtools windows without an Electron runtime.
 - Boundary finding: These are development-only AIRI application windows. They do not justify a general Kirie Platform API without a reusable host requirement.
-- Current decision: Keep the gap open while AIRI selects the supported Kirie developer-tool surface.
+- Original Inspector result: **Open** launched `http://127.0.0.1:9229/`. Godot CEF returned `200` with an empty response body.
+- Inspector implementation: AIRI reads `/json/list`, selects the page with `synced-leader=true`, and opens its `devtoolsFrontendUrl`.
+- Inspector security: Godot CEF permits only `https://chrome-devtools-frontend.appspot.com` as the remote debugging WebSocket origin. Production builds keep remote debugging disabled.
+- Inspector runtime result: Chrome opened a connected Elements panel for the main AIRI developer-settings page on 2026-09-18.
+- Godot CEF source: The configured backend documents the `godot_cef/debug/remote_devtools_port` and `godot_cef/advanced/custom_command_line_switches` settings. See the [property reference](https://github.com/dsh0416/godot-cef/blob/v1.15.4/docs/api/properties.md) and [security baseline](https://github.com/dsh0416/godot-cef/blob/v1.15.4/docs/api/security-baseline.md).
+- Editor host result: AIRI opens one native `1200 x 800` window at `#/editor` with `stage-runtime=minimal` and `synced-leader=false`.
+- Editor product result: The Kirie and Electron `/editor` routes both render an empty `<main>`. The migration preserves this existing product behavior and does not add an Editor feature.
+- Devtools result: AIRI opens keyed native windows with validated `/devtools` routes and optional geometry. Markdown Stress used the default `1020 x 720` size. IO Tracer requested `1600 x 900`.
+- Reuse result: Repeated requests left exactly one Editor page, one Markdown Stress page, and one IO Tracer page in the live CEF target list.
+- Contract result: The renderer preserves Electron's parameterless invokes and sends explicit empty payloads through Kirie, as required by the C# Eventa boundary.
+- Route-isolation result: The root router now contains route setup and render failures. The boundary is keyed by the full route, so leaving a failed page recreates the route subtree instead of leaving the previous page blank.
+- Route audit result: All 117 unique static renderer paths and representative values for the three parameterized paths rendered in real CEF. Electron-only updater and screen-capture tools show an explicit unavailable state. Mouse and display devtools use the shared host context.
+- Regression result: The audit found and fixed an Electron-only Live2D system-audio driver, a non-serializable provider action result, and an immediate watcher that ran before its request counter was initialized. The Developers page still rendered after navigating back from each repaired route.
+- Native-window result: A standalone Markdown Stress window rendered its full page over the shared opaque white native background.
+- Test result: The C# tests cover the leader Inspector target and developer-window requests. All 33 renderer unit tests also pass.
+- Acceptance result: The user confirmed that the empty Electron Editor is outside the migration scope. GAP-027 is accepted.
+
+## GAP-028 evidence
+
+- Input: Open the leader Stage page and a follower AIRI page in separate CEF WebViews.
+- Original result: The WebViews use separate CEF request contexts. Authentication state and Pinia browser coordination do not cross the window boundary.
+- Required result: All AIRI-owned WebViews use one persistent request context. This context shares cookies, storage, BroadcastChannel, and Web Locks.
+- Upstream implementation: The [Godot CEF shared-request-context branch](https://github.com/LemonNekoGH/godot-cef/tree/lemonnekogh/shared-request-context) provides the required shared context.
+- Local dependency result: AIRI loaded a local universal macOS build from commit `59ad13cebfb11f2062816310ad1c4d89ab71dc62` on 2026-09-18.
+- Runtime result: The leader and onboarding WebViews shared a temporary `localStorage` value and a `BroadcastChannel` message.
+- Coordination result: Both WebViews observed the same held `tab-airi:stage:pinia` Web Lock.
+- Cleanup result: The temporary storage probe was removed after verification.
+- Authentication result: GAP-019 verified sign-in, account state, and persistence with the shared context.
+- Blocker: The upstream branch has no published release artifact. The tracked AIRI dependency still selects official Godot CEF 1.15.4.
+- Acceptance condition: Publish a reproducible artifact and update the tracked dependency.

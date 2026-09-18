@@ -12,7 +12,7 @@ import type {
 } from '../../../../shared/eventa'
 
 import { errorMessageFrom } from '@moeru/std'
-import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useHostEventaContext, useHostEventaInvoke } from '@proj-airi/stage-host-context'
 import { ModelSettingsPanel } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -42,14 +42,14 @@ import {
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
-const context = useElectronEventaContext()
-const applyGodotStageSceneInput = useElectronEventaInvoke(electronGodotStageApplySceneInput)
-const applyGodotStageViewPatch = useElectronEventaInvoke(electronGodotStageApplyViewPatch)
-const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
-const getGodotStageViewSnapshot = useElectronEventaInvoke(electronGodotStageGetViewSnapshot)
-const requestGodotStageViewSnapshot = useElectronEventaInvoke(electronGodotStageRequestViewSnapshot)
-const startGodotStage = useElectronEventaInvoke(electronGodotStageStart)
-const stopGodotStage = useElectronEventaInvoke(electronGodotStageStop)
+const context = useHostEventaContext()
+const applyGodotStageSceneInput = useHostEventaInvoke(electronGodotStageApplySceneInput)
+const applyGodotStageViewPatch = useHostEventaInvoke(electronGodotStageApplyViewPatch)
+const getGodotStageStatus = useHostEventaInvoke(electronGodotStageGetStatus)
+const getGodotStageViewSnapshot = useHostEventaInvoke(electronGodotStageGetViewSnapshot)
+const requestGodotStageViewSnapshot = useHostEventaInvoke(electronGodotStageRequestViewSnapshot)
+const startGodotStage = useHostEventaInvoke(electronGodotStageStart)
+const stopGodotStage = useHostEventaInvoke(electronGodotStageStop)
 
 const palette = ref<string[]>([])
 const godotStageError = ref<string>()
