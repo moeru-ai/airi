@@ -45,22 +45,44 @@ function removeItem(index: number) {
         </div>
       </div>
 
-      <div v-auto-animate class="~ col gap-2">
+      <div v-auto-animate :class="['flex flex-col gap-2']">
         <div
           v-for="(_, index) in items"
           :key="index"
-          :class="['w-full', 'flex', 'items-center', 'gap-2']"
+          :class="['flex w-full items-center gap-2']"
         >
           <Input
             v-model="items[index]"
             :placeholder="props.valuePlaceholder"
-            :class="['w-90%']"
+            :class="['flex-1']"
           />
-          <button i-solar:minus-circle-line-duotone size="6" :class="['min-w-20px', 'w-10%', 'flex', 'text-red-500']" @click="removeItem(index)" />
+          <button
+            type="button"
+            :class="[
+              'shrink-0',
+              'text-neutral-400 hover:text-red-500',
+              'transition-colors',
+            ]"
+            @click="removeItem(index)"
+          >
+            <div :class="['i-solar:minus-circle-line-duotone size-5']" />
+          </button>
         </div>
 
-        <!-- The icon is the box's background, so the box itself has to carry the centering. -->
-        <div i-solar:add-circle-line-duotone size="6" :class="['mt-2', 'mx-auto', 'block', 'text-blue-500']" @click="addItem" />
+        <button
+          type="button"
+          :class="[
+            'flex w-full items-center justify-center gap-2',
+            'rounded-lg border border-dashed border-neutral-300 dark:border-neutral-700',
+            'py-2 text-xs text-neutral-500 dark:text-neutral-400',
+            'transition-colors',
+            'hover:border-primary-400 hover:text-primary-500',
+            'dark:hover:border-primary-600 dark:hover:text-primary-400',
+          ]"
+          @click="addItem"
+        >
+          <div :class="['i-solar:add-circle-line-duotone size-4']" />
+        </button>
       </div>
     </label>
   </div>
