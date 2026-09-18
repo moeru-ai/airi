@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { CdpClient } from './desktop-overlay-live-window-smoke'
+import { CdpClient } from './remote-debug'
 
 afterEach(() => {
   vi.restoreAllMocks()
