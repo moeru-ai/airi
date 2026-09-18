@@ -42,7 +42,7 @@ const text = v.strictObject({
   ...base.vTextParam.entries,
   format: v.optional(v.nullable(v.union([base.vTextResponseFormat, jsonSchemaResponseFormat]))),
 })
-const reasoning = v.object({
+const reasoning = v.strictObject({
   ...base.vReasoningParam.entries,
   effort: v.nullish(v.union([base.vReasoningEffortEnum, v.literal('minimal')])),
 })

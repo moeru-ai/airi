@@ -2775,6 +2775,22 @@ describe('issue #2479 hosted Responses', () => {
     expect(response.status).toBe(429)
     expect(harness.router.route).toHaveBeenCalledTimes(60)
   })
+
+  it('applies the authenticated generation quota before parsing a Responses body', async () => {
+    const harness = responsesHarness(() => Response.json(responsesResult()), 1000)
+    for (let index = 0; index < 60; index++) {
+      const response = await harness.send({})
+      expect(response.status).toBe(200)
+    }
+
+    const response = await harness.app.request('/api/v1/openai/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{',
+    }, { user: testUser })
+
+    expect(response.status).toBe(429)
+  })
 })
 
 // https://github.com/moeru-ai/airi/issues/2479

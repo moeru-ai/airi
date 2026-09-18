@@ -99,6 +99,11 @@ describe('stateless Responses request boundary', () => {
     expect(body.reasoning).toEqual({ effort: 'minimal' })
   })
 
+  it('rejects unknown reasoning options instead of silently removing them', () => {
+    expect(() => parseResponsesRequest({ input: 'hello', reasoning: { summmary: 'auto' } }))
+      .toThrow('Invalid stateless Responses request')
+  })
+
   it('accepts nullable Responses options as unset', () => {
     const body = parseResponsesRequest({ input: 'hello', tools: null, tool_choice: null, max_output_tokens: null })
 

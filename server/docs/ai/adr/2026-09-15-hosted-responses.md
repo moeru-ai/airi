@@ -87,9 +87,10 @@ server/
     README.md
     package.json
     src/{app.ts,app.test.ts}
+    src/middlewares/rate-limit.ts
     src/routes/openai/v1/
       index.ts, gateway.ts, model-routing.ts, route.test.ts
-      middlewares/{telemetry.ts,telemetry.test.ts,traffic-control.ts}
+      middlewares/{telemetry.ts,telemetry.test.ts}
       operations/chat-completions/index.ts
       operations/responses/{index.ts,request.ts,request.test.ts}
     src/services/

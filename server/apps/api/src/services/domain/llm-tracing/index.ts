@@ -13,6 +13,24 @@ import { generationOperation } from '../../../schemas/generation-protocol'
  * server-side anyway, so a generous cap loses nothing useful.
  */
 const STREAM_OUTPUT_CHAR_CAP = 1_000_000
+const TRACE_INPUT_STRING_CHAR_CAP = 1_000_000
+
+function traceInput(input: unknown): unknown {
+  if (Array.isArray(input))
+    return input.map(traceInput)
+  if (typeof input === 'string' && input.length > TRACE_INPUT_STRING_CHAR_CAP)
+    return `${input.slice(0, TRACE_INPUT_STRING_CHAR_CAP)}[truncated ${input.length - TRACE_INPUT_STRING_CHAR_CAP} chars]`
+  if (input == null || typeof input !== 'object')
+    return input
+
+  return Object.fromEntries(Object.entries(input).map(([key, value]) => {
+    if (key === 'file_data' && typeof value === 'string')
+      return [key, `[inline data omitted: ${value.length} chars]`]
+    if ((key === 'image_url' || key === 'video_url') && typeof value === 'string' && value.startsWith('data:'))
+      return [key, `[inline data URL omitted: ${value.length} chars]`]
+    return [key, traceInput(value)]
+  }))
+}
 
 /**
  * Whether per-request Langfuse generations should be created.
@@ -65,7 +83,7 @@ function extractSseDeltaText(sseLine: string): string {
 
 /** Parameters identifying a request a Langfuse generation traces. */
 interface GenerationInput {
-  /** Provider-domain input payload, recorded verbatim as trace input. */
+  /** Provider-domain input payload. Large strings and inline media are bounded in trace input. */
   input: unknown
   /** Resolved upstream model id (after `auto` aliases are replaced). */
   model: string
@@ -86,7 +104,7 @@ export interface ChatGenerationInput extends Omit<GenerationInput, 'name' | 'met
   /** The caller selects the protocol; tracing never infers it from the payload. */
   protocol: GenerationProtocol
 
-  /** Chat messages or Responses input Items, recorded verbatim as trace input. */
+  /** Chat messages or Responses input Items. */
   input: unknown
   /** Whether the response is streamed (affects how output is captured). */
   stream: boolean
@@ -193,7 +211,7 @@ function startGeneration(input: GenerationInput): {
 
   const baseMetadata = { requestId: input.requestId, ...input.metadata }
   const generation = startObservation(input.name, {
-    input: input.input,
+    input: traceInput(input.input),
     model: input.model,
     metadata: baseMetadata,
   }, { asType: 'generation' })

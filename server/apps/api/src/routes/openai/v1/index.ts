@@ -5,6 +5,7 @@ import type { LlmTracingDeps, V1RouteDeps } from './types'
 
 import { authGuard } from '../../../middlewares/auth'
 import { configGuard } from '../../../middlewares/config-guard'
+import { rateLimiter } from '../../../middlewares/rate-limit'
 import { generationOperation, generationProtocols } from '../../../schemas/generation-protocol'
 import { createBadRequestError } from '../../../utils/error'
 import {
@@ -14,7 +15,6 @@ import {
   resolveChatAnalyticsSurface,
 } from './analytics'
 import { createV1Gateway } from './gateway'
-import { generationRateLimit } from './middlewares'
 import { chatCompletions } from './operations/chat-completions'
 import { responsesCreate } from './operations/responses'
 import { parseResponsesRequest } from './operations/responses/request'
@@ -40,10 +40,14 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
   // real OpenAI route and the streaming TTS protocol has nothing to do with
   // OpenAI — keeping them here mislabelled the surface, so audio now mounts
   // at /api/v1/audio (see `audioRoutes` below).
-  const rateLimit = generationRateLimit({ metrics: deps.rateLimitMetrics })
-  const openai = gateway.route('openai')
-    .use(generationOperation('chat-completions'), rateLimit)
-    .use(generationOperation('responses'), rateLimit)
+
+  // Authentication runs before this shared HTTP limiter, so both generation
+  // protocols use one user bucket before either route parses its request body.
+  const generationLimit = rateLimiter({ max: 60, windowSec: 60, metrics: deps.rateLimitMetrics, routeLabel: 'openai.completions' })
+  const openai = gateway
+    .useHono('openai', '/chat/*', generationLimit)
+    .useHono('openai', '/responses', generationLimit)
+    .route('openai')
   const openaiRoutes = openai
     .post(generationProtocols.responses.createPath, openai.handler(
       generationOperation('responses'),

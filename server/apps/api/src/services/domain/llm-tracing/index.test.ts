@@ -72,6 +72,46 @@ describe('startChatGeneration', () => {
       expect(generationStub.otelSpan.setAttribute).toHaveBeenCalledWith('langfuse.session.id', 'sess-9')
     })
 
+    it('omits inline media payloads from trace input', () => {
+      startChatGeneration({
+        ...BASE_INPUT,
+        protocol: 'responses',
+        input: [{
+          role: 'user',
+          content: [
+            { type: 'input_file', filename: 'report.pdf', file_data: 'AAAA' },
+            { type: 'input_image', image_url: 'data:image/png;base64,BBBB' },
+            { type: 'input_video', video_url: 'https://example.com/video.mp4' },
+          ],
+        }],
+      })
+
+      expect(startObservation).toHaveBeenCalledWith(
+        'responses.create',
+        expect.objectContaining({
+          input: [{
+            role: 'user',
+            content: [
+              { type: 'input_file', filename: 'report.pdf', file_data: '[inline data omitted: 4 chars]' },
+              { type: 'input_image', image_url: '[inline data URL omitted: 26 chars]' },
+              { type: 'input_video', video_url: 'https://example.com/video.mp4' },
+            ],
+          }],
+        }),
+        expect.anything(),
+      )
+    })
+
+    it('bounds large text in trace input', () => {
+      startChatGeneration({ ...BASE_INPUT, input: 'x'.repeat(1_000_001) })
+
+      expect(startObservation).toHaveBeenCalledWith(
+        'chat-completions.create',
+        expect.objectContaining({ input: `${'x'.repeat(1_000_000)}[truncated 1 chars]` }),
+        expect.anything(),
+      )
+    })
+
     it('omits session attribute when no sessionId is supplied', () => {
       // @example a request without x-airi-session-id → user-only attribution
       startChatGeneration(BASE_INPUT)
