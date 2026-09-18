@@ -415,6 +415,11 @@ pages:
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
         Configure modules for this character card. Empty fields inherit global settings.
+      sections:
+        chat: Chat
+        vision: Vision
+        speech: Speech
+        body: Body
       use_default: Use default
       use_default_not_configured: Use default (not configured)
       inherit_global_settings: Inherit global settings

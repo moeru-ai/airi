@@ -58,6 +58,18 @@ devtools:
     performance-visualizer:
       title: 性能可视化
       description: 检查实时性能指标和运行时诊断数据
+      resource-events:
+        title: 最近的资源事件
+        description: 按接收顺序倒序显示。时间为来源渲染进程启动后的毫秒数。
+        empty: 暂无资源事件。请在启用追踪时加载或切换 VRM 模型。
+        columns:
+          time: 时间（毫秒）
+          phase: 阶段
+          reason: 原因
+          textures: 纹理
+          geometries: 几何体
+          meshes: 网格
+          materials: 材质
       controls:
         enable-all:
           label: 启用所有可用指标

@@ -309,6 +309,18 @@ devtools:
     performance-visualizer:
       title: Performance Visualizer
       description: Inspect live performance metrics and runtime diagnostics
+      resource-events:
+        title: Recent resource events
+        description: Newest received event first. Time is milliseconds since the source renderer started.
+        empty: No resource events recorded. Load or switch a VRM model while tracing is enabled.
+        columns:
+          time: Time (ms)
+          phase: Phase
+          reason: Reason
+          textures: Textures
+          geometries: Geometries
+          meshes: Meshes
+          materials: Materials
       controls:
         enable-all:
           label: Enable all available metrics

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { AnimationState, AssetManager, Skeleton, SpineCanvas, SpineCanvasApp } from '@esotericsoftware/spine-webgl'
+import type { AnimationState, AssetManager, GLTexture, Skeleton, SpineCanvas, SpineCanvasApp } from '@esotericsoftware/spine-webgl'
 
 import type { SpineAnimationManager } from '../../../composables/spine'
 import type { Emotion } from '../../../constants/emotions'
 import type { SpineModelVariant } from '../../../utils/spine-zip-loader'
 
+import { coverRect } from '@proj-airi/stage-shared'
 import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { nextTick, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
@@ -17,6 +18,11 @@ import { detectSpineVersionFromBinary, detectSpineVersionFromJson } from '../../
 import { loadSpineZip } from '../../../utils/spine-zip-loader'
 
 const props = withDefaults(defineProps<{
+  /**
+   * Scene painted behind the model, inside this canvas rather than under it, so one
+   * readback answers for the whole stage.
+   */
+  backgroundUrl?: string | null
   modelSrc?: string
   modelId?: string
   canvas?: HTMLCanvasElement
@@ -65,6 +71,49 @@ const modelLoading = ref(false)
 
 // Live runtime objects.
 let spineCanvas: SpineCanvas | undefined
+let backgroundTexture: GLTexture | undefined
+/** The runtime is version-detected per model load; the scene needs it to make a texture. */
+let spineRuntime: Awaited<ReturnType<typeof loadSpineRuntime>> | undefined
+
+async function syncBackground() {
+  const canvas = spineCanvas
+  const url = props.backgroundUrl
+
+  if (!url) {
+    backgroundTexture?.dispose()
+    backgroundTexture = undefined
+    return
+  }
+
+  if (!canvas || !spineRuntime)
+    return
+
+  // A scene that cannot decode leaves the stage as it is, rather than throwing where
+  // nothing is waiting to catch it.
+  let image: HTMLImageElement
+  try {
+    image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const next = new Image()
+      next.onload = () => resolve(next)
+      next.onerror = () => reject(new Error(`failed to load ${url}`))
+      next.src = url
+    })
+  }
+  catch {
+    return
+  }
+
+  // A later scene wins, and so does a later canvas: both can be replaced while the
+  // image loads.
+  if (props.backgroundUrl !== url || spineCanvas !== canvas)
+    return
+
+  // Replace only once the new one is ready, so a scene change never shows a gap.
+  backgroundTexture?.dispose()
+  backgroundTexture = new spineRuntime.GLTexture(canvas.context, image)
+}
+
+watch(() => props.backgroundUrl, () => void syncBackground())
 let assetCleanup: (() => void) | undefined
 let animationManager: SpineAnimationManager | undefined
 let skeleton: Skeleton | undefined
@@ -102,6 +151,10 @@ function disposeSpine() {
     }
     spineCanvas = undefined
   }
+  // The texture belongs to the disposed canvas's GL context. Keeping it would leave the
+  // next canvas drawing a handle registered against a context it does not own.
+  backgroundTexture?.dispose()
+  backgroundTexture = undefined
   assetCleanup?.()
   assetCleanup = undefined
   animationManager = undefined
@@ -183,6 +236,7 @@ async function loadModel() {
     if (!detectedVersion)
       detectedVersion = '4.2'
     const spine = await loadSpineRuntime(detectedVersion)
+    spineRuntime = spine
     console.info(`[Spine] Detected skeleton version: ${detectedVersion}`)
 
     if (isUnmounted) {
@@ -305,6 +359,29 @@ async function loadModel() {
           sc.gl.clearColor(0, 0, 0, 0)
           sc.gl.clear(sc.gl.COLOR_BUFFER_BIT)
           renderer.begin()
+          if (backgroundTexture) {
+            // The batcher keeps the blend the previous frame's last slot left, so the
+            // scene sets its own. drawSkeleton then sets one per slot.
+            const batcher = renderer.batcher
+            // NOTICE: spine 4.0 takes raw GL factors; 4.1+ takes a BlendMode. The
+            // loader types every runtime as 4.2. Both branches set the same blend.
+            // Removal condition: when 4.0 support is dropped.
+            if (batcher.setBlendMode.length === 3) {
+              const setGLBlend = batcher.setBlendMode as unknown as (src: number, srcAlpha: number, dst: number) => void
+              setGLBlend.call(batcher, sc.gl.SRC_ALPHA, sc.gl.ONE, sc.gl.ONE_MINUS_SRC_ALPHA)
+            }
+            else {
+              batcher.setBlendMode(spine.BlendMode.Normal, false)
+            }
+            // The camera sits at world origin, so a centred `cover` rectangle is just
+            // half its own size either side of it.
+            const camera = renderer.camera
+            const rect = coverRect(
+              { width: camera.viewportWidth, height: camera.viewportHeight },
+              { width: backgroundTexture.getImage().width, height: backgroundTexture.getImage().height },
+            )
+            renderer.drawTexture(backgroundTexture, -rect.width / 2, -rect.height / 2, rect.width, rect.height)
+          }
           renderer.drawSkeleton(skeleton, props.premultipliedAlpha)
           renderer.end()
         },
@@ -321,6 +398,9 @@ async function loadModel() {
         pathPrefix,
         webglConfig: { alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true },
       })
+      // The scene is already chosen before the runtime is detected, so the watcher
+      // below has already fired and found nothing to draw with.
+      void syncBackground()
     })
   }
   catch (err) {

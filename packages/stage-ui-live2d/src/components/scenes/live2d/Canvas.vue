@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { Application } from '@pixi/app'
+import { BatchRenderer, Texture } from '@pixi/core'
 import { extensions } from '@pixi/extensions'
+import { Sprite } from '@pixi/sprite'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
+import { coverRect } from '@proj-airi/stage-shared'
 import { Live2DModel } from 'pixi-live2d-display/cubism4'
 import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   width: number
   height: number
+  /**
+   * Scene painted behind the model, inside this canvas rather than under it, so one
+   * readback answers for the whole stage.
+   */
+  backgroundUrl?: string | null
   resolution?: number
   maxFps?: number
 }>(), {
@@ -57,6 +65,10 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
+  // The Live2D model draws through its own pipeline, so nothing here needed the batch
+  // renderer until the scene arrived as a sprite. Without it a sprite reaches a batch
+  // system that was never installed.
+  extensions.add(BatchRenderer)
   // We handle the interactions (e.g., mouse-based focusing at) manually
   // extensions.add(InteractionManager)
 
@@ -84,6 +96,81 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
 
   isPixiCanvasReady.value = true
   componentState.value = 'mounted'
+
+  await syncBackground()
+}
+
+const backgroundSprite = shallowRef<Sprite>()
+
+/** Fits the scene over the stage, matching the `cover` framing it had as a CSS layer. */
+function layoutBackground() {
+  const sprite = backgroundSprite.value
+  if (!sprite || !props.width || !props.height)
+    return
+
+  const rect = coverRect({ width: props.width, height: props.height }, sprite.texture)
+  sprite.x = rect.x
+  sprite.y = rect.y
+  sprite.width = rect.width
+  sprite.height = rect.height
+}
+
+// Pixi keys its texture cache on the URL, so Texture.fromURL hands the same instance to
+// every caller. Decoding here gives each sync a texture of its own, which is what lets
+// the release below be unconditional.
+async function loadBackgroundTexture(url: string) {
+  const image = new Image()
+  image.src = url
+  await image.decode()
+
+  return Texture.from(image)
+}
+
+async function syncBackground() {
+  const current = pixiApp.value
+  if (!current)
+    return
+
+  const url = props.backgroundUrl
+  if (!url) {
+    if (backgroundSprite.value) {
+      current.stage.removeChild(backgroundSprite.value)
+      backgroundSprite.value.destroy({ baseTexture: true, texture: true })
+      backgroundSprite.value = undefined
+    }
+    return
+  }
+
+  // A scene that cannot decode leaves the stage as it is. Letting it throw would reach
+  // the stage error surface and take a working model down with it.
+  let texture: Texture
+  try {
+    texture = await loadBackgroundTexture(url)
+  }
+  catch {
+    return
+  }
+
+  // A later scene wins, and so does a later app: both the source and the stage can be
+  // replaced while the texture loads.
+  if (props.backgroundUrl !== url || pixiApp.value !== current) {
+    texture.destroy(true)
+    return
+  }
+
+  if (backgroundSprite.value) {
+    const previous = backgroundSprite.value.texture
+    backgroundSprite.value.texture = texture
+    previous.destroy(true)
+  }
+  else {
+    const sprite = new Sprite(texture)
+    backgroundSprite.value = sprite
+    // Index 0 keeps it under the model, wherever the model lands in the stage.
+    current.stage.addChildAt(sprite, 0)
+  }
+
+  layoutBackground()
 }
 
 function handleResize() {
@@ -93,10 +180,13 @@ function handleResize() {
     pixiApp.value.stage.scale.set(props.resolution)
   }
 
+  layoutBackground()
+
   // The CSS styles handle the display size, so we don't need to manually set view dimensions
 }
 
 watch([() => props.width, () => props.height, () => props.resolution], handleResize)
+watch(() => props.backgroundUrl, () => void syncBackground())
 watch(() => props.maxFps, (limit) => {
   if (pixiApp.value)
     pixiApp.value.ticker.maxFPS = resolveMaxFps(limit)
@@ -114,7 +204,16 @@ onMounted(async () => {
     emit('error', error instanceof Error ? error : new Error(String(error)))
   }
 })
-onUnmounted(() => pixiApp.value?.destroy())
+onUnmounted(() => {
+  // Destroying the application detaches its children without freeing them, so the
+  // scene texture is released before the stage it hangs from disappears.
+  backgroundSprite.value?.destroy({ baseTexture: true, texture: true })
+  backgroundSprite.value = undefined
+  pixiApp.value?.destroy()
+  // Destroy leaves the ref truthy while nulling the stage, so anything still in flight
+  // would reach for a stage that is gone.
+  pixiApp.value = undefined
+})
 
 async function captureFrame() {
   const frame = new Promise<Blob | null>((resolve) => {
