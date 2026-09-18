@@ -1891,7 +1891,7 @@ it.each([false, true])('issue #2479 filters incompatible upstreams before termin
   if (grouped) {
     model.routing = { groups: [
       { id: 'chat-first', upstreamIds: ['chat'], retryOn: { httpCodes: [500], onTimeout: true } },
-      { id: 'mixed', upstreamIds: ['responses', 'chat'], retryOn: { httpCodes: [500], onTimeout: true } },
+      { id: 'responses-only', upstreamIds: ['responses'], retryOn: { httpCodes: [500], onTimeout: true } },
     ] }
   }
   const fetchImpl = vi.fn<typeof fetch>(async () => failResponse(402, { error: 'quota' }))

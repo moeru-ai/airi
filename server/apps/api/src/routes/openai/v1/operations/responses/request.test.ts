@@ -5,6 +5,10 @@ import { createResponseSchema } from '../../../../../services/adapters/llm/schem
 import { parseResponsesRequest } from './request'
 
 describe('stateless Responses request boundary', () => {
+  it.each([{}, { input: null }])('rejects a missing input as a bad request: %j', (body) => {
+    expect(() => parseResponsesRequest(body)).toThrow('Invalid stateless Responses request')
+  })
+
   // https://github.com/moeru-ai/airi/issues/2479
   it.each([
     { store: true },
@@ -43,6 +47,21 @@ describe('stateless Responses request boundary', () => {
     const body = parseResponsesRequest({ input: [{ type: 'function_call_output', call_id: 'call-1', output }] })
 
     expect(body.input).toEqual([{ type: 'function_call_output', call_id: 'call-1', output }])
+  })
+
+  it('accepts the minimal reasoning effort', () => {
+    const body = parseResponsesRequest({ input: 'hello', reasoning: { effort: 'minimal' } })
+
+    expect(body.reasoning).toEqual({ effort: 'minimal' })
+  })
+
+  it.each([
+    { temperature: -0.01 },
+    { temperature: 2.01 },
+    { top_p: -0.01 },
+    { top_p: 1.01 },
+  ])('rejects an out-of-range sampling parameter: %j', (sampling) => {
+    expect(() => parseResponsesRequest({ input: 'hello', ...sampling })).toThrow('Invalid stateless Responses request')
   })
 
   // https://github.com/moeru-ai/airi/pull/2554#discussion_r4044384483

@@ -42,6 +42,10 @@ const text = v.strictObject({
   ...base.vTextParam.entries,
   format: v.optional(v.nullable(v.union([base.vTextResponseFormat, jsonSchemaResponseFormat]))),
 })
+const reasoning = v.object({
+  ...base.vReasoningParam.entries,
+  effort: v.nullish(v.union([base.vReasoningEffortEnum, v.literal('minimal')])),
+})
 const message = v.strictObject({
   ...base.vUserMessageItemParam.entries,
   role: v.picklist(['user', 'system', 'developer', 'assistant']),
@@ -88,5 +92,8 @@ export const createResponseSchema = v.strictObject({
   tool_choice: v.optional(v.union([base.vToolChoiceValueEnum, toolReference, v.strictObject({ ...base.vAllowedToolsParam.entries, mode: v.picklist(['auto', 'required']), tools: v.pipe(v.array(toolReference), v.minLength(1)) })])),
   include: v.optional(v.array(v.union([base.vIncludeEnum, v.literal('web_search_call.action.sources')]))),
   max_output_tokens: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
+  reasoning: v.nullish(reasoning),
+  temperature: v.nullish(v.pipe(v.number(), v.minValue(0), v.maxValue(2))),
   text: v.optional(v.nullable(text)),
+  top_p: v.nullish(v.pipe(v.number(), v.minValue(0), v.maxValue(1))),
 })

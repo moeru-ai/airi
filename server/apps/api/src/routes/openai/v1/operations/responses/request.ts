@@ -31,6 +31,7 @@ const supported = pick(createResponseSchema, [
 ])
 const requestSchema = pipe(strictObject({
   ...supported.entries,
+  input: createResponseSchema.entries.input,
   model: optional(pipe(string(), nonEmpty()), 'auto'),
   stream: optional(createResponseSchema.entries.stream.wrapped, false),
   store: optional(literal(false), false),
