@@ -101,6 +101,14 @@ function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAss
   }
 }
 
+function hasAssistantOutput(message: StreamingAssistantMessage) {
+  return message.slices.length > 0
+    || message.tool_results.length > 0
+    || (message.citations?.length ?? 0) > 0
+    || message.search !== undefined
+    || !!message.categorization?.reasoning.trim()
+}
+
 /**
  * Options accepted by the chat orchestrator runtime for one user send.
  */
@@ -602,6 +610,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       model: options.model,
     })
     const roundStartedAt = monotonicNow()
+    let assistantStored = false
 
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
@@ -924,6 +933,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (!shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
         deps.session.appendSessionMessage(sessionId, finalAssistant)
+        assistantStored = true
         deps.onAssistantMessageAppended?.({
           sessionId,
           message: finalAssistant,
@@ -984,6 +994,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     catch (error) {
       if (shouldAbort())
         return
+
+      if (!assistantStored && hasAssistantOutput(buildingMessage)) {
+        // Keep received output local, but do not run completion hooks or cloud
+        // sync for an assistant turn that never reached a terminal event.
+        deps.session.appendSessionMessage(sessionId, cloneStreamingMessage(buildingMessage))
+        resetForegroundStream(sessionId)
+      }
 
       console.error('Error sending message:', error)
       deps.onMessageRoundFailed?.({

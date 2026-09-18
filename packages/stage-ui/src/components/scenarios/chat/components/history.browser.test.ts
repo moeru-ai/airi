@@ -431,6 +431,34 @@ describe('chat history', () => {
     ]])
   })
 
+  it('emits retry-message for an error after partial assistant output', async () => {
+    const messages: ChatHistoryItem[] = [
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', content: 'partial reply', slices: [{ type: 'text', text: 'partial reply' }], tool_results: [] },
+      { role: 'error', content: 'Stream interrupted' },
+    ]
+
+    const screen = await render(ChatHistory, {
+      props: {
+        messages,
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await screen.getByRole('button', { name: 'Retry' }).click()
+
+    expect(screen.emitted('retryMessage')).toEqual([[
+      {
+        message: messages[2],
+        index: 2,
+        key: getChatHistoryItemKey(messages[2], 2),
+      },
+    ]])
+  })
+
   it('does not render the retry button when the error is not preceded by a user message', async () => {
     const screen = await render(ChatHistory, {
       props: {

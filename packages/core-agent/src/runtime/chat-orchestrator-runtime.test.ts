@@ -173,6 +173,34 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.foregroundPatches.some(message => message.content === '1234')).toBe(true)
   })
 
+  // ROOT CAUSE:
+  //
+  // A transport failure cleared the foreground stream before the assistant
+  // message was stored. Text that was already visible therefore disappeared.
+  //
+  // We preserve received output as an incomplete local assistant message. The
+  // caller still receives the failure and can append its normal error item.
+  it('stores visible assistant output when the stream fails', async () => {
+    const harness = createHarness()
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'partial reply' })
+      throw new Error('stream interrupted')
+    })
+
+    await expect(harness.runtime.ingest('show partial output', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })).rejects.toThrow('stream interrupted')
+
+    expect(harness.sessionMessages['session-1']?.at(-1)).toMatchObject({
+      role: 'assistant',
+      content: 'partial ',
+      slices: [{ type: 'text', text: 'partial ' }],
+    })
+    expect(harness.assistantAppended).toHaveLength(0)
+    expect(harness.foregroundResets).toHaveLength(1)
+  })
+
   it('stores tool names with the user message and omits them from provider messages', async () => {
     const harness = createHarness()
 

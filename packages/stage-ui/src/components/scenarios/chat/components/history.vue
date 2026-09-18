@@ -103,6 +103,14 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
 
   return [...props.messages, streaming.value]
 })
+function canRetryMessageAt(index: number) {
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    if (renderMessages.value[cursor]?.role === 'user')
+      return true
+  }
+
+  return false
+}
 const messagesById = computed(() => new Map(
   renderMessages.value.flatMap(message => message.id ? [[message.id, message] as const] : []),
 ))
@@ -220,7 +228,7 @@ function emitToolCallRerun(
             :message="message"
             :label="labels.error"
             :retry-label="labels.retry"
-            :can-retry="renderMessages[index - 1]?.role === 'user'"
+            :can-retry="canRetryMessageAt(index)"
             :show-placeholder="sending && index === renderMessages.length - 1"
             :scroll-container="chatHistoryRef"
             :variant="variant"
