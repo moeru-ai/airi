@@ -1,8 +1,10 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
+import { isGenerationProvider } from '@proj-airi/provider-inference'
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 
-import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID, providerOfficialSpeech, providerOfficialSpeechStreaming, providerOfficialTranscription } from './index'
+import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID, providerOfficialChat, providerOfficialSpeech, providerOfficialSpeechStreaming, providerOfficialTranscription } from './index'
 
 interface OfficialSpeechOptions {
   speed?: number
@@ -16,6 +18,48 @@ interface OfficialSpeechOptions {
     }
   }
 }
+
+describe('official chat provider', () => {
+  it('defaults new and existing empty configurations to Responses', async () => {
+    const schema = await providerOfficialChat.createProviderConfig({ t: key => key })
+    expect(z.parse(schema, {})).toEqual({ api: 'responses' })
+
+    const provider = await providerOfficialChat.createProvider({})
+    if (!isGenerationProvider(provider))
+      throw new Error('Expected generation')
+
+    expect(provider.generation('auto')).toMatchObject({
+      protocol: 'responses',
+      webSearch: false,
+      config: { model: 'auto' },
+    })
+  })
+
+  it('uses Chat Completions when the user selects it', async () => {
+    const provider = await providerOfficialChat.createProvider({ api: 'chat-completions' })
+    if (!isGenerationProvider(provider))
+      throw new Error('Expected generation')
+
+    expect(provider.generation('auto')).toMatchObject({
+      protocol: 'chat-completions',
+      config: { model: 'auto' },
+    })
+  })
+
+  it('describes the protocol selector in its configuration schema', async () => {
+    const schema = await providerOfficialChat.createProviderConfig({ t: key => key })
+    if (!(schema instanceof z.ZodObject))
+      throw new Error('Expected an object configuration schema')
+
+    expect(schema.shape.api.meta()).toMatchObject({
+      type: 'select',
+      options: [
+        { label: 'Responses API', value: 'responses' },
+        { label: 'Chat Completions', value: 'chat-completions' },
+      ],
+    })
+  })
+})
 
 describe('official speech provider', () => {
   /**
