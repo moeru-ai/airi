@@ -12,6 +12,26 @@ const outputPart = v.union([
   v.looseObject({ ...base.vOutputTextContentParam.entries, annotations: v.optional(v.array(v.unknown())) }),
   base.vRefusalContentParam,
 ])
+const jsonSchemaObject = v.pipe(
+  v.unknown(),
+  v.check(value => !Array.isArray(value), 'A JSON Schema object cannot be an array'),
+  v.looseObject({}),
+)
+const jsonSchemaNode = v.union([v.boolean(), jsonSchemaObject])
+const functionParametersSchema = v.pipe(
+  v.looseObject({
+    type: v.literal('object'),
+    properties: v.pipe(jsonSchemaObject, v.check(value => Object.values(value).every(node => v.safeParse(jsonSchemaNode, node).success), 'JSON Schema properties must contain object or boolean schemas')),
+    required: v.array(v.string()),
+  }),
+  v.check(schema => new Set(schema.required).size === schema.required.length, 'JSON Schema required fields must be unique'),
+  v.check(schema => schema.required.every(name => Object.hasOwn(schema.properties, name)), 'JSON Schema required fields must exist in properties'),
+)
+const functionToolSchema = v.strictObject({
+  ...base.vFunctionToolParam.entries,
+  parameters: functionParametersSchema,
+  strict: v.optional(v.nullable(v.boolean())),
+})
 const message = v.strictObject({
   ...base.vUserMessageItemParam.entries,
   role: v.picklist(['user', 'system', 'developer', 'assistant']),
@@ -54,7 +74,7 @@ export const createResponseSchema = v.strictObject({
   ...base.vCreateResponseBody.entries,
   input: v.union([v.string(), v.array(responseItemSchema)]),
   conversation: v.optional(v.nullable(v.union([v.string(), v.strictObject({ id: v.string() })]))),
-  tools: v.optional(v.array(v.union([webSearchToolSchema, v.strictObject({ ...base.vFunctionToolParam.entries, strict: v.optional(v.nullable(v.boolean())) })]))),
+  tools: v.optional(v.array(v.union([webSearchToolSchema, functionToolSchema]))),
   tool_choice: v.optional(v.union([base.vToolChoiceValueEnum, toolReference, v.strictObject({ ...base.vAllowedToolsParam.entries, mode: v.picklist(['auto', 'required']), tools: v.pipe(v.array(toolReference), v.minLength(1)) })])),
   include: v.optional(v.array(v.union([base.vIncludeEnum, v.literal('web_search_call.action.sources')]))),
   max_output_tokens: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),

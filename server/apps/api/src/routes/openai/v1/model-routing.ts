@@ -4,7 +4,7 @@ import type { V1RouteDeps } from './types'
 
 import { useLogger } from '@guiiai/logg'
 
-import { createBadRequestError } from '../../../utils/error'
+import { ApiError, createBadRequestError } from '../../../utils/error'
 import { newRouteContext } from './middlewares/telemetry'
 
 interface ModelAliasPlan {
@@ -73,6 +73,12 @@ export async function routeModelAliasCandidates(input: {
         await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
         throw err
       }
+      if (err instanceof ApiError && ['LLM_PROTOCOL_UNAVAILABLE', 'LLM_WEB_SEARCH_UNAVAILABLE'].includes(err.errorCode)) {
+        lastError ??= err
+        continue
+      }
+      await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
+      lastResponse = undefined
       lastError = err
     }
   }

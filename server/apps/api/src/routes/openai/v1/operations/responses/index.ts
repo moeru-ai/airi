@@ -193,9 +193,9 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
           // Preserve provider data, event names and IDs across arbitrary UTF-8 transport splits.
           const frame = `${value.event ? `event: ${value.event}\n` : ''}${value.id ? `id: ${value.id}\n` : ''}data: ${value.data.replaceAll('\n', '\ndata: ')}\n\n`
           await writer.write(encoder.encode(frame))
-          if (cancelled || input.abortSignal?.aborted)
-            throw new Error('Responses downstream cancelled')
           if (response?.success) {
+            // A successful write makes the terminal result observable to the client.
+            // A later cancellation cannot replace that result or suppress settlement.
             await complete(response.output)
             break
           }
@@ -203,6 +203,8 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
             fail(502, 'Responses stream error')
             break
           }
+          if (cancelled || input.abortSignal?.aborted)
+            throw new Error('Responses downstream cancelled')
         }
         await writer.close()
       }

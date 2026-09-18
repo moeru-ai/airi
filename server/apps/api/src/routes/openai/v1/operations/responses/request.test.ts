@@ -31,11 +31,25 @@ describe('stateless Responses request boundary', () => {
       { type: 'function_call', call_id: 'call-1', name: 'read', arguments: '{}' },
       { type: 'function_call_output', call_id: 'call-1', output: '[]' },
     ]
-    const body = parseResponsesRequest({ input, tools: [{ type: 'function', name: 'read', parameters: { type: 'object', properties: {} } }], tool_choice: { type: 'function', name: 'read' } })
+    const body = parseResponsesRequest({ input, tools: [{ type: 'function', name: 'read', parameters: { type: 'object', properties: {}, required: [] } }], tool_choice: { type: 'function', name: 'read' } })
     expect(body.store).toBe(false)
     expect(body.model).toBe('auto')
     expect(body.input).toEqual([{ ...input[0], type: 'message' }, ...input.slice(1)])
     expect(body.tools?.[0]).toMatchObject({ name: 'read' })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2554#discussion_r4044384483
+  it.each([
+    {},
+    { type: 'array', items: { type: 'string' } },
+    { type: 'object', properties: {} },
+    { type: 'object', properties: [], required: [] },
+    { type: 'object', properties: { query: { type: 'string' } }, required: ['missing'] },
+  ])('pR #2554 rejects an invalid function parameter schema: %j', (parameters) => {
+    expect(() => parseResponsesRequest({
+      input: 'hello',
+      tools: [{ type: 'function', name: 'search', parameters }],
+    })).toThrow('Invalid stateless Responses request')
   })
 })
 

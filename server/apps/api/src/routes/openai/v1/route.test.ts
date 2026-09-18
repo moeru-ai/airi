@@ -2622,6 +2622,22 @@ it('issue #2479 does not debit a terminal frame cancelled before downstream deli
   expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
 })
 
+// https://github.com/moeru-ai/airi/pull/2554#discussion_r4044384471
+it('pR #2554 settles a terminal frame that the downstream received before cancellation', async () => {
+  const harness = responsesHarness(() => new Response(responsesFrame()))
+  const controller = new AbortController()
+  const response = await harness.send({ stream: true }, controller.signal)
+  const reader = response.body!.getReader()
+  const frame = await reader.read()
+
+  expect(frame.done).toBe(false)
+  expect(new TextDecoder().decode(frame.value)).toBe(responsesFrame())
+  controller.abort()
+
+  await vi.waitFor(() => expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1))
+  expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200, fluxConsumed: 3 }))
+})
+
 // https://github.com/moeru-ai/airi/issues/2479
 it('issue #2479 cancels an idle JSON response before settlement', async () => {
   const cancel = vi.fn()
@@ -2662,6 +2678,32 @@ it('issue #2479 keeps the last upstream error when a later alias candidate lacks
   expect(await response.text()).toBe('upstream quota exceeded')
   expect(router.route).toHaveBeenCalledTimes(2)
   expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
+})
+
+// https://github.com/moeru-ai/airi/pull/2554#discussion_r4044384477
+it('pR #2554 surfaces a later routing failure instead of an earlier HTTP response', async () => {
+  const catalog = createMockProviderCatalogService()
+  const alias = await catalog.resolveEnabledAlias('llm', 'auto')
+  vi.mocked(catalog.resolveEnabledAlias).mockResolvedValue({ ...alias, routes: [
+    ...alias.routes,
+    { ...alias.routes[0], id: 'second-route', routerModelId: 'timed-out', pool: 'fallback' },
+  ] })
+  const discarded = vi.fn()
+  const router = createMockLlmRouter({ route: vi.fn(async ({ modelName }) => {
+    if (modelName === 'timed-out')
+      throw new ApiError(504, 'GATEWAY_TIMEOUT', 'The next alias timed out')
+    return new Response(new ReadableStream({ cancel: discarded }), { status: 402 })
+  }) })
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, router, createMockLlmTracing(), createMockProductEventService(), createMockVoicePackService(), catalog)
+  const response = await app.request('/api/v1/openai/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: 'hello' }),
+  }, { user: testUser })
+
+  expect(response.status).toBe(504)
+  expect(await response.json()).toMatchObject({ error: 'GATEWAY_TIMEOUT' })
+  expect(discarded).toHaveBeenCalledTimes(1)
 })
 
 // https://github.com/moeru-ai/airi/pull/2554#discussion_r4017201502

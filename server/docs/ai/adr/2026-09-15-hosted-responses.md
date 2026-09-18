@@ -17,11 +17,14 @@ Requests opt into search through `tools`; the gateway does not inject tools.
 Search calls and sources remain portable input Items. Unsupported search candidates are skipped.
 
 Function tools run on the client and return their output on the next request.
+Each function tool must include an object parameter schema. Its `required` entries must name declared properties.
 
 Each upstream explicitly opts into Responses through `protocols: ['responses']`.
 An omitted list supports Chat Completions only. This preserves the current configured service contract.
 Aliases keep their primary, weighted, and fallback order. Protocol filtering precedes candidate selection.
 Unsupported candidates never receive a request. The last attempted HTTP error remains available to the caller.
+This retention applies only when a later candidate lacks protocol or search support.
+Other routing errors replace an earlier HTTP response.
 
 This change preserves the existing Flux policy and adds no per-search rate.
 The service absorbs upstream search-call fees; returned search content tokens use the existing token rate.
