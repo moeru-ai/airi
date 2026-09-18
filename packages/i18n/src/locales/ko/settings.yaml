@@ -934,6 +934,9 @@ pages:
           common:
             fields:
               field:
+                display-name:
+                  label: 표시 이름
+                  description: 이 Provider 연결을 구분하는 이름입니다.
                 api-key:
                   label: API 키
                   description: 이 제공자에 대한 요청을 승인하는 데 사용되는 API 키

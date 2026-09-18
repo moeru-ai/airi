@@ -15,6 +15,7 @@ export const CreateProviderConfigSchema = object({
   id: optional(string()),
   definitionId: string(),
   name: string(),
+  displayName: optional(string()),
   config: optional(record(string(), string())),
   validated: optional(boolean()),
   validationBypassed: optional(boolean()),
@@ -23,6 +24,7 @@ export const CreateProviderConfigSchema = object({
 // TODO: Restrict updates to user-editable fields only.
 export const UpdateProviderConfigSchema = object({
   name: optional(string()),
+  displayName: optional(string()),
   config: optional(record(string(), string())),
   validated: optional(boolean()),
   validationBypassed: optional(boolean()),

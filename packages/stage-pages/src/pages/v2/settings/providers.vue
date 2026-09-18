@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { PaneArea } from '@proj-airi/stage-ui/components'
-import { getDefinedProvider, listProviders } from '@proj-airi/stage-ui/libs'
+import { getDefinedProvider, listProviders, resolveProviderDisplayName } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Input } from '@proj-airi/ui'
 import { breakpointsTailwind, refDebounced, useBreakpoints } from '@vueuse/core'
@@ -119,8 +119,8 @@ function handleClick(providerId: string) {
 
               <div v-auto-animate gap="0.5" h-fit max-h="[calc(100dvh-12.5rem)]" flex flex-col overflow-y-scroll>
                 <div
-                  v-for="(providerEntry, index) in Object.entries(providerStore.listedProviders)"
-                  :key="index"
+                  v-for="providerEntry in Object.entries(providerStore.listedProviders)"
+                  :key="providerEntry[0]"
                   @click="() => handleClick(providerEntry[0])"
                 >
                   <div
@@ -131,7 +131,7 @@ function handleClick(providerId: string) {
                     <div class="relative w-4">
                       <div :class="[getDefinedProvider(providerEntry[1].definitionId)?.iconColor || getDefinedProvider(providerEntry[1].definitionId)?.icon, 'absolute left-50% top-50% -translate-x-1/2 -translate-y-1/2']" />
                     </div>
-                    <div>{{ getDefinedProvider(providerEntry[1].definitionId)?.name || providerEntry[1].definitionId }}</div>
+                    <div>{{ resolveProviderDisplayName(providerEntry[1], getDefinedProvider(providerEntry[1].definitionId)) }}</div>
                   </div>
                 </div>
               </div>
