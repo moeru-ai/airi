@@ -38,6 +38,13 @@ A streaming result becomes billable only after a validated terminal event reache
 JSON results settle after body validation and before the HTTP response returns.
 Cancellation before that point wins. A duplicate terminal event cannot charge again.
 The gateway stops reading after the terminal event and releases upstream resources.
+The gateway ignores unnamed empty SSE messages because they carry no protocol event.
+It rejects an empty message that has an event name.
+OpenRouter can omit the terminal event after it sends completed output items.
+For this upstream only, the gateway creates the missing event when the stream ends.
+The compatibility path requires a response ID and a completed message or function call.
+It follows the existing flat rate because the upstream supplies no terminal usage.
+Other upstreams must send a native terminal event before the gateway settles the request.
 Metrics, request logs, and generation traces record terminal failures as well as successful requests.
 
 No production configuration, deployment, database migration, or default client protocol change belongs to this PR.

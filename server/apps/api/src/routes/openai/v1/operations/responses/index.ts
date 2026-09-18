@@ -23,6 +23,8 @@ const responseSchema = looseObject({
   usage: optional(nullable(object({ input_tokens: tokens, output_tokens: tokens, total_tokens: tokens }))),
 })
 const eventSchema = looseObject({ type: string(), response: optional(unknown()) })
+const responseIdentitySchema = looseObject({ id: string() })
+const completedOutputItemSchema = looseObject({ item: looseObject({ type: string() }) })
 
 /**
  * Forwards stateless Responses requests and settles a completed result once.
@@ -165,6 +167,24 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const encoder = new TextEncoder()
     let cancelled = false
     let firstOutputDelta = true
+    let responseId: string | undefined
+    let hasCompletionItem = false
+    const completedOutput: unknown[] = []
+    async function completeOpenRouterEof() {
+      if (routeCtx.provider !== 'openrouter.ai' || responseId == null || !hasCompletionItem)
+        return false
+
+      // NOTICE:
+      // OpenRouter can close a Responses stream without `response.completed`.
+      // The stream has completed output items, but xsAI rejects the final EOF.
+      // Source/context: AIRI issue #2479 and PR #2589.
+      // Remove this path when OpenRouter always sends the terminal event.
+      const response = { id: responseId, status: 'completed' as const, output: completedOutput }
+      const event = { type: 'response.completed', response }
+      await writer.write(encoder.encode(`event: response.completed\ndata: ${JSON.stringify(event)}\n\n`))
+      await complete(response)
+      return true
+    }
     const cancel = () => {
       cancelled = true
       void reader.cancel().catch(error => logger.withError(error).warn('Failed to cancel Responses reader'))
@@ -181,12 +201,37 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
           const { done, value } = await reader.read()
           if (cancelled || input.abortSignal?.aborted)
             throw new Error('Responses downstream cancelled')
-          if (done)
+          if (done) {
+            if (await completeOpenRouterEof())
+              break
             throw new Error('Responses stream ended before a terminal event')
+          }
+          const data = value.data.trim()
+          if (!data && value.event == null)
+            continue
+          if (!data)
+            throw new Error('Invalid Responses SSE event')
+          if (data === '[DONE]') {
+            if (await completeOpenRouterEof())
+              break
+            throw new Error('Responses stream ended before a terminal event')
+          }
           const event = safeParse(eventSchema, JSON.parse(value.data))
           if (!event.success)
             throw new Error('Invalid Responses SSE event')
           const type = event.output.type
+          if (type === 'response.created') {
+            const identity = safeParse(responseIdentitySchema, event.output.response)
+            if (identity.success)
+              responseId = identity.output.id
+          }
+          if (type === 'response.output_item.done') {
+            const outputItem = safeParse(completedOutputItemSchema, event.output)
+            if (outputItem.success) {
+              completedOutput.push(outputItem.output.item)
+              hasCompletionItem ||= ['function_call', 'message'].includes(outputItem.output.item.type)
+            }
+          }
           if (firstOutputDelta && type.endsWith('.delta')) {
             firstOutputDelta = false
             telemetry.recordFirstToken({ model, provider: routeCtx.provider, startedAt, firstChunkAt: Date.now(), operation: 'responses' })
