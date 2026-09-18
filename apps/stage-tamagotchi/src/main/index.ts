@@ -31,6 +31,7 @@ import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
 import { setupServerChannel } from './services/airi/channel-server'
+import { setupComputerUse } from './services/airi/computer-use'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
@@ -135,6 +136,7 @@ electronApp.setAppUserModelId('ai.moeru.airi')
 // Track the real user-facing AIRI window because the process also owns hidden utility windows.
 // The second-instance handler should restore the main UI instead of accidentally surfacing internals.
 let userFacingMainWindow: BrowserWindow | undefined
+let extensionManagementWebContentsId: number | undefined
 const shouldStartMainProcess = installSingleInstanceGuard({ app, getWindow: () => userFacingMainWindow })
 
 if (shouldStartMainProcess) {
@@ -215,7 +217,10 @@ app.whenReady().then(async () => {
 
   const pluginHost = injeca.provide('modules:plugin-host', {
     dependsOn: { serverChannel, widgetsManager },
-    build: ({ dependsOn }) => setupExtensionHost(dependsOn),
+    build: ({ dependsOn }) => setupExtensionHost({
+      ...dependsOn,
+      getExtensionManagementWebContentsId: () => extensionManagementWebContentsId,
+    }),
   })
 
   const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
@@ -261,6 +266,15 @@ app.whenReady().then(async () => {
       setupSettingsWindowReusableFunc({
         ...dependsOn,
         getMainWindow: () => userFacingMainWindow,
+        onWindowCreated: (window) => {
+          const webContentsId = window.webContents.id
+          extensionManagementWebContentsId = webContentsId
+          window.once('closed', () => {
+            if (extensionManagementWebContentsId === webContentsId) {
+              extensionManagementWebContentsId = undefined
+            }
+          })
+        },
       }),
   })
 
@@ -304,6 +318,7 @@ app.whenReady().then(async () => {
     dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig },
     callback: async (deps) => {
       const { context } = createContext(ipcMain)
+      setupComputerUse(context)
       await setupArtistryBridge({
         widgetsManager: deps.widgetsWindow,
         context,

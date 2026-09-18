@@ -5,6 +5,7 @@ import type { ConfigKey } from './definitions'
 
 import { eq } from 'drizzle-orm'
 
+import { writeCache } from '../../../libs/redis/cache'
 import { configKV } from '../../../schemas/config-kv'
 import { CONFIG_KV_CACHE_TTL_SECONDS, configKVCacheKey } from './contracts'
 
@@ -39,7 +40,7 @@ export function createConfigKVStore<TSchema extends Record<string, unknown>>(
   }
 
   async function cacheValue(key: ConfigKey, value: string): Promise<void> {
-    await redis.set(configKVCacheKey(key), value, 'EX', cacheTtlSeconds)
+    await writeCache(redis, configKVCacheKey(key), value, { ttlSeconds: cacheTtlSeconds })
   }
 
   async function deleteCachedValue(key: ConfigKey): Promise<void> {

@@ -145,3 +145,7 @@ websocket-status:
   connected: Connected
   disconnected: No connection
   open-settings: Open connection settings
+
+computer-use:
+  label: Use computer
+  description: Allow this chat window to inspect and control native apps on this computer.

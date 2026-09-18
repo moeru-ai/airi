@@ -8,6 +8,8 @@ import SpineCanvas from './spine/Canvas.vue'
 import SpineModel from './spine/Model.vue'
 
 withDefaults(defineProps<{
+  /** Scene painted inside the canvas, behind the model. */
+  backgroundUrl?: string | null
   modelSrc?: string
   modelId?: string
   paused?: boolean
@@ -60,6 +62,7 @@ defineExpose({
       <SpineModel
         ref="modelRef"
         v-model:state="componentStateModel"
+        :background-url="backgroundUrl"
         :model-src="modelSrc"
         :model-id="modelId"
         :canvas="canvas"
