@@ -4,7 +4,7 @@ import type { RequestLogService } from '../../../../services/domain/request-log'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { GEN_AI_ATTR_OPERATION_NAME } from '../../../../utils/observability'
-import { createRouteTelemetry, tracer } from './telemetry'
+import { createRouteTelemetry, getLlmMetricAttributes, tracer } from './telemetry'
 
 describe('openAI route telemetry', () => {
   afterEach(() => vi.restoreAllMocks())
@@ -28,5 +28,11 @@ describe('openAI route telemetry', () => {
       attributes: expect.objectContaining({ [GEN_AI_ATTR_OPERATION_NAME]: 'responses' }),
     }))
     expect(record).toHaveBeenCalledWith(0.5, expect.objectContaining({ [GEN_AI_ATTR_OPERATION_NAME]: 'responses' }))
+  })
+
+  it('attributes Responses operation metrics to the standard operation name', () => {
+    expect(getLlmMetricAttributes({ model: 'gpt-5', provider: 'openai', status: 200, type: 'responses' })).toMatchObject({
+      [GEN_AI_ATTR_OPERATION_NAME]: 'responses',
+    })
   })
 })

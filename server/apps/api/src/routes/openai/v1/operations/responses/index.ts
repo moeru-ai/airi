@@ -53,12 +53,14 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     let upstream: Response
     try {
       const alias = await resolveModelAliasPlan(deps, model)
+      const requiresWebSearch = input.body.tools?.some(tool => tool.type === 'web_search') === true
+        || (Array.isArray(input.body.input) && input.body.input.some(item => item.type === 'web_search_call'))
       const routed = await telemetry.runWithSpan(span, () => routeModelAliasCandidates({
         deps,
         body: input.body,
         modelIds: alias.modelIds,
         protocol: 'responses',
-        requiresWebSearch: input.body.tools?.some(tool => tool.type === 'web_search'),
+        requiresWebSearch,
         abortSignal: input.abortSignal,
       }))
       upstream = routed.response

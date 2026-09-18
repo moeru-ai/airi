@@ -2783,6 +2783,16 @@ it('forwards search tools and portable history without forcing tool use', async 
   expect(harness.router.route).toHaveBeenCalledWith(expect.objectContaining({ requiresWebSearch: true, body: expect.objectContaining(body) }), expect.anything())
 })
 
+it('keeps replayed search history on search-capable routes without a search tool', async () => {
+  const result = responsesResult()
+  const harness = responsesHarness(() => Response.json(result))
+  const body = { input: [{ type: 'web_search_call', id: 'ws-1', status: 'completed', action: { type: 'search', query: 'AIRI' } }] }
+  const response = await harness.send(body)
+
+  expect(response.status).toBe(200)
+  expect(harness.router.route).toHaveBeenCalledWith(expect.objectContaining({ requiresWebSearch: true }), expect.anything())
+})
+
 it('preserves native search SSE output and citation annotations', async () => {
   const search = { type: 'web_search_call', id: 'ws-1', status: 'completed', action: { type: 'search', queries: ['AIRI'], sources: [{ type: 'url', url: 'https://airi.moeru.ai' }] } }
   const output = [search, { type: 'message', id: 'msg-1', role: 'assistant', content: [{ type: 'output_text', text: 'AIRI', annotations: [{ type: 'url_citation', start_index: 0, end_index: 4, url: 'https://airi.moeru.ai', title: 'AIRI' }] }] }]

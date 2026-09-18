@@ -55,6 +55,12 @@ describe('stateless Responses request boundary', () => {
     expect(body.reasoning).toEqual({ effort: 'minimal' })
   })
 
+  it('accepts nullable Responses options as unset', () => {
+    const body = parseResponsesRequest({ input: 'hello', tools: null, tool_choice: null, max_output_tokens: null })
+
+    expect(body).toMatchObject({ tools: null, tool_choice: null, max_output_tokens: null })
+  })
+
   it.each([
     { temperature: -0.01 },
     { temperature: 2.01 },

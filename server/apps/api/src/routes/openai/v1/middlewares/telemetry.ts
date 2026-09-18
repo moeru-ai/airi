@@ -46,10 +46,10 @@ export function getLlmMetricAttributes(opts: { model: string, type: string, stat
   // line up with each vendor's own console. Same label name as the gateway
   // error counters (`airi_gen_ai_gateway_upstream_errors{provider}`) so the
   // two can be compared/joined.
-  if (opts.type === 'chat') {
+  if (opts.type === 'chat' || opts.type === 'responses') {
     return {
       [GEN_AI_ATTR_REQUEST_MODEL]: opts.model,
-      [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
+      [GEN_AI_ATTR_OPERATION_NAME]: opts.type,
       'http.response.status_code': opts.status,
       'provider': opts.provider,
     }
