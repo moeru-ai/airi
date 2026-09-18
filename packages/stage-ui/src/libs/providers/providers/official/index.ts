@@ -2,7 +2,7 @@ import type { ChatRequestOptions, GenerationRequest } from '@proj-airi/provider-
 
 import type { ModelInfo, ProviderModelCatalog, VoiceInfo } from '../../types'
 
-import { openAIProtocols } from '@proj-airi/provider-inference'
+import { generationProtocolOptions, openAIProtocols } from '@proj-airi/provider-inference'
 import { z } from 'zod'
 
 import { getAuthToken } from '../../../../libs/auth'
@@ -71,7 +71,7 @@ export const providerOfficialChat = defineProvider<OfficialChatConfig, typeof OF
   createProviderConfig: ({ t }) => officialChatConfigSchema.extend({
     api: officialChatConfigSchema.shape.api.meta({
       type: 'select',
-      options: openAIProtocols.supportedProtocols.map(value => ({ label: value === 'responses' ? 'Responses API' : 'Chat Completions', value })),
+      options: generationProtocolOptions(openAIProtocols),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.description'),
     }),
@@ -83,17 +83,18 @@ export const providerOfficialChat = defineProvider<OfficialChatConfig, typeof OF
       generation(model: string, _options?: ChatRequestOptions): GenerationRequest {
         const request = provider.chat(model)
         request.fetch = withCredentials()
-        if ((config.api ?? openAIProtocols.defaultProtocol) === 'responses') {
-          return {
-            protocol: 'responses',
-            webSearch: false,
-            config: request,
-          }
-        }
-
-        return {
-          protocol: 'chat-completions',
-          config: request,
+        switch (config.api ?? openAIProtocols.defaultProtocol) {
+          case 'responses':
+            return {
+              protocol: 'responses',
+              webSearch: false,
+              config: request,
+            }
+          case 'chat-completions':
+            return {
+              protocol: 'chat-completions',
+              config: request,
+            }
         }
       },
     }

@@ -3,7 +3,7 @@ import type { GenerationRequest } from '../../../types'
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { compatibleProtocols } from '../../../generation'
+import { compatibleProtocols, generationProtocolOptions } from '../../../generation'
 import { ProviderValidationCheck } from '../../../types'
 import { createOpenAICompatibleValidators } from '../../../validators'
 import { defineProvider } from '../../registry'
@@ -35,7 +35,7 @@ export const providerOpenAICompatible = defineProvider<Config, 'openai-compatibl
   createProviderConfig: ({ t }) => configSchema.extend({
     api: configSchema.shape.api.meta({
       type: 'select',
-      options: compatibleProtocols.supportedProtocols.map(value => ({ label: value === 'responses' ? 'Responses API' : 'Chat Completions', value })),
+      options: generationProtocolOptions(compatibleProtocols),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.description'),
     }),
@@ -57,9 +57,12 @@ export const providerOpenAICompatible = defineProvider<Config, 'openai-compatibl
       model: provider.model,
       generation(model: string): GenerationRequest {
         const request = provider.chat(model)
-        return config.api === 'responses'
-          ? { protocol: 'responses', config: request, webSearch: false }
-          : { protocol: 'chat-completions', config: request }
+        switch (config.api ?? compatibleProtocols.defaultProtocol) {
+          case 'responses':
+            return { protocol: 'responses', config: request, webSearch: false }
+          case 'chat-completions':
+            return { protocol: 'chat-completions', config: request }
+        }
       },
     }
   },
