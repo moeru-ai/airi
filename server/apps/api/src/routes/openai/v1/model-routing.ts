@@ -74,7 +74,11 @@ export async function routeModelAliasCandidates(input: {
         throw err
       }
       if (err instanceof ApiError && ['LLM_PROTOCOL_UNAVAILABLE', 'LLM_WEB_SEARCH_UNAVAILABLE'].includes(err.errorCode)) {
-        lastError ??= err
+        const foundProtocolSupport = err.errorCode === 'LLM_WEB_SEARCH_UNAVAILABLE'
+          && lastError instanceof ApiError
+          && lastError.errorCode === 'LLM_PROTOCOL_UNAVAILABLE'
+        if (lastError === undefined || foundProtocolSupport)
+          lastError = err
         continue
       }
       await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))

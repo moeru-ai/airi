@@ -2706,6 +2706,30 @@ it('pR #2554 surfaces a later routing failure instead of an earlier HTTP respons
   expect(discarded).toHaveBeenCalledTimes(1)
 })
 
+// https://github.com/moeru-ai/airi/pull/2554#discussion_r4044509245
+it('pR #2554 prefers a web search capability error after finding Responses support', async () => {
+  const catalog = createMockProviderCatalogService()
+  const alias = await catalog.resolveEnabledAlias('llm', 'auto')
+  vi.mocked(catalog.resolveEnabledAlias).mockResolvedValue({ ...alias, routes: [
+    { ...alias.routes[0], routerModelId: 'chat-only' },
+    { ...alias.routes[0], id: 'second-route', routerModelId: 'responses-without-search', pool: 'fallback' },
+  ] })
+  const router = createMockLlmRouter({ route: vi.fn(async ({ modelName }) => {
+    if (modelName === 'chat-only')
+      throw new ApiError(503, 'LLM_PROTOCOL_UNAVAILABLE', 'No Responses upstream')
+    throw new ApiError(503, 'LLM_WEB_SEARCH_UNAVAILABLE', 'No Responses upstream supports web search')
+  }) })
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, router, createMockLlmTracing(), createMockProductEventService(), createMockVoicePackService(), catalog)
+  const response = await app.request('/api/v1/openai/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: 'hello', tools: [{ type: 'web_search' }] }),
+  }, { user: testUser })
+
+  expect(response.status).toBe(503)
+  expect(await response.json()).toMatchObject({ error: 'LLM_WEB_SEARCH_UNAVAILABLE' })
+})
+
 // https://github.com/moeru-ai/airi/pull/2554#discussion_r4017201502
 it('pR #2554 keeps a successful fallback when discarded body cancellation rejects', async () => {
   const catalog = createMockProviderCatalogService()
