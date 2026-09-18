@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { FluxHistoryEntry, FluxHistoryPage } from '@proj-airi/server-sdk-shared/flux'
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
 import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
@@ -60,6 +59,18 @@ const currencyOptions = computed(() => {
     .map(c => ({ label: c.toUpperCase(), value: c }))
 })
 
+// NOTICE: Manual interface instead of hono InferResponseType because hono client
+// type instantiation hits TS recursion limits ("excessively deep and possibly infinite").
+// Keep this manual shape aligned with the API response.
+interface AuditRecord {
+  id: string
+  type: string
+  amount: number
+  description: string
+  metadata: Record<string, unknown> | null
+  createdAt: string
+}
+
 function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num)
 }
@@ -82,13 +93,13 @@ function fluxBalanceBucket(balance: number | undefined): FluxBalanceBucket {
 }
 
 /** Display amount with sign: debit is negative, credit/initial are positive */
-function displayAmount(record: FluxHistoryEntry): string {
+function displayAmount(record: AuditRecord): string {
   const signed = record.type === 'debit' ? -record.amount : record.amount
   const formatted = formatNumber(Math.abs(signed))
   return signed >= 0 ? `+${formatted}` : `-${formatted}`
 }
 
-function isPositive(record: FluxHistoryEntry): boolean {
+function isPositive(record: AuditRecord): boolean {
   return record.type !== 'debit'
 }
 
@@ -106,7 +117,7 @@ function typeLabel(type: string): string {
   return t(TYPE_LABEL_KEY[type] ?? TYPE_LABEL_KEY.initial)
 }
 
-const auditRecords = ref<FluxHistoryEntry[]>([])
+const auditRecords = ref<AuditRecord[]>([])
 const auditLoading = ref(false)
 const auditHasMore = ref(false)
 const auditOffset = ref(0)
@@ -141,7 +152,7 @@ async function fetchAuditHistory(loadMore = false) {
       query: { limit: String(AUDIT_PAGE_SIZE), offset: String(offset) },
     })
     if (res.ok) {
-      const data = await res.json() as FluxHistoryPage
+      const data = await res.json() as { records: AuditRecord[], hasMore: boolean }
       if (loadMore) {
         auditRecords.value.push(...data.records)
       }

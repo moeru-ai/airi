@@ -1,5 +1,3 @@
-import type { FluxHistoryPage } from '@proj-airi/server-sdk-shared/flux'
-
 import type { Database } from '../../libs/db'
 
 import { useLogger } from '@guiiai/logg'
@@ -44,7 +42,7 @@ export function createFluxTransactionService(db: Database) {
      * Aggregation and pagination use one statement snapshot. Pagination counts
      * display records, so one round cannot split across pages.
      */
-    async getHistory(userId: string, limit: number, offset: number): Promise<FluxHistoryPage> {
+    async getHistory(userId: string, limit: number, offset: number) {
       // Match JavaScript trim characters so blank historical IDs stay separate.
       const whitespace = '\u0009\u000A\u000B\u000C\u000D\u0020\u00A0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF'
       const metadata = schema.fluxTransaction.metadata
