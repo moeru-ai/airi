@@ -96,14 +96,6 @@ function setOverlay(key: string, active: boolean) {
   blockingOverlays.delete(key)
 }
 
-// The stage page observes this element for cursor hit testing.
-defineExpose({
-  get element() { return islandElement.value },
-  get overlayActive() { return blockingOverlays.size > 0 || pressed.value },
-  get hearingDialogOpen() { return blockingOverlays.has('hearing') },
-  set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
-})
-
 // NOTICE: On native Wayland, `isOutsideByCursor` can get permanently stuck
 // because it is driven by Electron's screen.getCursorScreenPoint(), which
 // Chromium's Ozone/Wayland backend cannot query reliably the way X11 does.
@@ -111,15 +103,24 @@ defineExpose({
 // Plasma, Flatpak). OR it with the DOM-based `isOutsideByDom`
 // (useMouseInElement), which self-corrects on every pointermove and needs
 // no OS-level cursor query, so a broken cursor signal cannot force a false
-// collapse. The Electron-cursor signal stays the one used elsewhere (e.g.
-// hit-testing over click-through regions, where DOM events never reach the
-// renderer). Removal condition: once Ozone/Wayland reports the absolute
+// collapse. The stage reads this paired result for click-through hit
+// testing, where DOM events may not reach the renderer at all.
+// Removal condition: once Ozone/Wayland reports the absolute
 // cursor position reliably upstream, or the click-through hit-testing no
 // longer depends on this composable.
 const { isOutside: isOutsideByCursor } = useElectronMouseInElement(islandElement)
 const { isOutside: isOutsideByDom } = useMouseInElement(islandElement)
 const isOutside = computed(() => isOutsideByCursor.value && isOutsideByDom.value)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
+
+// The stage page observes this element for cursor hit testing.
+defineExpose({
+  get element() { return islandElement.value },
+  get isOutside() { return isOutside.value },
+  get overlayActive() { return blockingOverlays.size > 0 || pressed.value },
+  get hearingDialogOpen() { return blockingOverlays.has('hearing') },
+  set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
+})
 
 watch(isOutsideAfter2seconds, (outside) => {
   if (outside && expanded.value && !isBlocked.value) {
@@ -277,7 +278,7 @@ function resetMainWindowPosition() {
             data-testid="controls-menu"
             orientation="both"
             :style="panelStyle"
-            :class="['w-max shrink-0', panelPositionClasses]"
+            :class="['w-max shrink-0 rounded-2xl', panelPositionClasses]"
             viewport-class="overscroll-contain"
           >
             <div
