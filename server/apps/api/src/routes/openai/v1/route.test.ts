@@ -2783,6 +2783,31 @@ describe('issue #2479 hosted Responses', () => {
     expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
   })
 
+  // ROOT CAUSE:
+  //
+  // OpenRouter can attach an SSE event name that differs from the Responses
+  // event type in `data`. The gateway rejected the complete JSON event before
+  // its OpenRouter compatibility path could inspect the output lifecycle.
+  it('normalizes OpenRouter SSE event names to payload types', async () => {
+    const response = { ...responsesResult('in_progress'), output: [], usage: null }
+    const message = { id: 'msg-1', type: 'message', status: 'completed', role: 'assistant', content: [] }
+    const frames = [
+      { type: 'response.created', response, sequence_number: 0 },
+      { type: 'response.output_item.added', output_index: 0, item: { ...message, status: 'in_progress' }, sequence_number: 1 },
+      { type: 'response.output_item.done', output_index: 0, item: message, sequence_number: 2 },
+    ].map(event => `event: message\ndata: ${JSON.stringify(event)}\n\n`).join('')
+    const harness = responsesHarness(() => new Response(frames), 100, null, 'openrouter.ai')
+
+    const result = await harness.send({ stream: true })
+    const body = await result.text()
+
+    expect(body).toContain('event: response.created')
+    expect(body).toContain('event: response.output_item.added')
+    expect(body).toContain('event: response.output_item.done')
+    expect(body).toContain('event: response.completed')
+    expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+  })
+
   it.each([
     ['another provider', 'openai', true],
     ['unfinished OpenRouter output', 'openrouter.ai', false],
