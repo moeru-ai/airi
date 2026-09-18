@@ -59,6 +59,7 @@ export interface AudioSpeechSessionAnalytics {
   trigger?: StreamingTtsTrigger
   source?: StreamingTtsSource
   voiceType?: StreamingTtsVoiceType
+  turnId?: string
 }
 
 /**
@@ -78,7 +79,7 @@ export interface AudioSpeechSessionAnalytics {
 export function createSessionState(
   userId: string,
   opts: AudioSpeechWsHandlersOptions,
-  _analyticsInput: AudioSpeechSessionAnalytics = {},
+  analyticsInput: AudioSpeechSessionAnalytics = {},
 ): AudioSpeechSessionState {
   const requestId = nanoid()
   const startedAt = Date.now()
@@ -459,6 +460,7 @@ export function createSessionState(
           currentBalance: flux.flux,
           requestId,
           metadata: { model: modelLabel },
+          turnId: analyticsInput.turnId,
         }))
       fluxConsumed = result.fluxDebited
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)

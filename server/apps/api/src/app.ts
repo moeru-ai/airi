@@ -234,6 +234,7 @@ export async function buildApp(deps: AppDeps) {
       trigger: c.req.query('tts_trigger') === 'auto' ? 'auto' : 'manual',
       source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
       voiceType: parseTtsVoiceType(c.req.query('tts_voice_type')),
+      turnId: c.req.query('turn_id'),
     })
   }))
 

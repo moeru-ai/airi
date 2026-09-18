@@ -27,6 +27,20 @@ function getRequiredProvider(id: string) {
 }
 
 describe('migrated provider definitions', () => {
+  // ROOT CAUSE:
+  //
+  // The provider followed the shared browser capability helper, so it showed up
+  // available on a capable browser, while its settings page was still a
+  // placeholder.
+  //
+  // Before, isAvailableBy: isBrowserAndMemoryEnough.
+  //
+  // We fixed this by overriding it with a fixed false for this provider only.
+  // https://github.com/moeru-ai/airi/issues/2297
+  it('hides the browser local transcription provider until its settings page exists (Issue #2297)', async () => {
+    expect(await providerBrowserLocalAudioTranscription.isAvailableBy?.()).toBe(false)
+  })
+
   it('exposes a closed provider id union to stage-ui consumers', () => {
     expectTypeOf<'openai'>().toExtend<StageProviderId>()
     expectTypeOf<'official-provider'>().toExtend<StageProviderId>()
