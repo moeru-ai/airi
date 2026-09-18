@@ -1069,6 +1069,10 @@ pages:
           prompt-api:
             check-availability:
               title: Availability
+          funasr:
+            invalid-base-url: FunASR base URL must be an absolute HTTP(S) URL.
+            connectivity-failed: 'Cannot reach the FunASR OpenAI-compatible endpoint: {error}'
+            unknown-error: Unknown error
           status:
             validating: Validating...
             valid: Passed
@@ -1184,6 +1188,9 @@ pages:
       browser-local-audio-speech:
         title: Browser (Local)
         description: https://github.com/moeru-ai/xsai-transformers
+      funasr-audio-transcription:
+        title: FunASR
+        description: Local FunASR transcription through its OpenAI-compatible API.
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio
