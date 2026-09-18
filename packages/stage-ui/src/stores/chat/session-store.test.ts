@@ -1,3 +1,4 @@
+import type { AiriCard } from '../../types/airiCard'
 import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
 
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
@@ -7,6 +8,9 @@ import { nextTick, ref } from 'vue'
 // Refs the store reads through the mocked `useAuthStore` / `useAiriCardStore`.
 // Tests mutate these to simulate auth and card swaps.
 const userIdRef = ref<string>('local')
+const userRef = ref<{ name: string } | null>(null)
+const activeCardRef = ref<AiriCard>()
+const cards = new Map<string, AiriCard>()
 const activeCardIdRef = ref<string>('default')
 const systemPromptRef = ref<string>('')
 
@@ -37,11 +41,13 @@ vi.mock('pinia', async () => {
 })
 
 vi.mock('../auth', () => ({
-  useAuthStore: () => ({ userId: userIdRef }),
+  useAuthStore: () => ({ user: userRef, userId: userIdRef }),
 }))
 
 vi.mock('../modules/airi-card', () => ({
   useAiriCardStore: () => ({
+    activeCard: activeCardRef,
+    getCard: (id: string) => cards.get(id),
     activeCardId: activeCardIdRef,
     systemPrompt: systemPromptRef,
   }),
@@ -112,6 +118,8 @@ beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
   userIdRef.value = 'local'
+  userRef.value = null
+  activeCardRef.value = undefined
   activeCardIdRef.value = 'default'
   systemPromptRef.value = ''
 
@@ -528,6 +536,7 @@ describe('chat-session-store · cloud placeholder hydration', () => {
       }
       return Promise.resolve({ meta: localMeta, messages: [] })
     })
+    systemPromptRef.value = 'Unrelated local policy.'
     listChatsMock.mockResolvedValue([remoteChat])
     reconcileLocalAndRemoteMock.mockReturnValue({ adopt: [remoteChat], claim: [], create: [] })
     pullMessagesMock
@@ -1040,5 +1049,112 @@ describe('chat-session-store · synchronized data actions', () => {
     expect(store.activeSessionId).toBe('window-local-session')
     expect(store.$state).not.toHaveProperty('activeSessionId')
     expect(store.getSnapshot().index?.characters.default?.activeSessionId).toBe('persisted-session')
+  })
+})
+
+describe('chat-session-store · character greeting', () => {
+  it('adds the active card greeting only when creating a new session', async () => {
+    userRef.value = { name: 'Mira' }
+    activeCardRef.value = {
+      name: 'ReLU',
+      nickname: 'Nova',
+      version: '1.0.0',
+      greetings: ['Hello, {{user}}. I am {{char}}.'],
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+          },
+          agents: {},
+        },
+      },
+    }
+
+    const store = useChatSessionStore()
+    await store.initialize()
+
+    expect(store.messages).toHaveLength(2)
+    expect(store.messages[0]?.role).toBe('system')
+    expect(store.messages[1]).toMatchObject({
+      role: 'assistant',
+      content: 'Hello, Mira. I am Nova.',
+      slices: [{ type: 'text', text: 'Hello, Mira. I am Nova.' }],
+      tool_results: [],
+    })
+  })
+
+  it('uses the target card when creating or resetting a non-active session', async () => {
+    const card: AiriCard = {
+      name: 'Other',
+      version: '1.0.0',
+      greetings: ['Other greeting'],
+      messageExample: [],
+      systemPrompt: 'Other policy',
+      extensions: { airi: { modules: { consciousness: { provider: '', model: '' }, vision: { provider: '', model: '' }, speech: { provider: '', model: '', voice_id: '' } }, agents: {} } },
+    }
+    cards.set('other', card)
+    const store = useChatSessionStore()
+    await store.initialize()
+    const id = await store.createSession('other', { setActive: false })
+    store.cleanupMessages(id)
+    expect(store.getSnapshot().sessionMessages[id]).toEqual([
+      expect.objectContaining({ role: 'system', content: expect.stringContaining('Other policy') }),
+      expect.objectContaining({ role: 'assistant', content: 'Other greeting' }),
+    ])
+    cards.clear()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2119#discussion_r3656443756
+  // ROOT CAUSE:
+  //
+  // Adopting a remote-only session reused local new-session initialization,
+  // which fabricated a greeting before authoritative cloud messages arrived.
+  // The later merge retained both that greeting and the synced conversation.
+  it('adopts a cloud session with only a local system placeholder', async () => {
+    const remoteChat = {
+      id: 'remote-session',
+      title: 'Remote conversation',
+      createdAt: new Date(1).toISOString(),
+      updatedAt: new Date(2).toISOString(),
+    }
+    userIdRef.value = 'signed-in-user'
+    activeCardRef.value = {
+      name: 'Local active card',
+      version: '1.0.0',
+      greetings: ['This greeting must not be fabricated.'],
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+          },
+          agents: {},
+        },
+      },
+    }
+    systemPromptRef.value = 'Unrelated local policy.'
+    listChatsMock.mockResolvedValue([remoteChat])
+    reconcileLocalAndRemoteMock.mockReturnValue({
+      adopt: [remoteChat],
+      claim: [],
+      create: [],
+    })
+
+    const store = useChatSessionStore()
+    await store.initialize()
+    await vi.waitFor(() => {
+      expect(store.sessionMessages[remoteChat.id]).toBeDefined()
+    })
+
+    expect(store.sessionMetas[remoteChat.id]?.characterIdUnknown).toBe(true)
+    expect(store.sessionMessages[remoteChat.id]?.[0]?.content).not.toContain('Unrelated local policy.')
+    store.cleanupMessages(remoteChat.id)
+    expect(store.sessionMessages[remoteChat.id]?.[0]?.content).not.toContain('Unrelated local policy.')
+    expect(store.sessionMessages[remoteChat.id]).toHaveLength(1)
+    expect(store.sessionMessages[remoteChat.id]?.[0]?.role).toBe('system')
+    expect(store.sessionMessages[remoteChat.id]?.some(message => message.role === 'assistant')).toBe(false)
   })
 })

@@ -24,6 +24,7 @@ import {
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
+import { compileCharacterCardConversation } from '../services/airi-card/runtime'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
@@ -318,6 +319,15 @@ export const useChatStore = defineStore('chat', () => {
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    composeConversation: (conversation, { sessionId, authoredMessages }) => {
+      const meta = chatSession.sessionMetas[sessionId]
+      const characterId = meta?.characterIdUnknown ? undefined : meta?.characterId
+      const sessionCard = characterId ? cardStore.getCard(characterId) : undefined
+      return compileCharacterCardConversation(sessionCard, conversation, {
+        userName: chatSession.currentUserName,
+        lorebookMessages: authoredMessages,
+      })
+    },
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,

@@ -101,6 +101,24 @@ function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAss
   }
 }
 
+function hasGeneratedAssistantResponse(messages: ChatHistoryItem[]): boolean {
+  let hasUserTurn = false
+
+  for (const message of messages) {
+    if (message.role === 'user') {
+      hasUserTurn = true
+      continue
+    }
+
+    // Assistant history before the first user turn is seeded conversation
+    // content such as a character greeting, not a completed model response.
+    if (message.role === 'assistant' && hasUserTurn)
+      return true
+  }
+
+  return false
+}
+
 /**
  * Options accepted by the chat orchestrator runtime for one user send.
  */
@@ -252,6 +270,14 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
+  /**
+   * Applies platform-owned prompt policy to portable conversation turns.
+   *
+   * The returned conversation retains native continuation data. Runtime context
+   * is attached before this hook; system supplements and display projection follow.
+   * Async policies may await isolated work before the provider request.
+   */
+  composeConversation?: (conversation: Conversation, context: { sessionId: string, authoredMessages: Message[] }) => Conversation | Promise<Conversation>
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -286,8 +312,8 @@ export interface ChatOrchestratorRuntimeDeps {
     source: 'text' | 'voice'
     model: string
     provider: string
-    failureStage: 'llm_response'
-    errorCode: 'llm_response_failed'
+    failureStage: 'llm_response' | 'message_send'
+    errorCode: 'llm_response_failed' | 'prompt_composition_failed'
   }) => void
   /** Called when a user message send begins. */
   onMessageSendStarted?: (event: ChatRoundCorrelation & {
@@ -334,8 +360,8 @@ export interface ChatOrchestratorRuntimeDeps {
     source: 'text' | 'voice'
     model: string
     provider: string
-    failureStage: 'llm_response'
-    errorCode: 'llm_response_failed'
+    failureStage: 'llm_response' | 'message_send'
+    errorCode: 'llm_response_failed' | 'prompt_composition_failed'
   }) => void
   /** Called for context/prompt lifecycle observability. */
   onLifecycle?: (record: ChatOrchestratorLifecycleRecord) => void
@@ -521,10 +547,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     let replyToMessageId = resolveReplyTargetId(options.replyToMessageId, existingSessionMessages)
     const turnIndex = existingSessionMessages.filter(message => message.role === 'user').length + 1
 
-    // Activation measures whether a conversation reaches its first assistant
-    // response. Later turns still emit message and latency telemetry, but they
-    // must not inflate the one-time activation milestones.
-    const isActivationAttempt = !existingSessionMessages.some(message => message.role === 'assistant')
+    // Activation remains open until a generated assistant response follows a
+    // user turn. This excludes seeded greetings while keeping failed retries
+    // eligible for the eventual success milestone.
+    const isActivationAttempt = !hasGeneratedAssistantResponse(existingSessionMessages)
 
     // Datetime is no longer injected through the side-channel context store.
     // It is applied at message-assembly time (see below) as a system-prompt
@@ -601,6 +627,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       source: sendSource,
       model: options.model,
     })
+    let composingConversation = false
     const roundStartedAt = monotonicNow()
 
     try {
@@ -746,7 +773,25 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ],
       })
 
-      const context = buildContext(sessionMessagesForSend)
+      const historyContext = buildContext(sessionMessagesForSend)
+      const contextsSnapshot = deps.context.snapshot()
+      const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
+      if (entries.length) {
+        const lastMessage = historyContext.turns.at(-1)
+        if (lastMessage?.type === 'user')
+          lastMessage.content.push({ type: 'runtime-context', entries })
+        deps.onLifecycle?.({ phase: 'prompt-context-built', channel: 'chat', sessionId, details: { contexts: contextsSnapshot } })
+      }
+
+      composingConversation = true
+      const context = await deps.composeConversation?.(historyContext, {
+        sessionId,
+        authoredMessages: sessionMessagesForSend.flatMap((message): Message[] => message.role === 'error' ? [] : [structuredClone(unwrapMessage(message))]),
+      }) ?? historyContext
+      composingConversation = false
+      if (shouldAbort())
+        return
+
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
@@ -754,15 +799,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           systemMessage.content.push({ type: 'text', text: `\n\n${systemPromptSupplement}` })
         else
           context.turns.unshift({ id: 'system-supplement', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPromptSupplement }] })
-      }
-
-      const contextsSnapshot = deps.context.snapshot()
-      const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
-      if (entries.length) {
-        const lastMessage = context.turns.at(-1)
-        if (lastMessage?.type === 'user')
-          lastMessage.content.push({ type: 'runtime-context', entries })
-        deps.onLifecycle?.({ phase: 'prompt-context-built', channel: 'chat', sessionId, details: { contexts: contextsSnapshot } })
       }
 
       // Hooks, diagnostics, and the plugin bridge consume a display projection. It contains
@@ -991,8 +1027,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         source: sendSource,
         model: options.model,
         provider: activeProvider,
-        failureStage: 'llm_response',
-        errorCode: 'llm_response_failed',
+        failureStage: composingConversation ? 'message_send' : 'llm_response',
+        errorCode: composingConversation ? 'prompt_composition_failed' : 'llm_response_failed',
       })
       if (isActivationAttempt) {
         deps.onChatActivationFailed?.({
@@ -1000,8 +1036,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           source: sendSource,
           model: options.model,
           provider: activeProvider,
-          failureStage: 'llm_response',
-          errorCode: 'llm_response_failed',
+          failureStage: composingConversation ? 'message_send' : 'llm_response',
+          errorCode: composingConversation ? 'prompt_composition_failed' : 'llm_response_failed',
         })
       }
       throw error

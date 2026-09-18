@@ -1,0 +1,627 @@
+import type { Card, ccv3 } from '@proj-airi/ccc'
+import type { Conversation, Turn } from '@proj-airi/core-agent'
+import type { Message } from '@xsai/shared-chat'
+
+import type { AiriCard } from '../../types/airiCard'
+
+import { chatMessagesToTurns, renderConversationPreview } from '@proj-airi/core-agent'
+
+import { createRegexMatcher } from './regex-matcher'
+
+/** Values that vary between one character-card runtime and another. */
+export interface CharacterCardRuntimeOptions {
+  /** Display name substituted for the CCv3 `{{user}}` macro. @default 'User' at provider compilation */
+  userName?: string
+  /** Authored history before timestamps, reply excerpts, or runtime context are added. */
+  lorebookMessages?: Message[]
+  /** Greeting selected for Lorebook `@@is_greeting` conditions. @default 0 */
+  activeGreetingIndex?: number
+  /** Random source used by `{{random:...}}` and `{{roll:N}}`. @default Math.random */
+  random?: () => number
+}
+
+interface CompiledLorebookEntry {
+  content: string
+  depth?: number
+  insertionOrder: number
+  position: LorebookPosition
+  role: GeneratedMessageRole
+  sourceIndex: number
+}
+
+interface LorebookDecorators {
+  activate: boolean
+  activateOnlyAfter?: number
+  activateOnlyEvery?: number
+  additionalKeys: string[][]
+  depth?: number
+  dontActivate: boolean
+  excludeKeys: string[]
+  greetingIndex?: number
+  position?: LorebookPosition
+  role?: GeneratedMessageRole
+  scanDepth?: number
+}
+
+interface ParsedLorebookContent {
+  content: string
+  decorators: LorebookDecorators
+  recursiveScanText: string
+}
+
+type CharacterBook = ccv3.CharacterBook
+type CharacterBookEntry = ccv3.CharacterBookEntry
+type GeneratedMessageRole = 'assistant' | 'system' | 'user'
+type LorebookPosition = 'after_char' | 'after_desc' | 'before_char' | 'before_desc' | 'personality' | 'scenario'
+
+const supportedLorebookPositions = new Set<LorebookPosition>([
+  'after_char',
+  'after_desc',
+  'before_char',
+  'before_desc',
+  'personality',
+  'scenario',
+])
+
+/**
+ * Compiles the stable system prompt stored in each chat session.
+ *
+ * Position-sensitive fields are added only to the provider projection because
+ * they depend on current chat history.
+ */
+export function compileCharacterCardSystemPrompt(card: AiriCard | undefined): string {
+  return composeSystemPrompt(card, [])
+}
+
+function composeSystemPrompt(
+  card: AiriCard | undefined,
+  lorebookEntries: CompiledLorebookEntry[],
+): string {
+  if (!card)
+    return ''
+
+  const entriesByPosition = groupLorebookEntriesByPosition(lorebookEntries)
+  const sections = [
+    card.systemPrompt,
+    ...entryContents(entriesByPosition.get('before_char')),
+    ...entryContents(entriesByPosition.get('before_desc')),
+    card.description,
+    ...entryContents(entriesByPosition.get('after_desc')),
+    card.personality,
+    ...entryContents(entriesByPosition.get('personality')),
+    card.scenario,
+    ...entryContents(entriesByPosition.get('scenario')),
+    card.extensions.airi.modules.artistry?.widgetInstruction,
+    ...entryContents(entriesByPosition.get('after_char')),
+  ]
+
+  return sections
+    .filter(isNonEmptyString)
+    .join('\n\n')
+}
+
+/**
+ * Builds provider-only messages from a persisted conversation.
+ *
+ * The returned projection adds CCv3 example dialogue, matched Lorebook entries,
+ * and post-history instructions without writing synthetic messages back into
+ * session history. The input array and its messages are left unchanged. The
+ * Lorebook token budget is not applied because this provider-neutral boundary
+ * has no model tokenizer and must not discard entries using guessed token sizes.
+ */
+export async function compileCharacterCardMessages(
+  card: AiriCard | undefined,
+  messages: Message[],
+  options: CharacterCardRuntimeOptions = {},
+): Promise<Message[]> {
+  if (!card)
+    return messages.map(cloneMessage)
+
+  const projected = messages.map(cloneMessage)
+  const activeLorebookEntries = await compileLorebookEntries(card.characterBook, options.lorebookMessages ?? projected, card, options)
+  replaceStableSystemPrompt(projected, card, activeLorebookEntries, options)
+  insertDepthMessages(projected, [...activeLorebookEntries, ...compileDepthPrompt(card, options)])
+  insertMessageExamples(projected, card, options)
+  appendPostHistoryInstructions(projected, card, options)
+  return projected
+}
+
+/**
+ * Applies character policy without rebuilding authored turns from display text.
+ * Preview messages are used only for Lorebook matching and insertion positions.
+ * Original turns retain media, tool execution, and native continuation data.
+ */
+export async function compileCharacterCardConversation(
+  card: AiriCard | undefined,
+  conversation: Conversation,
+  options: CharacterCardRuntimeOptions = {},
+): Promise<Conversation> {
+  if (!card)
+    return conversation
+
+  const sources = new Map<Message, Turn>()
+  const messages = conversation.turns.map((turn): Message => {
+    const content = renderConversationPreview({ turns: [turn] }).map(messageText).join('\n')
+    const message: Message = { role: turn.type, content }
+    sources.set(message, turn)
+    return message
+  })
+  const entries = await compileLorebookEntries(card.characterBook, options.lorebookMessages ?? messages, card, options)
+  replaceStableSystemPrompt(messages, card, entries, options)
+  insertDepthMessages(messages, [...entries, ...compileDepthPrompt(card, options)])
+  insertMessageExamples(messages, card, options)
+  appendPostHistoryInstructions(messages, card, options)
+
+  return {
+    turns: messages.flatMap((message, index): Turn[] => {
+      const source = sources.get(message)
+      if (!source)
+        return chatMessagesToTurns([message], `character-policy-${index}`)
+      if (source.type !== 'system')
+        return [source]
+      const originalText = renderConversationPreview({ turns: [source] }).map(messageText).join('\n')
+      if (messageText(message) === originalText)
+        return [source]
+      return [{ ...source, content: [{ type: 'text', text: messageText(message) }] }]
+    }),
+  }
+}
+
+/**
+ * Compiles the selected greeting for a newly-created individual conversation.
+ *
+ * Group-only greetings are intentionally excluded until AIRI has a group-chat
+ * session type that can make that choice without guessing.
+ */
+export function compileCharacterCardGreeting(
+  card: Card | undefined,
+  options: CharacterCardRuntimeOptions = {},
+): string | undefined {
+  const greetingIndex = options.activeGreetingIndex ?? 0
+  const greeting = card?.greetings?.[greetingIndex]
+  if (!isNonEmptyString(greeting) || !card)
+    return undefined
+
+  return expandCharacterCardMacros(greeting, card, options)
+}
+
+async function compileLorebookEntries(
+  book: CharacterBook | undefined,
+  messages: Message[],
+  card: Card,
+  options: CharacterCardRuntimeOptions,
+): Promise<CompiledLorebookEntry[]> {
+  if (!book)
+    return []
+
+  const regexMatcher = createRegexMatcher()
+  try {
+    const matchedContents: string[] = []
+    const compiled: CompiledLorebookEntry[] = []
+    const remaining = book.entries.map((entry, sourceIndex) => ({
+      entry,
+      parsed: parseLorebookContent(entry.content),
+      sourceIndex,
+    }))
+
+    // Recursive scanning can activate entries from earlier matched content.
+    // Every entry is removed after its first evaluation so content is injected
+    // at most once and a cyclic Lorebook cannot loop forever.
+    let activatedInPass = true
+    while (remaining.length > 0 && activatedInPass) {
+      activatedInPass = false
+
+      for (let index = remaining.length - 1; index >= 0; index -= 1) {
+        const candidate = remaining[index]
+        if (!candidate)
+          continue
+
+        const { parsed } = candidate
+        const scanText = buildLorebookScanText(
+          messages,
+          parsed.decorators.scanDepth ?? book.scan_depth,
+          book.recursive_scanning ? matchedContents : [],
+        )
+        if (!await matchesLorebookEntry(candidate.entry, parsed.decorators, scanText, messages, options, regexMatcher))
+          continue
+
+        remaining.splice(index, 1)
+        activatedInPass = true
+        if (!parsed.content)
+          continue
+
+        const compiledContent = expandCharacterCardMacros(parsed.content, card, options)
+        matchedContents.push(compiledContent, expandCharacterCardMacros(parsed.recursiveScanText, card, options))
+        compiled.push({
+          content: compiledContent,
+          depth: parsed.decorators.position ? undefined : parsed.decorators.depth,
+          insertionOrder: candidate.entry.insertion_order,
+          position: parsed.decorators.position ?? candidate.entry.position ?? 'after_char',
+          role: parsed.decorators.role ?? 'system',
+          sourceIndex: candidate.sourceIndex,
+        })
+      }
+
+      if (!book.recursive_scanning)
+        break
+    }
+
+    return compiled.sort((left, right) =>
+      left.insertionOrder - right.insertionOrder || left.sourceIndex - right.sourceIndex,
+    )
+  }
+  finally {
+    regexMatcher.dispose()
+  }
+}
+
+async function matchesLorebookEntry(
+  entry: CharacterBookEntry,
+  decorators: LorebookDecorators,
+  scanText: string,
+  messages: Message[],
+  options: CharacterCardRuntimeOptions,
+  regexMatcher: ReturnType<typeof createRegexMatcher>,
+): Promise<boolean> {
+  if (!entry.enabled || (decorators.dontActivate && !decorators.activate))
+    return false
+
+  const assistantMessageCount = messages.filter(message => message.role === 'assistant').length
+  if (decorators.activateOnlyAfter !== undefined && assistantMessageCount < decorators.activateOnlyAfter)
+    return false
+  if (decorators.activateOnlyEvery !== undefined && assistantMessageCount % decorators.activateOnlyEvery !== 0)
+    return false
+  if (decorators.greetingIndex !== undefined && decorators.greetingIndex !== (options.activeGreetingIndex ?? 0))
+    return false
+
+  const matches = (keys: string[]) => matchesAnyKey(keys, scanText, entry.use_regex, entry.case_sensitive, regexMatcher)
+  if (decorators.excludeKeys.length > 0 && await matches(decorators.excludeKeys))
+    return false
+  for (const keys of decorators.additionalKeys) {
+    if (!await matches(keys))
+      return false
+  }
+
+  if (decorators.activate)
+    return true
+  // CCv3 gives regex matching precedence over `constant`, so regex entries
+  // still need a matching key even when both fields are present.
+  if (entry.constant && !entry.use_regex)
+    return true
+  if (!await matches(entry.keys))
+    return false
+
+  return !entry.selective || await matches(entry.secondary_keys ?? [])
+}
+
+async function matchesAnyKey(keys: string[], text: string, useRegex: boolean, caseSensitive: boolean | undefined, regexMatcher: ReturnType<typeof createRegexMatcher>): Promise<boolean> {
+  if (keys.length === 0)
+    return false
+  if (useRegex)
+    return regexMatcher.match(keys, text, caseSensitive ?? false)
+  const haystack = caseSensitive ? text : text.toLowerCase()
+  return keys.some((key) => {
+    const needle = caseSensitive ? key : key.toLowerCase()
+    return needle.length > 0 && haystack.includes(needle)
+  })
+}
+
+function buildLorebookScanText(messages: Message[], scanDepth: number | undefined, recursiveContents: string[]): string {
+  const chatMessages = messages.filter(message => message.role === 'assistant' || message.role === 'user')
+  const boundedMessages = scanDepth === undefined
+    ? chatMessages
+    : scanDepth < 1 ? [] : chatMessages.slice(-Math.trunc(scanDepth))
+
+  return [
+    ...boundedMessages.map(messageText),
+    ...recursiveContents,
+  ].filter(Boolean).join('\n')
+}
+
+/**
+ * Interprets the CCv3 decorator grammar embedded in a Lorebook `content`
+ * string. The Valibot codec validates the surrounding CCv3 object, while this
+ * runtime step resolves syntax that the protocol intentionally stores as text.
+ */
+function parseLorebookContent(source: string): ParsedLorebookContent {
+  const decorators: LorebookDecorators = {
+    activate: false,
+    additionalKeys: [],
+    dontActivate: false,
+    excludeKeys: [],
+  }
+  const lines = source.split(/\r?\n/)
+  let contentStart = 0
+
+  while (contentStart < lines.length && !lines[contentStart]?.trim())
+    contentStart += 1
+
+  for (; contentStart < lines.length; contentStart += 1) {
+    const line = lines[contentStart]?.trimStart()
+    if (!line?.startsWith('@@'))
+      break
+    if (line.startsWith('@@@')) {
+      // NOTICE:
+      // CCv3 fallback chains depend on whether the preceding decorator was
+      // recognized, which this intentionally minimal interpreter does not track.
+      // Source: `SPEC_V3.md#decorators`.
+      // Remove this branch when fallback-chain semantics are implemented.
+      continue
+    }
+
+    const decoratorText = line.slice(2)
+    const separatorIndex = decoratorText.search(/\s/)
+    const name = separatorIndex < 0 ? decoratorText : decoratorText.slice(0, separatorIndex)
+    if (!/^[a-z_]+$/.test(name))
+      continue
+
+    const rawValue = separatorIndex < 0 ? '' : decoratorText.slice(separatorIndex)
+    const value = rawValue.trim()
+    if (name === 'activate')
+      decorators.activate = true
+    else if (name === 'dont_activate')
+      decorators.dontActivate = true
+    else if (name === 'role' && isGeneratedMessageRole(value))
+      decorators.role ??= value
+    else if (name === 'depth')
+      decorators.depth ??= parseNonNegativeInteger(value)
+    else if (name === 'scan_depth')
+      decorators.scanDepth ??= parseNonNegativeInteger(value)
+    else if (name === 'is_greeting')
+      decorators.greetingIndex ??= parseNonNegativeInteger(value)
+    else if (name === 'activate_only_after')
+      decorators.activateOnlyAfter ??= parseNonNegativeInteger(value)
+    else if (name === 'activate_only_every')
+      decorators.activateOnlyEvery ??= parsePositiveInteger(value)
+    else if (name === 'position' && isLorebookPosition(value))
+      decorators.position ??= value
+    else if (name === 'additional_keys')
+      decorators.additionalKeys.push(splitEscapedCommaList(value))
+    else if (name === 'exclude_keys')
+      decorators.excludeKeys.push(...splitEscapedCommaList(value))
+  }
+
+  // Recognized and unknown decorators are runtime metadata, never prompt text.
+  const content = lines.slice(contentStart).join('\n').trim()
+  return {
+    content,
+    decorators,
+    // `hidden_key` is removed from the provider prompt by macro expansion but
+    // remains searchable when CCv3 recursive scanning is enabled.
+    recursiveScanText: [...content.matchAll(/\{\{hidden_key:([^}]*)\}\}/gi)]
+      .map(match => match[1] ?? '')
+      .join('\n'),
+  }
+}
+
+function replaceStableSystemPrompt(
+  messages: Message[],
+  card: AiriCard,
+  lorebookEntries: CompiledLorebookEntry[],
+  options: CharacterCardRuntimeOptions,
+) {
+  const stablePrompt = composeSystemPrompt(card, [])
+  const runtimePrompt = expandCharacterCardMacros(
+    composeSystemPrompt(card, lorebookEntries),
+    card,
+    options,
+  )
+  const systemMessage = messages.find(message => message.role === 'system')
+
+  if (!systemMessage) {
+    if (runtimePrompt)
+      messages.unshift({ role: 'system', content: runtimePrompt })
+    return
+  }
+
+  const content = messageText(systemMessage)
+  const stablePromptIndex = stablePrompt ? content.lastIndexOf(stablePrompt) : -1
+  if (stablePromptIndex >= 0) {
+    systemMessage.content = [
+      content.slice(0, stablePromptIndex),
+      runtimePrompt,
+      content.slice(stablePromptIndex + stablePrompt.length),
+    ].join('')
+    return
+  }
+
+  const additionalLore = lorebookEntries
+    .filter(entry => entry.role === 'system' && entry.depth === undefined)
+    .map(entry => entry.content)
+  systemMessage.content = [
+    content,
+    ...additionalLore.map(entry => expandCharacterCardMacros(entry, card, options)),
+  ].filter(isNonEmptyString).join('\n\n')
+}
+
+function insertMessageExamples(messages: Message[], card: Card, options: CharacterCardRuntimeOptions) {
+  const examples = (card.messageExample ?? []).flatMap(example =>
+    example.map((line): Message => {
+      const role = line.startsWith('{{char}}:') ? 'assistant' : 'user'
+      const content = line.slice(line.indexOf(':') + 1).trimStart()
+      return {
+        role,
+        content: expandCharacterCardMacros(content, card, options),
+      }
+    }),
+  )
+  if (examples.length === 0)
+    return
+
+  const firstNonSystemIndex = messages.findIndex(message => message.role !== 'system')
+  messages.splice(firstNonSystemIndex < 0 ? messages.length : firstNonSystemIndex, 0, ...examples)
+}
+
+function insertDepthMessages(
+  messages: Message[],
+  entries: CompiledLorebookEntry[],
+) {
+  const original = [...messages]
+  const chatMessages = original.filter(message => message.role === 'assistant' || message.role === 'user')
+  const firstChat = original.find(message => message.role !== 'system')
+  const insertions = new Map<Message | undefined, Message[]>()
+  for (const entry of entries) {
+    if (entry.depth === undefined && entry.role === 'system')
+      continue
+    const anchor = entry.depth === undefined
+      ? original.findLast(message => message.role === 'user')
+      : entry.depth < 1 ? undefined : chatMessages.at(-entry.depth) ?? firstChat
+    const group = insertions.get(anchor) ?? []
+    group.push({ role: entry.role, content: entry.content })
+    insertions.set(anchor, group)
+  }
+  messages.splice(0, messages.length, ...original.flatMap(message => [...(insertions.get(message) ?? []), message]), ...(insertions.get(undefined) ?? []))
+}
+
+function compileDepthPrompt(card: AiriCard, options: CharacterCardRuntimeOptions): CompiledLorebookEntry[] {
+  const prompt = card.extensions.depth_prompt
+  if (!prompt || !isNonEmptyString(prompt.prompt) || !isGeneratedMessageRole(prompt.role))
+    return []
+  return [{
+    content: expandCharacterCardMacros(prompt.prompt, card, options),
+    depth: Math.max(0, Math.trunc(prompt.depth)),
+    role: prompt.role,
+    insertionOrder: 0,
+    sourceIndex: 0,
+    position: 'after_char',
+  }]
+}
+
+function appendPostHistoryInstructions(messages: Message[], card: Card, options: CharacterCardRuntimeOptions) {
+  if (!isNonEmptyString(card.postHistoryInstructions))
+    return
+
+  messages.push({
+    role: 'system',
+    content: expandCharacterCardMacros(card.postHistoryInstructions, card, options),
+  })
+}
+
+function expandCharacterCardMacros(
+  source: string,
+  card: Pick<Card, 'name' | 'nickname' | 'version'>,
+  options: CharacterCardRuntimeOptions,
+): string {
+  const characterName = card.nickname?.trim() || card.name
+  const userName = options.userName?.trim() || 'User'
+  const random = options.random ?? Math.random
+
+  // Replace source tokens once; inserted names are literal, even if they look like macros.
+  return source.replace(/\{\{(char|user|\/\/[^}]*|(?:hidden_key|comment|reverse|random|pick):[^}]*|roll:d?\d+)\}\}|<(char|bot|user)>/gi, (_match, macro: string | undefined, legacy: string | undefined) => {
+    const token = macro ?? legacy!
+    const name = token.toLowerCase()
+    if (name === 'char' || name === 'bot')
+      return characterName
+    if (name === 'user')
+      return userName
+    if (token.startsWith('//'))
+      return ''
+
+    const separator = token.indexOf(':')
+    const kind = token.slice(0, separator).toLowerCase()
+    const value = token.slice(separator + 1)
+    if (kind === 'hidden_key' || kind === 'comment')
+      return ''
+    if (kind === 'reverse')
+      return [...value].reverse().join('')
+    if (kind === 'roll') {
+      const sides = Number.parseInt(value.replace(/^d/i, ''), 10)
+      return sides < 1 ? '' : String(Math.floor(random() * sides) + 1)
+    }
+    const values = splitEscapedCommaList(value)
+    const index = kind === 'pick' ? stableStringHash(value) % values.length : Math.floor(random() * values.length)
+    return values[index] ?? ''
+  })
+}
+
+function splitEscapedCommaList(source: string): string[] {
+  const values: string[] = []
+  let current = ''
+  let escaped = false
+
+  for (const character of source) {
+    if (escaped) {
+      current += character
+      escaped = false
+    }
+    else if (character === '\\') {
+      escaped = true
+    }
+    else if (character === ',') {
+      values.push(current.trim())
+      current = ''
+    }
+    else {
+      current += character
+    }
+  }
+
+  if (escaped)
+    current += '\\'
+  values.push(current.trim())
+  return values
+}
+
+function stableStringHash(value: string): number {
+  let hash = 0
+  for (const character of value)
+    hash = (hash * 31 + character.codePointAt(0)!) >>> 0
+  return hash
+}
+
+function messageText(message: Message): string {
+  if (typeof message.content === 'string')
+    return message.content
+  if (!Array.isArray(message.content))
+    return ''
+
+  return message.content
+    .filter((part): part is Extract<typeof part, { type: 'text' }> => part.type === 'text')
+    .map(part => part.text)
+    .join('')
+}
+
+function cloneMessage(message: Message): Message {
+  return structuredClone(message)
+}
+
+function entryContents(entries: CompiledLorebookEntry[] | undefined): string[] {
+  return entries?.map(entry => entry.content) ?? []
+}
+
+function groupLorebookEntriesByPosition(entries: CompiledLorebookEntry[]): Map<LorebookPosition, CompiledLorebookEntry[]> {
+  const grouped = new Map<LorebookPosition, CompiledLorebookEntry[]>()
+  for (const entry of entries) {
+    if (entry.role !== 'system' || entry.depth !== undefined)
+      continue
+
+    const positionEntries = grouped.get(entry.position) ?? []
+    positionEntries.push(entry)
+    grouped.set(entry.position, positionEntries)
+  }
+  return grouped
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function isGeneratedMessageRole(value: string): value is GeneratedMessageRole {
+  return value === 'assistant' || value === 'system' || value === 'user'
+}
+
+function isLorebookPosition(value: string): value is LorebookPosition {
+  return supportedLorebookPositions.has(value as LorebookPosition)
+}
+
+function parseNonNegativeInteger(value: string): number | undefined {
+  if (!/^(?:0|[1-9]\d*)$/.test(value))
+    return undefined
+
+  return Number.parseInt(value, 10)
+}
+
+function parsePositiveInteger(value: string): number | undefined {
+  const parsed = parseNonNegativeInteger(value)
+  return parsed && parsed > 0 ? parsed : undefined
+}

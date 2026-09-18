@@ -54,6 +54,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     await options?.onStreamEvent?.({ type: 'finish' })
   })
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
+  let composeConversation: ((messages: Conversation, context: { sessionId: string, authoredMessages: Message[] }) => Conversation | Promise<Conversation>) | undefined
   let systemPromptSupplement: string | undefined
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
   let monotonicNowValues = [1000]
@@ -85,6 +86,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     getActiveSessionId: () => 'session-1',
     getActiveProvider,
     getSystemPromptSupplement: () => systemPromptSupplement,
+    composeConversation: (messages, context) => composeConversation?.(messages, context) ?? messages,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
     createId: () => ids.shift() ?? 'generated-id',
@@ -110,6 +112,11 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
   return {
     assistantAppended,
     assistantTurns,
+    composeConversation: {
+      set: (next: typeof composeConversation) => {
+        composeConversation = next
+      },
+    },
     contextSnapshot,
     foregroundPatches,
     foregroundResets,
@@ -519,6 +526,42 @@ describe('createChatOrchestratorRuntime', () => {
     })
   })
 
+  it('applies platform-owned conversation policy before provider projection', async () => {
+    const harness = createHarness()
+    let composedMessages: Message[] = []
+    harness.systemPromptSupplement.set('Plugin toolset guidance.')
+    harness.contextSnapshot.account = [{ id: 'account', contextId: 'account', strategy: ContextUpdateStrategy.ReplaceSelf, text: 'Current account', createdAt: 1 }]
+    harness.composeConversation.set((conversation, context) => ({
+      turns: [...conversation.turns, { id: 'policy', type: 'system', authority: 'system', content: [{ type: 'text', text: `Runtime policy for ${context.sessionId}.` }] }],
+    }))
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
+      const authoredTurn = messages.turns.find(turn => turn.type === 'user')
+      expect(authoredTurn).toMatchObject({ content: expect.arrayContaining([{ type: 'runtime-context', entries: [{ source: 'account', text: 'Current account' }] }]) })
+      composedMessages = conversationToChatMessages(messages)
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('hello from user', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(composedMessages.at(-1)).toEqual({
+      role: 'system',
+      content: 'Runtime policy for session-1.',
+    })
+    expect(harness.promptProjections).toEqual([
+      expect.objectContaining({
+        composedMessage: composedMessages,
+      }),
+    ])
+  })
+
+  /*
+   * @example
+   * A session has only user history.
+   * The runtime creates a provider system message for supplemental guidance.
+   */
   it('creates a system message when only a system prompt supplement is available', async () => {
     const harness = createHarness()
     let composedMessages: Message[] = []
@@ -692,6 +735,37 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.telemetry.messageRound).toHaveLength(2)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2119#discussion_r3656646138
+  // ROOT CAUSE:
+  //
+  // Activation detection treated every persisted assistant message as a
+  // completed generation. Character greetings are assistant history too, so
+  // greeted sessions skipped activation before the user sent a first turn.
+  it('emits activation milestones for the first user turn after a character greeting', async () => {
+    const harness = createHarness()
+    harness.sessionMessages['session-1'].push({
+      role: 'assistant',
+      content: 'Character greeting.',
+      slices: [{ type: 'text', text: 'Character greeting.' }],
+      tool_results: [],
+      createdAt: 1,
+      id: 'greeting',
+    })
+
+    await harness.runtime.ingest('first user turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.telemetry.chatActivationStarted).toHaveLength(1)
+    expect(harness.telemetry.chatActivationSucceeded).toHaveLength(1)
+    expect(harness.telemetry.chatActivationFailed).toHaveLength(0)
+  })
+
+  /*
+   * @example
+   * await expect(runtime.ingest('hello', { model, chatProvider })).rejects.toThrow('provider rejected')
+   */
   it('emits chat activation failure telemetry without raw provider messages', async () => {
     const harness = createHarness()
     harness.stream.mockRejectedValueOnce(new Error('provider rejected with sensitive details'))
@@ -730,6 +804,35 @@ describe('createChatOrchestratorRuntime', () => {
       source: 'text',
       turnIndex: 1,
     }])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2119#discussion_r3657102697
+  // ROOT CAUSE:
+  //
+  // A failed first request persists its user message without an assistant
+  // response. Counting user turns therefore made the retry look ineligible for
+  // activation even though the conversation had never completed activation.
+  it('keeps a failed first-turn retry eligible for activation', async () => {
+    const harness = createHarness()
+    harness.stream.mockRejectedValueOnce(new Error('provider rejected'))
+
+    await expect(harness.runtime.ingest('first attempt', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })).rejects.toThrow('provider rejected')
+
+    await harness.runtime.ingest('retry', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.telemetry.chatActivationStarted).toHaveLength(2)
+    expect(harness.telemetry.chatActivationFailed).toHaveLength(1)
+    expect(harness.telemetry.chatActivationSucceeded).toHaveLength(1)
+    expect(harness.telemetry.chatActivationSucceeded[0]).toMatchObject({
+      conversationId: 'session-1',
+      turnIndex: 2,
+    })
   })
 
   it('emits a round failure for later turns without repeating activation failure', async () => {
@@ -1266,4 +1369,49 @@ it('runs consecutive orchestrator turns through the real Responses adapter', asy
   // https://github.com/moeru-ai/airi/pull/2477#discussion_r4015043327
   expect(JSON.stringify(harness.lifecycleRecords)).not.toContain('encrypted_content')
   expect(JSON.stringify(harness.lifecycleRecords)).toContain('answer')
+})
+
+// A card compilation error occurs before the provider request starts.
+it('classifies rejected prompt composition separately from provider failures', async () => {
+  const harness = createHarness()
+  harness.composeConversation.set(async () => {
+    throw new Error('Lorebook regex matching timed out')
+  })
+  await expect(harness.runtime.ingest('hello', { model: 'gpt-test', chatProvider: provider })).rejects.toThrow('Lorebook regex matching timed out')
+  expect(harness.stream).not.toHaveBeenCalled()
+  expect(harness.telemetry.llmRequestStarted).toEqual([])
+  for (const events of [harness.telemetry.messageRoundFailed, harness.telemetry.chatActivationFailed]) {
+    expect(events).toEqual([expect.objectContaining({ failureStage: 'message_send', errorCode: 'prompt_composition_failed' })])
+  }
+})
+
+it('supplies authored history separately from provider decorations', async () => {
+  const harness = createHarness()
+  harness.composeConversation.set((conversation, { authoredMessages }) => {
+    expect(authoredMessages.at(-1)).toMatchObject({ role: 'user', content: 'show a comet' })
+    expect(conversationToChatMessages(conversation).at(-1)?.content).not.toBe('show a comet')
+    return conversation
+  })
+  await harness.runtime.ingest('show a comet', { model: 'gpt-test', chatProvider: provider })
+})
+
+// Session reset during an async card policy must stop plugin side effects too.
+it('stops projections and hooks when the session resets during composition', async () => {
+  const harness = createHarness()
+  const deferred = Promise.withResolvers<Conversation>()
+  const compose = vi.fn(() => deferred.promise)
+  harness.composeConversation.set(compose)
+  const afterCompose = vi.fn()
+  const beforeSend = vi.fn()
+  harness.runtime.hooks.onAfterMessageComposed(afterCompose)
+  harness.runtime.hooks.onBeforeSend(beforeSend)
+  const sending = harness.runtime.ingest('hello', { model: 'gpt-test', chatProvider: provider })
+  await vi.waitFor(() => expect(compose).toHaveBeenCalled())
+  harness.generation.set(2)
+  deferred.resolve({ turns: [] })
+  await sending
+  expect(harness.promptProjections).toEqual([])
+  expect(afterCompose).not.toHaveBeenCalled()
+  expect(beforeSend).not.toHaveBeenCalled()
+  expect(harness.stream).not.toHaveBeenCalled()
 })

@@ -3,6 +3,8 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
+import type { AiriCard } from '../types/airiCard'
+
 import { errorMessageFrom } from '@moeru/std'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, setActivePinia } from 'pinia'
@@ -80,6 +82,9 @@ const activeProviderRef = ref('mock-provider')
 const activeModelRef = ref('gpt-test')
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 const sessionMessages: Record<string, any[]> = {}
+const sessionCharacterIds: Record<string, string> = {}
+const unknownCharacterSessions = new Set<string>()
+const cardsById = new Map<string, AiriCard>()
 let currentGeneration = 1
 
 vi.mock('pinia', async () => {
@@ -170,6 +175,8 @@ vi.mock('./chat/session-store', () => ({
     setSessionMessages: (sessionId: string, messages: any[]) => {
       sessionMessages[sessionId] = messages
     },
+    get sessionMetas() { return Object.fromEntries(Object.entries(sessionCharacterIds).map(([id, characterId]) => [id, { characterId, characterIdUnknown: unknownCharacterSessions.has(id) }])) },
+    currentUserName: 'Mira',
     forkSession: forkSessionMock,
     // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
     // the orchestrator contract tests do not need a real WS / cloud mapper.
@@ -214,7 +221,7 @@ vi.mock('./modules/consciousness', () => ({
 
 vi.mock('./modules/airi-card', () => ({
   useAiriCardStore: () => ({
-    activeCard: undefined,
+    getCard: (cardId: string) => cardsById.get(cardId),
   }),
 }))
 
@@ -282,8 +289,14 @@ describe('chat store contract', () => {
     for (const key of Object.keys(sessionMessages)) {
       delete sessionMessages[key]
     }
+    for (const key of Object.keys(sessionCharacterIds)) {
+      delete sessionCharacterIds[key]
+    }
+    cardsById.clear()
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+    unknownCharacterSessions.clear()
+    sessionCharacterIds['session-1'] = 'card-1'
   })
 
   it('resolves the provider and rebuilds prior tools inside the serializable send action', async () => {
@@ -998,6 +1011,64 @@ describe('chat store contract', () => {
     expect(sessionMessages['session-1']).toBeUndefined()
   })
 
+  it('does not apply a local card to an adopted session with unknown identity', async () => {
+    cardsById.set('card-1', createCard({ postHistoryInstructions: 'Unrelated local card policy.' }))
+    unknownCharacterSessions.add('session-1')
+    const store = useChatStore()
+    await store.ingest('hello from another device', { model: 'gpt-test', chatProvider: provider })
+    expect(JSON.stringify(llmStreamMock.mock.calls[0]?.[2])).not.toContain('Unrelated local card policy.')
+  })
+
+  it('compiles a queued send with its owning session card after the active session changes', async () => {
+    let releaseFirstSend: (() => void) | undefined
+    let queuedProviderMessages: Conversation = { turns: [] }
+    cardsById.set('card-1', createCard({
+      postHistoryInstructions: 'Original session instruction.',
+    }))
+    cardsById.set('card-2', createCard({
+      postHistoryInstructions: 'New active session instruction.',
+    }))
+    sessionCharacterIds['session-2'] = 'card-2'
+
+    llmStreamMock
+      .mockImplementationOnce(async () => {
+        await new Promise<void>((resolve) => {
+          releaseFirstSend = resolve
+        })
+      })
+      .mockImplementationOnce(async (_model: string, _chatProvider: GenerationProvider, messages: Conversation, options: any) => {
+        queuedProviderMessages = messages
+        await options.onStreamEvent({ type: 'text-delta', text: 'queued reply' })
+        await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      })
+
+    const store = useChatStore()
+    const firstSend = store.ingest('hold queue', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    const queuedSend = store.ingest('queued for original session', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(llmStreamMock).toHaveBeenCalledTimes(1)
+    })
+    await vi.waitFor(() => {
+      expect(store.pendingQueuedSendCount).toBe(1)
+    })
+    activeSessionIdRef.value = 'session-2'
+    releaseFirstSend?.()
+
+    await firstSend
+    await queuedSend
+
+    const instructions = queuedProviderMessages.turns.filter(turn => turn.type === 'system').flatMap(turn => turn.content).filter(part => part.type === 'text').map(part => part.text)
+    expect(instructions).toContain('Original session instruction.')
+    expect(instructions).not.toContain('New active session instruction.')
+  })
+
   it('mirrors pending queued send snapshots from the core runtime', async () => {
     let releaseFirstSend: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async () => {
@@ -1124,3 +1195,23 @@ describe('chat store contract', () => {
     expect(ensureSessionMock).toHaveBeenCalledWith('session-forked')
   })
 })
+
+function createCard(overrides: Partial<AiriCard> = {}): AiriCard {
+  return {
+    name: 'Test card',
+    version: '1.0.0',
+    greetings: [],
+    messageExample: [],
+    extensions: {
+      airi: {
+        modules: {
+          consciousness: { provider: '', model: '' },
+          vision: { provider: '', model: '' },
+          speech: { provider: '', model: '', voice_id: '' },
+        },
+        agents: {},
+      },
+    },
+    ...overrides,
+  }
+}

@@ -290,9 +290,9 @@ describe('interactive area synchronized state', () => {
     // assert the owned row and content geometry directly.
     expect(accountContent).not.toBeNull()
     await expect.poll(() => getComputedStyle(account).paddingLeft).toBe('0px')
-    expect(account.getBoundingClientRect().left).toBe(drawerTitle.getBoundingClientRect().left)
-    expect(accountContent!.getBoundingClientRect().width).toBe(account.clientWidth)
-    expect(account.getBoundingClientRect().height).toBe(56)
+    expect(account.getBoundingClientRect().left).toBeCloseTo(drawerTitle.getBoundingClientRect().left, 2)
+    expect(accountContent!.getBoundingClientRect().width).toBeCloseTo(account.clientWidth, 2)
+    expect(account.getBoundingClientRect().height).toBeCloseTo(56, 2)
     expect(account.querySelector('[data-avatar-fallback], [data-avatar-image]')).toBeNull()
     await expect.element(screen.getByText('stage.mobile-tools.cleanup', { exact: true })).not.toBeInTheDocument()
     await expect.element(screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()

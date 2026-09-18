@@ -25,6 +25,7 @@ import {
 } from '../../libs/chat-sync'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
+import { compileCharacterCardGreeting, compileCharacterCardSystemPrompt } from '../../services/airi-card/runtime'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { mergeLoadedSessionMessages } from './session-message-merge'
@@ -62,8 +63,9 @@ const useChatSessionSelectionStore = defineStore('chat-session-selection', () =>
 })
 
 export const useChatSessionStore = defineStore('chat-session', () => {
-  const { userId, token: authToken } = storeToRefs(useAuthStore())
-  const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
+  const { user, userId, token: authToken } = storeToRefs(useAuthStore())
+  const cardStore = useAiriCardStore()
+  const { activeCard, activeCardId, systemPrompt } = storeToRefs(cardStore)
 
   const chatSessionSelection = useChatSessionSelectionStore()
   // The selected conversation belongs to one window. Expose it through the
@@ -208,6 +210,32 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return generateInitialMessageFromPrompt(systemPrompt.value)
   }
 
+  function getCurrentUserName() {
+    return user?.value?.name || 'User'
+  }
+
+  function generateInitialMessages(characterId = getCurrentCharacterId(), characterIdUnknown = false) {
+    if (characterIdUnknown)
+      return [generateInitialMessageFromPrompt('')]
+    const card = characterId === getCurrentCharacterId() ? activeCard.value : cardStore.getCard(characterId)
+    const prompt = characterId === getCurrentCharacterId() ? systemPrompt.value : compileCharacterCardSystemPrompt(card)
+    const messages: ChatHistoryItem[] = [generateInitialMessageFromPrompt(prompt)]
+    const greeting = compileCharacterCardGreeting(card, {
+      userName: getCurrentUserName(),
+    })
+    if (greeting) {
+      messages.push({
+        role: 'assistant',
+        content: greeting,
+        slices: [{ type: 'text', text: greeting }],
+        tool_results: [],
+        id: nanoid(),
+        createdAt: Date.now(),
+      })
+    }
+    return messages
+  }
+
   function refreshActiveSessionSystemMessage() {
     const sessionId = activeSessionId.value
     const meta = sessionMetas.value[sessionId]
@@ -216,7 +244,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // necessarily finished loading. Never rewrite the previous character's
     // session or persist an empty in-memory placeholder over an IDB history
     // that is still being hydrated.
-    if (!sessionId || !loadedSessions.has(sessionId) || meta?.characterId !== getCurrentCharacterId())
+    if (!sessionId || !loadedSessions.has(sessionId) || meta?.characterId !== getCurrentCharacterId() || meta?.characterIdUnknown)
       return
 
     const currentMessages = sessionMessages.value[sessionId] ?? []
@@ -486,7 +514,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       updatedAt: now,
     }
 
-    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessage()]
+    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : generateInitialMessages(characterId)
 
     sessionMetas.value[sessionId] = meta
     replaceSessionMessages(sessionId, initialMessages, { persist: false })
@@ -895,13 +923,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           sessionId: remote.id,
           userId: currentUserId,
           characterId: 'default',
+          characterIdUnknown: true,
           title: remote.title ?? undefined,
           createdAt: new Date(remote.createdAt).getTime() || now,
           updatedAt: new Date(remote.updatedAt).getTime() || now,
           cloudChatId: remote.id,
         }
         sessionMetas.value[remote.id] = adoptedMeta
-        sessionMessages.value[remote.id] = [generateInitialMessage()]
+        sessionMessages.value[remote.id] = [generateInitialMessageFromPrompt('')]
         ensureGeneration(remote.id)
 
         if (!index.value)
@@ -1327,7 +1356,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function ensureSession(sessionId: string) {
     ensureGeneration(sessionId)
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
-      replaceSessionMessages(sessionId, [generateInitialMessage()], { persist: false })
+      replaceSessionMessages(sessionId, generateInitialMessages(sessionMetas.value[sessionId]?.characterId, sessionMetas.value[sessionId]?.characterIdUnknown), { persist: false })
     }
   }
 
@@ -1414,7 +1443,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function cleanupMessages(sessionId = activeSessionId.value) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
-    setSessionMessages(sessionId, [generateInitialMessage()])
+    setSessionMessages(sessionId, generateInitialMessages(sessionMetas.value[sessionId]?.characterId, sessionMetas.value[sessionId]?.characterIdUnknown))
   }
 
   function getAllSessions() {
@@ -1641,6 +1670,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     persistSessionMessages,
     getSessionMessages,
     getSessionMessagesIfLoaded,
+    currentUserName: computed(getCurrentUserName),
     sessionMessages,
     sessionMetas,
     getSessionGeneration,
