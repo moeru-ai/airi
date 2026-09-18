@@ -41,7 +41,6 @@ async function updateModel(value: string | undefined) {
 <template>
   <div :class="['flex flex-col', 'gap-2']">
     <FieldCombobox
-      data-testid="sherpaw-model"
       :model-value="model"
       :options="options"
       :disabled="saving"
