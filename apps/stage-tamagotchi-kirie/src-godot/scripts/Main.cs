@@ -15,6 +15,8 @@ public partial class Main : Node
     private SettingsWindowManager? _settings;
     private ChatWindowManager? _chat;
     private NoticeWindowManager? _notice;
+    private DeveloperToolsService? _developerTools;
+    private IDisposable? _developerToolsRegistration;
     private AuthService? _auth;
     private IDisposable? _authRegistration;
     private IDisposable? _displaySnapshotRegistration;
@@ -70,6 +72,12 @@ public partial class Main : Node
                 _kirie,
                 rendererUrl,
                 _microphonePermissions);
+            _developerTools = new DeveloperToolsService(
+                this,
+                GetWindow(),
+                registry,
+                rendererUrl);
+            _developerToolsRegistration = _developerTools.Attach(_eventa.Context);
             _onboarding = new OnboardingWindowManager(
                 _eventa.Context,
                 this,
@@ -84,7 +92,8 @@ public partial class Main : Node
                 registry,
                 rendererUrl,
                 _auth,
-                _microphonePermissions);
+                _microphonePermissions,
+                _developerTools);
             _chat = new ChatWindowManager(
                 _eventa.Context,
                 this,
@@ -119,6 +128,8 @@ public partial class Main : Node
         _chat?.Dispose();
         _settings?.Dispose();
         _onboarding?.Dispose();
+        _developerToolsRegistration?.Dispose();
+        _developerTools?.Dispose();
         _microphonePermissions?.Dispose();
         _microphonePermissionRegistration?.Dispose();
         _permissions?.Dispose();

@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src-godot/scripts/OnboardingWindow.cs" id="1_window"]
 [ext_resource type="Script" path="res://addons/kirie/kirie_node.gd" id="2_kirie"]
+[ext_resource type="PackedScene" path="res://src-godot/window-background.tscn" id="3_background"]
 
 [node name="OnboardingWindow" type="Window"]
 title = "Welcome to AIRI"
@@ -12,6 +13,8 @@ visible = false
 transient = false
 extend_to_title = true
 script = ExtResource("1_window")
+
+[node name="WindowBackground" parent="." instance=ExtResource("3_background")]
 
 [node name="KirieNode" type="Control" parent="."]
 layout_mode = 3

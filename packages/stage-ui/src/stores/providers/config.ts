@@ -4,6 +4,7 @@ import type { InferenceServiceProvider, ProviderValidationStatus } from '../../l
 
 import { useMutation, useQuery } from '@pinia/colada'
 import { useLocalStorage } from '@vueuse/core'
+import { cloneDeep } from 'es-toolkit'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
@@ -213,6 +214,10 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       markProviderAdded(providerId)
   }
 
+  function createProviderSnapshot() {
+    return cloneDeep(providers.value)
+  }
+
   async function fetchProviders() {
     try {
       const state = await providersQuery.refetch(true)
@@ -220,11 +225,11 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
         // The server snapshot has the highest priority for ids that exist remotely.
         mergeProviderSnapshot(state.data)
       }
-      return providers.value
+      return createProviderSnapshot()
     }
     catch {
       // The merged local snapshot is authoritative while the remote endpoint is unavailable.
-      return providers.value
+      return createProviderSnapshot()
     }
   }
 

@@ -2,7 +2,7 @@
 import type { SerializableDesktopCapturerSource } from '@proj-airi/electron-screen-capture'
 import type { SourcesOptions } from 'electron'
 
-import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
+import { useHostScreenCapture } from '@proj-airi/stage-host-context'
 import { Button, SelectTab } from '@proj-airi/ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -30,7 +30,7 @@ const sourcesOptions = ref<SourcesOptions>({
 })
 
 const { t } = useI18n()
-const { getSources, selectWithSource } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+const { getSources, selectWithSource, isSupported } = useHostScreenCapture(sourcesOptions)
 
 const categoryOptions = [
   { label: 'Applications', value: 'applications', icon: 'i-solar:window-frame-line-duotone' },
@@ -144,6 +144,9 @@ async function refetchSources() {
 }
 
 onMounted(async () => {
+  if (!isSupported)
+    return
+
   await refetchSources()
 })
 

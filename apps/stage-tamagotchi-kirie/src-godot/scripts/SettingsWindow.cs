@@ -11,6 +11,7 @@ public partial class SettingsWindow : Window
     private WebViewPermissionHandler? _permissions;
     private IDisposable? _authRegistration;
     private IDisposable? _microphonePermissionRegistration;
+    private IDisposable? _developerToolsRegistration;
     private IDisposable? _settingsReadyRegistration;
     private Action? _onClosed;
     private string? _loadedRoute;
@@ -27,6 +28,7 @@ public partial class SettingsWindow : Window
         string initialRoute,
         AuthService auth,
         MicrophonePermissionService microphonePermissions,
+        DeveloperToolsService developerTools,
         Action onClosed)
     {
         if (!IsInsideTree())
@@ -52,6 +54,7 @@ public partial class SettingsWindow : Window
         _platform = GdKiriePlatform.Attach(_eventa.Context, this);
         _authRegistration = auth.Attach(_eventa.Context);
         _microphonePermissionRegistration = microphonePermissions.Attach(_eventa.Context);
+        _developerToolsRegistration = developerTools.Attach(_eventa.Context);
         _permissions = new WebViewPermissionHandler(_kirie, rendererUrl);
         _settingsReadyRegistration = _eventa.Context.Subscribe(
             AiriDesktopEvents.SettingsReady,
@@ -96,6 +99,7 @@ public partial class SettingsWindow : Window
         }
 
         _settingsReadyRegistration?.Dispose();
+        _developerToolsRegistration?.Dispose();
         _microphonePermissionRegistration?.Dispose();
         _authRegistration?.Dispose();
         _permissions?.Dispose();

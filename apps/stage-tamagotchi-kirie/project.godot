@@ -36,6 +36,7 @@ enabled=PackedStringArray("res://addons/kirie/plugin.cfg")
 
 [godot_cef]
 
+advanced/custom_command_line_switches="remote-allow-origins=https://chrome-devtools-frontend.appspot.com"
 security/default_permission_policy=2
 
 [rendering]

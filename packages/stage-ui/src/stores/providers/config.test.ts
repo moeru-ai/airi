@@ -75,6 +75,24 @@ describe('provider config store', () => {
     })
   })
 
+  it('returns a serializable provider snapshot to follower renderers', async () => {
+    // ROOT CAUSE:
+    //
+    // fetchProviders returned the reactive providers proxy. A follower-only
+    // window routed the action through pinia-plugin-synced, which could not
+    // structured-clone the action result.
+    //
+    // We fixed this by returning a detached plain snapshot from the action.
+    const store = installStore()
+    store.providers[localProvider.id] = localProvider
+
+    const result = await store.fetchProviders()
+
+    expect(() => structuredClone(result)).not.toThrow()
+    expect(result).toEqual({ [localProvider.id]: localProvider })
+    expect(result).not.toBe(store.providers)
+  })
+
   it('keeps the local snapshot when the remote list fails', async () => {
     mocks.service.fetchRemote.mockRejectedValue(new Error('remote unavailable'))
     const store = installStore()

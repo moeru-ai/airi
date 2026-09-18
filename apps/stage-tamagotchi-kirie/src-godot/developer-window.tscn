@@ -1,13 +1,13 @@
 [gd_scene load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://src-godot/scripts/NoticeWindow.cs" id="1_window"]
+[ext_resource type="Script" path="res://src-godot/scripts/DeveloperWindow.cs" id="1_window"]
 [ext_resource type="Script" path="res://addons/kirie/kirie_node.gd" id="2_kirie"]
 [ext_resource type="PackedScene" path="res://src-godot/window-background.tscn" id="3_background"]
 
-[node name="NoticeWindow" type="Window"]
-title = "Notice"
+[node name="DeveloperWindow" type="Window"]
 position = Vector2i(0, 0)
-size = Vector2i(1020, 600)
+size = Vector2i(1020, 720)
+min_size = Vector2i(640, 480)
 visible = false
 transient = false
 script = ExtResource("1_window")

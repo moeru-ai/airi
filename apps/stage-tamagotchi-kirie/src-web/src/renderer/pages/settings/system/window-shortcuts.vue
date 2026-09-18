@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ShortcutAccelerator, ShortcutFailureReason } from '@proj-airi/stage-shared/global-shortcut'
 
-import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
 import { formatAccelerator, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { Button } from '@proj-airi/ui'
@@ -16,8 +16,8 @@ import {
 } from '../../../../shared/eventa'
 import { isSafeSpotlightAccelerator } from '../../../../shared/spotlight-shortcut'
 
-const getShortcut = useElectronEventaInvoke(electronSpotlightShortcutGet)
-const setShortcut = useElectronEventaInvoke(electronSpotlightShortcutSet)
+const getShortcut = useHostEventaInvoke(electronSpotlightShortcutGet)
+const setShortcut = useHostEventaInvoke(electronSpotlightShortcutSet)
 const { trackSettingsChanged } = useAnalytics()
 const { t } = useI18n()
 const tt = (key: string) => t(`tamagotchi.settings.pages.system.window-shortcuts.${key}`)

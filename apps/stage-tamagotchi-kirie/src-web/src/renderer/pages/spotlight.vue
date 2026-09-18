@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
-import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { extractMessageText } from '@proj-airi/stage-ui/libs/chat-sync/wire-message'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -23,8 +23,8 @@ const inputRef = useTemplateRef<HTMLInputElement>('inputRef')
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
 const { trackSpotlightUsed } = useAnalytics()
-const hideSpotlightWindow = useElectronEventaInvoke(electronSpotlightHide)
-const showResultNotification = useElectronEventaInvoke(electronSpotlightShowResultNotification)
+const hideSpotlightWindow = useHostEventaInvoke(electronSpotlightHide)
+const showResultNotification = useHostEventaInvoke(electronSpotlightShowResultNotification)
 const { t } = useI18n()
 
 watch(useWindowFocus(), (focused) => {

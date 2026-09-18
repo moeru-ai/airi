@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { useElectronMouse, useElectronRelativeMouse, useElectronWindowBounds } from '@proj-airi/electron-vueuse'
+import { useHostRelativeMouse, useHostWindowBounds } from '@proj-airi/stage-host-context'
+import { computed } from 'vue'
 
-const { x: cursorX, y: cursorY } = useElectronMouse()
-
-const windowRelativeMouse = useElectronRelativeMouse()
-const windowBounds = useElectronWindowBounds()
+const windowRelativeMouse = useHostRelativeMouse()
+const windowBounds = useHostWindowBounds()
+const cursorX = computed(() => windowBounds.x.value + windowRelativeMouse.x.value)
+const cursorY = computed(() => windowBounds.y.value + windowRelativeMouse.y.value)
 </script>
 
 <template>

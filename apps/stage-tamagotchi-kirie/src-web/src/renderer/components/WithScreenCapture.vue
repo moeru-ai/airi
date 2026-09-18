@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { SourcesOptions } from 'electron'
 
-import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
-import { Button } from '@proj-airi/ui'
+import { useHostScreenCapture } from '@proj-airi/stage-host-context'
+import { Button, Callout } from '@proj-airi/ui'
 import { useWindowFocus } from '@vueuse/core'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { onMounted, ref, toRef, watch } from 'vue'
@@ -29,11 +29,15 @@ const {
   selectWithSource,
   checkMacOSPermission,
   requestMacOSPermission,
-} = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+  isSupported,
+} = useHostScreenCapture(sourcesOptions)
 
 const focused = useWindowFocus()
 
 async function checkPermissions() {
+  if (!isSupported)
+    return
+
   if (window.platform === 'darwin') {
     const status = await checkMacOSPermission()
     hasPermissions.value = status === 'granted'
@@ -47,6 +51,9 @@ async function checkPermissions() {
 }
 
 async function requestPermission() {
+  if (!isSupported)
+    return
+
   if (window.platform === 'darwin') {
     await requestMacOSPermission()
   }
@@ -70,55 +77,58 @@ watch(hasPermissions, (nextHasPermissions, previousHasPermissions) => {
 </script>
 
 <template>
-  <slot
-    v-bind="{
-      getSources,
-      setSource,
-      resetSource,
-      selectWithSource,
-      hasPermissions,
-      checkPermissions,
-      requestPermission,
-    }"
-  />
+  <Callout v-if="!isSupported" theme="orange" label="Screen capture unavailable">
+    The Kirie host does not provide the Electron screen capture API.
+  </Callout>
 
-  <DialogRoot :open="showDialog">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-9999 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-      <DialogContent flex="~ col items-start gap-4" class="fixed left-1/2 top-1/2 z-9999 max-h-full max-w-2xl w-[92dvw] transform overflow-y-scroll rounded-2xl bg-white p-6 shadow-xl outline-none backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:bg-neutral-900">
-        <DialogTitle class="m-0 text-lg font-semibold">
-          {{ t('tamagotchi.settings.screen-capture.permissions-prompt.title') }}
-        </DialogTitle>
+  <template v-else>
+    <slot
+      v-bind="{
+        getSources,
+        setSource,
+        resetSource,
+        selectWithSource,
+        hasPermissions,
+        checkPermissions,
+        requestPermission,
+      }"
+    />
 
-        <DialogDescription>
-          {{ t('tamagotchi.settings.screen-capture.permissions-prompt.description') }}
+    <DialogRoot :open="showDialog">
+      <DialogPortal>
+        <DialogOverlay class="fixed inset-0 z-9999 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
+        <DialogContent flex="~ col items-start gap-4" class="fixed left-1/2 top-1/2 z-9999 max-h-full max-w-2xl w-[92dvw] transform overflow-y-scroll rounded-2xl bg-white p-6 shadow-xl outline-none backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:bg-neutral-900">
+          <DialogTitle class="m-0 text-lg font-semibold">
+            {{ t('tamagotchi.settings.screen-capture.permissions-prompt.title') }}
+          </DialogTitle>
 
-          <ol mt-4 list-decimal pl-5 text-sm>
-            <li mb-1>
-              {{ t('tamagotchi.settings.screen-capture.permissions-prompt.instructions.step-1') }}
-            </li>
-            <li>
-              {{ t('tamagotchi.settings.screen-capture.permissions-prompt.instructions.step-2') }}
-              <br>
-              <span class="text-neutral-500">
-                {{ t('tamagotchi.settings.screen-capture.permissions-prompt.instructions.step-2-note') }}
-              </span>
-            </li>
-          </ol>
-        </DialogDescription>
+          <DialogDescription>
+            {{ t('tamagotchi.settings.screen-capture.permissions-prompt.description') }}
 
-        <div flex="~ row gap-2 mt-4 justify-end" w-full>
-          <Button
+            <ol mt-4 list-decimal pl-5 text-sm>
+              <li mb-1>
+                {{ t('tamagotchi.settings.screen-capture.permissions-prompt.instructions.step-1') }}
+              </li>
+              <li>
+                {{ t('tamagotchi.settings.screen-capture.permissions-prompt.instructions.step-2') }}
+                <br>
+                <span class="text-neutral-500">
+                  {{ t('tamagotchi.settings.screen-capture.permissions-prompt.instructions.step-2-note') }}
+                </span>
+              </li>
+            </ol>
+          </DialogDescription>
 
-            @click="showDialog = false"
-          >
-            {{ t('tamagotchi.settings.screen-capture.permissions-prompt.dismiss') }}
-          </Button>
-          <Button @click="requestMacOSPermission()">
-            {{ t('tamagotchi.settings.screen-capture.permissions-prompt.open-preferences') }}
-          </Button>
-        </div>
-      </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+          <div flex="~ row gap-2 mt-4 justify-end" w-full>
+            <Button @click="showDialog = false">
+              {{ t('tamagotchi.settings.screen-capture.permissions-prompt.dismiss') }}
+            </Button>
+            <Button @click="requestMacOSPermission()">
+              {{ t('tamagotchi.settings.screen-capture.permissions-prompt.open-preferences') }}
+            </Button>
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
+  </template>
 </template>

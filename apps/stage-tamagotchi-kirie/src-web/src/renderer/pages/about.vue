@@ -5,8 +5,7 @@ import type { ElectronUpdaterChannel } from '../../shared/eventa'
 
 import semver from 'semver'
 
-import { useElectronAutoUpdater } from '@proj-airi/electron-vueuse'
-import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
+import { useHostAutoUpdater, useHostEventaInvoke } from '@proj-airi/stage-host-context'
 import { AboutContent, BugReportDialog, createBugReportPageContext, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useBreakpoints, useBuildInfo } from '@proj-airi/stage-ui/composables'
 import { Button, ContainerError, DoubleCheckButton, FieldSelect, Progress, ScrollableArea } from '@proj-airi/ui'
@@ -25,10 +24,11 @@ const { copy: copyToClipboard, isSupported: isClipboardSupported } = useClipboar
 const {
   state: updateState,
   isBusy,
+  isSupported: isUpdaterSupported,
   checkForUpdates,
   downloadUpdate,
   quitAndInstall,
-} = useElectronAutoUpdater()
+} = useHostAutoUpdater()
 
 const {
   trackUpdateDownloaded,
@@ -225,6 +225,9 @@ const releaseNotesContent = computed(() => {
 })
 
 onMounted(() => {
+  if (!isUpdaterSupported)
+    return
+
   void refreshUpdaterChannelPreference()
 })
 </script>
@@ -278,7 +281,7 @@ onMounted(() => {
             </div>
 
             <FieldSelect
-              v-if="!isStoreManaged"
+              v-if="!isStoreManaged && isUpdaterSupported"
               :model-value="selectedUpdateChannel"
               :disabled="isUpdateChannelUpdating || isBusy"
               :label="t('tamagotchi.stage.about.update.lane.label')"

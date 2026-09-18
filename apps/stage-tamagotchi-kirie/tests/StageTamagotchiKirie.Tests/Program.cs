@@ -11,6 +11,8 @@ internal static class Program
             TestsDesktopWindowGeometry();
             TestsNativeResizeEdges();
             TestsOnboardingTitleBarDragRegion();
+            TestsDeveloperWindowRequests();
+            TestsCefInspectorTargetSelection();
             TestsMicrophonePermissionPromptCoalescing();
             TestsMicrophonePermissionPersistencePolicy();
             TestsMicrophonePermissionPromptTimeout();
@@ -219,6 +221,79 @@ internal static class Program
             "window interior");
     }
 
+    private static void TestsDeveloperWindowRequests()
+    {
+        // ROOT CAUSE:
+        //
+        // The Kirie host did not register the Electron developer-window contracts.
+        // Each developer action reached Godot as an unregistered Eventa request.
+        //
+        // We fixed this with one validated request model for reusable native windows.
+        var editor = DeveloperWindowRequest.ForEditor();
+        AssertEqual("/editor", editor.Route, "editor route");
+        AssertEqual(true, editor.UsesMinimalRuntime, "editor runtime");
+
+        var devtools = DeveloperWindowRequest.ForDevtools(
+            new OpenDevtoolsWindowPayload(
+                "io-tracer",
+                "/devtools/io-tracer",
+                1600,
+                900,
+                null,
+                null));
+        AssertEqual("io-tracer", devtools.Key, "developer window key");
+        AssertEqual(1600, devtools.Width, "developer window width");
+        AssertEqual(900, devtools.Height, "developer window height");
+        AssertEqual(false, devtools.UsesMinimalRuntime, "developer window runtime");
+
+        AssertThrows<ArgumentException>(
+            () => DeveloperWindowRequest.ForDevtools(
+                new OpenDevtoolsWindowPayload(
+                    "settings",
+                    "/settings",
+                    null,
+                    null,
+                    null,
+                    null)),
+            "developer window route validation");
+    }
+
+    private static void TestsCefInspectorTargetSelection()
+    {
+        // ROOT CAUSE:
+        //
+        // The CEF debugging server returns an empty response at its root URL.
+        // Opening that URL produced a blank system-browser page instead of DevTools.
+        //
+        // We fixed this by selecting the main page's frontend URL from /json/list.
+        const string targetsJson = """
+            [
+              {
+                "type": "page",
+                "url": "http://127.0.0.1:5173/?synced-leader=false#/settings",
+                "devtoolsFrontendUrl": "https://devtools.example/inspector.html?ws=follower"
+              },
+              {
+                "type": "worker",
+                "url": "",
+                "devtoolsFrontendUrl": "https://devtools.example/inspector.html?ws=worker"
+              },
+              {
+                "type": "page",
+                "url": "http://127.0.0.1:5173/?synced-leader=true#/",
+                "devtoolsFrontendUrl": "https://devtools.example/inspector.html?ws=leader"
+              }
+            ]
+            """;
+
+        var inspectorUri = CefInspectorTarget.SelectMainInspectorUri(targetsJson);
+
+        AssertEqual(
+            "https://devtools.example/inspector.html?ws=leader",
+            inspectorUri.AbsoluteUri,
+            "main CEF inspector URL");
+    }
+
     private static async Task ReturnsCodeForExpectedState()
     {
         using var server = LoopbackAuthServer.Start("state-1");
@@ -277,5 +352,20 @@ internal static class Program
 
         throw new InvalidOperationException(
             $"Expected {label} to be '{expected}', got '{actual}'.");
+    }
+
+    private static void AssertThrows<TException>(Action action, string label)
+        where TException : Exception
+    {
+        try
+        {
+            action();
+        }
+        catch (TException)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException($"Expected {label} to throw {typeof(TException).Name}.");
     }
 }

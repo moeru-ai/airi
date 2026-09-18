@@ -13,6 +13,7 @@ internal sealed class SettingsWindowManager : IDisposable
     private readonly string _rendererUrl;
     private readonly AuthService _auth;
     private readonly MicrophonePermissionService _microphonePermissions;
+    private readonly DeveloperToolsService _developerTools;
     private readonly IDisposable _openRegistration;
     private SettingsWindow? _window;
     private bool _disposed;
@@ -24,7 +25,8 @@ internal sealed class SettingsWindowManager : IDisposable
         KirieEventaJsonRegistry registry,
         string rendererUrl,
         AuthService auth,
-        MicrophonePermissionService microphonePermissions)
+        MicrophonePermissionService microphonePermissions,
+        DeveloperToolsService developerTools)
     {
         _owner = owner;
         _mainWindow = mainWindow;
@@ -32,6 +34,7 @@ internal sealed class SettingsWindowManager : IDisposable
         _rendererUrl = rendererUrl;
         _auth = auth;
         _microphonePermissions = microphonePermissions;
+        _developerTools = developerTools;
         _openRegistration = context.RegisterInvokeHandler(
             AiriDesktopEvents.OpenSettings,
             (OpenSettingsPayload payload, CancellationToken _) =>
@@ -75,6 +78,7 @@ internal sealed class SettingsWindowManager : IDisposable
                     route,
                     _auth,
                     _microphonePermissions,
+                    _developerTools,
                     () => OnWindowClosed(window));
             }
             catch

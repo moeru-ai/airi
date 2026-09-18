@@ -2,7 +2,7 @@ import type { SerializableDesktopCapturerSource } from '@proj-airi/electron-scre
 import type { SourcesOptions } from 'electron'
 import type { MaybeRefOrGetter } from 'vue'
 
-import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
+import { useHostScreenCapture } from '@proj-airi/stage-host-context'
 import { computed, ref, shallowRef, watch } from 'vue'
 
 import { createObjectUrlFromBytes } from '../utils/create-object-url-from-bytes'
@@ -13,14 +13,14 @@ interface ScreenCaptureSource extends SerializableDesktopCapturerSource {
 }
 
 /**
- * Manages Electron-backed screen-capture sources and the active preview stream for vision workflows.
+ * Manages host-backed screen-capture sources and the active preview stream for vision workflows.
  *
  * Use when:
  * - A renderer page needs to browse screen/window sources before capturing frames
  * - The page should keep a single active `MediaStream` in sync with the selected source
  *
  * Expects:
- * - The Electron screen-capture preload APIs to be available on `window.electron.ipcRenderer`
+ * - The active host to report screen capture support before capture methods are called
  * - Callers to invoke `cleanup()` when the owning component unmounts
  *
  * Returns:
@@ -43,7 +43,7 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
   const {
     getSources,
     selectWithSource,
-  } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+  } = useHostScreenCapture(sourcesOptions)
 
   const activeSource = computed(() => sources.value.find(source => source.id === activeSourceId.value) || null)
 

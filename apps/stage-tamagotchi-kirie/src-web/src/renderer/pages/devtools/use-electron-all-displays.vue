@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { useElectronAllDisplays, useElectronMouse } from '@proj-airi/electron-vueuse'
+import { useHostDisplays, useHostRelativeMouse, useHostWindowBounds } from '@proj-airi/stage-host-context'
 import { useWindowSize } from '@vueuse/core'
 import { computed } from 'vue'
 
-const allDisplays = useElectronAllDisplays()
-const { x: cursorX, y: cursorY } = useElectronMouse()
+const allDisplays = useHostDisplays()
+const relativeMouse = useHostRelativeMouse()
+const windowBounds = useHostWindowBounds()
+const cursorX = computed(() => windowBounds.x.value + relativeMouse.x.value)
+const cursorY = computed(() => windowBounds.y.value + relativeMouse.y.value)
 
 const windowSize = useWindowSize()
 
@@ -55,7 +58,7 @@ const scale = computed(() => {
 })
 
 // Transform display coordinates
-function transformDisplay(display: any) {
+function transformDisplay(display: (typeof allDisplays.value)[number]) {
   const { minX, minY } = displayBounds.value
   return {
     x: (display.bounds.x - minX) * scale.value,
@@ -94,8 +97,8 @@ const containerDimensions = computed(() => {
       }"
     >
       <div
-        v-for="display in allDisplays"
-        :key="display.id"
+        v-for="(display, index) in allDisplays"
+        :key="`${display.bounds.x}:${display.bounds.y}:${display.bounds.width}:${display.bounds.height}`"
         class="absolute box-border border-2 border-neutral-200 bg-neutral-50/50 dark:border-neutral-800 dark:bg-neutral-950/50"
         :style="{
           left: `${transformDisplay(display).x}px`,
@@ -116,10 +119,10 @@ const containerDimensions = computed(() => {
         />
 
         <div class="pointer-events-none absolute left-2.5 top-2.5 text-xs text-neutral-800 font-medium">
-          {{ display.label }}
+          Display {{ index + 1 }}
         </div>
         <div class="pointer-events-none absolute left-2.5 top-7.5 text-[10px] text-neutral-600">
-          {{ display.bounds.width }}x{{ display.bounds.height }} @ {{ display.rotation }}°
+          {{ display.bounds.width }}x{{ display.bounds.height }}
         </div>
       </div>
 

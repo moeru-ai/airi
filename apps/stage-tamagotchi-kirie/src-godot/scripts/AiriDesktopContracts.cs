@@ -6,6 +6,13 @@ using GdKirie.EventaAdapter;
 internal sealed record EmptyPayload;
 internal sealed record OpenSettingsPayload(string? Route);
 internal sealed record SettingsNavigatePayload(string Route);
+internal sealed record OpenDevtoolsWindowPayload(
+    string Key,
+    string? Route,
+    int? Width,
+    int? Height,
+    int? X,
+    int? Y);
 internal sealed record NoticeOpenPayload(
     string? Id,
     string Route,
@@ -54,6 +61,15 @@ internal static class AiriDesktopEvents
 
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenChat =
         new("eventa:invoke:electron:windows:chat:open");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenMainDevtools =
+        new("eventa:invoke:electron:windows:main:devtools:open");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenEditor =
+        new("eventa:invoke:electron:windows:editor:open");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, OpenDevtoolsWindowPayload> OpenDevtoolsWindow =
+        new("eventa:invoke:electron:windows:devtools:open");
 
     public static readonly EventDefinition<EmptyPayload> ChatReady =
         new("eventa:event:electron:windows:chat:ready");
@@ -147,6 +163,18 @@ internal static class AiriDesktopContracts
                 AiriDesktopEvents.OpenChat,
                 AiriDesktopJsonContext.Default.EmptyPayload,
                 AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.OpenMainDevtools,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.OpenEditor,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.OpenDevtoolsWindow,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.OpenDevtoolsWindowPayload)
             .RegisterEvent(
                 AiriDesktopEvents.ChatReady,
                 AiriDesktopJsonContext.Default.EmptyPayload)
@@ -224,6 +252,7 @@ internal static class AiriDesktopContracts
 [JsonSerializable(typeof(EmptyPayload))]
 [JsonSerializable(typeof(OpenSettingsPayload))]
 [JsonSerializable(typeof(SettingsNavigatePayload))]
+[JsonSerializable(typeof(OpenDevtoolsWindowPayload))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(NoticeOpenPayload))]
 [JsonSerializable(typeof(NoticePagePayload))]
