@@ -7,7 +7,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatReplyPreview, useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatReplyPreview, useChatComposer, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -48,13 +48,15 @@ const { streamingMessage } = storeToRefs(chatStream)
 const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 
-type ChatImageAttachment = NonNullable<ChatSendPayload['attachments']>[number]
+type ChatImageAttachment = Extract<NonNullable<ChatSendPayload['attachments']>[number], { type: 'image' }>
 
 interface ImageComposerAttachment extends ChatImageAttachment {
   file: File
   previewId: string
 }
 
+const voiceActive = ref(false)
+const voiceInput = useTemplateRef<HTMLElement>('voiceInput')
 const composer = useChatComposer<ImageComposerAttachment>({
   activeSessionId,
   send: submission => chatStore.send({
@@ -436,13 +438,15 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
           >
         </div>
         <div
+          ref="voiceInput"
           :class="[
-            'w-full shrink-0 overflow-hidden rounded-xl border-2 border-solid',
+            'relative w-full shrink-0 overflow-hidden rounded-xl border-2 border-solid',
             'border-primary-200/20 bg-primary-100/50 backdrop-blur-md',
             'dark:border-primary-400/20 dark:bg-primary-900/70',
           ]"
         >
           <ChatReplyPreview
+            :class="[voiceActive && 'invisible']"
             :target="replyTarget"
             @cancel="handleCancelReply"
           />
@@ -450,10 +454,10 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
             v-model="messageInput"
             :submit-on-enter="false"
             :placeholder="t('stage.message')"
-            class="ph-no-capture [scrollbar-gutter:stable]"
+            :class="['ph-no-capture [scrollbar-gutter:stable] pr-14', voiceActive && 'invisible']"
             text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
             bg="transparent"
-            max-h="[10lh]" min-h="[1lh]"
+            max-h="[10lh]" min-h="14"
             w-full resize-none overflow-y-auto border-2 border-transparent border-solid p-2 font-medium outline-none
             transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
             @compositionstart="isComposing = true"
@@ -461,6 +465,17 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
             @keydown="handleMessageInputKeydown"
             @paste-file="handleFilePaste"
           />
+          <div :class="['absolute bottom-2 right-2']">
+            <VoiceComposer
+              v-model="messageInput"
+              :input-element="voiceInput"
+              :session-id="activeSessionId"
+              :reply-to-message-id="replyTarget?.message.id"
+              :tools="artistryToolReferences"
+              @recording-change="voiceActive = $event"
+              @sent="composer.clearReply()"
+            />
+          </div>
         </div>
       </div>
     </template>

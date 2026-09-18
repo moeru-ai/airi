@@ -20,7 +20,10 @@ mobile-tools:
   close-view: Save and close view controls
   hearing: Hearing
 chat:
+  image: Attached image
   actions:
+    attach: Attach images
+    remove-attachment: Remove {name}
     reply: Reply
     retry: Retry
     send: Send message
@@ -149,3 +152,23 @@ websocket-status:
 computer-use:
   label: Use computer
   description: Allow this chat window to inspect and control native apps on this computer.
+
+voice:
+  audio: Voice message
+  transcription: Dictation
+  hold-hint: Hold to record. Tap to switch mode. Press Enter to record hands-free.
+  listening: Listening…
+  lock: Slide up to lock
+  locked: Recording locked
+  cancel-hint: Slide left to cancel
+  release-cancel: Release to cancel
+  release-send: Release to send voice message
+  release-insert: Release to insert text
+  processing: Finishing…
+  cancel: Cancel
+  send: Send voice message
+  insert: Insert text
+  failed: Voice input failed
+  configure-title: Configure transcription
+  configure-description: Select a transcription provider and model in Hearing to use dictation or send audio to a text-only model.
+  configure-action: Open Hearing

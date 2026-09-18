@@ -4,6 +4,7 @@ import type { ChatHistoryReplyPayload } from '../reply'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ChatReplyQuote from './reply-quote.vue'
 
@@ -30,20 +31,25 @@ const emit = defineEmits<{
   (e: 'reply'): void
 }>()
 
+const { t } = useI18n()
 const content = computed(() => {
   const raw = props.message.content
   if (typeof raw === 'string')
     return raw
-
-  if (Array.isArray(raw)) {
-    const textPart = raw.find(part => 'type' in part && part.type === 'text') as { text?: string } | undefined
-    if (textPart?.text)
-      return textPart.text
-
-    return raw.map(entry => JSON.stringify(entry)).join('\n')
-  }
-
-  return ''
+  return raw.filter(part => part.type === 'text').map(part => part.text).join('\n')
+})
+const noMedia: readonly string[] = Object.freeze([])
+const images = computed(() => {
+  const raw = props.message.content
+  if (typeof raw === 'string')
+    return noMedia
+  return raw.filter(part => part.type === 'image_url').map(part => part.image_url.url)
+})
+const recordings = computed(() => {
+  const raw = props.message.content
+  if (typeof raw === 'string')
+    return noMedia
+  return raw.filter(part => part.type === 'input_audio').map(part => `data:audio/${part.input_audio.format};base64,${part.input_audio.data}`)
 })
 
 const containerClasses = computed(() => [
@@ -86,8 +92,25 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           <div>
             <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ label }}</span>
           </div>
+          <img
+            v-for="(image, index) in images"
+            :key="index"
+            :src="image"
+            :alt="t('stage.chat.image')"
+            :class="['my-2 max-h-64 max-w-full rounded-lg object-contain']"
+          >
+          <audio
+            v-for="(recording, index) in recordings"
+            :key="index"
+            :src="recording"
+            :aria-label="t('stage.voice.audio')"
+            :class="['my-2 max-w-full w-64']"
+            controls
+            preload="metadata"
+          />
           <MarkdownRenderer
-            :content="content as string"
+            v-if="content"
+            :content="content"
             class="break-words"
           />
         </div>

@@ -101,6 +101,11 @@ function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAss
   }
 }
 
+/** Binary attachments persist as base64 so history can cross renderer boundaries. */
+export type ChatAttachment
+  = | { type: 'image', data: string, mimeType: string }
+    | { type: 'audio', data: string, mimeType: 'audio/wav', transcript?: string }
+
 /**
  * Options accepted by the chat orchestrator runtime for one user send.
  */
@@ -111,8 +116,10 @@ export interface ChatOrchestratorSendOptions {
   chatProvider: GenerationProvider
   /** Provider-specific request options, currently used for headers. */
   providerConfig?: Record<string, unknown>
-  /** Image attachments appended to the user message content parts. */
-  attachments?: { type: 'image', data: string, mimeType: string }[]
+  /** Media appended to the durable user message and the model request. */
+  attachments?: ChatAttachment[]
+  /** False projects available audio transcripts into text without changing history. @default true */
+  supportsAudioInput?: boolean
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
   /** Serializable tool names stored with the user message for later requests. */
@@ -490,15 +497,26 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return fallbackCreatedAt
   }
 
-  function buildContext(history: ChatHistoryItem[]): Conversation {
+  function buildContext(history: ChatHistoryItem[], supportsAudioInput: boolean): Conversation {
     const nowTs = now()
     const messagesById = new Map(history.flatMap(message => message.id ? [[message.id, message] as const] : []))
     const turns = history.flatMap((message, historyIndex): Turn[] => {
       if (message.role === 'assistant' && message.generationTranscript)
         return [structuredClone(unwrapMessage(message.generationTranscript))]
+      const rawMessage = { ...unwrapMessage(message) }
+      if (!supportsAudioInput && rawMessage.role === 'user' && Array.isArray(rawMessage.content)) {
+        let audioIndex = 0
+        rawMessage.content = rawMessage.content.map((part) => {
+          if (part.type !== 'input_audio')
+            return part
+          const transcript = message.audioTranscripts?.[audioIndex++]
+          // Audio without a stored transcript reaches the stage ASR adapter.
+          return transcript ? { type: 'text' as const, text: transcript } : part
+        })
+      }
       const source = message.role === 'user'
-        ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
-        : unwrapMessage(message)
+        ? prependTextToContent(rawMessage, `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
+        : rawMessage
       return chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
     })
     return { turns }
@@ -610,7 +628,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       if (options.attachments) {
         for (const attachment of options.attachments) {
-          if (attachment.type === 'image') {
+          if (attachment.type === 'audio') {
+            contentParts.push({ type: 'input_audio', input_audio: { data: attachment.data, format: 'wav' } })
+          }
+          else if (attachment.type === 'image') {
             contentParts.push({
               type: 'image_url',
               image_url: {
@@ -646,6 +667,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const userMessage = {
         role: 'user' as const,
         content: finalContent,
+        audioTranscripts: options.attachments?.filter(attachment => attachment.type === 'audio').map(attachment => attachment.transcript),
         createdAt: sendingCreatedAt,
         id: roundId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
@@ -746,7 +768,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ],
       })
 
-      const context = buildContext(sessionMessagesForSend)
+      const context = buildContext(sessionMessagesForSend, options.supportsAudioInput ?? true)
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
