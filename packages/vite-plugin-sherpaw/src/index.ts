@@ -1,14 +1,13 @@
-import type { DataMetadata } from '@sherpaw/preloader'
 import type { Plugin } from 'vite'
 
 import type { SherpawModel } from './models'
 
-import { Buffer } from 'node:buffer'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { sherpawModelPath } from '@proj-airi/vite-plugin-sherpaw/models'
+import { normalizePath } from 'vite'
 
 /** Selects models for this application. Downloads remain in a separate cache. */
 export interface SherpawOptions {
@@ -19,40 +18,38 @@ export interface SherpawOptions {
 }
 
 /**
- * Downloads selected presets and owns the `sherpaw` directory under Vite's public directory.
- * Each configuration replaces that directory, so removed presets cannot remain in later builds.
- * Download failures stop configuration. The separate cache survives selection changes.
+ * Downloads selected presets to a revision-scoped cache and exposes their Vite asset URLs.
+ * Build imports let URL-rewriting plugins upload the files and remove local deployment copies.
+ * Development uses Vite's local asset server. Download failures stop configuration.
  */
 export function Sherpaw(options: SherpawOptions): Plugin {
+  const moduleId = '@proj-airi/vite-plugin-sherpaw/assets'
+  const resolvedModuleId = `\0${moduleId}`
+  // configResolved prepares the imports before Vite loads the runtime asset catalogue.
+  let assetModule: string
+
   return {
     name: 'airi-sherpaw-models',
+    enforce: 'pre',
     apply: (_config, environment) => !environment.isPreview,
     async configResolved(config) {
-      if (!config.publicDir)
-        throw new Error('Sherpaw requires a Vite public directory.')
       const cacheDirectory = resolve(config.root, options.cacheDir ?? '.cache')
-      await rm(join(config.publicDir, 'sherpaw'), { recursive: true, force: true })
+      if (config.publicDir)
+        await rm(join(config.publicDir, 'sherpaw'), { recursive: true, force: true })
+      const imports: string[] = []
+      const entries: string[] = []
 
-      for (const model of options.models) {
+      for (const [index, model] of options.models.entries()) {
         const outputPath = sherpawModelPath(model)
-        const sourceDirectory = join('sherpaw-sources', model.id, model.revision)
-        const source = model.source
-        const downloads = source.format === 'files'
-          ? source.files.map(file => Download(
-              `https://huggingface.co/${model.repository}/resolve/${model.revision}/${file.source}`,
-              file.source,
-              sourceDirectory,
-              { cacheDir: cacheDirectory, parentDir: cacheDirectory },
-            ))
-          : ['preload.data', 'preload.js.metadata'].map(filename => Download(
-              `https://huggingface.co/${model.repository}/resolve/${model.revision}/${source.directory}/${filename}`,
-              filename,
-              outputPath,
-              { cacheDir: cacheDirectory, parentDir: config.publicDir },
-            ))
+        const downloads = ['preload.data', 'preload.js.metadata'].map(filename => Download(
+          `https://huggingface.co/${model.repository}/resolve/${model.revision}/${model.directory}/${filename}`,
+          filename,
+          outputPath,
+          { cacheDir: cacheDirectory, parentDir: cacheDirectory },
+        ))
 
         // Separate Vite configResolved hooks run concurrently. Await downloads here
-        // before reading source files or letting Vite copy the public directory.
+        // before Vite resolves the generated asset imports.
         await Promise.all(downloads.map(async (plugin) => {
           const hook = plugin.configResolved
           if (typeof hook === 'function')
@@ -61,25 +58,22 @@ export function Sherpaw(options: SherpawOptions): Plugin {
             await hook.handler.call(this, config)
         }))
 
-        if (model.source.format !== 'files')
-          continue
-
-        const files = model.source.files
-        const chunks = await Promise.all(files.map(file => readFile(join(cacheDirectory, sourceDirectory, file.source))))
-        let offset = 0
-        const metadata: DataMetadata = {
-          files: files.map((file, index) => {
-            const start = offset
-            offset += chunks[index].byteLength
-            return { filename: file.filename, start, end: offset }
-          }),
-          remote_package_size: chunks.reduce((total, chunk) => total + chunk.byteLength, 0),
-        }
-        const destination = join(config.publicDir, outputPath)
-        await mkdir(destination, { recursive: true })
-        await writeFile(join(destination, 'preload.data'), Buffer.concat(chunks))
-        await writeFile(join(destination, 'preload.js.metadata'), JSON.stringify(metadata))
+        // URL imports participate in Vite's renderBuiltUrl hook. no-inline keeps
+        // the small metadata file on the same upload path as its model data.
+        const directory = normalizePath(join(cacheDirectory, outputPath))
+        imports.push(`import data${index} from ${JSON.stringify(`${directory}/preload.data?url&no-inline`)}`)
+        imports.push(`import metadata${index} from ${JSON.stringify(`${directory}/preload.js.metadata?url&no-inline`)}`)
+        entries.push(`${JSON.stringify(model.id)}: { data: data${index}, metadata: metadata${index} }`)
       }
+      assetModule = `${imports.join('\n')}\nexport const assets = { ${entries.join(',')} }`
+    },
+    resolveId(id) {
+      if (id === moduleId)
+        return resolvedModuleId
+    },
+    load(id) {
+      if (id === resolvedModuleId)
+        return assetModule
     },
   }
 }

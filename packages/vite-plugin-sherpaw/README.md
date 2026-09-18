@@ -16,24 +16,41 @@ export default defineConfig({
 
 | Export from `/models` | Languages | Source format | Size before compression |
 | --- | --- | --- | --- |
-| `paraformerBilingualZhEn` | Chinese, English | Quantized ONNX files, packed during configuration | About 237 MB |
+| `paraformerBilingualZhEn` | Chinese, English | Sherpaw data and metadata | About 237 MB |
+| `zipformerBilingualZhEn` | Chinese, English | Sherpaw data and metadata | About 199 MB |
 | `zipformerMultilingual` | Arabic, English, Indonesian, Japanese, Russian, Thai, Vietnamese, Chinese | Sherpaw data and metadata | About 339 MB |
 
-Import either preset or both. The `models` option is required. The plugin downloads and bundles only selected presets. Set `cacheDir` to share downloads between applications:
+Import the presets that the application needs. The `models` option is required. The plugin downloads and bundles only selected presets. Set `cacheDir` to share downloads between applications:
 
 ```ts
+import { paraformerBilingualZhEn, zipformerBilingualZhEn, zipformerMultilingual } from '@proj-airi/vite-plugin-sherpaw/models'
+
 Sherpaw({
-  models: [paraformerBilingualZhEn, zipformerMultilingual],
+  models: [paraformerBilingualZhEn, zipformerBilingualZhEn, zipformerMultilingual],
   cacheDir: '../../.cache',
 })
 ```
 
-Downloads use pinned Hugging Face revisions. The Paraformer preset uses the upstream `csukuangfj` repository. The Zipformer preset uses the `moeru-ai` repository. Model licenses remain those of their source repositories.
+All presets use published data and metadata pairs from pinned Hugging Face revisions in the `moeru-ai` repositories. The plugin copies these pairs without repacking ONNX files. Model licenses remain those of their source repositories.
 
-The plugin owns `public/sherpaw` and replaces it during configuration. Removed presets cannot remain in subsequent builds. Do not store application-owned files there. An empty `models` list clears the generated directory. The separate download cache survives selection changes and defaults to `.cache` relative to the Vite root.
+The plugin downloads files to a revision-scoped cache. It removes its previous `public/sherpaw` output before each build. Only selected presets enter the Vite asset graph. An empty `models` list emits no model assets. The download cache survives selection changes and defaults to `.cache` relative to the Vite root.
 
-`SherpawModel` describes the preset contract. `sherpawModelPath(preset)` returns the revision-scoped path for runtime requests. The `/models` entry contains no Node runtime imports.
+`SherpawModel` describes the preset contract, including the recognizer architecture and supported languages. `sherpawModelPath(preset)` returns its download cache path. The `/models` entry contains no Node runtime imports.
 
-Download failures stop the build. Development serves the same assets from the public directory. Use this plugin for bundled speech recognition, not remote ASR services.
+Download failures stop the build. Development serves the cached files through Vite. Use this plugin for bundled speech recognition, not remote ASR services.
 
 AIRI's VAD model has a separate download path, so this plugin alone does not make the complete application work offline.
+
+## Runtime URLs and remote storage
+
+The plugin replaces `@proj-airi/vite-plugin-sherpaw/assets` with URL imports for the selected models:
+
+```ts
+import { assets } from '@proj-airi/vite-plugin-sherpaw/assets'
+
+const model = assets['paraformer-zh-en']
+```
+
+Each entry has `data` and `metadata` URLs. Vite resolves these URLs for the application base, including Electron's relative base. Hosts without the plugin receive an empty catalogue and cannot use this Provider.
+
+`?url&no-inline` keeps both files in the asset graph. With Basemove, include `.data` and `.metadata` files and keep its local deletion enabled. Basemove rewrites the URLs, uploads the files, and removes them from the deployment directory. Electron builds without Basemove keep local copies. Remote storage must allow browser requests through CORS.

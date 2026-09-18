@@ -20,7 +20,7 @@ import { tryCatch } from '@moeru/std'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
-import { paraformerBilingualZhEn, zipformerMultilingual } from '@proj-airi/vite-plugin-sherpaw/models'
+import { paraformerBilingualZhEn, zipformerBilingualZhEn, zipformerMultilingual } from '@proj-airi/vite-plugin-sherpaw/models'
 import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -244,7 +244,7 @@ export default defineConfig({
     // after the test app is gone, so only load this plugin for the real app.
     ...(env.VITEST ? [] : [VueDevTools()]),
 
-    Sherpaw({ models: [paraformerBilingualZhEn, zipformerMultilingual], cacheDir: sharedCacheDir }),
+    Sherpaw({ models: [paraformerBilingualZhEn, zipformerBilingualZhEn, zipformerMultilingual], cacheDir: sharedCacheDir }),
     DownloadLive2DSDK(),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
@@ -302,7 +302,7 @@ export default defineConfig({
       : [
           Basemove({
             prefix: env.STAGE_WEB_WARP_DRIVE_PREFIX || 'proj-airi/stage-web/main/',
-            include: [/\.wasm$/i, /\.ttf$/i, /\.vrm$/i, /\.zip$/i], // in existing assets, wasm, ttf, vrm files are the largest ones
+            include: [/\.wasm$/i, /\.ttf$/i, /\.vrm$/i, /\.zip$/i, /\.(?:data|metadata)$/i],
             manifest: true,
             clean: false,
             contentTypeBy: (filename: string) => {
@@ -312,7 +312,10 @@ export default defineConfig({
               if (filename.endsWith('.ttf')) {
                 return 'font/ttf'
               }
-              if (filename.endsWith('.vrm')) {
+              if (filename.endsWith('.metadata')) {
+                return 'application/json'
+              }
+              if (filename.endsWith('.vrm') || filename.endsWith('.data')) {
                 return 'application/octet-stream'
               }
               if (filename.endsWith('.zip')) {
