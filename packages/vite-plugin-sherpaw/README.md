@@ -37,7 +37,7 @@ The plugin downloads files to a revision-scoped cache. It removes its previous `
 
 `SherpawModel` describes the preset contract, including the recognizer architecture and supported languages. `sherpawModelPath(preset)` returns its download cache path. The `/models` entry contains no Node runtime imports.
 
-Download failures stop the build. Development serves the cached files through Vite. Use this plugin for bundled speech recognition, not remote ASR services.
+Download failures stop startup or the build. Development serves the cached files through Vite. Use this plugin for bundled speech recognition, not remote ASR services.
 
 AIRI's VAD model has a separate download path, so this plugin alone does not make the complete application work offline.
 
@@ -54,3 +54,11 @@ const model = assets['paraformer-zh-en']
 Each entry has `data` and `metadata` URLs. Vite resolves these URLs for the application base, including Electron's relative base. Hosts without the plugin receive an empty catalogue and cannot use this Provider.
 
 `?url&no-inline` keeps both files in the asset graph. With Basemove, include `.data` and `.metadata` files and keep its local deletion enabled. Basemove rewrites the URLs, uploads the files, and removes them from the deployment directory. Electron builds without Basemove keep local copies. Remote storage must allow browser requests through CORS.
+
+## Development loading
+
+The plugin downloads every configured preset before the Vite development server starts. Existing cache files are reused. AIRI Web and Electron share the repository's `.cache/sherpaw/<model-id>/<revision>/` directory.
+
+Vite converts the generated URL imports into local development URLs. Files outside the application root use Vite's `/@fs/` route. Sherpaw reads the selected model through that server when recognition starts. Basemove runs only during production builds.
+
+Both AIRI applications configure all three presets. Their first development startup downloads about 775 MB, even if the user later selects only one model.

@@ -17,8 +17,6 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "unplugin-basemove": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:vitest"
+    "vite": "catalog:"
   }
 }
