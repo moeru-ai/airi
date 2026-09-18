@@ -22,7 +22,76 @@ const responseSchema = looseObject({
   output: array(unknown()),
   usage: optional(nullable(object({ input_tokens: tokens, output_tokens: tokens, total_tokens: tokens }))),
 })
-const eventSchema = looseObject({ type: string(), response: optional(unknown()) })
+const eventSchema = looseObject({
+  type: string(),
+  response: optional(unknown()),
+  output_index: optional(pipe(number(), integer(), minValue(0))),
+  item: optional(unknown()),
+  sequence_number: optional(pipe(number(), integer(), minValue(0))),
+})
+const completedOutputItemSchema = looseObject({ status: picklist(['completed']) })
+
+interface OpenRouterStreamState {
+  response?: InferOutput<typeof responseSchema>
+  outputIndexes: Set<number>
+  completedOutput: Map<number, unknown>
+  sequenceNumber?: number
+  invalid: boolean
+}
+
+function observeOpenRouterEvent(state: OpenRouterStreamState, event: InferOutput<typeof eventSchema>) {
+  if (event.sequence_number !== undefined) {
+    if (state.sequenceNumber !== undefined && event.sequence_number <= state.sequenceNumber)
+      state.invalid = true
+    state.sequenceNumber = event.sequence_number
+  }
+
+  if (event.type === 'response.created' || event.type === 'response.in_progress') {
+    const response = safeParse(responseSchema, event.response)
+    if (response.success)
+      state.response = response.output
+    else
+      state.invalid = true
+    return
+  }
+
+  if (event.type === 'response.output_item.added') {
+    if (event.output_index === undefined || state.outputIndexes.has(event.output_index)) {
+      state.invalid = true
+      return
+    }
+    state.outputIndexes.add(event.output_index)
+    return
+  }
+
+  if (event.type !== 'response.output_item.done')
+    return
+
+  const item = safeParse(completedOutputItemSchema, event.item)
+  if (event.output_index === undefined || !state.outputIndexes.has(event.output_index) || state.completedOutput.has(event.output_index) || !item.success) {
+    state.invalid = true
+    return
+  }
+  state.completedOutput.set(event.output_index, item.output)
+}
+
+function recoverOpenRouterCompletion(state: OpenRouterStreamState) {
+  if (state.invalid || !state.response || state.outputIndexes.size === 0 || state.outputIndexes.size !== state.completedOutput.size)
+    return
+
+  const completedOutput = [...state.completedOutput.entries()].sort(([left], [right]) => left - right)
+  if (completedOutput.some(([outputIndex], position) => outputIndex !== position))
+    return
+  const output = completedOutput.map(([, item]) => item)
+  const response = safeParse(responseSchema, { ...state.response, status: 'completed', output })
+  if (!response.success)
+    return
+
+  return {
+    response: response.output,
+    sequenceNumber: state.sequenceNumber === undefined ? undefined : state.sequenceNumber + 1,
+  }
+}
 
 /**
  * Forwards stateless Responses requests and settles a completed result once.
@@ -163,6 +232,12 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
     const writer = writable.getWriter()
     const encoder = new TextEncoder()
+    // OpenRouter sometimes omits the terminal event after completing every output
+    // item. Track its item lifecycle so EOF can be recovered without accepting a
+    // partial stream or weakening validation for other providers.
+    const openRouterStream: OpenRouterStreamState | undefined = routeCtx.provider === 'openrouter.ai'
+      ? { outputIndexes: new Set(), completedOutput: new Map(), invalid: false }
+      : undefined
     let cancelled = false
     let firstOutputDelta = true
     const cancel = () => {
@@ -181,12 +256,27 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
           const { done, value } = await reader.read()
           if (cancelled || input.abortSignal?.aborted)
             throw new Error('Responses downstream cancelled')
-          if (done)
+          if (done) {
+            const recovered = openRouterStream && recoverOpenRouterCompletion(openRouterStream)
+            if (recovered) {
+              const event = {
+                type: 'response.completed',
+                response: recovered.response,
+                ...(recovered.sequenceNumber === undefined ? {} : { sequence_number: recovered.sequenceNumber }),
+              }
+              await writer.write(encoder.encode(`event: response.completed\ndata: ${JSON.stringify(event)}\n\n`))
+              logger.withFields({ requestId, provider: routeCtx.provider }).warn('Recovered OpenRouter Responses stream without a terminal event')
+              await complete(recovered.response)
+              break
+            }
             throw new Error('Responses stream ended before a terminal event')
+          }
           const event = safeParse(eventSchema, JSON.parse(value.data))
           if (!event.success)
             throw new Error('Invalid Responses SSE event')
           const type = event.output.type
+          if (openRouterStream)
+            observeOpenRouterEvent(openRouterStream, event.output)
           if (firstOutputDelta && type.endsWith('.delta')) {
             firstOutputDelta = false
             telemetry.recordFirstToken({ model, provider: routeCtx.provider, startedAt, firstChunkAt: Date.now(), operation: 'responses' })
