@@ -47,14 +47,14 @@ function handleClose() {
       <button
         type="button"
         :class="[
-          'size-7 rounded-full text-xs text-white transition',
+          'size-8 flex items-center justify-center rounded-full text-white transition',
           'bg-black/40 hover:bg-black/60',
         ]"
         :title="t('tamagotchi.stage.inlay.close')"
         :aria-label="t('tamagotchi.stage.inlay.close')"
         @click="handleClose"
       >
-        <span class="size-6">×</span>
+        <span aria-hidden="true" :class="['text-2xl leading-none']">×</span>
       </button>
     </div>
 
