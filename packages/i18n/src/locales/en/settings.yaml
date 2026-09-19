@@ -1496,6 +1496,9 @@ pages:
       n1n:
         description: n1n.ai - High-performance AI API provider.
         title: n1n
+      y-api:
+        description: OpenAI-compatible gateway serving models from multiple vendors behind one endpoint.
+        title: Y-API
       openpaths:
         description: openpaths.io
         title: OpenPaths

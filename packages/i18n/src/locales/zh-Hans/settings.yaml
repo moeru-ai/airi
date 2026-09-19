@@ -1422,6 +1422,9 @@ pages:
       n1n:
         description: n1n.ai - 高性能的 AI API 提供商
         title: n1n
+      y-api:
+        description: OpenAI 兼容网关，多个厂商的模型统一走一个端点
+        title: Y-API
       openpaths:
         description: openpaths.io
         title: OpenPaths
