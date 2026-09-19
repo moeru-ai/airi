@@ -33,6 +33,19 @@ import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
+export type DesktopRuntimeMetricName
+  = | 'firstPaintMs'
+    | 'firstUsableUiMs'
+    | 'defaultModelLoadMs'
+    | 'onnxInitializationMs'
+
+export interface DesktopRuntimeMetricPayload {
+  name: DesktopRuntimeMetricName
+}
+
+export const desktopRuntimeRecordMetric
+  = defineInvokeEventa<void, DesktopRuntimeMetricPayload>('eventa:invoke:desktop-runtime:record-metric')
+
 export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electron:windows:main:devtools:open')
 export const electronCenterMainWindow = defineInvokeEventa<Rectangle>('eventa:invoke:electron:windows:main:center')
 export const electronOpenEditor = defineInvokeEventa<void>('eventa:invoke:electron:windows:editor:open')

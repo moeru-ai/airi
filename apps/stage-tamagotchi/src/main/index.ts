@@ -1,4 +1,4 @@
-import type { BrowserWindow } from 'electron'
+import type { BrowserWindow, Session } from 'electron'
 
 import type { FileLoggerHandle } from './app/file-logger'
 
@@ -11,6 +11,7 @@ import messages from '@proj-airi/i18n/locales'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain, session } from 'electron'
@@ -20,9 +21,11 @@ import { isLinux } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
 
+import { desktopRuntimeRecordMetric } from '../shared/eventa'
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { resolveIsWayland } from './app/ozone'
+import { createDesktopRuntimeMetrics } from './app/runtime-metrics'
 import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
@@ -66,6 +69,50 @@ setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
+
+const desktopRuntimeMetrics = createDesktopRuntimeMetrics()
+let stageIsReadyForInteraction = false
+const { context: desktopRuntimeContext } = createContext(ipcMain)
+defineInvokeHandler(desktopRuntimeContext, desktopRuntimeRecordMetric, ({ name }) => {
+  if (name === 'firstUsableUiMs') {
+    stageIsReadyForInteraction = true
+    const firstPaintMs = desktopRuntimeMetrics.snapshot.measurements.firstPaintMs
+    if (firstPaintMs !== undefined)
+      desktopRuntimeMetrics.record(name, firstPaintMs)
+    return
+  }
+
+  desktopRuntimeMetrics.record(name)
+})
+
+function setupOfflineRuntimeGuard() {
+  if (env.DESKTOP_RUNTIME_OFFLINE !== '1')
+    return
+
+  const guardedSessions = new WeakSet<Session>()
+  const guardSession = (targetSession: Session) => {
+    if (guardedSessions.has(targetSession))
+      return
+    guardedSessions.add(targetSession)
+
+    targetSession.webRequest.onBeforeRequest((details, callback) => {
+      try {
+        const url = new URL(details.url)
+        const isLocal = url.hostname === 'localhost'
+          || url.hostname === '127.0.0.1'
+          || url.hostname === '[::1]'
+          || ['about:', 'blob:', 'data:', 'devtools:', 'file:'].includes(url.protocol)
+        callback({ cancel: !isLocal })
+      }
+      catch {
+        callback({ cancel: false })
+      }
+    })
+  }
+
+  guardSession(session.defaultSession)
+  app.on('web-contents-created', (_, contents) => guardSession(contents.session))
+}
 
 const appUserDataPath = env.APP_USER_DATA_PATH?.trim()
 if (appUserDataPath) {
@@ -147,11 +194,14 @@ let fileLogger: FileLoggerHandle = nullFileLoggerHandle
 let skipFileLogging = false
 
 app.whenReady().then(async () => {
+  desktopRuntimeMetrics.record('appWhenReadyMs')
+
   if (!shouldStartMainProcess) {
     return
   }
 
   setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
+  setupOfflineRuntimeGuard()
 
   // Initialize file logger and register the hook
   fileLogger = await setupFileLogger()
@@ -171,7 +221,7 @@ app.whenReady().then(async () => {
   const autoUpdater = injeca.provide('services:auto-updater', {
     dependsOn: { appConfig },
     build: ({ dependsOn }) => setupAutoUpdater({
-      enabled: import.meta.env.VITE_DISTRIBUTION !== 'steam',
+      enabled: env.DESKTOP_RUNTIME_OFFLINE !== '1' && import.meta.env.VITE_DISTRIBUTION !== 'steam',
       getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
       setStoredUpdateLane: (lane) => {
         const currentConfig = dependsOn.appConfig.get()
@@ -284,6 +334,15 @@ app.whenReady().then(async () => {
       ...dependsOn,
       onWindowCreated: (window) => {
         userFacingMainWindow = window
+        desktopRuntimeMetrics.record('browserWindowCreationMs')
+        // Electron emits this only after the main window has painted enough
+        // content to become visible. It is the user-visible startup boundary.
+        window.once('ready-to-show', () => {
+          desktopRuntimeMetrics.record('firstPaintMs')
+          const firstPaintMs = desktopRuntimeMetrics.snapshot.measurements.firstPaintMs
+          if (stageIsReadyForInteraction && firstPaintMs !== undefined)
+            desktopRuntimeMetrics.record('firstUsableUiMs', firstPaintMs)
+        })
       },
     }),
   })
