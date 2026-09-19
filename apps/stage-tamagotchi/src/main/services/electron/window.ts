@@ -33,10 +33,29 @@ export function createWindowService(params: { context: ReturnType<typeof createC
     params.context.emit(electronWindowLifecycleChanged, getWindowLifecycleState(reason))
   }
 
+  // Same reasoning as the cursor loop in ./screen: window bounds change rarely, yet re-emitting them
+  // 60 times a second cost the renderer an IPC message and a reactive write for identical values. The
+  // periodic re-emit keeps a subscriber that mounts between moves from holding a stale rectangle.
+  const BOUNDS_RESEND_INTERVAL_MS = 1000
+  let lastBounds: { x: number, y: number, width: number, height: number } | undefined
+  let lastBoundsEmittedAt = 0
+
   const { start, stop } = createRendererLoop({
     window: params.window,
     run: () => {
-      params.context.emit(bounds, params.window.getBounds())
+      const next = params.window.getBounds()
+      const now = Date.now()
+      const changed = !lastBounds
+        || lastBounds.x !== next.x
+        || lastBounds.y !== next.y
+        || lastBounds.width !== next.width
+        || lastBounds.height !== next.height
+      if (!changed && now - lastBoundsEmittedAt < BOUNDS_RESEND_INTERVAL_MS)
+        return
+
+      lastBounds = { x: next.x, y: next.y, width: next.width, height: next.height }
+      lastBoundsEmittedAt = now
+      params.context.emit(bounds, next)
     },
   })
 
