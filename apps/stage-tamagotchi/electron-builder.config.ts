@@ -23,6 +23,25 @@ function hasXcode26OrAbove() {
   }
 }
 
+// Each target platform keeps only the matching `${arch}` native directory.
+const nativeAddonFilePatterns = {
+  darwin: [
+    '!**/node_modules/uiohook-napi/prebuilds/!(darwin-${arch}){,/**}',
+    '!**/node_modules/electron-click-drag-plugin/build/Release/!(darwin-${arch}){,/**}',
+  ],
+  linux: [
+    // uiohook-napi ships an x86-64 binary in its Linux ARM64 directory.
+    '!**/node_modules/uiohook-napi/prebuilds/!(linux-${arch}){,/**}',
+    '!**/node_modules/uiohook-napi/prebuilds/linux-arm64{,/**}',
+    // Linux does not use electron-click-drag-plugin.
+    '!**/node_modules/electron-click-drag-plugin/build/Release/{darwin-arm64,darwin-x64,linux-x64,win32-x64}{,/**}',
+  ],
+  win32: [
+    '!**/node_modules/uiohook-napi/prebuilds/!(win32-${arch}){,/**}',
+    '!**/node_modules/electron-click-drag-plugin/build/Release/!(win32-${arch}){,/**}',
+  ],
+} as const
+
 /**
  * Determine whether to use the .icon format for the macOS app icon based on the
  * Xcode version while building.
@@ -80,6 +99,30 @@ export default {
     // `node_modules/electron/dist/Electron.app` makes electron-builder deep-sign it and
     // fails on non-code resources (for example `locale.pak`) with timestamp/signing errors.
     '!**/node_modules/electron{,/**}',
+    // The renderer uses the browser ONNX backend. The node package and its
+    // platform binaries are not loaded by the packaged renderer.
+    '!**/node_modules/onnxruntime-node{,/**}',
+    // These large fonts remain available to web, mobile, and story builds.
+    // The desktop renderer uses system CJK fallback fonts instead.
+    '!**/node_modules/@proj-airi/font-cjkfonts-allseto{,/**}',
+    '!**/node_modules/@proj-airi/font-xiaolai{,/**}',
+    // Vite bundles the browser runtime and its WASM assets into `out/renderer`.
+    '!**/node_modules/onnxruntime-web{,/**}',
+    // Workspace hoisting exposes build tools to electron-builder's file walk.
+    // The packaged app has no runtime import of these tools.
+    '!**/node_modules/@rolldown{,/**}',
+    '!**/node_modules/rolldown{,/**}',
+    '!**/node_modules/lightningcss{,/**}',
+    '!**/node_modules/lightningcss-darwin-arm64{,/**}',
+    '!**/node_modules/fsevents{,/**}',
+    // Transformers runs inside browser workers in the desktop app. Sharp is its
+    // Node-only image backend and has no packaged main-process consumer.
+    '!**/node_modules/sharp{,/**}',
+    '!**/node_modules/@img/sharp-darwin-arm64{,/**}',
+    '!**/node_modules/@img/sharp-libvips-darwin-arm64{,/**}',
+    // uiohook-napi loads the selected prebuild. Its bundled libuiohook C source is
+    // only used to build that binary and does not participate in runtime loading.
+    '!**/node_modules/uiohook-napi/libuiohook{,/**}',
     '!**/.vscode/*',
     '!src/**/*',
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',
@@ -113,6 +156,7 @@ export default {
     license: 'MIT',
   },
   win: {
+    files: nativeAddonFilePatterns.win32,
     executableName: 'airi',
     // NOTICE: Keep `channel: 'latest-${arch}'` for architecture-aware updater metadata.
     // electron-builder expands `${arch}` at publish-time (for example: `latest-x64`, `latest-arm64`),
@@ -136,6 +180,7 @@ export default {
     runAfterFinish: true,
   },
   mac: {
+    files: nativeAddonFilePatterns.darwin,
     entitlements: 'build/entitlements.mac.plist',
     entitlementsInherit: 'build/entitlements.mac.plist',
     // NOTICE: Same channel rule as Windows. Keep `${arch}` here so generated metadata resolves
@@ -230,6 +275,7 @@ export default {
     artifactName: '${productName}-${version}-darwin-${arch}.${ext}',
   },
   linux: {
+    files: nativeAddonFilePatterns.linux,
     target: [
       'deb',
       'rpm',
