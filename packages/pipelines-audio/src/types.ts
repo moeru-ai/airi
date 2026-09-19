@@ -22,6 +22,14 @@ export interface TextSegment {
   text: string
   special: string | null
   reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
+  /**
+   * This segment ends a spoken sentence (hard punctuation or an explicit
+   * flush marker). `limit`/`boost` segments produced by the word-limit
+   * splitter are mid-sentence pieces and are not boundaries. Bilingual
+   * captions reveal only on a boundary, so a long sentence split into
+   * several pieces reveals once, on the piece that finishes it.
+   */
+  sentenceBoundary?: boolean
   createdAt: number
 }
 
@@ -33,6 +41,8 @@ export interface TtsRequest {
   sequence: number
   text: string
   special: string | null
+  /** See {@link TextSegment.sentenceBoundary}. */
+  sentenceBoundary?: boolean
   priority: number
   createdAt: number
 }
@@ -45,6 +55,8 @@ export interface TtsResult<TAudio> {
   sequence: number
   text: string
   special: string | null
+  /** See {@link TextSegment.sentenceBoundary}. */
+  sentenceBoundary?: boolean
   audio: TAudio
   createdAt: number
 }
@@ -60,6 +72,11 @@ export interface PlaybackItem<TAudio> {
   priority: number
   text: string
   special: string | null
+  /**
+   * True when this item's audio ends a spoken sentence. Mid-sentence chunks
+   * produced by the word-limit splitter are false.
+   */
+  sentenceBoundary?: boolean
   audio: TAudio
   createdAt: number
 }
@@ -86,7 +103,31 @@ export interface PlaybackRejectEvent<TAudio> {
   rejectedAt?: number
 }
 
+/**
+ * Fired once after an intent is sealed (no more items will be scheduled)
+ * and no active or waiting item remains. A transient empty queue between
+ * streaming sentences does not fire this. It also fires after rejects or
+ * interrupts drain a sealed intent. Consumers use it as the turn-level
+ * playback-complete signal.
+ */
+export interface PlaybackIntentDrainedEvent {
+  intentId: string
+  turnId?: string
+  drainedAt: number
+}
+
 export type IntentBehavior = 'queue' | 'interrupt' | 'replace'
+
+/**
+ * Controls which TTS segments count as sentence boundaries.
+ *
+ * - `punctuation` (default): hard punctuation and flush markers both end a
+ *   sentence. Correct for ordinary TTS.
+ * - `flush`: only explicit flush markers end sentences. Bilingual turns use
+ *   this so the boundary count matches the translation-pair count exactly,
+ *   regardless of abbreviation periods or line breaks.
+ */
+export type SentenceBoundaryMode = 'punctuation' | 'flush'
 
 export interface IntentOptions {
   turnId?: string
@@ -95,6 +136,8 @@ export interface IntentOptions {
   priority?: PriorityLevel | number
   ownerId?: string
   behavior?: IntentBehavior
+  /** See {@link SentenceBoundaryMode}. Defaults to `punctuation`. */
+  boundaryMode?: SentenceBoundaryMode
 }
 
 export interface IntentHandle {
