@@ -58,6 +58,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
   let monotonicNowValues = [1000]
   let generation = 1
+  let assistantResponseRenderedError: Error | undefined
 
   const runtime = createChatOrchestratorRuntime({
     session: {
@@ -101,7 +102,11 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     onMessageSendStarted: event => telemetry.messageSendStarted.push(event),
     onLlmRequestStarted: event => telemetry.llmRequestStarted.push(event),
     onLlmFirstToken: event => telemetry.llmFirstToken.push(event),
-    onAssistantResponseRendered: event => telemetry.assistantResponseRendered.push(event),
+    onAssistantResponseRendered: (event) => {
+      if (assistantResponseRenderedError)
+        throw assistantResponseRenderedError
+      telemetry.assistantResponseRendered.push(event)
+    },
     onLlmGeneration: event => telemetry.llmGeneration.push(event),
     onMessageRound: event => telemetry.messageRound.push(event),
     onMessageRoundFailed: event => telemetry.messageRoundFailed.push(event),
@@ -109,6 +114,11 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
 
   return {
     assistantAppended,
+    assistantResponseRenderedError: {
+      set: (error: Error | undefined) => {
+        assistantResponseRenderedError = error
+      },
+    },
     assistantTurns,
     contextSnapshot,
     foregroundPatches,
@@ -200,6 +210,45 @@ describe('createChatOrchestratorRuntime', () => {
     })
     expect(harness.assistantAppended).toHaveLength(0)
     expect(harness.foregroundResets).toHaveLength(1)
+  })
+
+  it('does not store a search-only status when the stream fails', async () => {
+    const harness = createHarness()
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'search', id: 'search-1', status: 'searching' })
+      throw new Error('search interrupted')
+    })
+
+    await expect(harness.runtime.ingest('search for this', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })).rejects.toThrow('search interrupted')
+
+    expect(harness.sessionMessages['session-1']?.filter(message => message.role === 'assistant')).toHaveLength(0)
+    expect(harness.foregroundResets).toHaveLength(1)
+  })
+
+  // ROOT CAUSE:
+  //
+  // The rendered-response observer ran after the provider completed but before
+  // history storage. If that observer threw, the complete reply was persisted
+  // as interrupted and activation was reported as failed.
+  it('keeps a completed response successful when its observer throws', async () => {
+    const harness = createHarness()
+    harness.assistantResponseRenderedError.set(new Error('analytics unavailable'))
+
+    await expect(harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })).resolves.toBeUndefined()
+
+    expect(harness.sessionMessages['session-1']?.at(-1)).toMatchObject({
+      role: 'assistant',
+      content: 'assistant reply',
+    })
+    expect(harness.sessionMessages['session-1']?.at(-1)).not.toHaveProperty('interrupted')
+    expect(harness.telemetry.chatActivationSucceeded).toHaveLength(1)
+    expect(harness.telemetry.chatActivationFailed).toHaveLength(0)
   })
 
   it('stores tool names with the user message and omits them from provider messages', async () => {
