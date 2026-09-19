@@ -1,6 +1,7 @@
 import type { NormalizedRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
 
 import { wholeWindowRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
+import { clamp } from 'es-toolkit'
 
 /**
  * How long one mask serves captures before the stage canvas is read again, in
@@ -22,6 +23,32 @@ const paintedAlphaIntervalMs = 250
 export const stageOpaqueAttribute = 'data-ambient-light-opaque'
 
 /**
+ * Everything the mask covers besides the character.
+ *
+ * The marker covers the overlays AIRI places itself. Floating content is
+ * different: reka-ui mounts tooltip, popover and menu content and dialogs on
+ * the body through a portal, outside every marked root, so a marker on the
+ * island that opened them never reaches them. The mask recognizes them by what
+ * reka-ui stamps on them instead.
+ *
+ * NOTICE:
+ * The popper selector is a reka-ui internal, not a documented contract.
+ * Root cause: reka-ui portals floating content to the body with no hook for
+ * the opener to tag it.
+ * Source: `data-reka-popper-content-wrapper` in reka-ui's popper content,
+ * see node_modules/reka-ui/dist and use-stage-painted-mask.browser.test.ts,
+ * which mounts a real tooltip to pin the name to the installed version.
+ * Removal: when reka-ui exposes a way to pass attributes through the portal,
+ * mark the content at the opener and drop the selector.
+ */
+const paintedOverlaySelector = [
+  `[${stageOpaqueAttribute}]`,
+  '[data-reka-popper-content-wrapper]',
+  '[role="dialog"]',
+  '[role="alertdialog"]',
+].join(', ')
+
+/**
  * Alpha above which a pixel counts towards the subject bounds.
  *
  * The softest edges of a character fade to nothing over several pixels, and a
@@ -36,10 +63,6 @@ export interface PaintedRead {
   alpha: Uint8ClampedArray
   /** Bounds of what the renderer drew, in window units, overlays left out. */
   subject: NormalizedRectangle
-}
-
-function clamp01(value: number) {
-  return Math.min(1, Math.max(0, value))
 }
 
 /**
@@ -135,7 +158,7 @@ export function useStagePaintedMask(sources: {
     const stageWindow = sources.windowSize()
     const windowWidth = Math.max(1, stageWindow.width)
     const windowHeight = Math.max(1, stageWindow.height)
-    for (const element of document.querySelectorAll(`[${stageOpaqueAttribute}]`)) {
+    for (const element of document.querySelectorAll(paintedOverlaySelector)) {
       const bounds = element.getBoundingClientRect()
       if (bounds.width === 0 || bounds.height === 0)
         continue
@@ -200,10 +223,10 @@ export function useStagePaintedMask(sources: {
     // on every side. Taking the outer edge of the outermost cell keeps the
     // subject inside its own rectangle.
     return {
-      x: clamp01((minColumn - left) / Math.max(1, width)),
-      y: clamp01((minRow - top) / Math.max(1, height)),
-      width: clamp01((maxColumn + 1 - minColumn) / Math.max(1, width)),
-      height: clamp01((maxRow + 1 - minRow) / Math.max(1, height)),
+      x: clamp((minColumn - left) / Math.max(1, width), 0, 1),
+      y: clamp((minRow - top) / Math.max(1, height), 0, 1),
+      width: clamp((maxColumn + 1 - minColumn) / Math.max(1, width), 0, 1),
+      height: clamp((maxRow + 1 - minRow) / Math.max(1, height), 0, 1),
     }
   }
 

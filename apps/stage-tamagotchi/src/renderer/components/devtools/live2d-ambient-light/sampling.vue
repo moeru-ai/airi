@@ -6,6 +6,8 @@ import { FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 
+import { formatPercent } from './format'
+
 const { t } = useI18n()
 const {
   screenAmbientLightCaptureIntervalMs,
@@ -20,10 +22,6 @@ function formatMilliseconds(value: number) {
 
 function formatPixels(value: number) {
   return `${Math.round(value)} px`
-}
-
-function formatPercent(value: number) {
-  return `${Math.round(value * 100)}%`
 }
 </script>
 

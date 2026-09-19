@@ -18,6 +18,8 @@ const bounds = { x: ref(windowBounds.x), y: ref(windowBounds.y), width: ref(wind
 
 /** Records which display each capture was opened for. */
 const selectedDisplayIds = vi.hoisted(() => [] as string[])
+/** Sources the main process offers; each case sets what it needs. */
+const offeredSources = vi.hoisted(() => ({ list: [] as { id: string, display_id: string }[] }))
 
 vi.mock('@proj-airi/electron-vueuse', async () => {
   const { ref } = await import('vue')
@@ -31,12 +33,11 @@ vi.mock('@proj-airi/electron-screen-capture/vue', () => ({
   useElectronScreenCapture: () => ({
     checkMacOSPermission: vi.fn(async () => 'granted'),
     requestMacOSPermission: vi.fn(async () => {}),
-    // The composable picks a source by display id from the list the main
-    // process would return. Handing it both displays as sources records the
-    // pick and then plays a canvas stream, which is a real MediaStream that
-    // the video element can decode.
+    // The composable picks a source from the list the main process would
+    // return. The pick is recorded and a canvas stream plays in its place,
+    // which is a real MediaStream that the video element can decode.
     selectWithSource: async (select: (sources: { id: string, display_id: string }[]) => string) => {
-      const id = select(displays.map(display => ({ id: `screen:${display.id}:0`, display_id: String(display.id) })))
+      const id = select(offeredSources.list)
       selectedDisplayIds.push(id)
       const canvas = document.createElement('canvas')
       canvas.width = 64
@@ -54,6 +55,7 @@ beforeEach(() => {
   vi.stubGlobal('platform', 'linux')
   setActivePinia(createPinia())
   selectedDisplayIds.length = 0
+  offeredSources.list = displays.map(display => ({ id: `screen:${display.id}:0`, display_id: String(display.id) }))
   bounds.x.value = windowBounds.x
   bounds.y.value = windowBounds.y
   const settings = useSettingsScreenAmbientLight()
@@ -93,6 +95,32 @@ describe('screen ambient light capture', () => {
     bounds.x.value = 1600 + 100
 
     await vi.waitFor(() => expect(selectedDisplayIds).toEqual(['screen:17:0', 'screen:18:0']), { timeout: 3000 })
+  })
+
+  it('takes the only screen source when no display id matches', async () => {
+    // A Wayland portal returns one source with no display id. With one screen
+    // the choice is forced, so the capture starts on it.
+    offeredSources.list = [{ id: 'screen:0:0', display_id: '' }]
+    mount()
+
+    await vi.waitFor(() => expect(selectedDisplayIds).toEqual(['screen:0:0']))
+  })
+
+  it('refuses an arbitrary screen when several are offered and none matches', async () => {
+    // ROOT CAUSE:
+    //
+    // With no display id match the selection took the first screen source
+    // and normalized against the window's display, so the light came from one
+    // screen and was placed by another. Several unmatched screens now fail
+    // the start, which switches the feature off with an error.
+    offeredSources.list = [{ id: 'screen:0:0', display_id: '' }, { id: 'screen:1:0', display_id: '' }]
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mount()
+
+    await vi.waitFor(() => expect(useSettingsScreenAmbientLight().screenAmbientLightEnabled).toBe(false))
+    expect(selectedDisplayIds).toEqual([])
+    expect(errors).toHaveBeenCalledWith(expect.stringContaining('No screen-capture source matches display 17'))
+    errors.mockRestore()
   })
 
   it('does not restart while the window only crosses the boundary briefly', async () => {

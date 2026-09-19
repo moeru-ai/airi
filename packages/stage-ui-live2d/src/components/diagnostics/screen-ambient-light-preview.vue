@@ -94,7 +94,6 @@ function startPreview(view: HTMLCanvasElement) {
   filter.value = previewFilter
 }
 
-/** Writes the current props into the filter and draws one frame. */
 function renderPreview() {
   const app = application.value
   const previewFilter = filter.value

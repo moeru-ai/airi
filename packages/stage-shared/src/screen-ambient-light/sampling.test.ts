@@ -59,11 +59,10 @@ describe('screen ambient light sampling', () => {
   it('keeps the metered display luminance when no pixel carries color weight', () => {
     // ROOT CAUSE:
     //
-    // At a neutral-color weight of 0 a gray desktop gives every pixel a map
-    // weight of 0, so no texel has support and buildEnvironment reports
-    // nothing. The fallback was the whole neutral environment, whose
-    // displayLuminance is 1, so a dark desktop left the model fully exposed.
-    // The display meter ignores the weight, so the fallback keeps its reading.
+    // At a neutral-color weight of 0 a gray desktop gives every pixel weight 0,
+    // so buildEnvironment reports nothing and the fallback was the whole
+    // neutral environment, whose displayLuminance is 1: a dark desktop left
+    // the model fully exposed. The fallback now keeps the metered luminance.
     const frame = createFrame(64, 48, [64, 64, 64, 255])
 
     const result = sampleScreenAmbientLight(frame, { exclude: centeredWindow }, { neutralColorWeight: 0 })
@@ -76,11 +75,10 @@ describe('screen ambient light sampling', () => {
   it('measures the same maps whatever the frame resolution is', () => {
     // ROOT CAUSE:
     //
-    // A blur over the whole frame at frame resolution costs more as the capture
-    // grows: 11 ms per capture at 256 x 192. The measurement sums the frame onto
-    // a grid of about 24 cells per window height before it blurs, which is twice
-    // the density the maps can hold. The same scene at four times the resolution
-    // must therefore give the same maps.
+    // A blur at frame resolution cost 11 ms per capture at 256 x 192. The
+    // measurement now sums the frame onto a grid of about 24 cells per window
+    // height before it blurs, so the same scene at four times the resolution
+    // must give the same maps.
     const coarse = createFrame(64, 48, [0, 0, 0, 255])
     fillPixels(coarse, 8, 0, 16, 48, [255, 0, 0, 255])
     const fine = createFrame(256, 192, [0, 0, 0, 255])
@@ -139,11 +137,10 @@ describe('screen ambient light sampling', () => {
   it('keeps the lower half dark when the light beside the window sits above it', () => {
     // ROOT CAUSE:
     //
-    // A direction from the model center carries no distance along itself, so a
-    // lookup by direction gives one color to everything on that side. A red
-    // window beside the head would then paint the lower-left sleeve red while
-    // the desktop next to that sleeve is black. The maps hold a screen
-    // position, so the sleeve reads the texel next to the sleeve.
+    // A lookup by direction from the model center gives one color to a whole
+    // side: a red window beside the head painted a sleeve whose own desktop
+    // was black. The maps hold a screen position, so the sleeve reads the
+    // texel next to it.
     const frame = blackFrame()
     // Red beside the window, but only above the vertical middle of the window.
     fillPixels(frame, 8, 0, 16, 24, [255, 0, 0, 255])
@@ -165,16 +162,10 @@ describe('screen ambient light sampling', () => {
   it('reaches the same distance on every side of the window', () => {
     // ROOT CAUSE:
     //
-    // The maps used to reach half the window's own width to the sides and half
-    // its own height above and below, so a tall window gathered further up and
-    // down than it did across. The positional lookup hid it, because a fragment
-    // stores and reads at the same window position. The mean of the map did
-    // not: measured on a 96 x 192 window, the same patch of light counted 17%
-    // more above the window than beside it, and the exposure followed it.
-    //
-    // The reach is now one distance on screen, carried per axis because the
-    // axes are measured in different units. The same measurement now reads
-    // 0.962 rather than 1.170.
+    // The maps reached half the window's width sideways and half its height
+    // vertically, so a 96 x 192 window gathered 17% more light above than
+    // beside. The reach is now one screen distance carried per axis, and the
+    // same measurement reads 0.962 instead of 1.170.
     const frame = createFrame(128, 128, [4, 4, 5, 255])
     const window = { x: 0.40625, y: 0.25, width: 0.1875, height: 0.375 }
     const environment = sampleScreenAmbientLight(frame, {
@@ -225,15 +216,10 @@ describe('screen ambient light sampling', () => {
   it('places the maps around what was drawn rather than around the window', () => {
     // ROOT CAUSE:
     //
-    // The maps used to sit around the AIRI window. A window is only as tight
-    // around its subject as its shape allows, and the model is fitted to the
-    // smaller side, so a wide window holding an upright character is mostly
-    // empty. Light in that empty half was reported as light behind the
-    // character, and the map spent its texels on the emptiness: on a 1200 x 400
-    // window the character covered about 5 of the 24 texels across.
-    //
-    // The measurement now takes the bounds of what the renderer drew and places
-    // the maps around those.
+    // The maps sat around the AIRI window, and a wide window holding an
+    // upright character is mostly empty: on a 1200 x 400 window the character
+    // covered 5 of 24 texels across. The maps now sit around the bounds of
+    // what the renderer drew.
     const wideWindow = { x: 0.1, y: 0.4, width: 0.8, height: 0.2 }
     const drawn = { x: 0.46, y: 0.4, width: 0.08, height: 0.2 }
 
@@ -279,12 +265,10 @@ describe('screen ambient light sampling', () => {
   it('never lets the character reach the light maps', () => {
     // ROOT CAUSE:
     //
-    // The capture contains the AIRI window composited over the desktop, so the
+    // The capture holds the AIRI window composited over the desktop, so the
     // window rectangle holds the character too. Averaging the character back
-    // into the light it is lit by compounds every frame until the color runs
-    // away. Only pixels that the mask reports as unpainted may contribute, and
-    // the normalized convolution fills the hole they leave from the content
-    // around it.
+    // into the light that lights it compounds every frame until the color runs
+    // away. Only pixels the mask reports as unpainted may contribute.
     const frame = createFrame(32, 32, [10, 10, 12, 255])
     // A saturated magenta stands in for the character. Nothing else in the
     // frame is magenta, so any trace of it in a map is feedback.
@@ -396,9 +380,8 @@ describe('screen ambient light sampling', () => {
     //
     // The filter uploads a map only when the environment object changes. A
     // smoothing step that wrote into the previous map would change an
-    // environment that the renderer already holds, and the upload would never
-    // run again, so the maps on the GPU would drift away from the maps in the
-    // store.
+    // environment the renderer already holds, so the upload would never run
+    // again and the GPU maps would drift from the store.
     const previous = uniformAmbientLightEnvironment({ red: 1, green: 1, blue: 1, luminance: 1 })
     const next = uniformAmbientLightEnvironment({ red: 0, green: 0, blue: 0, luminance: 0 })
     const previousData = Float32Array.from(previous.surround.data)
@@ -441,11 +424,10 @@ describe('screen ambient light sampling', () => {
   })
 
   it('stays inside the frame budget of one capture', () => {
-    // The capture runs at up to 20 frames per second on the renderer thread, so
-    // one measurement has to stay far below one animation frame. The budget is
-    // loose on purpose: it catches an algorithmic regression, such as a blur
-    // whose cost grows with its radius, without failing on a slow machine.
-    // Measured on an Apple M-series laptop: 0.95 ms per call.
+    // One measurement has to stay far below one animation frame at 20 captures
+    // per second. The budget is loose on purpose: it catches a blur whose cost
+    // grows with its radius and passes on a slow machine. An Apple M-series
+    // laptop measures 0.95 ms.
     const frame = createFrame(128, 96, [90, 110, 140, 255])
     fillPixels(frame, 0, 0, 40, 96, [220, 40, 40, 255])
     const painted = new Uint8ClampedArray(128 * 96)
@@ -552,10 +534,10 @@ describe('ambientLightPerceptualLevel', () => {
   it('puts a linear luminance on the same scale as the measured exposure', () => {
     // ROOT CAUSE:
     //
-    // behindLuminance is linear and exposure is perceptual, so a consumer that
-    // compared one against the other measured a far smaller change than the
-    // viewer sees: a mid-gray desktop is 0.2 in linear light and about 0.5 to
-    // the eye. Anything tuned on the exposure scale has to convert first.
+    // behindLuminance is linear and exposure is perceptual, so comparing one
+    // against the other saw a far smaller change than the viewer: a mid-gray
+    // desktop is 0.2 in linear light and about 0.5 to the eye. Anything tuned
+    // on the exposure scale has to convert first.
     expect(ambientLightPerceptualLevel(0.2)).toBeCloseTo(0.485, 3)
     expect(ambientLightPerceptualLevel(0)).toBe(0)
     // The transfer function lands a hair under 1 in floating point, and the

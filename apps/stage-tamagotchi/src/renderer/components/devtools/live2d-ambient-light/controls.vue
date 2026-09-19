@@ -10,6 +10,8 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { formatMultiplier, formatPercent } from './format'
+
 const { t } = useI18n()
 const {
   screenAmbientLightEnabled,
@@ -40,14 +42,6 @@ const modeOptions = computed<SelectTabOption<ScreenAmbientLightMode>[]>(() => [
     label: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.mode.options.global'),
   },
 ])
-
-function formatPercent(value: number) {
-  return `${Math.round(value * 100)}%`
-}
-
-function formatMultiplier(value: number) {
-  return `${value.toFixed(2)}×`
-}
 </script>
 
 <template>

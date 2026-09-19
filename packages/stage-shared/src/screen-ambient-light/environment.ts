@@ -444,3 +444,8 @@ export function srgbToLinear(value: number): number {
 export function linearToSrgb(value: number): number {
   return value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055
 }
+
+/** Linear light to one sRGB byte, as a texture or a canvas pixel stores it. */
+export function linearToSrgbByte(value: number): number {
+  return Math.round(Math.min(Math.max(linearToSrgb(value), 0), 1) * 255)
+}

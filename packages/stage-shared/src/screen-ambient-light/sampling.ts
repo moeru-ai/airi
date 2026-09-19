@@ -178,42 +178,28 @@ export function sampleScreenAmbientLight(
   // the normalized convolution together. Each cell sums the frame pixels it
   // covers and is scaled back to the range of one pixel below.
   const field = new Float32Array(grid.width * grid.height * 4)
-  const paintedAlpha = region.paintedAlpha
   let excludedPixelCount = 0
   let transparentPixelCount = 0
   let acceptedPixelCount = 0
   let seeThroughPixelCount = 0
 
   for (let y = grid.top; y < grid.bottom; y += 1) {
-    const normalizedY = (y + 0.5) / frame.height
-    const insideRow = normalizedY >= region.exclude.y
-      && normalizedY <= region.exclude.y + region.exclude.height
     const cellRow = Math.floor((y - grid.top) / grid.scale) * grid.width
 
     for (let x = grid.left; x < grid.right; x += 1) {
-      const index = y * frame.width + x
-      const offset = index * 4
-      if (frame.data[offset + 3] === 0) {
+      const kind = classifyPixel(frame, region, x, y)
+      if (kind === 'transparent') {
         transparentPixelCount += 1
         continue
       }
-
-      const normalizedX = (x + 0.5) / frame.width
-      const inside = insideRow
-        && normalizedX >= region.exclude.x
-        && normalizedX <= region.exclude.x + region.exclude.width
-      if (inside) {
-        // A pixel inside the window is either the character or the desktop that
-        // shows through the transparent window. Without a mask the two cannot
-        // be told apart, so the whole rectangle counts as painted.
-        const painted = paintedAlpha?.[index]
-        if (painted === undefined || painted > seeThroughAlphaCeiling) {
-          excludedPixelCount += 1
-          continue
-        }
-        seeThroughPixelCount += 1
+      if (kind === 'painted') {
+        excludedPixelCount += 1
+        continue
       }
+      if (kind === 'see-through')
+        seeThroughPixelCount += 1
 
+      const offset = (y * frame.width + x) * 4
       const red = frame.data[offset]
       const green = frame.data[offset + 1]
       const blue = frame.data[offset + 2]
@@ -442,6 +428,31 @@ export function ambientLightSampleFromHex(color: string): AmbientLightSample | u
  *    is what `undefined` reports.
  */
 /**
+ * What one frame pixel is to the measurement.
+ *
+ * Both the maps and the display meter leave out the same pixels: a transparent
+ * pixel carries no light, and a painted pixel is the character, which must not
+ * light itself. Inside the window, a pixel is either the character or the
+ * desktop showing through. Without a mask the two cannot be told apart, so the
+ * whole rectangle counts as painted.
+ */
+function classifyPixel(frame: PixelFrame, region: SampleRegion, x: number, y: number): 'transparent' | 'painted' | 'see-through' | 'desktop' {
+  const index = y * frame.width + x
+  if (frame.data[index * 4 + 3] === 0)
+    return 'transparent'
+
+  const normalizedX = (x + 0.5) / frame.width
+  const normalizedY = (y + 0.5) / frame.height
+  const inside = normalizedX >= region.exclude.x && normalizedX <= region.exclude.x + region.exclude.width
+    && normalizedY >= region.exclude.y && normalizedY <= region.exclude.y + region.exclude.height
+  if (!inside)
+    return 'desktop'
+
+  const painted = region.paintedAlpha?.[index]
+  return painted === undefined || painted > seeThroughAlphaCeiling ? 'painted' : 'see-through'
+}
+
+/**
  * Mean linear luminance of the display outside the AIRI window.
  *
  * This is the exposure meter for the whole model, so it reads every visible
@@ -454,32 +465,16 @@ export function ambientLightSampleFromHex(color: string): AmbientLightSample | u
  * clipped. A fully transparent pixel carries no light.
  */
 function displayLuminanceOf(frame: PixelFrame, region: SampleRegion): number {
-  const paintedAlpha = region.paintedAlpha
   let total = 0
   let count = 0
 
   for (let y = 0; y < frame.height; y += 1) {
-    const normalizedY = (y + 0.5) / frame.height
-    const insideRow = normalizedY >= region.exclude.y
-      && normalizedY <= region.exclude.y + region.exclude.height
-
     for (let x = 0; x < frame.width; x += 1) {
-      const index = y * frame.width + x
-      const offset = index * 4
-      if (frame.data[offset + 3] === 0)
+      const kind = classifyPixel(frame, region, x, y)
+      if (kind === 'transparent' || kind === 'painted')
         continue
 
-      if (insideRow) {
-        const normalizedX = (x + 0.5) / frame.width
-        const inside = normalizedX >= region.exclude.x
-          && normalizedX <= region.exclude.x + region.exclude.width
-        if (inside) {
-          const painted = paintedAlpha?.[index]
-          if (painted === undefined || painted > seeThroughAlphaCeiling)
-            continue
-        }
-      }
-
+      const offset = (y * frame.width + x) * 4
       total += relativeLuminance(
         srgbByteToLinear[frame.data[offset]],
         srgbByteToLinear[frame.data[offset + 1]],

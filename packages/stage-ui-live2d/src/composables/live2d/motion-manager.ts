@@ -564,36 +564,60 @@ export function useMotionUpdatePluginLightSquint(
 
   let fast: number | undefined
   let slow: number | undefined
-  let lastPlacement = placement()
+  /** Read on the first active frame, so an idle frame does not build the string. */
+  let lastPlacement: string | undefined
   let settleRemaining = 0
   /** Current squint depth, from 0 to 1. The gap drives it up; the release brings it back. */
   let squintLevel = 0
   let lastProposed = 0
   const lastApplied = new Map<string, { base: number, written: number }>()
 
+  /**
+   * Hands the eyes back to whatever wrote them before this plugin did.
+   *
+   * Every other plugin rewrites these parameters each frame, but a model whose
+   * motion carries no eye curves would otherwise keep the last narrowed value.
+   * A value the plugin no longer recognizes was written by someone else since,
+   * and is left alone.
+   */
+  function releaseEyes(ctx: MotionManagerPluginContext) {
+    for (const [id, applied] of lastApplied) {
+      if (ctx.model.getParameterValueById(id) === applied.written)
+        ctx.model.setParameterValueById(id, applied.base)
+    }
+    lastApplied.clear()
+  }
+
   return (ctx) => {
     const level = clamp01(exposure())
     const strength = Math.max(0, amount())
     // Hold both followers on the level while the effect is off, so that turning
     // it on does not read the whole standing difference as one sudden change.
+    // A squint under way when the amount drops is handed back at once.
     if (fast === undefined || slow === undefined || strength === 0) {
       fast = level
       slow = level
       squintLevel = 0
       lastProposed = 0
-      lastPlacement = placement()
+      lastPlacement = undefined
       settleRemaining = 0
+      releaseEyes(ctx)
       return
     }
+
+    // The first active frame takes the placement as it is, so that the move
+    // check below cannot read the whole idle period as one move.
+    if (lastPlacement === undefined)
+      lastPlacement = placement()
 
     // A backgrounded window delivers one huge step on return. Capping it keeps
     // that step from reading as a light change the character reacts to.
     const dt = Math.min(Math.max(ctx.timeDelta, 0), 0.1)
 
     // Moving the window swaps the desktop behind it, and the measurement reports
-    // that as a light change even though no light changed. The eyes answer to
-    // the light, not to the character being carried across it, so a move pins
-    // both followers to the level until the new surroundings have settled in.
+    // that as a light change. The eyes answer to the light, not to the
+    // character being carried across it, so a move pins both followers to the
+    // level until the new surroundings have settled in.
     const currentPlacement = placement()
     if (currentPlacement !== lastPlacement) {
       lastPlacement = currentPlacement
@@ -629,14 +653,7 @@ export function useMotionUpdatePluginLightSquint(
 
     const squint = squintLevel
     if (squint === 0) {
-      // The frame the squint ends, hand the eyes back. Every other plugin
-      // rewrites these parameters each frame, but a model whose motion carries
-      // no eye curves would otherwise keep the last narrowed value.
-      for (const [id, applied] of lastApplied) {
-        if (ctx.model.getParameterValueById(id) === applied.written)
-          ctx.model.setParameterValueById(id, applied.base)
-      }
-      lastApplied.clear()
+      releaseEyes(ctx)
       return
     }
 

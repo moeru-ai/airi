@@ -4,8 +4,7 @@ import type { ComponentPublicInstance } from 'vue'
 
 import type { ScreenAmbientLightDiagnosticsSnapshot } from '../../../../shared/screen-ambient-light-diagnostics'
 
-import { ambientLightNeutralMapMargin, linearToSrgb } from '@proj-airi/stage-shared/screen-ambient-light'
-import { clamp } from 'es-toolkit'
+import { ambientLightNeutralMapMargin, linearToSrgbByte } from '@proj-airi/stage-shared/screen-ambient-light'
 import { computed, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -80,18 +79,15 @@ function drawMap(canvas: HTMLCanvasElement, map: AmbientLightMap) {
 
   const image = context.createImageData(map.width, map.height)
   for (let texel = 0; texel < map.width * map.height; texel += 1) {
-    image.data[texel * 4] = toByte(map.data[texel * 3])
-    image.data[texel * 4 + 1] = toByte(map.data[texel * 3 + 1])
-    image.data[texel * 4 + 2] = toByte(map.data[texel * 3 + 2])
+    image.data[texel * 4] = linearToSrgbByte(map.data[texel * 3])
+    image.data[texel * 4 + 1] = linearToSrgbByte(map.data[texel * 3 + 1])
+    image.data[texel * 4 + 2] = linearToSrgbByte(map.data[texel * 3 + 2])
     image.data[texel * 4 + 3] = 255
   }
   context.putImageData(image, 0, 0)
 }
 
 /** The map holds linear light, and a canvas expects the sRGB encoding. */
-function toByte(linear: number) {
-  return Math.round(linearToSrgb(clamp(linear, 0, 1)) * 255)
-}
 </script>
 
 <template>

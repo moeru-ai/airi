@@ -14,7 +14,7 @@ import {
   ambientLightMapSize,
   ambientLightNeutralMapMargin,
   averageAmbientLightMap,
-  linearToSrgb,
+  linearToSrgbByte,
   wholeWindowRectangle,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import { clamp } from 'es-toolkit'
@@ -632,13 +632,9 @@ function writeGaussianWeights(target: Float32Array, spacing: number, rimSigma: n
 function writeMapTexels(texels: Uint8Array, map: AmbientLightMap) {
   const texelCount = ambientLightMapSize * ambientLightMapSize
   for (let texel = 0; texel < texelCount; texel += 1) {
-    texels[texel * 4] = toTexel(linearToSrgb(map.data[texel * 3]))
-    texels[texel * 4 + 1] = toTexel(linearToSrgb(map.data[texel * 3 + 1]))
-    texels[texel * 4 + 2] = toTexel(linearToSrgb(map.data[texel * 3 + 2]))
+    texels[texel * 4] = linearToSrgbByte(map.data[texel * 3])
+    texels[texel * 4 + 1] = linearToSrgbByte(map.data[texel * 3 + 1])
+    texels[texel * 4 + 2] = linearToSrgbByte(map.data[texel * 3 + 2])
     texels[texel * 4 + 3] = 255
   }
-}
-
-function toTexel(value: number) {
-  return Math.round(clamp(value, 0, 1) * 255)
 }

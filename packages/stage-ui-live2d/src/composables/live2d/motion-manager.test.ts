@@ -338,12 +338,10 @@ describe('light squint plugin', () => {
   it('leaves the eyes open while the screen level holds still', () => {
     // ROOT CAUSE:
     //
-    // A squint driven by the screen level itself would hold the eyes narrowed
-    // for as long as a bright application is in front, which is the ordinary
-    // desktop rather than a rare one, and the character would read as sleepy
-    // instead of reacting. The signal is the gap between a fast and a slow
-    // follower, so a level that does not move closes the gap and the eyes stay
-    // open however bright the screen is.
+    // A squint driven by the screen level would hold the eyes narrowed for as
+    // long as a bright application is in front, which is the ordinary desktop.
+    // The signal is the gap between a fast and a slow follower, so a steady
+    // level keeps the eyes open.
     const plugin = useMotionUpdatePluginLightSquint(() => 0.95, () => 1)
 
     expect(run(plugin, 20)).toBe(1)
@@ -366,14 +364,10 @@ describe('light squint plugin', () => {
   it('opens back on its own schedule instead of trailing the light measurement', () => {
     // ROOT CAUSE:
     //
-    // The squint used to be read straight off the follower gap, which decays
-    // exponentially. The eyes shot open at first and then sat a few percent
-    // short of open for the better part of ten seconds, so the character never
-    // looked like it had recovered.
-    //
-    // The gap now only proposes a depth while it is still opening. The way back
-    // is a steady release with a quicker finish, so it reaches fully open at a
-    // definite time.
+    // The squint was read off the follower gap, which decays exponentially,
+    // so the eyes sat a few percent short of open for ten seconds. The gap
+    // now only proposes a depth while it opens; a steady release then reaches
+    // fully open at a definite time.
     let exposure = 0
     const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 1)
     const context = createContext({ timeDelta: frameSeconds })
@@ -405,14 +399,10 @@ describe('light squint plugin', () => {
   it('leaves eyes that an expression already narrowed past the floor alone', () => {
     // ROOT CAUSE:
     //
-    // The floor started out as a floor on the multiplier, so a fully closed eye
-    // multiplied by it stayed closed but the written value could still land
-    // under the blink threshold once an expression had lowered the base. Worse,
-    // a floor applied to the written value alone would widen a deliberately
-    // narrowed eye back up to it.
-    //
-    // The floor is now the smaller of itself and the base, so it can only
-    // narrow an eye and never widen one.
+    // A floor on the multiplier let the value land under the blink threshold
+    // once an expression lowered the base, and a floor on the value would
+    // widen a deliberately narrowed eye. The floor is now the smaller of
+    // itself and the base, so it only narrows.
     let exposure = 0
     const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 4)
     const context = createContext({ timeDelta: frameSeconds })
@@ -428,14 +418,10 @@ describe('light squint plugin', () => {
   it('does not compound its own output when no other plugin writes the eyes', () => {
     // ROOT CAUSE:
     //
-    // The plugin multiplies the value it finds on the parameter. On a frame
-    // where no motion, blink or expression wrote the eyes, that value is this
-    // plugin's own output from the previous frame, so multiplying again
-    // compounded every frame and shut the eyes completely within a second.
-    //
-    // The plugin now remembers what it wrote and resolves a value it recognizes
-    // back to the base it came from, so a held squint reaches one depth and
-    // stays there.
+    // The plugin multiplies the value on the parameter. On a frame where
+    // nothing else wrote the eyes, that value is its own previous output, so
+    // the squint compounded and shut the eyes within a second. The plugin now
+    // resolves a value it wrote back to its base.
     let exposure = 0
     const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 0.5)
     const context = createContext({ timeDelta: frameSeconds })
@@ -453,13 +439,10 @@ describe('light squint plugin', () => {
   it('ignores the light change that moving the window brings', () => {
     // ROOT CAUSE:
     //
-    // The measurement reads the desktop behind the window. Dragging the window
-    // swaps that desktop for a different one, so the exposure jumped and the
-    // character squinted at every window move even though no light had changed.
-    //
-    // A change of window placement now pins both followers to the level for as
-    // long as it takes the new surroundings to settle in, so only light that
-    // changes under a window standing still reaches the eyes.
+    // Dragging the window swaps the desktop behind it, so the character
+    // squinted at every move even though no light had changed. A change of
+    // placement now pins both followers to the level until the surroundings
+    // settle, so only light that changes under a still window counts.
     let exposure = 0
     let placement = '0,0,400,600'
     const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 1, () => placement)
@@ -493,14 +476,9 @@ describe('light squint plugin', () => {
     // ROOT CAUSE:
     //
     // Both followers moved at one speed, so a few seconds of dark reset the
-    // adapted state and the very next brightening drew the same full reflex.
-    // A real eye does not work that way: getting used to brighter surroundings
-    // takes seconds, while getting used to darker ones runs for minutes, so a
-    // short dark spell leaves it still light-adapted and the next brightening
-    // barely registers.
-    //
-    // The adapted follower now falls far slower than it rises, which reproduces
-    // that asymmetry and makes the second reflex the weaker one.
+    // adaptation and the next brightening drew the full reflex. An eye adapts
+    // to bright in seconds and to dark over minutes. The adapted follower now
+    // falls far slower than it rises.
     let exposure = 0.15
     const placement = '0,0,400,600'
     const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 1, () => placement)
@@ -556,6 +534,29 @@ describe('light squint plugin', () => {
     const afterLongDark = brightenAndMeasure()
 
     expect(afterLongDark).toBeLessThan(afterShortDark - 0.1)
+  })
+
+  it('hands the eyes back on the frame the amount drops to zero', () => {
+    // ROOT CAUSE:
+    //
+    // The off branch reset the followers and returned, leaving the narrowed
+    // values on the model. A motion with no eye curves then kept the squint
+    // after the feature was switched off. The off branch now runs the same
+    // hand-back as the frame a squint ends on.
+    let exposure = 0
+    let amount = 1
+    const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => amount)
+    const context = createContext({ timeDelta: frameSeconds })
+
+    run(plugin, 1, context)
+    exposure = 1
+    const narrowed = run(plugin, 0.3, context)
+    expect(narrowed).toBeLessThan(0.9)
+
+    amount = 0
+    plugin(context)
+
+    expect(context.model.getParameterValueById('ParamEyeLOpen')).toBe(1)
   })
 
   it('stays out of the way at zero amount', () => {

@@ -441,10 +441,10 @@ async function performModelLoad() {
     // This ensures blink respects expression state (0 × blinkFactor = 0).
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
-    // After the blink plugin, so that it only narrows the value a blink returns to.
-    // The signal is the light behind the character rather than the screen level,
-    // which is a mean over the whole capture: a bright window opening in a far
-    // corner of the display would otherwise reach the eyes.
+    // After the blink plugin, so that it only narrows the value a blink returns
+    // to. The signal is the light behind the character, not the screen level:
+    // that is a mean over the whole capture, and a bright window opening in a
+    // far corner would otherwise reach the eyes.
     motionManagerUpdate.register(
       useMotionUpdatePluginLightSquint(
         () => ambientLightPerceptualLevel(screenAmbientLightEnvironment.value.behindLuminance),

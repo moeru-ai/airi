@@ -257,18 +257,32 @@ export function useScreenAmbientLight(sources: {
 
     const stream = await selectWithSource(
       (sources) => {
-        const source = sources.find(candidate => candidate.display_id === String(display.id))
-          ?? sources.find(candidate => candidate.id.startsWith('screen:'))
+        const screens = sources.filter(candidate => candidate.id.startsWith('screen:'))
         // Passing an empty id on would fail later inside the main process with
         // a message that names no cause. On macOS an empty list is what a
         // missing screen-recording permission looks like from here, so that
         // platform gets the extra hint.
-        if (!source) {
+        if (screens.length === 0) {
           throw new Error(window.platform === 'darwin'
             ? 'No screen-capture source is available. Check the screen-recording permission for AIRI.'
             : 'No screen-capture source is available.')
         }
-        return source.id
+
+        const matched = screens.find(candidate => candidate.display_id === String(display.id))
+        if (matched)
+          return matched.id
+
+        // A Wayland portal returns one source with no display id, so a single
+        // screen is a forced choice. The display bounds used below are then a
+        // guess: right on one display, while on several the portal shows
+        // whichever screen the user picked, which this side cannot see.
+        if (screens.length === 1)
+          return screens[0].id
+
+        // Several screens and none matching means the capture would light the
+        // character from an arbitrary display while normalizing against the
+        // one the window is on. Failing keeps the light off instead.
+        throw new Error(`No screen-capture source matches display ${display.id}.`)
       },
       async () => await navigator.mediaDevices.getDisplayMedia({
         video: captureConstraints(display.bounds, captureFrameRate.value),
@@ -389,8 +403,6 @@ export function useScreenAmbientLight(sources: {
     }
     const result = sampleScreenAmbientLight(frame, {
       exclude: excludedWindow,
-      // The mask measures the subject inside the window; the sampler places its
-      // maps on the display, so the rectangle changes frame here.
       subject: subjectOnDisplay,
       paintedAlpha: painted?.alpha,
     }, samplingOptions.value)

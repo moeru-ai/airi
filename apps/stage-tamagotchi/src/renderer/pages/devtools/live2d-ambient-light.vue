@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import Live2DAmbientLightControls from '../../components/Devtools/live2d-ambient-light/controls.vue'
-import Live2DAmbientLightDiagnostics from '../../components/Devtools/live2d-ambient-light/diagnostics.vue'
-import Live2DAmbientLightSampling from '../../components/Devtools/live2d-ambient-light/sampling.vue'
-import Live2DAmbientLightShaderPreview from '../../components/Devtools/live2d-ambient-light/shader-preview.vue'
-import Live2DAmbientLightShader from '../../components/Devtools/live2d-ambient-light/shader.vue'
+import Live2DAmbientLightControls from '../../components/devtools/live2d-ambient-light/controls.vue'
+import Live2DAmbientLightDiagnostics from '../../components/devtools/live2d-ambient-light/diagnostics.vue'
+import Live2DAmbientLightSampling from '../../components/devtools/live2d-ambient-light/sampling.vue'
+import Live2DAmbientLightShaderPreview from '../../components/devtools/live2d-ambient-light/shader-preview.vue'
+import Live2DAmbientLightShader from '../../components/devtools/live2d-ambient-light/shader.vue'
 </script>
 
 <template>

@@ -16,6 +16,8 @@ import {
   ambientLightNeutralEnvironment,
   averageAmbientLightMap,
   createAmbientLightMap,
+  relativeLuminance,
+  srgbToLinear,
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import { afterAll, describe, expect, it } from 'vitest'
 
@@ -80,15 +82,9 @@ describe('screen ambient light filter', () => {
     // ROOT CAUSE:
     //
     // The first shader darkened the model as the screen brightened, so a white
-    // page turned the character into a silhouette, and the next one held the
-    // model at its painted brightness under every screen, so a character in
-    // front of a dark screen with one orange window stayed as bright as the
-    // painter drew it and the light beside it had nothing to read against.
-    //
-    // A diffuse subject reflects the light around it. The model now scales
-    // with the screen light between the floor, which is the room without the
-    // screen, and its painted brightness under white. A black screen therefore
-    // shows the model at the floor and never darker.
+    // page made a silhouette; the next held the painted brightness under every
+    // screen. The model now scales with the screen light between the floor,
+    // the room without the screen, and its painted brightness.
     const underBlack = renderLight({
       environment: environmentWith({ surround: uniformMap(black) }),
       filterOptions: bodyOptions(),
@@ -116,12 +112,10 @@ describe('screen ambient light filter', () => {
   it('never takes a channel below the floor, whatever color the screen is', () => {
     // ROOT CAUSE:
     //
-    // An earlier build added the color part of the light to the reflectance.
-    // Under a saturated screen that part is negative in the channels the light
-    // lacks, so an orange desktop drove the blue channel of a white jacket to
-    // zero and the artwork lost a primary. Light only adds: a channel the
-    // screen does not emit falls no lower than the floor, which stands for the
-    // room without the screen.
+    // An earlier build added the color part of the light to the reflectance,
+    // which is negative in the channels a saturated screen lacks, so an orange
+    // desktop drove a white jacket's blue channel to zero. Light only adds:
+    // a channel the screen lacks stays at the floor.
     const floorOnly = renderLight({
       environment: environmentWith({ surround: uniformMap(black) }),
       filterOptions: bodyOptions(),
@@ -160,11 +154,10 @@ describe('screen ambient light filter', () => {
   it('holds the model at one brightness while its window moves', () => {
     // ROOT CAUSE:
     //
-    // The exposure used to come from the light map, which covers the window and
-    // a margin. Dragging the window onto a dark part of the desktop therefore
-    // dimmed the whole character even though the room had not changed. The
-    // level now comes from the display meter, and the map only shapes it, so at
-    // a local share of zero the character keeps one brightness wherever it sits.
+    // The exposure came from the light map around the window, so dragging the
+    // window onto a dark desktop area dimmed the whole character. The level
+    // now comes from the display meter, so at a local share of zero the
+    // brightness does not follow the window.
     const steady = bodyOptions({ localShare: 0 })
     const overBright = renderLight({
       environment: environmentWith({ surround: uniformMap(white), displayLuminance: 0.3 }),
@@ -207,16 +200,10 @@ describe('screen ambient light filter', () => {
   it('adds color under dim saturated light without changing its brightness', () => {
     // ROOT CAUSE:
     //
-    // Saturated light carries little energy: blue at full strength has 7% of
-    // the luminance of white. The physically correct result under a blue screen
-    // is therefore almost colorless, which is not what the screen looks like.
-    // The boost moves the lit color away from the unlit one in hue while
-    // holding its luminance, by an amount that grows as the light dims.
-    //
-    // The boost works by trading between channels the screen lit, and no
-    // channel may end below the unlit model. A pure primary gives two channels
-    // no light at all and therefore nothing to trade, so this case uses a
-    // saturated blue of the kind a page actually emits.
+    // Blue at full strength has 7% of the luminance of white, so the physical
+    // result under a blue screen is almost colorless. The boost moves the lit
+    // color from the unlit one at constant luminance. It trades between lit
+    // channels, so a pure primary offers nothing.
     const plain = renderLight({
       environment: environmentWith({ surround: uniformMap(saturatedBlue) }),
       filterOptions: bodyOptions({ colorBoost: 0 }),
@@ -240,11 +227,10 @@ describe('screen ambient light filter', () => {
   it('reflects the surround color of each position at that position', () => {
     // ROOT CAUSE:
     //
-    // Two parts of the model on the same side but at different heights share a
-    // direction from the model center. A lookup by direction therefore gives
-    // them one color, and a red window beside the head also reddens the
-    // lower-left sleeve. The model reads the map by screen position instead,
-    // so each column takes the color of the screen behind that column.
+    // Two parts of the model on the same side at different heights share a
+    // direction from the model center, so a lookup by direction gave them one
+    // color and a red window beside the head reddened a sleeve. The model
+    // reads the map by screen position instead.
     const pixels = renderLight({
       environment: environmentWith({ surround: splitMap(red, blue) }),
       filterOptions: bodyOptions({ darkBase: 0, localShare: 1 }),
@@ -358,13 +344,10 @@ describe('screen ambient light filter', () => {
   it('fades the wrapped edge into the interior without steps', () => {
     // ROOT CAUSE:
     //
-    // Alpha is a step at the silhouette. A band built from a fixed set of alpha
-    // taps therefore moves by one tap each time a tap crosses the edge, and it
-    // falls into the interior as a staircase: a plateau, a drop, a plateau.
-    // Under a white wrap every tread reads as one more outline drawn parallel
-    // to the sleeve or strand it follows. A separable Gaussian blur of the
-    // alpha is continuous in the distance to the edge, so each pixel is at most
-    // a little darker than the one before it.
+    // Alpha is a step at the silhouette, so a band built from fixed alpha taps
+    // fell into the interior as a staircase of outlines. A separable Gaussian
+    // blur of the alpha is continuous in the distance to the edge: no pixel
+    // drops far below the one before.
     const lit = renderWrap(uniformMap(white))
     const interior = channelAt(lit, lit.centerColumn, lit.middleRow, 0)
     const profile = Array.from(
@@ -510,20 +493,16 @@ function blueAt(pixels: Uint8Array, x: number) {
 
 /** Relative luminance of one strip pixel in linear light, from 0 to 1. */
 function luminanceAt(pixels: Uint8Array, x: number) {
-  return relativeLuminance(redAt(pixels, x), greenAt(pixels, x), blueAt(pixels, x))
+  return luminanceOfBytes(redAt(pixels, x), greenAt(pixels, x), blueAt(pixels, x))
 }
 
 /** Relative luminance of one scene pixel in linear light, from 0 to 1. */
 function luminanceOf(scene: WrapScene, x: number, y: number) {
-  return relativeLuminance(channelAt(scene, x, y, 0), channelAt(scene, x, y, 1), channelAt(scene, x, y, 2))
+  return luminanceOfBytes(channelAt(scene, x, y, 0), channelAt(scene, x, y, 1), channelAt(scene, x, y, 2))
 }
 
-function relativeLuminance(red: number, green: number, blue: number) {
-  const linear = (value: number) => {
-    const normalized = value / 255
-    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
-  }
-  return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+function luminanceOfBytes(red: number, green: number, blue: number) {
+  return relativeLuminance(srgbToLinear(red / 255), srgbToLinear(green / 255), srgbToLinear(blue / 255))
 }
 
 interface WrapScene {
@@ -632,7 +611,7 @@ function environmentWith(overrides: Partial<AmbientLightEnvironment>): AmbientLi
   const [red, green, blue] = averageAmbientLightMap(surround)
   return {
     ...ambientLightNeutralEnvironment,
-    displayLuminance: 0.2126 * red + 0.7152 * green + 0.0722 * blue,
+    displayLuminance: relativeLuminance(red, green, blue),
     ...overrides,
   }
 }

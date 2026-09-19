@@ -6,6 +6,8 @@ import type { DisplayPixelRectangle, ScreenAmbientLightDiagnosticsSnapshot } fro
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { formatPercent } from './format'
+
 const props = defineProps<{
   diagnostics: ScreenAmbientLightDiagnosticsSnapshot
 }>()
@@ -97,10 +99,6 @@ function formatRectangle(rectangle: DisplayPixelRectangle) {
 
 function formatNormalizedRectangle(rectangle: NormalizedRectangle) {
   return `${formatPercent(rectangle.x)}, ${formatPercent(rectangle.y)} · ${formatPercent(rectangle.width)} × ${formatPercent(rectangle.height)}`
-}
-
-function formatPercent(value: number) {
-  return `${Math.round(value * 100)}%`
 }
 </script>
 

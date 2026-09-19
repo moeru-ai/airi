@@ -6,6 +6,8 @@ import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 
+import { formatMultiplier, formatPercent } from './format'
+
 const { t } = useI18n()
 const {
   screenAmbientLightBacklight,
@@ -19,14 +21,6 @@ const {
   screenAmbientLightWrapIntensity,
   screenAmbientLightWrapSaturation,
 } = storeToRefs(useSettingsScreenAmbientLight())
-
-function formatPercent(value: number) {
-  return `${Math.round(value * 100)}%`
-}
-
-function formatMultiplier(value: number) {
-  return `${value.toFixed(2)}×`
-}
 </script>
 
 <template>
