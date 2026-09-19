@@ -59,12 +59,6 @@ const displayModelsPresets: DisplayModel[] = [
 export const useDisplayModelsStore = defineStore('display-models', () => {
   const displayModels = ref<DisplayModel[]>([])
 
-  let generateLive2DPreview: (file: File) => Promise<string | undefined>
-  let generateVrmPreview: (file: File) => Promise<string | undefined>
-  let generateSpinePreview: (file: File) => Promise<string | undefined>
-  let generateTachiePreview: (file: File) => Promise<string | undefined>
-  let generateMMDPreview: (file: File) => Promise<string | undefined>
-
   const displayModelsFromIndexedDBLoading = ref(false)
 
   async function loadDisplayModelsFromIndexedDB() {
@@ -109,11 +103,36 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     return displayModelsPresets.find(model => model.id === id)
   }
 
-  const loadLive2DModelPreview = (file: File) => generateLive2DPreview(file)
-  const loadVrmModelPreview = (file: File) => generateVrmPreview(file)
-  const loadSpineModelPreview = (file: File) => generateSpinePreview(file)
-  const loadTachieModelPreview = (file: File) => generateTachiePreview(file)
-  const loadMMDModelPreview = (file: File) => generateMMDPreview(file)
+  async function loadLive2DModelPreview(file: File) {
+    // Live2D registration remains safe when an import starts before App.vue has
+    // completed store initialization because ESM evaluates these modules once.
+    await Promise.all([
+      import('@proj-airi/stage-ui-live2d/utils/live2d-zip-loader'),
+      import('@proj-airi/stage-ui-live2d/utils/live2d-opfs-registration'),
+    ])
+    const { loadLive2DModelPreview } = await import('@proj-airi/stage-ui-live2d/utils/live2d-preview')
+    return loadLive2DModelPreview(file)
+  }
+
+  async function loadVrmModelPreview(file: File) {
+    const { loadVrmModelPreview } = await import('@proj-airi/stage-ui-three/utils/vrm-preview')
+    return loadVrmModelPreview(file)
+  }
+
+  async function loadSpineModelPreview(file: File) {
+    const { loadSpineModelPreview } = await import('@proj-airi/stage-ui-spine/utils/spine-preview')
+    return loadSpineModelPreview(file)
+  }
+
+  async function loadTachieModelPreview(file: File) {
+    const { loadTachieModelPreview } = await import('@proj-airi/stage-ui-tachie/utils/tachie-preview')
+    return loadTachieModelPreview(file)
+  }
+
+  async function loadMMDModelPreview(file: File) {
+    const { loadMMDModelPreview } = await import('@proj-airi/stage-ui-mmd/utils/mmd-preview')
+    return loadMMDModelPreview(file)
+  }
 
   async function addDisplayModel(format: DisplayModelFormat, file: File) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
@@ -143,8 +162,6 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       // module), the model should still import — just without a thumbnail.
       // Removal condition: preview generation is guaranteed non-throwing.
       try {
-        if (!generateMMDPreview)
-          throw new Error('MMD preview module not initialized')
         newDisplayModel.previewImage = await loadMMDModelPreview(file)
       }
       catch (err) {
@@ -209,30 +226,6 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   async function initialize() {
     await import('@proj-airi/stage-ui-live2d/utils/live2d-zip-loader')
     await import('@proj-airi/stage-ui-live2d/utils/live2d-opfs-registration')
-
-    const { loadLive2DModelPreview } = await import('@proj-airi/stage-ui-live2d/utils/live2d-preview')
-    const { loadVrmModelPreview } = await import('@proj-airi/stage-ui-three/utils/vrm-preview')
-    const { loadSpineModelPreview } = await import('@proj-airi/stage-ui-spine/utils/spine-preview')
-    const { loadTachieModelPreview } = await import('@proj-airi/stage-ui-tachie/utils/tachie-preview')
-
-    generateLive2DPreview = loadLive2DModelPreview
-    generateVrmPreview = loadVrmModelPreview
-    generateSpinePreview = loadSpineModelPreview
-    generateTachiePreview = loadTachieModelPreview
-
-    // NOTICE:
-    // Isolate the MMD preview import. It pulls in three-stdlib's MMD modules,
-    // and a module-evaluation failure here must not prevent the Live2D/VRM/
-    // Spine preview functions (assigned above) from being wired up. A thrown
-    // import previously aborted initialize() and silently broke all previews.
-    // Removal condition: the MMD preview module is guaranteed to import.
-    try {
-      const { loadMMDModelPreview } = await import('@proj-airi/stage-ui-mmd/utils/mmd-preview')
-      generateMMDPreview = loadMMDModelPreview
-    }
-    catch (err) {
-      console.error('[display-models] failed to load MMD preview module:', err)
-    }
   }
 
   return {
