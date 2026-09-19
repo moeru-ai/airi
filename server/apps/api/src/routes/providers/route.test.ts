@@ -69,6 +69,7 @@ describe('providerRoutes', () => {
     const payload = {
       definitionId: 'openai',
       name: 'My OpenAI',
+      displayName: 'Personal OpenAI',
       config: { apiKey: 'sk-123' },
     }
 
@@ -82,6 +83,7 @@ describe('providerRoutes', () => {
     const data = await res.json() as any
     expect(data.id).toBeDefined()
     expect(data.name).toBe('My OpenAI')
+    expect(data.displayName).toBe('Personal OpenAI')
   })
 
   it('get / should return unified list (user + system)', async () => {
@@ -125,13 +127,13 @@ describe('providerRoutes', () => {
 
     const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ name: 'Updated Name' }),
+      body: JSON.stringify({ displayName: 'Updated Name' }),
       headers: { 'Content-Type': 'application/json' },
     }), { user: testUser } as any)
 
     expect(res.status).toBe(200)
     const updated = await providerService.findUserConfigById(providerId)
-    expect(updated?.name).toBe('Updated Name')
+    expect(updated?.displayName).toBe('Updated Name')
   })
 
   it('patch /:id should return 403 if not owner', async () => {

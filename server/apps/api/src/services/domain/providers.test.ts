@@ -31,6 +31,7 @@ describe('providerService', () => {
       ownerId: testUser.id,
       definitionId: 'openai',
       name: 'My OpenAI',
+      displayName: 'Personal OpenAI',
       config: { apiKey: 'sk-123' },
       validated: true,
       validationBypassed: false,
@@ -39,10 +40,12 @@ describe('providerService', () => {
     const result = await service.createUserConfig(providerData)
     expect(result.id).toBe('prov-1')
     expect(result.name).toBe('My OpenAI')
+    expect(result.displayName).toBe('Personal OpenAI')
 
     const found = await service.findUserConfigById('prov-1')
     expect(found).toBeDefined()
     expect(found!.definitionId).toBe('openai')
+    expect(found!.displayName).toBe('Personal OpenAI')
     expect((found!.config as Record<string, string>).apiKey).toBe('sk-123')
   })
 
@@ -81,9 +84,9 @@ describe('providerService', () => {
   })
 
   it('updateUserConfig should update provider fields', async () => {
-    await service.updateUserConfig('prov-1', { name: 'Updated OpenAI' })
+    await service.updateUserConfig('prov-1', { displayName: 'Updated OpenAI' })
     const prov = await service.findUserConfigById('prov-1')
-    expect(prov?.name).toBe('Updated OpenAI')
+    expect(prov?.displayName).toBe('Updated OpenAI')
   })
 
   it('deleteUserConfig should soft delete provider', async () => {

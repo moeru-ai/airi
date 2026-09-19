@@ -27,6 +27,7 @@ export interface InferenceServiceProvidersRemoteClient {
           id: string
           definitionId: string
           name: string
+          displayName?: string
           config: Record<string, unknown>
           validated: boolean
           validationBypassed: boolean
@@ -35,6 +36,7 @@ export interface InferenceServiceProvidersRemoteClient {
           $delete: (params: { param: { id: string } }, options?: RequestOptions) => Promise<{ ok: boolean }>
           $patch: (params: {
             json: {
+              displayName?: string
               config: Record<string, unknown>
               validated: boolean
               validationBypassed: boolean
@@ -75,6 +77,7 @@ export interface InferenceServiceProvidersService {
     providerId: string,
     config: Record<string, unknown>,
     status: ProviderValidationStatus,
+    displayName?: string,
     options?: InferenceServiceProviderServiceOptions,
   ) => Promise<InferenceServiceProvider>
 }
@@ -105,13 +108,14 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
     return {
       id: nanoid(),
       definitionId,
+      displayName: definition.name,
       config: initialConfig,
       status: 'unconfigured',
       configuredBy: definition.configuredBy ?? 'user',
     }
   }
 
-  function normalize(value: unknown): InferenceServiceProvider {
+  function normalize(value: unknown, fallbackDisplayName?: string): InferenceServiceProvider {
     const item = value as InferenceServiceProvider & {
       validated: boolean
       validationBypassed: boolean
@@ -122,9 +126,18 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
     else if (item.validationBypassed)
       status = 'bypassed'
 
+    // NOTICE:
+    // Older Provider API deployments can accept displayName but omit it from the response.
+    // Preserve the local value until every deployment returns this UI-owned metadata.
+    // Remove this fallback after the Provider API rollout is complete.
+    const remoteDisplayName = typeof item.displayName === 'string' && item.displayName.trim().length > 0
+      ? item.displayName
+      : undefined
+
     return {
       id: item.id,
       definitionId: item.definitionId,
+      displayName: remoteDisplayName ?? fallbackDisplayName,
       config: item.config,
       status,
       configuredBy: getDefinedProvider(item.definitionId)?.configuredBy ?? 'user',
@@ -155,6 +168,7 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
         id: provider.id,
         definitionId: provider.definitionId,
         name: getDefinedProvider(provider.definitionId)?.name ?? provider.definitionId,
+        displayName: provider.displayName,
         config: provider.config,
         validated: provider.status === 'configured',
         validationBypassed: provider.status === 'bypassed',
@@ -165,7 +179,7 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
 
     const item = await res.json()
     options?.abortSignal?.throwIfAborted()
-    return normalize(item)
+    return normalize(item, provider.displayName)
   }
 
   async function deleteRemote(client: InferenceServiceProvidersRemoteClient, providerId: string, options?: InferenceServiceProviderServiceOptions): Promise<void> {
@@ -183,12 +197,14 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
     providerId: string,
     config: Record<string, unknown>,
     status: ProviderValidationStatus,
+    displayName?: string,
     options?: InferenceServiceProviderServiceOptions,
   ): Promise<InferenceServiceProvider> {
     options?.abortSignal?.throwIfAborted()
     const res = await client.api.v1.providers[':id'].$patch({
       param: { id: providerId },
       json: {
+        displayName,
         config,
         validated: status === 'configured',
         validationBypassed: status === 'bypassed',
@@ -199,7 +215,7 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
 
     const item = await res.json()
     options?.abortSignal?.throwIfAborted()
-    return normalize(item)
+    return normalize(item, displayName)
   }
 
   return {

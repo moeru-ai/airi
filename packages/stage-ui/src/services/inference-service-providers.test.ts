@@ -30,6 +30,7 @@ describe('services inference-service-providers', () => {
 
     expect(provider.id).toBeDefined()
     expect(provider.definitionId).toBe(openAICompatibleProvider.id)
+    expect(provider.displayName).toBe(openAICompatibleProvider.name)
     expect(provider.config).toEqual({})
     expect(provider.status).toBe('unconfigured')
     expect(provider.configuredBy).toBe('user')
@@ -82,6 +83,7 @@ describe('services inference-service-providers', () => {
                 id: 'provider-1',
                 definitionId: openAICompatibleProvider.id,
                 name: 'OpenAI Compatible',
+                displayName: 'Local OpenAI',
                 config: { baseUrl: 'https://example.com/v1/' },
                 validated: true,
                 validationBypassed: false,
@@ -120,10 +122,136 @@ describe('services inference-service-providers', () => {
     await expect(inferenceServiceProvidersService.fetchRemote(client)).resolves.toEqual({
       'provider-1': expect.objectContaining({
         config: { baseUrl: 'https://example.com/v1/' },
+        displayName: 'Local OpenAI',
         id: 'provider-1',
         status: 'configured',
         configuredBy: 'user',
       }),
+    })
+  })
+
+  it('uses the definition name when a remote provider has no display name', async () => {
+    const client = {
+      api: {
+        v1: {
+          providers: {
+            $get: vi.fn(async () => ({
+              ok: true,
+              json: async () => [{
+                id: 'provider-without-name',
+                definitionId: openAICompatibleProvider.id,
+                name: openAICompatibleProvider.name,
+                config: {},
+                validated: false,
+                validationBypassed: false,
+              }],
+            })),
+          },
+        },
+      },
+    }
+
+    await expect(inferenceServiceProvidersService.fetchRemote(client as never)).resolves.toEqual({
+      'provider-without-name': expect.objectContaining({
+        displayName: undefined,
+        definitionId: openAICompatibleProvider.id,
+      }),
+    })
+  })
+
+  it('sends display names when it creates and updates remote providers', async () => {
+    const post = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        id: 'provider-1',
+        definitionId: openAICompatibleProvider.id,
+        name: openAICompatibleProvider.name,
+        displayName: 'Production OpenAI',
+        config: {},
+        validated: false,
+        validationBypassed: false,
+      }),
+    }))
+    const patch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        id: 'provider-1',
+        definitionId: openAICompatibleProvider.id,
+        name: openAICompatibleProvider.name,
+        displayName: 'Staging OpenAI',
+        config: { baseUrl: 'https://staging.example.com/v1' },
+        validated: false,
+        validationBypassed: false,
+      }),
+    }))
+    const client = {
+      api: {
+        v1: {
+          providers: {
+            '$post': post,
+            ':id': {
+              $patch: patch,
+            },
+          },
+        },
+      },
+    }
+    const provider = inferenceServiceProvidersService.buildLocal(openAICompatibleProvider.id)
+
+    await inferenceServiceProvidersService.createRemote(client as never, {
+      ...provider,
+      displayName: 'Production OpenAI',
+    })
+    await inferenceServiceProvidersService.patchConfigRemote(
+      client as never,
+      provider.id,
+      { baseUrl: 'https://staging.example.com/v1' },
+      'configured',
+      'Staging OpenAI',
+    )
+
+    expect(post).toHaveBeenCalledWith({
+      json: expect.objectContaining({ displayName: 'Production OpenAI' }),
+    }, undefined)
+    expect(patch).toHaveBeenCalledWith({
+      param: { id: provider.id },
+      json: expect.objectContaining({ displayName: 'Staging OpenAI' }),
+    }, undefined)
+  })
+
+  it('keeps the requested display name when an older remote response omits it', async () => {
+    const patch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        id: 'provider-1',
+        definitionId: openAICompatibleProvider.id,
+        name: openAICompatibleProvider.name,
+        config: { baseUrl: 'https://staging.example.com/v1' },
+        validated: false,
+        validationBypassed: false,
+      }),
+    }))
+    const client = {
+      api: {
+        v1: {
+          providers: {
+            ':id': {
+              $patch: patch,
+            },
+          },
+        },
+      },
+    }
+    const provider = inferenceServiceProvidersService.buildLocal(openAICompatibleProvider.id)
+
+    await expect(inferenceServiceProvidersService.patchConfigRemote(
+      client as never,
+      provider.id,
+      { baseUrl: 'https://staging.example.com/v1' },
+      'configured',
+      'Staging OpenAI',
+    )).resolves.toMatchObject({
+      displayName: 'Staging OpenAI',
     })
   })
 

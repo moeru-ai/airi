@@ -63,6 +63,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     providers.value[providerId] = {
       id: providerId,
       definitionId,
+      displayName: definition.name,
       config,
       status: 'unconfigured',
       configuredBy: definition.configuredBy ?? 'user',
@@ -94,8 +95,15 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       providerId: string
       config: Record<string, unknown>
       status: ProviderValidationStatus
-    }) => service.patchConfigRemote(client, payload.providerId, payload.config, payload.status),
+      displayName?: string
+    }) => service.patchConfigRemote(client, payload.providerId, payload.config, payload.status, payload.displayName),
   })
+
+  // Updates are serialized per provider because each response is a complete snapshot.
+  // The latest request id prevents an older response from replacing a newer draft.
+  const providerUpdateChains = new Map<string, Promise<void>>()
+  const latestProviderUpdateIds = new Map<string, number>()
+  let nextProviderUpdateId = 0
 
   const configs = computed(() => Object.fromEntries(
     Object.entries(providers.value).map(([providerId, provider]) => [providerId, provider.config]),
@@ -131,6 +139,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     const provider = {
       id: providerId,
       definitionId,
+      displayName: definition.name,
       config,
       status: 'unconfigured' as const,
       configuredBy: definition.configuredBy ?? 'user',
@@ -209,9 +218,20 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   function mergeProviderSnapshot(snapshot: Record<string, InferenceServiceProvider>) {
-    providers.value = { ...providers.value, ...snapshot }
-    for (const providerId of Object.keys(snapshot))
+    const mergedProviders = { ...providers.value }
+    for (const [providerId, remoteProvider] of Object.entries(snapshot)) {
+      const localProvider = providers.value[providerId]
+      // NOTICE:
+      // A staged API deployment can return an older snapshot without displayName.
+      // Keep the local UI metadata until all deployments include the field.
+      // Remove this branch after the Provider API rollout is complete.
+      const provider = remoteProvider.displayName === undefined && localProvider?.displayName !== undefined
+        ? { ...remoteProvider, displayName: localProvider.displayName }
+        : remoteProvider
+      mergedProviders[providerId] = provider
       markProviderAdded(providerId)
+    }
+    providers.value = mergedProviders
   }
 
   async function fetchProviders() {
@@ -263,7 +283,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
   }
 
-  async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus) {
+  async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus, displayName?: string) {
     const provider = providers.value[providerId]
     if (!provider)
       return
@@ -272,18 +292,31 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       ...provider,
       config: { ...config },
       status,
+      ...(displayName !== undefined ? { displayName } : {}),
     }
     providers.value[providerId] = localProvider
 
-    try {
-      const remote = await updateProviderMutation.mutateAsync({ providerId, config, status })
-      providers.value[remote.id] = remote
-      return remote
-    }
-    catch {
-      // A failed remote update keeps the local provider configuration.
-      return localProvider
-    }
+    const updateId = ++nextProviderUpdateId
+    latestProviderUpdateIds.set(providerId, updateId)
+    const previousUpdate = providerUpdateChains.get(providerId) ?? Promise.resolve()
+    const update = previousUpdate.then(async () => {
+      try {
+        const remote = await updateProviderMutation.mutateAsync({ providerId, config, status, displayName })
+        if (latestProviderUpdateIds.get(providerId) === updateId) {
+          const remoteProvider = remote.displayName === undefined && localProvider.displayName !== undefined
+            ? { ...remote, displayName: localProvider.displayName }
+            : remote
+          providers.value[remote.id] = remoteProvider
+        }
+        return remote
+      }
+      catch {
+        // A failed remote update keeps the local provider configuration.
+        return localProvider
+      }
+    })
+    providerUpdateChains.set(providerId, update.then(() => undefined, () => undefined))
+    return update
   }
 
   async function resetProviders() {

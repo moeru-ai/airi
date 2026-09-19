@@ -1015,6 +1015,9 @@ pages:
           common:
             fields:
               field:
+                display-name:
+                  label: Display name
+                  description: A name that helps you identify this provider connection.
                 web-search:
                   label: Web search
                   description: Allow supported OpenAI models to search when needed. Uses your API key and can incur search charges. Requires Responses API.
