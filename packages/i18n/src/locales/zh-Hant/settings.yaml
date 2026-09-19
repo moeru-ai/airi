@@ -4,7 +4,8 @@ animations:
   stage-transitions:
     title: 是否開啟舞台動畫
   use-page-specific-transitions:
-    description: 某些頁面會有自己的過場動畫，這將會覆蓋舞台過場動畫
+    description: >-
+      某些頁面會有自己的過場動畫，這將會覆蓋舞台過場動畫
     title: 是否使用頁面特定過場動畫
 dialogs:
   onboarding:
@@ -47,23 +48,22 @@ dialogs:
     buyFlux: Charge Flux
     select-model: 選擇模型
     no-models: 找不到可用的模型
-    no-models-help: 請返回上一步並檢查您的 API Key，或檢查網路連線。
+    no-models-help: >-
+      請返回上一步並檢查您的 API Key，或檢查網路連線。
     permissions:
-      title: 權限管理
-      description: 您現在可以授予所需權限，或繼續並稍後在系統設定中配置。
-      notificationsTitle: 通知
-      notificationsDescription: 允許提醒以及重要的狀態更新。
-      microphoneTitle: 麥克風
-      microphoneDescription: 允許 AIRI 使用麥克風進行語音輸入和轉錄。
-      requestAction: 請求取得
-      optionalHint: 即使沒有授予這些權限，您也可以繼續。
-      stateGranted: 已授權
-      stateNotGranted: 未授權
+      title: Permission management
+      description: You can grant the required permissions now or continue and configure them later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      microphoneTitle: Microphone
+      microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      requestAction: Request access
+      optionalHint: You can continue even if these permissions are not granted.
+      stateGranted: Granted
+      stateNotGranted: Not granted
   bug-report:
     title: Bug report (´;ω;`)ヾ(･∀･`)
-    subtitle: >-
-      Oops, sorry we made something wrong. Would you mind telling us what
-      happened?
+    subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
     trigger-label: Report a Bug
     submit-label: Send Bug Report
     triage-description: Include screenshot and page context to help us triage this issue.
@@ -93,8 +93,7 @@ analytics:
   notice:
     title: Usage analytics
     description: >-
-      AIRI collects anonymous usage analytics to help us understand how the app
-      is used and improve stability. No personal data is collected.
+      AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
     privacyPrefix: Read the
     privacyLink: privacy policy
     onboardingHint: You can turn analytics off later in Settings > System > General.
@@ -108,12 +107,9 @@ model-select:
   panel-callout:
     support-status-header: We support both 2D and 3D models
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for
-      Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
-      Neuro-sama uses 2D model driven by framework developed by Live2D Inc,
-      while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open
-      formats.
+      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
     title: Model Selector
     button: Select model
@@ -121,6 +117,38 @@ model-select:
     import: Import
     remove: Remove
     confirm: Confirm
+  live2d-report:
+    title: Before import
+    description: Review the model data and any issues found in the archive.
+    description-short: Review the model data and issues.
+    close: Close
+    model:
+      title: Model
+      files: '{count} files'
+      types:
+        cubism: 'Cubism {version} ({format})'
+        cubism-compatible: 'Cubism 3+ ({format})'
+        unknown: Unknown
+    resources:
+      title: Resources
+      motions: Motions
+      expressions: Expressions
+      parameters: Parameters
+      textures: Textures
+      referenced-and-found: '{referenced} referenced · {found} found'
+      referenced: '{count} referenced'
+      found: '{count} found'
+    issues:
+      title: Issues
+      errors: '{count} errors'
+      warnings: '{count} warnings'
+      none: No issues found.
+      how-to-fix: How to fix
+      resolve-before-import: Resolve the errors before import.
+    actions:
+      cancel: Cancel
+      confirm: Confirm Import
+      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: 從檔案載入
@@ -146,82 +174,105 @@ live2d:
   theme-color-from-model:
     title: 從模型中提取顏色
     description: >
-      Extract prominent colors from current rendering canvas. Click on the color
-      to apply it to AIRI. Try to extract multiple times, with the model in
-      different poses, if the colors are not desirable.
+      登入即可使用 AIRI 官方提供者，享受最佳體驗。
     button-extract:
       title: 提取
   animation:
-    title: Animation
-    focus:
-      title: Enable mouse tracking
-      description: >-
-        Look at the cursor while it is moving. Idle eye movement resumes after
-        the cursor stops.
-      offset: Eye offset(%)
-    force-idle-eye-animation:
-      title: Idle eye movement
-      description: Randomly look around when there is no active cursor focus.
-    blink-enable:
-      title: Enable blink
-      description: Let the model blink.
-    auto-blink:
-      title: Auto
-      description: Use default blinking animation of the model
-    force-auto-blink:
-      title: Force
-      description: Force blinking animation with external timer
-    blink-mode:
-      title: Blink mode
-      description: Choose the model built-in blink or AIRI's forced blink timer.
-    idle-motion:
-      title: Idle animation
-      no-motion: No animation available
-      placeholder: Select animation
-      disable-motion: Disabled
-      disable-motion-description: Disable idle animation
-  parameters:
-    title: Model Parameters
-    render-scale:
-      title: Render scale
-    fps:
-      title: FPS
-      description: Limit rendering frame rate
+    title: 登入
+    motion-driver:
+      title: Motion driver
+      description: Select how AIRI creates idle body and eye motion.
       options:
-        unlimited: ∞
-    shadow: Drop shadow
-    reset-parameters: Reset to default parameters
-  clear-model-cache: Clear model cache
+        universal:
+          title: Universal
+          description: Use model motions, idle eye movement, and mouse tracking.
+        magic:
+          title: MAGIC
+          description: Generate motion from the bundled MAGIC dataset.
+      magic:
+        profile:
+          title: MAGIC profile
+          description: Select the bundled motion dataset that fits the MAGIC driver.
+          options:
+            idle-calm:
+              title: Idle / calm
+              description: Use the bundled idle and calm motion recording.
+            speaking-excited:
+              title: Speaking / excited
+              description: Use the bundled speaking and excited motion recording.
+        skip-mouth-open:
+          title: Skip generated mouth opening
+          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
+        force-view-target:
+          title: Force forward view target
+          description: Keep the eyes aimed forward while MAGIC moves the head.
+    focus:
+      title: 使用您的提供者設定
+      description: Flux
+      offset: 為 Flux 充值
+    force-idle-eye-animation:
+      title: 通知
+      description: 您可以現在允許通知，或繼續操作並稍後設定。
+    blink-enable:
+      title: 通知
+      description: 允許提醒與重要狀態更新。
+    auto-blink:
+      title: 要求通知權限
+      description: 若拒絕，之後可以從 iOS 設定中啟用通知。
+    force-auto-blink:
+      title: 開啟 iOS 設定
+      description: 即使未授予通知權限，您仍可繼續操作。
+    blink-mode:
+      title: 未要求
+      description: 要求中...
+    idle-motion:
+      title: 已授予
+      no-motion: 未授予
+      placeholder: 錯誤回報
+      disable-motion: 糟糕，很抱歉我們出錯了。您願意告訴我們發生了什麼嗎？
+      disable-motion-description: 回報錯誤
+  parameters:
+    title: 傳送錯誤回報
+    render-scale:
+      title: 附上螢幕截圖和頁面內容，協助我們分流處理此問題。
+    fps:
+      title: 重現步驟、預期行為與實際行為
+      description: 附上目前頁面的螢幕截圖
+      options:
+        unlimited: 手動選擇螢幕截圖／錄影
+    shadow: 選填。
+    reset-parameters: 媒體檔案
+  clear-model-cache: 選填：手動選擇。
   expressions:
-    title: Expressions
-    override-toggle: Expression system
-    sdk-preset-preserved-notice: |
-      SDK expression manager and eye blink are preserved when disabled.
-    no-expression: No expressions available for this model.
-    llm-integration-wip: LLM tool integration is not yet wired up.
-    save-default: Save expression defaults
-    reset: Reset all expressions
-    expose-to-llm-toggle: Expose to LLM
+    title: 選擇螢幕截圖或影片檔案
+    override-toggle: 已選取 {count} 個檔案
+    sdk-preset-preserved-notice: >
+      上次提交的內容預覽
+    no-expression: 介面語言。您可以稍後設定角色語言。
+    llm-integration-wip: 使用分析
+    save-default: AIRI 會收集匿名使用分析，以協助我們了解應用程式的使用方式並提升穩定性。我們不會收集個人資料。
+    reset: 閱讀
+    expose-to-llm-toggle: 隱私權政策
     expose-to-llm-options:
-      none: None
-      all: All
-      custom: Custom
+      none: 您稍後可以在「設定 > 系統 > 一般」中關閉使用分析。
+      all: 您可以隨時關閉使用分析。
+      custom: 啟用使用分析
 microphone: 麥克風
 models: 模型
 pages:
   account:
-    title: Account
-    description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Sign in
-    logout: Sign out
-    fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    signedInAs: Signed in as
+    title: 關閉此項以退出使用分析收集。
+    description: 此開發版本已停用使用分析
+    notLoggedIn: 我們支援 2D 和 3D 模型
+    login: 點擊 {select-button} 以選取或匯入模型。目前支援 Live2D 和 Spine 模型的 {zip}，以及 VRM 模型的 {vrm}。
+    logout: Neuro-sama 使用由 Live2D Inc 開發的框架驅動 2D 模型，而 Grok Ani（Grok Companion 中的角色）使用由 VRM / MMD 開放格式驅動的 3D 模型。
+    fluxBalance: 模型選擇器
+    viewFluxDetails: 選擇模型
+    signedInAs: 選取
     profile:
-      tab: Profile
-      title: Profile
-      description: Manage your public display name.
+      tab: 匯入
+      title: 移除
+      description: 確認
       name:
         label: Display name
         placeholder: How others see you
@@ -237,9 +288,7 @@ pages:
     connections:
       tab: Connected accounts
       title: Connected accounts
-      description: >-
-        Sign in to AIRI through these providers. Unlink to revoke access, then
-        link again to switch to a different account.
+      description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
       status:
         linked: Linked
         notLinked: Not linked
@@ -258,16 +307,12 @@ pages:
         linkFailed: Could not start the link flow.
         accountAlreadyLinkedToDifferentUser: 這個 OAuth 帳戶已經連結到另一個 AIRI 帳戶了。請選擇另一個第三方帳戶，或先在另一個 AIRI 帳戶中解除連結。
         oauthCallbackFailed: 暫時無法連結這個 OAuth 帳戶。請重試，或選擇另一個第三方帳戶。
-        lastAccount: >-
-          This is your only sign-in method. Set a password first before
-          unlinking it.
+        lastAccount: This is your only sign-in method. Set a password first before unlinking it.
     security:
       tab: Security
       title: Security
       description: Change your password. Your other devices will be signed out.
-      setDescription: >-
-        You signed in via a social provider, so there is no current password
-        yet. We'll email a secure link to set one.
+      setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
       currentPassword:
         label: Current password
         placeholder: Enter your current password
@@ -298,9 +343,7 @@ pages:
         action: Delete account
         modal:
           title: Delete account?
-          warning: >-
-            This cannot be undone. Active subscription will be canceled, Flux
-            balance cleared.
+          warning: This cannot be undone. Active subscription will be canceled, Flux balance cleared.
           confirmEmail:
             label: Type your email to confirm
             placeholder: ''
@@ -315,10 +358,10 @@ pages:
     activate: 啟用
     active: 已啟用
     active_badge: 目前使用中
-    activation_notice: 已切換至 {name}，目前對話將使用此角色。
+    activation_notice: Switched to {name}. The current conversation now uses this character.
     cancel: 取消操作
     save: 儲存變更
-    save_and_activate: 儲存並啟用
+    save_and_activate: Save and activate
     card_not_found: 找不到角色卡
     character: 角色設定
     close: 關閉
@@ -355,25 +398,36 @@ pages:
         scenario: 你最近醒來，忘記了之前的所有生活。
         systemprompt: 你將會收到訊息，請像真實人類一樣回覆。
         posthistoryinstructions: 記得模仿人類的行為。
-      modules_info: 為這個角色卡設定模組。如果沒有設定，將會使用預設模組。
+      modules_info: >-
+        Configure modules for this character card. Empty fields inherit global settings.
+      sections:
+        chat: Chat
+        vision: Vision
+        speech: Speech
+        body: Body
       use_default: 使用預設
       use_default_not_configured: 使用預設(尚未設定)
+      inherit_global_settings: Inherit global settings
       fields_info:
-        subtitle: 您可以在這裡填寫有關您正在建立的角色的一些詳細資訊，解釋他的背景與情境，以及應該如何回應您的互動。
+        subtitle: >-
+          您可以在這裡填寫有關您正在建立的角色的一些詳細資訊，解釋他的背景與情境，以及應該如何回應您的互動。
         name: 是該角色的正式名稱。
         nickname: 您也可以提供一個暱稱，它將會被優先使用。
         description: 該角色的描述。
         notes: 如果您想加入一些個人備註。
-        personality: 在這裡描述您的角色的個性。例如：害羞？好奇？其他？
+        personality: >-
+          在這裡描述您的角色的個性。例如：害羞？好奇？其他？
         scenario: 周遭環境是怎樣的？當前的情境是什麼？
         greetings_field: 問候語
         greetings: 您的角色應該如何說「你好」？
         systemprompt: 在這裡向 AI LLM 解釋當被提示時應該如何回應。
         posthistoryinstructions: 在訊息歷史之後，放入 AI LLM 應該閱讀的內容。
-        version: 卡片版本，如果您從先前的卡片做了更改，應當增加此版本號。
+        version: >-
+          卡片版本，如果您從先前的卡片做了更改，應當增加此版本號。
         consciousness_model: 請為該角色選擇意識模型（人工智能模型）。
         speech_model: 請為此角色選用語音合成模型與聲線。
       errors:
+        model_required: Select a model for each explicit provider. Models cannot be inherited from a different provider.
         name: 錯誤：你必須提供一個有效的名稱！
         version: '錯誤：版本號無效！'
         description: '錯誤：你必須為此卡片提供描述。'
@@ -453,7 +507,7 @@ pages:
         reset: 重設桌面資料
     confirmations:
       tooltip: 您確定嗎？
-      'yes': 是
+      'yes': '是'
     status:
       exported: 對話階段已匯出。
       imported: 對話階段已匯入。
@@ -496,19 +550,23 @@ pages:
           title: 參數
           parameters:
             adaptive_threshold:
-              description: 是否根據訊號隨時間的變異性套用自適應閾值。
+              description: >-
+                是否根據訊號隨時間的變異性套用自適應閾值。
               label: 自適應閾值
             buffer_duration:
               description: 內部分析緩衝區的時長。
               label: 緩衝時長
             envelope_filter_frequency:
-              description: 用於平滑能量變化的包絡濾波器頻率
+              description: >-
+                用於平滑能量變化的包絡濾波器頻率
               label: 包絡濾波器頻率
             highpass_filter_frequency:
-              description: 用於抑制次低音等低頻雜訊的高通濾波器頻率。
+              description: >-
+                用於抑制次低音等低頻雜訊的高通濾波器頻率。
               label: 高通濾波器頻率
             lowpass_filter_frequency:
-              description: 低通濾波器的頻率是用來降低像人聲等高頻成分。
+              description: >-
+                低通濾波器的頻率是用來降低像人聲等高頻成分。
               label: 低通濾波器
             min_beat_interval:
               description: 已偵測節拍之間的最大分鐘節拍數(BPM)或最小間隔。
@@ -561,14 +619,9 @@ pages:
           bg_widget: 雙重（背景 + 小工具）
       autonomous:
         title: Cinematic Autonomy (Autonomous Artist)
-        description: >-
-          When enabled, the "Producer" runs in parallel to the character to
-          decide if a visual is needed. This prevents the character from
-          forgetting to manifest scenes.
+        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
         threshold: Manifestation Threshold
-        threshold_description: >-
-          Use {min} for aggressive scene creation or {max} to require stronger
-          evidence before generating.
+        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
         threshold_min: Always Generate (0%)
         threshold_max: Strict (100%)
       model:
@@ -581,9 +634,7 @@ pages:
         label: Artistry Provider Options (JSON)
       widget-instructions:
         label: Widget System Prompt
-        description: >-
-          Custom instructions for the AI on how to use the generation
-          capabilities.
+        description: Custom instructions for the AI on how to use the generation capabilities.
     categories:
       essential: Essential
       messaging: Messaging
@@ -596,7 +647,7 @@ pages:
           provider-model-selection:
             collapse: 摺疊
             custom_model_placeholder: 輸入自訂模型名稱
-            current_model_label: 當前模型：
+            current_model_label: '當前模型：'
             description: 為意識選擇合適的 LLM 服務來源
             error: 取得發生錯誤
             health_check_failed: 健康度檢查失敗
@@ -616,8 +667,16 @@ pages:
             search_results: 找到 {count} / {total} 個模型
             show_less: 顯示更少
             show_more: 顯示更多
+            temperature_label: Temperature
+            temperature_description: Control the randomness of the model's output. A lower value (e.g. 0.2) results in more deterministic, precise, and analytical output, while a higher value (e.g. 1.0) increases creativity and diversity.
+            top_p_label: Top P
+            top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.
             subtitle: 從該提供者中選擇預設模型
             title: 模型
+          model-options:
+            title: Model options
+            thinking:
+              label: Thinking
       title: 意識
     description: 思維、視覺、語音綜合、遊戲等
     gaming-factorio:
@@ -639,20 +698,16 @@ pages:
       title: 我的世界 Minecraft
       enable: 啟用我的世界集成
       enable-description: >-
-        Include Minecraft self-knowledge in Stage chat turns and keep passive
-        runtime visibility enabled.
+        Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: 我的世界已正確設定！
       read-only:
         title: Read-only shell
         description: >-
-          Stage currently exposes Minecraft as a passive shell. Runtime status
-          and traffic are visible here, but service configuration stays in the
-          Minecraft service files.
+          Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
       setup:
         title: Setup
         description: >-
-          You can find the instructions for setting up the bot in the following
-          file
+          You can find the instructions for setting up the bot in the following file
       runtime:
         title: Observed runtime
         connection: Connection
@@ -676,20 +731,28 @@ pages:
         section:
           provider-selection:
             description: 選擇合適的語音辨識提供者
+          playground:
+            current: Current transcript
+            description: Listen through the active Hearing pipeline and keep each completed speech segment below.
+            empty: Start monitoring and speak into the selected microphone.
+            error-title: Transcription error
+            listening: Listening for speech…
+            no-transcription: No speech was recognized in this audio.
+            segment: 'Speech segment {number}'
+            start: Start monitoring
+            stop: Stop monitoring
+            title: Hearing playground
+            transcribing: Transcribing…
+            transcription-failed: Transcription failed.
           confidence-threshold:
             title: Confidence Threshold
             description: >-
-              Filter out low-confidence transcriptions to reduce Whisper
-              hallucinations. Values closer to 0 are more strict; drag to the
-              leftmost to disable. Only effective for providers supporting
-              Whisper API (e.g., OpenAI, Groq).
+              Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
             disabled: Disabled
             verbose-json-note: >-
-              Note: If your provider does not support verbose_json responses,
-              this setting will have no effect.
+              Note: If your provider does not support verbose_json responses, this setting will have no effect.
             verbose-json-unsupported: >-
-              Your provider did not return verbose_json segments. Confidence
-              filtering had no effect on the last transcription.
+              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
     memory-long-term:
       description: 長期記憶
       title: 長期記憶
@@ -739,8 +802,7 @@ pages:
             search_voices_results: 找到 {count} / {total} 條聲線
             unsupported_voice_warning_title: 未支援的語音
             unsupported_voice_warning_content: >-
-              嘗試使用不同的模型或提供者。我們正努力盡快支援此模型的所有語音；若你急需此功能，請在 GitHub
-              回報：https://github.com/moeru-ai/airi/issues。
+              嘗試使用不同的模型或提供者。我們正努力盡快支援此模型的所有語音；若你急需此功能，請在 GitHub 回報：https://github.com/moeru-ai/airi/issues。
             show_less: 顯示更少
             show_more: 顯示更多
             title: 選擇語音合成服務來源
@@ -796,7 +858,7 @@ pages:
         empty: 目前沒有內容。請在下方新增一個！
       add:
         title: 新增
-        description: '填寫新伺服器後，點擊「儲存並重新啟動」—它會移至上方的「已設定」區域。'
+        description: "填寫新伺服器後，點擊「儲存並重新啟動」—它會移至上方的「已設定」區域。"
         pending-badge: 未儲存
       status:
         unknown: 未載入
@@ -828,7 +890,7 @@ pages:
         args:
           label: 引數
           description: 每行一個，依序排列。
-          placeholder: '-y some-package-name /tmp'
+          placeholder: "-y some-package-name /tmp"
         cwd:
           label: 工作目錄
           description: 用作程序工作目錄的選用目錄。
@@ -846,9 +908,7 @@ pages:
         placeholder: Paste mcp.json here…
       test:
         title: Test connection
-        description: >-
-          We'll spawn the server briefly to check the command works and see what
-          tools it exposes.
+        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
         pick-server-label: Server
         no-servers: Nothing to test yet
         no-server-selected: Pick a server first.
@@ -859,17 +919,13 @@ pages:
         success: Connected! Found {count} tools in {ms}ms.
         failure: Connection failed after {ms}ms
       errors:
-        empty-identifier: Server
+        empty-identifier: Server # {index} is missing an identifier.
         duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
         empty-command: '"{name}" is missing a command.'
-        invalid-shape: >-
-          That doesn't look like a valid mcp.json — the root needs an
-          "mcpServers" field.
+        invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
       messages:
         opened: Opened {path} in your file manager
-        json-applied: >-
-          JSON applied to the form. Click "Save and restart" to persist it to
-          disk.
+        json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
         restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
     title: Flux
@@ -911,12 +967,23 @@ pages:
         validation:
           failed:
             title: 請檢查您的提供者設定，驗證失敗。
-            description: 如果您想繼續，之後仍可儲存目前的設定。
+            description: >-
+              如果您想繼續，之後仍可儲存目前的設定。
             action: 仍然儲存
         config:
+          loading: Loading provider settings...
+          load-error: Failed to load provider settings.
+          save-error: Failed to save provider settings.
+          retry: Retry
           common:
             fields:
               field:
+                web-search:
+                  label: Web search
+                  description: Allow supported OpenAI models to search when needed. Uses your API key and can incur search charges. Requires Responses API.
+                api-protocol:
+                  label: API protocol
+                  description: Choose the API supported by this provider and model.
                 api-key:
                   label: API 金鑰
                   description: 用於授權向此提供者發送請求的 API 金鑰
@@ -924,9 +991,11 @@ pages:
                 base-url:
                   label: 基礎 URL
                   description: >-
-                    用於連接遠端服務的基礎 URL。通常看起來像 http://localhost:11434/v1 或
-                    https://example.com/v1
+                    用於連接遠端服務的基礎 URL。通常看起來像 http://localhost:11434/v1 或 https://example.com/v1
                   placeholder: 基礎 url...
+                download-model:
+                  label: Download Model
+                  description: Download Chromium Prompt API model
                 headers:
                   label: 自訂 HTTP 標頭
                   description: 新增自訂 HTTP 標頭
@@ -936,7 +1005,7 @@ pages:
                     placeholder: 值
                 thinking-mode:
                   label: 思考模式
-                  description: |
+                  description: >
                     控制 Ollama 思考行為。GPT-OSS 僅支持 low/medium/high 等級。
                   options:
                     auto: 自動（提供者預設）
@@ -945,9 +1014,6 @@ pages:
                     low: 低
                     medium: 中
                     high: 高
-                download-model:
-                  description: 下載 Chromium Prompt API 的模型
-                  label: 下載模型
         validators:
           actions:
             validate: 驗證
@@ -961,14 +1027,14 @@ pages:
               title: 列出模型
             check-supports-chat-completion:
               title: 聊天補全
+          prompt-api:
+            check-availability:
+              title: Availability
           status:
             validating: 驗證中...
             valid: 已通過
             invalid: 發生錯誤
           title: 檢查
-          prompt-api:
-            check-availability:
-              title: 可用性
         providers:
           provider:
             ollama:
@@ -977,11 +1043,7 @@ pages:
                   openai-compatible-check-connectivity:
                     label: 需要為 Ollama 進行額外配置
                     content: >-
-                      很抱歉，Ollama 連接檢查失敗。不要擔心，如果使用 Ollama，需要額外配置才能通過 Ollama。
-                      您需要在啟動 Olama 應用程序或 Ollama CLI 伺服器時明確設置
-                      <code>OLLAMA_HOST</code> 詳情，請檢查 <a
-                      href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama
-                      集成指南</a>。
+                      很抱歉，Ollama 連接檢查失敗。不要擔心，如果使用 Ollama，需要額外配置才能通過 Ollama。 您需要在啟動 Olama 應用程序或 Ollama CLI 伺服器時明確設置 <code>OLLAMA_HOST</code> 詳情，請檢查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然繼續
       goToModelSelection: 選擇模型→
@@ -1026,14 +1088,11 @@ pages:
         description: Vision model providers for image understanding.
       speech:
         title: Speech
-        description: >-
-          Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure
-          Speech.
+        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
       transcription:
         title: Transcription
         description: >-
-          Transcription (speech-to-text) model providers. e.g. Whisper.cpp,
-          OpenAI, Azure Speech
+          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
       artistry:
         title: Artistry
         description: Image generation and design model providers. e.g. ComfyUI, Replicate.
@@ -1046,14 +1105,23 @@ pages:
             description: Google AI Studio Image Preview.
     helpinfo:
       title: 第一次使用？
-      description: |
+      description: >
         AIRI 需要設定至少一個 {chat} 服務來源，才能正常思考與運作。你可以把它看作是 AIRI 系統中角色的大腦。
     explained:
       chat: 文字生成模型服務來源，例如 OpenRouter、OpenAI、Ollama
       Speech: 語音（文字轉語音）模型服務來源，例如 ElevenLabs、Azure Speech
-      Transcription: 轉錄（語音轉文字）模型服務來源，例如 Whisper.cpp、OpenAI、Azure Speech
+      Transcription: >-
+        轉錄（語音轉文字）模型服務來源，例如 Whisper.cpp、OpenAI、Azure Speech
     description: LLM、語音合成、語音辨識服務來源等
     provider:
+      apple-speech-transcription:
+        title: Apple Speech
+        description: On-device speech recognition on macOS 26 or later. No API key is required.
+        fields:
+          locale:
+            label: Locale
+            description: Use an exact Apple Speech locale, such as en-US or zh-CN.
+            placeholder: en-US
       app-local-audio-transcription:
         title: 應用程式內（本機）
         description: https://github.com/moeru-ai/xsai-transformers
@@ -1075,9 +1143,7 @@ pages:
         config:
           api-key:
             label: Bedrock API Key
-            description: >-
-              Amazon Bedrock API key (generate in AWS Console → Bedrock → API
-              Keys)
+            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
             placeholder: bedrock-...
           region:
             label: AWS Region
@@ -1088,11 +1154,14 @@ pages:
         helpinfo:
           title: 開始之前
           description:
-            part1: 雖然 Anthropic 最近宣布他們正在提供對 OpenAI SDK 相容性的 Beta 版支援
-            part2: （您可以在此處閱讀更多資訊）
+            part1: >-
+              雖然 Anthropic 最近宣布他們正在提供對 OpenAI SDK 相容性的 Beta 版支援
+            part2: '（您可以在此處閱讀更多資訊）'
             part3: 但由於實作細節附帶
-            part4: 與 OpenAI SDK 不一致，目前無法在瀏覽器中使用此提供者。
-            part5: 如果您確實需要使用此提供者，則需要一個專用的代理後端，例如在
+            part4: >-
+              與 OpenAI SDK 不一致，目前無法在瀏覽器中使用此提供者。
+            part5: >-
+              如果您確實需要使用此提供者，則需要一個專用的代理後端，例如在
             part6: 上運行的 Serverless Function，或者一些繞過 CORS 的服務，以繞過 CORS 限制。
       cloudflare-workers-ai:
         description: Cloudflare.com
@@ -1120,6 +1189,26 @@ pages:
             volume:
               description: 調整語音的響度
               label: 響度
+      voicevox:
+        description: voicevox.hiroshiba.jp
+        title: VOICEVOX
+        fields:
+          field:
+            intonation:
+              description: Adjust how much the intonation of the reading varies
+              label: Intonation
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
+      aivis-speech:
+        description: aivis-project.com
+        title: AivisSpeech
+        fields:
+          field:
+            intonation:
+              description: Adjust how strongly the speaking style is expressed
+              label: Emotion expression strength
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
@@ -1156,26 +1245,19 @@ pages:
               placeholder: http://localhost:8188
           cors:
             title: CORS Block Detected
-            description: >-
-              ComfyUI blocks requests from other applications by default. To
-              allow AIRI to connect, you must start ComfyUI with the
-              `--enable-cors-header "*"` flag.
+            description: ComfyUI blocks requests from other applications by default. To allow AIRI to connect, you must start ComfyUI with the `--enable-cors-header "*"` flag.
             command: python main.py --enable-cors-header "*"
           workflows:
             title: Workflow Templates
             upload: Upload Workflow
             cancel_upload: Cancel
-            empty: >-
-              No workflows uploaded yet. Click "Upload Workflow" to import a
-              workflow_api.json from ComfyUI.
+            empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
             exposed_parameters: Exposed Parameters
             summary: '{nodes} nodes · {fields} exposed fields'
             remove: Remove
             config_snippet: Artistry Config Snippet
             copy_json: Copy JSON
-            paste_hint: >-
-              Paste this into your AIRI Card artistry config to override these
-              nodes.
+            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
           upload:
             prompt: Drop or select a workflow_api.json file
             invalid_json: Invalid JSON
@@ -1197,9 +1279,7 @@ pages:
             placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
             label: Default Model
-            description: >-
-              Fallback owner/model string to use if the character card doesn't
-              specify one
+            description: Fallback owner/model string to use if the character card doesn't specify one
             placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
             label: Aspect Ratio
@@ -1207,9 +1287,7 @@ pages:
             placeholder: '16:9'
           inference_steps:
             label: Inference Steps
-            description: >-
-              Number of steps for the diffusion process (lower is faster, higher
-              is better quality)
+            description: Number of steps for the diffusion process (lower is faster, higher is better quality)
       nanobanana:
         settings:
           title: Nano Banana
@@ -1231,6 +1309,10 @@ pages:
             nano_banana: Nano Banana (Gemini 2.5 Flash Image)
       deepseek:
         description: DeepSeek.com
+        fields:
+          field:
+            thinking-mode:
+              description: Controls whether DeepSeek reasoning models use thinking in chat requests.
         title: 深度求索 DeepSeek
       elevenlabs:
         description: Elevenlabs.io
@@ -1280,7 +1362,8 @@ pages:
               description: 較小的模型載入速度更快，但品質可能略低。
         models:
           fp32-webgpu:
-            description: 使用 WebGPU 的全精度模型 - 建議在支援的裝置上使用
+            description: >-
+              使用 WebGPU 的全精度模型 - 建議在支援的裝置上使用
           fp32:
             description: 全精度模型
           fp16:
@@ -1402,6 +1485,11 @@ pages:
         title: 火山引擎
       volcengine-coding-plan:
         description: Volcengine Coding Plan
+        models:
+          ark-code-latest:
+            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
+          legacy:
+            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
         title: Volcengine Coding Plan
       byteplus:
         description: byteplus.com
@@ -1430,15 +1518,16 @@ pages:
       browser-web-speech-api:
         description: 瀏覽器原生 STT（需要 Chrome/Edge/Safari）
         title: 網頁語音 API
+      prompt-api:
+        description: With the Prompt API, you can send natural language requests to the foundation model in Chrome.
+        title: Prompt API
       official:
         title: Official Provider
         description: Official AI provider by AIRI.
         speech-title: Official Speech Provider
         speech-description: Official text-to-speech provider by AIRI.
         speech-streaming-title: Official Streaming Speech Provider
-        speech-streaming-description: >-
-          Official low-latency text-to-speech provider by AIRI (bidirectional
-          WebSocket).
+        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
         transcription-title: Official Transcription Provider
         transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
@@ -1447,47 +1536,31 @@ pages:
       aihubmix:
         title: AIHubMix
         description: https://aihubmix.com (10% 優惠)
-      prompt-api:
-        description: 您可以使用 Prompt API，將自然語言要求傳送至 Chrome 中的基礎模型。
-        title: Prompt API
     title: 服務來源
   connection:
     description: 配置 WebSocket 伺服器連接
     title: 連線
     websocket-url:
-      description: WebSocket 伺服器的完整位址（例如：ws://localhost:6121/ws）
-      label: WebSocket 伺服器位址
+      description: The address that this app uses to connect to the local server.
+      label: Server Address
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: Expose On Network
-      description: >-
-        Choose whether the AIRI gateway only listens on this device or can be
-        reached from your local network.
-      advanced-label: Bind Hostname
-      advanced-description: >-
-        Use a specific hostname or IP address when you need manual network
-        binding.
-      options:
-        this-device: This device
-        all: All
-        advanced: Advanced
+      label: Expose To All
+      description: Allow other devices on the local network to connect to this server.
     server-auth-token:
-      label: Auth Token
+      label: Pairing Token
       description: >-
-        Security token required by remote clients that connect to this gateway.
-        When left empty, AIRI generates a new token automatically.
+        Other devices use this token to pair with this server. AIRI generates a token when this field is empty.
       placeholder: Auto-generate
     qr:
-      title: Connect from Stage Pocket
+      title: Pairing
       description: >-
-        Scan this QR code from Stage Pocket to try all reachable local network
-        addresses and save the first working one.
+        Scan this QR code with the mobile app. The app tries each local address and saves the first working address.
       refresh: Refresh
-      image-alt: AIRI server channel connection QR code
+      image-alt: AIRI pairing QR code
       candidates: Candidate addresses
       token-hint: >-
-        The QR code includes the auth token so Stage Pocket can authenticate
-        after connecting. Do not share it publicly.
+        The QR code includes the pairing token. Do not share the QR code publicly.
       errors:
         title: QR code unavailable
         unavailable: Failed to prepare the connection QR code.
@@ -1513,8 +1586,8 @@ pages:
       description: 深色主題、語言等選項
       title: 通用
     permissions:
-      description: 查看目前權限狀態
-      title: 權限管理
+      description: View current permission status.
+      title: Permission Management
     description: 自訂你的舞台外觀！
     sections:
       section:
@@ -1532,10 +1605,36 @@ pages:
             section:
               performance-visualizer:
                 title: 效能檢視器
-                description: 切換 FPS/長時間任務/記憶疊加層
+                description: Show FPS, frame time, long tasks, and supported browser memory metrics
               markdown-stress:
                 title: Markdown 壓力測試
                 description: 使用大量聊天內容進行 Markdown 解析與渲染的壓力測試
+              plugin-host:
+                actions:
+                  enable-and-load: Enable and Load
+                  disable-and-unload: Disable and Unload
+                  import-folder: Import Folder
+                  confirm-import: Import Extension
+                  cancel-import: Cancel
+                errors:
+                  enable-and-load: 'Failed to enable and load plugin {extensionId}.'
+                  disable-and-unload: 'Failed to disable and unload plugin {extensionId}.'
+                  prepare-import: Failed to inspect the Extension folder.
+                  commit-import: 'Failed to import Extension {extensionId}.'
+                  cancel-import: Failed to cancel the Extension import.
+                import:
+                  title: Review Extension Import
+                  description: The Extension stays disabled and unloaded after import.
+                  source: Source folder
+                  runtimes: Runtimes
+                  entrypoints: Entrypoints
+                  package-size: Package
+                  package-size-value: '{fileCount} files · {totalBytes}'
+                  permissions: Permissions
+                  kits: Kits
+                  no-permissions: No permissions declared.
+                  no-kits: No Kits declared.
+                  imported: 'Imported Extension {extensionId}.'
               use-magic-keys:
                 title: useMagicKeys 工具
                 description: 測試快捷鍵
@@ -1561,7 +1660,8 @@ pages:
                 title: Polaroid
                 description: 模型快照工具
               context-flow:
-                description: 檢查傳入的上下文更新與傳出的聊天串流事件
+                description: >-
+                  檢查傳入的上下文更新與傳出的聊天串流事件
               websocket-inspector:
                 title: WebSocket 檢查器
                 description: 檢查原始 WebSocket 流量
@@ -1570,7 +1670,8 @@ pages:
                 description: 測試色彩擷取
               providers-transcription-realtime-aliyun-nls:
                 title: 阿里雲即時轉錄器
-                description: 將麥克風音訊串流至阿里雲 NLS 並檢查即時轉錄文字
+                description: >-
+                  將麥克風音訊串流至阿里雲 NLS 並檢查即時轉錄文字
               performance-playground:
                 title: 效能實驗場
                 description: VRM 表情 + TTS 嘴型同步實驗場
@@ -1639,7 +1740,8 @@ pages:
                 color-6: 緗色
                 color-7: 青冥
                 color-8: 赭石色
-              description: 源自古代紡織品、瓷器和畫作的傳統中國色彩
+              description: >-
+                源自古代紡織品、瓷器和畫作的傳統中國色彩
               title: 中國傳統色彩
           title: 預設
     title: 外觀
@@ -1654,15 +1756,10 @@ pages:
     title: Scenes
     description: Customize the virtual environment for your characters.
     beta_label: Scenes System
-    beta_description: >-
-      Each character card specifies its own preferred background from this
-      gallery. Setting it here will set it as the default for the currently
-      active character.
+    beta_description: Each character card specifies its own preferred background from this gallery. Setting it here will set it as the default for the currently active character.
     background_image:
       title: Active Character Background
-      no_background: >-
-        No background active for this character. Upload a square or landscape
-        image for best results.
+      no_background: No background active for this character. Upload a square or landscape image for best results.
       upload: Upload to Gallery
       change: Change Background
       clear: Clear Default
@@ -1676,9 +1773,7 @@ pages:
       delete_confirm: Are you sure you want to delete this background?
     tip:
       label: Tip!
-      description: >-
-        Using a square image will leverage <b>cover</b> cropping in portrait
-        mode, focusing on the center of the scene.
+      description: Using a square image will leverage <b>cover</b> cropping in portrait mode, focusing on the center of the scene.
 sections:
   section:
     general:
@@ -1806,24 +1901,26 @@ mmd:
     description: >-
       Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
 tachie:
-  title: Tachie 設定
-  archive-description: Tachie 模型使用包含情緒命名圖片的 .tachie.zip 壓縮檔。
+  title: Tachie Settings
+  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
   scale-and-position:
-    title: 縮放與位置
-    scale: 縮放
+    title: Scale And Position
+    scale: Scale
     x: X
     'y': 'Y'
   theme-color-from-model:
-    title: 從模型提取顏色
+    title: Extract colors from model
     button-extract:
-      title: 提取
+      title: Extract
   rendering:
-    title: 渲染
-    render-scale: 渲染縮放
-    shadow: 主題色動態陰影
+    title: Rendering
+    render-scale: Render Scale
+    shadow: Theme-colored drop shadow
 websocket-secure-enabled:
-  title: 啟用安全 WebSocket (WSS)
-  description: 啟用 WSS（WebSocket Secure）以允許開發模式下行動裝置（pocket）的 HTTPS 連線。這將自動產生自簽名憑證。
+  title: Serve as Secure WebSocket (WSS)
+  description: >-
+    Use WSS for secure mobile connections. AIRI creates a self-signed certificate.
 wip:
   title: 正在開發中
-  description: 此功能正在開發中，尚未公開發佈。請在未來的更新中再次查看此功能。
+  description: >-
+    此功能正在開發中，尚未公開發佈。請在未來的更新中再次查看此功能。

@@ -15,7 +15,7 @@ docs:
   'open-settings': 設定を開く
   'open-chat': チャットを開く
   'refresh': 再読み込み
-  'center-main-window': Move to screen center
+  'center-main-window': 画面中央に移動
   'open-hearing-controls': 聴覚コントロールを開く
   'drag-to-move-window': ウィンドウをドラッグして移動
   'stop-speaking': 発話停止
@@ -33,12 +33,12 @@ docs:
   'account': アカウント
   'logout': サインアウト
 widgets:
-  close: Close widget
+  close: ウィジェットを閉じる
   empty:
-    title: No widget active
-    description: Widgets will appear here when a tool or plugin spawns one.
-  loading: Loading widget…
-  waiting: Waiting for widget data for "{id}"…
+    title: アクティブなウィジェットはありません
+    description: ツールまたはプラグインが生成すると、ここにウィジェットが表示されます。
+  loading: ウィジェットを読み込み中…
+  waiting: '"{id}" のウィジェット データを待機中…'
 notice:
   'fade-on-hover':
     title: ホバー時にフェード
@@ -55,48 +55,48 @@ notice:
     read-more: 続きを読む
     preview-title: これは何？
 about:
-  subtitle: Desktop ver.
+  subtitle: デスクトップ版
   current-version: 現在のバージョン
   common:
-    cancel: Cancel
+    cancel: キャンセル
   links:
-    title: Links
-    home: Home
-    documentation: Documentations
+    title: リンク
+    home: ホーム
+    documentation: ドキュメント
     github: GitHub
   update:
     lane:
-      label: Update lane
-      description: Choose channel release to follow
-      placeholder: Choose update lane
+      label: アップデート チャンネル
+      description: 追跡するリリース チャンネルを選択します
+      placeholder: アップデート チャンネルを選択
     channels:
-      auto: Auto
-      stable: Stable
-      alpha: Alpha
-      beta: Beta
-      nightly: Nightly
-      canary: Canary
+      auto: 自動
+      stable: 安定版 (Stable)
+      alpha: アルファ版 (Alpha)
+      beta: ベータ版 (Beta)
+      nightly: ナイトリー版 (Nightly)
+      canary: カナリア版 (Canary)
     status:
-      downloading: Downloading update...
+      downloading: アップデートをダウンロード中...
       error-prefix: エラー
-      latest: Up to date (v{version}).
+      latest: 最新の状態です (v{version})。
       downloaded:
-        windows: Update ready to install silently (v{version}).
-        restart: Update ready to install on restart (v{version}).
+        windows: サイレント インストール可能なアップデートの準備が完了しました (v{version})。
+        restart: 再起動時にインストール可能なアップデートの準備が完了しました (v{version})。
     actions:
       download: アップデートをダウンロード
       download-short: ダウンロード
-      confirm-download: Confirm Download
+      confirm-download: ダウンロードを確認
       check-for-updates: アップデートを確認
       checking: 確認中…
       latest-version: 最新バージョン
-      disabled-dev: Updates disabled in Dev
-      managed-by-store: アップデートはアプリストアによって管理されています
-      retry-check: Retry Check
-      restart-silent: Restart to update silently
+      disabled-dev: 開発環境ではアップデートが無効化されています
+      managed-by-store: アップデートはアプリ ストアによって管理されています
+      retry-check: 再確認
+      restart-silent: サイレント アップデートのために再起動
       restart-install: 再起動してアップデートをインストールする
-      confirm-restart: Confirm Restart
+      confirm-restart: 再起動を確認
     dialog:
-      title: Update Available
+      title: 利用可能なアップデートがあります
       description: 新しいバージョン({version})が利用可能です。
-      no-release-notes-markdown: _No release notes provided._
+      no-release-notes-markdown: _リリースノートがありません。_
