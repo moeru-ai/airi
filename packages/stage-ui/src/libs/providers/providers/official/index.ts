@@ -1,5 +1,8 @@
+import type { ChatRequestOptions, GenerationRequest } from '@proj-airi/provider-inference'
+
 import type { ModelInfo, ProviderModelCatalog, VoiceInfo } from '../../types'
 
+import { compatibleProtocols, generationProtocolOptions } from '@proj-airi/provider-inference'
 import { z } from 'zod'
 
 import { getAuthToken } from '../../../../libs/auth'
@@ -11,6 +14,11 @@ import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICO
 export { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID, OFFICIAL_VISION_PROVIDER_ID } from './constants'
 
 const officialConfigSchema = z.object({})
+const officialChatConfigSchema = z.object({
+  api: z.enum(compatibleProtocols.supportedProtocols).default(compatibleProtocols.defaultProtocol),
+})
+
+type OfficialChatConfig = z.input<typeof officialChatConfigSchema>
 
 function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { Accept: 'application/json' }
@@ -47,7 +55,7 @@ async function listStreamingModelCatalog(): Promise<ProviderModelCatalog> {
   }
 }
 
-export const providerOfficialChat = defineProvider({
+export const providerOfficialChat = defineProvider<OfficialChatConfig, typeof OFFICIAL_CHAT_PROVIDER_ID>({
   id: OFFICIAL_CHAT_PROVIDER_ID,
   order: -1,
   name: 'Official Provider',
@@ -58,17 +66,38 @@ export const providerOfficialChat = defineProvider({
   icon: OFFICIAL_ICON,
   requiresCredentials: false,
   configuredBy: 'authentication',
+  capabilities: { chat: { generation: compatibleProtocols } },
 
-  createProviderConfig: () => officialConfigSchema,
-  createProvider(_config) {
+  createProviderConfig: ({ t }) => officialChatConfigSchema.extend({
+    api: officialChatConfigSchema.shape.api.meta({
+      type: 'select',
+      options: generationProtocolOptions(compatibleProtocols),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.description'),
+    }),
+  }),
+  createProvider(config) {
     const provider = createOfficialOpenAIProvider()
-    const originalChat = provider.chat.bind(provider)
-    provider.chat = (model: string) => {
-      const result = originalChat(model)
-      result.fetch = withCredentials()
-      return result
+    return {
+      model: provider.model,
+      generation(model: string, _options?: ChatRequestOptions): GenerationRequest {
+        const request = provider.chat(model)
+        request.fetch = withCredentials()
+        switch (config.api ?? compatibleProtocols.defaultProtocol) {
+          case 'responses':
+            return {
+              protocol: 'responses',
+              webSearch: false,
+              config: request,
+            }
+          case 'chat-completions':
+            return {
+              protocol: 'chat-completions',
+              config: request,
+            }
+        }
+      },
     }
-    return provider
   },
 
   validationRequiredWhen: () => false,
