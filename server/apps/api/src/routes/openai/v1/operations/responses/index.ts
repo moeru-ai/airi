@@ -6,7 +6,7 @@ import type { V1RouteDeps } from '../../types'
 import { useLogger } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
 import { EventSourceParserStream } from '@xsai/shared-stream'
-import { array, integer, looseObject, minValue, nullable, number, object, optional, picklist, pipe, safeParse, string, unknown } from 'valibot'
+import { array, integer, looseObject, minValue, nullable, number, object, optional, picklist, pipe, regex, safeParse, string, unknown } from 'valibot'
 
 import { ApiError, createBadGatewayError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
@@ -23,7 +23,7 @@ const responseSchema = looseObject({
   usage: optional(nullable(object({ input_tokens: tokens, output_tokens: tokens, total_tokens: tokens }))),
 })
 const eventSchema = looseObject({
-  type: string(),
+  type: pipe(string(), regex(/^[^\r\n]+$/, 'Responses event types cannot contain line breaks')),
   response: optional(unknown()),
   output_index: optional(pipe(number(), integer(), minValue(0))),
   item: optional(unknown()),
@@ -37,6 +37,7 @@ interface OpenRouterStreamState {
   completedOutput: Map<number, unknown>
   sequenceNumber?: number
   invalid: boolean
+  reportedEventNameMismatch: boolean
 }
 
 function observeOpenRouterEvent(state: OpenRouterStreamState, event: InferOutput<typeof eventSchema>) {
@@ -106,19 +107,18 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
   return async ({ input }) => {
     const requestId = nanoid()
     const policy = await billing.authorizeChat(input.userId)
-    let model = input.body.model
-    const requiresWebSearch = input.body.tools?.some(tool => tool.type === 'web_search') === true
-      || (Array.isArray(input.body.input) && input.body.input.some(item => item.type === 'web_search_call'))
+    let model = input.policy.model
+    const { requiresWebSearch } = input.policy
     const alias = await resolveModelAliasPlan(deps, model, { protocol: 'responses', requiresWebSearch })
     const startedAt = Date.now()
     let routeCtx = newRouteContext()
-    const span = telemetry.startGenerationSpan({ model, stream: input.body.stream, operation: 'responses' })
+    const span = telemetry.startGenerationSpan({ model, stream: input.policy.stream, operation: 'responses' })
     const startTrace = () => deps.llmTracing.startChatGeneration({
       protocol: 'responses',
-      input: input.body.input,
+      input: input.policy.input,
       model: routeCtx.upstreamModel ?? model,
       requestId,
-      stream: input.body.stream,
+      stream: input.policy.stream,
       userId: input.userId,
       sessionId: input.sessionId,
     })
@@ -176,7 +176,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       terminal = true
       const usage = { promptTokens: response.usage?.input_tokens, completionTokens: response.usage?.output_tokens }
       const amount = billing.priceChatUsage(usage, policy)
-      const stage = input.body.stream ? 'streaming' : 'non_streaming'
+      const stage = input.policy.stream ? 'streaming' : 'non_streaming'
       let charged = 0
       try {
         charged = await billing.settleChat({ ...usage, userId: input.userId, requestId, model, amount, stage, logger })
@@ -204,7 +204,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       throw createBadGatewayError('Responses upstream returned no body')
     }
 
-    if (!input.body.stream) {
+    if (!input.policy.stream) {
       try {
         // Abort the body pipe too: the router's header timeout no longer owns this stream.
         const body = upstream.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>(), { signal: input.abortSignal })
@@ -236,7 +236,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     // item. Track its item lifecycle so EOF can be recovered without accepting a
     // partial stream or weakening validation for other providers.
     const openRouterStream: OpenRouterStreamState | undefined = routeCtx.provider === 'openrouter.ai'
-      ? { outputIndexes: new Set(), completedOutput: new Map(), invalid: false }
+      ? { outputIndexes: new Set(), completedOutput: new Map(), invalid: false, reportedEventNameMismatch: false }
       : undefined
     let cancelled = false
     let firstOutputDelta = true
@@ -282,13 +282,19 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
             telemetry.recordFirstToken({ model, provider: routeCtx.provider, startedAt, firstChunkAt: Date.now(), operation: 'responses' })
           }
           const terminalEvent = ['response.completed', 'response.failed', 'response.incomplete'].includes(type)
-          if ((terminalEvent && value.event !== type) || (!terminalEvent && value.event && value.event !== type))
+          const eventNameMismatch = terminalEvent ? value.event !== type : value.event !== undefined && value.event !== type
+          if (eventNameMismatch && !openRouterStream)
             throw new Error('Responses SSE event name does not match its payload type')
+          if (eventNameMismatch && openRouterStream && !openRouterStream.reportedEventNameMismatch) {
+            openRouterStream.reportedEventNameMismatch = true
+            logger.withFields({ requestId, provider: routeCtx.provider, eventName: value.event ?? 'missing', payloadType: type }).warn('Normalized OpenRouter Responses SSE event name')
+          }
+          const eventName = eventNameMismatch ? type : value.event
           const response = terminalEvent ? safeParse(responseSchema, event.output.response) : undefined
           if (response && (!response.success || type !== `response.${response.output.status}`))
             throw new Error('Invalid Responses terminal event')
-          // Preserve provider data, event names and IDs across arbitrary UTF-8 transport splits.
-          const frame = `${value.event ? `event: ${value.event}\n` : ''}${value.id ? `id: ${value.id}\n` : ''}data: ${value.data.replaceAll('\n', '\ndata: ')}\n\n`
+          // Preserve provider data and IDs. OpenRouter event-name mismatches use the payload type.
+          const frame = `${eventName ? `event: ${eventName}\n` : ''}${value.id ? `id: ${value.id}\n` : ''}data: ${value.data.replaceAll('\n', '\ndata: ')}\n\n`
           await writer.write(encoder.encode(frame))
           if (response?.success) {
             // A successful write makes the terminal result observable to the client.

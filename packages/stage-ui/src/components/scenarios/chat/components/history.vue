@@ -103,6 +103,16 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
 
   return [...props.messages, streaming.value]
 })
+function canRetryMessageAt(index: number) {
+  const precedingMessage = renderMessages.value[index - 1]
+  if (precedingMessage?.role === 'user')
+    return true
+
+  if (precedingMessage?.role === 'assistant' && precedingMessage.interrupted)
+    return renderMessages.value[index - 2]?.role === 'user'
+
+  return false
+}
 const messagesById = computed(() => new Map(
   renderMessages.value.flatMap(message => message.id ? [[message.id, message] as const] : []),
 ))
@@ -220,7 +230,7 @@ function emitToolCallRerun(
             :message="message"
             :label="labels.error"
             :retry-label="labels.retry"
-            :can-retry="renderMessages[index - 1]?.role === 'user'"
+            :can-retry="canRetryMessageAt(index)"
             :show-placeholder="sending && index === renderMessages.length - 1"
             :scroll-container="chatHistoryRef"
             :variant="variant"
