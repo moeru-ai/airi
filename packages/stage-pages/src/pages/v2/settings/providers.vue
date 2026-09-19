@@ -2,8 +2,10 @@
 import { PaneArea } from '@proj-airi/stage-ui/components'
 import { getDefinedProvider, listProviders } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Button, Input } from '@proj-airi/ui'
 import { breakpointsTailwind, refDebounced, useBreakpoints } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { Pane, Splitpanes } from 'splitpanes'
 import { computed, onMounted, ref } from 'vue'
@@ -13,6 +15,7 @@ import { RouterView, useRouter } from 'vue-router'
 const { t } = useI18n()
 const router = useRouter()
 const providerStore = useProviderConfigStore()
+const { availableProvidersMetadata } = storeToRefs(useProviderStore())
 
 onMounted(() => {
   providerStore.fetchProviders()
@@ -22,10 +25,16 @@ const availableProviderSearchQuery = ref('')
 const availableProviderSearchQueryDebounced = refDebounced(availableProviderSearchQuery, 250)
 
 const availableProviders = computed(() => {
-  return listProviders().map(provider => ({
-    ...provider,
-    nameLocalized: provider.nameLocalize({ t }),
-  }))
+  // The add menu offers only providers available on this surface. The store
+  // awaits each definition's isAvailableBy, so the available set starts empty
+  // and fills in; filtering here keeps the raw registry order for the rest.
+  const availableIds = new Set(availableProvidersMetadata.value.map(metadata => metadata.id))
+  return listProviders()
+    .filter(provider => availableIds.has(provider.id))
+    .map(provider => ({
+      ...provider,
+      nameLocalized: provider.nameLocalize({ t }),
+    }))
 })
 
 const availableProvidersFiltered = computed(() => {
