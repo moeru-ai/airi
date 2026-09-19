@@ -6,6 +6,7 @@ import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { FieldCombobox } from '@proj-airi/ui'
 import { useAsyncState } from '@vueuse/core'
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const getIsWindows = useElectronEventaInvoke(electron.app.isWindows)
 const setVibrancy = useElectronEventaInvoke(electron.window.setVibrancy)
@@ -14,6 +15,8 @@ const setBackgroundMaterial = useElectronEventaInvoke(electron.window.setBackgro
 const { state: isWindows } = useAsyncState(() => getIsWindows(), false)
 const vibrancy = ref<NonNullable<VibrancyType>>()
 const backgroundMaterial = ref<NonNullable<BackgroundMaterialType>>()
+
+const { t } = useI18n()
 
 watch(
   vibrancy,
@@ -31,11 +34,25 @@ watch(
     setBackgroundMaterial([newBackgroundMaterial])
   },
 )
+function handleClose() {
+  window.close()
+}
 </script>
 
 <template>
-  <div class="p-4">
+  <div class="relative p-4">
     <div class="drag-region" />
+    <button
+      :class="[
+        'absolute right-4 top-4 size-7 rounded-full text-xs text-white transition',
+        'bg-black/40 hover:bg-black/60',
+      ]"
+      :title="t('tamagotchi.stage.inlay.close')"
+      :aria-label="t('tamagotchi.stage.inlay.close')"
+      @click="handleClose"
+    >
+      <span class="size-6">×</span>
+    </button>
 
     <div class="py-4">
       <h1>Spotlight</h1>
