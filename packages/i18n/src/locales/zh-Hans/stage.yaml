@@ -145,3 +145,7 @@ websocket-status:
   connected: 已连接
   disconnected: 无网络连接
   open-settings: 打开连接设置
+
+computer-use:
+  label: 使用电脑
+  description: 允许此聊天窗口查看和操作本机应用。

@@ -192,6 +192,7 @@ vi.mock('./ai/chat-llm/llm', () => ({
 vi.mock('./ai/chat-llm/tools', () => ({
   useLlmToolsStore: () => ({
     getToolsByNames: (...names: string[]) => getToolsByNamesMock(names),
+    tools: [{ function: { name: 'computer_use' }, requiresExplicitSelection: true }],
   }),
 }))
 
@@ -312,6 +313,33 @@ describe('chat store contract', () => {
       ['stage_widgets'],
       ['stage_widgets'],
     ])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2565#discussion_r4028809145
+  it('does not restore request-only tools from session history', async () => {
+    llmStreamMock.mockImplementation(async (_model: unknown, _provider: unknown, _messages: unknown, options: StreamOptions) => {
+      if (typeof options.tools === 'function')
+        await options.tools()
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    // ROOT CAUSE:
+    // History retained tool selections and granted them to every later request.
+    // Request-only tools must be selected again, even when history mentions them.
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'Inspect', tools: [{ name: 'computer_use' }] })
+    getToolsByNamesMock.mockClear()
+    await store.send({ sessionId: 'session-1', text: 'Continue', tools: [] })
+    expect(getToolsByNamesMock).toHaveBeenCalledWith([])
+    getToolsByNamesMock.mockClear()
+    await store.retry({ sessionId: 'session-1', index: 1 })
+    expect(getToolsByNamesMock).toHaveBeenCalledWith([])
+    await expect(store.rerunToolCall({
+      sessionId: 'session-1',
+      toolCallId: 'call-1',
+      toolName: 'computer_use',
+      args: '{}',
+      tools: [],
+    })).rejects.toThrow('Select this tool before running it again.')
   })
 
   // https://github.com/moeru-ai/airi/pull/2394#discussion_r3883162024
@@ -592,6 +620,57 @@ describe('chat store contract', () => {
       trigger_method: 'text_input',
       trigger_type: 'user_flow_result',
     })
+  })
+
+  // ROOT CAUSE:
+  //
+  // The stream store displayed received text, but a later transport failure
+  // removed it and left only the error item in durable history.
+  //
+  // The failed turn now keeps its incomplete assistant output before the error
+  // so users can read what arrived and retry the whole turn when needed.
+  it('keeps partial assistant output before the send error', async () => {
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'text-delta', text: 'partial reply' })
+      throw new Error('stream interrupted')
+    })
+
+    const store = useChatStore()
+    await expect(store.send({
+      sessionId: 'session-1',
+      text: 'show partial output',
+    })).rejects.toThrow('stream interrupted')
+
+    expect(sessionMessages['session-1']?.slice(-3)).toMatchObject([
+      { role: 'user', content: 'show partial output' },
+      { role: 'assistant', interrupted: true, content: 'partial ' },
+      { role: 'error', content: 'stream interrupted' },
+    ])
+
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'text-delta', text: 'complete reply' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    await store.retry({ sessionId: 'session-1', index: 3 })
+
+    expect(sessionMessages['session-1']?.slice(1)).toMatchObject([
+      { role: 'user', content: 'show partial output' },
+      { role: 'assistant', content: 'complete reply' },
+    ])
+  })
+
+  it('rejects retry when an error follows a completed assistant turn', async () => {
+    const store = useChatStore()
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt' },
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', content: 'complete reply', slices: [{ type: 'text', text: 'complete reply' }], tool_results: [] },
+      { role: 'error', content: 'Provider configuration failed' },
+    ]
+
+    await expect(store.retry({ sessionId: 'session-1', index: 3 })).rejects.toThrow('Retry target has no retriable source message')
+    expect(sessionMessages['session-1']).toHaveLength(4)
+    expect(llmStreamMock).not.toHaveBeenCalled()
   })
 
   it('keeps hook order and composes context prompt after system message', async () => {

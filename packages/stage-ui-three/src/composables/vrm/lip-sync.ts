@@ -8,7 +8,7 @@ import {
   WLIP_SYNC_VOWELS,
   wlipsyncProfile,
 } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
-import { shallowRef, watch } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 
 const VRM_EXPRESSION_BY_VOWEL: Record<WLipSyncVowel, string> = {
   A: 'aa',
@@ -28,12 +28,14 @@ export function useVRMLipSync(
   audioContext: Readonly<Ref<AudioContext | undefined>>,
   audioSource: Readonly<Ref<AudioBufferSourceNode | undefined>>,
 ) {
+  const isLipSyncActive = ref(false)
   const lipSyncNode = shallowRef<WLipSyncAudioNode>()
   const vowelDriver = createWLipSyncVowelDriver()
 
   watch(audioContext, (context, _, onCleanup) => {
     lipSyncNode.value = undefined
     vowelDriver.reset()
+    isLipSyncActive.value = false
     if (!context)
       return
 
@@ -83,13 +85,25 @@ export function useVRMLipSync(
 
   function update(vrm?: VRMCore, delta = 0.016) {
     const node = lipSyncNode.value
-    if (!vrm?.expressionManager || !node)
+    if (!vrm?.expressionManager || !node) {
+      isLipSyncActive.value = false
       return
+    }
 
     const weights = vowelDriver.update(node, delta)
-    for (const vowel of WLIP_SYNC_VOWELS)
-      vrm.expressionManager.setValue(VRM_EXPRESSION_BY_VOWEL[vowel], weights[vowel])
+    let hasActiveVisemes = false
+    for (const vowel of WLIP_SYNC_VOWELS) {
+      const weight = weights[vowel]
+      if (weight > 0.01)
+        hasActiveVisemes = true
+      vrm.expressionManager.setValue(VRM_EXPRESSION_BY_VOWEL[vowel], weight)
+    }
+
+    isLipSyncActive.value = hasActiveVisemes
   }
 
-  return { update }
+  return {
+    isLipSyncActive,
+    update,
+  }
 }

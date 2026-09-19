@@ -5,7 +5,7 @@ import { openaiChatModels } from 'model-bank/openai'
 import { MODEL_REASONING_EXTEND_PARAMS, MODEL_REASONING_PARAM_LEVELS } from 'model-bank/types'
 import { z } from 'zod'
 
-import { openAIProtocols, supportsOpenAIWebSearchEndpoint } from '../../../generation'
+import { generationProtocolOptions, openAIProtocols, supportsOpenAIWebSearchEndpoint } from '../../../generation'
 import { listModelCatalog } from '../../../model-catalog'
 import { ProviderValidationCheck } from '../../../types'
 import { createOpenAICompatibleValidators } from '../../../validators'
@@ -38,7 +38,7 @@ export const providerOpenAI = defineProvider<Config, 'openai'>({
   createProviderConfig: ({ t, config }) => configSchema.extend({
     api: configSchema.shape.api.meta({
       type: 'select',
-      options: openAIProtocols.supportedProtocols.map(value => ({ label: value === 'responses' ? 'Responses API' : 'Chat Completions', value })),
+      options: generationProtocolOptions(openAIProtocols),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.description'),
     }),
@@ -73,20 +73,23 @@ export const providerOpenAI = defineProvider<Config, 'openai'>({
         // Only send an explicit effort supported by this exact model's catalog entry.
         // Unknown models use server defaults; older reasoning models cannot disable reasoning.
         const supportsEffort = options?.reasoning && supportedEfforts?.includes(effort)
-        if ((config.api ?? openAIProtocols.defaultProtocol) === 'responses') {
-          const responseConfig: ResponsesConfig = { ...request }
-          if (supportsEffort)
-            responseConfig.reasoning = { effort, ...(options?.reasoning === 'enabled' ? { summary: 'auto' as const } : {}) }
+        switch (config.api ?? openAIProtocols.defaultProtocol) {
+          case 'responses': {
+            const responseConfig: ResponsesConfig = { ...request }
+            if (supportsEffort)
+              responseConfig.reasoning = { effort, ...(options?.reasoning === 'enabled' ? { summary: 'auto' as const } : {}) }
 
-          return {
-            protocol: 'responses',
-            webSearch: config.webSearch === true && supportsOpenAIWebSearchEndpoint(request.baseURL),
-            config: responseConfig,
+            return {
+              protocol: 'responses',
+              webSearch: config.webSearch === true && supportsOpenAIWebSearchEndpoint(request.baseURL),
+              config: responseConfig,
+            }
           }
-        }
-        return {
-          protocol: 'chat-completions',
-          config: { ...request, ...(supportsEffort ? { reasoningEffort: effort } : {}) },
+          case 'chat-completions':
+            return {
+              protocol: 'chat-completions',
+              config: { ...request, ...(supportsEffort ? { reasoningEffort: effort } : {}) },
+            }
         }
       },
     }

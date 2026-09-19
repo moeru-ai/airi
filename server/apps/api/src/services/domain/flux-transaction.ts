@@ -1,7 +1,7 @@
 import type { Database } from '../../libs/db'
 
 import { useLogger } from '@guiiai/logg'
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm'
 
 import * as schema from '../../schemas/flux-transaction'
 
@@ -33,18 +33,47 @@ export function createFluxTransactionService(db: Database) {
     },
 
     async getHistory(userId: string, limit: number, offset: number) {
-      const records = await db.query.fluxTransaction.findMany({
-        where: eq(schema.fluxTransaction.userId, userId),
-        orderBy: [desc(schema.fluxTransaction.createdAt)],
-        limit: limit + 1, // fetch one extra to determine hasMore
-        offset,
+      const metadata = schema.fluxTransaction.metadata
+      const turnId = sql`${metadata}->>'turnId'`
+      const transactions = db.select({
+        ...getTableColumns(schema.fluxTransaction),
+        groupKey: sql`CASE WHEN
+          ${schema.fluxTransaction.type} = 'debit'
+          AND ${schema.fluxTransaction.description} = 'tts_request'
+          AND jsonb_typeof(${metadata}->'turnId') = 'string'
+          THEN jsonb_build_array('tts_round', ${turnId})
+          ELSE jsonb_build_array('transaction', ${schema.fluxTransaction.id})
+        END`.as('group_key'),
       })
+        .from(schema.fluxTransaction)
+        .where(eq(schema.fluxTransaction.userId, userId))
+        .as('history_transactions')
+      const history = db.select({
+        id: transactions.id,
+        type: transactions.type,
+        amount: sql`sum(${transactions.amount}) OVER (PARTITION BY ${transactions.groupKey})`.mapWith(Number).as('amount'),
+        description: transactions.description,
+        metadata: transactions.metadata,
+        createdAt: transactions.createdAt,
+        position: sql`row_number() OVER (PARTITION BY ${transactions.groupKey} ORDER BY ${transactions.createdAt} DESC, ${transactions.id} DESC)`.as('position'),
+      })
+        .from(transactions)
+        .as('history')
+      const records = await db.select({
+        id: history.id,
+        type: history.type,
+        amount: history.amount,
+        description: history.description,
+        metadata: history.metadata,
+        createdAt: history.createdAt,
+      })
+        .from(history)
+        .where(eq(history.position, 1))
+        .orderBy(desc(history.createdAt), desc(history.id))
+        .limit(limit + 1)
+        .offset(offset)
 
-      const hasMore = records.length > limit
-      if (hasMore)
-        records.pop()
-
-      return { records, hasMore }
+      return { records: records.slice(0, limit), hasMore: records.length > limit }
     },
 
     async getStats(userId: string) {

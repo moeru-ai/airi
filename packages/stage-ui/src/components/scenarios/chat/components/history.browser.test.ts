@@ -431,6 +431,57 @@ describe('chat history', () => {
     ]])
   })
 
+  it('emits retry-message for an error after partial assistant output', async () => {
+    const messages: ChatHistoryItem[] = [
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', interrupted: true, content: 'partial reply', slices: [{ type: 'text', text: 'partial reply' }], tool_results: [] },
+      { role: 'error', content: 'Stream interrupted' },
+    ]
+
+    const screen = await render(ChatHistory, {
+      props: {
+        messages,
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await screen.getByRole('button', { name: 'Retry' }).click()
+
+    expect(screen.emitted('retryMessage')).toEqual([[
+      {
+        message: messages[2],
+        index: 2,
+        key: getChatHistoryItemKey(messages[2], 2),
+      },
+    ]])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Searching backward from every error crossed a completed assistant turn.
+  // A provider setup error could therefore offer Retry for an older prompt and
+  // delete its valid response. Only an adjacent interrupted turn is retriable.
+  it('does not retry an error across a completed assistant response', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [
+          { role: 'user', content: 'hello' },
+          { role: 'assistant', content: 'complete reply', slices: [{ type: 'text', text: 'complete reply' }], tool_results: [] },
+          { role: 'error', content: 'Provider configuration failed' },
+        ],
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    expect(screen.container.textContent).not.toContain('Retry')
+  })
+
   it('does not render the retry button when the error is not preceded by a user message', async () => {
     const screen = await render(ChatHistory, {
       props: {

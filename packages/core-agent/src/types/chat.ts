@@ -23,6 +23,8 @@ export interface ChatSlicesToolCallResult {
 export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult
 
 export interface ChatAssistantMessage extends AssistantMessage {
+  /** True when transport failure ended this locally preserved response before completion. */
+  interrupted?: true
   /** Sources returned by the provider, separate from text consumed by speech. */
   citations?: import('../messages/types').Citation[]
   search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }

@@ -1,12 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
+import { compatibleProtocols, generationProtocolOptions, openAIProtocols } from '../generation'
 import { getGenerationProvider, isGenerationProvider } from '../types'
 import { providerOpenAI } from './cloud/openai'
 import { providerOpenAICompatible } from './cloud/openai-compatible'
 import { providerOpenRouterAI } from './cloud/openrouter-ai'
 
 describe('generation selection', () => {
+  it('builds protocol options from the shared protocol registry in provider order', () => {
+    expect(generationProtocolOptions(openAIProtocols)).toEqual([
+      { label: 'Responses API', value: 'responses' },
+      { label: 'Chat Completions', value: 'chat-completions' },
+    ])
+    expect(generationProtocolOptions(compatibleProtocols)).toEqual([
+      { label: 'Chat Completions', value: 'chat-completions' },
+      { label: 'Responses API', value: 'responses' },
+    ])
+  })
+
   it('defaults OpenAI to Responses without inferring search from model names', async () => {
     const provider = await providerOpenAI.createProvider({ apiKey: 'test' })
     if (!isGenerationProvider(provider))
