@@ -3,7 +3,7 @@ import type { BackgroundMaterialType, VibrancyType } from '@proj-airi/electron-e
 
 import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { FieldCombobox, GhostButton } from '@proj-airi/ui'
+import { FieldCombobox } from '@proj-airi/ui'
 import { useAsyncState } from '@vueuse/core'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -41,24 +41,26 @@ function handleClose() {
 </script>
 
 <template>
-  <div class="p-4">
+  <div :class="['relative p-4']">
     <div class="drag-region" />
-
-    <div :class="['flex items-start justify-between gap-4', 'py-4']">
-      <div class="min-w-0">
-        <h1>Spotlight</h1>
-        <p>This is the Spotlight page.</p>
-      </div>
-      <GhostButton
-        size="unset"
+    <div :class="['absolute right-2 top-2 z-10 flex items-center gap-1', '[-webkit-app-region:no-drag]']">
+      <button
         type="button"
-        :class="['size-8 shrink-0', '[-webkit-app-region:no-drag]']"
+        :class="[
+          'size-7 rounded-full text-xs text-white transition',
+          'bg-black/40 hover:bg-black/60',
+        ]"
         :title="t('tamagotchi.stage.inlay.close')"
         :aria-label="t('tamagotchi.stage.inlay.close')"
         @click="handleClose"
       >
-        <span aria-hidden="true" :class="['i-solar:close-circle-linear size-5']" />
-      </GhostButton>
+        <span class="size-6">×</span>
+      </button>
+    </div>
+
+    <div class="py-4">
+      <h1>Spotlight</h1>
+      <p>This is the Spotlight page.</p>
     </div>
 
     <div class="space-y-2">
