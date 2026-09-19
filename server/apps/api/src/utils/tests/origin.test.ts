@@ -1,6 +1,8 @@
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import { describe, expect, it } from 'vitest'
 
-import { getTrustedOrigin, resolveCheckoutRedirectBase, resolveTrustedRequestOrigin } from '../origin'
+import { getTrustedCorsOrigin, getTrustedOrigin, resolveCheckoutRedirectBase, resolveTrustedRequestOrigin } from '../origin'
 
 describe('origin utils', () => {
   it('allows localhost origins', () => {
@@ -35,6 +37,41 @@ describe('origin utils', () => {
 
   it('rejects untrusted origins', () => {
     expect(getTrustedOrigin('https://example.com')).toBe('')
+  })
+
+  it('allows the opaque origin only for official transcription CORS', () => {
+    expect(getTrustedCorsOrigin('null', '/api/v1/audio/transcriptions/stream')).toBe('null')
+    expect(getTrustedCorsOrigin('null', '/api/v1/chats')).toBe('')
+    expect(getTrustedOrigin('null')).toBe('')
+  })
+
+  it('reflects the opaque origin on the transcription preflight only', async () => {
+    const app = new Hono()
+      .use('/api/*', cors({
+        origin: (origin, c) => getTrustedCorsOrigin(origin, c.req.path),
+        credentials: true,
+      }))
+      .post('/api/v1/audio/transcriptions/stream', c => c.text('ok'))
+      .post('/api/v1/chats', c => c.text('ok'))
+
+    const headers = {
+      'Origin': 'null',
+      'Access-Control-Request-Headers': 'authorization,content-type',
+      'Access-Control-Request-Method': 'POST',
+    }
+    const transcriptionPreflight = await app.request('/api/v1/audio/transcriptions/stream', {
+      method: 'OPTIONS',
+      headers,
+    })
+    const unrelatedPreflight = await app.request('/api/v1/chats', {
+      method: 'OPTIONS',
+      headers,
+    })
+
+    expect(transcriptionPreflight.status).toBe(204)
+    expect(transcriptionPreflight.headers.get('Access-Control-Allow-Origin')).toBe('null')
+    expect(transcriptionPreflight.headers.get('Access-Control-Allow-Credentials')).toBe('true')
+    expect(unrelatedPreflight.headers.get('Access-Control-Allow-Origin')).toBeNull()
   })
 
   it('prefers a trusted referer origin', () => {
