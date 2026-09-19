@@ -18,6 +18,7 @@ import { buildPluginRegistrySnapshot } from './registry'
  * - `host` is the initialized extension host instance
  * - `manifestEntryByExtensionId` contains entries for any extension-owned modules being inspected
  * - `extensionAssetService` owns extension asset URL/session lifecycle when mounted asset URLs are needed
+ * - `canMaterializeAssetSession` rejects inactive and cleanup-pending session owners
  *
  * Returns:
  * - A full debug snapshot with registry, sessions, kits, modules, and capabilities
@@ -30,17 +31,23 @@ export function buildPluginHostDebugSnapshot(options: {
   loaded: Set<string>
   manifestEntryByExtensionId: Map<string, ManifestEntry>
   extensionAssetService?: ExtensionAssetSnapshotService
+  canMaterializeAssetSession: (input: { extensionId: string, sessionId: string }) => boolean
 }): Promise<PluginHostDebugSnapshot> {
   const extensionAssetService = options.extensionAssetService
   const modules = Promise.all(options.host
     .listBindings()
-    .map(module =>
-      rewriteWidgetModuleAssetUrl(
+    .map((module) => {
+      const canMaterializeAssetSession = options.canMaterializeAssetSession({
+        extensionId: module.ownerExtensionId,
+        sessionId: module.ownerSessionId,
+      })
+
+      return rewriteWidgetModuleAssetUrl(
         module,
         options.manifestEntryByExtensionId,
         {
           extensionAssetBaseUrl: extensionAssetService?.getBaseUrl(),
-          ...(extensionAssetService
+          ...(extensionAssetService && canMaterializeAssetSession
             ? {
                 createAssetSession: ({ extensionId, version, sessionId, routeAssetPath, sessionPathPrefix }: {
                   extensionId: string
@@ -58,8 +65,8 @@ export function buildPluginHostDebugSnapshot(options: {
               }
             : {}),
         },
-      ),
-    ))
+      )
+    }))
 
   return modules.then(resolvedModules => ({
     registry: buildPluginRegistrySnapshot({

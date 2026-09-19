@@ -230,7 +230,7 @@ export interface ExtensionProvidedKitDeclaration {
 export interface ExtensionUsedKitDeclaration {
   /** Stable Kit contract identifier. */
   id: string
-  /** Exact Kit version required by the Consumer. */
+  /** Semantic version range accepted by the Consumer. */
   version: string
   /** Whether the Extension can start without this Kit. @default false */
   optional?: boolean
@@ -392,7 +392,7 @@ const providedKitDeclarationSchema = strictObject({
 
 const usedKitDeclarationSchema = strictObject({
   id: pipe(string(), trim(), minLength(1)),
-  version: exactSemanticVersionSchema,
+  version: semanticVersionRangeSchema,
   optional: optional(boolean()),
 })
 
