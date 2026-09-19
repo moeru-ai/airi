@@ -6,6 +6,7 @@ import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
+import { settingsScroll } from '@proj-airi/stage-layouts/browser/settings-scroll'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
@@ -66,6 +67,7 @@ createApp(App)
   // TODO: Fix autoAnimatePlugin type error
   .use(autoAnimatePlugin as unknown as Plugin)
   .use(router)
+  .use(settingsScroll)
   .use(pinia)
   .use(PiniaColada)
   .use(i18n)
