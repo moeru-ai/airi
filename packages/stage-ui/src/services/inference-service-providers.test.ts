@@ -13,6 +13,7 @@ function getRequiredProvider(id: string) {
   return provider
 }
 
+const anonRouterProvider = getRequiredProvider('anonrouter')
 const atlasCloudProvider = getRequiredProvider('atlascloud')
 const openAICompatibleProvider = getRequiredProvider('openai-compatible')
 
@@ -55,6 +56,21 @@ describe('services inference-service-providers', () => {
     })
     expect(inferenceServiceProvidersService.buildLocal(atlasCloudProvider.id, { apiKey: 'test-key' })).toEqual(expect.objectContaining({
       definitionId: atlasCloudProvider.id,
+      config: { apiKey: 'test-key' },
+    }))
+  })
+
+  it('lists AnonRouter as a built-in OpenAI-compatible provider', async () => {
+    const schema = await anonRouterProvider.createProviderConfig({ t: (key: string) => key })
+
+    expect(anonRouterProvider.name).toBe('AnonRouter')
+    expect(anonRouterProvider.tasks).toEqual(['chat'])
+    expect(parseSchema(schema, { apiKey: 'test-key' })).toEqual({
+      apiKey: 'test-key',
+      baseUrl: 'https://api.anonrouter.ai/v1',
+    })
+    expect(inferenceServiceProvidersService.buildLocal(anonRouterProvider.id, { apiKey: 'test-key' })).toEqual(expect.objectContaining({
+      definitionId: anonRouterProvider.id,
       config: { apiKey: 'test-key' },
     }))
   })

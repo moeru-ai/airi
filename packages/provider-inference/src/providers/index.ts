@@ -3,6 +3,7 @@ import type { ProviderDefinition } from '../types'
 import { provider302AI } from './cloud/302-ai'
 import { providerAIHubMix } from './cloud/aihubmix'
 import { providerAmazonBedrock } from './cloud/amazon-bedrock'
+import { providerAnonRouter } from './cloud/anonrouter'
 import { providerAnthropic } from './cloud/anthropic'
 import { providerAtlasCloud } from './cloud/atlascloud'
 import { providerAzureAIFoundry } from './cloud/azure-ai-foundry'
@@ -88,6 +89,7 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   provider302AI,
   providerAIHubMix,
   providerAmazonBedrock,
+  providerAnonRouter,
   providerAnthropic,
   providerAtlasCloud,
   providerAzureAIFoundry,
