@@ -37,7 +37,7 @@ import ControlsIslandRoot from '../components/stage-islands/controls-island/cont
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { desktopRuntimeRecordMetric, electronOpenOnboarding } from '../../shared/eventa'
+import { electronOpenOnboarding } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
@@ -101,7 +101,6 @@ const { alwaysOnTop, stageModelRenderer, stageModelSelectedUrl } = storeToRefs(s
 const modelStore = useModelStore()
 const expressionStore = useExpressionStore()
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
-const recordDesktopRuntimeMetric = useElectronEventaInvoke(desktopRuntimeRecordMetric)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 const modelSettingsRuntimeOwnerInstanceId = `tamagotchi-main-stage:${Math.random().toString(36).slice(2, 10)}`
@@ -110,21 +109,6 @@ const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransp
   stageModelRenderer: stageModelRenderer.value,
   stagePaused: stagePaused.value,
 }))
-
-const stageModelRendered = computed(() => stageModelRenderer.value === 'vrm'
-  ? scenePhase.value === 'mounted'
-  : componentStateStage.value === 'mounted')
-
-watch([stageModelRendered, stageModelSelectedUrl], ([rendered, modelUrl]) => {
-  if (!rendered || !modelUrl)
-    return
-
-  // A VRM reaches mounted after ThreeScene binds the model and its controls.
-  // Other stage renderers report mounted after their component renders a model.
-  // At this boundary users can see and operate the Stage UI.
-  void recordDesktopRuntimeMetric({ name: 'defaultModelLoadMs' })
-  void recordDesktopRuntimeMetric({ name: 'firstUsableUiMs' })
-}, { immediate: true })
 /**
  * Drives the Auto Hide fade. `true` means "do not fade", so any case without a usable
  * region sampler reports `true` and the stage stays visible.

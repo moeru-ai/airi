@@ -166,8 +166,6 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
       await m.initialize()
       manager.value = m
       loaded.value = true
-      if (typeof window !== 'undefined')
-        window.dispatchEvent(new Event('airi:onnx-initialized'))
     }
     catch (error) {
       inferenceError.value = errorMessageFromValue(error)

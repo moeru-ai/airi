@@ -37,7 +37,6 @@ import { toast, Toaster } from 'vue-sonner'
 import ResizeHandler from './components/ResizeHandler.vue'
 
 import {
-  desktopRuntimeRecordMetric,
   electronGetServerChannelConfig,
   electronGodotStageGetStatus,
   electronGodotStageStatusChanged,
@@ -82,7 +81,6 @@ const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settings
 const router = useRouter()
 const route = useRoute()
 const context = useElectronEventaContext()
-const recordDesktopRuntimeMetric = useElectronEventaInvoke(desktopRuntimeRecordMetric)
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const windowContext = resolveRendererWindowContext()
@@ -331,14 +329,7 @@ const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocal
 const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
 watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
-onMounted(() => {
-  updateThemeColor()
-
-  const handleOnnxInitialization = () => {
-    void recordDesktopRuntimeMetric({ name: 'onnxInitializationMs' })
-  }
-  window.addEventListener('airi:onnx-initialized', handleOnnxInitialization, { once: true })
-})
+onMounted(() => updateThemeColor())
 
 if (isSettingsWindow) {
   context.value.on(electronSettingsNavigate, (event) => {
