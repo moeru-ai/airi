@@ -23,6 +23,25 @@ function hasXcode26OrAbove() {
   }
 }
 
+// Each target platform keeps only the matching `${arch}` native directory.
+const nativeAddonFilePatterns = {
+  darwin: [
+    '!**/node_modules/uiohook-napi/prebuilds/!(darwin-${arch}){,/**}',
+    '!**/node_modules/electron-click-drag-plugin/build/Release/!(darwin-${arch}){,/**}',
+  ],
+  linux: [
+    // uiohook-napi ships an x86-64 binary in its Linux ARM64 directory.
+    '!**/node_modules/uiohook-napi/prebuilds/!(linux-${arch}){,/**}',
+    '!**/node_modules/uiohook-napi/prebuilds/linux-arm64{,/**}',
+    // Linux does not use electron-click-drag-plugin.
+    '!**/node_modules/electron-click-drag-plugin/build/Release/{darwin-arm64,darwin-x64,linux-x64,win32-x64}{,/**}',
+  ],
+  win32: [
+    '!**/node_modules/uiohook-napi/prebuilds/!(win32-${arch}){,/**}',
+    '!**/node_modules/electron-click-drag-plugin/build/Release/!(win32-${arch}){,/**}',
+  ],
+} as const
+
 /**
  * Determine whether to use the .icon format for the macOS app icon based on the
  * Xcode version while building.
@@ -122,6 +141,7 @@ export default {
     license: 'MIT',
   },
   win: {
+    files: nativeAddonFilePatterns.win32,
     executableName: 'airi',
     // NOTICE: Keep `channel: 'latest-${arch}'` for architecture-aware updater metadata.
     // electron-builder expands `${arch}` at publish-time (for example: `latest-x64`, `latest-arm64`),
@@ -145,6 +165,7 @@ export default {
     runAfterFinish: true,
   },
   mac: {
+    files: nativeAddonFilePatterns.darwin,
     entitlements: 'build/entitlements.mac.plist',
     entitlementsInherit: 'build/entitlements.mac.plist',
     // NOTICE: Same channel rule as Windows. Keep `${arch}` here so generated metadata resolves
@@ -239,6 +260,7 @@ export default {
     artifactName: '${productName}-${version}-darwin-${arch}.${ext}',
   },
   linux: {
+    files: nativeAddonFilePatterns.linux,
     target: [
       'deb',
       'rpm',
