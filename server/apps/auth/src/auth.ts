@@ -460,12 +460,9 @@ export function createAuth(
       jwt(),
       banGuard(),
       // NOTICE:
-      // Bridges OIDC JWT access tokens (RS256, signed by our oauthProvider)
-      // into a real better-auth session so `sessionMiddleware` and every
-      // downstream `/api/auth/*` endpoint accept them. Must run after
-      // bearer() so we don't intercept HMAC session tokens that bearer()
-      // already handles. See oidc-jwt-bearer.ts for the
-      // architectural mismatch this paves over.
+      // Resolves OIDC JWT access tokens into request-scoped identity for
+      // Better Auth. Must run after bearer() so HMAC session tokens retain
+      // their stock path. See oidc-jwt-bearer.ts for sensitive-operation rules.
       oidcJwtBearer(env),
       // Steam's web login is OpenID 2.0, not OAuth2/OIDC, so it can't be a
       // `socialProviders` entry — see steam.ts for why this needs to be its

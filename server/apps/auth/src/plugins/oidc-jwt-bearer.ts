@@ -1,3 +1,4 @@
+import type { AuthSession } from '@proj-airi/auth-shared'
 import type { BetterAuthPlugin } from 'better-auth'
 import type { JSONWebKeySet } from 'jose'
 
@@ -5,8 +6,10 @@ import type { AuthEnv } from '../env'
 
 import { createHmac } from 'node:crypto'
 
+import { isUserBannedNow } from '@proj-airi/auth-shared'
+import { APIError } from 'better-auth'
 import { createAuthMiddleware } from 'better-auth/api'
-import { array, date, looseObject, nonEmpty, nullable, object, optional, parse, pipe, regex, safeParse, string, transform } from 'valibot'
+import { array, boolean, date, looseObject, nonEmpty, nullable, object, optional, parse, pipe, regex, safeParse, string, transform } from 'valibot'
 
 import { createOidcAccessTokenVerifier } from '../oidc-access-token'
 
@@ -28,73 +31,45 @@ const PublicJwkSchema = looseObject({
   kty: pipe(string(), nonEmpty()),
 })
 
+const ResolvedUserSchema = object({
+  id: pipe(string(), nonEmpty()),
+  name: string(),
+  email: pipe(string(), nonEmpty()),
+  emailVerified: boolean(),
+  image: optional(nullable(string())),
+  banned: optional(nullable(boolean())),
+  banReason: optional(nullable(string())),
+  banExpires: optional(nullable(date())),
+  lastSeenAt: optional(nullable(date())),
+  createdAt: date(),
+  updatedAt: date(),
+})
+
+const PersistedSessionSchema = object({
+  id: pipe(string(), nonEmpty()),
+  token: pipe(string(), nonEmpty()),
+  userId: pipe(string(), nonEmpty()),
+  expiresAt: date(),
+  createdAt: date(),
+  updatedAt: date(),
+  ipAddress: optional(nullable(string())),
+  userAgent: optional(nullable(string())),
+})
+
 /**
- * Bridge plugin that lets better-auth's `sessionMiddleware` accept the
- * RS256 JWT access tokens minted by our own oauthProvider plugin, instead
- * of only the HMAC-signed session tokens that the stock {@link bearer}
- * plugin understands.
- *
- * Use when:
- * - Auth endpoints still need to accept access tokens minted by this
- *   service (for example profile and account-management requests). The
- *   separate resource API validates the same tokens from Auth's JWKS.
- *
- * Why a plugin (vs. per-route shims):
- * - The `before` hook fires before `sessionMiddleware`, so a single
- *   translation here lets every better-auth endpoint (current + future)
- *   accept JWTs. Per-route shims would have to be rewritten for each new
- *   endpoint we expose to OIDC clients.
- *
- * Architecture mismatch this paves over:
- * - better-auth's official OIDC story assumes the IdP and the resource
- *   server are different processes / different trust domains. The IdP
- *   issues JWTs for *external* RSes; the IdP itself only authenticates
- *   its own admin / profile API via cookies + HMAC bearer. Hosting both
- *   in one process is uncommon upstream, hence the gap.
- *
- * Mechanism:
- * 1. Detect a JWT-shaped Bearer token (3 base64url segments).
- * 2. Verify it via the local JWKS endpoint (the same RS256 keys our
- *    oauthProvider plugin signs with). If verification fails, bail out
- *    so the stock {@link bearer} plugin can still try its HMAC path.
- * 3. Mint a short-lived bridge `session` row (5 min TTL via the
- *    `override.expiresAt` parameter on `internalAdapter.createSession`).
- *    Reusing an existing OIDC-flow session would seem cheaper, but it
- *    would let a refreshed-after-sign-out JWT silently keep working
- *    until its own TTL — minting anew avoids that surprise.
- * 4. Sign the session token the same way better-auth's bearer plugin
- *    does (`serializeSignedCookie('', token, secret)` then strip the `=`),
- *    inject it as the `better-auth.session_token` cookie on the request
- *    headers, and let `sessionMiddleware` resolve from there as if a
- *    real cookie had been sent.
- *
- * NOTICE:
- * - We intentionally only run on JWT-shaped tokens. HMAC tokens (no `.`s
- *   in the obvious places, or fail JWKS verify) are passed through to
- *   the stock {@link bearer} plugin so the existing better-auth-only
- *   clients keep working.
- * - The bridge session table grows by one row per JWT-authed `/api/auth/*`
- *   request. With a 5-minute TTL the steady-state size is bounded; if
- *   that becomes load-bearing we can swap in a per-jti cache.
- * - Mirror of `bearer()`'s cookie injection trick:
- *   node_modules/better-auth/dist/plugins/bearer/index.mjs L26-58.
- *   Removal condition: better-auth ships a first-party way to verify
- *   externally-signed JWTs against a JWKS for its own session resolution.
+ * Resolves locally issued RS256 access tokens as request-scoped Better Auth
+ * identity. An active original `sid` preserves authoritative checks for
+ * sensitive operations. Without one, the token only authorizes ordinary
+ * session middleware. HMAC bearer tokens keep their stock path.
  */
 export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
   const verifyAccessToken = createOidcAccessTokenVerifier(env.PUBLIC_URL)
-
-  // Bridge session lifetime. Long enough to span an OAuth round-trip
-  // (link-social → provider → callback) on slow networks; short enough
-  // that an unused row TTL-prunes quickly.
-  const BRIDGE_SESSION_TTL_MS = 5 * 60 * 1000
 
   // NOTICE:
   // Local lookup avoids loopback HTTP competing for the same database pool.
   // The old self-fetch timed out during JWT-authenticated account requests.
   // Source: better-auth/dist/plugins/jwt/index.mjs.
   // Remove only if JWKS storage moves to another service.
-
   /**
    * Loads the public JWKS from Better Auth's database adapter.
    */
@@ -196,22 +171,68 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
               return
 
             const userId = claims.sub
+            const sessionId = claims.sid ?? null
+            const tokenId = claims.jti ?? null
+            const accessTokenExpiresAt = new Date(claims.exp * 1000)
 
-            // Mint a bridge session bound to this user. The override sets
-            // a short TTL so abandoned bridge rows self-prune; the second
-            // arg `undefined` keeps `dontRememberMe` at its default.
-            const expiresAt = new Date(Date.now() + BRIDGE_SESSION_TTL_MS)
-            const bridgeSession = await c.context.internalAdapter.createSession(
-              userId,
-              undefined,
-              { expiresAt },
+            const resolvedUserResult = safeParse(
+              ResolvedUserSchema,
+              await c.context.internalAdapter.findUserById(userId),
             )
-            if (!bridgeSession?.token)
+            if (!resolvedUserResult.success)
               return
+            const resolvedUser = resolvedUserResult.output
+            if (isUserBannedNow(resolvedUser)) {
+              throw APIError.from('FORBIDDEN', {
+                code: 'BANNED_USER',
+                message: 'This account has been banned',
+              })
+            }
 
-            // Format the session token exactly like bearer() expects it
-            // when the cookie comes back in (see plugin source above).
-            const signedValue = signCookieValue(bridgeSession.token, c.context.secret)
+            const persistedSessionResult = sessionId
+              ? await c.context.adapter.findOne({
+                  model: 'session',
+                  where: [
+                    { field: 'id', value: sessionId },
+                    { field: 'userId', value: userId },
+                  ],
+                })
+              : null
+            const parsedSession = safeParse(PersistedSessionSchema, persistedSessionResult)
+            const persistedSession = parsedSession.success ? parsedSession.output : null
+
+            const activeSession = persistedSession && persistedSession.expiresAt > new Date()
+              ? persistedSession
+              : null
+
+            // A request-only identity must never look fresh. Endpoints guarded
+            // by freshSessionMiddleware will reject this epoch timestamp when
+            // the JWT has no active original session.
+            const requestSession: AuthSession['session'] = activeSession ?? {
+              id: tokenId ?? `jwt:${userId}`,
+              token,
+              userId,
+              createdAt: new Date(0),
+              updatedAt: new Date(0),
+              expiresAt: accessTokenExpiresAt,
+              ipAddress: null,
+              userAgent: null,
+            }
+
+            if (!activeSession) {
+              return {
+                context: {
+                  session: { session: requestSession, user: resolvedUser },
+                },
+              }
+            }
+
+            // NOTICE:
+            // Sensitive middleware only trusts a signed session cookie.
+            // Better Auth has no hook for an external JWT verifier here.
+            // Source: better-auth/dist/api/routes/session.mjs.
+            // Remove when upstream accepts verified JWT identity directly.
+            const signedValue = signCookieValue(activeSession.token, c.context.secret)
 
             const cookieName = c.context.authCookies.sessionToken.name
             const newCookieEntry = `${cookieName}=${signedValue}`
@@ -226,7 +247,12 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
               existingCookie ? `${existingCookie}; ${newCookieEntry}` : newCookieEntry,
             )
 
-            return { context: { headers: newHeaders } }
+            return {
+              context: {
+                headers: newHeaders,
+                session: { session: requestSession, user: resolvedUser },
+              },
+            }
           }),
         },
       ],
