@@ -4,7 +4,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { CharacterSwitcherDrawer, ChatHistory } from '@proj-airi/stage-ui/components'
+import { CharacterSwitcherDrawer, ChatHistory, HearingStatus } from '@proj-airi/stage-ui/components'
 import { ChatReplyPreview, ChatSessionsDrawer, useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -527,9 +527,10 @@ onUnmounted(() => {
         'pointer-events-auto relative w-full shrink-0 self-end',
       ]"
     >
-      <div translate-y="[-100%]" absolute left-0 px-3 pb-3 font-sans>
+      <div :class="['absolute left-0 top-2 z-30 -translate-y-full px-3 font-sans']">
         <div flex="~ col" gap-1>
           <slot name="status" />
+          <HearingStatus />
         </div>
       </div>
       <div

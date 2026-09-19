@@ -1994,3 +1994,7 @@ wip:
   description: >-
     This feature is currently under development and not yet publicly available.
     Check back in future updates for this functionality.
+
+streamer-mode:
+  title: Streamer mode
+  description: Hide microphone and sign-in feedback on the character window while streaming. Audio input and sign-in stay active.
