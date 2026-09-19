@@ -6,14 +6,27 @@ import type { AuthEnv } from '../env'
 import { createHmac } from 'node:crypto'
 
 import { createAuthMiddleware } from 'better-auth/api'
-import { createLocalJWKSet, jwtVerify } from 'jose'
-import { pipe, regex, safeParse, string, transform } from 'valibot'
+import { array, date, looseObject, nonEmpty, nullable, object, optional, parse, pipe, regex, safeParse, string, transform } from 'valibot'
+
+import { createOidcAccessTokenVerifier } from '../oidc-access-token'
 
 const JwtBearerTokenSchema = pipe(
   string(),
   transform(value => value.trim()),
   regex(/^[\w-]+\.[\w-]+\.[\w-]+$/, 'Bearer token must be a compact JWT'),
 )
+
+const StoredJwkRowSchema = object({
+  id: pipe(string(), nonEmpty()),
+  publicKey: pipe(string(), nonEmpty()),
+  alg: optional(string()),
+  crv: optional(string()),
+  expiresAt: optional(nullable(date())),
+})
+
+const PublicJwkSchema = looseObject({
+  kty: pipe(string(), nonEmpty()),
+})
 
 /**
  * Bridge plugin that lets better-auth's `sessionMiddleware` accept the
@@ -69,79 +82,36 @@ const JwtBearerTokenSchema = pipe(
  *   externally-signed JWTs against a JWKS for its own session resolution.
  */
 export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
+  const verifyAccessToken = createOidcAccessTokenVerifier(env.PUBLIC_URL)
+
   // Bridge session lifetime. Long enough to span an OAuth round-trip
   // (link-social → provider → callback) on slow networks; short enough
   // that an unused row TTL-prunes quickly.
   const BRIDGE_SESSION_TTL_MS = 5 * 60 * 1000
 
-  // Process-local JWKS cache.
-  //
   // NOTICE:
-  // Why local (not `createRemoteJWKSet`): we are the JWKS endpoint. Using
-  // jose's remote variant would loopback-fetch `/api/auth/jwks` on the same
-  // process, which both costs 5+ seconds in slow-DB environments AND
-  // contends for the same Postgres connection pool we're already inside —
-  // observed as 5s `Connection terminated due to connection timeout` from
-  // the `jwks` SELECT during a JWT-authed `/api/auth/list-accounts`. We
-  // read the jwks table directly via the better-auth adapter and assemble
-  // the JWKS in-process. Cached for 60s so steady-state traffic is
-  // effectively no-op; rotations propagate within a minute.
-  // Source: better-auth jwt plugin endpoint that builds the same shape:
-  //   node_modules/better-auth/dist/plugins/jwt/index.mjs L102-129.
-  // Removal condition: never — local JWKS is the right primitive when the
-  // server *is* the IdP. Only revisit if jwks ever moves out of process.
-  const JWKS_TTL_MS = 60 * 1000
-  let cachedKeySet: ReturnType<typeof createLocalJWKSet> | null = null
-  let cachedAt = 0
-
-  interface JwkRow {
-    id: string
-    publicKey: string
-    alg?: string
-    crv?: string
-    expiresAt?: Date | null
-  }
+  // Local lookup avoids loopback HTTP competing for the same database pool.
+  // The old self-fetch timed out during JWT-authenticated account requests.
+  // Source: better-auth/dist/plugins/jwt/index.mjs.
+  // Remove only if JWKS storage moves to another service.
 
   /**
-   * Build (or reuse) the local JWKS resolver from rows in the `jwks` table.
-   *
-   * Use when:
-   * - About to verify a JWT inside this plugin and we need an up-to-date
-   *   `JWKSLike` callable for `jwtVerify`.
-   *
-   * Expects:
-   * - `c.context.adapter.findMany({ model: 'jwks' })` returns a list of
-   *   rows shaped like {@link JwkRow}.
-   *
-   * Returns:
-   * - The same `createLocalJWKSet` callable on cache hit; freshly assembled
-   *   one on miss / expiry. Returns `null` if no keys are present (better
-   *   to bail than to lock everyone out — bearer() may still succeed).
+   * Loads the public JWKS from Better Auth's database adapter.
    */
-  async function getOrLoadJWKS(
+  async function loadJwks(
     adapter: { findMany: (args: { model: string }) => Promise<unknown[]> },
-  ): Promise<ReturnType<typeof createLocalJWKSet> | null> {
-    if (cachedKeySet && Date.now() - cachedAt < JWKS_TTL_MS)
-      return cachedKeySet
-
-    const rows = await adapter.findMany({ model: 'jwks' }) as JwkRow[]
+  ): Promise<JSONWebKeySet | null> {
+    const rows = parse(array(StoredJwkRowSchema), await adapter.findMany({ model: 'jwks' }))
     const now = Date.now()
     const keys = rows
       .filter(row => !row.expiresAt || row.expiresAt.getTime() > now)
       // NOTICE:
-      // `JSON.parse` is intentionally not wrapped in try/catch. The
-      // `publicKey` column is written exclusively by better-auth's jwt
-      // plugin via `JSON.stringify(publicWebKey)` (see
-      // node_modules/@better-auth/core/dist/plugins/jwt/utils.mjs L30, L50)
-      // — i.e. data we ourselves serialised. A parse failure means the
-      // table is corrupt or upstream's serialisation contract has
-      // shifted, and both are exactly the cases that should fail loud
-      // (5xx + alert) rather than be silently skipped, which would
-      // 401 every JWT signed with the dropped key and bury the root
-      // cause. PR #1753 review suggested adding the try/catch; declined
-      // for the reason above.
+      // Invalid stored keys must fail loudly instead of causing hidden 401s.
+      // Better Auth writes this field with JSON.stringify.
+      // Source: @better-auth/core/dist/plugins/jwt/utils.mjs.
+      // Remove if the stored-key contract gains explicit validation.
       .map((row) => {
-        const publicKey = JSON.parse(row.publicKey) as Record<string, unknown>
+        const publicKey = parse(PublicJwkSchema, JSON.parse(row.publicKey))
         return {
           ...(row.alg ? { alg: row.alg } : {}),
           ...(row.crv ? { crv: row.crv } : {}),
@@ -153,10 +123,7 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
     if (keys.length === 0)
       return null
 
-    const jwks: JSONWebKeySet = { keys: keys as JSONWebKeySet['keys'] }
-    cachedKeySet = createLocalJWKSet(jwks)
-    cachedAt = Date.now()
-    return cachedKeySet
+    return { keys }
   }
 
   /**
@@ -224,23 +191,11 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
             const adapter = c.context.adapter as {
               findMany: (args: { model: string }) => Promise<unknown[]>
             }
-            const keySet = await getOrLoadJWKS(adapter)
-            if (!keySet)
+            const claims = await verifyAccessToken(token, () => loadJwks(adapter))
+            if (!claims)
               return
 
-            let userId: string
-            try {
-              const { payload } = await jwtVerify(token, keySet, {
-                issuer: `${env.PUBLIC_URL}/api/auth`,
-                audience: env.PUBLIC_URL,
-              })
-              if (typeof payload.sub !== 'string')
-                return
-              userId = payload.sub
-            }
-            catch {
-              return
-            }
+            const userId = claims.sub
 
             // Mint a bridge session bound to this user. The override sets
             // a short TTL so abandoned bridge rows self-prune; the second

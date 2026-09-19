@@ -1,6 +1,7 @@
 import type { AuthSession } from '@proj-airi/auth-shared'
 import type { BetterAuthOptions } from 'better-auth'
 import type { AppleProfile } from 'better-auth/social-providers'
+import type { JSONWebKeySet } from 'jose'
 
 import type { AuthDatabase } from './db'
 import type { EmailService } from './email'
@@ -423,6 +424,7 @@ export interface AuthInstance {
   handler: (request: Request) => Promise<Response>
   api: {
     getSession: (input: { headers: Headers }) => Promise<AuthSession | null>
+    getJwks: () => Promise<JSONWebKeySet>
     getOAuthServerConfig: () => Promise<unknown>
     getOpenIdConfig: () => Promise<unknown>
   }
