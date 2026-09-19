@@ -194,6 +194,7 @@ describe('createChatOrchestratorRuntime', () => {
 
     expect(harness.sessionMessages['session-1']?.at(-1)).toMatchObject({
       role: 'assistant',
+      interrupted: true,
       content: 'partial ',
       slices: [{ type: 'text', text: 'partial ' }],
     })
@@ -718,6 +719,32 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.telemetry.chatActivationFailed).toHaveLength(0)
     expect(harness.telemetry.messageSendStarted).toHaveLength(2)
     expect(harness.telemetry.messageRound).toHaveLength(2)
+  })
+
+  // ROOT CAUSE:
+  //
+  // Preserving partial output created an assistant history item, so the next
+  // send looked like a later turn even though activation had never succeeded.
+  // Interrupted output is now marked separately from a completed assistant.
+  it('keeps activation eligible after the first response is interrupted', async () => {
+    const harness = createHarness()
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'partial reply' })
+      throw new Error('stream interrupted')
+    })
+
+    await expect(harness.runtime.ingest('first turn fails', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })).rejects.toThrow('stream interrupted')
+    await harness.runtime.ingest('second turn succeeds', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.telemetry.chatActivationStarted).toHaveLength(2)
+    expect(harness.telemetry.chatActivationFailed).toHaveLength(1)
+    expect(harness.telemetry.chatActivationSucceeded).toHaveLength(1)
   })
 
   it('emits chat activation failure telemetry without raw provider messages', async () => {

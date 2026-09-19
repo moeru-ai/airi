@@ -260,6 +260,7 @@ const interruptedResponseMessages = ref<ChatHistoryItem[]>([
   },
   {
     role: 'assistant',
+    interrupted: true,
     content: 'The API deployment completed, but the web client',
     slices: [
       { type: 'text', text: 'The API deployment completed, but the web client' },

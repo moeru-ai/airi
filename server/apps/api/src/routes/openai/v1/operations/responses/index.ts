@@ -6,7 +6,7 @@ import type { V1RouteDeps } from '../../types'
 import { useLogger } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
 import { EventSourceParserStream } from '@xsai/shared-stream'
-import { array, integer, looseObject, minValue, nullable, number, object, optional, picklist, pipe, safeParse, string, unknown } from 'valibot'
+import { array, integer, looseObject, minValue, nullable, number, object, optional, picklist, pipe, regex, safeParse, string, unknown } from 'valibot'
 
 import { ApiError, createBadGatewayError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
@@ -23,7 +23,7 @@ const responseSchema = looseObject({
   usage: optional(nullable(object({ input_tokens: tokens, output_tokens: tokens, total_tokens: tokens }))),
 })
 const eventSchema = looseObject({
-  type: string(),
+  type: pipe(string(), regex(/^[^\r\n]+$/, 'Responses event types cannot contain line breaks')),
   response: optional(unknown()),
   output_index: optional(pipe(number(), integer(), minValue(0))),
   item: optional(unknown()),

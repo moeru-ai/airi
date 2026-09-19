@@ -104,10 +104,12 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
   return [...props.messages, streaming.value]
 })
 function canRetryMessageAt(index: number) {
-  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
-    if (renderMessages.value[cursor]?.role === 'user')
-      return true
-  }
+  const precedingMessage = renderMessages.value[index - 1]
+  if (precedingMessage?.role === 'user')
+    return true
+
+  if (precedingMessage?.role === 'assistant' && precedingMessage.interrupted)
+    return renderMessages.value[index - 2]?.role === 'user'
 
   return false
 }

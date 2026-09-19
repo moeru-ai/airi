@@ -2808,6 +2808,21 @@ describe('issue #2479 hosted Responses', () => {
     expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
   })
 
+  // ROOT CAUSE:
+  //
+  // OpenRouter event-name normalization copied the JSON payload type into an
+  // SSE field. A line break in that untrusted value could create a new frame.
+  // The provider payload boundary now rejects such event types before output.
+  it('rejects line breaks in normalized OpenRouter event names', async () => {
+    const frame = `event: message\ndata: ${JSON.stringify({ type: 'response.created\n\nevent: injected' })}\n\n`
+    const harness = responsesHarness(() => new Response(frame), 100, null, 'openrouter.ai')
+
+    const response = await harness.send({ stream: true })
+
+    await expect(response.text()).rejects.toThrow('Invalid Responses SSE event')
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+  })
+
   it.each([
     ['another provider', 'openai', true],
     ['unfinished OpenRouter output', 'openrouter.ai', false],
