@@ -6,6 +6,7 @@ import NProgress from 'nprogress'
 
 import { Capacitor } from '@capacitor/core'
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import { settingsScroll } from '@proj-airi/stage-layouts/browser/settings-scroll'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
@@ -87,6 +88,7 @@ createApp(App)
   // TODO: Fix autoAnimatePlugin type error
   .use(autoAnimatePlugin as unknown as Plugin)
   .use(router)
+  .use(settingsScroll)
   .use(pinia)
   .use(i18n)
   .use(Tres)
