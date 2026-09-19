@@ -10,7 +10,7 @@ import type { EmotionPayload } from '../../constants/emotions'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { errorMessageFrom, sleep } from '@moeru/std'
+import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
@@ -181,13 +181,10 @@ const providerStore = useProviderConfigStore()
 const live2dStore = useLive2dParams()
 const showStage = ref(true)
 const stageRenderError = shallowRef<Error>()
-const stageRenderErrorRenderer = computed(() => stageModelRenderer.value === 'vrm' ? 'VRM' : 'Live2D')
 const viewUpdateCleanups: Array<() => void> = []
 
-function handleStageRenderError(error: unknown) {
-  stageRenderError.value = error instanceof Error
-    ? error
-    : new Error(errorMessageFrom(error) ?? 'The stage renderer failed to load the model.')
+function handleStageRenderError(error: Error) {
+  stageRenderError.value = error
 }
 
 async function retryStageRenderer() {
@@ -1072,7 +1069,7 @@ defineExpose({
         :enable-orbit-controls="props.enableOrbitControls"
         :audio-context="audioContext"
         :current-audio-source="currentAudioSource"
-        @error="handleStageRenderError"
+        @error="console.error"
         @vrm-interact="onVRMInteract"
       />
       <SpineScene
@@ -1145,7 +1142,7 @@ defineExpose({
       <StageRenderError
         v-if="stageRenderError"
         :error="stageRenderError"
-        :renderer="stageRenderErrorRenderer"
+        renderer="Live2D"
         :model-id="stageModelSelected"
         @retry="retryStageRenderer"
       />
