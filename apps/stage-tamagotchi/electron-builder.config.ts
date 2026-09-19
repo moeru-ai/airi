@@ -84,6 +84,10 @@ export default {
     // The renderer uses the browser ONNX backend. The node package and its
     // platform binaries are not loaded by the packaged renderer.
     '!**/node_modules/onnxruntime-node{,/**}',
+    // These large fonts remain available to web, mobile, and story builds.
+    // The desktop renderer uses system CJK fallback fonts instead.
+    '!**/node_modules/@proj-airi/font-cjkfonts-allseto{,/**}',
+    '!**/node_modules/@proj-airi/font-xiaolai{,/**}',
     // Vite bundles the browser runtime and its WASM assets into `out/renderer`.
     '!**/node_modules/onnxruntime-web{,/**}',
     '!src/**/*',
