@@ -1,4 +1,4 @@
-import type { SourcesOptions } from 'electron'
+import type { Rectangle, SourcesOptions } from 'electron'
 
 import type {
   ScreenAmbientLightCaptureStatus,
@@ -145,20 +145,22 @@ export function useScreenAmbientLight(sources: {
   // The display the window mostly covers. It decides which screen the capture
   // opens, and `undefined` means the answer is not known yet: the display list
   // and the window bounds both arrive over IPC after mount.
-  const dominantDisplayId = computed(() => {
+  const dominantDisplay = computed(() => {
     if (!hasWindowBounds.value || displays.value.length === 0)
       return undefined
-    return findDominantDisplayArea(currentWindowBounds(), displays.value)?.id
+    return findDominantDisplayArea(currentWindowBounds(), displays.value)
   })
 
   watch([screenAmbientLightEnabled, screenAmbientLightSource], () => void restart(), { immediate: true })
 
-  // A capture shows the display it opened on. Once the window has settled on
-  // another display, the stream and its bounds are stale, so the capture opens
-  // again there. The captured display is a source too, so a move during
-  // start() is checked once the stream is up.
-  watchDebounced([dominantDisplayId, capturedDisplay], ([id, captured]) => {
-    if (id === undefined || !captured || id === captured.id)
+  // A capture shows the display it opened on, with the bounds it had then.
+  // A window settled elsewhere, or a display rescaled under it, makes those
+  // stale, so the capture opens again. The captured display is a source too:
+  // a move during start() is checked once the stream is up.
+  watchDebounced([dominantDisplay, capturedDisplay], ([display, captured]) => {
+    if (!display || !captured)
+      return
+    if (display.id === captured.id && sameBounds(display.bounds, captured.bounds))
       return
     void restart()
   }, { debounce: displaySettleMs })
@@ -501,6 +503,10 @@ export function useScreenAmbientLight(sources: {
     if (post)
       postDiagnosticsChannelEvent({ type: 'snapshot', snapshot })
   }
+}
+
+function sameBounds(a: Rectangle, b: Rectangle) {
+  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
 }
 
 function normalizeWindowBounds(

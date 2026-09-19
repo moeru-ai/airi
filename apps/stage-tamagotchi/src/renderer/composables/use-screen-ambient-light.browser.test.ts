@@ -13,6 +13,8 @@ const displays = [
   { id: 17, bounds: { x: 0, y: 0, width: 1600, height: 1000 } },
   { id: 18, bounds: { x: 1600, y: 0, width: 1600, height: 1000 } },
 ]
+/** The display list as the Electron poll publishes it; a case replaces it to rescale a display. */
+const displayList = ref(displays)
 const windowBounds = vi.hoisted(() => ({ x: 100, y: 100, width: 400, height: 500 }))
 const bounds = { x: ref(windowBounds.x), y: ref(windowBounds.y), width: ref(windowBounds.width), height: ref(windowBounds.height) }
 
@@ -21,13 +23,12 @@ const selectedDisplayIds = vi.hoisted(() => [] as string[])
 /** Sources the main process offers; each case sets what it needs. */
 const offeredSources = vi.hoisted(() => ({ list: [] as { id: string, display_id: string }[] }))
 
-vi.mock('@proj-airi/electron-vueuse', async () => {
-  const { ref } = await import('vue')
-  return {
-    useElectronAllDisplays: () => ref(displays),
-    useElectronWindowBounds: () => bounds,
-  }
-})
+// The returned functions run at composable setup, after the consts above
+// exist; the factory itself runs before them and must not touch them.
+vi.mock('@proj-airi/electron-vueuse', () => ({
+  useElectronAllDisplays: () => displayList,
+  useElectronWindowBounds: () => bounds,
+}))
 
 vi.mock('@proj-airi/electron-screen-capture/vue', () => ({
   useElectronScreenCapture: () => ({
@@ -58,6 +59,7 @@ beforeEach(() => {
   offeredSources.list = displays.map(display => ({ id: `screen:${display.id}:0`, display_id: String(display.id) }))
   bounds.x.value = windowBounds.x
   bounds.y.value = windowBounds.y
+  displayList.value = displays
   const settings = useSettingsScreenAmbientLight()
   settings.screenAmbientLightEnabled = true
   settings.screenAmbientLightSource = 'screen-capture'
@@ -95,6 +97,20 @@ describe('screen ambient light capture', () => {
     bounds.x.value = 1600 + 100
 
     await vi.waitFor(() => expect(selectedDisplayIds).toEqual(['screen:17:0', 'screen:18:0']), { timeout: 3000 })
+  })
+
+  it('restarts the capture when the display is rescaled under a still window', async () => {
+    // ROOT CAUSE:
+    //
+    // The restart compared display ids only. Rotating or rescaling a display
+    // keeps its id and changes its bounds, so the capture kept constraints
+    // and normalization from the old geometry. The bounds are compared too.
+    mount()
+    await vi.waitFor(() => expect(selectedDisplayIds).toEqual(['screen:17:0']))
+
+    displayList.value = [{ id: 17, bounds: { x: 0, y: 0, width: 1280, height: 800 } }, displays[1]]
+
+    await vi.waitFor(() => expect(selectedDisplayIds).toEqual(['screen:17:0', 'screen:17:0']), { timeout: 3000 })
   })
 
   it('takes the only screen source when no display id matches', async () => {

@@ -462,7 +462,7 @@ export class ScreenAmbientLightFilter extends Filter {
     this.uniforms.uColorBoost = clamp(options.colorBoost, 0, 10)
     this.uniforms.uWrapIntensity = Math.max(0, options.wrapIntensity)
     this.uniforms.uWrapSaturation = clamp(options.wrapSaturation, 0, 1)
-    this.uniforms.uBacklight = clamp(options.backlight, 0, 2)
+    this.uniforms.uBacklight = clamp(options.backlight, 0, 4)
     this.uniforms.uTranslucentWrap = options.translucentWrap ? 1 : 0
     this.wrapDiffuse = clamp(options.wrapDiffuse, 0, 0.5)
   }

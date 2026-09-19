@@ -839,12 +839,14 @@ const cursorPosition = computed(() => ({
         ]"
       >
         <!--
-          Every element that paints over the stage carries this marker, so that
-          the screen sampler does not read AIRI's own colors as desktop light.
-          Tooltips and dialogs need none: reka-ui portals them to the body and
-          the mask finds them there. HoloCoupon never renders (v-if="false").
+          Every element that paints over the stage carries the opaque marker,
+          so that the screen sampler does not read AIRI's own colors as desktop
+          light. ResourceStatusIsland marks its pill itself, because its root
+          spans the whole stage width. Tooltips and dialogs need none: reka-ui
+          portals them to the body and the mask finds them there. HoloCoupon
+          never renders (v-if="false").
         -->
-        <ResourceStatusIsland :[stageOpaqueAttribute]="true" />
+        <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"
           v-model:state="componentStateStage"
