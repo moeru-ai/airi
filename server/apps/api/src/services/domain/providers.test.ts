@@ -1,8 +1,12 @@
 import type { Database } from '../../libs/db'
 
+import { Buffer } from 'node:buffer'
+
+import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
+import { createEnvelopeCrypto } from '../../utils/envelope-crypto'
 import { createProviderService } from './providers'
 
 import * as schema from '../../schemas'
@@ -10,13 +14,12 @@ import * as schema from '../../schemas'
 describe('providerService', () => {
   let db: Database
   let service: ReturnType<typeof createProviderService>
-  let testUser: any
+  let testUser: { id: string }
 
   beforeAll(async () => {
     db = await mockDB(schema)
-    service = createProviderService(db)
+    service = createProviderService(db, createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) }))
 
-    // Create a test user for foreign key constraints
     const [user] = await db.insert(schema.user).values({
       id: 'user-1',
       name: 'Test User',
@@ -25,70 +28,144 @@ describe('providerService', () => {
     testUser = user
   })
 
-  it('createUserConfig should handle provider config creation', async () => {
-    const providerData = {
-      id: 'prov-1',
+  // https://github.com/moeru-ai/airi/pull/2471#discussion_r3997091188
+  it('stores the client instance id apart from the server primary key', async () => {
+    const result = await service.upsert({
+      configId: 'prov-1',
       ownerId: testUser.id,
       definitionId: 'openai',
-      name: 'My OpenAI',
       config: { apiKey: 'sk-123' },
-      validated: true,
-      validationBypassed: false,
-    }
-
-    const result = await service.createUserConfig(providerData)
-    expect(result.id).toBe('prov-1')
-    expect(result.name).toBe('My OpenAI')
-
-    const found = await service.findUserConfigById('prov-1')
-    expect(found).toBeDefined()
-    expect(found!.definitionId).toBe('openai')
-    expect((found!.config as Record<string, string>).apiKey).toBe('sk-123')
-  })
-
-  it('findUserConfigsByOwnerId should return providers for the user', async () => {
-    const result = await service.findUserConfigsByOwnerId(testUser.id)
-    expect(result.length).toBe(1)
-    expect(result[0].ownerId).toBe(testUser.id)
-  })
-
-  it('findAll should return both user and system configs', async () => {
-    // Create a system config
-    await db.insert(schema.systemProviderConfigs).values({
-      id: 'sys-1',
-      definitionId: 'anthropic',
-      name: 'System Anthropic',
-      config: { apiKey: 'sys-sk' },
     })
 
-    const result = await service.findAll(testUser.id)
-    expect(result.length).toBe(2)
+    expect(result.configId).toBe('prov-1')
+    expect(result.id).not.toBe('prov-1')
+    expect(result.definitionId).toBe('openai')
+    expect(result.config).toEqual({ apiKey: 'sk-123' })
+    expect(result.deletedAt).toBeNull()
+    expect(result.updatedAt).toEqual(expect.any(String))
 
-    const userConfig = result.find(r => r.id === 'prov-1')
-    const systemConfig = result.find(r => r.id === 'sys-1')
-
-    expect(userConfig?.isSystem).toBe(false)
-    expect(systemConfig?.isSystem).toBe(true)
-    expect(systemConfig?.name).toBe('System Anthropic')
+    const stored = await db.query.userProviderConfigs.findFirst({
+      where: eq(schema.userProviderConfigs.id, result.id),
+    })
+    expect(stored?.configId).toBe('prov-1')
+    expect(stored?.config.startsWith('v1.')).toBe(true)
+    expect(stored?.config).not.toContain('sk-123')
   })
 
-  it('findById should find both user and system configs', async () => {
-    const userFound = await service.findById('prov-1', testUser.id)
-    expect(userFound?.isSystem).toBe(false)
+  it('lists live rows and tombstones for the owner', async () => {
+    await service.upsert({
+      configId: 'prov-2',
+      ownerId: testUser.id,
+      definitionId: 'anthropic',
+      config: { apiKey: 'sk-live' },
+    })
+    await service.upsert({
+      configId: 'prov-3',
+      ownerId: testUser.id,
+      definitionId: 'anthropic',
+      config: { apiKey: 'sk-gone' },
+    })
+    await service.tombstone('prov-3', testUser.id)
 
-    const sysFound = await service.findById('sys-1', testUser.id)
-    expect(sysFound?.isSystem).toBe(true)
+    const listed = await service.listAll(testUser.id)
+    const configIds = listed.map(row => row.configId).sort()
+    expect(configIds).toEqual(['prov-1', 'prov-2', 'prov-3'])
+
+    const tombstone = listed.find(row => row.configId === 'prov-3')
+    expect(tombstone?.deletedAt).toEqual(expect.any(String))
+    expect(tombstone?.config).toEqual({ apiKey: 'sk-gone' })
   })
 
-  it('updateUserConfig should update provider fields', async () => {
-    await service.updateUserConfig('prov-1', { name: 'Updated OpenAI' })
-    const prov = await service.findUserConfigById('prov-1')
-    expect(prov?.name).toBe('Updated OpenAI')
+  it('lets a later write overwrite the stored replica', async () => {
+    const first = await service.upsert({
+      configId: 'prov-1',
+      ownerId: testUser.id,
+      definitionId: 'openai',
+      config: { apiKey: 'sk-new' },
+    })
+
+    const overwritten = await service.upsert({
+      configId: 'prov-1',
+      ownerId: testUser.id,
+      definitionId: 'openai',
+      config: { apiKey: 'sk-overwritten' },
+    })
+
+    expect(overwritten.id).toBe(first.id)
+    expect(overwritten.config).toEqual({ apiKey: 'sk-overwritten' })
+    expect(overwritten.deletedAt).toBeNull()
   })
 
-  it('deleteUserConfig should soft delete provider', async () => {
-    await service.deleteUserConfig('prov-1')
-    const prov = await service.findUserConfigById('prov-1')
-    expect(prov).toBeUndefined()
+  it('does not change createdAt on later writes', async () => {
+    const first = (await service.listAll(testUser.id)).find(row => row.configId === 'prov-2')!
+    const updated = await service.upsert({
+      configId: 'prov-2',
+      ownerId: testUser.id,
+      definitionId: 'anthropic',
+      config: { apiKey: 'sk-later' },
+    })
+
+    expect(updated.createdAt).toBe(first.createdAt)
+    expect(Date.parse(updated.updatedAt)).toBeGreaterThan(Date.parse(first.updatedAt))
+  })
+
+  it('lets two owners keep the same client instance id', async () => {
+    const [otherUser] = await db.insert(schema.user).values({
+      id: 'user-2',
+      name: 'Other User',
+      email: 'other@example.com',
+    }).returning()
+
+    const other = await service.upsert({
+      configId: 'prov-1',
+      ownerId: otherUser.id,
+      definitionId: 'openai',
+      config: { apiKey: 'sk-other' },
+    })
+
+    expect(other.configId).toBe('prov-1')
+    expect(other.config).toEqual({ apiKey: 'sk-other' })
+
+    const ownerRows = await service.listAll(testUser.id)
+    const otherRows = await service.listAll(otherUser.id)
+    expect(ownerRows.find(row => row.configId === 'prov-1')?.config).toEqual({ apiKey: 'sk-overwritten' })
+    expect(otherRows.map(row => row.configId)).toEqual(['prov-1'])
+    expect(otherRows[0]?.id).not.toBe(ownerRows.find(row => row.configId === 'prov-1')?.id)
+    expect(otherRows[0]?.config).toEqual({ apiKey: 'sk-other' })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2471#discussion_r3999470562
+  it('accepts concurrent first writes of the same owner and config id', async () => {
+    // ROOT CAUSE:
+    //
+    // upsert selected insert vs update after findOwnedRow. Two first PUTs
+    // for a fixed client id could both see no row. The unique index then
+    // rejected one write with 500.
+    //
+    // INSERT ON CONFLICT DO UPDATE makes both requests succeed as one row.
+    const results = await Promise.all([
+      service.upsert({
+        configId: 'openai',
+        ownerId: testUser.id,
+        definitionId: 'openai',
+        config: { apiKey: 'sk-a' },
+      }),
+      service.upsert({
+        configId: 'openai',
+        ownerId: testUser.id,
+        definitionId: 'openai',
+        config: { apiKey: 'sk-b' },
+      }),
+    ])
+
+    expect(results).toHaveLength(2)
+    expect(results[0]?.configId).toBe('openai')
+    expect(results[1]?.configId).toBe('openai')
+    expect(results[0]?.id).toBe(results[1]?.id)
+
+    const listed = await service.listAll(testUser.id)
+    const openaiRows = listed.filter(row => row.configId === 'openai')
+    expect(openaiRows).toHaveLength(1)
+    expect(['sk-a', 'sk-b']).toContain(openaiRows[0]?.config.apiKey)
   })
 })
