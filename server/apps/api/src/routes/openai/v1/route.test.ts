@@ -2551,11 +2551,30 @@ describe('issue #2479 hosted Responses', () => {
     const harness = responsesHarness(() => Response.json(responsesResult()))
     const response = await harness.send({})
     expect(await response.json()).toEqual(responsesResult())
-    expect(harness.router.route).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses', body: expect.objectContaining({ store: false, model: 'auto' }) }), expect.anything())
+    expect(harness.router.route).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses', modelName: 'openai/gpt-5-mini', body: expect.objectContaining({ store: false }) }), expect.anything())
     expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
     expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledWith(expect.objectContaining({ amount: 3, promptTokens: 100, completionTokens: 50, model: 'openai/gpt-5-mini' }))
     expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200, fluxConsumed: 3 }))
     expect(harness.tracing.startChatGeneration).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses' }))
+  })
+
+  it('forwards provider reasoning extensions without rebuilding input items', async () => {
+    const harness = responsesHarness(() => Response.json(responsesResult()))
+    const input = [{
+      type: 'reasoning',
+      id: 'rs-1',
+      summary: [],
+      encrypted_content: 'opaque',
+      format: 'openai-responses-v1',
+    }]
+
+    const response = await harness.send({ input })
+
+    expect(response.status).toBe(200)
+    expect(harness.router.route).toHaveBeenCalledWith(expect.objectContaining({
+      protocol: 'responses',
+      body: expect.objectContaining({ input, store: false }),
+    }), expect.anything())
   })
 
   // ROOT CAUSE:
