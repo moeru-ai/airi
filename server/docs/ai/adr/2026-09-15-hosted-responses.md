@@ -13,8 +13,9 @@ It rejects conversation references, file IDs, background execution, and hosted t
 After authentication, the Responses endpoint accepts a 40 MiB request body so one maximum-size inline file fits with its JSON envelope.
 Other API routes keep the 1 MiB default. Larger requests must use remote URLs or smaller payloads.
 The user confirmed native web search support for OpenAI upstreams.
-The server reuses `model-bank/openai` search capabilities for the effective upstream model.
-Only the canonical OpenAI endpoint advertises this provider capability.
+The server reuses `model-bank/openai` search capabilities for direct OpenAI upstreams.
+The canonical OpenRouter endpoint uses its Responses server tool and maps the provider-neutral tool name at the adapter boundary.
+Other compatible endpoints do not advertise this provider capability.
 Requests opt into search through `tools`; the gateway does not inject tools.
 Search calls and sources remain portable input Items. Unsupported search candidates are skipped.
 

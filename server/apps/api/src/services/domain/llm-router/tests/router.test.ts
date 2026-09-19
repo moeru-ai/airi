@@ -1948,6 +1948,32 @@ it.each([false, true])('routes web search only to a catalog-capable OpenAI model
   expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body))).toEqual({ ...body, model: 'gpt-5-mini' })
 })
 
+// ROOT CAUSE:
+//
+// The Responses adapter rejected every OpenRouter upstream before dispatch.
+// OpenRouter uses its own server-tool name for Responses Web Search.
+//
+// Before: tools: [{ type: 'web_search' }] produced LLM_WEB_SEARCH_UNAVAILABLE.
+// After: the adapter selects OpenRouter and maps the tool for its wire protocol.
+it('maps native Web Search to the OpenRouter Responses server tool', async () => {
+  const { config, crypto } = makeConfig({ upstreams: [{ baseURL: 'https://openrouter.ai/api/v1', keyIds: ['o'], overrideModel: 'openai/gpt-5.6-luna' }] })
+  config.llm.models['openai/gpt-5-mini'].upstreams[0].protocols = ['responses']
+  const fetchImpl = vi.fn<typeof fetch>(async () => happyResponse({ ok: true }))
+  const router = createLlmRouterService({ gatewayMetrics: null, configKV: makeConfigKV(config), envelopeCrypto: crypto, fetchImpl, redis: makeRedisStub(), concurrencyLedger: makeLedger() })
+  const body = { input: 'hello', tools: [{ type: 'web_search' }] }
+
+  const response = await router.route({ modelName: 'openai/gpt-5-mini', protocol: 'responses', requiresWebSearch: true, body })
+
+  expect(response.status).toBe(200)
+  expect(fetchImpl).toHaveBeenCalledTimes(1)
+  expect(fetchImpl.mock.calls[0][0]).toBe('https://openrouter.ai/api/v1/responses')
+  expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body))).toEqual({
+    input: 'hello',
+    model: 'openai/gpt-5.6-luna',
+    tools: [{ type: 'openrouter:web_search' }],
+  })
+})
+
 it.each([
   ['https://api.openai.com/v1', 'gpt-3.5-turbo'],
   ['https://api.openai.com/v1', 'unknown-model'],

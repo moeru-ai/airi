@@ -103,7 +103,8 @@ This allows one maximum-size inline file plus the JSON envelope. Use remote URLs
 
 For a Responses-enabled OpenAI upstream at `https://api.openai.com/v1`, web search needs no separate capability flag.
 The server reads `abilities.search` from `model-bank/openai` using `overrideModel`, or the dispatched model name when no override exists.
-A compatible proxy is not treated as OpenAI. Unknown or unsupported models do not receive search requests.
+The canonical OpenRouter endpoint also supports search. Its adapter maps `web_search` to the OpenRouter server-tool name.
+Other compatible proxies are not treated as OpenAI or OpenRouter. Unknown direct OpenAI models do not receive search requests.
 If all protocol-compatible candidates lack search support, the endpoint returns `503 LLM_WEB_SEARCH_UNAVAILABLE`.
 Send `tools: [{ "type": "web_search" }]` to make search available. The gateway does not inject tools or change `tool_choice`.
 Search filters, approximate location, source inclusion, and `web_search_call` Items pass through the validated request boundary.
