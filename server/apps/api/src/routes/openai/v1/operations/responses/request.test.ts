@@ -1,7 +1,5 @@
-import { safeParse } from 'valibot'
 import { describe, expect, it } from 'vitest'
 
-import { createResponseSchema } from '../../../../../services/adapters/llm/schemas/responses'
 import { parseResponsesRequest } from './request'
 
 describe('stateless Responses request boundary', () => {
@@ -23,7 +21,6 @@ describe('stateless Responses request boundary', () => {
     { tools: [{ type: 'code_interpreter', container: 'auto' }] },
     { tool_choice: { type: 'function' } },
     { tool_choice: { type: 'allowed_tools', mode: 'auto' } },
-    { input: [{ type: 'function_call_output', call_id: 'call-1', output: [] }] },
   ])('issue #2479 rejects unsupported state or tool contracts: %j', (body) => {
     expect(() => parseResponsesRequest({ input: 'hello', ...body })).toThrow('Invalid stateless Responses request')
   })
@@ -35,29 +32,48 @@ describe('stateless Responses request boundary', () => {
       { type: 'function_call', call_id: 'call-1', name: 'read', arguments: '{}' },
       { type: 'function_call_output', call_id: 'call-1', output: '[]' },
     ]
-    const body = parseResponsesRequest({ input, tools: [{ type: 'function', name: 'read', parameters: { type: 'object', properties: {}, required: [] } }], tool_choice: { type: 'function', name: 'read' } })
-    expect(body.store).toBe(false)
-    expect(body.model).toBe('auto')
-    expect(body.input).toEqual([{ ...input[0], type: 'message' }, ...input.slice(1)])
-    expect(body.tools?.[0]).toMatchObject({ name: 'read' })
+    const request = parseResponsesRequest({ input, tools: [{ type: 'function', name: 'read', parameters: { type: 'object', properties: {}, required: [] } }], tool_choice: { type: 'function', name: 'read' } })
+    expect(request.body.store).toBe(false)
+    expect(request.policy.model).toBe('auto')
+    expect(request.policy.input).toEqual(input)
+    expect(request.policy.tools?.[0]).toMatchObject({ name: 'read' })
   })
 
   it('preserves nullable reasoning replay fields', () => {
     const input = [{ type: 'reasoning', summary: [], content: null, status: null, encrypted_content: 'opaque' }]
 
-    expect(parseResponsesRequest({ input }).input).toEqual(input)
+    expect(parseResponsesRequest({ input }).policy.input).toEqual(input)
+  })
+
+  it('preserves provider fields in encrypted reasoning replay items', () => {
+    // ROOT CAUSE:
+    //
+    // The gateway parsed each input item with a strict local schema. A provider
+    // added `format`, so the gateway rejected the stateless continuation.
+    //
+    // The gateway now checks only policy fields. It keeps provider fields in
+    // the forwarded request.
+    const input = [{
+      type: 'reasoning',
+      id: 'rs-1',
+      summary: [],
+      encrypted_content: 'opaque',
+      format: 'openai-responses-v1',
+    }]
+
+    expect(parseResponsesRequest({ input }).policy.input).toEqual(input)
   })
 
   it('preserves nullable image options when inline content is portable', () => {
     const input = [{ role: 'user', content: [{ type: 'input_image', file_id: null, image_url: 'https://example.com/image.png', detail: null }] }]
 
-    expect(parseResponsesRequest({ input }).input).toEqual([{ ...input[0], type: 'message' }])
+    expect(parseResponsesRequest({ input }).policy.input).toEqual(input)
   })
 
   it('accepts a function tool with a minimal object parameter schema', () => {
     const tool = { type: 'function', name: 'ping', parameters: { type: 'object' } }
 
-    expect(parseResponsesRequest({ input: 'hello', tools: [tool] }).tools).toEqual([tool])
+    expect(parseResponsesRequest({ input: 'hello', tools: [tool] }).policy.tools).toEqual([tool])
   })
 
   it('rejects more than 128 allowed tool references', () => {
@@ -82,32 +98,33 @@ describe('stateless Responses request boundary', () => {
     { role: 'user', content: [{ type: 'output_text', text: 'answer' }] },
     { role: 'system', content: [{ type: 'input_image', image_url: 'https://example.com/image.png' }] },
     { role: 'assistant', content: [{ type: 'input_text', text: 'question' }] },
-  ])('rejects content parts that do not belong to the message role: %j', (message) => {
-    expect(() => parseResponsesRequest({ input: [message] })).toThrow('Invalid stateless Responses request')
+  ])('leaves message content validation to the selected provider: %j', (message) => {
+    expect(parseResponsesRequest({ input: [message] }).policy.input).toEqual([message])
   })
 
   it('keeps inline video parts in function outputs', () => {
     const output = [{ type: 'input_video', video_url: 'data:video/mp4;base64,AAAA' }]
-    const body = parseResponsesRequest({ input: [{ type: 'function_call_output', call_id: 'call-1', output }] })
+    const request = parseResponsesRequest({ input: [{ type: 'function_call_output', call_id: 'call-1', output }] })
 
-    expect(body.input).toEqual([{ type: 'function_call_output', call_id: 'call-1', output }])
+    expect(request.policy.input).toEqual([{ type: 'function_call_output', call_id: 'call-1', output }])
   })
 
   it('accepts the minimal reasoning effort', () => {
-    const body = parseResponsesRequest({ input: 'hello', reasoning: { effort: 'minimal' } })
+    const request = parseResponsesRequest({ input: 'hello', reasoning: { effort: 'minimal' } })
 
-    expect(body.reasoning).toEqual({ effort: 'minimal' })
+    expect(request.body.reasoning).toEqual({ effort: 'minimal' })
   })
 
-  it('rejects unknown reasoning options instead of silently removing them', () => {
-    expect(() => parseResponsesRequest({ input: 'hello', reasoning: { summmary: 'auto' } }))
-      .toThrow('Invalid stateless Responses request')
+  it('preserves unknown reasoning options for the selected provider', () => {
+    const reasoning = { summmary: 'auto' }
+
+    expect(parseResponsesRequest({ input: 'hello', reasoning }).body.reasoning).toEqual(reasoning)
   })
 
   it('accepts nullable Responses options as unset', () => {
-    const body = parseResponsesRequest({ input: 'hello', tools: null, tool_choice: null, max_output_tokens: null })
+    const request = parseResponsesRequest({ input: 'hello', tools: null, tool_choice: null, max_output_tokens: null })
 
-    expect(body).toMatchObject({ tools: null, tool_choice: null, max_output_tokens: null })
+    expect(request.body).toMatchObject({ tools: null, tool_choice: null, max_output_tokens: null })
   })
 
   it.each([
@@ -115,8 +132,8 @@ describe('stateless Responses request boundary', () => {
     { temperature: 2.01 },
     { top_p: -0.01 },
     { top_p: 1.01 },
-  ])('rejects an out-of-range sampling parameter: %j', (sampling) => {
-    expect(() => parseResponsesRequest({ input: 'hello', ...sampling })).toThrow('Invalid stateless Responses request')
+  ])('leaves sampling parameter validation to the selected provider: %j', (sampling) => {
+    expect(parseResponsesRequest({ input: 'hello', ...sampling }).body).toMatchObject(sampling)
   })
 
   // https://github.com/moeru-ai/airi/pull/2554#discussion_r4044384483
@@ -126,11 +143,11 @@ describe('stateless Responses request boundary', () => {
     { type: 'object', properties: [], required: [] },
     { type: 'object', required: ['missing'] },
     { type: 'object', properties: { query: { type: 'string' } }, required: ['missing'] },
-  ])('pR #2554 rejects an invalid function parameter schema: %j', (parameters) => {
-    expect(() => parseResponsesRequest({
+  ])('preserves provider-owned function parameter schemas: %j', (parameters) => {
+    expect(parseResponsesRequest({
       input: 'hello',
       tools: [{ type: 'function', name: 'search', parameters }],
-    })).toThrow('Invalid stateless Responses request')
+    }).policy.tools?.[0]).toMatchObject({ parameters })
   })
 
   it.each([
@@ -141,38 +158,29 @@ describe('stateless Responses request boundary', () => {
     { type: 'json_schema', name: 'answer', schema: { type: 'array' } },
     { type: 'json_schema', name: 'answer', schema: { type: 'object', properties: [] } },
     { type: 'json_schema', name: 'answer', schema: { type: 'object', required: ['missing'] } },
-  ])('pR #2554 rejects an incomplete structured output schema: %j', (format) => {
-    expect(() => parseResponsesRequest({ input: 'hello', text: { format } })).toThrow('Invalid stateless Responses request')
+  ])('preserves provider-owned structured output schemas: %j', (format) => {
+    expect(parseResponsesRequest({ input: 'hello', text: { format } }).body.text).toEqual({ format })
   })
 })
 
 it('preserves search options, tool choice, sources and client-owned search history', () => {
   const input = [{ type: 'web_search_call', id: 'ws-1', status: 'completed', action: { type: 'search', queries: ['AIRI'], sources: [{ type: 'url', url: 'https://airi.moeru.ai' }] } }]
   const tools = [{ type: 'web_search', external_web_access: false, filters: { allowed_domains: ['airi.moeru.ai'] }, user_location: { type: 'approximate', country: 'JP' } }]
-  const body = parseResponsesRequest({ input, tools, tool_choice: 'none', include: ['web_search_call.action.sources'] })
-  expect(body.input).toEqual(input)
-  expect(body.tools).toEqual(tools)
-  expect(body.tool_choice).toBe('none')
-  expect(body.store).toBe(false)
+  const request = parseResponsesRequest({ input, tools, tool_choice: 'none', include: ['web_search_call.action.sources'] })
+  expect(request.policy.input).toEqual(input)
+  expect(request.policy.tools).toEqual(tools)
+  expect(request.body.tool_choice).toBe('none')
+  expect(request.body.store).toBe(false)
+  expect(request.policy.requiresWebSearch).toBe(true)
 })
 
 it('preserves a live find-in-page search item without a URL', () => {
   const input = [{ type: 'web_search_call', id: 'ws-1', status: 'completed', action: { type: 'find_in_page', pattern: 'AIRI' } }]
 
-  expect(parseResponsesRequest({ input }).input).toEqual(input)
-})
+  const request = parseResponsesRequest({ input })
 
-it.each([
-  { store: true },
-  { previous_response_id: 'resp-existing' },
-  { conversation: 'conv-existing' },
-  { input: [{ type: 'item_reference', id: 'item-existing' }] },
-  { input: [{ role: 'user', content: [{ type: 'input_file', file_id: 'file-existing' }] }] },
-  { input: [{ type: 'function_call_output', call_id: 'call-1', output: [{ type: 'input_image', file_id: 'file-existing', image_url: 'https://example.com/image.png' }] }] },
-])('keeps shared-account policy outside the reusable protocol schema: %j', (fields) => {
-  const body = { model: 'gpt-5-mini', input: 'hello', ...fields }
-  expect(safeParse(createResponseSchema, body).success).toBe(true)
-  expect(() => parseResponsesRequest(body)).toThrow('Invalid stateless Responses request')
+  expect(request.policy.input).toEqual(input)
+  expect(request.policy.requiresWebSearch).toBe(true)
 })
 
 it('preserves structured output schemas and assistant replay fields', () => {
@@ -181,7 +189,7 @@ it('preserves structured output schemas and assistant replay fields', () => {
     { type: 'reasoning', summary: [], content: [{ type: 'reasoning_text', text: 'thinking' }], encrypted_content: 'opaque', status: 'completed' },
     { id: 'msg-1', role: 'assistant', content: [{ type: 'output_text', text: 'answer', annotations: [] }], phase: 'final_answer', status: 'completed' },
   ]
-  const body = parseResponsesRequest({ input, text, max_output_tokens: 1 })
-  expect(body.text).toEqual(text)
-  expect(body.input).toEqual([input[0], { ...input[1], type: 'message' }])
+  const request = parseResponsesRequest({ input, text, max_output_tokens: 1 })
+  expect(request.body.text).toEqual(text)
+  expect(request.policy.input).toEqual(input)
 })

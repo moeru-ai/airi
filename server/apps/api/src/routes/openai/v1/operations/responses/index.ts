@@ -106,19 +106,18 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
   return async ({ input }) => {
     const requestId = nanoid()
     const policy = await billing.authorizeChat(input.userId)
-    let model = input.body.model
-    const requiresWebSearch = input.body.tools?.some(tool => tool.type === 'web_search') === true
-      || (Array.isArray(input.body.input) && input.body.input.some(item => item.type === 'web_search_call'))
+    let model = input.policy.model
+    const { requiresWebSearch } = input.policy
     const alias = await resolveModelAliasPlan(deps, model, { protocol: 'responses', requiresWebSearch })
     const startedAt = Date.now()
     let routeCtx = newRouteContext()
-    const span = telemetry.startGenerationSpan({ model, stream: input.body.stream, operation: 'responses' })
+    const span = telemetry.startGenerationSpan({ model, stream: input.policy.stream, operation: 'responses' })
     const startTrace = () => deps.llmTracing.startChatGeneration({
       protocol: 'responses',
-      input: input.body.input,
+      input: input.policy.input,
       model: routeCtx.upstreamModel ?? model,
       requestId,
-      stream: input.body.stream,
+      stream: input.policy.stream,
       userId: input.userId,
       sessionId: input.sessionId,
     })
@@ -176,7 +175,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       terminal = true
       const usage = { promptTokens: response.usage?.input_tokens, completionTokens: response.usage?.output_tokens }
       const amount = billing.priceChatUsage(usage, policy)
-      const stage = input.body.stream ? 'streaming' : 'non_streaming'
+      const stage = input.policy.stream ? 'streaming' : 'non_streaming'
       let charged = 0
       try {
         charged = await billing.settleChat({ ...usage, userId: input.userId, requestId, model, amount, stage, logger })
@@ -204,7 +203,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       throw createBadGatewayError('Responses upstream returned no body')
     }
 
-    if (!input.body.stream) {
+    if (!input.policy.stream) {
       try {
         // Abort the body pipe too: the router's header timeout no longer owns this stream.
         const body = upstream.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>(), { signal: input.abortSignal })
