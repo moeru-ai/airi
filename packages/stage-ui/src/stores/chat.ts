@@ -134,10 +134,12 @@ function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): numbe
   if (targetMessage.role !== 'assistant' && targetMessage.role !== 'error')
     return -1
 
-  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
-    if (messages[cursor]?.role === 'user')
-      return cursor
-  }
+  const precedingMessage = messages[index - 1]
+  if (precedingMessage?.role === 'user')
+    return index - 1
+
+  if (precedingMessage?.role === 'assistant' && precedingMessage.interrupted && messages[index - 2]?.role === 'user')
+    return index - 2
 
   return -1
 }
