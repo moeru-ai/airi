@@ -1,5 +1,14 @@
 import localforage from 'localforage'
 
+import {
+  presetLive2dFreeUrl,
+  presetLive2dPreview,
+  presetLive2dProUrl,
+  presetVrmAvatarAPreview,
+  presetVrmAvatarAUrl,
+  presetVrmAvatarBPreview,
+  presetVrmAvatarBUrl,
+} from '@proj-airi/stage-ui/stores/display-model-assets'
 import { until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
@@ -19,14 +28,6 @@ export enum DisplayModelFormat {
 export type DisplayModel
   = | DisplayModelFile
     | DisplayModelURL
-
-const presetLive2dProUrl = new URL('../assets/live2d/models/hiyori_pro_zh.zip', import.meta.url).href
-const presetLive2dFreeUrl = new URL('../assets/live2d/models/hiyori_free_zh.zip', import.meta.url).href
-const presetLive2dPreview = new URL('../assets/live2d/models/hiyori/preview.png', import.meta.url).href
-const presetVrmAvatarAUrl = new URL('../assets/vrm/models/AvatarSample-A/AvatarSample_A.vrm', import.meta.url).href
-const presetVrmAvatarAPreview = new URL('../assets/vrm/models/AvatarSample-A/preview.png', import.meta.url).href
-const presetVrmAvatarBUrl = new URL('../assets/vrm/models/AvatarSample-B/AvatarSample_B.vrm', import.meta.url).href
-const presetVrmAvatarBPreview = new URL('../assets/vrm/models/AvatarSample-B/preview.png', import.meta.url).href
 
 export interface DisplayModelFile {
   id: string

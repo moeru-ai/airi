@@ -45,6 +45,7 @@
     "./stores/character": "./src/stores/character/index.ts",
     "./stores/settings/analytics": "./src/stores/settings/analytics.ts",
     "./stores/settings/stage-model": "./src/stores/settings/stage-model.ts",
+    "./stores/display-model-assets": "./src/stores/display-model-assets.ts",
     "./stores/settings": "./src/stores/settings/index.ts",
     "./stores/modules/vision": "./src/stores/modules/vision/index.ts",
     "./stores/mcp-tool-bridge": "./src/stores/mcp-tool-bridge.ts",
