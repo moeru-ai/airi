@@ -1,0 +1,22 @@
+{
+  "name": "@proj-airi/vite-plugin-sherpaw",
+  "type": "module",
+  "private": true,
+  "description": "Bundle Sherpaw speech models with Vite applications",
+  "exports": {
+    ".": "./src/index.ts",
+    "./models": "./src/models.ts",
+    "./assets": "./src/assets.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/unplugin-fetch": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}
