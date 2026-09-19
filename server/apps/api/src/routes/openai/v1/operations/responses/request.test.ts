@@ -19,8 +19,6 @@ describe('stateless Responses request boundary', () => {
     { tools: [{ type: 'web_search', file_id: 'foreign' }] },
     { tools: [{ type: 'file_search', vector_store_ids: ['foreign'] }] },
     { tools: [{ type: 'code_interpreter', container: 'auto' }] },
-    { tool_choice: { type: 'function' } },
-    { tool_choice: { type: 'allowed_tools', mode: 'auto' } },
   ])('issue #2479 rejects unsupported state or tool contracts: %j', (body) => {
     expect(() => parseResponsesRequest({ input: 'hello', ...body })).toThrow('Invalid stateless Responses request')
   })
@@ -76,24 +74,6 @@ describe('stateless Responses request boundary', () => {
     expect(parseResponsesRequest({ input: 'hello', tools: [tool] }).policy.tools).toEqual([tool])
   })
 
-  it('rejects more than 128 allowed tool references', () => {
-    const ping = { type: 'function', name: 'ping' }
-
-    expect(() => parseResponsesRequest({
-      input: 'hello',
-      tools: [{ ...ping, parameters: { type: 'object' } }],
-      tool_choice: { type: 'allowed_tools', mode: 'auto', tools: Array.from({ length: 129 }).fill(ping) },
-    })).toThrow('Invalid stateless Responses request')
-  })
-
-  it.each([
-    { tools: [{ type: 'function', name: 'write', parameters: { type: 'object' } }], tool_choice: { type: 'function', name: 'read' } },
-    { tools: [{ type: 'function', name: 'read', parameters: { type: 'object' } }], tool_choice: { type: 'web_search' } },
-    { tools: [{ type: 'web_search' }], tool_choice: { type: 'allowed_tools', mode: 'required', tools: [{ type: 'function', name: 'read' }] } },
-  ])('rejects a tool choice that references an undeclared tool: %j', (selection) => {
-    expect(() => parseResponsesRequest({ input: 'hello', ...selection })).toThrow('Invalid stateless Responses request')
-  })
-
   it.each([
     { role: 'user', content: [{ type: 'output_text', text: 'answer' }] },
     { role: 'system', content: [{ type: 'input_image', image_url: 'https://example.com/image.png' }] },
@@ -119,6 +99,12 @@ describe('stateless Responses request boundary', () => {
     const reasoning = { summmary: 'auto' }
 
     expect(parseResponsesRequest({ input: 'hello', reasoning }).body.reasoning).toEqual(reasoning)
+  })
+
+  it('preserves provider-owned tool choice extensions', () => {
+    const toolChoice = { type: 'provider_strategy', strategy: 'future' }
+
+    expect(parseResponsesRequest({ input: 'hello', tool_choice: toolChoice }).body.tool_choice).toEqual(toolChoice)
   })
 
   it('accepts nullable Responses options as unset', () => {

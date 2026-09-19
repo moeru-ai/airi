@@ -3,7 +3,6 @@ import type { ChatAppSurface } from '../../analytics'
 import { createBadRequestError } from '../../../../../utils/error'
 
 const MAX_INPUT_TEXT_LENGTH = 10_485_760
-const MAX_TOOL_REFERENCES = 128
 
 interface ResponsesRequestPolicy {
   input: string | unknown[]
@@ -54,17 +53,6 @@ function readStream(value: unknown): boolean {
   return value
 }
 
-function enforceStatelessFields(body: Record<string, unknown>) {
-  if (body.store !== undefined && body.store !== false)
-    invalidRequest('store must be false')
-  if (body.background !== undefined && body.background !== false)
-    invalidRequest('background must be false')
-  if (body.previous_response_id !== undefined && body.previous_response_id !== null)
-    invalidRequest('previous_response_id is not available on the stateless gateway')
-  if (body.conversation !== undefined && body.conversation !== null)
-    invalidRequest('conversation is not available on the stateless gateway')
-}
-
 function containsProviderFileId(value: unknown): boolean {
   const pending: unknown[] = [value]
   const seen = new WeakSet<object>()
@@ -90,22 +78,28 @@ function containsProviderFileId(value: unknown): boolean {
   return false
 }
 
-function enforcePortableInput(input: string | unknown[]) {
-  if (typeof input === 'string')
-    return
-  if (input.some(item => isRecord(item) && item.type === 'item_reference'))
-    invalidRequest('input must not contain provider item references')
-  if (containsProviderFileId(input))
-    invalidRequest('input must not contain provider file IDs')
-}
+/** Enforces rules owned by the shared gateway account. The provider owns all other request validation. */
+function enforceResponsesSecurity(body: Record<string, unknown>, input: string | unknown[]): Pick<ResponsesRequestPolicy, 'tools' | 'requiresWebSearch'> {
+  if (body.store !== undefined && body.store !== false)
+    invalidRequest('store must be false')
+  if (body.background !== undefined && body.background !== false)
+    invalidRequest('background must be false')
+  if (body.previous_response_id !== undefined && body.previous_response_id !== null)
+    invalidRequest('previous_response_id is not available on the stateless gateway')
+  if (body.conversation !== undefined && body.conversation !== null)
+    invalidRequest('conversation is not available on the stateless gateway')
 
-function readTools(value: unknown): Array<Record<string, unknown>> | null | undefined {
-  if (value == null)
-    return value
-  if (!Array.isArray(value))
+  if (Array.isArray(input)) {
+    if (input.some(item => isRecord(item) && item.type === 'item_reference'))
+      invalidRequest('input must not contain provider item references')
+    if (containsProviderFileId(input))
+      invalidRequest('input must not contain provider file IDs')
+  }
+
+  const toolsValue = body.tools
+  if (toolsValue != null && !Array.isArray(toolsValue))
     invalidRequest('tools must be an array or null')
-
-  return value.map((tool, index) => {
+  const tools = toolsValue?.map((tool, index) => {
     if (!isRecord(tool) || typeof tool.type !== 'string')
       invalidRequest(`tools[${index}] must have a string type`)
     if (tool.type !== 'function' && tool.type !== 'web_search')
@@ -114,47 +108,12 @@ function readTools(value: unknown): Array<Record<string, unknown>> | null | unde
       invalidRequest(`tools[${index}] must not contain a provider file ID`)
     return tool
   })
-}
 
-function declaredToolNames(tools: Array<Record<string, unknown>> | null | undefined): Set<string> {
-  return new Set(tools?.flatMap((tool) => {
-    if (tool.type !== 'function' || typeof tool.name !== 'string')
-      return []
-    return [tool.name]
-  }))
-}
-
-function enforceToolReference(reference: unknown, names: Set<string>, hasWebSearch: boolean, path: string) {
-  if (!isRecord(reference) || typeof reference.type !== 'string')
-    invalidRequest(`${path} must have a string type`)
-  if (reference.type === 'web_search') {
-    if (!hasWebSearch)
-      invalidRequest(`${path} must reference a declared tool`)
-    return
+  const hasWebSearchHistory = Array.isArray(input) && input.some(item => isRecord(item) && item.type === 'web_search_call')
+  return {
+    tools,
+    requiresWebSearch: tools?.some(tool => tool.type === 'web_search') === true || hasWebSearchHistory,
   }
-  if (reference.type !== 'function' || typeof reference.name !== 'string' || !names.has(reference.name))
-    invalidRequest(`${path} must reference a declared tool`)
-}
-
-function enforceToolChoice(choice: unknown, tools: Array<Record<string, unknown>> | null | undefined) {
-  if (choice == null || typeof choice === 'string')
-    return
-  if (!isRecord(choice))
-    invalidRequest('tool_choice must be a string, object, or null')
-
-  const names = declaredToolNames(tools)
-  const hasWebSearch = tools?.some(tool => tool.type === 'web_search') === true
-  if (choice.type !== 'allowed_tools') {
-    enforceToolReference(choice, names, hasWebSearch, 'tool_choice')
-    return
-  }
-  if (!Array.isArray(choice.tools) || choice.tools.length === 0 || choice.tools.length > MAX_TOOL_REFERENCES)
-    invalidRequest(`tool_choice.tools must contain between 1 and ${MAX_TOOL_REFERENCES} items`)
-  choice.tools.forEach((reference, index) => enforceToolReference(reference, names, hasWebSearch, `tool_choice.tools[${index}]`))
-}
-
-function hasWebSearchHistory(input: string | unknown[]): boolean {
-  return Array.isArray(input) && input.some(item => isRecord(item) && item.type === 'web_search_call')
 }
 
 /**
@@ -168,11 +127,7 @@ export function parseResponsesRequest(value: unknown): ParsedResponsesRequest {
   const input = readInput(value)
   const model = readModel(value.model)
   const stream = readStream(value.stream)
-  enforceStatelessFields(value)
-  enforcePortableInput(input)
-
-  const tools = readTools(value.tools)
-  enforceToolChoice(value.tool_choice, tools)
+  const security = enforceResponsesSecurity(value, input)
 
   return {
     body: {
@@ -183,8 +138,7 @@ export function parseResponsesRequest(value: unknown): ParsedResponsesRequest {
       input,
       model,
       stream,
-      tools,
-      requiresWebSearch: tools?.some(tool => tool.type === 'web_search') === true || hasWebSearchHistory(input),
+      ...security,
     },
   }
 }
