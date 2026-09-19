@@ -372,13 +372,10 @@ describe('renderer startup', () => {
     expect(inference.loadModel).toHaveBeenCalledWith('q8', 'wasm', { signal: expect.any(AbortSignal) })
   }, 15000)
 
-  // ROOT CAUSE:
-  //
-  // The fixture forced chat and widgets into leader/full mode. Their Electron
-  // windows use follower-only leadership, and chat uses the minimal runtime.
-  // Each fixture must preserve its window configuration and use a real store leader.
-  // https://github.com/moeru-ai/airi/pull/2530#discussion_r4002175977
-  it('starts chat as a minimal follower (PR #2530)', async () => {
+  // Chat and widgets follow the main Stage window. Each case keeps the query
+  // that its Electron window passes, so startup takes the same leadership and
+  // runtime branches as production.
+  it('starts chat as a minimal follower', async () => {
     const stage = await renderStage('/chat', '?stage-runtime=minimal&synced-leader=false')
     const sessions = useChatSessionStore(stage.pinia)
     const leaderSessions = stage.leader && useChatSessionStore(stage.leader.pinia)
@@ -395,8 +392,7 @@ describe('renderer startup', () => {
     expect(inference.loadModel).not.toHaveBeenCalled()
   }, 15000)
 
-  // https://github.com/moeru-ai/airi/pull/2530#discussion_r4002175977
-  it('starts widgets as a full follower without the character orchestrator (PR #2530)', async () => {
+  it('starts widgets as a full follower without the character orchestrator', async () => {
     const stage = await renderStage('/widgets', '?synced-leader=false')
 
     await expect.poll(() => ({ errors: stage.errors, reports: stage.reports }), { timeout: 5000 }).toMatchObject({
