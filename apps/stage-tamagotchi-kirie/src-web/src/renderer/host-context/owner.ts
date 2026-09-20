@@ -3,12 +3,11 @@ import type { PlatformClient } from '@gd-kirie/platform'
 import type { InvokeEventa } from '@moeru/eventa'
 import type { ShallowRef } from 'vue'
 
+import { createContext as createKirieContext } from '@gd-kirie/ipc-eventa'
 import { createPlatformClient } from '@gd-kirie/platform'
 import { defineInvoke } from '@moeru/eventa'
+import { createContext as createElectronRendererContext } from '@moeru/eventa/adapters/electron/renderer'
 import { shallowRef } from 'vue'
-
-import { createElectronHostEventaContext } from './electron'
-import { createKirieHostEventaContext } from './kirie'
 
 import '@gd-kirie/ipc'
 
@@ -24,7 +23,7 @@ let owner: (HostContextOwner & KirieEventaContextHandle) | undefined
 
 function createHostContextOwner(): HostContextOwner & KirieEventaContextHandle {
   if (window.kirie) {
-    const eventa = createKirieHostEventaContext()
+    const eventa = createKirieContext()
     return {
       ...eventa,
       platform: createPlatformClient(eventa.context),
@@ -32,9 +31,14 @@ function createHostContextOwner(): HostContextOwner & KirieEventaContextHandle {
     }
   }
 
-  const eventa = createElectronHostEventaContext()
+  const ipcRenderer = window.electron?.ipcRenderer
+  if (!ipcRenderer)
+    throw new Error('Electron ipcRenderer is not available.')
+
+  const eventa = createElectronRendererContext(ipcRenderer)
   return {
-    ...eventa,
+    context: eventa.context as unknown as KirieEventaContext,
+    dispose: eventa.dispose,
     runtime: 'electron',
   }
 }
