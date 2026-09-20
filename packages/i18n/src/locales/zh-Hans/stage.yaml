@@ -149,3 +149,18 @@ websocket-status:
 computer-use:
   label: 使用电脑
   description: 允许此聊天窗口查看和操作本机应用。
+
+status:
+  preparing: 正在准备麦克风
+  listening: 正在听
+  paused: AIRI 说话时暂停聆听
+  transcribing: 正在转写
+  hearing-error: 语音转写出错了
+  no-transcript: 识别到的内容会显示在这里。
+  signing-in: 请在浏览器中完成登录
+  confirming: 正在确认登录
+  signed-in: 登录成功
+  sign-in-error: 登录失败
+  sign-in-unconfirmed: 未能确认登录会话，请重新登录。
+  dismiss: 关闭提示
+  configure-hearing: 请先在设置中选择并配置听觉服务。
