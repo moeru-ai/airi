@@ -14,10 +14,10 @@ const { t } = useI18n()
     <button
       type="button"
       :aria-label="t('stage.chat.images.remove', { name: file.name })"
-      :class="['absolute right-0 top-0 size-8 flex items-center justify-center rounded-full bg-neutral-900/75 text-white', 'transition-colors hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-primary-500']"
+      :class="['absolute right-1 top-1 h-6 w-6 flex items-center justify-center rounded-full bg-neutral-900/70 text-white shadow-sm', 'transition-colors duration-200 hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-primary-500 motion-reduce:transition-none']"
       @click.stop="emit('remove')"
     >
-      <span :class="['i-solar:close-circle-bold size-5']" />
+      <span :class="['i-solar:close-circle-bold size-4']" />
     </button>
   </div>
 </template>

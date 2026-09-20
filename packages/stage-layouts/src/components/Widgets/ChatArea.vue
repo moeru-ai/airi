@@ -216,21 +216,24 @@ watch(replyTarget, async (target) => {
           type="button"
           :aria-label="t('stage.chat.images.attach')"
           :class="[
-            'size-8 flex items-center justify-center rounded-md text-primary-500',
-            'transition-colors duration-200 hover:bg-primary-100/60 dark:hover:bg-primary-900/40 motion-reduce:transition-none',
+            'size-8 flex items-center justify-center rounded-md outline-none',
+            'text-neutral-500 transition-colors duration-200 active:bg-primary-100/80 dark:text-neutral-400 dark:active:bg-primary-900/60',
+            'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300 motion-reduce:transition-none',
           ]"
           @click="imageInput?.click()"
         >
-          <span :class="['i-solar:paperclip-bold-duotone size-5']" />
+          <span :class="['i-solar:gallery-bold-duotone size-5']" />
         </button>
         <DropdownMenuRoot>
           <DropdownMenuTrigger as-child>
             <button
               :class="[
-                'h-8 w-8 flex items-center justify-center rounded-md outline-none transition-all duration-200 active:scale-95',
-                'text-lg text-neutral-500 dark:text-neutral-400',
+                'size-8 flex items-center justify-center rounded-md outline-none',
+                'text-neutral-500 transition-colors duration-200 active:bg-primary-100/80 dark:text-neutral-400 dark:active:bg-primary-900/60',
+                'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300 motion-reduce:transition-none',
               ]"
               :title="t('stage.send-mode.title')"
+              :aria-label="t('stage.send-mode.title')"
             >
               <div class="i-solar:keyboard-bold-duotone h-5 w-5" />
             </button>
@@ -270,11 +273,12 @@ watch(replyTarget, async (target) => {
           <PopoverTrigger as-child>
             <button
               :class="[
-                'h-8 w-8 flex items-center justify-center rounded-md outline-none',
-                'transition-all duration-200 active:scale-95',
+                'size-8 flex items-center justify-center rounded-md outline-none',
+                'text-neutral-500 transition-colors duration-200 active:bg-primary-100/80 dark:text-neutral-400 dark:active:bg-primary-900/60',
+                'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300 motion-reduce:transition-none',
               ]"
-              text="lg neutral-500 dark:neutral-400"
               :title="t('settings.hearing.title')"
+              :aria-label="t('settings.hearing.title')"
             >
               <Transition name="fade" mode="out-in">
                 <IndicatorMicVolume v-if="enabled" class="h-5 w-5" :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
