@@ -5,6 +5,7 @@ import { useChatInterruption } from './use-chat-interruption'
 
 const mocks = vi.hoisted(() => ({
   cancelPendingSends: vi.fn<() => Promise<void>>(),
+  cancelRemoteStream: vi.fn<() => Promise<void>>(),
   interruptSpeakingFromChat: vi.fn(),
   showStopSpeakingButton: { value: false },
   stopSpeakingFromChat: vi.fn(),
@@ -12,6 +13,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
   useChatStore: () => ({ cancelPendingSends: mocks.cancelPendingSends }),
+}))
+
+vi.mock('@proj-airi/stage-ui/stores/mods/api/context-bridge', () => ({
+  useContextBridgeStore: () => ({ cancelRemoteStream: mocks.cancelRemoteStream }),
 }))
 
 vi.mock('./useStopSpeakingButton', () => ({
@@ -25,6 +30,7 @@ vi.mock('./useStopSpeakingButton', () => ({
 describe('useChatInterruption', () => {
   beforeEach(() => {
     mocks.cancelPendingSends.mockReset().mockResolvedValue()
+    mocks.cancelRemoteStream.mockReset().mockResolvedValue()
     mocks.interruptSpeakingFromChat.mockReset()
     mocks.showStopSpeakingButton.value = false
     mocks.stopSpeakingFromChat.mockReset()
@@ -59,10 +65,19 @@ describe('useChatInterruption', () => {
 
     expect(mocks.stopSpeakingFromChat).toHaveBeenCalledTimes(1)
     expect(mocks.cancelPendingSends).toHaveBeenCalledWith('session-1')
+    expect(mocks.cancelRemoteStream).toHaveBeenCalledWith('session-1')
   })
 
   it('cancels the active response before it submits an interrupting message', async () => {
-    const submit = vi.fn<() => Promise<void>>().mockResolvedValue()
+    const events: string[] = []
+    mocks.cancelPendingSends.mockImplementationOnce(async () => {
+      events.push('cancel')
+    })
+    const submit = vi.fn(async (beforeSend?: (sessionId: string) => Promise<void>) => {
+      events.push('capture')
+      await beforeSend?.('session-1')
+      events.push('send')
+    })
     const controls = useChatInterruption({
       sessionId: ref('session-1'),
       generating: ref(true),
@@ -75,11 +90,11 @@ describe('useChatInterruption', () => {
     expect(mocks.interruptSpeakingFromChat).toHaveBeenCalledTimes(1)
     expect(mocks.stopSpeakingFromChat).not.toHaveBeenCalled()
     expect(mocks.cancelPendingSends).toHaveBeenCalledWith('session-1')
-    expect(mocks.cancelPendingSends.mock.invocationCallOrder[0]).toBeLessThan(submit.mock.invocationCallOrder[0]!)
+    expect(events).toEqual(['capture', 'cancel', 'send'])
   })
 
   it('submits directly when no response is active', async () => {
-    const submit = vi.fn<() => Promise<void>>().mockResolvedValue()
+    const submit = vi.fn().mockResolvedValue(undefined)
     const controls = useChatInterruption({
       sessionId: ref('session-1'),
       generating: ref(false),
@@ -92,5 +107,20 @@ describe('useChatInterruption', () => {
     expect(mocks.cancelPendingSends).not.toHaveBeenCalled()
     expect(mocks.interruptSpeakingFromChat).not.toHaveBeenCalled()
     expect(submit).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not cancel when the composer rejects an empty submission', async () => {
+    const submit = vi.fn().mockResolvedValue(undefined)
+    const controls = useChatInterruption({
+      sessionId: ref('session-1'),
+      generating: ref(true),
+      hasSubmission: ref(false),
+      submit,
+    })
+
+    await controls.submitInterruptingResponse()
+
+    expect(submit).toHaveBeenCalledWith(expect.any(Function))
+    expect(mocks.cancelPendingSends).not.toHaveBeenCalled()
   })
 })

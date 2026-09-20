@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { computed } from 'vue'
 
 import { useStopSpeakingButton } from './useStopSpeakingButton'
@@ -13,8 +14,8 @@ export interface ChatInterruptionOptions {
   generating: Readonly<Ref<boolean>>
   /** True when the composer contains text or an attachment that can be sent. */
   hasSubmission: Readonly<Ref<boolean>>
-  /** Submits the current composer contents after active work is cancelled. */
-  submit: () => Promise<void>
+  /** Captures the composer, then runs optional interruption work before sending. */
+  submit: (beforeSend?: (sessionId: string) => Promise<void>) => Promise<void>
 }
 
 /**
@@ -26,6 +27,7 @@ export interface ChatInterruptionOptions {
  */
 export function useChatInterruption(options: ChatInterruptionOptions) {
   const chatStore = useChatStore()
+  const contextBridgeStore = useContextBridgeStore()
   const {
     interruptSpeakingFromChat,
     showStopSpeakingButton,
@@ -35,8 +37,11 @@ export function useChatInterruption(options: ChatInterruptionOptions) {
   const responseActive = computed(() => options.generating.value || showStopSpeakingButton.value)
   const showStopAction = computed(() => responseActive.value && !options.hasSubmission.value)
 
-  async function cancelGeneration() {
-    await chatStore.cancelPendingSends(options.sessionId.value)
+  async function cancelGeneration(sessionId = options.sessionId.value) {
+    await Promise.all([
+      contextBridgeStore.cancelRemoteStream(sessionId),
+      chatStore.cancelPendingSends(sessionId),
+    ])
   }
 
   async function stopActiveResponse() {
@@ -44,13 +49,13 @@ export function useChatInterruption(options: ChatInterruptionOptions) {
     await cancelGeneration()
   }
 
-  async function submitInterruptingResponse() {
-    if (responseActive.value) {
-      interruptSpeakingFromChat()
-      await cancelGeneration()
-    }
+  async function interruptBeforeSend(sessionId: string) {
+    interruptSpeakingFromChat()
+    await cancelGeneration(sessionId)
+  }
 
-    await options.submit()
+  async function submitInterruptingResponse() {
+    await options.submit(responseActive.value ? interruptBeforeSend : undefined)
   }
 
   return {

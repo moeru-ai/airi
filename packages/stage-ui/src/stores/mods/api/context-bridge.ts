@@ -101,7 +101,19 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   }>()
   const isReceivingRemoteStream = computed(() => remoteStreamGuard.value?.sessionId === chatSession.activeSessionId)
   let contextChannel: ReturnType<typeof createContextChannel> | undefined
+  let localProducedStream: { sessionId: string, turnId: string } | undefined
   let initialized = false
+
+  async function cancelRemoteStream(sessionId: string) {
+    const guard = remoteStreamGuard.value
+    if (!guard || guard.sessionId !== sessionId)
+      return
+
+    await contextChannel?.emitStreamCancel({
+      sessionId: guard.sessionId,
+      turnId: guard.turnId,
+    })
+  }
 
   function presentRemoteStreamIfActive() {
     const guard = remoteStreamGuard.value
@@ -491,6 +503,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       })
       disposeHookFns.value.push(stopContextUpdates)
 
+      disposeHookFns.value.push(contextChannel.onStreamCancel(async (command) => {
+        if (localProducedStream?.sessionId !== command.sessionId || localProducedStream.turnId !== command.turnId)
+          return
+
+        chatOrchestrator.cancelLocalPendingSends(command.sessionId)
+      }))
+
       const { stop: stopSparkNotifyBridgeWatch } = watch(incomingSparkNotifyBridgeMessage, async (event) => {
         if (!event) {
           return
@@ -762,13 +781,18 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'before-send', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          const sessionId = chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId
+          localProducedStream = { sessionId, turnId: context.turnId }
+          await contextChannel?.emitStream({ type: 'before-send', message, sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'after-send', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          const sessionId = chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId
+          await contextChannel?.emitStream({ type: 'after-send', message, sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          if (localProducedStream?.sessionId === sessionId && localProducedStream.turnId === context.turnId)
+            localProducedStream = undefined
         }),
         chatOrchestrator.onTokenLiteral(async (literal, context) => {
           if (isProcessingRemoteStream)
@@ -1004,6 +1028,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       initialized = false
       remoteStreamGuard.value = undefined
+      localProducedStream = undefined
 
       for (const [requestId, waiter] of sparkNotifyBridgeWaiters) {
         if (waiter.timeout)
@@ -1024,6 +1049,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     dispatchSparkNotifyReaction,
     dispatchSparkNotifyPerformance,
     isReceivingRemoteStream,
+    cancelRemoteStream,
     setSparkNotifyHostRole,
   }
 })

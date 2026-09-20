@@ -67,8 +67,10 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
   sessionId: computed(() => chatSession.activeSessionId),
   generating: computed(() => props.generating),
   hasSubmission,
-  submit: async () => {
-    await props.composer.submit()
+  submit: async (beforeSend) => {
+    await props.composer.submit({
+      beforeSend: beforeSend && (submission => beforeSend(submission.sessionId)),
+    })
   },
 })
 

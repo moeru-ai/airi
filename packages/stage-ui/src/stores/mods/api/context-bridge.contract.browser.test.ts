@@ -161,6 +161,7 @@ const chatOrchestratorMock = {
   activeSendSessionId: undefined as string | undefined,
   sending: false,
   ingest: vi.fn(),
+  cancelLocalPendingSends: vi.fn(),
 
   onBeforeMessageComposed: (callback: HookCallback) => registerHook(beforeComposeHooks, callback),
   onAfterMessageComposed: (callback: HookCallback) => registerHook(afterComposeHooks, callback),
@@ -281,6 +282,7 @@ describe('context bridge contract', () => {
     getProviderInstanceMock.mockReset()
     recordLifecycleMock.mockReset()
     chatOrchestratorMock.ingest.mockReset()
+    chatOrchestratorMock.cancelLocalPendingSends.mockReset()
 
     consciousness.activeProvider = ''
     consciousness.activeModel = ''
@@ -578,6 +580,54 @@ describe('context bridge contract', () => {
     expect(chatOrchestratorMock.sending).toBe(false)
     expect(store.isReceivingRemoteStream).toBe(false)
 
+    await store.dispose()
+  })
+
+  it('routes remote stream cancellation to the renderer that produced the turn', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamPeer = createContextChannel()
+    testChannels.push(streamPeer)
+    const context = {
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    await chatOrchestratorMock.emitBeforeSendHooks('ping', context)
+    await streamPeer.emitStreamCancel({ sessionId: 'session-1', turnId: 'turn-1' })
+
+    await vi.waitFor(() => {
+      expect(chatOrchestratorMock.cancelLocalPendingSends).toHaveBeenCalledWith('session-1')
+    })
+    await store.dispose()
+  })
+
+  it('emits cancellation for the correlated remote turn', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamPeer = createContextChannel()
+    testChannels.push(streamPeer)
+    const cancellations: Array<{ sessionId: string, turnId: string }> = []
+    streamPeer.onStreamCancel((command) => {
+      cancellations.push(command)
+    })
+    const context = {
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    await streamPeer.emitStream({ type: 'before-send', message: 'ping', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(true))
+
+    await store.cancelRemoteStream('session-1')
+
+    await vi.waitFor(() => {
+      expect(cancellations).toEqual([{ sessionId: 'session-1', turnId: 'turn-1' }])
+    })
     await store.dispose()
   })
 

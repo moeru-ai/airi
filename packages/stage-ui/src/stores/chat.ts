@@ -581,6 +581,11 @@ export const useChatStore = defineStore('chat', () => {
     runtime.cancelPendingSends(sessionId)
   }
 
+  /** Cancels work owned by this renderer without leader RPC routing. */
+  function cancelLocalPendingSends(sessionId?: string) {
+    runtime.cancelPendingSends(sessionId)
+  }
+
   function getPendingQueuedSendSnapshot() {
     return runtime.getPendingQueuedSendSnapshot()
   }
@@ -601,6 +606,7 @@ export const useChatStore = defineStore('chat', () => {
     retry,
     send,
     cancelPendingSends,
+    cancelLocalPendingSends,
     getPendingQueuedSendSnapshot,
 
     clearHooks: runtime.hooks.clearHooks,
