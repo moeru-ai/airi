@@ -7,6 +7,9 @@ with Godot 4.7.1 and Kirie 0.3.0. The current dependency baseline uses Kirie
 GAP-028 was verified on 2026-09-19 with the official Godot CEF 1.16.0 release.
 The 2026-09-20 live session repeated the shared-context checks on Godot CEF 1.16.1.
 That session also closed and reopened Settings and Chat.
+A second 2026-09-20 screening session reproduced GAP-029 in the chat window,
+re-verified ten Settings routes without console errors, and re-verified the
+notice confirm flow end to end.
 
 Model rendering, model assets, Live2D, VRM, and MMD are outside the current scope.
 
@@ -50,6 +53,7 @@ The status values have these meanings:
 | GAP-026 | About and updater devtools | Open the About page | `useElectronAutoUpdater` creates its own Electron Eventa context and Electron owns update preferences and lifecycle | Mount updater UI through the shared host context and define AIRI update check, download, install, state, and preference behavior | AIRI release engineering and desktop update service | Deferred | User-directed production-packaging scope exclusion |
 | GAP-027 | Developer settings | Open main DevTools or a standalone devtools page | Electron opens WebContents DevTools and dedicated `BrowserWindow` instances | Open a connected CEF Inspector and reusable native devtools windows | AIRI developer tooling and window orchestration | Accepted | CEF Inspector and devtools pages work; Editor is outside the migration scope |
 | GAP-028 | All AIRI WebViews | Open more than one AIRI application window | Electron windows use a shared persistent browser session | Share one persistent CEF request context for cookies, storage, BroadcastChannel, Web Locks, and Pinia coordination | Godot CEF and AIRI dependency integration | Accepted | Godot CEF 1.16.1 runtime verified |
+| GAP-029 | Chat window | Send a message from the Kirie chat window | Electron answers `system-preferences:get-media-access-status` from its main process for every window | Every AIRI window context answers the microphone-permission contracts it awaits, and window setup cannot stall silently on an unanswered host invoke | AIRI Godot host and host context | Open | Reproduced in real CEF on 2026-09-20 |
 
 ## Audited but not reproduced
 
@@ -185,6 +189,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Ownership: This is AIRI application-window orchestration. It does not add a Kirie Platform or Kirie Core API.
 - Runtime result: Three concurrent requests kept one Chat CEF page. The rendered page exposed its Conversations, Mute voice, and Cancel reply controls. Native close removed the page, and another request created one new Chat page at the same minimal-runtime URL.
 - 2026-09-20 result: Kirie 0.4.1 and Godot CEF 1.16.1 opened one Chat page at `stage-runtime=minimal`. Native close destroyed that WebView. A later open created one new Chat page at the same URL.
+- 2026-09-20 send result: The reusable window opens, but sending a message fails silently. GAP-029 tracks the chat-session initialization stall.
 
 ## GAP-015 evidence
 
@@ -388,3 +393,16 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Release result: [Godot CEF 1.16.1](https://github.com/dsh0416/godot-cef/releases/tag/v1.16.1) preserves AIRI scheme handlers in the shared request context.
 - 1.16.1 runtime result: On 2026-09-20, the leader and Settings WebViews shared a cookie, a `localStorage` value, a BroadcastChannel message, and the held `tab-airi:stage:pinia` Web Lock. A later Kirie 0.4.1 session on the same day repeated those checks.
 - Acceptance result: Official Godot CEF 1.16.0 and the tracked 1.16.1 release both reproduce the shared-context behavior. GAP-028 is accepted.
+
+## GAP-029 evidence
+
+- Input: Open Chat from the Controls Island, type `hello`, and press the selected send key. The test repeated this with the `Enter` and `Ctrl + Enter` send modes and with a direct composer submit.
+- Original result: The message stays in the composer. The page reports no console error, and Godot reports no Eventa error.
+- Composer result: `chatStore.send` rejects with `Failed to load the target chat session`. The chat composer catches the error and restores the draft without a visible report.
+- Session result: The chat window keeps `activeSessionId` empty and `isReady` false. The replicated session index and the authenticated user are both present in the window, so replication is not the failure.
+- Setup result: The window mount sequence in `App.vue` awaits `microphonePermission.refresh()` before `chatStore.initialize()`. In the chat window, the refresh request never settles, so chat initialization never starts and the `watch(index)` reselection stays behind its `ready` guard.
+- Host cause: `MicrophonePermissionService` binds only to the main window context in `Main.cs` and the Settings window context in `SettingsWindow.cs`. The chat, onboarding, and notice window contexts register no handler for the microphone-permission get-state and get-prompt contracts.
+- Silence cause: The shared C# contract registry knows these contract IDs, so the adapter does not report an unregistered-message error. The invoke receives no response and no rejection, which turns one missing binding into a permanent stall.
+- Recovery result: Manually running `chatSession.initialize()` in the open chat window resolved the leader-routed `ensureCurrentSession` to the active session. A later Enter sent the message, and the assistant reply streamed into the history, so every later stage of the send path works.
+- Affected windows: The onboarding and notice windows share the missing binding. The notice confirm flow still works because it does not depend on the stalled mount sequence. The onboarding window opens and closes itself correctly on a completed profile; a live reproduction of its stalled setup needs a first-run profile.
+- Required result: Every AIRI window context answers the microphone-permission contracts its renderer awaits, or the renderer must not await a contract that the window's host context does not serve. A host invoke without a handler must fail fast instead of pending forever.

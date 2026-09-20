@@ -30,7 +30,7 @@ an API for a feature that has no current in-scope failure.
 
 ## Current status
 
-`API-GAPS.md` contains 28 reproduced gaps:
+`API-GAPS.md` contains 29 reproduced gaps:
 
 | Status | Count | Gaps |
 | --- | ---: | --- |
@@ -38,7 +38,7 @@ an API for a feature that has no current in-scope failure.
 | In progress | 0 | None |
 | Review pending | 0 | None |
 | Runtime verification pending | 0 | None |
-| Open | 0 | None |
+| Open | 1 | GAP-029 |
 | Blocked | 0 | None |
 | Deferred | 6 | GAP-007, GAP-010, GAP-023 through GAP-026 |
 
