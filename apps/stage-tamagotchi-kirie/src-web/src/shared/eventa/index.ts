@@ -91,7 +91,6 @@ export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:ele
 export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
 export const electronSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:electron:windows:spotlight:shortcut:get')
 export const electronSpotlightShortcutSet = defineInvokeEventa<ShortcutRegistrationResult, { accelerator: ShortcutAccelerator | null }>('eventa:invoke:electron:windows:spotlight:shortcut:set')
-export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
 export interface OpenDevtoolsWindowPayload {
   key: string
   route?: string
@@ -135,34 +134,26 @@ export const getDesktopOverlayReadinessContract = defineInvokeEventa<DesktopOver
 export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
 export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
 
-export type RequestWindowActionDefault = 'confirm' | 'cancel' | 'close'
-export interface RequestWindowPayload {
+export interface NoticeOpenPayload {
   id?: string
   route: string
   type?: string
   payload?: Record<string, any>
 }
-export interface RequestWindowPending {
+export interface NoticePendingPayload {
   id: string
   type?: string
   payload?: Record<string, any>
 }
 
-// Reference window helpers are generic; callers can alias for clarity
-export type NoticeAction = 'confirm' | 'cancel' | 'close'
-
-export function createRequestWindowEventa(namespace: string) {
-  const prefix = (name: string) => `eventa:${name}:electron:windows:${namespace}`
-  return {
-    openWindow: defineInvokeEventa<boolean, RequestWindowPayload>(prefix('invoke:open')),
-    windowAction: defineInvokeEventa<void, { id: string, action: RequestWindowActionDefault }>(prefix('invoke:action')),
-    pageMounted: defineInvokeEventa<RequestWindowPending | undefined, { id?: string }>(prefix('invoke:page-mounted')),
-    pageUnmounted: defineInvokeEventa<void, { id?: string }>(prefix('invoke:page-unmounted')),
-  }
+// Notice window contract. The Godot host mirrors these ids and payload shapes
+// in AiriDesktopEvents (src-godot/scripts/AiriDesktopContracts.cs).
+export const noticeWindowEventa = {
+  openWindow: defineInvokeEventa<boolean, NoticeOpenPayload>('eventa:invoke:open:electron:windows:notice'),
+  windowAction: defineInvokeEventa<void, { id: string, action: 'confirm' | 'cancel' | 'close' }>('eventa:invoke:action:electron:windows:notice'),
+  pageMounted: defineInvokeEventa<NoticePendingPayload | undefined, { id?: string }>('eventa:invoke:page-mounted:electron:windows:notice'),
+  pageUnmounted: defineInvokeEventa<void, { id?: string }>('eventa:invoke:page-unmounted:electron:windows:notice'),
 }
-
-// Notice window events built from generic factory
-export const noticeWindowEventa = createRequestWindowEventa('notice')
 
 // Widgets / Adhoc window events
 export interface WidgetWindowSize {
@@ -394,7 +385,6 @@ export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: stri
 export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')
 export const widgetsIframePublish = defineInvokeEventa<void, { id: string, event: Record<string, unknown> }>('eventa:invoke:electron:windows:widgets:iframe-publish')
 
-export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
 export type ElectronWindowLifecycleReason
   = | 'initial'
     | 'snapshot'

@@ -8,7 +8,8 @@ AIRI C# handlers provide the application services and native windows that the
 current migration implements. Some Electron services do not yet have a Kirie
 implementation.
 
-Status last verified: 2026-09-18.
+Command verification and live CEF smoke: 2026-09-20.
+The latest full renderer route audit is from 2026-09-18.
 
 ## When to use this application
 
@@ -21,7 +22,8 @@ Do not use this application to verify these features:
 - Model asset downloads or packaging.
 - Model-specific media capture.
 - Spotlight windows and shortcuts.
-- Production desktop packaging.
+- Server channel, plugin host, Artistry, and MCP sidecar services.
+- Production desktop packaging and application updates.
 
 ## Migration documentation
 
@@ -64,10 +66,13 @@ Install the pinned Godot CEF backend when it is absent or out of date:
 mise x -- pnpm kirie doctor --fix godot-cef
 ```
 
-The tracked configuration still selects official Godot CEF 1.15.4. That build
-does not share browser state between AIRI WebViews. The 2026-09-18 local
-verification uses the unpublished `lemonnekogh/shared-request-context` branch.
-See GAP-028 in [`API-GAPS.md`](API-GAPS.md) before an acceptance run.
+The tracked configuration selects official Godot CEF 1.16.1.
+This release keeps the shared request context from 1.16.0.
+See GAP-028 in [`API-GAPS.md`](API-GAPS.md) for the runtime evidence.
+
+Kirie verifies the installed release against the SHA-256 digest in
+`addons/kirie/godot_cef.json`. The installed macOS framework also passes
+strict code-signature verification.
 
 The configured Godot CEF version does not prove the version of an installed
 native artifact. Reinstall the artifact after the configured version changes.
@@ -84,14 +89,14 @@ mise x -- pnpm kirie dev
 The command starts Vite, Godot, and the CEF renderers. The application can open
 the main, onboarding, settings, chat, and notice windows.
 
-The development session currently reports some known IPC errors. See
-[`API-GAPS.md`](API-GAPS.md) for their evidence and ownership:
+The latest Kirie 0.4.1 live session reported these known IPC errors.
+See [`API-GAPS.md`](API-GAPS.md) for their evidence and ownership:
 
-- `server-channel:get-config` is blocked by the AIRI sidecar decision.
-- `plugins:tools:list-xsai` is blocked by the AIRI plugin-host decision.
-- `artistry:sync-config` is open and needs an AIRI ownership decision.
-- MCP runtime and configuration requests are blocked by the AIRI sidecar decision.
-- The updater is disabled while GAP-026 defines Godot packaging and update policy.
+- `server-channel:get-config` is deferred with the AIRI sidecar work.
+- `plugins:tools:list-xsai` is deferred with the AIRI sidecar work.
+- `artistry:sync-config` is deferred with the AIRI sidecar work.
+- MCP runtime and configuration requests are deferred with the AIRI sidecar work.
+- The updater is disabled. Production packaging and updates are deferred for this migration.
 - `godot-stage:get-status` belongs to the excluded model-rendering scope.
 
 ## Verification
@@ -107,14 +112,33 @@ mise x -- pnpm build
 
 `pnpm build` runs `kirie build`. It builds the Web assets in `src-web/dist` and
 the Godot C# project. It does not export or package a desktop application.
+GAP-026 remains deferred until production packaging returns to the migration
+scope.
 
-The 2026-09-18 verification passed these operations:
+The 2026-09-20 published-package verification passed these operations:
 
 - Frozen-lockfile workspace installation.
 - TypeScript type verification.
 - Eleven unit-test files with 31 passing tests.
 - C# build with no warnings or errors.
 - Kirie build.
+
+The 2026-09-20 live session on Kirie 0.4.1 and Godot CEF 1.16.1 passed these
+operations:
+
+- Development startup of the main renderer.
+- Settings open, reuse, and navigation to MCP and data pages.
+- Chat open with the minimal runtime.
+- Native close and reopen of Settings and Chat.
+- Shared cookie, `localStorage`, BroadcastChannel, and Web Lock state.
+- External URL opening through `window.open()`.
+- Application data directory opening.
+
+Godot CEF used software rendering. Accelerated OSR is unavailable because the
+project uses the OpenGL compatibility renderer. The main renderer still painted.
+
+The 2026-09-18 real CEF verification passed these operations:
+
 - Development startup of the main and onboarding renderers.
 - A real-CEF route audit of all unique static paths and representative parameterized paths.
 - Back navigation after repaired route failures.
@@ -146,7 +170,7 @@ Godot CEF uses its per-request signal policy for browser permissions. AIRI
 validates microphone requests from the exact origin of the main renderer. It
 denies other permission types and requests from secondary windows.
 
-Kirie 0.3.0 exposes each request through `PermissionRequested`. The AIRI Godot
+Kirie 0.4.1 exposes each request through `PermissionRequested`. The AIRI Godot
 host keeps the application decision as `not-determined`, `granted`, or
 `denied`. For a new decision, AIRI shows a modal inside the main Renderer. The
 modal uses the screen-capture dialog shade and blur. Its overlay follows the
@@ -163,8 +187,8 @@ and Deny returned `NotAllowedError`. The browser state stays at `prompt`
 because CEF only provides request-scoped permission decisions. AIRI host state
 is authoritative in Kirie.
 
-The local shared-context Godot CEF build passes strict code-signature
-verification. Final acceptance still requires a published and tracked artifact.
+The Godot CEF 1.16.0 shared request context passed the GAP-028 runtime checks.
+The 2026-09-20 live session repeated those checks on the tracked 1.16.1 release.
 
 ## Account sign-in
 
@@ -187,4 +211,5 @@ stored the OIDC tokens and showed the authenticated account state.
 | `kirie doctor` reports a missing Android SDK | Android verification is unavailable. | Configure the Android SDK only when Android work is required. |
 | Godot is not found | The command did not load this directory's `mise.toml`. | Run the command from `apps/stage-tamagotchi-kirie`. |
 | The configured CEF version is correct, but the framework is unsigned or stale | The installed native artifact does not match the configuration result. | Reinstall Godot CEF and verify the installed framework. |
-| The console reports a documented IPC error | The related migration gap is not accepted. | Find the error in `API-GAPS.md` and use its reopen condition. |
+| Godot CEF logs `Accelerated OSR unavailable` | The OpenGL compatibility renderer does not support accelerated OSR. | Continue desktop development. Software rendering still paints the WebView. |
+| The console reports a documented IPC error | The related migration gap is deferred. | Find the error in `API-GAPS.md` and use its reopen condition. |

@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StageTamagotchiKirie", "StageTamagotchiKirie.csproj", "{648FDA67-8597-465D-9BB2-5F17EC4A463A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		ExportDebug|Any CPU = ExportDebug|Any CPU
+		ExportRelease|Any CPU = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{648FDA67-8597-465D-9BB2-5F17EC4A463A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{648FDA67-8597-465D-9BB2-5F17EC4A463A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{648FDA67-8597-465D-9BB2-5F17EC4A463A}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{648FDA67-8597-465D-9BB2-5F17EC4A463A}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{648FDA67-8597-465D-9BB2-5F17EC4A463A}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{648FDA67-8597-465D-9BB2-5F17EC4A463A}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

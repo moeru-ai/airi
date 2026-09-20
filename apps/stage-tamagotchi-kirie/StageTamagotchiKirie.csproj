@@ -9,8 +9,10 @@
 
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
-    <PackageReference Include="GdKirie.EventaAdapter" Version="0.3.0" />
-    <PackageReference Include="GdKirie.Platform" Version="0.3.0" />
+    <!-- Godot exports project assets into this generated Gradle directory. -->
+    <Compile Remove="android/**/*.cs" />
+    <PackageReference Include="GdKirie.EventaAdapter" Version="0.4.1" />
+    <PackageReference Include="GdKirie.Platform" Version="0.4.1" />
   </ItemGroup>
 
 </Project>
