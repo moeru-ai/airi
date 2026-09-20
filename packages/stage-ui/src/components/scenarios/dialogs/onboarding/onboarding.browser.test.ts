@@ -131,9 +131,19 @@ it('persists configured credentials through the leader and loads the model list'
   const expectedConfig = { apiKey: 'sk-test-onboarding', baseUrl: 'https://api.openai.com/v1' }
 
   // The leader owns persistence and must hold the saved credentials.
-  await expect.poll(() => leader.providerConfigStore.getProviderConfig(providerId)).toMatchObject(expectedConfig)
-  expect(leader.providerConfigStore.providers[providerId]?.status).toBe('configured')
-  expect(leader.providerConfigStore.addedProviders[providerId]).toBe(true)
+  //
+  // Config and status arrive on two separate leader-routed round-trips: `setProviderStatus` is
+  // dispatched later, by the validation chain in stores/providers/provider.ts. Polling one and
+  // reading the other synchronously raced, landing on the initial 'unconfigured' under load.
+  await expect.poll(() => ({
+    config: leader.providerConfigStore.getProviderConfig(providerId),
+    status: leader.providerConfigStore.providers[providerId]?.status,
+    added: leader.providerConfigStore.addedProviders[providerId],
+  })).toMatchObject({
+    config: expectedConfig,
+    status: 'configured',
+    added: true,
+  })
 
   await expect.poll(() => JSON.parse(localStorage.getItem('settings/providers/configured') ?? '{}')).toMatchObject({
     [providerId]: { config: expectedConfig },
