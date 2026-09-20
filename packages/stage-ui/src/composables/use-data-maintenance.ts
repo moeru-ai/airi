@@ -80,8 +80,8 @@ export function useDataMaintenance() {
       throw failure.reason
   }
 
-  function deleteAllChatSessions() {
-    chatOrchestrator.cancelPendingSends()
+  async function deleteAllChatSessions() {
+    await chatOrchestrator.cancelPendingSends()
     chatStore.resetAllSessions()
   }
 

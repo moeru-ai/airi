@@ -4,7 +4,7 @@ import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/st
 import type { ChatToolCallRerunEvent } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
+import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
@@ -91,8 +91,6 @@ const {
   trackChatMessageDeleted,
   trackChatMessageRetried,
 } = useAnalytics()
-const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
-
 const latestImageEntries = computed(() => {
   if (!activeCardId.value)
     return []
@@ -105,9 +103,19 @@ function navigateToImageJournal() {
   router.push(`/settings/airi-card?cardId=${activeCardId.value}&tab=gallery`)
 }
 
+const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
+const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
+  sessionId: activeSessionId,
+  generating: computed(() => sending.value && activeSendSessionId.value === activeSessionId.value),
+  hasSubmission,
+  submit: async () => {
+    await composer.submit()
+  },
+})
+
 async function handleSend() {
   if (!pendingImages.value)
-    await composer.submit()
+    await submitInterruptingResponse()
 }
 
 function sendFromKeyboard() {
@@ -386,18 +394,6 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
           </DropdownMenuRoot>
 
           <GhostButton
-            v-if="showStopSpeakingButton"
-            size="unset"
-            :class="['h-9 w-9']"
-            data-testid="stop-speaking-button"
-            title="Stop speaking"
-            aria-label="Stop speaking"
-            @click="stopSpeakingFromChat"
-          >
-            <span :class="['i-solar:stop-bold-duotone h-4 w-4']" />
-          </GhostButton>
-
-          <GhostButton
             size="unset"
             :class="['h-9 w-9']"
             title="Image Journal"
@@ -408,6 +404,19 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
           </GhostButton>
 
           <GhostButton
+            v-if="showStopAction"
+            size="unset"
+            :class="['ml-auto h-9 w-9']"
+            data-testid="stop-speaking-button"
+            :title="t('stage.chat.actions.stop')"
+            :aria-label="t('stage.chat.actions.stop')"
+            @click="stopActiveResponse"
+          >
+            <span :class="['i-solar:stop-bold-duotone h-4 w-4']" />
+          </GhostButton>
+
+          <GhostButton
+            v-else
             size="unset"
             :aria-label="t('stage.chat.actions.send')"
             :title="t('stage.chat.actions.send')"

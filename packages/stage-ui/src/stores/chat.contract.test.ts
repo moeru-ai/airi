@@ -5,9 +5,10 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import { errorMessageFrom } from '@moeru/std'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
-import { createPinia, setActivePinia } from 'pinia'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick, ref } from 'vue'
+import { createApp, nextTick, ref } from 'vue'
 
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -370,11 +371,80 @@ describe('chat store contract', () => {
     })
     await vi.waitFor(() => expect(visionSignal).toBeDefined())
 
-    store.cancelPendingSends('session-1')
+    await store.cancelPendingSends('session-1')
 
     await sending
     expect(visionSignal?.aborted).toBe(true)
     expect(llmStreamMock).not.toHaveBeenCalled()
+  })
+
+  it('routes cancellation from a follower window to the leader runtime', async () => {
+    // ROOT CAUSE:
+    //
+    // The Electron chat window owns a follower-only Pinia runtime. Calling an
+    // unsynchronized cancellation action there only reached its idle local
+    // chat runtime, so the leader window kept generating the LLM response.
+    //
+    // Cancellation is now a synchronized action. The follower RPC reaches the
+    // leader-owned AbortController and waits for the active send to settle.
+    const namespace = `chat-cancellation:${crypto.randomUUID()}`
+    const leaderPinia = createPinia()
+    const leaderRuntime = createSyncedPiniaPlugin({
+      callTimeout: 1000,
+      leadership: 'leader-only',
+      namespace,
+    })
+    leaderPinia.use(leaderRuntime.plugin)
+    createApp({}).use(leaderPinia)
+
+    const followerPinia = createPinia()
+    const followerRuntime = createSyncedPiniaPlugin({
+      callTimeout: 1000,
+      leadership: 'follower-only',
+      namespace,
+    })
+    followerPinia.use(followerRuntime.plugin)
+    createApp({}).use(followerPinia)
+
+    try {
+      await vi.waitFor(() => expect(leaderRuntime.isLeader()).toBe(true))
+
+      setActivePinia(leaderPinia)
+      const leaderStore = useChatStore()
+
+      setActivePinia(followerPinia)
+      const followerStore = useChatStore()
+      await vi.waitFor(() => expect(followerRuntime.getLeaderId()).toBe(leaderRuntime.participantId))
+
+      let leaderSignal: AbortSignal | undefined
+      llmStreamMock.mockImplementationOnce(async (_model, _provider, _messages, options: StreamOptions) => {
+        leaderSignal = options.abortSignal
+        await new Promise<void>((resolve) => {
+          if (options.abortSignal?.aborted) {
+            resolve()
+            return
+          }
+          options.abortSignal?.addEventListener('abort', () => resolve(), { once: true })
+        })
+      })
+
+      setActivePinia(leaderPinia)
+      const sending = leaderStore.send({ sessionId: 'session-1', text: 'keep generating' })
+      await vi.waitFor(() => expect(leaderSignal).toBeDefined())
+
+      setActivePinia(followerPinia)
+      await followerStore.cancelPendingSends('session-1')
+      await sending
+
+      expect(leaderSignal?.aborted).toBe(true)
+      expect(leaderStore.sending).toBe(false)
+    }
+    finally {
+      followerRuntime.dispose()
+      leaderRuntime.dispose()
+      disposePinia(followerPinia)
+      disposePinia(leaderPinia)
+    }
   })
 
   it('starts chat-model telemetry and captures the provider prompt after vision preprocessing', async () => {
@@ -1083,7 +1153,7 @@ describe('chat store contract', () => {
     await vi.waitFor(() => {
       expect(store.pendingQueuedSendCount).toBe(1)
     })
-    store.cancelPendingSends('session-1')
+    await store.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
     await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
@@ -1194,7 +1264,7 @@ describe('chat store contract', () => {
       },
     ])
 
-    store.cancelPendingSends('session-1')
+    await store.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
     await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')

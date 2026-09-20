@@ -17,11 +17,12 @@ import { useI18n } from 'vue-i18n'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
+import { useChatInterruption } from '../../composables/use-chat-interruption'
 import { useTranscriptions } from '../../composables/use-transcriptions'
-import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
 const props = defineProps<{
   composer: ChatComposerController<ChatImageAttachment>
+  generating: boolean
 }>()
 
 const composerRoot = useTemplateRef<HTMLDivElement>('composer')
@@ -61,7 +62,15 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription, au
     isStageTamagotchi,
   },
 )
-const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
+const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
+const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
+  sessionId: computed(() => chatSession.activeSessionId),
+  generating: computed(() => props.generating),
+  hasSubmission,
+  submit: async () => {
+    await props.composer.submit()
+  },
+})
 
 const secondaryComposerButtonClass = [
   'size-8 flex items-center justify-center rounded-md outline-none',
@@ -76,7 +85,7 @@ const composerActionButtonClass = [
 
 async function handleSend() {
   if (!pendingImages.value)
-    await props.composer.submit()
+    await submitInterruptingResponse()
 }
 
 async function handleCancelReply() {
@@ -308,19 +317,20 @@ watch(replyTarget, async (target) => {
         absolute bottom-2 right-2 z-10 flex items-center gap-1
       >
         <button
-          v-if="showStopSpeakingButton"
+          v-if="showStopAction"
           data-testid="stop-speaking-button"
           :class="[
             composerActionButtonClass,
             'bg-neutral-500/15 text-neutral-500 hover:bg-neutral-500/25 dark:bg-neutral-400/15 dark:text-neutral-300 dark:hover:bg-neutral-400/25',
           ]"
-          title="Stop speaking"
-          aria-label="Stop speaking"
-          @click="stopSpeakingFromChat"
+          :title="t('stage.chat.actions.stop')"
+          :aria-label="t('stage.chat.actions.stop')"
+          @click="stopActiveResponse"
         >
           <div class="i-solar:stop-bold-duotone h-4 w-4" />
         </button>
         <button
+          v-else
           type="button"
           :aria-label="t('stage.chat.actions.send')"
           :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
