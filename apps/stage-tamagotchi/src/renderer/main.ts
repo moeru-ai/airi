@@ -5,7 +5,6 @@ import Tres from '@tresjs/core'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
-import { settingsScroll } from '@proj-airi/stage-layouts/browser/settings-scroll'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
@@ -76,7 +75,6 @@ createApp(App)
   // TODO: Fix autoAnimatePlugin type error
   .use(autoAnimatePlugin as unknown as Plugin)
   .use(router)
-  .use(settingsScroll)
   .use(pinia)
   .use(PiniaColada)
   .use(i18n)

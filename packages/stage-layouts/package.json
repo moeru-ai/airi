@@ -17,7 +17,6 @@
   "exports": {
     ".": "./src/index.ts",
     "./browser/adaptive-input": "./src/browser/adaptive-input.ts",
-    "./browser/settings-scroll": "./src/browser/settings-scroll.ts",
     "./layouts/*": "./src/layouts/*.vue",
     "./components/AdaptiveInput": "./src/components/AdaptiveInput/index.ts",
     "./components/Layouts/*": "./src/components/Layouts/*.vue",
