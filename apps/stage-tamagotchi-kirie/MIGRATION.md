@@ -36,9 +36,9 @@ an API for a feature that has no current in-scope failure.
 | --- | ---: | --- |
 | Accepted | 22 | GAP-001 through GAP-006, GAP-008, GAP-009, GAP-011 through GAP-022, GAP-027, and GAP-028 |
 | In progress | 0 | None |
-| Review pending | 0 | None |
+| Review pending | 1 | GAP-029 |
 | Runtime verification pending | 0 | None |
-| Open | 1 | GAP-029 |
+| Open | 0 | None |
 | Blocked | 0 | None |
 | Deferred | 6 | GAP-007, GAP-010, GAP-023 through GAP-026 |
 

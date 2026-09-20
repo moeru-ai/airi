@@ -9,6 +9,7 @@ public partial class DeveloperWindow : Window
     private KirieEventaContextHandle? _eventa;
     private GdKiriePlatformHost? _platform;
     private WebViewPermissionHandler? _permissions;
+    private IDisposable? _microphonePermissionRegistration;
     private Action? _onClosed;
     private OpenDevtoolsWindowPayload? _request;
     private Vector2I _defaultSize;
@@ -21,6 +22,7 @@ public partial class DeveloperWindow : Window
         KirieEventaJsonRegistry registry,
         string rendererUrl,
         OpenDevtoolsWindowPayload request,
+        MicrophonePermissionService microphonePermissions,
         Action onClosed)
     {
         if (!IsInsideTree())
@@ -47,6 +49,7 @@ public partial class DeveloperWindow : Window
 
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, this);
+        _microphonePermissionRegistration = microphonePermissions.Attach(_eventa.Context);
         _permissions = new WebViewPermissionHandler(_kirie, rendererUrl);
 
         _kirie.WebViewReady += OnWebViewReady;
@@ -83,6 +86,7 @@ public partial class DeveloperWindow : Window
         }
 
         _permissions?.Dispose();
+        _microphonePermissionRegistration?.Dispose();
         _platform?.Dispose();
         _eventa?.Dispose();
         _kirie?.Dispose();

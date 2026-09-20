@@ -9,6 +9,7 @@ public partial class NoticeWindow : Window
     private KirieEventaContextHandle? _eventa;
     private GdKiriePlatformHost? _platform;
     private WebViewPermissionHandler? _permissions;
+    private IDisposable? _microphonePermissionRegistration;
     private IDisposable? _actionRegistration;
     private IDisposable? _mountedRegistration;
     private IDisposable? _unmountedRegistration;
@@ -22,9 +23,10 @@ public partial class NoticeWindow : Window
     private bool _initialGeometryApplied;
     private bool _showRequested;
 
-    public void Initialize(
+    internal void Initialize(
         KirieEventaJsonRegistry registry,
         string rendererUrl,
+        MicrophonePermissionService microphonePermissions,
         Action onClosed)
     {
         if (!IsInsideTree())
@@ -47,6 +49,7 @@ public partial class NoticeWindow : Window
 
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, this);
+        _microphonePermissionRegistration = microphonePermissions.Attach(_eventa.Context);
         _permissions = new WebViewPermissionHandler(_kirie, rendererUrl);
         _actionRegistration = _eventa.Context.RegisterInvokeHandler(
             AiriDesktopEvents.NoticeAction,
@@ -130,6 +133,7 @@ public partial class NoticeWindow : Window
         _unmountedRegistration?.Dispose();
         _mountedRegistration?.Dispose();
         _actionRegistration?.Dispose();
+        _microphonePermissionRegistration?.Dispose();
         _permissions?.Dispose();
         _platform?.Dispose();
         _eventa?.Dispose();

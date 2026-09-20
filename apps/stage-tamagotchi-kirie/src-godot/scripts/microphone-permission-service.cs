@@ -212,6 +212,11 @@ internal sealed class MicrophonePermissionService : IDisposable
         _coordinator = new MicrophonePermissionCoordinator(_store.Load(), PromptTimeout);
     }
 
+    // Every AIRI window renderer awaits the get-state and get-prompt contracts
+    // during its mount sequence. The shared contract registry accepts these
+    // messages in every window, so a context without a binding never answers
+    // and the renderer mount stalls silently (GAP-029). Each AIRI window must
+    // attach one binding; only the main renderer owns the prompt.
     public IDisposable Attach(IEventContext context, bool ownsPrompt = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

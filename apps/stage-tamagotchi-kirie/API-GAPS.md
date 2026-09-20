@@ -9,7 +9,8 @@ The 2026-09-20 live session repeated the shared-context checks on Godot CEF 1.16
 That session also closed and reopened Settings and Chat.
 A second 2026-09-20 screening session reproduced GAP-029 in the chat window,
 re-verified ten Settings routes without console errors, and re-verified the
-notice confirm flow end to end.
+notice confirm flow end to end. A third 2026-09-20 session implemented the
+GAP-029 host fix and verified a full chat send round trip in real CEF.
 
 Model rendering, model assets, Live2D, VRM, and MMD are outside the current scope.
 
@@ -53,7 +54,7 @@ The status values have these meanings:
 | GAP-026 | About and updater devtools | Open the About page | `useElectronAutoUpdater` creates its own Electron Eventa context and Electron owns update preferences and lifecycle | Mount updater UI through the shared host context and define AIRI update check, download, install, state, and preference behavior | AIRI release engineering and desktop update service | Deferred | User-directed production-packaging scope exclusion |
 | GAP-027 | Developer settings | Open main DevTools or a standalone devtools page | Electron opens WebContents DevTools and dedicated `BrowserWindow` instances | Open a connected CEF Inspector and reusable native devtools windows | AIRI developer tooling and window orchestration | Accepted | CEF Inspector and devtools pages work; Editor is outside the migration scope |
 | GAP-028 | All AIRI WebViews | Open more than one AIRI application window | Electron windows use a shared persistent browser session | Share one persistent CEF request context for cookies, storage, BroadcastChannel, Web Locks, and Pinia coordination | Godot CEF and AIRI dependency integration | Accepted | Godot CEF 1.16.1 runtime verified |
-| GAP-029 | Chat window | Send a message from the Kirie chat window | Electron answers `system-preferences:get-media-access-status` from its main process for every window | Every AIRI window context answers the microphone-permission contracts it awaits, and window setup cannot stall silently on an unanswered host invoke | AIRI Godot host and host context | Open | Reproduced in real CEF on 2026-09-20 |
+| GAP-029 | Chat window | Send a message from the Kirie chat window | Electron answers `system-preferences:get-media-access-status` from its main process for every window | Every AIRI window context answers the microphone-permission contracts it awaits, and window setup cannot stall silently on an unanswered host invoke | AIRI Godot host and host context | Review pending | Fixed and re-verified in real CEF on 2026-09-20 |
 
 ## Audited but not reproduced
 
@@ -406,3 +407,6 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Recovery result: Manually running `chatSession.initialize()` in the open chat window resolved the leader-routed `ensureCurrentSession` to the active session. A later Enter sent the message, and the assistant reply streamed into the history, so every later stage of the send path works.
 - Affected windows: The onboarding and notice windows share the missing binding. The notice confirm flow still works because it does not depend on the stalled mount sequence. The onboarding window opens and closes itself correctly on a completed profile; a live reproduction of its stalled setup needs a first-run profile.
 - Required result: Every AIRI window context answers the microphone-permission contracts its renderer awaits, or the renderer must not await a contract that the window's host context does not serve. A host invoke without a handler must fail fast instead of pending forever.
+- Fix: `MicrophonePermissionService.Attach` now binds to the chat, onboarding, notice, and developer window contexts through their window managers, next to the existing main and Settings bindings. Only the main renderer keeps prompt ownership.
+- Fix verification: On 2026-09-20 in real CEF, a fresh chat window completed its mount sequence, loaded the replicated session index with a non-empty `activeSessionId`, and sent a message without manual recovery. The user message entered the session and the assistant reply streamed into the history.
+- Remaining fail-fast concern: The Kirie Eventa adapter still drops an invoke silently when the registry knows the contract ID but the context has no handler. This fail-fast behavior belongs to the upstream `GdKirie.EventaAdapter` package and needs an upstream change, so this ledger tracks the AIRI-side binding fix only.

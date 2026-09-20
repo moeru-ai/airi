@@ -11,6 +11,7 @@ internal sealed class OnboardingWindowManager : IDisposable
     private readonly KirieEventaJsonRegistry _registry;
     private readonly string _rendererUrl;
     private readonly AuthService _auth;
+    private readonly MicrophonePermissionService _microphonePermissions;
     private readonly IDisposable _openRegistration;
     private OnboardingWindow? _window;
     private bool _disposed;
@@ -21,13 +22,15 @@ internal sealed class OnboardingWindowManager : IDisposable
         Window mainWindow,
         KirieEventaJsonRegistry registry,
         string rendererUrl,
-        AuthService auth)
+        AuthService auth,
+        MicrophonePermissionService microphonePermissions)
     {
         _owner = owner;
         _mainWindow = mainWindow;
         _registry = registry;
         _rendererUrl = rendererUrl;
         _auth = auth;
+        _microphonePermissions = microphonePermissions;
         _openRegistration = context.RegisterInvokeHandler(
             AiriDesktopEvents.OpenOnboarding,
             (EmptyPayload _, CancellationToken _) =>
@@ -64,7 +67,7 @@ internal sealed class OnboardingWindowManager : IDisposable
                 _owner.AddChild(window);
                 window.CurrentScreen = _mainWindow.CurrentScreen;
                 DesktopWindowSizing.ApplyInitialDisplayScale(window);
-                window.Initialize(_registry, _rendererUrl, _auth, () => OnWindowClosed(window));
+                window.Initialize(_registry, _rendererUrl, _auth, _microphonePermissions, () => OnWindowClosed(window));
             }
             catch
             {

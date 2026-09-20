@@ -12,6 +12,7 @@ internal sealed class NoticeWindowManager : IDisposable
     private readonly Window _mainWindow;
     private readonly KirieEventaJsonRegistry _registry;
     private readonly string _rendererUrl;
+    private readonly MicrophonePermissionService _microphonePermissions;
     private readonly IDisposable _openRegistration;
     private NoticeWindow? _window;
     private bool _disposed;
@@ -21,12 +22,14 @@ internal sealed class NoticeWindowManager : IDisposable
         Node owner,
         Window mainWindow,
         KirieEventaJsonRegistry registry,
-        string rendererUrl)
+        string rendererUrl,
+        MicrophonePermissionService microphonePermissions)
     {
         _owner = owner;
         _mainWindow = mainWindow;
         _registry = registry;
         _rendererUrl = rendererUrl;
+        _microphonePermissions = microphonePermissions;
         _openRegistration = context.RegisterInvokeHandler(
             AiriDesktopEvents.OpenNotice,
             (NoticeOpenPayload payload, CancellationToken cancellationToken) =>
@@ -69,7 +72,7 @@ internal sealed class NoticeWindowManager : IDisposable
             _owner.AddChild(window);
             window.CurrentScreen = _mainWindow.CurrentScreen;
             DesktopWindowSizing.ApplyInitialDisplayScale(window);
-            window.Initialize(_registry, _rendererUrl, () => OnWindowClosed(window));
+            window.Initialize(_registry, _rendererUrl, _microphonePermissions, () => OnWindowClosed(window));
             return window.Open(_mainWindow.CurrentScreen, id, payload, cancellationToken);
         }
         catch

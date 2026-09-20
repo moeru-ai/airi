@@ -10,6 +10,7 @@ internal sealed class ChatWindowManager : IDisposable
     private readonly Window _mainWindow;
     private readonly KirieEventaJsonRegistry _registry;
     private readonly string _rendererUrl;
+    private readonly MicrophonePermissionService _microphonePermissions;
     private readonly IDisposable _openRegistration;
     private ChatWindow? _window;
     private bool _disposed;
@@ -19,12 +20,14 @@ internal sealed class ChatWindowManager : IDisposable
         Node owner,
         Window mainWindow,
         KirieEventaJsonRegistry registry,
-        string rendererUrl)
+        string rendererUrl,
+        MicrophonePermissionService microphonePermissions)
     {
         _owner = owner;
         _mainWindow = mainWindow;
         _registry = registry;
         _rendererUrl = rendererUrl;
+        _microphonePermissions = microphonePermissions;
         _openRegistration = context.RegisterInvokeHandler(
             AiriDesktopEvents.OpenChat,
             (EmptyPayload _, CancellationToken _) =>
@@ -61,7 +64,7 @@ internal sealed class ChatWindowManager : IDisposable
                 _owner.AddChild(window);
                 window.CurrentScreen = _mainWindow.CurrentScreen;
                 DesktopWindowSizing.ApplyInitialDisplayScale(window);
-                window.Initialize(_registry, _rendererUrl, () => OnWindowClosed(window));
+                window.Initialize(_registry, _rendererUrl, _microphonePermissions, () => OnWindowClosed(window));
             }
             catch
             {

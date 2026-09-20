@@ -137,7 +137,9 @@ operations:
 A second 2026-09-20 screening session found that the chat window opens but
 cannot send a message. GAP-029 in [`API-GAPS.md`](API-GAPS.md) records the
 reproduced stall and its host-side cause. The same session re-verified ten
-Settings routes and the notice confirm flow.
+Settings routes and the notice confirm flow. A third 2026-09-20 session bound
+the microphone-permission service to every AIRI window context and verified a
+full chat send round trip in real CEF.
 
 Godot CEF used software rendering. Accelerated OSR is unavailable because the
 project uses the OpenGL compatibility renderer. The main renderer still painted.

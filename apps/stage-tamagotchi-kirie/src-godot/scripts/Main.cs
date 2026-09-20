@@ -76,7 +76,8 @@ public partial class Main : Node
                 this,
                 GetWindow(),
                 registry,
-                rendererUrl);
+                rendererUrl,
+                _microphonePermissions);
             _developerToolsRegistration = _developerTools.Attach(_eventa.Context);
             _onboarding = new OnboardingWindowManager(
                 _eventa.Context,
@@ -84,7 +85,8 @@ public partial class Main : Node
                 GetWindow(),
                 registry,
                 rendererUrl,
-                _auth);
+                _auth,
+                _microphonePermissions);
             _settings = new SettingsWindowManager(
                 _eventa.Context,
                 this,
@@ -99,13 +101,15 @@ public partial class Main : Node
                 this,
                 GetWindow(),
                 registry,
-                rendererUrl);
+                rendererUrl,
+                _microphonePermissions);
             _notice = new NoticeWindowManager(
                 _eventa.Context,
                 this,
                 GetWindow(),
                 registry,
-                rendererUrl);
+                rendererUrl,
+                _microphonePermissions);
         }
         catch (InvalidOperationException error)
         {
