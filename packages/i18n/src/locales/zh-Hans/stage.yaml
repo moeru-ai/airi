@@ -20,6 +20,20 @@ mobile-tools:
   close-view: 保存并关闭视图调节
   hearing: 听觉
 chat:
+  images:
+    empty: 聊聊你的想法，或分享一张图片。
+    use-vision: 使用视觉模型理解聊天图片
+    use-vision-description: 在下方选择提供商和模型。它会先读图，再由当前聊天模型回复。未配置视觉模型时，图片直接交给聊天模型。
+    attach: 添加图片
+    remove: 移除 {name}
+    unsupported: 请选择 PNG、JPEG、WebP 或 GIF 图片。
+    too-large: 每张图片不能超过 20 MB。
+    too-many: 一次最多添加 {count} 张图片。
+    total-too-large: 所有附件合计不能超过 20 MB。
+    read-failed: 无法读取图片，请重试。
+    no-description: 视觉模型没有返回图片描述。请检查“设置 → 模块 → 视觉”后重试。
+    reading: 正在读取图片…
+    description: 图片附件
   actions:
     reply: 回复
     retry: 重试

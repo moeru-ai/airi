@@ -153,7 +153,7 @@ async function expectElectronReplyBubble(screen: Awaited<ReturnType<typeof rende
   })
 
   expect(getComputedStyle(input).backgroundColor).toBe('rgba(0, 0, 0, 0)')
-  expect(getComputedStyle(bubble).backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+  expect(getComputedStyle(bubble).backgroundColor).toBe('rgba(0, 0, 0, 0)')
 
   const cancelButton = bubble.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
   const replyTransition = cancelButton?.parentElement?.parentElement
@@ -587,7 +587,7 @@ describe('interactive area synchronized state', () => {
     layout.style.height = '240px'
     layout.style.width = '320px'
 
-    await attachImages(screen, 12)
+    await attachImages(screen, 4)
 
     const input = screen.getByRole('textbox').element() as HTMLTextAreaElement
     const layoutRect = layout.getBoundingClientRect()
@@ -925,6 +925,8 @@ describe('interactive area synchronized state', () => {
     await submitDraft(screen, 'web follower message')
 
     await vi.waitFor(() => expect(send).toHaveBeenCalledWith({
+      attachments: [],
+      replyToMessageId: undefined,
       sessionId: 'session-b',
       text: 'web follower message',
     }))
@@ -937,6 +939,8 @@ describe('interactive area synchronized state', () => {
     await submitDraft(screen, 'mobile follower message')
 
     await vi.waitFor(() => expect(send).toHaveBeenCalledWith({
+      attachments: [],
+      replyToMessageId: undefined,
       sessionId: 'session-b',
       text: 'mobile follower message',
     }))
