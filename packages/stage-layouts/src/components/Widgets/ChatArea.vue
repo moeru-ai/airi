@@ -240,7 +240,7 @@ watch(replyTarget, async (target) => {
           :class="secondaryComposerButtonClass"
           @click="imageInput?.click()"
         >
-          <span :class="['i-solar:gallery-bold-duotone size-5']" />
+          <span :class="['i-solar:gallery-outline size-5']" />
         </button>
         <DropdownMenuRoot>
           <DropdownMenuTrigger as-child>
@@ -249,7 +249,7 @@ watch(replyTarget, async (target) => {
               :title="t('stage.send-mode.title')"
               :aria-label="t('stage.send-mode.title')"
             >
-              <div class="i-solar:keyboard-bold-duotone h-5 w-5" />
+              <div class="i-solar:keyboard-outline size-5" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuPortal>
@@ -292,7 +292,10 @@ watch(replyTarget, async (target) => {
             >
               <Transition name="fade" mode="out-in">
                 <IndicatorMicVolume v-if="enabled" class="h-5 w-5" :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
-                <div v-else class="i-ph:microphone-slash h-5 w-5" />
+                <div v-else :class="['relative size-5 opacity-55']">
+                  <div :class="['i-solar:microphone-3-outline size-5']" />
+                  <span aria-hidden="true" :class="['absolute left-0 top-1/2 h-px w-full rotate-45 bg-current']" />
+                </div>
               </Transition>
             </button>
           </PopoverTrigger>
