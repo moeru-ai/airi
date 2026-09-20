@@ -595,10 +595,17 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   /** Captures caller configuration so voice RPCs do not depend on snapshot delivery order. */
-  function getVoiceCatalogConfiguration(providerId: string): VoiceCatalogConfiguration {
+  function getVoiceCatalogConfiguration(providerId: string, model?: string): VoiceCatalogConfiguration {
+    const definition = getProviderDefinition(providerId)
+    const configured = providerConfigStore.getProviderConfig(providerId)
+    const config = configured ?? (definition.requiresCredentials === false ? getDefaultProviderConfig(providerId) : {})
+
     return {
-      definitionId: getProviderDefinition(providerId).id,
-      config: structuredClone(toRaw(providerConfigStore.getProviderConfig(providerId) ?? {})),
+      definitionId: definition.id,
+      config: structuredClone(toRaw({
+        ...config,
+        ...(model ? { model } : {}),
+      })),
     }
   }
 
@@ -701,6 +708,9 @@ export const useProviderStore = defineStore('provider', () => {
     const definition = findProviderDefinition(providerId)
     if (!definition)
       return { models: [] }
+
+    if (!providerConfigStore.getProvider(providerId) && definition.requiresCredentials === false)
+      await initializeProvider(providerId)
 
     const config = providerCredentials.value[providerId]
     if (!config && definition.requiresCredentials !== false)

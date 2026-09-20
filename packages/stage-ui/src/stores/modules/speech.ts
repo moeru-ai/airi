@@ -159,7 +159,8 @@ export const useSpeechStore = defineStore('speech', () => {
     cancelPending.add(cancel)
     let errorMessage: string | null = null
     try {
-      const configuration = providersStore.getVoiceCatalogConfiguration(provider)
+      await providersStore.initializeProvider(provider)
+      const configuration = providersStore.getVoiceCatalogConfiguration(provider, model)
       return await Promise.race([
         useSpeechStore(pinia).loadVoiceCatalog(provider, model, configuration, resetGeneration.value),
         interrupted,

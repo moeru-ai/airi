@@ -218,6 +218,28 @@ describe('provider store synchronization boundary', () => {
     expect(second).toEqual([])
   })
 
+  it('initializes credential-free providers before loading their model catalog', async () => {
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+
+    expect(configStore.getProvider('kokoro-local')).toBeUndefined()
+
+    const catalog = await store.fetchModelsForProvider('kokoro-local')
+
+    expect(configStore.getProvider('kokoro-local')).toMatchObject({
+      definitionId: 'kokoro-local',
+    })
+    expect(catalog.models.map(model => model.id)).toContain('q8')
+    expect(store.getModelsForProvider('kokoro-local').map(model => model.id)).toContain('q8')
+  })
+
+  it('provides a default config for credential-free voice catalog requests', async () => {
+    const store = useProviderStore()
+
+    await store.initializeProvider('kokoro-local')
+    expect(store.getVoiceCatalogConfiguration('kokoro-local').config.model).toBeTruthy()
+  })
+
   it('applies provider-owned reasoning options without changing the cached provider', async () => {
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
