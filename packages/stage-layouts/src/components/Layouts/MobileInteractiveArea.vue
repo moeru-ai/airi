@@ -459,7 +459,7 @@ onUnmounted(() => {
             aria-label="Stop speaking"
             @click="stopSpeakingFromChat"
           >
-            <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
+            <div class="i-solar:stop-bold-duotone h-4 w-4" />
           </button>
           <button
             v-if="messageInput.trim() || attachments.length || isComposing"

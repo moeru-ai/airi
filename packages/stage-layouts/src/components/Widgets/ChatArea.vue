@@ -63,6 +63,17 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription, au
 )
 const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 
+const secondaryComposerButtonClass = [
+  'size-8 flex items-center justify-center rounded-md outline-none',
+  'text-neutral-500 transition-colors duration-200 active:bg-primary-100/80 dark:text-neutral-400 dark:active:bg-primary-900/60',
+  'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300 motion-reduce:transition-none',
+]
+
+const composerActionButtonClass = [
+  'size-9 flex items-center justify-center rounded-full outline-none',
+  'transition-colors duration-200 motion-reduce:transition-none',
+]
+
 async function handleSend() {
   if (!pendingImages.value)
     await props.composer.submit()
@@ -215,11 +226,7 @@ watch(replyTarget, async (target) => {
         <button
           type="button"
           :aria-label="t('stage.chat.images.attach')"
-          :class="[
-            'size-8 flex items-center justify-center rounded-md outline-none',
-            'text-neutral-500 transition-colors duration-200 active:bg-primary-100/80 dark:text-neutral-400 dark:active:bg-primary-900/60',
-            'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300 motion-reduce:transition-none',
-          ]"
+          :class="secondaryComposerButtonClass"
           @click="imageInput?.click()"
         >
           <span :class="['i-solar:gallery-bold-duotone size-5']" />
@@ -227,11 +234,7 @@ watch(replyTarget, async (target) => {
         <DropdownMenuRoot>
           <DropdownMenuTrigger as-child>
             <button
-              :class="[
-                'size-8 flex items-center justify-center rounded-md outline-none',
-                'text-neutral-500 transition-colors duration-200 active:bg-primary-100/80 dark:text-neutral-400 dark:active:bg-primary-900/60',
-                'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300 motion-reduce:transition-none',
-              ]"
+              :class="secondaryComposerButtonClass"
               :title="t('stage.send-mode.title')"
               :aria-label="t('stage.send-mode.title')"
             >
@@ -272,11 +275,7 @@ watch(replyTarget, async (target) => {
         <PopoverRoot v-model:open="hearingPopoverOpen">
           <PopoverTrigger as-child>
             <button
-              :class="[
-                'size-8 flex items-center justify-center rounded-md outline-none',
-                'text-neutral-500 transition-colors duration-200 active:bg-primary-100/80 dark:text-neutral-400 dark:active:bg-primary-900/60',
-                'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300 motion-reduce:transition-none',
-              ]"
+              :class="secondaryComposerButtonClass"
               :title="t('settings.hearing.title')"
               :aria-label="t('settings.hearing.title')"
             >
@@ -312,23 +311,22 @@ watch(replyTarget, async (target) => {
           v-if="showStopSpeakingButton"
           data-testid="stop-speaking-button"
           :class="[
-            'h-8 w-8 flex items-center justify-center rounded-md outline-none',
-            'text-lg text-neutral-500 transition-all duration-200 active:scale-95 dark:text-neutral-400',
-            'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
+            composerActionButtonClass,
+            'bg-neutral-500/15 text-neutral-500 hover:bg-neutral-500/25 dark:bg-neutral-400/15 dark:text-neutral-300 dark:hover:bg-neutral-400/25',
           ]"
           title="Stop speaking"
           aria-label="Stop speaking"
           @click="stopSpeakingFromChat"
         >
-          <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
+          <div class="i-solar:stop-bold-duotone h-4 w-4" />
         </button>
         <button
           type="button"
           :aria-label="t('stage.chat.actions.send')"
           :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
           :class="[
-            'size-9 flex items-center justify-center rounded-full bg-primary-500 text-white disabled:opacity-40',
-            'transition-colors duration-200 hover:bg-primary-600 motion-reduce:transition-none',
+            composerActionButtonClass,
+            'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40',
           ]"
           @click="handleSend"
         >

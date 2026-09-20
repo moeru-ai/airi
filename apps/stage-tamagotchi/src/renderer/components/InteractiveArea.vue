@@ -394,7 +394,7 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
             aria-label="Stop speaking"
             @click="stopSpeakingFromChat"
           >
-            <span :class="['i-solar:stop-circle-bold-duotone h-5 w-5']" />
+            <span :class="['i-solar:stop-bold-duotone h-4 w-4']" />
           </GhostButton>
 
           <GhostButton
