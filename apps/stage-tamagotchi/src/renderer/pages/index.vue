@@ -39,6 +39,8 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
+import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
+import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
@@ -53,6 +55,9 @@ import {
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
+// The stage canvas alpha tells the sampler which pixels of the window AIRI
+// paints, so it can read the desktop showing through behind the character.
+useScreenAmbientLight({ stageCanvas: () => widgetStageRef.value?.canvasElement() })
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
 const stageMounted = computed(() => componentStateStage.value === 'mounted')
@@ -833,6 +838,14 @@ const cursorPosition = computed(() => ({
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
+        <!--
+          Every element that paints over the stage carries the opaque marker,
+          so that the screen sampler does not read AIRI's own colors as desktop
+          light. ResourceStatusIsland marks its pill itself, because its root
+          spans the whole stage width. Tooltips and dialogs need none: reka-ui
+          portals them to the body and the mask finds them there. HoloCoupon
+          never renders (v-if="false").
+        -->
         <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"
@@ -846,6 +859,7 @@ const cursorPosition = computed(() => ({
         <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
           <ControlsIsland
             ref="controlsIslandRef"
+            :[stageOpaqueAttribute]="true"
             @interaction-change="controlsIslandInteractionActive = $event"
           />
         </ControlsIslandRoot>
