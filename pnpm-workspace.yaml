@@ -1,6 +1,13 @@
 catalogMode: prefer
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
+  # NOTICE:
+  # electron-builder 26.16.1 fixes macOS signing on the current GitHub runner.
+  # Remove these exact exceptions after the 72-hour release-age window expires.
+  - app-builder-lib@26.16.1
+  - dmg-builder@26.16.1
+  - electron-builder-squirrel-windows@26.16.1
+  - electron-builder@26.16.1
   - '@moeru/*'
   - '@proj-airi/*'
   - '@vishot/*'
@@ -37,6 +44,7 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 patchedDependencies:
+  '@xsai-ext/responses@0.5.0': patches/@xsai-ext__responses@0.5.0.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
   sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
@@ -49,6 +57,8 @@ catalog:
   '@antfu/eslint-config': 8.2.0
   '@anthropic-ai/claude-code': ^2.1.241
   '@arethetypeswrong/core': ^0.18.5
+  '@auv-js/cli': 0.0.16
+  '@auv-js/sdk': 0.0.16
   '@ax-llm/ax': ^24.0.5
   '@better-auth/cli': ^1.4.22
   '@better-auth/drizzle-adapter': 1.6.25
@@ -129,6 +139,8 @@ catalog:
   '@moeru/three-mmd-physics-ammo': 0.2.0-beta.2
   '@napi-rs/image': ^1.14.0
   '@nekopaw/tempora': 0.4.0-alpha.1
+  '@openpanel/sdk': 1.3.1
+  '@openpanel/web': 1.4.1
   '@opentelemetry/api': ^1.9.1
   '@opentelemetry/api-logs': ^0.221.0
   '@opentelemetry/auto-instrumentations-node': ^0.79.0
@@ -224,7 +236,6 @@ catalog:
   '@vueuse/core': ^14.4.0
   '@vueuse/motion': ^3.0.3
   '@vueuse/shared': ^14.4.0
-  '@webgpu/types': ^0.1.72
   '@wxt-dev/module-vue': ^1.0.3
   '@xsai-apple-speech/transcription': 0.1.3
   '@xsai-apple-speech/transcription-electron-plugin': 0.1.3
@@ -232,6 +243,7 @@ catalog:
   '@xsai-apple-speech/transcription-native-darwin-arm64': 0.1.3
   '@xsai-apple-speech/transcription-native-darwin-x64': 0.1.3
   '@xsai-ext/providers': 0.5.0
+  '@xsai-ext/responses': 0.5.0
   '@xsai-transformers/embed': ^0.1.0
   '@xsai-transformers/shared': ^0.1.0
   '@xsai-transformers/transcription': ^0.1.0
@@ -242,6 +254,7 @@ catalog:
   '@xsai/model': 0.5.0
   '@xsai/shared': 0.5.0
   '@xsai/shared-chat': 0.5.0
+  '@xsai/shared-stream': 0.5.0
   '@xsai/stream-text': 0.5.0
   '@xsai/stream-transcription': 0.5.0
   '@xsai/tool': 0.5.0
@@ -276,7 +289,7 @@ catalog:
   drizzle-orm: ^0.45.2
   drizzle-valibot: ^0.4.2
   electron: ^43.4.1
-  electron-builder: ^26.15.3
+  electron-builder: ^26.16.1
   electron-click-drag-plugin: ^2.0.2
   electron-updater: ^6.8.9
   electron-vite: ^5.0.0
@@ -287,6 +300,7 @@ catalog:
   eslint-plugin-format: ^2.0.1
   eslint-plugin-oxlint: ^1.79.0
   eslint-plugin-perfectionist: ^5.10.1
+  eslint-plugin-slop: 0.1.3
   eventemitter3: ^5.0.4
   fflate: ^0.8.3
   floating-vue: ^5.2.2
@@ -331,6 +345,7 @@ catalog:
   mineflayer-tool: ^1.2.0
   minisearch: ^7.2.0
   mkcert: ^3.2.0
+  model-bank: 1.0.20260904203849
   motion-v: ^2.4.0
   nano-staged: ^1.0.2
   nanoid: ^6.0.1
@@ -353,8 +368,6 @@ catalog:
   popmotion: ^11.0.5
   postcss: ^8.5.26
   postgres: ^3.4.9
-  posthog-js: 1.306.1
-  posthog-node: ^5.50.0
   postprocessing: ^6.39.4
   prismarine-block: ^1.23.0
   prismarine-entity: ^2.6.0
@@ -436,12 +449,14 @@ catalog:
   wavefile: ^11.0.0
   web-haptics: ^0.0.6
   whatwg-mimetype: ^5.0.0
+  wheel-gestures: ^2.2.48
   wlipsync: ^1.3.1
   workbox-window: ^7.4.1
   ws: ^8.21.3
   wxt: ^0.21.4
   xast-util-to-xml: ^4.0.0
   xastscript: ^4.0.0
+  xsai-chromium-prompt: ^0.2.2
   xsschema: 0.5.0
   yaml: ^2.9.0
   yauzl: ^3.4.0

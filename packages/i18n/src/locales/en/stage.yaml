@@ -21,14 +21,28 @@ mobile-tools:
   hearing: Hearing
 chat:
   actions:
+    reply: Reply
     retry: Retry
+    send: Send message
   message:
     character-name:
       airi: AIRI
       core-system: Core System
       you: You
+  reply:
+    cancel: Cancel reply
+    message: Message
+    replying-to: Replying to {name}
   reasoning: Reasoning
+  swipe-demo:
+    show-label: Show labels
+    delete: Delete
+    archive: Archive
+    pin: Pin
+    actions: Show actions
+    row: 'Conversation {n}'
   sessions:
+    delete-short: Delete
     title: Conversations
     new: New conversation
     current: Current
@@ -131,3 +145,7 @@ websocket-status:
   connected: Connected
   disconnected: No connection
   open-settings: Open connection settings
+
+computer-use:
+  label: Use computer
+  description: Allow this chat window to inspect and control native apps on this computer.

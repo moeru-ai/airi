@@ -93,6 +93,12 @@ export function createPaymentService(db: Database, billing: BillingService) {
       if (!order)
         throw createInternalError('Payment order not found')
 
+      if (order.processor !== receipt.processor || (order.processorOrderId && order.processorOrderId !== receipt.processorOrderId))
+        throw createInternalError('Payment receipt does not match order')
+
+      if (order.deletedAt)
+        return { applied: false as const }
+
       switch (receipt.status) {
         case 'paid': {
           if (order.status === 'paid')

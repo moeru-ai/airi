@@ -1,15 +1,16 @@
 import type { ChatStreamEvent, ChatStreamEventContext, ContextMessage } from '../../../types/chat'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
-import { createPinia, setActivePinia } from 'pinia'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
+import { useConsciousnessStore } from '../../modules/consciousness'
+import { useContextBridgeStore } from './context-bridge'
 import { createContextChannel } from './context-channel'
 
 type HookCallback = (...args: unknown[]) => Promise<void> | void
-type UseContextBridgeStore = typeof import('./context-bridge')['useContextBridgeStore']
 
 const contextUpdateHooks: HookCallback[] = []
 const serverEventHooks = new Map<string, HookCallback[]>()
@@ -28,8 +29,8 @@ const onEventMock = vi.fn((eventName: string, callback: HookCallback) => registe
 const getProviderInstanceMock = vi.fn()
 const recordLifecycleMock = vi.fn()
 
-const activeProviderRef = ref<string | null>(null)
-const activeModelRef = ref<string | null>(null)
+let pinia: ReturnType<typeof createPinia>
+let consciousness: ReturnType<typeof useConsciousnessStore>
 
 const beforeComposeHooks: HookCallback[] = []
 const afterComposeHooks: HookCallback[] = []
@@ -45,7 +46,6 @@ const turnCompleteHooks: HookCallback[] = []
 const activeSessionIdRef = ref('session-1')
 let currentGeneration = 7
 const testChannels: Array<ReturnType<typeof createContextChannel>> = []
-let useContextBridgeStore: UseContextBridgeStore
 
 function registerHook(target: HookCallback[], callback: HookCallback) {
   target.push(callback)
@@ -183,31 +183,12 @@ const chatOrchestratorMock = {
   emitAssistantResponseEndHooks: (...args: unknown[]) => emitHooks(assistantEndHooks, ...args),
 }
 
-vi.mock('pinia', async () => {
-  const actual = await vi.importActual<typeof import('pinia')>('pinia')
-  return {
-    ...actual,
-    storeToRefs: (store: unknown) => store,
-  }
-})
-
 vi.mock('@proj-airi/stage-shared', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@proj-airi/stage-shared')>()
   return {
     ...actual,
     isStageWeb: () => true,
     isStageTamagotchi: () => false,
-  }
-})
-
-vi.mock('es-toolkit', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('es-toolkit')>()
-  return {
-    ...actual,
-    Mutex: class {
-      async acquire() {}
-      release() {}
-    },
   }
 })
 
@@ -258,19 +239,12 @@ vi.mock('../../devtools/context-observability', () => ({
   }),
 }))
 
-vi.mock('../../modules/consciousness', () => ({
-  useConsciousnessStore: () => ({
-    activeProvider: activeProviderRef,
-    activeModel: activeModelRef,
-    getChatProviderInstance: getProviderInstanceMock,
-  }),
-}))
-
 vi.mock('../../providers/provider', () => ({
   useProviderStore: () => ({
     configuredSpeechProvidersMetadata: [],
     getProviderConfig: vi.fn(() => ({})),
     getProviderInstance: getProviderInstanceMock,
+    getChatProviderInstance: getProviderInstanceMock,
     providerRuntimeState: {},
   }),
 }))
@@ -286,9 +260,11 @@ vi.mock('./channel-server', () => ({
 }))
 
 describe('context bridge contract', () => {
-  beforeEach(async () => {
-    setActivePinia(createPinia())
-    ;({ useContextBridgeStore } = await import('./context-bridge'))
+  beforeEach(() => {
+    localStorage.clear()
+    pinia = createPinia()
+    setActivePinia(pinia)
+    consciousness = useConsciousnessStore(pinia)
 
     chatContextIngestMock.mockReset()
     beginStreamMock.mockReset()
@@ -306,8 +282,8 @@ describe('context bridge contract', () => {
     recordLifecycleMock.mockReset()
     chatOrchestratorMock.ingest.mockReset()
 
-    activeProviderRef.value = null
-    activeModelRef.value = null
+    consciousness.activeProvider = ''
+    consciousness.activeModel = ''
     activeSessionIdRef.value = 'session-1'
     chatOrchestratorMock.activeSendSessionId = undefined
     currentGeneration = 7
@@ -327,8 +303,14 @@ describe('context bridge contract', () => {
     serverEventHooks.clear()
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    // A failed assertion skips the test's explicit disposal. Close the bridge
+    // before its peers and Pinia scope so later tests cannot receive old hooks.
+    await useContextBridgeStore(pinia).dispose()
     closeTestChannels()
+    disposePinia(pinia)
+    vi.restoreAllMocks()
+    localStorage.clear()
   })
 
   it('records core ingest result for broadcast context updates', async () => {
@@ -397,14 +379,20 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  // https://github.com/moeru-ai/airi/actions/runs/34237304157/job/102098223378
+  // ROOT CAUSE:
+  // The old consciousness mock omitted temperature and top-p. Input handling
+  // failed before ingest. Use the real store and verify both request settings.
   it('records core ingest result for input context updates and forwards accepted updates', async () => {
     chatContextIngestMock.mockReturnValueOnce({
       sourceKey: 'weather:station-1',
       mutation: 'append',
       entryCount: 1,
     })
-    activeProviderRef.value = 'mock-provider'
-    activeModelRef.value = 'mock-model'
+    consciousness.activeProvider = 'mock-provider'
+    consciousness.activeModel = 'mock-model'
+    consciousness.activeTemperature = 0.3
+    consciousness.activeTopP = 0.8
     getProviderInstanceMock.mockResolvedValueOnce({})
     const store = useContextBridgeStore()
     await store.initialize()
@@ -436,6 +424,10 @@ describe('context bridge contract', () => {
       }),
     }))
     expect(chatOrchestratorMock.ingest).toHaveBeenCalledTimes(1)
+    expect(chatOrchestratorMock.ingest.mock.calls[0]?.[1]).toMatchObject({
+      temperature: 0.3,
+      topP: 0.8,
+    })
     expect(chatOrchestratorMock.ingest.mock.calls[0]?.[1]?.input?.data.contextUpdates).toEqual([
       expect.objectContaining({
         contextId: expect.any(String),
@@ -510,8 +502,8 @@ describe('context bridge contract', () => {
     chatContextIngestMock.mockImplementationOnce(() => {
       throw new Error('Cannot clone input context')
     })
-    activeProviderRef.value = 'mock-provider'
-    activeModelRef.value = 'mock-model'
+    consciousness.activeProvider = 'mock-provider'
+    consciousness.activeModel = 'mock-model'
     getProviderInstanceMock.mockResolvedValueOnce({})
     const store = useContextBridgeStore()
     await store.initialize()

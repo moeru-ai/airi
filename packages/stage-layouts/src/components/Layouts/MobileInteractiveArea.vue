@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatHistory } from '@proj-airi/stage-ui/components'
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatReplyPreview, ChatSessionsDrawer, useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -15,7 +15,7 @@ import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
-import { BasicButton, BasicTextarea } from '@proj-airi/ui'
+import { BasicButton, BasicContentEditable } from '@proj-airi/ui'
 import { onLongPress, useEventListener, usePointerSwipe } from '@vueuse/core'
 import { animate, spring } from 'animejs'
 import { storeToRefs } from 'pinia'
@@ -53,9 +53,24 @@ const visibleStreamingMessage = computed(() => activeSendSessionId.value === act
   : streamingMessage.value)
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
+const composer = useChatComposer({
+  activeSessionId,
+  send: submission => chatOrchestrator.send({
+    sessionId: submission.sessionId,
+    text: submission.text,
+    replyToMessageId: submission.replyToMessageId,
+  }),
+})
+const {
+  clearReplyForMessage,
+  draft: messageInput,
+  isComposing,
+  replyTarget,
+  selectReply,
+} = composer
 
-async function handleDeleteMessage(index: number) {
-  const message = messages.value[index]
+async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
+  const { index, message } = payload
   await chatSession.deleteMessage({
     sessionId: activeSessionId.value,
     messageId: message?.id,
@@ -65,10 +80,9 @@ async function handleDeleteMessage(index: number) {
     source: 'history',
     message_role: message?.role ?? 'unknown',
   })
+  clearReplyForMessage(message)
 }
 
-const messageInput = shallowRef('')
-const isComposing = shallowRef(false)
 const inputBubbleDocked = shallowRef(false)
 const inputBubbleDragging = shallowRef(false)
 const inputBubbleAnimating = shallowRef(false)
@@ -254,7 +268,7 @@ async function setInputBubbleDocked(docked: boolean) {
   const startY = source.top - destination.top
   const endX = target.left + target.width / 2 - destination.left - destination.width / 2
   const endY = target.top + target.height / 2 - destination.top - destination.height / 2
-  const messageInput = bubble.querySelector<HTMLTextAreaElement>('textarea')!
+  const messageInput = bubble.querySelector<HTMLElement>('[contenteditable]')!
 
   await Promise.all([
     animate(bubble, {
@@ -324,18 +338,18 @@ function handleInputBubbleLongPress() {
 
   suppressNextInputBubbleClick = true
   inputBubbleDragging.value = true
-  inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!.blur()
+  inputBubble.value!.querySelector<HTMLElement>('[contenteditable]')!.blur()
   inputBubble.value!.style.transform = 'translate3d(0, 0, 0) scale(.98)'
 }
 
 function handleInputBubblePointerDown(event: PointerEvent) {
   suppressNextInputBubbleClick = false
 
-  const messageInput = inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!
+  const messageInput = inputBubble.value!.querySelector<HTMLElement>('[contenteditable]')!
 
   // NOTICE:
-  // The focused textarea must suppress native text selection before a dock drag starts.
-  // A blurred textarea must keep native activation so Safari can cancel an active keyboard dismissal.
+  // The focused editor must suppress native text selection before a dock drag starts.
+  // A blurred editor must keep native activation so Safari can cancel an active keyboard dismissal.
   // See the closing-focus regression in adaptive-input.test.ts.
   // Remove this branch when Safari exposes a keyboard lifecycle that can cancel an active dismissal.
   if (document.activeElement === messageInput)
@@ -364,7 +378,22 @@ async function handleInputBubbleClick() {
     return
   }
 
-  inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!.focus()
+  inputBubble.value!.querySelector<HTMLElement>('[contenteditable]')!.focus()
+}
+
+async function handleReplyMessage(payload: ChatHistoryReplyPayload) {
+  if (inputBubbleDocked.value)
+    await setInputBubbleDocked(false)
+
+  selectReply(payload)
+  await nextTick()
+  inputBubble.value?.querySelector<HTMLElement>('[contenteditable]')?.focus()
+}
+
+async function handleCancelReply() {
+  composer.clearReply()
+  await nextTick()
+  inputBubble.value?.querySelector<HTMLElement>('[contenteditable]')?.focus()
 }
 
 async function handleInputBubblePointerCancel() {
@@ -385,30 +414,7 @@ async function handleSubmit() {
 }
 
 async function handleSend() {
-  if (!messageInput.value.trim() || isComposing.value) {
-    return
-  }
-
-  const textToSend = messageInput.value
-  const targetSessionId = chatSession.activeSessionId
-  messageInput.value = ''
-
-  try {
-    await chatOrchestrator.send({
-      sessionId: targetSessionId,
-      text: textToSend,
-    })
-  }
-  catch (error) {
-    const errorMessage = errorMessageFrom(error) ?? String(error)
-    const wasCancelledForDeletedSession
-      = errorMessage.includes('Chat session was reset before send could start')
-        || errorMessage.includes('Chat session was removed before send completed')
-    if (!wasCancelledForDeletedSession && chatSession.activeSessionId === targetSessionId) {
-      const currentDraft = messageInput.value
-      messageInput.value = currentDraft ? `${textToSend}\n${currentDraft}` : textToSend
-    }
-  }
+  await composer.submit()
 }
 
 function teardownAnalyzer() {
@@ -506,7 +512,8 @@ onUnmounted(() => {
             class="chat-history"
             :style="chatHistoryStyle"
             :class="chatHistoryClass"
-            @delete-message="handleDeleteMessage($event.index)"
+            @delete-message="handleDeleteMessage"
+            @reply-message="handleReplyMessage"
             @tool-call-rerun="rerunToolCall"
           />
         </Transition>
@@ -559,43 +566,50 @@ onUnmounted(() => {
           data-testid="mobile-input-bubble"
           :data-dragging="inputBubbleDragging"
           :class="[
-            'group relative mx-auto min-h-10 flex items-end origin-center',
+            'group relative mx-auto min-h-10 flex flex-col justify-center origin-center overflow-hidden',
             'touch-none select-none focus-within:touch-auto focus-within:select-text',
+            'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 backdrop-blur-md',
+            'dark:border-neutral-700/60 dark:bg-neutral-950/80',
             inputBubbleDragging || inputBubbleAnimating
               ? 'transition-none'
               : 'transition-[max-width] duration-320 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]',
             inputBubbleDocked
               ? [
-                'h-10 max-w-10 w-10 cursor-pointer rounded-xl border-2 border-solid backdrop-blur-md',
+                'h-10 max-w-10 w-10 cursor-pointer rounded-xl',
                 'border-neutral-100/60 bg-neutral-50/70 dark:border-neutral-800/30 dark:bg-neutral-800/70',
               ]
-              : 'max-w-[70%] w-full focus-within:max-w-full',
+              : 'max-w-[70%] w-full rounded-[1lh]',
           ]"
           @click="handleInputBubbleClick"
           @contextmenu="handleInputBubbleContextMenu"
           @pointerdown="handleInputBubblePointerDown"
         >
-          <!-- Android handles touch from the scrollable textarea, so it needs touch-none to keep the bubble drag active. -->
-          <BasicTextarea
+          <ChatReplyPreview
+            :target="replyTarget"
+            :class="['w-full']"
+            @cancel="handleCancelReply"
+          />
+          <!-- Android handles touch from the scrollable editor, so it needs touch-none to keep the bubble drag active. -->
+          <BasicContentEditable
             v-model="messageInput"
             autocomplete="off"
             autocapitalize="off"
             autocorrect="off"
             :spellcheck="false"
+            default-height="calc(1lh + 4px + 4px)"
             :placeholder="t('stage.message')"
             :class="[
               'font-cute',
-              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full touch-none resize-none overflow-y-scroll scrollbar-none',
-              'border-2 border-solid px-4 py-0.5 outline-none backdrop-blur-md',
+              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full touch-none overflow-y-scroll scrollbar-none',
+              'border-2 border-solid border-transparent bg-transparent px-4 py-0.5 outline-none',
+              'focus-visible:ring-2 focus-visible:ring-primary-500/60',
               'text-neutral-500 dark:text-neutral-100',
-              'rounded-[1lh] border-neutral-200/60 bg-neutral-100/80 dark:border-neutral-700/60 dark:bg-neutral-950/80',
               'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
-              'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
-              'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
+              'data-[empty]:before:text-[14px] data-[empty]:before:leading-6 data-[empty]:before:text-neutral-400',
+              'data-[empty]:before:transition-all data-[empty]:before:duration-250 data-[empty]:before:ease-in-out data-[empty]:hover:before:text-neutral-500 dark:data-[empty]:before:text-neutral-500 dark:data-[empty]:hover:before:text-neutral-400',
               messageInputPointerEventsClass,
-              themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
+              themeColorsHueDynamic ? 'transition-colors-none data-[empty]:before:transition-colors-none' : undefined,
             ]"
-            default-height="1lh"
             @submit="handleSubmit"
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
@@ -624,6 +638,7 @@ onUnmounted(() => {
         </button>
         <button
           v-if="messageInput.trim() || isComposing"
+          :aria-label="t('stage.chat.actions.send')"
           w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]" aspect-square flex items-center self-end justify-center rounded-full outline-none backdrop-blur-md
           text="neutral-500 hover:neutral-600 dark:neutral-900 dark:hover:neutral-800"
           bg="primary-50/80 dark:neutral-100/80 hover:neutral-50"

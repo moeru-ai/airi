@@ -1,25 +1,17 @@
-import type {
-  ChatProvider,
-  ChatProviderWithExtraOptions,
-  EmbedProvider,
-  EmbedProviderWithExtraOptions,
-  SpeechProvider,
-  SpeechProviderWithExtraOptions,
-  TranscriptionProvider,
-  TranscriptionProviderWithExtraOptions,
-} from '@xsai-ext/providers/utils'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type {} from 'pinia-plugin-synced'
 
 import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/providers'
 import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
+import { getGenerationProvider } from '@proj-airi/provider-inference'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { computedAsync, useAsyncState, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
 import { uniqBy } from 'es-toolkit'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, onScopeDispose, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -37,6 +29,21 @@ import { normalizeProviderConfigDefaults } from './config-defaults'
 
 export type { ModelInfo, VoiceInfo } from '../../libs/providers/types'
 
+/** Request-local provider configuration carried across the leader RPC boundary. */
+export interface VoiceCatalogConfiguration {
+  definitionId: string
+  config: Record<string, unknown>
+}
+
+/** Compact freshness metadata replicated with a voice catalog, without request credentials or samples. */
+export interface VoiceCatalogIdentity {
+  definitionId: string
+  model: string | undefined
+  configurationFingerprint: string
+  /** Opaque provider ownership. Token renewal preserves it; an owner change invalidates cached voices. */
+  owner: string | undefined
+}
+
 /** Serializable request and model-discovery state for one provider instance. */
 export interface ProviderRuntimeState {
   validatedCredentialHash?: string
@@ -49,20 +56,6 @@ export interface ProviderRuntimeState {
 /** Stable fallback for reactive consumers when a provider has no cached catalog. */
 const emptyProviderModels: ModelInfo[] = []
 Object.freeze(emptyProviderModels)
-
-function withChatRequestOptions(
-  provider: ChatProviderWithExtraOptions<string, ChatRequestOptions>,
-  options: ChatRequestOptions,
-): ChatProvider {
-  const decorated = {
-    ...provider,
-    chat(model: string) {
-      return provider.chat(model, options)
-    },
-  }
-
-  return decorated
-}
 
 // Only the provider data plane crosses renderer boundaries. Async derived refs
 // stay in useProviderStore and recompute locally instead of being patched as
@@ -95,7 +88,7 @@ export const useProviderStore = defineStore('provider', () => {
   const addedProviders = computed(() => providerConfigStore.addedProviders)
   // Provider instances contain functions and transport handles. Keep this map
   // private so it never enters Pinia state.
-  const providerInstanceCache = new Map<string, unknown>()
+  const providerInstanceCache = new Map<string, { configKey: string | undefined, instance: unknown }>()
   const { t } = useI18n()
 
   const VISION_PROVIDER_ID_PREFIX = 'vision-'
@@ -115,6 +108,18 @@ export const useProviderStore = defineStore('provider', () => {
   const providerDefinitions = Object.fromEntries(
     definedProviders.map(definition => [definition.id, definition]),
   ) as Record<string, ProviderDefinition>
+  // Scalar identity keeps same-session object replacements and token renewal
+  // from invalidating completed catalogs. Consumers do not interpret this key.
+  const catalogOwner = computed(() => JSON.stringify([
+    authStore.isAuthenticated,
+    authStore.session?.id,
+    authStore.user?.id,
+  ]))
+  const voiceCatalogOwners = computed<Record<string, string>>(() => Object.fromEntries(
+    definedProviders
+      .filter(definition => definition.configuredBy === 'authentication')
+      .map(definition => [definition.id, catalogOwner.value]),
+  ))
   const providerValidationIntervalMsById = new Map<string, number>()
   const providerMetadataState = useAsyncState(async () => {
     const metadata = await selectProvidersMetadata(definedProviders, t)
@@ -158,7 +163,29 @@ export const useProviderStore = defineStore('provider', () => {
     set: value => providerStateStore.runtime = value,
   })
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
-  const providerVoiceListInFlight = new Map<string, Promise<VoiceInfo[]>>()
+  const providerVoiceListInFlight = new Map<string, Promise<VoiceInfo[] | undefined>>()
+  // Authentication epochs are local request ownership, never replicated state.
+  // Logout, account changes, and token replacement invalidate old completions.
+  let voiceSessionEpoch = 0
+  let voiceOwnerEpoch = 0
+  const authenticatedVoiceControllers = new Set<AbortController>()
+  /** Ends authentication-owned requests before a new session can create replacements. */
+  function invalidateVoiceSession() {
+    voiceSessionEpoch++
+    for (const controller of authenticatedVoiceControllers)
+      controller.abort()
+    authenticatedVoiceControllers.clear()
+  }
+  // Compare scalar values, not newly deserialized session or user objects.
+  watch([() => authStore.isAuthenticated, () => authStore.session?.id, () => authStore.user?.id, () => authStore.token], invalidateVoiceSession, { flush: 'sync' })
+  // Token renewal retains request ownership; logout and account changes do not.
+  watch([() => authStore.isAuthenticated, () => authStore.session?.id, () => authStore.user?.id], () => {
+    voiceOwnerEpoch++
+  }, { flush: 'sync' })
+  onScopeDispose(() => {
+    voiceOwnerEpoch++
+    invalidateVoiceSession()
+  })
   const providerRevalidationLoops = new Map<string, { pause: () => void, resume: () => void }>()
 
   // Server-driven availability overrides for providers whose visibility can
@@ -376,7 +403,7 @@ export const useProviderStore = defineStore('provider', () => {
   // Initialize provider configurations
   async function initializeProvider(providerId: string) {
     await waitForProviderMetadata()
-    if (!providerCredentials.value[providerId]) {
+    if (!providerConfigStore.getProvider(providerId)) {
       const definitionId = getProviderDefinitionId(providerId)
       providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
     }
@@ -506,6 +533,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   function normalizeProviderModels(providerId: string, models: Array<{
+    metadata?: ModelInfo['metadata']
     context_length?: number
     contextLength?: number
     deprecated?: boolean
@@ -515,6 +543,7 @@ export const useProviderStore = defineStore('provider', () => {
     name?: string
   }>) {
     return models.map(model => ({
+      metadata: model.metadata,
       id: model.id,
       name: model.name ?? model.display_name ?? model.id,
       provider: providerId,
@@ -565,32 +594,88 @@ export const useProviderStore = defineStore('provider', () => {
     }
   }
 
-  async function listProviderVoices(providerId: string, model?: string) {
-    const definition = getProviderDefinition(providerId)
+  /** Captures caller configuration so voice RPCs do not depend on snapshot delivery order. */
+  function getVoiceCatalogConfiguration(providerId: string): VoiceCatalogConfiguration {
+    return {
+      definitionId: getProviderDefinition(providerId).id,
+      config: structuredClone(toRaw(providerConfigStore.getProviderConfig(providerId) ?? {})),
+    }
+  }
+
+  /** Captures ownership before hashing so a concurrent owner change cannot relabel an old request. */
+  async function getVoiceCatalogIdentity(model: string | undefined, configuration: VoiceCatalogConfiguration): Promise<VoiceCatalogIdentity> {
+    const owner = voiceCatalogOwners.value[configuration.definitionId]
+    const selectConfig = getProviderDefinition(configuration.definitionId).extraMethods?.voiceCatalogConfig
+    // Discovery inputs belong to the adapter. Synthesis controls must not clear
+    // a voice selection; unknown adapters conservatively retain the full config.
+    const catalogConfig = selectConfig ? selectConfig(configuration.config) : configuration.config
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(catalogConfig)))
+    return {
+      definitionId: configuration.definitionId,
+      model,
+      configurationFingerprint: Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join(''),
+      owner,
+    }
+  }
+
+  /** Returns undefined when an authentication transition invalidates this request. */
+  async function listProviderVoices(providerId: string, model?: string, configuration?: VoiceCatalogConfiguration): Promise<VoiceInfo[] | undefined> {
+    const request = configuration ?? getVoiceCatalogConfiguration(providerId)
+    const definition = getProviderDefinition(request.definitionId)
+    if (!hasProviderVoiceCatalogAccess(request.definitionId))
+      return []
     const listVoices = definition.extraMethods?.listVoices
     if (!listVoices)
       return []
 
-    const config = providerConfigStore.getProviderConfig(providerId) ?? {}
-    const requestKey = JSON.stringify([providerId, model ?? null, config])
+    const config = request.config
+    const ownerEpoch = voiceOwnerEpoch
+    const sessionEpoch = definition.configuredBy === 'authentication' ? voiceSessionEpoch : undefined
+    const requestKey = JSON.stringify([providerId, request.definitionId, model ?? null, config, sessionEpoch])
     const pending = providerVoiceListInFlight.get(requestKey)
     if (pending)
       return pending
 
     const task = (async () => {
-      const provider = await definition.createProvider(config)
+      const controller = sessionEpoch === undefined ? undefined : new AbortController()
+      if (controller)
+        authenticatedVoiceControllers.add(controller)
+      let provider: ProviderInstance | undefined
       try {
-        return await listVoices(config, provider, model)
+        provider = await definition.createProvider(config)
+        // Provider creation can yield across logout before the network call starts.
+        if (sessionEpoch !== undefined && sessionEpoch !== voiceSessionEpoch)
+          return undefined
+        const voices = await listVoices(config, provider, model, controller?.signal)
+        if (sessionEpoch !== undefined && sessionEpoch !== voiceSessionEpoch)
+          return undefined
+        return voices
+      }
+      catch (error) {
+        // An expired session's 401 must not replace the new session's catalog error.
+        if (sessionEpoch !== undefined && sessionEpoch !== voiceSessionEpoch)
+          return undefined
+        throw error
       }
       finally {
-        await disposeTemporaryProvider(provider)
+        if (controller)
+          authenticatedVoiceControllers.delete(controller)
+        if (provider)
+          await disposeTemporaryProvider(provider)
       }
     })()
-    providerVoiceListInFlight.set(requestKey, task)
-
-    return task.finally(() => {
+    const result = task.finally(() => {
       providerVoiceListInFlight.delete(requestKey)
+    }).then((voices) => {
+      // A token-only transition has no login hook to replace the aborted load.
+      // Retry under the current token, but never carry work into another session
+      // or revive requests after this store is disposed.
+      if (voices === undefined && ownerEpoch === voiceOwnerEpoch && hasProviderVoiceCatalogAccess(request.definitionId))
+        return listProviderVoices(providerId, model, request)
+      return voices
     })
+    providerVoiceListInFlight.set(requestKey, result)
+    return result
   }
 
   async function loadProviderModel(
@@ -635,6 +720,7 @@ export const useProviderStore = defineStore('provider', () => {
       const catalog = await listProviderModels(providerId, config || {})
       const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
         .map(model => ({
+          metadata: model.metadata,
           id: model.id,
           name: model.name,
           description: model.description,
@@ -661,7 +747,7 @@ export const useProviderStore = defineStore('provider', () => {
         }
         // Synced action results pass through structuredClone. Return local
         // catalog values because reading models back from state returns a Vue
-        // proxy and provider-specific metadata is not part of synced state.
+        // proxy. Catalog metadata contains only serializable data.
         return {
           ...catalog,
           models: normalizedModels,
@@ -789,22 +875,12 @@ export const useProviderStore = defineStore('provider', () => {
     }
   }
 
-  // Function to get provider object by provider id
-  async function getProviderInstance<R extends
-  | ChatProvider
-  | ChatProviderWithExtraOptions
-  | EmbedProvider
-  | EmbedProviderWithExtraOptions
-  | SpeechProvider
-  | SpeechProviderWithExtraOptions
-  | TranscriptionProvider
-  | TranscriptionProviderWithExtraOptions,
-  >(providerId: string): Promise<R> {
+  /**
+   * Returns an instance owned by this renderer for the current configuration.
+   * A replicated configuration invalidates the previous instance before reuse.
+   */
+  async function getProviderInstance<R extends ProviderInstance>(providerId: string): Promise<R> {
     await waitForProviderMetadata()
-    const cached = providerInstanceCache.get(providerId) as R | undefined
-    if (cached)
-      return cached
-
     const definition = getProviderDefinition(providerId)
 
     // Providers that don't require credentials use empty config
@@ -816,12 +892,21 @@ export const useProviderStore = defineStore('provider', () => {
       providerConfigStore.ensureProvider(providerId, definitionId, config)
     }
 
-    if (!config && !noCredentials)
+    if (!config && !noCredentials && (providerId !== 'prompt-api'))
       throw new Error(`Provider credentials for ${providerId} not found`)
+
+    // Configuration snapshots can arrive after a follower creates an instance.
+    // Compare serialized values so an equivalent snapshot preserves its transport.
+    const configKey = JSON.stringify(config)
+    const cached = providerInstanceCache.get(providerId)
+    if (cached && cached.configKey === configKey)
+      return cached.instance as R
+    if (cached)
+      await disposeProviderInstance(providerId)
 
     try {
       const instance = await definition.createProvider(config || {})
-      providerInstanceCache.set(providerId, instance)
+      providerInstanceCache.set(providerId, { configKey, instance })
       return instance as R
     }
     catch (error) {
@@ -836,23 +921,23 @@ export const useProviderStore = defineStore('provider', () => {
    */
   async function getChatProviderInstance(
     providerId: string,
-    options: ChatRequestOptions,
-  ): Promise<ChatProvider> {
-    const provider = await getProviderInstance<ChatProviderWithExtraOptions<string, ChatRequestOptions>>(providerId)
-    const definition = findProviderDefinition(providerId)
-    const reasoning = definition?.capabilities?.chat?.reasoning
-    if (!reasoning?.modes.includes(options.reasoning))
-      return provider
-
-    return withChatRequestOptions(provider, options)
+    options?: ChatRequestOptions,
+  ): Promise<GenerationProvider> {
+    const provider = getGenerationProvider(await getProviderInstance(providerId))
+    if (!provider)
+      throw new Error(`Provider ${providerId} does not support generation`)
+    const reasoning = findProviderDefinition(providerId)?.capabilities?.chat?.reasoning
+    const requestOptions = options && reasoning?.modes.includes(options.reasoning) ? options : undefined
+    return { generation: model => provider.generation(model, requestOptions) }
   }
 
+  /** Releases this renderer's transport; each window owns its own instance cache. */
   async function disposeProviderInstance(providerId: string) {
-    const instance = providerInstanceCache.get(providerId) as { dispose?: () => Promise<void> | void } | undefined
+    const instance = providerInstanceCache.get(providerId)?.instance as { dispose?: () => Promise<void> | void } | undefined
+    // Remove ownership before awaiting cleanup so a concurrent request cannot reuse it.
+    providerInstanceCache.delete(providerId)
     if (instance?.dispose)
       await instance.dispose()
-
-    providerInstanceCache.delete(providerId)
   }
 
   const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {
@@ -927,6 +1012,10 @@ export const useProviderStore = defineStore('provider', () => {
     return !!addedProviders.value[providerId] || isProviderConfigDirty(providerId)
   }
 
+  function shouldListProviderForPromptApi(providerId: string) {
+    return providerId === 'prompt-api' && 'LanguageModel' in globalThis
+  }
+
   function isProviderAvailableWithoutConfiguration(providerId: string) {
     return providerConfiguredBy(providerId) !== 'authentication'
       && getProviderDefinition(providerId).requiresCredentials === false
@@ -938,6 +1027,14 @@ export const useProviderStore = defineStore('provider', () => {
       return configuredProvider.configuredBy
 
     return getProviderDefinition(providerId).configuredBy ?? 'user'
+  }
+
+  /** Returns whether this session can start a voice-catalog request. */
+  function hasProviderVoiceCatalogAccess(providerId: string): boolean {
+    if (providerConfiguredBy(providerId) !== 'authentication')
+      return true
+
+    return authStore.isAuthenticated && !!authStore.token
   }
 
   function isProviderConfiguredForModule(providerId: string) {
@@ -952,7 +1049,8 @@ export const useProviderStore = defineStore('provider', () => {
     return allChatProvidersMetadata.value.filter(metadata =>
       isProviderConfiguredForModule(metadata.id)
       || (providerConfiguredBy(metadata.id) !== 'authentication' && shouldListProvider(metadata.id))
-      || isProviderAvailableWithoutConfiguration(metadata.id),
+      || isProviderAvailableWithoutConfiguration(metadata.id)
+      || shouldListProviderForPromptApi(metadata.id),
     )
   })
 
@@ -1011,6 +1109,9 @@ export const useProviderStore = defineStore('provider', () => {
     getModelsForProvider,
     getDefaultModelForProvider,
     listProviderVoices,
+    getVoiceCatalogConfiguration,
+    getVoiceCatalogIdentity,
+    voiceCatalogOwners,
     loadProviderModel,
     loadModelsForConfiguredProviders,
     getProviderInstance,
@@ -1040,7 +1141,6 @@ export const useProviderStore = defineStore('provider', () => {
   synced: {
     actions: [
       'deleteProvider',
-      'disposeProviderInstance',
       'fetchModelsForProvider',
       'forceProviderConfigured',
       'initializeProvider',

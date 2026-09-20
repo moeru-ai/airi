@@ -42,28 +42,26 @@ watch(activeProvider, async (provider) => {
   await consciousnessStore.loadModelsForProvider(provider)
 }, { immediate: true })
 
-watch([activeProvider, activeModel], ([provider, model]) => {
-  void airiCardStore.updateActiveCardConsciousness({ provider, model })
-})
+async function persistSelection() {
+  await airiCardStore.updateActiveCardConsciousness({ provider: activeProvider.value, model: activeModel.value })
+}
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
 }
 
-function selectModel(modelId: string) {
+async function selectModel(modelId: string) {
   const previousModelId = activeModel.value
   activeModel.value = modelId
+  await persistSelection()
 
   if (previousModelId !== modelId)
     trackModelSwitched(previousModelId || 'none', modelId)
 }
 
-function handleDeleteProvider(providerId: string) {
-  if (activeProvider.value === providerId) {
-    activeProvider.value = ''
-    activeModel.value = ''
-  }
-  providersStore.deleteProvider(providerId)
+async function handleDeleteProvider(providerId: string) {
+  await airiCardStore.clearProviderSelections(providerId)
+  await providersStore.deleteProvider(providerId)
 }
 
 async function updateReasoning(value: boolean) {
@@ -104,6 +102,7 @@ async function updateReasoning(value: boolean) {
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
+              @update:model-value="persistSelection"
               @click="trackProviderClick(metadata.id, 'consciousness')"
             >
               <template v-if="!metadata.id.startsWith('official-provider')" #topRight>
@@ -194,6 +193,7 @@ async function updateReasoning(value: boolean) {
               v-model="activeModel" type="text"
               class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
               :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+              @input="persistSelection"
             >
           </div>
         </template>
@@ -285,6 +285,7 @@ async function updateReasoning(value: boolean) {
             v-model="activeModel" type="text"
             class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
             :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+            @input="persistSelection"
           >
         </div>
       </div>

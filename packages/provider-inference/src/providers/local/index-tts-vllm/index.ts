@@ -75,6 +75,7 @@ export const providerIndexTtsVllm = defineProvider<IndexTtsConfig, 'index-tts-vl
       contextLength: 0,
       deprecated: false,
     }],
+    voiceCatalogConfig: ({ baseUrl }) => ({ baseUrl }),
     listVoices: async (config) => {
       const response = await fetch(voicesUrl(config))
       if (!response.ok)

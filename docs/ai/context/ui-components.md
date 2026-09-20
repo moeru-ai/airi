@@ -92,6 +92,7 @@ The component forwards HTML attributes to the scroll-area root.
 | `viewportClass` | `string \| string[]?` | — | Classes for the Reka UI viewport |
 
 **Slots**: `default`
+**Emits**: `scrollbarPointerdown(event: PointerEvent)` before a custom scrollbar changes the viewport position. Use this to distinguish user scrolling from layout changes.
 **Exposed**: `viewport` (the native scroll owner. Reka UI hides its native scrollbar and renders the configured custom track.)
 
 ### Skeleton
@@ -370,6 +371,23 @@ so flex layouts do not stretch the empty measurement box.
 **v-model**: `input: string`
 **Emits**: `submit(message: string)`, `pasteFile(files: File[])`
 
+### BasicContentEditable
+
+Plain-text multiline contenteditable control with submit and paste-file events. Use it when text entry must avoid Safari Form Assistant.
+
+The browser owns typing, plain-text paste, text drop, selection, and undo. Only external model changes replace editor content. External updates preserve rendered-text selection offsets and direction while focused; a collapsed end caret follows appended text. Enter submits outside IME composition. Shift+Enter adds a line.
+
+The control exposes a multiline textbox role. Its placeholder supplies the default accessible name. Use `aria-label` or `aria-labelledby` for a separate name. This does not replace iOS VoiceOver testing.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `defaultHeight` | `string?` | — | Reactive height when empty |
+| `placeholder` | `string?` | — | Placeholder text |
+| `submitOnEnter` | `boolean?` | `true` | Submit on Enter (Shift+Enter for newline) |
+
+**v-model**: `input: string`
+**Emits**: `submit(message: string)`, `pasteFile(files: File[])`
+
 ### Textarea
 
 Styled textarea wrapping `BasicTextarea`.
@@ -486,6 +504,8 @@ Individual option item within `Select`.
 ## Form — Combobox
 
 ### Combobox
+
+The input shows the selected option label when asynchronous options arrive or the model changes. Search text remains local to the input.
 
 Searchable dropdown/autocomplete using reka-ui with grouping.
 
@@ -711,3 +731,126 @@ Exported from `packages/ui/src/composables/`:
 
 - **`useDeferredMount()`** — Defers component mounting (useful for heavy components).
 - **`useTheme()`** — Theme management composable.
+
+## SwipeActions
+
+Composable trailing actions built on Reka UI's `Primitive` and `asChild`.
+Each Root owns one Content and up to two Lists, one per logical side. Items register
+automatically and follow DOM order. Values must be unique within their List.
+The container does not own conversation storage, undo, or business callbacks.
+
+| Part | Props | Default | Contract |
+|------|-------|---------|----------|
+| `SwipeActionsRoot` | `open` | `false` | `v-model:open` controls whether the actions stay revealed |
+| Root | `fullSwipe` | `true` | Allows long-swipe selection; false still permits ordinary reveal and Item presses |
+| Root | `side` | `end` | `v-model:side` selects the revealed edge and retains it when closed |
+| Root | `dir` | Reka provider | Maps start/end to physical edges in LTR or RTL |
+| List | `side` | `end` | Logical edge: start is left in LTR and right in RTL |
+| List | `defaultAction` | Last Item in this List | Stable Item value for long swipe; missing or disabled defaults never select a substitute |
+| Root | `disabled` | `false` | Disables gestures and actions, not the content's own controls |
+| `SwipeActionsContent` | — | — | Translates the caller's opaque content and closes an open row before content activation |
+| `SwipeActionsList` | `actionWidth` | `88` | Settled width per Item in CSS pixels |
+| List | `gap` | `8` | Gap between Items; each outer edge reserves half, including during entry. Capped at half `actionWidth` |
+| `SwipeActionsItem` | `value` | Required | Stable string identity emitted for this action |
+| Item | `disabled` | `false` | Disables pointer, keyboard, and long-swipe selection |
+
+All parts accept Reka `as` and `asChild`. Root, Content, and List default to
+`div`; Item defaults to a native `button`. With `asChild`, pass one child that
+forwards attributes and listeners. Items fan out toward their List edge; the last Item is outermost.
+
+Root emits `update:open(boolean)`, `update:side(start|end)`, `interactionStart()`,
+and `action(value, side)`. The side distinguishes equal values in different Lists.
+Item emits a cancelable `select` event before Root's action. Its detail contains
+`value`, `side`, and `source` (`press` or `swipe`). `preventDefault()` cancels the action.
+Handle business operations at Root or Item, not both, to avoid duplicate work.
+
+Root's default slot exposes `open`, `side`, `armed`, `committing`, `close`, and `toggle`.
+Content exposes `open`, `side`, `close`, and `toggle`. Call `toggle('start')` or
+`toggle('end')` to reveal a specific List. With no argument, it toggles the selected side.
+Item exposes its `takeover`, `disabled`, logical `side`, and physical `edge` (`left|right`).
+Pass `takeover` and `edge` to SwipeActionButton to mirror the expanded icon.
+List has a default slot. Root and List expose `data-side="start|end"`.
+Root exposes `data-state="open|closed"`, `data-armed`, `data-committing`, and
+`data-disabled`. Item exposes `data-value`, `data-disabled`, and
+`data-state="idle|expanded"`. Hidden actions are inert. Root also exposes
+`--swipe-progress`, rising from 0 to 1 over the first 32px of reveal, for fading
+a resting action trigger.
+
+Horizontal pointer or trackpad input reveals the actions. The surface stretches
+with resistance and settles with a spring. List is an inline-size query container.
+Items use its container-query units to appear from the outer edge, one at a time,
+as each cell gets space. CSS applies cubic scale and quadratic opacity curves
+to each Item, including its icon and label. Scale stays within the available cell
+to prevent overlap and reserve the configured gap beside Content. Reversing follows the same curves without another animation.
+Items without space stay registered but are inert and hidden from accessibility
+tools; this preserves their order and the long-swipe default.
+Vertical touch gestures and trackpad pinch zoom stay native. Crossing zero during
+a drag reveals the other List if it exists; a missing side stops at zero. Escape, outside clicks, and pointer cancellation never select an
+Item. A keyboard toggle focuses the first enabled action when that action has space to appear.
+Closing a focused action list returns focus to Content before making the List inert.
+A swipe suppresses accidental content clicks. Reduced motion skips springs.
+
+A long swipe expands that List's default Item. Earlier Items move behind Content;
+later Items move past the outer clip. The layout mirrors for the opposite edge.
+Reversal restores the same layout. Selection occurs after release and completion
+of this full-width motion. Keep the combined settled width below the row width.
+Single actions arm at 65% of row width and disarm below 55%, with a 1.6-times
+item-width minimum. Multiple actions also require total width plus 32px to arm
+or plus 8px to disarm. These are prototype parameters, not Apple measurements.
+
+A committed surface stays visible for 500ms while its owner removes the row.
+A retained row then resets. Reordering, removing, disabling, or changing action
+values cancels a pending gesture. The identity captured at release cannot be
+transferred to another Item. The List's DOM observer stops on unmount.
+
+```vue
+<SwipeActionsRoot v-model:open="open" v-model:side="side" @action="handleAction">
+  <SwipeActionsContent>
+    <ConversationRow />
+  </SwipeActionsContent>
+  <SwipeActionsList side="start">
+    <SwipeActionsItem value="archive">Archive</SwipeActionsItem>
+  </SwipeActionsList>
+  <SwipeActionsList side="end" default-action="pin" :action-width="72">
+    <SwipeActionsItem
+      v-for="action in actions" :key="action.id"
+      v-slot="{ takeover, edge }" :value="action.id" as-child
+    >
+      <SwipeActionButton :label="action.label" :icon="action.icon" :takeover="takeover" :edge="edge" />
+    </SwipeActionsItem>
+  </SwipeActionsList>
+</SwipeActionsRoot>
+```
+
+The stage-ui Histoire story **Misc → Swipe Actions** renders one composed row
+with two start actions and three end actions. The Controls panel toggles label visibility.
+
+## SwipeActionButton
+
+Optional presentation for a `SwipeActionsItem`. It owns the surface, icon,
+label layout, and takeover appearance. The gesture container remains unstyled.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | Required | Visible text and accessible button name |
+| `icon` | `string` | Required | Iconify utility class |
+| `showLabel` | `boolean` | `true` | When false, removes text and fills its area with the action surface |
+| `takeover` | `number` | `0` | Item slot progress from 0 to 1; each Item supplies its own value |
+| `edge` | `left \| right` | `right` | Physical edge from the Item slot; mirrors the expanded icon |
+| `surfaceClass` | `string` | `bg-neutral-500 text-white` | Surface color classes |
+
+Wrap the button with `SwipeActionsItem as-child` and handle Root action or Item select.
+The button disables CSS motion that would otherwise lag behind the gesture.
+Hidden labels retain the accessible name. Icon-only buttons fill the available
+height inside the same vertical padding and keep the icon centered vertically.
+The component provides no slots or custom events; button attributes and listeners
+pass through to the underlying `BasicButton`.
+
+```vue
+<SwipeActionButton
+  :label="action.label"
+  :icon="action.icon"
+  :show-label="false"
+  :takeover="takeover"
+/>
+```

@@ -1,6 +1,6 @@
-import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
@@ -8,7 +8,7 @@ import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } fr
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
-import { createChatOrchestratorRuntime } from '@proj-airi/core-agent'
+import { createChatOrchestratorRuntime, renderConversationPreview } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -28,7 +28,8 @@ import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
-import { createMinecraftContext, createRuntimePromptContext } from './chat/context-providers'
+import { useAuthStore } from './auth'
+import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -54,6 +55,8 @@ export interface ChatSendPayload {
   input?: WebSocketEventInputs
   /** Session that owns the new turn. */
   sessionId: string
+  /** Message that the new user turn replies to in the target session. */
+  replyToMessageId?: string
   /** User text for the new turn. */
   text: string
   /** Request-specific tools selected by their model-facing names. */
@@ -79,6 +82,8 @@ export interface ChatRetryPayload {
 
 /** Identifies one stored tool call that must run again in the leader. */
 export interface ChatToolCallRerunPayload extends Omit<ToolCallRerunPayload, 'sessionId' | 'toolset'> {
+  /** Current selections authorize request-only tools; stored calls do not grant access. */
+  tools?: ChatToolReference[]
   sessionId: string
 }
 
@@ -129,10 +134,12 @@ function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): numbe
   if (targetMessage.role !== 'assistant' && targetMessage.role !== 'error')
     return -1
 
-  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
-    if (messages[cursor]?.role === 'user')
-      return cursor
-  }
+  const precedingMessage = messages[index - 1]
+  if (precedingMessage?.role === 'user')
+    return index - 1
+
+  if (precedingMessage?.role === 'assistant' && precedingMessage.interrupted && messages[index - 2]?.role === 'user')
+    return index - 2
 
   return -1
 }
@@ -141,6 +148,7 @@ export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 export const useChatStore = defineStore('chat', () => {
   const runtimePrompt = useAiriRuntimePrompt()
+  const authStore = useAuthStore()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
@@ -199,17 +207,19 @@ export const useChatStore = defineStore('chat', () => {
 
   async function streamWithStageAdapters(
     model: string,
-    chatProvider: ChatProvider,
-    messages: Message[],
+    chatProvider: GenerationProvider,
+    context: Conversation,
     options?: StreamOptions,
   ) {
+    // These metrics count display records; the selected adapter owns wire message counts.
+    const messages = renderConversationPreview(context)
     let llmTextLength = 0
     let llmOutputChunkCount = 0
     const llmOutputChunkLengths: number[] = []
     const headers = { ...options?.headers }
     if (getProviderMode(activeProvider.value) === 'official' && options?.requestCorrelation) {
       headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
-      headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.roundId
+      headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
       headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
     }
 
@@ -225,14 +235,14 @@ export const useChatStore = defineStore('chat', () => {
       [IOAttributes.GenAIRequestModel]: model,
       [IOAttributes.LLMInputMessageCount]: messages.length,
       [IOAttributes.LLMInputUserMessageCount]: messages.filter(message => message.role === 'user').length,
-      [IOAttributes.TurnId]: options?.requestCorrelation?.roundId ?? '',
+      [IOAttributes.TurnId]: options?.requestCorrelation?.turnId ?? '',
     })
     llmSpan.setAttribute(IOAttributes.LLMInputMessageRoles, messages.map(message => message.role))
     const llmRequestTs = performance.now()
     let llmFirstTokenEmitted = false
 
     try {
-      await llmStore.stream(model, chatProvider, messages, {
+      await llmStore.stream(model, chatProvider, context, {
         ...options,
         headers,
         onStreamEvent: async (event: StreamEvent) => {
@@ -286,7 +296,15 @@ export const useChatStore = defineStore('chat', () => {
     },
     context: {
       ingest: envelope => chatContext.ingestContextMessage(envelope),
-      snapshot: () => chatContext.getContextsSnapshot(),
+      snapshot: () => {
+        const snapshot = { ...chatContext.getContextsSnapshot() }
+        // Account data belongs to this request, not the persistent context registry.
+        // A signed-out request therefore cannot inherit the previous account snapshot.
+        const account = createUserAccountContext(authStore)
+        if (account)
+          snapshot[account.contextId] = [account]
+        return snapshot
+      },
     },
     foregroundStream: {
       patch: (message) => {
@@ -329,6 +347,7 @@ export const useChatStore = defineStore('chat', () => {
           id: message.id,
           role: 'user',
           content: messageText,
+          replyToMessageId: message.replyToMessageId,
         })
       }
     },
@@ -361,12 +380,19 @@ export const useChatStore = defineStore('chat', () => {
     return runtime.ingest(sendingMessage, options, targetSessionId)
   }
 
+  function requiresToolSelection(name: string) {
+    return llmToolsStore.tools.findLast(tool => tool.function.name === name)?.requiresExplicitSelection === true
+  }
+
   function collectToolReferences(sessionId: string, selectedTools: ChatToolReference[] = []): ChatToolReference[] {
     const names = new Set<string>()
 
     for (const message of chatSession.getSessionMessages(sessionId)) {
-      for (const tool of message.tools ?? [])
-        names.add(tool.name)
+      for (const tool of message.tools ?? []) {
+        // History preserves context, but only this request can grant access to restricted tools.
+        if (!requiresToolSelection(tool.name))
+          names.add(tool.name)
+      }
     }
 
     for (const tool of selectedTools)
@@ -388,7 +414,7 @@ export const useChatStore = defineStore('chat', () => {
   async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
     const providerId = activeProvider.value
     const modelId = activeModel.value
-    if (!providerId || !modelId)
+    if ((!providerId || !modelId) && (providerId !== 'prompt-api'))
       throw new Error('No active chat provider or model configured')
 
     if (!await chatSession.loadSession(payload.sessionId))
@@ -404,6 +430,7 @@ export const useChatStore = defineStore('chat', () => {
       chatProvider,
       attachments: payload.attachments,
       input: payload.input,
+      replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,
       temperature: payload.temperature ?? consciousnessStore.activeTemperature,
       topP: payload.topP ?? consciousnessStore.activeTopP,
@@ -459,7 +486,8 @@ export const useChatStore = defineStore('chat', () => {
       return await executeSend({
         sessionId: payload.sessionId,
         text,
-        tools: payload.tools ?? sourceMessage?.tools,
+        replyToMessageId: sourceMessage?.replyToMessageId,
+        tools: payload.tools ?? sourceMessage?.tools?.filter(tool => !requiresToolSelection(tool.name)),
       })
     }
     catch (error) {
@@ -470,6 +498,9 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Runs one stored tool call again and replaces its stored result. */
   async function rerunToolCall(payload: ChatToolCallRerunPayload): Promise<void> {
+    if (requiresToolSelection(payload.toolName) && !payload.tools?.some(tool => tool.name === payload.toolName))
+      throw new Error('Select this tool before running it again.')
+
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 

@@ -10,7 +10,6 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { configureAsDefaultsIfEmpty, unconfigureAuthenticationProviders } from '@proj-airi/stage-ui/stores/modules/default'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
@@ -57,8 +56,7 @@ async function removeAuthenticationProviderConfiguration() {
   if (!syncedPinia.isLeader())
     return
 
-  if (await unconfigureAuthenticationProviders())
-    await cardStore.persistActiveCardModuleSelections()
+  await cardStore.configureForAuthentication(false)
 }
 
 function registerAuthenticatedSetup() {
@@ -66,8 +64,7 @@ function registerAuthenticatedSetup() {
     if (!syncedPinia.isLeader())
       return
 
-    if (await configureAsDefaultsIfEmpty())
-      await cardStore.persistActiveCardModuleSelections()
+    await cardStore.configureForAuthentication(true)
     await onboardingStore.closeAfterAuthentication()
   })
   stopLoggedOutSetup ??= authStore.onLogout(removeAuthenticationProviderConfiguration)

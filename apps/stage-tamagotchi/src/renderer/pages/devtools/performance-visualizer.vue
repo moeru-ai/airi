@@ -4,6 +4,8 @@ import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ResourceEvents from '../../components/devtools/resource-events.vue'
+
 import { useStageThreeRuntimeDiagnosticsStore } from '../../stores/stage-three-runtime-diagnostics'
 import { useStageWindowLifecycleStore } from '../../stores/stage-window-lifecycle'
 
@@ -138,7 +140,7 @@ function formatCount(value?: number) {
         </div>
       </section>
 
-      <section :class="['rounded-2xl border border-neutral-700/60', 'bg-neutral-950/40 p-4', 'md:col-span-2']">
+      <section :class="['min-w-0 rounded-2xl border border-neutral-700/60', 'bg-neutral-950/40 p-4', 'md:col-span-2']">
         <div :class="['mb-2 text-sm text-neutral-400']">
           Renderer / resource snapshots
         </div>
@@ -181,6 +183,7 @@ function formatCount(value?: number) {
         <div :class="['mt-3 text-xs text-neutral-400']">
           history entries: {{ resourceSnapshots.history.length }}
         </div>
+        <ResourceEvents :snapshots="resourceSnapshots.history" />
       </section>
     </div>
 

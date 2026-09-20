@@ -414,10 +414,15 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
-        Configure modules for this character card. If not set, default module
-        configuration will be used.
+        Configure modules for this character card. Empty fields inherit global settings.
+      sections:
+        chat: Chat
+        vision: Vision
+        speech: Speech
+        body: Body
       use_default: Use default
       use_default_not_configured: Use default (not configured)
+      inherit_global_settings: Inherit global settings
       fields_info:
         subtitle: >-
           You can put here some details about the character you are creating,
@@ -441,6 +446,7 @@ pages:
         consciousness_model: Select the consciousness model (AI model) for this character.
         speech_model: Select the speech synthesis model and voice for this character.
       errors:
+        model_required: Select a model for each explicit provider. Models cannot be inherited from a different provider.
         name: Name should be valid or non-empty.
         version: 'Error: Invalid version number !'
         description: 'Error: You must provide a description for this card.'
@@ -1009,6 +1015,12 @@ pages:
           common:
             fields:
               field:
+                web-search:
+                  label: Web search
+                  description: Allow supported OpenAI models to search when needed. Uses your API key and can incur search charges. Requires Responses API.
+                api-protocol:
+                  label: API protocol
+                  description: Choose the API supported by this provider and model.
                 api-key:
                   label: API Key
                   description: API Key used to authorize requests to this provider
@@ -1019,6 +1031,9 @@ pages:
                     The base url used to connect to remote service. Often looks
                     like http://localhost:11434/v1 or https://example.com/v1.
                   placeholder: Base url...
+                download-model:
+                  label: Download Model
+                  description: Download Chromium Prompt API model
                 headers:
                   label: Custom HTTP Headers
                   description: Add custom HTTP headers
@@ -1051,6 +1066,9 @@ pages:
               title: List Models
             check-supports-chat-completion:
               title: Chat Completion
+          prompt-api:
+            check-availability:
+              title: Availability
           status:
             validating: Validating...
             valid: Passed
@@ -1554,6 +1572,9 @@ pages:
       browser-web-speech-api:
         description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
+      prompt-api:
+        description: With the Prompt API, you can send natural language requests to the foundation model in Chrome.
+        title: Prompt API
       official:
         title: Official Provider
         description: Official AI provider by AIRI.
@@ -1649,9 +1670,28 @@ pages:
                 actions:
                   enable-and-load: Enable and Load
                   disable-and-unload: Disable and Unload
+                  import-folder: Import Folder
+                  confirm-import: Import Extension
+                  cancel-import: Cancel
                 errors:
                   enable-and-load: 'Failed to enable and load plugin {extensionId}.'
                   disable-and-unload: 'Failed to disable and unload plugin {extensionId}.'
+                  prepare-import: Failed to inspect the Extension folder.
+                  commit-import: 'Failed to import Extension {extensionId}.'
+                  cancel-import: Failed to cancel the Extension import.
+                import:
+                  title: Review Extension Import
+                  description: The Extension stays disabled and unloaded after import.
+                  source: Source folder
+                  runtimes: Runtimes
+                  entrypoints: Entrypoints
+                  package-size: Package
+                  package-size-value: '{fileCount} files · {totalBytes}'
+                  permissions: Permissions
+                  kits: Kits
+                  no-permissions: No permissions declared.
+                  no-kits: No Kits declared.
+                  imported: 'Imported Extension {extensionId}.'
               use-magic-keys:
                 title: useMagicKeys Tool
                 description: Test shortcuts

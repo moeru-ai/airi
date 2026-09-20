@@ -5,7 +5,6 @@ import type { AnalyticsRecorder } from '../../index'
 
 import { getAnalytics } from '../../index'
 import {
-  aiGenerationEvent,
   messageRoundEvent,
   messageRoundFailedEvent,
   messageSentEvent,
@@ -14,7 +13,6 @@ import { getProviderMode } from './types'
 
 type ChatAnalyticsCallbacks = Pick<
   ChatOrchestratorRuntimeDeps,
-  | 'onLlmGeneration'
   | 'onMessageRound'
   | 'onMessageRoundFailed'
   | 'onTrackFirstMessage'
@@ -40,23 +38,6 @@ export function createChatAnalyticsHooks(options: CreateChatAnalyticsHooksOption
 
   return {
     onTrackFirstMessage: () => analytics.recordFirstMessage(),
-    onLlmGeneration: ({ conversationId, roundId, model, provider, inputTokens, outputTokens, totalTokens, usageSource }) => {
-      const providerType = getProviderMode(provider)
-      if (providerType !== 'custom')
-        return
-
-      analytics.emit(aiGenerationEvent, {
-        conversation_id: conversationId,
-        round_id: roundId,
-        provider_type: providerType,
-        provider_id: provider,
-        model_id: model,
-        usage_source: usageSource,
-        input_tokens: inputTokens,
-        output_tokens: outputTokens,
-        total_tokens: totalTokens,
-      })
-    },
     onMessageRound: ({ conversationId, roundId, turnIndex, durationMs, hasVoice, model, inputTokens, outputTokens, totalTokens, usageSource }) => {
       analytics.emit(messageRoundEvent, {
         conversation_id: conversationId,

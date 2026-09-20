@@ -154,6 +154,25 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   /**
+   * Applies configuration fields through the leader-owned provider snapshot.
+   *
+   * The caller must initialize the provider before this action runs. The leader
+   * merges the patch with its current configuration to keep unrelated changes.
+   * Returns false if the provider no longer exists.
+   */
+  async function patchProviderConfig(providerId: string, patch: Record<string, unknown>) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return false
+
+    providers.value[providerId] = {
+      ...provider,
+      config: { ...provider.config, ...patch },
+    }
+    return true
+  }
+
+  /**
    * Updates the selected model in the leader-owned provider snapshot.
    *
    * Follower renderers must await this action instead of mutating replicated
@@ -288,6 +307,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     markProviderAdded,
     unmarkProviderAdded,
     setProviderStatus,
+    patchProviderConfig,
     setProviderModel,
     setProviderModelIfUnset,
     fetchProviders,
@@ -304,6 +324,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'markProviderAdded',
       'unmarkProviderAdded',
       'setProviderStatus',
+      'patchProviderConfig',
       'setProviderModel',
       'setProviderModelIfUnset',
       'addProvider',

@@ -36,14 +36,14 @@ if (isStageTamagotchi())
   useEventListener(window, 'focus', () => authStore.updateCredits())
 
 interface FluxPackage {
-  packKey: string
+  stripePriceId: string
   label: string
   defaultCurrency: string
   currencies: Record<string, string>
   recommended?: boolean
 }
 
-const loadingPackKey = ref<string | null>(null)
+const loadingPriceId = ref<string | null>(null)
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
 const checkoutReturnMessageActive = ref(false)
 const packages = ref<FluxPackage[]>([])
@@ -282,10 +282,10 @@ onMounted(async () => {
 
   await creditsRefresh.catch(() => undefined)
 
-  // PostHog funnel step 1: pricing surface view. Today this is an in-app
+  // OpenPanel funnel step 1: pricing surface view. Today this is an in-app
   // settings page (already-authenticated users); when we add a public
   // pricing landing page the entry-surface label changes but the event stays the
-  // same, so the funnel definition in PostHog doesn't need re-wiring.
+  // same, so the funnel definition in OpenPanel doesn't need re-wiring.
   if (!fluxPurchaseDisabled) {
     trackPaywallSeen({
       entry_surface: 'settings_flux',
@@ -304,11 +304,11 @@ onMounted(async () => {
   }
 })
 
-async function handleBuy(packKey: string) {
-  loadingPackKey.value = packKey
+async function handleBuy(stripePriceId: string) {
+  loadingPriceId.value = stripePriceId
   checkoutReturnMessageActive.value = false
   message.value = null
-  // PostHog funnel step 2: user picked a plan. price_minor_unit lives on
+  // OpenPanel funnel step 2: user picked a plan. price_minor_unit lives on
   // the Stripe webhook (server-side `payment_completed`); we deliberately
   // don't send a formatted-string price from the SPA so funnels don't get
   // poisoned by currency-formatting drift.
@@ -317,12 +317,12 @@ async function handleBuy(packKey: string) {
     current_plan: 'flux',
     trigger: 'manual_topup',
   })
-  trackPlanSelected(packKey, {
+  trackPlanSelected(stripePriceId, {
     currency: selectedCurrency.value,
     entry_surface: 'settings_flux',
   })
   try {
-    const res = await client.api.v1.stripe.checkout.$post({ json: { packKey, currency: selectedCurrency.value } })
+    const res = await client.api.v1.stripe.checkout.$post({ json: { stripePriceId, currency: selectedCurrency.value } })
     if (!res.ok) {
       const data = await res.json() as { error?: string, message?: string }
       message.value = { type: 'error', text: data.message || t('settings.pages.flux.checkout.error') }
@@ -330,10 +330,9 @@ async function handleBuy(packKey: string) {
     }
     const data = await res.json()
     if (data.url) {
-      // PostHog funnel step 3: about to redirect to Stripe. Capture before
-      // the page nav so the event is sent (PostHog's beforeunload handler
-      // would otherwise race the navigation).
-      trackCheckoutStarted(packKey, {
+      // Start capture before redirecting to Stripe so fetch keepalive can
+      // finish delivery after the page unloads.
+      trackCheckoutStarted(stripePriceId, {
         currency: selectedCurrency.value,
         entry_surface: 'settings_flux',
       })
@@ -351,7 +350,7 @@ async function handleBuy(packKey: string) {
     message.value = { type: 'error', text: t('settings.pages.flux.checkout.error') }
   }
   finally {
-    loadingPackKey.value = null
+    loadingPriceId.value = null
   }
 }
 </script>
@@ -402,8 +401,8 @@ async function handleBuy(packKey: string) {
 
       <div grid="~ cols-1 sm:cols-3 gap-4">
         <button
-          v-for="(pkg, index) in packages" :key="pkg.packKey"
-          :disabled="loadingPackKey !== null"
+          v-for="(pkg, index) in packages" :key="pkg.stripePriceId"
+          :disabled="loadingPriceId !== null"
           :class="[
             'group relative flex flex-row sm:flex-col items-center justify-between sm:justify-center overflow-hidden text-left sm:text-center gap-4 sm:gap-2',
             'rounded-2xl border-2 bg-white p-6 transition-all duration-300 ease-out',
@@ -411,9 +410,9 @@ async function handleBuy(packKey: string) {
             'dark:bg-neutral-900',
             'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
-            loadingPackKey !== null && loadingPackKey !== pkg.packKey ? 'opacity-50 grayscale-50 cursor-not-allowed' : 'cursor-pointer',
+            loadingPriceId !== null && loadingPriceId !== pkg.stripePriceId ? 'opacity-50 grayscale-50 cursor-not-allowed' : 'cursor-pointer',
           ]"
-          @click="handleBuy(pkg.packKey)"
+          @click="handleBuy(pkg.stripePriceId)"
         >
           <!-- Recommended Badge -->
           <div
@@ -426,7 +425,7 @@ async function handleBuy(packKey: string) {
 
           <!-- Loading Overlay -->
           <div
-            v-if="loadingPackKey === pkg.packKey"
+            v-if="loadingPriceId === pkg.stripePriceId"
             class="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-sm dark:bg-neutral-900/60"
           >
             <div class="i-svg-spinners:90-ring-with-bg size-8 text-primary-500" />

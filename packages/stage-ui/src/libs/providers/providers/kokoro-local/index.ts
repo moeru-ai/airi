@@ -153,6 +153,7 @@ export const providerKokoroLocal = defineProvider({
         throw error
       }
     },
+    voiceCatalogConfig: ({ model }) => ({ model }),
     listVoices: async (config) => {
       try {
         const adapter = await getKokoroAdapter()

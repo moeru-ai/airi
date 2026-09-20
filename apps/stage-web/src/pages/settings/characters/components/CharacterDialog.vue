@@ -163,7 +163,7 @@ async function handleSubmit() {
     }
     else {
       await characterStore.create(payload)
-      // PostHog retention driver. This dialog is the only user-initiated
+      // OpenPanel retention driver. This dialog is the only user-initiated
       // create path; clones from built-in presets would emit
       // `character_type: 'built_in'` from wherever they get wired up.
       // `voice_enabled` reflects whether the user supplied a TTS voice id

@@ -108,6 +108,7 @@ export function defineVoicevoxFamilyProvider<const TId extends string>(
         provider: options.id,
       }],
 
+      voiceCatalogConfig: ({ baseUrl }) => ({ baseUrl }),
       listVoices: async (config) => {
         const speakers = await fetchSpeakers(config.baseUrl?.trim() ?? '')
         return speakers.flatMap(speaker => (speaker.styles ?? []).map(style => toVoiceInfo(options.id, speaker.name, style)))

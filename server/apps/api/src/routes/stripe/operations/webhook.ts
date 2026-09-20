@@ -5,10 +5,11 @@ import type { PaymentService } from '../../../services/domain/payment'
 import type { ProductEventService } from '../../../services/domain/product-events'
 
 import { useLogger } from '@guiiai/logg'
-import { errorMessageFrom } from '@moeru/std'
+import { parse } from 'valibot'
 
 import { createBadRequestError, createServiceUnavailableError } from '../../../utils/error'
-import { claimReceiptFromCheckoutSession } from '../claim'
+import { errorMessageFromUnknown } from '../../../utils/error-message'
+import { checkoutSessionSchema, claimReceiptFromCheckoutSession } from '../claim'
 
 const logger = useLogger('stripe')
 
@@ -35,32 +36,42 @@ export function createWebhookOperation(
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
     }
     catch (err: unknown) {
-      throw createBadRequestError(`Webhook Error: ${errorMessageFrom(err) ?? 'unknown error'}`, 'WEBHOOK_ERROR')
+      throw createBadRequestError(`Webhook Error: ${errorMessageFromUnknown(err)}`, 'WEBHOOK_ERROR')
     }
 
     logger.withFields({ type: event.type, id: event.id }).log('Webhook event received')
     metrics?.stripeEvents.add(1, { event_type: event.type })
 
     switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object
+      case 'checkout.session.completed':
+      case 'checkout.session.async_payment_succeeded': {
+        const session = parse(checkoutSessionSchema, event.data.object)
         if (session.mode !== 'payment') {
           logger.withFields({ sessionId: session.id, mode: session.mode }).log('Ignoring non-payment checkout session')
           break
         }
 
-        const receipt = claimReceiptFromCheckoutSession(session)
+        const paymentOrderId = session.metadata?.payment_order_id
+        if (!paymentOrderId) {
+          logger.withFields({ sessionId: session.id }).warn('Ignoring checkout session without payment_order_id')
+          break
+        }
+
+        const receipt = claimReceiptFromCheckoutSession(session, paymentOrderId)
+        if (!receipt)
+          break
         const result = await payment.settle(receipt)
-        metrics?.stripeCheckoutCompleted.add(1)
-        if (session.amount_total != null && session.currency) {
+        if (result.applied)
+          metrics?.stripeCheckoutCompleted.add(1)
+        if (result.applied && session.amount_total != null && session.currency) {
           metrics?.stripeRevenue.add(session.amount_total, {
-            currency: session.currency,
+            currency: session.currency ?? null,
             source: 'checkout',
           })
         }
         if (result.applied) {
-          const posthogDistinctId = session.metadata?.posthogDistinctId
-          const posthogSessionId = session.metadata?.posthogSessionId
+          const openpanelDeviceId = session.metadata?.openpanelDeviceId
+          const openpanelSessionId = session.metadata?.openpanelSessionId
           void productEventService?.track({
             userId: result.userId,
             feature: 'billing',
@@ -68,22 +79,35 @@ export function createWebhookOperation(
             status: 'succeeded',
             source: 'stripe.webhook',
             metadata: {
-              amount_total: session.amount_total,
-              currency: session.currency,
+              amount_total: session.amount_total ?? null,
+              currency: session.currency ?? null,
               flux_amount: result.fluxAmount,
-              pack_key: session.metadata?.packKey ?? null,
+              stripe_price_id: session.metadata?.stripePriceId ?? null,
               stripe_checkout_session_id: session.id,
               stripe_customer_id: typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null,
-              ...(posthogDistinctId && { posthog_distinct_id: posthogDistinctId }),
-              ...(posthogSessionId && { posthog_session_id: posthogSessionId }),
+              ...(openpanelDeviceId && { openpanel_device_id: openpanelDeviceId }),
+              ...(openpanelSessionId && { openpanel_session_id: openpanelSessionId }),
             },
           })
         }
         break
       }
-      case 'checkout.session.expired': {
-        const receipt = claimReceiptFromCheckoutSession(event.data.object)
-        await payment.settle(receipt)
+      case 'checkout.session.expired':
+      case 'checkout.session.async_payment_failed': {
+        const session = parse(checkoutSessionSchema, event.data.object)
+        const paymentOrderId = session.metadata?.payment_order_id
+        if (!paymentOrderId) {
+          logger.withFields({ sessionId: session.id }).warn('Ignoring checkout session without payment_order_id')
+          break
+        }
+
+        if (event.type === 'checkout.session.async_payment_failed') {
+          await payment.settle({ kind: 'claim', processor: 'stripe', paymentOrderId, processorOrderId: session.id, status: 'canceled' })
+          break
+        }
+        const receipt = claimReceiptFromCheckoutSession(session, paymentOrderId)
+        if (receipt)
+          await payment.settle(receipt)
         break
       }
       default:

@@ -1,6 +1,8 @@
 import type { InferOutput } from 'valibot'
 
-import { any, array, boolean, check, minValue, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
+import { any, array, boolean, check, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
+
+import { generationProtocolSchema } from '../../../schemas/generation-protocol'
 
 /**
  * LLM/TTS router config tree. Single composite entry under configKV holds the
@@ -48,6 +50,8 @@ export const keyEntrySchema = object({
 })
 
 export const llmUpstreamSchema = object({
+  /** Supported wire protocols. Omission permits Chat Completions only. */
+  protocols: optional(array(generationProtocolSchema)),
   id: optional(pipe(
     string(),
     nonEmpty('llm.upstreams[].id must not be empty'),
@@ -247,19 +251,8 @@ export const configEntrySchemas = {
   // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
   // 24h gives users a long-enough window for accumulated dust to settle naturally.
   TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
-  // One-time Flux packs. Display prices are preformatted strings keyed by
-  // currency. Processor ids map each pack onto Stripe.
-  FLUX_PACKS: optional(array(object({
-    key: pipe(string(), nonEmpty('FLUX_PACKS[].key must not be empty')),
-    name: pipe(string(), nonEmpty('FLUX_PACKS[].name must not be empty')),
-    fluxAmount: pipe(number(), minValue(1, 'FLUX_PACKS[].fluxAmount must be >= 1')),
-    recommended: optional(boolean(), false),
-    processors: optional(object({
-      stripe: optional(object({
-        priceId: pipe(string(), nonEmpty('FLUX_PACKS[].processors.stripe.priceId must not be empty')),
-      })),
-    }), {}),
-  })), []),
+  // No default — absent means top-up is not available yet
+  STRIPE_FLUX_PRODUCT_ID: optional(string()),
   // No default — absent lets Stripe auto-select payment methods via Dashboard config
   STRIPE_PAYMENT_METHODS: optional(array(string())),
   STRIPE_PAYMENT_METHOD_OPTIONS: optional(record(string(), any()), {}),

@@ -40,6 +40,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/audio": "workspace:^",
     "@xsai-ext/providers": "catalog:",
+    "@xsai-ext/responses": "catalog:",
     "@xsai-transformers/shared": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/model": "catalog:",
@@ -48,6 +49,7 @@
     "clustr": "catalog:",
     "es-toolkit": "catalog:",
     "is-network-error": "catalog:",
+    "model-bank": "catalog:",
     "unspeech": "catalog:xsai",
     "xsschema": "catalog:",
     "zod": "catalog:"

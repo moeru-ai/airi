@@ -39,7 +39,7 @@ import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
 import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
-import { sessionMiddleware } from './middlewares/auth'
+import { authGuard, sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
 import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
@@ -60,7 +60,7 @@ import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
-import { createPosthogSink } from './services/adapters/posthog'
+import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
 import { createCharacterService } from './services/domain/characters'
@@ -105,6 +105,16 @@ interface AppDeps {
 }
 
 const MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES = 8192
+/** Allows one maximum-size inline file plus JSON envelope overhead. */
+const RESPONSES_MAX_REQUEST_BYTES = 40 * 1024 * 1024
+const DEFAULT_API_MAX_REQUEST_BYTES = 1024 * 1024
+
+function apiBodyLimit(maxSize: number) {
+  return bodyLimit({
+    maxSize,
+    onError: c => c.json({ error: 'PAYLOAD_TOO_LARGE', message: 'Payload Too Large' }, 413),
+  })
+}
 
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
@@ -234,6 +244,7 @@ export async function buildApp(deps: AppDeps) {
       trigger: c.req.query('tts_trigger') === 'auto' ? 'auto' : 'manual',
       source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
       voiceType: parseTtsVoiceType(c.req.query('tts_voice_type')),
+      turnId: c.req.query('turn_id'),
     })
   }))
 
@@ -276,10 +287,20 @@ export async function buildApp(deps: AppDeps) {
     revenue: deps.otel?.revenue,
     rateLimitMetrics: deps.otel?.rateLimit,
   })
+  const defaultApiBodyLimit = apiBodyLimit(DEFAULT_API_MAX_REQUEST_BYTES)
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.db, deps.env))
-    .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
+    // Authenticate before accepting the larger Responses envelope. The route
+    // supports inline image, file, and video data that exceed the default API
+    // limit, but unauthenticated callers must not get the larger allowance.
+    .use('/api/v1/openai/responses', authGuard)
+    .use('/api/v1/openai/responses', apiBodyLimit(RESPONSES_MAX_REQUEST_BYTES))
+    .use('*', async (c, next) => {
+      if (c.req.path === '/api/v1/openai/responses')
+        return next()
+      return defaultApiBodyLimit(c, next)
+    })
     .onError((err, c) => {
       if (err instanceof ApiError) {
         // Surface details + cause to the server-side log only. SEC-5 keeps
@@ -539,27 +560,21 @@ export async function createApp() {
     build: ({ dependsOn }) => createConfigKVService(createConfigKVStore(dependsOn.db, dependsOn.redis)),
   })
 
-  const posthogSink = injeca.provide('services:posthogSink', {
-    dependsOn: { env: parsedEnv, lifecycle },
-    // POSTHOG_PROJECT_KEY defaults to the shared project key, so the falsy
-    // branch is only reachable via the documented off-switch: setting the
-    // env var to an empty string (valibot defaults don't apply to '').
+  const openpanelSink = injeca.provide('services:openpanelSink', {
+    dependsOn: { env: parsedEnv },
     build: ({ dependsOn }) => {
-      if (!dependsOn.env.POSTHOG_PROJECT_KEY)
+      const { OPENPANEL_API_URL: apiUrl, OPENPANEL_CLIENT_ID: clientId, OPENPANEL_CLIENT_SECRET: clientSecret } = dependsOn.env
+      if (!apiUrl && !clientId && !clientSecret)
         return null
-
-      const sink = createPosthogSink({
-        projectKey: dependsOn.env.POSTHOG_PROJECT_KEY,
-        host: dependsOn.env.POSTHOG_API_HOST,
-      })
-      dependsOn.lifecycle.appHooks.onStop(() => sink.shutdown())
-      return sink
+      if (!apiUrl || !clientId || !clientSecret)
+        throw new Error('OpenPanel requires API URL, client id, and client secret')
+      return createOpenpanelSink({ apiUrl, clientId, clientSecret })
     },
   })
 
   const productEventService = injeca.provide('services:productEvents', {
-    dependsOn: { posthogSink },
-    build: ({ dependsOn }) => createProductEventService(dependsOn.posthogSink),
+    dependsOn: { openpanelSink },
+    build: ({ dependsOn }) => createProductEventService(dependsOn.openpanelSink),
   })
 
   const characterService = injeca.provide('services:characters', {
