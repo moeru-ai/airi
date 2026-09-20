@@ -9,8 +9,10 @@ The 2026-09-20 live session repeated the shared-context checks on Godot CEF 1.16
 That session also closed and reopened Settings and Chat.
 A second 2026-09-20 screening session reproduced GAP-029 in the chat window,
 re-verified ten Settings routes without console errors, and re-verified the
-notice confirm flow end to end. A third 2026-09-20 session implemented the
-GAP-029 host fix and verified a full chat send round trip in real CEF.
+notice confirm flow end to end. A third 2026-09-20 session attached
+`MicrophonePermissionService` to every AIRI window context and verified a
+full chat send round trip in real CEF. A missing invoke handler remains a
+host wiring error. The Kirie Eventa adapter does not invent a default reject.
 
 Model rendering, model assets, Live2D, VRM, and MMD are outside the current scope.
 
@@ -54,7 +56,7 @@ The status values have these meanings:
 | GAP-026 | About and updater devtools | Open the About page | `useElectronAutoUpdater` creates its own Electron Eventa context and Electron owns update preferences and lifecycle | Mount updater UI through the shared host context and define AIRI update check, download, install, state, and preference behavior | AIRI release engineering and desktop update service | Deferred | User-directed production-packaging scope exclusion |
 | GAP-027 | Developer settings | Open main DevTools or a standalone devtools page | Electron opens WebContents DevTools and dedicated `BrowserWindow` instances | Open a connected CEF Inspector and reusable native devtools windows | AIRI developer tooling and window orchestration | Accepted | CEF Inspector and devtools pages work; Editor is outside the migration scope |
 | GAP-028 | All AIRI WebViews | Open more than one AIRI application window | Electron windows use a shared persistent browser session | Share one persistent CEF request context for cookies, storage, BroadcastChannel, Web Locks, and Pinia coordination | Godot CEF and AIRI dependency integration | Accepted | Godot CEF 1.16.1 runtime verified |
-| GAP-029 | Chat window | Send a message from the Kirie chat window | Electron answers `system-preferences:get-media-access-status` from its main process for every window | Every AIRI window context answers the microphone-permission contracts it awaits, and window setup cannot stall silently on an unanswered host invoke | AIRI Godot host and host context | Review pending | Fixed and re-verified in real CEF on 2026-09-20 |
+| GAP-029 | Chat window | Send a message from the Kirie chat window | Electron answers `system-preferences:get-media-access-status` from its main process for every window | Every AIRI window context that awaits the microphone-permission contracts registers a handler for those contracts | AIRI Godot host and host context | Review pending | Host Attach verified in real CEF on 2026-09-20 |
 
 ## Audited but not reproduced
 
@@ -190,7 +192,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Ownership: This is AIRI application-window orchestration. It does not add a Kirie Platform or Kirie Core API.
 - Runtime result: Three concurrent requests kept one Chat CEF page. The rendered page exposed its Conversations, Mute voice, and Cancel reply controls. Native close removed the page, and another request created one new Chat page at the same minimal-runtime URL.
 - 2026-09-20 result: Kirie 0.4.1 and Godot CEF 1.16.1 opened one Chat page at `stage-runtime=minimal`. Native close destroyed that WebView. A later open created one new Chat page at the same URL.
-- 2026-09-20 send result: The reusable window opens, but sending a message fails silently. GAP-029 tracks the chat-session initialization stall.
+- 2026-09-20 send result: After the GAP-029 host Attach, a fresh Chat window sent a message and received an assistant reply in real CEF.
 
 ## GAP-015 evidence
 
@@ -402,11 +404,11 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Composer result: `chatStore.send` rejects with `Failed to load the target chat session`. The chat composer catches the error and restores the draft without a visible report.
 - Session result: The chat window keeps `activeSessionId` empty and `isReady` false. The replicated session index and the authenticated user are both present in the window, so replication is not the failure.
 - Setup result: The window mount sequence in `App.vue` awaits `microphonePermission.refresh()` before `chatStore.initialize()`. In the chat window, the refresh request never settles, so chat initialization never starts and the `watch(index)` reselection stays behind its `ready` guard.
-- Host cause: `MicrophonePermissionService` binds only to the main window context in `Main.cs` and the Settings window context in `SettingsWindow.cs`. The chat, onboarding, and notice window contexts register no handler for the microphone-permission get-state and get-prompt contracts.
-- Silence cause: The shared C# contract registry knows these contract IDs, so the adapter does not report an unregistered-message error. The invoke receives no response and no rejection, which turns one missing binding into a permanent stall.
+- Host cause: `MicrophonePermissionService` bound only to the main window context in `Main.cs` and the Settings window context in `SettingsWindow.cs`. The chat, onboarding, notice, and developer window contexts registered no handler for the microphone-permission get-state and get-prompt contracts.
+- Silence cause: The shared C# contract registry knows these contract IDs, so the adapter does not report an unregistered-message error. Eventa then dispatches the invoke to zero listeners. That empty dispatch is correct Eventa behavior. The missing `Attach` is the host wiring error.
 - Recovery result: Manually running `chatSession.initialize()` in the open chat window resolved the leader-routed `ensureCurrentSession` to the active session. A later Enter sent the message, and the assistant reply streamed into the history, so every later stage of the send path works.
-- Affected windows: The onboarding and notice windows share the missing binding. The notice confirm flow still works because it does not depend on the stalled mount sequence. The onboarding window opens and closes itself correctly on a completed profile; a live reproduction of its stalled setup needs a first-run profile.
-- Required result: Every AIRI window context answers the microphone-permission contracts its renderer awaits, or the renderer must not await a contract that the window's host context does not serve. A missing handler is a host wiring error. The adapter must not invent a default reject for that case.
-- Fix: `MicrophonePermissionService.Attach` now binds to the chat, onboarding, notice, and developer window contexts through their window managers, next to the existing main and Settings bindings. Only the main renderer keeps prompt ownership.
+- Affected windows: The onboarding, notice, and developer windows used the same missing binding. Notice confirm still worked because it does not depend on the stalled mount sequence.
+- Required result: Every AIRI window context that awaits the microphone-permission contracts registers a handler for those contracts. A missing handler is a host wiring error. The Kirie Eventa adapter must not invent a default reject.
+- Fix: `MicrophonePermissionService.Attach` now binds to the chat, onboarding, notice, and developer window contexts through their window managers, next to the existing main and Settings bindings. Only the main renderer keeps prompt ownership. Handler registration stays in `PermissionBinding`.
 - Fix verification: On 2026-09-20 in real CEF, a fresh chat window completed its mount sequence, loaded the replicated session index with a non-empty `activeSessionId`, and sent a message without manual recovery. The user message entered the session and the assistant reply streamed into the history.
-- Remaining fail-fast concern: Closed. A missing handler is a host wiring error. Eventa and the Kirie adapter must not invent a default reject to cover that case. The AIRI window-binding fix is the required change.
+- Adapter decision: [godot-kirie#87](https://github.com/moeru-ai/godot-kirie/pull/87) proposed a default reject for an unhandled invoke. That change was closed without merge. The AIRI window `Attach` is the required fix.

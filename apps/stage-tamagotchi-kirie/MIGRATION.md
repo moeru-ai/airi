@@ -36,7 +36,7 @@ an API for a feature that has no current in-scope failure.
 | --- | ---: | --- |
 | Accepted | 22 | GAP-001 through GAP-006, GAP-008, GAP-009, GAP-011 through GAP-022, GAP-027, and GAP-028 |
 | In progress | 0 | None |
-| Review pending | 1 | GAP-029 |
+| Review pending | 1 | GAP-029. Host Attach is implemented and verified. Review is not complete. |
 | Runtime verification pending | 0 | None |
 | Open | 0 | None |
 | Blocked | 0 | None |
