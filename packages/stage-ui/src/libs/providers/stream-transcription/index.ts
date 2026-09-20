@@ -141,9 +141,9 @@ export function streamTranscription(options: StreamTranscriptionOptions): AIRISt
         : new URL(typeof options.baseURL === 'string' ? options.baseURL : 'http://localhost')
       // NOTICE:
       // Safari 27 fetch throws NotSupportedError when the request body is a ReadableStream.
-      // Chromium and Firefox need duplex half for a stream body. Safari does not expose duplex.
-      // Source: Safari 27 fetch. `'duplex' in Request.prototype` is false.
-      // Removal condition: `'duplex' in Request.prototype` is true in the Safari version we support.
+      // Chromium needs duplex half for a stream body. Firefox and Safari do not expose duplex.
+      // Source: https://developer.mozilla.org/en-US/docs/Web/API/Request/duplex
+      // Removal condition: `'duplex' in Request.prototype` is true in the Safari and Firefox versions we support.
       const canStreamUpload = 'duplex' in Request.prototype
       const requestInit: RequestInit & { duplex?: 'half' } = {
         body: canStreamUpload
