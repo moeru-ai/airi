@@ -36,8 +36,11 @@ export function useChatInterruption(options: ChatInterruptionOptions) {
 
   const responseActive = computed(() => options.generating.value || showStopSpeakingButton.value)
   const showStopAction = computed(() => responseActive.value && !options.hasSubmission.value)
+  const responseSessionId = computed(() => contextBridgeStore.remoteStreamSessionId
+    ?? chatStore.activeSendSessionId
+    ?? options.sessionId.value)
 
-  async function cancelGeneration(sessionId = options.sessionId.value) {
+  async function cancelGeneration(sessionId: string) {
     await Promise.all([
       contextBridgeStore.cancelRemoteStream(sessionId),
       chatStore.cancelPendingSends(sessionId),
@@ -45,11 +48,13 @@ export function useChatInterruption(options: ChatInterruptionOptions) {
   }
 
   async function stopActiveResponse() {
+    const sessionId = responseSessionId.value
     stopSpeakingFromChat()
-    await cancelGeneration()
+    await cancelGeneration(sessionId)
   }
 
-  async function interruptBeforeSend(sessionId: string) {
+  async function interruptBeforeSend() {
+    const sessionId = responseSessionId.value
     interruptSpeakingFromChat()
     await cancelGeneration(sessionId)
   }

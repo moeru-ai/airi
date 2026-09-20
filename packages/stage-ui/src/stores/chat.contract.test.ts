@@ -428,11 +428,13 @@ describe('chat store contract', () => {
         })
       })
 
-      setActivePinia(leaderPinia)
-      const sending = leaderStore.send({ sessionId: 'session-1', text: 'keep generating' })
+      setActivePinia(followerPinia)
+      const sending = followerStore.send({
+        sessionId: 'session-1',
+        text: 'keep generating',
+      })
       await vi.waitFor(() => expect(leaderSignal).toBeDefined())
 
-      setActivePinia(followerPinia)
       await followerStore.cancelPendingSends('session-1')
       await sending
 

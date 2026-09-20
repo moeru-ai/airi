@@ -1,5 +1,4 @@
 import type { LlmStreamingControlCallManifest } from '@proj-airi/pipelines-audio'
-import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { UserMessage } from '@xsai/shared-chat'
 
@@ -100,6 +99,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     pendingLiterals: string[]
   }>()
   const isReceivingRemoteStream = computed(() => remoteStreamGuard.value?.sessionId === chatSession.activeSessionId)
+  const remoteStreamSessionId = computed(() => remoteStreamGuard.value?.sessionId)
   let contextChannel: ReturnType<typeof createContextChannel> | undefined
   let localProducedStream: { sessionId: string, turnId: string } | undefined
   let initialized = false
@@ -113,6 +113,15 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       sessionId: guard.sessionId,
       turnId: guard.turnId,
     })
+
+    if (remoteStreamGuard.value !== guard)
+      return
+    if (guard.started
+      && guard.sessionId === chatSession.activeSessionId
+      && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+      chatStream.resetStream()
+    }
+    remoteStreamGuard.value = undefined
   }
 
   function presentRemoteStreamIfActive() {
@@ -507,7 +516,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         if (localProducedStream?.sessionId !== command.sessionId || localProducedStream.turnId !== command.turnId)
           return
 
-        chatOrchestrator.cancelLocalPendingSends(command.sessionId)
+        await chatOrchestrator.cancelPendingSends(command.sessionId)
       }))
 
       const { stop: stopSparkNotifyBridgeWatch } = watch(incomingSparkNotifyBridgeMessage, async (event) => {
@@ -700,15 +709,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
 
         if (activeProvider.value && activeModel.value) {
-          let chatProvider: GenerationProvider
-          try {
-            chatProvider = await consciousnessStore.getChatProviderInstance(activeProvider.value)
-          }
-          catch (err) {
-            console.error('[context-bridge] getChatProviderInstance failed for provider:', activeProvider.value, err)
-            return
-          }
-
           let messageText = text
           const targetSessionId = overrides?.sessionId
 
@@ -740,9 +740,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // - https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API
           await withContextBridgeLock('context-bridge:event:input:text', async () => {
             try {
-              await chatOrchestrator.ingest(messageText, {
-                model: activeModel.value,
-                chatProvider,
+              await chatOrchestrator.send({
+                sessionId: targetSessionId ?? chatSession.activeSessionId,
+                text: messageText,
                 temperature: activeTemperature.value,
                 topP: activeTopP.value,
                 input: {
@@ -755,7 +755,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                     contextUpdates: acceptedContextUpdates,
                   },
                 },
-              }, targetSessionId)
+              })
             }
             catch (err) {
               console.error('Error ingesting text input via context bridge:', err)
@@ -1049,6 +1049,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     dispatchSparkNotifyReaction,
     dispatchSparkNotifyPerformance,
     isReceivingRemoteStream,
+    remoteStreamSessionId,
     cancelRemoteStream,
     setSparkNotifyHostRole,
   }
