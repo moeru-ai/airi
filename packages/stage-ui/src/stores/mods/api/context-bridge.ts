@@ -513,9 +513,20 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       disposeHookFns.value.push(stopContextUpdates)
 
       disposeHookFns.value.push(contextChannel.onStreamCancel(async (command) => {
+        const guard = remoteStreamGuard.value
+        if (guard?.sessionId === command.sessionId && guard.turnId === command.turnId) {
+          if (guard.started
+            && guard.sessionId === chatSession.activeSessionId
+            && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+            chatStream.resetStream()
+          }
+          remoteStreamGuard.value = undefined
+        }
+
         if (localProducedStream?.sessionId !== command.sessionId || localProducedStream.turnId !== command.turnId)
           return
 
+        localProducedStream = undefined
         await chatOrchestrator.cancelPendingSends(command.sessionId)
       }))
 

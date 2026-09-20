@@ -606,6 +606,56 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  it('retires the producer correlation before cancellation settles', async () => {
+    let resolveCancellation: (() => void) | undefined
+    chatOrchestratorMock.cancelPendingSends.mockImplementation(() => new Promise<void>((resolve) => {
+      resolveCancellation = resolve
+    }))
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamPeer = createContextChannel()
+    testChannels.push(streamPeer)
+    const context = {
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    await chatOrchestratorMock.emitBeforeSendHooks('ping', context)
+    void streamPeer.emitStreamCancel({ sessionId: 'session-1', turnId: 'turn-1' })
+    await vi.waitFor(() => expect(chatOrchestratorMock.cancelPendingSends).toHaveBeenCalledTimes(1))
+
+    await streamPeer.emitStreamCancel({ sessionId: 'session-1', turnId: 'turn-1' })
+    expect(chatOrchestratorMock.cancelPendingSends).toHaveBeenCalledTimes(1)
+
+    resolveCancellation?.()
+    await store.dispose()
+  })
+
+  it('clears a mirrored stream when another receiver cancels it', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamPeer = createContextChannel()
+    testChannels.push(streamPeer)
+    const context = {
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    await streamPeer.emitStream({ type: 'before-send', message: 'ping', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(true))
+
+    await streamPeer.emitStreamCancel({ sessionId: 'session-1', turnId: 'turn-1' })
+
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(false))
+    expect(resetStreamMock).toHaveBeenCalledTimes(1)
+    expect(chatOrchestratorMock.cancelPendingSends).not.toHaveBeenCalled()
+    await store.dispose()
+  })
+
   it('emits cancellation for the correlated remote turn', async () => {
     const store = useContextBridgeStore()
     await store.initialize()
