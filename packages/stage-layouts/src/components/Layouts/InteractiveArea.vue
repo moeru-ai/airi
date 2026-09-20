@@ -88,7 +88,7 @@ async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: n
             @vue:mounted="isLoading = false"
           />
         </div>
-        <ChatArea :composer="composer" />
+        <ChatArea :composer="composer" :generating="isActiveSessionSending" />
       </ChatContainer>
     </div>
 

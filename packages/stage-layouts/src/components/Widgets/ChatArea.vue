@@ -17,11 +17,12 @@ import { useI18n } from 'vue-i18n'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
+import { useChatInterruption } from '../../composables/use-chat-interruption'
 import { useTranscriptions } from '../../composables/use-transcriptions'
-import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
 const props = defineProps<{
   composer: ChatComposerController<ChatImageAttachment>
+  generating: boolean
 }>()
 
 const composerRoot = useTemplateRef<HTMLDivElement>('composer')
@@ -61,7 +62,18 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription, au
     isStageTamagotchi,
   },
 )
-const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
+const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
+const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
+  sessionId: computed(() => chatSession.activeSessionId),
+  generating: computed(() => props.generating),
+  hasSubmission,
+  submit: async (hooks) => {
+    await props.composer.submit({
+      beforeSend: hooks && (submission => hooks.beforeSend(submission.sessionId)),
+      afterSendStarted: hooks && (submission => hooks.afterSendStarted(submission.sessionId)),
+    })
+  },
+})
 
 const secondaryComposerButtonClass = [
   'size-8 flex items-center justify-center rounded-md outline-none',
@@ -76,7 +88,7 @@ const composerActionButtonClass = [
 
 async function handleSend() {
   if (!pendingImages.value)
-    await props.composer.submit()
+    await submitInterruptingResponse()
 }
 
 async function handleCancelReply() {
@@ -229,7 +241,7 @@ watch(replyTarget, async (target) => {
           :class="secondaryComposerButtonClass"
           @click="imageInput?.click()"
         >
-          <span :class="['i-solar:gallery-bold-duotone size-5']" />
+          <span :class="['i-solar:gallery-outline size-5']" />
         </button>
         <DropdownMenuRoot>
           <DropdownMenuTrigger as-child>
@@ -238,7 +250,7 @@ watch(replyTarget, async (target) => {
               :title="t('stage.send-mode.title')"
               :aria-label="t('stage.send-mode.title')"
             >
-              <div class="i-solar:keyboard-bold-duotone h-5 w-5" />
+              <div class="i-solar:keyboard-outline size-5" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuPortal>
@@ -281,7 +293,10 @@ watch(replyTarget, async (target) => {
             >
               <Transition name="fade" mode="out-in">
                 <IndicatorMicVolume v-if="enabled" class="h-5 w-5" :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
-                <div v-else class="i-ph:microphone-slash h-5 w-5" />
+                <div v-else :class="['relative size-5 opacity-55']">
+                  <div :class="['i-solar:microphone-3-outline size-5']" />
+                  <span aria-hidden="true" :class="['absolute left-0 top-1/2 h-px w-full rotate-45 bg-current']" />
+                </div>
               </Transition>
             </button>
           </PopoverTrigger>
@@ -308,19 +323,20 @@ watch(replyTarget, async (target) => {
         absolute bottom-2 right-2 z-10 flex items-center gap-1
       >
         <button
-          v-if="showStopSpeakingButton"
+          v-if="showStopAction"
           data-testid="stop-speaking-button"
           :class="[
             composerActionButtonClass,
             'bg-neutral-500/15 text-neutral-500 hover:bg-neutral-500/25 dark:bg-neutral-400/15 dark:text-neutral-300 dark:hover:bg-neutral-400/25',
           ]"
-          title="Stop speaking"
-          aria-label="Stop speaking"
-          @click="stopSpeakingFromChat"
+          :title="t('stage.chat.actions.stop')"
+          :aria-label="t('stage.chat.actions.stop')"
+          @click="stopActiveResponse"
         >
           <div class="i-solar:stop-bold-duotone h-4 w-4" />
         </button>
         <button
+          v-else
           type="button"
           :aria-label="t('stage.chat.actions.send')"
           :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
