@@ -27,6 +27,8 @@ export type ChatComposerSubmitResult = 'discarded' | 'ignored' | 'restored' | 's
 export interface ChatComposerSubmitOptions<TAttachment> {
   /** Runs with the immutable submission, before the chat send begins. */
   beforeSend?: (submission: ChatComposerSubmission<TAttachment>) => Promise<void>
+  /** Runs immediately after the chat send has been started. */
+  afterSendStarted?: (submission: ChatComposerSubmission<TAttachment>) => void
 }
 
 /** Dependencies and runtime ownership for one local composer. */
@@ -123,7 +125,9 @@ export function useChatComposer<TAttachment = never>(options: UseChatComposerOpt
 
     try {
       await submitOptions?.beforeSend?.(submission)
-      await options.send(submission)
+      const sendPromise = options.send(submission)
+      submitOptions?.afterSendStarted?.(submission)
+      await sendPromise
       return 'sent'
     }
     catch (error) {

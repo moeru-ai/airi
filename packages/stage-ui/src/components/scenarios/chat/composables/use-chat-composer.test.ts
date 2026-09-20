@@ -49,6 +49,22 @@ describe('useChatComposer', () => {
     }))
   })
 
+  it('announces that sending started after invoking the send boundary', async () => {
+    const events: string[] = []
+    const activeSessionId = shallowRef('session-1')
+    const send = vi.fn(async () => {
+      events.push('send-started')
+    })
+    const composer = useChatComposer({ activeSessionId, send })
+    composer.draft.value = 'Interrupt here'
+
+    await composer.submit({
+      afterSendStarted: () => events.push('announced'),
+    })
+
+    expect(events).toEqual(['send-started', 'announced'])
+  })
+
   it('restores a failed send without replacing newer input state', async () => {
     const activeSessionId = shallowRef('session-1')
     const firstTarget: ChatHistoryReplyPayload = {

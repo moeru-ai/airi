@@ -77,9 +77,10 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
   sessionId: activeSessionId,
   generating: isActiveSessionSending,
   hasSubmission,
-  submit: async (beforeSend) => {
+  submit: async (hooks) => {
     await composer.submit({
-      beforeSend: beforeSend && (submission => beforeSend(submission.sessionId)),
+      beforeSend: hooks && (submission => hooks.beforeSend(submission.sessionId)),
+      afterSendStarted: hooks && (submission => hooks.afterSendStarted(submission.sessionId)),
     })
   },
 })

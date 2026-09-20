@@ -114,10 +114,11 @@ describe('useChatInterruption', () => {
     mocks.cancelPendingSends.mockImplementationOnce(async () => {
       events.push('cancel')
     })
-    const submit = vi.fn(async (beforeSend?: (sessionId: string) => Promise<void>) => {
+    const submit = vi.fn(async (hooks?: { beforeSend: (sessionId: string) => Promise<void>, afterSendStarted: (sessionId: string) => void }) => {
       events.push('capture')
-      await beforeSend?.('session-1')
+      await hooks?.beforeSend('session-1')
       events.push('send')
+      hooks?.afterSendStarted('session-1')
     })
     const controls = useChatInterruption({
       sessionId: ref('session-1'),
@@ -136,8 +137,9 @@ describe('useChatInterruption', () => {
 
   it('interrupts the response owner before sending from another session', async () => {
     mocks.activeSendSessionId = 'session-1'
-    const submit = vi.fn(async (beforeSend?: (sessionId: string) => Promise<void>) => {
-      await beforeSend?.('session-2')
+    const submit = vi.fn(async (hooks?: { beforeSend: (sessionId: string) => Promise<void>, afterSendStarted: (sessionId: string) => void }) => {
+      await hooks?.beforeSend('session-2')
+      hooks?.afterSendStarted('session-2')
     })
     const controls = useChatInterruption({
       sessionId: ref('session-2'),
@@ -149,6 +151,33 @@ describe('useChatInterruption', () => {
     await controls.submitInterruptingResponse()
 
     expect(mocks.cancelPendingSends).toHaveBeenCalledWith('session-1')
+  })
+
+  it('hides stop until an interrupting replacement has started', async () => {
+    let finishCancellation!: () => void
+    const cancellation = new Promise<void>((resolve) => {
+      finishCancellation = resolve
+    })
+    mocks.cancelPendingSends.mockReturnValueOnce(cancellation)
+    const hasSubmission = ref(true)
+    const submit = vi.fn(async (hooks?: { beforeSend: (sessionId: string) => Promise<void>, afterSendStarted: (sessionId: string) => void }) => {
+      hasSubmission.value = false
+      await hooks?.beforeSend('session-2')
+      hooks?.afterSendStarted('session-2')
+    })
+    const controls = useChatInterruption({
+      sessionId: ref('session-2'),
+      generating: ref(true),
+      hasSubmission,
+      submit,
+    })
+
+    const sending = controls.submitInterruptingResponse()
+    await vi.waitFor(() => expect(mocks.cancelPendingSends).toHaveBeenCalledWith('session-2'))
+    expect(controls.showStopAction.value).toBe(false)
+
+    finishCancellation()
+    await sending
   })
 
   it('submits directly when no response is active', async () => {
@@ -178,7 +207,10 @@ describe('useChatInterruption', () => {
 
     await controls.submitInterruptingResponse()
 
-    expect(submit).toHaveBeenCalledWith(expect.any(Function))
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({
+      beforeSend: expect.any(Function),
+      afterSendStarted: expect.any(Function),
+    }))
     expect(mocks.cancelPendingSends).not.toHaveBeenCalled()
   })
 })
