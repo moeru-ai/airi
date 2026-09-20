@@ -70,6 +70,9 @@ export function useChatInterruption(options: ChatInterruptionOptions) {
   }
 
   async function submitInterruptingResponse() {
+    if (preparingReplacement.value)
+      return
+
     if (!responseActive.value) {
       await options.submit()
       return

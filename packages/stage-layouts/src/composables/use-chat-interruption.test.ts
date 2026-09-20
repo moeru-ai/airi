@@ -180,6 +180,32 @@ describe('useChatInterruption', () => {
     await sending
   })
 
+  it('ignores a duplicate submission while interruption is pending', async () => {
+    let finishCancellation!: () => void
+    mocks.cancelPendingSends.mockReturnValueOnce(new Promise<void>((resolve) => {
+      finishCancellation = resolve
+    }))
+    const submit = vi.fn(async (hooks?: { beforeSend: (sessionId: string) => Promise<void>, afterSendStarted: (sessionId: string) => void }) => {
+      await hooks?.beforeSend('session-1')
+      hooks?.afterSendStarted('session-1')
+    })
+    const controls = useChatInterruption({
+      sessionId: ref('session-1'),
+      generating: ref(true),
+      hasSubmission: ref(true),
+      submit,
+    })
+
+    const firstSubmission = controls.submitInterruptingResponse()
+    await vi.waitFor(() => expect(mocks.cancelPendingSends).toHaveBeenCalledTimes(1))
+    await controls.submitInterruptingResponse()
+
+    expect(submit).toHaveBeenCalledTimes(1)
+    expect(controls.showStopAction.value).toBe(false)
+    finishCancellation()
+    await firstSubmission
+  })
+
   it('submits directly when no response is active', async () => {
     const submit = vi.fn().mockResolvedValue(undefined)
     const controls = useChatInterruption({

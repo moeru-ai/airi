@@ -606,6 +606,32 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  it('broadcasts cancellation when the producing renderer stops its turn', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamPeer = createContextChannel()
+    testChannels.push(streamPeer)
+    const cancellations: Array<{ sessionId: string, turnId: string }> = []
+    streamPeer.onStreamCancel((command) => {
+      cancellations.push(command)
+    })
+    const context = {
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    await chatOrchestratorMock.emitBeforeSendHooks('ping', context)
+    await store.cancelRemoteStream('session-1')
+
+    await vi.waitFor(() => {
+      expect(cancellations).toEqual([{ sessionId: 'session-1', turnId: 'turn-1' }])
+    })
+    expect(chatOrchestratorMock.cancelPendingSends).not.toHaveBeenCalled()
+    await store.dispose()
+  })
+
   it('retires the producer correlation before cancellation settles', async () => {
     let resolveCancellation: (() => void) | undefined
     chatOrchestratorMock.cancelPendingSends.mockImplementation(() => new Promise<void>((resolve) => {

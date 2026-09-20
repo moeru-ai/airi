@@ -106,15 +106,19 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
   async function cancelRemoteStream(sessionId: string) {
     const guard = remoteStreamGuard.value
-    if (!guard || guard.sessionId !== sessionId)
+    const producedStream = localProducedStream?.sessionId === sessionId ? localProducedStream : undefined
+    const turnId = guard?.sessionId === sessionId ? guard.turnId : producedStream?.turnId
+    if (!turnId)
       return
 
+    if (producedStream)
+      localProducedStream = undefined
     await contextChannel?.emitStreamCancel({
-      sessionId: guard.sessionId,
-      turnId: guard.turnId,
+      sessionId,
+      turnId,
     })
 
-    if (remoteStreamGuard.value !== guard)
+    if (!guard || remoteStreamGuard.value !== guard)
       return
     if (guard.started
       && guard.sessionId === chatSession.activeSessionId
