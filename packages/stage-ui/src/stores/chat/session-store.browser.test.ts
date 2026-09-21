@@ -156,6 +156,43 @@ describe('chat session synchronization', () => {
     expect(Object.keys(leaderChatStore.index?.characters.default?.sessions ?? {})).toHaveLength(1)
   })
 
+  // https://github.com/moeru-ai/airi/issues/2595
+  it('keeps a new conversation selected after its first synchronized message for Issue #2595', async () => {
+    // ROOT CAUSE:
+    //
+    // The leader creates the session while the caller selects it locally.
+    // The first message then synchronizes a new index ref. The index watcher
+    // treated that data update as navigation and restored the old session.
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    setActivePinia(leaderContext.pinia)
+    const leaderChatStore = useChatSessionStore()
+    await leaderChatStore.initialize()
+    const previousSessionId = leaderChatStore.activeSessionId
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerChatStore = useChatSessionStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await followerChatStore.initialize()
+
+    const newSessionId = await followerChatStore.createSession('default', { setActive: false })
+    await followerChatStore.setActiveSession(newSessionId)
+    followerChatStore.appendSessionMessage(newSessionId, {
+      id: 'first-user-message',
+      role: 'user',
+      content: 'Hello',
+    })
+
+    await vi.waitFor(() => expect(leaderChatStore.sessionMessages[newSessionId]).toHaveLength(2))
+    await vi.waitFor(() => expect(followerChatStore.sessionMessages[newSessionId]).toHaveLength(2))
+
+    expect(previousSessionId).not.toBe(newSessionId)
+    expect(followerChatStore.activeSessionId).toBe(newSessionId)
+  })
+
   it('keeps the leader chat snapshot when new followers receive the auth identity', async () => {
     // ROOT CAUSE:
     //
