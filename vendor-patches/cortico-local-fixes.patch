@@ -1,0 +1,274 @@
+diff --git a/bots/cormini/console/workspace.ts b/bots/cormini/console/workspace.ts
+index df0db94..06d4e9b 100644
+--- a/bots/cormini/console/workspace.ts
++++ b/bots/cormini/console/workspace.ts
+@@ -57,7 +57,7 @@ function markdownPreview(ctx: ConsolePanelContext, source: string): string {
+   let out = '';
+   for (const raw of String(source || '').split('\n')) {
+     const line = esc(raw);
+-    if (/^```/.test(raw)) {
++    if (raw.startsWith('```')) {
+       inCode = !inCode;
+       out += inCode ? '<pre><code>' : '</code></pre>';
+       continue;
+diff --git a/scripts/dev-console.ts b/scripts/dev-console.ts
+index 60e3123..7a1b6d3 100644
+--- a/scripts/dev-console.ts
++++ b/scripts/dev-console.ts
+@@ -692,7 +692,7 @@ const devPanels: Record<string, Record<string, Record<string, (...args: never[])
+         b.length >= 24 && b[0] === 0x89 && b[1] === 0x50
+           ? { width: b.readUInt32BE(16), height: b.readUInt32BE(20) }
+           : null;
+-      const gameDir = 'C:\mc\.minecraft';
++      const gameDir = 'C:mc.minecraft';
+       const account: Record<string, string> = { bot: 'CortiV', player: 'Phant' };
+       const state = (detail: string | null = null) => ({
+         roles: (['bot', 'player'] as const).map((role) => {
+diff --git a/src/bot.ts b/src/bot.ts
+index b3561a4..fe2c2e4 100644
+--- a/src/bot.ts
++++ b/src/bot.ts
+@@ -1205,7 +1205,7 @@ export function createBot<C extends CoreConfig>(
+         loop: core.loop.getStatus(),
+         eventCount: core.store.latestCursor(),
+         onboardingPending: existsSync(join(loaded.rootDir, ONBOARDING_FLAG_FILE)),
+-        ...(contribution.status?.() ?? {}),
++        ...contribution.status?.(),
+       }),
+       log: core.runlog.logger('console'),
+       prompts: derivePrompts(parts, assembly, contribution, cfg.timezone, promptDirs, opts.extensions?.bot !== undefined),
+diff --git a/src/core/loop.ts b/src/core/loop.ts
+index 7d57c57..df6cb51 100644
+--- a/src/core/loop.ts
++++ b/src/core/loop.ts
+@@ -1012,7 +1012,7 @@ export class MainLoop {
+         try {
+           res = await llm.respond(responseRequest(spec, outbound, schemas), {
+             context: outbound, nativeSpec: spec,
+-            ...(tapEvents ?? {}),
++            ...tapEvents,
+             role: decl.id,
+             sessionId: this.mainTrack?.id,
+             signal: flight.controller.signal,
+diff --git a/src/extensions/manifest.ts b/src/extensions/manifest.ts
+index 36a9355..fe1b7cb 100644
+--- a/src/extensions/manifest.ts
++++ b/src/extensions/manifest.ts
+@@ -111,7 +111,7 @@ export function parseExtensionManifest(pkg: ExtensionPackageJson): ExtensionMani
+       reasons.push('cortico.consoleStyle 要与 consoleClient 一起给:样式随面板 bundle 注入。');
+     } else if (!isSafeRelativeFile(style)) {
+       reasons.push(`cortico.consoleStyle 必须是包内相对路径,现在是 ${JSON.stringify(style)}。`);
+-    } else if (!/\.css$/.test(style)) {
++    } else if (!style.endsWith('.css')) {
+       reasons.push('cortico.consoleStyle 必须指向 .css。');
+     }
+   }
+diff --git a/src/protocol/open-responses/context-helpers.ts b/src/protocol/open-responses/context-helpers.ts
+index 9c70c37..e89aeb3 100644
+--- a/src/protocol/open-responses/context-helpers.ts
++++ b/src/protocol/open-responses/context-helpers.ts
+@@ -14,7 +14,7 @@ export function responseRequest(spec: ModelSpec, context: readonly ContextRecord
+   return {
+     model: spec.model, input: context.map(inputItem), tools: tools.map(tool => ({ ...tool, type: 'function' })),
+     // effort 词表归端点(见 ModelSpec.reasoningEffort);协议枚举只覆盖 OpenAI 自己的取值。
+-    reasoning: spec.thinking ? { ...(spec.reasoningEffort ? { effort: spec.reasoningEffort as Schemas['ReasoningEffortEnum'] } : {}) } : { effort: 'none' },
++    reasoning: spec.thinking ? (spec.reasoningEffort ? { effort: spec.reasoningEffort as Schemas['ReasoningEffortEnum'] } : {}) : { effort: 'none' },
+     ...(spec.temperature !== undefined ? { temperature: spec.temperature } : {}),
+     ...(spec.maxTokens !== undefined ? { max_output_tokens: spec.maxTokens } : {}),
+   };
+diff --git a/src/providers/llamacpp/console/server.ts b/src/providers/llamacpp/console/server.ts
+index c534cf0..869e3f9 100644
+--- a/src/providers/llamacpp/console/server.ts
++++ b/src/providers/llamacpp/console/server.ts
+@@ -79,7 +79,7 @@ export function llamacppConsole(host: ProviderConsoleHost): Partial<ConsolePageC
+             options: {
+               ...entry.options,
+               runtime: { release: typeof value.release === 'string' && value.release.trim() ? value.release.trim() : PINNED_RELEASE, backend },
+-              launch: { ...LAUNCH_DEFAULTS, ...(options.launch ?? {}) },
++              launch: { ...LAUNCH_DEFAULTS, ...options.launch },
+             },
+           });
+           return { ok: true };
+@@ -103,7 +103,7 @@ export function llamacppConsole(host: ProviderConsoleHost): Partial<ConsolePageC
+             if (dir) runtimeOptions.runtimeDir = dir;
+             else delete runtimeOptions.runtimeDir;
+           }
+-          const launch = { ...LAUNCH_DEFAULTS, ...(options.launch ?? {}), ...((value.launch ?? {}) as LaunchPatch) };
++          const launch = { ...LAUNCH_DEFAULTS, ...options.launch, ...((value.launch ?? {}) as LaunchPatch) };
+           host.save(name, {
+             ...entry,
+             options: {
+diff --git a/src/providers/llamacpp/options.ts b/src/providers/llamacpp/options.ts
+index 43f3a2a..591a73d 100644
+--- a/src/providers/llamacpp/options.ts
++++ b/src/providers/llamacpp/options.ts
+@@ -45,7 +45,7 @@ export function normalizeLlamaCpp(entry: LLMProviderEntry): LLMProviderEntry {
+     if (typeof options.runtime.release === 'string') options.runtime.release = options.runtime.release.trim();
+     if (typeof options.runtime.runtimeDir === 'string') options.runtime.runtimeDir = options.runtime.runtimeDir.trim();
+     if (options.runtime.runtimeDir === '') delete options.runtime.runtimeDir;
+-    options.launch = { ...LAUNCH_DEFAULTS, ...(options.launch ?? {}) };
++    options.launch = { ...LAUNCH_DEFAULTS, ...options.launch };
+   }
+   return { ...entry, options: options as Record<string, unknown> };
+ }
+diff --git a/src/web/client/features/live/context.ts b/src/web/client/features/live/context.ts
+index 5c990c6..f49828b 100644
+--- a/src/web/client/features/live/context.ts
++++ b/src/web/client/features/live/context.ts
+@@ -128,7 +128,7 @@ export function computeCtx(input: ContextInput): ContextBreakdown | null {
+     tok.constitution = estTok(seg['宪法'] || '');
+     tok.toolsUsage = estTok(seg['Using your tools'] || '');
+     tok.memory = estTok(seg['记忆'] || '');
+-    for (const k of Object.keys(seg)) if (/^环境/.test(k)) tok.env += estTok(seg[k]);
++    for (const k of Object.keys(seg)) if (k.startsWith('环境')) tok.env += estTok(seg[k]);
+     const sysTotal = PER_MESSAGE_OVERHEAD + estTok(sys);
+     tok.prefixMisc = Math.max(
+       0,
+diff --git a/src/world.ts b/src/world.ts
+index dd26c3f..73b1fec 100644
+--- a/src/world.ts
++++ b/src/world.ts
+@@ -108,7 +108,7 @@ export function worldDefaults(
+   const declared = new Set(declares.map((d) => (typeof d === 'string' ? d : d.id)));
+   const worlds: Record<string, WorldSection> = {};
+   for (const def of definitions) {
+-    worlds[def.id] = { ...def.defaults(), enabled: declared.has(def.id), ...(overrides[def.id] ?? {}) };
++    worlds[def.id] = { ...def.defaults(), enabled: declared.has(def.id), ...overrides[def.id] };
+   }
+   return worlds;
+ }
+diff --git a/src/worlds/minecraft/bridge.ts b/src/worlds/minecraft/bridge.ts
+index 08ba1f1..683ae37 100644
+--- a/src/worlds/minecraft/bridge.ts
++++ b/src/worlds/minecraft/bridge.ts
+@@ -252,7 +252,7 @@ export class Bridge {
+ 
+   /** 等所有在途回收落地:端口释放必须排在新一代绑定之前 */
+   private async settleDisposals(): Promise<void> {
+-    while (this.disposing.size > 0) await Promise.allSettled([...this.disposing]);
++    while (this.disposing.size > 0) await Promise.allSettled(this.disposing);
+   }
+ 
+   start(): void {
+diff --git a/tests/core/provider-llamacpp.test.ts b/tests/core/provider-llamacpp.test.ts
+index ad68e02..74b43fb 100644
+--- a/tests/core/provider-llamacpp.test.ts
++++ b/tests/core/provider-llamacpp.test.ts
+@@ -55,8 +55,8 @@ describe('llamacpp 条目', () => {
+     expect(llamacppOptions(current).launch).toEqual(LAUNCH_DEFAULTS);
+     await call('configure', { launch: { nGpuLayers: 40 } });
+     expect(llamacppOptions(current).launch).toEqual({ ...LAUNCH_DEFAULTS, nGpuLayers: 40 });
+-    await call('configure', { runtimeDir: 'C:\llama' });
+-    expect(llamacppOptions(current).runtime!.runtimeDir).toBe('C:\llama');
++    await call('configure', { runtimeDir: 'C:llama' });
++    expect(llamacppOptions(current).runtime!.runtimeDir).toBe('C:llama');
+     await call('configure', { runtimeDir: '  ' });
+     expect(llamacppOptions(current).runtime!.runtimeDir).toBeUndefined();
+     await call('configure', { autoStart: true });
+diff --git a/tests/extensions.test.ts b/tests/extensions.test.ts
+index c7a2289..470c87b 100644
+--- a/tests/extensions.test.ts
++++ b/tests/extensions.test.ts
+@@ -40,7 +40,7 @@ function installFake(name: string, opts: {
+   writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({
+     name, version: '1.2.3', type: 'module', main: './index.js',
+     keywords: ['cortico-world'], cortico: { kind: 'world', api: EXTENSION_API_VERSIONS.world },
+-    ...(opts.pkg ?? {}),
++    ...opts.pkg,
+   }));
+   writeFileSync(join(pkgDir, 'index.js'), opts.body ?? definitionSource('x'));
+ }
+diff --git a/tests/web/extensions-api.test.ts b/tests/web/extensions-api.test.ts
+index 2c6744f..ce7f1f4 100644
+--- a/tests/web/extensions-api.test.ts
++++ b/tests/web/extensions-api.test.ts
+@@ -42,7 +42,7 @@ beforeAll(async () => {
+         extensions: [{ name: 'a', spec: '^1', version: '1.0.0', consoleClient: false, loaded: true, worldId: 'a', label: 'A', state: 'loaded' }],
+       }),
+       search: async (kind) => {
+-        searched.push({ ...(kind ? { kind } : {}) });
++        searched.push((kind ? { kind } : {}));
+         return [{ name: 'hit', version: '1.0.0', description: 'd', downloads: 1, dependents: 0, links: {}, installed: false, ...(kind ? { kind } : {}) }];
+       },
+       packageInfo: async (name) => {
+diff --git a/tests/web/feature-extensions.test.ts b/tests/web/feature-extensions.test.ts
+index d21a5a3..c725f76 100644
+--- a/tests/web/feature-extensions.test.ts
++++ b/tests/web/feature-extensions.test.ts
+@@ -76,7 +76,7 @@ function stub(over: { list?: unknown; installStatus?: number; hits?: unknown; de
+     if (u === '/api/extensions') body = over.list ?? LIST;
+     else if (u.startsWith('/api/extensions/package')) {
+       status = over.detailStatus ?? 200;
+-      body = status === 200 ? { ...DETAIL, ...(over.detail ?? {}) } : { error: 'npm 没有这个包' };
++      body = status === 200 ? { ...DETAIL, ...over.detail } : { error: 'npm 没有这个包' };
+     } else if (u.startsWith('/api/extensions/search')) body = over.hits ?? HITS;
+     else if (u === '/api/extensions/install') { status = over.installStatus ?? 200; body = status === 200 ? { ok: true, result: '已安装 x。重启进程后加载。\n+ x 1.0.0' } : { error: '不是合法的 npm 包名: x' }; }
+     else if (u === '/api/extensions/uninstall') body = { ok: true, result: '已卸载 x。' };
+diff --git a/tests/web/feature-providers.test.ts b/tests/web/feature-providers.test.ts
+index 98b08ba..e78c833 100644
+--- a/tests/web/feature-providers.test.ts
++++ b/tests/web/feature-providers.test.ts
+@@ -18,9 +18,9 @@ async function fixture(names = ['Alpha', 'Beta'], active = names[0] ?? '') {
+     if (path === '/api/providers') result = { active, providers: names.map(name => ({ id: name, name, module: 'sample', moduleTitle: 'Sample driver', model: 'test-model', baseUrl: entry.baseUrl, active: name === active, readiness: { state: 'ready' }, revision: 'r1' })) };
+     else if (path === '/api/provider-modules') result = [{ id: 'sample', title: 'Sample driver', description: 'A sample connection', defaultBaseUrl: entry.baseUrl, reasoningTiers: [], serviceTiers: [] }];
+     else if (path === '/api/provider-modules/config') result = [];
+-    else if (/\/activate$/.test(path)) active = decodeURIComponent(path.split('/')[3]);
+-    else if (/\/delete$/.test(path)) names = names.filter(name => name !== decodeURIComponent(path.split('/')[3]));
+-    else if (/\/test$/.test(path)) result = { ok: true, status: 200, elapsedMs: 1234, model: 'probe-model', usage: { input: 10, cachedInput: 0, output: 5, reasoning: 0 }, encryptedReasoning: false, charges: [] };
++    else if (path.endsWith('/activate')) active = decodeURIComponent(path.split('/')[3]);
++    else if (path.endsWith('/delete')) names = names.filter(name => name !== decodeURIComponent(path.split('/')[3]));
++    else if (path.endsWith('/test')) result = { ok: true, status: 200, elapsedMs: 1234, model: 'probe-model', usage: { input: 10, cachedInput: 0, output: 5, reasoning: 0 }, encryptedReasoning: false, charges: [] };
+     else if (/^\/api\/providers\/[^/]+$/.test(path)) result = detail(decodeURIComponent(path.split('/')[3]));
+     return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
+   });
+diff --git a/tests/worlds/bilibili/audience-admission.test.ts b/tests/worlds/bilibili/audience-admission.test.ts
+index 1cae311..5726a88 100644
+--- a/tests/worlds/bilibili/audience-admission.test.ts
++++ b/tests/worlds/bilibili/audience-admission.test.ts
+@@ -213,7 +213,7 @@ describe('AudienceAdmission delivery projection', () => {
+     expect(result.metrics.lanes.important.selected).toBeLessThanOrEqual(5);
+     expect(result.selected.some((item) => item.candidate.stableKey === 'critical')).toBe(true);
+     expect(result.selected.map((item) => item.index)).toEqual(
+-      [...result.selected.map((item) => item.index)].sort((a, b) => a - b),
++      result.selected.map((item) => item.index).sort((a, b) => a - b),
+     );
+     expect(result.metrics.selectedLines).toBeLessThanOrEqual(10);
+     expect(result.selected.find((item) => item.lane === 'important')?.importantParticipants[0]?.reasons)
+diff --git a/tests/worlds/minecraft/executor-2.test.ts b/tests/worlds/minecraft/executor-2.test.ts
+index 07b810d..1fc0a95 100644
+--- a/tests/worlds/minecraft/executor-2.test.ts
++++ b/tests/worlds/minecraft/executor-2.test.ts
+@@ -674,7 +674,7 @@ describe('走不到与挖不动:失败要说出来,不能静默挂着', () => {
+     const line = { skill: 'excavate', shape: 'line', anchors: [['~1', '~-1', '~'], ['~1', '~-3', '~']] } as const;
+     const bare = shaftBot(['stone', 'stone', 'stone', 'stone'], { harvestable: false });
+     const rigA = makeExecutorOn(bare);
+-    rigA.exec.submit([{ ...line, anchors: [...line.anchors.map((a) => [...a])] } as never]);
++    rigA.exec.submit([{ ...line, anchors: line.anchors.map((a) => [...a]) } as never]);
+     await waitUntil(() => rigA.reports.length === 1, 8000);
+     expect(rigA.reports[0].kind).toBe('blocked');
+     expect(rigA.reports[0].text).toContain('包里没有能保住石头掉落的工具');
+@@ -684,7 +684,7 @@ describe('走不到与挖不动:失败要说出来,不能静默挂着', () => {
+     // 工具趁手有掉落:拾取清单如实入回执
+     const loot = shaftBot(['dirt', 'dirt', 'dirt', 'dirt'], { loot: 'dirt' });
+     const rigB = makeExecutorOn(loot);
+-    rigB.exec.submit([{ ...line, anchors: [...line.anchors.map((a) => [...a])] } as never]);
++    rigB.exec.submit([{ ...line, anchors: line.anchors.map((a) => [...a]) } as never]);
+     await waitUntil(() => rigB.reports.length === 1, 8000);
+     expect(rigB.reports[0].kind).toBe('done');
+     expect(rigB.reports[0].text).toContain('这一路拾取:泥土×3');
+diff --git a/tests/worlds/minecraft/executor-harness.ts b/tests/worlds/minecraft/executor-harness.ts
+index cf6dfbd..3d05ab5 100644
+--- a/tests/worlds/minecraft/executor-harness.ts
++++ b/tests/worlds/minecraft/executor-harness.ts
+@@ -566,7 +566,10 @@ export function enchantBot(opts: {
+       inv.set('lapis_lazuli', (inv.get('lapis_lazuli') ?? 0) - (choice + 1));
+       lapisOn = null;
+       enchanted = [{ id: 20, level: 4 }, { id: 22, level: 2 }];
+-      onTable = { ...onTable!, ...{ componentMap: new Map([['enchantments', { data: { enchantments: enchanted } }]]) } } as never;
++      onTable = ({
++	...onTable!,
++	componentMap: new Map([['enchantments', { data: { enchantments: enchanted } }]])
++}) as never;
+     },
+     close: () => { onTable = null; lapisOn = null; },
+   };
