@@ -58,6 +58,7 @@ chat:
     row: 'Conversation {n}'
   sessions:
     delete-short: Delete
+    confirm-delete-short: Confirm delete
     title: Conversations
     new: New conversation
     current: Current

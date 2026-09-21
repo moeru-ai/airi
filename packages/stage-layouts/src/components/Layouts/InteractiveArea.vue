@@ -13,6 +13,7 @@ import { useDeferredMount } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 
+import ChatPanelHeader from '../Widgets/chat-panel-header.vue'
 import ChatActionButtons from '../Widgets/ChatActionButtons.vue'
 import ChatArea from '../Widgets/ChatArea.vue'
 import ChatContainer from '../Widgets/ChatContainer.vue'
@@ -78,7 +79,8 @@ async function handleRetryMessage(index: number) {
         >
           <div h-full w="1/3" origin-left bg-primary-500 class="animate-scan" />
         </div>
-        <div w="full" max-h="<md:[60%]" py="<sm:2" flex="~ col" rounded="lg" relative h-full flex-1 overflow-hidden px="2 <md:0" py-4>
+        <ChatPanelHeader />
+        <div w="full" max-h="<md:[60%]" py="<sm:2" flex="~ col" rounded="lg" relative min-h-0 flex-1 overflow-hidden px="2 <md:0" py-4>
           <ChatHistory
             v-if="isReady"
             :messages="historyMessages"
