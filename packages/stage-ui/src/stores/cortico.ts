@@ -28,6 +28,13 @@ export const useCorticoStore = defineStore('cortico', () => {
   const connected = ref(false)
   const connecting = ref(false)
   const lastError = ref<string | null>(null)
+  /**
+   * Multi-window runtimes (tamagotchi) instantiate this store per window.
+   * Only the leader window may hold the bridge socket: followers would
+   * double-append replies and double-fire TTS/motion hooks. Single-window
+   * apps never call `setLeader`, so the default stays connected-capable.
+   */
+  const isLeader = ref(true)
   /** Draft model output streamed before the persona speaks. */
   const draftText = ref('')
 
@@ -154,6 +161,8 @@ export const useCorticoStore = defineStore('cortico', () => {
   }
 
   function connect() {
+    if (!isLeader.value)
+      return
     if (socket || connecting.value)
       return
     connecting.value = true
@@ -208,6 +217,11 @@ export const useCorticoStore = defineStore('cortico', () => {
     ws?.close()
   }
 
+  /** Called by the chat store's leadership listener in multi-window apps. */
+  function setLeader(leader: boolean) {
+    isLeader.value = leader
+  }
+
   /** Sends user text to the persona as an `airi.user_message` event. */
   async function send(text: string, images?: string[], sessionId?: string) {
     if (!connected.value) {
@@ -251,8 +265,9 @@ export const useCorticoStore = defineStore('cortico', () => {
   const ready = computed(() => enabled.value && connected.value)
 
   // Persisted toggle survives reloads; keep the socket in sync with it.
-  watch([enabled, bridgeUrl], ([on]) => {
-    if (on)
+  // Multi-window apps additionally gate on leadership (see isLeader).
+  watch([enabled, bridgeUrl, isLeader], ([on, , leader]) => {
+    if (on && leader)
       connect()
     else
       disconnect()
@@ -282,5 +297,6 @@ export const useCorticoStore = defineStore('cortico', () => {
     connect,
     disconnect,
     send,
+    setLeader,
   }
 })

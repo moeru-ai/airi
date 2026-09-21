@@ -201,8 +201,12 @@ export const useChatStore = defineStore('chat', () => {
    * A promoted renderer restarts the leader-owned cloud consumer.
    */
   async function initialize(syncedPinia: SyncedPiniaRuntime) {
-    stopLeadershipListener ??= syncedPinia.onLeadershipChange((isLeader) => {
-      if (!isLeader) {
+    const cortico = useCorticoStore()
+    stopLeadershipListener ??= syncedPinia.onLeadershipChange((leader) => {
+      // The bridge socket lives only on the leader window; followers keep
+      // state synced through pinia and never replay frames locally.
+      cortico.setLeader(leader)
+      if (!leader) {
         chatSession.dispose()
         return
       }

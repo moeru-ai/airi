@@ -12,7 +12,7 @@ import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/s
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
@@ -56,8 +56,6 @@ const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorde
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { removeStreamingTranscriptionConsumer, transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const consciousnessStore = useConsciousnessStore()
-const { activeProvider: activeChatProvider, activeModel: activeChatModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
 
 /** Identifies this page in the shared streaming transcription session. */
@@ -84,18 +82,11 @@ async function sendVoiceInputTextToChat(text: string | undefined) {
     return
 
   try {
-    const providerId = activeChatProvider.value
-    const model = activeChatModel.value
-    if (!providerId || !model)
-      return
-
-    const provider = await consciousnessStore.getChatProviderInstance(providerId)
-
-    await chatStore.ingest(text, {
-      model,
-      chatProvider: provider,
-      temperature: activeTemperature.value,
-      topP: activeTopP.value,
+    // `send` is a synced action: it reaches the leader window even when this
+    // tab is a follower, which the cortico bridge socket requires.
+    await chatStore.send({
+      sessionId: useChatSessionStore().activeSessionId,
+      text,
     })
   }
   catch (error) {
