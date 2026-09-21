@@ -579,7 +579,7 @@ export const useChatStore = defineStore('chat', () => {
     return ingest(sendingMessage, options, forkSessionId || baseSessionId)
   }
 
-  function cancelPendingSends(sessionId?: string) {
+  async function cancelPendingSends(sessionId?: string) {
     runtime.cancelPendingSends(sessionId)
   }
 
@@ -631,7 +631,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['cleanup', 'deleteSession', 'rerunToolCall', 'retry', 'send'],
+    actions: ['cancelPendingSends', 'cleanup', 'deleteSession', 'rerunToolCall', 'retry', 'send'],
     state: true,
   },
 })

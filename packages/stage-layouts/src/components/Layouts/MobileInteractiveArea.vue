@@ -24,6 +24,7 @@ import ViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import MobileSettingsDrawer from './mobile-settings-drawer.vue'
 import MobileHeader from './MobileHeader.vue'
 
+import { useChatInterruption } from '../../composables/use-chat-interruption'
 import { useMobileInteractiveAreaLayout } from '../../composables/use-mobile-interactive-area-layout'
 import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
@@ -71,6 +72,18 @@ const {
 } = composer
 const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
+const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
+const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
+  sessionId: activeSessionId,
+  generating: isActiveSessionSending,
+  hasSubmission,
+  submit: async (hooks) => {
+    await composer.submit({
+      beforeSend: hooks && (submission => hooks.beforeSend(submission.sessionId)),
+      afterSendStarted: hooks && (submission => hooks.afterSendStarted(submission.sessionId)),
+    })
+  },
+})
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
@@ -216,7 +229,7 @@ useTranscriptions(
     isStageTamagotchi,
   },
 )
-const { showStopSpeakingButton, speechMuted, stopSpeakingFromChat, toggleSpeechMuted } = useStopSpeakingButton()
+const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
 const characterVoiceEnabled = computed({
   get: () => !speechMuted.value,
   set: (value) => {
@@ -245,7 +258,7 @@ async function handleSubmit() {
 
 async function handleSend() {
   if (!pendingImages.value)
-    await composer.submit()
+    await submitInterruptingResponse()
 }
 
 function teardownAnalyzer() {
@@ -451,7 +464,7 @@ onUnmounted(() => {
         </div>
         <div :class="['min-w-10 shrink-0 flex items-end justify-end gap-1']">
           <button
-            v-if="showStopSpeakingButton"
+            v-if="showStopAction"
             data-testid="stop-speaking-button"
             :class="[
               'size-10 flex items-center justify-center rounded-full outline-none backdrop-blur-md',
@@ -460,14 +473,14 @@ onUnmounted(() => {
               'dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-neutral-400',
               'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
             ]"
-            title="Stop speaking"
-            aria-label="Stop speaking"
-            @click="stopSpeakingFromChat"
+            :title="t('stage.chat.actions.stop')"
+            :aria-label="t('stage.chat.actions.stop')"
+            @click="stopActiveResponse"
           >
             <div class="i-solar:stop-bold-duotone h-4 w-4" />
           </button>
           <button
-            v-if="messageInput.trim() || attachments.length || isComposing"
+            v-else-if="hasSubmission"
             :disabled="!!pendingImages"
             :aria-label="t('stage.chat.actions.send')"
             :class="[

@@ -93,7 +93,7 @@ async function handleRetryMessage(index: number) {
             @vue:mounted="isLoading = false"
           />
         </div>
-        <ChatArea :composer="composer" />
+        <ChatArea :composer="composer" :generating="isActiveSessionSending" />
       </ChatContainer>
     </div>
 

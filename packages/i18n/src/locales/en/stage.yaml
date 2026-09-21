@@ -38,6 +38,7 @@ chat:
     reply: Reply
     retry: Retry
     send: Send message
+    stop: Stop response
   message:
     character-name:
       airi: AIRI

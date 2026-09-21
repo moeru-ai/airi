@@ -10,7 +10,7 @@ export type { ChatToolCallRendererProps, ChatToolCallRendererRegistry } from './
 export { default as ChatToolCallShell } from './components/tool-call-shell.vue'
 export { default as ChatUserItem } from './components/user-item.vue'
 export { useChatComposer } from './composables/use-chat-composer'
-export type { ChatComposerController, ChatComposerSubmission, ChatComposerSubmitResult, UseChatComposerOptions } from './composables/use-chat-composer'
+export type { ChatComposerController, ChatComposerSubmission, ChatComposerSubmitOptions, ChatComposerSubmitResult, UseChatComposerOptions } from './composables/use-chat-composer'
 export { useChatImages } from './composables/use-chat-images'
 export type { ChatImageAttachment } from './composables/use-chat-images'
 export { default as JournalPreviewModal } from './JournalPreviewModal.vue'
