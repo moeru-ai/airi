@@ -58,6 +58,7 @@ chat:
     row: '示例会话 {n}'
   sessions:
     delete-short: 删除
+    confirm-delete-short: 确认删除
     title: 对话
     new: 新建对话
     current: 当前

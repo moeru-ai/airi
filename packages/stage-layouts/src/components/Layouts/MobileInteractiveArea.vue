@@ -477,7 +477,7 @@ onUnmounted(() => {
             :aria-label="t('stage.chat.actions.stop')"
             @click="stopActiveResponse"
           >
-            <div class="i-solar:stop-bold-duotone h-4 w-4" />
+            <div class="i-solar:stop-outline size-5" />
           </button>
           <button
             v-else-if="hasSubmission"
