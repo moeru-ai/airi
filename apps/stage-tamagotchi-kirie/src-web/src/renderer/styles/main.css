@@ -32,6 +32,16 @@ html.dark {
   color-scheme: dark;
 }
 
+html.spotlight-window,
+html.spotlight-window body,
+html.spotlight-window #app {
+  background: transparent;
+}
+
+html.spotlight-window.dark {
+  color-scheme: normal;
+}
+
 #nprogress {
   pointer-events: none;
 }

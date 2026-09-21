@@ -14,6 +14,7 @@ public partial class Main : Node
     private OnboardingWindowManager? _onboarding;
     private SettingsWindowManager? _settings;
     private ChatWindowManager? _chat;
+    private SpotlightHost? _spotlight;
     private NoticeWindowManager? _notice;
     private DeveloperToolsService? _developerTools;
     private IDisposable? _developerToolsRegistration;
@@ -87,6 +88,21 @@ public partial class Main : Node
                 rendererUrl,
                 _auth,
                 _microphonePermissions);
+            _chat = new ChatWindowManager(
+                _eventa.Context,
+                this,
+                GetWindow(),
+                registry,
+                rendererUrl,
+                _microphonePermissions);
+            _spotlight = new SpotlightHost(
+                _eventa.Context,
+                this,
+                GetWindow(),
+                registry,
+                rendererUrl,
+                _microphonePermissions,
+                _chat);
             _settings = new SettingsWindowManager(
                 _eventa.Context,
                 this,
@@ -95,14 +111,8 @@ public partial class Main : Node
                 rendererUrl,
                 _auth,
                 _microphonePermissions,
-                _developerTools);
-            _chat = new ChatWindowManager(
-                _eventa.Context,
-                this,
-                GetWindow(),
-                registry,
-                rendererUrl,
-                _microphonePermissions);
+                _developerTools,
+                _spotlight);
             _notice = new NoticeWindowManager(
                 _eventa.Context,
                 this,
@@ -129,6 +139,7 @@ public partial class Main : Node
         _displaySnapshotRegistration?.Dispose();
         _auth?.Dispose();
         _notice?.Dispose();
+        _spotlight?.Dispose();
         _chat?.Dispose();
         _settings?.Dispose();
         _onboarding?.Dispose();

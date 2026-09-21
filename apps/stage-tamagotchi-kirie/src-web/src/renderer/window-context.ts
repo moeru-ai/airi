@@ -4,7 +4,13 @@ import type { LeadershipMode } from '@proj-airi/stage-ui/libs/pinia'
 export interface RendererWindowContext {
   /** Determines whether this renderer can own synchronized actions. */
   leadership: LeadershipMode
-  /** Determines whether this renderer initializes Stage integrations. */
+  /**
+   * Determines whether this renderer initializes Stage integrations.
+   *
+   * Chat, notice, and Spotlight windows use `minimal`. Settings and onboarding stay `full`
+   * so their pages can read Stage stores, but App.vue still keeps spark notify,
+   * cursor tracking, inference preload, and Artistry IPC on the leader only.
+   */
   stageRuntime: 'full' | 'minimal'
 }
 

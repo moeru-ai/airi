@@ -14,7 +14,7 @@ boot_splash/show_image=false
 config/icon="res://icon.svg"
 config/name="AIRI"
 run/main_scene="res://src-godot/main.tscn"
-config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
 [display]
 
@@ -41,7 +41,8 @@ security/default_permission_policy=2
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="mobile"
+rendering_device/driver.windows="d3d12"
 textures/vram_compression/import_etc2_astc=true
 viewport/transparent_background=true

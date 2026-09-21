@@ -13,5 +13,10 @@ export { useHostOnboarding } from './onboarding'
 export * from './owner'
 export * from './pointer'
 export { useHostScreenCapture } from './screen-capture'
+export {
+  startHostOwnedSpotlightShortcut,
+  useHostSpotlightShortcut,
+  useHostSpotlightWindow,
+} from './spotlight'
 export * from './window-actions'
 export { useHostWindowLifecycle } from './window-lifecycle'

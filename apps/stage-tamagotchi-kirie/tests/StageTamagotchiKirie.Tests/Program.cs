@@ -9,8 +9,10 @@ internal static class Program
         try
         {
             TestsDesktopWindowGeometry();
+            TestsSpotlightShortcutPolicy();
             TestsNativeResizeEdges();
             TestsOnboardingTitleBarDragRegion();
+            TestsRendererUrlFollowerRuntime();
             TestsCefInspectorTargetSelection();
             TestsMicrophonePermissionPromptCoalescing();
             TestsMicrophonePermissionPersistencePolicy();
@@ -129,6 +131,54 @@ internal static class Program
                 new Vector2I(400, 400),
                 new Vector2I(5, -10)),
             "usable-area decorated center");
+        AssertEqual(
+            new Vector2I(240, 201),
+            DesktopWindowSizing.ResolveSpotlightPosition(
+                new Rect2I(0, 25, 1200, 800),
+                new Vector2I(720, 100)),
+            "spotlight slot");
+        AssertEqual(
+            1,
+            DesktopWindowSizing.ResolveScreenFromPoint(
+                new Vector2I(1300, 10),
+                [
+                    new Rect2I(0, 0, 1200, 800),
+                    new Rect2I(1200, 0, 800, 600),
+                ],
+                0),
+            "spotlight screen from cursor");
+    }
+
+    private static void TestsSpotlightShortcutPolicy()
+    {
+        AssertEqual(
+            true,
+            SpotlightHost.IsSafe(SpotlightHost.Default),
+            "default Spotlight shortcut");
+        AssertEqual(
+            false,
+            SpotlightHost.IsSafe(new SpotlightAcceleratorPayload("KeyA", ["shift"])),
+            "shift-only Spotlight shortcut");
+        AssertEqual(
+            true,
+            SpotlightHost.IsSafe(new SpotlightAcceleratorPayload("KeyK", ["cmd"])),
+            "cmd Spotlight shortcut");
+        AssertEqual(
+            false,
+            SpotlightHost.IsSafe(new SpotlightAcceleratorPayload("", ["ctrl"])),
+            "empty-key Spotlight shortcut");
+        AssertEqual(
+            "ctrl,shift",
+            SpotlightHost.FormatModifiers(["ctrl", "shift"]),
+            "Spotlight modifier format");
+        AssertEqual(
+            "KeyA",
+            SpotlightHost.TryCreate("KeyA", "ctrl, shift")!.Key,
+            "Spotlight modifier parse");
+        AssertEqual<SpotlightAcceleratorPayload?>(
+            null,
+            SpotlightHost.TryCreate("KeyA", "shift"),
+            "unsafe persisted Spotlight shortcut");
     }
 
     private static void TestsOnboardingTitleBarDragRegion()
@@ -218,6 +268,36 @@ internal static class Program
             null,
             NativeWindowResizeController.ResolveResizeEdge(new Vector2(225, 300), size, 5, 10),
             "window interior");
+    }
+
+    private static void TestsRendererUrlFollowerRuntime()
+    {
+        // ROOT CAUSE:
+        //
+        // Chat already used the minimal follower runtime. Notice still booted the
+        // full Stage runtime, so a second CEF WebView started orchestrator work
+        // and competed with software OSR compositing of the main Live2D stage.
+        //
+        // We fixed this by keeping Settings and developer windows on the full
+        // follower runtime, and by giving Notice the same minimal runtime as Chat.
+        const string baseUrl = "http://127.0.0.1:5173/";
+
+        AssertEqual(
+            "http://127.0.0.1:5173/?synced-leader=false#/settings",
+            RendererUrl.ForFollowerRoute(baseUrl, "/settings"),
+            "settings full follower URL");
+        AssertEqual(
+            "http://127.0.0.1:5173/?stage-runtime=minimal&synced-leader=false#/chat",
+            RendererUrl.ForMinimalFollowerRoute(baseUrl, "/chat"),
+            "chat minimal follower URL");
+        AssertEqual(
+            "http://127.0.0.1:5173/?stage-runtime=minimal&synced-leader=false#/spotlight",
+            RendererUrl.ForMinimalFollowerRoute(baseUrl, "/spotlight"),
+            "spotlight minimal follower URL");
+        AssertEqual(
+            "http://127.0.0.1:5173/?stage-runtime=minimal&synced-leader=false#/notice?id=one",
+            RendererUrl.ForMinimalFollowerRoute(baseUrl, "/notice?id=one"),
+            "notice minimal follower URL");
     }
 
     private static void TestsCefInspectorTargetSelection()

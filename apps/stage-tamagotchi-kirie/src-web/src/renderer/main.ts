@@ -64,11 +64,12 @@ if (import.meta.env.DEV && hostContext.runtime === 'kirie') {
 }
 
 const pinia = createPinia()
+const windowContext = resolveRendererWindowContext()
 const synced = setupSynced({
-  leadership: resolveRendererWindowContext().leadership,
+  leadership: windowContext.leadership,
 })
 pinia.use(synced.pinia)
-if (import.meta.env.DEV)
+if (import.meta.env.DEV && windowContext.leadership === 'leader-only')
   pinia.use(piniaPluginTracing)
 
 const router = createRouter({

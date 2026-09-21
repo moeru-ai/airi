@@ -104,7 +104,7 @@ public partial class NoticeWindow : Window
             return _completion.Task;
         }
 
-        _kirie!.CreateWebView(RendererUrl.ForFollowerRoute(
+        _kirie!.CreateWebView(RendererUrl.ForMinimalFollowerRoute(
             _rendererUrl!,
             $"{payload.Route}?id={Uri.EscapeDataString(id)}"));
         ShowAndFocusIfReady();

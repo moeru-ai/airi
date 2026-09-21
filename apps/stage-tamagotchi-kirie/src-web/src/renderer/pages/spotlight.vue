@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
-import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
+import { useHostSpotlightWindow } from '@proj-airi/stage-host-context'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { extractMessageText } from '@proj-airi/stage-ui/libs/chat-sync/wire-message'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -9,10 +9,6 @@ import { useWindowFocus } from '@vueuse/core'
 import { shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import {
-  electronSpotlightHide,
-  electronSpotlightShowResultNotification,
-} from '../../shared/eventa'
 import { artistryToolReferences } from '../stores/tools'
 
 const messageInput = shallowRef('')
@@ -23,17 +19,21 @@ const inputRef = useTemplateRef<HTMLInputElement>('inputRef')
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
 const { trackSpotlightUsed } = useAnalytics()
-const hideSpotlightWindow = useHostEventaInvoke(electronSpotlightHide)
-const showResultNotification = useHostEventaInvoke(electronSpotlightShowResultNotification)
+const { hide: hideSpotlightWindow, showResultNotification } = useHostSpotlightWindow()
 const { t } = useI18n()
+
+function focusMessageInput() {
+  window.focus()
+  inputRef.value?.focus()
+}
 
 watch(useWindowFocus(), (focused) => {
   if (!focused) {
     messageInput.value = ''
     return
   }
-  requestAnimationFrame(() => inputRef.value?.focus())
-})
+  requestAnimationFrame(focusMessageInput)
+}, { immediate: true })
 
 async function handleSend() {
   if (isComposing.value || sending.value)
@@ -59,16 +59,12 @@ async function handleSend() {
     if (!visibleText.trim())
       throw new Error('Spotlight returned an empty response')
 
-    await showResultNotification({
-      body: visibleText.trim(),
-    })
+    await showResultNotification(visibleText.trim())
   }
   catch (error) {
-    await showResultNotification({
-      body: t('tamagotchi.spotlight.errors.prefix', {
-        message: errorMessageFrom(error) ?? t('tamagotchi.spotlight.errors.unknown'),
-      }),
-    })
+    await showResultNotification(t('tamagotchi.spotlight.errors.prefix', {
+      message: errorMessageFrom(error) ?? t('tamagotchi.spotlight.errors.unknown'),
+    }))
   }
   finally {
     sending.value = false
@@ -105,8 +101,6 @@ function handleKeydown(event: KeyboardEvent) {
         'flex items-center px-6',
         'rounded-full',
         'bg-white/88 dark:bg-neutral-900/88',
-        'backdrop-blur-3xl backdrop-saturate-150',
-        'shadow-lg shadow-black/20',
         'ring-1 ring-black/5 dark:ring-white/10',
       ]"
     >
@@ -133,6 +127,7 @@ function handleKeydown(event: KeyboardEvent) {
 </template>
 
 <style scoped>
+/* CEF OSR paints backdrop-blur and box-shadow against black, not the desktop. */
 .spotlight-card::before {
   pointer-events: none;
   --at-apply: 'bg-gradient-to-r from-primary-500/25 via-primary-500/12 to-transparent dark:from-primary-400/25 dark:via-primary-400/12 dark:to-transparent';

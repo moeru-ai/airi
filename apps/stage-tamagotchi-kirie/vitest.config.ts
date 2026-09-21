@@ -10,7 +10,10 @@ export default defineConfig({
         test: {
           name: 'node',
           environment: 'jsdom',
-          include: ['src-web/src/renderer/host-context/**/*.test.ts'],
+          include: [
+            'src-web/src/renderer/host-context/**/*.test.ts',
+            'src-web/src/renderer/window-context.test.ts',
+          ],
           exclude: ['src-web/src/renderer/host-context/**/*.browser.test.ts'],
         },
       },

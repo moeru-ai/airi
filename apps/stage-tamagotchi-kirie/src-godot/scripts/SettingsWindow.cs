@@ -12,6 +12,7 @@ public partial class SettingsWindow : Window
     private IDisposable? _authRegistration;
     private IDisposable? _microphonePermissionRegistration;
     private IDisposable? _developerToolsRegistration;
+    private IDisposable? _spotlightShortcutRegistration;
     private IDisposable? _settingsReadyRegistration;
     private Action? _onClosed;
     private string? _loadedRoute;
@@ -29,6 +30,7 @@ public partial class SettingsWindow : Window
         AuthService auth,
         MicrophonePermissionService microphonePermissions,
         DeveloperToolsService developerTools,
+        SpotlightHost spotlight,
         Action onClosed)
     {
         if (!IsInsideTree())
@@ -55,6 +57,7 @@ public partial class SettingsWindow : Window
         _authRegistration = auth.Attach(_eventa.Context);
         _microphonePermissionRegistration = microphonePermissions.Attach(_eventa.Context);
         _developerToolsRegistration = developerTools.Attach(_eventa.Context);
+        _spotlightShortcutRegistration = spotlight.Attach(_eventa.Context);
         _permissions = new WebViewPermissionHandler(_kirie, rendererUrl);
         _settingsReadyRegistration = _eventa.Context.Subscribe(
             AiriDesktopEvents.SettingsReady,
@@ -64,6 +67,8 @@ public partial class SettingsWindow : Window
         _kirie.IpcError += OnIpcError;
         _eventa.Adapter.Error += OnEventaError;
         CloseRequested += RequestClose;
+        // Settings pages still need Stage stores, so this window stays on the
+        // full follower runtime. App.vue keeps leader-owned side effects off.
         _kirie.CreateWebView(RendererUrl.ForFollowerRoute(rendererUrl, initialRoute));
     }
 
@@ -99,6 +104,7 @@ public partial class SettingsWindow : Window
         }
 
         _settingsReadyRegistration?.Dispose();
+        _spotlightShortcutRegistration?.Dispose();
         _developerToolsRegistration?.Dispose();
         _microphonePermissionRegistration?.Dispose();
         _authRegistration?.Dispose();

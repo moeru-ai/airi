@@ -41,6 +41,13 @@ internal sealed record MicrophonePermissionPromptPayload(string Permission, stri
 internal sealed record MicrophonePermissionPromptSnapshotPayload(string Permission, string? PromptId);
 internal sealed record MicrophonePermissionDecisionPayload(string PromptId, string Decision);
 internal sealed record MicrophonePermissionPromptDismissedPayload(string PromptId);
+internal sealed record SpotlightAcceleratorPayload(string Key, string[] Modifiers);
+internal sealed record SpotlightShortcutSetPayload(SpotlightAcceleratorPayload? Accelerator);
+internal sealed record SpotlightShortcutRegistrationResultPayload(
+    string Id,
+    bool Ok,
+    string? Reason,
+    SpotlightAcceleratorPayload? ActualAccelerator);
 
 internal static class AiriDesktopEvents
 {
@@ -131,6 +138,24 @@ internal static class AiriDesktopEvents
     public static readonly EventDefinition<MicrophonePermissionPromptDismissedPayload>
         MicrophonePermissionPromptDismissed =
             new("eventa:event:airi:permissions:microphone:prompt-dismissed");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenSpotlight =
+        new("eventa:invoke:electron:windows:spotlight:open");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> HideSpotlight =
+        new("eventa:invoke:electron:windows:spotlight:hide");
+
+    public static readonly InvokeEventDefinition<SpotlightAcceleratorPayload, EmptyPayload>
+        GetSpotlightShortcut =
+            new("eventa:invoke:electron:windows:spotlight:shortcut:get");
+
+    public static readonly InvokeEventDefinition<
+        SpotlightShortcutRegistrationResultPayload,
+        SpotlightShortcutSetPayload> SetSpotlightShortcut =
+            new("eventa:invoke:electron:windows:spotlight:shortcut:set");
+
+    public static readonly EventDefinition<SpotlightAcceleratorPayload> SpotlightShortcutChanged =
+        new("eventa:event:airi:windows:spotlight:shortcut-changed");
 }
 
 internal static class AiriDesktopContracts
@@ -237,7 +262,26 @@ internal static class AiriDesktopContracts
                 AiriDesktopJsonContext.Default.MicrophonePermissionPromptPayload)
             .RegisterEvent(
                 AiriDesktopEvents.MicrophonePermissionPromptDismissed,
-                AiriDesktopJsonContext.Default.MicrophonePermissionPromptDismissedPayload);
+                AiriDesktopJsonContext.Default.MicrophonePermissionPromptDismissedPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.OpenSpotlight,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.HideSpotlight,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.GetSpotlightShortcut,
+                AiriDesktopJsonContext.Default.SpotlightAcceleratorPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.SetSpotlightShortcut,
+                AiriDesktopJsonContext.Default.SpotlightShortcutRegistrationResultPayload,
+                AiriDesktopJsonContext.Default.SpotlightShortcutSetPayload)
+            .RegisterEvent(
+                AiriDesktopEvents.SpotlightShortcutChanged,
+                AiriDesktopJsonContext.Default.SpotlightAcceleratorPayload);
     }
 }
 
@@ -261,4 +305,7 @@ internal static class AiriDesktopContracts
 [JsonSerializable(typeof(MicrophonePermissionPromptSnapshotPayload))]
 [JsonSerializable(typeof(MicrophonePermissionDecisionPayload))]
 [JsonSerializable(typeof(MicrophonePermissionPromptDismissedPayload))]
+[JsonSerializable(typeof(SpotlightAcceleratorPayload))]
+[JsonSerializable(typeof(SpotlightShortcutSetPayload))]
+[JsonSerializable(typeof(SpotlightShortcutRegistrationResultPayload))]
 internal sealed partial class AiriDesktopJsonContext : JsonSerializerContext;

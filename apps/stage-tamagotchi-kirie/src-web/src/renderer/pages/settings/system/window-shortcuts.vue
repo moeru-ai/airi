@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ShortcutAccelerator, ShortcutFailureReason } from '@proj-airi/stage-shared/global-shortcut'
 
-import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
+import { useHostSpotlightShortcut } from '@proj-airi/stage-host-context'
 import { formatAccelerator, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { Button } from '@proj-airi/ui'
@@ -10,14 +10,9 @@ import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
-import {
-  electronSpotlightShortcutGet,
-  electronSpotlightShortcutSet,
-} from '../../../../shared/eventa'
 import { isSafeSpotlightAccelerator } from '../../../../shared/spotlight-shortcut'
 
-const getShortcut = useHostEventaInvoke(electronSpotlightShortcutGet)
-const setShortcut = useHostEventaInvoke(electronSpotlightShortcutSet)
+const { get: getShortcut, set: setShortcut } = useHostSpotlightShortcut()
 const { trackSettingsChanged } = useAnalytics()
 const { t } = useI18n()
 const tt = (key: string) => t(`tamagotchi.settings.pages.system.window-shortcuts.${key}`)
@@ -60,7 +55,7 @@ function acceleratorFromEvent(event: KeyboardEvent): ShortcutAccelerator | null 
 
 async function saveShortcut(next: ShortcutAccelerator | null) {
   try {
-    const result = await setShortcut({ accelerator: next })
+    const result = await setShortcut(next)
     if (!result.ok) {
       toast.error(tt(errorKeyForReason(result.reason)))
       return

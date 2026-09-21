@@ -14,6 +14,7 @@ internal sealed class SettingsWindowManager : IDisposable
     private readonly AuthService _auth;
     private readonly MicrophonePermissionService _microphonePermissions;
     private readonly DeveloperToolsService _developerTools;
+    private readonly SpotlightHost _spotlight;
     private readonly IDisposable _openRegistration;
     private SettingsWindow? _window;
     private bool _disposed;
@@ -26,7 +27,8 @@ internal sealed class SettingsWindowManager : IDisposable
         string rendererUrl,
         AuthService auth,
         MicrophonePermissionService microphonePermissions,
-        DeveloperToolsService developerTools)
+        DeveloperToolsService developerTools,
+        SpotlightHost spotlight)
     {
         _owner = owner;
         _mainWindow = mainWindow;
@@ -35,6 +37,7 @@ internal sealed class SettingsWindowManager : IDisposable
         _auth = auth;
         _microphonePermissions = microphonePermissions;
         _developerTools = developerTools;
+        _spotlight = spotlight;
         _openRegistration = context.RegisterInvokeHandler(
             AiriDesktopEvents.OpenSettings,
             (OpenSettingsPayload payload, CancellationToken _) =>
@@ -79,6 +82,7 @@ internal sealed class SettingsWindowManager : IDisposable
                     _auth,
                     _microphonePermissions,
                     _developerTools,
+                    _spotlight,
                     () => OnWindowClosed(window));
             }
             catch

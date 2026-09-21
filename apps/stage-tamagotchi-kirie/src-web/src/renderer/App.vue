@@ -31,6 +31,7 @@ import { ErrorBoundary, useTheme } from '@proj-airi/ui'
 import { isEqual } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
@@ -63,7 +64,7 @@ import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
-import { initializeHostContext, useHostMicrophonePermission } from './host-context'
+import { getHostPlatform, initializeHostContext, startHostOwnedSpotlightShortcut, useHostMicrophonePermission } from './host-context'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import {
@@ -91,12 +92,18 @@ const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
 const isChatWindow = initialRoutePath === '/chat'
+const isSpotlightWindow = initialRoutePath === '/spotlight'
 const isMainRenderer = windowContext.leadership === 'leader-only'
 const microphonePermission = initializeHostContext().runtime === 'kirie'
   ? useHostMicrophonePermission()
   : undefined
 const microphonePermissionPrompt = microphonePermission?.prompt
 const microphonePermissionBusy = ref(false)
+const { t } = useI18n()
+let stopSpotlightShortcut: (() => void) | undefined
+
+if (isSpotlightWindow)
+  document.documentElement.classList.add('spotlight-window')
 
 if (microphonePermission) {
   watch(microphonePermission.status, (state, previousState) => {
@@ -204,7 +211,6 @@ function createFullStageRuntime() {
   const getGodotStageStatus = useHostEventaInvoke(electronGodotStageGetStatus)
   const syncArtistryConfig = useHostEventaInvoke(artistrySyncConfig)
   const usesGodotStage = initialRoutePath === '/' || initialRoutePath.startsWith('/settings')
-  const isWidgetsWindow = initialRoutePath === '/widgets'
 
   function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
     if (state.state === 'running') {
@@ -224,7 +230,11 @@ function createFullStageRuntime() {
   initializeElectronAuthCallbackBridge()
   void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
 
-  contextBridgeStore.setSparkNotifyHostRole(isWidgetsWindow ? 'client' : 'main')
+  // Settings and other full followers still instantiate Stage stores for
+  // their pages. Spark notify, cursor tracking, inference preload, and
+  // Artistry IPC belong to the main Stage window only. A second owner
+  // competes with Live2D and software OSR compositing.
+  contextBridgeStore.setSparkNotifyHostRole(isMainRenderer ? 'main' : 'client')
 
   // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
   pluginHostInspectorStore.setBridge({
@@ -253,38 +263,40 @@ function createFullStageRuntime() {
     inspect: () => inspectPluginHost(),
   })
 
-  let lastSyncedArtistryConfig: ArtistrySyncPayload | undefined
-  watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
-    if (!activeProvider.value)
-      return
+  if (isMainRenderer) {
+    let lastSyncedArtistryConfig: ArtistrySyncPayload | undefined
+    watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
+      if (!activeProvider.value)
+        return
 
-    const config = JSON.parse(JSON.stringify({
-      provider: activeProvider.value,
-      globals: artistryGlobals.value,
-      model: activeModel.value,
-      promptPrefix: defaultPromptPrefix.value,
-      options: providerOptions.value,
-    })) as ArtistrySyncPayload
-    if (isEqual(config, lastSyncedArtistryConfig))
-      return
+      const config = JSON.parse(JSON.stringify({
+        provider: activeProvider.value,
+        globals: artistryGlobals.value,
+        model: activeModel.value,
+        promptPrefix: defaultPromptPrefix.value,
+        options: providerOptions.value,
+      })) as ArtistrySyncPayload
+      if (isEqual(config, lastSyncedArtistryConfig))
+        return
 
-    // Pinia synchronization applies cloned snapshots in every renderer. Keep
-    // this IPC bridge edge-triggered so equal snapshots do not repeat IO.
-    lastSyncedArtistryConfig = config
-    void syncArtistryConfig(config)
-  }, { deep: true, immediate: true })
+      // Pinia synchronization applies cloned snapshots in every renderer. Keep
+      // this IPC bridge edge-triggered so equal snapshots do not repeat IO.
+      lastSyncedArtistryConfig = config
+      void syncArtistryConfig(config)
+    }, { deep: true, immediate: true })
 
-  context.value.on(electronGodotStageStatusChanged, (event) => {
-    if (!event.body) {
-      return
-    }
+    context.value.on(electronGodotStageStatusChanged, (event) => {
+      if (!event.body) {
+        return
+      }
 
-    syncGodotStageRenderer(event.body)
-  })
+      syncGodotStageRenderer(event.body)
+    })
 
-  context.value.on(electronPluginToolsChanged, () => {
-    void refreshPluginRuntimeTools()
-  })
+    context.value.on(electronPluginToolsChanged, () => {
+      void refreshPluginRuntimeTools()
+    })
+  }
 
   return {
     async initialize() {
@@ -299,6 +311,9 @@ function createFullStageRuntime() {
       await displayModelsStore.loadDisplayModelsFromIndexedDB()
       await settingsStore.initializeStageModel()
       await settingsAudioDeviceStore.initialize()
+
+      if (!isMainRenderer)
+        return
 
       if (usesGodotStage) {
         try {
@@ -319,10 +334,8 @@ function createFullStageRuntime() {
         possibleEvents: ['ui:configure'],
       }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
       contextBridgeStore.initialize()
-      if (!isWidgetsWindow) {
-        characterOrchestratorStore.initialize()
-        await startTrackingCursorPoint()
-      }
+      characterOrchestratorStore.initialize()
+      await startTrackingCursorPoint()
 
       defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
 
@@ -352,7 +365,11 @@ const fullStageRuntime = windowContext.stageRuntime === 'full'
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
-const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
+const { updateThemeColor } = useThemeColor(themeColorFromValue(
+  isSpotlightWindow
+    ? { light: 'rgb(255 255 255 / 0)', dark: 'rgb(18 18 18 / 0)' }
+    : { light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' },
+))
 watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
@@ -384,6 +401,21 @@ onMounted(async () => {
   // https://github.com/moeru-ai/airi/issues/1658
   await restoreLocale()
 
+  if (isMainRenderer && initializeHostContext().runtime === 'kirie') {
+    stopSpotlightShortcut = startHostOwnedSpotlightShortcut({
+      onRegistrationFailed(error) {
+        console.warn('[App] Failed to register the Spotlight shortcut:', error)
+        void getHostPlatform()?.notifications.show({
+          body: t('tamagotchi.settings.spotlight.errors.shortcutRegistrationFailed'),
+          id: 'spotlight-shortcut-failed',
+          title: 'AIRI',
+        }).catch((notificationError) => {
+          console.warn('[App] Failed to show the Spotlight shortcut error notification:', notificationError)
+        })
+      },
+    })
+  }
+
   await microphonePermission?.refresh().catch((error) => {
     console.warn('[App] Failed to load microphone permission state:', error)
   })
@@ -401,6 +433,7 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
+  stopSpotlightShortcut?.()
   stopLeadershipListener?.()
   chatStore.dispose()
   fullStageRuntime?.dispose()

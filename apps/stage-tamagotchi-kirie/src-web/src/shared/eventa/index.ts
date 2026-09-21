@@ -87,10 +87,12 @@ export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:
 export const electronSettingsReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:settings:ready')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
 export const electronChatReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:chat:ready')
+export const electronSpotlightOpen = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:open')
 export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:hide')
 export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
 export const electronSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:electron:windows:spotlight:shortcut:get')
 export const electronSpotlightShortcutSet = defineInvokeEventa<ShortcutRegistrationResult, { accelerator: ShortcutAccelerator | null }>('eventa:invoke:electron:windows:spotlight:shortcut:set')
+export const airiSpotlightShortcutChanged = defineEventa<ShortcutAccelerator>('eventa:event:airi:windows:spotlight:shortcut-changed')
 export interface OpenDevtoolsWindowPayload {
   key: string
   route?: string

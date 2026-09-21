@@ -57,6 +57,7 @@ public partial class DeveloperWindow : Window
         _eventa.Adapter.Error += OnEventaError;
         CloseRequested += RequestClose;
 
+        // Developer pages such as plugin-host and vision still need Stage stores.
         _kirie.CreateWebView(RendererUrl.ForFollowerRoute(rendererUrl, request.Route ?? "/devtools"));
     }
 
