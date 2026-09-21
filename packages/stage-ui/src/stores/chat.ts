@@ -241,11 +241,13 @@ export const useChatStore = defineStore('chat', () => {
       ownedActiveTurnSpan = turnSpan
     }
 
+    const selectedModel = consciousnessStore.providerModels.find(candidate => candidate.id === model)
+    const supportsNativeVision = selectedModel?.metadata?.abilities?.vision === true
     let providerContext = context
     const hasImages = context.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'image'))
     if (hasImages) {
       const visionStore = useVisionStore()
-      if (visionStore.useForChat && visionStore.configured) {
+      if (!supportsNativeVision && visionStore.useForChat && visionStore.configured) {
         const { runVisionInference } = useVisionInference()
         providerContext = await describeChatImages(context, (imageDataUrl, question) => runVisionInference({
           imageDataUrl,

@@ -99,6 +99,10 @@ async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: n
   clearReplyForMessage(message)
 }
 
+async function handleRetryMessage(index: number) {
+  await chatOrchestrator.retry({ sessionId: activeSessionId.value, index })
+}
+
 const sessionsDrawerOpen = shallowRef(false)
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
@@ -354,6 +358,7 @@ onUnmounted(() => {
             :class="chatHistoryClass"
             @delete-message="handleDeleteMessage"
             @reply-message="handleReplyMessage"
+            @retry-message="handleRetryMessage($event.index)"
             @tool-call-rerun="rerunToolCall"
           />
         </Transition>

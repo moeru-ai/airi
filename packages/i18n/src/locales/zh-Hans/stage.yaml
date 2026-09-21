@@ -27,9 +27,9 @@ chat:
     attach: 添加图片
     remove: 移除 {name}
     unsupported: 请选择 PNG、JPEG、WebP 或 GIF 图片。
-    too-large: 每张图片不能超过 20 MB。
+    too-large: 每张图片不能超过 3 MB。
     too-many: 一次最多添加 {count} 张图片。
-    total-too-large: 所有附件合计不能超过 20 MB。
+    total-too-large: 所有附件合计不能超过 3 MB。
     read-failed: 无法读取图片，请重试。
     no-description: 视觉模型没有返回图片描述。请检查“设置 → 模块 → 视觉”后重试。
     reading: 正在读取图片…

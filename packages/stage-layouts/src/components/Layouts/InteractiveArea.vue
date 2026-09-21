@@ -61,6 +61,10 @@ async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: n
   })
   clearReplyForMessage(message)
 }
+
+async function handleRetryMessage(index: number) {
+  await chatOrchestrator.retry({ sessionId: activeSessionId.value, index })
+}
 </script>
 
 <template>
@@ -84,6 +88,7 @@ async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: n
             variant="desktop"
             @delete-message="handleDeleteMessage"
             @reply-message="selectReply"
+            @retry-message="handleRetryMessage($event.index)"
             @tool-call-rerun="rerunToolCall"
             @vue:mounted="isLoading = false"
           />
