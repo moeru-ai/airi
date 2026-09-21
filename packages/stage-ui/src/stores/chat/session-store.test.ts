@@ -800,6 +800,61 @@ describe('chat-session-store · synchronized data actions', () => {
     expect(getSessionMock).not.toHaveBeenCalled()
   })
 
+  // https://github.com/moeru-ai/airi/issues/2595
+  it('keeps the window-local selection when a synchronized index snapshot arrives for Issue #2595', async () => {
+    // ROOT CAUSE:
+    //
+    // A new session is created by the synchronized leader without changing
+    // that window's selection. The caller then selects it in the current
+    // window. The first message updates synchronized session metadata, which
+    // replaces the index ref. The index watcher treated that data update as
+    // navigation and restored the previous persisted session.
+    const previousSession: ChatSessionMeta = {
+      sessionId: 'session-previous',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const newSession: ChatSessionMeta = {
+      sessionId: 'session-new',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 2,
+      updatedAt: 2,
+    }
+    const store = useChatSessionStore()
+    store.$patch({
+      sessionMessages: {
+        'session-previous': [{ id: 'system-previous', role: 'system', content: 'prompt' }],
+        'session-new': [{ id: 'system-new', role: 'system', content: 'prompt' }],
+      },
+      sessionMetas: {
+        'session-previous': previousSession,
+        'session-new': newSession,
+      },
+      index: {
+        userId: 'local',
+        characters: {
+          default: {
+            activeSessionId: 'session-previous',
+            sessions: {
+              'session-previous': previousSession,
+              'session-new': newSession,
+            },
+          },
+        },
+      },
+    })
+    await store.initialize()
+    await store.setActiveSession('session-new')
+
+    store.index = store.getSnapshot().index
+    await nextTick()
+
+    expect(store.activeSessionId).toBe('session-new')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743242529
   it('trusts synchronized messages instead of merging a stale follower IDB record for Issue #2085', async () => {
     // ROOT CAUSE:

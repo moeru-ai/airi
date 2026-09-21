@@ -1586,6 +1586,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (!ready.value)
       return
 
+    // Index snapshots carry shared session data, not a navigation command.
+    // Keep a valid window-local selection when the first message updates the
+    // new session metadata and synchronization replaces the index ref.
+    const selectedSession = sessionMetas.value[activeSessionId.value]
+    if (selectedSession?.userId === getCurrentUserId() && selectedSession.characterId === getCurrentCharacterId())
+      return
+
     selectWindowSessionFromIndex()
   })
 
