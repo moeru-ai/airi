@@ -3,7 +3,7 @@
 This log contains only errors reproduced with the Stage Tamagotchi renderer in
 the Kirie desktop host. Most runtime evidence was last verified on 2026-09-17
 with Godot 4.7.1 and Kirie 0.3.0. The current dependency baseline uses Kirie
-0.4.1. GAP-019, GAP-026, and GAP-027 have additional evidence from 2026-09-18.
+0.4.2. GAP-019, GAP-026, and GAP-027 have additional evidence from 2026-09-18.
 GAP-028 was verified on 2026-09-19 with the official Godot CEF 1.16.0 release.
 The 2026-09-20 live session repeated the shared-context checks on Godot CEF 1.16.1.
 That session also closed and reopened Settings and Chat.
@@ -11,8 +11,9 @@ A second 2026-09-20 screening session reproduced GAP-029 in the chat window,
 re-verified ten Settings routes without console errors, and re-verified the
 notice confirm flow end to end. A third 2026-09-20 session attached
 `MicrophonePermissionService` to every AIRI window context and verified a
-full chat send round trip in real CEF. A missing invoke handler remains a
-host wiring error. The Kirie Eventa adapter does not invent a default reject.
+full chat send round trip in real CEF. User review accepted GAP-029 on
+2026-09-20. A missing invoke handler remains a host wiring error.
+The Kirie Eventa adapter does not invent a default reject.
 
 Model rendering, model assets, Live2D, VRM, and MMD are outside the current scope.
 
@@ -34,7 +35,7 @@ The status values have these meanings:
 | GAP-004 | Controls Island | Mount `ControlsIslandRoot` in Kirie | `useElectronAllDisplays` and `useElectronWindowBounds` create an Electron Eventa context | The AIRI host returns one atomic current-display snapshot for island placement | AIRI Godot host and host context | Accepted | Phase 5 displays review approved |
 | GAP-005 | Controls Island | Mount controls and apply saved window state | Electron `app.isLinux`, `window.set-always-on-top`, and drag contracts | Select the move mechanism without Electron IPC and use Kirie Platform for native movement and always-on-top state | AIRI host context | Accepted | Phase 5 window actions review approved |
 | GAP-006 | Controls Island and data settings | Click `Move to screen center` | Electron `windows:main:center` contract | Center the Godot host window on its current display | AIRI host context | Accepted | Phase 5 centering review approved |
-| GAP-007 | Window shortcut settings | Open the Spotlight shortcut page | Electron `windows:spotlight:shortcut:get` contract | Store the Spotlight shortcut and open its application window when the shortcut fires | AIRI window orchestration | Deferred | User-directed scope exclusion |
+| GAP-007 | Window shortcut settings | Open the Spotlight shortcut page | Electron `windows:spotlight:shortcut:get` contract | Store the Spotlight shortcut and open its application window when the shortcut fires | AIRI window orchestration | In progress | Host window, persistence, and renderer Platform wiring implemented; live CEF verification pending |
 | GAP-008 | Global shortcut devtools | Open the global shortcut page | Electron shortcut list, register, unregister, and trigger contracts | Manage renderer-owned shortcuts through the existing Kirie Platform shortcut API | AIRI host context | Accepted | Phase 5 global shortcuts review approved |
 | GAP-009 | Main renderer | Initialize the Stage window lifecycle store | Electron `window:get-lifecycle-state` and `window:lifecycle-changed` contracts | Read and observe the host window's visibility, focus, and minimized state | Kirie Platform and AIRI host context | Accepted | Kirie 0.3.0 runtime and Kirie 0.4.1 build verified |
 | GAP-010 | Full Stage runtime windows | Initialize the AIRI server channel | Electron server-channel configuration and lifecycle service | Own the AIRI server lifecycle outside Kirie Platform | AIRI desktop service | Deferred | User-directed sidecar scope exclusion |
@@ -56,7 +57,7 @@ The status values have these meanings:
 | GAP-026 | About and updater devtools | Open the About page | `useElectronAutoUpdater` creates its own Electron Eventa context and Electron owns update preferences and lifecycle | Mount updater UI through the shared host context and define AIRI update check, download, install, state, and preference behavior | AIRI release engineering and desktop update service | Deferred | User-directed production-packaging scope exclusion |
 | GAP-027 | Developer settings | Open main DevTools or a standalone devtools page | Electron opens WebContents DevTools and dedicated `BrowserWindow` instances | Open a connected CEF Inspector and reusable native devtools windows | AIRI developer tooling and window orchestration | Accepted | CEF Inspector and devtools pages work; Editor is outside the migration scope |
 | GAP-028 | All AIRI WebViews | Open more than one AIRI application window | Electron windows use a shared persistent browser session | Share one persistent CEF request context for cookies, storage, BroadcastChannel, Web Locks, and Pinia coordination | Godot CEF and AIRI dependency integration | Accepted | Godot CEF 1.16.1 runtime verified |
-| GAP-029 | Chat window | Send a message from the Kirie chat window | Electron answers `system-preferences:get-media-access-status` from its main process for every window | Every AIRI window context that awaits the microphone-permission contracts registers a handler for those contracts | AIRI Godot host and host context | Review pending | Host Attach verified in real CEF on 2026-09-20 |
+| GAP-029 | Chat window | Send a message from the Kirie chat window | Electron answers `system-preferences:get-media-access-status` from its main process for every window | Every AIRI window context that awaits the microphone-permission contracts registers a handler for those contracts | AIRI Godot host and host context | Accepted | User review accepted the host Attach on 2026-09-20 |
 
 ## Audited but not reproduced
 
@@ -124,8 +125,15 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 
 - Input: `http://127.0.0.1:5174/?synced-leader=true#/settings/system/window-shortcuts`.
 - Original result: Godot reports the unregistered `eventa:invoke:electron:windows:spotlight:shortcut:get-send` request.
-- New Kirie capability: Kirie 0.4.1 provides desktop notification display and activation events on macOS.
-- Current decision: Defer all Spotlight shortcut, window, and notification work until the user explicitly reopens this scope.
+- Existing Kirie capabilities: `PlatformClient.globalShortcuts.register`, `unregister`, `notifications.show`, and `notifications.onActivated`.
+- Required result: AIRI stores the Spotlight shortcut, opens one reusable native Spotlight window when the shortcut fires, hides that window without destroying it, and shows a result notification that can open Chat.
+- Ownership: This is AIRI window orchestration. The Godot host owns the window, shortcut persistence, and Eventa contracts. The main renderer registers the OS shortcut through Kirie Platform outside the GAP-008 map. The Spotlight renderer shows notifications through Kirie Platform. This does not add a Kirie Core API.
+- Contract result: Settings and the main renderer bind `spotlight:shortcut:get` and `spotlight:shortcut:set`. The Spotlight renderer binds `spotlight:hide`, microphone permission, and `chat:open`. The main renderer binds `spotlight:open`.
+- Window result: The host creates one 720 x 100 always-on-top borderless window at `#/spotlight` with the minimal follower runtime. Close and blur hide the window. The next shortcut reuses it.
+- Shortcut result: The host persists the accelerator in `user://spotlight.cfg`. A shortcut must include Cmd, Ctrl, Alt, or Super. `unregisterAll` on renderer-owned shortcuts must not drop Spotlight.
+- Notification result: The Spotlight renderer shows the assistant reply through Kirie Platform. Activation opens Chat from that same renderer context.
+- Test result: The C# test executable passed. The focused renderer host-context tests passed. Typecheck, unit tests, C# build, and C# format verification passed.
+- Current status: Implementation is complete in source. Live CEF verification of shortcut, window, and notification is still required.
 
 ## GAP-008 evidence
 
@@ -144,7 +152,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Godot source: [Window 4.7 documentation](https://docs.godotengine.org/en/4.7/classes/class_window.html).
 - Sampling source: [SceneTree 4.7 `process_frame` signal](https://docs.godotengine.org/en/4.7/classes/class_scenetree.html#class-scenetree-signal-process-frame).
 - Accepted result: The initial snapshot reported a focused and visible window. Native minimize and restore actions emitted matching AIRI lifecycle reasons.
-- Dependency baseline: AIRI now uses the coordinated Kirie 0.4.1 npm and NuGet packages.
+- Dependency baseline: AIRI now uses the coordinated Kirie 0.4.2 npm and NuGet packages.
 - Runtime result: On Kirie 0.3.0, the renderer loaded the published lifecycle API without the former `onStateChanged is not a function` error.
 
 ## GAP-010 evidence
@@ -225,7 +233,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Required result: Kirie forwards each Godot CEF permission request without exposing `CefTexture`. AIRI validates the permission type and exact renderer origin, then asks through a modal inside the main Renderer. It denies all other permission types and all requests from other origins or application windows.
 - Configuration: `project.godot` selects Godot CEF's `Signal` permission policy. The [pinned Godot CEF settings source](https://github.com/dsh0416/godot-cef/blob/v1.16.1/crates/gdcef/src/settings.rs) defines `DenyAll:0,AllowAll:1,Signal:2` and defaults to `DenyAll`.
 - Permission source: Godot CEF keeps each request pending until the application calls its [grant or deny method](https://github.com/dsh0416/godot-cef/blob/v1.16.1/docs/api/methods.md#permission-handling).
-- Dependency result: Kirie 0.4.1 exposes `PermissionRequested`, `GrantPermission()`, and `DenyPermission()`. The AIRI addon matches the published Kirie 0.4.1 addon.
+- Dependency result: Kirie 0.4.2 exposes `PermissionRequested`, `GrantPermission()`, and `DenyPermission()`. The AIRI addon matches the published Kirie 0.4.2 addon.
 - Policy result: The host coalesces concurrent native request IDs behind one opaque renderer prompt ID. Closing or denying the modal denies the request. A two-minute timeout and host shutdown also deny pending requests.
 - Runtime result: Allow returned a live audio track, which the test stopped immediately. A second request completed without another modal. Reset caused the next request to show the modal again. Deny returned `NotAllowedError`.
 - Permission result: The modal uses the screen-capture dialog shade and blur. The overlay follows the rounded Stage boundary, and the card uses the existing AIRI dialog shadow.
@@ -277,7 +285,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Required result: AIRI sends external HTTP and HTTPS links to the user's system browser.
 - Kirie capability: Kirie Platform provides `openExternalUrl()` through the shared Eventa context and Godot's `OS.shell_open()`.
 - Kirie runtime result: The real Godot host opened the Kirie repository in the system Chrome browser and returned success to the example renderer.
-- Dependency baseline: AIRI now uses the coordinated Kirie 0.4.1 npm and NuGet packages.
+- Dependency baseline: AIRI now uses the coordinated Kirie 0.4.2 npm and NuGet packages.
 - AIRI integration: The Kirie renderer routes external HTTP and HTTPS links through `openExternalUrl()`.
 - Runtime result: A real `window.open()` request opened the AIRI repository in the system Chrome browser.
 - Security result: AIRI filters non-HTTP schemes. Kirie Platform validates the absolute URL again before it calls `OS.shell_open()`.
@@ -294,7 +302,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Kirie capability: Kirie Platform provides `openApplicationDataDirectory()` through the shared Eventa context.
 - Godot source: [Godot 4.7 `OS.get_user_data_dir()`](https://docs.godotengine.org/en/4.7/classes/class_os.html#class-os-method-get-user-data-dir).
 - Kirie runtime result: The real Godot host opened the example's application data directory and returned its absolute path to the renderer.
-- Dependency baseline: AIRI now uses the coordinated Kirie 0.4.1 npm and NuGet packages.
+- Dependency baseline: AIRI now uses the coordinated Kirie 0.4.2 npm and NuGet packages.
 - AIRI integration: The data settings action calls `openApplicationDataDirectory()` in Kirie.
 - Runtime result: The real data settings button opened the `AIRI` application data directory in Finder.
 - Project identity: AIRI sets Godot's application name to `AIRI`, so the default project-specific data directory no longer uses `Kirie Basic`.
@@ -412,3 +420,4 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Fix: `MicrophonePermissionService.Attach` now binds to the chat, onboarding, notice, and developer window contexts through their window managers, next to the existing main and Settings bindings. Only the main renderer keeps prompt ownership. Handler registration stays in `PermissionBinding`.
 - Fix verification: On 2026-09-20 in real CEF, a fresh chat window completed its mount sequence, loaded the replicated session index with a non-empty `activeSessionId`, and sent a message without manual recovery. The user message entered the session and the assistant reply streamed into the history.
 - Adapter decision: [godot-kirie#87](https://github.com/moeru-ai/godot-kirie/pull/87) proposed a default reject for an unhandled invoke. That change was closed without merge. The AIRI window `Attach` is the required fix.
+- Acceptance result: The user accepted GAP-029 after a live chat send in the running AIRI application.

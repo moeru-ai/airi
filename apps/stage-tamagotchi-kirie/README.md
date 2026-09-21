@@ -8,7 +8,8 @@ AIRI C# handlers provide the application services and native windows that the
 current migration implements. Some Electron services do not yet have a Kirie
 implementation.
 
-Command verification and live CEF smoke: 2026-09-20.
+Command verification and live CEF smoke: 2026-09-21 on Kirie 0.4.2, Godot 4.7.2,
+and Godot CEF 1.16.1.
 The latest full renderer route audit is from 2026-09-18.
 
 ## When to use this application
@@ -21,7 +22,6 @@ Do not use this application to verify these features:
 - Live2D, VRM, or MMD rendering.
 - Model asset downloads or packaging.
 - Model-specific media capture.
-- Spotlight windows and shortcuts.
 - Server channel, plugin host, Artistry, and MCP sidecar services.
 - Production desktop packaging and application updates.
 
@@ -123,6 +123,20 @@ The 2026-09-20 published-package verification passed these operations:
 - C# build with no warnings or errors.
 - Kirie build.
 
+The 2026-09-21 published-package verification repeated those operations on
+Kirie 0.4.2 and Godot 4.7.2:
+
+- Frozen-lockfile workspace installation, which passes the supply-chain policy check.
+- TypeScript type verification.
+- Thirteen unit-test files with 41 passing tests.
+- C# build with no warnings or errors, for the application and the contract tests.
+- Kirie build.
+
+The Godot 4.7.2 upgrade makes older Godot 4.7.1 export templates stale. AIRI
+installed the matching Godot 4.7.2 templates, and `kirie doctor` accepts them.
+The remaining `kirie doctor` failure is the Android SDK, which only blocks
+Android verification.
+
 The 2026-09-20 live session on Kirie 0.4.1 and Godot CEF 1.16.1 passed these
 operations:
 
@@ -139,10 +153,25 @@ cannot send a message. GAP-029 in [`API-GAPS.md`](API-GAPS.md) records the
 reproduced stall. The same session re-verified ten Settings routes and the
 notice confirm flow. A third 2026-09-20 session attached
 `MicrophonePermissionService` to every AIRI window context and verified a
-full chat send round trip in real CEF. GAP-029 remains `Review pending`.
+full chat send round trip in real CEF. User review accepted GAP-029.
 
-Godot CEF used software rendering. Accelerated OSR is unavailable because the
-project uses the OpenGL compatibility renderer. The main renderer still painted.
+That session used the OpenGL compatibility renderer. Godot CEF used software
+rendering. Accelerated OSR was unavailable. The main renderer still painted.
+
+The project now selects Forward+ on desktop and Mobile on iOS and Android.
+
+The 2026-09-21 live session ran the same desktop flow on Kirie 0.4.2, Godot
+4.7.2, and Godot CEF 1.16.1. It started the main renderer and the Controls
+Island, opened Settings, reused that window on a second request, and rendered
+`#/settings`, `#/settings/connection`, `#/settings/modules/mcp`, and
+`#/settings/data`. It opened Chat at `stage-runtime=minimal` and rendered an
+existing conversation. It repeated the shared cookie, `localStorage`,
+BroadcastChannel, and Web Lock checks.
+
+On Forward+, Godot CEF 1.16.1 reported `accelerated_osr_supported=true` on the
+Metal backend, and AIRI created each browser in accelerated rendering mode.
+Native close and reopen, external URL opening, and application data directory
+opening were not repeated in that session.
 
 The 2026-09-18 real CEF verification passed these operations:
 
@@ -177,7 +206,7 @@ Godot CEF uses its per-request signal policy for browser permissions. AIRI
 validates microphone requests from the exact origin of the main renderer. It
 denies other permission types and requests from secondary windows.
 
-Kirie 0.4.1 exposes each request through `PermissionRequested`. The AIRI Godot
+Kirie 0.4.2 exposes each request through `PermissionRequested`. The AIRI Godot
 host keeps the application decision as `not-determined`, `granted`, or
 `denied`. For a new decision, AIRI shows a modal inside the main Renderer. The
 modal uses the screen-capture dialog shade and blur. Its overlay follows the
@@ -218,5 +247,5 @@ stored the OIDC tokens and showed the authenticated account state.
 | `kirie doctor` reports a missing Android SDK | Android verification is unavailable. | Configure the Android SDK only when Android work is required. |
 | Godot is not found | The command did not load this directory's `mise.toml`. | Run the command from `apps/stage-tamagotchi-kirie`. |
 | The configured CEF version is correct, but the framework is unsigned or stale | The installed native artifact does not match the configuration result. | Reinstall Godot CEF and verify the installed framework. |
-| Godot CEF logs `Accelerated OSR unavailable` | The OpenGL compatibility renderer does not support accelerated OSR. | Continue desktop development. Software rendering still paints the WebView. |
+| Godot CEF logs `Accelerated OSR unavailable` | Desktop is not on Forward+ with Metal, Direct3D 12, or Vulkan. | Set `rendering/renderer/rendering_method` to `forward_plus`. Software rendering still paints the WebView. |
 | The console reports a documented IPC error | The related migration gap is deferred. | Find the error in `API-GAPS.md` and use its reopen condition. |

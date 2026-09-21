@@ -2,10 +2,11 @@
 
 Status: In progress.
 
-Evidence last verified: 2026-09-20 for published-package commands and live CEF smoke.
+Evidence last verified: 2026-09-21 for published-package commands and a live
+CEF smoke on Kirie 0.4.2, Godot 4.7.2, and Godot CEF 1.16.1.
 The latest full renderer route audit is from 2026-09-18.
 
-The application targets the published Kirie 0.4.1 release.
+The application targets the published Kirie 0.4.2 release.
 
 ## Document roles
 
@@ -34,15 +35,15 @@ an API for a feature that has no current in-scope failure.
 
 | Status | Count | Gaps |
 | --- | ---: | --- |
-| Accepted | 22 | GAP-001 through GAP-006, GAP-008, GAP-009, GAP-011 through GAP-022, GAP-027, and GAP-028 |
-| In progress | 0 | None |
-| Review pending | 1 | GAP-029. Host Attach is implemented and verified. Review is not complete. |
+| Accepted | 23 | GAP-001 through GAP-006, GAP-008, GAP-009, GAP-011 through GAP-022, GAP-027 through GAP-029 |
+| In progress | 1 | GAP-007 |
+| Review pending | 0 | None |
 | Runtime verification pending | 0 | None |
 | Open | 0 | None |
 | Blocked | 0 | None |
-| Deferred | 6 | GAP-007, GAP-010, GAP-023 through GAP-026 |
+| Deferred | 5 | GAP-010, GAP-023 through GAP-026 |
 
-The dependency files select the published Kirie 0.4.1 npm and NuGet packages.
+The dependency files select the published Kirie 0.4.2 npm and NuGet packages.
 They do not use sibling-repository package links or project references.
 
 The 2026-09-20 published-package verification passed these operations:
@@ -52,6 +53,49 @@ The 2026-09-20 published-package verification passed these operations:
 - Eleven unit-test files with 31 passing tests.
 - C# build with no warnings or errors.
 - Kirie build.
+
+The 2026-09-21 published-package verification repeated those operations on
+Kirie 0.4.2 and Godot 4.7.2:
+
+- Frozen-lockfile installation, which passes the supply-chain policy check.
+- TypeScript type verification.
+- Thirteen unit-test files with 41 passing tests.
+- C# build with no warnings or errors, for the application and the contract tests.
+- Kirie build.
+- `kirie doctor` reports Godot 4.7.2, Godot CEF 1.16.1, and the Godot 4.7.2
+  export templates.
+
+The 2026-09-21 live session ran on Kirie 0.4.2, Godot 4.7.2, and Godot CEF
+1.16.1. The runtime loaded the published `GdKirie.EventaAdapter` 0.4.2 package.
+The session started the main renderer and the Controls Island, opened the
+Settings window through the host, reused that window on a second request
+instead of creating a duplicate, and rendered `#/settings`,
+`#/settings/connection`, `#/settings/modules/mcp`, and `#/settings/data`. It
+opened Chat at `stage-runtime=minimal` and rendered an existing conversation.
+
+The session repeated the GAP-028 shared-context checks. A cookie, a
+`localStorage` value, a BroadcastChannel message, and the held
+`tab-airi:stage:pinia` Web Lock crossed the WebViews. The Settings WebView
+correctly left its request for that lock pending.
+
+Godot CEF 1.16.1 started on the Metal backend and reported
+`accelerated_osr_supported=true`. AIRI created each browser in accelerated
+rendering mode. Forward+ is what makes this available; the earlier OpenGL
+compatibility renderer had no accelerated OSR.
+
+The session reported only the documented deferred requests: GAP-010, GAP-023,
+GAP-024, GAP-025, and the excluded `godot-stage:get-status`. macOS also logged
+a duplicate Objective-C class warning for `ANGLESwapCGLLayer`, which the Godot
+binary and the Godot CEF framework both define. No failure reproduced, so it
+stays an observation and not a gap.
+
+The 2026-09-21 session did not repeat native close and reopen, external URL
+opening, or application data directory opening. Those remain verified on Kirie
+0.4.1 only.
+
+The Godot 4.7.2 upgrade makes older Godot 4.7.1 export templates stale. AIRI
+installed the matching Godot 4.7.2 templates. Export templates do not block
+development or the deferred GAP-026 packaging work.
 
 The 2026-09-20 live session started the main renderer on Kirie 0.4.1 and Godot
 CEF 1.16.1. It opened Settings and Chat, reused the Settings window, and
@@ -124,7 +168,7 @@ sibling repository only when a reproduced gap requires a Kirie API change.
 9. Keep Godot window operations on the main thread.
 10. Add only APIs that a reproduced Stage Tamagotchi error requires.
 11. Keep model-related capabilities outside this migration milestone.
-12. Keep Spotlight deferred until the user reopens that scope.
+12. Implement Spotlight with existing Kirie Platform APIs. Do not add a Kirie Core API for it.
 13. Do not make commits unless the user requests commits.
 
 ## Godot-first decision order
@@ -153,29 +197,35 @@ The current milestone excludes these model areas:
 Do not add model-related errors to `API-GAPS.md`. Do not add Kirie APIs for
 these errors.
 
-The current milestone also defers these Spotlight areas:
+The current milestone implements Spotlight as AIRI window orchestration. The
+Godot host owns the window, shortcut persistence, and Eventa contracts. The
+main renderer registers the OS shortcut through Kirie Platform. The Spotlight
+renderer shows result notifications through Kirie Platform.
 
-- Shortcut registration and persistence.
-- Application-window creation and lifecycle.
-- Result notifications and related navigation.
-
-Keep GAP-007 deferred until the user reopens Spotlight work.
+Do not add a Kirie Core API for Spotlight.
 
 ## Dependency baseline
 
-The AIRI baseline uses the coordinated Kirie 0.4.1 release:
+The AIRI baseline uses the coordinated Kirie 0.4.2 release:
 
 - npm: `kirie`, `@gd-kirie/ipc`, `@gd-kirie/ipc-eventa`, and
   `@gd-kirie/platform`.
 - NuGet: `GdKirie.EventaAdapter` and `GdKirie.Platform`.
-- Godot addon: the official `kirie-addon.zip` content from Kirie 0.4.1.
+- Godot addon: the official `kirie-addon.zip` content from Kirie 0.4.2.
 - Godot CEF: version 1.16.1 with the checksum from its official release.
+- Godot: 4.7.2 with the matching `Godot.NET.Sdk`.
+
+Kirie 0.4.2 changes no package API and no addon source. It raises the Godot
+baseline to 4.7.2 and selects Forward+ on desktop with Mobile on iOS and
+Android. AIRI already selected Forward+ on desktop, so the migration keeps its
+renderer settings. Only the version strings move: the addon `plugin.cfg`, the
+npm and NuGet pins, the `Godot.NET.Sdk`, and the local Godot tool version.
 
 The Kirie addon and AIRI configuration select the same Godot CEF release.
 Kirie installed Godot CEF 1.16.1 with the published SHA-256 digest, and the
 macOS framework passes strict code-signature verification.
 
-Source: [Kirie v0.4.1 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.4.1).
+Source: [Kirie v0.4.2 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.4.2).
 
 AIRI has exact `minimumReleaseAgeExclude` entries for the Kirie npm packages.
 Later versions remain subject to the normal pnpm release-age rule. See the
@@ -200,10 +250,14 @@ WebViews. The probes removed their temporary state after verification.
 On 2026-09-20, the tracked Godot CEF 1.16.1 release repeated those shared-context
 checks during the Kirie 0.4.1 live session. GAP-028 is accepted.
 
+On 2026-09-21, the Kirie 0.4.2 live session repeated the same checks on Godot
+4.7.2. Godot CEF selected the Metal backend and created each browser in
+accelerated rendering mode. GAP-028 stays accepted.
+
 [Godot CEF 1.16.1](https://github.com/dsh0416/godot-cef/releases/tag/v1.16.1)
 keeps that shared request context and preserves AIRI scheme handlers.
 
-Kirie 0.4.1 resolves each WebView permission request through an application
+Kirie 0.4.2 resolves each WebView permission request through an application
 policy. It does not provide an operating-system prompt or persistent browser
 permission state. AIRI now owns the microphone decision in the Godot host and
 shows the prompt inside the main Renderer. The decision persists until the
@@ -225,7 +279,7 @@ runtime verification and UI review are complete for GAP-016 and GAP-017.
 | Phase 3 | Complete | `API-GAPS.md` records reproduced runtime gaps. |
 | Phase 4 | Complete | Each WebView uses one application-owned Eventa context. |
 | Phase 5 | Complete | Existing Kirie Platform APIs support the required control flows. |
-| Phase 6 | In progress | The application uses published Kirie 0.4.1 packages. The smoke flow and milestone acceptance are not complete. |
+| Phase 6 | In progress | The application uses published Kirie 0.4.2 packages. The smoke flow and milestone acceptance are not complete. |
 
 Do not repeat a completed phase unless current evidence shows a regression.
 
@@ -251,7 +305,7 @@ The 2026-09-20 live session completed these smoke areas:
 
 | Gap | Status | Reason | Reopen condition |
 | --- | --- | --- | --- |
-| GAP-007 | Deferred | Spotlight is outside the current milestone. | The user reopens Spotlight. |
+| GAP-007 | In progress | Spotlight uses AIRI window orchestration and existing Kirie Platform APIs. | Live CEF verification of shortcut, window, and notification. |
 | GAP-010 | Deferred | The server channel requires an AIRI sidecar. | The user reopens sidecar work. |
 | GAP-023 | Deferred | The Node.js plugin host requires an AIRI sidecar. | The user reopens sidecar work. |
 | GAP-024 | Deferred | Artistry provider orchestration requires an AIRI sidecar. | The user reopens sidecar work. |
