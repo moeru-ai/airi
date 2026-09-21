@@ -77,7 +77,9 @@ export function useHostSpotlightShortcut() {
 /**
  * Registers the Spotlight OS shortcut on the main renderer through Kirie
  * Platform. This path stays outside the GAP-008 renderer-owned map so
- * `unregisterAll` cannot drop it.
+ * `unregisterAll` cannot drop it. The returned function releases the
+ * registration, and `beforeunload` releases it as well, because a renderer reload
+ * replaces the page that owns the key callback while the host keeps the entry.
  */
 export function startHostOwnedSpotlightShortcut(
   options?: { onRegistrationFailed?: (error: unknown) => void },
@@ -127,8 +129,9 @@ export function startHostOwnedSpotlightShortcut(
     options?.onRegistrationFailed?.(error)
   })
 
-  return () => {
+  const stop = () => {
     stopped = true
+    globalThis.removeEventListener('beforeunload', stop)
     stopListening()
     if (!current)
       return
@@ -139,4 +142,23 @@ export function startHostOwnedSpotlightShortcut(
       console.warn('[spotlight] Failed to unregister the host-owned shortcut:', error)
     })
   }
+
+  // NOTICE: the host keeps the registration across renderer page loads, but the key
+  // callback it stores belongs to the page that registered it. Releasing on unload
+  // hands the accelerator back before the next page claims it.
+  //
+  // Root cause: GdKiriePlatformHost binds one GlobalShortcutManager to one Eventa
+  // context, so the registration outlives the page that made it. The next page's
+  // register is then rejected as a duplicate, and the shortcut keeps dispatching
+  // into the unloaded page until the app restarts.
+  //
+  // `beforeunload` rather than `pagehide`: the Godot CEF browser dispatches
+  // `beforeunload` on reload, but does not dispatch `pagehide`, `unload`, or
+  // `visibilitychange`, so a `pagehide` release never ran.
+  //
+  // Removal condition: Kirie releases registrations whose owning context goes away,
+  // or exposes a replacing host-side registration.
+  globalThis.addEventListener('beforeunload', stop, { once: true })
+
+  return stop
 }

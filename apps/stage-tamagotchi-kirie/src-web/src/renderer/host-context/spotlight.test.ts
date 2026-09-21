@@ -174,6 +174,29 @@ describe('spotlight host context', () => {
     stop()
   })
 
+  it('releases the host-owned shortcut when the page unloads', async () => {
+    // ROOT CAUSE:
+    //
+    // The host keeps the registration across renderer page loads, and the key
+    // callback it stores belongs to the page that registered it. A page that went
+    // away without releasing left the accelerator claimed, so the next page's
+    // register was rejected as a duplicate and the shortcut kept dispatching into
+    // the unloaded page until the app restarted.
+    //
+    // We fixed this by releasing the registration from a `beforeunload` listener.
+    const stop = startHostOwnedSpotlightShortcut()
+    await vi.waitFor(() => {
+      expect(platformShortcuts.register).toHaveBeenCalledOnce()
+    })
+
+    globalThis.dispatchEvent(new Event('beforeunload'))
+
+    await vi.waitFor(() => {
+      expect(platformShortcuts.unregister).toHaveBeenCalledWith(toKirieGlobalShortcut(accelerator))
+    })
+    stop()
+  })
+
   it('rebinds when the host emits a shortcut change', async () => {
     const next: ShortcutAccelerator = {
       key: 'KeyB',
