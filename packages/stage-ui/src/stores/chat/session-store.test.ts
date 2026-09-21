@@ -807,8 +807,12 @@ describe('chat-session-store · synchronized data actions', () => {
     // A new session is created by the synchronized leader without changing
     // that window's selection. The caller then selects it in the current
     // window. The first message updates synchronized session metadata, which
-    // replaces the index ref. The index watcher treated that data update as
+    // replaces the index ref. An index watcher treated that data update as
     // navigation and restored the previous persisted session.
+    //
+    // Selection now changes only at explicit lifecycle boundaries: window
+    // initialization, user changes, character changes, deletion, or a user
+    // selection. Shared index updates do not control window navigation.
     const previousSession: ChatSessionMeta = {
       sessionId: 'session-previous',
       userId: 'local',
