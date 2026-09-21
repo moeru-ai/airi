@@ -24,6 +24,9 @@ Do not use this application to verify these features:
 - Model-specific media capture.
 - Server channel, plugin host, Artistry, and MCP sidecar services.
 - Production desktop packaging and application updates.
+- Desktop notifications on Windows or Linux. Kirie Platform implements them for
+  macOS 11 or later only, so the Spotlight result notification has no delivery
+  path on the other desktop platforms.
 
 ## Migration documentation
 

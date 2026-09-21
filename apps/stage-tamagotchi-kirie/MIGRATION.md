@@ -35,8 +35,8 @@ an API for a feature that has no current in-scope failure.
 
 | Status | Count | Gaps |
 | --- | ---: | --- |
-| Accepted | 23 | GAP-001 through GAP-006, GAP-008, GAP-009, GAP-011 through GAP-022, GAP-027 through GAP-029 |
-| In progress | 1 | GAP-007 |
+| Accepted | 24 | GAP-001 through GAP-009, GAP-011 through GAP-022, GAP-027 through GAP-029 |
+| In progress | 0 | None |
 | Review pending | 0 | None |
 | Runtime verification pending | 0 | None |
 | Open | 0 | None |
@@ -72,6 +72,8 @@ Settings window through the host, reused that window on a second request
 instead of creating a duplicate, and rendered `#/settings`,
 `#/settings/connection`, `#/settings/modules/mcp`, and `#/settings/data`. It
 opened Chat at `stage-runtime=minimal` and rendered an existing conversation.
+The user verified the Spotlight shortcut, its window, and its notification, so
+GAP-007 is accepted.
 
 The session repeated the GAP-028 shared-context checks. A cookie, a
 `localStorage` value, a BroadcastChannel message, and the held
@@ -215,6 +217,13 @@ renderer shows result notifications through Kirie Platform.
 
 Do not add a Kirie Core API for Spotlight.
 
+The current milestone also targets macOS only. Kirie Platform implements desktop
+notifications for macOS 11 or later and throws `PlatformNotSupportedException`
+elsewhere, so the Spotlight result notification has no delivery path on Windows
+or Linux. `API-GAPS.md` records this in its audited list with the reopen
+condition. Do not add notification fallbacks for other platforms in this
+milestone.
+
 ## Dependency baseline
 
 The AIRI baseline uses the coordinated Kirie 0.4.2 release:
@@ -290,7 +299,7 @@ runtime verification and UI review are complete for GAP-016 and GAP-017.
 | Phase 3 | Complete | `API-GAPS.md` records reproduced runtime gaps. |
 | Phase 4 | Complete | Each WebView uses one application-owned Eventa context. |
 | Phase 5 | Complete | Existing Kirie Platform APIs support the required control flows. |
-| Phase 6 | In progress | The application uses published Kirie 0.4.2 packages. The smoke flow and milestone acceptance are not complete. |
+| Phase 6 | In progress | Every in-scope gap is accepted or deferred, and the application uses published Kirie 0.4.2 packages. Three smoke areas still need a repeat on the current baseline. |
 
 Do not repeat a completed phase unless current evidence shows a regression.
 
@@ -302,21 +311,21 @@ true.
 The fade-on-hover notice window was not available. Fade-on-hover is already
 enabled in renderer storage.
 
-The 2026-09-20 live session completed these smoke areas:
+The 2026-09-21 session on Kirie 0.4.2 did not repeat three areas that the
+2026-09-20 session verified on Kirie 0.4.1:
 
-- Main Controls Island.
-- Settings open, reuse, and in-window navigation.
-- Chat.
 - Native close and reopen of Settings and Chat.
-- Shared request context on Godot CEF 1.16.1.
 - External URL opening through `window.open()`.
 - Application data directory opening.
+
+Repeating them on the current baseline closes the acceptance requirement that
+the published packages pass the full desktop smoke flow. The areas already
+completed are listed with the session evidence in Current status.
 
 ## Deferred work
 
 | Gap | Status | Reason | Reopen condition |
 | --- | --- | --- | --- |
-| GAP-007 | In progress | Spotlight uses AIRI window orchestration and existing Kirie Platform APIs. | Live CEF verification of shortcut, window, and notification. |
 | GAP-010 | Deferred | The server channel requires an AIRI sidecar. | The user reopens sidecar work. |
 | GAP-023 | Deferred | The Node.js plugin host requires an AIRI sidecar. | The user reopens sidecar work. |
 | GAP-024 | Deferred | Artistry provider orchestration requires an AIRI sidecar. | The user reopens sidecar work. |

@@ -15,6 +15,12 @@ full chat send round trip in real CEF. User review accepted GAP-029 on
 2026-09-20. A missing invoke handler remains a host wiring error.
 The Kirie Eventa adapter does not invent a default reject.
 
+The 2026-09-21 live session ran on Kirie 0.4.2, Godot 4.7.2, and Godot CEF
+1.16.1. It repeated the Settings, Chat, and shared-context checks. The user
+verified the Spotlight shortcut, its window, and its notification. The same
+review removed the Spotlight focus workarounds that the OpenGL compatibility
+renderer had required.
+
 Model rendering, model assets, Live2D, VRM, and MMD are outside the current scope.
 
 The status values have these meanings:
@@ -35,9 +41,9 @@ The status values have these meanings:
 | GAP-004 | Controls Island | Mount `ControlsIslandRoot` in Kirie | `useElectronAllDisplays` and `useElectronWindowBounds` create an Electron Eventa context | The AIRI host returns one atomic current-display snapshot for island placement | AIRI Godot host and host context | Accepted | Phase 5 displays review approved |
 | GAP-005 | Controls Island | Mount controls and apply saved window state | Electron `app.isLinux`, `window.set-always-on-top`, and drag contracts | Select the move mechanism without Electron IPC and use Kirie Platform for native movement and always-on-top state | AIRI host context | Accepted | Phase 5 window actions review approved |
 | GAP-006 | Controls Island and data settings | Click `Move to screen center` | Electron `windows:main:center` contract | Center the Godot host window on its current display | AIRI host context | Accepted | Phase 5 centering review approved |
-| GAP-007 | Window shortcut settings | Open the Spotlight shortcut page | Electron `windows:spotlight:shortcut:get` contract | Store the Spotlight shortcut and open its application window when the shortcut fires | AIRI window orchestration | In progress | Host window, persistence, and renderer Platform wiring implemented; live CEF verification pending |
+| GAP-007 | Window shortcut settings | Open the Spotlight shortcut page | Electron `windows:spotlight:shortcut:get` contract | Store the Spotlight shortcut and open its application window when the shortcut fires | AIRI window orchestration | Accepted | User verified the shortcut, window, and notification on 2026-09-21 |
 | GAP-008 | Global shortcut devtools | Open the global shortcut page | Electron shortcut list, register, unregister, and trigger contracts | Manage renderer-owned shortcuts through the existing Kirie Platform shortcut API | AIRI host context | Accepted | Phase 5 global shortcuts review approved |
-| GAP-009 | Main renderer | Initialize the Stage window lifecycle store | Electron `window:get-lifecycle-state` and `window:lifecycle-changed` contracts | Read and observe the host window's visibility, focus, and minimized state | Kirie Platform and AIRI host context | Accepted | Kirie 0.3.0 runtime and Kirie 0.4.1 build verified |
+| GAP-009 | Main renderer | Initialize the Stage window lifecycle store | Electron `window:get-lifecycle-state` and `window:lifecycle-changed` contracts | Read and observe the host window's visibility, focus, and minimized state | Kirie Platform and AIRI host context | Accepted | Kirie 0.3.0 runtime verified; the 2026-09-21 Kirie 0.4.2 session started the main renderer without the former error |
 | GAP-010 | Full Stage runtime windows | Initialize the AIRI server channel | Electron server-channel configuration and lifecycle service | Own the AIRI server lifecycle outside Kirie Platform | AIRI desktop service | Deferred | User-directed sidecar scope exclusion |
 | GAP-011 | Main renderer | Restore the saved locale | Electron `i18n:get-locale` and `i18n:set-locale` contracts | Use renderer storage in Kirie and keep the Electron fallback | AIRI host context | Accepted | Phase 6 locale review approved |
 | GAP-012 | Main renderer | Open onboarding when initial setup is incomplete | Electron `windows:onboarding:open` contract | Open one reusable native onboarding window with follower state and close it from its renderer | AIRI window orchestration | Accepted | Phase 6 onboarding review approved |
@@ -72,6 +78,11 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
   application window.
 - Display-model rendering and `godot-stage` contracts remain outside the
   migration scope.
+- Desktop notifications have a macOS 11 or later backend only.
+  `NotificationManager` throws `PlatformNotSupportedException` on every other
+  desktop platform, so the Spotlight result notification has no delivery path
+  there. No in-scope flow reproduced the failure, because the current milestone
+  targets macOS. Reopen this when non-macOS desktop work starts.
 
 ## GAP-001 evidence
 
@@ -133,7 +144,13 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Shortcut result: The host persists the accelerator in `user://spotlight.cfg`. A shortcut must include Cmd, Ctrl, Alt, or Super. `unregisterAll` on renderer-owned shortcuts must not drop Spotlight.
 - Notification result: The Spotlight renderer shows the assistant reply through Kirie Platform. Activation opens Chat from that same renderer context.
 - Test result: The C# test executable passed. The focused renderer host-context tests passed. Typecheck, unit tests, C# build, and C# format verification passed.
-- Current status: Implementation is complete in source. Live CEF verification of shortcut, window, and notification is still required.
+- Current status: Accepted. The user verified the shortcut, window, and notification in the running application on 2026-09-21.
+- 2026-09-21 session result: The main renderer registered the OS shortcut through Kirie Platform, and Spotlight opened one native 720 by 100 window at `#/spotlight` with `stage-runtime=minimal` and `synced-leader=false`. The window kept document focus, and the input element held `document.activeElement`.
+- Registration result: A later registration of the same accelerator failed with `The global shortcut is already registered by this Platform host`. The rejection shows the host holds the entry, but not which page owns it.
+- 2026-09-21 reload result: The controls island Refresh button calls `window.location.reload()` on the main renderer, so the failing path is user reachable in a packaged build. The reload replaces the page that registered the shortcut, while the host keeps the entry and its key callback. The next page is then rejected as a duplicate, and the shortcut keeps dispatching into the unloaded page until the app restarts. Electron does not have this failure because its main process owns the accelerator through `registerMainShortcut`, which outlives a renderer reload. A clean start and a Vue component reload each register once and stay clean, so the page reload is the failing path.
+- 2026-09-21 reload fix result: `startHostOwnedSpotlightShortcut` now releases the registration from a `beforeunload` listener. The Godot CEF browser dispatches `beforeunload`, but not `pagehide`, `unload`, or `visibilitychange`, so a `pagehide` release never ran. Four consecutive `Page.reload` calls and two `window.location.reload()` calls then registered without a duplicate rejection, and a later registration of the same accelerator was still rejected, which shows the accelerator stays claimed by the live page.
+- 2026-09-21 review result: The focus path dropped a synthetic mouse click, cross-frame retries, and an in-page focus script. All three were needed under the OpenGL compatibility renderer and are not needed under Forward+ with accelerated OSR. `cef.FocusMode` and `cef.GrabFocus()` carry the behavior.
+- 2026-09-21 platform result: The Spotlight window adds no Dock or Mission Control entry, so the Electron `skipTaskbar` option needs no Godot counterpart.
 
 ## GAP-008 evidence
 
@@ -191,6 +208,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Ownership: This is AIRI application-window orchestration. It does not add a Kirie Platform or Kirie Core API.
 - Runtime result: The control opened the native Settings window at `#/settings`. A connection-settings request reused that window and navigated it to `#/settings/connection`, including when both requests arrived before the settings renderer was ready. Native close removed the settings CEF page, and another request created the window again.
 - 2026-09-20 result: Kirie 0.4.1 and Godot CEF 1.16.1 opened Settings. Later requests reused that window for `#/settings/connection`, `#/settings/modules/mcp`, and `#/settings/data`. Native close removed the page. A later open created Settings again at `#/settings`.
+- 2026-09-21 result: Kirie 0.4.2, Godot 4.7.2, and Godot CEF 1.16.1 repeated the open and reuse path. The window rendered `#/settings`, `#/settings/connection`, `#/settings/modules/mcp`, and `#/settings/data`.
 
 ## GAP-014 evidence
 
@@ -201,6 +219,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Runtime result: Three concurrent requests kept one Chat CEF page. The rendered page exposed its Conversations, Mute voice, and Cancel reply controls. Native close removed the page, and another request created one new Chat page at the same minimal-runtime URL.
 - 2026-09-20 result: Kirie 0.4.1 and Godot CEF 1.16.1 opened one Chat page at `stage-runtime=minimal`. Native close destroyed that WebView. A later open created one new Chat page at the same URL.
 - 2026-09-20 send result: After the GAP-029 host Attach, a fresh Chat window sent a message and received an assistant reply in real CEF.
+- 2026-09-21 result: Kirie 0.4.2, Godot 4.7.2, and Godot CEF 1.16.1 opened one Chat page at `stage-runtime=minimal` and rendered an existing conversation.
 
 ## GAP-015 evidence
 
@@ -403,6 +422,8 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Dependency result: `addons/kirie/godot_cef.json` selects the official 1.16.1 asset and its published SHA-256 digest. Kirie installed that asset and reported version 1.16.1.
 - Release result: [Godot CEF 1.16.1](https://github.com/dsh0416/godot-cef/releases/tag/v1.16.1) preserves AIRI scheme handlers in the shared request context.
 - 1.16.1 runtime result: On 2026-09-20, the leader and Settings WebViews shared a cookie, a `localStorage` value, a BroadcastChannel message, and the held `tab-airi:stage:pinia` Web Lock. A later Kirie 0.4.1 session on the same day repeated those checks.
+- 2026-09-21 result: Kirie 0.4.2, Godot 4.7.2, and Godot CEF 1.16.1 repeated the checks. The leader held `tab-airi:stage:pinia`, and the Settings WebView left its request for that lock pending. The probes removed their temporary state after verification.
+- Acceleration result: Godot CEF reported `accelerated_osr_supported=true` on the Metal backend and created each browser in accelerated rendering mode.
 - Acceptance result: Official Godot CEF 1.16.0 and the tracked 1.16.1 release both reproduce the shared-context behavior. GAP-028 is accepted.
 
 ## GAP-029 evidence
