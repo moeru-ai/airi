@@ -1,0 +1,3 @@
+[submodule "vendor/cortico"]
+	path = vendor/cortico
+	url = https://github.com/Pal-AI-Lab/Cortico.git
