@@ -61,12 +61,18 @@ export const CorticoEventSchema = v.object({
   text: v.pipe(v.string(), v.minLength(1)),
 })
 
+/** Asks the bridge for a snapshot of the persona's memory workspace. */
+export const CorticoMemoryQuerySchema = v.object({
+  type: v.literal('memory_query'),
+})
+
 export const CorticoClientFrameSchema = v.union([
   CorticoHelloSchema,
   CorticoMessageSchema,
   CorticoEventSchema,
   CorticoProviderSchema,
   CorticoSessionsSchema,
+  CorticoMemoryQuerySchema,
 ])
 
 export type CorticoClientFrame = v.InferOutput<typeof CorticoClientFrameSchema>
@@ -124,6 +130,22 @@ export interface CorticoNameSessionFrame {
   label: string
 }
 
+/** Snapshot of the persona's memory workspace, sent on `memory_query`. */
+export interface CorticoMemoryFrame {
+  type: 'memory'
+  /** Absolute path of the memory workspace on the bridge host. */
+  dir: string
+  /** Top-level sections with file counts and the newest entries. */
+  sections: Array<{
+    name: string
+    files: number
+    /** Newest file names (mtime desc, capped by the bridge). */
+    recent: string[]
+  }>
+  /** Total tracked files across sections. */
+  totalFiles: number
+}
+
 export type CorticoServerFrame
   = | CorticoDeltaFrame
     | CorticoSpeakFrame
@@ -132,3 +154,4 @@ export type CorticoServerFrame
     | CorticoSysFrame
     | CorticoCallFrame
     | CorticoNameSessionFrame
+    | CorticoMemoryFrame

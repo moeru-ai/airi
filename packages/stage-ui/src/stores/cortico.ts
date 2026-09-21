@@ -1,4 +1,4 @@
-import type { CorticoServerFrame } from '@proj-airi/server-sdk-shared'
+import type { CorticoMemoryFrame, CorticoServerFrame } from '@proj-airi/server-sdk-shared'
 import type { ChatStreamEventContext } from '../types/chat'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
@@ -37,6 +37,8 @@ export const useCorticoStore = defineStore('cortico', () => {
   const isLeader = ref(true)
   /** Draft model output streamed before the persona speaks. */
   const draftText = ref('')
+  /** Latest memory snapshot from the bridge; `queryMemory()` refreshes it. */
+  const memory = ref<CorticoMemoryFrame | null>(null)
 
   let socket: WebSocket | null = null
   let turnContext: ChatStreamEventContext | null = null
@@ -167,6 +169,9 @@ export const useCorticoStore = defineStore('cortico', () => {
         break
       case 'sys':
         break
+      case 'memory':
+        memory.value = frame
+        break
     }
   }
 
@@ -252,6 +257,12 @@ export const useCorticoStore = defineStore('cortico', () => {
     }))
   }
 
+  /** Requests a fresh memory snapshot; the reply lands in `memory`. */
+  function queryMemory() {
+    if (socket && connected.value)
+      socket.send(JSON.stringify({ type: 'memory_query' }))
+  }
+
   /**
    * Pushes the stage's active chat provider to the bridge so generation
    * happens through the endpoint configured in AIRI settings.
@@ -303,10 +314,12 @@ export const useCorticoStore = defineStore('cortico', () => {
     connecting,
     lastError,
     draftText,
+    memory,
     ready,
     connect,
     disconnect,
     send,
+    queryMemory,
     setLeader,
   }
 })

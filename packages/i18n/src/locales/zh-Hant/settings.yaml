@@ -690,12 +690,9 @@ pages:
             verbose-json-unsupported: >-
               Your provider did not return verbose_json segments. Confidence
               filtering had no effect on the last transcription.
-    memory-long-term:
-      description: 長期記憶
-      title: 長期記憶
-    memory-short-term:
-      description: 短期記憶
-      title: 短期記憶
+    memory:
+      description: 人格記憶工作區（Cortico）
+      title: 記憶
     messaging-discord:
       description: Discord 訊息與語音聊天
       title: Discord

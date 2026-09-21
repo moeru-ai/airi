@@ -730,12 +730,9 @@ pages:
             verbose-json-unsupported: >-
               Ваш провайдер не вернул сегменты verbose_json. Фильтрация по
               уверенности не повлияла на последнюю транскрипцию.
-    memory-long-term:
-      description: Настройки долговременной памяти
-      title: Долговременная память
-    memory-short-term:
-      description: Настройки кратковременной памяти
-      title: Кратковременная память
+    memory:
+      description: Рабочее пространство памяти персоны (Cortico)
+      title: Память
     messaging-discord:
       description: Чат и голосовой чат через Discord
       title: Discord

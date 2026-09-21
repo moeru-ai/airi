@@ -14,6 +14,8 @@ import type { WebSocketServer } from 'ws'
 import type { AiriChannelClient, ChannelInbound } from '../channel.ts'
 
 import { parseCorticoClientFrame } from '@proj-airi/server-sdk-shared'
+import { readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { WebSocketServer as WsServer } from 'ws'
 
@@ -35,6 +37,8 @@ export interface AiriWorldOptions {
   onProvider?: (config: { baseUrl: string, apiKey?: string, model: string } | null) => void
   /** AIRI server-channel module client; mods' traffic becomes persona events. */
   channel?: AiriChannelClient
+  /** Persona memory workspace; `memory_query` frames report its contents. */
+  memoryDir?: string
 }
 
 function nowIso(timezone: string): string {
@@ -56,6 +60,22 @@ function dataUrlsToBlobs(urls: string[] | undefined): BlobInput[] | undefined {
     }]
   })
   return blobs.length ? blobs : undefined
+}
+
+/** Summarizes one memory section: file count + newest names (mtime desc). */
+function memorySection(dir: string, name: string, recentCap = 5): { name: string, files: number, recent: string[] } {
+  const abs = join(dir, name)
+  let entries: { name: string, mtime: number }[] = []
+  try {
+    entries = readdirSync(abs, { withFileTypes: true })
+      .filter(e => e.isFile() && !e.name.startsWith('.'))
+      .map(e => ({ name: e.name, mtime: statSync(join(abs, e.name)).mtimeMs }))
+  }
+  catch {
+    return { name, files: 0, recent: [] }
+  }
+  entries.sort((a, b) => b.mtime - a.mtime)
+  return { name, files: entries.length, recent: entries.slice(0, recentCap).map(e => e.name) }
 }
 
 const ENV_PROMPT_FILE = fileURLToPath(new URL('./ENV_PROMPT.md', import.meta.url))
@@ -386,6 +406,10 @@ export class AiriWorld implements World {
         client.name = frame.name.trim().slice(0, 32)
       return
     }
+    if (frame.type === 'memory_query') {
+      client.send(this.memorySnapshot())
+      return
+    }
     if (frame.type === 'sessions') {
       for (const s of frame.sessions) {
         const prev = this.sessions.get(s.id)
@@ -415,9 +439,24 @@ export class AiriWorld implements World {
     })
   }
 
+  /** Snapshot of the persona memory workspace for the settings page. */
+  private memorySnapshot(): CorticoServerFrame {
+    const dir = this.opts.memoryDir
+    if (!dir)
+      return { type: 'memory', dir: '', sections: [], totalFiles: 0 }
+    const sections = ['memo/active', 'memo/archived', 'note', 'note/playbook', 'note/library', 'people']
+      .map(name => memorySection(dir, name))
+    return {
+      type: 'memory',
+      dir,
+      sections,
+      totalFiles: sections.reduce((n, s) => n + s.files, 0),
+    }
+  }
+
   /**
-   * Resolves a `to` argument (label or id) to a session id; omitted `to`
-   * falls back to the most recently messaged session. When the stage never
+   * Resolves a `to` argument to a session id: exact id/label match, else the
+   * current session, else the most recently active one. When the stage never
    * reported sessions, `id` is undefined and frames go out untargeted.
    */
   private resolveSession(to: string | undefined): { id?: string } | { error: string } {

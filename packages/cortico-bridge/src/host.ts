@@ -61,6 +61,7 @@ export async function startBridge(options: BridgeOptions): Promise<Bridge> {
     botName: loaded.config.displayName,
     timezone: loaded.config.timezone,
     channel,
+    memoryDir: loaded.memoryDir,
     onProvider: (config) => {
       airiLlm.configure(config)
       // Keep the deployment's active model label in sync for modelFacts.
