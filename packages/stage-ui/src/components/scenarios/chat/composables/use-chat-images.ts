@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n'
 
 const MAX_IMAGE_COUNT = 4
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024
+const MAX_SOURCE_IMAGE_BYTES = 20 * 1024 * 1024
 const MAX_IMAGE_EDGE = 1920
 
 async function compressImage(file: File): Promise<File> {
@@ -24,7 +25,7 @@ async function compressImage(file: File): Promise<File> {
     if (file.size <= MAX_IMAGE_BYTES && image.width <= MAX_IMAGE_EDGE && image.height <= MAX_IMAGE_EDGE)
       return file
 
-    const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+    const outputType = file.type === 'image/jpeg' ? 'image/jpeg' : file.type
     let edge = MAX_IMAGE_EDGE
     let result = file
     while (edge >= 100) {
@@ -90,6 +91,10 @@ export function useChatImages(composer: ChatComposerController<ChatImageAttachme
         error.value = t('stage.chat.images.unsupported')
         return
       }
+      if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+        error.value = t('stage.chat.images.too-large')
+        return
+      }
     }
 
     const nextImageCount = composer.attachments.value.length + reservedImageCount + files.length
@@ -108,6 +113,8 @@ export function useChatImages(composer: ChatComposerController<ChatImageAttachme
     try {
       for (const file of files)
         preparedFiles.push(await compressImage(file))
+      if (disposed || readGeneration !== generation || sessionId !== getSessionId())
+        return
       if (preparedFiles.some(file => file.size > MAX_IMAGE_BYTES)) {
         error.value = t('stage.chat.images.too-large')
         return
