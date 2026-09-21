@@ -4,7 +4,6 @@ using Godot;
 
 internal sealed class SettingsWindowManager : IDisposable
 {
-    private const string DefaultRoute = "/settings";
     private const string WindowScenePath = "res://src-godot/settings-window.tscn";
 
     private readonly Node _owner;
@@ -39,7 +38,7 @@ internal sealed class SettingsWindowManager : IDisposable
             AiriDesktopEvents.OpenSettings,
             (OpenSettingsPayload payload, CancellationToken _) =>
             {
-                Open(payload.Route);
+                Open(payload.ResolveRoute());
                 return Task.FromResult(new EmptyPayload());
             });
     }
@@ -55,10 +54,9 @@ internal sealed class SettingsWindowManager : IDisposable
         _openRegistration.Dispose();
     }
 
-    private void Open(string? requestedRoute)
+    private void Open(string route)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var route = ResolveRoute(requestedRoute);
         if (_window is null
             || !GodotObject.IsInstanceValid(_window)
             || _window.IsQueuedForDeletion())
@@ -90,22 +88,6 @@ internal sealed class SettingsWindowManager : IDisposable
         }
 
         _window.Open(_mainWindow.CurrentScreen, route);
-    }
-
-    private static string ResolveRoute(string? route)
-    {
-        if (string.IsNullOrEmpty(route))
-        {
-            return DefaultRoute;
-        }
-
-        if (!StringComparer.Ordinal.Equals(route, DefaultRoute)
-            && !route.StartsWith($"{DefaultRoute}/", StringComparison.Ordinal))
-        {
-            throw new ArgumentException("The settings window route must start with /settings.", nameof(route));
-        }
-
-        return route;
     }
 
     private void OnWindowClosed(SettingsWindow window)

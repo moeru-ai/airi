@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useHostAlwaysOnTop, useHostAppQuit, useHostChat, useHostEventaInvoke, useHostMouseInElement, useHostWindowCenter, useHostWindowMove } from '@proj-airi/stage-host-context'
+import { initializeHostContext, useHostAlwaysOnTop, useHostAppQuit, useHostChat, useHostEventaInvoke, useHostMouseInElement, useHostWindowCenter, useHostWindowMove } from '@proj-airi/stage-host-context'
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ScrollableArea, useTheme } from '@proj-airi/ui'
@@ -33,6 +33,7 @@ const emit = defineEmits<Emits>()
 
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
+const isAndroid = initializeHostContext().os === 'android'
 const placement = useControlsIslandPlacement()
 const { dock, isLeft, isTop, motionPhase } = placement
 
@@ -142,6 +143,9 @@ useIntervalFn(() => {
 
 // Apply alwaysOnTop on mount and when it changes
 watch(alwaysOnTop, (val) => {
+  if (isAndroid)
+    return
+
   setAlwaysOnTop(val)
     .catch(error => console.error('[host-context] Failed to update always-on-top state.', error))
 }, { immediate: true })
@@ -344,7 +348,7 @@ function resetMainWindowPosition() {
                     </template>
                   </ControlButtonTooltip>
 
-                  <ControlButtonTooltip disable-hoverable-content>
+                  <ControlButtonTooltip v-if="!isAndroid" disable-hoverable-content>
                     <ControlButton
                       v-track-button="{ name: 'controls_island_action', action: 'center_main_window' }"
                       :button-style="adjustStyleClasses.button"
@@ -378,7 +382,7 @@ function resetMainWindowPosition() {
                     </template>
                   </ControlButtonTooltip>
 
-                  <ControlButtonTooltip disable-hoverable-content>
+                  <ControlButtonTooltip v-if="!isAndroid" disable-hoverable-content>
                     <ControlButton
                       v-track-button="{
                         name: 'controls_island_action',
@@ -396,7 +400,7 @@ function resetMainWindowPosition() {
                     </template>
                   </ControlButtonTooltip>
 
-                  <ControlsIslandFadeOnHover :icon-class="adjustStyleClasses.icon" :button-style="adjustStyleClasses.button" />
+                  <ControlsIslandFadeOnHover v-if="!isAndroid" :icon-class="adjustStyleClasses.icon" :button-style="adjustStyleClasses.button" />
 
                   <ControlButtonTooltip disable-hoverable-content>
                     <ControlButton
@@ -486,7 +490,7 @@ function resetMainWindowPosition() {
             :icon-class="adjustStyleClasses.icon"
           />
 
-          <ControlButtonTooltip side="inward">
+          <ControlButtonTooltip v-if="!isAndroid" side="inward">
             <ControlButton :button-style="adjustStyleClasses.button" cursor-move :class="{ 'drag-region': usesCssDragRegion }" @mousedown="startDraggingWindow">
               <div i-ph:arrows-out-cardinal :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
             </ControlButton>

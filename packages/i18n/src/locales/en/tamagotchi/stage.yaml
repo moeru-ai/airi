@@ -1,4 +1,5 @@
 operations:
+  back: Back
   load-models: Load Models
   load-models-status:
     loading: Loading

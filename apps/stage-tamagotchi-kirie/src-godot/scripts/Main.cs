@@ -25,12 +25,23 @@ public partial class Main : Node
     private IDisposable? _microphonePermissionRegistration;
     private IDisposable? _quitRegistration;
     private NativeWindowResizeController? _nativeResize;
+    private MobileNavigationService? _mobileNavigation;
 
     public override void _Ready()
     {
         var window = GetWindow();
-        DesktopWindowSizing.ApplyInitialDisplayScale(window);
-        _nativeResize = new NativeWindowResizeController(window);
+        bool isAndroid = OS.HasFeature("android");
+        if (isAndroid)
+        {
+            // Vue Router consumes Android Back before the root route can quit the app.
+            GetTree().QuitOnGoBack = false;
+        }
+        else
+        {
+            DesktopWindowSizing.ApplyInitialDisplayScale(window);
+            _nativeResize = new NativeWindowResizeController(window);
+        }
+
         _kirie = KirieClient.FromNode(GetNode("KirieNode"));
         if (!_kirie.IsAvailable)
         {
@@ -72,40 +83,47 @@ public partial class Main : Node
                 _kirie,
                 rendererUrl,
                 _microphonePermissions);
-            _developerTools = new DeveloperToolsService(
-                this,
-                GetWindow(),
-                registry,
-                rendererUrl);
-            _developerToolsRegistration = _developerTools.Attach(_eventa.Context);
-            _onboarding = new OnboardingWindowManager(
-                _eventa.Context,
-                this,
-                GetWindow(),
-                registry,
-                rendererUrl,
-                _auth);
-            _settings = new SettingsWindowManager(
-                _eventa.Context,
-                this,
-                GetWindow(),
-                registry,
-                rendererUrl,
-                _auth,
-                _microphonePermissions,
-                _developerTools);
-            _chat = new ChatWindowManager(
-                _eventa.Context,
-                this,
-                GetWindow(),
-                registry,
-                rendererUrl);
-            _notice = new NoticeWindowManager(
-                _eventa.Context,
-                this,
-                GetWindow(),
-                registry,
-                rendererUrl);
+            if (isAndroid)
+            {
+                _mobileNavigation = new MobileNavigationService(_eventa.Context);
+            }
+            else
+            {
+                _developerTools = new DeveloperToolsService(
+                    this,
+                    GetWindow(),
+                    registry,
+                    rendererUrl);
+                _developerToolsRegistration = _developerTools.Attach(_eventa.Context);
+                _onboarding = new OnboardingWindowManager(
+                    _eventa.Context,
+                    this,
+                    GetWindow(),
+                    registry,
+                    rendererUrl,
+                    _auth);
+                _settings = new SettingsWindowManager(
+                    _eventa.Context,
+                    this,
+                    GetWindow(),
+                    registry,
+                    rendererUrl,
+                    _auth,
+                    _microphonePermissions,
+                    _developerTools);
+                _chat = new ChatWindowManager(
+                    _eventa.Context,
+                    this,
+                    GetWindow(),
+                    registry,
+                    rendererUrl);
+                _notice = new NoticeWindowManager(
+                    _eventa.Context,
+                    this,
+                    GetWindow(),
+                    registry,
+                    rendererUrl);
+            }
         }
         catch (InvalidOperationException error)
         {
@@ -120,6 +138,7 @@ public partial class Main : Node
     public override void _ExitTree()
     {
         _nativeResize?.Dispose();
+        _mobileNavigation?.Dispose();
         _quitRegistration?.Dispose();
         _authRegistration?.Dispose();
         _displaySnapshotRegistration?.Dispose();
@@ -142,6 +161,14 @@ public partial class Main : Node
     {
         _auth?.ProcessPending();
         _microphonePermissions?.Process();
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationWMGoBackRequest)
+        {
+            _mobileNavigation?.RequestBack();
+        }
     }
 
     private string ResolveInitialUrl()

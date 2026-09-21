@@ -35,6 +35,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 import MicrophonePermissionPrompt from './components/microphone-permission-prompt.vue'
+import MobileShell from './components/mobile-shell.vue'
 
 import {
   electronChatReady,
@@ -79,6 +80,7 @@ const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settings
 const router = useRouter()
 const route = useRoute()
 const context = useHostEventaContext()
+const isAndroid = initializeHostContext().os === 'android'
 const locale = useHostLocale()
 const getMainLocale = locale.get
 const setLocale = locale.set
@@ -422,15 +424,17 @@ function handleRouteRenderError(error: unknown, _instance: unknown, info: string
     @allow="resolveMicrophonePermission('granted')"
     @deny="resolveMicrophonePermission('denied')"
   />
-  <RouterView v-slot="{ Component }">
-    <ErrorBoundary
-      :key="route.fullPath"
-      title="This page could not be displayed."
-      @error="handleRouteRenderError"
-    >
-      <component :is="Component" />
-    </ErrorBoundary>
-  </RouterView>
+  <MobileShell :enabled="isAndroid">
+    <RouterView v-slot="{ Component }">
+      <ErrorBoundary
+        :key="route.fullPath"
+        title="This page could not be displayed."
+        @error="handleRouteRenderError"
+      >
+        <component :is="Component" />
+      </ErrorBoundary>
+    </RouterView>
+  </MobileShell>
 </template>
 
 <style>

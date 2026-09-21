@@ -1,4 +1,5 @@
 operations:
+  back: 返回
   load-models: 加载推理模型
   load-models-status:
     loading: 加载中

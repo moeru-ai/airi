@@ -7,17 +7,20 @@ const platform = vi.hoisted(() => ({
   centerOnCurrentDisplay: vi.fn(),
   setAlwaysOnTop: vi.fn(),
 }))
+const hostOs = vi.hoisted(() => ({ value: 'macos' }))
 
 vi.mock('./owner', () => ({
   initializeHostContext: () => ({
     context: {},
     platform: { hostWindow: platform },
     runtime: 'kirie',
+    os: hostOs.value,
   }),
 }))
 
 describe('kirie host window actions', () => {
   beforeEach(() => {
+    hostOs.value = 'macos'
     platform.beginMove.mockReset().mockResolvedValue(undefined)
     platform.centerOnCurrentDisplay.mockReset().mockResolvedValue(undefined)
     platform.setAlwaysOnTop.mockReset().mockResolvedValue(undefined)
@@ -44,6 +47,15 @@ describe('kirie host window actions', () => {
     await useHostWindowCenter()()
 
     expect(platform.centerOnCurrentDisplay).toHaveBeenCalledOnce()
+  })
+
+  it('does not start a desktop window drag on Android', async () => {
+    hostOs.value = 'android'
+    const move = useHostWindowMove()
+
+    expect(move.isNativeMoveSupported.value).toBe(false)
+    await move.beginMove()
+    expect(platform.beginMove).not.toHaveBeenCalled()
   })
 
   it('propagates a native movement failure', async () => {

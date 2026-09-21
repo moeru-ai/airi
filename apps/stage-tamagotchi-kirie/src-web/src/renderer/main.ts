@@ -18,7 +18,8 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
-import { disposeHostContext, getHostPlatform, initializeHostContext, installExternalNavigation } from './host-context'
+import { disposeHostContext, getHostPlatform, initializeHostContext, installExternalNavigation, useHostAppQuit } from './host-context'
+import { installMobileNavigation } from './host-context/mobile-navigation'
 import { i18n } from './modules/i18n'
 import { resolveRendererWindowContext } from './window-context'
 
@@ -50,7 +51,9 @@ registerAuthorizationHandler(browserAuthorizationHandler)
 
 const hostContext = initializeHostContext()
 const disposeExternalNavigation = installExternalNavigation()
+let disposeMobileNavigation: (() => void) | undefined
 function disposeRendererHost() {
+  disposeMobileNavigation?.()
   disposeExternalNavigation()
   disposeHostContext()
 }
@@ -76,6 +79,9 @@ const router = createRouter({
   // TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
   routes: setupLayouts(routes as RouteRecordRaw[]),
 })
+
+if (hostContext.os === 'android')
+  disposeMobileNavigation = installMobileNavigation(hostContext.context, router, useHostAppQuit())
 
 if (import.meta.hot) {
   handleHotUpdate(router, (updatedRoutes) => {

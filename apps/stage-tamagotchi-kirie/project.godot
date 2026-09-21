@@ -20,11 +20,15 @@ config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
 
 window/size/borderless=true
 window/size/always_on_top=true
+window/size/always_on_top.android=false
 window/size/transparent=true
+window/size/transparent.android=false
 window/size/viewport_height=600
 window/size/viewport_width=450
 window/subwindows/embed_subwindows=false
 window/per_pixel_transparency/allowed=true
+window/per_pixel_transparency/allowed.android=false
+window/handheld/orientation.android=1
 
 [dotnet]
 
@@ -45,3 +49,4 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 viewport/transparent_background=true
+viewport/transparent_background.android=false

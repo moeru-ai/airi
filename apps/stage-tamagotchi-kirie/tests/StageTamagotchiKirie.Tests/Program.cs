@@ -1,4 +1,5 @@
 using System.Net;
+using Eventa;
 using Godot;
 using HttpClient = System.Net.Http.HttpClient;
 
@@ -16,6 +17,7 @@ internal static class Program
             TestsMicrophonePermissionPersistencePolicy();
             TestsMicrophonePermissionPromptTimeout();
             TestsMicrophonePermissionShutdown();
+            await TestsMobileNavigation();
             await ReturnsCodeForExpectedState();
             await RejectsForgedStateWithoutConsumingServer();
             await SendsRelayCorsWithoutPrivateNetworkHeader();
@@ -26,6 +28,76 @@ internal static class Program
         {
             Console.Error.WriteLine(error);
             return 1;
+        }
+    }
+
+    private static async Task TestsMobileNavigation()
+    {
+        // ROOT CAUSE:
+        //
+        // Android embeds child Godot windows, but Kirie platform bindings require native windows.
+        // The previous OpenChat handler constructed a child window and threw before navigation.
+        // Android now routes these requests through the persistent main renderer.
+        using var context = EventContext.Create();
+        using var navigation = new MobileNavigationService(context);
+        var routes = new List<MobileNavigatePayload>();
+        using var routesSubscription = context.Subscribe(
+            AiriDesktopEvents.MobileNavigate,
+            envelope => routes.Add(envelope.Body));
+        await context.CreateInvokeClient(AiriDesktopEvents.OpenChat).InvokeAsync(new EmptyPayload());
+        AssertEqual(new MobileNavigatePayload("/chat", false), routes[^1], "mobile chat route");
+
+        var settings = context.CreateInvokeClient(AiriDesktopEvents.OpenSettings);
+        await settings.InvokeAsync(new OpenSettingsPayload(null));
+        AssertEqual(new MobileNavigatePayload("/settings", false), routes[^1], "default mobile settings");
+        await settings.InvokeAsync(new OpenSettingsPayload("/settings/providers?source=chat"));
+        AssertEqual(
+            new MobileNavigatePayload("/settings/providers?source=chat", false),
+            routes[^1],
+            "mobile settings deep link");
+
+        await context.CreateInvokeClient(AiriDesktopEvents.OpenOnboarding).InvokeAsync(new EmptyPayload());
+        AssertEqual(new MobileNavigatePayload("/onboarding", false), routes[^1], "mobile onboarding route");
+        await context.CreateInvokeClient(AiriDesktopEvents.CloseOnboarding).InvokeAsync(new EmptyPayload());
+        AssertEqual(new MobileNavigatePayload("/", true), routes[^1], "onboarding return replaces history");
+
+        int backRequests = 0;
+        using var backSubscription = context.Subscribe(
+            AiriDesktopEvents.MobileBackRequested,
+            _ => backRequests++);
+        navigation.RequestBack();
+        AssertEqual(1, backRequests, "mobile hardware back request");
+
+        int routeCount = routes.Count;
+        try
+        {
+            await settings.InvokeAsync(new OpenSettingsPayload("https://example.com/settings"));
+            throw new InvalidOperationException("An external settings route was accepted.");
+        }
+        catch (Exception error) when (error.Message.Contains("settings route must start", StringComparison.Ordinal))
+        {
+            AssertEqual(routeCount, routes.Count, "invalid settings route emits no navigation");
+        }
+
+        try
+        {
+            await context.CreateInvokeClient(AiriDesktopEvents.OpenMainDevtools).InvokeAsync(new EmptyPayload());
+            throw new InvalidOperationException("The desktop CEF inspector was accepted on Android.");
+        }
+        catch (Exception error) when (error.Message.Contains("CEF inspector is not available", StringComparison.Ordinal))
+        {
+            AssertEqual(routeCount, routes.Count, "unsupported desktop inspector emits no navigation");
+        }
+
+        navigation.Dispose();
+        try
+        {
+            navigation.RequestBack();
+            throw new InvalidOperationException("A disposed navigation service emitted a back request.");
+        }
+        catch (ObjectDisposedException)
+        {
+            AssertEqual(1, backRequests, "disposed mobile navigation emits no back request");
         }
     }
 

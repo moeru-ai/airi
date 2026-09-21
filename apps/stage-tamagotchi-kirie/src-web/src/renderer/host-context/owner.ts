@@ -1,3 +1,4 @@
+import type { KiriePlatformOs } from '@gd-kirie/ipc'
 import type { KirieEventaContext, KirieEventaContextHandle } from '@gd-kirie/ipc-eventa'
 import type { PlatformClient } from '@gd-kirie/platform'
 import type { InvokeEventa } from '@moeru/eventa'
@@ -17,6 +18,8 @@ export interface HostContextOwner {
   context: KirieEventaContext
   platform?: PlatformClient
   runtime: HostRuntime
+  /** Native OS supplied by Kirie before renderer initialization. */
+  os?: KiriePlatformOs
 }
 
 let owner: (HostContextOwner & KirieEventaContextHandle) | undefined
@@ -28,6 +31,7 @@ function createHostContextOwner(): HostContextOwner & KirieEventaContextHandle {
       ...eventa,
       platform: createPlatformClient(eventa.context),
       runtime: 'kirie',
+      os: window.kirie.platform.os,
     }
   }
 

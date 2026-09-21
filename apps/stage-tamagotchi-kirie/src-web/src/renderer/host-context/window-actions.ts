@@ -39,7 +39,7 @@ export function useHostWindowCenter() {
 
 export function useHostWindowMove() {
   const host = initializeHostContext()
-  const isNativeMoveSupported = shallowRef(host.runtime === 'kirie')
+  const isNativeMoveSupported = shallowRef(host.runtime === 'kirie' && host.os !== 'android')
   const usesCssDragRegion = shallowRef(false)
   const startElectronMove = host.runtime === 'electron'
     ? defineInvoke(host.context, electronStartDraggingWindow)

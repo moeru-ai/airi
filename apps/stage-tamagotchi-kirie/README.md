@@ -146,7 +146,50 @@ The 2026-09-18 real CEF verification passed these operations:
 The build still reports non-blocking Vite, UnoCSS, browser-externalization, and
 large-chunk warnings.
 
-## Runtime architecture
+## Android debug verification
+
+The Android preset exports an ARM64 debug APK. It requires the pinned Godot
+Mono export templates, Java 17 through mise, Android SDK 36, and Kirie's
+`addons/kirie/libraries/android/Kirie-release.aar`.
+
+Configure the Android SDK, Java SDK, and debug keystore in Godot's editor
+settings. Run these commands from this application directory:
+
+```sh
+mise x -- pnpm build
+mise x java@temurin-17.0.20+8 -- godot --headless --path . --install-android-build-template --export-debug Android dist/kirie/android/debug.apk
+```
+
+`JAVA_HOME` alone does not replace Godot's `export/android/java_sdk_path` setting.
+The solution file supplies Godot's `ExportDebug` and `ExportRelease` configurations.
+Generated Gradle sources stay outside the C# compile inputs.
+See [Godot's Android export guide](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_for_android.html).
+
+Android uses one opaque portrait window. Chat, settings, and onboarding navigate
+inside the main renderer. The stage stays mounted while another page is visible.
+System Back returns through app history and exits only at the home route.
+Desktop notices and developer windows remain unsupported on Android.
+
+The 2026-09-20 Android 16 ARM64 emulator run passed APK installation, cold startup,
+onboarding display, chat display, settings navigation, and return to the stage.
+The default Live2D model remained visible after navigation. This does not establish
+acceptance for other models, microphone access, account sign-in, or provider calls.
+
+The 2026-09-21 Android 16 run used WebView 151.0.7922.199 and passed real keyboard
+visibility, draft retention, repeated keyboard dismissal, and background recovery.
+The Android preset enables `screen/edge_to_edge` so Godot does not consume the
+Insets before they reach the WebView. The chat page uses the existing
+`useAdaptiveInput` helper to fit its visible viewport. Desktop chat keeps its
+existing layout, and no native Kirie dependency changes are required.
+See the [Android inset documentation](https://developer.android.com/develop/ui/views/layout/webapps/understand-window-insets)
+and [Godot's edge-to-edge configuration](https://docs.godotengine.org/en/4.5/classes/class_editorexportplatformandroid.html#class-editorexportplatformandroid-property-screen-edge-to-edge).
+
+Physical devices, older WebViews, settings inputs, and system-bar safe areas still
+need separate tests. Debug APKs are not production releases. Modern WebViews can
+expose debugging for debuggable APKs even with the Kirie Inspector configuration
+disabled, as described in the [WebView API reference](https://developer.android.com/reference/android/webkit/WebView#setWebContentsDebuggingEnabled(boolean)).
+
+## Desktop runtime architecture
 
 The main renderer starts with `synced-leader=true`. AIRI creates onboarding,
 settings, chat, notice, and standalone devtools renderers in separate native

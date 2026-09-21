@@ -10,7 +10,10 @@ import InteractiveArea from '../components/InteractiveArea.vue'
 import WindowTitleBar from '../components/Window/TitleBar.vue'
 import ChatPageShell from './chat-page-shell.vue'
 
+import { initializeHostContext } from '../host-context'
+
 const sessionsDrawerOpen = shallowRef(false)
+const isAndroid = initializeHostContext().os === 'android'
 const getOutputPlaybackState = defineInvoke(getSpeechBusContext(), speechOutputGetPlaybackState)
 const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton({
   resolveSpeakingState: async () => {
@@ -26,7 +29,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <ChatPageShell>
+  <ChatPageShell :adaptive-input="isAndroid">
     <WindowTitleBar
       title="Chat"
       icon="i-solar:chat-line-bold"
