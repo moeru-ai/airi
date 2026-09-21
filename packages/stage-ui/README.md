@@ -2,6 +2,24 @@
 
 Shared core for stage
 
+## Chat images
+
+Web and Electron composers share image drafts and previews. They accept PNG,
+JPEG, WebP, and GIF files up to 20 MB each, through file selection or paste.
+Previews own their Object URLs. Session changes discard pending image reads.
+Failed sends restore the draft through the shared composer.
+
+Choose a provider and model in **Settings → Modules → Vision** and enable
+**Use the vision model for chat images** for a text-only chat model.
+The vision model describes images before the selected chat model replies.
+Local history keeps the images. Provider prompts replace images with descriptions,
+including images from earlier turns and retries. Earlier images can require another
+vision request on later turns. Cloud history currently stores only message text.
+
+Disable this option to send images directly to a chat model that supports them.
+Without a configured vision model, images also go directly to the chat model.
+Use this flow for chat attachments, not periodic screen capture.
+
 ## Character-card module settings
 
 The card store owns three distinct states:
@@ -59,6 +77,10 @@ https://histoire.dev/
 ```shell
 pnpm -F @proj-airi/stage-ui run story:dev
 ```
+
+The **Misc → Swipe Actions** story renders one row with two start actions and three end actions. Its **Show labels** control switches between
+text labels and surfaces that fill the available height. Use this story to
+compare gesture presentation, not conversation storage behavior.
 
 ### Project structure
 

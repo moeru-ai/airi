@@ -1,8 +1,8 @@
-import type { Ref, WatchSource } from 'vue'
+import type { ChatRequestOptions, GenerationRequest } from '@proj-airi/provider-inference'
 
 import type { ModelInfo, ProviderModelCatalog, VoiceInfo } from '../../types'
 
-import { watch } from 'vue'
+import { compatibleProtocols, generationProtocolOptions } from '@proj-airi/provider-inference'
 import { z } from 'zod'
 
 import { getAuthToken } from '../../../../libs/auth'
@@ -13,24 +13,12 @@ import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICO
 
 export { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID, OFFICIAL_VISION_PROVIDER_ID } from './constants'
 
-// Locale → voice id map recommended by the server, keyed by provider id.
-// Populated by each speech provider's listVoices() from the response's
-// `recommended` field so the auto-pick can prefer a curated default per
-// locale. Keyed per provider because the HTTP and streaming providers have
-// independent catalogs and recommendation buckets. Falls back to language +
-// first-voice matching when the server returns no recommendations.
-const recommendedVoicesByProvider: Record<string, Record<string, string>> = {}
-
-// Server-curated default HTTP speech model id, populated by the HTTP speech
-// provider's listModels(). The speech store uses this when it needs to seed an
-// empty/stale model selection, so the UI mirrors `/audio/speech` `model: auto`.
-let defaultSpeechModelId: string | null = null
-
-export function getDefaultSpeechModel(): string | null {
-  return defaultSpeechModelId
-}
-
 const officialConfigSchema = z.object({})
+const officialChatConfigSchema = z.object({
+  api: z.enum(compatibleProtocols.supportedProtocols).default(compatibleProtocols.defaultProtocol),
+})
+
+type OfficialChatConfig = z.input<typeof officialChatConfigSchema>
 
 function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { Accept: 'application/json' }
@@ -67,7 +55,7 @@ async function listStreamingModelCatalog(): Promise<ProviderModelCatalog> {
   }
 }
 
-export const providerOfficialChat = defineProvider({
+export const providerOfficialChat = defineProvider<OfficialChatConfig, typeof OFFICIAL_CHAT_PROVIDER_ID>({
   id: OFFICIAL_CHAT_PROVIDER_ID,
   order: -1,
   name: 'Official Provider',
@@ -78,17 +66,38 @@ export const providerOfficialChat = defineProvider({
   icon: OFFICIAL_ICON,
   requiresCredentials: false,
   configuredBy: 'authentication',
+  capabilities: { chat: { generation: compatibleProtocols } },
 
-  createProviderConfig: () => officialConfigSchema,
-  createProvider(_config) {
+  createProviderConfig: ({ t }) => officialChatConfigSchema.extend({
+    api: officialChatConfigSchema.shape.api.meta({
+      type: 'select',
+      options: generationProtocolOptions(compatibleProtocols),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.description'),
+    }),
+  }),
+  createProvider(config) {
     const provider = createOfficialOpenAIProvider()
-    const originalChat = provider.chat.bind(provider)
-    provider.chat = (model: string) => {
-      const result = originalChat(model)
-      result.fetch = withCredentials()
-      return result
+    return {
+      model: provider.model,
+      generation(model: string, _options?: ChatRequestOptions): GenerationRequest {
+        const request = provider.chat(model)
+        request.fetch = withCredentials()
+        switch (config.api ?? compatibleProtocols.defaultProtocol) {
+          case 'responses':
+            return {
+              protocol: 'responses',
+              webSearch: true,
+              config: request,
+            }
+          case 'chat-completions':
+            return {
+              protocol: 'chat-completions',
+              config: request,
+            }
+        }
+      },
     }
-    return provider
   },
 
   validationRequiredWhen: () => false,
@@ -132,8 +141,7 @@ export const providerOfficialSpeech = defineProvider({
   },
   validationRequiredWhen: () => false,
   extraMethods: {
-    listModels: async (): Promise<ModelInfo[]> => {
-      defaultSpeechModelId = null
+    listModelCatalog: async (): Promise<ProviderModelCatalog> => {
       const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models`, { headers: authHeaders() })
       if (!res.ok)
         throw new Error(`audio models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
@@ -142,16 +150,19 @@ export const providerOfficialSpeech = defineProvider({
       if (!Array.isArray(data.models))
         throw new Error('audio models upstream returned malformed body')
 
-      defaultSpeechModelId = typeof data.default === 'string' && data.default.length > 0 ? data.default : null
-
-      return data.models.map(m => ({
-        id: m.id,
-        name: m.name,
-        description: m.description,
-        provider: OFFICIAL_SPEECH_PROVIDER_ID,
-      }))
+      // Replicate the server default with its models so a new leader can select it.
+      return {
+        defaultModel: typeof data.default === 'string' && data.default.length > 0 ? data.default : null,
+        models: data.models.map(m => ({
+          id: m.id,
+          name: m.name,
+          description: m.description,
+          provider: OFFICIAL_SPEECH_PROVIDER_ID,
+        })),
+      }
     },
-    listVoices: async (_config, _provider, model): Promise<VoiceInfo[]> => {
+    voiceCatalogConfig: () => ({}),
+    listVoices: async (_config, _provider, model, signal): Promise<VoiceInfo[]> => {
       // Voice catalogs are model-scoped on the server side. Pass the active
       // model through so Azure / cosyvoice / future provider voices route to
       // the right adapter. If model discovery has not completed yet, keep the
@@ -159,7 +170,7 @@ export const providerOfficialSpeech = defineProvider({
       const target = model && model.length > 0 ? model : 'auto'
       const url = new URL(`${SERVER_URL}/api/v1/audio/voices`)
       url.searchParams.set('model', target)
-      const res = await globalThis.fetch(url.toString(), { headers: authHeaders() })
+      const res = await globalThis.fetch(url.toString(), { headers: authHeaders(), signal })
       if (!res.ok)
         throw new Error(`audio voices upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
@@ -180,11 +191,8 @@ export const providerOfficialSpeech = defineProvider({
         recommended?: Record<string, string>
       }
 
-      // Refresh the server-side recommendation map. Done here rather than
-      // threading it through the return value because the auto-pick watcher
-      // lives in this module and reads the same singleton.
-      recommendedVoicesByProvider[OFFICIAL_SPEECH_PROVIDER_ID] = (data.recommended && typeof data.recommended === 'object') ? data.recommended : {}
-
+      // An aborted response must not replace the current session's recommendations.
+      signal?.throwIfAborted()
       if (!Array.isArray(data.voices))
         throw new Error('audio voices upstream returned malformed body')
 
@@ -192,6 +200,9 @@ export const providerOfficialSpeech = defineProvider({
         // unspeech surfaces gender inside labels rather than as a top-level field.
         const rawGender = typeof v.labels?.gender === 'string' ? (v.labels.gender as string) : undefined
         return {
+          // Keep recommendations in the response so stale catalogs cannot mutate
+          // a separate cache, and synchronized windows retain the same metadata.
+          recommendedFor: Object.entries(data.recommended ?? {}).filter(([, id]) => id === v.id).map(([locale]) => locale),
           id: v.id,
           name: v.name,
           provider: OFFICIAL_SPEECH_PROVIDER_ID,
@@ -262,7 +273,8 @@ export const providerOfficialSpeechStreaming = defineProvider({
   extraMethods: {
     listModelCatalog: listStreamingModelCatalog,
     listModels: async () => (await listStreamingModelCatalog()).models,
-    listVoices: async (_config, _provider, model): Promise<VoiceInfo[]> => {
+    voiceCatalogConfig: () => ({}),
+    listVoices: async (_config, _provider, model, signal): Promise<VoiceInfo[]> => {
       // Streaming voices live behind a dedicated endpoint
       // (`/audio/voices/streaming`) because they come from the
       // `UNSPEECH_UPSTREAM.streaming` configKV subtree rather than the HTTP TTS
@@ -279,7 +291,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
         voicesURL.searchParams.set('model', apiResourceId)
       const res = await globalThis.fetch(
         voicesURL.toString(),
-        { headers: authHeaders() },
+        { headers: authHeaders(), signal },
       )
       if (!res.ok)
         throw new Error(`streaming voices upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
@@ -296,17 +308,17 @@ export const providerOfficialSpeechStreaming = defineProvider({
         recommended?: Record<string, string>
       }
 
-      // Mirror the HTTP provider: stash the server's per-locale recommendations
-      // so setupOfficialSpeechAutoPick can seed a curated default voice when
-      // the streaming provider becomes active.
-      recommendedVoicesByProvider[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID] = (data.recommended && typeof data.recommended === 'object') ? data.recommended : {}
-
+      // An aborted response must not replace the current session's recommendations.
+      signal?.throwIfAborted()
       if (!Array.isArray(data.voices))
         throw new Error('streaming voices upstream returned malformed body')
 
       return data.voices.map((v) => {
         const rawGender = typeof v.labels?.gender === 'string' ? (v.labels.gender as string) : undefined
         return {
+          // Keep recommendations in the response so stale catalogs cannot mutate
+          // a separate cache, and synchronized windows retain the same metadata.
+          recommendedFor: Object.entries(data.recommended ?? {}).filter(([, id]) => id === v.id).map(([locale]) => locale),
           id: v.id,
           name: v.name,
           provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
@@ -416,51 +428,50 @@ const AUTO_PICK_PROVIDER_IDS = new Set([OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SP
 // the user. The target locale is derived from the UI locale on each run — we
 // don't persist it, since that was the root of the cross-provider filter
 // drift bug.
-export function setupOfficialSpeechAutoPick(ctx: {
-  activeSpeechProvider: Ref<string>
-  activeSpeechVoiceId: Ref<string>
-  availableVoices: Ref<Record<string, VoiceInfo[]>>
-  uiLocale: WatchSource<string> | Ref<string>
+/** Selects from the catalog and recommendations loaded in this renderer; valid selections stay unchanged. */
+export function pickOfficialSpeechVoice(ctx: {
+  activeSpeechProvider: string
+  activeSpeechVoiceId: string
+  availableVoices: Record<string, VoiceInfo[]>
+  uiLocale: string
 }) {
-  watch([ctx.availableVoices, ctx.activeSpeechProvider], ([voices, provider]) => {
-    if (!AUTO_PICK_PROVIDER_IDS.has(provider))
-      return
+  const voices = ctx.availableVoices
+  const provider = ctx.activeSpeechProvider
+  if (!AUTO_PICK_PROVIDER_IDS.has(provider))
+    return
 
-    const providerVoices = voices[provider]
-    if (!providerVoices?.length)
-      return
-    if (ctx.activeSpeechVoiceId.value && providerVoices.some(v => v.id === ctx.activeSpeechVoiceId.value))
-      return
+  const providerVoices = voices[provider]
+  if (!providerVoices?.length)
+    return
+  if (ctx.activeSpeechVoiceId && providerVoices.some(v => v.id === ctx.activeSpeechVoiceId))
+    return
 
-    const localeCodes = Array.from(new Set(
-      providerVoices.flatMap(v => (v.languages || []).map(l => l.code).filter(Boolean)),
-    )).sort()
+  const localeCodes = Array.from(new Set(
+    providerVoices.flatMap(v => (v.languages || []).map(l => l.code).filter(Boolean)),
+  )).sort()
 
-    const uiLocaleValue = typeof ctx.uiLocale === 'function'
-      ? (ctx.uiLocale as () => string)()
-      : (ctx.uiLocale as Ref<string>).value
-    const targetLocale = pickLocaleForUi(uiLocaleValue, localeCodes)
+  const targetLocale = pickLocaleForUi(ctx.uiLocale, localeCodes)
 
-    // Pick a default voice with a layered fallback so auto-pick never dumps
-    // the user into an unrelated voice (e.g. the alphabetically-first af-ZA
-    // voice when nothing matches):
-    //   1) server-recommended voice for the exact locale, then the same
-    //      language prefix
-    //   2) any other server-recommended voice for the same model
-    //   3) first voice speaking the exact target locale
-    //   4) any English voice (en-US, then en-*) — broadest comprehensible
-    //      fallback when the user's locale has no coverage at all
-    //   5) alphabetical first voice, as a last resort
-    const recommendedMap = recommendedVoicesByProvider[provider] ?? {}
-    const recommendedId = lookupRecommendedVoiceId(targetLocale, recommendedMap)
-    const speaksLocale = (v: VoiceInfo, code: string) => (v.languages || []).some(l => l.code === code)
-    const match = (recommendedId && providerVoices.find(v => v.id === recommendedId))
-      || findRecommendedVoice(providerVoices, recommendedMap)
-      || providerVoices.find(v => speaksLocale(v, targetLocale))
-      || providerVoices.find(v => speaksLocale(v, 'en-US'))
-      || providerVoices.find(v => (v.languages || []).some(l => l.code.toLowerCase().startsWith('en')))
-      || providerVoices[0]
-    if (match)
-      ctx.activeSpeechVoiceId.value = match.id
-  }, { deep: true, immediate: true })
+  // Pick a default voice with a layered fallback so auto-pick never dumps
+  // the user into an unrelated voice (e.g. the alphabetically-first af-ZA
+  // voice when nothing matches):
+  //   1) server-recommended voice for the exact locale, then the same
+  //      language prefix
+  //   2) any other server-recommended voice for the same model
+  //   3) first voice speaking the exact target locale
+  //   4) any English voice (en-US, then en-*) — broadest comprehensible
+  //      fallback when the user's locale has no coverage at all
+  //   5) alphabetical first voice, as a last resort
+  const recommendedMap = Object.fromEntries(providerVoices.flatMap(voice =>
+    voice.recommendedFor?.map(locale => [locale, voice.id]) ?? [],
+  ))
+  const recommendedId = lookupRecommendedVoiceId(targetLocale, recommendedMap)
+  const speaksLocale = (v: VoiceInfo, code: string) => (v.languages || []).some(l => l.code === code)
+  const match = (recommendedId && providerVoices.find(v => v.id === recommendedId))
+    || findRecommendedVoice(providerVoices, recommendedMap)
+    || providerVoices.find(v => speaksLocale(v, targetLocale))
+    || providerVoices.find(v => speaksLocale(v, 'en-US'))
+    || providerVoices.find(v => (v.languages || []).some(l => l.code.toLowerCase().startsWith('en')))
+    || providerVoices[0]
+  return match?.id
 }

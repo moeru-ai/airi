@@ -5,7 +5,9 @@ import Tres from '@tresjs/core'
 import NProgress from 'nprogress'
 
 import { Capacitor } from '@capacitor/core'
+import { Keyboard } from '@capacitor/keyboard'
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
+import { errorMessageFrom } from '@moeru/std'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
@@ -33,11 +35,17 @@ import './styles/main.css'
 import 'uno.css'
 
 configureAnalyticsAdapter(async (options) => {
-  const { createPosthogAdapter } = await import('@proj-airi/stage-ui/libs/product-signals/posthog')
-  return createPosthogAdapter(options)
+  const { createOpenpanelAdapter } = await import('@proj-airi/stage-ui/libs/product-signals/openpanel')
+  return createOpenpanelAdapter(options)
 })
 
 if (Capacitor.isNativePlatform()) {
+  if (Capacitor.getPlatform() === 'ios') {
+    void Keyboard.setAccessoryBarVisible({ isVisible: false }).catch((error) => {
+      console.warn('Failed to hide the iOS keyboard accessory bar:', errorMessageFrom(error))
+    })
+  }
+
   registerAuthorizationHandler(async ({ authorizationUrl, provider }) => {
     const url = new URL(authorizationUrl)
     if (provider)

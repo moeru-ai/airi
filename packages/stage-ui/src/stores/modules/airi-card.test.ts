@@ -63,20 +63,6 @@ vi.mock('./consciousness', async () => {
   }
 })
 
-vi.mock('./speech', async () => {
-  const { defineStore } = await import('pinia')
-
-  return {
-    useSpeechStore: defineStore('speech', {
-      state: () => ({
-        activeSpeechProvider: 'mock-speech-provider',
-        activeSpeechModel: 'mock-speech-model',
-        activeSpeechVoiceId: 'mock-speech-voice',
-      }),
-    }),
-  }
-})
-
 vi.mock('./vision', async () => {
   const { defineStore } = await import('pinia')
 
@@ -104,6 +90,11 @@ describe('airi-card store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     resetArtistryToGlobal.mockClear()
+    useSpeechStore().$patch({
+      activeSpeechProvider: 'mock-speech-provider',
+      activeSpeechModel: 'mock-speech-model',
+      activeSpeechVoiceId: 'mock-speech-voice',
+    })
   })
 
   // ROOT CAUSE:

@@ -8,7 +8,7 @@ import { createContext, defineInvoke } from '@moeru/eventa'
 import { shell } from 'electron'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { electronAuthCallback, electronAuthLogout, electronAuthStartLogin } from '../../../shared/eventa'
+import { electronAuthCallback, electronAuthCallbackError, electronAuthLogout, electronAuthStartLogin } from '../../../shared/eventa'
 import { createAuthService } from './auth'
 
 vi.mock('electron', () => ({ shell: { openExternal: vi.fn().mockResolvedValue(undefined) } }))
@@ -33,10 +33,12 @@ describe('electron login request ownership', () => {
     const logout = defineInvoke(context, electronAuthLogout)
     const received = vi.fn()
     context.on(electronAuthCallback, received)
+    const failed = vi.fn()
+    context.on(electronAuthCallbackError, failed)
     cleanups.push(async () => {
       await logout(undefined, options)
     })
-    return { start: () => start(undefined, options), logout: () => logout(undefined, options), received, window }
+    return { start: () => start(undefined, options), logout: () => logout(undefined, options), received, failed, window }
   }
 
   async function callback(index: number) {
@@ -83,6 +85,24 @@ describe('electron login request ownership', () => {
     await vi.waitFor(() => expect(second.received).toHaveBeenCalledTimes(1))
     expect(first.received).not.toHaveBeenCalled()
     expect(second.received.mock.calls[0]![0].body.accessToken).toBe('current')
+  })
+
+  // ROOT CAUSE:
+  // The lifecycle mutex was released before the listener became ready. An immediate
+  // browser failure could close a server that had not started listening yet.
+  // Waiting for readiness inside start keeps cancellation ordered after startup.
+  it('reports browser launch failure once and closes its callback server', async () => {
+    vi.mocked(shell.openExternal).mockRejectedValueOnce(new Error('browser unavailable'))
+    const login = windowLogin(9)
+    await login.start()
+    await setImmediate()
+    expect(login.failed).toHaveBeenCalledTimes(1)
+    expect(login.received).not.toHaveBeenCalled()
+    const url = new URL(vi.mocked(shell.openExternal).mock.calls[0]![0])
+    const port = url.searchParams.get('state')!.split(':')[0]
+    await vi.waitFor(async () => {
+      await expect(networkFetch(`http://127.0.0.1:${port}/callback`)).rejects.toThrow()
+    })
   })
 
   it('keeps only the latest attempt during concurrent startup', async () => {

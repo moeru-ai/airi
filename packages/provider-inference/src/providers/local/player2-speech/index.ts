@@ -90,6 +90,7 @@ export const providerPlayer2Speech = defineProvider<Player2Config, 'player2-spee
       contextLength: 0,
       deprecated: false,
     }],
+    voiceCatalogConfig: ({ baseUrl }) => ({ baseUrl }),
     listVoices: async (config) => {
       const response = await fetch(new URL('tts/voices', normalizeBaseUrl(config.baseUrl)))
       const data = await response.json() as {

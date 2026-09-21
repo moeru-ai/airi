@@ -18,7 +18,7 @@ import {
   ComboboxTrigger,
   ComboboxViewport,
 } from 'reka-ui'
-import { computed } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   options: ComboboxOptionItem<T>[] | ComboboxOptionGroupItem<T>[]
@@ -56,10 +56,17 @@ const flattenedOptions = computed<ComboboxOptionItem<T>[]>(() =>
   normalizedOptions.value.flatMap(group => group.children ?? []),
 )
 
-function toDisplayValue(value: T): string {
+function toDisplayValue(value: T | undefined): string {
   const option = flattenedOptions.value.find(option => option.value === value)
   return option?.label ?? props.placeholder ?? ''
 }
+
+const searchTerm = shallowRef('')
+// Native and remote catalogs can arrive after the selected value. Refresh its
+// label when those options arrive, while leaving unrelated search edits intact.
+watch(() => toDisplayValue(modelValue.value), (label) => {
+  searchTerm.value = label
+}, { immediate: true })
 
 function toCssSize(value?: string | number): string | undefined {
   if (value == null) {
@@ -89,6 +96,7 @@ function toCssSize(value?: string | number): string | undefined {
       ]"
     >
       <ComboboxInput
+        v-model="searchTerm"
         :class="[
           '!bg-transparent outline-none h-full selection:bg-grass5 placeholder-stone-400 w-full',
           'text-neutral-700 dark:text-neutral-200',

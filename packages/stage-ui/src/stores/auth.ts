@@ -170,7 +170,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!refreshToken.value || !oidcClientId.value)
       return null
 
-    const version = sessionVersion.value
+    const version = expectedVersion
     let requestToken = token.value
     const refresh = (async () => {
       try {
@@ -197,18 +197,15 @@ export const useAuthStore = defineStore('auth', () => {
         if (version !== sessionVersion.value || requestToken !== token.value)
           return null
         console.error('OIDC token refresh failed', errorMessageFrom(error))
-        resetAuthState()
+        clearAuthState()
         return null
       }
-    })()
-    inflightRefresh = refresh
-    try {
-      return await refresh
-    }
-    finally {
+    })().finally(() => {
       if (inflightRefresh === refresh)
         inflightRefresh = null
-    }
+    })
+    inflightRefresh = refresh
+    return refresh
   }
 
   const { start: startRefreshTimer, stop: stopRefreshTimer } = useTimeoutFn(
@@ -266,6 +263,7 @@ export const useAuthStore = defineStore('auth', () => {
     const hasRefreshToken = !!refreshToken.value
     const hasClientId = !!oidcClientId.value
     if (hasRefreshToken !== hasClientId) {
+      sessionVersion.value += 1
       clearAuthState()
       return
     }
@@ -311,7 +309,7 @@ export const useAuthStore = defineStore('auth', () => {
       return true
     }
 
-    resetAuthState()
+    clearAuthState()
     return false
   }
 
@@ -363,7 +361,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Reset every auth-related field atomically.
+   * Clear identity, credentials, and pending refresh work together.
+   * Callers advance the version for login/logout intent. Credential rejection
+   * keeps it so the matching API request can still ask the user to sign in.
    *
    * Use when: signing out, refresh fails, session is rejected by server, or
    * persisted state is detected inconsistent.
@@ -374,14 +374,6 @@ export const useAuthStore = defineStore('auth', () => {
    * loop silently until the user lands on a page that calls fetchSession.
    */
   function clearAuthState(): void {
-    sessionVersion.value += 1
-    resetAuthState()
-  }
-
-  // A rejected credential clears the identity but keeps the user-intent version.
-  // The matching API caller can still request login. Token checks reject other
-  // responses for the removed credential, while new user actions advance the version.
-  function resetAuthState(): void {
     signingOut = false
     inflightRefresh = null
     stopRefreshTimer()
@@ -396,6 +388,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function clearAllAuthState(): Promise<void> {
+    sessionVersion.value += 1
     clearAuthState()
   }
 
@@ -411,6 +404,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function expireSession(expectedVersion: number): Promise<void> {
     if (expectedVersion !== sessionVersion.value || signingOut)
       return
+    sessionVersion.value += 1
     clearAuthState()
     needsLogin.value = true
   }

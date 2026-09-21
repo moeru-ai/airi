@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import type { MaybeComputedElementRef } from '@vueuse/core'
-import type { ComponentPublicInstance } from 'vue'
+import type { ComponentPublicInstance, ComputedRef, ShallowRef } from 'vue'
 
 import type { ChatActionMenuAction } from '.'
 
 import { errorMessageFromValue, isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
-import { useElementVisibility, useIntervalFn } from '@vueuse/core'
+import { useElementVisibility, useEventListener } from '@vueuse/core'
 import { animate } from 'animejs'
 import { clamp } from 'es-toolkit'
 import {
@@ -20,7 +19,7 @@ import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
 } from 'reka-ui'
-import { computed, onUnmounted, reactive, ref, shallowRef, toRef, useTemplateRef, watch } from 'vue'
+import { computed, onUnmounted, reactive, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useWebHaptics } from 'web-haptics/vue'
 
@@ -30,24 +29,29 @@ import { useElementScroll } from '../../composables/use-element-scroll'
 
 const props = withDefaults(defineProps<{
   canCopy?: boolean
+  canReply?: boolean
   canRetry?: boolean
   canDelete?: boolean
   copyText?: string
   menuLabel?: string
   placement?: 'left' | 'right'
+  pressFeedbackEnabled?: boolean
   scrollContainer?: HTMLElement | null
 }>(), {
   canCopy: true,
+  canReply: false,
   canRetry: false,
   canDelete: true,
   copyText: '',
   menuLabel: 'Message actions',
   placement: 'right',
+  pressFeedbackEnabled: false,
   scrollContainer: null,
 })
 
 const emit = defineEmits<{
   (e: 'copy'): void
+  (e: 'reply'): void
   (e: 'retry'): void
   (e: 'delete'): void
 }>()
@@ -86,13 +90,16 @@ const { trigger } = useWebHaptics()
 const { isMobile } = useBreakpoints()
 const { t } = useI18n()
 const shouldDisableDropdownMenu = computed(() => (isStageWeb() || isStageCapacitor()) && isMobile.value)
+const pressFeedbackEnabled = computed(() => props.pressFeedbackEnabled)
 const copyFeedbackActive = shallowRef(false)
 
 const menuItems = computed(() => createChatActionMenuItems({
+  canReply: props.canReply,
   canCopy: props.canCopy && props.copyText.trim().length > 0,
   canRetry: props.canRetry,
   canDelete: props.canDelete,
   retryLabel: t('stage.chat.actions.retry'),
+  replyLabel: t('stage.chat.actions.reply'),
 }))
 const triggerState = computed(() => createChatActionMenuTriggerState({
   copyFeedbackActive: copyFeedbackActive.value,
@@ -148,70 +155,57 @@ function setMeasuredElement(element: Element | ComponentPublicInstance | null) {
   measuredElementRef.value = element instanceof HTMLElement ? element : null
 }
 
-function useTouching(element: MaybeComputedElementRef) {
-  const elementRef = toRef(element)
+/** Cancels long-press feedback after 8 pixels of touch travel. */
+const PRESS_CANCEL_DISTANCE_PX = 8
 
-  const pressStartTime = ref(0)
-  const pressNow = ref(0)
+function usePressing(
+  elementRef: Readonly<ShallowRef<HTMLElement | null>>,
+  enabled: Readonly<ComputedRef<boolean>>,
+) {
+  const isPressing = shallowRef(false)
+  let pointerId: number | undefined
+  let pointerStartX = 0
+  let pointerStartY = 0
 
-  const { resume, pause } = useIntervalFn(() => pressNow.value = Date.now(), 50)
+  function handlePointerDown(event: PointerEvent) {
+    if (!enabled.value || event.pointerType !== 'touch' || !event.isPrimary)
+      return
 
-  const isTouching = ref(false)
-  const pressedFor = computed(() => {
-    if (!isTouching.value || pressStartTime.value === 0)
-      return 0
+    pointerId = event.pointerId
+    pointerStartX = event.clientX
+    pointerStartY = event.clientY
+    isPressing.value = true
+  }
 
-    const result = pressNow.value - pressStartTime.value
-    if (result < 0)
-      return 0
+  function handlePointerEnd(event?: PointerEvent) {
+    if (event && event.pointerId !== pointerId)
+      return
 
-    return result
+    pointerId = undefined
+    isPressing.value = false
+  }
+
+  function handlePointerMove(event: PointerEvent) {
+    if (event.pointerId !== pointerId)
+      return
+
+    const distance = Math.hypot(event.clientX - pointerStartX, event.clientY - pointerStartY)
+    if (distance > PRESS_CANCEL_DISTANCE_PX)
+      handlePointerEnd(event)
+  }
+
+  useEventListener(elementRef, 'pointerdown', handlePointerDown, { passive: true })
+  // Track travel at window level before and after the surrounding swipe surface
+  // captures a confirmed horizontal gesture.
+  useEventListener(window, 'pointermove', handlePointerMove, { passive: true })
+  useEventListener(window, ['pointerup', 'pointercancel'], handlePointerEnd, { passive: true })
+  watch(enabled, (canPress) => {
+    if (!canPress)
+      handlePointerEnd()
   })
 
-  function handleTouchStart() {
-    isTouching.value = true
-    pressStartTime.value = Date.now()
-    resume()
-  }
-
-  function handleTouchMove() {
-    isTouching.value = true
-  }
-
-  function handleTouchEnd() {
-    isTouching.value = false
-    pressStartTime.value = 0
-    pause()
-  }
-
-  function handleTouchCancel() {
-    isTouching.value = false
-    pressStartTime.value = 0
-    pause()
-  }
-
-  watch(elementRef, (newElement) => {
-    if (newElement) {
-      const el = newElement as HTMLElement
-
-      el.addEventListener('touchstart', handleTouchStart, { passive: true })
-      el.addEventListener('touchmove', handleTouchMove, { passive: true })
-      el.addEventListener('touchend', handleTouchEnd, { passive: true })
-      el.addEventListener('touchcancel', handleTouchCancel, { passive: true })
-    }
-    else if (elementRef.value) {
-      const el = elementRef.value as HTMLElement
-
-      el.removeEventListener('touchstart', handleTouchStart)
-      el.removeEventListener('touchmove', handleTouchMove)
-      el.removeEventListener('touchend', handleTouchEnd)
-      el.removeEventListener('touchcancel', handleTouchCancel)
-    }
-  }, { immediate: true })
-
   return {
-    isTouching,
-    pressedFor,
+    isPressing,
   }
 }
 
@@ -245,13 +239,18 @@ function useSetTimeoutFn(fn: () => void, options?: { delay?: number, onClear?: (
   }
 }
 
-const { isTouching } = useTouching(contextMenuContainerElementRef)
+const { isPressing } = usePressing(contextMenuContainerElementRef, pressFeedbackEnabled)
 
 const { trigger: triggerCopyFeedbackReset, clear: clearCopyFeedbackReset } = useSetTimeoutFn(() => {
   copyFeedbackActive.value = false
 }, { delay: 1000 })
 
 async function handleAction(action: ChatActionMenuAction) {
+  if (action === 'reply') {
+    emit('reply')
+    return
+  }
+
   if (action === 'copy') {
     if (!props.copyText.trim())
       return
@@ -310,8 +309,8 @@ const { trigger: triggerTimer, clear: clearTimer } = useSetTimeoutFn(() => {
   trigger('medium')
 }, { delay: contextMenuPressOpenDelay })
 
-watch(isTouching, (touching) => {
-  if (touching) {
+watch(isPressing, (pressing) => {
+  if (pressing) {
     animatePressedState()
     triggerTimer()
     return
@@ -332,6 +331,7 @@ onUnmounted(() => scaleAnimation?.cancel())
     <ContextMenuTrigger as-child>
       <div
         ref="contextMenuContainer"
+        :data-pressing="isPressing"
         :class="[
           'group/chat-action relative w-fit',
         ]"

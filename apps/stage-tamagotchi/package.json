@@ -37,6 +37,8 @@
     "update-test:matrix": "bash scripts/update-test/run-matrix.sh"
   },
   "dependencies": {
+    "@auv-js/cli": "catalog:",
+    "@auv-js/sdk": "catalog:",
     "@date-fns/utc": "catalog:",
     "@fontsource-variable/comfortaa": "catalog:",
     "@fontsource-variable/dm-sans": "catalog:",
@@ -120,7 +122,6 @@
     "onnxruntime-web": "catalog:",
     "pinia": "catalog:",
     "popmotion": "catalog:",
-    "posthog-js": "catalog:",
     "rehype-stringify": "catalog:",
     "reka-ui": "catalog:",
     "remark-parse": "catalog:",
@@ -190,7 +191,6 @@
     "@types/yauzl": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
     "@vue-macros/volar": "catalog:",
-    "@webgpu/types": "catalog:",
     "builder-util-runtime": "catalog:",
     "cac": "catalog:",
     "crossws": "catalog:",

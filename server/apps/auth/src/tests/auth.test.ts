@@ -401,14 +401,14 @@ describe('ensureDynamicFirstPartyRedirectUri', () => {
 
     await ensureDynamicFirstPartyRedirectUri(
       db as any,
-      new Request('https://api.airi.build/api/auth/oauth2/authorize?client_id=airi-stage-web&redirect_uri=https%3A%2F%2Fpreview.kwaa.workers.dev%2Fauth%2Fcallback'),
+      new Request('https://api.airi.build/api/auth/oauth2/authorize?client_id=airi-stage-web&redirect_uri=https%3A%2F%2Fpreview.moeru-ai.workers.dev%2Fauth%2Fcallback'),
       [],
     )
 
     expect(setCalls).toHaveLength(1)
     expect(setCalls[0].redirectUris).toEqual([
       'https://airi.moeru.ai/auth/callback',
-      'https://preview.kwaa.workers.dev/auth/callback',
+      'https://preview.moeru-ai.workers.dev/auth/callback',
     ])
     expect(updateWhere).toHaveBeenCalledTimes(1)
   })

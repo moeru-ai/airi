@@ -187,6 +187,7 @@ export const providerOpenAIAudioSpeech = defineProvider<OpenAIAudioConfig, 'open
   validators: createAudioValidators<OpenAIAudioConfig>(),
   extraMethods: {
     listModels: async () => openAISpeechModels,
+    voiceCatalogConfig: () => ({}),
     listVoices: async () => openAISpeechVoices,
   },
 })
@@ -204,6 +205,7 @@ export const providerOpenAICompatibleAudioSpeech = defineProvider<OpenAICompatib
   validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
   validators: createAudioValidators<OpenAICompatibleAudioConfig>(),
   extraMethods: {
+    voiceCatalogConfig: () => ({}),
     listVoices: async () => [],
     listModels: async (config) => {
       const apiKey = config.apiKey?.trim() ?? ''

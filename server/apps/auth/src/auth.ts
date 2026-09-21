@@ -1,6 +1,7 @@
 import type { AuthSession } from '@proj-airi/auth-shared'
 import type { BetterAuthOptions } from 'better-auth'
 import type { AppleProfile } from 'better-auth/social-providers'
+import type { JSONWebKeySet } from 'jose'
 
 import type { AuthDatabase } from './db'
 import type { EmailService } from './email'
@@ -23,6 +24,7 @@ import { eq } from 'drizzle-orm'
 import * as authSchema from '@proj-airi/auth-shared'
 
 import { ApiError } from './error'
+import { googleClientIds } from './google-client-ids'
 import { getAuthTrustedOrigins, getTrustedOrigin } from './origin'
 import { banGuard } from './plugins/ban-guard'
 import { oidcJwtBearer } from './plugins/oidc-jwt-bearer'
@@ -422,6 +424,7 @@ export interface AuthInstance {
   handler: (request: Request) => Promise<Response>
   api: {
     getSession: (input: { headers: Headers }) => Promise<AuthSession | null>
+    getJwks: () => Promise<JSONWebKeySet>
     getOAuthServerConfig: () => Promise<unknown>
     getOpenIdConfig: () => Promise<unknown>
   }
@@ -457,12 +460,9 @@ export function createAuth(
       jwt(),
       banGuard(),
       // NOTICE:
-      // Bridges OIDC JWT access tokens (RS256, signed by our oauthProvider)
-      // into a real better-auth session so `sessionMiddleware` and every
-      // downstream `/api/auth/*` endpoint accept them. Must run after
-      // bearer() so we don't intercept HMAC session tokens that bearer()
-      // already handles. See oidc-jwt-bearer.ts for the
-      // architectural mismatch this paves over.
+      // Resolves OIDC JWT access tokens into request-scoped identity for
+      // Better Auth. Must run after bearer() so HMAC session tokens retain
+      // their stock path. See oidc-jwt-bearer.ts for sensitive-operation rules.
       oidcJwtBearer(env),
       // Steam's web login is OpenID 2.0, not OAuth2/OIDC, so it can't be a
       // `socialProviders` entry — see steam.ts for why this needs to be its
@@ -660,7 +660,7 @@ export function createAuth(
 
     socialProviders: {
       google: {
-        clientId: env.AUTH_GOOGLE_CLIENT_ID,
+        clientId: googleClientIds(env.AUTH_GOOGLE_CLIENT_ID, env.AUTH_GOOGLE_NATIVE_CLIENT_IDS),
         clientSecret: env.AUTH_GOOGLE_CLIENT_SECRET,
         // Force the provider's authorization page to let users choose an
         // identity before linking. Without this, an existing provider session

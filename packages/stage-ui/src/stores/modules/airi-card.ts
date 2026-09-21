@@ -3,6 +3,7 @@ import type { Card, ccv3 } from '@proj-airi/ccc'
 import type { CardModuleDefaults } from '../../services/airi-card-modules'
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
+import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { StorageSerializers } from '@vueuse/core'
 import { nanoid } from 'nanoid'
@@ -111,7 +112,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     moduleDefaults.value = next
   }
 
-  function writeRuntimeModules(modules: CardModuleDefaults) {
+  /** Applies card speech through the leader command so catalog invalidation precedes its saved voice. */
+  async function writeRuntimeModules(modules: CardModuleDefaults) {
     const { consciousness, vision, speech, stageModel } = useRuntimeModuleStores()
     // Provider changes synchronously clear dependent selections. Assign the
     // resolved model and voice afterwards, including empty values.
@@ -119,9 +121,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     consciousness.activeModel = modules.consciousness.model
     vision.activeProvider = modules.vision.provider
     vision.activeModel = modules.vision.model
-    speech.activeSpeechProvider = modules.speech.provider
-    speech.activeSpeechModel = modules.speech.model
-    speech.activeSpeechVoiceId = modules.speech.voice_id
+    await speech.selectProviderModel(modules.speech.provider, modules.speech.model, modules.speech.voice_id)
     if (modules.displayModelId !== undefined)
       stageModel.stageModelSelected = modules.displayModelId
   }
@@ -138,6 +138,13 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       if (previous)
         await previous.catch(() => {})
       await applyAuthenticationDefaults(authenticated)
+      if (authenticated) {
+        // Voice discovery is owned by the speech action. It must not hold the
+        // authentication queue, card edits, or logout cleanup open on network IO.
+        void loadAuthenticatedSpeechVoices().catch((error) => {
+          console.error('Failed to refresh authenticated speech voices:', errorMessageFrom(error))
+        })
+      }
     })()
     pendingAuthenticationSetup = operation
     try {
@@ -153,7 +160,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     rememberInheritedSettings()
     if (!moduleDefaults.value)
       return
-    writeRuntimeModules(moduleDefaults.value)
+    await writeRuntimeModules(moduleDefaults.value)
     try {
       if (authenticated)
         await configureAsDefaultsIfEmpty()
@@ -163,8 +170,22 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
     finally {
       appliedModules = undefined
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     }
+  }
+
+  /** Loads the effective auth-owned voice catalog after card setup finishes. */
+  async function loadAuthenticatedSpeechVoices(): Promise<void> {
+    const { speech } = useRuntimeModuleStores()
+    const provider = useProviderConfigStore().providers[speech.activeSpeechProvider]
+    if (provider?.configuredBy !== 'authentication')
+      return
+
+    speech.ensureActiveSpeechModel()
+    await speech.loadVoicesForProvider(
+      speech.activeSpeechProvider,
+      speech.activeSpeechModel || undefined,
+    )
   }
 
   /**
@@ -194,7 +215,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // before consumers observe a dangling runtime profile after deletion.
     if (activeCardId.value === id) {
       activeCardId.value = 'default'
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     }
 
     captureAnalyticsEvent('character_deleted', { character_id: id })
@@ -215,7 +236,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const card = newAiriCard(updatedCard)
     cards.value.set(id, card)
     if (id === activeCardId.value)
-      applyActiveCardSettings(card)
+      await applyActiveCardSettings(card)
 
     return true
   }
@@ -252,7 +273,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     await pendingAuthenticationSetup
     const updated = updateActiveCardModules(() => ({ displayModelId }))
     if (updated)
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     return updated
   }
 
@@ -260,7 +281,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     await pendingAuthenticationSetup
     const updated = updateActiveCardModules(() => ({ consciousness }))
     if (updated)
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     return updated
   }
 
@@ -268,7 +289,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     await pendingAuthenticationSetup
     const updated = updateActiveCardModules(() => ({ vision }))
     if (updated)
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     return updated
   }
 
@@ -281,7 +302,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       },
     }))
     if (updated)
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     return updated
   }
 
@@ -308,7 +329,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       speech: modules.speech.provider === providerId ? { ...modules.speech, provider: '', model: '', voice_id: '' } : modules.speech,
     }))
     appliedModules = undefined
-    applyActiveCardSettings()
+    await applyActiveCardSettings()
   }
 
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
@@ -441,8 +462,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
+  /** Applies the initial card while preserving setup context when no auth work is pending. */
   async function initialize() {
-    await pendingAuthenticationSetup
+    // Awaiting undefined would leave component setup before the first runtime
+    // stores bind i18n. An existing auth operation already owns those stores.
+    if (pendingAuthenticationSetup)
+      await pendingAuthenticationSetup
     // This synchronized action executes in the leader. Each window calls it,
     // but only the first call can apply persisted card settings to the runtime.
     if (initialized)
@@ -475,7 +500,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!cards.value.has(activeCardId.value))
       activeCardId.value = 'default'
 
-    applyActiveCardSettings()
+    await applyActiveCardSettings()
   }
 
   /**
@@ -488,11 +513,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       return false
 
     activeCardId.value = id
-    applyActiveCardSettings()
+    await applyActiveCardSettings()
     return true
   }
 
-  function applyActiveCardSettings(newCard = activeCard.value) {
+  async function applyActiveCardSettings(newCard = activeCard.value) {
     rememberInheritedSettings()
     const artistry = useArtistryStore()
 
@@ -535,7 +560,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           resolved.speech.voice_id = ''
       }
     }
-    writeRuntimeModules(resolved)
+    await writeRuntimeModules(resolved)
     appliedModules = modules
 
     if (extension.modules?.artistry) {

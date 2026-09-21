@@ -1,14 +1,14 @@
 import type { PiniaPlugin } from 'pinia'
-import type { SyncedOptions, SyncedPiniaRuntime } from 'pinia-plugin-synced'
-import type { InjectionKey, Plugin } from 'vue'
+import type { SyncedOptions } from 'pinia-plugin-synced'
+import type { Plugin } from 'vue'
 
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
-import { inject } from 'vue'
+
+import { injectKeyPiniaSynced } from './synced-context'
+
+export { injectKeyPiniaSynced, usePiniaSynced } from './synced-context'
 
 export type { LeadershipMode } from 'pinia-plugin-synced'
-
-/** Provides the synchronization runtime installed by {@link setupSynced}. */
-export const injectKeyPiniaSynced: InjectionKey<SyncedPiniaRuntime> = Symbol('stage-synced-pinia-runtime')
 
 /**
  * Creates the Vue and Pinia plugins for one Stage synchronization runtime.
@@ -54,13 +54,4 @@ export function setupSynced(options: Pick<SyncedOptions, 'leadership'> = {}): { 
     pinia: runtime.plugin,
     vue,
   }
-}
-
-/** Returns the synchronization runtime provided by {@link setupSynced}. */
-export function usePiniaSynced(): SyncedPiniaRuntime {
-  const runtime = inject(injectKeyPiniaSynced)
-  if (!runtime)
-    throw new Error('Pinia synchronization is not installed. Call app.use(synced.vue) first.')
-
-  return runtime
 }

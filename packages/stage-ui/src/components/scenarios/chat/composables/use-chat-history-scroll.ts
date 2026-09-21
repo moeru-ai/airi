@@ -8,6 +8,8 @@ interface ChatHistoryScrollOptions<TMessage> {
   messages: Readonly<Ref<TMessage[]>>
   getKey: (message: TMessage, index: number) => string | number
   scrollToIndex: (index: number, align: 'start' | 'end') => void
+  /** Space that a floating composer covers at the end of the viewport. */
+  tailInset: Readonly<Ref<number>>
 }
 
 /**
@@ -22,6 +24,7 @@ export function useChatHistoryScroll<TMessage>({
   messages,
   getKey,
   scrollToIndex,
+  tailInset,
 }: ChatHistoryScrollOptions<TMessage>) {
   let didRequestInitialScroll = false
   let hasUserScrollIntent = false
@@ -101,7 +104,7 @@ export function useChatHistoryScroll<TMessage>({
   })
 
   watch(
-    [container, messages],
+    [container, messages, tailInset],
     ([currentContainer, currentMessages]) => {
       if (currentContainer !== previousContainer) {
         previousContainer = currentContainer

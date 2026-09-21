@@ -97,7 +97,7 @@ export default defineConfig({
         chunkFileNames: (chunkInfo) => {
           const containsAnalyticsModule = chunkInfo.moduleIds.some((moduleId) => {
             const normalizedModuleId = moduleId.replaceAll('\\', '/').toLowerCase()
-            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('posthog')
+            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('openpanel')
           })
 
           // Only analytics/provider chunks receive the manual neutral mapping;
@@ -218,6 +218,10 @@ export default defineConfig({
           },
           workbox: {
             maximumFileSizeToCacheInBytes: 64 * 1024 * 1024,
+            // Cloudflare redirects /index.html to /. Cache the canonical response
+            // so navigation fallbacks never replay a redirected response.
+            modifyURLPrefix: { 'index.html': './' },
+            navigateFallback: './',
             navigateFallbackDenylist: [
               /^\/docs\//,
               /^\/ui\//,

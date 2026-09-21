@@ -1,3 +1,5 @@
+import slop from 'eslint-plugin-slop'
+
 import { defineConfig } from '@moeru/eslint-config'
 
 export default defineConfig({
@@ -32,6 +34,25 @@ export default defineConfig({
     '.github/**',
     'CLAUDE.md', // Skip the symbolic link
   ],
+}, {
+  name: 'airi/slop',
+  files: ['**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}'],
+  plugins: { slop },
+  // Full inspection keeps editor and CI results independent of Git history.
+  settings: { slop: { inspection: { mode: 'full' } } },
+  rules: {
+    'slop/max-comment-length': 'warn',
+    'slop/no-chained-type-assertions': 'warn',
+    // Product strings can use this punctuation.
+    'slop/no-em-dash': 'off',
+    'slop/no-jargon': 'warn',
+    'slop/no-static-only-class': 'warn',
+    'slop/no-trivial-functions': 'warn',
+    // Named primitive aliases can express domain concepts.
+    'slop/no-trivial-type-aliases': 'off',
+    // The autofix workflow must preserve existing comment syntax.
+    'slop/prefer-jsdoc': 'off',
+  },
 }, {
   rules: {
     'antfu/import-dedupe': 'error',

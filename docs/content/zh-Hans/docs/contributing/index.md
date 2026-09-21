@@ -12,8 +12,9 @@ description: 从本地运行 Project AIRI 到提交第一个拉取请求
 ## 前置准备
 
 - [Git](https://git-scm.com/downloads)
-- [Node.js 当前 LTS 版本](https://nodejs.org/en/download/)
-- [Corepack](https://github.com/nodejs/corepack)（随较新的 Node.js 一同提供）
+- [mise](https://mise.jdx.dev/installing-mise.html)，或其他支持 `.tool-versions` 的版本管理工具
+
+仓库通过 [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions) 固定 Node.js 和 pnpm 的版本。[`package.json`](https://github.com/moeru-ai/airi/blob/main/package.json) 中的 `packageManager` 字段也指定了 pnpm 版本。克隆仓库后，请使用 mise 安装这些版本。
 
 <details>
 <summary>Windows 平台相关设置</summary>
@@ -26,49 +27,33 @@ description: 从本地运行 Project AIRI 到提交第一个拉取请求
    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
    ```
 
-3. 通过 `scoop` 安装 `git` 和 Node.js。
+3. 通过 Scoop 安装 Git 和 mise。
 
    ```powershell
-   scoop install git nodejs
-   ```
-
-4. 通过 Corepack 启用仓库指定的 pnpm 版本：
-
-   ```powershell
-   corepack enable
+   scoop install git mise
    ```
 
 </details>
 
 <details>
-<summary>macOS setup</summary>
+<summary>macOS 平台相关设置</summary>
 
-0. 打开 Terminal, (或者 iTerm2, Ghostty, Kitty, etc.)
-1. 通过 `brew` 安装 `git`, `node`
-
-   ```shell
-   brew install git node
-   ```
-
-2. 通过 Corepack 启用仓库指定的 pnpm 版本：
+1. 打开 Terminal、iTerm2、Ghostty、Kitty 或其他终端。
+2. 通过 Homebrew 安装 Git 和 mise。
 
    ```shell
-   corepack enable
+   brew install git mise
    ```
 
 </details>
 
 <details>
-<summary>Linux setup</summary>
+<summary>Linux 平台相关设置</summary>
 
-0. 打开 Terminal。
-1. 从 [Node.js 官网](https://nodejs.org/en/download/) 安装当前 LTS 版本。
-2. 请参考该页面 [Git](https://git-scm.com/downloads/linux) 安装 `git`
-3. 通过 Corepack 启用仓库指定的 pnpm 版本：
+1. 打开终端。
+2. 请参考 [Linux 平台的 Git 安装说明](https://git-scm.com/downloads/linux) 安装 Git。
+3. 选择[适合你所用发行版的方式](https://mise.jdx.dev/installing-mise.html)安装 mise。
 
-   ```shell
-   corepack enable
-   ```
 </details>
 
 ## 如果你之前已经参与并贡献过本项目
@@ -113,18 +98,37 @@ git switch -c <your-branch-name>
 
 ## 安装依赖项
 
+在仓库根目录安装 `.tool-versions` 中指定的工具：
+
 ```shell
-corepack enable
-pnpm install
+mise install
 ```
+
+检查 Node.js 和 pnpm 版本：
+
+```shell
+mise exec -- node --version
+mise exec -- pnpm --version
+```
+
+输出的版本必须与 `.tool-versions` 一致。pnpm 版本还必须与 `package.json` 中的 `packageManager` 字段一致。
+
+mise 直接安装 pnpm，因此这套安装步骤不需要 Corepack。[Node.js 25 及以上版本不再附带 Corepack](https://github.com/nodejs/corepack#how-to-install)。
+
+安装项目依赖：
+
+```shell
+mise exec -- pnpm install
+```
+
+后续示例假设你已[为当前终端启用 mise](https://mise.jdx.dev/dev-tools/shims.html)。否则，请在包管理器命令前加上 `mise exec --`，例如 `mise exec -- pnpm typecheck`。
 
 ::: tip
 
 推荐安装 [@antfu/ni](https://github.com/antfu-collective/ni) 来简化脚本命令
 
 ```shell
-corepack enable
-npm i -g @antfu/ni
+mise exec -- npm install --global @antfu/ni
 ```
 
 安装后，你可以：

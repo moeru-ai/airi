@@ -1,7 +1,9 @@
 import type { ChatSessionsExport } from '../types/chat-session'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
+import { useSettingsLive2d } from '@proj-airi/stage-ui-live2d/composables/live2d'
+import { useLive2dParams } from '@proj-airi/stage-ui-live2d/stores/model-parameters'
 import { useModelStore } from '@proj-airi/stage-ui-three'
 
 import { useLive2DMotionMagicSettings } from '../features/motions/live2d'
@@ -33,6 +35,7 @@ export function useDataMaintenance() {
   const live2dParamsStore = useLive2dParams()
   const live2dSettingsStore = useSettingsLive2d()
   const live2dMagicSettingsStore = useLive2DMotionMagicSettings()
+  const screenAmbientLightSettingsStore = useSettingsScreenAmbientLight()
   const threeStore = useModelStore()
   const hearingStore = useHearingStore()
   const speechStore = useSpeechStore()
@@ -57,21 +60,29 @@ export function useDataMaintenance() {
     await providersStore.resetProviderSettings()
   }
 
+  /** Attempts every independent reset and reports the first failure only after all operations settle. */
   async function resetModulesSettings() {
-    hearingStore.resetState()
-    speechStore.resetState()
-    consciousnessStore.resetState()
-    await consciousnessSettingsStore.resetState()
-    twitterStore.resetState()
-    webSearchStore.resetState()
-    discordStore.resetState()
-    factorioStore.resetState()
-    minecraftStore.resetState()
+    // Schedule each reset separately so both synchronous errors and rejected
+    // leader RPCs leave the other modules free to finish their cleanup.
+    const results = await Promise.allSettled([
+      () => hearingStore.resetState(),
+      () => speechStore.resetState(),
+      () => consciousnessStore.resetState(),
+      () => consciousnessSettingsStore.resetState(),
+      () => twitterStore.resetState(),
+      () => webSearchStore.resetState(),
+      () => discordStore.resetState(),
+      () => factorioStore.resetState(),
+      () => minecraftStore.resetState(),
+    ].map(reset => Promise.resolve().then(reset)))
+    const failure = results.find(result => result.status === 'rejected')
+    if (failure)
+      throw failure.reason
   }
 
-  function deleteAllChatSessions() {
-    chatOrchestrator.cancelPendingSends()
-    chatStore.resetAllSessions()
+  async function deleteAllChatSessions() {
+    await chatOrchestrator.cancelPendingSends()
+    await chatStore.resetAllSessions()
   }
 
   async function exportChatSessions() {
@@ -98,6 +109,7 @@ export function useDataMaintenance() {
     live2dParamsStore.resetState()
     live2dSettingsStore.resetState()
     live2dMagicSettingsStore.resetState()
+    screenAmbientLightSettingsStore.resetState()
     threeStore.resetModelStore()
     mcpStore.resetState()
     onboardingStore.resetSetupState()
@@ -108,7 +120,7 @@ export function useDataMaintenance() {
     await deleteAllModels()
     await resetProvidersSettings()
     await resetModulesSettings()
-    deleteAllChatSessions()
+    await deleteAllChatSessions()
     await resetSettingsState()
   }
 

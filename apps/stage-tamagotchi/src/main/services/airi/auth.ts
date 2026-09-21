@@ -76,15 +76,29 @@ export function createAuthService(params: {
         return
       const state = generateState()
 
-      // Start loopback server to receive the callback
+      const redirectUri = `${SERVER_URL}/api/auth/oidc/electron-callback`
       const loopback = await startLoopbackServer(state)
       attempt.closeLoopback = loopback.close
-      // Attach a rejection handler before browser launch or cancellation. Either
-      // can happen before the callback arrives, including during server startup.
-      const result = loopback.result.then(
-        callback => ({ callback }),
-        error => ({ error }),
-      )
+      // Handle rejection before cancellation or browser launch can close the server.
+      // IPC returns when the browser opens; this task owns callback completion.
+      void loopback.result.then(async ({ code }) => {
+        if (activeAttempt !== attempt)
+          return
+        const tokens = await exchangeCode(code, codeVerifier, redirectUri, attempt.controller.signal)
+        if (activeAttempt !== attempt)
+          return
+        params.context.emit(electronAuthCallback, tokens)
+        log.log('OIDC token exchange successful')
+      }).catch((error) => {
+        if (activeAttempt !== attempt)
+          return
+        log.withError(error).error('OIDC signing in failed')
+        params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(error) ?? 'OIDC signing in failed' })
+      }).finally(() => {
+        loopback.close()
+        if (activeAttempt === attempt)
+          activeAttempt = undefined
+      })
       if (activeAttempt !== attempt) {
         loopback.close()
         return
@@ -93,7 +107,6 @@ export function createAuthService(params: {
       // Use the server-side relay as redirect_uri. The relay page serves HTML
       // that forwards the authorization code to the loopback via JS fetch().
       // The loopback port is encoded in the state parameter as "{port}:{state}".
-      const redirectUri = `${SERVER_URL}/api/auth/oidc/electron-callback`
       const stateWithPort = `${loopback.port}:${state}`
 
       // Build authorization URL
@@ -111,35 +124,6 @@ export function createAuthService(params: {
       url.searchParams.set('prompt', 'login')
       url.searchParams.set('resource', SERVER_URL)
 
-      // The IPC request completes when the browser opens. This background task
-      // owns the callback and token exchange until success, failure, or cancellation.
-      async function completeLogin(): Promise<void> {
-        try {
-          const outcome = await result
-          if (activeAttempt !== attempt)
-            return
-          if ('error' in outcome)
-            throw outcome.error
-          const tokens = await exchangeCode(outcome.callback.code, codeVerifier, redirectUri, attempt.controller.signal)
-          if (activeAttempt !== attempt)
-            return
-          params.context.emit(electronAuthCallback, tokens)
-          log.log('OIDC token exchange successful')
-        }
-        catch (error) {
-          if (activeAttempt !== attempt)
-            return
-          log.withError(error).error('OIDC signing in failed')
-          params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(error) ?? 'OIDC signing in failed' })
-        }
-        finally {
-          loopback.close()
-          if (activeAttempt === attempt)
-            activeAttempt = undefined
-        }
-      }
-
-      void completeLogin()
       await shell.openExternal(url.toString())
     }
     catch (error) {
@@ -159,8 +143,6 @@ export function createAuthService(params: {
     cancelLogin()
   })
 }
-
-// --- Internal helpers ---
 
 interface TokenExchangeResult {
   accessToken: string

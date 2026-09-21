@@ -39,6 +39,10 @@ widgets:
     description: 工具或插件生成的小部件将会出现在这里。
   loading: 正在加载小部件…
   waiting: 正在等待小部件 "{id}" 的数据…
+
+inlay:
+  close: 关闭
+
 notice:
   'fade-on-hover':
     title: 悬停淡出

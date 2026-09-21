@@ -17,6 +17,26 @@ describe('v1 chat WebSocket request contracts', () => {
       .toThrow()
   })
 
+  it('accepts a native reply relation in send-messages requests', () => {
+    expect(parseSendMessagesRequest({
+      chatId: 'chat-1',
+      messages: [{
+        id: 'message-2',
+        role: 'user',
+        content: 'My follow-up',
+        replyToMessageId: 'message-1',
+      }],
+    })).toEqual({
+      chatId: 'chat-1',
+      messages: [{
+        id: 'message-2',
+        role: 'user',
+        content: 'My follow-up',
+        replyToMessageId: 'message-1',
+      }],
+    })
+  })
+
   it('rejects malformed pull-messages requests', () => {
     expect(() => parsePullMessagesRequest({ chatId: 'chat-1', afterSeq: -1 }))
       .toThrow()

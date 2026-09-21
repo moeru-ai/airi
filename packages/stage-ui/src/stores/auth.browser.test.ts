@@ -122,6 +122,56 @@ describe('authentication request ownership', () => {
     expect(store.token).toBe('second')
   })
 
+  // ROOT CAUSE:
+  // A new sign-in may receive the same opaque token. Token equality alone cannot
+  // prevent a response from the previous sign-in from clearing the new identity.
+  it('ignores an old rejection when a new sign-in reuses the same token', async () => {
+    await signIn('first')
+    const store = useAuthStore()
+    const pending = store.fetchSession()
+    await vi.waitFor(() => expect(requests).toHaveLength(1))
+    const oldRequest = requests.shift()!
+    await signIn('first')
+    oldRequest.resolve(Response.json(null))
+    await pending
+    expect(store.user?.id).toBe('first')
+    expect(store.token).toBe('first')
+  })
+
+  // ROOT CAUSE:
+  // Refresh keeps the login generation but replaces its credential. An old
+  // credential's rejection must not clear the successfully refreshed session.
+  it('ignores an old rejection after token rotation in the same session', async () => {
+    await signIn('first')
+    const store = useAuthStore()
+    const pending = store.fetchSession()
+    await vi.waitFor(() => expect(requests).toHaveLength(1))
+    const oldRequest = requests.shift()!
+    const refresh = store.refreshTokenNow()
+    await reply('/api/auth/oauth2/token', { access_token: 'renewed', expires_in: 3600 })
+    await reply('/api/auth/get-session', identity('first'))
+    await refresh
+    oldRequest.resolve(Response.json(null))
+    await pending
+    expect(store.user?.id).toBe('first')
+    expect(store.token).toBe('renewed')
+  })
+
+  it('does not start credential requests while remote logout is pending', async () => {
+    await signIn('first')
+    const store = useAuthStore()
+    const logout = store.signOut()
+    await vi.waitFor(() => expect(requests).toHaveLength(1))
+    const refresh = store.refreshTokenNow()
+    const session = store.fetchSession()
+    await nextTick()
+    expect(requests.map(request => request.path)).toEqual(['/api/auth/sign-out'])
+    expect(await refresh).toBeNull()
+    expect(await session).toBe(false)
+    await reply('/api/auth/sign-out', {})
+    await logout
+  })
+
   it('does not restore credentials when a refresh completes after logout', async () => {
     await signIn('first')
     const store = useAuthStore()
