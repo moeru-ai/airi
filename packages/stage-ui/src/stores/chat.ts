@@ -416,7 +416,7 @@ export const useChatStore = defineStore('chat', () => {
     if (cortico.enabled) {
       const sessionId = targetSessionId ?? chatSession.activeSessionId
       const message: ChatHistoryItem = { role: 'user', content: sendingMessage, createdAt: Date.now() }
-      await cortico.send(sendingMessage)
+      await cortico.send(sendingMessage, undefined, sessionId)
       return { messages: [message], sessionId }
     }
     return runtime.ingest(sendingMessage, options, targetSessionId)
@@ -466,7 +466,7 @@ export const useChatStore = defineStore('chat', () => {
         contexts: {},
         composedMessage: [],
       })
-      await cortico.send(payload.text, images)
+      await cortico.send(payload.text, images, payload.sessionId)
       return { messages: [message], sessionId: payload.sessionId }
     }
     const providerId = activeProvider.value

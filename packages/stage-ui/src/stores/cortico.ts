@@ -70,14 +70,47 @@ export const useCorticoStore = defineStore('cortico', () => {
     await chat.emitAssistantResponseEndHooks('', context)
   }
 
+  /**
+   * Human-readable conversation tag, QQ-style. Resolution order: user-set
+   * title → persona-assigned name (also stored in title) → first user
+   * message snippet → `会话N` by creation order.
+   */
+  function sessionLabel(sessionId: string): string {
+    const session = useChatSessionStore()
+    const meta = session.sessionMetas[sessionId]
+    if (meta?.title?.trim())
+      return meta.title.trim().slice(0, 40)
+    const firstUser = (session.getSessionMessagesIfLoaded(sessionId) ?? [])
+      .find(m => m.role === 'user' && typeof m.content === 'string' && m.content.trim())
+    if (firstUser)
+      return String(firstUser.content).trim().slice(0, 20)
+    const ordered = Object.values(session.sessionMetas)
+      .sort((a, b) => a.createdAt - b.createdAt)
+    const idx = ordered.findIndex(m => m.sessionId === sessionId)
+    return `会话${idx >= 0 ? idx + 1 : '?'}`
+  }
+
+  /** Pushes the session roster so the persona can address conversations. */
+  function pushSessions() {
+    if (!socket || !connected.value)
+      return
+    const session = useChatSessionStore()
+    socket.send(JSON.stringify({
+      type: 'sessions',
+      sessions: Object.keys(session.sessionMetas)
+        .map(id => ({ id, label: sessionLabel(id) })),
+    }))
+  }
+
   function onFrame(frame: CorticoServerFrame) {
     const session = useChatSessionStore()
     switch (frame.type) {
       case 'delta':
         draftText.value += frame.text
         break
-      case 'speak':
-        session.appendSessionMessage(session.activeSessionId, {
+      case 'speak': {
+        const targetId = frame.sessionId ?? session.activeSessionId
+        session.appendSessionMessage(targetId, {
           role: 'assistant',
           content: frame.text,
           slices: [{ type: 'text', text: frame.text }],
@@ -86,6 +119,7 @@ export const useCorticoStore = defineStore('cortico', () => {
         })
         void emitLiteral(frame.text)
         break
+      }
       case 'act': {
         const payload: Record<string, unknown> = {}
         if (frame.emotion)
@@ -101,6 +135,14 @@ export const useCorticoStore = defineStore('cortico', () => {
       case 'call': {
         const callPayload = frame.payload === undefined ? [frame.name] : [frame.name, frame.payload]
         void emitSpecial(`<|CALL ${JSON.stringify(callPayload)}|>`)
+        break
+      }
+      case 'name_session': {
+        const meta = session.sessionMetas[frame.sessionId]
+        if (meta) {
+          session.sessionMetas[frame.sessionId] = { ...meta, title: frame.label }
+          session.persistSessionMessages(frame.sessionId)
+        }
         break
       }
       case 'turn_end':
@@ -130,6 +172,7 @@ export const useCorticoStore = defineStore('cortico', () => {
       connected.value = true
       ws.send(JSON.stringify({ type: 'hello', name: 'user' }))
       pushProvider()
+      pushSessions()
     }
     ws.onmessage = (event) => {
       if (socket !== ws)
@@ -166,7 +209,7 @@ export const useCorticoStore = defineStore('cortico', () => {
   }
 
   /** Sends user text to the persona as an `airi.user_message` event. */
-  async function send(text: string, images?: string[]) {
+  async function send(text: string, images?: string[], sessionId?: string) {
     if (!connected.value) {
       connect()
       const deadline = Date.now() + 5000
@@ -175,7 +218,14 @@ export const useCorticoStore = defineStore('cortico', () => {
     }
     if (!socket || !connected.value)
       throw new Error('Cortico bridge is not connected')
-    socket.send(JSON.stringify({ type: 'msg', text, ...(images?.length ? { images } : {}) }))
+    const session = useChatSessionStore()
+    const targetId = sessionId ?? session.activeSessionId
+    socket.send(JSON.stringify({
+      type: 'msg',
+      text,
+      ...(images?.length ? { images } : {}),
+      ...(targetId ? { session: { id: targetId, label: sessionLabel(targetId) } } : {}),
+    }))
   }
 
   /**
@@ -212,6 +262,13 @@ export const useCorticoStore = defineStore('cortico', () => {
   watch(
     () => [useConsciousnessStore().activeProvider, useConsciousnessStore().activeModel],
     () => pushProvider(),
+  )
+
+  // Session roster changes (new/deleted/renamed) propagate to the bridge.
+  watch(
+    () => useChatSessionStore().sessionMetas,
+    () => pushSessions(),
+    { deep: true },
   )
 
   return {

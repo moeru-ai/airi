@@ -21,6 +21,23 @@ export const CorticoMessageSchema = v.object({
   text: v.pipe(v.string(), v.minLength(1)),
   /** Image attachments as data URLs (`data:<mime>;base64,…`). */
   images: v.optional(v.array(v.string())),
+  /** Originating chat session; the persona sees it as a conversation tag. */
+  session: v.optional(v.object({
+    id: v.pipe(v.string(), v.minLength(1)),
+    label: v.pipe(v.string(), v.minLength(1)),
+  })),
+})
+
+/**
+ * Pushes the stage's chat session roster so the persona can address
+ * conversations by label, QQ-style. Sent on connect and on roster changes.
+ */
+export const CorticoSessionsSchema = v.object({
+  type: v.literal('sessions'),
+  sessions: v.array(v.object({
+    id: v.pipe(v.string(), v.minLength(1)),
+    label: v.pipe(v.string(), v.minLength(1)),
+  })),
 })
 
 /**
@@ -49,6 +66,7 @@ export const CorticoClientFrameSchema = v.union([
   CorticoMessageSchema,
   CorticoEventSchema,
   CorticoProviderSchema,
+  CorticoSessionsSchema,
 ])
 
 export type CorticoClientFrame = v.InferOutput<typeof CorticoClientFrameSchema>
@@ -67,6 +85,8 @@ export interface CorticoDeltaFrame {
 export interface CorticoSpeakFrame {
   type: 'speak'
   text: string
+  /** Target chat session the reply belongs to. */
+  sessionId?: string
 }
 
 /** `airi_act` tool invocation: stage direction (emotion/motion/delay). */
@@ -75,6 +95,8 @@ export interface CorticoActFrame {
   emotion?: string
   motion?: string
   delay?: number
+  /** Target chat session the act belongs to. */
+  sessionId?: string
 }
 
 /** Model turn finished; the stage may close the current TTS session. */
@@ -95,6 +117,13 @@ export interface CorticoCallFrame {
   payload?: unknown
 }
 
+/** `airi_name_session` tool invocation: persona named a conversation. */
+export interface CorticoNameSessionFrame {
+  type: 'name_session'
+  sessionId: string
+  label: string
+}
+
 export type CorticoServerFrame
   = | CorticoDeltaFrame
     | CorticoSpeakFrame
@@ -102,3 +131,4 @@ export type CorticoServerFrame
     | CorticoTurnEndFrame
     | CorticoSysFrame
     | CorticoCallFrame
+    | CorticoNameSessionFrame

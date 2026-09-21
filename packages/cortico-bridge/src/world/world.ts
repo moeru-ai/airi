@@ -66,13 +66,24 @@ export class AiriWorld implements World {
   private server: WebSocketServer | null = null
   private readonly clients = new Set<StageClient>()
   private readonly opts: AiriWorldOptions & { botName: string, timezone: string }
+  /**
+   * Chat sessions the stage reported, QQ-style conversations. Keyed by
+   * session id; `lastActive` picks the default reply target.
+   */
+  private readonly sessions = new Map<string, { label: string, lastActive: number }>()
+  /** Session that received the most recent user message. */
+  private currentSessionId: string | null = null
 
   constructor(opts: AiriWorldOptions) {
     this.opts = { botName: 'AIRI', timezone: 'Asia/Shanghai', ...opts }
   }
 
   envPromptVars(): Record<string, string> {
-    return { 'airi.state': this.clients.size > 0 ? `${this.clients.size} client(s) connected` : 'no audience connected' }
+    const lines = [...this.sessions.entries()].map(([id, s]) => `- ${s.label} (id: ${id})`)
+    return {
+      'airi.state': this.clients.size > 0 ? `${this.clients.size} client(s) connected` : 'no audience connected',
+      'airi.conversations': lines.length ? lines.join('\n') : '(no conversations yet)',
+    }
   }
 
   console(language: Language = 'zh'): WorldConsoleDecl {
@@ -116,7 +127,10 @@ export class AiriWorld implements World {
         tags: ['speak'],
         parameters: {
           type: 'object',
-          properties: { text: { type: 'string', description: 'What to say.' } },
+          properties: {
+            text: { type: 'string', description: 'What to say.' },
+            to: { type: 'string', description: 'Conversation label or id to reply in. Omit to answer the most recent conversation.' },
+          },
           required: ['text'],
         },
         handler: async (args, ctx) => {
@@ -125,19 +139,23 @@ export class AiriWorld implements World {
             return '[speak failed] text must not be empty'
           if (this.clients.size === 0)
             return '[speak failed] no stage client connected'
-          this.broadcast({ type: 'speak', text })
-          // Self-archive without waking the loop.
+          const target = this.resolveSession(typeof args.to === 'string' ? args.to : undefined)
+          if ('error' in target)
+            return `[speak failed] ${target.error}`
+          this.broadcast({ type: 'speak', text, sessionId: target.id })
+          const label = target.id ? (this.sessions.get(target.id)?.label ?? target.id) : undefined
+          // Self-archive without waking the loop; tagged like QQ self events.
           this.host?.pushEvent(
             {
               type: 'airi.self',
               ts: nowIso(this.opts.timezone),
               source: this.id,
-              text: `[stage] ${this.opts.botName} said: ${text}`,
-              meta: { body: text },
+              text: `${label ? `[会话「${label}」] ` : ''}${this.opts.botName} said: ${text}`,
+              meta: { body: text, ...(target.id ? { session: { id: target.id, label } } : {}) },
             },
             { deliver: false },
           ).catch(err => ctx.log.warn('self-archive failed', { err: String(err) }))
-          return `[spoken] delivered to ${this.clients.size} stage client(s)`
+          return `[spoken${label ? ` → ${label}` : ''}] delivered to ${this.clients.size} stage client(s)`
         },
       },
       {
@@ -150,6 +168,7 @@ export class AiriWorld implements World {
             emotion: { type: 'string', description: 'One of: happy, sad, angry, think, surprised, awkward, question, curious, neutral.' },
             motion: { type: 'string', description: 'Named motion group to play.' },
             delay: { type: 'number', description: 'Seconds to pause before continuing.' },
+            to: { type: 'string', description: 'Conversation label or id this act belongs to. Omit for the most recent conversation.' },
           },
         },
         handler: async (args) => {
@@ -162,8 +181,52 @@ export class AiriWorld implements World {
             frame.delay = args.delay
           if (!frame.emotion && !frame.motion && frame.delay === undefined)
             return '[act failed] provide emotion, motion, or delay'
+          const target = this.resolveSession(typeof args.to === 'string' ? args.to : undefined)
+          if ('error' in target)
+            return `[act failed] ${target.error}`
+          frame.sessionId = target.id
           this.broadcast(frame)
           return '[acted] stage direction dispatched'
+        },
+      },
+      {
+        name: 'airi_name_session',
+        description: 'Name or rename a conversation (e.g. "聊猫的那个"). Call again whenever the topic drifts — the latest name replaces the old one in the chat UI and your conversation list.',
+        tags: ['act'],
+        parameters: {
+          type: 'object',
+          properties: {
+            to: { type: 'string', description: 'Conversation label or id to rename. Omit for the most recent conversation.' },
+            name: { type: 'string', description: 'Short conversation name, a few words.' },
+          },
+          required: ['name'],
+        },
+        handler: async (args) => {
+          const name = typeof args.name === 'string' ? args.name.trim().slice(0, 40) : ''
+          if (!name)
+            return '[name failed] name must not be empty'
+          const target = this.resolveSession(typeof args.to === 'string' ? args.to : undefined)
+          if ('error' in target)
+            return `[name failed] ${target.error}`
+          if (!target.id)
+            return '[name failed] no conversation to name yet'
+          const entry = this.sessions.get(target.id) ?? { label: target.id, lastActive: Date.now() }
+          const oldLabel = entry.label
+          entry.label = name
+          this.sessions.set(target.id, entry)
+          this.broadcast({ type: 'name_session', sessionId: target.id, label: name })
+          // Self-archive so the timeline remembers the rename.
+          this.host?.pushEvent(
+            {
+              type: 'airi.self',
+              ts: nowIso(this.opts.timezone),
+              source: this.id,
+              text: `[系统] 你把会话「${oldLabel}」改名为「${name}」`,
+              meta: { session: { id: target.id, label: name }, renamedFrom: oldLabel },
+            },
+            { deliver: false },
+          ).catch(() => {})
+          return `[named] conversation "${oldLabel}" is now "${name}"`
         },
       },
       {
@@ -234,19 +297,62 @@ export class AiriWorld implements World {
         client.name = frame.name.trim().slice(0, 32)
       return
     }
+    if (frame.type === 'sessions') {
+      for (const s of frame.sessions) {
+        const prev = this.sessions.get(s.id)
+        this.sessions.set(s.id, { label: s.label, lastActive: prev?.lastActive ?? 0 })
+      }
+      return
+    }
     if (!this.host)
       return
     const text = frame.type === 'msg' ? frame.text : frame.text
     const kind = frame.type === 'msg' ? 'airi.user_message' : `airi.${frame.kind}`
     const blobs = frame.type === 'msg' ? dataUrlsToBlobs(frame.images) : undefined
+    const session = frame.type === 'msg' ? frame.session : undefined
+    if (session) {
+      const prev = this.sessions.get(session.id)
+      this.sessions.set(session.id, { label: session.label, lastActive: Date.now() })
+      this.currentSessionId = session.id
+      void prev
+    }
+    const tag = session ? `[会话「${session.label}」] ` : ''
     void this.host.pushEvent({
       type: kind,
       ts: nowIso(this.opts.timezone),
       source: this.id,
       senderKey: client.name,
-      text: frame.type === 'msg' ? `[${client.name}] ${text}` : text,
+      text: frame.type === 'msg' ? `${tag}[${client.name}] ${text}` : text,
       blobs,
+      meta: session ? { session: { id: session.id, label: session.label } } : undefined,
     })
+  }
+
+  /**
+   * Resolves a `to` argument (label or id) to a session id; omitted `to`
+   * falls back to the most recently messaged session. When the stage never
+   * reported sessions, `id` is undefined and frames go out untargeted.
+   */
+  private resolveSession(to: string | undefined): { id?: string } | { error: string } {
+    const wanted = to?.trim()
+    if (wanted) {
+      for (const [id, s] of this.sessions) {
+        if (id === wanted || s.label === wanted)
+          return { id }
+      }
+      return { error: `unknown conversation "${wanted}"; use a label or id from the conversation list` }
+    }
+    if (this.currentSessionId)
+      return { id: this.currentSessionId }
+    // No message yet: pick the most recently active known session.
+    let best: { id: string, lastActive: number } | null = null
+    for (const [id, s] of this.sessions) {
+      if (!best || s.lastActive > best.lastActive)
+        best = { id, lastActive: s.lastActive }
+    }
+    if (best)
+      return { id: best.id }
+    return {}
   }
 
   onTurnEnded(): void {
