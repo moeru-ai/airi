@@ -1,4 +1,4 @@
-<Project Sdk="Godot.NET.Sdk/4.7.1">
+<Project Sdk="Godot.NET.Sdk/4.7.2">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -9,8 +9,8 @@
 
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
-    <PackageReference Include="GdKirie.EventaAdapter" Version="0.4.1" />
-    <PackageReference Include="GdKirie.Platform" Version="0.4.1" />
+    <PackageReference Include="GdKirie.EventaAdapter" Version="0.4.2" />
+    <PackageReference Include="GdKirie.Platform" Version="0.4.2" />
   </ItemGroup>
 
 </Project>

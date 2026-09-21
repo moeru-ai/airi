@@ -2,4 +2,4 @@
 godot = "https://github.com/LemonNekoGH/vfox-godot.git#dd88823451008524efde019c61e222b8dbbf8f62"
 
 [tools]
-godot = "4.7.1-stable_mono"
+godot = "4.7.2-stable_mono"
