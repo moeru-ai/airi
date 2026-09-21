@@ -11,11 +11,11 @@ import type {
 import type { StreamEvent } from 'cortico/protocol/open-responses/index.ts'
 import type { WebSocketServer } from 'ws'
 
+import type { AiriChannelClient, ChannelInbound } from '../channel.ts'
+
 import { parseCorticoClientFrame } from '@proj-airi/server-sdk-shared'
 import { fileURLToPath } from 'node:url'
 import { WebSocketServer as WsServer } from 'ws'
-
-const ENV_PROMPT_FILE = fileURLToPath(new URL('./ENV_PROMPT.md', import.meta.url))
 
 /** One connected stage client. */
 interface StageClient {
@@ -33,6 +33,8 @@ export interface AiriWorldOptions {
   timezone?: string
   /** Receives provider config pushed by the stage; `null` clears it. */
   onProvider?: (config: { baseUrl: string, apiKey?: string, model: string } | null) => void
+  /** AIRI server-channel module client; mods' traffic becomes persona events. */
+  channel?: AiriChannelClient
 }
 
 function nowIso(timezone: string): string {
@@ -56,6 +58,7 @@ function dataUrlsToBlobs(urls: string[] | undefined): BlobInput[] | undefined {
   return blobs.length ? blobs : undefined
 }
 
+const ENV_PROMPT_FILE = fileURLToPath(new URL('./ENV_PROMPT.md', import.meta.url))
 /**
  * The AIRI stage as a Cortico World: stage input becomes events, persona
  * output becomes `speak`/`act`/`delta` frames on the socket.
@@ -67,22 +70,37 @@ export class AiriWorld implements World {
   private readonly clients = new Set<StageClient>()
   private readonly opts: AiriWorldOptions & { botName: string, timezone: string }
   /**
-   * Chat sessions the stage reported, QQ-style conversations. Keyed by
-   * session id; `lastActive` picks the default reply target.
+   * Chat sessions the stage reported plus channel conversations from mods,
+   * QQ-style. Keyed by session id; `lastActive` picks the default reply
+   * target. Channel sessions remember the input event data so replies can
+   * echo it back for routing (e.g. discord channelId).
    */
-  private readonly sessions = new Map<string, { label: string, lastActive: number }>()
+  private readonly sessions = new Map<string, {
+    label: string
+    lastActive: number
+    kind: 'stage' | 'channel'
+    inputData?: Record<string, unknown>
+    inputType?: string
+  }>()
   /** Session that received the most recent user message. */
   private currentSessionId: string | null = null
-
+  /** Latest ReplaceSelf context updates from mods, exposed as env vars. */
+  private readonly channelContexts = new Map<string, { lane?: string, text: string, source: string }>()
+  /** Spoken text per channel session this turn, flushed as chat:complete. */
+  private readonly channelSpoken = new Map<string, { inputData?: Record<string, unknown>, inputType?: string, text: string }>()
   constructor(opts: AiriWorldOptions) {
     this.opts = { botName: 'AIRI', timezone: 'Asia/Shanghai', ...opts }
   }
 
   envPromptVars(): Record<string, string> {
-    const lines = [...this.sessions.entries()].map(([id, s]) => `- ${s.label} (id: ${id})`)
+    const lines = [...this.sessions.entries()].map(([id, s]) => `- ${s.label}${s.kind === 'channel' ? ' (外部)' : ''} (id: ${id})`)
+    const ctxLines = [...this.channelContexts.entries()].map(([, c]) => `- [${c.source}${c.lane ? `/${c.lane}` : ''}] ${c.text}`)
+    const stageState = this.clients.size > 0 ? `${this.clients.size} client(s) connected` : 'no audience connected'
+    const channelState = this.opts.channel ? (this.opts.channel.isConnected ? 'channel online' : 'channel offline') : 'channel disabled'
     return {
-      'airi.state': this.clients.size > 0 ? `${this.clients.size} client(s) connected` : 'no audience connected',
+      'airi.state': `${stageState}; ${channelState}`,
       'airi.conversations': lines.length ? lines.join('\n') : '(no conversations yet)',
+      'airi.channel_contexts': ctxLines.length ? ctxLines.join('\n') : '(none)',
     }
   }
 
@@ -137,13 +155,28 @@ export class AiriWorld implements World {
           const text = typeof args.text === 'string' ? args.text.trim() : ''
           if (!text)
             return '[speak failed] text must not be empty'
-          if (this.clients.size === 0)
-            return '[speak failed] no stage client connected'
           const target = this.resolveSession(typeof args.to === 'string' ? args.to : undefined)
           if ('error' in target)
             return `[speak failed] ${target.error}`
-          this.broadcast({ type: 'speak', text, sessionId: target.id })
-          const label = target.id ? (this.sessions.get(target.id)?.label ?? target.id) : undefined
+          const entry = target.id ? this.sessions.get(target.id) : undefined
+          const label = entry?.label ?? target.id
+          if (entry?.kind === 'channel') {
+            if (!this.opts.channel)
+              return '[speak failed] channel not connected'
+            const ok = this.opts.channel.sendChatMessage(entry.inputData, entry.inputType, text)
+            if (!ok)
+              return '[speak failed] channel send failed'
+            // Accumulate for the turn-end `output:gen-ai:chat:complete`.
+            if (target.id) {
+              const prev = this.channelSpoken.get(target.id)
+              this.channelSpoken.set(target.id, { inputData: entry.inputData, inputType: entry.inputType, text: prev ? `${prev.text} ${text}` : text })
+            }
+          }
+          else {
+            if (this.clients.size === 0)
+              return '[speak failed] no stage client connected'
+            this.broadcast({ type: 'speak', text, sessionId: target.id })
+          }
           // Self-archive without waking the loop; tagged like QQ self events.
           this.host?.pushEvent(
             {
@@ -155,7 +188,7 @@ export class AiriWorld implements World {
             },
             { deliver: false },
           ).catch(err => ctx.log.warn('self-archive failed', { err: String(err) }))
-          return `[spoken${label ? ` → ${label}` : ''}] delivered to ${this.clients.size} stage client(s)`
+          return `[spoken${label ? ` → ${label}` : ''}]`
         },
       },
       {
@@ -210,7 +243,7 @@ export class AiriWorld implements World {
             return `[name failed] ${target.error}`
           if (!target.id)
             return '[name failed] no conversation to name yet'
-          const entry = this.sessions.get(target.id) ?? { label: target.id, lastActive: Date.now() }
+          const entry = this.sessions.get(target.id) ?? { label: target.id, lastActive: Date.now(), kind: 'stage' as const }
           const oldLabel = entry.label
           entry.label = name
           this.sessions.set(target.id, entry)
@@ -245,6 +278,22 @@ export class AiriWorld implements World {
           const name = typeof args.name === 'string' ? args.name.trim() : ''
           if (!name)
             return '[call failed] name must not be empty'
+          // Channel capabilities: directives to sub-agent mods.
+          if (name === 'spark_command') {
+            if (!this.opts.channel)
+              return '[call failed] channel not connected'
+            const payload = (args.payload ?? {}) as { destinations?: string[], intent?: string, guidance?: unknown, interrupt?: string, priority?: string }
+            if (!Array.isArray(payload.destinations) || payload.destinations.length === 0)
+              return '[call failed] spark_command requires payload.destinations (mod names, e.g. ["minecraft-bot"])'
+            const ok = this.opts.channel.sendSparkCommand({
+              destinations: payload.destinations,
+              intent: payload.intent as never,
+              guidance: payload.guidance as never,
+              interrupt: payload.interrupt as never,
+              priority: payload.priority as never,
+            })
+            return ok ? `[command sent → ${payload.destinations.join(', ')}]` : '[call failed] channel send failed'
+          }
           if (this.clients.size === 0)
             return '[call failed] no stage client connected'
           this.broadcast({ type: 'call', name, payload: args.payload })
@@ -284,6 +333,46 @@ export class AiriWorld implements World {
     })
     this.server = server
     await promise
+
+    // AIRI server channel: mods' traffic becomes persona events.
+    if (this.opts.channel) {
+      const channel = this.opts.channel
+      channel.handlers.onInbound = inbound => this.onChannelInbound(inbound)
+      channel.handlers.onReplaceContext = (contextId, lane, text, source) => {
+        this.channelContexts.set(contextId, { lane, text, source })
+      }
+      await channel.connect().catch((err) => {
+        host.log.warn('AIRI server channel connect failed; mods unreachable', { err: String(err) })
+      })
+    }
+  }
+
+  /** A mod's channel event becomes a persona event, tagged like stage input. */
+  private onChannelInbound(inbound: ChannelInbound): void {
+    if (!this.host)
+      return
+    if (inbound.session) {
+      const prev = this.sessions.get(inbound.session.id)
+      this.sessions.set(inbound.session.id, {
+        label: inbound.session.label,
+        lastActive: Date.now(),
+        kind: 'channel',
+        inputData: inbound.inputData ?? prev?.inputData,
+        inputType: inbound.inputType ?? prev?.inputType,
+      })
+      this.currentSessionId = inbound.session.id
+    }
+    void this.host.pushEvent(
+      {
+        type: `airi.${inbound.kind}`,
+        ts: nowIso(this.opts.timezone),
+        source: this.id,
+        senderKey: inbound.session?.label ?? 'channel',
+        text: inbound.text,
+        meta: { ...inbound.meta, ...(inbound.session ? { session: inbound.session } : {}) },
+      },
+      inbound.trigger === 'archive' ? { deliver: false } : { trigger: inbound.trigger },
+    ).catch(err => this.host?.log.warn('channel event push failed', { err: String(err) }))
   }
 
   private onFrame(client: StageClient, frame: CorticoClientFrame): void {
@@ -300,7 +389,7 @@ export class AiriWorld implements World {
     if (frame.type === 'sessions') {
       for (const s of frame.sessions) {
         const prev = this.sessions.get(s.id)
-        this.sessions.set(s.id, { label: s.label, lastActive: prev?.lastActive ?? 0 })
+        this.sessions.set(s.id, { label: s.label, lastActive: prev?.lastActive ?? 0, kind: 'stage' })
       }
       return
     }
@@ -311,10 +400,8 @@ export class AiriWorld implements World {
     const blobs = frame.type === 'msg' ? dataUrlsToBlobs(frame.images) : undefined
     const session = frame.type === 'msg' ? frame.session : undefined
     if (session) {
-      const prev = this.sessions.get(session.id)
-      this.sessions.set(session.id, { label: session.label, lastActive: Date.now() })
+      this.sessions.set(session.id, { label: session.label, lastActive: Date.now(), kind: 'stage' })
       this.currentSessionId = session.id
-      void prev
     }
     const tag = session ? `[会话「${session.label}」] ` : ''
     void this.host.pushEvent({
@@ -354,19 +441,28 @@ export class AiriWorld implements World {
       return { id: best.id }
     return {}
   }
+  /** Flush accumulated channel replies as output:gen-ai:chat:complete. */
+  private flushChannelSpoken(): void {
+    for (const [, spoken] of this.channelSpoken)
+      this.opts.channel?.sendChatComplete(spoken.inputData, spoken.inputType, spoken.text)
+    this.channelSpoken.clear()
+  }
 
   onTurnEnded(): void {
     this.broadcast({ type: 'turn_end' })
+    this.flushChannelSpoken()
   }
 
   onHandoffEnded(): void {
     this.broadcast({ type: 'sys', text: '[context handoff completed]' })
+    this.flushChannelSpoken()
     this.broadcast({ type: 'turn_end' })
   }
 
   async stop(): Promise<void> {
     this.host = null
-    for (const client of [...this.clients])
+    this.opts.channel?.close()
+    for (const client of this.clients)
       client.close()
     this.clients.clear()
     const server = this.server
@@ -379,7 +475,7 @@ export class AiriWorld implements World {
   }
 
   private broadcast(frame: CorticoServerFrame): void {
-    for (const client of [...this.clients])
+    for (const client of this.clients)
       client.send(frame)
   }
 }

@@ -40,6 +40,7 @@ export const useCorticoStore = defineStore('cortico', () => {
 
   let socket: WebSocket | null = null
   let turnContext: ChatStreamEventContext | null = null
+  let turnComposed = false
 
   function ensureTurn(): ChatStreamEventContext {
     if (!turnContext) {
@@ -56,8 +57,10 @@ export const useCorticoStore = defineStore('cortico', () => {
   async function emitLiteral(literal: string) {
     const chat = useChatStore()
     const context = ensureTurn()
-    if (!draftText.value)
+    if (!turnComposed) {
+      turnComposed = true
       await chat.emitBeforeMessageComposedHooks('', context)
+    }
     await chat.emitTokenLiteralHooks(literal, context)
   }
 
@@ -72,6 +75,7 @@ export const useCorticoStore = defineStore('cortico', () => {
     const chat = useChatStore()
     const context = turnContext
     turnContext = null
+    turnComposed = false
     draftText.value = ''
     await chat.emitStreamEndHooks(context)
     await chat.emitAssistantResponseEndHooks('', context)
@@ -112,18 +116,24 @@ export const useCorticoStore = defineStore('cortico', () => {
   function onFrame(frame: CorticoServerFrame) {
     const session = useChatSessionStore()
     switch (frame.type) {
-      case 'delta':
+      case 'delta': {
+        // Uncommitted model output: surface as the draft indicator only.
         draftText.value += frame.text
         break
+      }
       case 'speak': {
         const targetId = frame.sessionId ?? session.activeSessionId
-        session.appendSessionMessage(targetId, {
-          role: 'assistant',
-          content: frame.text,
-          slices: [{ type: 'text', text: frame.text }],
-          tool_results: [],
-          createdAt: Date.now(),
-        })
+        // Channel conversations live on the bridge; only append to sessions
+        // the stage actually has (appendSessionMessage would mint one).
+        if (session.getSessionMessagesIfLoaded(targetId)) {
+          session.appendSessionMessage(targetId, {
+            role: 'assistant',
+            content: frame.text,
+            slices: [{ type: 'text', text: frame.text }],
+            tool_results: [],
+            createdAt: Date.now(),
+          })
+        }
         void emitLiteral(frame.text)
         break
       }

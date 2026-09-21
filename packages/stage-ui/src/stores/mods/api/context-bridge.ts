@@ -18,6 +18,7 @@ import { useLlmStreamingControlStore } from '../../ai/chat-llm/streaming-control
 import { useCharacterOrchestratorStore } from '../../character'
 import { useChatStore } from '../../chat'
 import { useChatContextStore } from '../../chat/context-store'
+import { useCorticoStore } from '../../cortico'
 import { useChatSessionStore } from '../../chat/session-store'
 import { useChatStreamStore } from '../../chat/stream-store'
 import { useContextObservabilityStore } from '../../devtools/context-observability'
@@ -457,6 +458,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       contextChannel = createContextChannel()
 
       const registerConsumers = () => {
+        // The cortico bridge registers its own chat-ingestion consumer; the
+        // stage must not compete for input events while the persona owns them.
+        if (useCorticoStore().enabled)
+          return
         for (const consumerEvent of consumerRegistrationEvents) {
           serverChannelStore.send({
             type: 'module:consumer:register',
@@ -540,6 +545,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
 
         if (event.type === 'request') {
+          // The cortico persona owns spark:notify while enabled.
+          if (useCorticoStore().enabled)
+            return
           if (sparkNotifyHostRole.value !== 'main' || event.fromInstanceId === sparkNotifyBridgeInstanceId) {
             return
           }
@@ -587,6 +595,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       disposeHookFns.value.push(stopSparkNotifyBridgeWatch)
 
       disposeHookFns.value.push(serverChannelStore.onContextUpdate((event) => {
+        if (useCorticoStore().enabled)
+          return
         contextObservability.recordLifecycle({
           phase: 'server-received',
           channel: 'server',
@@ -645,8 +655,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           details: contextMessage,
         })
       }))
-
       disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
+        if (useCorticoStore().enabled)
+          return
         const {
           text,
           textRaw,

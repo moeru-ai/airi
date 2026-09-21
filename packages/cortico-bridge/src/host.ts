@@ -15,6 +15,7 @@ import { WEBSEARCH } from 'cortico/worlds/websearch/definition.ts'
 
 import soulmateDefinition, { build as buildSoulmate, type BotConfig } from '../../../vendor/cortico/bots/corti-soulmate/index.ts'
 import { AiriChatCompletionsClient } from './airi-llm.ts'
+import { AiriChannelClient } from './channel.ts'
 import { createFakeLlm } from './fake-llm.ts'
 import { AiriWorld } from './world/world.ts'
 
@@ -27,6 +28,10 @@ export interface BridgeOptions {
   port: number
   /** Inject a deterministic fake LLM instead of a configured provider. */
   fakeLlm?: boolean
+  /** AIRI server-channel URL; the bridge joins as module 'cortico'. */
+  channelUrl?: string
+  /** Server-channel auth token. */
+  channelToken?: string
 }
 
 export interface Bridge {
@@ -47,10 +52,15 @@ export async function startBridge(options: BridgeOptions): Promise<Bridge> {
   // The stage pushes its active provider over the socket; generation goes
   // through this client so AIRI settings stay the single source of truth.
   const airiLlm = new AiriChatCompletionsClient()
+  const channel = new AiriChannelClient(
+    { url: options.channelUrl, token: options.channelToken },
+    { onInbound: () => {}, onReplaceContext: () => {} },
+  )
   const world = new AiriWorld({
     port: options.port,
     botName: loaded.config.displayName,
     timezone: loaded.config.timezone,
+    channel,
     onProvider: (config) => {
       airiLlm.configure(config)
       // Keep the deployment's active model label in sync for modelFacts.

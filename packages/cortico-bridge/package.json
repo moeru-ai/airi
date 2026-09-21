@@ -7,9 +7,11 @@
   "scripts": {
     "dev": "tsx ./src/bin/dev.ts",
     "start": "tsx ./src/bin/dev.ts",
+    "test:mod": "tsx ./src/bin/test-mod.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-sdk-shared": "workspace:^",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
