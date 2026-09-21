@@ -161,8 +161,9 @@ describe('chat session synchronization', () => {
     // ROOT CAUSE:
     //
     // The leader creates the session while the caller selects it locally.
-    // The first message then synchronizes a new index ref. The index watcher
+    // The first message then synchronizes a new index ref. An index watcher
     // treated that data update as navigation and restored the old session.
+    // Shared index updates no longer control window-local navigation.
     const namespace = `chat-session:${crypto.randomUUID()}`
     const leaderContext = createSyncedContext(namespace, 'leader-only')
     await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
