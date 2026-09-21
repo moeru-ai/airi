@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import AccountSettingsPage from '@proj-airi/stage-pages/pages/settings/account/account-settings-page.vue'
 
-import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useRouter } from 'vue-router'
 
@@ -12,14 +11,13 @@ function handleLogin() {
   authStore.needsLogin = true
 }
 
-async function handleLogout() {
-  await signOut()
+function handleSignedOut() {
   router.push('/settings')
 }
 </script>
 
 <template>
-  <AccountSettingsPage @login="handleLogin" @logout="handleLogout" />
+  <AccountSettingsPage @login="handleLogin" @signed-out="handleSignedOut" />
 </template>
 
 <route lang="yaml">
