@@ -18,6 +18,10 @@ describe('useOnboardingAuthentication', () => {
     // The main process later sent the token callback to that closed renderer, so the first sign-in was lost.
     // The window must stay open until synchronized authentication state confirms the completed sign-in.
     scope.run(() => useOnboardingAuthentication({
+      consumeLoginRequest: async () => {
+        needsLogin.value = false
+        return true
+      },
       closeRequestId,
       closeWindow,
       isAuthenticated,
@@ -47,6 +51,7 @@ describe('useOnboardingAuthentication', () => {
     const scope = effectScope()
 
     scope.run(() => useOnboardingAuthentication({
+      consumeLoginRequest: vi.fn().mockResolvedValue(false),
       closeRequestId,
       closeWindow,
       isAuthenticated: shallowRef(false),
@@ -69,6 +74,7 @@ describe('useOnboardingAuthentication', () => {
     const onCloseError = vi.fn()
     const scope = effectScope()
     const controls = scope.run(() => useOnboardingAuthentication({
+      consumeLoginRequest: vi.fn().mockResolvedValue(false),
       closeRequestId: shallowRef(0),
       closeWindow,
       isAuthenticated: shallowRef(false),
