@@ -17,8 +17,6 @@ public partial class SpotlightWindow : Window
     private bool _userVisible;
     private bool _showRequested;
     private bool _nativeTransparentArmed;
-    private int _webFocusFrames;
-    private bool _webClickSent;
     private ulong _focusArmedFrame;
 
     public override void _Ready()
@@ -121,8 +119,6 @@ public partial class SpotlightWindow : Window
         ApplyTransparentSurface();
         DesktopWindowSizing.MoveToSpotlightSlot(this);
         _userVisible = true;
-        _webFocusFrames = 0;
-        _webClickSent = false;
         Unfocusable = false;
         Show();
         ArmNativeTransparency();
@@ -136,63 +132,19 @@ public partial class SpotlightWindow : Window
         var cef = FindCefControl();
         if (cef is null)
         {
-            RetryFocusWebView();
             return;
         }
 
-        // CefTexture FOCUS_ENTER is what calls CEF host.set_focus(true).
-        // GrabFocus on KirieNode never reaches that notification.
+        // CefTexture reports FOCUS_ENTER, which is the only path that reaches
+        // CEF's host.set_focus(true). GrabFocus on KirieNode never reaches it.
+        // Once the document has focus, the page focuses its own input.
+        //
+        // Under the OpenGL compatibility renderer this also needed a synthetic
+        // mouse click into the control and cross-frame retries. Forward+ with
+        // accelerated OSR does not: both were removed on 2026-09-21 after
+        // removing them and observing document.hasFocus() stay true.
         cef.FocusMode = Control.FocusModeEnum.All;
         cef.GrabFocus();
-        if (!_webClickSent)
-        {
-            ForwardMouseClick(cef);
-            _webClickSent = true;
-        }
-
-        if (cef.HasMethod("eval"))
-        {
-            cef.Call(
-                "eval",
-                "window.focus();document.querySelector('input')?.focus()");
-        }
-
-        RetryFocusWebView();
-    }
-
-    private void RetryFocusWebView()
-    {
-        if (_webFocusFrames >= 2)
-        {
-            return;
-        }
-
-        _webFocusFrames++;
-        CallDeferred(MethodName.FocusWebView);
-    }
-
-    private void ForwardMouseClick(Control cef)
-    {
-        var local = cef.Size / 2.0f;
-        var global = cef.GlobalPosition + local;
-        PushInput(CreateMouseButton(local, global, true), true);
-        PushInput(CreateMouseButton(local, global, false), true);
-    }
-
-    private InputEventMouseButton CreateMouseButton(
-        Vector2 local,
-        Vector2 global,
-        bool pressed)
-    {
-        return new InputEventMouseButton
-        {
-            ButtonIndex = MouseButton.Left,
-            ButtonMask = pressed ? MouseButtonMask.Left : 0,
-            Pressed = pressed,
-            Position = local,
-            GlobalPosition = global,
-            WindowId = GetWindowId(),
-        };
     }
 
     private Control? FindCefControl()
