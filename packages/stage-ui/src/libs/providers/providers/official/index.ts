@@ -109,6 +109,7 @@ export const providerOfficialChat = defineProvider<OfficialChatConfig, typeof OF
         name: 'Auto',
         provider: OFFICIAL_CHAT_PROVIDER_ID,
         description: 'Automatically routed by AI Gateway',
+        metadata: { abilities: { vision: true } },
       },
     ],
   },
