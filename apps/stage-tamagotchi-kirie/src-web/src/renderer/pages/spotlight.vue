@@ -62,8 +62,8 @@ async function handleSend() {
     await showResultNotification(visibleText.trim())
   }
   catch (error) {
-    await showResultNotification(t('tamagotchi.spotlight.errors.prefix', {
-      message: errorMessageFrom(error) ?? t('tamagotchi.spotlight.errors.unknown'),
+    await showResultNotification(t('tamagotchi.settings.spotlight.errors.prefix', {
+      message: errorMessageFrom(error) ?? t('tamagotchi.settings.spotlight.errors.unknown'),
     }))
   }
   finally {
