@@ -89,6 +89,17 @@ a duplicate Objective-C class warning for `ANGLESwapCGLLayer`, which the Godot
 binary and the Godot CEF framework both define. No failure reproduced, so it
 stays an observation and not a gap.
 
+A 2026-09-21 review of the Spotlight implementation removed a synthetic mouse
+click, cross-frame focus retries, and an in-page focus script. The OpenGL
+compatibility renderer needed all three. Forward+ with accelerated OSR does
+not, and the window keeps document focus without them. `cef.FocusMode` and
+`cef.GrabFocus()` are the remaining load-bearing calls, and they still resolve
+the CEF control through the Kirie node name.
+
+The user also confirmed on 2026-09-21 that the Spotlight window adds no Dock or
+Mission Control entry. The Electron `skipTaskbar` option therefore needs no
+Godot counterpart.
+
 The 2026-09-21 session did not repeat native close and reopen, external URL
 opening, or application data directory opening. Those remain verified on Kirie
 0.4.1 only.

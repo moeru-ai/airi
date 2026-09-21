@@ -87,9 +87,16 @@ mise x -- pnpm kirie dev
 ```
 
 The command starts Vite, Godot, and the CEF renderers. The application can open
-the main, onboarding, settings, chat, and notice windows.
+the main, onboarding, settings, chat, notice, and Spotlight windows.
 
-The latest Kirie 0.4.1 live session reported these known IPC errors.
+The Spotlight window has no in-app entry point. It opens from its global
+shortcut only.
+
+`kirie dev` reuses the last C# build. After a change under `src-godot/`, run
+`mise x -- dotnet build` first, or the session keeps running the previous
+assembly.
+
+The latest live session reported these known IPC errors.
 See [`API-GAPS.md`](API-GAPS.md) for their evidence and ownership:
 
 - `server-channel:get-config` is deferred with the AIRI sidecar work.
