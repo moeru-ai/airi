@@ -101,6 +101,13 @@ function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAss
   }
 }
 
+function hasAssistantOutput(message: StreamingAssistantMessage) {
+  return message.slices.length > 0
+    || message.tool_results.length > 0
+    || (message.citations?.length ?? 0) > 0
+    || !!message.categorization?.reasoning.trim()
+}
+
 /**
  * Options accepted by the chat orchestrator runtime for one user send.
  */
@@ -524,7 +531,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // Activation measures whether a conversation reaches its first assistant
     // response. Later turns still emit message and latency telemetry, but they
     // must not inflate the one-time activation milestones.
-    const isActivationAttempt = !existingSessionMessages.some(message => message.role === 'assistant')
+    const isActivationAttempt = !existingSessionMessages.some(message => message.role === 'assistant' && !message.interrupted)
 
     // Datetime is no longer injected through the side-channel context store.
     // It is applied at message-assembly time (see below) as a system-prompt
@@ -602,6 +609,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       model: options.model,
     })
     const roundStartedAt = monotonicNow()
+    let assistantStored = false
+    let generationCompleted = false
 
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
@@ -914,16 +923,23 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
 
+      generationCompleted = true
       buildingMessage.generationTranscript = generatedTurn
-      deps.onAssistantResponseRendered?.({
-        ...correlation,
-        model: options.model,
-        latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
-      })
+      try {
+        deps.onAssistantResponseRendered?.({
+          ...correlation,
+          model: options.model,
+          latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
+        })
+      }
+      catch (error) {
+        console.error('Assistant response observer failed:', error)
+      }
 
       if (!shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
         deps.session.appendSessionMessage(sessionId, finalAssistant)
+        assistantStored = true
         deps.onAssistantMessageAppended?.({
           sessionId,
           message: finalAssistant,
@@ -985,6 +1001,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
 
+      if (!assistantStored && !generationCompleted && hasAssistantOutput(buildingMessage)) {
+        // Keep received output local, but do not run completion hooks or cloud
+        // sync for an assistant turn that never reached a terminal event.
+        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+      }
+      resetForegroundStream(sessionId)
+
       console.error('Error sending message:', error)
       deps.onMessageRoundFailed?.({
         ...correlation,
@@ -1007,6 +1030,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       throw error
     }
     finally {
+      if (!assistantStored
+        && !generationCompleted
+        && abortSignal.aborted
+        && !isStaleGeneration()
+        && hasAssistantOutput(buildingMessage)) {
+        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        resetForegroundStream(sessionId)
+      }
       setSending(false)
       deps.onSendSettled?.({ sessionId })
     }

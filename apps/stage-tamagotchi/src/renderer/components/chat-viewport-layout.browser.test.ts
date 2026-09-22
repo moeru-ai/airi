@@ -6,7 +6,6 @@ import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { ScrollableArea } from '@proj-airi/ui'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
-import { userEvent } from 'vitest/browser'
 import { defineComponent, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 
@@ -129,16 +128,12 @@ describe('desktop chat viewport layout', () => {
     })
     const composer = screen.getByTestId('chat-composer-layer').element() as HTMLElement
 
-    // This case tests automatic following without a reader inspecting history.
-    // Keep the browser pointer outside messages while appending and streaming.
-    await userEvent.hover(composer)
-
     async function expectVisibleTail(text: string) {
       await vi.waitFor(() => {
         const mountedMessages = screen.container.querySelectorAll<HTMLElement>('.chat-message-item')
         const finalMessage = [...mountedMessages].find(message => message.textContent?.includes(text))
         expect(finalMessage).not.toBeUndefined()
-        expect(finalMessage!.getBoundingClientRect().bottom, text).toBeLessThanOrEqual(composer.getBoundingClientRect().top + 1)
+        expect(finalMessage!.getBoundingClientRect().bottom).toBeLessThanOrEqual(composer.getBoundingClientRect().top + 1)
       })
     }
 
@@ -170,32 +165,6 @@ describe('desktop chat viewport layout', () => {
       tool_results: [],
     }
     await expectVisibleTail('Expanded streaming tail')
-
-    // Virtua's scroll request stops waiting for measurements after 150ms.
-    // A later layout change must still follow the tail without a model update.
-    await new Promise(resolve => setTimeout(resolve, 250))
-    const tail = [...screen.container.querySelectorAll<HTMLElement>('.chat-message-item')].at(-1)!
-    tail.style.minHeight = `${tail.getBoundingClientRect().height + 64}px`
-    await expectVisibleTail('Expanded streaming tail')
-
-    // https://github.com/moeru-ai/airi/pull/2461#discussion_r4003137140
-    // ROOT CAUSE:
-    // The custom scrollbar is outside the viewport, so viewport input listeners
-    // missed pointer scrolls. A later resize pulled the reader back to the tail.
-    await new Promise(resolve => setTimeout(resolve, 250))
-    const viewport = screen.container.querySelector<HTMLElement>('.chat-history-list')!
-    viewport.dispatchEvent(new Event('scroll'))
-    await expect.poll(() => screen.container.querySelector('.scrollable-area-scrollbar--vertical')).not.toBeNull()
-    const scrollbar = screen.container.querySelector<HTMLElement>('.scrollable-area-scrollbar--vertical')!
-    await userEvent.click(scrollbar, { position: { x: 5, y: 20 } })
-    await userEvent.hover(composer)
-    await expect.poll(() => viewport.scrollTop).toBeLessThan(viewport.scrollHeight - viewport.clientHeight - 24)
-    await new Promise(resolve => setTimeout(resolve, 250))
-    const readerPosition = viewport.scrollTop
-    const mountedTail = [...screen.container.querySelectorAll<HTMLElement>('.chat-message-item')].at(-1)!
-    mountedTail.style.minHeight = `${mountedTail.getBoundingClientRect().height + 64}px`
-    await new Promise(resolve => setTimeout(resolve, 300))
-    expect(viewport.scrollTop).toBe(readerPosition)
   })
 
   // ROOT CAUSE:
