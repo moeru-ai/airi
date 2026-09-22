@@ -39,6 +39,64 @@ describe('chat image projection', () => {
     ])
   })
 
+  it('limits concurrent descriptions and preserves their source order', async () => {
+    // ROOT CAUSE:
+    //
+    // The projection first awaited each image serially, then started every
+    // image together without a limit. Serial work made latency additive, while
+    // unbounded work could overload the vision provider on a long history.
+    //
+    // We fixed this with a four-permit semaphore. Promise.all still keeps the
+    // projected content in the same order as the source content.
+    let activeDescriptions = 0
+    let maximumActiveDescriptions = 0
+    const resolveByUrl = new Map<string, (description: string) => void>()
+    const vision = vi.fn((url: string) => new Promise<string>((resolve) => {
+      activeDescriptions += 1
+      maximumActiveDescriptions = Math.max(maximumActiveDescriptions, activeDescriptions)
+      resolveByUrl.set(url, (description) => {
+        activeDescriptions -= 1
+        resolve(description)
+      })
+    }))
+    function resolveImage(url: string) {
+      const resolve = resolveByUrl.get(url)
+      if (!resolve)
+        throw new Error(`Expected ${url} to have started.`)
+
+      resolve(`Description for ${url}.`)
+    }
+
+    const projection = describeChatImages({ turns: [{ id: 'user', type: 'user', content: [
+      { type: 'image', url: 'image-0' },
+      { type: 'image', url: 'image-1' },
+      { type: 'image', url: 'image-2' },
+      { type: 'image', url: 'image-3' },
+      { type: 'image', url: 'image-4' },
+      { type: 'image', url: 'image-5' },
+    ] }] }, vision, 'empty')
+
+    await vi.waitFor(() => expect(vision).toHaveBeenCalledTimes(4))
+    expect(maximumActiveDescriptions).toBe(4)
+    resolveImage('image-2')
+    await vi.waitFor(() => expect(vision).toHaveBeenCalledTimes(5))
+    resolveImage('image-0')
+    await vi.waitFor(() => expect(vision).toHaveBeenCalledTimes(6))
+    for (const url of ['image-1', 'image-3', 'image-4', 'image-5'])
+      resolveImage(url)
+
+    const result = await projection
+    expect(result.turns).toEqual([{
+      id: 'user',
+      type: 'user',
+      content: Array.from({ length: 6 }, (_, index) => ({
+        type: 'text',
+        text: `[Image description, supplied as user content]\nDescription for image-${index}.\n[End image description]`,
+      })),
+    }])
+    expect(maximumActiveDescriptions).toBe(4)
+  })
+
   it('fails explicitly when vision returns no description', async () => {
     await expect(describeChatImages({ turns: [{ id: 'user', type: 'user', content: [{ type: 'image', url: 'image' }] }] }, async () => ' ', 'localized empty description')).rejects.toThrow('localized empty description')
   })
