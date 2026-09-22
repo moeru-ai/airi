@@ -1,26 +1,27 @@
+import type { SherpawModel } from '@proj-airi/sherpaw-models'
 import type { Plugin } from 'vite'
-
-import type { SherpawModel } from './models'
 
 import { rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
+import { sherpawModelArtifactUrl, sherpawModelPath } from '@proj-airi/sherpaw-models'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
-import { sherpawModelPath } from '@proj-airi/vite-plugin-sherpaw/models'
 import { normalizePath } from 'vite'
 
 /** Selects models for this application. Downloads remain in a separate cache. */
 export interface SherpawOptions {
-  /** Only these models are bundled. An empty list clears previously bundled models. */
+  /** Models exposed to the runtime. Remote models load lazily when first used. */
   models: readonly SherpawModel[]
+  /** Models copied into the application build. @default [] */
+  bundledModels?: readonly SherpawModel[]
   /** Shared download cache, resolved against the Vite root. @default '.cache' */
   cacheDir?: string
 }
 
 /**
- * Downloads selected presets to a revision-scoped cache and exposes their Vite asset URLs.
+ * Exposes pinned remote model URLs and optionally bundles selected models.
  * Build imports let URL-rewriting plugins upload the files and remove local deployment copies.
- * Development uses Vite's local asset server. Download failures stop configuration.
+ * Development downloads only models listed in `bundledModels` before Vite starts.
  */
 export function Sherpaw(options: SherpawOptions): Plugin {
   const moduleId = '@proj-airi/vite-plugin-sherpaw/assets'
@@ -37,12 +38,17 @@ export function Sherpaw(options: SherpawOptions): Plugin {
       if (config.publicDir)
         await rm(join(config.publicDir, 'sherpaw'), { recursive: true, force: true })
       const imports: string[] = []
-      const entries: string[] = []
+      const entries = new Map(options.models.map(model => [
+        model.id,
+        `${JSON.stringify(model.id)}: { data: ${JSON.stringify(sherpawModelArtifactUrl(model, 'preload.data'))}, metadata: ${JSON.stringify(sherpawModelArtifactUrl(model, 'preload.js.metadata'))}, source: 'remote' }`,
+      ]))
 
-      for (const [index, model] of options.models.entries()) {
+      for (const [index, model] of (options.bundledModels ?? []).entries()) {
+        if (!entries.has(model.id))
+          throw new Error(`Bundled Sherpaw model "${model.id}" must also be listed in models.`)
         const outputPath = sherpawModelPath(model)
-        const downloads = ['preload.data', 'preload.js.metadata'].map(filename => Download(
-          `https://huggingface.co/${model.repository}/resolve/${model.revision}/${model.directory}/${filename}`,
+        const downloads = (['preload.data', 'preload.js.metadata'] as const).map(filename => Download(
+          sherpawModelArtifactUrl(model, filename),
           filename,
           outputPath,
           { cacheDir: cacheDirectory, parentDir: cacheDirectory },
@@ -63,9 +69,9 @@ export function Sherpaw(options: SherpawOptions): Plugin {
         const directory = normalizePath(join(cacheDirectory, outputPath))
         imports.push(`import data${index} from ${JSON.stringify(`${directory}/preload.data?url&no-inline`)}`)
         imports.push(`import metadata${index} from ${JSON.stringify(`${directory}/preload.js.metadata?url&no-inline`)}`)
-        entries.push(`${JSON.stringify(model.id)}: { data: data${index}, metadata: metadata${index} }`)
+        entries.set(model.id, `${JSON.stringify(model.id)}: { data: data${index}, metadata: metadata${index}, source: 'bundled' }`)
       }
-      assetModule = `${imports.join('\n')}\nexport const assets = { ${entries.join(',')} }`
+      assetModule = `${imports.join('\n')}\nexport const assets = { ${[...entries.values()].join(',')} }`
     },
     resolveId(id) {
       if (id === moduleId)

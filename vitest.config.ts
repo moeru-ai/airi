@@ -25,10 +25,12 @@ export default defineConfig({
       'packages/scenarios-stage-tamagotchi-electron',
       'packages/server-runtime',
       'packages/server-sdk',
+      'packages/sherpaw-models',
       'packages/stage-shared',
       'packages/stage-ui-live2d/vitest.node.config.ts',
       'packages/stage-ui-three',
       'packages/vitest-plugin-fakemic',
+      'packages/vite-plugin-sherpaw',
     ],
   },
 })
