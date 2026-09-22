@@ -83,9 +83,9 @@ export function useDataMaintenance() {
       throw failure.reason
   }
 
-  function deleteAllChatSessions() {
-    chatOrchestrator.cancelPendingSends()
-    chatStore.resetAllSessions()
+  async function deleteAllChatSessions() {
+    await chatOrchestrator.cancelPendingSends()
+    await chatStore.resetAllSessions()
   }
 
   async function exportChatSessions() {
@@ -123,7 +123,7 @@ export function useDataMaintenance() {
     await deleteAllModels()
     await resetProvidersSettings()
     await resetModulesSettings()
-    deleteAllChatSessions()
+    await deleteAllChatSessions()
     await resetSettingsState()
   }
 

@@ -1,5 +1,4 @@
 import type { LlmStreamingControlCallManifest } from '@proj-airi/pipelines-audio'
-import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { UserMessage } from '@xsai/shared-chat'
 
@@ -100,8 +99,34 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     pendingLiterals: string[]
   }>()
   const isReceivingRemoteStream = computed(() => remoteStreamGuard.value?.sessionId === chatSession.activeSessionId)
+  const remoteStreamSessionId = computed(() => remoteStreamGuard.value?.sessionId)
   let contextChannel: ReturnType<typeof createContextChannel> | undefined
+  let localProducedStream: { sessionId: string, turnId: string } | undefined
   let initialized = false
+
+  async function cancelRemoteStream(sessionId: string) {
+    const guard = remoteStreamGuard.value
+    const producedStream = localProducedStream?.sessionId === sessionId ? localProducedStream : undefined
+    const turnId = guard?.sessionId === sessionId ? guard.turnId : producedStream?.turnId
+    if (!turnId)
+      return
+
+    if (producedStream)
+      localProducedStream = undefined
+    await contextChannel?.emitStreamCancel({
+      sessionId,
+      turnId,
+    })
+
+    if (!guard || remoteStreamGuard.value !== guard)
+      return
+    if (guard.started
+      && guard.sessionId === chatSession.activeSessionId
+      && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+      chatStream.resetStream()
+    }
+    remoteStreamGuard.value = undefined
+  }
 
   function presentRemoteStreamIfActive() {
     const guard = remoteStreamGuard.value
@@ -491,6 +516,24 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       })
       disposeHookFns.value.push(stopContextUpdates)
 
+      disposeHookFns.value.push(contextChannel.onStreamCancel(async (command) => {
+        const guard = remoteStreamGuard.value
+        if (guard?.sessionId === command.sessionId && guard.turnId === command.turnId) {
+          if (guard.started
+            && guard.sessionId === chatSession.activeSessionId
+            && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+            chatStream.resetStream()
+          }
+          remoteStreamGuard.value = undefined
+        }
+
+        if (localProducedStream?.sessionId !== command.sessionId || localProducedStream.turnId !== command.turnId)
+          return
+
+        localProducedStream = undefined
+        await chatOrchestrator.cancelPendingSends(command.sessionId)
+      }))
+
       const { stop: stopSparkNotifyBridgeWatch } = watch(incomingSparkNotifyBridgeMessage, async (event) => {
         if (!event) {
           return
@@ -681,15 +724,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
 
         if (activeProvider.value && activeModel.value) {
-          let chatProvider: GenerationProvider
-          try {
-            chatProvider = await consciousnessStore.getChatProviderInstance(activeProvider.value)
-          }
-          catch (err) {
-            console.error('[context-bridge] getChatProviderInstance failed for provider:', activeProvider.value, err)
-            return
-          }
-
           let messageText = text
           const targetSessionId = overrides?.sessionId
 
@@ -721,9 +755,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // - https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API
           await withContextBridgeLock('context-bridge:event:input:text', async () => {
             try {
-              await chatOrchestrator.ingest(messageText, {
-                model: activeModel.value,
-                chatProvider,
+              await chatOrchestrator.send({
+                sessionId: targetSessionId ?? chatSession.activeSessionId,
+                text: messageText,
                 temperature: activeTemperature.value,
                 topP: activeTopP.value,
                 input: {
@@ -736,7 +770,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                     contextUpdates: acceptedContextUpdates,
                   },
                 },
-              }, targetSessionId)
+              })
             }
             catch (err) {
               console.error('Error ingesting text input via context bridge:', err)
@@ -762,13 +796,18 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'before-send', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          const sessionId = chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId
+          localProducedStream = { sessionId, turnId: context.turnId }
+          await contextChannel?.emitStream({ type: 'before-send', message, sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'after-send', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          const sessionId = chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId
+          await contextChannel?.emitStream({ type: 'after-send', message, sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          if (localProducedStream?.sessionId === sessionId && localProducedStream.turnId === context.turnId)
+            localProducedStream = undefined
         }),
         chatOrchestrator.onTokenLiteral(async (literal, context) => {
           if (isProcessingRemoteStream)
@@ -1023,6 +1062,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       initialized = false
       remoteStreamGuard.value = undefined
+      localProducedStream = undefined
 
       for (const [requestId, waiter] of sparkNotifyBridgeWaiters) {
         if (waiter.timeout)
@@ -1043,6 +1083,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     dispatchSparkNotifyReaction,
     dispatchSparkNotifyPerformance,
     isReceivingRemoteStream,
+    remoteStreamSessionId,
+    cancelRemoteStream,
     setSparkNotifyHostRole,
   }
 })

@@ -1334,6 +1334,33 @@ describe('responses generated turn ownership', () => {
     expect(signal?.aborted).toBe(true)
     expect(harness.assistantAppended).toHaveLength(0)
   })
+
+  it('stores visible partial output when its session is cancelled', async () => {
+    const harness = createHarness()
+    const partialOutput = 'partial answer already visible in chat'
+    let signal: AbortSignal | undefined
+    let streamed!: () => void
+    const visibleOutput = new Promise<void>((resolve) => {
+      streamed = resolve
+    })
+    harness.stream.mockImplementationOnce(async (_model, _provider, _messages, options) => {
+      signal = options?.abortSignal
+      await options?.onStreamEvent?.({ type: 'text-delta', text: partialOutput })
+      streamed()
+      await new Promise<void>((_resolve, reject) => signal?.addEventListener('abort', () => reject(signal?.reason), { once: true }))
+    })
+    const send = harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
+    await visibleOutput
+
+    harness.runtime.cancelPendingSends('session-1')
+    await send
+
+    expect(harness.sessionMessages['session-1']?.at(-1)).toEqual(expect.objectContaining({
+      content: expect.stringContaining('partial answer'),
+      interrupted: true,
+    }))
+    expect(harness.foregroundResets).toHaveLength(1)
+  })
 })
 
 it('runs consecutive orchestrator turns through the real Responses adapter', async () => {
