@@ -1,5 +1,10 @@
 import type { Conversation } from '@proj-airi/core-agent'
 
+import { Semaphore } from 'es-toolkit'
+
+const CHAT_IMAGE_DESCRIPTION_CONCURRENCY = 4
+const chatImageDescriptionSlots = new Semaphore(CHAT_IMAGE_DESCRIPTION_CONCURRENCY)
+
 function isTextSegment(part: { type: string }): part is { type: 'text', text: string } {
   return part.type === 'text'
 }
@@ -13,35 +18,38 @@ export async function describeChatImages(
   describe: (url: string, question: string, turnId: string, imageIndex: number) => Promise<string>,
   emptyDescriptionError: string,
 ): Promise<Conversation> {
-  const turns = []
-  for (const turn of conversation.turns) {
+  const turns = await Promise.all(conversation.turns.map(async (turn) => {
     if (turn.type !== 'user' || !turn.content.some(part => part.type === 'image')) {
-      turns.push(turn)
-      continue
+      return turn
     }
 
     const question = turn.content
       .filter(isTextSegment)
       .map(part => part.text)
       .join('\n')
-    const content = []
     let imageIndex = 0
-    for (const part of turn.content) {
-      if (part.type !== 'image') {
-        content.push(part)
-        continue
-      }
+    const content = await Promise.all(turn.content.map(async (part) => {
+      if (part.type !== 'image')
+        return part
 
-      const description = await describe(part.url, question, turn.id, imageIndex)
+      const sourceImageIndex = imageIndex
       imageIndex += 1
+      await chatImageDescriptionSlots.acquire()
+      let description: string
+      try {
+        description = await describe(part.url, question, turn.id, sourceImageIndex)
+      }
+      finally {
+        chatImageDescriptionSlots.release()
+      }
       if (!description.trim())
         throw new Error(emptyDescriptionError)
-      content.push({
+      return {
         type: 'text' as const,
         text: `[Image description, supplied as user content]\n${description}\n[End image description]`,
-      })
-    }
-    turns.push({ ...turn, content })
-  }
+      }
+    }))
+    return { ...turn, content }
+  }))
   return { turns }
 }
