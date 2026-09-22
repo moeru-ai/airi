@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, createApp, defineComponent, h, nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 
@@ -594,7 +595,7 @@ describe('chat-session-store · cloud title reconciliation', () => {
     }
   }
 
-  async function reconcileWith(meta: ChatSessionMeta, remote: ReturnType<typeof remoteChat> | null) {
+  async function reconcileWith(meta: ChatSessionMeta, remote: ReturnType<typeof remoteChat> | null, messages: ChatSessionRecord['messages'] = []) {
     userIdRef.value = 'cloud-user'
     getIndexMock.mockResolvedValue({
       userId: 'cloud-user',
@@ -605,7 +606,7 @@ describe('chat-session-store · cloud title reconciliation', () => {
         },
       },
     })
-    getSessionMock.mockResolvedValue({ meta, messages: [] })
+    getSessionMock.mockResolvedValue({ meta, messages })
     listChatsMock.mockResolvedValue(remote ? [remote] : [])
 
     const store = useChatSessionStore()
@@ -655,6 +656,22 @@ describe('chat-session-store · cloud title reconciliation', () => {
     await vi.waitFor(() => expect(store.sessionMetas[meta.sessionId].cloudTitlePending).toBeUndefined())
     expect(updateChatMock).toHaveBeenCalledTimes(2)
     expect(updateChatMock).toHaveBeenLastCalledWith('cloud-session', { title: 'Desired title' })
+  })
+
+  it.each(['', 'caption'])('queues an offline image with caption "%s" when its chat first syncs', async (caption) => {
+    const ref = 'airi-asset:test-image'
+    const meta = { sessionId: 'cloud-session', userId: 'cloud-user', characterId: 'default', createdAt: 1, updatedAt: 1 }
+    await reconcileWith(meta, null, [{
+      id: 'offline-image',
+      role: 'user',
+      content: [{ type: 'text', text: caption }, { type: 'image_url', image_url: { url: ref } }],
+    }])
+
+    expect(chatSessionsRepo.enqueueOutbox).toHaveBeenCalledWith('cloud-user', expect.objectContaining({
+      messageId: 'offline-image',
+      content: caption,
+      attachments: [{ id: expect.any(String), ref }],
+    }))
   })
 
   it('includes a pending title when an unmapped session is created', async () => {

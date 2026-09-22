@@ -1,3 +1,4 @@
+import type { PendingCloudAttachment } from '../../libs/chat-sync/attachments'
 import type { ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
 
 import { chatAssetIdsOf, extractInlineChatAssets } from '../../libs/chat-assets'
@@ -22,6 +23,7 @@ export interface ChatSendOutboxEntry {
   cloudChatId?: string
   role: 'user' | 'assistant'
   content: string
+  attachments?: PendingCloudAttachment[]
   replyToMessageId?: string
   attempts: number
   lastError?: string

@@ -253,6 +253,13 @@
       "when": 1795459556294,
       "tag": "0035_tts_model_cost_multiplier",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1795532865963,
+      "tag": "0036_chat_image_attachments",
+      "breakpoints": true
     }
   ]
 }
