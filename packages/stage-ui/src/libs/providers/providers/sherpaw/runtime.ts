@@ -11,6 +11,7 @@ import { OnlineRecognizerTypes } from '@sherpaw/asr'
 import { asRemoteUrl, createSherpawProvider, streamTranscription } from '@sherpaw/xsai-transcription'
 
 import { sherpawModels } from './models'
+import { joinTranscriptSegments } from './transcript'
 
 /**
  * Owns the Workers for one configured Provider instance. Each transcription has
@@ -29,8 +30,8 @@ export function createProvider(config: { model: SherpawModelId }) {
     const model = sherpawModels[config.model]
     const files = assets[model.id]
     if (!files)
-      throw new Error(`Sherpaw model "${model.id}" is not bundled by this application.`)
-    // Vite resolves local URLs for development/Electron and remote URLs for Basemove builds.
+      throw new Error(`Sherpaw model "${model.id}" is not exposed by this application.`)
+    // Vite resolves bundled URLs. Other entries keep their pinned remote URLs.
     const transport = provider.speech({
       metadata: asRemoteUrl(new URL(files.metadata, document.baseURI), { signal: options.abortSignal }),
       data: asRemoteUrl(new URL(files.data, document.baseURI), { signal: options.abortSignal }),
@@ -57,7 +58,7 @@ export function createProvider(config: { model: SherpawModelId }) {
 
         controller.enqueue({
           type: 'transcript.text.snapshot',
-          text: [...sentences.values()].join(' ').trim(),
+          text: joinTranscriptSegments(sentences.values()),
           isFinal: event.type === 'transcription.completed',
           locale: 'und',
           startMilliseconds: 0,
@@ -77,7 +78,7 @@ export function createProvider(config: { model: SherpawModelId }) {
     const text = Promise.all([pump, live.done]).then(([, result]) => {
       // The full-event stream retains corrected partials by sentence index.
       // The finish result covers the last sentence when no partial was emitted.
-      return [...sentences.values()].join(' ').trim() || result.text
+      return joinTranscriptSegments(sentences.values()) || result.text
     }).finally(() => {
       transport.terminateSpeech()
       active.delete(transport)
@@ -94,7 +95,7 @@ export function createProvider(config: { model: SherpawModelId }) {
   return {
     transcription(model: string, options: { abortSignal?: AbortSignal } = {}) {
       return {
-        baseURL: 'http://sherpaw.local/',
+        baseURL: 'sherpaw://transcription',
         model,
         ...options,
         startSherpaw,

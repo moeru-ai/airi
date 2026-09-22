@@ -1,10 +1,9 @@
 import type { AIRIStreamTranscriptionResult, StreamTranscriptionOptions } from '../../stream-transcription'
 
-import { assets } from '@proj-airi/vite-plugin-sherpaw/assets'
 import { z } from 'zod'
 
 import { defineProvider } from '../registry'
-import { sherpawModels } from './models'
+import { availableSherpawModels, formatSherpawModelName, sherpawModels } from './models'
 
 export const SHERPAW_TRANSCRIPTION_PROVIDER_ID = 'sherpaw-transcription'
 
@@ -26,11 +25,11 @@ export const providerSherpawTranscription = defineProvider<SherpawConfig, typeof
   id: SHERPAW_TRANSCRIPTION_PROVIDER_ID,
   name: 'Sherpaw',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.sherpaw-transcription.title'),
-  description: 'Local speech recognition with bundled models. No API key is required.',
+  description: 'Local speech recognition with bundled or on-demand models. No API key is required.',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.sherpaw-transcription.description'),
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
   requiresCredentials: false,
-  isAvailableBy: () => Object.keys(assets).length > 0 && typeof Worker !== 'undefined' && typeof WebAssembly !== 'undefined',
+  isAvailableBy: () => availableSherpawModels.length > 0 && typeof Worker !== 'undefined' && typeof WebAssembly !== 'undefined',
   views: {
     hearing: () => import('./hearing-settings.vue'),
   },
@@ -47,9 +46,9 @@ export const providerSherpawTranscription = defineProvider<SherpawConfig, typeof
       type: 'select',
       labelLocalized: t('settings.pages.providers.provider.sherpaw-transcription.model.label'),
       descriptionLocalized: t('settings.pages.providers.provider.sherpaw-transcription.model.description'),
-      options: Object.keys(sherpawModels).map(value => ({
-        value,
-        label: t(`settings.pages.providers.provider.sherpaw-transcription.model.${value}`),
+      options: availableSherpawModels.map(model => ({
+        value: model.id,
+        label: formatSherpawModelName(model, globalThis.navigator?.language ?? 'en'),
       })),
     }),
   }),

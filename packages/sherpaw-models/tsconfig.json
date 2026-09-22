@@ -4,9 +4,6 @@
     "lib": [
       "ESNext",
       "DOM"
-    ],
-    "types": [
-      "node"
     ]
   },
   "include": [

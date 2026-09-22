@@ -1,11 +1,10 @@
-import { paraformerBilingualZhEn, zipformerBilingualZhEn, zipformerMultilingual } from '@proj-airi/vite-plugin-sherpaw/models'
+import { sherpawModels } from '@proj-airi/sherpaw-models'
+import { assets } from '@proj-airi/vite-plugin-sherpaw/assets'
 
-/** Maps persisted model IDs to the presets bundled by AIRI applications. */
-export const sherpawModels = {
-  [paraformerBilingualZhEn.id]: paraformerBilingualZhEn,
-  [zipformerBilingualZhEn.id]: zipformerBilingualZhEn,
-  [zipformerMultilingual.id]: zipformerMultilingual,
-} as const
+export { formatSherpawModelName, sherpawModels } from '@proj-airi/sherpaw-models'
 
-/** Selects one architecture and language set, not a forced recognition language. */
-export type SherpawModelId = keyof typeof sherpawModels
+export type { SherpawModelId } from '@proj-airi/sherpaw-models'
+
+/** Models that the host exposes as bundled files or pinned remote downloads. */
+export const availableSherpawModels = Object.values(sherpawModels)
+  .filter(model => assets[model.id] !== undefined)

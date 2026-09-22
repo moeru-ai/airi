@@ -5,17 +5,17 @@ import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useHearingProviderViewContext } from '../../hearing-view'
-import { sherpawModels } from './models'
+import { availableSherpawModels, formatSherpawModelName } from './models'
 
-const { t } = useI18n()
+const { locale, t } = useI18n()
 const { providerConfig, updateProviderConfig } = useHearingProviderViewContext()
 const model = computed(() => {
   const value = providerConfig.value?.model
   return typeof value === 'string' ? value : 'paraformer-zh-en'
 })
-const options = computed(() => Object.keys(sherpawModels).map(value => ({
-  value,
-  label: t(`settings.pages.providers.provider.sherpaw-transcription.model.${value}`),
+const options = computed(() => availableSherpawModels.map(availableModel => ({
+  value: availableModel.id,
+  label: formatSherpawModelName(availableModel, locale.value),
 })))
 const saving = shallowRef(false)
 const error = shallowRef<string>()

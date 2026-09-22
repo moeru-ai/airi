@@ -2,6 +2,8 @@
 export interface ModelAssets {
   data: string
   metadata: string
+  /** Bundled files load locally. Remote files download when recognition starts. */
+  source: 'bundled' | 'remote'
 }
 
 /**
