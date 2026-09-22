@@ -10,7 +10,7 @@ function isTextSegment(part: { type: string }): part is { type: 'text', text: st
  */
 export async function describeChatImages(
   conversation: Conversation,
-  describe: (url: string, question: string) => Promise<string>,
+  describe: (url: string, question: string, turnId: string, imageIndex: number) => Promise<string>,
   emptyDescriptionError: string,
 ): Promise<Conversation> {
   const turns = []
@@ -25,13 +25,15 @@ export async function describeChatImages(
       .map(part => part.text)
       .join('\n')
     const content = []
+    let imageIndex = 0
     for (const part of turn.content) {
       if (part.type !== 'image') {
         content.push(part)
         continue
       }
 
-      const description = await describe(part.url, question)
+      const description = await describe(part.url, question, turn.id, imageIndex)
+      imageIndex += 1
       if (!description.trim())
         throw new Error(emptyDescriptionError)
       content.push({
