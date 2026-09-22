@@ -27,18 +27,19 @@ The command uses `server/docker-compose.yaml` and exposes only Caddy at
 ## Railway deployment
 
 API and Auth are separate long-running Railway services built from the same
-repository. Keep each service's **Root Directory** at the repository root:
-both Dockerfiles copy workspace manifests and shared packages from that build
-context. In each Railway service, configure the Config File Path explicitly:
+repository. Keep each service's **Root Directory** at the repository root.
+Both Dockerfiles copy workspace manifests and shared packages from that build
+context. The project-level Railway configuration lives in
+`proj-airi/airi-railway/.railway/railway.ts`.
 
-| Service | Config File Path | Public role | Private dependency |
-| --- | --- | --- | --- |
-| Resource API | `/server/apps/api/railway.toml` | Product and resource API | Auth issuer and JWKS |
-| Auth | `/server/apps/auth/railway.toml` | Better Auth and OIDC issuer | Resource API deletion endpoint |
+| Service | Public role | Private dependency |
+| --- | --- | --- |
+| Resource API | Product and resource API | Auth issuer and JWKS |
+| Auth | Better Auth and OIDC issuer | Resource API deletion endpoint |
 
-Each config pins its own Dockerfile, start command, `/readyz` healthcheck, and
-watch patterns. A change only deploys a service when it changes that service,
-one of its copied shared packages, or a copied root build input.
+The Infrastructure as Code file pins each Dockerfile, start command,
+`/readyz` healthcheck, and watch patterns. Run the Railway plan from the
+deployment repository before you apply a change.
 
 ### Service-to-service contract
 
