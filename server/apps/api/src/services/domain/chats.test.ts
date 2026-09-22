@@ -75,6 +75,57 @@ describe('pushMessages', () => {
     })
   })
 
+  it('synchronizes descriptors for ready message attachments', async () => {
+    await db.insert(schema.chats).values({ id: 'group', type: 'group' })
+    await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
+    await db.insert(schema.attachments).values({
+      id: 'attachment-1',
+      ownerId: 'member',
+      objectKey: 'attachments/attachment-1/original',
+      mimeType: 'image/png',
+      size: 4,
+      sha256: 'a'.repeat(64),
+      state: 'ready',
+    })
+    const service = createChatService(db)
+
+    await service.pushMessages('member', 'group', [{
+      id: 'user-image',
+      role: 'user',
+      content: 'look',
+      mediaIds: ['attachment-1'],
+    }])
+    const result = await service.pullMessages('member', 'group', 0)
+
+    expect(result.messages[0]?.attachments).toEqual([{
+      id: 'attachment-1',
+      mimeType: 'image/png',
+      size: 4,
+    }])
+  })
+
+  it('rejects pending or unowned message attachments', async () => {
+    await db.insert(schema.chats).values({ id: 'group', type: 'group' })
+    await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
+    await db.insert(schema.attachments).values({
+      id: 'attachment-1',
+      ownerId: 'other-user',
+      objectKey: 'attachments/attachment-1/original',
+      mimeType: 'image/png',
+      size: 4,
+      sha256: 'a'.repeat(64),
+      state: 'pending',
+    })
+    const service = createChatService(db)
+
+    await expect(service.pushMessages('member', 'group', [{
+      id: 'user-image',
+      role: 'user',
+      content: 'look',
+      mediaIds: ['attachment-1'],
+    }])).rejects.toMatchObject({ statusCode: 400, errorCode: 'BAD_REQUEST' })
+  })
+
   it('rejects a member attempt to update another member’s message', async () => {
     await db.insert(schema.chats).values({ id: 'group', type: 'group' })
     await db.insert(schema.chatMembers).values([

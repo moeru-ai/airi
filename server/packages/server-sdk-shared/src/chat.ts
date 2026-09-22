@@ -1,11 +1,18 @@
 import * as v from 'valibot'
 
 const NonEmptyStringSchema = v.pipe(v.string(), v.minLength(1))
+const AttachmentIdSchema = v.pipe(v.string(), v.regex(/^[\w-]{1,128}$/))
+const MediaIdsSchema = v.pipe(
+  v.array(AttachmentIdSchema),
+  v.maxLength(4),
+  v.check(mediaIds => new Set(mediaIds).size === mediaIds.length, 'mediaIds must not contain duplicates'),
+)
 
 const SendMessageSchema = v.object({
   id: NonEmptyStringSchema,
   role: v.string(),
   content: v.string(),
+  mediaIds: v.optional(MediaIdsSchema),
   replyToMessageId: v.optional(NonEmptyStringSchema),
 })
 
@@ -20,12 +27,19 @@ export const PullMessagesRequestSchema = v.object({
   limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
 })
 
+export interface WireAttachment {
+  id: string
+  mimeType: string
+  size: number
+}
+
 export interface WireMessage {
   id: string
   chatId: string
   senderId: string | null
   role: 'system' | 'user' | 'assistant' | 'tool' | 'error'
   content: string
+  attachments: WireAttachment[]
   replyToMessageId?: string | null
   seq: number
   createdAt: number

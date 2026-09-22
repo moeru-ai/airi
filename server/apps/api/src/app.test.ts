@@ -15,6 +15,7 @@ function createTestDeps() {
 
   return {
     db: { query: { user: { findFirst: vi.fn() } } } as never,
+    attachmentService: {} as never,
     characterService: {} as never,
     chatService: {} as never,
     providerService: {} as never,

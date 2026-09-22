@@ -43,6 +43,12 @@ const NewMessagesPayloadSchema = v.object({
     senderId: v.nullable(v.string()),
     role: v.picklist(['system', 'user', 'assistant', 'tool', 'error']),
     content: v.string(),
+    attachments: v.array(v.object({
+      id: v.pipe(v.string(), v.minLength(1)),
+      mimeType: v.pipe(v.string(), v.minLength(1)),
+      size: v.number(),
+    })),
+    replyToMessageId: v.optional(v.nullable(v.string())),
     seq: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),

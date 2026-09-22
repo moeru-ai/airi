@@ -364,7 +364,7 @@ export const useChatStore = defineStore('chat', () => {
     ...analyticsHooks,
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
-    onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
+    onUserMessageAppended: ({ attachments = [], sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
       analyticsHooks.onUserMessageAppended?.({
         sessionId,
         message,
@@ -380,6 +380,7 @@ export const useChatStore = defineStore('chat', () => {
           id: message.id,
           role: 'user',
           content: messageText,
+          attachments,
           replyToMessageId: message.replyToMessageId,
         })
       }

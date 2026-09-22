@@ -1260,6 +1260,12 @@ describe('createChatOrchestratorRuntime', () => {
         },
       },
     ])
+    const syncedAttachments = (harness.userAppended[0] as { attachments?: unknown[] } | undefined)?.attachments
+    expect(syncedAttachments).toEqual([{
+      type: 'image',
+      data: 'aW1hZ2U=',
+      mimeType: 'image/png',
+    }])
     const assistant = harness.sessionMessages['session-1']?.at(-1)
     expect(assistant).toMatchObject({
       role: 'assistant',

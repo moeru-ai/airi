@@ -3,6 +3,7 @@ import type { Env } from './libs/env'
 import type { OtelInstance } from './otel'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
+import type { AttachmentService } from './services/domain/attachments'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { FluxMeter } from './services/domain/billing/flux-meter'
 import type { CharacterService } from './services/domain/characters'
@@ -44,6 +45,7 @@ import { emitOtelLog, initOtel } from './otel'
 import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
+import { createAttachmentRoutes } from './routes/attachments'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
 import { createCharacterRoutes } from './routes/characters'
@@ -58,9 +60,11 @@ import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
+import { createS3AttachmentObjectStore } from './services/adapters/attachment-object-store'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
+import { createAttachmentService } from './services/domain/attachments'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
 import { createCharacterService } from './services/domain/characters'
@@ -82,6 +86,7 @@ import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
   db: Database
+  attachmentService: AttachmentService
   characterService: CharacterService
   chatService: ChatService
   providerService: ProviderService
@@ -402,6 +407,9 @@ export async function buildApp(deps: AppDeps) {
      */
     .route('/api/v1/chats', createChatRoutes(deps.chatService))
 
+    /** Private attachment upload and download authorization. */
+    .route('/api/v1/attachments', createAttachmentRoutes(deps.attachmentService))
+
     /**
      * V1 OpenAI-compatible and audio routes. The factory returns two
      * sibling routers because the audio surface deliberately lives outside
@@ -577,6 +585,43 @@ export async function createApp() {
     build: ({ dependsOn }) => createProductEventService(dependsOn.openpanelSink),
   })
 
+  const attachmentObjectStore = injeca.provide('adapters:attachmentObjectStore', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => {
+      const {
+        S3_ACCESS_KEY_ID: accessKeyId,
+        S3_BUCKET: bucket,
+        S3_ENDPOINT: endpoint,
+        S3_FORCE_PATH_STYLE: forcePathStyle,
+        S3_REGION: region,
+        S3_SECRET_ACCESS_KEY: secretAccessKey,
+        S3_SIGNED_URL_TTL_SECONDS: signedUrlTtlSeconds,
+      } = dependsOn.env
+      const configured = { accessKeyId, bucket, endpoint, region, secretAccessKey }
+      if (Object.values(configured).every(value => value == null))
+        return null
+      if (!bucket || !region)
+        throw new Error('S3 attachment storage requires S3_BUCKET and S3_REGION')
+      if (Boolean(accessKeyId) !== Boolean(secretAccessKey))
+        throw new Error('S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY must be set together')
+
+      return createS3AttachmentObjectStore({
+        accessKeyId,
+        bucket,
+        endpoint,
+        forcePathStyle,
+        region,
+        secretAccessKey,
+        signedUrlTtlSeconds,
+      })
+    },
+  })
+
+  const attachmentService = injeca.provide('services:attachments', {
+    dependsOn: { db, attachmentObjectStore },
+    build: ({ dependsOn }) => createAttachmentService(dependsOn.db, dependsOn.attachmentObjectStore),
+  })
+
   const characterService = injeca.provide('services:characters', {
     dependsOn: { db, otel },
     build: ({ dependsOn }) => createCharacterService(dependsOn.db, dependsOn.otel?.engagement),
@@ -644,7 +689,7 @@ export async function createApp() {
   // Domain knowledge stays inside each service instead of being copied into
   // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, chatService },
+    dependsOn: { paymentService, fluxService, providerService, characterService, chatService, attachmentService },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
       // priority: 20 = financial / cache state (Flux balance + Redis),
@@ -654,6 +699,13 @@ export async function createApp() {
       service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
       service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
       service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
+      service.register({
+        name: 'attachments',
+        priority: 30,
+        softDelete: async ({ userId }) => {
+          await dependsOn.attachmentService.deleteAllForUser(userId)
+        },
+      })
       return service
     },
   })
@@ -711,6 +763,7 @@ export async function createApp() {
   await injeca.start()
   const resolved = await injeca.resolve({
     db,
+    attachmentService,
     characterService,
     chatService,
     providerService,
@@ -740,6 +793,7 @@ export async function createApp() {
 
   const appDeps = {
     db: resolved.db,
+    attachmentService: resolved.attachmentService,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,

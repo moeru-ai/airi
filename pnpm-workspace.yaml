@@ -59,6 +59,8 @@ catalog:
   '@arethetypeswrong/core': ^0.18.5
   '@auv-js/cli': 0.0.16
   '@auv-js/sdk': 0.0.16
+  '@aws-sdk/client-s3': ^3.1135.0
+  '@aws-sdk/s3-request-presigner': ^3.1135.0
   '@ax-llm/ax': ^24.0.5
   '@better-auth/cli': ^1.4.22
   '@better-auth/drizzle-adapter': 1.6.25

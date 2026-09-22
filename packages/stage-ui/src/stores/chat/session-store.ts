@@ -23,6 +23,7 @@ import {
   mergeCloudMessagesIntoLocal,
   reconcileLocalAndRemote,
 } from '../../libs/chat-sync'
+import { downloadCloudMessageAttachments, prepareCloudAttachment, uploadCloudAttachment } from '../../libs/chat-sync/attachments'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { useAuthStore } from '../auth'
@@ -117,6 +118,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // capture the epoch at start and bail after every await once it changes,
   // so account-A mutations cannot land on account-B state after a sign-out.
   let reconcileEpoch = 0
+  const cloudMergeTasks = new Map<string, Promise<void>>()
+  const cloudPushTasks = new Map<string, Promise<void>>()
   // Single-flight guard for outbox drain so concurrent `reconcile end` +
   // `pushMessageToCloud post-enqueue` triggers don't double-send.
   let outboxDrainTask: Promise<void> | undefined
@@ -722,19 +725,37 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    *
    * Persistence is queued through the existing `persistSession` pipeline.
    */
-  function mergeCloudMessagesIntoSession(sessionId: string, payload: CloudMergePayload) {
+  async function applyCloudMessagesToSession(sessionId: string, payload: CloudMergePayload) {
+    const mergeEpoch = reconcileEpoch
+    const attachmentDataUrls = await downloadCloudMessageAttachments(payload.messages, { fetch: authedFetch, serverUrl: SERVER_URL })
+    if (mergeEpoch !== reconcileEpoch)
+      return
+
     const meta = sessionMetas.value[sessionId]
     if (!meta)
       return
 
     const current = sessionMessages.value[sessionId] ?? []
-    const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq ?? 0, payload)
+    const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq ?? 0, payload, attachmentDataUrls)
     if (!merged.dirty)
       return
 
     sessionMessages.value[sessionId] = merged.messages
     sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: merged.maxSeq }
     void persistSession(sessionId)
+  }
+
+  function mergeCloudMessagesIntoSession(sessionId: string, payload: CloudMergePayload): Promise<void> {
+    const previous = cloudMergeTasks.get(sessionId) ?? Promise.resolve()
+    const task = previous
+      .catch(() => undefined)
+      .then(() => applyCloudMessagesToSession(sessionId, payload))
+      .finally(() => {
+        if (cloudMergeTasks.get(sessionId) === task)
+          cloudMergeTasks.delete(sessionId)
+      })
+    cloudMergeTasks.set(sessionId, task)
+    return task
   }
 
   /**
@@ -753,7 +774,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         chatId: meta.cloudChatId,
         afterSeq: meta.cloudMaxSeq ?? 0,
       })
-      mergeCloudMessagesIntoSession(sessionId, {
+      await mergeCloudMessagesIntoSession(sessionId, {
         messages: result.messages,
         toSeq: result.seq,
       })
@@ -994,7 +1015,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         void reconcileCloudSessions()
         return
       }
-      mergeCloudMessagesIntoSession(sessionId, payload)
+      void mergeCloudMessagesIntoSession(sessionId, payload).catch((err) => {
+        console.warn('[chat-sync] attachment hydration failed for', sessionId, errorMessageFrom(err))
+      })
     })
 
     wsClient.onStatusChange((status) => {
@@ -1016,6 +1039,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function disposeCloudWsClient() {
     cloudReconcileTask = undefined
+    cloudMergeTasks.clear()
+    cloudPushTasks.clear()
     pendingReconcile = false
     // Invalidate any in-flight reconcile IIFE so its post-await mutations
     // do not land on the next user's state.
@@ -1126,22 +1151,56 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    *   until reconcile binds the cloudChatId, then `drainOutbox` pushes it.
    *
    * Returns:
-   * - Resolves after the IDB outbox write lands. The caller does not
-   *   need to await the network round-trip — failed sends are retried
-   *   transparently. UI consumers can watch `outboxPendingCount` to
-   *   surface "X syncing".
+   * - Resolves after the durable outbox write and any available immediate
+   *   drain. Failed sends remain queued for reconnect retries. UI consumers
+   *   can watch `outboxPendingCount` to surface "X syncing".
    */
-  async function pushMessageToCloud(sessionId: string, message: { id: string, role: CloudSyncableRole, content: string, replyToMessageId?: string }) {
+  async function sendOutboxEntries(
+    client: ChatWsClient,
+    userId: string,
+    epoch: number,
+    cloudChatId: string,
+    entries: ChatSendOutboxEntry[],
+  ): Promise<boolean> {
+    const messages = await Promise.all(entries.map(async (entry) => {
+      const mediaIds = await Promise.all((entry.attachments ?? []).map(attachment => uploadCloudAttachment(attachment, {
+        fetch: authedFetch,
+        serverUrl: SERVER_URL,
+      })))
+      return {
+        id: entry.messageId,
+        role: entry.role,
+        content: entry.content,
+        mediaIds,
+        replyToMessageId: entry.replyToMessageId,
+      }
+    }))
+    if (reconcileEpoch !== epoch || getCurrentUserId() !== userId || wsClient !== client || client.status() !== 'open')
+      return false
+
+    await client.sendMessages({ chatId: cloudChatId, messages })
+    return true
+  }
+
+  async function pushMessageToCloudNow(sessionId: string, message: {
+    id: string
+    role: CloudSyncableRole
+    content: string
+    attachments?: { data: string, mimeType: string }[]
+    replyToMessageId?: string
+  }) {
     const userId = getCurrentUserId()
     if (userId === 'local')
       return
 
+    const attachments = await Promise.all((message.attachments ?? []).map(attachment => prepareCloudAttachment(nanoid(), attachment)))
     const entry: ChatSendOutboxEntry = {
       messageId: message.id,
       sessionId,
       cloudChatId: sessionMetas.value[sessionId]?.cloudChatId,
       role: message.role,
       content: message.content,
+      attachments,
       replyToMessageId: message.replyToMessageId,
       attempts: 0,
       queuedAt: Date.now(),
@@ -1149,30 +1208,34 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await enqueuePersist(() => chatSessionsRepo.enqueueOutbox(userId, entry))
     await refreshOutboxPendingCount()
 
-    // Opportunistic immediate send. Skip if WS not open or cloudChatId not
-    // yet bound — drainOutbox will pick it up on the next reconcile.
+    // Drain the session in queue order. An attachment upload failure keeps
+    // the whole batch pending, so an assistant reply cannot overtake its user message.
     if (!wsClient || wsClient.status() !== 'open')
       return
     if (!entry.cloudChatId)
       return
+    if (getCurrentUserId() !== userId)
+      return
+    await drainOutbox()
+  }
 
-    try {
-      await wsClient.sendMessages({
-        chatId: entry.cloudChatId,
-        messages: [{ id: entry.messageId, role: entry.role, content: entry.content, replyToMessageId: entry.replyToMessageId }],
+  function pushMessageToCloud(sessionId: string, message: {
+    id: string
+    role: CloudSyncableRole
+    content: string
+    attachments?: { data: string, mimeType: string }[]
+    replyToMessageId?: string
+  }): Promise<void> {
+    const previous = cloudPushTasks.get(sessionId) ?? Promise.resolve()
+    const task = previous
+      .catch(() => undefined)
+      .then(() => pushMessageToCloudNow(sessionId, message))
+      .finally(() => {
+        if (cloudPushTasks.get(sessionId) === task)
+          cloudPushTasks.delete(sessionId)
       })
-      await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, [entry.messageId]))
-      await refreshOutboxPendingCount()
-    }
-    catch (err) {
-      const errMsg = errorMessageFrom(err) ?? 'unknown'
-      console.warn('[chat-sync] sendMessages failed for', sessionId, errMsg)
-      await enqueuePersist(() => chatSessionsRepo.updateOutboxEntries(userId, [{
-        messageId: entry.messageId,
-        attempts: 1,
-        lastError: errMsg,
-      }]))
-    }
+    cloudPushTasks.set(sessionId, task)
+    return task
   }
 
   /**
@@ -1199,6 +1262,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         return
       if (!wsClient || wsClient.status() !== 'open')
         return
+      const client = wsClient
+      const drainEpoch = reconcileEpoch
 
       const entries = await chatSessionsRepo.getOutbox(userId)
       if (entries.length === 0)
@@ -1223,15 +1288,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         const cloudChatId = meta?.cloudChatId
         if (!cloudChatId)
           continue
-        if (!wsClient || wsClient.status() !== 'open')
+        if (reconcileEpoch !== drainEpoch || getCurrentUserId() !== userId || wsClient !== client || client.status() !== 'open')
           break
 
         sessionEntries.sort((a, b) => a.queuedAt - b.queuedAt)
         try {
-          await wsClient.sendMessages({
-            chatId: cloudChatId,
-            messages: sessionEntries.map(e => ({ id: e.messageId, role: e.role, content: e.content, replyToMessageId: e.replyToMessageId })),
-          })
+          const sent = await sendOutboxEntries(client, userId, drainEpoch, cloudChatId, sessionEntries)
+          if (!sent)
+            break
           succeededIds.push(...sessionEntries.map(e => e.messageId))
         }
         catch (err) {

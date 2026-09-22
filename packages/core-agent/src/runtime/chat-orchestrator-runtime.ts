@@ -350,6 +350,7 @@ export interface ChatOrchestratorRuntimeDeps {
   onPromptProjection?: (payload: ChatOrchestratorPromptProjection) => void
   /** Called after the user message has been appended to session history. */
   onUserMessageAppended?: (event: {
+    attachments?: { type: 'image', data: string, mimeType: string }[]
     sessionId: string
     message: Extract<ChatHistoryItem, { role: 'user' }> & { id: string }
     messageText: string
@@ -662,9 +663,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
       deps.session.appendSessionMessage(sessionId, userMessage)
 
-      // Cloud sync v1: only the raw text part round-trips; image attachments
-      // and other non-text parts stay local.
+      // The cloud-sync boundary receives the raw text and image bytes. It
+      // stores the bytes separately and keeps other non-text parts local.
       deps.onUserMessageAppended?.({
+        attachments: options.attachments ?? [],
         sessionId,
         message: userMessage,
         messageText: sendingMessage,

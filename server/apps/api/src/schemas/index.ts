@@ -1,3 +1,4 @@
+export * from './attachments'
 export * from './characters'
 export * from './chats'
 export * from './config-kv'
