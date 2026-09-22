@@ -33,6 +33,7 @@ chat:
     read-failed: 'Could not read this image. Try again.'
     no-description: 'The vision model returned no image description. Check Settings → Modules → Vision and try again.'
     reading: 'Reading images…'
+    describing: 'Analyzing images…'
     description: 'Image attachment'
   actions:
     reply: Reply

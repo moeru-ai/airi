@@ -404,6 +404,31 @@ describe('chat history', () => {
     expect(screen.container.querySelectorAll('.chat-message-item')).toHaveLength(0)
   })
 
+  it('shows image-analysis status before the assistant stream starts', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [],
+        sending: true,
+        status: 'describing-images',
+        streamingMessage: {
+          role: 'assistant',
+          content: '',
+          slices: [],
+          tool_results: [],
+        },
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.getByRole('status').getByText('Analyzing images…')).toBeVisible()
+    })
+    expect(screen.container.querySelectorAll('.chat-message-item')).toHaveLength(1)
+  })
+
   it('emits retry-message when the retry button is clicked for an error after a user message', async () => {
     const messages: ChatHistoryItem[] = [
       { role: 'user', content: 'hello' },

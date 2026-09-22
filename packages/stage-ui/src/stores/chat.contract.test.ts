@@ -378,6 +378,7 @@ describe('chat store contract', () => {
 
     await sending
     expect(visionSignal?.aborted).toBe(true)
+    expect(store.activeImageDescriptionSessionId).toBeUndefined()
     expect(llmStreamMock).not.toHaveBeenCalled()
   })
 
@@ -470,12 +471,14 @@ describe('chat store contract', () => {
     })
     await vi.waitFor(() => expect(visionMocks.runInference).toHaveBeenCalledOnce())
 
+    expect(store.activeImageDescriptionSessionId).toBe('session-1')
     expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.LLMInference)).toBe(false)
     expect(llmStreamMock).not.toHaveBeenCalled()
 
     resolveVision('A red square.')
     await sending
 
+    expect(store.activeImageDescriptionSessionId).toBeUndefined()
     expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.LLMInference)).toBe(true)
     expect(useContextObservabilityStore().lastPromptProjection?.composedMessage).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -483,6 +486,26 @@ describe('chat store contract', () => {
         content: expect.stringContaining('A red square.'),
       }),
     ]))
+  })
+
+  it('clears image-description status when vision preprocessing fails', async () => {
+    visionMocks.configured = true
+    let rejectVision!: (error: Error) => void
+    visionMocks.runInference.mockReturnValue(new Promise<string>((_resolve, reject) => {
+      rejectVision = reject
+    }))
+
+    const store = useChatStore()
+    const sending = store.send({
+      sessionId: 'session-1',
+      text: 'Read this',
+      attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
+    })
+    await vi.waitFor(() => expect(store.activeImageDescriptionSessionId).toBe('session-1'))
+
+    rejectVision(new Error('Vision failed'))
+    await expect(sending).rejects.toThrow('Vision failed')
+    expect(store.activeImageDescriptionSessionId).toBeUndefined()
   })
 
   it('reuses a persisted image description on later turns', async () => {

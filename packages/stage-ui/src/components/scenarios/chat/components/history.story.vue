@@ -384,6 +384,33 @@ const streamingMessage = ref<ChatAssistantMessage>({
     </Variant>
 
     <Variant
+      id="image-analysis"
+      title="Image Analysis"
+    >
+      <div class="font-cute">
+        <ChatHistory
+          :messages="[]"
+          :sending="true"
+          status="describing-images"
+        />
+      </div>
+    </Variant>
+
+    <Variant
+      id="image-analysis-mobile"
+      title="Image Analysis (Mobile)"
+    >
+      <div class="font-cute">
+        <ChatHistory
+          :messages="[]"
+          :sending="true"
+          status="describing-images"
+          variant="mobile"
+        />
+      </div>
+    </Variant>
+
+    <Variant
       id="error"
       title="Error"
     >

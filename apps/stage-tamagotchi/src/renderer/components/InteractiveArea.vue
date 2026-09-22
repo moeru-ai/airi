@@ -43,7 +43,7 @@ const airiCardStore = useAiriCardStore()
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatStore)
+const { activeImageDescriptionSessionId, activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 
 const composer = useChatComposer<ChatImageAttachment>({
@@ -177,6 +177,9 @@ const isActiveSessionSending = computed(() => sending.value && activeSendSession
 const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
   ? activeStreamingMessage.value
   : streamingMessage.value)
+const chatStatus = computed(() => activeImageDescriptionSessionId.value === activeSessionId.value
+  ? 'describing-images' as const
+  : undefined)
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
@@ -252,6 +255,7 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
         :messages="historyMessages"
         :assistant-label="assistantLabel"
         :sending="isActiveSessionSending"
+        :status="chatStatus"
         :streaming-message="visibleStreamingMessage"
         :tail-inset="tailInset"
         :tool-call-renderers="toolCallRenderers"

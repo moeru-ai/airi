@@ -33,6 +33,7 @@ chat:
     read-failed: 无法读取图片，请重试。
     no-description: 视觉模型没有返回图片描述。请检查“设置 → 模块 → 视觉”后重试。
     reading: 正在读取图片…
+    describing: 正在解析图片…
     description: 图片附件
   actions:
     reply: 回复

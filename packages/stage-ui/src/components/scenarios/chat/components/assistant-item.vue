@@ -24,6 +24,7 @@ const props = withDefaults(defineProps<{
   canReply?: boolean
   scrollContainer?: HTMLElement | null
   showPlaceholder?: boolean
+  statusLabel?: string
   variant?: 'desktop' | 'mobile'
   toolCallRenderers?: ChatToolCallRendererRegistry
 }>(), {
@@ -162,7 +163,16 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             </template>
           </div>
           <ResponseCitations v-if="message.citations?.length" :citations="message.citations" />
-          <div v-if="!resolvedSlices.length && showLoader" i-eos-icons:three-dots-loading />
+          <div
+            v-if="showLoader && statusLabel"
+            role="status"
+            aria-live="polite"
+            :class="['flex items-center gap-2 text-sm text-primary-600 dark:text-primary-200']"
+          >
+            <span aria-hidden="true" :class="['i-svg-spinners:ring-resize size-4']" />
+            <span>{{ statusLabel }}</span>
+          </div>
+          <div v-else-if="showLoader" i-eos-icons:three-dots-loading />
         </div>
       </template>
     </ChatActionMenu>

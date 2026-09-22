@@ -40,7 +40,7 @@ const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
+const { activeImageDescriptionSessionId, activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const isActiveSessionSending = computed(() => (
@@ -50,6 +50,9 @@ const isActiveSessionSending = computed(() => (
 const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
   ? activeStreamingMessage.value
   : streamingMessage.value)
+const chatStatus = computed(() => activeImageDescriptionSessionId.value === activeSessionId.value
+  ? 'describing-images' as const
+  : undefined)
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 const composer = useChatComposer<ChatImageAttachment>({
@@ -352,6 +355,7 @@ onUnmounted(() => {
             variant="mobile"
             :messages="historyMessages"
             :sending="isActiveSessionSending"
+            :status="chatStatus"
             :streaming-message="visibleStreamingMessage"
             class="chat-history"
             :style="chatHistoryStyle"

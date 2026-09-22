@@ -22,7 +22,7 @@ import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 
 const { isReady } = useDeferredMount()
 const chatOrchestrator = useChatStore()
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
+const { activeImageDescriptionSessionId, activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
 const { activeSessionId, messages } = storeToRefs(useChatSessionStore())
 const { streamingMessage } = storeToRefs(useChatStreamStore())
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
@@ -46,6 +46,9 @@ const isActiveSessionSending = computed(() => (
 const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
   ? activeStreamingMessage.value
   : streamingMessage.value)
+const chatStatus = computed(() => activeImageDescriptionSessionId.value === activeSessionId.value
+  ? 'describing-images' as const
+  : undefined)
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 
@@ -85,6 +88,7 @@ async function handleRetryMessage(index: number) {
             v-if="isReady"
             :messages="historyMessages"
             :sending="isActiveSessionSending"
+            :status="chatStatus"
             :streaming-message="visibleStreamingMessage"
             h-full
             variant="desktop"

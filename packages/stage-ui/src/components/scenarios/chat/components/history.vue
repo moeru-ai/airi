@@ -33,6 +33,7 @@ const props = withDefaults(defineProps<{
   userLabel?: string
   errorLabel?: string
   retryLabel?: string
+  status?: 'describing-images'
   /** Space that a floating composer covers at the end of the scroll viewport. */
   tailInset?: number
   variant?: 'desktop' | 'mobile'
@@ -71,8 +72,17 @@ const labels = computed(() => ({
   error: props.errorLabel ?? t('stage.chat.message.character-name.core-system'),
   retry: props.retryLabel ?? t('stage.chat.actions.retry'),
 }))
+const statusLabel = computed(() => props.status === 'describing-images'
+  ? t('stage.chat.images.describing')
+  : undefined)
 
-const streaming = computed<StreamingAssistantMessage>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [] })
+const streaming = computed<StreamingAssistantMessage>(() => {
+  const current = props.streamingMessage ?? { role: 'assistant' as const, content: '', slices: [], tool_results: [] }
+  if (current.id || !statusLabel.value)
+    return current
+
+  return { ...current, id: 'chat-status:describing-images' }
+})
 const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)
 function shouldShowPlaceholder(message: ChatHistoryItem) {
   return !!streaming.value.id && message.id === streaming.value.id
@@ -244,6 +254,7 @@ function emitToolCallRerun(
             :reply-target="getReplyTarget(message)"
             :can-reply="canReplyToMessage(message)"
             :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
+            :status-label="shouldShowPlaceholder(message) ? statusLabel : undefined"
             :scroll-container="chatHistoryRef"
             :variant="variant"
             :tool-call-renderers="toolCallRenderers"
