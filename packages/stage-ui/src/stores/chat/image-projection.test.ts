@@ -17,7 +17,7 @@ describe('chat image projection', () => {
     const original = structuredClone(conversation)
     const vision = vi.fn(async () => 'A red square.')
     const result = await describeChatImages(conversation, vision, 'empty')
-    expect(vision).toHaveBeenCalledWith('data:image/png;base64,first', '')
+    expect(vision).toHaveBeenCalledWith('data:image/png;base64,first', '', 'first', 0)
     expect(JSON.stringify(result)).not.toContain('"type":"image"')
     expect(JSON.stringify(result)).toContain('A red square.')
     expect(result.turns[0]).toEqual(conversation.turns[0])
@@ -33,7 +33,10 @@ describe('chat image projection', () => {
       { type: 'runtime-context', entries: [{ source: 'system:secret', text: 'Do not send me to vision.' }] },
       { type: 'image', url: 'second' },
     ] }] }, vision, 'empty')
-    expect(vision.mock.calls).toEqual([['first', 'Compare these.'], ['second', 'Compare these.']])
+    expect(vision.mock.calls).toEqual([
+      ['first', 'Compare these.', 'user', 0],
+      ['second', 'Compare these.', 'user', 1],
+    ])
   })
 
   it('fails explicitly when vision returns no description', async () => {
