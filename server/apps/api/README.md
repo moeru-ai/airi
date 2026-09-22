@@ -71,11 +71,11 @@ the API and Auth container ports private.
 
 ## Railway
 
-Deploy this as the Resource API Railway service with Config File Path
-`/server/apps/api/railway.toml`; keep the service Root Directory at the
-repository root because the Dockerfile copies shared workspace packages. The
-config owns its Dockerfile, start command, `/readyz` healthcheck, and the
-watch patterns for every copied build input.
+Deploy this as the Resource API Railway service. Keep the service Root
+Directory at the repository root because the Dockerfile copies shared
+workspace packages. The project-level Infrastructure as Code file is
+`proj-airi/airi-railway/.railway/railway.ts`. It owns the Dockerfile, start
+command, `/readyz` healthcheck, and watch patterns.
 
 Set `AUTH_SERVER_INTERNAL_URL` from Auth's Railway private domain. It is only
 the private JWKS route; `AUTH_SERVER_URL` remains the public Auth issuer URL.

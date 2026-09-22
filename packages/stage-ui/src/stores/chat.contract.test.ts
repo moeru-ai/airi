@@ -5,9 +5,10 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import { errorMessageFrom } from '@moeru/std'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
-import { createPinia, setActivePinia } from 'pinia'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick, ref } from 'vue'
+import { createApp, nextTick, ref } from 'vue'
 
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -15,6 +16,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { useChatStore } from './chat'
+import { useContextObservabilityStore } from './devtools/context-observability'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 
 vi.hoisted(() => {
@@ -74,6 +76,8 @@ const disposeSessionMock = vi.fn()
 const ensureCurrentSessionMock = vi.fn()
 const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
+const visionMocks = vi.hoisted(() => ({ configured: false, runInference: vi.fn() }))
+const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] }))
 
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
@@ -143,6 +147,14 @@ vi.mock('./chat/context-store', () => ({
   }),
 }))
 
+vi.mock('./modules/vision', () => ({
+  useVisionStore: () => ({ get configured() { return visionMocks.configured }, useForChat: true }),
+}))
+
+vi.mock('../composables/vision/use-vision-inference', () => ({
+  useVisionInference: () => ({ runVisionInference: visionMocks.runInference }),
+}))
+
 vi.mock('./chat/session-store', () => ({
   useChatSessionStore: () => ({
     activeSessionId: activeSessionIdRef,
@@ -206,6 +218,7 @@ vi.mock('./modules/consciousness', () => ({
   useConsciousnessStore: () => ({
     activeModel: activeModelRef,
     activeProvider: activeProviderRef,
+    providerModels: consciousnessModels.value,
     getChatProviderInstance: (providerId: string) => getChatProviderInstanceMock(providerId, {
       reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
     }),
@@ -271,6 +284,9 @@ describe('chat store contract', () => {
       },
       execute: vi.fn(),
     })))
+    visionMocks.configured = false
+    visionMocks.runInference.mockReset()
+    consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }]
     ioTracerMocks.activeTurnSpan.value = undefined
     ioTracerMocks.spans.length = 0
     ioTracerMocks.startSpanMock.mockClear()
@@ -313,6 +329,212 @@ describe('chat store contract', () => {
       ['stage_widgets'],
       ['stage_widgets'],
     ])
+  })
+
+  it('preserves image attachments when retrying a failed turn', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'What is this?' },
+          { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } },
+        ],
+        id: 'user-image',
+      },
+      { role: 'error', content: 'Provider failed' },
+    ]
+
+    const store = useChatStore()
+    await store.retry({ sessionId: 'session-1', index: 2 })
+
+    const retried = sessionMessages['session-1'].findLast(message => message.role === 'user')
+    expect(retried.content).toEqual([
+      { type: 'text', text: 'What is this?' },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } },
+    ])
+  })
+
+  it('cancels vision preprocessing when its chat turn is cancelled', async () => {
+    visionMocks.configured = true
+    let visionSignal: AbortSignal | undefined
+    visionMocks.runInference.mockImplementation(({ abortSignal }: { abortSignal?: AbortSignal }) => new Promise<string>((_resolve, reject) => {
+      visionSignal = abortSignal
+      abortSignal?.addEventListener('abort', () => reject(abortSignal.reason), { once: true })
+    }))
+
+    const store = useChatStore()
+    const sending = store.send({
+      sessionId: 'session-1',
+      text: 'Read this',
+      attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
+    })
+    await vi.waitFor(() => expect(visionSignal).toBeDefined())
+
+    await store.cancelPendingSends('session-1')
+
+    await sending
+    expect(visionSignal?.aborted).toBe(true)
+    expect(llmStreamMock).not.toHaveBeenCalled()
+  })
+
+  it('routes cancellation from a follower window to the leader runtime', async () => {
+    // ROOT CAUSE:
+    //
+    // The Electron chat window owns a follower-only Pinia runtime. Calling an
+    // unsynchronized cancellation action there only reached its idle local
+    // chat runtime, so the leader window kept generating the LLM response.
+    //
+    // Cancellation is now a synchronized action. The follower RPC reaches the
+    // leader-owned AbortController and waits for the active send to settle.
+    const namespace = `chat-cancellation:${crypto.randomUUID()}`
+    const leaderPinia = createPinia()
+    const leaderRuntime = createSyncedPiniaPlugin({
+      callTimeout: 1000,
+      leadership: 'leader-only',
+      namespace,
+    })
+    leaderPinia.use(leaderRuntime.plugin)
+    createApp({}).use(leaderPinia)
+
+    const followerPinia = createPinia()
+    const followerRuntime = createSyncedPiniaPlugin({
+      callTimeout: 1000,
+      leadership: 'follower-only',
+      namespace,
+    })
+    followerPinia.use(followerRuntime.plugin)
+    createApp({}).use(followerPinia)
+
+    try {
+      await vi.waitFor(() => expect(leaderRuntime.isLeader()).toBe(true))
+
+      setActivePinia(leaderPinia)
+      const leaderStore = useChatStore()
+
+      setActivePinia(followerPinia)
+      const followerStore = useChatStore()
+      await vi.waitFor(() => expect(followerRuntime.getLeaderId()).toBe(leaderRuntime.participantId))
+
+      let leaderSignal: AbortSignal | undefined
+      llmStreamMock.mockImplementationOnce(async (_model, _provider, _messages, options: StreamOptions) => {
+        leaderSignal = options.abortSignal
+        await new Promise<void>((resolve) => {
+          if (options.abortSignal?.aborted) {
+            resolve()
+            return
+          }
+          options.abortSignal?.addEventListener('abort', () => resolve(), { once: true })
+        })
+      })
+
+      setActivePinia(followerPinia)
+      const sending = followerStore.send({
+        sessionId: 'session-1',
+        text: 'keep generating',
+      })
+      await vi.waitFor(() => expect(leaderSignal).toBeDefined())
+
+      await followerStore.cancelPendingSends('session-1')
+      await sending
+
+      expect(leaderSignal?.aborted).toBe(true)
+      expect(leaderStore.sending).toBe(false)
+    }
+    finally {
+      followerRuntime.dispose()
+      leaderRuntime.dispose()
+      disposePinia(followerPinia)
+      disposePinia(leaderPinia)
+    }
+  })
+
+  it('starts chat-model telemetry and captures the provider prompt after vision preprocessing', async () => {
+    visionMocks.configured = true
+    let resolveVision!: (description: string) => void
+    visionMocks.runInference.mockReturnValue(new Promise<string>((resolve) => {
+      resolveVision = resolve
+    }))
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    const sending = store.send({
+      sessionId: 'session-1',
+      text: 'Read this',
+      attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
+    })
+    await vi.waitFor(() => expect(visionMocks.runInference).toHaveBeenCalledOnce())
+
+    expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.LLMInference)).toBe(false)
+    expect(llmStreamMock).not.toHaveBeenCalled()
+
+    resolveVision('A red square.')
+    await sending
+
+    expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.LLMInference)).toBe(true)
+    expect(useContextObservabilityStore().lastPromptProjection?.composedMessage).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        role: 'user',
+        content: expect.stringContaining('A red square.'),
+      }),
+    ]))
+  })
+
+  it('reuses a persisted image description on later turns', async () => {
+    // ROOT CAUSE:
+    //
+    // The provider projection replaced images for one request. History kept
+    // only the image, so later turns ran vision again for the same attachment.
+    //
+    // We fixed this by storing the description with its user message. Later
+    // provider projections reuse the stored value.
+    visionMocks.configured = true
+    visionMocks.runInference.mockResolvedValue('A red square.')
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: 'Read this',
+      attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
+    })
+    await store.send({
+      sessionId: 'session-1',
+      text: 'What color was it?',
+    })
+
+    expect(visionMocks.runInference).toHaveBeenCalledOnce()
+    expect(sessionMessages['session-1'].find(message => message.role === 'user' && Array.isArray(message.content))?.imageDescriptions).toEqual([
+      {
+        description: 'A red square.',
+        imageIndex: 0,
+      },
+    ])
+  })
+
+  it('sends images directly when the selected chat model supports vision', async () => {
+    visionMocks.configured = true
+    consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: true } } }]
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, context: Conversation, options: StreamOptions) => {
+      expect(context.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'image'))).toBe(true)
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: 'Read this directly',
+      attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
+    })
+
+    expect(visionMocks.runInference).not.toHaveBeenCalled()
   })
 
   // https://github.com/moeru-ai/airi/pull/2565#discussion_r4028809145
@@ -988,7 +1210,7 @@ describe('chat store contract', () => {
     await vi.waitFor(() => {
       expect(store.pendingQueuedSendCount).toBe(1)
     })
-    store.cancelPendingSends('session-1')
+    await store.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
     await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
@@ -1099,7 +1321,7 @@ describe('chat store contract', () => {
       },
     ])
 
-    store.cancelPendingSends('session-1')
+    await store.cancelPendingSends('session-1')
     releaseFirstSend?.()
 
     await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')

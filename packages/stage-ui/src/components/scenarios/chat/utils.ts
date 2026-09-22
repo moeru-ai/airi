@@ -41,12 +41,7 @@ export function getChatHistoryItemCopyText(message: ChatHistoryItem): string {
       return message.content
 
     if (Array.isArray(message.content)) {
-      const text = getTextFromContentParts(message.content)
-
-      if (text)
-        return text
-
-      return message.content.map(entry => JSON.stringify(entry)).join('\n')
+      return getTextFromContentParts(message.content)
     }
 
     return ''
@@ -56,12 +51,7 @@ export function getChatHistoryItemCopyText(message: ChatHistoryItem): string {
     return message.content
 
   if (Array.isArray(message.content)) {
-    const text = getTextFromContentParts(message.content)
-
-    if (text)
-      return text
-
-    return message.content.map(entry => JSON.stringify(entry)).join('\n')
+    return getTextFromContentParts(message.content)
   }
 
   return ''

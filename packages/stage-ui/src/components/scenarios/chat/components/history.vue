@@ -125,7 +125,7 @@ const { itemProps } = useVirtualizerBottomAlignment({
   virtualizer: virtualizerRef,
 })
 
-const { onUserScroll } = useChatHistoryScroll({
+useChatHistoryScroll({
   container: chatHistoryRef,
   messages: renderMessages,
   getKey: getChatHistoryItemKey,
@@ -208,7 +208,6 @@ function emitToolCallRerun(
     ref="scroll-container"
     v-bind="$attrs"
     :variant="variant"
-    @scrollbar-pointerdown="onUserScroll"
   >
     <Virtualizer
       ref="virtualizer"

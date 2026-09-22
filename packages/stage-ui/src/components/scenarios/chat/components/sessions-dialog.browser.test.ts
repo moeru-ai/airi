@@ -26,6 +26,7 @@ function createTestI18n() {
               'empty': 'No chats',
               'delete': 'Delete conversation',
               'delete-short': 'Delete',
+              'confirm-delete-short': 'Confirm delete',
               'current': 'Current',
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
@@ -89,6 +90,73 @@ function createHarness(rows = [
 }
 
 describe('sessions dialog actions', () => {
+  it('opens the compact desktop list from its conversation trigger', async () => {
+    const rows = [
+      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, updatedAtLabel: 'now' },
+    ]
+    const screen = await render(defineComponent({
+      components: { SessionsDialog },
+      setup() {
+        return { open: ref(false), rows }
+      },
+      template: `
+        <SessionsDialog
+          v-model:open="open"
+          :rows="rows"
+          :is-desktop="true"
+          :is-creating-session="false"
+          desktop-mode="popover"
+        >
+          <template #trigger><button>Current chat</button></template>
+        </SessionsDialog>
+      `,
+    }), { global: { plugins: [createTestI18n()] } })
+
+    await screen.getByRole('button', { name: 'Current chat' }).click()
+
+    await expect.element(screen.getByRole('dialog')).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'New chat' })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: /^First chat/ })).toBeVisible()
+  })
+
+  it('requires a second click before deleting a desktop conversation', async () => {
+    const screen = await render(defineComponent({
+      components: { SessionsDialog },
+      setup() {
+        return {
+          deleted: ref('none'),
+          open: ref(false),
+          rows: [
+            { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, updatedAtLabel: 'now' },
+            { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, updatedAtLabel: 'yesterday' },
+          ],
+        }
+      },
+      template: `
+        <SessionsDialog
+          v-model:open="open"
+          :rows="rows"
+          :is-desktop="true"
+          :is-creating-session="false"
+          desktop-mode="popover"
+          @delete-session="deleted = $event"
+        >
+          <template #trigger><button>Current chat</button></template>
+        </SessionsDialog>
+        <output aria-label="deleted-session-id">{{ deleted }}</output>
+      `,
+    }), { global: { plugins: [createTestI18n()] } })
+
+    await screen.getByRole('button', { name: 'Current chat' }).click()
+    await screen.getByRole('button', { name: 'Delete conversation: Second chat' }).click()
+
+    await expect.element(screen.getByRole('button', { name: 'Confirm delete: Second chat' })).toBeVisible()
+    await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('none')
+
+    await screen.getByRole('button', { name: 'Confirm delete: Second chat' }).click()
+    await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('session-two')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2536#discussion_r3999100810
   it('restores focus to visible content after selecting a retained action', async () => {
     // ROOT CAUSE:

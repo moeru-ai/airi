@@ -10,11 +10,11 @@ import { createHash } from 'node:crypto'
 import { account, isUserBannedNow, user } from '@proj-airi/auth-shared'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { createRemoteJWKSet, jwtVerify } from 'jose'
-import { email, nonEmpty, object, pipe, safeParse, string, transform } from 'valibot'
+import { email, nonEmpty, object, pipe, regex, safeParse, string, transform } from 'valibot'
 
 import { ensureDynamicFirstPartyRedirectUri } from './auth'
 import { createBadRequestError, createForbiddenError } from './error'
+import { createOidcAccessTokenVerifier } from './oidc-access-token'
 import { rateLimiter } from './rate-limit'
 
 export interface HonoEnv {
@@ -31,6 +31,11 @@ export const SERVER_DEV_PUBLIC_URL = 'https://airi-server-dev.up.railway.app'
 export const SERVER_DEV_AUTH_UI_URL = 'https://server-dev.airi-server-auth.pages.dev/ui'
 
 const FORWARDED_AUTH_UI_PROVIDERS = new Set(['google', 'github', 'steam'])
+const JwtBearerTokenSchema = pipe(
+  string(),
+  transform(value => value.trim()),
+  regex(/^[\w-]+\.[\w-]+\.[\w-]+$/, 'Bearer token must be a compact JWT'),
+)
 
 /** Builds a route URL below the configured standalone Auth UI base. */
 export function buildAuthUiUrl(authUiUrl: string, path: string, search = ''): string {
@@ -97,91 +102,79 @@ function forwardAuthUiProviderHint(requestUrl: string, response: Response): Resp
   })
 }
 
-const remoteJwksByUrl = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
-
 function readBearerToken(headers: Headers): string | null {
   const authorization = headers.get('authorization')
-  if (!authorization?.startsWith('Bearer '))
+  if (!authorization || authorization.slice(0, 7).toLowerCase() !== 'bearer ')
     return null
 
-  const token = authorization.slice(7).trim()
-  return token.length > 0 ? token : null
-}
-
-function getRemoteJwks(publicUrl: string): ReturnType<typeof createRemoteJWKSet> {
-  const jwksUrl = new URL('/api/auth/jwks', publicUrl).toString()
-  const cached = remoteJwksByUrl.get(jwksUrl)
-  if (cached)
-    return cached
-
-  const jwks = createRemoteJWKSet(new URL(jwksUrl))
-  remoteJwksByUrl.set(jwksUrl, jwks)
-  return jwks
+  const token = safeParse(JwtBearerTokenSchema, authorization.slice(7))
+  return token.success ? token.output : null
 }
 
 async function resolveJwtAccessToken(
   db: AuthDatabase,
-  env: Pick<AuthEnv, 'PUBLIC_URL'>,
+  verifyAccessToken: ReturnType<typeof createOidcAccessTokenVerifier>,
+  loadJwks: Parameters<ReturnType<typeof createOidcAccessTokenVerifier>>[1],
   accessToken: string,
 ): Promise<AuthSession | null> {
-  try {
-    const { payload } = await jwtVerify(accessToken, getRemoteJwks(env.PUBLIC_URL), {
-      issuer: `${env.PUBLIC_URL}/api/auth`,
-      audience: env.PUBLIC_URL,
-    })
-    if (!payload.sub)
-      return null
-
-    const resolvedUser = await db.query.user.findFirst({
-      where: eq(user.id, payload.sub),
-    })
-    if (!resolvedUser)
-      return null
-
-    const issuedAt = payload.iat ? new Date(payload.iat * 1000) : new Date()
-    return {
-      user: resolvedUser,
-      session: {
-        id: payload.jti ?? payload.sub,
-        token: accessToken,
-        userId: payload.sub,
-        createdAt: issuedAt,
-        updatedAt: issuedAt,
-        expiresAt: payload.exp ? new Date(payload.exp * 1000) : new Date(),
-        ipAddress: null,
-        userAgent: null,
-      },
-    }
-  }
-  catch {
+  const claims = await verifyAccessToken(accessToken, loadJwks)
+  if (!claims)
     return null
+
+  const resolvedUser = await db.query.user.findFirst({
+    where: eq(user.id, claims.sub),
+  })
+  if (!resolvedUser)
+    return null
+
+  const issuedAt = new Date(claims.iat * 1000)
+  return {
+    user: resolvedUser,
+    session: {
+      id: claims.jti ?? claims.sub,
+      token: accessToken,
+      userId: claims.sub,
+      createdAt: issuedAt,
+      updatedAt: issuedAt,
+      expiresAt: new Date(claims.exp * 1000),
+      ipAddress: null,
+      userAgent: null,
+    },
   }
 }
 
 async function resolveSessionIgnoringBan(
   auth: AuthInstance,
   db: AuthDatabase,
-  env: Pick<AuthEnv, 'PUBLIC_URL'>,
+  verifyAccessToken: ReturnType<typeof createOidcAccessTokenVerifier>,
   headers: Headers,
 ): Promise<AuthSession | null> {
+  const accessToken = readBearerToken(headers)
+  if (accessToken) {
+    const jwtSession = await resolveJwtAccessToken(
+      db,
+      verifyAccessToken,
+      () => auth.api.getJwks(),
+      accessToken,
+    )
+    if (jwtSession)
+      return jwtSession
+  }
+
   const session = await auth.api.getSession({ headers })
   if (session?.user && session?.session)
     return session
 
-  const accessToken = readBearerToken(headers)
-  if (!accessToken)
-    return null
-
-  return await resolveJwtAccessToken(db, env, accessToken)
+  return null
 }
 
 async function resolveAuthRequest(
   auth: AuthInstance,
   db: AuthDatabase,
-  env: Pick<AuthEnv, 'PUBLIC_URL'>,
+  verifyAccessToken: ReturnType<typeof createOidcAccessTokenVerifier>,
   headers: Headers,
 ): Promise<AuthSession | null> {
-  const resolved = await resolveSessionIgnoringBan(auth, db, env, headers)
+  const resolved = await resolveSessionIgnoringBan(auth, db, verifyAccessToken, headers)
   if (!resolved || isUserBannedNow(resolved.user))
     return null
 
@@ -238,10 +231,13 @@ function createElectronCallbackRelay(env: AuthEnv) {
   })
 }
 
-function createOIDCTokenAuthRoute(deps: Pick<AuthRoutesDeps, 'auth' | 'db' | 'env'>) {
+function createOIDCTokenAuthRoute(
+  deps: Pick<AuthRoutesDeps, 'auth' | 'db'>,
+  verifyAccessToken: ReturnType<typeof createOidcAccessTokenVerifier>,
+) {
   return new Hono<HonoEnv>()
     .on(['GET', 'POST'], '/get-session', async (c) => {
-      const session = await resolveAuthRequest(deps.auth, deps.db, deps.env, c.req.raw.headers)
+      const session = await resolveAuthRequest(deps.auth, deps.db, verifyAccessToken, c.req.raw.headers)
       if (!session)
         return c.json(null)
       const image = session.user.image || buildGravatarUrl(session.user.email)
@@ -249,7 +245,7 @@ function createOIDCTokenAuthRoute(deps: Pick<AuthRoutesDeps, 'auth' | 'db' | 'en
     })
     .post('/sign-out', c => c.json({ success: true }))
     .get('/list-sessions', async (c) => {
-      const session = await resolveAuthRequest(deps.auth, deps.db, deps.env, c.req.raw.headers)
+      const session = await resolveAuthRequest(deps.auth, deps.db, verifyAccessToken, c.req.raw.headers)
       return c.json(session ? [session.session] : [])
     })
 }
@@ -270,6 +266,8 @@ export interface AuthRoutesDeps {
  * (`/auth/*`, `/api/auth/*`, `/.well-known/*`).
  */
 export async function createAuthRoutes(deps: AuthRoutesDeps) {
+  const verifyAccessToken = createOidcAccessTokenVerifier(deps.env.PUBLIC_URL)
+
   async function handleAuthRequest(request: Request): Promise<Response> {
     const response = await deps.auth.handler(request)
 
@@ -312,12 +310,12 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
     // (/oauth2/introspect needs confidential client credentials, which no
     // first-party AIRI client has, so it has no reachable banned-caller path.)
     .use('/api/auth/oauth2/userinfo', async (c, next) => {
-      const resolved = await resolveSessionIgnoringBan(deps.auth, deps.db, deps.env, c.req.raw.headers)
+      const resolved = await resolveSessionIgnoringBan(deps.auth, deps.db, verifyAccessToken, c.req.raw.headers)
       if (resolved && isUserBannedNow(resolved.user))
         throw createForbiddenError('This account has been banned')
       await next()
     })
-    .route('/api/auth', createOIDCTokenAuthRoute(deps))
+    .route('/api/auth', createOIDCTokenAuthRoute(deps, verifyAccessToken))
     /**
      * Electron OIDC callback relay: serves an HTML page that forwards the
      * authorization code to the Electron loopback server via JS fetch().

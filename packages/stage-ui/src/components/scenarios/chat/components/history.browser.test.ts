@@ -743,6 +743,7 @@ describe('chat history', () => {
   //
   // The resistance curve maps each raw position. Reverse input moves the message
   // immediately, and the release position still decides commit.
+  // https://github.com/moeru-ai/airi/pull/2617
   it('lets a desktop pan move back before release', async () => {
     const message: ChatHistoryItem = {
       id: 'desktop-momentum-return-target',
@@ -767,26 +768,49 @@ describe('chat history', () => {
     if (!swipeRoot || !swipeSurface)
       throw new Error('Expected a desktop message swipe surface.')
 
-    dispatchHorizontalPan(swipeRoot, 100)
-    await new Promise(resolve => requestAnimationFrame(resolve))
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 100), 3)
+    // ROOT CAUSE:
+    // A real frame plus an 80 ms wait can exceed the recognizer's 100 ms idle
+    // deadline on CI. Control the idle clock while browser frames remain real.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      dispatchHorizontalPan(swipeRoot, 100)
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 100), 3)
 
-    dispatchHorizontalPan(swipeRoot, -30)
-    await new Promise(resolve => requestAnimationFrame(resolve))
-    const reversedOffset = getExpectedLeftSwipeOffset(swipeRoot, 70)
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
+      dispatchHorizontalPan(swipeRoot, -30)
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      const reversedOffset = getExpectedLeftSwipeOffset(swipeRoot, 70)
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
 
-    await new Promise(resolve => setTimeout(resolve, 80))
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
-    expect(screen.emitted('replyMessage')).toBeUndefined()
+      vi.advanceTimersByTime(80)
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
+      expect(screen.emitted('replyMessage')).toBeUndefined()
 
-    dispatchHorizontalPan(swipeRoot, -30)
-    await new Promise(resolve => requestAnimationFrame(resolve))
-    const releaseOffset = getExpectedLeftSwipeOffset(swipeRoot, 40)
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(releaseOffset, 3)
+      dispatchHorizontalPan(swipeRoot, -30)
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      const releaseOffset = getExpectedLeftSwipeOffset(swipeRoot, 40)
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(releaseOffset, 3)
 
-    await new Promise(resolve => setTimeout(resolve, 120))
-    expect(getTranslateX(swipeSurface)).not.toBeCloseTo(releaseOffset, 3)
+      // The last reverse event resets the idle deadline and cancels the reply.
+      vi.advanceTimersByTime(99)
+      await nextTick()
+      expect(swipeSurface.dataset.swipeActive).toBe('true')
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(releaseOffset, 3)
+      expect(screen.emitted('replyMessage')).toBeUndefined()
+
+      vi.advanceTimersByTime(1)
+      await nextTick()
+      expect(swipeSurface.dataset.swipeActive).toBe('false')
+      expect(screen.emitted('replyMessage')).toBeUndefined()
+    }
+    finally {
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    }
+
+    await vi.waitFor(() => {
+      expect(getTranslateX(swipeSurface)).toBe(0)
+    })
     expect(screen.emitted('replyMessage')).toBeUndefined()
   })
 

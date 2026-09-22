@@ -22,7 +22,6 @@ import macOSTrayIcon from '../../../resources/tray-icon-macos.png?asset'
 
 import { findDominantDisplayArea } from '../../shared/utils/electron/display'
 import { onAppBeforeQuit } from '../libs/bootkit/lifecycle'
-import { setupInlayWindow } from '../windows/inlay'
 import { Animator } from '../windows/shared/animator'
 import { computeResizedBoundsAnchoredToDominantDisplay } from '../windows/shared/display'
 import { toggleWindowShow } from '../windows/shared/window'
@@ -105,6 +104,7 @@ export function setupTray(params: {
   widgetsWindow: WidgetsWindowManager
   beatSyncBgWindow: Awaited<ReturnType<typeof setupBeatSync>>
   aboutWindow: () => Promise<BrowserWindow>
+  inlayWindow: () => Promise<BrowserWindow>
   serverChannel: ServerChannel
   i18n: I18n
 }): void {
@@ -214,7 +214,7 @@ export function setupTray(params: {
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.settings'), click: () => void params.settingsWindow.openWindow('/settings') },
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.about'), click: () => params.aboutWindow().then(window => toggleWindowShow(window)) },
         { type: 'separator' },
-        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_inlay'), click: () => setupInlayWindow({ i18n: params.i18n, serverChannel: params.serverChannel }) },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_inlay'), click: () => params.inlayWindow().then(window => toggleWindowShow(window)) },
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_widgets'), click: () => params.widgetsWindow.getWindow().then(window => toggleWindowShow(window)) },
         {
           label: params.i18n.t(params.captionWindow.isVisible()
