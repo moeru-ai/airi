@@ -452,6 +452,11 @@ export const useHearingStore = defineStore('hearing-store', () => {
         // TODO: integrate VAD-driven silence detection to stop and restart realtime sessions based on silence thresholds.
         const request = provider.transcription(model, options?.providerOptions)
 
+        // Recorder files contain encoded media. Sherpaw accepts only the raw PCM16 stream from the live pipeline.
+        if (providerId === SHERPAW_TRANSCRIPTION_PROVIDER_ID && normalizedInput.file && !normalizedInput.inputAudioStream) {
+          throw new Error('Sherpaw requires live microphone input. Recorded file input is not supported.')
+        }
+
         // Stream branches: emit succeeded with char_count=0 once the
         // executor returns successfully — char count is only known by
         // the downstream consumer of the stream, which lives outside
