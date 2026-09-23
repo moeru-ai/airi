@@ -1,9 +1,28 @@
 <script setup lang="ts">
-import { TooltipContent, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
+import type { TooltipContentProps } from 'reka-ui'
 
-const { side = 'top' } = defineProps<{
-  side?: 'top' | 'right' | 'bottom' | 'left'
-}>()
+import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
+import { computed } from 'vue'
+
+import { useControlsIslandPlacement } from './use-controls-island-placement'
+
+const props = withDefaults(defineProps<{
+  side?: TooltipContentProps['side'] | 'inward'
+  /** Reuse a child that forwards trigger attributes and listeners. @default false */
+  asChild?: boolean
+}>(), {
+  side: 'top',
+  asChild: false,
+})
+
+const { isLeft } = useControlsIslandPlacement()
+const resolvedSide = computed<NonNullable<TooltipContentProps['side']>>(() => {
+  if (props.side === 'inward') {
+    return isLeft.value ? 'right' : 'left'
+  }
+
+  return props.side
+})
 </script>
 
 <template>
@@ -12,29 +31,36 @@ const { side = 'top' } = defineProps<{
     :skip-delay-duration="0"
   >
     <TooltipRoot>
-      <TooltipTrigger>
+      <TooltipTrigger :as-child="asChild">
         <slot />
       </TooltipTrigger>
-      <Transition name="fade">
-        <TooltipContent
-          :class="[
-            'border-1 border-solid border-neutral-200/60 dark:border-neutral-800/10',
-            'bg-neutral-50/80 dark:bg-neutral-800/70',
-            'w-fit flex items-center self-end justify-center px-1.5 py-1',
-            'rounded-lg backdrop-blur-md',
-            'max-w-[min(18rem,calc(100vw-1rem))] break-words text-center text-xs leading-4 whitespace-normal',
-          ]"
-          :side="side"
-          :side-offset="4"
-        >
-          <slot name="tooltip" />
-        </TooltipContent>
-      </Transition>
+      <TooltipPortal>
+        <Transition name="fade">
+          <TooltipContent
+            :class="[
+              'controls-island-tooltip',
+              'border-1 border-solid border-neutral-200/60 dark:border-neutral-800/10',
+              'bg-neutral-50/80 dark:bg-neutral-800/70',
+              'w-fit flex items-center self-end justify-center px-1.5 py-1',
+              'rounded-lg backdrop-blur-md',
+              'max-w-[min(18rem,calc(100vw-1rem))] break-words text-center text-xs leading-4 whitespace-normal',
+            ]"
+            :side="resolvedSide"
+            :side-offset="4"
+          >
+            <slot name="tooltip" />
+          </TooltipContent>
+        </Transition>
+      </TooltipPortal>
     </TooltipRoot>
   </TooltipProvider>
 </template>
 
 <style scoped>
+:global([data-reka-popper-content-wrapper=""]:has(.controls-island-tooltip)) {
+  z-index: 1000 !important;
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease-in-out;

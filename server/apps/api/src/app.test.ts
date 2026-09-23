@@ -26,7 +26,8 @@ function createTestDeps() {
     providerService: {} as never,
     fluxService: {} as never,
     fluxTransactionService: {} as never,
-    stripeService: {} as never,
+    paymentService: {} as never,
+    stripe: null,
     billingService: {} as never,
     ttsMeter: {} as never,
     requestLogService: {} as never,
@@ -34,17 +35,15 @@ function createTestDeps() {
     providerCatalogService: {} as never,
     productEventService: {
       track: vi.fn(async () => undefined),
-      trackGeneration: vi.fn(async () => undefined),
-      countDistinctUsersByFeature: vi.fn(async () => []),
     } as never,
-    configKV: { getOrThrow: vi.fn() } as never,
+    configKV: { getOrThrow: vi.fn(), getOptional: vi.fn(async () => 1) } as never,
     redis: redis as never,
     env: {
       API_SERVER_URL: 'https://api.airi.build',
       AUTH_SERVER_URL: 'https://api.airi.build',
       TEST_AUTH_TOKEN: 'test-token',
       TEST_AUTH_USER_EMAIL: 'test@example.com',
-      TEST_AUTH_USER_ID: 'test-user',
+      TEST_AUTH_USER_ID: 'user-1',
       TEST_AUTH_USER_NAME: 'Test User',
       TEST_AUTH_USER_ROLE: 'user',
     } as never,
@@ -110,12 +109,13 @@ describe('business API app', () => {
 
     try {
       const unauthorized = new WebSocket(`ws://127.0.0.1:${port}/api/v1/audio/transcriptions/ws`)
+      unauthorized.once('error', () => {})
       const unauthorizedCode = await new Promise<number>((resolve) => {
         unauthorized.once('close', resolve)
       })
       expect(unauthorizedCode).toBe(WS_CLOSE_UNAUTHORIZED)
 
-      const authorized = new WebSocket(`ws://127.0.0.1:${port}/api/v1/audio/transcriptions/ws?token=test-token`)
+      const authorized = new WebSocket(`ws://127.0.0.1:${port}/api/v1/audio/transcriptions/ws`, ['airi-asr-v1', 'airi-auth.test-token'])
       await new Promise<void>((resolve, reject) => {
         authorized.once('open', resolve)
         authorized.once('error', reject)
@@ -126,5 +126,32 @@ describe('business API app', () => {
     finally {
       await new Promise<void>(resolve => server.close(() => resolve()))
     }
+  })
+
+  // ROOT CAUSE:
+  //
+  // The former global 1 MiB limit ran before the Responses route's auth
+  // guard, so it both rejected supported inline media and inspected a large
+  // unauthenticated body before returning 401.
+  it('authenticates a large Responses request before applying its route limit', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/api/v1/openai/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: ' '.repeat(1024 * 1024 + 1),
+    })
+
+    expect(response.status).toBe(401)
+  })
+
+  it('allows an authenticated Responses body beyond the default API limit', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/api/v1/openai/responses', {
+      method: 'POST',
+      headers: { 'authorization': 'Bearer test-token', 'Content-Type': 'application/json' },
+      body: ' '.repeat(1024 * 1024 + 1),
+    })
+
+    expect(response.status).toBe(400)
   })
 })

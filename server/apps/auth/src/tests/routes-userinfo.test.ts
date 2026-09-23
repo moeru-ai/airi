@@ -1,4 +1,3 @@
-import type { AuthConfigService } from '../rate-limit'
 import type { AuthRoutesDeps, HonoEnv } from '../routes'
 
 import { Hono } from 'hono'
@@ -11,12 +10,6 @@ import { createAuthRoutes } from '../routes'
 // mocked via auth.api.getSession) with isUserBannedNow(user.banned). The ban
 // flag lives on the user row (better-auth admin plugin), so we drive it via the
 // mocked session — no DB query happens on this path.
-
-function createAuthConfig(): AuthConfigService {
-  return {
-    getRateLimit: vi.fn(async () => ({ max: 100, windowSec: 60 })),
-  }
-}
 
 interface SessionUser { id: string, email: string, banned: boolean, banExpires: Date | null }
 
@@ -41,7 +34,6 @@ async function buildRoutes(currentUser: SessionUser) {
       AUTH_UI_URL: 'https://accounts.airi.build/ui',
       ADDITIONAL_TRUSTED_ORIGINS: [],
     } as any,
-    authConfig: createAuthConfig(),
     rateLimitMetrics: null,
   }
 

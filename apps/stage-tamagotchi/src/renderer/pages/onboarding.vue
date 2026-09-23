@@ -1,31 +1,31 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { OnboardingScreen, OnboardingStepAnalyticsNotice } from '@proj-airi/stage-ui/components'
-import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
+import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 
 import { electronAuthStartLogin, electronOnboardingClose } from '../../shared/eventa'
+import { useOnboardingAuthentication } from '../composables/use-onboarding-authentication'
 
 const authStore = useAuthStore()
 const { needsLogin, isAuthenticated } = storeToRefs(authStore)
 const onboardingStore = useOnboardingStore()
+const { closeRequestId } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
 const closeWindow = useElectronEventaInvoke(electronOnboardingClose)
-
-// The onboarding window is a separate Electron process with its own Pinia instance.
-// When step-welcome sets needsLogin=true, we must invoke the IPC login from here
-// since the controls-island watcher only exists in the main window.
-watch(needsLogin, async (val) => {
-  if (val && !isAuthenticated.value) {
-    await startLogin()
-    needsLogin.value = false
-    await closeWindow()
-  }
+const { closeOnboardingWindow } = useOnboardingAuthentication({
+  consumeLoginRequest: () => authStore.consumeLoginRequest(),
+  closeRequestId,
+  closeWindow,
+  isAuthenticated,
+  needsLogin,
+  onCloseError: error => console.error('[Onboarding] Failed to close the onboarding window.', error),
+  startLogin,
 })
 
 const bgClass = computed(() => isDark.value ? 'bg-[#0f0f0f]' : 'bg-white')
@@ -37,12 +37,12 @@ const extraSteps = computed(() => {
 
 async function handleSkipped() {
   onboardingStore.markSetupSkipped()
-  await closeWindow()
+  await closeOnboardingWindow()
 }
 
 async function handleConfigured() {
   onboardingStore.markSetupCompleted()
-  await closeWindow()
+  await closeOnboardingWindow()
 }
 </script>
 

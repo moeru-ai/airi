@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { errorCauseFrom, errorMessageFrom, errorNameFrom, errorStackFrom } from '@moeru/std'
-import { ScrollAreaCorner, ScrollAreaRoot, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from 'reka-ui'
 import { computed, shallowRef } from 'vue'
 
+import ScrollableArea from '../layouts/scrollable-area.vue'
 import IconButton from './icon-button.vue'
 
 type HeightPreset = 'sm' | 'md' | 'lg' | 'xl' | 'auto'
@@ -178,32 +178,26 @@ async function copyContent() {
       />
     </div>
 
-    <ScrollAreaRoot
-      type="auto"
+    <ScrollableArea
       :class="[
         'relative w-full overflow-hidden rounded-xl',
         ...heightPresetClasses[heightPreset],
       ]"
+      :viewport-class="['h-full w-full']"
     >
-      <ScrollAreaViewport :class="['h-full w-full']">
-        <div :class="['flex flex-col gap-2 p-3 text-xs']">
-          <div v-if="resolvedErrorName || resolvedMessage" :class="['font-mono text-red-700 leading-relaxed dark:text-red-300']">
-            {{ resolvedErrorName || 'Error' }}
-            <span v-if="resolvedMessage">
-              : {{ resolvedMessage }}
-            </span>
-          </div>
-          <pre v-if="resolvedStack" :class="['whitespace-pre-wrap break-words text-neutral-700 leading-relaxed dark:text-neutral-200']">    {{ resolvedStack }}</pre>
-          <pre v-if="resolvedCause" :class="['whitespace-pre-wrap break-words text-neutral-700 leading-relaxed dark:text-neutral-200']">{{ `Cause:\n${resolvedCause}` }}</pre>
-          <div v-if="!panelContent" :class="['text-neutral-600 dark:text-neutral-300']">
-            No error details available.
-          </div>
+      <div :class="['flex flex-col gap-2 p-3 text-xs']">
+        <div v-if="resolvedErrorName || resolvedMessage" :class="['font-mono text-red-700 leading-relaxed dark:text-red-300']">
+          {{ resolvedErrorName || 'Error' }}
+          <span v-if="resolvedMessage">
+            : {{ resolvedMessage }}
+          </span>
         </div>
-      </ScrollAreaViewport>
-      <ScrollAreaScrollbar orientation="vertical" :class="['w-2 p-0.5']">
-        <ScrollAreaThumb :class="['rounded-full bg-neutral-300/80 dark:bg-neutral-700/80']" />
-      </ScrollAreaScrollbar>
-      <ScrollAreaCorner />
-    </ScrollAreaRoot>
+        <pre v-if="resolvedStack" :class="['whitespace-pre-wrap break-words text-neutral-700 leading-relaxed dark:text-neutral-200']">    {{ resolvedStack }}</pre>
+        <pre v-if="resolvedCause" :class="['whitespace-pre-wrap break-words text-neutral-700 leading-relaxed dark:text-neutral-200']">{{ `Cause:\n${resolvedCause}` }}</pre>
+        <div v-if="!panelContent" :class="['text-neutral-600 dark:text-neutral-300']">
+          No error details available.
+        </div>
+      </div>
+    </ScrollableArea>
   </div>
 </template>

@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/api-server",
   "type": "module",
-  "version": "0.11.3",
+  "version": "0.12.0-beta.5",
   "private": true,
   "exports": {
     "./app-type": "./src/app-type.ts"
@@ -18,6 +18,7 @@
   "dependencies": {
     "@dotenvx/dotenvx": "catalog:",
     "@electric-sql/pglite": "catalog:",
+    "@electric-sql/pglite-pgvector": "catalog:",
     "@guiiai/logg": "catalog:",
     "@hono/node-server": "catalog:",
     "@hono/node-ws": "catalog:",
@@ -26,6 +27,7 @@
     "@langfuse/tracing": "catalog:",
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
+    "@openpanel/sdk": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",
     "@opentelemetry/exporter-logs-otlp-proto": "catalog:",
@@ -44,9 +46,8 @@
     "@opentelemetry/sdk-trace-node": "catalog:",
     "@opentelemetry/semantic-conventions": "catalog:",
     "@proj-airi/auth-shared": "workspace:*",
-    "@proj-airi/drizzle-migration": "workspace:*",
-    "@proj-airi/drizzle-orm-browser-migrator": "catalog:",
     "@proj-airi/server-sdk-shared": "workspace:*",
+    "@xsai/shared-stream": "catalog:",
     "drizzle-orm": "catalog:",
     "drizzle-valibot": "catalog:",
     "es-toolkit": "catalog:",
@@ -55,10 +56,10 @@
     "injeca": "catalog:",
     "ioredis": "catalog:",
     "jose": "catalog:",
+    "model-bank": "catalog:",
     "nanoid": "catalog:",
     "ofetch": "catalog:",
     "pg": "catalog:",
-    "posthog-node": "catalog:",
     "stripe": "catalog:",
     "unspeech": "catalog:xsai",
     "valibot": "catalog:",
@@ -66,8 +67,10 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/ioredis-mock": "catalog:",
     "@types/pg": "catalog:",
     "@types/ws": "catalog:",
-    "drizzle-kit": "catalog:"
+    "drizzle-kit": "catalog:",
+    "ioredis-mock": "catalog:"
   }
 }

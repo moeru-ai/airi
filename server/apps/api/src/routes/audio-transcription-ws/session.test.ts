@@ -103,8 +103,8 @@ describe('createAliyunNlsSession', () => {
         session.sendAudio(Uint8Array.from([1, 2]))
         session.stop()
       },
-      onTranscriptDelta(delta) {
-        transcript.push(delta)
+      onTranscriptSnapshot(text) {
+        transcript.push(text)
       },
       onTranscriptDone() {
         events.push('transcript.done')
@@ -127,6 +127,30 @@ describe('createAliyunNlsSession', () => {
     ])
   })
 
+  it('emits interim text before speech ends and replaces it with the final sentence', async () => {
+    upstream = await startMockAliyunUpstream((socket) => {
+      socket.send(JSON.stringify({ header: { name: 'TranscriptionStarted' } }))
+      socket.send(JSON.stringify({ header: { name: 'TranscriptionResultChanged' }, payload: { result: 'hel' } }))
+      socket.send(JSON.stringify({ header: { name: 'TranscriptionResultChanged' }, payload: { result: 'hello' } }))
+      socket.send(JSON.stringify({ header: { name: 'SentenceEnd' }, payload: { result: 'hello!' } }))
+      socket.send(JSON.stringify({ header: { name: 'TranscriptionCompleted' } }))
+    })
+    const snapshots: string[] = []
+    const session = createAliyunNlsSession({
+      credentials: { accessKeyId: 'ak', accessKeySecret: 'secret', appKey: 'app', region: 'cn-shanghai' },
+      createToken: async () => ({ token: 'mock-token', expiresAt: Date.now() + 3600_000 }),
+      websocketBaseURL: upstream.url,
+      onStarted() {},
+      onTranscriptSnapshot(text) { snapshots.push(text) },
+      onTranscriptDone() {},
+      onFinished() {},
+      onError(error) { throw error },
+    })
+
+    await session.start()
+    await expect.poll(() => snapshots).toEqual(['hel', 'hello', 'hello!\n'])
+  })
+
   it('reports invalid upstream frames and closes the task', async () => {
     upstream = await startMockAliyunUpstream((socket) => {
       socket.send('{invalid-json')
@@ -142,7 +166,7 @@ describe('createAliyunNlsSession', () => {
       createToken: async () => ({ token: 'mock-token', expiresAt: Date.now() + 3600_000 }),
       websocketBaseURL: upstream.url,
       onStarted() {},
-      onTranscriptDelta() {},
+      onTranscriptSnapshot() {},
       onTranscriptDone() {},
       onFinished() {},
       onError(error) {
@@ -155,6 +179,26 @@ describe('createAliyunNlsSession', () => {
     await expect.poll(() => errors.map(error => error.message)).toEqual([
       'Aliyun NLS returned an invalid JSON frame.',
     ])
+  })
+
+  it('fails if the upstream never confirms that transcription started', async () => {
+    upstream = await startMockAliyunUpstream(() => {})
+    const errors: Error[] = []
+    const session = createAliyunNlsSession({
+      credentials: { accessKeyId: 'ak', accessKeySecret: 'secret', appKey: 'app', region: 'cn-shanghai' },
+      createToken: async () => ({ token: 'mock-token', expiresAt: Date.now() + 3600_000 }),
+      websocketBaseURL: upstream.url,
+      startupTimeoutMs: 20,
+      onStarted() {},
+      onTranscriptSnapshot() {},
+      onTranscriptDone() {},
+      onFinished() {},
+      onError(error) { errors.push(error) },
+    })
+
+    await session.start()
+    await expect.poll(() => errors.map(error => error.message)).toEqual(['Aliyun NLS did not start in time.'])
+    await expect.poll(() => upstream?.closedConnections).toBe(1)
   })
 
   it('reports an upstream close before completion', async () => {
@@ -172,7 +216,7 @@ describe('createAliyunNlsSession', () => {
       createToken: async () => ({ token: 'mock-token', expiresAt: Date.now() + 3600_000 }),
       websocketBaseURL: upstream.url,
       onStarted() {},
-      onTranscriptDelta() {},
+      onTranscriptSnapshot() {},
       onTranscriptDone() {},
       onFinished() {},
       onError(error) {
@@ -202,7 +246,7 @@ describe('createAliyunNlsSession', () => {
       onStarted() {
         session.cancel()
       },
-      onTranscriptDelta() {},
+      onTranscriptSnapshot() {},
       onTranscriptDone() {},
       onFinished() {},
       onError(error) {
@@ -232,7 +276,7 @@ describe('createAliyunNlsSession', () => {
       createToken: async () => tokenPromise,
       websocketBaseURL: upstream.url,
       onStarted() {},
-      onTranscriptDelta() {},
+      onTranscriptSnapshot() {},
       onTranscriptDone() {},
       onFinished() {},
       onError(error) {

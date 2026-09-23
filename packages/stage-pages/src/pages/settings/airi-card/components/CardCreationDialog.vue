@@ -1,30 +1,32 @@
 <script setup lang="ts">
 import type { Card } from '@proj-airi/ccc'
 import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import type { VoiceInfo } from '@proj-airi/stage-ui/stores/providers/provider'
+import type { Ref } from 'vue'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
-import { applyAiriCardEditorModules, safeParseAiriCardDraft } from '@proj-airi/stage-ui/services/airi-card-editor'
+import { applyAiriCardEditorModules, getAiriCardEditorModuleSettings, safeParseAiriCardDraft } from '@proj-airi/stage-ui/services/airi-card-editor'
+import { resolveModuleSelection } from '@proj-airi/stage-ui/services/airi-card-modules'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
-import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
+import { Button, FieldInput, FieldValues, SelectTab } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import {
+  DialogClose,
   DialogContent,
   DialogOverlay,
   DialogPortal,
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, nextTick, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import CardCreationTabArtistry from './tabs/CardCreationTabArtistry.vue'
@@ -62,18 +64,13 @@ const { trackCardEdited } = useAnalytics()
 const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const visionStore = useVisionStore()
-const speechStore = useSpeechStore()
 const providersStore = useProviderStore()
 const displayModelsStore = useDisplayModelsStore()
-const stageModelStore = useSettingsStageModel()
-const artistryStore = useArtistryStore()
 
-const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
-const { activeProvider: visionProvider, activeModel: defaultVisionModel } = storeToRefs(visionStore)
-const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultSpeechVoiceId } = storeToRefs(speechStore)
+const consciousnessProvider = computed(() => cardStore.moduleDefaults?.consciousness.provider ?? '')
+const visionProvider = computed(() => cardStore.moduleDefaults?.vision.provider ?? '')
+const speechProvider = computed(() => cardStore.moduleDefaults?.speech.provider ?? '')
 const { displayModels } = storeToRefs(displayModelsStore)
-const { stageModelSelected: defaultDisplayModelId } = storeToRefs(stageModelStore)
-const { activeProvider: defaultArtistryProvider } = storeToRefs(artistryStore)
 
 // Determine if we're in edit mode
 const isEditMode = computed(() => !!props.cardId)
@@ -87,10 +84,37 @@ const selectedVisionModel = ref<string>('')
 const selectedSpeechProvider = ref<string>('')
 const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
+const previewVoices = ref<VoiceInfo[]>([])
 const selectedDisplayModelId = ref<string>('')
+
+// NOTICE:
+// The editor needs a non-empty option value for inherited settings.
+// Reka ComboboxItem rejects an empty-string item value.
+// Source/context: packages/ui/src/components/form/combobox/combobox.vue.
+// Removal condition: delete this mapping when Reka accepts empty item values.
+const inheritGlobalSettingOptionValue = '__airi-inherit-global-setting__'
+
+function createInheritableSelection(selection: Ref<string>) {
+  return computed({
+    get: () => selection.value || inheritGlobalSettingOptionValue,
+    set: (value: string) => {
+      selection.value = value === inheritGlobalSettingOptionValue ? '' : value
+    },
+  })
+}
+
+const consciousnessProviderSelection = createInheritableSelection(selectedConsciousnessProvider)
+const consciousnessModelSelection = createInheritableSelection(selectedConsciousnessModel)
+const visionProviderSelection = createInheritableSelection(selectedVisionProvider)
+const visionModelSelection = createInheritableSelection(selectedVisionModel)
+const speechProviderSelection = createInheritableSelection(selectedSpeechProvider)
+const speechModelSelection = createInheritableSelection(selectedSpeechModel)
+const speechVoiceSelection = createInheritableSelection(selectedSpeechVoiceId)
+const displayModelSelection = createInheritableSelection(selectedDisplayModelId)
 
 // Artistry configuration
 const selectedArtistryProvider = ref<string>('')
+const artistryProviderSelection = createInheritableSelection(selectedArtistryProvider)
 const selectedArtistryModel = ref<string>('')
 const selectedArtistryPromptPrefix = ref<string>('')
 const selectedArtistryWidgetInstruction = ref<string>('')
@@ -98,90 +122,108 @@ const selectedArtistrySpawnMode = ref<'bg' | 'widget' | 'inline' | 'bg_widget'>(
 const selectedArtistryAutonomousEnabled = ref<boolean>(false)
 const selectedArtistryAutonomousThreshold = ref<number>(70)
 const selectedArtistryConfigStr = ref<string>('{\n  \n}')
+let isInitializingModuleSelections = false
+let hasLoadedModuleOptions = false
+
+interface ModuleSelectOption {
+  value: string
+  label: string
+}
+
+function withInheritGlobalSetting(options: ModuleSelectOption[], selected = ''): ModuleSelectOption[] {
+  // Imported ids remain visible even when their provider is not configured here.
+  const missingSelection = selected && !options.some(option => option.value === selected)
+    ? [{ value: selected, label: selected }]
+    : []
+  return [
+    { value: inheritGlobalSettingOptionValue, label: t('settings.pages.card.creation.inherit_global_settings') },
+    ...options,
+    ...missingSelection,
+  ]
+}
 
 // Computed: available display model options
 const displayModelOptions = computed(() =>
-  displayModels.value.map(model => ({
+  withInheritGlobalSetting(displayModels.value.map(model => ({
     value: model.id,
     label: model.name,
-  })),
+  })), selectedDisplayModelId.value),
 )
 
 // Computed: available consciousness provider options
 const consciousnessProviderOptions = computed(() => {
-  return providersStore.configuredChatProvidersMetadata.map(provider => ({
+  return withInheritGlobalSetting(providersStore.configuredChatProvidersMetadata.map(provider => ({
     value: provider.id,
     label: provider.localizedName || provider.name,
-  }))
+  })), selectedConsciousnessProvider.value)
 })
 
 // Computed: available consciousness models options
 const consciousnessModelOptions = computed(() => {
   const provider = selectedConsciousnessProvider.value || consciousnessProvider.value
   if (!provider)
-    return []
+    return withInheritGlobalSetting([], selectedConsciousnessModel.value)
   const models = providersStore.getModelsForProvider(provider)
-  return models.map(model => ({
+  return withInheritGlobalSetting(models.map(model => ({
     value: model.id,
     label: model.name || model.id,
-  }))
+  })), selectedConsciousnessModel.value)
 })
 
 // Computed: available vision provider options
 const visionProviderOptions = computed(() => {
-  return providersStore.configuredVisionProvidersMetadata.map(provider => ({
+  return withInheritGlobalSetting(providersStore.configuredVisionProvidersMetadata.map(provider => ({
     value: provider.id,
     label: provider.localizedName || provider.name,
-  }))
+  })), selectedVisionProvider.value)
 })
 
 // Computed: available vision models options
 const visionModelOptions = computed(() => {
   const provider = selectedVisionProvider.value || visionProvider.value
   if (!provider)
-    return []
+    return withInheritGlobalSetting([], selectedVisionModel.value)
   const models = providersStore.getModelsForProvider(provider)
-  return models.map(model => ({
+  return withInheritGlobalSetting(models.map(model => ({
     value: model.id,
     label: model.name || model.id,
-  }))
+  })), selectedVisionModel.value)
 })
 
 // Computed: available speech provider options
 const speechProviderOptions = computed(() => {
-  return providersStore.configuredSpeechProvidersMetadata.map(provider => ({
+  return withInheritGlobalSetting(providersStore.configuredSpeechProvidersMetadata.map(provider => ({
     value: provider.id,
     label: provider.localizedName || provider.name,
-  }))
+  })), selectedSpeechProvider.value)
 })
 
 // Computed: available speech models options
 const speechModelOptions = computed(() => {
   const provider = selectedSpeechProvider.value || speechProvider.value
   if (!provider)
-    return []
+    return withInheritGlobalSetting([], selectedSpeechModel.value)
   const models = providersStore.getModelsForProvider(provider)
-  return models.map(model => ({
+  return withInheritGlobalSetting(models.map(model => ({
     value: model.id,
     label: model.name || model.id,
-  }))
+  })), selectedSpeechModel.value)
 })
 
 // Computed: available speech voices options
 const speechVoiceOptions = computed(() => {
   const provider = selectedSpeechProvider.value || speechProvider.value
   if (!provider)
-    return []
-  const voices = speechStore.getVoicesForProvider(provider)
-  return voices.map(voice => ({
+    return withInheritGlobalSetting([], selectedSpeechVoiceId.value)
+  return withInheritGlobalSetting(previewVoices.value.map(voice => ({
     value: voice.id,
     label: voice.name || voice.id,
-  }))
+  })), selectedSpeechVoiceId.value)
 })
 
 // Computed: available artistry provider options
 const artistryProviderOptions = computed(() => {
-  return [
+  return withInheritGlobalSetting([
     { value: 'none', label: 'None (Disabled)' },
     { value: 'comfyui', label: 'ComfyUI' },
     ...(isCustomProvidersDisabled()
@@ -190,67 +232,78 @@ const artistryProviderOptions = computed(() => {
           { value: 'replicate', label: 'Replicate' },
           { value: 'nanobanana', label: 'Nano Banana' },
         ]),
-  ]
+  ], selectedArtistryProvider.value)
 })
 
-// Load models for current providers on init
-watch(() => [consciousnessProvider.value, visionProvider.value, speechProvider.value], async ([consProvider, visProvider, spProvider]) => {
-  if (consProvider) {
-    await consciousnessStore.loadModelsForProvider(consProvider)
+async function loadSelectedModuleOptions() {
+  if (hasLoadedModuleOptions)
+    return
+
+  hasLoadedModuleOptions = true
+  const loads: Promise<unknown>[] = []
+  const consciousnessProviderId = selectedConsciousnessProvider.value || consciousnessProvider.value
+  if (consciousnessProviderId)
+    loads.push(consciousnessStore.loadModelsForProvider(consciousnessProviderId))
+
+  const visionProviderId = selectedVisionProvider.value || visionProvider.value
+  if (visionProviderId)
+    loads.push(visionStore.loadModelsForProvider(visionProviderId))
+
+  const speechProviderId = selectedSpeechProvider.value || speechProvider.value
+  if (speechProviderId) {
+    if (providersStore.supportsModelListing(speechProviderId))
+      loads.push(providersStore.fetchModelsForProvider(speechProviderId))
   }
-  if (visProvider) {
-    await visionStore.loadModelsForProvider(visProvider)
+
+  try {
+    await Promise.all(loads)
   }
-  if (spProvider) {
-    await speechStore.loadVoicesForProvider(spProvider)
-    if (providersStore.supportsModelListing(spProvider)) {
-      await providersStore.fetchModelsForProvider(spProvider)
-    }
+  catch (error) {
+    hasLoadedModuleOptions = false
+    throw error
   }
-}, { immediate: true })
+}
+
+watch(selectedArtistryProvider, (provider, previous) => {
+  if (props.modelValue && !isInitializingModuleSelections && provider !== previous)
+    selectedArtistryModel.value = ''
+}, { flush: 'sync' })
 
 // Watch consciousness provider changes and reload models
 watch(selectedConsciousnessProvider, async (newProvider, oldProvider) => {
-  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
-    await consciousnessStore.loadModelsForProvider(newProvider)
-    // Reset model selection to default or empty
+  if (props.modelValue && !isInitializingModuleSelections && newProvider !== oldProvider) {
     selectedConsciousnessModel.value = ''
+    await consciousnessStore.loadModelsForProvider(newProvider || consciousnessProvider.value)
   }
-})
+}, { flush: 'sync' })
 
 // Watch vision provider changes and reload models
 watch(selectedVisionProvider, async (newProvider, oldProvider) => {
-  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
-    await visionStore.loadModelsForProvider(newProvider)
+  if (props.modelValue && !isInitializingModuleSelections && newProvider !== oldProvider) {
     selectedVisionModel.value = ''
+    await visionStore.loadModelsForProvider(newProvider || visionProvider.value)
   }
-})
+}, { flush: 'sync' })
 
 // Watch speech provider changes and reload models/voices
 watch(selectedSpeechProvider, async (newProvider, oldProvider) => {
-  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
-    await speechStore.loadVoicesForProvider(newProvider)
-    if (providersStore.supportsModelListing(newProvider)) {
-      await providersStore.fetchModelsForProvider(newProvider)
-    }
-    // Reset model and voice selection
+  if (props.modelValue && !isInitializingModuleSelections && newProvider !== oldProvider) {
     selectedSpeechModel.value = ''
     selectedSpeechVoiceId.value = ''
+    const provider = newProvider || speechProvider.value
+    if (provider && providersStore.supportsModelListing(provider))
+      await providersStore.fetchModelsForProvider(provider)
   }
-})
+}, { flush: 'sync' })
 
 // Reset voice when speech model changes (different models may have different voices)
-watch(selectedSpeechModel, async (newModel, oldModel) => {
+watch(selectedSpeechModel, (newModel, oldModel) => {
   // Only reset if model actually changed and we're not initializing
   const provider = selectedSpeechProvider.value || speechProvider.value
-  if (oldModel !== undefined && newModel !== oldModel && provider) {
-    // Reload voices for the current provider
-    await speechStore.loadVoicesForProvider(provider)
-
-    // Reset voice selection to default
-    selectedSpeechVoiceId.value = defaultSpeechVoiceId.value || ''
+  if (props.modelValue && !isInitializingModuleSelections && oldModel !== undefined && newModel !== oldModel && provider) {
+    selectedSpeechVoiceId.value = ''
   }
-})
+}, { flush: 'sync' })
 
 // Tab type definition
 interface Tab {
@@ -259,26 +312,46 @@ interface Tab {
   icon: string
 }
 
+// Module section styling shared by the chat / vision / speech / body groups.
+const moduleSectionClasses = [
+  'rounded-xl border border-neutral-200/70 dark:border-neutral-800',
+  'bg-neutral-50/60 dark:bg-neutral-900/40',
+  'p-4',
+]
+const moduleSectionHeaderClasses = [
+  'mb-3 flex items-center gap-2',
+  'text-sm font-semibold text-neutral-700 dark:text-neutral-200',
+]
+const moduleFieldLabelClasses = [
+  'text-xs font-medium text-neutral-500 dark:text-neutral-400',
+]
+
 // Active tab ID state
 const activeTabId = ref('')
 
 // Tabs for card details
-const tabs: Tab[] = [
+const tabs = computed<Tab[]>(() => [
   { id: 'identity', label: t('settings.pages.card.creation.identity'), icon: 'i-solar:emoji-funny-square-bold-duotone' },
   { id: 'behavior', label: t('settings.pages.card.creation.behavior'), icon: 'i-solar:chat-round-line-bold-duotone' },
   { id: 'modules', label: t('settings.pages.card.modules'), icon: 'i-solar:widget-4-bold-duotone' },
   { id: 'artistry', label: t('settings.pages.modules.artistry.title'), icon: 'i-solar:gallery-bold-duotone' },
   { id: 'settings', label: t('settings.pages.card.creation.settings'), icon: 'i-solar:settings-bold-duotone' },
-]
+])
+
+const tabOptions = computed(() => tabs.value.map(tab => ({
+  value: tab.id,
+  label: tab.label,
+  icon: tab.icon,
+})))
 
 // Active tab state - set to first available tab by default
 const activeTab = computed({
   get: () => {
     // If current active tab is not in available tabs, reset to first tab
-    if (!tabs.some(tab => tab.id === activeTabId.value)) {
-      if (props.initialTab && tabs.some(tab => tab.id === props.initialTab))
+    if (!tabs.value.some(tab => tab.id === activeTabId.value)) {
+      if (props.initialTab && tabs.value.some(tab => tab.id === props.initialTab))
         return props.initialTab
-      return tabs[0]?.id || ''
+      return tabs.value[0]?.id || ''
     }
     return activeTabId.value
   },
@@ -287,10 +360,43 @@ const activeTab = computed({
   },
 })
 
+watch(activeTab, async (tabId) => {
+  if (props.modelValue && tabId === 'modules')
+    await loadSelectedModuleOptions()
+})
+
+// Preview discovery never commits runtime speech state. Closing the dialog or
+// changing its selection invalidates the response, including in-flight RPCs.
+watch([
+  () => props.modelValue && activeTab.value === 'modules',
+  () => selectedSpeechProvider.value || speechProvider.value,
+  () => selectedSpeechModel.value || ((selectedSpeechProvider.value || speechProvider.value) === speechProvider.value
+    ? cardStore.moduleDefaults?.speech.model
+    : undefined),
+], async ([open, provider, model], _, onCleanup) => {
+  let current = true
+  onCleanup(() => {
+    current = false
+  })
+  previewVoices.value = []
+  if (!open || !provider)
+    return
+  try {
+    const config = providersStore.getVoiceCatalogConfiguration(provider)
+    const voices = await providersStore.listProviderVoices(provider, model || undefined, config)
+    if (current)
+      previewVoices.value = voices ?? []
+  }
+  catch (error) {
+    if (current)
+      console.error('Failed to load card preview voices:', errorMessageFrom(error))
+  }
+}, { immediate: true })
+
 // Reset active tab when dialog opens
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
-    if (props.initialTab && tabs.some(tab => tab.id === props.initialTab))
+    if (props.initialTab && tabs.value.some(tab => tab.id === props.initialTab))
       activeTabId.value = props.initialTab
     else
       activeTabId.value = '' // Let computed handle default
@@ -302,7 +408,21 @@ watch(() => props.modelValue, (isOpen) => {
 const showError = ref<boolean>(false)
 const errorMessage = ref<string>('')
 
-function saveCard(card: Card, activate: boolean): boolean {
+async function saveCard(card: Card, activate: boolean): Promise<boolean> {
+  const defaults = cardStore.moduleDefaults
+  if (defaults) {
+    // A card may inherit an unconfigured global module. A different explicit
+    // provider must have its own model; global model ids are not portable.
+    const missingModel = [
+      { selection: { provider: selectedConsciousnessProvider.value, model: selectedConsciousnessModel.value }, defaults: defaults.consciousness },
+      { selection: { provider: selectedVisionProvider.value, model: selectedVisionModel.value }, defaults: defaults.vision },
+    ].some(({ selection, defaults }) => selection.provider && !resolveModuleSelection(selection, defaults).model)
+    if (missingModel) {
+      showError.value = true
+      errorMessage.value = t('settings.pages.card.creation.errors.model_required')
+      return false
+    }
+  }
   const draftResult = safeParseAiriCardDraft(toRaw(card), selectedArtistryConfigStr.value)
   if (!draftResult.success) {
     showError.value = true
@@ -315,21 +435,21 @@ function saveCard(card: Card, activate: boolean): boolean {
 
   const cardWithModules = applyAiriCardEditorModules(rawCard, {
     consciousness: {
-      provider: selectedConsciousnessProvider.value || consciousnessProvider.value,
-      model: selectedConsciousnessModel.value || defaultConsciousnessModel.value,
+      provider: selectedConsciousnessProvider.value,
+      model: selectedConsciousnessModel.value,
     },
     vision: {
-      provider: selectedVisionProvider.value || visionProvider.value,
-      model: selectedVisionModel.value || defaultVisionModel.value,
+      provider: selectedVisionProvider.value,
+      model: selectedVisionModel.value,
     },
     speech: {
-      provider: selectedSpeechProvider.value || speechProvider.value,
-      model: selectedSpeechModel.value || defaultSpeechModel.value,
-      voice_id: selectedSpeechVoiceId.value || defaultSpeechVoiceId.value,
+      provider: selectedSpeechProvider.value,
+      model: selectedSpeechModel.value,
+      voice_id: selectedSpeechVoiceId.value,
     },
-    displayModelId: selectedDisplayModelId.value || defaultDisplayModelId.value,
+    displayModelId: selectedDisplayModelId.value,
     artistry: {
-      provider: selectedArtistryProvider.value || defaultArtistryProvider.value,
+      provider: selectedArtistryProvider.value,
       model: selectedArtistryModel.value,
       promptPrefix: selectedArtistryPromptPrefix.value,
       widgetInstruction: selectedArtistryWidgetInstruction.value,
@@ -342,7 +462,7 @@ function saveCard(card: Card, activate: boolean): boolean {
   let savedCardId: string
   if (isEditMode.value && props.cardId) {
     // Edit mode: update existing card
-    if (!cardStore.updateCard(props.cardId, cardWithModules)) {
+    if (!await cardStore.updateCard(props.cardId, cardWithModules)) {
       showError.value = true
       errorMessage.value = t('settings.pages.card.card_not_found')
       return false
@@ -351,11 +471,11 @@ function saveCard(card: Card, activate: boolean): boolean {
     trackCardEdited({ card_id: props.cardId })
   }
   else {
-    savedCardId = cardStore.addCard(cardWithModules, 'scratch')
+    savedCardId = await cardStore.addCard(cardWithModules, 'scratch')
   }
 
   if (activate)
-    cardStore.activeCardId = savedCardId
+    await cardStore.activateCard(savedCardId)
 
   modelValue.value = false // Close this
   return true
@@ -364,43 +484,7 @@ function saveCard(card: Card, activate: boolean): boolean {
 // Cards data holders :
 
 // Initialize card data - load from existing card if in edit mode
-function initializeCard(): Card {
-  // Extract existing card data if in edit mode
-  const existingCard = (isEditMode.value && props.cardId) ? cardStore.getCard(props.cardId) : undefined
-  const airiExt = existingCard?.extensions?.airi as AiriExtensionWithLegacyArtistry | undefined
-
-  // Initialize module selections with fallback logic (handles all cases: create, edit with/without extension)
-  selectedConsciousnessProvider.value = airiExt?.modules?.consciousness?.provider || consciousnessProvider.value
-  selectedConsciousnessModel.value = airiExt?.modules?.consciousness?.model || defaultConsciousnessModel.value
-  selectedVisionProvider.value = airiExt?.modules?.vision?.provider || visionProvider.value
-  selectedVisionModel.value = airiExt?.modules?.vision?.model || defaultVisionModel.value
-  selectedSpeechProvider.value = airiExt?.modules?.speech?.provider || speechProvider.value
-  selectedSpeechModel.value = airiExt?.modules?.speech?.model || defaultSpeechModel.value
-  selectedSpeechVoiceId.value = airiExt?.modules?.speech?.voice_id || defaultSpeechVoiceId.value
-  selectedDisplayModelId.value = airiExt?.modules?.displayModelId || defaultDisplayModelId.value
-
-  // NOTICE: keep legacy `extensions.airi.artistry` fallback so existing cards continue to load.
-  const artistrySettings = airiExt?.modules?.artistry || airiExt?.artistry
-  selectedArtistryProvider.value = artistrySettings?.provider || defaultArtistryProvider.value
-  selectedArtistryModel.value = artistrySettings?.model || ''
-  selectedArtistryPromptPrefix.value = artistrySettings?.promptPrefix || ''
-  selectedArtistryWidgetInstruction.value = artistrySettings?.widgetInstruction || DEFAULT_ARTISTRY_WIDGET_INSTRUCTION
-  selectedArtistrySpawnMode.value = (artistrySettings as any)?.spawnMode || 'bg_widget'
-  selectedArtistryAutonomousEnabled.value = (artistrySettings as any)?.autonomousEnabled ?? false
-  selectedArtistryAutonomousThreshold.value = (artistrySettings as any)?.autonomousThreshold ?? 70
-
-  try {
-    selectedArtistryConfigStr.value = artistrySettings?.options ? JSON.stringify(artistrySettings.options, null, 2) : '{\n  \n}'
-  }
-  catch {
-    selectedArtistryConfigStr.value = '{\n  \n}'
-  }
-
-  // Return existing card data or defaults
-  if (existingCard) {
-    return { ...toRaw(existingCard) }
-  }
-
+function createCardDraft(): Card {
   return {
     name: t('settings.pages.card.creation.defaults.name'),
     nickname: undefined,
@@ -416,15 +500,63 @@ function initializeCard(): Card {
   }
 }
 
-const card = ref<Card>(initializeCard())
+function initializeCard(): Card {
+  // Extract existing card data if in edit mode
+  const existingCard = (isEditMode.value && props.cardId) ? cardStore.getCard(props.cardId) : undefined
+  const airiExt = existingCard?.extensions?.airi as AiriExtensionWithLegacyArtistry | undefined
+
+  const moduleSettings = getAiriCardEditorModuleSettings(existingCard)
+  selectedConsciousnessProvider.value = moduleSettings.consciousness.provider
+  selectedConsciousnessModel.value = moduleSettings.consciousness.model
+  selectedVisionProvider.value = moduleSettings.vision.provider
+  selectedVisionModel.value = moduleSettings.vision.model
+  selectedSpeechProvider.value = moduleSettings.speech.provider
+  selectedSpeechModel.value = moduleSettings.speech.model
+  selectedSpeechVoiceId.value = moduleSettings.speech.voice_id
+  selectedDisplayModelId.value = moduleSettings.displayModelId ?? ''
+
+  // NOTICE: keep legacy `extensions.airi.artistry` fallback so existing cards continue to load.
+  const artistrySettings = airiExt?.modules?.artistry || airiExt?.artistry
+  selectedArtistryProvider.value = artistrySettings?.provider ?? ''
+  selectedArtistryModel.value = artistrySettings?.model || ''
+  selectedArtistryPromptPrefix.value = artistrySettings?.promptPrefix || ''
+  selectedArtistryWidgetInstruction.value = artistrySettings?.widgetInstruction || DEFAULT_ARTISTRY_WIDGET_INSTRUCTION
+  selectedArtistrySpawnMode.value = (artistrySettings as any)?.spawnMode || 'bg_widget'
+  selectedArtistryAutonomousEnabled.value = (artistrySettings as any)?.autonomousEnabled ?? false
+  selectedArtistryAutonomousThreshold.value = (artistrySettings as any)?.autonomousThreshold ?? 70
+
+  try {
+    selectedArtistryConfigStr.value = artistrySettings?.options ? JSON.stringify(artistrySettings.options, null, 2) : ''
+  }
+  catch {
+    selectedArtistryConfigStr.value = ''
+  }
+
+  // Return existing card data or defaults
+  if (existingCard) {
+    return { ...toRaw(existingCard) }
+  }
+
+  return createCardDraft()
+}
+
+const card = ref<Card>(createCardDraft())
 
 // Reinitialize when cardId changes or dialog opens
-watch(() => [props.modelValue, props.cardId], () => {
-  if (props.modelValue) {
-    showError.value = false
-    errorMessage.value = ''
-    card.value = initializeCard()
-  }
+watch(() => [props.modelValue, props.cardId], async () => {
+  if (!props.modelValue)
+    return
+
+  showError.value = false
+  errorMessage.value = ''
+  hasLoadedModuleOptions = false
+  isInitializingModuleSelections = true
+  card.value = initializeCard()
+  await nextTick()
+  isInitializingModuleSelections = false
+
+  if (props.modelValue && activeTab.value === 'modules')
+    await loadSelectedModuleOptions()
 })
 
 function makeComputed<T extends keyof Card>(key: T) {
@@ -459,10 +591,8 @@ const cardSystemPrompt = makeComputed('systemPrompt')
 const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
 
 // Helper function to generate placeholder text for default values
-function getDefaultPlaceholder(defaultValue: string | undefined): string {
-  return defaultValue
-    ? `${t('settings.pages.card.creation.use_default')} (${defaultValue})`
-    : t('settings.pages.card.creation.use_default_not_configured')
+function getDefaultPlaceholder(): string {
+  return t('settings.pages.card.creation.inherit_global_settings')
 }
 </script>
 
@@ -470,201 +600,241 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
   <DialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800 sm:p-6" @interact-outside.prevent>
-        <div class="w-full flex flex-col gap-5">
-          <DialogTitle text-2xl font-normal class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent">
-            {{ isEditMode ? t("settings.pages.card.edit_card") : t("settings.pages.card.create_card") }}
-          </DialogTitle>
-
-          <!-- Dialog tabs -->
-          <div class="mt-4">
-            <div class="border-b border-neutral-200 dark:border-neutral-700">
-              <div class="flex justify-center -mb-px sm:justify-start space-x-1">
-                <button
-                  v-for="tab in tabs"
-                  :key="tab.id"
-                  class="px-4 py-2 text-sm font-medium"
-                  :class="[
-                    activeTab === tab.id
-                      ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500 dark:border-primary-400'
-                      : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300',
-                  ]"
-                  @click="activeTab = tab.id"
-                >
-                  <div class="flex items-center gap-1">
-                    <div :class="tab.icon" />
-                    {{ tab.label }}
-                  </div>
-                </button>
-              </div>
+      <DialogContent
+        :class="[
+          'fixed left-1/2 top-1/2 z-100 m-0 -translate-x-1/2 -translate-y-1/2',
+          'w-[92vw] max-w-3xl max-h-[85vh]',
+          'lg:w-[70vw] xl:w-[55vw]',
+          'flex flex-col overflow-hidden',
+          'rounded-2xl border border-neutral-200/70 dark:border-neutral-800',
+          'bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md',
+          'shadow-2xl',
+          'data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow',
+        ]"
+        @interact-outside.prevent
+      >
+        <!-- Header -->
+        <div :class="['flex items-center justify-between gap-4', 'px-6 pt-5']">
+          <div :class="['flex items-center gap-3']">
+            <div
+              :class="[
+                'flex size-10 shrink-0 items-center justify-center',
+                'rounded-xl bg-primary-500/10',
+                'text-xl text-primary-500 dark:text-primary-400',
+              ]"
+            >
+              <div :class="isEditMode ? 'i-solar:pen-new-square-bold-duotone' : 'i-solar:add-square-bold-duotone'" />
             </div>
+            <DialogTitle :class="['text-xl font-semibold', 'text-neutral-900 dark:text-neutral-100']">
+              {{ isEditMode ? t("settings.pages.card.edit_card") : t("settings.pages.card.create_card") }}
+            </DialogTitle>
+          </div>
+          <DialogClose
+            :class="[
+              'rounded-lg p-1.5',
+              'text-neutral-400',
+              'transition-colors',
+              'hover:bg-neutral-100 hover:text-neutral-600',
+              'dark:hover:bg-neutral-800 dark:hover:text-neutral-300',
+            ]"
+          >
+            <div class="i-solar:close-circle-bold-duotone text-xl" />
+          </DialogClose>
+        </div>
+
+        <!-- Dialog tabs -->
+        <div :class="['px-6 pt-4']">
+          <SelectTab
+            v-model="activeTab"
+            :options="tabOptions"
+            size="sm"
+            tab-space="compact"
+            class="w-full"
+          />
+        </div>
+
+        <!-- Scrollable content -->
+        <div :class="['min-h-0 flex-1 overflow-y-auto', 'px-6 py-5']">
+          <!-- Error banner -->
+          <div
+            v-if="showError"
+            :class="[
+              'mb-5 flex items-center gap-3',
+              'rounded-xl border border-red-500/30 bg-red-500/10',
+              'px-4 py-3 text-sm',
+              'text-red-600 dark:text-red-400',
+            ]"
+          >
+            <div class="i-solar:danger-triangle-bold-duotone shrink-0 text-lg" />
+            <p>{{ errorMessage }}</p>
           </div>
 
-          <!-- Error div -->
-          <div v-if="showError" class="w-full rounded-xl bg-red900">
-            <p class="w-full p-4">
-              {{ errorMessage }}
-            </p>
-          </div>
-
-          <!-- Actual content -->
           <!-- Identity details -->
-          <div v-if="activeTab === 'identity'" class="tab-content ml-auto mr-auto w-95%">
-            <p class="mb-3">
+          <div v-if="activeTab === 'identity'" :class="['flex flex-col gap-6']">
+            <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
               {{ t('settings.pages.card.creation.fields_info.subtitle') }}
             </p>
 
-            <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
+            <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
               <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
               <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
-              <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.description')" />
-              <FieldInput v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.notes')" />
+            </div>
+
+            <div :class="['grid grid-cols-1 gap-5']">
+              <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.description')" input-class="min-h-24" />
+              <FieldInput v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.notes')" input-class="min-h-24" />
             </div>
           </div>
           <!-- Behavior -->
-          <div v-else-if="activeTab === 'behavior'" class="tab-content ml-auto mr-auto w-95%">
-            <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.personality')" />
-              <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.scenario')" />
-              <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :description="t('settings.pages.card.creation.fields_info.greetings')" />
-            </div>
+          <div v-else-if="activeTab === 'behavior'" :class="['flex flex-col gap-5']">
+            <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.personality')" input-class="min-h-28" />
+            <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.scenario')" input-class="min-h-28" />
+            <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :description="t('settings.pages.card.creation.fields_info.greetings')" :required="false" />
           </div>
           <!-- Modules -->
-          <div v-else-if="activeTab === 'modules'" class="tab-content ml-auto mr-auto w-95%">
-            <p class="mb-3">
+          <div v-else-if="activeTab === 'modules'" :class="['flex flex-col gap-5']">
+            <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
               {{ t('settings.pages.card.creation.modules_info') }}
             </p>
 
-            <div :class="['grid', 'grid-cols-1', 'sm:grid-cols-2', 'gap-4', 'ml-auto', 'mr-auto', 'w-90%']">
-              <!-- Consciousness Provider -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:brain />
-                  {{ t('settings.pages.card.chat.provider') }}
-                </label>
-                <ComboboxSelect
-                  v-model="selectedConsciousnessProvider"
-                  :options="consciousnessProviderOptions"
-                  :placeholder="getDefaultPlaceholder(consciousnessProvider)"
-                  class="w-full"
-                />
+            <!-- Chat -->
+            <section :class="moduleSectionClasses">
+              <div :class="moduleSectionHeaderClasses">
+                <div i-lucide:brain :class="['text-base text-primary-500 dark:text-primary-400']" />
+                {{ t('settings.pages.card.creation.sections.chat') }}
               </div>
-
-              <!-- Consciousness Model -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:ghost />
-                  {{ t('settings.pages.card.consciousness.model') }}
-                </label>
-                <ComboboxSelect
-                  v-model="selectedConsciousnessModel"
-                  :options="consciousnessModelOptions"
-                  :placeholder="getDefaultPlaceholder(defaultConsciousnessModel)"
-                  :disabled="!selectedConsciousnessProvider && !consciousnessProvider"
-                  class="w-full"
-                />
+              <div :class="['grid grid-cols-1 gap-4', 'sm:grid-cols-2']">
+                <div :class="['flex flex-col gap-1.5']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.chat.provider') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="consciousnessProviderSelection"
+                    :options="consciousnessProviderOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
+                <div :class="['flex flex-col gap-1.5']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.consciousness.model') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="consciousnessModelSelection"
+                    :options="consciousnessModelOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
               </div>
+            </section>
 
-              <!-- Vision Provider -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:eye />
-                  {{ t('settings.pages.card.vision.provider') }}
-                </label>
-                <ComboboxSelect
-                  v-model="selectedVisionProvider"
-                  :options="visionProviderOptions"
-                  :placeholder="getDefaultPlaceholder(visionProvider)"
-                  class="w-full"
-                />
+            <!-- Vision -->
+            <section :class="moduleSectionClasses">
+              <div :class="moduleSectionHeaderClasses">
+                <div i-lucide:eye :class="['text-base text-primary-500 dark:text-primary-400']" />
+                {{ t('settings.pages.card.creation.sections.vision') }}
               </div>
-
-              <!-- Vision Model -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:scan-eye />
-                  {{ t('settings.pages.card.vision.model') }}
-                </label>
-                <ComboboxSelect
-                  v-model="selectedVisionModel"
-                  :options="visionModelOptions"
-                  :placeholder="getDefaultPlaceholder(defaultVisionModel)"
-                  :disabled="!selectedVisionProvider && !visionProvider"
-                  class="w-full"
-                />
+              <div :class="['grid grid-cols-1 gap-4', 'sm:grid-cols-2']">
+                <div :class="['flex flex-col gap-1.5']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.vision.provider') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="visionProviderSelection"
+                    :options="visionProviderOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
+                <div :class="['flex flex-col gap-1.5']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.vision.model') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="visionModelSelection"
+                    :options="visionModelOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
               </div>
+            </section>
 
-              <!-- Speech Provider -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:radio />
-                  {{ t('settings.pages.card.speech.provider') }}
-                </label>
-                <ComboboxSelect
-                  v-model="selectedSpeechProvider"
-                  :options="speechProviderOptions"
-                  :placeholder="getDefaultPlaceholder(speechProvider)"
-                  class="w-full"
-                />
+            <!-- Speech -->
+            <section :class="moduleSectionClasses">
+              <div :class="moduleSectionHeaderClasses">
+                <div i-lucide:mic :class="['text-base text-primary-500 dark:text-primary-400']" />
+                {{ t('settings.pages.card.creation.sections.speech') }}
               </div>
-
-              <!-- Speech Model -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:mic />
-                  {{ t('settings.pages.card.speech.model') }}
-                </label>
-                <ComboboxSelect
-                  v-model="selectedSpeechModel"
-                  :options="speechModelOptions"
-                  :placeholder="getDefaultPlaceholder(defaultSpeechModel)"
-                  :disabled="!selectedSpeechProvider && !speechProvider"
-                  class="w-full"
-                />
+              <div :class="['grid grid-cols-1 gap-4', 'sm:grid-cols-2']">
+                <div :class="['flex flex-col gap-1.5']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.speech.provider') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="speechProviderSelection"
+                    :options="speechProviderOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
+                <div :class="['flex flex-col gap-1.5']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.speech.model') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="speechModelSelection"
+                    :options="speechModelOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
+                <div :class="['flex flex-col gap-1.5', 'sm:col-span-2']">
+                  <label :class="moduleFieldLabelClasses">
+                    {{ t('settings.pages.card.speech.voice') }}
+                  </label>
+                  <ComboboxSelect
+                    v-model="speechVoiceSelection"
+                    :options="speechVoiceOptions"
+                    :placeholder="getDefaultPlaceholder()"
+                    class="w-full"
+                  />
+                </div>
               </div>
+            </section>
 
-              <!-- Speech Voice -->
-              <div :class="['flex', 'flex-col', 'gap-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-lucide:music />
-                  {{ t('settings.pages.card.speech.voice') }}
-                </label>
-                <ComboboxSelect
-                  v-model="selectedSpeechVoiceId"
-                  :options="speechVoiceOptions"
-                  :placeholder="getDefaultPlaceholder(defaultSpeechVoiceId)"
-                  :disabled="!selectedSpeechProvider && !speechProvider"
-                  class="w-full"
-                />
+            <!-- Body -->
+            <section :class="moduleSectionClasses">
+              <div :class="moduleSectionHeaderClasses">
+                <div i-solar:ghost-bold-duotone :class="['text-base text-primary-500 dark:text-primary-400']" />
+                {{ t('settings.pages.card.creation.sections.body') }}
               </div>
-
-              <!-- Display Model (Body) -->
-              <div :class="['flex', 'flex-col', 'gap-2', 'sm:col-span-2']">
-                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-                  <div i-solar:ghost-bold-duotone />
+              <div :class="['flex flex-col gap-1.5']">
+                <label :class="moduleFieldLabelClasses">
                   {{ t('settings.pages.card.body-model') }}
                 </label>
                 <ComboboxSelect
-                  v-model="selectedDisplayModelId"
+                  v-model="displayModelSelection"
                   :options="displayModelOptions"
-                  :placeholder="getDefaultPlaceholder(defaultDisplayModelId)"
+                  :placeholder="getDefaultPlaceholder()"
                   class="w-full"
                 />
               </div>
-            </div>
+            </section>
           </div>
           <!-- Settings -->
-          <div v-else-if="activeTab === 'settings'" class="tab-content ml-auto mr-auto w-95%">
-            <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.systemprompt')" />
-              <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" />
+          <div v-else-if="activeTab === 'settings'" :class="['flex flex-col gap-5']">
+            <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.systemprompt')" input-class="min-h-32" />
+            <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" input-class="min-h-24" />
+            <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
               <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
             </div>
           </div>
           <!-- Artistry -->
           <CardCreationTabArtistry
             v-else-if="activeTab === 'artistry'"
-            v-model:selected-artistry-provider="selectedArtistryProvider"
+            v-model:selected-artistry-provider="artistryProviderSelection"
             v-model:selected-artistry-model="selectedArtistryModel"
             v-model:selected-artistry-prompt-prefix="selectedArtistryPromptPrefix"
             v-model:selected-artistry-widget-instruction="selectedArtistryWidgetInstruction"
@@ -673,47 +843,40 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             v-model:selected-artistry-spawn-mode="selectedArtistrySpawnMode"
             v-model:selected-artistry-config-str="selectedArtistryConfigStr"
             :artistry-provider-options="artistryProviderOptions"
-            :default-artistry-provider-placeholder="getDefaultPlaceholder(defaultArtistryProvider)"
+            :default-artistry-provider-placeholder="getDefaultPlaceholder()"
           />
+        </div>
 
-          <div class="ml-auto mr-1 flex flex-row gap-2">
-            <Button
-
-              icon="i-solar:undo-left-bold-duotone"
-              :label="t('settings.pages.card.cancel')"
-              :disabled="false"
-              @click="modelValue = false"
-            />
-            <Button
-              icon="i-solar:check-circle-bold-duotone"
-              :label="t('settings.pages.card.save')"
-              :disabled="false"
-              @click="saveCard(card, false)"
-            />
-            <Button
-              v-if="!isEditingActiveCard"
-
-              icon="i-solar:play-circle-bold-duotone"
-              :label="t('settings.pages.card.save_and_activate')"
-              :disabled="false"
-              @click="saveCard(card, true)"
-            />
-          </div>
+        <!-- Footer -->
+        <div
+          :class="[
+            'flex items-center justify-end gap-2',
+            'border-t border-neutral-200/70 dark:border-neutral-800',
+            'px-6 py-4',
+          ]"
+        >
+          <Button
+            icon="i-solar:undo-left-bold-duotone"
+            :label="t('settings.pages.card.cancel')"
+            @click="modelValue = false"
+          />
+          <Button
+            icon="i-solar:check-circle-bold-duotone"
+            :label="t('settings.pages.card.save')"
+            color="primary"
+            variant="secondary"
+            @click="saveCard(card, false)"
+          />
+          <Button
+            v-if="!isEditingActiveCard"
+            icon="i-solar:play-circle-bold-duotone"
+            :label="t('settings.pages.card.save_and_activate')"
+            color="primary"
+            variant="primary"
+            @click="saveCard(card, true)"
+          />
         </div>
       </DialogContent>
     </DialogPortal>
   </DialogRoot>
 </template>
-
-<style scoped>
-.input-list > * {
-    min-width: 45%;
-  }
-
-  @media (max-width: 641px) {
-  .input-list * {
-    min-width: unset;
-    width: 100%;
-  }
-}
-</style>

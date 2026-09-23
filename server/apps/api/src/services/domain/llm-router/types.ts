@@ -1,11 +1,12 @@
 import type { InferOutput } from 'valibot'
 
+import type { GenerationProtocol } from '../../../schemas/generation-protocol'
 // NOTICE:
-// The Valibot schemas in `services/config-kv.ts` are the single source of
+// The Valibot schemas in `services/adapters/config-kv/definitions.ts` are the single source of
 // truth for the router config tree. We re-export inferred types so downstream
-// modules don't redeclare the shape. New fields belong in config-kv.ts, not
+// modules don't redeclare the shape. New fields belong in that file, not
 // here.
-// Source: server/apps/api/src/services/config-kv.ts (llmRouterConfigSchema).
+// Source: server/apps/api/src/services/adapters/config-kv/definitions.ts (llmRouterConfigSchema).
 import type {
   asrModelSchema,
   asrUpstreamSchema,
@@ -115,12 +116,17 @@ export type ModelKind = 'llm' | 'tts'
  * chosen upstream.
  */
 export interface LlmRouteRequest {
+  /** Wire protocol. @default 'chat-completions' */
+  protocol?: GenerationProtocol
+  /** Select only upstreams whose effective model supports hosted web search. @default false */
+  requiresWebSearch?: boolean
+
   /**
    * Model name from the caller (e.g. `openai/gpt-5-mini`). Used to look up
    * the per-model upstream list in `LLM_ROUTER_CONFIG`.
    */
   modelName: string
-  /** Already-parsed JSON body (OpenAI-shaped chat-completions payload). */
+  /** Validated JSON body for the selected protocol. */
   body: Record<string, unknown>
   /**
    * Caller-supplied headers to forward. The router overwrites `authorization`

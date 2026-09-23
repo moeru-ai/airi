@@ -1,4 +1,8 @@
+import type { PortableProviderId } from '@proj-airi/provider-inference'
+
 import type { ProviderConfiguration } from '../configurations/provider'
+
+import { getDefinedProvider } from '@proj-airi/provider-inference'
 
 /** Configuration for an OpenAI-compatible Provider selected by one case. */
 export interface OpenAIProviderOptions {
@@ -13,11 +17,19 @@ export interface OpenAISpeechProviderOptions extends OpenAIProviderOptions {
   voice: string
 }
 
+function resolveDefinitionId(providerId: string): string {
+  const provider = getDefinedProvider(providerId as PortableProviderId)
+  if (!provider)
+    throw new Error(`The audio test selected the missing portable Provider "${providerId}".`)
+
+  return provider.id
+}
+
 /** Creates an OpenAI-compatible ASR Provider configuration. */
 export function openaiAsr(options: OpenAIProviderOptions): ProviderConfiguration {
   return {
     id: options.provider,
-    definitionId: options.provider,
+    definitionId: resolveDefinitionId(options.provider),
     model: options.model,
     config: {
       apiKey: options.apiKey,
@@ -30,7 +42,7 @@ export function openaiAsr(options: OpenAIProviderOptions): ProviderConfiguration
 export function openaiLlm(options: OpenAIProviderOptions): ProviderConfiguration {
   return {
     id: options.provider,
-    definitionId: options.provider,
+    definitionId: resolveDefinitionId(options.provider),
     model: options.model,
     config: {
       apiKey: options.apiKey,
@@ -45,7 +57,7 @@ export function openaiTts(options: OpenAISpeechProviderOptions): { provider: Pro
     voice: options.voice,
     provider: {
       id: options.provider,
-      definitionId: options.provider,
+      definitionId: resolveDefinitionId(options.provider),
       model: options.model,
       config: {
         apiKey: options.apiKey,

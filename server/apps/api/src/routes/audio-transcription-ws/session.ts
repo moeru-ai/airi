@@ -30,6 +30,7 @@ interface AliyunNlsServerEvent {
   }
   payload?: {
     result?: string
+    time?: number
   }
 }
 
@@ -50,8 +51,10 @@ interface CreateAliyunNlsSessionOptions {
   createToken?: (credentials: AliyunNlsCredentials) => Promise<AliyunNlsToken>
   sessionOptions?: AliyunNlsStartPayload
   websocketBaseURL?: string
+  /** Maximum time to obtain a token and receive TranscriptionStarted. @default 15000 */
+  startupTimeoutMs?: number
   onStarted: () => void
-  onTranscriptDelta: (delta: string) => void
+  onTranscriptSnapshot: (text: string, isFinal: boolean, durationMilliseconds: number) => void
   onTranscriptDone: () => void
   onFinished: () => void
   onError: (error: Error) => void
@@ -71,7 +74,8 @@ const DEFAULT_SESSION_OPTIONS: AliyunNlsStartPayload = {
 }
 
 function nlsMetaEndpointFromRegion(region: AliyunNlsCredentials['region']): URL {
-  return new URL(`http://nls-meta.${region}.aliyuncs.com`)
+  const publicRegion = region.replace(/-internal$/, '')
+  return new URL(`https://nls-meta.${publicRegion}.aliyuncs.com`)
 }
 
 function nlsWebSocketEndpointFromRegion(region: AliyunNlsCredentials['region']): URL {
@@ -87,8 +91,9 @@ function nlsWebSocketEndpointFromRegion(region: AliyunNlsCredentials['region']):
     case 'cn-shanghai-internal':
     case 'cn-beijing-internal':
     case 'cn-shenzhen-internal':
-      websocketURL.protocol = 'wss:'
-      websocketURL.hostname = `nls-gateway-${region}-internal.aliyuncs.com:80`
+      websocketURL.protocol = 'ws:'
+      websocketURL.hostname = `nls-gateway-${region}.aliyuncs.com`
+      websocketURL.port = '80'
       break
   }
 
@@ -116,7 +121,7 @@ async function createAliyunNlsToken(credentials: AliyunNlsCredentials): Promise<
     AccessKeyId: credentials.accessKeyId,
     Action: 'CreateToken',
     Format: 'JSON',
-    RegionId: credentials.region,
+    RegionId: credentials.region.replace(/-internal$/, ''),
     SignatureMethod: 'HMAC-SHA1',
     SignatureNonce: randomUUID(),
     SignatureVersion: '1.0',
@@ -129,7 +134,7 @@ async function createAliyunNlsToken(credentials: AliyunNlsCredentials): Promise<
   const response = await ofetch<{
     Token?: { ExpireTime?: number, Id?: string }
     Message?: string
-  }>(`${endpoint}/?Signature=${signature}&${canonicalQuery}`, { method: 'POST' })
+  }>(`${endpoint}/?Signature=${signature}&${canonicalQuery}`, { method: 'POST', timeout: 10000 })
 
   if (typeof response.Token?.Id === 'string' && typeof response.Token?.ExpireTime === 'number')
     return { token: response.Token.Id, expiresAt: response.Token.ExpireTime * 1000 }
@@ -155,12 +160,21 @@ export function createAliyunNlsSession(options: CreateAliyunNlsSessionOptions): 
   const sessionId = randomUUID().replaceAll('-', '')
   let state: SessionState = 'idle'
   let upstream: WebSocket | undefined
+  let committedText = ''
+  let startupTimer: ReturnType<typeof setTimeout> | undefined
+
+  function clearStartupTimer() {
+    if (startupTimer)
+      clearTimeout(startupTimer)
+    startupTimer = undefined
+  }
 
   function reportError(error: Error) {
     if (state === 'finished')
       return
 
     state = 'finished'
+    clearStartupTimer()
     options.onError(error)
     try {
       upstream?.close(1011, 'upstream_error')
@@ -188,17 +202,28 @@ export function createAliyunNlsSession(options: CreateAliyunNlsSessionOptions): 
           return
         }
         state = 'ready'
+        clearStartupTimer()
         options.onStarted()
+        break
+      case 'TranscriptionResultChanged':
+        if (state === 'ready' || state === 'stopping')
+          options.onTranscriptSnapshot(committedText + (event.payload?.result ?? ''), false, event.payload?.time ?? 0)
         break
       case 'SentenceEnd': {
         const delta = event.payload?.result ? `${event.payload.result}\n` : ''
-        if (delta)
-          options.onTranscriptDelta(delta)
+        if (delta) {
+          committedText += delta
+          options.onTranscriptSnapshot(committedText, true, event.payload?.time ?? 0)
+        }
         options.onTranscriptDone()
         break
       }
+      case 'TaskFailed':
+        reportError(new Error('Aliyun NLS transcription task failed.'))
+        break
       case 'TranscriptionCompleted':
         state = 'finished'
+        clearStartupTimer()
         options.onFinished()
         upstream?.close(1000, 'completed')
         break
@@ -211,6 +236,7 @@ export function createAliyunNlsSession(options: CreateAliyunNlsSessionOptions): 
         throw new Error('Aliyun NLS session already started.')
 
       state = 'connecting'
+      startupTimer = setTimeout(() => reportError(new Error('Aliyun NLS did not start in time.')), options.startupTimeoutMs ?? 15000)
       try {
         const createToken = options.createToken ?? createAliyunNlsToken
         const token = await createToken(options.credentials)
@@ -222,6 +248,7 @@ export function createAliyunNlsSession(options: CreateAliyunNlsSessionOptions): 
       }
       catch (error) {
         state = 'finished'
+        clearStartupTimer()
         throw error
       }
 
@@ -259,6 +286,7 @@ export function createAliyunNlsSession(options: CreateAliyunNlsSessionOptions): 
       if (state === 'finished')
         return
       state = 'finished'
+      clearStartupTimer()
       try {
         upstream?.close(1000, 'cancelled')
       }

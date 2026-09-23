@@ -16,6 +16,7 @@ import { resolveOfficialAliyunNlsCredentialsFromConfig } from './config'
 import { createAliyunNlsSession } from './session'
 
 const log = useLogger('audio-transcription-ws').useGlobalConfig()
+const MAX_AUDIO_BYTES = 16000 * 2 * 60
 
 const AudioTranscriptionClientControlMessageSchema = variant('event', [
   strictObject({
@@ -66,6 +67,20 @@ export function createAudioTranscriptionWsHandlers(options: {
     let client: WSContext | undefined
     let upstream: AliyunNlsSession | undefined
     let state: ClientState = 'waiting'
+    let totalAudioBytes = 0
+    let sessionTimer: ReturnType<typeof setTimeout> | undefined
+
+    function clearSessionTimer() {
+      if (sessionTimer)
+        clearTimeout(sessionTimer)
+      sessionTimer = undefined
+    }
+
+    function scheduleSessionTimeout(durationMs: number) {
+      clearSessionTimer()
+      sessionTimer = setTimeout(closeWithError, durationMs, 'session_timeout', 'The ASR session timed out.')
+      sessionTimer.unref()
+    }
 
     function send(message: AudioTranscriptionServerMessage) {
       client?.send(JSON.stringify(message))
@@ -75,6 +90,7 @@ export function createAudioTranscriptionWsHandlers(options: {
       if (state === 'finished')
         return
       state = 'finished'
+      clearSessionTimer()
       send({ event: 'error', code, message })
       upstream?.cancel()
       try {
@@ -103,8 +119,8 @@ export function createAudioTranscriptionWsHandlers(options: {
             state = 'ready'
             send({ event: 'session.started' })
           },
-          onTranscriptDelta(delta) {
-            send({ event: 'transcript.text.delta', delta })
+          onTranscriptSnapshot(text, isFinal, durationMilliseconds) {
+            send({ event: 'transcript.text.snapshot', text, isFinal, durationMilliseconds })
           },
           onTranscriptDone() {
             send({ event: 'transcript.text.done' })
@@ -113,6 +129,7 @@ export function createAudioTranscriptionWsHandlers(options: {
             if (state === 'finished')
               return
             state = 'finished'
+            clearSessionTimer()
             send({ event: 'session.finished' })
             client?.close(1000, 'completed')
           },
@@ -137,6 +154,7 @@ export function createAudioTranscriptionWsHandlers(options: {
             return
           }
           state = 'starting'
+          scheduleSessionTimeout(90_000)
           void startSession()
           break
         case 'stop':
@@ -156,6 +174,7 @@ export function createAudioTranscriptionWsHandlers(options: {
           if (state === 'finished')
             return
           state = 'finished'
+          clearSessionTimer()
           upstream?.cancel()
           client?.close(1000, 'cancelled')
           break
@@ -165,6 +184,7 @@ export function createAudioTranscriptionWsHandlers(options: {
     return {
       onOpen(_event, ws) {
         client = ws
+        scheduleSessionTimeout(10_000)
       },
       onMessage(message) {
         if (state === 'finished')
@@ -181,6 +201,10 @@ export function createAudioTranscriptionWsHandlers(options: {
         }
 
         const chunk = toUint8Array(message.data)
+        if (chunk && totalAudioBytes + chunk.byteLength > MAX_AUDIO_BYTES) {
+          closeWithError('audio_limit_exceeded', 'The ASR audio limit was exceeded.', 1009)
+          return
+        }
         if (!chunk || state !== 'ready' || !upstream) {
           closeWithError('invalid_audio_frame', 'The audio frame is not valid in the current state.', 1008)
           return
@@ -188,6 +212,7 @@ export function createAudioTranscriptionWsHandlers(options: {
 
         try {
           upstream.sendAudio(chunk)
+          totalAudioBytes += chunk.byteLength
         }
         catch (error) {
           closeWithError('audio_forward_failed', errorMessageFrom(error) ?? 'The audio frame was not sent.')
@@ -197,11 +222,13 @@ export function createAudioTranscriptionWsHandlers(options: {
         if (state === 'finished')
           return
         state = 'finished'
+        clearSessionTimer()
         upstream?.cancel()
       },
       onError(event, ws) {
         log.withFields({ userId, event: String(event) }).warn('ASR client WebSocket failed')
         state = 'finished'
+        clearSessionTimer()
         upstream?.cancel()
         try {
           ws.close(1011, 'client_error')

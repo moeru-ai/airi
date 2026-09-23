@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import type {
+  Live2DExpressionLlmMode,
+  Live2DExpressionSettingsCommand,
+  Live2DMotionDriver,
+} from '@proj-airi/stage-ui-live2d'
+import type { SelectTabOption } from '@proj-airi/ui'
+
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
 import { defaultModelParameters, useExpressionStore, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
@@ -7,6 +14,8 @@ import { Button, Checkbox, FieldCheckbox, FieldCombobox, FieldRange, SelectTab }
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import MagicMotionSettings from '../../../../features/motions/live2d/components/magic-settings.vue'
 
 import { PropertyPoint } from '../../../data-pane'
 import { Section } from '../../../layouts'
@@ -19,14 +28,16 @@ const props = withDefaults(defineProps<{
 }>(), {
   allowExtractColors: true,
 })
-defineEmits<{
+const emit = defineEmits<{
   (e: 'extractColorsFromModel'): void
+  (e: 'live2dExpressionCommand', command: Live2DExpressionSettingsCommand): void
 }>()
 
 const { t } = useI18n()
 
 const settings = useSettingsLive2d()
 const {
+  live2dMotionDriver,
   live2dEyeTracking,
   live2dModelEyeOffset,
   live2dIdleAnimationEnabled,
@@ -39,6 +50,19 @@ const {
   live2dForceIdleEyeAnimation,
 } = storeToRefs(settings)
 
+const motionDriverOptions = computed<SelectTabOption<Live2DMotionDriver>[]>(() => [
+  {
+    value: 'universal',
+    label: t('settings.live2d.animation.motion-driver.options.universal.title'),
+    description: t('settings.live2d.animation.motion-driver.options.universal.description'),
+  },
+  {
+    value: 'magic',
+    label: t('settings.live2d.animation.motion-driver.options.magic.title'),
+    description: t('settings.live2d.animation.motion-driver.options.magic.description'),
+  },
+])
+
 const live2d = useLive2dParams()
 const {
   scale,
@@ -48,20 +72,16 @@ const {
 } = storeToRefs(live2d)
 
 const expressionStore = useExpressionStore()
-const { expressions, expressionGroups } = storeToRefs(expressionStore)
+const expressionSettingsSnapshot = computed(() => props.runtimeSnapshot.live2dExpressions ?? expressionStore.settingsSnapshot)
+const usesRemoteExpressionRuntime = computed(() => props.runtimeSnapshot.live2dExpressions != null)
 
-/**
- * Check if an expression group is currently active.
- * Only considers non-zero exp3 params (zero-valued params are "reset" instructions).
- * A group is active when at least one of its activation params matches the exp3 value.
- */
-function isGroupActive(group: { parameters: { parameterId: string, value: number }[] }): boolean {
-  return group.parameters.some((p) => {
-    if (p.value === 0)
-      return false // Skip reset params
-    const entry = expressions.value.get(p.parameterId)
-    return entry != null && entry.currentValue === p.value
-  })
+function applyExpressionSettingsCommand(command: Live2DExpressionSettingsCommand) {
+  if (usesRemoteExpressionRuntime.value) {
+    emit('live2dExpressionCommand', command)
+    return
+  }
+
+  expressionStore.applySettingsCommand(command)
 }
 
 const selectedRuntimeMotion = ref<string>('')
@@ -338,13 +358,31 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     size="sm"
     :expand="false"
   >
+    <label :class="['flex flex-wrap gap-4']">
+      <div :class="['min-w-0 flex-1']">
+        <div :class="['flex items-center gap-1 text-sm font-medium']">
+          {{ t('settings.live2d.animation.motion-driver.title') }}
+        </div>
+        <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+          {{ t('settings.live2d.animation.motion-driver.description') }}
+        </div>
+      </div>
+      <SelectTab
+        v-model="live2dMotionDriver"
+        :options="motionDriverOptions"
+        size="sm"
+        :class="['shrink-0']"
+      />
+    </label>
+    <MagicMotionSettings v-if="live2dMotionDriver === 'magic'" />
     <FieldCheckbox
       v-model="live2dEyeTracking"
       :label="t('settings.live2d.animation.focus.title')"
       :description="t('settings.live2d.animation.focus.description')"
+      :disabled="live2dMotionDriver === 'magic'"
       placement="right"
     />
-    <div v-if="live2dEyeTracking" class="grid grid-cols-4">
+    <div v-if="live2dMotionDriver === 'universal' && live2dEyeTracking" :class="['grid grid-cols-4']">
       <PropertyPoint
         v-model:x="live2dModelEyeOffset.x"
         v-model:y="live2dModelEyeOffset.y"
@@ -363,6 +401,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       v-model="live2dForceIdleEyeAnimation"
       :label="t('settings.live2d.animation.force-idle-eye-animation.title')"
       :description="t('settings.live2d.animation.force-idle-eye-animation.description')"
+      :disabled="live2dMotionDriver === 'magic'"
       placement="right"
     />
     <FieldCheckbox
@@ -389,6 +428,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       :placeholder="t('settings.live2d.animation.idle-motion.placeholder')"
       :select-class="['w-full']"
       :content-min-width="256"
+      :disabled="live2dMotionDriver === 'magic'"
       @update:model-value="handleMotionSelect"
     >
       <template #empty>
@@ -723,7 +763,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     <div v-if="!live2dExpressionEnabled" py-2 text-xs text-neutral-500 dark:text-neutral-400>
       {{ t('settings.live2d.expressions.sdk-preset-preserved-notice') }}
     </div>
-    <template v-else-if="expressionGroups.size === 0">
+    <template v-else-if="expressionSettingsSnapshot.groups.length === 0">
       <div py-2 text-sm text-neutral-500 dark:text-neutral-400>
         {{ t('settings.live2d.expressions.no-expression') }}
       </div>
@@ -732,14 +772,14 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       <!-- Expression preview toggles -->
       <div flex flex-col gap-2>
         <div
-          v-for="[groupName, group] in expressionGroups"
-          :key="groupName"
+          v-for="group in expressionSettingsSnapshot.groups"
+          :key="group.name"
           flex items-center justify-between
         >
-          <span text-sm text-neutral-700 dark:text-neutral-300>{{ groupName }}</span>
+          <span text-sm text-neutral-700 dark:text-neutral-300>{{ group.name }}</span>
           <Checkbox
-            :model-value="isGroupActive(group)"
-            @update:model-value="expressionStore.toggle(groupName)"
+            :model-value="group.active"
+            @update:model-value="applyExpressionSettingsCommand({ type: 'toggle', name: group.name })"
           />
         </div>
       </div>
@@ -747,37 +787,37 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       <div mt-4 flex flex-wrap items-center gap-3>
         <span whitespace-nowrap text-sm text-neutral-600 dark:text-neutral-400>{{ t('settings.live2d.expressions.expose-to-llm-toggle') }}</span>
         <SelectTab
-          :model-value="expressionStore.llmMode"
+          :model-value="expressionSettingsSnapshot.llmMode"
           :options="llmModeOptions"
           size="sm"
-          @update:model-value="(v: string) => expressionStore.setLlmMode(v as 'all' | 'none' | 'custom')"
+          @update:model-value="(mode: string) => applyExpressionSettingsCommand({ type: 'set-llm-mode', mode: mode as Live2DExpressionLlmMode })"
         />
       </div>
-      <span v-if="expressionStore.llmMode !== 'none'" text-xs text-neutral-500 dark:text-neutral-400>
+      <span v-if="expressionSettingsSnapshot.llmMode !== 'none'" text-xs text-neutral-500 dark:text-neutral-400>
         {{ t('settings.live2d.expressions.llm-integration-wip') }}
       </span>
 
       <!-- Custom per-expression LLM toggles (only when mode = 'custom') -->
-      <div v-if="expressionStore.llmMode === 'custom'" mt-2 flex flex-col gap-2 border-l-2 border-neutral-200 pl-3 dark:border-neutral-700>
+      <div v-if="expressionSettingsSnapshot.llmMode === 'custom'" mt-2 flex flex-col gap-2 border-l-2 border-neutral-200 pl-3 dark:border-neutral-700>
         <div
-          v-for="[groupName] in expressionGroups"
-          :key="`llm-${groupName}`"
+          v-for="group in expressionSettingsSnapshot.groups"
+          :key="`llm-${group.name}`"
           flex items-center justify-between
         >
-          <span text-xs text-neutral-600 dark:text-neutral-400>{{ groupName }}</span>
+          <span text-xs text-neutral-600 dark:text-neutral-400>{{ group.name }}</span>
           <Checkbox
-            :model-value="expressionStore.llmExposed.get(groupName) ?? false"
-            @update:model-value="(v: boolean) => expressionStore.setLlmExposed(groupName, v)"
+            :model-value="group.exposedToLlm"
+            @update:model-value="(exposed: boolean) => applyExpressionSettingsCommand({ type: 'set-llm-exposed', name: group.name, exposed })"
           />
         </div>
       </div>
 
       <!-- Action buttons -->
       <div mt-4 flex gap-2>
-        <Button @click="expressionStore.saveDefaults()">
+        <Button @click="applyExpressionSettingsCommand({ type: 'save-defaults' })">
           {{ t('settings.live2d.expressions.save-default') }}
         </Button>
-        <Button @click="expressionStore.resetAll()">
+        <Button @click="applyExpressionSettingsCommand({ type: 'reset-all' })">
           {{ t('settings.live2d.expressions.reset') }}
         </Button>
       </div>

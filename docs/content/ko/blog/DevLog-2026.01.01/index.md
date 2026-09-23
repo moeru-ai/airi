@@ -23,7 +23,7 @@ preview-cover:
 
 ## AIRI Pocket
 
-이틀 전, AIRI의 모바일 애플리케이션을 만들기 위해 [Capacitor](https://capacitorjs.com/) 를 도입했습니다 ([#845](https://github.com/moeru-ai/airi/pull/845)). 이를 AIRI Pocket이라고 부릅니다.
+이틀 전, AIRI의 모바일 애플리케이션을 만들기 위해 [Capacitor](https://capacitorjs.com/)를 도입했습니다 ([#845](https://github.com/moeru-ai/airi/pull/845)). 이를 AIRI Pocket이라고 부릅니다.
 
 iOS를 동작시켰고 알림 기능도 추가했습니다. 즉 그녀가 원한다면 알림을 통해 함께 시간을 보내자고 먼저 말을 걸 수 있습니다.
 
@@ -129,4 +129,4 @@ const props = defineProps<{
 
 다음 DevLog에서 만나요.
 
-*커버 이미지는 [Google Gemini](https://gemini.google.com/) 로 생성했습니다*
+*커버 이미지는 [Google Gemini](https://gemini.google.com/)로 생성했습니다*

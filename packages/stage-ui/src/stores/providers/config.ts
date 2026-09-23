@@ -65,6 +65,20 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       definitionId,
       config,
       status: 'unconfigured',
+      configuredBy: definition.configuredBy ?? 'user',
+    }
+  }
+
+  // Provider definitions own configuration lifecycle policy. Apply that
+  // policy to persisted snapshots before module pages consume them. Providers
+  // without an owner declaration remain user-configured.
+  for (const provider of Object.values(providers.value)) {
+    const configuredByDefinition = getDefinedProvider(provider.definitionId)?.configuredBy
+    if (configuredByDefinition) {
+      provider.configuredBy = configuredByDefinition
+    }
+    else if (!provider.configuredBy) {
+      provider.configuredBy = 'user'
     }
   }
 
@@ -102,7 +116,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   function getProviderConfig(providerId: string) {
-    return getProvider(providerId)?.config
+    return providers.value[providerId]?.config
   }
 
   function ensureProvider(providerId: string, definitionId: string, config: Record<string, unknown> = {}) {
@@ -119,6 +133,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       definitionId,
       config,
       status: 'unconfigured' as const,
+      configuredBy: definition.configuredBy ?? 'user',
     }
     providers.value[providerId] = provider
     return provider
@@ -133,9 +148,64 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   function setProviderStatus(providerId: string, status: ProviderValidationStatus) {
-    const provider = getProvider(providerId)
+    const provider = providers.value[providerId]
     if (provider)
       provider.status = status
+  }
+
+  /**
+   * Applies configuration fields through the leader-owned provider snapshot.
+   *
+   * The caller must initialize the provider before this action runs. The leader
+   * merges the patch with its current configuration to keep unrelated changes.
+   * Returns false if the provider no longer exists.
+   */
+  async function patchProviderConfig(providerId: string, patch: Record<string, unknown>) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return false
+
+    providers.value[providerId] = {
+      ...provider,
+      config: { ...provider.config, ...patch },
+    }
+    return true
+  }
+
+  /**
+   * Updates the selected model in the leader-owned provider snapshot.
+   *
+   * Follower renderers must await this action instead of mutating replicated
+   * configuration directly, because `state: true` proposals contain the full
+   * store and can overwrite newer leader state.
+   */
+  async function setProviderModel(providerId: string, model: string) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+
+    providers.value[providerId] = {
+      ...provider,
+      config: { ...provider.config, model },
+    }
+  }
+
+  /**
+   * Seeds a discovered default without replacing a model selected by the user.
+   */
+  async function setProviderModelIfUnset(providerId: string, model: string) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+
+    const currentModel = provider.config.model
+    if (typeof currentModel === 'string' && currentModel.length > 0)
+      return
+
+    providers.value[providerId] = {
+      ...provider,
+      config: { ...provider.config, model },
+    }
   }
 
   function mergeProviderSnapshot(snapshot: Record<string, InferenceServiceProvider>) {
@@ -237,6 +307,9 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     markProviderAdded,
     unmarkProviderAdded,
     setProviderStatus,
+    patchProviderConfig,
+    setProviderModel,
+    setProviderModelIfUnset,
     fetchProviders,
     addProvider,
     removeProvider,
@@ -251,6 +324,9 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'markProviderAdded',
       'unmarkProviderAdded',
       'setProviderStatus',
+      'patchProviderConfig',
+      'setProviderModel',
+      'setProviderModelIfUnset',
       'addProvider',
       'removeProvider',
       'updateProviderConfig',

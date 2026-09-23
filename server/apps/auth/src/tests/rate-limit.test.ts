@@ -1,60 +1,24 @@
-import type Redis from 'ioredis'
-
-import type { AuthConfigService } from '../rate-limit'
 import type { HonoEnv } from '../routes'
 
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
-import { createAuthConfigService } from '../rate-limit'
 import { createAuthRoutes } from '../routes'
-
-function createRedis(values: Record<string, string | null>): Redis {
-  return {
-    get: vi.fn(async (key: string) => values[key] ?? null),
-  } as unknown as Redis
-}
-
-describe('auth rate-limit config', () => {
-  it('uses defaults when Redis keys are absent', async () => {
-    expect(await createAuthConfigService(createRedis({})).getRateLimit()).toEqual({ max: 20, windowSec: 60 })
-  })
-
-  it('reads rate-limit values from the shared ConfigKV namespace', async () => {
-    const service = createAuthConfigService(createRedis({
-      'config:AUTH_RATE_LIMIT_MAX': '40',
-      'config:AUTH_RATE_LIMIT_WINDOW_SEC': '120',
-    }))
-    expect(await service.getRateLimit()).toEqual({ max: 40, windowSec: 120 })
-  })
-
-  it('rejects malformed stored values', async () => {
-    const service = createAuthConfigService(createRedis({ 'config:AUTH_RATE_LIMIT_MAX': '"forty"' }))
-    await expect(service.getRateLimit()).rejects.toMatchObject({ errorCode: 'CONFIG_INVALID' })
-  })
-})
-
-function createAuthConfig(): AuthConfigService {
-  return {
-    getRateLimit: vi.fn(async () => ({ max: 1, windowSec: 60 })),
-  }
-}
 
 async function createApp(trustedProxy?: 'railway') {
   const routes = await createAuthRoutes({
     auth: {
       handler: vi.fn(async () => new Response(null, { status: 200 })),
       api: { getSession: vi.fn(async () => null) },
-    } as any,
-    db: {} as any,
+    } as unknown as Parameters<typeof createAuthRoutes>[0]['auth'],
+    db: {} as unknown as Parameters<typeof createAuthRoutes>[0]['db'],
     env: {
       PUBLIC_URL: 'https://api.airi.build',
       AUTH_UI_URL: 'https://accounts.airi.build/ui',
       ADDITIONAL_TRUSTED_ORIGINS: [],
       RATE_LIMIT_TRUSTED_PROXY: trustedProxy,
-    } as any,
-    authConfig: createAuthConfig(),
+    } as unknown as Parameters<typeof createAuthRoutes>[0]['env'],
     rateLimitMetrics: null,
   })
 
@@ -89,11 +53,13 @@ function request(origin: string, clientAddress: string) {
 }
 
 describe('auth API rate limiting behind Railway', () => {
-  it('ignores forwarded client IPs unless proxy trust is explicitly enabled', async () => {
+  it('uses one fixed 20-request bucket when proxy trust is disabled', async () => {
     const server = await listen(await createApp())
 
     try {
-      expect((await request(server.origin, '203.0.113.20')).status).toBe(200)
+      for (let index = 0; index < 20; index += 1)
+        expect((await request(server.origin, `203.0.113.${index + 1}`)).status).toBe(200)
+
       expect((await request(server.origin, '203.0.113.21')).status).toBe(429)
     }
     finally {
@@ -111,9 +77,11 @@ describe('auth API rate limiting behind Railway', () => {
     const server = await listen(await createApp('railway'), '::1')
 
     try {
-      expect((await request(server.origin, '203.0.113.10')).status).toBe(200)
+      for (let index = 0; index < 20; index += 1)
+        expect((await request(server.origin, '203.0.113.10')).status).toBe(200)
+
+      expect((await request(server.origin, '203.0.113.10')).status).toBe(429)
       expect((await request(server.origin, '203.0.113.11')).status).toBe(200)
-      expect((await request(server.origin, '203.0.113.11')).status).toBe(429)
     }
     finally {
       await server.close()

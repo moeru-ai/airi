@@ -6,6 +6,7 @@ import {
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
   ProviderBasicSettings,
+  ProviderGenerationSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
   ProviderValidationAlerts,
@@ -14,17 +15,24 @@ import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provi
 import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCombobox } from '@proj-airi/ui'
+import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
-const route = useRoute()
-const providerId = route.params.providerId as string
-const providerStore = useProviderConfigStore()
+const route = useRoute('/settings/providers/chat/[providerId]')
+const routeProviderId = route.params.providerId
+if (typeof routeProviderId !== 'string')
+  throw new Error('Expected a provider id in the settings route')
+const providerId = routeProviderId
+const providerConfigStore = useProviderConfigStore()
+const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
-const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
+const { configs: providers } = storeToRefs(providerConfigStore) as { configs: RemovableRef<Record<string, any>> }
 const { activeProvider } = storeToRefs(consciousnessStore)
+const providerDefinition = computed(() => providersStore.findProviderDefinition(providerId))
 
 // Define computed properties for credentials
 const apiKey = computed({
@@ -54,7 +62,7 @@ const thinkingMode = computed({
   },
 })
 
-const supportsDeepSeekThinkingMode = computed(() => providerId === 'deepseek')
+const supportsDeepSeekThinkingMode = computed(() => providerDefinition.value?.id === 'deepseek')
 
 // Use the composable to get validation logic and state
 const {
@@ -73,12 +81,12 @@ const {
   runManualTest,
 } = useProviderValidation(providerId)
 
-const apiKeyPlaceholder = computed(() => {
-  const definition = getDefinedProvider(providerId)
+const apiKeyPlaceholder = computedAsync(async () => {
+  const definition = providerDefinition.value ?? getDefinedProvider(providerId)
   if (!definition?.createProviderConfig)
     return 'sk-...'
 
-  const schema = definition.createProviderConfig({ t }) as any
+  const schema = await definition.createProviderConfig({ t }) as any
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
   if (!apiKeySchema)
@@ -86,7 +94,7 @@ const apiKeyPlaceholder = computed(() => {
 
   const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
   return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
-})
+}, 'sk-...')
 
 function goToModelSelection() {
   activeProvider.value = providerId
@@ -112,6 +120,7 @@ function goToModelSelection() {
           :provider-name="providerMetadata?.localizedName"
           :placeholder="apiKeyPlaceholder"
         />
+        <ProviderGenerationSettings :provider-id="providerId" />
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">

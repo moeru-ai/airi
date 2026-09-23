@@ -2,819 +2,650 @@
 title: Project AIRI 사용 설명서
 authors:
   - name: MuGewRayce
+    aliases:
+      - MuGewRayce
     role: Lead writing team
     kind: person
   - name: JhIcefair
     role: Contributing editor (primary)
     kind: person
-publishedAt: 2026-05-11
-publishedAtOverride: May 11, 2026 – afternoon (UTC+8)
+  - name: 0xSelenicDove
+    githubUsername: 0xSelenicDove
+    role: Contributing editor
+    kind: person
 ---
-
-대응 버전: AIRI-0.10.2
+이 설명서는 AIRI 0.11.3 버전에 대응합니다.
 
 ::: warning 시작하기 전에
-- AIRI의 일부 기술적 기능과 조작은 이 설명서에서 자세히 다루지 않습니다.
-- 주 편집자는 중국어판만 담당합니다. 다른 언어판은 현재 AI 번역에 간단한 수동 교정을 거친 것이라 실제 표시되는 내용과 다를 수 있습니다. 실제 내용을 기준으로 봐 주세요.
-- 이 설명서의 대부분은 편집장 팀원들과 다른 참여자들이 직접 탐색하고 조사한 내용입니다. 사실과 다르거나 편차가 있을 수 있으니 최종적으로는 여러분의 실제 경험을 기준으로 삼아 주세요.
-- 이 설명서는 제때 갱신되지 않을 수 있습니다.
-- 역량과 시간의 한계로, 현재 이 설명서는 Windows 설치 패키지 버전과 웹 버전의 일부 상세 튜토리얼만 다룹니다.
-- 소프트웨어의 일부는 번역 없이 영어로 표시됩니다. 이 설명서는 그 부분을 번역해 두었지만, 최종 해석은 실제 소프트웨어를 따라야 합니다.
-- AIRI의 버전 업데이트로 일부 내용이 바뀔 수 있습니다. 이 설명서는 작성 시점의 최신 버전 기능만 소개합니다. 그 이전이나 이후 버전에 대해서는 일부 기능 설명이 남아 있을 수 있으니, 차이가 있다면 직접 판단해 주세요.
-- 이 설명서에 대해 질문이 있으면 공식 Project AIRI Discord 채널에서 @jhicefair를 멘션하고 메시지를 남겨 주세요.
-- 그 밖의 질문은 공식 Project AIRI Discord 채널에 남겨 주세요.
-- 즐겁게 사용하세요! AwA
+- AIRI의 일부 기능과 조작은 이 설명서에서 자세히 다루지 않습니다.
+- 중국어판이 원본입니다. 다른 언어판은 기계 번역에 간단한 수동 교정을 거친 것이라 표현이 앱과 다를 수 있습니다. 차이가 있으면 항상 앱을 기준으로 삼아 주세요.
+- 이 설명서는 참여자들이 직접 조사한 내용을 바탕으로 하며, 불완전하거나 부정확하거나 오래된 내용이 있을 수 있습니다.
+- 이 설명서는 데스크톱 앱을 중심으로 다루며 일부 웹 튜토리얼을 포함합니다. 두 버전은 일부 영역에서 다르므로, 서로 충돌할 때는 앱을 따라 주세요.
+- AIRI 업데이트로 문서화된 동작이 바뀔 수 있습니다. 이 설명서는 작성 시점의 버전을 설명하므로, 이후 버전은 앱과 최신 릴리스 노트를 참고하세요.
+- 이 설명서에 대해 질문이 있으면 [Project AIRI 공식 Discord](https://discord.gg/TgQ3Cu2F7A) 채널에서 @jhicefair 또는 @0x_selenic_dove에게 메시지를 남겨 주세요.
+- WeChat 그룹 참여: [WeChat 그룹 안내](https://github.com/moeru-ai/airi/blob/main/docs/wechat.md)를 열고 QR 코드를 스캔해 관리자의 WeChat을 추가한 뒤, 참여 요청에 `AIRI`를 포함하세요. 관리자가 그룹에 초대해 드립니다.
+- QQ 그룹 참여: [QQ 그룹 초대 링크](https://qun.qq.com/universal-share/share?ac=1&authKey=9g00d%2BZS7nORzcJugNNddJ7rCghZTIR7fhXabGwch2S%2BG%2BKGIKwlN1N2nIqkh2jg&busi_data=eyJncm91cENvZGUiOiIxMDU4MTU2Njk3IiwidG9rZW4iOiJmcnkra1hWNFIxNytEcG0zcHRUdVJIaldlRDFxN0dzK080QWtvTEdOQjJkNEY2eUFta1g1clNpbkxSMS9FQWFYIiwidWluIjoiMTI2MDkwNzMzNSJ9&data=b1eJrwn3GVOUh7YIxZ7l9vHQo99HPmRxKPpMKlDCmfzx8Y57IXb2EZCMaOC9rVTd2U558qpNjwUYUWlPHxVHvg&svctype=4&tempid=h5_group_info)를 열고 QQ에서 참여를 확정하세요. 링크가 유효하지 않으면 저장소 README의 최신 링크를 참고하세요.
+- AIRI에 관한 다른 질문은 Discord, WeChat 또는 QQ의 커뮤니티 토론에 참여해 주세요.
+- AI 친구와 즐겁게 대화하세요! :)
 :::
 
-## 목차
-
-- [1장 – 설치](#chapter-1-installation)
-- [2장 – 초기 설정](#chapter-2-initial-configuration)
-  - [1절 – 준비](#chapter-2-prerequisites)
-  - [2절 – Airi를 실행하자!](#chapter-2-launch)
-- [3장 – Airi 인터페이스 개요](#chapter-3-interface-overview)
-  - [메인 창](#chapter-3-main-window)
-  - [시스템 트레이의 그 외 옵션](#chapter-3-system-tray)
-  - [설정 창](#chapter-3-settings-overview)
-  - [채팅 창](#chapter-3-chat-window)
-- [4장 – 설정](#chapter-4-settings)
-  - [AIRI 캐릭터 카드](#chapter-4-airi-card)
-  - [바디 모듈](#chapter-4-modules)
-  - [장면](#chapter-4-stage)
-  - [캐릭터 모델](#chapter-4-character-model)
-  - [메모리 뱅크](#chapter-4-memory-bank)
-  - [서비스 소스](#chapter-4-providers)
-  - [데이터](#chapter-4-data)
-  - [연결](#chapter-4-connection)
-  - [시스템](#chapter-4-system)
-- [웹 버전 기능 보충](#web-features)
-- [과거 특성 & 자주 겪는 문제](#features-issues)
-- [끝에 남기는 말](#chapter-ed-toeveryeditor)
-
 <a id="chapter-1-installation"></a>
-## 1장 – 설치
+## 1장: 설치
 
-Project AIRI GitHub 홈페이지로 이동합니다: [moeru-ai/airi](https://github.com/moeru-ai/airi)
+[최신 Project AIRI 릴리스](https://github.com/moeru-ai/airi/releases/latest)로 이동해 **Assets**를 펼치고 사용하는 기기에 맞는 파일을 내려받으세요. 패키지를 열고 설치 안내를 따르세요. 아래의 `<version>`은 현재 릴리스에서 사용하는 값으로 바꿔 읽으세요.
 
-다음 순서를 따르세요:
+| 플랫폼 | 기기 | 내려받을 파일 |
+| --- | --- | --- |
+| Windows | x64 또는 Windows 11 ARM64 | `AIRI-<version>-windows-x64-setup.exe` |
+| macOS | Apple silicon (M 시리즈) | `AIRI-<version>-darwin-arm64.dmg` |
+| macOS | Intel | `AIRI-<version>-darwin-x64.dmg` |
+| Linux | Ubuntu 등 x64 Debian 계열 | `AIRI-<version>-linux-amd64.deb` |
+| Linux | Fedora, openSUSE 등 x64 RPM 계열 | `AIRI-<version>-linux-x86_64.rpm` |
+| Linux | Ubuntu 등 ARM64 Debian 계열 | `AIRI-<version>-linux-arm64.deb` |
+| Linux | Fedora, openSUSE 등 ARM64 RPM 계열 | `AIRI-<version>-linux-aarch64.rpm` |
+| Android | 지원되는 HarmonyOS 기기를 포함한 Android 기기 | `AIRI-<version>-android.apk` |
+| iOS/iPadOS | iPhone, iPad | iOS/iPadOS용 `.ipa` 에셋 |
 
-1. 페이지 오른쪽에서 "**Releases**" 항목을 찾습니다.
-2. "+ 68 releases"를 클릭합니다.
-3. 버전을 하나 고르고 그 아래 "**Assets**"를 찾아 펼칩니다.
-4. 사용하는 컴퓨터에 맞는 버전을 골라 내려받습니다.
-5. 내려받은 설치 파일을 찾아 더블클릭해 설치합니다.
+::: info Windows 설치에 대하여
+설치 프로그램은 AIRI를 현재 사용자용 또는 모든 사용자용으로 설치할 수 있습니다. 현재 사용자용 설치에는 관리자 권한이 필요하지 않습니다. 모든 사용자용 설치는 관리자 권한이 필요하며, 컴퓨터의 모든 사용자가 AIRI를 사용할 수 있게 됩니다.
+:::
 
-::: tip 다운로드 페이지 참고
-- "+ 68 releases"의 숫자는 다른 릴리스가 몇 개 있는지만 나타내므로 여러분 화면에서는 다를 수 있습니다.
-- 하단의 "Show all 19 assets"를 눌러야 할 수도 있고, 이 숫자도 다를 수 있습니다.
-- 이후 내용은 Windows 설치 파일 버전을 예로 듭니다.
-- 시간 제약으로 설치 과정 자체는 생략합니다. 이 정도는 직접 하실 수 있을 겁니다.
+::: info iPhone과 iPad 설치에 대하여
+현재는 IPA 파일만 제공됩니다. 직접 서명하고 수동으로 설치해야 하며, 상세한 설치 안내는 아직 제공되지 않습니다.
+
+프로젝트 팀은 추후 TestFlight 테스트 링크를 공개할 예정입니다.
+:::
+
+::: info HarmonyOS에 대하여
+네이티브 HarmonyOS 버전은 현재 제공되지 않습니다. HarmonyOS NEXT를 사용한다면 Zhuoyitong(卓易通)으로 Android 버전 AIRI를 설치하세요.
 :::
 
 <a id="chapter-2-initial-configuration"></a>
-## 2장 – 초기 설정
+## 2장: 초기 설정
 
-<a id="chapter-2-prerequisites"></a>
-### 1절 – 준비
+AIRI를 사용하기 전에 최소 하나의 채팅 제공자와 사용 가능한 채팅 모델이 필요합니다. 클라우드 서비스는 보통 API Key나 로그인 계정이 필요하고, 로컬 서비스는 먼저 모델 서비스를 시작해야 합니다.
 
-시작하기 전에 LLM 서비스 제공자의 API를 최소 하나 준비해야 합니다.
+다음 순서로 초기 설정을 마치세요:
 
-::: info 용어
-* LLM
+1. AIRI를 열고 온보딩 과정을 시작하세요.
+2. 환영 화면에서 필요하면 오른쪽 위의 <span class="i-lucide:globe inline-block align-[-0.125em]" aria-hidden="true"></span> **지구본 버튼**을 클릭해 인터페이스 언어를 변경하세요.
+3. 자신의 제공자를 사용하려면 **Setup with your provider**를, AIRI 공식 제공자를 사용하려면 **Sign in**을 선택하세요. 어떤 제공자를 사용할지 모르겠다면 [AIRI 공식 제공자](../../config/providers/consciousness/official.md), [OpenRouter](../../config/providers/consciousness/openrouter.md), [OpenAI Compatible](../../config/providers/consciousness/openai.md), 또는 로컬 [Ollama](../../config/providers/consciousness/ollama.md) 인스턴스부터 시작하세요.
+4. 자신의 제공자를 사용하는 경우:
+    1. 사용할 제공자를 선택하고 **Next**를 클릭하세요.
+    2. API Key를 입력하고, 필요하면 Base URL을 변경한 뒤 **Next**를 클릭하세요.
+    3. 사용 분석 안내가 표시되면 내용을 확인하고 **Next**를 클릭하세요.
+    4. 사용할 채팅 모델을 선택하고 **Save and Continue**를 클릭하세요.
+5. AIRI 공식 제공자를 사용하려면 [AIRI 공식 제공자](../../config/providers/consciousness/official.md)를 참고하세요.
 
-LLM은 Large Language Model(대규모 언어 모델)의 약자입니다.
-간단히 말해 AI입니다.
+축하합니다! AIRI의 초기 설정을 완료했습니다.
 
-* API
-
-API는 Application Programming Interface의 약자입니다.
-서로 다른 소프트웨어가 통신하고 데이터를 주고받고 기능을 공유할 수 있게 하는, 미리 정의된 규칙의 모음입니다.
-깊이 이해할 필요는 없고, 어떻게 얻는지만 알면 됩니다.
+::: tip 우선 채팅만 설정하세요
+채팅 제공자와 모델 설정이 완료되면 AIRI가 메시지에 답할 수 있습니다. 이후 음성 합성(TTS), 음성 인식(ASR/STT), 시각 이해, 예술 창작 같은 기능을 추가할 수 있습니다. 설정 방법은 [음성 입력과 출력](../../config/audio.md), [시각 이해](../../config/vision.md) 또는 [예술 창작](#chapter-4-art)을 참고하세요.
 :::
 
-::: tip API 얻기
-LLM 제공자는 아주 많고 API를 얻는 방법도 각기 다릅니다. 시간 제약으로 여기서는 튜토리얼이나 예시를 제공하지 않습니다. 검색해 보거나 AI에게 물어보세요.
+::: warning API Key 보안
+API Key, AccessKey Secret 같은 서비스 자격 증명은 기기에만 저장해야 합니다. 저장소에 커밋하거나, 이슈에 올리거나, 스크린샷을 찍거나, 다른 사람에게 보내지 마세요.
 :::
-
-::: warning API 키를 안전하게 보관하세요
-API를 얻으면 안전하게 보관하고 다른 사람과 공유하지 마세요.
-:::
-
-<a id="chapter-2-launch"></a>
-### 2절 – Airi를 실행하자!
-
-::: info 예시
-아래 단계는 Deepseek을 예시 제공자로 사용합니다.
-:::
-
-[과거 특성: 시작 시 발생하는 버그](#h2-2-1)
-
-다음 순서로 첫 설정을 마칩니다:
-
-1. Airi를 엽니다 (보통 설치 후 자동으로 열립니다).
-2. 메인 창에서 언어를 선택합니다.
-3. "**setup with your provider**"를 클릭합니다. 또는 "**Login**"을 클릭합니다 (로그인을 선택하는 과정에 대한 간단한 안내).
-4. 서비스 소스를 선택하고 "**Next**"를 클릭합니다.
-5. API 키를 입력하고 "**Next**"를 클릭합니다.
-6. 다시 "**Next**"를 클릭합니다.
-7. 사용할 모델을 선택하고 "**Save and continue**"를 클릭합니다.
-
-축하합니다! Airi의 초기 설정을 완료했습니다.
 
 <a id="chapter-3-interface-overview"></a>
-## 3장 – Airi 인터페이스 개요
+## 3장: AIRI 인터페이스 개요
 
 <a id="chapter-3-main-window"></a>
-### > 메인 창
+### 메인 창
 
-[웹 버전 메인 인터페이스 소개](#chapter-3-main-web)
+이 절은 데스크톱 앱을 중심으로 설명합니다. 웹과 모바일 앱의 많은 부분에도 적용되며, 각각의 고유 기능은 [여기](#chapter-3-main-web)에서 소개합니다.
 
-이 창은 가상 캐릭터를 표시합니다. 버튼이 세 개 있습니다: [과거 특성](#h3-1-1)
+이 창은 가상 캐릭터를 표시합니다. 주요 컨트롤은 다음과 같습니다:
 
-- "Expand" – 오른쪽 아래. 클릭하면 더 많은 옵션이 나타납니다 (아래 참고).
-- "Open hearing control" – 오른쪽 아래. Airi에게 말을 걸 수 있게 합니다. STT 서비스가 필요합니다.
-- "Move" – 오른쪽 아래. 길게 누른 뒤 끌어서 메인 창의 위치를 옮깁니다.
-
-![Airi main window overview](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-main-window.avif)
-
-::: info 청각 제어에 대하여
-채팅 창을 먼저 열어야 하는 것 같습니다. 편집자에게는 아직 이 기능이 동작하지 않아 튜토리얼은 생략합니다.
+- **Expand** - 오른쪽 아래에 있습니다. 클릭하면 더 많은 컨트롤이 나타납니다.
+- **Open hearing Controls** - 음성 입력 컨트롤을 엽니다.
+::: info 청각 컨트롤
+먼저 마이크 입력을 켜고 마이크를 선택하세요. 권한 요청이 나타나면 AIRI가 마이크를 사용하도록 허용하세요. 전사 서비스를 설정하면 음성이 전사되어 현재 채팅 세션으로 전송됩니다. AIRI는 피드백을 줄이기 위해 말하는 동안 입력을 일시 중지합니다.
 :::
 
-::: info 용어
-* STT
+- **Drag to move window** - 마우스 왼쪽 버튼을 누른 채 끌어서 메인 창을 옮깁니다.
 
-STT는 Speech-to-Text의 약자로 자동 음성 인식(ASR)이라고도 합니다.
-컴퓨터가 사람의 말을 이해해 텍스트로 변환하게 하는 것이 목표입니다.
-:::
+**Expand**를 클릭하세요. 사용할 수 있는 컨트롤은 다음과 같습니다:
 
-"Expand"를 클릭하면 아홉 개 옵션이 나타납니다: **(로그인 버튼 & 작은 버튼 여덟 개)**
+- **Sign in** — AIRI 계정으로 로그인합니다.
+- **Open settings** — AIRI의 설정 인터페이스를 엽니다.
+- **Switch Profile** — 프로필을 전환합니다.
+- **Open Chat** — 채팅 창을 엽니다.
+- **Refresh** — 메인 창을 새로 고칩니다.
+- **Move to screen center** — 창을 화면 가운데로 옮깁니다.
+- "Switch to dark mode"/"Switch to light mode" - AIRI의 인터페이스 테마를 전환합니다.
+- "Pin on top"/"Unpin from top" - AIRI 창을 다른 창들 위에 항상 표시할지 제어합니다.
+- "Auto hide"/"Always show" - 포인터를 창 위로 옮겼을 때 AIRI 창이 비켜날지 제어합니다.
+- **Close** — 클릭 한 번으로 AIRI를 닫습니다.
 
-- "Login" – 자신의 Airi 계정으로 로그인할 수 있습니다.
-- "Open settings" – 설정 창을 엽니다.
-- "Switch character" – 캐릭터 카드를 전환합니다.
-- "Open chat" – 채팅 창을 엽니다.
-- "Refresh" – 메인 창을 새로 고칩니다.
-- "Switch to dark mode" – 라이트/다크 테마를 전환합니다.
-- "Unpin" – 메인 창을 항상 위에 두지 않게 합니다.
-- "Always show" / "Hide on hover" – 창을 클릭이 통과하도록 합니다.
-- "Close" – Airi를 닫습니다.
-
-![Airi expanded controls menu](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-controls-island-expanded.avif)
+![펼쳐진 AIRI 메인 창 컨트롤 메뉴](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-controls-island-expanded.avif)
 
 <a id="chapter-3-system-tray"></a>
-### > 시스템 트레이의 그 외 옵션
+### 시스템 트레이의 그 외 옵션
 
-먼저 시스템 트레이에서 Airi 아이콘을 찾습니다.
+Windows 작업 표시줄 또는 macOS 메뉴 막대에서 AIRI 아이콘을 찾으세요.
 
-::: tip Windows 작업 표시줄 팁
-Windows에서는 작업 표시줄의 "숨겨진 아이콘 표시" 를 눌러야 Airi 아이콘을 찾을 수 있습니다.
+::: tip 작업 표시줄/메뉴 막대 아이콘이 보이지 않는다면...
+Windows에서는 작업 표시줄의 "숨겨진 아이콘 표시 (⌃)"를 클릭해 펼쳐야 AIRI 아이콘을 찾을 수 있습니다.
+
+디스플레이 노치가 있는 MacBook에서는 AIRI 아이콘이 보이는 메뉴 막대에 들어가지 못할 수 있습니다. **System Settings → Menu Bar**를 열고 다른 메뉴 막대 항목을 숨겨 자리를 만드세요.
 :::
 
-Airi 아이콘을 오른쪽 클릭하면 열 개 옵션이 보입니다:
+AIRI 아이콘을 오른쪽 클릭해 트레이 메뉴를 여세요. 표시되는 항목은 현재 플랫폼과 앱 상태에 따라 다릅니다:
 
-- "Show" – 메인 창을 띄웁니다. 보통 필요하지 않습니다.
-- "Adjust size" – 메인 창 크기를 조절하고 가운데로 정렬합니다. 하위 옵션 네 개가 있습니다:
-  - "Recommended (450x600)" – 권장 크기인 450x600으로 설정합니다.
-  - "Full height" – 창 높이를 바탕화면 전체 높이로 맞춥니다.
-  - "Half height" – 창 높이를 바탕화면 절반 높이로 맞춥니다.
-  - "Full screen" – 창이 바탕화면 전체를 채우게 합니다.
-- "Align to" – 메인 창을 특정 화면 위치에 정렬합니다. 하위 옵션 다섯 개가 있습니다:
-  - "Center" – 바탕화면 가운데로 정렬합니다.
-  - "Top left" – 왼쪽 위 모서리로 정렬합니다.
-  - "Top right" – 오른쪽 위 모서리로 정렬합니다.
-  - "Bottom left" – 왼쪽 아래 모서리로 정렬합니다.
-  - "Bottom right" – 오른쪽 아래 모서리로 정렬합니다.
-- "Settings" – 설정 창을 엽니다.
-- "About" – 상세 설명 생략.
-- "Open quick actions" – 상세 설명 생략.
-- "Open widgets" – 상세 설명 생략.
-- "Open caption" – 자막을 엽니다. Airi가 말할 때 텍스트를 표시하려면 TTS 서비스가 필요하며, 기본적으로 마우스를 올리면 숨겨집니다.
-- "Caption overlay" – 하위 옵션 두 개가 있습니다:
-  - "Follow window" – 기본값. 자막 위치가 메인 창을 따라갑니다.
-  - "Reset position" – 자막 위치를 초기화합니다.
-- "Quit" – Airi를 닫습니다.
+- **Show** — 메인 창을 표시합니다.
+- **Adjust sizes** — 메인 창 크기를 조절하고 가운데로 정렬합니다. 하위 옵션 네 개가 있습니다:
+  - **Recommended (450x600)** — 권장 크기인 450x600으로 설정합니다.
+  - **Full Height** — 메인 창 높이를 바탕화면 전체 높이로 맞춥니다.
+  - **Half Height** — 메인 창 높이를 바탕화면 절반 높이로 맞춥니다.
+  - **Full Screen** — 메인 창이 바탕화면 전체를 채우게 합니다.
+- **Align to** — 메인 창을 특정 바탕화면 위치에 정렬합니다. 하위 옵션 다섯 개가 있습니다:
+  - **Center** — 바탕화면 가운데로 정렬합니다.
+  - **Top Left** — 바탕화면 왼쪽 위 모서리로 정렬합니다.
+  - **Top Right** — 바탕화면 오른쪽 위 모서리로 정렬합니다.
+  - **Bottom Left** — 바탕화면 왼쪽 아래 모서리로 정렬합니다.
+  - **Bottom Right** — 바탕화면 오른쪽 아래 모서리로 정렬합니다.
+- **Settings...** — 설정 인터페이스를 엽니다.
+- **About...** — 정보 창을 열어 버전을 확인하고, 프로젝트 홈페이지를 방문하고, AIRI를 업데이트하거나 업데이트 채널을 선택할 수 있습니다.
+- **Open Inlay...** — Electron vibrancy와 배경 재질 효과를 테스트하기 위한 실험적 창을 엽니다. Spotlight 프롬프트가 아닙니다.
+- **Open Widgets...** — 위젯 창을 엽니다. 지도, 날씨, 그림, 확장 기능이 제공하는 위젯이 여기에 표시됩니다. 해당 도구나 확장 기능이 실행 중이 아니면 창이 비어 있을 수 있습니다.
+- **Open Caption...** / **Close Caption...** — 자막을 열거나 닫습니다. TTS가 켜져 있으면 자막에 AIRI가 말하는 텍스트가 표시되고, 기본적으로 포인터를 자막 위에 올리면 숨겨집니다.
+- **Caption Overlay** — 하위 옵션 두 개가 있습니다:
+  - **Follow window** — 기본으로 선택된 모드입니다. 자막 창이 메인 창을 따라 움직이며, 선택을 해제하면 위치가 독립적으로 유지됩니다.
+  - **Reset position** — 자막 위치를 초기화합니다.
+- **Quit** — AIRI를 닫습니다.
 
-::: info 용어
-* TTS
 
-TTS는 Text-to-Speech의 약자로, 문자 텍스트를 자연스러운 음성 출력으로 변환합니다.
-:::
 
 <a id="chapter-3-settings-overview"></a>
-### > 설정 창
+### 설정
 
-::: info 범위
-이 절은 창에 무엇이 들어 있는지만 설명합니다. 자세한 기능은 4장에서 다룹니다.
+::: info 이 절의 범위
+이 절은 인터페이스에 무엇이 있는지만 소개합니다. 구체적인 기능은 4장을 참고하세요.
 :::
 
-다음 두 가지 방법으로 설정을 열 수 있습니다:
+다음 두 가지 방법으로 설정 인터페이스를 열 수 있습니다:
 
-- 메인 창에서 "Expand"를 클릭한 뒤 "Open settings"를 선택합니다.
-- Airi 트레이 아이콘을 오른쪽 클릭하고 "Settings"를 선택합니다.
+- 메인 창에서 **Expand**를 클릭한 뒤 **Open settings**를 선택합니다.
+- 시스템 트레이의 AIRI 아이콘을 오른쪽 클릭하고 **Settings...**를 선택합니다.
 
-설정 창에는 아홉 개 섹션이 있습니다:
+설정 내비게이션에는 다음이 포함됩니다:
 
-- "AIRI Character Card" – 캐릭터 성격을 설정합니다.
-- "Body Modules" – 여러 기능을 설정합니다: 의식, 발화, 청각, 시각, 단기 기억, 장기 기억, Discord, X/Twitter, Minecraft, Factorio, MCP 서버, 리듬 게임.
-- "Scene" – Airi의 장면(배경)을 설정합니다.
-- "Character Model" – 캐릭터 모델을 선택하고 설정합니다.
-- "Memory Bank" – 아직 공개되지 않았습니다.
-- "Service Sources" – LLM, TTS, STT, Artistry 서비스를 설정합니다.
-- "Data" – Airi의 데이터를 관리합니다.
-- "Connection" – WebSocket 서버 주소를 설정합니다.
-- "System" – 하위 섹션 네 개가 있습니다:
-  - "General" – 테마, 언어 등.
-  - "Color Scheme" – 테마 색상을 변경합니다.
-  - "Window Shortcuts" – 현재 비어 있고 뒤로 가기 버튼이 없습니다.
-  - "Developer" – 고급 기능. 4장 참고.
+- **AIRI 카드** - 활성 캐릭터를 선택하고 설정합니다.
+- **모듈** - 의식, 음성 합성, 청각, 비전과 각종 연동 같은 AIRI 기능을 설정합니다.
+- **장면** - 활성 캐릭터의 배경을 설정합니다.
+- **모델** - 캐릭터 표시 모델을 선택하고, 가져오고, 설정합니다.
+- **기억** - 기억 설정이 제공되는 대로 여기서 확인할 수 있습니다.
+- **제공자** - 채팅, 비전, 음성 합성, 전사, Artistry 제공자를 설정합니다.
+- **데이터** - 로컬에 저장된 AIRI 데이터를 내보내거나 초기화하거나 삭제합니다.
+- **연결** - AIRI WebSocket 서버와 원격 접근을 설정합니다.
+- **시스템** - **General**, **Color Scheme**, **Window Shortcuts**, **Developer** 페이지가 있습니다. 개발자 전용 페이지는 [데스크톱 개발자 도구](/ko/docs/contributing/desktop-developer-tools)를 참고하세요.
 
-::: warning "Window Shortcuts"를 열지 마세요
-이 옵션은 현재 내용도 없고 뒤로 가기 버튼도 없습니다. 한번 들어가면 설정 창을 닫고 다시 열어야 나올 수 있습니다.
-:::
-
-![Airi settings window overview](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-settings-window.avif)
+![AIRI 설정 개요](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-settings-window.avif)
 
 <a id="chapter-3-chat-window"></a>
-### > 채팅 창
+### 채팅 창
 
-메인 창에서 "Expand"를 클릭하고 "Open chat"을 선택하면 채팅 창을 열 수 있습니다.
+메인 창에서 **Expand**를 클릭한 뒤 **Open Chat**을 선택하면 채팅 창을 열 수 있습니다.
 
-![Airi chat window interface](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-chat-window.avif)
+![AIRI 채팅 창](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-chat-window.avif)
 
-여기서 Airi와 대화할 수 있습니다.
+여기서 AIRI와 대화할 수 있습니다. 음성 합성이 켜진 뒤에는 AIRI가 답변을 읽는 동안 **Stop speaking**이 표시됩니다. 이를 클릭하면 생성된 텍스트 답변은 취소하지 않고 현재 음성 재생만 중지합니다.
+
+채팅 창 제목 표시줄의 **Conversations**를 클릭하거나 제목 자체를 클릭하면 대화 목록이 열립니다. 대화는 최근 업데이트 순으로 정렬되며 미리보기와 동기화 상태를 표시합니다. 대화를 전환하거나 삭제할 수 있고, 현재 캐릭터의 새 대화를 만들 수도 있습니다. 삭제는 보통 복구할 수 없으니 내용이 더 이상 필요 없는지 확인하세요.
 
 <a id="chapter-4-settings"></a>
-## 4장 – 설정
+## 4장: 설정
 
-다음 두 가지 방법으로 설정을 열 수 있습니다:
+다음 두 가지 방법으로 설정 인터페이스를 열 수 있습니다:
 
-- 메인 창에서 "Expand"를 클릭한 뒤 "Open settings"를 선택합니다.
-- Airi 트레이 아이콘을 오른쪽 클릭하고 "Settings"를 선택합니다.
+- 메인 창에서 **Expand**를 클릭한 뒤 **Open settings**를 선택합니다.
+- 시스템 트레이의 AIRI 아이콘을 오른쪽 클릭하고 **Settings...**를 선택합니다.
 
 <a id="chapter-4-airi-card"></a>
-### > AIRI 캐릭터 카드
+### AIRI 카드
 
-여기서 기본 캐릭터 카드를 업로드하거나 새로 만들거나 수정할 수 있습니다.
+여기서 캐릭터 카드를 가져오고, 만들고, 수정하고, 활성화할 수 있습니다.
 
-![Airi character card settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-airi-card.avif)
+![AIRI 캐릭터 카드 설정](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-airi-card.avif)
 
-::: info 업로드에 대하여
-업로드 대화상자는 어떤 파일 형식이든 지원한다고 하지만, 편집자가 실제로 써 본 적이 없고 내보내기 기능도 없어서 상세 설명은 생략합니다.
+::: info 가져오기와 내보내기에 대하여
+캐릭터 카드는 AIRI 캐릭터 카드 팩으로 가져오거나 내보낼 수 있습니다. 카드 팩은 Character Card V3 데이터를 사용하며 Live2D, Spine, Tachie 또는 VRM 표시 모델을 포함할 수 있습니다. 가져오는 동안 AIRI는 패키지 매니페스트와 캐릭터 카드 데이터를 검증합니다. 형식이 잘못되었거나 필수 파일이 빠진 패키지는 가져올 수 없습니다. AIRI 카드 팩은 명시적 필드 화이트리스트를 사용하며 무손실 CCv3 백업이 아닙니다. 자세한 내용은 [캐릭터 카드 템플릿](../character-card-template.md)을 참고하세요.
 :::
 
-새 캐릭터 카드를 만들 때 권장하는 순서는 다음과 같습니다:
+캐릭터 카드를 만들려면:
 
-1. **Identity**를 작성합니다. 이름, 별명, 설명, 제작자 노트가 포함됩니다.
-2. 그다음 **Behavior**를 조정합니다. 성격, 시나리오, 첫 인사가 포함됩니다.
-3. 필요하면 **Modules**에서 캐릭터별 바디 모듈을 설정합니다.
-4. 필요에 따라 **Artistry** 섹션을 설정해 그 캐릭터의 이미지 생성 기능을 구성합니다.
-5. 마지막으로 **Settings**를 확인합니다. 시스템 프롬프트, 히스토리 프롬프트 지시, 버전이 포함됩니다.
-6. 준비가 되면 "**Create**"를 클릭해 캐릭터 카드를 만듭니다.
-7. 만든 뒤에는 카드 오른쪽 아래의 원을 클릭하거나, 카드를 선택하고 Activate를 클릭해 활성화합니다.
+1. 정체성 섹션을 작성하세요. 이름, 별명, 설명, 제작자 노트가 포함됩니다.
+2. 성격, 시나리오, 인사말 같은 행동 세부 정보를 추가하세요.
+3. **모듈**에서 캐릭터가 선호하는 기능을 설정하세요.
+4. 필요하면 **Artistry**에서 이미지 생성 선호 설정을 구성하세요.
+5. 시스템 프롬프트, 포스트 히스토리 지시문, 카드 버전이 포함된 **설정**을 검토하세요.
+6. **Create**를 클릭하세요.
+7. 카드 오른쪽 아래의 컨트롤을 클릭하거나, 카드를 열고 **Activate**를 클릭해 새 카드를 활성화하세요.
 
-**Identity**에서 가장 중요한 항목은 이름과 설명입니다:
+정체성 필드 중 가장 중요한 것은 캐릭터의 이름과 설명입니다:
 
-- 이름은 공식 명칭입니다. 별명을 설정하면 별명이 먼저 사용됩니다.
-- 설명은 상세한 성격입니다. 창의적으로 쓰거나 기본 캐릭터 카드를 참고하세요.
+- 이름은 AIRI가 현재 표시하는 캐릭터 이름입니다. Character Card V3는 `nickname` 필드를 지원하지만, 현재 인터페이스와 런타임은 여전히 `name`을 표시합니다.
+- 설명은 모델에게 캐릭터가 누구인지 알려 줍니다. 예시가 필요하면 기본 캐릭터 카드를 참고하세요.
 
 ::: info 편집자 노트
-- 기본 캐릭터 카드를 참고한다면 ACT 태그에 관한 부분은 생략해도 됩니다.
-- 편집자는 제작자 노트를 써 본 적이 없어 상세 설명은 생략합니다.
-- 편집자가 Behavior, Modules, Artistry, Settings를 아직 충분히 테스트하지 못했습니다. 위에는 대략적인 용도만 적어 두었습니다.
+- 기본 ReLU 프롬프트는 스테이지 감정과 동작을 위한 AIRI의 `ACT` 토큰을 설명합니다. 모델이 그 동작을 제어하게 하려면 커스텀 카드에도 동등한 지시문을 유지하세요. 생략하면 동작과 감정 출력이 줄거나 사라질 수 있습니다.
+- 제작자 노트는 캐릭터 카드를 위한 메모일 뿐이며 AIRI의 응답 결과에 영향을 주지 않습니다.
+- 행동(Behavior)은 성격, 시나리오, 인사말을 정의합니다. 모듈에서는 채팅, 비전, 음성 합성, 표시 모델 선호를 지정할 수 있습니다. Artistry는 이미지 생성 선호 설정을 저장합니다. 설정에는 시스템 프롬프트, 포스트 히스토리 지시문, 카드 버전이 있습니다.
 :::
 
-::: warning 활성화가 필요합니다
-새로 만든 카드는 기본적으로 활성화되지 않습니다. 직접 활성화해야 합니다.
+::: warning 직접 활성화가 필요합니다
+캐릭터 카드를 만들어도 자동으로 활성화되지 않습니다. 그 카드로 대화를 시작하기 전에 카드의 활성화 컨트롤을 사용하세요.
 :::
 
 <a id="chapter-4-modules"></a>
-### > 바디 모듈
+### 모듈
 
-여기서 Airi의 여러 기능을 다음과 같이 설정할 수 있습니다:
+여기서 AIRI의 활성 기능을 설정합니다.
 
-![Airi body modules settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-modules.avif)
+![AIRI 모듈 설정](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-modules.avif)
 
-#### > 의식 (Consciousness)
+#### 의식
 
-권장 순서:
+**설정 → 모듈 → 의식**을 열어 활성 채팅 제공자와 모델을 선택하세요. 제공자부터 모델까지의 전체 과정은 [채팅 모델](../../config/llm.md)을 참고하세요.
+![AIRI 의식 설정](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-consciousness.avif)
 
-1. 먼저 서비스 소스를 선택하거나, 새로 추가한 뒤 선택합니다.
-2. 그다음 모델을 선택합니다.
-
-::: tip 서비스 소스가 너무 많을 때
-소스가 너무 많아 뒤쪽 항목을 클릭할 수 없으면, 탭 위에 마우스를 올리고 가운데 버튼을 누른 채 좌우로 끌어 보세요.
+#### 음성 합성
+**설정 → 모듈 → 음성 합성**을 열어 활성 음성 제공자, 모델, 목소리를 선택하세요. 설정 방법은 [음성 입력과 출력](../../config/audio.md)을 참고하세요. AIRI가 말하지 않게 하려면 **None**을 선택하세요.
+::: tip 음성 합성 페이지 보충 설명
+- 먼저 제공자와 모델을 선택한 뒤 지원되는 목소리를 선택하세요. 제공자마다 표시되는 필드가 다릅니다.
+- Pitch는 이 파라미터를 지원하는 제공자와 모델에만 적용됩니다.
 :::
 
-![Airi consciousness settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-consciousness.avif)
+![AIRI 음성 합성 설정](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-speech.avif)
 
-#### > 발화 (Vocalization)
+#### 청각
+**설정 → 모듈 → 청각**을 열어 전사 제공자, 모델, 오디오 입력을 선택하세요. 설정 방법은 [음성 입력과 출력](../../config/audio.md)을 참고하세요. 아직 음성 입력을 사용하지 않는다면 **None**을 선택하세요.
 
-::: tip 발화 관련 참고
-- 서비스 소스에 따라 설정 과정이 조금씩 다를 수 있습니다. 이 절은 알리바바 Bailian을 예로 들었으니 실제 화면을 따라 주세요.
-- 일부 서비스에서는 Pitch 조절이 동작하지 않을 수 있습니다.
-- 소스가 너무 많아 뒤쪽 항목을 클릭할 수 없으면, 탭 위에 마우스를 올리고 가운데 버튼을 누른 채 좌우로 끌어 보세요.
+::: info 음성 인식 (ASR/STT)
+
+STT(Speech-to-Text)는 자동 음성 인식(ASR)이라고도 하며, 음성 오디오를 텍스트로 변환합니다.
 :::
 
-권장 순서:
-
-1. 먼저 서비스 소스를 선택하거나, 새로 추가한 뒤 선택합니다.
-2. 그다음 모델을 선택합니다.
-3. 이어서 목소리를 선택합니다.
-4. Airi가 말하지 않게 하려면 "None"을 선택합니다.
-5. 기본 설정을 마친 뒤에는 이 페이지 하단에 텍스트를 입력하고 "**Test voice**"를 클릭해 샘플을 생성할 수 있습니다.
-
-![Airi vocalization settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-speech.avif)
-
-#### > 청각 (Hearing)
-
-::: tip 서비스 소스가 너무 많을 때
-소스가 너무 많아 뒤쪽 항목을 클릭할 수 없으면, 탭 위에 마우스를 올리고 가운데 버튼을 누른 채 좌우로 끌어 보세요.
+::: info macOS에서 음성 입력 사용하기
+macOS에서 음성 입력을 처음 사용할 때 권한 요청이 나타나면 AIRI가 마이크에 접근하도록 허용하세요.
+![macOS 권한 요청](/en/docs/manual/tamagotchi/setup-and-use/image-7.png)
 :::
 
-권장 순서:
-
-1. 먼저 오디오 입력 장치를 선택합니다.
-2. 그다음 서비스 소스를 선택하거나, 새로 추가한 뒤 선택합니다.
-3. 그다음 모델을 선택합니다.
-
-![Airi hearing settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-hearing.avif)
+![AIRI 청각 설정](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-hearing.avif)
 
 추가로 다음을 할 수 있습니다:
 
-- "Auto-send transcribed text"를 켜면 전사된 텍스트가 자동으로 전송됩니다.
-- 끄면 전송 전에 전사 결과를 다듬을 수 있습니다.
-- "Auto-send delay"로 전송 지연을 조정할 수 있습니다.
+- 자동 전송을 위해 Auto-send transcribed text 기능을 켭니다.
+- 끄면 전송 전에 전사 결과를 확인하거나 수정할 수 있습니다.
+- **Auto-send delay**로 AIRI가 전송 전에 기다리는 시간을 조정합니다.
 
-::: info 편집자 노트
-"자동 전송을 끄면 전사 결과를 다듬을 수 있다" 는 것은 편집자의 추측입니다. 편집자는 청각 기능을 아직 제대로 써 보지 못했습니다.
+::: info 자동 전송
+자동 전송이 켜져 있으면 인식된 텍스트가 설정된 지연 시간 뒤에 채팅 세션으로 전송됩니다. 꺼져 있으면 직접 전송하기 전에 텍스트를 확인하거나 수정할 수 있습니다.
 :::
 
 마이크를 테스트하려면:
 
-1. 페이지 중간의 "**start monitoring**"을 클릭합니다.
-2. 필요하면 Sensitivity를 조정합니다.
+1. **Start Monitoring**을 클릭하세요.
+2. 필요하면 **Sensitivity**를 조정하세요.
 
-STT를 테스트하려면:
+STT 기능을 테스트하려면:
 
-1. 페이지 하단의 "**start speech-to-text**"를 클릭합니다.
-2. "Transcription Result"에서 결과를 확인합니다.
+1. **Start Speech-to-Text Test**를 클릭하세요.
+2. **Transcription Result**에서 인식된 텍스트를 확인하세요.
 
-#### > 시각 (Vision)
+#### 비전
+**설정 → 모듈 → 비전**을 열어 활성 비전 제공자와 이미지 지원 모델을 선택하고 **Capture interval**을 설정하세요. 전체 과정은 [시각 이해](../../config/vision.md)를 참고하세요.
 
-::: tip 서비스 소스가 너무 많을 때
-소스가 너무 많아 뒤쪽 항목을 클릭할 수 없으면, 탭 위에 마우스를 올리고 가운데 버튼을 누른 채 좌우로 끌어 보세요.
+![AIRI 비전 설정](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-vision.avif)
+
+::: warning 화면 비전을 사용하려면 먼저 Vision Capture를 시작해야 합니다
+비전 서비스 제공자와 모델만 설정할 때는 이 도구를 켤 필요가 없습니다.
+
+AIRI가 화면이나 창을 분석하게 하려면 **시스템 → Developer → Vision Capture**를 열고 화면 녹화 권한을 부여한 뒤, 창이나 디스플레이를 선택하고 **Start ticker**를 클릭하세요. 결과를 현재 캐릭터에게 전송하려면 **Publish to character**를 켜세요.
+
+Vision Capture는 현재 데스크톱 디버깅/개발용 워크플로이며, 페이지를 벗어나면 캡처 루프가 중지됩니다. 전체 안내는 [데스크톱 개발자 도구](/ko/docs/contributing/desktop-developer-tools#vision-capture)를 참고하세요.
 :::
 
-권장 순서:
 
-1. 먼저 서비스 소스를 선택하거나, 새로 추가한 뒤 선택합니다.
-2. 그다음 모델을 선택합니다.
-3. 필요하면 "Capture interval"로 캡처 빈도를 조절합니다.
+<a id="chapter-4-art"></a>
+#### Artistry (예술 창작)
 
-![Airi vision settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-vision.avif)
+여기서 AIRI의 예술 창작 능력을 설정할 수 있습니다.
 
-::: warning Vision Capture가 필요합니다
-이 기능은 `System → Developer → vision capture`에서 `vision capture`를 활성화해야 합니다. 자세한 내용은 해당 절을 참고하세요.
+**설정 → 제공자 → Artistry**를 열어 이미지 제공자를 설정한 뒤, **설정 → 모듈 → Artistry**에서 활성화하세요.
+
+::: warning 대화형 Artistry의 도구 호출
+일반적인 대화형 Artistry 흐름에서는 AIRI가 설정된 이미지 도구를 현재 **채팅 모델**에 제공하고, 채팅 모델이 그 도구를 호출해 생성 작업을 제출합니다. 이 흐름에는 **Tool Calling / Function Calling**을 지원하는 제공자와 모델이 필요합니다.
+
+**설정 → 모듈 → 의식**에서 제공자가 도구 호출을 지원한다고 명시한 모델을 선택하세요. 일반 텍스트 대화만 가능한 모델은 선택한 이미지 서비스에 작업을 제출하지 않고 텍스트로만 응답할 수 있습니다.
+
+설정을 마친 뒤 캐릭터에게 간단한 이미지를 생성해 달라고 요청하세요. AIRI가 도구 호출을 시작하는지 확인하고, 제공자가 작업 상태·기록·콘솔을 제공한다면 작업이 접수되었는지도 확인할 수 있습니다. 작업이 이미지를 반환하면 AIRI가 결과를 표시합니다. 제공자별 확인 방법은 **설정 → 제공자 → Artistry** 아래의 해당 페이지를 참고하세요.
+
+캐릭터 카드 옵션인 **Cinematic Autonomy (Autonomous Artist)**는 별도의 텍스트 분석 흐름을 사용해 선택한 이미지 제공자를 직접 호출하므로, 이 모드에는 LLM 도구 호출이 필요하지 않습니다.
 :::
 
-#### > 그림 (Artistry)
+#### 단기 기억
 
-::: tip 서비스 소스가 너무 많을 때
-소스가 너무 많아 뒤쪽 항목을 클릭할 수 없으면, 탭 위에 마우스를 올리고 가운데 버튼을 누른 채 좌우로 끌어 보세요.
+이 기능은 아직 제공되지 않습니다. 구현 아이디어가 있다면 이슈나 Pull Request를 제출해 주세요.
+
+#### 장기 기억
+
+이 기능은 아직 제공되지 않습니다. 구현 아이디어가 있다면 이슈나 Pull Request를 제출해 주세요.
+
+#### Discord
+
+Discord 연동을 사용하려면 AIRI가 Discord 서버의 메시지·음성 채널에 들어갈 수 있도록 봇 서비스를 소스에서 실행해야 합니다.
+
+1. Discord 애플리케이션을 만들고 [Discord 봇 연동 가이드](/ko/docs/integrations/discord)에 설명된 필수 Intents를 활성화하세요.
+2. 저장소에서 Discord 봇 서비스를 시작하세요.
+3. AIRI에서 **설정 → 연결**을 열고 **Auth Token**을 봇 서비스 설정에 복사하세요.
+4. **설정 → 모듈 → Discord**를 열고 **Bot Token**을 입력한 뒤 **Enable Discord Integration**을 켜고 **Save**를 클릭하세요. 실행 중인 봇 서비스가 AIRI로부터 이 설정을 전달받습니다.
+
+::: warning 자격 증명 보안
+Bot Token, AIRI Auth Token과 선택적 전사 자격 증명은 로컬 설정에만 저장해야 합니다. 이 값들을 제출하거나, 스크린샷으로 찍거나, 다른 곳에 보내지 마세요.
 :::
 
-여기서 Airi의 예술적 창작 능력을 설정할 수 있습니다.
+#### X / Twitter
 
-참고: 이 기능은 **Neuro의 그림 로직과는 다릅니다.** 서드파티 AI 서비스로 이미지를 생성해 아주 정교한 **AI 생성 이미지**를 얻을 수 있습니다.
+X / Twitter 설정 폼은 있지만 AIRI 0.11.3에서는 연동이 동작하지 않습니다. 자격 증명을 입력하지 마세요. 현재 구현의 제약은 [X / Twitter 연동 가이드](/ko/docs/integrations/x)를 참고하세요.
 
-시간 제약으로 이 절은 당장은 자세히 다루지 않습니다.
+#### 웹 검색
 
+**설정 → 모듈 → Web Search**를 열고 [웹 검색 설정 가이드](../../config/web-search.md)를 따라 Tavily API Key를 설정하고 사용법, 개인정보 팁, FAQ를 확인하세요.
 
-#### > 단기 기억 (Short-term Memory)
+#### Minecraft
 
-아직 공개되지 않았습니다.
+Minecraft 연동을 사용하려면 로컬 에이전트 서비스를 소스에서 실행해야 합니다. [Minecraft 에이전트 연동 가이드](/ko/docs/integrations/minecraft)를 따라 신뢰할 수 있는 서버, AIRI, 모델 서비스를 설정한 뒤 에이전트를 시작하세요.
 
-#### > 장기 기억 (Long-term Memory)
-
-아직 공개되지 않았습니다.
-
-#### > Discord
-
-여기서 Discord 봇을 설정해 Airi가 여러분의 Discord 서버에 들어와 상호작용하게 할 수 있습니다.
-
-권장 순서:
-
-1. Discord 봇 토큰을 얻습니다.
-2. 해당 입력란에 넣습니다.
-3. 나머지 설정은 화면을 보고 마칩니다.
-
-::: warning Discord 봇에 대하여
-이 기능은 Discord 봇이 필요한데, 설치 파일 버전에는 포함되어 있지 않습니다. GitHub 페이지에서 관련 파일을 받아야 합니다. 편집자에게 이 항목의 우선순위가 낮아 전체 튜토리얼은 생략합니다.
+::: warning 보안 유의 사항
+Minecraft 에이전트를 신뢰할 수 없는 공개 서버에 연결하지 마세요. 에이전트는 로컬 Minecraft 세션과 네트워크 연결을 조작하므로, 악의적인 서버가 예기치 않은 동작을 일으킬 수 있습니다.
 :::
 
-#### > X/Twitter
+::: tip 연동 서비스 문서
+연동 서비스를 소스에서 실행하는 방법은 문서 사이드바의 **Integration Services** 섹션에 있습니다.
+:::
 
-Discord와 비슷하며 봇이 필요합니다. 튜토리얼 생략.
+#### Factorio
 
-#### > Minecraft
+**설정 → 모듈 → Factorio**를 열고 [Factorio 연동 가이드](/ko/docs/integrations/factorio)를 따라 신뢰할 수 있는 서버 주소, 포트, 게임 내 사용자 이름을 입력하세요. AIRI에는 바로 배포할 수 있는 Factorio 서버 측 연동이 포함되어 있지 않습니다.
 
-봇이 필요합니다. 튜토리얼 생략.
+#### MCP 서버
 
-#### > Factorio
+MCP(Model Context Protocol)는 AIRI가 로컬 프로세스를 통해 외부 도구를 사용할 수 있게 합니다. 데스크톱에서 **설정 → 모듈 → MCP Server**를 열고 **Add server**를 클릭한 뒤 **Identifier**, **Command**, **Arguments**와 선택 사항인 **Working directory**, **Environment** 값을 채우세요. **Test**로 선택한 서버를 테스트한 뒤 **Save and restart**를 클릭해 설정을 기록하고 MCP를 재시작하세요. 설정을 직접 관리할 수 있도록 **Reveal in file manager**와 **Edit JSON**도 제공됩니다. 신뢰하는 MCP 서버만 실행하세요. MCP 서버는 로컬에서 명령을 실행할 수 있고 여러분이 부여한 환경 변수에 접근할 수 있습니다.
 
-봇이 필요합니다. 튜토리얼 생략.
+#### Beat Sync
 
-#### > MCP 서버
-
-편집자가 써 본 적이 없습니다. 튜토리얼 생략.
-
-#### > 리듬 게임
-
-편집자가 아직 탐색 중입니다. 튜토리얼 생략.
+**설정 → 모듈 → Beat Sync**를 여세요. Beat Sync는 선택한 화면이나 창의 오디오를 분석해 스테이지 효과에 비트 신호를 보냅니다. **Start screen capture**를 클릭하고 오디오가 포함된 소스를 선택하세요. 캡처를 끝내려면 **Stop**을 사용하세요. 이 페이지는 감도, 최소 비트 간격, 고급 필터링 파라미터와 실시간 스펙트럼·비트 시각화를 제공합니다. 처음 사용할 때는 시스템 화면 녹화 권한이 필요할 수 있습니다.
 
 <a id="chapter-4-stage"></a>
-### > 장면 (Scene)
+### 장면
 
-여기서 Airi 메인 인터페이스의 장면, 간단히 말해 Airi 메인 인터페이스의 배경을 설정할 수 있습니다.
+장면은 AIRI 메인 인터페이스의 배경입니다.
 
-프리셋 두 개가 포함되어 있습니다. 장면을 적용하려면 프리셋 가운데의 체크 표시를 클릭하세요 (마우스를 올렸을 때만 나타납니다).
+**Scene Gallery**는 현재 AIRI에서 사용할 수 있는 배경을 보여 줍니다. 비활성 장면 위에 마우스를 올리고 체크 버튼을 클릭하면 활성 캐릭터 배경이 됩니다.
 
-"**Upload to Gallery**"를 클릭해 직접 만든 이미지 장면을 가져올 수도 있습니다.
+**Upload to Gallery**를 클릭해 이미지를 가져오세요.
 
-장면을 지우려면 "**Clear Default**"를 클릭하세요.
+활성 배경을 제거하려면 **Clear Default**를 클릭하세요.
 
 <a id="chapter-4-character-model"></a>
-### > 캐릭터 모델
+### 모델
 
-여기서 캐릭터 모델을 고르고 설정할 수 있습니다.
+여기서 캐릭터의 모델을 고르고 설정할 수 있습니다.
 
-![Airi character model settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-models.avif)
+![AIRI 캐릭터 모델 설정](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-models.avif)
 
-Airi는 Live2D 모델과 VRM 3D 모델을 지원합니다.
+AIRI는 Live2D, Spine 2D, VRM 3D, MMD, Tachie 모델을 지원합니다.
 
-기존 모델로만 전환하고 싶다면:
+기존 모델로 전환만 하려면 다음 순서를 권장합니다:
 
-1. "**select model**"을 클릭해 모델 선택기를 엽니다.
-2. 이 버전에는 기본으로 Live2D 두 개와 VRM 두 개가 있습니다.
-3. 하나를 선택하고 "**confirm**"을 클릭해 전환합니다.
+1. **Select model**을 클릭해 **Model Selector**를 여세요.
+2. 사용할 모델에서 **Pick**을 클릭하세요.
+3. **Confirm**을 클릭해 전환을 마치세요.
 
-직접 만든 모델을 가져오려면 "**add**"를 클릭해 Live2D 또는 VRM 모델을 가져옵니다.
+직접 만든 모델을 가져오려면 **Model Selector**를 열고 **Import**를 사용하세요. 선택기는 다음 형식을 받습니다:
 
-::: info 편집자 노트
-"Switch to Godot Stage (Experimental)" 옵션에 대해서는, 설명서 편집팀이 아직 이 기능을 충분히 이해하지 못했고 실험 단계로 보이므로 관련 소개는 당장은 생략합니다.
+- Live2D: `.zip`
+- VRM: `.vrm`
+- Spine: `.zip`
+- MMD: `.zip`, `.pmx` 또는 `.pmd`
+- Tachie: `.tachie.zip`
+
+::: info Godot Stage (실험적)
+**Switch to Godot Stage (Experimental)**는 별도의 Godot 스테이지 렌더러를 시작합니다. 되돌리려면 **Back to Built-in Stage**를 클릭하세요. Godot Stage는 현재 VRM 모델만 지원합니다. VRM 모델을 선택한 상태에서는 Godot View에서 카메라 X/Y/Z, yaw, pitch, 시야각을 조정할 수 있습니다. 상태와 모델 로딩 오류도 거기에 표시됩니다.
 :::
 
 ::: warning 모델을 가져오기 전에
-- 구형 Live2D 모델은 지원되지 않습니다. "\*.moc3"를 포함한 파일을 사용해야 합니다.
-- Live2D 모델을 가져오기 전에 모델 폴더를 "\*.zip" 파일로 압축하세요.
+- 구형 Live2D 형식은 지원되지 않습니다. 모델 패키지에 `.moc3` 파일이 포함되어야 합니다.
+- 가져오기 전에 완전한 Live2D 모델 폴더를 `.zip` 파일로 압축하세요.
+- Spine 모델도 `.zip`을 사용하고, VRM은 단일 `.vrm` 파일을 사용합니다.
 :::
 
-#### > Live2D 모델을 선택한 경우
+#### Live2D 모델을 선택한 경우
 
-다음 순서로 진행할 수 있습니다:
+다음 순서로 이어서 조정할 수 있습니다:
 
-1. "Zoom & Position"을 펼쳐 메인 창에서 모델의 크기와 위치를 조정합니다. x는 좌우, y는 상하입니다.
-2. "parameters"를 펼쳐 마우스 추적, Idle Animation, 프레임레이트, Auto Blink, Force Auto Blink(대체 타이머), Shadow, 기본 파라미터로 초기화, 모델 캐시 지우기, 그리고 모델별 파라미터 전체를 설정합니다.
-3. 대기 애니메이션을 원한다면 모델 zip에 애니메이션 파일이 포함되어 있는지 확인하세요.
-4. 필요하면 "Expressions"를 펼쳐 표정 시스템을 활성화합니다.
+1. **Scale and Position**을 펼쳐 모델의 크기와 위치를 조정하세요. X는 가로 위치, Y는 세로 위치를 조절합니다.
+2. **Parameters**를 펼쳐 마우스 추적, 대기 애니메이션, 프레임 레이트, 눈 깜빡임, 그림자, 모델 캐시 지우기, 모델별 파라미터를 설정하세요.
+3. 대기 애니메이션을 사용하려면 가져온 패키지에 애니메이션 파일이 포함되어 있는지 확인하세요.
+4. **Expressions**를 펼치고 **Expression System**을 켜서 모델에 포함된 표정을 사용하세요.
 
-::: info 편집자 노트
-편집자가 이 부분을 아직 충분히 테스트하지 못해 상세 내용이 제한적입니다.
+음성 합성이 켜져 있으면 AIRI는 음성 재생이 끝난 뒤 Live2D의 입 모양 상태를 자동으로 복원합니다.
+
+::: info 파라미터와 표정
+모델에서 사용할 수 있는 파라미터, 대기 애니메이션, 표정은 모델 파일 자체가 결정합니다. Expression System을 켠 뒤에는 모델이 실제로 제공하는 표정만 표시됩니다. 표정이나 애니메이션 파일이 없으면 해당 옵션은 효과가 없습니다.
 :::
 
-#### > VRM 3D 모델을 선택한 경우
+#### Spine 2D 모델을 선택한 경우
 
-"Scene"을 펼친 뒤 Model Position, 카메라 각도(도), 카메라 거리(줌), 모델 방향(Y축 회전), 모델 시선 방향과 관련 값들을 설정합니다.
+Spine 모델은 별도의 설정 패널을 제공합니다. 크기, X/Y 위치, 스킨, 배리언트, 대기 애니메이션, 애니메이션 블렌드 시간과 재생 속도를 조정할 수 있고, 프레임 레이트 제한과 렌더 스케일 조정도 가능합니다. 모델에 사용할 수 있는 스킨, 배리언트, 애니메이션이 있으면 해당 드롭다운 옵션에 나타나며, 없는 에셋은 표시되지 않습니다.
 
-::: info 편집자 노트
-"Change model"을 포함한 이 절은 시간 제약으로 생략합니다.
+#### VRM 3D 모델을 선택한 경우
+
+**Scene**을 펼쳐 모델 위치, 시야각, 카메라 거리, Y축 회전, 시선 방향을 조정하세요.
+
+::: info VRM 시점
+내장 스테이지에서의 위치, 회전, 카메라 거리, 시선 방향은 현재 설정에 저장됩니다.
 :::
 
 <a id="chapter-4-memory-bank"></a>
-### > 메모리 뱅크
+### 기억
 
-아직 공개되지 않았습니다.
+이 기능은 아직 제공되지 않습니다. 구현 아이디어가 있다면 이슈나 Pull Request를 제출해 주세요.
 
 <a id="chapter-4-providers"></a>
-### > 서비스 소스
+### 제공자
 
-여기서 Chat(LLM), Speech(TTS), Transcription(STT), Artistry 서비스 소스를 설정할 수 있습니다.
+**제공자**는 AIRI가 모델, 음성, 전사, 이미지 서비스에 연결하는 곳입니다. 여기서 제공자 자격 증명을 입력한 뒤, 해당 모듈 페이지에서 제공자와 모델을 선택하세요.
 
-항목을 선택하고, 미리 준비해 둔 서비스 소스를 고른 뒤, 해당 화면에서 필요한 정보를 채우면 설정이 완료됩니다.
+목적에 따라 카테고리를 선택할 수 있습니다:
 
-또한 Pricing이나 Deployment 같은 기준으로 모든 서비스를 필터링할 수 있습니다.
+- **채팅**: AIRI가 메시지에 답할 수 있도록 채팅 모델을 설정합니다. 동작하는 채팅 제공자가 최소 하나 필요합니다.
+- **비전**: 이미지 이해를 위한 비전 모델을 설정한 뒤 **모듈 → 비전**에서 선택합니다.
+- **음성 합성**: 텍스트를 음성으로 변환하는 기능을 설정한 뒤 **모듈 → 음성 합성**에서 제공자, 모델, 목소리를 선택합니다.
+- **전사**: 음성을 텍스트로 변환하는 기능을 설정한 뒤 **모듈 → 청각**에서 제공자와 모델을 선택합니다.
+- **Artistry**: 이미지 생성 서비스를 설정한 뒤 **모듈 → Artistry**에서 선택합니다.
 
-* Pricing은 세 가지 옵션이 있습니다:
+온보딩을 건너뛰었다면 먼저 채팅 제공자를 설정하세요. API Key나 계정 정보와 함께 Base URL, 리전 같은 필수 고급 필드를 입력합니다. 자동 유효성 검사를 기다리고, **Ping API**가 표시되면 사용해 보세요. 그런 다음 **모듈 → 의식**을 열어 제공자와 모델을 선택하고 메시지를 보내세요.
 
-  - All
-  - Free
-  - Paid
+채팅 제공자를 전환하면 선택했던 채팅 모델이 지워집니다. **모듈 → 의식**으로 돌아가 새 제공자의 모델을 선택하세요.
 
-* Deployment는 세 가지 옵션이 있습니다:
-
-  - All
-  - Local
-  - Cloud
-
-![Airi service sources settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-providers.avif)
-
-::: warning 주의해 주세요
-일부 서비스의 설정 화면은 제때 유지보수되지 못해 정상 동작하지 않을 수 있습니다. 비슷한 문제를 겪으면 GitHub에 이슈를 제출하거나, (선택한 서비스 소스가 지원한다면) "OpenAI Compatible API" 옵션으로 설정을 시도해 보세요.
+::: warning 자격 증명 보안
+API Key, AccessKey Secret 같은 서비스 자격 증명은 기기의 설정에만 저장하세요. 저장소에 커밋하거나, 이슈에 올리거나, 스크린샷에 포함하거나, 누구에게도 보내지 마세요.
 :::
 
+::: tip 설정 가이드
+- 제공자 필드, 유효성 검사 방법, 오류가 잘 이해되지 않으면 [공통 설정 안내](../../config/common.md)를 읽어 보세요.
+- 채팅 모델을 설정하려면 [채팅 모델](../../config/llm.md)을 읽고 **설정 → 제공자 → 채팅**에서 제공자를 선택하세요.
+- 음성 입력과 출력을 설정하려면 [음성 입력과 출력](../../config/audio.md)을 읽어 보세요. 음성 합성과 전사 제공자는 **설정 → 제공자**에 있으며, 각 모듈 페이지에서 활성화합니다.
+- 비전 제공자는 필드가 해당 채팅 제공자와 같더라도 자격 증명을 따로 저장합니다. 자세한 내용은 [시각 이해](../../config/vision.md)를 참고하세요.
+:::
+
+![AIRI 서비스 제공자 설정](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-providers.avif)
+
 ::: tip 기술적 조언
-현재 시장에는 AI 모델이 아주 많습니다. AIRI가 그 전부를 개별 지원하거나 실시간 유지보수를 보장할 수는 없으므로, **OpenAI 호환 API** 옵션을 고려해 보시길 권합니다. 사용하는 모델이 OpenAI 호환 API를 지원한다면 여기서 설정할 수 있습니다.
+제공자 목록은 설치된 AIRI 버전에 따라 다릅니다. 목록에 없는 제공자가 OpenAI 호환 인터페이스를 구현한다면, 해당하는 **OpenAI Compatible** 항목을 사용하고 그 제공자의 문서에 있는 정확한 Base URL과 모델 ID를 입력하세요.
 :::
 
 <a id="chapter-4-data"></a>
-### > 데이터
+### 데이터
 
-여기서 Airi의 여러 데이터를 관리할 수 있습니다.
+여기서 AIRI가 로컬에 저장한 데이터를 관리합니다.
 
-![Airi data settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-data-settings.avif)
-
-::: warning 되돌릴 수 없는 동작
-이 섹션에서는 데이터를 삭제하고 초기화할 수 있으며, 되돌릴 수 없습니다. 신중히 조작하시고, 삭제나 초기화를 실행하기 전에 다시 확인하세요.
+::: warning 되돌릴 수 없는 작업
+이 섹션의 삭제와 초기화 작업은 되돌릴 수 없습니다. 계속하기 전에 선택한 데이터를 확인하세요.
 :::
 
-::: tip 알려진 문제
-"Open app data folder"에는 현재 폴더가 여러 번 열리는 버그가 있습니다.
-:::
+![AIRI 데이터 설정](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-data-settings.avif)
 
-이 페이지는 여러 상자로 구성되어 있습니다:
+**Move desktop window to center**를 사용해 데스크톱 스테이지를 현재 화면 가운데로 되돌릴 수 있습니다.
 
-1. 첫 번째 상자에는 "Open app data folder"가 있습니다. "**Open folder**"를 클릭해 엽니다.
-2. 두 번째 상자에서는 대화 기록을 가져오거나 내보내거나, 모든 대화 세션을 삭제할 수 있습니다.
-3. 세 번째 상자에서는 가져온 모든 모델을 삭제하거나 모듈 설정과 자격 증명을 초기화할 수 있습니다.
-4. 네 번째 상자에서는 데스크톱 설정과 상태를 초기화할 수 있습니다.
-5. 다섯 번째 상자에서는 모든 프로바이더 설정과 자격 증명을 초기화하거나, 모든 로컬 설정·프로바이더 구성·모델을 지울 수 있습니다.
-
-::: tip 웹 버전 관련 설명
-위의 1번과 4번 항목은 웹 페이지에는 없습니다.
+::: tip 데스크톱 전용 데이터 컨트롤
+이 데이터 컨트롤은 데스크톱 버전에서만 사용할 수 있습니다. 웹이나 모바일 앱에서는 제공되지 않습니다.
 :::
 
 <a id="chapter-4-connection"></a>
-### > 연결
+### 연결
 
-여기서 WebSocket 서버 주소를 설정할 수 있습니다.
+**연결**은 AIRI의 서비스 채널을 설정합니다. **WebSocket Server Address**를 설정하고, 암호화된 전송이 필요하면 **Enable Secure WebSocket (WSS)**를 켜세요. 데스크톱에서는 **Expose On Network**를 **This device**, **All**, **Advanced** 중 하나로 설정할 수 있으며, **Advanced**를 선택하면 **Bind Hostname**이 나타납니다. **Auth Token**을 설정하고 QR 코드로 모바일 버전을 연결할 수도 있습니다. AIRI는 신뢰할 수 있는 네트워크에만 노출하고 토큰은 비공개로 유지하세요.
 
-![Airi connection settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-websocket-settings.avif)
+![AIRI 연결 설정](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-websocket-settings.avif)
 
-::: info 편집자 노트
-상세 설명 생략.
+::: tip macOS에서는 관리자 확인이 필요할 수 있습니다
+보안 WebSocket을 켜면 AIRI가 로컬 인증서를 macOS 로그인 키체인에 추가합니다. Touch ID 또는 Mac 로그인 암호 입력으로 이 작업을 승인하라는 요청을 받을 수 있습니다. 지문이나 Mac 로그인 암호를 확인하면 계속됩니다.
+![macOS 관리자 확인](/en/docs/manual/tamagotchi/setup-and-use/image-16.png)
 :::
+
 
 <a id="chapter-4-system"></a>
-### > 시스템
+### 시스템
 
-#### > General
+#### General
 
-여기서 프로그램 테마, 언어 등을 설정할 수 있습니다.
+여기서 AIRI의 테마, 언어와 일반 동작을 설정합니다.
 
-![Airi general system settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-system-general.avif)
+![AIRI 시스템 일반 설정](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-system-general.avif)
 
-- 테마는 기본이 라이트입니다. 버튼을 클릭하면 다크 모드로 전환됩니다.
-- Language는 인터페이스 언어를 설정합니다.
-- Control island icon size는 메인 창 오른쪽 아래 세 버튼의 크기를 바꿉니다.
-- 마지막으로 사용 데이터와 크래시 리포트 수집을 허용할지 선택하거나 개인정보 처리방침을 읽을 수 있습니다 ("Privacy Policy" 클릭).
+- **Theme**은 라이트 모드와 다크 모드를 전환합니다.
+- **Language**는 인터페이스 언어를 설정하며, 선택한 언어는 AIRI를 다시 시작해도 유지됩니다.
+- **Controls Island Icon Size**는 데스크톱 컨트롤 아일랜드 아이콘 크기를 바꿉니다.
+- **Enable usage analytics**는 현재 빌드에서 분석 기능이 제공될 때 익명 사용 분석을 제어합니다. 설명에서 개인정보 처리방침으로 연결됩니다.
 
-#### > Color Scheme
+#### Color scheme
 
-여기서 테마 색상을 바꿀 수 있습니다.
+여기서 AIRI의 테마 색상을 설정합니다.
 
-![Airi color scheme settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-system-color-scheme.avif)
+![AIRI 테마 색상 설정](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-system-color-scheme.avif)
 
-- RGB 옵션을 켜면 테마 색상이 RGB 스트립처럼 순환합니다.
-- 검은 선을 끌거나 색상 바를 클릭해 테마 색상을 바꿉니다.
-- 그 아래에는 색상 미리보기가 있습니다.
-- 아래에서 프리셋을 골라 테마 색상을 바꿀 수도 있습니다.
+- **RGB**를 켜면 테마 색상이 자동으로 순환합니다.
+- 색상 바 아래의 마커를 끌거나 바를 클릭해 색상을 선택하세요.
+- 선택한 색상은 미리보기에서 확인하세요.
+- 프리셋 견본을 클릭하면 바로 적용됩니다.
 
 ::: tip 색상 프리셋
-네모난 상자가 아니라 원 중 하나를 클릭하세요.
+색상 견본을 클릭해 해당 프리셋을 적용하세요.
 :::
 
-#### > Window Shortcuts
+#### Window Shortcuts
+여기서 **Spotlight** 전역 단축키를 수정할 수 있습니다. Spotlight는 AIRI의 플로팅 프롬프트 입력창입니다.
 
-::: warning 열지 마세요
-이 옵션은 내용도 없고 뒤로 가기 버튼도 없습니다. 한번 들어가면 설정 창을 닫고 다시 열어야 합니다. 클릭하지 마세요.
+1. 현재 단축키를 클릭하세요.
+2. 사용할 새 키 조합을 누르세요. Cmd, Ctrl, Alt, Super 중 최소 하나의 보조 키가 포함되어야 합니다.
+3. 다른 애플리케이션이 이미 그 단축키를 사용 중이면 AIRI가 충돌을 알립니다. 기록을 취소하려면 Esc를 누르세요.
+4. **Reset**을 클릭하면 기본 단축키로 되돌립니다.
+
+::: tip Spotlight 사용하기
+설정한 단축키를 누르면 Spotlight가 열립니다. 요청을 입력하고 Enter를 누르면 AIRI가 Spotlight를 숨기고 결과를 알림으로 표시합니다. 보내지 않고 닫으려면 Esc를 누르세요.
 :::
 
-#### > Developer
+#### Developer
 
-여기서 몇 가지 고급 기능을 쓸 수 있습니다.
-
-![Airi developer settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-system-developer.avif)
-
-::: info 고급 기능
-이 내용 대부분은 영어이며 거의 필요하지 않은 고급 기능이므로, 이 절은 참고용입니다.
-:::
-
-첫 번째 상자와 관련 옵션들:
-
-- 첫 번째 상자에서 "**Open**"을 클릭하면 개발자 도구 창이 열립니다 (브라우저의 F12 같은 것).
-- 두 번째 "Markdown stress test" – 상세 설명 생략.
-- 세 번째 "IO Tracer" – 기능 소개는 당장은 생략.
-- 네 번째 "Lag visualization" – 상세 설명 생략.
-- 다섯 번째 "Enable stage transition animation" – 상세 설명 생략.
-- 여섯 번째 "Use page-specific cutscenes" – 상세 설명 생략.
-
-##### > useMagicKeys tool
-
-::: info 편집자 노트
-현재 페이지가 비어 있어 상세 설명 생략.
-:::
-
-##### > useElectronWindowMouse
-
-여기서 화면상의 마우스 커서 위치를 감지할 수 있습니다.
-
-![Airi useElectronWindowMouse tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-use-window-mouse.avif)
-
-##### > Displays
-
-여기서 화면상의 마우스 커서 위치를 시각화할 수 있습니다.
-
-![Airi Displays tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-displays.avif)
-
-##### > widgets calling
-
-![Airi widgets calling tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-widgets-calling.avif)
-
-##### > Context Flow
-
-들어오는 컨텍스트 갱신(서버 + 브로드캐스트)과 나가는 채팅 훅을 실시간으로 살펴봅니다. 플러그인 컨텍스트(예: VSCode 코딩 컨텍스트)가 채팅 파이프라인으로 흘러 들어가고 서버 이벤트로 나가는 과정을 확인하는 데 사용하세요.
-
-![Airi Context Flow tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-context-flow.avif)
-
-##### > relative mouse
-
-여기서 이 창 안에서의 마우스 커서 위치를 시각화할 수 있습니다.
-
-![Airi relative mouse tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-relative-mouse.avif)
-
-##### > beat sync visualizer
-
-![Airi beat sync visualizer tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-beat-sync.avif)
-
-##### > WebSocket Inspector
-
-![Airi WebSocket Inspector tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-websocket-inspector.avif)
-
-##### > Plugin Host Debug
-
-![Airi Plugin Host Debug tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-plugin-host.avif)
-
-##### > Updater
-
-상세 소개는 당장은 생략.
-
-##### > Screen Capture
-
-시스템 수준의 화면 캡처 권한을 아직 부여하지 않았다면, 먼저 아래 스크린샷처럼 권한 요청이 나타납니다. 권한을 부여하면 임의의 애플리케이션 창이나 전체 화면을 캡처할 수 있습니다.
-
-상단에 네 개 옵션이 있습니다:
-
-- "applications" – 열려 있는 임의의 애플리케이션 창을 선택하고 "**share window**"를 클릭하면 상단에서 볼 수 있습니다. 캡처 위로 마우스를 옮기고 "stop"을 클릭하면 중지합니다.
-- "displays" – 전체 화면을 캡처합니다. "**share screen**"을 클릭하면 볼 수 있고, 캡처 위로 마우스를 옮기고 "stop"을 클릭하면 중지합니다.
-- "devices" – 상세 설명 생략.
-- "refetch" – 상세 설명 생략.
-
-![Airi Screen Capture tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-screen-capture.avif)
-
-##### > vision capture
-
-화면 캡처 권한을 아직 부여하지 않았다면 이 페이지도 먼저 권한 요청을 보여 줍니다. 권한을 부여하면 페이지가 프레임 캡처를 시작하고 시각 처리 결과를 보여 줄 수 있습니다.
-
-![Airi vision capture tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-vision-capture.avif)
+이 페이지는 실험적 기능을 개발하고, 문제를 해결하고, 검증하는 데 사용합니다. 일반 사용자에게는 필요하지 않습니다. 전체 도구 설명은 [개발자 가이드 → 개발자 도구](/ko/docs/contributing/desktop-developer-tools)에서 볼 수 있습니다.
 
 <a id="web-features"></a>
-## > 웹 버전 기능 보충
+## 웹 버전 기능
 
 <a id="chapter-3-main-web"></a>
-### > 웹 버전 메인 인터페이스
+### 웹 메인 인터페이스
 
-![Airi Web Interface](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-main-web.avif)
+![AIRI 웹 인터페이스](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-main-web.avif)
 
-여기서 캐릭터 모델을 보고 직접 대화할 수 있습니다.
+웹 인터페이스는 캐릭터 스테이지, 채팅 영역, 계정·표시 컨트롤로 구성됩니다.
 
-크게 세 부분으로 나뉩니다:
+#### 채팅 박스
 
-- 캐릭터 모델 공간
-- 채팅 박스
-- 그 외
+위쪽 영역은 대화 기록을 표시합니다. 아래쪽 영역에는 메시지 입력란과 대화, 전송 방식, 음성 입력을 위한 컨트롤이 있습니다.
 
-아래에서는 채팅 박스와 그 외 부분을 중심으로 살펴봅니다.
+#### 그 외 부분
 
-#### > 채팅 박스
+##### 상단 영역
 
-채팅 박스는 두 부분으로 나뉩니다:
+상단 영역에서는 **About**, **Characters**, 계정 메뉴에 접근할 수 있습니다. 로그인하면 계정 메뉴에 현재 이름과 Flux 잔액이 표시되고, 이어서 **Profile**, **Flux**, **설정**, **Sign out**이 나타납니다.
 
-- 위쪽은 대화 기록을 표시하고 기록하는 영역입니다
-- 아래쪽은 입력란으로, 여기에 입력해 캐릭터와 대화합니다
+###### Profile
 
-아래쪽 아래에는 버튼 세 개가 있습니다: (문구는 참고용)
+**Profile**은 계정 관리를 엽니다. 계정을 만든 방식에 따라 표시 이름을 변경하거나, 비밀번호와 연결된 로그인 방법을 관리하거나, 위험 구역(danger zone)에서 계정을 삭제할 수 있습니다. 현재 아바타는 계정 정보로 표시되지만, 이 페이지에서 아바타 업로드는 제공하지 않습니다.
 
-- Conversations (대화 관리. 대화는 서로 독립적입니다)
-- Send method (메시지 전송을 확정하는 방식 선택)
-- 음성 입력 활성화
+###### Flux
 
-#### > 그 외 부분
+Flux는 AIRI 공식 서비스가 사용하는 잔액입니다. 로그인한 뒤 **Flux**를 열면 잔액, 사용 통계, 거래 내역을 볼 수 있습니다. 현재 배포판이 구매를 지원하면 사용 가능한 패키지를 선택할 수 있습니다. 데스크톱 버전은 결제를 시스템 브라우저에서 엽니다. 공식 채팅, 비전, 음성 서비스에 대한 요청은 Flux를 소비할 수 있습니다. 서드파티 제공자는 사용량을 별도로 청구합니다.
 
-##### > 상단 영역
+###### 설정
 
-세 개 옵션이 있습니다:
+**설정**은 [4장](#chapter-4-settings)에서 설명한 것과 같은 설정 영역을 엽니다. 다만 데스크톱 전용 컨트롤은 웹에서 제공되지 않습니다.
 
-- About
-- Character Card
-- Account & Settings
+##### 하단 영역
 
-세 번째 옵션에는 주요 섹션 세 개가 있습니다:
+오른쪽 아래 컨트롤은 여섯 가지 동작을 제공합니다:
 
-- 계정 정보
-- Profile, Flux, Settings
-- 로그아웃
+- 저장된 대화 열기
+- 음성 출력 음소거 또는 해제
+- 캐릭터 위치와 크기 조정
+- 현재 대화 지우기
+- 라이트/다크 테마 전환
+- 배경 변경
 
-###### > Profile
+###### 위치와 크기
 
-Airi에 로그인한 상태라면 여기서 계정 정보를 관리할 수 있습니다.
+위치·크기 컨트롤을 열어 캐릭터의 X 위치, Y 위치, 크기(scale)를 조정하세요. 스테이지 왼쪽의 세로 컨트롤로도 화면을 조정할 수 있습니다.
 
-상세 설명 생략.
+![메인 창 위치와 크기 조정](/en/docs/manual/tamagotchi/setup-and-use/assets/web-position-size.avif)
 
-###### > Flux
+###### 현재 대화 지우기
 
-관련 설명은 당장은 생략.
-
-###### > Settings
-
-데스크톱 버전 설정과 같습니다. 자세한 내용은 [4장](#chapter-4-settings)을 참고하세요.
-
-##### > 하단 영역
-
-네 개 옵션이 있습니다: (문구는 참고용)
-
-- Position & Size
-- Delete Chat History
-- Toggle Light/Dark
-- Background
-
-###### > Position & Size
-
-클릭하면 옵션 왼쪽에 x, y, scale 세 옵션이 새로 나타나고, 웹 인터페이스 왼쪽에 수직 바가 생깁니다. 여기서 x는 모델의 x축 위치, y는 모델의 y축 위치, scale은 모델의 줌(크기)입니다. 웹 인터페이스 왼쪽의 수직 바를 **클릭한 채 끌어서** 이 세 값을 조정할 수 있습니다.
-
-![Adjust position and size on the main interface](/en/docs/manual/tamagotchi/setup-and-use/assets/web-position-size.avif)
-
-###### > Delete Chat History
-
-클릭하면 모든 대화 기록을 한 번에 지웁니다.
+휴지통 버튼을 선택하면 활성 대화의 메시지와 컨텍스트가 지워집니다. 다른 저장된 대화는 삭제되지 않습니다.
 
 ::: warning 신중히 진행하세요
-삭제한 대화는 복구할 수 없으니 조심해서 조작해 주세요!
+지운 메시지는 복구할 수 없습니다.
 :::
 
-###### > Toggle Light/Dark
+###### 라이트/다크 전환
 
-인터페이스를 "Light" 또는 "Dark" 테마로 전환합니다.
+해 또는 달 버튼을 선택해 라이트와 다크 테마를 전환하세요.
 
-###### > Background
+###### 배경
 
-메인 인터페이스의 배경을 바꿉니다.
+배경 버튼을 선택해 다른 스테이지 배경을 고르세요.
 
 <a id="features-issues"></a>
-## > 과거 특성 & 자주 겪는 문제
+## 문제 해결과 바로 가기
 
-### > 자주 겪는 문제
+### FAQ
 
-- 구버전에서 0.10.2로 업그레이드할 때, 이전에 모델의 크기와 위치를 바꿔 두었다면 모델이 '사라진' 것처럼 보일 수 있습니다. 이 문제를 겪더라도 걱정하지 마세요. 모델 설정 화면에서 모델의 scale과 위치를 초기화하면 해결됩니다.
-
-<a id="h2-2-1"></a>
-### > 특성 H2-2-1
-
-애플리케이션을 처음 시작할 때 이런 버그를 만날 수 있습니다. 메인 인터페이스 테두리가 깜빡이고, 클릭해서 팝업 메뉴를 펼치면 곧바로 다시 접힙니다…
-
-이 버그를 만나더라도 걱정하지 마세요. 아래 순서로 해결할 수 있습니다 (다만 클릭이 빨라야 합니다):
-
-먼저 깜빡이는 테두리가 어두워지는 바로 그 순간에 클릭해서 펼칩니다.
-
-그다음 두 번째 줄의 첫 번째 옵션인 'Refresh'를 빠르게 찾아 클릭합니다. 이렇게 하면 문제가 해결됩니다.
-
-* 이 특성은 수정되었습니다!
+- 업그레이드 후 저장된 크기나 위치가 화면 밖에 있으면 모델이 사라진 것처럼 보일 수 있습니다. **설정 → 모델**에서 모델의 크기와 위치를 초기화하세요.
 
 <a id="h3-1-1"></a>
-### > 특성 H3-1-1
+### 연결 상태 바로 가기
 
-과거 일부 버전에서는 메인 창 오른쪽 위 모서리에도 옵션이 하나 보였습니다:
+오른쪽 위 영역에 **WebSocket Status**가 표시되는 화면에서는 이를 클릭해 **연결**을 열고 **WebSocket Server Address**를 설정할 수 있습니다.
 
-- "websocket status" – 오른쪽 위. 클릭하면 연결 설정이 열려 WebSocket 서버 주소를 설정할 수 있었습니다.
 
 <a id="chapter-ed-toeveryeditor"></a>
-## > 끝에 남기는 말
+## 이 설명서에 기여하기
 
-이 설명서는 주로 비공식 인원이 작성해 공식 사이트에 제출한 것입니다. 내용 유지보수는 보통 Mujiu Yunxuan Studio 구성원이 담당하지만, 이 문서를 편집하고 싶거나 이미 편집한 모든 분들이 문서 앞부분 저자 항목에 이름을 남겨 주시기를 진심으로 바랍니다. 내용을 바꾸든 서식을 다듬든, 이 설명서를 함께 풍성하게 하고 다듬는 데 누구든 참여해 주시길 환영합니다. Airi 프로젝트와 이 설명서에 여러분의 힘을 보태 주세요!
+커뮤니티가 유지 관리하는 이 설명서는 공식 AIRI 문서와 함께 게시됩니다. 정확성, 표현, 스크린샷, 서식을 개선하는 기여를 환영합니다. Pull Request를 제출하고, 기여가 크다면 저자 목록에 이름을 추가해 주세요.
 
-또한 비공식 사용자이면서 이 설명서를 편집할 아이디어가 있다면, 부담 갖지 마시고 그냥 수정해서 Pull Request를 보내 주세요. 다만 이름을 남기는 것을 잊지 마시길 다시 한번 당부드립니다!
+AIRI 문서 개선에 힘써 주셔서 감사합니다.
 
-여러분의 성원과 협조에 감사드립니다!
-
-감사의 마음으로,
-JhIceFair
+——Ling Zhen

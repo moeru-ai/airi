@@ -6,6 +6,8 @@ import { getAuthToken } from '../../../auth'
 
 interface OfficialStreamTranscriptionOptions extends StreamTranscriptionOptions {
   model?: string
+  /** Maximum time to open the socket and receive session.started. @default 15000 */
+  startupTimeoutMs?: number
 }
 
 type AudioChunk = ArrayBuffer | ArrayBufferView
@@ -33,10 +35,21 @@ function toUint8Array(chunk: AudioChunk): Uint8Array {
   return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
 }
 
-function toWebSocketURL(baseURL: URL | string, token: string): string {
+function toWebSocketURL(baseURL: URL | string): string {
   const url = new URL(baseURL)
-  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-  url.searchParams.set('token', token)
+  switch (url.protocol) {
+    case 'https:':
+      url.protocol = 'wss:'
+      break
+    case 'http:':
+      url.protocol = 'ws:'
+      break
+    case 'wss:':
+    case 'ws:':
+      break
+    default:
+      throw new TypeError('Official ASR requires an HTTP or WebSocket URL.')
+  }
   return url.toString()
 }
 
@@ -44,6 +57,7 @@ function toWebSocketURL(baseURL: URL | string, token: string): string {
 export function streamOfficialTranscription(options: OfficialStreamTranscriptionOptions): AIRIStreamTranscriptionResult {
   const audioStream = resolveAudioStream(options)
   const deferredText = createDeferred<string>()
+  void deferredText.promise.catch(() => {})
 
   let text = ''
   let fullStreamController: ReadableStreamDefaultController<AIRIStreamTranscriptionDelta> | undefined
@@ -53,6 +67,7 @@ export function streamOfficialTranscription(options: OfficialStreamTranscription
   let settled = false
   let sessionStarted = false
   let sessionFinished = false
+  let startupTimer: ReturnType<typeof setTimeout> | undefined
 
   const fullStream = new ReadableStream<AIRIStreamTranscriptionDelta>({
     start(controller) {
@@ -67,6 +82,9 @@ export function streamOfficialTranscription(options: OfficialStreamTranscription
 
   function cleanup() {
     options.abortSignal?.removeEventListener('abort', handleAbort)
+    if (startupTimer)
+      clearTimeout(startupTimer)
+    startupTimer = undefined
   }
 
   function closeSocket() {
@@ -135,7 +153,7 @@ export function streamOfficialTranscription(options: OfficialStreamTranscription
       if (done)
         break
       await waitForSocketCapacity()
-      socket.send(toUint8Array(value))
+      socket.send(new Uint8Array(toUint8Array(value)))
     }
 
     if (!settled && !options.abortSignal?.aborted)
@@ -143,6 +161,8 @@ export function streamOfficialTranscription(options: OfficialStreamTranscription
   }
 
   function handleServerMessage(raw: string) {
+    if (settled)
+      return
     let message: AudioTranscriptionServerMessage
     try {
       message = JSON.parse(raw) as AudioTranscriptionServerMessage
@@ -159,6 +179,9 @@ export function streamOfficialTranscription(options: OfficialStreamTranscription
           return
         }
         sessionStarted = true
+        if (startupTimer)
+          clearTimeout(startupTimer)
+        startupTimer = undefined
         void sendAudio().catch(fail)
         break
       case 'transcript.text.delta': {
@@ -171,6 +194,17 @@ export function streamOfficialTranscription(options: OfficialStreamTranscription
         textStreamController?.enqueue(message.delta)
         break
       }
+      case 'transcript.text.snapshot':
+        text = message.text
+        fullStreamController?.enqueue({
+          type: 'transcript.text.snapshot',
+          text: message.text,
+          isFinal: message.isFinal,
+          durationMilliseconds: message.durationMilliseconds,
+          startMilliseconds: 0,
+          locale: 'und',
+        })
+        break
       case 'transcript.text.done':
         fullStreamController?.enqueue({ type: 'transcript.text.done', delta: '' })
         break
@@ -200,7 +234,11 @@ export function streamOfficialTranscription(options: OfficialStreamTranscription
       }
 
       options.abortSignal?.addEventListener('abort', handleAbort, { once: true })
-      socket = new WebSocket(toWebSocketURL(options.baseURL, token))
+      startupTimer = setTimeout(() => fail(new Error('Official ASR did not start in time.')), options.startupTimeoutMs ?? 15000)
+      // The browser cannot set an Authorization header on WebSocket upgrades.
+      // Keep the bearer out of URLs and access logs by carrying it in a
+      // dedicated handshake protocol value over WSS.
+      socket = new WebSocket(toWebSocketURL(options.baseURL), ['airi-asr-v1', `airi-auth.${token}`])
       socket.binaryType = 'arraybuffer'
       socket.addEventListener('open', () => {
         socket?.send(JSON.stringify({

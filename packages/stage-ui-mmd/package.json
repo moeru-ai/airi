@@ -36,6 +36,7 @@
     "@moeru/std": "catalog:",
     "@moeru/three-mmd": "catalog:",
     "@moeru/three-mmd-physics-ammo": "catalog:",
+    "@proj-airi/model-driver-lipsync": "workspace:^",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@vueuse/core": "catalog:",
@@ -47,8 +48,7 @@
     "pinia": "catalog:",
     "three": "catalog:",
     "three-stdlib": "catalog:",
-    "vue": "catalog:",
-    "wlipsync": "catalog:"
+    "vue": "catalog:"
   },
   "devDependencies": {
     "@types/culori": "catalog:",

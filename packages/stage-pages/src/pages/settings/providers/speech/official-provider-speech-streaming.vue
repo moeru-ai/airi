@@ -5,14 +5,15 @@ import {
   ProviderSettingsLayout,
   SpeechPlayground,
 } from '@proj-airi/stage-ui/components'
-import { getDefaultStreamingModel, selectProviderMetadata, streamingSynthesize } from '@proj-airi/stage-ui/libs'
+import { selectProviderMetadata, streamingSynthesize } from '@proj-airi/stage-ui/libs'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Callout, ComboboxSelect } from '@proj-airi/ui'
+import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -20,19 +21,19 @@ const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const providersStore = useProviderStore()
-const providerStore = useProviderConfigStore()
+const providerConfigStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
 const { isAuthenticated, credits, needsLogin } = storeToRefs(authStore)
 
 const providerId = 'official-provider-speech-streaming'
-const providerMetadata = computed(() => selectProviderMetadata(
+const providerMetadata = computedAsync(() => selectProviderMetadata(
   providersStore.getProviderDefinition(providerId),
   t,
   { id: providerId },
 ))
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
-const providerConfig = computed(() => providerStore.getProviderConfig(providerId))
+const providerConfig = computed(() => providerConfigStore.getProviderConfig(providerId))
 
 // Model picker. The catalog and the default model id both come from the
 // server's `/api/v1/audio/models/streaming` response (operator-controlled
@@ -40,19 +41,19 @@ const providerConfig = computed(() => providerStore.getProviderConfig(providerId
 // adding ICL / other backends doesn't need a UI release.
 const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
 const modelsLoading = computed(() => providersStore.isLoadingModels[providerId] || false)
-const serverDefaultModel = ref<string | null>(null)
-const model = computed({
-  get(): string {
-    return (providerConfig.value?.model as string | undefined) ?? serverDefaultModel.value ?? ''
-  },
-  set(val: string) {
-    providerConfig.value.model = val
-  },
-})
+const serverDefaultModel = shallowRef<string | null>(null)
+const streamingAvailable = shallowRef(false)
+const model = computed(() => (providerConfig.value?.model as string | undefined) ?? serverDefaultModel.value ?? '')
 const modelOptions = computed(() => providerModels.value.map(m => ({ label: m.name, value: m.id })))
 
 const availableVoices = computed(() => speechStore.availableVoices[providerId] || [])
-const voicesLoading = ref(false)
+const voicesLoading = shallowRef(false)
+
+async function setModel(value: string | number | undefined) {
+  if (typeof value !== 'string')
+    return
+  await providerConfigStore.setProviderModel(providerId, value)
+}
 
 async function loadVoices() {
   voicesLoading.value = true
@@ -64,24 +65,66 @@ async function loadVoices() {
   }
 }
 
-onMounted(async () => {
-  await providersStore.fetchModelsForProvider(providerId)
-  // `getDefaultStreamingModel()` is populated by the provider's listModels()
-  // (just ran via fetchModelsForProvider). If the operator hasn't curated a
-  // default server-side, fall back to the first model the server returned
-  // so the picker always has something selected.
-  serverDefaultModel.value = getDefaultStreamingModel() ?? providerModels.value[0]?.id ?? null
-  if (!providerConfig.value.model && serverDefaultModel.value)
-    providerConfig.value.model = serverDefaultModel.value
-  await loadVoices()
-})
+watch(isAuthenticated, async (authenticated, _, onCleanup) => {
+  let active = true
+  onCleanup(() => active = false)
+  if (!authenticated) {
+    streamingAvailable.value = false
+    serverDefaultModel.value = null
+    return
+  }
+
+  await providersStore.initializeProvider(providerId)
+  if (!active)
+    return
+
+  const catalog = await providersStore.fetchModelsForProvider(providerId)
+  if (!active)
+    return
+
+  // An absent value means that discovery failed before the server returned an
+  // authoritative state. Keep the last configured state and availability
+  // override so a transient request failure cannot hide the provider.
+  if (catalog.available === undefined) {
+    // Discovery did not produce a new authoritative state. Reuse the state
+    // returned by the leader so a late follower snapshot cannot disable
+    // model-scoped voice loading for the rest of this page mount.
+    streamingAvailable.value = catalog.lastKnownAvailable === true
+    return
+  }
+
+  const available = catalog.available
+  await providersStore.setProviderAvailabilityOverride(providerId, available)
+  if (!active)
+    return
+
+  if (!available) {
+    await providersStore.setProviderUnconfigured(providerId)
+    return
+  }
+
+  await providersStore.forceProviderConfigured(providerId)
+  if (!active)
+    return
+
+  streamingAvailable.value = true
+
+  // If the operator did not curate a default server-side, fall back to the
+  // first model in the same catalog response. Do not read synchronized model
+  // state here because its follower snapshot can arrive after the action.
+  serverDefaultModel.value = catalog.defaultModel ?? catalog.models[0]?.id ?? null
+  if (serverDefaultModel.value)
+    await providerConfigStore.setProviderModelIfUnset(providerId, serverDefaultModel.value)
+}, { immediate: true })
 
 // Volcengine TTS 1.0 and 2.0 ship different voice catalogues (mars/moon/ICL
 // vs uranus/saturn; see unspeech voices.go). Re-fetch on model change so the
 // list switches accordingly.
-watch(model, async () => {
+watch([isAuthenticated, streamingAvailable, model], async ([authenticated, available, selectedModel]) => {
+  if (!authenticated || !available || !selectedModel)
+    return
   await loadVoices()
-})
+}, { immediate: true })
 
 // Synthesize via the streaming session helper. The page uses the SAME
 // transport the runtime pipeline uses (ws → API proxy → unspeech
@@ -181,10 +224,11 @@ function handleLogin() {
             <p>Pick the streaming TTS model variant. All variants share the same voice catalogue today.</p>
           </Callout>
           <ComboboxSelect
-            v-model="model"
+            :model-value="model"
             :options="modelOptions"
-            :disabled="modelsLoading"
+            :disabled="modelsLoading || !providerConfig"
             placeholder="Choose a model..."
+            @update:model-value="setModel"
           />
         </div>
 

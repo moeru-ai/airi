@@ -207,6 +207,40 @@ describe('live2d zip loader settings sanitization', () => {
     expect(filePaths).not.toContain('__MACOSX/302301_shisihangshi/._302301_shisihangshi.model3.json')
   })
 
+  it('ignores macOS AppleDouble expression sidecars during zip metadata extraction', async () => {
+    await import('./live2d-zip-loader')
+    const { ZipLoader } = await import('pixi-live2d-display/cubism4')
+
+    const zip = new JSZip()
+    zip.file('302301_shisihangshi/302301_shisihangshi.model3.json', createShisihangshiSettingsText())
+    zip.file('302301_shisihangshi/expressions/happy.exp3.json', JSON.stringify({
+      Type: 'Live2D Expression',
+      Parameters: [{ Id: 'ParamEyeLOpen', Value: 1, Blend: 'Add' }],
+    }))
+    zip.file('__MACOSX/302301_shisihangshi/expressions/._happy.exp3.json', appleDoubleHeader)
+
+    const zipBytes = await zip.generateAsync({ type: 'uint8array' })
+    const reader = await JSZip.loadAsync(await blobFromBytes(zipBytes).arrayBuffer())
+    const settings = await ZipLoader.createSettings(reader)
+
+    // ROOT CAUSE:
+    //
+    // Metadata extraction scanned every ZIP entry. It parsed the AppleDouble sidecar as JSON,
+    // then discarded the valid expression metadata when that parse failed.
+    //
+    // The loader now removes macOS metadata paths before it discovers model resources.
+    expect(settings).toHaveProperty('_expFiles', [
+      {
+        name: 'happy',
+        fileName: '302301_shisihangshi/expressions/happy.exp3.json',
+        data: {
+          Type: 'Live2D Expression',
+          Parameters: [{ Id: 'ParamEyeLOpen', Value: 1, Blend: 'Add' }],
+        },
+      },
+    ])
+  })
+
   it('loads an OPFS-restored file directory when model3.json contains Physics: null', async () => {
     await import('./live2d-zip-loader')
     const { FileLoader } = await import('pixi-live2d-display/cubism4')

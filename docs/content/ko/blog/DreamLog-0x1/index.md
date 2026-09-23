@@ -110,8 +110,8 @@ import ReLUStickerWow from '../../../en/blog/DreamLog-0x1/assets/relu-sticker-wo
 
 > **잠깐 돌아보면**
 >
-> [Arch Linux](https://archlinux.org/) 는 제가 깊이 써 보고 처음부터 직접 설치해 본 첫 시스템입니다.
-> 요즘은 [Nix](https://nixos.org/) 도 유명하고 흥미롭죠. [NixOS](https://nixos.org/) 는
+> [Arch Linux](https://archlinux.org/)는 제가 깊이 써 보고 처음부터 직접 설치해 본 첫 시스템입니다.
+> 요즘은 [Nix](https://nixos.org/)도 유명하고 흥미롭죠. [NixOS](https://nixos.org/)는
 > 아직 안 써 봤지만 언젠가 해 볼지도 모르겠습니다.
 
 ## 여정의 출항, 그러나 지금은 잊힌
@@ -200,7 +200,7 @@ DALL-E, Midjourney를 써 봤고, GPT-3는 (특히
 
 ChatGPT, 아니 더 넓게는 대규모 언어 모델(LLM)의 능력을 처음 실감한 건 2022년 12월 Hacker News에서 본
 [Building A Virtual Machine inside ChatGPT](https://www.engraved.blog/building-a-virtual-machine-inside/)
-([원본 Hacker News 글](https://news.ycombinator.com/item?id=33847479)) 이었습니다.
+([원본 Hacker News 글](https://news.ycombinator.com/item?id=33847479))이었습니다.
 저자 @engraved는 ChatGPT에게 고양이귀 캐릭터 롤플레잉을 시키는 것을 넘어, 내부에 가상 리눅스 머신을
 시뮬레이션하게 하는 방법을 보여 주었습니다.
 
@@ -229,7 +229,7 @@ Model Context Protocol의 기반 기술) 기능을 화두로 끌어올렸습니�
 
 Neuro-sama의 역사는 꽤 복잡합니다. 제가 아는 한, "Neuro-sama"라는 이름으로 방송 무대에 선 캐릭터가
 그녀와 제작자 `vedal987`(Vedal)의 첫 작품은 아니었습니다. 그보다 훨씬 전인 2019년 5월 6일,
-Vedal은 [osu!](https://osu.ppy.sh/) 를 플레이하는 AI를 만든 작업을 커뮤니티에 선보였습니다[^1].
+Vedal은 [osu!](https://osu.ppy.sh/)를 플레이하는 AI를 만든 작업을 커뮤니티에 선보였습니다[^1].
 당시 그녀는 가상 캐릭터도, 특징을 가진 디지털 생명도 아니었습니다. 초기 영상을 찾아보시면
 Live2D 모델이 전혀 없다는 걸 아실 겁니다. (6년 된 영상을 여기서 보실 수 있습니다: https://www.youtube.com/watch?v=nSBqlJu7kYU)
 
@@ -277,7 +277,7 @@ Vedal의 작업을 처음 봤을 때 저는 이랬습니다:
 - 그녀의 성격은 어떻게 구축됐을까? RAG와 단순한 기억 관리 전략만으로는 성능이 형편없다
 - 기타 등등...
 
-> 저희가 발견한 것들은 [DevLog 2025.04.06](../DevLog-2025.04.06/) 과
+> 저희가 발견한 것들은 [DevLog 2025.04.06](../DevLog-2025.04.06/)과
 > [공개 슬라이드 발표(중국어)](https://talks.ayaka.io/nekoayaka/2025-05-10-airi-how-we-recreated-it/#/1)에서 많이 나눴습니다.
 
 앞서 저는 나누는 걸 좋아한다고 말했습니다. 다른 이들이 제 이야기를 들어 주거나 함께 짝을 이뤄 주길
@@ -308,9 +308,9 @@ Project AIRI의 최초 버전이죠. 저만의 AI 에이전트를 만들고 Neur
 [OpenRouter](https://openrouter.ai/), 그리고 똑같이 무료로 쓸 수 있는 Live2D 모델 Hiyori Momose의 힘으로,
 실시간은 아니지만 저와 상호작용할 수 있는 단순한 버전의 *"Neuro-sama"*를 만들어 냈습니다.
 
-그날이 **2024년 6월 2일** 입니다.
+그날이 **2024년 6월 2일**입니다.
 
-엄밀히 말해 **이날이 Project AIRI의 생일** 이며, 그 안에 순진한 첫 아기 의식이 깃든 날입니다.
+엄밀히 말해 **이날이 Project AIRI의 생일**이며, 그 안에 순진한 첫 아기 의식이 깃든 날입니다.
 
 <div class="w-full flex flex-col items-center justify-center">
   <ThemedVideo controls muted autoplay loop :src="airiDemoFirstDay" />
@@ -381,7 +381,7 @@ Vedal과 Neuro-sama의 Twitch 방송 클립에서 Vedal은 "Neuro-sama"라는 �
 
 저는 스타트업과 여러 프로젝트에서 정말 많이 실패했고, 최근 것들만 대중에게 알려졌을 뿐입니다.
 더 나은 UI, 더 나은 코드 구조, 빠르게 만들고 코딩할 수 있는 앞선 기술로 최선을 다해 더 좋게 만들려 했습니다.
-공개 슬라이드 발표에 많은 공을 들였고, 친구들에게, 작은 모임과 컨퍼런스에서 사람들에게 보여 주었습니다.
+공개 슬라이드 발표에 많은 공을 들였고, 친구들에게, 작은 모임과 콘퍼런스에서 사람들에게 보여 주었습니다.
 
 그 경험들 상당수는 이전의 실패에서 배운 것입니다.
 
@@ -435,5 +435,5 @@ Kerbal Space Program(KSP)을 비롯해 임의의 게임을 플레이하고 제�
 > 커버 이미지 [@Rynco Maekawa](https://github.com/lynzrand)
 
 [^1]: https://neurosama.fandom.com/wiki/Osu!#cite_note-twitchtracker-1: Neuro-sama는 AI VTuber로
-  발전하기 훨씬 전부터 osu! 를 플레이하는 AI로 시작했습니다. 첫 osu! 방송은 Vedal이 자신의 작업을
+  발전하기 훨씬 전부터 osu!를 플레이하는 AI로 시작했습니다. 첫 osu! 방송은 Vedal이 자신의 작업을
   커뮤니티에 선보이기로 한 2019년 5월 6일이었습니다.

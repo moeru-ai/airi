@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { MaybeComputedElementRef } from '@vueuse/core'
-import type { ComponentPublicInstance } from 'vue'
+import type { ComponentPublicInstance, ComputedRef, ShallowRef } from 'vue'
 
 import type { ChatActionMenuAction } from '.'
 
 import { errorMessageFromValue, isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
-import { useElementVisibility, useIntervalFn } from '@vueuse/core'
-import { createTimeline } from 'animejs'
+import { useElementVisibility, useEventListener } from '@vueuse/core'
+import { animate } from 'animejs'
 import { clamp } from 'es-toolkit'
 import {
   ContextMenuContent,
@@ -20,33 +19,39 @@ import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
 } from 'reka-ui'
-import { computed, inject, reactive, ref, shallowRef, toRef, useTemplateRef, watch } from 'vue'
+import { computed, onUnmounted, reactive, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useWebHaptics } from 'web-haptics/vue'
 
 import { createChatActionMenuItems, createChatActionMenuTriggerState } from '.'
 import { useBreakpoints } from '../../../../../composables/use-breakpoints'
 import { useElementScroll } from '../../composables/use-element-scroll'
-import { chatScrollContainerKey } from '../../constants'
 
 const props = withDefaults(defineProps<{
   canCopy?: boolean
+  canReply?: boolean
   canRetry?: boolean
   canDelete?: boolean
   copyText?: string
   menuLabel?: string
   placement?: 'left' | 'right'
+  pressFeedbackEnabled?: boolean
+  scrollContainer?: HTMLElement | null
 }>(), {
   canCopy: true,
+  canReply: false,
   canRetry: false,
   canDelete: true,
   copyText: '',
   menuLabel: 'Message actions',
   placement: 'right',
+  pressFeedbackEnabled: false,
+  scrollContainer: null,
 })
 
 const emit = defineEmits<{
   (e: 'copy'): void
+  (e: 'reply'): void
   (e: 'retry'): void
   (e: 'delete'): void
 }>()
@@ -58,8 +63,7 @@ const measuredElementRef = shallowRef<HTMLElement | null>(null)
 const contextMenuContainerElementRef = useTemplateRef<HTMLElement>('contextMenuContainer')
 const topSentinelRef = useTemplateRef<HTMLDivElement>('topSentinel')
 const bottomSentinelRef = useTemplateRef<HTMLDivElement>('bottomSentinel')
-const injectedScrollContainer = inject(chatScrollContainerKey, undefined)
-const scrollTarget = computed(() => injectedScrollContainer?.value ?? null)
+const scrollTarget = computed(() => props.scrollContainer)
 const contextMenuOpen = shallowRef(false)
 const dropdownMenuOpen = shallowRef(false)
 const {
@@ -86,13 +90,16 @@ const { trigger } = useWebHaptics()
 const { isMobile } = useBreakpoints()
 const { t } = useI18n()
 const shouldDisableDropdownMenu = computed(() => (isStageWeb() || isStageCapacitor()) && isMobile.value)
+const pressFeedbackEnabled = computed(() => props.pressFeedbackEnabled)
 const copyFeedbackActive = shallowRef(false)
 
 const menuItems = computed(() => createChatActionMenuItems({
+  canReply: props.canReply,
   canCopy: props.canCopy && props.copyText.trim().length > 0,
   canRetry: props.canRetry,
   canDelete: props.canDelete,
   retryLabel: t('stage.chat.actions.retry'),
+  replyLabel: t('stage.chat.actions.reply'),
 }))
 const triggerState = computed(() => createChatActionMenuTriggerState({
   copyFeedbackActive: copyFeedbackActive.value,
@@ -101,11 +108,9 @@ const hasMenuItems = computed(() => menuItems.value.length > 0)
 const forceVisible = computed(() => contextMenuOpen.value || dropdownMenuOpen.value)
 
 const contentClasses = [
-  'z-10000 min-w-36 rounded-xl p-1 shadow-md outline-none',
+  'chat-action-menu-content z-10000 min-w-36 rounded-xl p-1 shadow-md outline-none',
   'border border-neutral-100/70 bg-white/90 text-neutral-700 backdrop-blur-md',
   'dark:border-neutral-900/80 dark:bg-neutral-900/90 dark:text-neutral-100',
-  'data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
-  'data-[side=right]:animate-slideLeftAndFade data-[side=top]:animate-slideDownAndFade',
 ]
 
 const itemClasses = [
@@ -137,6 +142,9 @@ const triggerStyle = computed(() => (
 
 function handleContextMenuOpenChange(open: boolean) {
   contextMenuOpen.value = open
+
+  if (open)
+    animateReleasedState()
 }
 
 function handleDropdownMenuOpenChange(open: boolean) {
@@ -147,70 +155,57 @@ function setMeasuredElement(element: Element | ComponentPublicInstance | null) {
   measuredElementRef.value = element instanceof HTMLElement ? element : null
 }
 
-function useTouching(element: MaybeComputedElementRef) {
-  const elementRef = toRef(element)
+/** Cancels long-press feedback after 8 pixels of touch travel. */
+const PRESS_CANCEL_DISTANCE_PX = 8
 
-  const pressStartTime = ref(0)
-  const pressNow = ref(0)
+function usePressing(
+  elementRef: Readonly<ShallowRef<HTMLElement | null>>,
+  enabled: Readonly<ComputedRef<boolean>>,
+) {
+  const isPressing = shallowRef(false)
+  let pointerId: number | undefined
+  let pointerStartX = 0
+  let pointerStartY = 0
 
-  const { resume, pause } = useIntervalFn(() => pressNow.value = Date.now(), 50)
+  function handlePointerDown(event: PointerEvent) {
+    if (!enabled.value || event.pointerType !== 'touch' || !event.isPrimary)
+      return
 
-  const isTouching = ref(false)
-  const pressedFor = computed(() => {
-    if (!isTouching.value || pressStartTime.value === 0)
-      return 0
+    pointerId = event.pointerId
+    pointerStartX = event.clientX
+    pointerStartY = event.clientY
+    isPressing.value = true
+  }
 
-    const result = pressNow.value - pressStartTime.value
-    if (result < 0)
-      return 0
+  function handlePointerEnd(event?: PointerEvent) {
+    if (event && event.pointerId !== pointerId)
+      return
 
-    return result
+    pointerId = undefined
+    isPressing.value = false
+  }
+
+  function handlePointerMove(event: PointerEvent) {
+    if (event.pointerId !== pointerId)
+      return
+
+    const distance = Math.hypot(event.clientX - pointerStartX, event.clientY - pointerStartY)
+    if (distance > PRESS_CANCEL_DISTANCE_PX)
+      handlePointerEnd(event)
+  }
+
+  useEventListener(elementRef, 'pointerdown', handlePointerDown, { passive: true })
+  // Track travel at window level before and after the surrounding swipe surface
+  // captures a confirmed horizontal gesture.
+  useEventListener(window, 'pointermove', handlePointerMove, { passive: true })
+  useEventListener(window, ['pointerup', 'pointercancel'], handlePointerEnd, { passive: true })
+  watch(enabled, (canPress) => {
+    if (!canPress)
+      handlePointerEnd()
   })
 
-  function handleTouchStart() {
-    isTouching.value = true
-    pressStartTime.value = Date.now()
-    resume()
-  }
-
-  function handleTouchMove() {
-    isTouching.value = true
-  }
-
-  function handleTouchEnd() {
-    isTouching.value = false
-    pressStartTime.value = 0
-    pause()
-  }
-
-  function handleTouchCancel() {
-    isTouching.value = false
-    pressStartTime.value = 0
-    pause()
-  }
-
-  watch(elementRef, (newElement) => {
-    if (newElement) {
-      const el = newElement as HTMLElement
-
-      el.addEventListener('touchstart', handleTouchStart, { passive: true })
-      el.addEventListener('touchmove', handleTouchMove, { passive: true })
-      el.addEventListener('touchend', handleTouchEnd, { passive: true })
-      el.addEventListener('touchcancel', handleTouchCancel, { passive: true })
-    }
-    else if (elementRef.value) {
-      const el = elementRef.value as HTMLElement
-
-      el.removeEventListener('touchstart', handleTouchStart)
-      el.removeEventListener('touchmove', handleTouchMove)
-      el.removeEventListener('touchend', handleTouchEnd)
-      el.removeEventListener('touchcancel', handleTouchCancel)
-    }
-  }, { immediate: true })
-
   return {
-    isTouching,
-    pressedFor,
+    isPressing,
   }
 }
 
@@ -244,13 +239,18 @@ function useSetTimeoutFn(fn: () => void, options?: { delay?: number, onClear?: (
   }
 }
 
-const { isTouching } = useTouching(contextMenuContainerElementRef)
+const { isPressing } = usePressing(contextMenuContainerElementRef, pressFeedbackEnabled)
 
 const { trigger: triggerCopyFeedbackReset, clear: clearCopyFeedbackReset } = useSetTimeoutFn(() => {
   copyFeedbackActive.value = false
 }, { delay: 1000 })
 
 async function handleAction(action: ChatActionMenuAction) {
+  if (action === 'reply') {
+    emit('reply')
+    return
+  }
+
   if (action === 'copy') {
     if (!props.copyText.trim())
       return
@@ -278,42 +278,62 @@ async function handleAction(action: ChatActionMenuAction) {
 }
 
 const pressedAnimatable = reactive({ scale: 100 })
-const tl = createTimeline({ defaults: { duration: 500, autoplay: false } })
-  .add(pressedAnimatable, { scale: 90, ease: 'inOut', autoplay: false })
-  .reset()
+const contextMenuPressOpenDelay = 250
+let scaleAnimation: ReturnType<typeof animate> | undefined
+let gestureReleased = true
+
+function animatePressedState() {
+  gestureReleased = false
+  scaleAnimation?.cancel()
+  scaleAnimation = animate(pressedAnimatable, {
+    scale: 95,
+    duration: contextMenuPressOpenDelay,
+    ease: 'linear',
+  })
+}
+
+function animateReleasedState() {
+  if (gestureReleased)
+    return
+
+  gestureReleased = true
+  scaleAnimation?.cancel()
+  scaleAnimation = animate(pressedAnimatable, {
+    scale: 100,
+    duration: 220,
+    ease: 'inOut(2)',
+  })
+}
 
 const { trigger: triggerTimer, clear: clearTimer } = useSetTimeoutFn(() => {
   trigger('medium')
-  tl.reset()
-}, { delay: 700 })
+}, { delay: contextMenuPressOpenDelay })
 
-watch(isTouching, (val) => {
-  if (val) {
-    if (tl.completed || tl.paused) {
-      tl.restart()
-    }
-    else {
-      tl.play()
-    }
-
+watch(isPressing, (pressing) => {
+  if (pressing) {
+    animatePressedState()
     triggerTimer()
+    return
   }
-  else {
-    tl.reset()
 
-    clearTimer()
-  }
+  clearTimer()
+  animateReleasedState()
 })
+
+onUnmounted(() => scaleAnimation?.cancel())
 </script>
 
 <template>
-  <ContextMenuRoot @update:open="handleContextMenuOpenChange">
+  <ContextMenuRoot
+    :press-open-delay="contextMenuPressOpenDelay"
+    @update:open="handleContextMenuOpenChange"
+  >
     <ContextMenuTrigger as-child>
       <div
         ref="contextMenuContainer"
+        :data-pressing="isPressing"
         :class="[
           'group/chat-action relative w-fit',
-          'transition-transform duration-150 ease-in-out',
         ]"
         :style="{
           transform: `scale(${pressedAnimatable.scale / 100})`,
@@ -421,3 +441,61 @@ watch(isTouching, (val) => {
     </ContextMenuPortal>
   </ContextMenuRoot>
 </template>
+
+<style>
+.chat-action-menu-content {
+  transform-origin: var(--reka-context-menu-content-transform-origin);
+  will-change: opacity, transform;
+}
+
+.chat-action-menu-content[data-state="open"] {
+  animation: chat-action-menu-elastic-in 220ms linear both;
+}
+
+.chat-action-menu-content[data-state="closed"] {
+  animation: chat-action-menu-out 120ms ease-in both;
+}
+
+@keyframes chat-action-menu-elastic-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+
+  42% {
+    opacity: 1;
+    transform: scale(1.035);
+  }
+
+  64% {
+    transform: scale(0.985);
+  }
+
+  82% {
+    transform: scale(1.006);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes chat-action-menu-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-action-menu-content[data-state] {
+    animation: none;
+  }
+}
+</style>

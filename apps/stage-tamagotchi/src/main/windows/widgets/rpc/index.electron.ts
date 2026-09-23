@@ -10,6 +10,16 @@ import { ipcMain } from 'electron'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
+/**
+ * Registers Eventa invokes for one widget window and returns their cleanup operation.
+ *
+ * Call stack:
+ *
+ * setupWidgetsWindowInvokes (./index.electron)
+ *   -> {@link setupBaseWindowElectronInvokes}
+ *   -> {@link createWidgetsService}
+ *   -> `dispose`
+ */
 export async function setupWidgetsWindowInvokes(params: {
   widgetWindow: BrowserWindow
   widgetsManager: WidgetsWindowManager
@@ -21,9 +31,11 @@ export async function setupWidgetsWindowInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.widgetWindow)
+  const { context, dispose } = createContext(ipcMain, params.widgetWindow, { onlySameWindow: true })
 
   setupBaseWindowElectronInvokes({ context, window: params.widgetWindow, i18n: params.i18n, serverChannel: params.serverChannel })
 
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.widgetWindow })
+
+  return dispose
 }

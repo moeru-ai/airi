@@ -35,6 +35,11 @@ export class StreamingTranscriptionConsumers {
     this.consumers.delete(consumerId)
   }
 
+  /** Whether any owner still needs the shared provider session. */
+  hasConsumers() {
+    return this.consumers.size > 0
+  }
+
   /** Sends a completed sentence to all current consumers. */
   emitSentenceEnd(delta: string) {
     this.emit('onSentenceEnd', delta)

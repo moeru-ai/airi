@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
 import {
+  ProviderBasicSettings,
+  ProviderGenerationSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
@@ -8,6 +10,7 @@ import { selectProviderMetadata } from '@proj-airi/stage-ui/libs'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Callout } from '@proj-airi/ui'
+import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -19,7 +22,7 @@ const providersStore = useProviderStore()
 const { isAuthenticated, credits, needsLogin } = storeToRefs(authStore)
 
 const providerId = 'official-provider'
-const providerMetadata = selectProviderMetadata(providersStore.getProviderDefinition(providerId), t, { id: providerId })
+const providerMetadata = computedAsync(() => selectProviderMetadata(providersStore.getProviderDefinition(providerId), t, { id: providerId }))
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
 function handleLogin() {
@@ -54,6 +57,13 @@ function handleLogin() {
       </div>
 
       <div v-else flex flex-col gap-6>
+        <ProviderBasicSettings
+          :title="t('settings.pages.providers.common.section.basic.title')"
+          :description="t('settings.pages.providers.common.section.basic.description')"
+        >
+          <ProviderGenerationSettings :provider-id="providerId" />
+        </ProviderBasicSettings>
+
         <div class="rounded-xl bg-neutral-100/50 p-6 backdrop-blur-sm dark:bg-neutral-800/50">
           <div flex items-center justify-between>
             <div flex flex-col gap-1>

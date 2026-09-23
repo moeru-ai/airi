@@ -1,15 +1,70 @@
+character-switcher:
+  title: 切换角色
+  manage: 管理角色
+  empty: 暂无角色
+  failed: 无法切换角色，请重试。
+mobile-tools:
+  sign-in: 登录 AIRI
+  account-description: 账户与偏好
+  sound: 声音
+  character-voice: 角色声音
+  title: 设置
+  appearance: 外观
+  dark-mode: 深色模式
+  application: 应用
+  more: 更多
+  background: 背景
+  settings: 全部设置
+  about: 关于
+  view: 视图
+  close-view: 保存并关闭视图调节
+  hearing: 听觉
 chat:
+  voice-input: 语音输入
+  images:
+    empty: 聊聊你的想法，或分享一张图片。
+    use-vision: 使用视觉模型理解聊天图片
+    use-vision-description: 在下方选择提供商和模型。它会先读图，再由当前聊天模型回复。未配置视觉模型时，图片直接交给聊天模型。
+    attach: 添加图片
+    remove: 移除 {name}
+    unsupported: 请选择 PNG、JPEG、WebP 或 GIF 图片。
+    too-large: 每张图片不能超过 3 MB。
+    too-many: 一次最多添加 {count} 张图片。
+    total-too-large: 所有附件合计不能超过 3 MB。
+    read-failed: 无法读取图片，请重试。
+    no-description: 视觉模型没有返回图片描述。请检查“设置 → 模块 → 视觉”后重试。
+    reading: 正在读取图片…
+    description: 图片附件
   actions:
+    reply: 回复
     retry: 重试
+    send: 发送消息
+    stop: 停止回复
   message:
     character-name:
       airi: AIRI
       core-system: 核心系统
       you: 你
+  reply:
+    cancel: 取消回复
+    message: 消息
+    replying-to: 回复 {name}
   reasoning: 思考
+  swipe-demo:
+    show-label: 显示文字
+    delete: 删除
+    archive: 归档
+    pin: 置顶
+    actions: 展开操作
+    row: '示例会话 {n}'
   sessions:
+    delete-short: 删除
+    confirm-delete-short: 确认删除
     title: 对话
-    new: + 新建
+    new: 新建对话
+    current: 当前
+    confirm-delete: 删除此对话及其中的消息？
+    cancel: 取消
     empty: 暂无对话
     cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
@@ -107,3 +162,7 @@ websocket-status:
   connected: 已连接
   disconnected: 无网络连接
   open-settings: 打开连接设置
+
+computer-use:
+  label: 使用电脑
+  description: 允许此聊天窗口查看和操作本机应用。

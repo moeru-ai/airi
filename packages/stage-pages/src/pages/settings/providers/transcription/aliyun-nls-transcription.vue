@@ -6,6 +6,7 @@ import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/
 
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { toPCM16FromFloat32 } from '@proj-airi/audio/encoding'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import {
   Alert,
@@ -19,7 +20,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Button, FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, reactive, ref, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue'
 
 const providerId = 'aliyun-nls-transcription'
 const defaultModel = 'aliyun-nls-v1'
@@ -39,7 +40,9 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
-providersStore.initializeProvider(providerId)
+onMounted(async () => {
+  await providersStore.initializeProvider(providerId)
+})
 
 const credentials = reactive({
   get accessKeyId() {
@@ -101,7 +104,7 @@ const audioContext = shallowRef<AudioContext>()
 const workletNode = shallowRef<AudioWorkletNode>()
 const mediaStream = shallowRef<MediaStream>()
 const mediaStreamSource = shallowRef<MediaStreamAudioSourceNode>()
-const audioStreamController = shallowRef<ReadableStreamDefaultController<ArrayBuffer>>()
+const audioStreamController = shallowRef<ReadableStreamDefaultController<Uint8Array>>()
 const transcriptionAbortController = shallowRef<AbortController>()
 const activeTranscription = shallowRef<HearingTranscriptionResult | null>(null)
 const transcriptionTextPromise = shallowRef<Promise<string> | null>(null)
@@ -121,15 +124,6 @@ const {
   forceValid,
 } = useProviderValidation(providerId)
 
-function float32ToInt16(buffer: Float32Array) {
-  const output = new Int16Array(buffer.length)
-  for (let i = 0; i < buffer.length; i++) {
-    const value = Math.max(-1, Math.min(1, buffer[i]))
-    output[i] = value < 0 ? value * 0x8000 : value * 0x7FFF
-  }
-  return output
-}
-
 async function initializeAudioGraph(stream: MediaStream) {
   const context = new AudioContext({
     sampleRate: SAMPLE_RATE,
@@ -144,8 +138,8 @@ async function initializeAudioGraph(stream: MediaStream) {
     if (!buffer || !controller)
       return
 
-    const pcm16 = float32ToInt16(buffer)
-    controller.enqueue(pcm16.buffer.slice(0))
+    const pcm16 = toPCM16FromFloat32(buffer)
+    controller.enqueue(new Uint8Array(pcm16.buffer))
   }
 
   const source = context.createMediaStreamSource(stream)
@@ -213,7 +207,7 @@ async function startStreaming() {
   const abortController = new AbortController()
   transcriptionAbortController.value = abortController
 
-  const audioStream = new ReadableStream<ArrayBuffer>({
+  const audioStream = new ReadableStream<Uint8Array>({
     start(controller) {
       audioStreamController.value = controller
     },

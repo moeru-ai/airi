@@ -2,7 +2,7 @@ import type { TraceEvent } from '@proj-airi/stage-shared'
 
 import { defaultPerfTracer, exportCsv as exportCsvFile } from '@proj-airi/stage-shared'
 import { defineStore } from 'pinia'
-import { reactive, ref, watch } from 'vue'
+import { onScopeDispose, reactive, ref, shallowRef, watch } from 'vue'
 
 import { createLagSampler } from '../composables/perf/register-lag-sampler'
 
@@ -11,7 +11,7 @@ export type LagMetric = 'fps' | 'frameDuration' | 'longtask' | 'memory'
 interface Sample {
   ts: number
   value: number
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
 }
 
 interface RecordingSnapshot {
@@ -49,7 +49,7 @@ function calcStats(values: number[]) {
   const sorted = [...values].sort((a, b) => a - b)
   const idx = Math.max(0, Math.floor(0.95 * (sorted.length - 1)))
   const p95 = sorted[idx]
-  const latest = values.at(-1)
+  const latest = values.at(-1) ?? 0
 
   return { avg, p95, latest }
 }
@@ -99,11 +99,14 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
 
   const recording = ref(false)
   const recordingStartedAt = ref<number | null>(null)
+  const recordingElapsedMs = ref(0)
   const recordingSamples = reactive(createEmptySamples())
   const lastRecording = ref<RecordingSnapshot>()
   let recordingTimeout: ReturnType<typeof setTimeout> | undefined
+  let recordingElapsedTimer: ReturnType<typeof setInterval> | undefined
 
   const sampler = createLagSampler(defaultPerfTracer)
+  const supported = shallowRef(sampler.supported)
   let unsubscribeTracer: (() => void) | undefined
   let releaseTracer: (() => void) | undefined
 
@@ -112,7 +115,7 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
       recordingSamples[metric] = []
   }
 
-  function applySample(metric: LagMetric, value: number, meta?: Record<string, any>) {
+  function applySample(metric: LagMetric, value: number, meta?: Record<string, unknown>) {
     const ts = performance.now()
     const cutoff = ts - windowMs
 
@@ -132,8 +135,15 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
 
     recording.value = true
     recordingStartedAt.value = performance.now()
+    recordingElapsedMs.value = 0
     resetRecordingSamples()
 
+    recordingElapsedTimer = setInterval(() => {
+      if (recordingStartedAt.value === null)
+        return
+
+      recordingElapsedMs.value = performance.now() - recordingStartedAt.value
+    }, 1000)
     recordingTimeout = setTimeout(stopRecording, 60000)
   }
 
@@ -145,10 +155,17 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
       clearTimeout(recordingTimeout)
       recordingTimeout = undefined
     }
+    if (recordingElapsedTimer) {
+      clearInterval(recordingElapsedTimer)
+      recordingElapsedTimer = undefined
+    }
 
     const stoppedAt = performance.now()
+    recordingElapsedMs.value = recordingStartedAt.value === null
+      ? 0
+      : stoppedAt - recordingStartedAt.value
     const snapshot: RecordingSnapshot = {
-      startedAt: recordingStartedAt.value || stoppedAt,
+      startedAt: recordingStartedAt.value ?? stoppedAt,
       stoppedAt,
       samples: {
         fps: [...recordingSamples.fps],
@@ -165,6 +182,13 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     return snapshot
   }
 
+  function toggleRecording(): RecordingSnapshot | undefined {
+    if (recording.value)
+      return stopRecording()
+
+    startRecording()
+  }
+
   function stopAll() {
     sampler.stop()
     if (unsubscribeTracer) {
@@ -176,7 +200,10 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
   }
 
   function ensureSampler() {
-    const anyEnabled = enabled.fps || enabled.frameDuration || enabled.longtask || enabled.memory
+    const anyEnabled = (enabled.fps && supported.value.fps)
+      || (enabled.frameDuration && supported.value.frameDuration)
+      || (enabled.longtask && supported.value.longtask)
+      || (enabled.memory && supported.value.memory)
     if (!anyEnabled) {
       stopAll()
       return
@@ -206,18 +233,18 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     if (!releaseTracer)
       releaseTracer = defaultPerfTracer.acquire('lag-overlay')
     sampler.start({
-      fps: enabled.fps,
-      frameDuration: enabled.frameDuration,
-      longtask: enabled.longtask,
-      memory: enabled.memory,
+      fps: enabled.fps && supported.value.fps,
+      frameDuration: enabled.frameDuration && supported.value.frameDuration,
+      longtask: enabled.longtask && supported.value.longtask,
+      memory: enabled.memory && supported.value.memory,
     })
   }
 
   function toggleAll(on: boolean) {
-    enabled.fps = on
-    enabled.frameDuration = on
-    enabled.longtask = on
-    enabled.memory = on
+    enabled.fps = on && supported.value.fps
+    enabled.frameDuration = on && supported.value.frameDuration
+    enabled.longtask = on && supported.value.longtask
+    enabled.memory = on && supported.value.memory
     ensureSampler()
   }
 
@@ -250,11 +277,16 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     { deep: true },
   )
 
-  // Cleanup on tab close
+  function dispose() {
+    stopRecording()
+    stopAll()
+  }
+
   if (typeof window !== 'undefined') {
-    window.addEventListener('beforeunload', () => {
-      stopRecording()
-      stopAll()
+    window.addEventListener('beforeunload', dispose)
+    onScopeDispose(() => {
+      window.removeEventListener('beforeunload', dispose)
+      dispose()
     })
   }
 
@@ -262,9 +294,12 @@ export const useDevtoolsLagStore = defineStore('devtoolsLag', () => {
     enabled,
     buffers,
     recording,
+    recordingElapsedMs,
     lastRecording,
+    supported,
     startRecording,
     stopRecording,
+    toggleRecording,
     exportCsv,
     toggleAll,
     calcStats,

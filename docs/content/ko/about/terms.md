@@ -40,4 +40,4 @@ Wi-Fi 영역 밖에서 애플리케이션을 사용하는 경우, 이동통신�
 
 * * *
 
-이 이용약관 페이지는 [App Privacy Policy Generator](https://app-privacy-policy-generator.nisrulz.com/) 로 생성되었습니다.
+이 이용약관 페이지는 [App Privacy Policy Generator](https://app-privacy-policy-generator.nisrulz.com/)로 생성되었습니다.

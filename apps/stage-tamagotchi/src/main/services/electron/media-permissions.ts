@@ -1,4 +1,4 @@
-import type { Session, WebContents } from 'electron'
+import type { DevicePermissionHandlerHandlerDetails, HIDDevice, Session, WebContents } from 'electron'
 
 import { isLocalAppURL } from '../../libs/electron/url'
 
@@ -11,6 +11,14 @@ type LocalAppWebContents = Pick<WebContents, 'getURL'>
 const LOCAL_APP_PERMISSION_NAMES = new Set<ElectronPermission>([
   'display-capture',
   'clipboard-sanitized-write',
+  'hid',
+])
+
+const GENERIC_DESKTOP_USAGE_PAGE = 0x01
+const GAME_CONTROLLER_USAGES = new Set([
+  0x04, // Joystick
+  0x05, // Game Pad
+  0x08, // Multi-axis Controller
 ])
 
 /**
@@ -69,6 +77,36 @@ function shouldGrantLocalAppPermission(
     return requesterURLs.every(isLocalAppURL)
 
   return isLocalAppURL(webContents?.getURL())
+}
+
+function isGameController(device: HIDDevice): boolean {
+  return device.collections.some(collection =>
+    collection.usagePage === GENERIC_DESKTOP_USAGE_PAGE
+    && GAME_CONTROLLER_USAGES.has(collection.usage),
+  )
+}
+
+/**
+ * Grants device access only to game controllers requested by an AIRI-owned page.
+ *
+ * Triggering workflow:
+ *
+ * {@link Navigator.hid}
+ *   -> {@link Session.setDevicePermissionHandler}
+ *     -> `hid`
+ *       -> {@link shouldGrantDevicePermission}
+ *
+ * Upstream:
+ * - {@link setupPermissionHandlers}
+ *
+ * Downstream:
+ * - {@link isLocalAppURL}
+ */
+function shouldGrantDevicePermission(details: DevicePermissionHandlerHandlerDetails): boolean {
+  if (details.deviceType !== 'hid' || !('collections' in details.device) || !isLocalAppURL(details.origin))
+    return false
+
+  return isGameController(details.device)
 }
 
 /**
@@ -151,10 +189,10 @@ export function shouldGrantElectronPermission(
  * - `isDesktopCaptureAuthorized` reports whether a renderer already selected a capture source
  *
  * Returns:
- * - Nothing; both handlers are installed on the supplied session
+ * - Nothing; permission request, permission check, and device permission handlers are installed
  */
-export function setupMediaPermissionHandlers(
-  targetSession: Pick<Session, 'setPermissionCheckHandler' | 'setPermissionRequestHandler'>,
+export function setupPermissionHandlers(
+  targetSession: Pick<Session, 'setDevicePermissionHandler' | 'setPermissionCheckHandler' | 'setPermissionRequestHandler'>,
   isDesktopCaptureAuthorized: () => boolean,
 ): void {
   targetSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
@@ -164,4 +202,6 @@ export function setupMediaPermissionHandlers(
   targetSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
     return shouldGrantElectronPermission(webContents, permission, requestingOrigin, details, isDesktopCaptureAuthorized)
   })
+
+  targetSession.setDevicePermissionHandler(shouldGrantDevicePermission)
 }

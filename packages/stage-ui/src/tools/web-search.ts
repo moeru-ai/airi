@@ -4,8 +4,6 @@ import { rawTool } from '@xsai/tool'
 import { toJsonSchema } from 'xsschema'
 import { z } from 'zod/v4'
 
-import { normalizeNullableAnyOf } from './json-schema'
-
 /**
  * Tavily search endpoint. The provider is fixed (never model-supplied) so this
  * tool has no SSRF surface — the model only controls the query and filters.
@@ -38,8 +36,6 @@ interface SearchResult {
 // Optional inputs are modelled as required-nullable (never `.optional()`): strict
 // OpenAI-compatible providers reject tool schemas whose properties are missing
 // from `required`, so mounting the tool could otherwise 400 the whole request.
-// The generated schema is further run through normalizeNullableAnyOf (see the
-// factory below) so scalar `x | null` unions ship as `type: ['x', 'null']`.
 const webSearchParameters = z.object({
   query: z.string().min(2).max(400).describe('The search query. Be specific; this is sent to a web search engine.'),
   max_results: z.union([z.number().int().min(MIN_MAX_RESULTS).max(MAX_MAX_RESULTS), z.null()]).describe('How many results to return (1-10), or null for the default of 5.'),
@@ -206,13 +202,9 @@ function formatResults(query: string, results: SearchResult[]): string {
 export async function createWebSearchTools(options: { apiKey: string, timeoutMs?: number }): Promise<Tool[]> {
   const { apiKey, timeoutMs = DEFAULT_TIMEOUT_MS } = options
 
-  // NOTICE: build via rawTool (not tool()) so the generated JSON Schema can be
-  // normalized before strictJsonSchema finalizes it. normalizeNullableAnyOf
-  // collapses scalar `x | null` unions to `type: ['x', 'null']`, the form strict
-  // OpenAI-compatible providers (e.g. Azure) accept — the anyOf-with-null shape
-  // tool() would emit is rejected. Mirrors createSparkCommandTool. The collapse
-  // drops the scalar min/max bound on max_results, so it is clamped at runtime.
-  const parameters = normalizeNullableAnyOf(await toJsonSchema(webSearchParameters))
+  // Keep the generated JSON Schema provider-neutral. Each provider adapter
+  // converts unsupported schema forms before it sends the request.
+  const parameters = await toJsonSchema(webSearchParameters)
 
   return [
     rawTool({
@@ -224,8 +216,7 @@ export async function createWebSearchTools(options: { apiKey: string, timeoutMs?
       parameters,
       execute: async (rawInput, { abortSignal }: ToolExecuteOptions) => {
         const input = rawInput as WebSearchInput
-        // normalizeNullableAnyOf drops the schema's 1..10 bound (it does not
-        // survive the anyOf→type[] collapse), so re-enforce it here.
+        // Keep the runtime range check because rawTool does not validate input.
         const maxResults = Math.min(Math.max(MIN_MAX_RESULTS, Math.trunc(input.max_results ?? DEFAULT_MAX_RESULTS)), MAX_MAX_RESULTS)
         // Compose the caller's abort (turn cancelled) with our own timeout so
         // either can cancel the outbound fetch.

@@ -7,10 +7,13 @@ import { resolveRequestAuth } from '../request-auth'
 
 vi.mock('jose', () => ({
   createRemoteJWKSet: vi.fn(() => 'mock-jwks'),
+  errors: {
+    JWKSTimeout: class JWKSTimeout extends Error {},
+  },
   jwtVerify: vi.fn(),
 }))
 
-const { createRemoteJWKSet, jwtVerify } = await import('jose')
+const { createRemoteJWKSet, errors, jwtVerify } = await import('jose')
 const mockedCreateRemoteJWKSet = vi.mocked(createRemoteJWKSet)
 const mockedJwtVerify = vi.mocked(jwtVerify)
 
@@ -20,7 +23,6 @@ const mockEnv = {
   TEST_AUTH_USER_ID: 'test-user',
   TEST_AUTH_USER_EMAIL: 'test@example.com',
   TEST_AUTH_USER_NAME: 'Test User',
-  TEST_AUTH_USER_ROLE: '',
 } as const
 
 function createUser(overrides: Partial<RequestAuthSession['user']> = {}): RequestAuthSession['user'] {
@@ -31,7 +33,6 @@ function createUser(overrides: Partial<RequestAuthSession['user']> = {}): Reques
     name: 'User',
     emailVerified: true,
     image: null,
-    role: null,
     banned: false,
     banReason: null,
     banExpires: null,
@@ -41,11 +42,15 @@ function createUser(overrides: Partial<RequestAuthSession['user']> = {}): Reques
   }
 }
 
-function createDb(user: RequestAuthSession['user'] | null): Database {
+function createDb(user: RequestAuthSession['user'] | null, failure?: Error): Database {
   return {
     query: {
       user: {
-        findFirst: vi.fn(async () => user),
+        findFirst: vi.fn(async () => {
+          if (failure)
+            throw failure
+          return user
+        }),
       },
     },
   } as unknown as Database
@@ -147,14 +152,12 @@ describe('resolveRequestAuth', () => {
         TEST_AUTH_USER_ID: 'test-user-1',
         TEST_AUTH_USER_EMAIL: 'Test@Example.com',
         TEST_AUTH_USER_NAME: 'Local Test User',
-        TEST_AUTH_USER_ROLE: 'admin',
       },
       new Headers({ Authorization: 'Bearer test-secret' }),
     )
 
     expect(result?.user.id).toBe('test-user-1')
     expect(result?.user.email).toBe('test@example.com')
-    expect(result?.user.role).toBe('admin')
     expect(mockedJwtVerify).not.toHaveBeenCalled()
   })
 
@@ -178,5 +181,35 @@ describe('resolveRequestAuth', () => {
       mockEnv,
       new Headers({ Authorization: 'Bearer subjectless' }),
     )).toBeNull()
+  })
+
+  it('propagates temporary JWKS failures', async () => {
+    mockedJwtVerify.mockRejectedValueOnce(new TypeError('fetch failed'))
+
+    await expect(resolveRequestAuth(
+      createDb(null),
+      mockEnv,
+      new Headers({ Authorization: 'Bearer valid-token' }),
+    )).rejects.toThrow('fetch failed')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2309#discussion_r3818708556
+  it('propagates JWKS timeouts so WebSocket clients can retry', async () => {
+    mockedJwtVerify.mockRejectedValueOnce(new errors.JWKSTimeout())
+
+    await expect(resolveRequestAuth(
+      createDb(null),
+      mockEnv,
+      new Headers({ Authorization: 'Bearer valid-token' }),
+    )).rejects.toBeInstanceOf(errors.JWKSTimeout)
+  })
+
+  it('propagates database failures after JWT verification', async () => {
+    mockValidJwt()
+    await expect(resolveRequestAuth(
+      createDb(null, new Error('database unavailable')),
+      mockEnv,
+      new Headers({ Authorization: 'Bearer valid-token' }),
+    )).rejects.toThrow('database unavailable')
   })
 })

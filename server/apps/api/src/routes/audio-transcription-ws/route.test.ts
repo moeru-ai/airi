@@ -78,6 +78,21 @@ describe('audio transcription WebSocket route', () => {
     expect(client.close).toHaveBeenCalledWith(1008, 'invalid_audio_frame')
   })
 
+  it('rejects an oversized audio frame before allocating an upstream session', () => {
+    const events = createHandlers()
+    const client = createMockClient()
+    open(events, client)
+
+    message(events, client, Buffer.alloc(16000 * 2 * 60 + 1))
+
+    expect(client.sent.map(frame => JSON.parse(frame))).toEqual([{
+      event: 'error',
+      code: 'audio_limit_exceeded',
+      message: 'The ASR audio limit was exceeded.',
+    }])
+    expect(client.close).toHaveBeenCalledWith(1009, 'audio_limit_exceeded')
+  })
+
   it('reports missing official ASR configuration after start', async () => {
     const events = createHandlers()
     const client = createMockClient()

@@ -9,7 +9,7 @@ description: Project AIRI의 UI, UX를 디자인하기 위한 도구들
 
 따라서 기본 색상 팔레트는 [Colors - Core concepts - Tailwind CSS](https://tailwindcss.com/docs/colors)에 정리되어 있습니다.
 
-일반적으로 기본 테마에는 `neutral`, `pink`, `violet`, `cyan`을 사용합니다. [UnoCSS](https://unocss.dev)와 [Tailwind](https://tailwindcss.com) 모두 색상에 투명도를 조절하는 기능을 지원하지만, [Refactoring UI](https://refactoringui.com/) 에 따르면:
+일반적으로 기본 테마에는 `neutral`, `pink`, `violet`, `cyan`을 사용합니다. [UnoCSS](https://unocss.dev)와 [Tailwind](https://tailwindcss.com) 모두 색상에 투명도를 조절하는 기능을 지원하지만, [Refactoring UI](https://refactoringui.com/)에 따르면:
 
 > 색의 채도를 바꾸고 싶을 때는 투명도를 쓰기보다, 대비가 가장 좋은 불투명한(알파 채널이 없는) 색을 직접 골라야 합니다.
 

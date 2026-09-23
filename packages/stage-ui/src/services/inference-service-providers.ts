@@ -107,6 +107,7 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
       definitionId,
       config: initialConfig,
       status: 'unconfigured',
+      configuredBy: definition.configuredBy ?? 'user',
     }
   }
 
@@ -126,6 +127,7 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
       definitionId: item.definitionId,
       config: item.config,
       status,
+      configuredBy: getDefinedProvider(item.definitionId)?.configuredBy ?? 'user',
     }
   }
 

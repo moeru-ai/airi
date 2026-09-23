@@ -12,8 +12,8 @@ const UserDeletionRequestSchema = object({
 
 const AuthEventRequestSchema = object({
   userId: pipe(string(), trim(), nonEmpty()),
-  action: picklist(['user_signed_up', 'session_started']),
-  source: picklist(['better-auth.user.create', 'better-auth.session.create']),
+  action: picklist(['user_signed_up']),
+  source: picklist(['better-auth.user.create']),
 })
 
 /**

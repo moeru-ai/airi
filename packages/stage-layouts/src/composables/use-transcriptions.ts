@@ -20,7 +20,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const hearingStore = useHearingStore()
   const audioDeviceSettingsStore = useSettingsAudioDevice()
   const hearingPipeline = useHearingSpeechInputPipeline()
-  const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+  const { releaseStreamingTranscriptionConsumer, transcribeForMediaStream } = hearingPipeline
   const { supportsStreamInput } = storeToRefs(hearingPipeline)
   const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
   const { enabled: hearingEnabled, stream } = storeToRefs(audioDeviceSettingsStore)
@@ -61,16 +61,12 @@ export function useTranscriptions(options: TranscriptionOptions) {
   }
 
   const stopStreaming = async () => {
-    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
     streamingInput.clear()
-
-    if (!isListening.value)
-      return
+    clearPendingAutoSend()
 
     try {
       console.info('Stopping transcription...', { source: 'useTranscriptions' })
-      clearPendingAutoSend()
-      await stopStreamingTranscription(true)
+      await releaseStreamingTranscriptionConsumer(transcriptionConsumerId)
       isListening.value = false
       console.info('Transcription stopped', { source: 'useTranscriptions' })
     }
@@ -112,7 +108,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
       // Initialize the provider in the providers store first
       try {
-        providersStore.initializeProvider('browser-web-speech-api')
+        await providersStore.initializeProvider('browser-web-speech-api')
         hearingStore.activeTranscriptionProvider = 'browser-web-speech-api'
       }
       catch (err) {
@@ -135,8 +131,6 @@ export function useTranscriptions(options: TranscriptionOptions) {
     if (!supportsStreamInput.value) {
       const errorMsg = 'Streaming input not supported by the selected transcription provider. Please select a provider that supports streaming (e.g., Web Speech API).'
       console.warn(errorMsg, { source: 'useTranscriptions' })
-      // Clean up any existing sessions from other pages (e.g., test page) that might interfere
-      await stopStreamingTranscription(true)
       isListening.value = false
       return
     }

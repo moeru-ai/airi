@@ -9,7 +9,7 @@ while production deployment configuration remains in `proj-airi/airi-railway`.
 - `apps/api`: resource API, business domains, database migrations, and API runtime.
 - `apps/auth`: standalone Better Auth and OIDC service.
 - `packages/auth-shared`: Auth-owned database schema and principal contracts.
-- `packages/drizzle-migration`: bundled migration history consumed by the API migration owner.
+- `packages/server-sdk-shared`: Eventa contracts for the hosted chat WebSocket.
 - `dev/caddy`: local-only public edge routing for the shared Auth/API origin.
 - `docker-compose.yaml`: complete local API + Auth + PostgreSQL + Redis + Caddy stack.
 
@@ -27,18 +27,19 @@ The command uses `server/docker-compose.yaml` and exposes only Caddy at
 ## Railway deployment
 
 API and Auth are separate long-running Railway services built from the same
-repository. Keep each service's **Root Directory** at the repository root:
-both Dockerfiles copy workspace manifests and shared packages from that build
-context. In each Railway service, configure the Config File Path explicitly:
+repository. Keep each service's **Root Directory** at the repository root.
+Both Dockerfiles copy workspace manifests and shared packages from that build
+context. The project-level Railway configuration lives in
+`proj-airi/airi-railway/.railway/railway.ts`.
 
-| Service | Config File Path | Public role | Private dependency |
-| --- | --- | --- | --- |
-| Resource API | `/server/apps/api/railway.toml` | Product and resource API | Auth issuer and JWKS |
-| Auth | `/server/apps/auth/railway.toml` | Better Auth and OIDC issuer | Resource API deletion endpoint |
+| Service | Public role | Private dependency |
+| --- | --- | --- |
+| Resource API | Product and resource API | Auth issuer and JWKS |
+| Auth | Better Auth and OIDC issuer | Resource API deletion endpoint |
 
-Each config pins its own Dockerfile, start command, `/readyz` healthcheck, and
-watch patterns. A change only deploys a service when it changes that service,
-one of its copied shared packages, or a copied root build input.
+The Infrastructure as Code file pins each Dockerfile, start command,
+`/readyz` healthcheck, and watch patterns. Run the Railway plan from the
+deployment repository before you apply a change.
 
 ### Service-to-service contract
 
@@ -64,11 +65,14 @@ migrations. After either service deploys, Railway must receive `200` from that
 service's `/readyz`; deployment success alone is not sufficient evidence that
 the service can reach its required dependencies.
 
-## Not included
+## Package boundaries
 
-Frontend applications remain under `apps/`. Cross-runtime server SDK and
-protocol packages remain under `packages/` because Web, Electron, plugins,
-and independent services consume them.
+Frontend applications remain under `apps/`. Hosted-backend packages that
+define a resource API protocol can live under `server/packages/`, even when a
+frontend consumes their generated contract.
+
+Cross-runtime server SDK and protocol packages remain under `packages/`
+because Web, Electron, plugins, and independent services consume them.
 
 Production Caddy routing, OpenTelemetry Collector configuration, observability
 storage, and Grafana dashboards live in `proj-airi/airi-railway` so deployment

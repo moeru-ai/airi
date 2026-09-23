@@ -42,13 +42,39 @@ pnpm dev:backend
 stay on its private network. The internal `/internal/*` boundary has no
 application token, and Caddy rejects that path at the public edge.
 
+## Native Google sign-in
+
+Set `AUTH_GOOGLE_NATIVE_CLIENT_IDS` to a comma-separated list of additional Google OAuth client IDs.
+For Android Credential Manager, include the Web client ID passed as `serverClientId`.
+
+- For the standalone Auth process, set the variable in `server/apps/auth/.env.local`.
+- For `pnpm dev:backend`, set it in `server/apps/api/.env.local`.
+  Compose loads `server/apps/api/.env` and `.env.local` into the Auth container, in that order.
+  It does not load `server/apps/auth/.env.local`.
+  Run `pnpm dev:backend` again after edits so Compose recreates the container with the updated values.
+- For Railway, set it in the Auth service variables for the target environment.
+
+```dotenv
+AUTH_GOOGLE_NATIVE_CLIENT_IDS=123456789-native.apps.googleusercontent.com
+```
+
+The original `AUTH_GOOGLE_CLIENT_ID` stays first in the provider configuration.
+Browser authorization still uses that client and `AUTH_GOOGLE_CLIENT_SECRET`.
+Native ID tokens can use any configured audience. Better Auth checks the token signature, issuer, expiry, and supplied nonce.
+Omit the new variable to keep the existing configuration. No database migration is required.
+
+Google ID token sign-in can create an account without a Google access or refresh token.
+Account deletion continues when neither token is stored, because AIRI has no Google API credential to revoke.
+This does not revoke consent in the user's Google Account.
+If either token is stored, Auth must complete its existing revocation policy before it deletes AIRI data.
+
 ## Railway
 
-Deploy this as the Auth Railway service with Config File Path
-`/server/apps/auth/railway.toml`; keep the service Root Directory at the
-repository root because the Dockerfile copies workspace manifests and
-`server/packages/auth-shared`. The config owns its Dockerfile, start command,
-`/readyz` healthcheck, and the watch patterns for each copied build input.
+Deploy this as the Auth Railway service. Keep the service Root Directory at
+the repository root because the Dockerfile copies workspace manifests and
+`server/packages/auth-shared`. The project-level Infrastructure as Code file
+is `proj-airi/airi-railway/.railway/railway.ts`. It owns the Dockerfile, start
+command, `/readyz` healthcheck, and watch patterns.
 
 Set `PUBLIC_URL` to this service's canonical public issuer URL, and make the
 Resource API's `AUTH_SERVER_URL` exactly the same value. Set
@@ -63,4 +89,4 @@ service contract.
 - Importing modules from `server/apps/api`.
 - Running the shared database migration history during normal process startup.
 
-Auth tables and principal contracts live in `@proj-airi/auth-shared`. The existing `@proj-airi/drizzle-migration` build remains the migration owner while both applications share one PostgreSQL database.
+Auth tables and principal contracts live in `@proj-airi/auth-shared`. Drizzle reads shared migration files during API startup. The API remains the migration owner.

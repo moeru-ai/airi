@@ -23,9 +23,6 @@ function createTestDeps() {
       AUTH_UI_URL: 'https://accounts.airi.build/ui',
       ADDITIONAL_TRUSTED_ORIGINS: [],
     } as any,
-    authConfig: {
-      getRateLimit: vi.fn(async () => ({ max: 20, windowSec: 60 })),
-    } as any,
     rateLimitMetrics: null,
   }
 }

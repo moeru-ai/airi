@@ -1,5 +1,5 @@
 ---
-title: 'Happy Halloween! 🎃'
+title: '즐거운 핼러윈! 🎃'
 description: '즐거운 핼러윈 축하'
 date: 2025-10-30
 excerpt: '트릭 오어 트릿! 사탕과 코스튬, 핼러윈의 마법으로 가득한 으스스한 밤을 함께해요! 🍭👻'

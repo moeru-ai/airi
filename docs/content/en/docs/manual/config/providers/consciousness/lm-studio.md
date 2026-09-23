@@ -13,12 +13,18 @@ If you want to run the model locally and manage the model files yourself, LM Stu
 
 1. From the [LM Studio Download Page](https://lmstudio.ai/download) install and open LM Studio, then download and load a chat model.
 2. Open **Local Server** and start the local server.
-3. If AIRI cannot access local services, enable CORS in LM Studio's server settings.
+3. If AIRI and LM Studio run on different devices, enable **Serve on Local Network** in LM Studio, or bind the server to a non-loopback address.
+4. If AIRI runs on another device, use the LAN address of the LM Studio device in AIRI.
+5. If a browser blocks the request because of CORS, enable CORS in LM Studio. CORS does not provide network reachability or authentication.
+
+::: warning Network security
+Do not expose the LM Studio server to the public internet. Use it only on a trusted local network.
+:::
 
 ## Configure in AIRI
 
 1. Open **Settings → Providers → Chat → LM Studio**.
-2. Keep the default Base URL: `http://localhost:1234/v1/`.
+2. Keep the default Base URL: `http://localhost:1234/v1/`. For a service on another device, replace `localhost` with its LAN address.
 3. If your LM Studio service requires authentication, fill in the API Key; otherwise, leave it blank.
 
 ## Verify configuration
@@ -28,4 +34,4 @@ If you want to run the model locally and manage the model files yourself, LM Stu
 
 ## Troubleshooting
 
-When unable to connect, first confirm that the Local Server is running and the port is consistent with the Base URL. If AIRI and LM Studio are not on the same device, use a LAN address accessible from the AIRI device and only open the service on a trusted network.
+When AIRI cannot connect, make sure that the Local Server is running and that the port matches the Base URL. If AIRI and LM Studio run on different devices, use a LAN address that the AIRI device can reach.

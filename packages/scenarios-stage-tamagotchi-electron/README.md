@@ -4,7 +4,7 @@ Own the Electron capture scenarios used to generate tamagotchi docs screenshots.
 
 ## Purpose
 
-This package owns product-specific Electron scenario definitions and AIRI window/navigation helpers only. It depends on `@vishot/source-electron` for:
+This package owns product-specific Electron scenario definitions and AIRI window, navigation, and interaction helpers only. It depends on `@vishot/source-electron` for:
 
 - the generic `defineScenario()` helper
 - the generic Electron capture context surface
@@ -73,6 +73,29 @@ export default defineStageTamagotchiScenario({
   },
 })
 ```
+
+### Gesture primitive
+
+Use `gestures.swipe` to reproduce a direct touch swipe or a two-finger wheel pan:
+
+```ts
+export default defineStageTamagotchiScenario({
+  id: 'chat-swipe-reply',
+  async run({ gestures, stageWindows }) {
+    const chat = await stageWindows.waitFor('chat')
+    const message = chat.page.locator('[data-swipeable]').last()
+
+    await gestures.swipe(message, {
+      input: 'wheel',
+      direction: 'left',
+    })
+  },
+})
+```
+
+Use `input: 'touch'` for the narrow-screen Pointer Event path. The primitive
+calculates the target center, splits the travel into samples, and waits for the
+gesture to settle.
 
 ## Scenario Layout
 

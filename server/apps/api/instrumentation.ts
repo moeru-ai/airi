@@ -119,9 +119,9 @@ else {
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: serviceName,
     [ATTR_SERVICE_VERSION]: env.npm_package_version || '0.0.0',
-    'service.namespace': serviceNamespace,
-    'service.instance.id': instanceId,
     'deployment.environment': env.NODE_ENV || 'development',
+    'service.instance.id': instanceId,
+    'service.namespace': serviceNamespace,
   })
 
   // Traces fan out to independent processors. OTLP (Grafana Tempo) sees every
@@ -131,8 +131,8 @@ else {
   const spanProcessors = []
   if (otlpEndpoint) {
     spanProcessors.push(new BatchSpanProcessor(new OTLPTraceExporter({
-      url: `${otlpEndpoint}/v1/traces`,
       headers,
+      url: `${otlpEndpoint}/v1/traces`,
     })))
   }
   // Langfuse runs on its OWN TracerProvider, isolated from the global NodeSDK
@@ -160,12 +160,12 @@ else {
       resource,
       sampler: new AlwaysOnSampler(),
       spanProcessors: [new LangfuseSpanProcessor({
-        publicKey: env.LANGFUSE_PUBLIC_KEY,
-        secretKey: env.LANGFUSE_SECRET_KEY,
         baseUrl: env.LANGFUSE_BASE_URL,
         // Railway is long-running → batched. Flushed via
         // langfuseProvider.shutdown() in the SIGTERM handler below.
         exportMode: 'batched',
+        publicKey: env.LANGFUSE_PUBLIC_KEY,
+        secretKey: env.LANGFUSE_SECRET_KEY,
         // Full override of Langfuse's default filter. Export ONLY spans the
         // @langfuse/tracing SDK created (they carry `langfuse.*` attributes
         // such as `langfuse.observation.type`). This provider should only ever
@@ -196,18 +196,20 @@ else {
     // pointed at an empty URL.
     ...(otlpEndpoint
       ? {
+          logRecordProcessors: [new BatchLogRecordProcessor({
+            exporter: new OTLPLogExporter({
+              headers,
+              url: `${otlpEndpoint}/v1/logs`,
+            }),
+          })],
           metricReaders: [new PeriodicExportingMetricReader({
             exporter: new OTLPMetricExporter({
-              url: `${otlpEndpoint}/v1/metrics`,
               headers,
+              url: `${otlpEndpoint}/v1/metrics`,
             }),
             exportIntervalMillis: 15_000,
             exportTimeoutMillis: 10_000,
           })],
-          logRecordProcessors: [new BatchLogRecordProcessor(new OTLPLogExporter({
-            url: `${otlpEndpoint}/v1/logs`,
-            headers,
-          }))],
         }
       : {}),
     instrumentations: [

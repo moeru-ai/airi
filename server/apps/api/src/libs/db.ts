@@ -1,15 +1,17 @@
 import type { Env } from './env'
 
+import { fileURLToPath } from 'node:url'
+
 import pg from 'pg'
 
 import { useLogger } from '@guiiai/logg'
-import { migrations } from '@proj-airi/drizzle-migration'
-import { migrate } from '@proj-airi/drizzle-orm-browser-migrator/pg'
 import { drizzle } from 'drizzle-orm/node-postgres'
+import { migrate } from 'drizzle-orm/node-postgres/migrator'
 
 import * as fullSchema from '../schemas'
 
 const logger = useLogger('db')
+const migrationsFolder = fileURLToPath(new URL('../../drizzle', import.meta.url))
 
 export type Database = ReturnType<typeof createDrizzle>['db']
 
@@ -36,6 +38,6 @@ export function createDrizzle(env: DrizzleEnv) {
   return { db, pool }
 }
 
-export function migrateDatabase(db: Database) {
-  return migrate(db, migrations)
+export async function migrateDatabase(db: Database) {
+  await migrate(db, { migrationsFolder })
 }

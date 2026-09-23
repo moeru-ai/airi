@@ -16,21 +16,24 @@ interface MockServer {
   binaryFrames: Buffer[]
   controlFrames: Array<{ event?: string }>
   requestURL: string | undefined
+  requestProtocols: string | undefined
   stop: () => Promise<void>
   url: string
 }
 
-type MockBehavior = 'normal' | 'error' | 'early-close'
+type MockBehavior = 'normal' | 'error' | 'early-close' | 'no-start' | 'interim'
 
 async function startMockServer(behavior: MockBehavior = 'normal'): Promise<MockServer> {
   const binaryFrames: Buffer[] = []
   const controlFrames: Array<{ event?: string }> = []
   let requestURL: string | undefined
+  let requestProtocols: string | undefined
   const httpServer = createServer()
   const websocketServer = new WebSocketServer({ server: httpServer })
 
   websocketServer.on('connection', (socket, request) => {
     requestURL = request.url
+    requestProtocols = request.headers['sec-websocket-protocol']
     socket.on('message', (data, isBinary) => {
       if (isBinary) {
         binaryFrames.push(Buffer.from(data as Buffer))
@@ -40,16 +43,23 @@ async function startMockServer(behavior: MockBehavior = 'normal'): Promise<MockS
       const frame = JSON.parse(data.toString()) as { event?: string }
       controlFrames.push(frame)
       if (frame.event === 'start') {
+        if (behavior === 'no-start')
+          return
         if (behavior === 'error') {
           socket.send(JSON.stringify({ event: 'error', code: 'upstream_error', message: 'mock failure' }))
           return
         }
         socket.send(JSON.stringify({ event: 'session.started' }))
+        if (behavior === 'interim')
+          socket.send(JSON.stringify({ event: 'transcript.text.snapshot', text: 'hel', isFinal: false, durationMilliseconds: 300 }))
         if (behavior === 'early-close')
           socket.close(1011, 'mock_failure')
       }
       if (frame.event === 'stop') {
-        socket.send(JSON.stringify({ event: 'transcript.text.delta', delta: 'hello AIRI\n' }))
+        if (behavior === 'interim')
+          socket.send(JSON.stringify({ event: 'transcript.text.snapshot', text: 'hello AIRI\n', isFinal: true, durationMilliseconds: 700 }))
+        else
+          socket.send(JSON.stringify({ event: 'transcript.text.delta', delta: 'hello AIRI\n' }))
         socket.send(JSON.stringify({ event: 'transcript.text.done' }))
         socket.send(JSON.stringify({ event: 'session.finished' }))
       }
@@ -64,6 +74,9 @@ async function startMockServer(behavior: MockBehavior = 'normal'): Promise<MockS
     controlFrames,
     get requestURL() {
       return requestURL
+    },
+    get requestProtocols() {
+      return requestProtocols
     },
     url: `http://127.0.0.1:${port}/api/v1/audio/transcriptions/ws`,
     async stop() {
@@ -98,12 +111,37 @@ describe('streamOfficialTranscription', () => {
     })
 
     await expect(result.text).resolves.toBe('hello AIRI\n')
-    expect(server.requestURL).toBe('/api/v1/audio/transcriptions/ws?token=test-jwt')
+    expect(server.requestURL).toBe('/api/v1/audio/transcriptions/ws')
+    expect(server.requestProtocols).toBe('airi-asr-v1, airi-auth.test-jwt')
     expect(server.binaryFrames).toEqual([
       Buffer.from([1, 2]),
       Buffer.from([3, 4]),
     ])
     expect(server.controlFrames.map(frame => frame.event)).toEqual(['start', 'stop'])
+  })
+
+  it('shows interim text before the input stream ends', async () => {
+    server = await startMockServer('interim')
+    let inputController!: ReadableStreamDefaultController<ArrayBuffer>
+    const audioStream = new ReadableStream<ArrayBuffer>({
+      start(controller) { inputController = controller },
+    })
+    const result = streamOfficialTranscription({ baseURL: new URL(server.url), inputAudioStream: audioStream, model: 'auto' })
+    const reader = result.fullStream.getReader()
+
+    await expect(reader.read()).resolves.toEqual({
+      done: false,
+      value: {
+        type: 'transcript.text.snapshot',
+        text: 'hel',
+        isFinal: false,
+        durationMilliseconds: 300,
+        startMilliseconds: 0,
+        locale: 'und',
+      },
+    })
+    inputController.close()
+    await expect(result.text).resolves.toBe('hello AIRI\n')
   })
 
   it('sends cancel and rejects when the caller aborts', async () => {
@@ -148,5 +186,17 @@ describe('streamOfficialTranscription', () => {
     })
 
     await expect(result.text).rejects.toThrow('Official ASR WebSocket closed before session.finished: mock_failure')
+  })
+
+  it('fails when the AIRI server never starts the session', async () => {
+    server = await startMockServer('no-start')
+    const result = streamOfficialTranscription({
+      baseURL: new URL(server.url),
+      inputAudioStream: new ReadableStream<ArrayBuffer>(),
+      model: 'auto',
+      startupTimeoutMs: 20,
+    })
+
+    await expect(result.text).rejects.toThrow('Official ASR did not start in time.')
   })
 })

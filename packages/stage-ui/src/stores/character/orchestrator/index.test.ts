@@ -1,7 +1,7 @@
+import type { Conversation } from '@proj-airi/core-agent'
+import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 /* eslint-disable style/indent-binary-ops */
 /* eslint-disable style/operator-linebreak */
-
-import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { Pinia, Store, StoreDefinition } from 'pinia'
 import type { Mock } from 'vitest'
 import type { UnwrapRef } from 'vue'
@@ -10,10 +10,12 @@ import type z from 'zod'
 import type { StreamEvent } from '../../ai/chat-llm/llm'
 import type { AiriCard } from '../../modules'
 
+import { renderConversationPreview } from '@proj-airi/core-agent'
 import { tool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
@@ -24,7 +26,9 @@ import { useProviderStore } from '../../providers/provider'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
+    locale: ref('en'),
     t: (key: string) => key,
+    te: () => true,
   }),
 }))
 
@@ -113,9 +117,9 @@ describe('store character-orchestrator', () => {
     sendSparkCommandMock.mockReset()
     mockedStore(useModsServerChannelStore, pinia).send = sendSparkCommandMock
 
-    const mockGetProviderInstance = vi.fn()
-    mockedStore(useProviderStore, pinia).getProviderInstance = mockGetProviderInstance
-    mockedStore(useProviderStore, pinia).getProviderInstance.mockResolvedValue({ chat: (_model: string) => ({} as any) })
+    const mockGetChatProviderInstance = vi.fn()
+    mockedStore(useProviderStore, pinia).getChatProviderInstance = mockGetChatProviderInstance
+    mockedStore(useProviderStore, pinia).getChatProviderInstance.mockResolvedValue({ generation: (model: string) => ({ protocol: 'chat-completions', config: { model, apiKey: 'test', baseURL: 'https://example.com/v1/' } }) })
 
     const consciousnessStore = useConsciousnessStore(pinia)
     consciousnessStore.activeProvider = 'mock-provider'
@@ -201,7 +205,7 @@ describe('store character-orchestrator', () => {
     expect(mockStream.mock.calls).toHaveLength(1)
     expect(mockStream.mock.calls[0][0]).toEqual('mock-model')
     expect(mockStream.mock.calls[0][1]).not.toBeNull()
-    expect(mockStream.mock.calls[0][2]).toHaveLength(2)
+    expect((mockStream.mock.calls[0][2] as Conversation).turns).toHaveLength(2)
     expect(mockStream.mock.calls[0][3]).toHaveProperty('tools')
 
     expect(mockOnSparkNotifyReactionStreamEvent).toHaveBeenCalledWith(event.data.id, 'Ahhh, got hit by zombie!')
@@ -310,7 +314,8 @@ describe('store character-orchestrator', () => {
     expect(onEnd).toHaveBeenCalledWith(event.data.id, '')
   })
 
-  it('forwards runtime-only message overrides into the rendered spark prompt', async () => {
+  // https://github.com/moeru-ai/airi/pull/2464#discussion_r3933609456
+  it('preserves runtime rules when a Spark caller replaces the user payload', async () => {
     const mockStream = vi.fn()
     mockedStore(useLLM, pinia).stream = mockStream
     mockedStore(useLLM, pinia).stream.mockImplementation(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
@@ -337,11 +342,16 @@ describe('store character-orchestrator', () => {
       messageOverride: {
         appendSystemInstructions: ['Plugin-specific hint'],
         appendUserSections: ['Rendered board snapshot'],
+        replaceUserMessage: 'Replacement user payload',
       },
     })
 
-    const renderedMessages = mockStream.mock.lastCall?.[2] as Array<{ role: string, content: string }> | undefined
-    expect(String(renderedMessages?.[0]?.content)).toContain('Plugin-specific hint')
-    expect(String(renderedMessages?.[1]?.content)).toContain('Rendered board snapshot')
+    const context = mockStream.mock.lastCall?.[2] as Conversation | undefined
+    const renderedMessages = context ? renderConversationPreview(context).map(message => message.content) : undefined
+    expect(String(renderedMessages?.[0])).toContain('Plugin-specific hint')
+    expect(String(renderedMessages?.[1])).toContain('Replacement user payload')
+    expect(String(renderedMessages?.[1])).toContain('Rendered board snapshot')
+    expect(String(renderedMessages?.[1])).toContain('base.prompt.emotion')
+    expect(String(renderedMessages?.[1])).toContain('base.prompt.emoji')
   })
 })

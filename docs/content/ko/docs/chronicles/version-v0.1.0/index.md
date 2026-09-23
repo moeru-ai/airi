@@ -64,7 +64,7 @@ title: 연대기 v0.1.0
 ## **모델**
 
 - **VRM**
-  - [`@pixiv/three-vrm`](https://github.com/pixiv/three-vrm/) 을 알려 준 [kwaa](https://github.com/kwaa)에게 감사드립니다
+  - [`@pixiv/three-vrm`](https://github.com/pixiv/three-vrm/)을 알려 준 [kwaa](https://github.com/kwaa)에게 감사드립니다
   - 관련 도구와 플러그인:
     - [VRM Add-on for Blender](https://vrm-addon-for-blender.info/en/)
     - [VRM format — Blender Extensions](https://extensions.blender.org/add-ons/vrm/)

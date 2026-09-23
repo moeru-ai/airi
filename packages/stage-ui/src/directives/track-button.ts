@@ -1,11 +1,11 @@
 import type { ObjectDirective, Plugin } from 'vue'
 
-import type { TrackButtonEvent } from '../libs/analytics/events/interaction'
+import type { TrackButtonEvent } from '../libs/product-signals/events/interaction'
 
-import { captureTrackButtonEvent } from '../libs/analytics/events/interaction'
+import { captureTrackButtonEvent } from '../libs/product-signals/events/interaction'
 
-export type { ControlsIslandAction } from '../libs/analytics/events/controls-island'
-export type { TrackButtonEvent } from '../libs/analytics/events/interaction'
+export type { ControlsIslandAction } from '../libs/product-signals/events/controls-island'
+export type { TrackButtonEvent } from '../libs/product-signals/events/interaction'
 
 /**
  * Creates the DOM directive used by the app-level tracking plugin.

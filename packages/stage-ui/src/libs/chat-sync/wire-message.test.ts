@@ -70,16 +70,33 @@ describe('isCloudSyncableMessage', () => {
    * messages describe a per-device runtime failure that is meaningless to
    * other devices and gets rejected by the server's role validator.
    */
-  it('accepts only user / assistant; rejects tool / system / error', () => {
+  it('accepts user and completed assistant turns only', () => {
     expect(isCloudSyncableMessage({ role: 'tool', content: 'x', tool_call_id: 't' } as ChatHistoryItem)).toBe(false)
     expect(isCloudSyncableMessage({ role: 'system', content: 'x' })).toBe(false)
     expect(isCloudSyncableMessage({ role: 'error', content: 'x' })).toBe(false)
+    expect(isCloudSyncableMessage({ role: 'assistant', interrupted: true, content: 'partial', slices: [], tool_results: [] })).toBe(false)
     expect(isCloudSyncableMessage({ role: 'user', content: 'x' })).toBe(true)
     expect(isCloudSyncableMessage({ role: 'assistant', content: 'x', slices: [], tool_results: [] })).toBe(true)
   })
 })
 
 describe('wireMessageToLocal', () => {
+  it('preserves a native reply relation from the wire message', () => {
+    const local = wireMessageToLocal(makeWire({
+      id: 'user-reply',
+      role: 'user',
+      content: 'My follow-up',
+      replyToMessageId: 'assistant-1',
+      seq: 2,
+    }))
+
+    expect(local).toMatchObject({
+      id: 'user-reply',
+      content: 'My follow-up',
+      replyToMessageId: 'assistant-1',
+    })
+  })
+
   /**
    * @example
    * Server pushes an assistant wire message; local shape needs slices and

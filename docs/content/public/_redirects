@@ -3,6 +3,10 @@
 /en/docs/contributing/services/minecraft  /en/docs/integrations/minecraft  301
 /en/docs/contributing/services/satori     /en/docs/integrations/satori     301
 /en/docs/contributing/services/telegram   /en/docs/integrations/telegram   301
+/ko/docs/contributing/services/discord    /ko/docs/integrations/discord    301
+/ko/docs/contributing/services/minecraft  /ko/docs/integrations/minecraft  301
+/ko/docs/contributing/services/satori     /ko/docs/integrations/satori     301
+/ko/docs/contributing/services/telegram   /ko/docs/integrations/telegram   301
 /*  /zh-Hans/:splat  301  Language=zh-Hans
 /*  /zh-Hans/:splat  301  Language=zh-CN
 /*  /ko/:splat       301  Language=ko

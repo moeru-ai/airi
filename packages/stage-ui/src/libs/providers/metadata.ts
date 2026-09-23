@@ -60,8 +60,8 @@ export function getProviderCategory(tasks: string[]): ProviderCategory {
 }
 
 /** Selects the serializable metadata fields of a provider definition. */
-export function selectProviderMetadata(
-  definition: ProviderDefinition,
+export async function selectProviderMetadata<TConfig>(
+  definition: ProviderDefinition<TConfig>,
   t: ComposerTranslation,
   options: {
     category?: ProviderCategory
@@ -70,10 +70,15 @@ export function selectProviderMetadata(
     tasks?: string[]
     to?: string
   } = {},
-): ProviderMetadata {
+): Promise<ProviderMetadata> {
   const key = (input: string): string => input
   const tasks = options.tasks ?? definition.tasks
   const transcription = definition.capabilities?.transcription
+
+  const schema = await definition.createProviderConfig({ t })
+  const onboardingFields = definition.onboardingFields
+    ? await definition.onboardingFields({ t })
+    : undefined
 
   return {
     id: options.id ?? definition.id,
@@ -88,12 +93,12 @@ export function selectProviderMetadata(
     descriptionKey: definition.descriptionLocalize({ t: key }),
     localizedDescription: definition.descriptionLocalize({ t }),
     configured: options.configured ?? false,
-    defaultConfig: getSchemaDefault(definition.createProviderConfig({ t })) as Record<string, unknown>,
+    defaultConfig: getSchemaDefault(schema) as Record<string, unknown>,
     ...(definition.icon ? { icon: definition.icon } : {}),
     ...(definition.iconColor ? { iconColor: definition.iconColor } : {}),
     ...(definition.iconImage ? { iconImage: definition.iconImage } : {}),
     ...(definition.requiresCredentials !== undefined ? { requiresCredentials: definition.requiresCredentials } : {}),
-    ...(definition.onboardingFields ? { onboardingFields: definition.onboardingFields({ t }) } : {}),
+    ...(onboardingFields ? { onboardingFields } : {}),
     ...(transcription
       ? {
           transcriptionFeatures: {
@@ -108,9 +113,9 @@ export function selectProviderMetadata(
 }
 
 /** Selects serializable metadata for a provider definition list. */
-export function selectProvidersMetadata(definitions: ProviderDefinition[], t: ComposerTranslation) {
-  return Object.fromEntries(definitions.map(definition => [
+export async function selectProvidersMetadata<TConfig>(definitions: ProviderDefinition<TConfig>[], t: ComposerTranslation) {
+  return Object.fromEntries(await Promise.all(definitions.map(async definition => [
     definition.id,
-    selectProviderMetadata(definition, t),
-  ]))
+    await selectProviderMetadata(definition, t),
+  ] as const)))
 }

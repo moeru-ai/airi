@@ -1,6 +1,7 @@
 import type { AuthSession } from '@proj-airi/auth-shared'
 import type { BetterAuthOptions } from 'better-auth'
 import type { AppleProfile } from 'better-auth/social-providers'
+import type { JSONWebKeySet } from 'jose'
 
 import type { AuthDatabase } from './db'
 import type { EmailService } from './email'
@@ -17,16 +18,18 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
 import { deleteSessionCookie } from 'better-auth/cookies'
-import { admin, bearer, jwt, magicLink } from 'better-auth/plugins'
+import { bearer, jwt, magicLink } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
 import * as authSchema from '@proj-airi/auth-shared'
 
 import { ApiError } from './error'
-import { oidcJwtBearer } from './oidc-jwt-bearer'
+import { googleClientIds } from './google-client-ids'
 import { getAuthTrustedOrigins, getTrustedOrigin } from './origin'
+import { banGuard } from './plugins/ban-guard'
+import { oidcJwtBearer } from './plugins/oidc-jwt-bearer'
+import { steam } from './plugins/steam'
 import { createAppleClientSecret, createSocialAuthorizationRevoker } from './social-authorization'
-import { steam } from './steam'
 
 const logger = useLogger('auth').useGlobalConfig()
 
@@ -421,6 +424,7 @@ export interface AuthInstance {
   handler: (request: Request) => Promise<Response>
   api: {
     getSession: (input: { headers: Headers }) => Promise<AuthSession | null>
+    getJwks: () => Promise<JSONWebKeySet>
     getOAuthServerConfig: () => Promise<unknown>
     getOpenIdConfig: () => Promise<unknown>
   }
@@ -445,43 +449,20 @@ export function createAuth(
       },
     }),
 
-    // NOTICE: Keep the admin plugin for its role and ban data contract. Disable
-    // all of its HTTP endpoints here, while routes.ts blocks the full namespace.
+    // Keep Better Auth's built-in token route disabled. oauthProvider owns the
+    // public OIDC token endpoint at /oauth2/token.
     disabledPaths: [
       '/token',
-      '/admin/ban-user',
-      '/admin/create-user',
-      '/admin/get-user',
-      '/admin/has-permission',
-      '/admin/impersonate-user',
-      '/admin/list-user-sessions',
-      '/admin/list-users',
-      '/admin/remove-user',
-      '/admin/revoke-user-session',
-      '/admin/revoke-user-sessions',
-      '/admin/set-role',
-      '/admin/set-user-password',
-      '/admin/stop-impersonating',
-      '/admin/unban-user',
-      '/admin/update-user',
     ],
 
     plugins: [
       bearer(),
       jwt(),
-      // Role-based admin: adds `user.role/banned/banReason/banExpires` and
-      // `session.impersonatedBy`, gates /admin/* by `role === 'admin'`, and
-      // blocks banned users at `session.create.before`. The stateless OIDC JWT
-      // hot path is NOT covered by that hook, so `resolveRequestAuth` and the
-      // /oauth2/userinfo guard re-check `user.banned` themselves.
-      admin({ adminRoles: ['admin'] }),
+      banGuard(),
       // NOTICE:
-      // Bridges OIDC JWT access tokens (RS256, signed by our oauthProvider)
-      // into a real better-auth session so `sessionMiddleware` and every
-      // downstream `/api/auth/*` endpoint accept them. Must run after
-      // bearer() so we don't intercept HMAC session tokens that bearer()
-      // already handles. See oidc-jwt-bearer.ts for the
-      // architectural mismatch this paves over.
+      // Resolves OIDC JWT access tokens into request-scoped identity for
+      // Better Auth. Must run after bearer() so HMAC session tokens retain
+      // their stock path. See oidc-jwt-bearer.ts for sensitive-operation rules.
       oidcJwtBearer(env),
       // Steam's web login is OpenID 2.0, not OAuth2/OIDC, so it can't be a
       // `socialProviders` entry — see steam.ts for why this needs to be its
@@ -561,6 +542,17 @@ export function createAuth(
     },
 
     user: {
+      // Keep this server-managed activity field in Better Auth's declared
+      // schema so `better-auth generate` preserves it in auth-shared.
+      // Session creation updates it below; clients must never supply it.
+      additionalFields: {
+        lastSeenAt: {
+          type: 'date',
+          required: false,
+          input: false,
+          returned: true,
+        },
+      },
       changeEmail: {
         enabled: true,
         // NOTICE:
@@ -668,7 +660,7 @@ export function createAuth(
 
     socialProviders: {
       google: {
-        clientId: env.AUTH_GOOGLE_CLIENT_ID,
+        clientId: googleClientIds(env.AUTH_GOOGLE_CLIENT_ID, env.AUTH_GOOGLE_NATIVE_CLIENT_IDS),
         clientSecret: env.AUTH_GOOGLE_CLIENT_SECRET,
         // Force the provider's authorization page to let users choose an
         // identity before linking. Without this, an existing provider session
@@ -775,10 +767,9 @@ export function createAuth(
         },
         update: {
           // NOTICE:
-          // Revoke OAuth credentials when a user gets banned. The admin plugin's
-          // `banUser` sets `banned=true` via internalAdapter.updateUser (firing
-          // this hook) and deletes sessions, but leaves oauth_refresh_token /
-          // oauth_access_token rows. oauthProvider's /oauth2/token refresh grant
+          // Revoke OAuth credentials when a user gets banned. The Auth-owned ban
+          // operation must update the user through Better Auth's adapter so this
+          // hook fires. oauthProvider's /oauth2/token refresh grant
           // (node_modules/@better-auth/oauth-provider/dist/index.mjs L718) loads
           // the user without checking `banned`, so a banned user could otherwise
           // mint a fresh access token from a live refresh token. That token is
@@ -796,9 +787,8 @@ export function createAuth(
       },
       session: {
         create: {
-          // NOTE: login-time ban enforcement is the admin plugin's
-          // `session.create.before` (checks `user.banned`). We only keep the
-          // `after` hook for last-seen / analytics.
+          // banGuard checks the user before Better Auth creates this session.
+          // This hook records last-seen activity and login analytics after it.
           after: async (session) => {
             metrics?.userLogin.add(1)
             // Best-effort analytics: session creation must not fail because
@@ -808,11 +798,6 @@ export function createAuth(
               .set({ lastSeenAt: new Date() })
               .where(eq(authSchema.user.id, session.userId))
               .catch(err => logger.withError(err).withFields({ userId: session.userId }).warn('Failed to update user lastSeenAt; continuing session create'))
-            void resourceApi?.trackAuthEvent({
-              userId: session.userId,
-              action: 'session_started',
-              source: 'better-auth.session.create',
-            })
           },
         },
       },

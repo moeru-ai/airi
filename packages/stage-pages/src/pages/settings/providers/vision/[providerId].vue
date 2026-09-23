@@ -6,6 +6,7 @@ import {
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
   ProviderBasicSettings,
+  ProviderGenerationSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
   ProviderValidationAlerts,
@@ -14,12 +15,16 @@ import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provi
 import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
-const route = useRoute()
-const sourceProviderId = route.params.providerId as string
+const route = useRoute('/settings/providers/vision/[providerId]')
+const routeProviderId = route.params.providerId
+if (typeof routeProviderId !== 'string')
+  throw new Error('Expected a provider id in the settings route')
+const sourceProviderId = routeProviderId
 const providerId = `vision-${sourceProviderId}`
 const providerStore = useProviderConfigStore()
 const visionStore = useVisionStore()
@@ -62,12 +67,12 @@ const {
   runManualTest,
 } = useProviderValidation(providerId)
 
-const apiKeyPlaceholder = computed(() => {
+const apiKeyPlaceholder = computedAsync(async () => {
   const definition = getDefinedProvider(sourceProviderId)
   if (!definition?.createProviderConfig)
     return 'sk-...'
 
-  const schema = definition.createProviderConfig({ t }) as any
+  const schema = await definition.createProviderConfig({ t }) as any
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
   if (!apiKeySchema)
@@ -75,7 +80,7 @@ const apiKeyPlaceholder = computed(() => {
 
   const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
   return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
-})
+}, 'sk-...')
 
 function goToModelSelection() {
   activeProvider.value = providerId
@@ -101,6 +106,7 @@ function goToModelSelection() {
           :provider-name="providerMetadata?.localizedName"
           :placeholder="apiKeyPlaceholder"
         />
+        <ProviderGenerationSettings :provider-id="providerId" />
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">

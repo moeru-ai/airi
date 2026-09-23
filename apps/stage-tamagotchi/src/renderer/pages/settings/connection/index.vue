@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { ConnectionSettings } from '@proj-airi/stage-ui/components'
-import { Callout, FieldCheckbox, FieldInput, IconButton, Input, SelectTab } from '@proj-airi/ui'
+import { Callout, FieldCheckbox, IconButton, Input } from '@proj-airi/ui'
 import { refDebounced, useClipboard } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef, watch } from 'vue'
@@ -10,10 +10,6 @@ import { useI18n } from 'vue-i18n'
 import ServerChannelQrCard from './server-channel-qr-card.vue'
 
 import { useServerChannelSettingsStore } from '../../../stores/settings/server-channel'
-import {
-  hostnameFromExposureMode,
-  serverChannelExposureModeFromHostname,
-} from '../../../stores/settings/server-channel-options'
 
 const serverChannelSettingsStore = useServerChannelSettingsStore()
 const { authToken, hostname, lastApplyError, tlsConfig } = storeToRefs(serverChannelSettingsStore)
@@ -26,14 +22,13 @@ const websocketTlsEnabled = computed({
   },
 })
 
-const exposureMode = computed({
-  get: () => serverChannelExposureModeFromHostname(hostname.value),
-  set: (mode) => {
-    hostname.value = hostnameFromExposureMode(mode, hostname.value)
+const exposeToAll = computed({
+  get: () => hostname.value === '0.0.0.0',
+  set: (value: boolean) => {
+    hostname.value = value ? '0.0.0.0' : '127.0.0.1'
   },
 })
 
-const showAdvancedHostname = computed(() => exposureMode.value === 'advanced')
 const showDesktopServerControls = computed(() => isStageTamagotchi())
 const authTokenInput = shallowRef(authToken.value)
 const authTokenInputDebounced = refDebounced(authTokenInput, 500)
@@ -41,21 +36,6 @@ const authTokenVisible = shallowRef(false)
 const { copied: authTokenCopied, copy: copyAuthToken, isSupported: isClipboardSupported } = useClipboard({ source: authTokenInput, legacy: true })
 const authTokenInputType = computed(() => authTokenVisible.value ? 'text' : 'password')
 const canCopyAuthToken = computed(() => isClipboardSupported.value && authTokenInput.value.length > 0)
-
-const exposureModeOptions = computed(() => [
-  {
-    label: t('settings.pages.connection.server-hostname.options.this-device'),
-    value: 'this-device',
-  },
-  {
-    label: t('settings.pages.connection.server-hostname.options.all'),
-    value: 'all',
-  },
-  {
-    label: t('settings.pages.connection.server-hostname.options.advanced'),
-    value: 'advanced',
-  },
-])
 
 watch(authToken, (value) => {
   if (value !== authTokenInput.value)
@@ -77,40 +57,17 @@ watch(authTokenInputDebounced, (value) => {
     >
       {{ lastApplyError }}
     </Callout>
-    <ConnectionSettings>
-      <template #platform-specific>
-        <!-- TODO: show connected remote -->
+    <ConnectionSettings server-address-disabled>
+      <template #before-server-address>
         <FieldCheckbox
-          v-model="websocketTlsEnabled"
-          :label="t('settings.websocket-secure-enabled.title')"
-          :description="t('settings.websocket-secure-enabled.description')"
-        />
-
-        <div
           v-if="showDesktopServerControls"
-          :class="['flex', 'flex-col', 'gap-2']"
-        >
-          <div :class="['text-sm', 'font-medium', 'text-neutral-900', 'dark:text-neutral-100']">
-            {{ t('settings.pages.connection.server-hostname.label') }}
-          </div>
-          <div :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
-            {{ t('settings.pages.connection.server-hostname.description') }}
-          </div>
-          <SelectTab
-            v-model="exposureMode"
-            size="sm"
-            :options="exposureModeOptions"
-          />
-        </div>
-
-        <FieldInput
-          v-if="showDesktopServerControls && showAdvancedHostname"
-          v-model="hostname"
-          :label="t('settings.pages.connection.server-hostname.advanced-label')"
-          :description="t('settings.pages.connection.server-hostname.advanced-description')"
-          placeholder="192.168.1.25"
+          v-model="exposeToAll"
+          :label="t('settings.pages.connection.server-hostname.label')"
+          :description="t('settings.pages.connection.server-hostname.description')"
         />
+      </template>
 
+      <template #platform-specific>
         <div
           v-if="showDesktopServerControls"
           :class="['max-w-full']"
@@ -150,6 +107,12 @@ watch(authTokenInputDebounced, (value) => {
             </div>
           </label>
         </div>
+
+        <FieldCheckbox
+          v-model="websocketTlsEnabled"
+          :label="t('settings.websocket-secure-enabled.title')"
+          :description="t('settings.websocket-secure-enabled.description')"
+        />
 
         <ServerChannelQrCard />
       </template>

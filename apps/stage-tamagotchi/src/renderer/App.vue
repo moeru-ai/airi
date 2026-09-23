@@ -1,26 +1,34 @@
 <script setup lang="ts">
+import type { ArtistrySyncPayload } from '@proj-airi/stage-shared'
+
 import { defineInvokeHandler } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
-import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
-import { initializeAnalytics } from '@proj-airi/stage-ui/libs/analytics'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
+import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { useTheme } from '@proj-airi/ui'
+import { isEqual } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
@@ -43,10 +51,13 @@ import {
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa/plugin/capabilities'
 import {
+  electronPluginCancelDirectoryImport,
+  electronPluginCommitDirectoryImport,
   electronPluginInspect,
   electronPluginList,
   electronPluginLoad,
   electronPluginLoadEnabled,
+  electronPluginPrepareDirectoryImport,
   electronPluginSetAutoReload,
   electronPluginSetEnabled,
   electronPluginUnload,
@@ -62,32 +73,25 @@ import {
   useTamagotchiMcpToolsStore,
   useTamagotchiPluginToolsStore,
 } from './stores/tools'
-import { resolveInitialWindowRoutePath } from './window-route'
+import { resolveInitialRendererRoutePath, resolveRendererWindowContext } from './window-context'
 
 const { isDark: dark } = useTheme()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
 const router = useRouter()
 const route = useRoute()
-const chatSessionStore = useChatSessionStore()
 const context = useElectronEventaContext()
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
-const initialWindowRoutePath = resolveInitialWindowRoutePath(route.path)
-useChatStore()
+const windowContext = resolveRendererWindowContext()
+const initialRoutePath = resolveInitialRendererRoutePath(route.path)
+const chatStore = useChatStore()
 const builtinToolsStore = useTamagotchiBuiltinToolsStore()
 const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
-chatSessionStore.setCloudSyncOwnership(syncedPinia.isLeader())
-const isSpotlightWindowRoute = initialWindowRoutePath === '/spotlight'
-const isSettingsWindowRoute = initialWindowRoutePath === '/settings' || initialWindowRoutePath.startsWith('/settings/')
-const isEditorWindowRoute = initialWindowRoutePath === '/editor'
-
-// Every renderer participates in leader election. Keep provider state ready in
-// auxiliary windows so a newly elected leader can execute chat actions after
-// the previous window closes.
-useAuthProviderSync()
+const isSpotlightWindow = initialRoutePath === '/spotlight'
+const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
 
 async function refreshPluginRuntimeTools() {
   try {
@@ -98,10 +102,9 @@ async function refreshPluginRuntimeTools() {
   }
 }
 
-// Every renderer creates the runtime tool stores because every renderer can
-// become the leader. Only the leader discovers tools and keeps executors.
+// Every renderer creates the runtime tool stores for synchronized state. Only
+// the main Stage renderer discovers tools and keeps executors.
 const stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
-  chatSessionStore.setCloudSyncOwnership(isLeader)
   if (!isLeader)
     return
 
@@ -115,6 +118,8 @@ const stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
 })
 
 function createFullStageRuntime() {
+  const authStore = useAuthStore()
+  const onboardingStore = useOnboardingStore()
   const contextBridgeStore = useContextBridgeStore()
   const displayModelsStore = useDisplayModelsStore()
   const serverChannelSettingsStore = useServerChannelSettingsStore()
@@ -126,9 +131,39 @@ function createFullStageRuntime() {
   const stageWindowLifecycleStore = useStageWindowLifecycleStore()
   const settingsAudioDeviceStore = useSettingsAudioDevice()
   const artistryStore = useArtistryStore()
+  useConsciousnessStore()
+  useHearingStore()
+  useSpeechStore()
+  useSettingsStageModel()
+  useVisionStore()
+
+  let stopAuthenticatedSetup: (() => void) | undefined
+  let stopLoggedOutSetup: (() => void) | undefined
+
+  async function removeAuthenticationProviderConfiguration() {
+    if (!syncedPinia.isLeader())
+      return
+
+    await cardStore.configureForAuthentication(false)
+  }
+
+  function registerAuthenticatedSetup() {
+    stopAuthenticatedSetup ??= authStore.onAuthenticated(async () => {
+      if (!syncedPinia.isLeader())
+        return
+
+      await cardStore.configureForAuthentication(true)
+      await onboardingStore.closeAfterAuthentication()
+    })
+    stopLoggedOutSetup ??= authStore.onLogout(removeAuthenticationProviderConfiguration)
+  }
+
   const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
   const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
   const listPlugins = useElectronEventaInvoke(electronPluginList)
+  const preparePluginDirectoryImport = useElectronEventaInvoke(electronPluginPrepareDirectoryImport)
+  const commitPluginDirectoryImport = useElectronEventaInvoke(electronPluginCommitDirectoryImport)
+  const cancelPluginDirectoryImport = useElectronEventaInvoke(electronPluginCancelDirectoryImport)
   const setPluginEnabled = useElectronEventaInvoke(electronPluginSetEnabled)
   const setPluginAutoReload = useElectronEventaInvoke(electronPluginSetAutoReload)
   const loadEnabledPlugins = useElectronEventaInvoke(electronPluginLoadEnabled)
@@ -139,9 +174,8 @@ function createFullStageRuntime() {
   const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
   const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
-  const isAuxiliaryChatRoute = initialWindowRoutePath === '/chat'
-  const isGodotStageRoute = () => route.path === '/' || route.path.startsWith('/settings')
-  const isWidgetsWindowRoute = () => route.path === '/widgets'
+  const usesGodotStage = initialRoutePath === '/' || initialRoutePath.startsWith('/settings')
+  const isWidgetsWindow = initialRoutePath === '/widgets'
 
   function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
     if (state.state === 'running') {
@@ -155,15 +189,19 @@ function createFullStageRuntime() {
 
   usePerfTracerBridgeStore()
   initializeStageThreeRuntimeTraceBridge()
+  // The main process returns the callback only to the renderer that started
+  // sign-in. Each login-capable window listens locally, while the synchronized
+  // auth action still executes once in the main Stage leader.
   initializeElectronAuthCallbackBridge()
   void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
 
-  watch(() => route.path, () => {
-    contextBridgeStore.setSparkNotifyHostRole(isWidgetsWindowRoute() ? 'client' : 'main')
-  }, { immediate: true })
+  contextBridgeStore.setSparkNotifyHostRole(isWidgetsWindow ? 'client' : 'main')
 
   // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
   pluginHostInspectorStore.setBridge({
+    prepareDirectoryImport: () => preparePluginDirectoryImport(),
+    commitDirectoryImport: payload => commitPluginDirectoryImport(payload),
+    cancelDirectoryImport: payload => cancelPluginDirectoryImport(payload),
     list: () => listPlugins(),
     setEnabled: async (payload) => {
       const result = await setPluginEnabled(payload)
@@ -189,16 +227,25 @@ function createFullStageRuntime() {
     inspect: () => inspectPluginHost(),
   })
 
+  let lastSyncedArtistryConfig: ArtistrySyncPayload | undefined
   watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
-    if (activeProvider.value) {
-      void syncArtistryConfig({
-        provider: activeProvider.value as string,
-        globals: JSON.parse(JSON.stringify(artistryGlobals.value)),
-        model: activeModel.value,
-        promptPrefix: defaultPromptPrefix.value,
-        options: providerOptions.value,
-      })
-    }
+    if (!activeProvider.value)
+      return
+
+    const config = JSON.parse(JSON.stringify({
+      provider: activeProvider.value,
+      globals: artistryGlobals.value,
+      model: activeModel.value,
+      promptPrefix: defaultPromptPrefix.value,
+      options: providerOptions.value,
+    })) as ArtistrySyncPayload
+    if (isEqual(config, lastSyncedArtistryConfig))
+      return
+
+    // Pinia synchronization applies cloned snapshots in every renderer. Keep
+    // this IPC bridge edge-triggered so equal snapshots do not repeat IO.
+    lastSyncedArtistryConfig = config
+    void syncArtistryConfig(config)
   }, { deep: true, immediate: true })
 
   context.value.on(electronGodotStageStatusChanged, (event) => {
@@ -216,14 +263,18 @@ function createFullStageRuntime() {
   return {
     async initialize() {
       initializeAnalytics()
+      await authStore.initialize()
       await displayModelsStore.initialize()
-      cardStore.initialize()
+      await cardStore.initialize()
+      registerAuthenticatedSetup()
+      if (!authStore.isAuthenticated)
+        await removeAuthenticationProviderConfiguration()
 
       await displayModelsStore.loadDisplayModelsFromIndexedDB()
       await settingsStore.initializeStageModel()
       await settingsAudioDeviceStore.initialize()
 
-      if (isGodotStageRoute()) {
+      if (usesGodotStage) {
         try {
           syncGodotStageRenderer(await getGodotStageStatus())
         }
@@ -241,12 +292,10 @@ function createFullStageRuntime() {
         token: serverChannelConfig.authToken || undefined,
         possibleEvents: ['ui:configure'],
       }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-      if (!isAuxiliaryChatRoute) {
-        contextBridgeStore.initialize()
-        if (!isWidgetsWindowRoute()) {
-          characterOrchestratorStore.initialize()
-          await startTrackingCursorPoint()
-        }
+      contextBridgeStore.initialize()
+      if (!isWidgetsWindow) {
+        characterOrchestratorStore.initialize()
+        await startTrackingCursorPoint()
       }
 
       defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
@@ -264,13 +313,16 @@ function createFullStageRuntime() {
       inferencePreload.triggerPreload()
     },
     dispose() {
-      if (!isAuxiliaryChatRoute)
-        contextBridgeStore.dispose()
+      stopAuthenticatedSetup?.()
+      stopLoggedOutSetup?.()
+      contextBridgeStore.dispose()
     },
   }
 }
 
-const fullStageRuntime = isSpotlightWindowRoute || isEditorWindowRoute ? null : createFullStageRuntime()
+const fullStageRuntime = windowContext.stageRuntime === 'full'
+  ? createFullStageRuntime()
+  : null
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
@@ -279,7 +331,7 @@ watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
-if (isSettingsWindowRoute) {
+if (isSettingsWindow) {
   context.value.on(electronSettingsNavigate, (event) => {
     const targetRoute = event?.body?.route
     if (!targetRoute || route.fullPath === targetRoute) {
@@ -301,7 +353,7 @@ onMounted(async () => {
   // https://github.com/moeru-ai/airi/issues/1658
   await restoreLocale()
 
-  await chatSessionStore.initialize()
+  await chatStore.initialize(syncedPinia)
 
   await fullStageRuntime?.initialize()
 })
@@ -316,6 +368,7 @@ watch(themeColorsHueDynamic, () => {
 
 onUnmounted(() => {
   stopLeadershipListener?.()
+  chatStore.dispose()
   fullStageRuntime?.dispose()
 })
 </script>
@@ -324,7 +377,7 @@ onUnmounted(() => {
   <ToasterRoot @close="id => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
-  <ResizeHandler v-if="!isSpotlightWindowRoute" />
+  <ResizeHandler v-if="!isSpotlightWindow" />
   <RouterView />
 </template>
 

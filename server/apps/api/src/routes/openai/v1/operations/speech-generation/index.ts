@@ -18,7 +18,6 @@ export function speechGeneration(deps: V1RouteDeps): GatewayCallback<'speech.gen
     llmRouter: deps.llmRouter,
     llmTracing: deps.llmTracing,
     providerCatalogService: deps.providerCatalogService,
-    productEventService: deps.productEventService,
     requestLogService: deps.requestLogService,
     ttsMeter: deps.ttsMeter,
     voicePackService: deps.voicePackService,

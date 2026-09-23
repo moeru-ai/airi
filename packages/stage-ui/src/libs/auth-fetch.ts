@@ -1,5 +1,5 @@
 import { useAuthStore } from '../stores/auth'
-import { getAnalyticsIdentitySnapshot } from './analytics'
+import { getAnalyticsIdentitySnapshot } from './product-signals'
 import { SERVER_URL } from './server'
 
 /**
@@ -23,15 +23,16 @@ export async function authedFetch(
   init?: RequestInit,
 ): Promise<Response> {
   const authStore = useAuthStore()
+  const version = authStore.sessionVersion
   const doFetch = (token: string | null): Promise<Response> => {
     const headers = new Headers(init?.headers)
     if (token)
       headers.set('Authorization', `Bearer ${token}`)
-    const posthogIdentity = shouldAttachPosthogIdentity(input) ? getAnalyticsIdentitySnapshot() : null
-    if (posthogIdentity) {
-      headers.set('x-posthog-distinct-id', posthogIdentity.distinctId)
-      if (posthogIdentity.sessionId)
-        headers.set('x-posthog-session-id', posthogIdentity.sessionId)
+    const openpanelIdentity = shouldAttachOpenpanelIdentity(input) ? getAnalyticsIdentitySnapshot() : null
+    if (openpanelIdentity) {
+      headers.set('x-openpanel-device-id', openpanelIdentity.distinctId)
+      if (openpanelIdentity.sessionId)
+        headers.set('x-openpanel-session-id', openpanelIdentity.sessionId)
     }
     return fetch(input, { ...init, headers, credentials: 'omit' })
   }
@@ -47,27 +48,26 @@ export async function authedFetch(
   if (url.includes('/oauth2/token'))
     return response
 
-  const newToken = await authStore.refreshTokenNow()
+  const newToken = await authStore.refreshTokenNow(version)
+  // Refresh checks ownership in the leader. Check again before retrying here.
+  if (version !== authStore.sessionVersion)
+    return response
+
   if (!newToken) {
-    await promptReLogin(authStore)
+    await authStore.expireSession(version)
     return response
   }
 
   const retried = await doFetch(newToken)
   if (retried.status === 401)
-    await promptReLogin(authStore)
+    await authStore.expireSession(version)
   return retried
 }
 
-function shouldAttachPosthogIdentity(input: RequestInfo | URL): boolean {
+function shouldAttachOpenpanelIdentity(input: RequestInfo | URL): boolean {
   const url = typeof input === 'string'
     ? input
     : input instanceof URL ? input.toString() : input.url
 
   return new URL(url, SERVER_URL).origin === new URL(SERVER_URL).origin
-}
-
-async function promptReLogin(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
-  await authStore.clearAllAuthState()
-  authStore.needsLogin = true
 }

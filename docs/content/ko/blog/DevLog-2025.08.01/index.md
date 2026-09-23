@@ -68,7 +68,7 @@ const trioCluster = ['👩‍👧', '‍', '👦']
 
 ## 배경
 
-최근 [Anime.js](https://animejs.com/) 가 v4.10에서 새로운 [텍스트 유틸리티](https://animejs.com/documentation/text)를 공개하며, 텍스트 애니메이션을 돕는 유틸리티 함수 모음을 제공하기 시작했습니다(위 예시처럼요). 이 업데이트는 Anime.js가 오랫동안 비워 두었던 자리를 확실히 채워 줍니다. 이전에는 애니메이션을 위해 텍스트를 직접 글자 단위로 쪼개거나, 내부적으로 Anime.js를 쓰는 [splt](https://www.spltjs.com/) 같은 라이브러리, 또는 [GSAP](https://gsap.com/) 와 함께 쓰는 [SplitText](https://gsap.com/docs/v3/Plugins/SplitText/) 에 기대야 했습니다.
+최근 [Anime.js](https://animejs.com/)가 v4.10에서 새로운 [텍스트 유틸리티](https://animejs.com/documentation/text)를 공개하며, 텍스트 애니메이션을 돕는 유틸리티 함수 모음을 제공하기 시작했습니다(위 예시처럼요). 이 업데이트는 Anime.js가 오랫동안 비워 두었던 자리를 확실히 채워 줍니다. 이전에는 애니메이션을 위해 텍스트를 직접 글자 단위로 쪼개거나, 내부적으로 Anime.js를 쓰는 [splt](https://www.spltjs.com/) 같은 라이브러리, 또는 [GSAP](https://gsap.com/)와 함께 쓰는 [SplitText](https://gsap.com/docs/v3/Plugins/SplitText/)에 기대야 했습니다.
 
 텍스트 애니메이션은 UI에서 메시지를 멋지게 등장시킬 때 특히 유용합니다. 보통 메시지는 완성된 형태로 도착하므로, 받은 텍스트를 글자로 쪼개서 애니메이션을 주기만 하면 됩니다.
 

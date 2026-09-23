@@ -73,8 +73,8 @@ onMounted(async () => {
 
 [기본 가이드](../guides/),
 [기여 가이드라인](../references/contributing/guide/),
-[디자인 가이드라인](../references/design-guidelines/)
-이 이 시점부터 모두 포함됐습니다.
+[디자인 가이드라인](../references/design-guidelines/)이
+이 시점부터 모두 포함됐습니다.
 
 점심 내내 YouTube의 Text PV 애니메이션을 감상하며 감을 잡았습니다.
 정말 좋아하는 스타일이라, 브라우저에서도 비슷한 전환 효과를 구현할 수 있으면 좋겠습니다!
@@ -90,8 +90,8 @@ https://www.youtube.com/watch?v=_AIgv0EsOE4
 ## DevStream
 
 [yui540](https://github.com/yui540)의 [저장소](https://github.com/yui540/css-animations)에 있는
-애니메이션 전환을 상당수 [https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/)
-로 포팅했습니다.
+애니메이션 전환을 상당수 [https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/)로
+포팅했습니다.
 
 정말 잘 동작했습니다:
 
