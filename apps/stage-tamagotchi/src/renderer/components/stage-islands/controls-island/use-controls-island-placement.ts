@@ -24,7 +24,7 @@ export interface ResolveControlsIslandDockOptions {
 const displayCenterDeadZoneRatio = 0.05
 
 /**
- * Resolves a window corner away from the nearest vertical display edge.
+ * Resolves the window corner that matches the current display quadrant.
  *
  * The screen geometry stays in Electron logical coordinates. The returned
  * dock contains no DOM coordinates, so display scaling cannot affect layout.
@@ -57,10 +57,10 @@ export function resolveControlsIslandDock(options: ResolveControlsIslandDockOpti
   }
 
   if (windowCenterY < displayCenterY - verticalDeadZone) {
-    verticalDock = 'bottom'
+    verticalDock = 'top'
   }
   else if (windowCenterY > displayCenterY + verticalDeadZone) {
-    verticalDock = 'top'
+    verticalDock = 'bottom'
   }
 
   if (verticalDock === 'top') {
