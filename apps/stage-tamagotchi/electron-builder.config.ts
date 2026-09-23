@@ -85,7 +85,7 @@ export default {
     '!**/node_modules/@rolldown{,/**}',
     '!**/node_modules/rolldown{,/**}',
     '!**/node_modules/lightningcss{,/**}',
-    '!**/node_modules/lightningcss-darwin-arm64{,/**}',
+    '!**/node_modules/lightningcss-*{,/**}',
     '!**/node_modules/fsevents{,/**}',
     // Transformers runs inside browser workers in the desktop app. Sharp is its
     // Node-only image backend and has no packaged main-process consumer.
