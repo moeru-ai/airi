@@ -8,7 +8,7 @@ import { useDebounceFn, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 
 import { client } from '../../composables/api'
 import { getDefinedProvider } from '../../libs/providers'
@@ -26,6 +26,10 @@ const providerStorageOptions = {
 const PUSH_DEBOUNCE_MS = 1000
 /** Same idle interval as VS Code Settings Sync. */
 const PULL_INTERVAL_MS = 5 * 60 * 1000
+
+export type ProviderReplicaSyncState = 'synced' | 'pending' | 'not-uploaded'
+
+const emptyReplicaSyncState: Record<string, ProviderReplicaSyncState> = Object.freeze({})
 
 type StoredProvider = InferenceServiceProvider & {
   replicaUpdatedAt?: string
@@ -48,7 +52,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   const pendingDeletes = useLocalStorage<Record<string, string | null>>('settings/providers/pending-deletes', {}, providerStorageOptions)
   const legacyConfigs = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {}, providerStorageOptions)
 
-  let lastLiveRemote: Record<string, ProviderReplicaRow> = {}
+  const lastLiveRemote = shallowRef<Record<string, ProviderReplicaRow>>({})
   let replicaMerged = false
   let syncInFlight: Promise<void> | undefined
   const afterSyncHooks: Array<() => void | Promise<void>> = []
@@ -139,11 +143,11 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
         deletedAt: null,
       }
     }
-    lastLiveRemote = next
+    lastLiveRemote.value = next
   }
 
   function isDirty(provider: StoredProvider) {
-    const remote = lastLiveRemote[provider.id]
+    const remote = lastLiveRemote.value[provider.id]
     if (!remote)
       return true
     return !isEqual(replicaBody(provider), replicaBody(remote))
@@ -178,6 +182,24 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   const configuredProviders = computed(() => Object.fromEntries(
     Object.entries(providers.value).map(([providerId, provider]) => [providerId, provider.status === 'configured']),
   ))
+
+  const replicaSyncState = computed(() => {
+    if (!authStore.isAuthenticated)
+      return emptyReplicaSyncState
+
+    const states: Record<string, ProviderReplicaSyncState> = {}
+    for (const provider of Object.values(providers.value)) {
+      if (!isUserProvider(provider))
+        continue
+      if (!isDirty(provider))
+        states[provider.id] = 'synced'
+      else if (provider.status === 'configured')
+        states[provider.id] = 'pending'
+      else
+        states[provider.id] = 'not-uploaded'
+    }
+    return Object.keys(states).length === 0 ? emptyReplicaSyncState : states
+  })
 
   function getProvider(providerId: string) {
     return providers.value[providerId]
@@ -403,7 +425,10 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
         const current = providers.value[provider.id]
         if (current)
           current.replicaUpdatedAt = remote.updatedAt
-        lastLiveRemote[provider.id] = remote
+        lastLiveRemote.value = {
+          ...lastLiveRemote.value,
+          [provider.id]: remote,
+        }
       }
       catch {
         return
@@ -414,7 +439,9 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       try {
         await service.deleteRemote(client, id)
         delete pendingDeletes.value[id]
-        delete lastLiveRemote[id]
+        const nextRemote = { ...lastLiveRemote.value }
+        delete nextRemote[id]
+        lastLiveRemote.value = nextRemote
       }
       catch {
         return
@@ -456,7 +483,9 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
     delete providers.value[providerId]
     unmarkProviderAdded(providerId)
-    delete lastLiveRemote[providerId]
+    const nextRemote = { ...lastLiveRemote.value }
+    delete nextRemote[providerId]
+    lastLiveRemote.value = nextRemote
     schedulePush()
   }
 
@@ -479,7 +508,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     providers.value = {}
     addedProviders.value = {}
     pendingDeletes.value = {}
-    lastLiveRemote = {}
+    lastLiveRemote.value = {}
     replicaMerged = false
   }
 
@@ -490,6 +519,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     pendingDeletes,
     listedProviders,
     configuredProviders,
+    replicaSyncState,
 
     getProvider,
     getProviderConfig,

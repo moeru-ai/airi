@@ -507,6 +507,35 @@ describe('provider config store', () => {
     )
   })
 
+  it('hides replica sync state while signed out', () => {
+    const store = installStore()
+    store.providers[localProvider.id] = { ...localProvider, status: 'configured' }
+    expect(store.replicaSyncState).toEqual({})
+  })
+
+  it('marks a signed-in provider pending, not uploaded, or synced', async () => {
+    const store = installStore()
+    authState.isAuthenticated = true
+    store.providers[localProvider.id] = { ...localProvider, status: 'unconfigured' }
+    store.providers[officialProvider.id] = { ...officialProvider }
+
+    expect(store.replicaSyncState[localProvider.id]).toBe('not-uploaded')
+    expect(store.replicaSyncState[officialProvider.id]).toBeUndefined()
+
+    await store.updateProviderConfig(localProvider.id, { apiKey: 'sk-edited' }, 'configured')
+    expect(store.replicaSyncState[localProvider.id]).toBe('pending')
+
+    await store.syncProviders()
+    expect(store.replicaSyncState[localProvider.id]).toBe('synced')
+    expect(mocks.service.upsertRemote).toHaveBeenCalledWith(
+      mocks.client,
+      expect.objectContaining({
+        id: localProvider.id,
+        config: { apiKey: 'sk-edited' },
+      }),
+    )
+  })
+
   it('pulls the replica every five minutes while signed in', async () => {
     vi.useFakeTimers()
     authState.isAuthenticated = true

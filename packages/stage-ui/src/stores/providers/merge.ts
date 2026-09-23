@@ -40,12 +40,9 @@ function copyRemoteLive(remoteRow: ProviderReplicaRow): ProviderSyncRow {
 
 /**
  * replicaUpdatedAt is the last successful upload, not a local edit clock.
- * A stripped persist copy can keep that stamp, so equal timestamps apply
- * the cloud row when both sides work, or when neither side works.
- *
- * A config that works on this device beats replica time. A remote-only row
- * that does not work here is not adopted. A missing local live row is not a
- * delete. pendingDeletes is the only local delete signal.
+ * Equal timestamps keep the cloud row. A working config on this device beats that clock.
+ * A remote-only row is copied even when this device cannot use it.
+ * A missing local row is not a delete. pendingDeletes is the only delete signal.
  */
 export function mergeProviderSync(
   local: ProviderSyncSnapshot,
@@ -89,9 +86,6 @@ export function mergeProviderSync(
         pendingDeletes[id] = localDeleteAt!
       continue
     }
-
-    if (!remoteRow.deletedAt && !localLive && !remoteWorks)
-      continue
 
     if (!remoteRow.deletedAt && localWorks !== remoteWorks) {
       if (localWorks && localLive)

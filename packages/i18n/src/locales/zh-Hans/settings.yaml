@@ -1072,6 +1072,10 @@ pages:
           title: 声音配置
     labels:
       recommended: 推荐
+    sync:
+      synced: 已同步
+      pending: 等待上传
+      not-uploaded: 未上传。请先在这台设备上完成这个提供商。
     filters:
       pricing: 价格
       deployment: 部署

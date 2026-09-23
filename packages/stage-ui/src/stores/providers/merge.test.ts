@@ -76,7 +76,13 @@ const cases: {
   { local: 'delete', remote: 'working', clock: 'equal', winner: 'delete' },
   { local: 'delete', remote: 'working', clock: 'local-newer', winner: 'delete' },
 
-  { local: 'none', remote: 'broken', clock: 'remote-newer', winner: 'none' },
+  // ROOT CAUSE:
+  //
+  // A cloud row this device could not use was skipped. Another computer
+  // could not edit it, and a local clear did not bring it back.
+  //
+  // Copy the remote-only row.
+  { local: 'none', remote: 'broken', clock: 'remote-newer', winner: 'remote' },
   { local: 'working', remote: 'broken', clock: 'remote-newer', winner: 'local' },
   { local: 'broken', remote: 'broken', clock: 'remote-newer', winner: 'remote' },
   { local: 'broken', remote: 'broken', clock: 'equal', winner: 'remote' },

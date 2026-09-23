@@ -1116,6 +1116,10 @@ pages:
           title: Voice Settings
     labels:
       recommended: Recommended
+    sync:
+      synced: Synced
+      pending: Waiting to upload
+      not-uploaded: Not uploaded. Complete this provider on this device.
     filters:
       pricing: Pricing
       deployment: Deployment
