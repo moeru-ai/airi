@@ -52,6 +52,38 @@ describe('createVadStreamingSession', () => {
     expect(start).toHaveBeenCalledTimes(2)
   })
 
+  it('keeps each queued start bound to its own speech segment', async () => {
+    const starts: number[] = []
+    let releaseFirstStop!: () => void
+    const stop = vi.fn(async () => {
+      if (stop.mock.calls.length === 1)
+        await new Promise<void>((resolve) => { releaseFirstStop = resolve })
+    })
+    const session = createVadStreamingSession<number>({
+      start: async (segment) => { starts.push(segment) },
+      stop,
+    })
+
+    // ROOT CAUSE:
+    //
+    // A queued start read the latest mutable segment after the previous stop completed.
+    // Three rapid segments then started as [1, 3, 3] and skipped segment 2.
+    // The queue now captures each segment when speech starts.
+    session.onSpeechStart(1)
+    session.onSpeechEnd()
+    await vi.waitFor(() => expect(stop).toHaveBeenCalledTimes(1))
+
+    session.onSpeechStart(2)
+    session.onSpeechEnd()
+    session.onSpeechStart(3)
+    session.onSpeechEnd()
+
+    releaseFirstStop()
+    await vi.waitFor(() => expect(stop).toHaveBeenCalledTimes(3))
+
+    expect(starts).toEqual([1, 2, 3])
+  })
+
   it('does not start another session after disposal', async () => {
     const start = vi.fn(async () => {})
     const stop = vi.fn(async () => {})
