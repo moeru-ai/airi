@@ -27,6 +27,7 @@ import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
+import { useSettingsCloudSync } from '../settings/cloud-sync'
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
 /**
@@ -64,6 +65,7 @@ const useChatSessionSelectionStore = defineStore('chat-session-selection', () =>
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
+  const cloudSyncSettings = useSettingsCloudSync()
 
   const chatSessionSelection = useChatSessionSelectionStore()
   // The selected conversation belongs to one window. Expose it through the
@@ -976,6 +978,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       console.info('[chat-sync] WS skipped: anonymous user')
       return
     }
+    if (!cloudSyncSettings.chatMessagesSyncEnabled) {
+      console.info('[chat-sync] WS skipped: chat sync is off')
+      return
+    }
     if (wsClient)
       return
 
@@ -1030,6 +1036,19 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function teardownCloudWsClient() {
     cloudSyncReady.value = false
     disposeCloudWsClient()
+  }
+
+  /**
+   * Opens or closes the chat socket after the chat-message switch changes.
+   * The synchronization plugin routes this action to the leader renderer.
+   */
+  async function applyChatCloudSyncEnabled(enabled: boolean) {
+    if (getCurrentUserId() === 'local')
+      return
+    if (enabled)
+      ensureCloudWsClient()
+    else
+      teardownCloudWsClient()
   }
 
   /**
@@ -1607,6 +1626,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
   })
 
+  watch(() => cloudSyncSettings.chatMessagesSyncEnabled, (enabled) => {
+    void useChatSessionStore().applyChatCloudSyncEnabled(enabled)
+  })
+
   // Keep the active conversation aligned with edits to the active card. The
   // active session id is included because card switching resolves the target
   // session asynchronously after the card prompt itself has already changed.
@@ -1650,6 +1673,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     refreshSession,
     deleteSession,
     activateCurrentUser,
+    applyChatCloudSyncEnabled,
     ensureCurrentSession,
 
     cloudSyncReady,
@@ -1660,6 +1684,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   synced: {
     actions: [
       'activateCurrentUser',
+      'applyChatCloudSyncEnabled',
       'createSession',
       'deleteMessage',
       'deleteSession',

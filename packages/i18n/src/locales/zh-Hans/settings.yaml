@@ -97,6 +97,16 @@ analytics:
     description: 关闭任何非必要使用数据及崩溃分析的采集与上传
   disabled:
     title: 此开发版本的使用数据及崩溃分析功能已禁用
+cloud-sync:
+  title: 云同步
+  description: 选择 AIRI 复制到您的账号的内容。登录后开始同步。
+  settingsHint: 您可以稍后在「设置」> Data 中更改。
+  providers:
+    title: 同步服务来源列表
+    description: 把已配置的服务来源复制到您的账号。其他设备可以使用它们。
+  chats:
+    title: 同步聊天消息
+    description: 把聊天消息复制到您的账号。其他设备可以打开它们。
 model-select:
   panel-callout:
     support-status-header: 我们同时支持 2D 和 3D 模型

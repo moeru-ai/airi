@@ -15,6 +15,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../../assets/onboarding.avif'
+import CloudSyncFields from '../../settings/cloud-sync-fields.vue'
 
 import { useAuthStore } from '../../../../stores/auth'
 import { useOnboardingStore } from '../../../../stores/onboarding'
@@ -126,6 +127,14 @@ function handleLocalSetup() {
       >
         {{ t('settings.dialogs.onboarding.description') }}
       </p>
+    </div>
+    <div
+      :class="[
+        'mx-2 mb-4 rounded-xl p-4',
+        'bg-neutral-50 dark:bg-neutral-800/70',
+      ]"
+    >
+      <CloudSyncFields show-settings-hint />
     </div>
     <div :class="['flex', 'flex-col', 'gap-3', 'md:flex-row', 'm-2']">
       <Button
