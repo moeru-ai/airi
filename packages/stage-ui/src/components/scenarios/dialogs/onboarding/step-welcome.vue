@@ -134,7 +134,7 @@ function handleLocalSetup() {
         'bg-neutral-50 dark:bg-neutral-800/70',
       ]"
     >
-      <CloudSyncFields show-settings-hint />
+      <CloudSyncFields />
     </div>
     <div :class="['flex', 'flex-col', 'gap-3', 'md:flex-row', 'm-2']">
       <Button

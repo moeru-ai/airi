@@ -114,14 +114,10 @@ analytics:
     title: Analytics disabled for this development build
 cloud-sync:
   title: Cloud sync
-  description: Choose what AIRI copies to your account. Sync starts after you sign in.
-  settingsHint: You can change this later in Settings > Data.
   providers:
     title: Sync provider list
-    description: Copy configured providers to your account. Other devices can use them.
   chats:
     title: Sync chat messages
-    description: Copy chat messages to your account. Other devices can open them.
 model-select:
   panel-callout:
     support-status-header: We support both 2D and 3D models
