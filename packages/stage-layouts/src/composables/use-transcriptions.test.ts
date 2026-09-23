@@ -26,7 +26,7 @@ interface MockStreamingCallbacks {
 
 function createMockPipeline() {
   return {
-    removeStreamingTranscriptionConsumer: vi.fn(),
+    releaseStreamingTranscriptionConsumer: vi.fn().mockResolvedValue(undefined),
     transcribeForMediaStream: vi.fn().mockImplementation((_stream, options: MockStreamingCallbacks) => {
       options.onSentenceEnd(mockTranscribedContent)
     }),
@@ -385,8 +385,7 @@ describe('useTranscriptions', () => {
       await stopStreamingTranscription()
       await nextTick()
       expect(isListening.value).toBe(false)
-      expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalledWith(true)
-      expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalledOnce()
+      expect(mockHearingPipeline.releaseStreamingTranscriptionConsumer).toHaveBeenCalledOnce()
     })
 
     it('should stop streaming on unmount', async () => {
@@ -407,8 +406,7 @@ describe('useTranscriptions', () => {
 
       app.unmount()
       await nextTick()
-      expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalled()
-      expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalled()
+      expect(mockHearingPipeline.releaseStreamingTranscriptionConsumer).toHaveBeenCalled()
     })
   })
 
