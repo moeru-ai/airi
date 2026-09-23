@@ -14,6 +14,7 @@ import { client } from '../../composables/api'
 import { getDefinedProvider } from '../../libs/providers'
 import { inferenceServiceProvidersService as service } from '../../services/inference-service-providers'
 import { useAuthStore } from '../auth'
+import { useSettingsCloudSync } from '../settings/cloud-sync'
 import { mergeProviderSync } from './merge'
 
 const providerStorageOptions = {
@@ -41,12 +42,14 @@ function isUserProvider(provider: InferenceServiceProvider) {
 
 /**
  * Local providers are the primary copy. Cloud is a replica: pull on login
- * and every five minutes while signed in, push after a debounce. Upsert only
- * configured rows. Do not upload status. Merge prefers a config that works
- * on this device, then replica time.
+ * and every five minutes while signed in, push after a debounce. The
+ * provider-list switch pauses pull and push. Local edits stay on this device
+ * until the switch is on again. Upsert only configured rows. Do not upload
+ * status. Merge prefers a config that works on this device, then replica time.
  */
 export const useProviderConfigStore = defineStore('provider-config', () => {
   const authStore = useAuthStore()
+  const cloudSyncSettings = useSettingsCloudSync()
   const providers = useLocalStorage<Record<string, StoredProvider>>('settings/providers/configured', {}, providerStorageOptions)
   const addedProviders = useLocalStorage<Record<string, boolean>>('settings/providers/added', {}, providerStorageOptions)
   const pendingDeletes = useLocalStorage<Record<string, string | null>>('settings/providers/pending-deletes', {}, providerStorageOptions)
@@ -183,8 +186,12 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     Object.entries(providers.value).map(([providerId, provider]) => [providerId, provider.status === 'configured']),
   ))
 
+  function providerSyncActive() {
+    return authStore.isAuthenticated && cloudSyncSettings.providerListSyncEnabled
+  }
+
   const replicaSyncState = computed(() => {
-    if (!authStore.isAuthenticated)
+    if (!providerSyncActive())
       return emptyReplicaSyncState
 
     const states: Record<string, ProviderReplicaSyncState> = {}
@@ -366,7 +373,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function syncProviders() {
-    if (!authStore.isAuthenticated)
+    if (!providerSyncActive())
       return
 
     if (syncInFlight) {
@@ -402,7 +409,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function pushProviders() {
-    if (!authStore.isAuthenticated)
+    if (!providerSyncActive())
       return
 
     const toUpsert = Object.values(providers.value).filter(provider =>
@@ -458,6 +465,19 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   )
 
   authStore.onAuthenticated(() => {
+    if (!cloudSyncSettings.providerListSyncEnabled)
+      return
+    void syncProviders()
+    periodicSync.resume()
+  })
+
+  watch(() => cloudSyncSettings.providerListSyncEnabled, (enabled) => {
+    if (!authStore.isAuthenticated)
+      return
+    if (!enabled) {
+      periodicSync.pause()
+      return
+    }
     void syncProviders()
     periodicSync.resume()
   })

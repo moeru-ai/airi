@@ -112,6 +112,12 @@ analytics:
     description: Turn this off to opt out of analytics collection.
   disabled:
     title: Analytics disabled for this development build
+cloud-sync:
+  title: Cloud sync
+  providers:
+    title: Sync provider list
+  chats:
+    title: Sync chat messages
 model-select:
   panel-callout:
     support-status-header: We support both 2D and 3D models

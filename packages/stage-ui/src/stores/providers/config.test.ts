@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 
+import { useSettingsCloudSync } from '../settings/cloud-sync'
 import { useProviderConfigStore } from './config'
 
 class MemoryStorage implements Storage {
@@ -534,6 +535,26 @@ describe('provider config store', () => {
         config: { apiKey: 'sk-edited' },
       }),
     )
+  })
+
+  it('pauses provider replica sync while the provider list switch is off', async () => {
+    vi.useFakeTimers()
+    authState.isAuthenticated = true
+    const store = installStore()
+    await vi.advanceTimersByTimeAsync(0)
+    const cloudSync = useSettingsCloudSync()
+    cloudSync.providerListSyncEnabled = false
+    mocks.service.listRemote.mockClear()
+
+    store.providers[localProvider.id] = { ...localProvider, status: 'configured' }
+    await store.syncProviders()
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+    expect(mocks.service.listRemote).not.toHaveBeenCalled()
+    expect(store.replicaSyncState).toEqual({})
+
+    cloudSync.providerListSyncEnabled = true
+    await vi.advanceTimersByTimeAsync(0)
+    expect(mocks.service.listRemote).toHaveBeenCalled()
   })
 
   it('pulls the replica every five minutes while signed in', async () => {

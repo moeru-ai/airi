@@ -97,6 +97,12 @@ analytics:
     description: 关闭任何非必要使用数据及崩溃分析的采集与上传
   disabled:
     title: 此开发版本的使用数据及崩溃分析功能已禁用
+cloud-sync:
+  title: 云同步
+  providers:
+    title: 同步服务来源列表
+  chats:
+    title: 同步聊天消息
 model-select:
   panel-callout:
     support-status-header: 我们同时支持 2D 和 3D 模型

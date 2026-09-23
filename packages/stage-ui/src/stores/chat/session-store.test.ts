@@ -106,6 +106,7 @@ vi.mock('../../libs/chat-sync', () => ({
 }))
 
 const { useChatSessionStore } = await import('./session-store')
+const { useSettingsCloudSync } = await import('../settings/cloud-sync')
 let pinia: ReturnType<typeof createPinia>
 
 beforeEach(() => {
@@ -142,6 +143,26 @@ async function flushMicrotasks(rounds = 8) {
   for (let i = 0; i < rounds; i++)
     await Promise.resolve()
 }
+
+describe('chat-session-store · cloud sync switch', () => {
+  it('does not open the chat socket while chat sync is off', async () => {
+    userIdRef.value = 'cloud-user'
+    getIndexMock.mockResolvedValue({
+      userId: 'cloud-user',
+      characters: {},
+    })
+    const store = useChatSessionStore()
+    const cloudSync = useSettingsCloudSync()
+    cloudSync.chatMessagesSyncEnabled = false
+
+    await store.initialize()
+    expect(connectCloudWsMock).not.toHaveBeenCalled()
+
+    cloudSync.chatMessagesSyncEnabled = true
+    await flushMicrotasks()
+    expect(connectCloudWsMock).toHaveBeenCalledOnce()
+  })
+})
 
 describe('chat-session-store · user swap during in-flight ensureActiveSessionForCharacter', () => {
   // ROOT CAUSE:

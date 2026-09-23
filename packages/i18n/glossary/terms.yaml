@@ -364,6 +364,17 @@
       status: preferred
       context: No models were found for this provider
 
+- id: cloud-sync
+  subject: settings
+  translatable: true
+  definition: A copy of local AIRI data that the account keeps so another device can use it.
+  note: Do not use the word for a backup or for a live shared conversation.
+  terms:
+    - text: Cloud sync
+      part-of-speech: noun
+      status: preferred
+      context: Choose what AIRI copies to your account.
+
 - id: model
   subject: providers
   translatable: true
