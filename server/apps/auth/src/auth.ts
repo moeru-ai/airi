@@ -467,7 +467,7 @@ export function createAuth(
       // Steam's web login is OpenID 2.0, not OAuth2/OIDC, so it can't be a
       // `socialProviders` entry — see steam.ts for why this needs to be its
       // own plugin.
-      steam(),
+      steam({ webApiKey: env.STEAM_PUBLISHER_KEY }),
       magicLink({
         // NOTICE: better-auth's magic-link callback receives a server-side
         // verification URL ({baseURL}/magic-link/verify?token=...&callbackURL=...).

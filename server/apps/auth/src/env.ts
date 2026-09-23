@@ -47,6 +47,7 @@ const AuthEnvSchema = object({
   AUTH_GOOGLE_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_SECRET is required')),
   AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
   AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
+  STEAM_PUBLISHER_KEY: optional(string(), ''),
   AUTH_APPLE_CLIENT_ID: optional(string(), ''),
   AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: optional(
     pipe(
