@@ -4,7 +4,7 @@ Own the Electron capture scenarios used to generate tamagotchi docs screenshots.
 
 ## Purpose
 
-This package owns product-specific Electron scenario definitions and AIRI window/navigation helpers only. It depends on `@vishot/source-electron` for:
+This package owns product-specific Electron scenario definitions and AIRI window, navigation, and interaction helpers only. It depends on `@vishot/source-electron` for:
 
 - the generic `defineScenario()` helper
 - the generic Electron capture context surface
@@ -35,6 +35,24 @@ Expected result:
 - `27` raw files in `packages/scenarios-stage-tamagotchi-browser/artifacts/raw`
 - names like `00-stage-tamagotchi.avif` ... `26-devtools-vision-capture.avif`
 
+### Capture a local display model
+
+Use the file-input scenario when the requested evidence must render a local Live2D, VRM, or MMD model instead of a preset:
+
+```bash
+AIRI_DISPLAY_MODEL_FORMAT=vrm \
+AIRI_DISPLAY_MODEL_PATH=/absolute/path/to/avatar.vrm \
+pnpm exec vishot capture \
+  ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/display-model-from-file.ts \
+  --target electron \
+  --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js \
+  --cwd . \
+  --settle-ms 2500 \
+  --output-dir ./.vishot/display-model/vrm
+```
+
+Set `AIRI_DISPLAY_MODEL_FORMAT` to `live2d`, `vrm`, or `mmd`. The scenario skips first-run onboarding in the capture profile, imports and selects the supplied file through the model chooser, captures the main stage, then restores persisted state and removes the imported fixture.
+
 ## Scenario Authoring
 
 ```ts
@@ -55,6 +73,29 @@ export default defineStageTamagotchiScenario({
   },
 })
 ```
+
+### Gesture primitive
+
+Use `gestures.swipe` to reproduce a direct touch swipe or a two-finger wheel pan:
+
+```ts
+export default defineStageTamagotchiScenario({
+  id: 'chat-swipe-reply',
+  async run({ gestures, stageWindows }) {
+    const chat = await stageWindows.waitFor('chat')
+    const message = chat.page.locator('[data-swipeable]').last()
+
+    await gestures.swipe(message, {
+      input: 'wheel',
+      direction: 'left',
+    })
+  },
+})
+```
+
+Use `input: 'touch'` for the narrow-screen Pointer Event path. The primitive
+calculates the target center, splits the travel into samples, and waits for the
+gesture to settle.
 
 ## Scenario Layout
 

@@ -184,11 +184,6 @@ function makeFakeDeps(overrides: {
   const requestLogService = {
     logRequest: vi.fn(async () => undefined),
   }
-  const productEventService = {
-    track: vi.fn(async () => undefined),
-    trackGeneration: vi.fn(async () => undefined),
-    countDistinctUsersByFeature: vi.fn(async () => []),
-  }
   const configKV = {
     getOptional: vi.fn(async (key: string) => {
       if (key === 'UNSPEECH_UPSTREAM') {
@@ -212,7 +207,7 @@ function makeFakeDeps(overrides: {
     decryptKey: vi.fn(() => Buffer.from(overrides.decryptedKey ?? 'mock-upstream-token', 'utf8')),
   }
 
-  return { configKV, envelopeCrypto, fluxService, ttsMeter, requestLogService, productEventService }
+  return { configKV, envelopeCrypto, fluxService, ttsMeter, requestLogService }
 }
 
 /** Drives the WSEvents lifecycle as if a real client had connected. */
@@ -299,17 +294,6 @@ describe('audio-speech-ws route', () => {
       status: 200,
       fluxConsumed: 1,
     })
-    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
-      userId: 'user-123',
-      feature: 'tts',
-      action: 'speech_succeeded',
-      status: 'succeeded',
-      model: 'volcengine/seed-tts-2.0',
-      metadata: expect.objectContaining({
-        voice_id: 'mock',
-        voice_type: 'official_selected',
-      }),
-    }))
   })
 
   it('uses the client BYOK credential without forwarding it as a frame or charging Flux', async () => {
@@ -341,13 +325,9 @@ describe('audio-speech-ws route', () => {
     expect(deps.fluxService.getFlux).not.toHaveBeenCalled()
     expect(deps.ttsMeter.assertCanAfford).not.toHaveBeenCalled()
     expect(deps.ttsMeter.accumulate).not.toHaveBeenCalled()
-    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'speech_succeeded',
-      metadata: expect.objectContaining({
-        credential_mode: 'byok',
-        provider_id: 'volcengine-streaming',
-        flux_consumed: 0,
-      }),
+    expect(deps.requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-byok',
+      fluxConsumed: 0,
     }))
   })
 
@@ -395,20 +375,6 @@ describe('audio-speech-ws route', () => {
     })
     expect(client.closed).toBe(true)
     expect(client.closeCode).toBe(1008)
-    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
-      userId: 'user-broke',
-      feature: 'tts',
-      action: 'speech_blocked',
-      status: 'blocked',
-      source: 'chat_auto_tts',
-      reason: 'insufficient_balance',
-      metadata: expect.objectContaining({
-        trigger: 'auto',
-        block_reason: 'insufficient_balance',
-        balance_state: 'insufficient',
-        flux_balance_bucket: 'zero',
-      }),
-    }))
   })
 
   it('refuses with streaming_tts_not_configured when UNSPEECH_UPSTREAM.streaming is empty', async () => {

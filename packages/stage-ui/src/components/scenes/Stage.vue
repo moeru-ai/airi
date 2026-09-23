@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Live2DLipSync, Live2DLipSyncOptions } from '@proj-airi/model-driver-lipsync'
 import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
+import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 import type { VrmInteractionTarget } from '@proj-airi/stage-ui-three'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
@@ -13,7 +14,7 @@ import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
-import { Live2DScene, useLive2dParams } from '@proj-airi/stage-ui-live2d'
+import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { TachieScene } from '@proj-airi/stage-ui-tachie'
@@ -25,29 +26,29 @@ import { useBroadcastChannel } from '@vueuse/core'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
-import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
-import { useSettingsLive2d } from '../../../../stage-ui-live2d/src/composables/live2d/live2d'
-import { useAnalytics } from '../../composables/use-analytics'
+import StageRenderError from './stage-render-error.vue'
+
 import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
-import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
+import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
 import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
+import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
-import { useChatOrchestratorStore } from '../../stores/chat'
-import { useLlmStreamingControlStore } from '../../stores/llm-streaming-control'
+import { useChatStore } from '../../stores/chat'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
-import { useProvidersStore } from '../../stores/providers'
+import { useProviderConfigStore } from '../../stores/providers/config'
+import { useProviderStore } from '../../stores/providers/provider'
 import { useSettings } from '../../stores/settings'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
@@ -83,10 +84,54 @@ const {
 
 } = storeToRefs(settingsStore)
 const {
+  live2dMotionDriver,
   live2dShadowEnabled,
   live2dMaxFps,
   live2dRenderScale,
 } = storeToRefs(useSettingsLive2d())
+const live2dMotionControl = useLive2DMotionControl()
+const { exclusiveOwnerId: live2dMotionControlOwnerId } = storeToRefs(live2dMotionControl)
+const {
+  forceViewTarget: live2dMagicForceViewTarget,
+  profileId: live2dMagicProfileId,
+  skipMouthOpen: live2dMagicSkipMouthOpen,
+} = storeToRefs(useLive2DMotionMagicSettings())
+const live2dMagicMotion = useLive2DMotionMagic({
+  dataset: () => live2dMotionMagicProfiles[live2dMagicProfileId.value].dataset,
+  forceViewTarget: live2dMagicForceViewTarget,
+  skipMouthOpen: live2dMagicSkipMouthOpen,
+  disabled: () => live2dMotionControlOwnerId.value !== null,
+  publishPose: pose => live2dMotionControl.setPose('stage:live2d-motion-magic', pose, defaultLive2DMotionControlDynamics),
+  releasePose: () => live2dMotionControl.release('stage:live2d-motion-magic'),
+})
+let live2dMagicActivationRequest = 0
+
+watch(
+  [stageModelRenderer, live2dMotionDriver, live2dMagicProfileId, () => props.paused, live2dMotionControlOwnerId],
+  async ([renderer, driver, , paused, controlOwnerId]) => {
+    const request = ++live2dMagicActivationRequest
+    if (renderer !== 'live2d' || driver !== 'magic' || paused || controlOwnerId !== null) {
+      live2dMagicMotion.stop()
+      return
+    }
+
+    if (live2dMagicMotion.status.value === 'idle')
+      await live2dMagicMotion.initialize()
+
+    if (
+      request !== live2dMagicActivationRequest
+      || stageModelRenderer.value !== 'live2d'
+      || live2dMotionDriver.value !== 'magic'
+      || props.paused
+      || live2dMotionControlOwnerId.value !== null
+    ) {
+      return
+    }
+
+    live2dMagicMotion.start()
+  },
+  { immediate: true },
+)
 const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
@@ -124,21 +169,36 @@ function onVRMInteract(target: VrmInteractionTarget) {
   vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
 }
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatOrchestratorStore()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
 //             cross-window broadcast wiring.
 
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+
+const providerStore = useProviderConfigStore()
 const live2dStore = useLive2dParams()
 const showStage = ref(true)
+const stageRenderError = shallowRef<Error>()
 const viewUpdateCleanups: Array<() => void> = []
 
+function handleStageRenderError(error: Error) {
+  stageRenderError.value = error
+}
+
+async function retryStageRenderer() {
+  stageRenderError.value = undefined
+  showStage.value = false
+  await nextTick()
+  showStage.value = true
+}
+
+watch([stageModelRenderer, stageModelSelected, stageModelSelectedUrl], () => {
+  stageRenderError.value = undefined
+})
+
 // Caption + Presentation broadcast channels
-type CaptionChannelEvent
-  = | { type: 'caption-speaker', text: string }
-    | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 const assistantCaption = ref('')
 
@@ -186,8 +246,6 @@ const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
-const { trackOfficialTtsAutoEnabled } = useAnalytics()
-let officialAutoTtsTrackedForTurn = false
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
@@ -354,11 +412,6 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
 
     try {
       source.start(0)
-      if (item.intentId.startsWith('stream-')) {
-        const model = resolveStreamingSessionModel()
-        if (model)
-          trackOfficialAutoTtsForTurn(model)
-      }
     }
     catch {
       stopPlayback()
@@ -379,24 +432,6 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
  */
 function resolveStageVoiceType(): 'official_selected' | 'custom_configured' {
   return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID ? 'official_selected' : 'custom_configured'
-}
-
-/**
- * Tracks official auto-TTS once per assistant turn when chat audio is actually used.
- */
-function trackOfficialAutoTtsForTurn(modelId: string) {
-  if (officialAutoTtsTrackedForTurn)
-    return
-  if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID && activeSpeechProvider.value !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
-    return
-
-  officialAutoTtsTrackedForTurn = true
-  trackOfficialTtsAutoEnabled({
-    tts_provider_id: activeSpeechProvider.value,
-    tts_model_id: modelId,
-    source: 'chat_auto_tts',
-    enabled: true,
-  })
 }
 
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
@@ -439,7 +474,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
     if (!request.text && !request.special)
       return null
 
-    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+    const providerConfig = providerStore.getProviderConfig(activeSpeechProvider.value)
 
     // For OpenAI Compatible providers, always use provider config for model and voice
     // since these are manually configured in provider settings
@@ -501,30 +536,24 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       // Non-streaming providers only: synth via REST. Streaming provider
       // was already early-returned above; it owns its own ws path opened
       // in `onBeforeMessageComposed`.
-      const providerConfigWithAnalytics = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
-        ? {
-            ...speechRequest.providerConfig,
-            extraBody: {
-              ...(speechRequest.providerConfig.extraBody as Record<string, unknown> | undefined),
-              airi_analytics: {
-                trigger: 'auto',
-                source: 'chat_auto_tts',
-                voice_type: resolveStageVoiceType(),
-              },
-            },
-          }
-        : speechRequest.providerConfig
-      const res = await generateSpeech({
-        ...provider.speech(model, providerConfigWithAnalytics),
-        input: speechRequest.input,
-        voice: voice.id,
-      })
+      const res = await speechStore.speech(
+        provider,
+        model,
+        speechRequest.input,
+        voice.id,
+        speechRequest.providerConfig,
+        {
+          trigger: 'auto',
+          source: 'chat_auto_tts',
+          voice_type: resolveStageVoiceType(),
+          ...(request.turnId != null && { turn_id: request.turnId }),
+        },
+      )
 
       if (signal.aborted || !res || res.byteLength === 0)
         return null
 
       const audioBuffer = await audioContext.decodeAudioData(res)
-      trackOfficialAutoTtsForTurn(model)
       return audioBuffer
     }
     catch (err) {
@@ -549,7 +578,6 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
 
 initIOTracer()
 useIOTraceBridge(speechPipeline)
-useSpeechPipelineAnalytics()
 void speechRuntimeStore.registerHost(speechPipeline)
 
 speechPipeline.on('onSpecial', (segment) => {
@@ -697,33 +725,28 @@ function stopSpeechOutput(reason: string) {
   resetAssistantSpeechSurface(reason)
 }
 
-function resolveStreamingSessionModel(): string | null {
+/**
+ * Resolves the official streaming TTS model for the current Stage session.
+ */
+function resolveStreamingSessionModel(providerId: string): string | null {
   const activeModel = activeSpeechModel.value as string | undefined
-  const definition = activeSpeechProvider.value ? getDefinedProvider(activeSpeechProvider.value) : undefined
   const sessionModel = activeModel?.includes('/')
     ? activeModel
-    : definition?.capabilities?.speech?.getDefaultModel?.()
+    : providersStore.getDefaultModelForProvider(providerId)
   if (!sessionModel?.includes('/'))
     return null
   return sessionModel
 }
 
-function resolveStreamingConnection() {
+function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null {
+  if (speechMuted.value)
+    return null
+
   const providerId = activeSpeechProvider.value
   if (!providerId)
     return null
-  const definition = getDefinedProvider(providerId)
-  const resolver = definition?.capabilities?.speech?.resolveConnection
-  if (!resolver)
-    return null
-  const connection = resolver(providersStore.getProviderConfig(providerId) ?? {})
-  if (connection.credentialMode === 'byok' && !connection.apiKey?.trim())
-    return null
-  return connection
-}
-
-function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null {
-  if (speechMuted.value)
+  const connection = getDefinedProvider(providerId)?.capabilities?.speech?.resolveConnection?.(providerStore.getProviderConfig(providerId) ?? {})
+  if (!connection || (connection.credentialMode === 'byok' && !connection.apiKey))
     return null
 
   // Snapshotted once per session, so a mid-session provider/voice swap
@@ -741,11 +764,8 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   // a provider switch) must NOT reach the bridge, so fall back to the
   // server-curated default instead of a hardcoded id. Returns null (segmenter
   // fallback) when neither resolves, rather than guessing a resource id.
-  const sessionModel = resolveStreamingSessionModel()
+  const sessionModel = resolveStreamingSessionModel(providerId)
   if (!sessionModel)
-    return null
-  const connection = resolveStreamingConnection()
-  if (!connection)
     return null
   const apiResourceId = sessionModel.split('/', 2)[1]
   // TTS 2.0 / ICL 2.0 ship subtitles asynchronously relative to audio
@@ -757,6 +777,7 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
     model: sessionModel,
     voice: voiceId,
     voiceType: resolveStageVoiceType(),
+    turnId,
     bufferEntireSession,
     extraBody: {
       api_resource_id: apiResourceId,
@@ -834,7 +855,6 @@ watch(speechMuted, (muted) => {
 }, { immediate: true })
 
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
-  officialAutoTtsTrackedForTurn = false
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
 
@@ -988,54 +1008,6 @@ async function captureCharacterFrame() {
     return mmdSceneRef.value?.captureFrame()
 }
 
-async function captureFrame() {
-  const charBlob = await captureCharacterFrame()
-
-  if (!activeBackgroundUrl.value || !charBlob)
-    return charBlob
-
-  try {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    if (!ctx)
-      return charBlob
-
-    // Load background image
-    const bgImg = new Image()
-    bgImg.crossOrigin = 'anonymous'
-    bgImg.src = activeBackgroundUrl.value
-    await new Promise((resolve, reject) => {
-      bgImg.onload = resolve
-      bgImg.onerror = reject
-    })
-
-    // Load character frame
-    const charImg = await createImageBitmap(charBlob)
-
-    // Match canvas size to the captured frame (respects DPI/Render Scale)
-    canvas.width = charImg.width
-    canvas.height = charImg.height
-
-    // Draw background with "cover" logic
-    const scale = Math.max(canvas.width / bgImg.width, canvas.height / bgImg.height)
-    const w = bgImg.width * scale
-    const h = bgImg.height * scale
-    const x = (canvas.width - w) / 2
-    const y = (canvas.height - h) / 2
-
-    ctx.drawImage(bgImg, x, y, w, h)
-
-    // Draw character on top
-    ctx.drawImage(charImg, 0, 0)
-
-    return new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
-  }
-  catch (error) {
-    console.error('[Stage] Failed to composite photo with background:', error)
-    return charBlob // Fallback to character-only
-  }
-}
-
 onUnmounted(() => {
   disposePlaybackStateHandler()
   resetLive2dLipSync()
@@ -1053,28 +1025,22 @@ onUnmounted(() => {
 
 defineExpose({
   canvasElement,
-  captureFrame,
+  /**
+   * The frame already carries the scene: every renderer paints it into the canvas it
+   * draws to, so what comes back is the whole picture.
+   */
+  captureFrame: captureCharacterFrame,
   readRenderTargetRegionAtClientPoint,
+  setExpression: async (expression: string, intensity = 1) => {
+    if (stageModelRenderer.value === 'vrm') {
+      await vrmViewerRef.value?.setExpression(expression, intensity)
+    }
+  },
 })
 </script>
 
 <template>
   <div relative h-full w-full>
-    <!-- Scene Background Layer -->
-    <div
-      v-if="activeBackgroundUrl"
-      :class="[
-        'absolute left-0 top-0 z-0 h-full w-full',
-        'transition-opacity duration-500',
-      ]"
-      :style="{
-        backgroundImage: `url(${activeBackgroundUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }"
-    />
-
     <div relative h-full w-full>
       <Live2DScene
         v-if="stageModelRenderer === 'live2d' && showStage"
@@ -1084,6 +1050,7 @@ defineExpose({
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
+        :background-url="activeBackgroundUrl"
         :cursor-position="cursorPosition"
         :mouth-open-size="mouthOpenSize"
         :now-speaking="nowSpeaking"
@@ -1093,18 +1060,22 @@ defineExpose({
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
         :live2d-render-scale="live2dRenderScale"
+        @error="handleStageRenderError"
       />
       <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
         v-model:state="componentState"
+        :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        :model-id="stageModelSelected"
         :model-src="stageModelSelectedUrl"
         :cursor-position="cursorPosition"
         :idle-animation="animations.idleLoop.toString()"
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
         :enable-orbit-controls="props.enableOrbitControls"
+        :audio-context="audioContext"
         :current-audio-source="currentAudioSource"
         @error="console.error"
         @vrm-interact="onVRMInteract"
@@ -1113,6 +1084,7 @@ defineExpose({
         v-if="stageModelRenderer === 'spine' && showStage"
         ref="spineSceneRef"
         v-model:state="componentState"
+        :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" min-h="100 sm:100"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
@@ -1128,6 +1100,7 @@ defineExpose({
         v-if="stageModelRenderer === 'tachie' && showStage"
         ref="tachieSceneRef"
         v-model:state="componentState"
+        :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" min-h="100 sm:100"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
@@ -1141,6 +1114,7 @@ defineExpose({
         v-if="stageModelRenderer === 'mmd' && showStage"
         ref="mmdSceneRef"
         v-model:state="componentState"
+        :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" min-h="100 sm:100"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
@@ -1148,6 +1122,7 @@ defineExpose({
         :paused="paused"
         :cursor-position="cursorPosition"
         :enable-orbit-controls="props.enableOrbitControls"
+        :audio-context="audioContext"
         :current-audio-source="currentAudioSource"
         @error="console.error"
       />
@@ -1171,6 +1146,14 @@ defineExpose({
           </Callout>
         </div>
       </div>
+
+      <StageRenderError
+        v-if="stageRenderError"
+        :error="stageRenderError"
+        renderer="Live2D"
+        :model-id="stageModelSelected"
+        @retry="retryStageRenderer"
+      />
     </div>
   </div>
 </template>

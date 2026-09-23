@@ -19,7 +19,7 @@ describe('volcengine streaming provider', () => {
   })
 
   it('requires an X-Api-Key before the provider becomes configured', async () => {
-    const validator = providerVolcengineStreaming.validators?.validateConfig?.[0]?.({ t: input => input })
+    const validator = await providerVolcengineStreaming.validators?.validateConfig?.[0]?.({ t: input => input })
     expect(validator).toBeDefined()
 
     const missing = await validator!.validator({ apiKey: '' }, { t: input => input })

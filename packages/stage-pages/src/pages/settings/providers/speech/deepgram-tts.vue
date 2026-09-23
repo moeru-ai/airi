@@ -6,9 +6,12 @@ import {
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { watchDebounced } from '@vueuse/core'
+import { cloneDeep } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 
 const providerId = 'deepgram-tts'
 const defaultModel = 'aura-2-thalia-en'
@@ -16,8 +19,9 @@ const defaultModel = 'aura-2-thalia-en'
 const defaultVoiceSettings = {}
 
 const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore)
 
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
@@ -31,7 +35,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     throw new Error('Failed to initialize speech provider')
   }
 
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
 
   const model = providerConfig.model as string | undefined || defaultModel
 
@@ -47,17 +51,23 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   )
 }
 
-watch(providers, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if ((await providerMetadata.validators.validateProviderConfig(providerConfig)).valid) {
+async function loadVoicesWhenConfigured() {
+  const providerConfig = providerStore.getProviderConfig(providerId)
+  // Clone nested reactive values before the synchronized action sends its arguments.
+  const configSnapshot = cloneDeep(providerConfig)
+  if ((await providersStore.validateProviderConfig(providerId, configSnapshot)).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
     console.error('Failed to validate provider config', providerConfig)
   }
-}, {
-  immediate: true,
+}
+
+watchDebounced([
+  () => providers.value[providerId]?.apiKey,
+  () => providers.value[providerId]?.baseUrl,
+], loadVoicesWhenConfigured, {
+  debounce: 500,
 })
 </script>
 

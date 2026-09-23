@@ -15,8 +15,6 @@ const configSchema = z.object({
 
 type VolcengineStreamingConfig = z.input<typeof configSchema>
 
-let defaultModelId: string | null = null
-
 function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   const token = getAuthToken()
@@ -25,11 +23,7 @@ function authHeaders(): Record<string, string> {
   return headers
 }
 
-export function getVolcengineStreamingDefaultModel(): string | null {
-  return defaultModelId
-}
-
-export const providerVolcengineStreaming = defineProvider<VolcengineStreamingConfig>({
+export const providerVolcengineStreaming = defineProvider<VolcengineStreamingConfig, typeof VOLCENGINE_STREAMING_PROVIDER_ID>({
   id: VOLCENGINE_STREAMING_PROVIDER_ID,
   order: 31,
   name: 'Volcengine Streaming TTS',
@@ -64,7 +58,6 @@ export const providerVolcengineStreaming = defineProvider<VolcengineStreamingCon
           apiKey,
         }
       },
-      getDefaultModel: getVolcengineStreamingDefaultModel,
     },
   },
   validationRequiredWhen: () => true,
@@ -87,8 +80,7 @@ export const providerVolcengineStreaming = defineProvider<VolcengineStreamingCon
     ],
   },
   extraMethods: {
-    listModels: async (): Promise<ModelInfo[]> => {
-      defaultModelId = null
+    listModelCatalog: async () => {
       const response = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models/streaming`, { headers: authHeaders() })
       if (!response.ok)
         throw new Error(`streaming models upstream ${response.status}: ${await response.text().catch(() => '')}`.slice(0, 256))
@@ -100,13 +92,16 @@ export const providerVolcengineStreaming = defineProvider<VolcengineStreamingCon
       if (!Array.isArray(data.models))
         throw new Error('streaming models upstream missing models[]')
 
-      defaultModelId = typeof data.default === 'string' && data.default.length > 0 ? data.default : null
-      return data.models.map(model => ({
+      const models: ModelInfo[] = data.models.map(model => ({
         id: model.id,
         name: model.name ?? model.id,
         provider: VOLCENGINE_STREAMING_PROVIDER_ID,
         description: model.description,
       }))
+      return {
+        models,
+        defaultModel: typeof data.default === 'string' && data.default.length > 0 ? data.default : null,
+      }
     },
     listVoices: async (_config, _provider, model): Promise<VoiceInfo[]> => {
       const resourceId = model?.includes('/') ? model.split('/', 2)[1] : model

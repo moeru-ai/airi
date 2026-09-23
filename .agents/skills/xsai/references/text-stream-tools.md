@@ -20,7 +20,7 @@ For chat-style APIs, expect common options such as:
 - `seed`
 - `toolChoice`
 - `tools`
-- `maxSteps`
+- `stopWhen`
 
 ## `generateText`
 
@@ -64,7 +64,9 @@ It returns immediately and exposes:
 
 ## Tool loops
 
-- `maxSteps` enables repeated tool-use loops.
+- `stopWhen` enables repeated tool-use loops with explicit predicates.
+- Reach for `stepCountAtLeast(n)` as the default loop bound.
+- Combine conditions with `and()`, `or()`, and `not()` when the stop logic is more specific.
 - Each step appends assistant output and tool results, then makes another API call if needed.
 - Use `toolChoice: 'required'` when the model must call a tool.
 

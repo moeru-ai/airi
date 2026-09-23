@@ -9,15 +9,18 @@ import {
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
+import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore)
 const { t } = useI18n()
 
 const defaultVoiceSettings = {
@@ -110,7 +113,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   }
 
   // Get provider configuration
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
 
   // Use the reactive model computed property (not a local variable)
   const modelToUse = modelId || model.value || defaultModel
@@ -142,12 +145,12 @@ const {
   forceValid,
 } = useProviderValidation(providerId)
 
-const apiKeyPlaceholder = computed(() => {
+const apiKeyPlaceholder = computedAsync(async () => {
   const definition = getDefinedProvider(providerId)
   if (!definition?.createProviderConfig)
     return 'sk-...'
 
-  const schema = definition.createProviderConfig({ t }) as any
+  const schema = await definition.createProviderConfig({ t }) as any
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
   if (!apiKeySchema)
@@ -155,7 +158,7 @@ const apiKeyPlaceholder = computed(() => {
 
   const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
   return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
-})
+}, 'sk-...')
 </script>
 
 <template>

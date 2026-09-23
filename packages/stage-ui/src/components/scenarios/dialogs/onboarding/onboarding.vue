@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ProviderMode } from '../../../../composables/use-analytics'
-import type { ProviderMetadata } from '../../../../stores/providers'
+import type { ProviderMetadata } from '../../../../libs/providers/metadata'
 import type {
   OnboardingStep,
   OnboardingStepGuard,
@@ -11,7 +11,7 @@ import type {
 
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import StepModelSelection from './step-model-selection.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
@@ -20,7 +20,8 @@ import StepWelcome from './step-welcome.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
-import { useProvidersStore } from '../../../../stores/providers'
+import { useProviderConfigStore } from '../../../../stores/providers/config'
+import { useProviderStore } from '../../../../stores/providers/provider'
 
 interface Emits {
   (e: 'configured'): void
@@ -38,8 +39,10 @@ const direction = ref<'next' | 'previous'>('next')
 const pendingProviderConfig = ref<ProviderConfigData | null>(null)
 const { trackOnboardingCompleted, trackOnboardingStarted, trackOnboardingStepCompleted } = useAnalytics()
 
-const providersStore = useProvidersStore()
-const { providers, allChatProvidersMetadata } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+
+const providerStore = useProviderConfigStore()
+const { allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
 const {
   activeProvider,
@@ -100,14 +103,14 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
     }
   }
 
-  providers.value[selectedProvider.value.id] = {
-    ...providers.value[selectedProvider.value.id],
-    ...config,
-  }
+  // Provider configuration is leader-owned synchronized state. Route the save
+  // through synced actions so the leader persists it and replicates it back;
+  // the `configs` computed projection discards direct writes on recompute.
+  await providersStore.initializeProvider(selectedProvider.value.id)
+  await providerStore.patchProviderConfig(selectedProvider.value.id, config)
+  await providersStore.forceProviderConfigured(selectedProvider.value.id)
 
   activeProvider.value = selectedProvider.value.id
-
-  await nextTick()
 
   try {
     await consciousnessStore.loadModelsForProvider(selectedProvider.value.id)
@@ -221,13 +224,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="onboarding-step-container" min-h-0 w-full flex flex-1 flex-col overflow-hidden>
+  <div class="onboarding-step-container" min-h-0 flex flex-1 flex-col>
     <Transition :name="direction === 'next' ? 'slide-next' : 'slide-prev'" mode="out-in">
       <component
         :is="currentStep.component"
         v-if="currentStep"
         :key="currentStep.id"
-        class="min-h-0 min-w-0 flex flex-1 flex-col overflow-hidden"
+        class="flex flex-1 flex-col"
         v-bind="currentStepProps"
         :on-next="requestNextStep"
         :on-previous="requestPreviousStep"
@@ -237,10 +240,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.onboarding-step-container {
-  overflow-x: hidden;
-}
-
 .slide-next-enter-active,
 .slide-next-leave-active,
 .slide-prev-enter-active,

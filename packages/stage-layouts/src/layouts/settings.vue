@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PageHeader } from '@proj-airi/stage-ui/components'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useTheme } from '@proj-airi/ui'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 
@@ -12,9 +12,18 @@ import HeaderLink from '../components/Layouts/HeaderLink.vue'
 import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
 
 const route = useRoute()
+const scrollContainer = useTemplateRef<HTMLDivElement>('scrollContainer')
+
+// RouterView reuses this viewport across settings and devtools pages. Reset it
+// after the new page renders, but preserve scrolling for query or anchor changes.
+watch(() => route.path, () => {
+  if (scrollContainer.value)
+    scrollContainer.value.scrollTop = 0
+}, { flush: 'post' })
+
 const { isDark: dark } = useTheme()
 const { t } = useI18n()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 const routeMeta = computed(() => route.meta as {
   titleKey?: string
   subtitleKey?: string
@@ -33,13 +42,7 @@ const providerTitle = computed(() => {
   if (!providerId)
     return undefined
 
-  try {
-    const metadata = providersStore.getProviderMetadata(providerId)
-    return t(metadata.nameKey)
-  }
-  catch {
-    return undefined
-  }
+  return providersStore.findProviderDefinition(providerId)?.nameLocalize({ t })
 })
 
 // const activeSettingsTutorial = ref('default')
@@ -101,7 +104,7 @@ onMounted(() => updateThemeColor())
         :subtitle="routeHeaderMetadata?.subtitle"
         :disable-back-button="routeMeta.disableBackButton || (isStageTamagotchi() && route.path === '/settings')"
       />
-      <div id="settings-scroll-container" :class="['relative', 'min-h-0', 'flex-1', 'overflow-y-auto', 'scrollbar-none']">
+      <div id="settings-scroll-container" ref="scrollContainer" :class="['relative', 'min-h-0', 'flex-1', 'overflow-y-auto', 'scrollbar-none']">
         <RouterView />
       </div>
     </div>

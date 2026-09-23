@@ -36,9 +36,8 @@ const { data, isFinished } = useAxios('/api/posts')
 ### With Axios Instance
 
 ```ts
-import axios from 'axios'
-
 import { useAxios } from '@vueuse/integrations/useAxios'
+import axios from 'axios'
 
 const instance = axios.create({
   baseURL: '/api',
@@ -50,9 +49,8 @@ const { data, isFinished } = useAxios('/posts', instance)
 ### With Config Options
 
 ```ts
-import axios from 'axios'
-
 import { useAxios } from '@vueuse/integrations/useAxios'
+import axios from 'axios'
 
 const instance = axios.create({
   baseURL: '/api',
@@ -246,14 +244,15 @@ export interface UseAxiosOptionsWithInitialData<
    */
   initialData: T
 }
-export type UseAxiosOptions<T = any>
-  = | UseAxiosOptionsBase<T>
-    | UseAxiosOptionsWithInitialData<T>
+export type UseAxiosOptions<T = any> =
+  | UseAxiosOptionsBase<T>
+  | UseAxiosOptionsWithInitialData<T>
 export declare function useAxios<
   T = any,
   R = AxiosResponse<T>,
   D = any,
-  O extends UseAxiosOptionsWithInitialData<T> = UseAxiosOptionsWithInitialData<T>,
+  O extends UseAxiosOptionsWithInitialData<T> =
+    UseAxiosOptionsWithInitialData<T>,
 >(
   url: string,
   config?: AxiosRequestConfig<D>,
@@ -263,7 +262,8 @@ export declare function useAxios<
   T = any,
   R = AxiosResponse<T>,
   D = any,
-  O extends UseAxiosOptionsWithInitialData<T> = UseAxiosOptionsWithInitialData<T>,
+  O extends UseAxiosOptionsWithInitialData<T> =
+    UseAxiosOptionsWithInitialData<T>,
 >(
   url: string,
   instance?: AxiosInstance,
@@ -273,7 +273,8 @@ export declare function useAxios<
   T = any,
   R = AxiosResponse<T>,
   D = any,
-  O extends UseAxiosOptionsWithInitialData<T> = UseAxiosOptionsWithInitialData<T>,
+  O extends UseAxiosOptionsWithInitialData<T> =
+    UseAxiosOptionsWithInitialData<T>,
 >(
   url: string,
   config: AxiosRequestConfig<D>,

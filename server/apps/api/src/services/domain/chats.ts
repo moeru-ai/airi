@@ -1,8 +1,7 @@
-import type { MessageRole, WireMessage } from '@proj-airi/server-sdk-shared'
+import type { MessageRole, SendMessagesRequest, WireMessage } from '@proj-airi/server-sdk-shared'
 
 import type { Database } from '../../libs/db'
 import type { EngagementMetrics } from '../../otel'
-import type { ProductEventService } from './product-events'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
@@ -24,11 +23,7 @@ interface CreateChatPayload {
   members?: { type: ChatMemberType, userId?: string, characterId?: string }[]
 }
 
-interface PushMessage {
-  id: string
-  role: string
-  content: string
-}
+type PushMessage = SendMessagesRequest['messages'][number]
 
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for testing)
@@ -50,7 +45,7 @@ export function resolveSenderId(role: string, userId: string): string | null {
 // Service factory
 // ---------------------------------------------------------------------------
 
-export function createChatService(db: Database, metrics?: EngagementMetrics | null, productEventService?: ProductEventService) {
+export function createChatService(db: Database, metrics?: EngagementMetrics | null) {
   // ---- internal helpers ---------------------------------------------------
 
   async function verifyMembership(tx: Parameters<Parameters<Database['transaction']>[0]>[0], chatId: string, userId: string) {
@@ -308,6 +303,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
               role: m.role,
               seq: currentSeq,
               content: m.content,
+              replyToMessageId: m.replyToMessageId ?? null,
               mediaIds: [] as string[],
               stickerIds: [] as string[],
               createdAt: now,
@@ -321,7 +317,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         for (const m of updateMsgs) {
           currentSeq++
           await tx.update(schema.messages)
-            .set({ content: m.content, seq: currentSeq, updatedAt: now })
+            .set({ content: m.content, replyToMessageId: m.replyToMessageId ?? null, seq: currentSeq, updatedAt: now })
             .where(and(eq(schema.messages.id, m.id), eq(schema.messages.chatId, chatId)))
         }
 
@@ -341,17 +337,6 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
 
       if (result.totalCount > 0) {
         metrics?.chatMessages.add(result.totalCount)
-        void productEventService?.track({
-          userId,
-          feature: 'chat',
-          action: 'message_pushed',
-          status: 'succeeded',
-          source: 'chat.ws.push_messages',
-          metadata: {
-            message_count: result.totalCount,
-            new_count: result.newCount,
-          },
-        })
       }
       metrics?.wsMessagesReceived.add(result.totalCount)
 
@@ -491,6 +476,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           senderId: r.senderId,
           role: r.role as MessageRole,
           content: r.content,
+          replyToMessageId: r.replyToMessageId,
           seq: r.seq!,
           createdAt: r.createdAt.getTime(),
           updatedAt: r.updatedAt.getTime(),

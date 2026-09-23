@@ -3,7 +3,7 @@ import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/el
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Avatar } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -14,6 +14,7 @@ import {
 } from '../../../../shared/eventa'
 
 const props = defineProps<{
+  active: boolean
   buttonStyle?: string
   iconClass?: string
 }>()
@@ -45,21 +46,22 @@ function doSigningIn() {
   startSigningIn()
 }
 
-// Clear loading state on callback or error from main process.
-// No cleanup needed — this component lives for the window's lifetime.
-context.value.on(electronAuthCallback, () => {
+// Each listener belongs to this mounted menu, including its hidden measurement state.
+const stopCallback = context.value.on(electronAuthCallback, () => {
   signingIn.value = false
 })
-context.value.on(electronAuthCallbackError, () => {
+const stopError = context.value.on(electronAuthCallbackError, () => {
   signingIn.value = false
+})
+onScopeDispose(() => {
+  stopCallback()
+  stopError()
 })
 
-// React to needsLogin from other components (e.g. onboarding)
-watch(needsLogin, (val) => {
-  if (val && !isAuthenticated.value) {
+// Hidden measurement must keep login requests for the visible menu.
+watch([needsLogin, () => props.active], async ([requested, active]) => {
+  if (active && requested && !isAuthenticated.value && await authStore.consumeLoginRequest())
     doSigningIn()
-    needsLogin.value = false
-  }
 })
 
 // Clear loading when authenticated

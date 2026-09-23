@@ -2,6 +2,49 @@
 
 Shared core for stage
 
+## Chat images
+
+Web and Electron composers share image drafts and previews. They accept PNG,
+JPEG, WebP, and GIF files up to 20 MB each, through file selection or paste.
+Previews own their Object URLs. Session changes discard pending image reads.
+Failed sends restore the draft through the shared composer.
+
+Choose a provider and model in **Settings → Modules → Vision** and enable
+**Use the vision model for chat images** for a text-only chat model.
+The vision model describes images before the selected chat model replies.
+Local history keeps the images. Provider prompts replace images with descriptions,
+including images from earlier turns and retries. Earlier images can require another
+vision request on later turns. Cloud history currently stores only message text.
+
+Disable this option to send images directly to a chat model that supports them.
+Without a configured vision model, images also go directly to the chat model.
+Use this flow for chat attachments, not periodic screen capture.
+
+## Character-card module settings
+
+The card store owns three distinct states:
+
+- `moduleDefaults` stores global provider, model, voice, and display selections.
+- Each card stores explicit overrides. An empty string means inherit.
+- Module stores expose the resolved runtime selections used by the application.
+
+Use `configureForAuthentication` for login and logout. It updates global
+defaults, then reapplies the active card without saving defaults into that card.
+Use card commands for activation and explicit edits. Settings pages must not
+save cards from watchers: authentication and remote snapshots also trigger them.
+The synchronization leader owns these commands; followers receive snapshots.
+
+Models inherit only within the same provider. Voices also require the same
+model. A different provider without a model stays unconfigured rather than
+receiving an unrelated model id. The editor requires a model for an explicit
+chat or vision provider unless that model can be inherited safely.
+
+Defaults are seeded once from the current runtime on upgrade. This cannot
+recover historical global values that an older card already overwrote.
+Existing `speech-noop` selections are preserved because they may represent
+intentional silence. Users can explicitly choose **Inherit global settings**
+in the editor; importing or saving an unrelated card field does not change it.
+
 ## Button analytics
 
 Register the shared plugin once in each Vue application:
@@ -34,6 +77,10 @@ https://histoire.dev/
 ```shell
 pnpm -F @proj-airi/stage-ui run story:dev
 ```
+
+The **Misc → Swipe Actions** story renders one row with two start actions and three end actions. Its **Show labels** control switches between
+text labels and surfaces that fill the available height. Use this story to
+compare gesture presentation, not conversation storage behavior.
 
 ### Project structure
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { VoiceInfo } from '../../../stores/providers'
+import type { VoiceInfo } from '../../../stores/providers/provider'
 
 import { errorMessageFrom } from '@moeru/std'
 import { FieldCheckbox, FieldCombobox } from '@proj-airi/ui'

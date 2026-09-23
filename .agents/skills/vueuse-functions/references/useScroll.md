@@ -112,7 +112,6 @@ function updateScrollState() {
 ```vue
 <script setup lang="ts">
 import type { UseScrollReturn } from '@vueuse/core'
-
 import { vScroll } from '@vueuse/components'
 
 const data = ref([1, 2, 3, 4, 5, 6])
@@ -173,8 +172,8 @@ export interface UseScrollOptions extends ConfigurableWindow {
   observe?:
     | boolean
     | {
-      mutation?: boolean
-    }
+        mutation?: boolean
+      }
   /**
    * Trigger it when scrolling.
    *

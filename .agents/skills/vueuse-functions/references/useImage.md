@@ -53,23 +53,23 @@ export interface UseImageOptions {
   /** Image classes */
   class?: string
   /** Image loading */
-  loading?: HTMLImageElement['loading']
+  loading?: HTMLImageElement["loading"]
   /** Image CORS settings */
   crossorigin?: string
   /** Referrer policy for fetch https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy */
-  referrerPolicy?: HTMLImageElement['referrerPolicy']
+  referrerPolicy?: HTMLImageElement["referrerPolicy"]
   /** Image width */
-  width?: HTMLImageElement['width']
+  width?: HTMLImageElement["width"]
   /** Image height */
-  height?: HTMLImageElement['height']
+  height?: HTMLImageElement["height"]
   /** https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#decoding */
-  decoding?: HTMLImageElement['decoding']
+  decoding?: HTMLImageElement["decoding"]
   /** Provides a hint of the relative priority to use when fetching the image */
-  fetchPriority?: HTMLImageElement['fetchPriority']
+  fetchPriority?: HTMLImageElement["fetchPriority"]
   /** Provides a hint of the importance of the image */
-  ismap?: HTMLImageElement['isMap']
+  ismap?: HTMLImageElement["isMap"]
   /** The partial URL (starting with #) of an image map associated with the element */
-  usemap?: HTMLImageElement['useMap']
+  usemap?: HTMLImageElement["useMap"]
 }
 export type UseImageReturn = UseAsyncStateReturn<
   HTMLImageElement | undefined,

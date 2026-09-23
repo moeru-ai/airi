@@ -1,233 +1,180 @@
 ---
 name: pnpm-hooks
-description: Customize package resolution and dependency behavior with pnpmfile hooks
+description: Customize resolution, config, packing, and fetching with .pnpmfile.mjs hooks, finders, and custom resolvers/fetchers
 ---
 
-# pnpm Hooks
+# pnpm Hooks (.pnpmfile.mjs)
 
-pnpm provides hooks via `.pnpmfile.cjs` to customize how packages are resolved and their metadata is processed.
+pnpm hooks customize installation. Declare them in `.pnpmfile.mjs` (ESM, preferred) or `.pnpmfile.cjs` (CommonJS), located next to the lockfile (workspace root for a monorepo).
+
+> The modern format uses ESM `export const hooks = { ... }`. The old CommonJS `module.exports = { hooks }` still works in `.pnpmfile.cjs`.
 
 ## Setup
 
-Create `.pnpmfile.cjs` at workspace root:
-
-```js
-// .pnpmfile.cjs
-function readPackage(pkg, context) {
-  // Modify package metadata
-  return pkg
-}
-
-function afterAllResolved(lockfile, context) {
-  // Modify lockfile
-  return lockfile
-}
-
-module.exports = {
-  hooks: {
-    readPackage,
-    afterAllResolved
-  }
+```js title=".pnpmfile.mjs"
+export const hooks = {
+  readPackage,
+  afterAllResolved,
+  updateConfig,
+  beforePacking,
 }
 ```
 
-## readPackage Hook
+## Hook reference
 
-Called for every package before resolution. Use to modify dependencies, add missing peer deps, or fix broken packages.
+| Hook | When | Use |
+|------|------|-----|
+| `readPackage(pkg, ctx)` | after a dependency manifest is parsed | mutate a dependency's `package.json` (affects resolution) |
+| `afterAllResolved(lockfile, ctx)` | after resolution | mutate the lockfile before it's written |
+| `updateConfig(config)` | before install | mutate pnpm's settings (great with config dependencies) |
+| `beforePacking(pkg)` | before `pnpm pack`/`publish` tarball | customize the **published** manifest only |
+| `preResolution(opts)` | after reading lockfiles, before resolution | inspect/modify lockfile objects |
+| `importPackage(dir, opts)` | when writing to node_modules | change how packages are linked |
 
-### Add Missing Peer Dependency
+## readPackage
 
-```js
+Called for every package before resolution. Common uses:
+
+```js title=".pnpmfile.mjs"
 function readPackage(pkg, context) {
+  // Add a missing peer dependency
   if (pkg.name === 'some-broken-package') {
-    pkg.peerDependencies = {
-      ...pkg.peerDependencies,
-      react: '*'
-    }
-    context.log(`Added react peer dep to ${pkg.name}`)
+    pkg.peerDependencies = { ...pkg.peerDependencies, react: '*' }
+  }
+  // Pin a transitive version
+  if (pkg.dependencies?.lodash) pkg.dependencies.lodash = '^4.17.21'
+  // Drop a problematic optional dep
+  delete pkg.optionalDependencies?.fsevents
+  // Replace a deprecated dep
+  if (pkg.dependencies?.['old-pkg']) {
+    pkg.dependencies['new-pkg'] = pkg.dependencies['old-pkg']
+    delete pkg.dependencies['old-pkg']
   }
   return pkg
 }
+
+export const hooks = { readPackage }
 ```
 
-### Override Dependency Version
+> Mutations are not written to disk; they only affect resolution. Delete `pnpm-lock.yaml` to re-resolve an already-locked dependency. Removing `scripts` here does **not** stop a build — use the `allowBuilds` setting instead. To persist a change to a dependency's files, use `pnpm patch`.
 
-```js
-function readPackage(pkg, context) {
-  // Fix all lodash versions
-  if (pkg.dependencies?.lodash) {
-    pkg.dependencies.lodash = '^4.17.21'
-  }
-  if (pkg.devDependencies?.lodash) {
-    pkg.devDependencies.lodash = '^4.17.21'
-  }
-  return pkg
-}
-```
+## updateConfig
 
-### Remove Unwanted Dependency
+Modify pnpm's own settings programmatically — most powerful when shipped in a config dependency so settings are shared across repos.
 
-```js
-function readPackage(pkg, context) {
-  // Remove optional dependency that causes issues
-  if (pkg.optionalDependencies?.fsevents) {
-    delete pkg.optionalDependencies.fsevents
-  }
-  return pkg
-}
-```
-
-### Replace Package
-
-```js
-function readPackage(pkg, context) {
-  // Replace deprecated package
-  if (pkg.dependencies?.['old-package']) {
-    pkg.dependencies['new-package'] = pkg.dependencies['old-package']
-    delete pkg.dependencies['old-package']
-  }
-  return pkg
-}
-```
-
-### Fix Broken Package
-
-```js
-function readPackage(pkg, context) {
-  // Fix incorrect exports field
-  if (pkg.name === 'broken-esm-package') {
-    pkg.exports = {
-      '.': {
-        import: './dist/index.mjs',
-        require: './dist/index.cjs'
-      }
-    }
-  }
-  return pkg
-}
-```
-
-## afterAllResolved Hook
-
-Called after the lockfile is generated. Use for post-resolution modifications.
-
-```js
-function afterAllResolved(lockfile, context) {
-  // Log all resolved packages
-  context.log(`Resolved ${Object.keys(lockfile.packages || {}).length} packages`)
-
-  // Modify lockfile if needed
-  return lockfile
-}
-```
-
-## Context Object
-
-The `context` object provides utilities:
-
-```js
-function readPackage(pkg, context) {
-  // Log messages
-  context.log('Processing package...')
-
-  return pkg
-}
-```
-
-## Use with TypeScript
-
-For type hints, use JSDoc:
-
-```js
-// .pnpmfile.cjs
-
-/**
- * @param {import('type-fest').PackageJson} pkg
- * @param {{ log: (msg: string) => void }} context
- * @returns {import('type-fest').PackageJson}
- */
-function readPackage(pkg, context) {
-  return pkg
-}
-
-module.exports = {
-  hooks: {
-    readPackage
+```js title=".pnpmfile.mjs"
+export const hooks = {
+  updateConfig(config) {
+    return Object.assign(config, {
+      enablePrePostScripts: false,
+      optimisticRepeatInstall: true,
+      resolutionMode: 'lowest-direct',
+      verifyDepsBeforeRun: 'install',
+    })
   }
 }
 ```
 
-## Common Patterns
-
-### Conditional by Package Name
-
 ```js
-function readPackage(pkg, context) {
-  switch (pkg.name) {
-    case 'package-a':
-      pkg.dependencies.foo = '^2.0.0'
-      break
-    case 'package-b':
-      delete pkg.optionalDependencies.bar
-      break
+// Add a catalog entry from a plugin
+export const hooks = {
+  updateConfig(config) {
+    config.catalogs.default ??= {}
+    config.catalogs.default['is-odd'] = '1.0.0'
+    return config
   }
-  return pkg
 }
 ```
 
-### Apply to All Packages
+## beforePacking
 
-```js
-function readPackage(pkg, context) {
-  // Remove all optional fsevents
-  if (pkg.optionalDependencies) {
-    delete pkg.optionalDependencies.fsevents
+Customize the manifest that ends up in the published tarball without touching your local `package.json`.
+
+```js title=".pnpmfile.mjs"
+export const hooks = {
+  beforePacking(pkg) {
+    delete pkg.devDependencies
+    pkg.main = './dist/index.js'
+    return pkg
   }
-  return pkg
 }
 ```
 
-### Debug Resolution
+## afterAllResolved
 
-```js
-function readPackage(pkg, context) {
-  if (process.env.DEBUG_PNPM) {
-    context.log(`${pkg.name}@${pkg.version}`)
-    context.log(`  deps: ${Object.keys(pkg.dependencies || {}).join(', ')}`)
+```js title=".pnpmfile.mjs"
+export const hooks = {
+  afterAllResolved(lockfile, context) {
+    context.log(`Resolved ${Object.keys(lockfile.packages || {}).length} packages`)
+    return lockfile
   }
-  return pkg
 }
+```
+
+## Finders (pnpm list / why)
+
+Custom predicates used via `--find-by`:
+
+```js title=".pnpmfile.mjs"
+export const finders = {
+  react17: (ctx) => ctx.readManifest().peerDependencies?.react === '^17.0.0'
+}
+```
+
+```bash
+pnpm why --find-by=react17
+```
+
+## Custom resolvers & fetchers (advanced)
+
+Register top-level `resolvers`/`fetchers` to support new package schemes (e.g. `my-protocol:pkg`). Each is an object with cheap `canResolve`/`canFetch` guards plus `resolve`/`fetch`. Custom resolvers run before built-ins; custom resolution `type` fields must use the `custom:` prefix.
+
+```js title=".pnpmfile.cjs"
+const resolver = {
+  canResolve: (dep) => dep.alias.startsWith('@company/'),
+  resolve: async (dep) => ({
+    id: `${dep.alias}@${dep.bareSpecifier}`,
+    resolution: { type: 'custom:cdn', cdnUrl: '...' },
+  }),
+}
+const fetcher = {
+  canFetch: (id, res) => res.type === 'custom:cdn',
+  fetch: (cafs, res, opts, fetchers) =>
+    fetchers.remoteTarball(cafs, { tarball: res.cdnUrl, integrity: res.integrity }, opts),
+}
+module.exports = { resolvers: [resolver], fetchers: [fetcher] }
+```
+
+> `hooks.fetchers` was removed in v11 — use the top-level `fetchers` export instead.
+
+## Related settings
+
+```yaml title="pnpm-workspace.yaml"
+ignorePnpmfile: false                  # ignore the pnpmfile entirely
+pnpmfile: ['.pnpmfile.mjs']            # local pnpmfile location(s)
+globalPnpmfile: ~/.pnpm/global_pnpmfile.mjs
 ```
 
 ## Hooks vs Overrides
 
-| Feature | Hooks (.pnpmfile.cjs) | Overrides |
-|---------|----------------------|-----------|
-| Complexity | Can use JavaScript logic | Declarative only |
-| Scope | Any package metadata | Version only |
-| Use case | Complex fixes, conditional logic | Simple version pins |
+| | Hooks (.pnpmfile) | Overrides (pnpm-workspace.yaml) |
+|--|-------------------|---------------------------------|
+| Logic | JavaScript | declarative |
+| Scope | any manifest field, config, lockfile, packing | versions |
+| Use when | conditional/complex fixes | simple version pins |
 
-**Prefer overrides** for simple version fixes. **Use hooks** when you need:
-- Conditional logic
-- Non-version modifications (exports, peer deps)
-- Logging/debugging
+Prefer `overrides`/`packageExtensions` for simple cases; use hooks for conditional logic, config sharing, or packing tweaks.
 
-## Troubleshooting
+## Key Points
 
-### Hook not running
-
-1. Ensure file is named `.pnpmfile.cjs` (not `.js`)
-2. Check file is at workspace root
-3. Run `pnpm install` to trigger hooks
-
-### Debug hooks
-
-```bash
-# See hook logs
-pnpm install --reporter=append-only
-```
+- Prefer `.pnpmfile.mjs` with `export const hooks`/`finders`/`resolvers`/`fetchers`.
+- New hooks: `updateConfig` (mutate settings), `beforePacking` (published manifest), `preResolution`, `importPackage`.
+- Pair `updateConfig` with config dependencies to share settings/catalogs across repos.
+- `--ignore-scripts` does **not** disable the pnpmfile; use `ignorePnpmfile`.
 
 <!--
 Source references:
 - https://pnpm.io/pnpmfile
+- https://pnpm.io/finders
+- https://pnpm.io/config-dependencies
 -->

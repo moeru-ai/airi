@@ -84,9 +84,9 @@ export interface UseTimeoutOptions<
    */
   callback?: Fn
 }
-export type UseTimeoutReturn
-  = | ComputedRef<boolean>
-    | ({
+export type UseTimeoutReturn =
+  | ComputedRef<boolean>
+  | ({
       readonly ready: ComputedRef<boolean>
     } & Stoppable)
 /**

@@ -2,7 +2,7 @@ import { mkdir, rm } from 'node:fs/promises'
 
 import { errorMessageFrom } from '@moeru/std'
 
-import { scenarioRawOutputDir } from './constants.ts'
+import { scenarioRawOutputDir } from './constants'
 
 export async function resetScenarioOutputDirectories() {
   await rm(scenarioRawOutputDir, { recursive: true, force: true })

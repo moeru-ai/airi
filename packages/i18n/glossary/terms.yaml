@@ -161,6 +161,17 @@
       status: preferred
       context: Live2D Settings
 
+- id: magic-motion
+  subject: rendering
+  translatable: false
+  definition: A motion generator that fits VAR or AR-HMM models to a reference dataset.
+  note: Keep the name uppercase in every language.
+  terms:
+    - text: MAGIC
+      part-of-speech: proper noun
+      status: preferred
+      context: MAGIC motion driver
+
 - id: vrm
   subject: rendering
   translatable: false
@@ -245,6 +256,62 @@
       part-of-speech: noun
       status: preferred
       context: Edit motion map
+
+# ---------------------------------------------------------------------------------------
+# Lighting
+# ---------------------------------------------------------------------------------------
+
+- id: ambient-light
+  subject: rendering
+  translatable: true
+  definition: Light that AIRI reads from the screen around its window and applies to the character.
+  note: >-
+    Not the ambient term of a lighting model. It names one feature, so the same words have to
+    appear in the settings entry, the devtool, and every control inside them.
+  terms:
+    - text: Ambient Light
+      part-of-speech: noun
+      status: preferred
+      context: Ambient light
+
+- id: light-wrap
+  subject: rendering
+  translatable: true
+  definition: A band of background color that bleeds inward from the edge of the character.
+  note: >-
+    A compositing term, from the node of the same name in film finishing tools. It is the color
+    reaching around the edge, not a glow drawn outside it and not a halo.
+  terms:
+    - text: Light Wrap
+      part-of-speech: noun
+      status: preferred
+      context: Set the overall effect amount. 1 is the designed look, and up to 3 makes the light wrap and the backlight stronger.
+
+- id: backlight
+  subject: rendering
+  translatable: true
+  definition: Light from behind the character that lights a thin rim along its whole edge.
+  note: >-
+    The photographic sense, as in a subject standing in front of a window. Do not use the word
+    for the lamp behind a display panel, which the screen-capture strings may also suggest.
+  terms:
+    - text: Backlight
+      part-of-speech: noun
+      status: preferred
+      context: Narrow blur of the same content. This map drives the light wrap and the backlight rim.
+
+- id: light-map
+  subject: rendering
+  translatable: true
+  definition: A small grid of measured screen colors covering the AIRI window and its margin.
+  note: >-
+    Not the baked lighting texture that game engines call a lightmap. Two of them exist, the
+    surround map and the contact map, and both need the same word for map.
+  terms:
+    - text: Light Map
+      part-of-speech: noun
+      status: preferred
+      context: The dashed rectangle marks the area that the light maps cover.
 
 # ---------------------------------------------------------------------------------------
 # The application

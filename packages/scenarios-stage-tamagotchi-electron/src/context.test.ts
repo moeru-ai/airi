@@ -2,7 +2,7 @@ import type { ScenarioContext } from '@vishot/source-electron'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { createStageTamagotchiScenarioContext, defineStageTamagotchiScenario } from './context.ts'
+import { createStageTamagotchiScenarioContext, defineStageTamagotchiScenario } from './context'
 
 function createElectronApp(): ScenarioContext['electronApp'] {
   return Object.assign(Object.create(null), {
@@ -28,6 +28,7 @@ describe('createStageTamagotchiScenarioContext', () => {
     expect(context.settingsWindow.goToRoute).toEqual(expect.any(Function))
     expect(context.dialogs.dismiss).toEqual(expect.any(Function))
     expect(context.drawers.swipeDown).toEqual(expect.any(Function))
+    expect(context.gestures.swipe).toEqual(expect.any(Function))
   })
 })
 

@@ -1,9 +1,12 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message, Tool } from '@xsai/shared-chat'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { CompletionStep, Message, Tool } from '@xsai/shared-chat'
 
-import { describe, expect, it, vi } from 'vitest'
+import type { Conversation } from '../messages/types'
 
-import { isContentArrayRelatedError, sanitizeMessages, streamFrom } from './llm-service'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { chatMessagesToTurns, conversationToChatMessages } from '../messages/chat-completions'
+import { isContentArrayRelatedError, streamFrom } from './llm-service'
 
 const { streamTextMock } = vi.hoisted(() => ({
   streamTextMock: vi.fn(),
@@ -21,36 +24,136 @@ vi.mock('@xsai/shared-chat', async (importOriginal) => {
   }
 })
 
-const provider = {
-  chat: () => ({
-    baseURL: 'https://example.com/',
-  }),
-} as unknown as ChatProvider
+const provider: GenerationProvider = {
+  generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
+}
 
 function createMockStreamResult(
   steps: Promise<unknown[]> = Promise.resolve([]),
-  totalUsage: Promise<{ prompt_tokens: number, completion_tokens: number, total_tokens: number } | undefined> = Promise.resolve(undefined),
+  totalUsage: Promise<{ inputTokens: number, outputTokens: number, totalTokens: number } | undefined> = Promise.resolve(undefined),
+  messages: Promise<Message[]> = Promise.resolve([]),
 ) {
+  const completedSteps: CompletionStep[] = []
+  let settledMessages: Promise<Message[]> | undefined
   return {
-    steps,
-    messages: Promise.resolve([]),
+    get steps() { return steps.then(original => completedSteps.length ? completedSteps : original) },
+    get messages() {
+      return settledMessages ??= messages.then(async (output) => {
+        const options = streamTextMock.mock.lastCall?.[0]
+        if (!options || output.length === 0)
+          return output
+        const input: Message[] = structuredClone(options.messages)
+        const generated = output.slice(input.length)
+        let step: Message[] = []
+        function finishStep() {
+          if (!step.length)
+            return
+          options.prepareStep?.({ input, model: options.model, stepNumber: 0, steps: [] })
+          input.push(...step)
+          const completion: CompletionStep = { finishReason: 'stop', toolCalls: [], toolResults: [] }
+          completedSteps.push(completion)
+          step = []
+        }
+        for (const entry of generated) {
+          if (entry.role === 'assistant')
+            finishStep()
+          step.push(entry)
+        }
+        finishStep()
+        return output
+      })
+    },
     usage: Promise.resolve(undefined),
     totalUsage,
   }
 }
 
-describe('streamFrom tool error capture', () => {
-  it('requests final streaming usage and emits the reported token totals once', async () => {
-    const onUsage = vi.fn()
+describe('streamFrom tool errors', () => {
+  beforeEach(() => {
+    streamTextMock.mockReset()
+  })
+
+  it('emits the final xsAI messages after all tool rounds finish', async () => {
+    const onGeneratedTurn = vi.fn()
+    const finalMessages: Message[] = [
+      { role: 'user', content: 'Check the weather.' },
+      {
+        role: 'assistant',
+        content: '',
+        tool_calls: [
+          {
+            id: 'call-weather',
+            type: 'function',
+            function: { name: 'weather', arguments: '{}' },
+          },
+        ],
+      },
+      { role: 'tool', tool_call_id: 'call-weather', content: 'sunny' },
+      { role: 'assistant', content: 'The weather is sunny.' },
+    ]
     streamTextMock.mockReturnValueOnce(createMockStreamResult(
       Promise.resolve([]),
-      Promise.resolve({ prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 }),
+      Promise.resolve(undefined),
+      Promise.resolve(finalMessages),
     ))
 
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      conversation: { turns: chatMessagesToTurns(finalMessages.slice(0, 1)) },
+      options: { onGeneratedTurn },
+    })
+
+    expect(onGeneratedTurn).toHaveBeenCalledTimes(1)
+    expect(onGeneratedTurn.mock.calls[0][0].rounds).toHaveLength(2)
+    expect(conversationToChatMessages({ turns: [onGeneratedTurn.mock.calls[0][0]] })).toEqual(finalMessages.slice(1))
+  })
+
+  it('ignores provider errors after steps resolve while final messages are pending', async () => {
+    let onEvent: ((event: unknown) => Promise<void>) | undefined
+    let resolveMessages: ((messages: Message[]) => void) | undefined
+    const messages = new Promise<Message[]>((resolve) => {
+      resolveMessages = resolve
+    })
+
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
+      onEvent = options.onEvent
+      return createMockStreamResult(Promise.resolve([]), Promise.resolve(undefined), messages)
+    })
+
+    // ROOT CAUSE:
+    //
+    // Final message persistence used to delay the steps-settled marker. A late
+    // provider error could then reject a stream whose authoritative steps
+    // promise had already resolved.
+    //
+    // We mark steps settled before awaiting the final generated turn, while still
+    // treating generated turn persistence failures as real stream failures.
+    const pending = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
+    })
+
+    await vi.waitFor(() => expect(onEvent).toBeTypeOf('function'))
+    await Promise.resolve()
+    await onEvent!({ type: 'error', message: 'stream failed', cause: new Error('stream failed') })
+    resolveMessages?.([])
+
+    await expect(pending).resolves.toBeUndefined()
+  })
+
+  it('requests final streaming usage and emits the reported token totals once', async () => {
+    const onUsage = vi.fn()
+    streamTextMock.mockReturnValueOnce(createMockStreamResult(
+      Promise.resolve([]),
+      Promise.resolve({ inputTokens: 12, outputTokens: 8, totalTokens: 20 }),
+    ))
+
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
       options: { onUsage },
     })
 
@@ -73,7 +176,7 @@ describe('streamFrom tool error capture', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
       options: { onUsage },
     })
 
@@ -84,13 +187,13 @@ describe('streamFrom tool error capture', () => {
     const onUsage = vi.fn()
     streamTextMock.mockReturnValueOnce(createMockStreamResult(
       Promise.resolve([]),
-      Promise.resolve({} as { prompt_tokens: number, completion_tokens: number, total_tokens: number }),
+      Promise.resolve({} as { inputTokens: number, outputTokens: number, totalTokens: number }),
     ))
 
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
       options: { onUsage },
     })
 
@@ -106,7 +209,8 @@ describe('streamFrom tool error capture', () => {
     }
     process.on('unhandledRejection', onUnhandledRejection)
 
-    streamTextMock.mockReturnValueOnce(createMockStreamResult(
+    // Rejections begin when the SDK starts, after request preparation finishes.
+    streamTextMock.mockImplementationOnce(() => createMockStreamResult(
       Promise.reject(streamError),
       Promise.reject(totalUsageError),
     ))
@@ -115,7 +219,7 @@ describe('streamFrom tool error capture', () => {
       await expect(streamFrom({
         model: 'model-a',
         chatProvider: provider,
-        messages: [{ role: 'user', content: 'hello' }] as Message[],
+        conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
       })).rejects.toThrow('provider stream failed')
       await new Promise(resolve => setImmediate(resolve))
       expect(unhandledRejections).toEqual([])
@@ -131,7 +235,7 @@ describe('streamFrom tool error capture', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
       options: {
         onUsage: () => {
           throw new Error('analytics unavailable')
@@ -140,11 +244,7 @@ describe('streamFrom tool error capture', () => {
     })).resolves.toBeUndefined()
   })
 
-  /**
-   * @example
-   * await streamFrom({ model, chatProvider, messages, options: { captureToolErrors: true } })
-   */
-  it('keeps captureToolErrors internal while forwarding failed tool calls as tool-error events', async () => {
+  it('maps xsai tool-error results to AIRI tool-error events without wrapping tools', async () => {
     let resolveSteps: ((steps: unknown[]) => void) | undefined
     const events: unknown[] = []
     const failingTool = {
@@ -160,8 +260,8 @@ describe('streamFrom tool error capture', () => {
     } satisfies Tool
 
     streamTextMock.mockImplementationOnce((options: {
-      captureToolErrors?: boolean
       onEvent: (event: unknown) => Promise<void>
+      preToolCall?: unknown
       tools?: Tool[]
     }) => {
       const steps = new Promise<unknown[]>((resolve) => {
@@ -169,19 +269,15 @@ describe('streamFrom tool error capture', () => {
       })
 
       queueMicrotask(async () => {
-        const result = await options.tools?.[0]?.execute({}, {
-          messages: [],
-          toolCallId: 'call-1',
-        })
-
         await options.onEvent({
-          type: 'tool-result',
+          type: 'tool-result.done',
           args: {},
-          result,
+          isError: true,
+          result: 'Tool "play_chess" execution failed: Focus mode does not accept game-state mutation inputs.',
           toolCallId: 'call-1',
           toolName: 'play_chess',
         })
-        await options.onEvent({ type: 'finish', finishReason: 'stop' })
+        await options.onEvent({ type: 'text.delta', delta: 'ok' })
         resolveSteps?.([])
       })
 
@@ -191,9 +287,8 @@ describe('streamFrom tool error capture', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'play chess' }] as Message[],
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'play chess' }]) },
       options: {
-        captureToolErrors: true,
         tools: [failingTool],
         onStreamEvent: (event) => {
           events.push(event)
@@ -202,27 +297,47 @@ describe('streamFrom tool error capture', () => {
     })
 
     const streamOptions = streamTextMock.mock.calls[0]?.[0]
-    expect(streamOptions.captureToolErrors).toBeUndefined()
-    expect(streamOptions.tools?.[0]).not.toBe(failingTool)
-    expect(failingTool.execute).toHaveBeenCalledTimes(1)
-    expect(events).toContainEqual(expect.objectContaining({
+    expect(streamOptions.preToolCall).toBeUndefined()
+    expect(streamOptions.tools?.[0]).toBe(failingTool)
+    expect(failingTool.execute).not.toHaveBeenCalled()
+    expect(events).toContainEqual({
       type: 'tool-error',
       isError: true,
+      result: 'Tool "play_chess" execution failed: Focus mode does not accept game-state mutation inputs.',
       toolCallId: 'call-1',
-      toolName: 'play_chess',
-      result: expect.stringContaining('Focus mode does not accept game-state mutation inputs.'),
-    }))
+    })
+    expect(events).toContainEqual({ type: 'text-delta', text: 'ok' })
+    expect(events).toContainEqual({ type: 'finish' })
+  })
+
+  it('rejects when the finish listener throws instead of leaving the stream pending', async () => {
+    streamTextMock.mockReturnValueOnce(createMockStreamResult())
+
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
+      options: {
+        onStreamEvent: async (event) => {
+          if (event.type === 'finish')
+            throw new Error('finish listener failed')
+        },
+      },
+    })).rejects.toThrow('finish listener failed')
   })
 })
 
-describe('sanitizeMessages', () => {
+describe('chat protocol compatibility', () => {
+  function projectChat(messages: Parameters<typeof chatMessagesToTurns>[0], supportsContentArray = true) {
+    return conversationToChatMessages({ turns: chatMessagesToTurns(messages) }, supportsContentArray)
+  }
   it('rewrites internal `error`-role messages as user-role narrations', () => {
     /**
      * @example
-     * sanitizeMessages([{ role: 'error', content: 'Remote sent 400' }])
+     * projectChat([{ role: 'error', content: 'Remote sent 400' }])
      * // -> [{ role: 'user', content: 'User encountered error: Remote sent 400' }]
      */
-    const out = sanitizeMessages([{ role: 'error', content: 'Remote sent 400' }])
+    const out = projectChat([{ role: 'error', content: 'Remote sent 400' }])
     expect(out).toEqual([
       { role: 'user', content: 'User encountered error: Remote sent 400' },
     ])
@@ -231,13 +346,13 @@ describe('sanitizeMessages', () => {
   it('flattens text-only content arrays to a string by default', () => {
     /**
      * @example
-     * sanitizeMessages([{
+     * projectChat([{
      *   role: 'user',
      *   content: [{ type: 'text', text: 'hi' }, { type: 'text', text: ' there' }],
      * }])
      * // -> [{ role: 'user', content: 'hi there' }]
      */
-    const out = sanitizeMessages([{
+    const out = projectChat([{
       role: 'user',
       content: [
         { type: 'text', text: 'hi' },
@@ -250,17 +365,17 @@ describe('sanitizeMessages', () => {
   it('preserves multimodal arrays when supportsContentArray is true (default)', () => {
     /**
      * @example
-     * sanitizeMessages([{ role: 'user', content: [{type:'text',text:'see'},{type:'image_url',...}] }])
+     * projectChat([{ role: 'user', content: [{type:'text',text:'see'},{type:'image_url',...}] }])
      * // -> unchanged: image_url part stays so vision-capable providers receive the image
      */
-    const message = {
+    const message: Message = {
       role: 'user',
       content: [
         { type: 'text', text: 'see this' },
         { type: 'image_url', image_url: { url: 'data:image/png;base64,AAA' } },
       ],
     }
-    const out = sanitizeMessages([message])
+    const out = projectChat([message])
     expect(out[0]).toEqual(message)
   })
 
@@ -283,10 +398,10 @@ describe('sanitizeMessages', () => {
   it('issue #1500: drops image_url parts and flattens to string when supportsContentArray=false', () => {
     /**
      * @example
-     * sanitizeMessages([{ role:'user', content: [{type:'text',text:'hi'},{type:'image_url',...}] }], false)
+     * projectChat([{ role:'user', content: [{type:'text',text:'hi'},{type:'image_url',...}] }], false)
      * // -> [{ role: 'user', content: 'hi' }]
      */
-    const out = sanitizeMessages([
+    const out = projectChat([
       {
         role: 'user',
         content: [
@@ -301,10 +416,10 @@ describe('sanitizeMessages', () => {
   it('issue #1500: drops audio/file parts when supportsContentArray=false', () => {
     /**
      * @example
-     * sanitizeMessages([{ role:'user', content: [{type:'text',text:'q'},{type:'input_audio',...},{type:'file',...}] }], false)
+     * projectChat([{ role:'user', content: [{type:'text',text:'q'},{type:'input_audio',...},{type:'file',...}] }], false)
      * // -> [{ role: 'user', content: 'q' }]
      */
-    const out = sanitizeMessages([
+    const out = projectChat([
       {
         role: 'user',
         content: [
@@ -318,9 +433,9 @@ describe('sanitizeMessages', () => {
   })
 
   it('passes string content through untouched regardless of the flag', () => {
-    expect(sanitizeMessages([{ role: 'user', content: 'plain' }], true))
+    expect(projectChat([{ role: 'user', content: 'plain' }], true))
       .toEqual([{ role: 'user', content: 'plain' }])
-    expect(sanitizeMessages([{ role: 'user', content: 'plain' }], false))
+    expect(projectChat([{ role: 'user', content: 'plain' }], false))
       .toEqual([{ role: 'user', content: 'plain' }])
   })
 })
@@ -357,4 +472,37 @@ describe('isContentArrayRelatedError', () => {
     expect(isContentArrayRelatedError('Tool call failed: invalid schema for function')).toBe(false)
     expect(isContentArrayRelatedError(undefined)).toBe(false)
   })
+})
+
+it('preserves native Chat reasoning for an unchanged turn and drops it on a model switch', async () => {
+  const output: Message[] = [{ role: 'assistant', content: 'answer', reasoning_content: 'provider state' }]
+  const context: Conversation = { turns: [] }
+  streamTextMock.mockReturnValueOnce(createMockStreamResult(Promise.resolve([]), Promise.resolve(undefined), Promise.resolve(output)))
+  await streamFrom({ model: 'test', chatProvider: provider, conversation: context, options: { onGeneratedTurn: (turn) => {
+    context.turns.push(turn)
+  } } })
+  streamTextMock.mockReturnValueOnce(createMockStreamResult())
+  await streamFrom({ model: 'test', chatProvider: provider, conversation: context })
+  expect(streamTextMock.mock.lastCall?.[0].messages).toEqual(output)
+  streamTextMock.mockReturnValueOnce(createMockStreamResult())
+  await streamFrom({ model: 'another', chatProvider: provider, conversation: context })
+  expect(streamTextMock.mock.lastCall?.[0].messages).toEqual([{ role: 'assistant', content: 'answer' }])
+})
+
+it('does not publish a generated turn when the terminal event consumer fails', async () => {
+  const onGeneratedTurn = vi.fn()
+  streamTextMock.mockReturnValueOnce(createMockStreamResult())
+  await expect(streamFrom({
+    model: 'test',
+    chatProvider: provider,
+    conversation: { turns: [] },
+    options: {
+      onGeneratedTurn,
+      onStreamEvent: (event) => {
+        if (event.type === 'finish')
+          throw new Error('terminal consumer failed')
+      },
+    },
+  })).rejects.toThrow('terminal consumer failed')
+  expect(onGeneratedTurn).not.toHaveBeenCalled()
 })

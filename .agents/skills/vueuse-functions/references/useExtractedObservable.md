@@ -17,11 +17,9 @@ of [`watch`](https://vuejs.org/guide/essentials/watchers.html#basic-example).
 <!-- TODO: import rxjs error if enable twoslash -->
 
 ```ts no-twoslash
-import ObservableSocket from 'observable-socket'
-
 import { useExtractedObservable } from '@vueuse/rxjs'
+import ObservableSocket from 'observable-socket'
 import { computed } from 'vue'
-
 import { makeSocket, useUser } from '../some/lib/func'
 
 // setup()
@@ -154,7 +152,7 @@ export declare function useExtractedObservable<
   >,
   options?: UseExtractedObservableOptions<E>,
   watchOptions?: WatchOptions<Immediate>,
-): Readonly<ShallowRef<E>>
+): DeepReadonly<ShallowRef<E>>
 export declare function useExtractedObservable<
   T extends Readonly<MultiWatchSources>,
   E,
@@ -168,7 +166,7 @@ export declare function useExtractedObservable<
   >,
   options?: UseExtractedObservableOptions<E>,
   watchOptions?: WatchOptions<Immediate>,
-): Readonly<ShallowRef<E>>
+): DeepReadonly<ShallowRef<E>>
 export declare function useExtractedObservable<
   T,
   E,
@@ -182,7 +180,7 @@ export declare function useExtractedObservable<
   >,
   options?: UseExtractedObservableOptions<E>,
   watchOptions?: WatchOptions<Immediate>,
-): Readonly<ShallowRef<E>>
+): DeepReadonly<ShallowRef<E>>
 export declare function useExtractedObservable<
   T extends object,
   E,
@@ -196,5 +194,5 @@ export declare function useExtractedObservable<
   >,
   options?: UseExtractedObservableOptions<E>,
   watchOptions?: WatchOptions<Immediate>,
-): Readonly<ShallowRef<E>>
+): DeepReadonly<ShallowRef<E>>
 ```

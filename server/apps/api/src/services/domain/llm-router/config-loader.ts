@@ -6,7 +6,7 @@ import { createBadRequestError, createServiceUnavailableError } from '../../../u
 /**
  * Default TTL for the in-memory config cache. Plan KTD-4 fallback path:
  * Pub/Sub invalidation is best-effort; TTL is the self-heal upper bound on
- * staleness when a Pub/Sub message is missed. 5s keeps admin config edits
+ * staleness when a Pub/Sub message is missed. 5s keeps configuration updates
  * propagating to every instance within a 5s window even with no Pub/Sub.
  */
 const DEFAULT_CACHE_TTL_MS = 5_000
@@ -39,7 +39,7 @@ export type ModelConfigSlice
  * Build the in-process config loader for the router.
  *
  * Use when:
- * - The router or admin endpoint needs to resolve `LLM_ROUTER_CONFIG` and
+ * - The router needs to resolve `LLM_ROUTER_CONFIG` and
  *   wants a single shared in-memory cache across requests.
  *
  * Expects:
@@ -51,7 +51,7 @@ export type ModelConfigSlice
  *   `BAD_REQUEST` for unknown models and `CONFIG_NOT_SET` (503) when the
  *   whole config entry is absent.
  * - `invalidate()` — clears the cache. Wired to Pub/Sub in U7 for cross-
- *   instance propagation; admin endpoint calls it on write.
+ *   instance propagation; the configuration writer publishes after each write.
  */
 export function createConfigLoader(options: ConfigLoaderOptions) {
   const ttlMs = options.ttlMs ?? DEFAULT_CACHE_TTL_MS

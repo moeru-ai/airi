@@ -166,7 +166,7 @@ extendTheme: (theme) => {
 - `boxShadow` - Shadow definitions
 - `animation` - Animation keyframes and timing
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/config/theme
 -->

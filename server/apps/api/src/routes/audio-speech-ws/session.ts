@@ -12,7 +12,6 @@ import { useLogger } from '@guiiai/logg'
 import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api'
 import { ofetch } from 'ofetch'
 
-import { fluxBalanceBucket } from '../../services/domain/flux-balance'
 import { ApiError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
 import {
@@ -44,7 +43,7 @@ const tracer = trace.getTracer('audio-speech-ws')
 export interface AudioSpeechSessionState {
   /** Stores the accepted client websocket. */
   attachClient: (ws: WSContext) => void
-  /** Resolves the selected credential policy and dials upstream after the start frame is accepted. */
+  /** Reads config, checks balance, decrypts the upstream key, and dials upstream after the start frame is accepted. */
   dialUpstream: () => Promise<void>
   /** Forwards a client frame or queues it while the upstream connection opens. */
   handleClientMessage: (message: { data: unknown }, ws: WSContext) => void
@@ -55,15 +54,14 @@ export interface AudioSpeechSessionState {
 export type StreamingTtsTrigger = 'auto' | 'manual'
 export type StreamingTtsSource = 'audio.speech.ws' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
 export type StreamingTtsVoiceType = 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
-export type StreamingTtsCredentialMode = 'official' | 'byok'
-export type StreamingTtsProviderId = 'official-provider-speech-streaming' | 'volcengine-streaming' | 'unknown'
 
 export interface AudioSpeechSessionAnalytics {
   trigger?: StreamingTtsTrigger
   source?: StreamingTtsSource
   voiceType?: StreamingTtsVoiceType
-  credentialMode?: StreamingTtsCredentialMode
-  providerId?: StreamingTtsProviderId
+  turnId?: string
+  credentialMode?: 'official' | 'byok'
+  providerId?: string
 }
 
 /**
@@ -75,9 +73,7 @@ export interface AudioSpeechSessionAnalytics {
  *   are handled at session end.
  *
  * Expects:
- * - `UNSPEECH_UPSTREAM.streaming` has a base URL.
- * - Official sessions have an operator key; BYOK sessions send one private
- *   credentials frame before the UnSpeech start frame.
+ * - `UNSPEECH_UPSTREAM.streaming` has a base URL and at least one encrypted key.
  *
  * Returns:
  * - A connection-scoped state object with no global peer registry.
@@ -89,7 +85,6 @@ export function createSessionState(
 ): AudioSpeechSessionState {
   const requestId = nanoid()
   const startedAt = Date.now()
-  const analytics = normalizeAnalytics(analyticsInput)
   const span = tracer.startSpan('llm.gateway.tts.stream', {
     attributes: {
       [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech_stream',
@@ -100,16 +95,14 @@ export function createSessionState(
   let upstreamWs: WebSocket | null = null
   let upstreamReady = false
   let closed = false
-  let completed = false
+  let billed = false
   let startFrameAccepted = false
   let startValidationStarted = false
   let dialStarted = false
   let totalInputChars = 0
-  let preflightFluxBalance: number | undefined
   let modelLabel = STREAM_MODEL_LABEL_FALLBACK
-  let voiceLabel: string | undefined
+  const isByok = analyticsInput.credentialMode === 'byok'
   let byokKey: Buffer | null = null
-  let credentialFrameAccepted = analytics.credentialMode === 'official'
   /**
    * Frames the client sent before the upstream finished dialing. Buffered to
    * avoid silently dropping the `start` frame; flushed in arrival order once
@@ -126,18 +119,10 @@ export function createSessionState(
       return
     dialStarted = true
 
-    void opts.productEventService.track({
-      userId,
-      feature: 'tts',
-      action: 'speech_requested',
-      status: 'started',
-      source: analytics.source,
-      model: modelLabel,
-      metadata: {
-        trigger: analytics.trigger,
-        ...streamingSessionMetadata(voiceLabel, analytics),
-      },
-    })
+    if (isByok && analyticsInput.providerId !== 'volcengine-streaming') {
+      closeWithError(1008, 'invalid_provider_id')
+      return
+    }
 
     let unspeech: Awaited<ReturnType<AudioSpeechWsHandlersOptions['configKV']['getOptional']>>
     try {
@@ -150,25 +135,20 @@ export function createSessionState(
     }
 
     const upstreamConfig = unspeech?.streaming
-    if (!upstreamConfig?.baseURL || (analytics.credentialMode === 'official' && upstreamConfig.keys.length === 0)) {
+    if (!upstreamConfig?.baseURL || (!isByok && upstreamConfig.keys.length === 0)) {
       closeWithError(1008, 'streaming_tts_not_configured')
       return
     }
 
-    if (analytics.credentialMode === 'official') {
-      // Official sessions consume AIRI-hosted credentials and Flux. BYOK
-      // sessions are explicitly excluded so a missing user key can never
-      // fall back to the operator account or charge the user twice.
+    // Pre-flight balance check: refuse before dialing if the user cannot
+    // afford the worst-case session.
+    if (!isByok) {
       try {
         const flux = await opts.fluxService.getFlux(userId)
-        preflightFluxBalance = flux.flux
         await opts.ttsMeter.assertCanAfford(userId, STREAMING_PREFLIGHT_CHARS_ESTIMATE, flux.flux)
       }
       catch (err) {
         log.withError(err).withFields({ userId }).warn('pre-flight rejected streaming tts')
-        // assertCanAfford throws PaymentRequiredError (402) — translate to ws
-        // policy-violation close. The client can read the close code/reason to
-        // surface a 'top up' prompt.
         if (isPaymentRequiredError(err))
           closeWithBlockedPreflight(1008, 'insufficient_flux')
         else
@@ -177,20 +157,20 @@ export function createSessionState(
       }
     }
 
+    // Decrypt the first key. Streaming surface does not do per-attempt key
+    // rotation: a live ws cannot transparently switch upstream mid-session
+    // without breaking audio continuity. Fallback policy belongs at the
+    // session-retry layer (next client connect), not inline.
+    const entry = upstreamConfig.keys[0]
     let keyPlaintext: Buffer
-    if (analytics.credentialMode === 'byok') {
+    if (isByok) {
       if (!byokKey) {
-        closeWithError(1008, 'byok_credentials_required')
+        closeWithError(1008, 'invalid_credentials_frame')
         return
       }
       keyPlaintext = byokKey
-      byokKey = null
     }
     else {
-      // Streaming sessions do not rotate keys mid-connection because that
-      // would break audio continuity. Retry policy belongs to the next client
-      // connection, never to an in-flight session.
-      const entry = upstreamConfig.keys[0]
       try {
         keyPlaintext = opts.envelopeCrypto.decryptKey(entry.ciphertext, {
           modelName: STREAM_MODEL_LABEL_FALLBACK,
@@ -202,11 +182,12 @@ export function createSessionState(
         closeWithError(1011, 'decrypt_failed')
         return
       }
-      span.setAttribute(AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID, entry.id)
     }
 
     const upstreamURL = upstreamConfig.baseURL
     span.setAttribute(AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL, upstreamURL)
+    if (!isByok)
+      span.setAttribute(AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID, entry.id)
 
     let upstream: WebSocket
     try {
@@ -217,14 +198,15 @@ export function createSessionState(
       })
     }
     catch (err) {
-      log.withError(err).withFields({ userId }).warn('failed to dial streaming tts upstream')
-      closeWithError(1011, 'upstream_dial_failed')
+      log.withError(err).warn('streaming tts upstream connection failed')
+      closeWithError(1011, 'upstream_connect_failed')
       return
     }
     finally {
       // Wipe plaintext immediately — the ws lib has already serialized the
       // header into its outgoing handshake buffer.
       keyPlaintext.fill(0)
+      byokKey = null
     }
 
     upstreamWs = upstream
@@ -256,20 +238,6 @@ export function createSessionState(
       log.withError(err).withFields({ userId }).warn('upstream ws error')
       span.recordException(err)
       span.setStatus({ code: SpanStatusCode.ERROR, message: err.message })
-      void opts.productEventService.track({
-        userId,
-        feature: 'tts',
-        action: 'speech_failed',
-        status: 'failed',
-        source: analytics.source,
-        model: modelLabel,
-        reason: 'upstream_error',
-        metadata: {
-          duration_ms: Date.now() - startedAt,
-          trigger: analytics.trigger,
-          ...streamingSessionMetadata(voiceLabel, analytics),
-        },
-      })
       try {
         clientWs?.send(JSON.stringify({
           event: 'error',
@@ -295,23 +263,22 @@ export function createSessionState(
           ? Buffer.from(message.data)
           : Buffer.from(message.data as ArrayBufferLike)
 
-    if (!credentialFrameAccepted) {
+    if (isByok && !byokKey && !startValidationStarted) {
       if (isBinary || typeof payload !== 'string') {
         closeWithError(1008, 'invalid_credentials_frame')
         return
       }
-
-      const credentials = parseCredentialsFrame(payload)
-      if (!credentials) {
-        closeWithError(1008, 'invalid_credentials_frame')
-        return
+      try {
+        const frame = JSON.parse(payload) as Record<string, unknown>
+        if (frame.event !== 'credentials' || frame.provider !== 'volcengine' || typeof frame.api_key !== 'string' || frame.api_key.length === 0 || frame.api_key.length > 4096) {
+          closeWithError(1008, 'invalid_credentials_frame')
+          return
+        }
+        byokKey = Buffer.from(frame.api_key)
       }
-
-      // This AIRI-private frame is deliberately consumed here and never
-      // placed in pendingClientFrames, so the upstream UnSpeech protocol can
-      // never observe or log the plaintext credential as an application frame.
-      byokKey = Buffer.from(credentials.apiKey, 'utf8')
-      credentialFrameAccepted = true
+      catch {
+        closeWithError(1008, 'invalid_credentials_frame')
+      }
       return
     }
 
@@ -329,7 +296,6 @@ export function createSessionState(
 
       startValidationStarted = true
       modelLabel = startFrame.model
-      voiceLabel = startFrame.voice
       pendingClientFrames.push({ data: payload, isBinary })
       void validateStartFrame(startFrame).then((accepted) => {
         if (!accepted || closed)
@@ -427,7 +393,10 @@ export function createSessionState(
         // the client-text-frame estimate accumulated in handleClientMessage.
         const usageChars = readUsageChars(evt.payload)
         const billUnits = usageChars ?? totalInputChars
-        void completeSession(billUnits, 'session.finished')
+        if (billUnits > 0)
+          void billSession(billUnits, 'session.finished')
+        else
+          finalize()
         break
       }
       case 'error': {
@@ -452,9 +421,6 @@ export function createSessionState(
         const model = (parsed as Record<string, unknown>).model
         if (typeof model === 'string' && model.length > 0)
           modelLabel = model
-        const voice = (parsed as Record<string, unknown>).voice
-        if (typeof voice === 'string' && voice.length > 0)
-          voiceLabel = voice
       }
     }
     catch {
@@ -475,7 +441,7 @@ export function createSessionState(
     }
 
     const upstreamConfig = unspeech?.streaming
-    if (!unspeech?.restBaseURL || !upstreamConfig?.baseURL || (analytics.credentialMode === 'official' && upstreamConfig.keys.length === 0)) {
+    if (!unspeech?.restBaseURL || !upstreamConfig?.baseURL || (!isByok && upstreamConfig.keys.length === 0)) {
       closeWithError(1008, 'streaming_tts_not_configured')
       return false
     }
@@ -512,14 +478,14 @@ export function createSessionState(
     return true
   }
 
-  async function completeSession(units: number, reason: string) {
-    if (completed)
+  async function billSession(units: number, reason: string) {
+    if (billed)
       return
-    completed = true
+    billed = true
     span.setAttribute(GEN_AI_ATTR_REQUEST_MODEL, modelLabel)
 
     let fluxConsumed = 0
-    if (analytics.credentialMode === 'official' && units > 0) {
+    if (!isByok) {
       let flux: Awaited<ReturnType<FluxService['getFlux']>>
       try {
         flux = await opts.fluxService.getFlux(userId)
@@ -538,14 +504,12 @@ export function createSessionState(
             currentBalance: flux.flux,
             requestId,
             metadata: { model: modelLabel },
+            turnId: analyticsInput.turnId,
           }))
         fluxConsumed = result.fluxDebited
         span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
       }
       catch (err) {
-        // Billing failure is surfaced but does not retroactively reject the
-        // already-delivered audio — the user got the audio, the meter retains
-        // the debt for the next request to settle (per FluxMeter rollback path).
         log.withError(err).withFields({ userId, units, reason }).error('billing accumulate failed for streaming tts')
         span.recordException(err as Error)
         span.setStatus({ code: SpanStatusCode.ERROR, message: 'billing_failed' })
@@ -566,22 +530,6 @@ export function createSessionState(
       log.withError(err).warn('failed to write request log for streaming tts')
     }
 
-    void opts.productEventService.track({
-      userId,
-      feature: 'tts',
-      action: 'speech_succeeded',
-      status: 'succeeded',
-      source: analytics.source,
-      model: modelLabel,
-      metadata: {
-        input_chars: units,
-        duration_ms: durationMs,
-        flux_consumed: fluxConsumed,
-        trigger: analytics.trigger,
-        ...streamingSessionMetadata(voiceLabel, analytics),
-      },
-    })
-
     finalize()
   }
 
@@ -589,7 +537,8 @@ export function createSessionState(
     if (closed)
       return
     closed = true
-    wipeByokKey()
+    byokKey?.fill(0)
+    byokKey = null
     try {
       upstreamWs?.close()
     }
@@ -604,22 +553,9 @@ export function createSessionState(
   function closeWithError(code: number, reason: string) {
     if (closed)
       return
+    byokKey?.fill(0)
+    byokKey = null
     span.setStatus({ code: SpanStatusCode.ERROR, message: reason })
-    void opts.productEventService.track({
-      userId,
-      feature: 'tts',
-      action: 'speech_failed',
-      status: 'failed',
-      source: analytics.source,
-      model: modelLabel,
-      reason,
-      metadata: {
-        close_code: code,
-        duration_ms: Date.now() - startedAt,
-        trigger: analytics.trigger,
-        ...streamingSessionMetadata(voiceLabel, analytics),
-      },
-    })
     if (clientWs) {
       try {
         clientWs.send(JSON.stringify({ event: 'error', code: reason, message: reason }))
@@ -631,32 +567,14 @@ export function createSessionState(
       catch {}
     }
     closed = true
-    wipeByokKey()
     span.end()
   }
 
   function closeWithBlockedPreflight(code: number, reason: string) {
     if (closed)
       return
-    void opts.productEventService.track({
-      userId,
-      feature: 'tts',
-      action: 'speech_blocked',
-      status: 'blocked',
-      source: analytics.source,
-      model: modelLabel,
-      reason: 'insufficient_balance',
-      metadata: {
-        block_reason: 'insufficient_balance',
-        balance_state: 'insufficient',
-        flux_balance_bucket: fluxBalanceBucket(preflightFluxBalance),
-        billing_units: STREAMING_PREFLIGHT_CHARS_ESTIMATE,
-        close_code: code,
-        duration_ms: Date.now() - startedAt,
-        trigger: analytics.trigger,
-        ...streamingSessionMetadata(voiceLabel, analytics),
-      },
-    })
+    byokKey?.fill(0)
+    byokKey = null
     if (clientWs) {
       try {
         clientWs.send(JSON.stringify({ event: 'error', code: reason, message: reason }))
@@ -668,13 +586,7 @@ export function createSessionState(
       catch {}
     }
     closed = true
-    wipeByokKey()
     span.end()
-  }
-
-  function wipeByokKey() {
-    byokKey?.fill(0)
-    byokKey = null
   }
 
   return {
@@ -682,78 +594,6 @@ export function createSessionState(
     dialUpstream,
     handleClientMessage,
     handleClientClose,
-  }
-}
-
-function normalizeAnalytics(input: AudioSpeechSessionAnalytics): Required<AudioSpeechSessionAnalytics> {
-  return {
-    trigger: normalizeTrigger(input.trigger),
-    source: normalizeSource(input.source),
-    voiceType: normalizeVoiceType(input.voiceType),
-    credentialMode: input.credentialMode === 'byok' ? 'byok' : 'official',
-    providerId: normalizeProviderId(input.providerId),
-  }
-}
-
-function normalizeTrigger(trigger: AudioSpeechSessionAnalytics['trigger']): StreamingTtsTrigger {
-  return trigger === 'auto' ? 'auto' : 'manual'
-}
-
-function normalizeSource(source: AudioSpeechSessionAnalytics['source']): StreamingTtsSource {
-  switch (source) {
-    case 'audio.speech.ws':
-    case 'chat_auto_tts':
-    case 'manual_preview':
-    case 'settings_test':
-      return source
-    default:
-      return 'audio.speech.ws'
-  }
-}
-
-/**
- * Normalizes streaming TTS voice type into bounded analytics values.
- */
-function normalizeVoiceType(voiceType: AudioSpeechSessionAnalytics['voiceType']): StreamingTtsVoiceType {
-  switch (voiceType) {
-    case 'official_default':
-    case 'official_selected':
-    case 'custom_configured':
-    case 'voice_pack':
-      return voiceType
-    default:
-      return 'unknown'
-  }
-}
-
-/**
- * Builds reusable streaming TTS voice metadata after the start frame is known.
- */
-function streamingVoiceMetadata(voiceId: string | undefined, voiceType: StreamingTtsVoiceType): Record<string, unknown> {
-  return {
-    ...(voiceId ? { voice_id: voiceId } : {}),
-    voice_type: voiceType,
-  }
-}
-
-function streamingSessionMetadata(
-  voiceId: string | undefined,
-  analytics: Required<AudioSpeechSessionAnalytics>,
-): Record<string, unknown> {
-  return {
-    ...streamingVoiceMetadata(voiceId, analytics.voiceType),
-    credential_mode: analytics.credentialMode,
-    provider_id: analytics.providerId,
-  }
-}
-
-function normalizeProviderId(providerId: AudioSpeechSessionAnalytics['providerId']): StreamingTtsProviderId {
-  switch (providerId) {
-    case 'official-provider-speech-streaming':
-    case 'volcengine-streaming':
-      return providerId
-    default:
-      return 'unknown'
   }
 }
 
@@ -770,29 +610,6 @@ interface StreamingTtsStartFrame {
   event: 'start'
   model: string
   voice: string
-}
-
-interface StreamingTtsCredentialsFrame {
-  event: 'credentials'
-  provider: 'volcengine'
-  apiKey: string
-}
-
-function parseCredentialsFrame(rawText: string): StreamingTtsCredentialsFrame | null {
-  try {
-    const parsed = JSON.parse(rawText) as Record<string, unknown>
-    if (parsed.event !== 'credentials' || parsed.provider !== 'volcengine')
-      return null
-    if (typeof parsed.api_key !== 'string')
-      return null
-    const apiKey = parsed.api_key.trim()
-    if (apiKey.length === 0 || apiKey.length > 4096)
-      return null
-    return { event: 'credentials', provider: 'volcengine', apiKey }
-  }
-  catch {
-    return null
-  }
 }
 
 function parseStartFrame(rawText: string): StreamingTtsStartFrame | null {

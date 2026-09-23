@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { EmotionPayload } from '@proj-airi/stage-ui/constants/emotions'
-import type { ChatProvider, SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
@@ -9,12 +9,13 @@ import { useDelayMessageQueue, useEmotionsMessageQueue } from '@proj-airi/stage-
 import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '@proj-airi/stage-ui/constants/emotions'
 import { useAudioContext, useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { createQueue } from '@proj-airi/stream-kit'
 import { generateSpeech } from '@xsai/generate-speech'
@@ -43,7 +44,9 @@ onMounted(async () => {
   setupAnalyser()
 })
 
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+
+const providerStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
 const { activeSpeechProvider, activeSpeechVoice, activeSpeechModel, ssmlEnabled, pitch } = storeToRefs(speechStore)
 const consciousnessStore = useConsciousnessStore()
@@ -77,7 +80,7 @@ const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const nowSpeaking = ref(false)
 const logLines = ref<string[]>([])
 const chatInput = ref('')
-const chatOrchestrator = useChatOrchestratorStore()
+const chatOrchestrator = useChatStore()
 const chatSession = useChatSessionStore()
 const chatMaintenance = useChatMaintenanceStore()
 const chatMessages = computed(() => {
@@ -156,7 +159,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
     if (!request.text && !request.special)
       return null
 
-    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+    const providerConfig = providerStore.getProviderConfig(activeSpeechProvider.value)
     const input = ssmlEnabled.value
       ? speechStore.generateSSML(request.text, activeSpeechVoice.value, { ...providerConfig, pitch: pitch.value })
       : request.text
@@ -199,7 +202,7 @@ async function sendChat() {
   if (!content)
     return
 
-  const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+  const provider = await providersStore.getChatProviderInstance(activeChatProvider.value)
   if (!provider || !activeChatModel.value) {
     log('未配置聊天模型或 provider')
     return
@@ -208,7 +211,7 @@ async function sendChat() {
   try {
     await chatOrchestrator.ingest(content, {
       model: activeChatModel.value,
-      chatProvider: provider as ChatProvider,
+      chatProvider: provider,
     })
     chatInput.value = ''
   }
@@ -275,6 +278,7 @@ onUnmounted(() => {
         <ThreeScene
           v-if="stageModelRenderer === 'vrm'"
           ref="sceneRef"
+          :model-id="stageModelSelected"
           :model-src="stageModelSelectedUrl"
           :idle-animation="animations.idleLoop.toString()"
           :current-audio-source="currentAudioSource"

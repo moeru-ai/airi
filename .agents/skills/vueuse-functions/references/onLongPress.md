@@ -37,11 +37,11 @@ onLongPress(
 <template>
   <p>Long Pressed: {{ longPressedHook }}</p>
 
-  <button ref="htmlRefHook" class="button small ml-2">
+  <button ref="htmlRefHook" class="ml-2 button small">
     Press long
   </button>
 
-  <button class="button small ml-2" @click="resetHook">
+  <button class="ml-2 button small" @click="resetHook">
     Reset
   </button>
 </template>
@@ -85,8 +85,8 @@ You can provide an `onMouseUp` callback to be notified when the pointer is relea
 import { onLongPress } from '@vueuse/core'
 
 onLongPress(target, handler, {
-  onMouseUp(duration, distance, isLongPress) {
-    console.log(`Held for ${duration}ms, moved ${distance}px, long press: ${isLongPress}`)
+  onMouseUp(duration, distance, isLongPress, pointerEvent) {
+    console.log(`Held for ${duration}ms, moved ${distance}px, long press: ${isLongPress}, x: ${pointerEvent.clientX}`)
   },
 })
 ```
@@ -134,13 +134,13 @@ function resetComponent() {
 
   <OnLongPress
     as="button"
-    class="button small ml-2"
+    class="ml-2 button small"
     @trigger="onLongPressCallbackComponent"
   >
     Press long
   </OnLongPress>
 
-  <button class="button small ml-2" @click="resetComponent">
+  <button class="ml-2 button small" @click="resetComponent">
     Reset
   </button>
 </template>
@@ -168,19 +168,19 @@ function resetDirective() {
 
   <button
     v-on-long-press.prevent="onLongPressCallbackDirective"
-    class="button small ml-2"
+    class="ml-2 button small"
   >
     Press long
   </button>
 
   <button
     v-on-long-press="[onLongPressCallbackDirective, { delay: 1000, modifiers: { stop: true } }]"
-    class="button small ml-2"
+    class="ml-2 button small"
   >
     Press long (with options)
   </button>
 
-  <button class="button small ml-2" @click="resetDirective">
+  <button class="ml-2 button small" @click="resetDirective">
     Reset
   </button>
 </template>
@@ -208,8 +208,14 @@ export interface OnLongPressOptions {
    * @param duration how long the element was pressed in ms
    * @param distance distance from the pointerdown position
    * @param isLongPress whether the action was a long press or not
+   * @param pointerEvent the native {@link PointerEvent} triggered by the browser
    */
-  onMouseUp?: (duration: number, distance: number, isLongPress: boolean) => void
+  onMouseUp?: (
+    duration: number,
+    distance: number,
+    isLongPress: boolean,
+    pointerEvent: PointerEvent,
+  ) => void
 }
 export interface OnLongPressModifiers {
   stop?: boolean

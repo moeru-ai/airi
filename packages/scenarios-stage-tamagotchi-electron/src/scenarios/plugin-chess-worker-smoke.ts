@@ -1,6 +1,6 @@
-import type { StageTamagotchiScenarioContext } from '../context.ts'
+import type { StageTamagotchiScenarioContext } from '../context'
 
-import { defineStageTamagotchiScenario } from '../context.ts'
+import { defineStageTamagotchiScenario } from '../context'
 
 type ElectronApplication = StageTamagotchiScenarioContext['electronApp']
 type Page = Parameters<StageTamagotchiScenarioContext['capture']>[1]

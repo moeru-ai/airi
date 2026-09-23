@@ -1,5 +1,3 @@
-import type Redis from 'ioredis'
-
 import type { Database } from '../../../../libs/db'
 import type { createConfigKVService } from '../../../adapters/config-kv'
 
@@ -7,6 +5,7 @@ import { and, eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../../libs/mock-db'
+import { createTestRedis } from '../../../../libs/tests/redis'
 import { userFluxRedisKey } from '../../../../utils/redis-keys'
 import { createBillingService } from '../billing-service'
 
@@ -22,24 +21,10 @@ function createMockConfigKV(overrides: Record<string, number> = {}): ReturnType<
   } as any
 }
 
-function createMockRedis(): Redis {
-  const store = new Map<string, string>()
-  return {
-    get: vi.fn(async (key: string) => store.get(key) ?? null),
-    set: vi.fn(async (key: string, value: string) => {
-      store.set(key, value)
-      return 'OK'
-    }),
-    del: vi.fn(async (key: string) => {
-      const existed = store.delete(key)
-      return existed ? 1 : 0
-    }),
-  } as unknown as Redis
-}
-
 describe('billingService', () => {
   let db: Database
-  let redis: Redis
+  let redis: ReturnType<typeof createTestRedis>
+  let set: ReturnType<typeof vi.spyOn>
   let billingService: ReturnType<typeof createBillingService>
 
   beforeAll(async () => {
@@ -53,89 +38,12 @@ describe('billingService', () => {
   })
 
   beforeEach(async () => {
-    redis = createMockRedis()
+    redis = createTestRedis()
+    set = vi.spyOn(redis, 'set')
     billingService = createBillingService(db, redis, createMockConfigKV())
 
     await db.delete(schema.fluxTransaction)
     await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
-    await db.delete(schema.stripeCheckoutSession).where(eq(schema.stripeCheckoutSession.stripeSessionId, 'sess-billing-1'))
-
-    await db.insert(schema.stripeCheckoutSession).values({
-      userId: 'user-billing-1',
-      stripeSessionId: 'sess-billing-1',
-      mode: 'payment',
-      status: 'complete',
-      paymentStatus: 'paid',
-      amountTotal: 500,
-      currency: 'usd',
-      fluxCredited: false,
-    })
-  })
-
-  describe('creditFluxFromStripeCheckout', () => {
-    it('credits flux, records transaction, and enqueues outbox events in one transaction', async () => {
-      const result = await billingService.creditFluxFromStripeCheckout({
-        stripeEventId: 'stripe-evt-1',
-        userId: 'user-billing-1',
-        stripeSessionId: 'sess-billing-1',
-        amountTotal: 500,
-        currency: 'usd',
-        fluxAmount: 50,
-      })
-
-      expect(result).toEqual({ applied: true, balanceAfter: 50 })
-
-      const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
-      expect(fluxRecord?.flux).toBe(50)
-
-      // Verify transaction entry
-      const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
-      expect(txRecords).toHaveLength(1)
-      expect(txRecords[0]?.type).toBe('credit')
-      expect(txRecords[0]?.amount).toBe(50)
-      expect(txRecords[0]?.balanceBefore).toBe(0)
-      expect(txRecords[0]?.balanceAfter).toBe(50)
-
-      // Verify metadata on transaction entry
-      expect(txRecords[0]?.metadata).toMatchObject({
-        stripeEventId: 'stripe-evt-1',
-        stripeSessionId: 'sess-billing-1',
-        source: 'stripe.checkout.completed',
-      })
-
-      // Verify stripe session marked as credited
-      const [sessionRecord] = await db.select().from(schema.stripeCheckoutSession).where(eq(schema.stripeCheckoutSession.stripeSessionId, 'sess-billing-1'))
-      expect(sessionRecord?.fluxCredited).toBe(true)
-
-      // Verify Redis cache updated
-      expect(redis.set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '50')
-    })
-
-    it('is idempotent when the checkout session was already credited', async () => {
-      await billingService.creditFluxFromStripeCheckout({
-        stripeEventId: 'stripe-evt-1',
-        userId: 'user-billing-1',
-        stripeSessionId: 'sess-billing-1',
-        amountTotal: 500,
-        currency: 'usd',
-        fluxAmount: 50,
-      })
-
-      const second = await billingService.creditFluxFromStripeCheckout({
-        stripeEventId: 'stripe-evt-1',
-        userId: 'user-billing-1',
-        stripeSessionId: 'sess-billing-1',
-        amountTotal: 500,
-        currency: 'usd',
-        fluxAmount: 50,
-      })
-
-      expect(second).toEqual({ applied: false })
-
-      // Idempotent replay must not double-write the ledger
-      const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
-      expect(txRecords).toHaveLength(1)
-    })
   })
 
   describe('consumeFluxForLLM', () => {
@@ -179,7 +87,7 @@ describe('billingService', () => {
       })
 
       // Verify Redis cache updated
-      expect(redis.set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '70')
+      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '70', 'EX', 60)
     })
 
     // ROOT CAUSE:
@@ -230,7 +138,7 @@ describe('billingService', () => {
 
       // Redis cache reflects the zero balance, so the next pre-flight gate
       // (`flux < fallbackRate`) rejects immediately.
-      expect(redis.set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '0')
+      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '0', 'EX', 60)
     })
 
     it('throws 402 when balance is already zero (no ledger row, no balance change)', async () => {
@@ -292,6 +200,7 @@ describe('billingService', () => {
       expect(result.balanceAfter).toBe(50)
       expect(result.balanceBefore).toBe(0)
       expect(result.idempotent).toBe(false)
+      expect(await redis.ttl(userFluxRedisKey('user-billing-1'))).toBeGreaterThan(0)
 
       // Verify transaction
       const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
@@ -361,6 +270,26 @@ describe('billingService', () => {
     })
   })
 
+  it('sets a TTL when synchronizing a committed payment balance', async () => {
+    await billingService.syncFluxCache('user-billing-1', 123)
+    expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '123', 'EX', 60)
+    expect(await redis.ttl(userFluxRedisKey('user-billing-1'))).toBeGreaterThan(0)
+  })
+
+  it('keeps a committed credit when the cache write fails', async () => {
+    vi.spyOn(redis, 'set').mockRejectedValueOnce(new Error('redis unavailable'))
+    const result = await billingService.creditFlux({
+      userId: 'user-billing-1',
+      amount: 50,
+      description: 'grant',
+      source: 'test',
+    })
+    expect(result.balanceAfter).toBe(50)
+    const [row] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
+    expect(row?.flux).toBe(50)
+    expect(await db.select().from(schema.fluxTransaction)).toHaveLength(1)
+  })
+
   describe('setFlux', () => {
     it('sets the balance to an absolute value and records an admin_set ledger row', async () => {
       // Start from a known balance so the delta direction is observable.
@@ -412,6 +341,7 @@ describe('billingService', () => {
     it('initializes a user_flux row when none exists and invalidates the Redis cache', async () => {
       // Pre-warm the cache with a stale value to prove setFlux drops it.
       await redis.set(userFluxRedisKey('user-billing-1'), '999')
+      const del = vi.spyOn(redis, 'del')
 
       const result = await billingService.setFlux({
         userId: 'user-billing-1',
@@ -423,7 +353,7 @@ describe('billingService', () => {
       expect(result.balanceBefore).toBe(0)
       expect(result.balanceAfter).toBe(42)
       // Invalidate, not write: next getFlux miss reloads truth from Postgres.
-      expect(redis.del).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'))
+      expect(del).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'))
       expect(await redis.get(userFluxRedisKey('user-billing-1'))).toBeNull()
     })
   })

@@ -114,7 +114,7 @@ Project AIRI の DevLog 更新が遅れてしまい申し訳ありません。�
 
 #### xsAI 🤗 Transformers.js の誕生
 
-VAD、ASR、チャット、TTS デモのために行った作業により、[xsAI 🤗 Transformers.js](https://github.com/proj-airi/xsai-transformers) という新しいサイドプロジェクトが生まれました。これは、以前の成功したプロジェクト [xsAI](https://github.com/moeru-ai/xsai) との API 互換性を維持しながら、WebGPU 駆動のモデル推論の呼び出しとワーカーを使用したサービス提供を簡素化します。
+VAD、ASR、チャット、TTS デモのために行った作業により、[xsAI 🤗 Transformers.js](https://github.com/moeru-ai/xsai-transformers) という新しいサイドプロジェクトが生まれました。これは、以前の成功したプロジェクト [xsAI](https://github.com/moeru-ai/xsai) との API 互換性を維持しながら、WebGPU 駆動のモデル推論の呼び出しとワーカーを使用したサービス提供を簡素化します。
 
 これのためのプレイグラウンドも作成しました... [https://xsai-transformers.netlify.app](https://xsai-transformers.netlify.app) で遊んでみてください。
 

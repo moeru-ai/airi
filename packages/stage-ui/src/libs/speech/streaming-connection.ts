@@ -7,7 +7,7 @@
  */
 export interface StreamingTtsConnection {
   credentialMode: 'official' | 'byok'
-  providerId: 'official-provider-speech-streaming' | 'volcengine-streaming'
+  providerId: string
   /** Plaintext credential used only for a BYOK upstream handshake. */
   apiKey?: string
 }

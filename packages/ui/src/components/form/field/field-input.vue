@@ -18,6 +18,8 @@ const props = withDefaults(defineProps<{
    * through other means (e.g. all fields are required).
    */
   required?: boolean
+  /** Disables editing and focus on the input. */
+  disabled?: boolean
   /**
    * Suppress the `*` indicator next to the label without disabling the
    * underlying HTML5 `required` validation. Useful for forms where every
@@ -60,6 +62,7 @@ const modelValue = defineModel<T>({ required: false })
         :placeholder="props.placeholder"
         :autocomplete="props.autocomplete"
         :required="props.required"
+        :disabled="props.disabled"
         :class="props.inputClass"
       />
       <Input
@@ -69,6 +72,7 @@ const modelValue = defineModel<T>({ required: false })
         :placeholder="props.placeholder"
         :autocomplete="props.autocomplete"
         :required="props.required"
+        :disabled="props.disabled"
         :class="props.inputClass"
       />
       <textarea
@@ -78,6 +82,7 @@ const modelValue = defineModel<T>({ required: false })
         :placeholder="props.placeholder"
         :autocomplete="props.autocomplete"
         :required="props.required"
+        :disabled="props.disabled"
         :class="[
           props.inputClass,
           'focus:primary-300 dark:focus:primary-400/50 border-2 border-solid border-neutral-100 dark:border-neutral-900',

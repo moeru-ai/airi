@@ -6,33 +6,41 @@ import {
   ProviderSettingsLayout,
   SpeechPlayground,
 } from '@proj-airi/stage-ui/components'
-import { getVolcengineStreamingDefaultModel, streamingSynthesize, VOLCENGINE_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs'
+import { selectProviderMetadata, streamingSynthesize, VOLCENGINE_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Button, Callout, ComboboxSelect } from '@proj-airi/ui'
+import { computedAsync, watchDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+const providerConfigStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
 const { isAuthenticated, needsLogin } = storeToRefs(authStore)
-const { providers } = storeToRefs(providersStore)
 
 const providerId = VOLCENGINE_STREAMING_PROVIDER_ID
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
-const providerConfig = computed(() => providersStore.getProviderConfig(providerId))
+const providerMetadata = computedAsync(() => selectProviderMetadata(
+  providersStore.getProviderDefinition(providerId),
+  t,
+  { id: providerId },
+))
+const providerConfig = computed(() => providerConfigStore.getProviderConfig(providerId))
 
+const draftApiKey = ref('')
+const keyEdited = ref(false)
 const apiKey = computed({
-  get: () => (providers.value[providerId]?.apiKey as string | undefined) ?? '',
+  get: () => draftApiKey.value,
   set: (value: string) => {
-    providers.value[providerId] ??= {}
-    providers.value[providerId].apiKey = value
+    keyEdited.value = true
+    draftApiKey.value = value
   },
 })
 const apiKeyConfigured = computed(() => apiKey.value.trim().length > 0)
@@ -43,8 +51,7 @@ const discoveredDefaultModel = ref<string | null>(null)
 const model = computed({
   get: () => (providerConfig.value?.model as string | undefined) ?? discoveredDefaultModel.value ?? '',
   set: (value: string) => {
-    providers.value[providerId] ??= {}
-    providers.value[providerId].model = value
+    void providerConfigStore.setProviderModel(providerId, value)
   },
 })
 const modelOptions = computed(() => providerModels.value.map(item => ({ label: item.name, value: item.id })))
@@ -67,10 +74,10 @@ async function loadVoices() {
 async function loadCatalog() {
   if (!isAuthenticated.value)
     return
-  await providersStore.fetchModelsForProvider(providerId)
-  discoveredDefaultModel.value = getVolcengineStreamingDefaultModel() ?? providerModels.value[0]?.id ?? null
-  if (!providerConfig.value.model && discoveredDefaultModel.value)
-    model.value = discoveredDefaultModel.value
+  const catalog = await providersStore.fetchModelsForProvider(providerId)
+  discoveredDefaultModel.value = catalog.defaultModel ?? catalog.models[0]?.id ?? null
+  if (discoveredDefaultModel.value)
+    await providerConfigStore.setProviderModelIfUnset(providerId, discoveredDefaultModel.value)
   await loadVoices()
 }
 
@@ -106,15 +113,29 @@ function handleLogin() {
   needsLogin.value = true
 }
 
-onMounted(async () => {
-  providersStore.initializeProvider(providerId)
-  await loadCatalog()
-})
+watch(() => providerConfig.value?.apiKey, (value) => {
+  if (typeof value === 'string' && !keyEdited.value)
+    draftApiKey.value = value
+}, { immediate: true })
+
+watchDebounced(draftApiKey, async (key) => {
+  if (!keyEdited.value)
+    return
+  providerConfigStore.ensureProvider(providerId, providerId)
+  await providerConfigStore.updateProviderConfig(providerId, { ...providerConfig.value, apiKey: key }, 'unconfigured')
+  if (key.trim()) {
+    await providersStore.initializeProvider(providerId)
+    await loadCatalog()
+  }
+}, { debounce: 500 })
 
 watch(isAuthenticated, async (authenticated) => {
-  if (authenticated)
+  if (authenticated) {
+    providerConfigStore.ensureProvider(providerId, providerId)
+    await providersStore.initializeProvider(providerId)
     await loadCatalog()
-})
+  }
+}, { immediate: true })
 
 watch(model, async () => {
   await loadVoices()
@@ -123,6 +144,7 @@ watch(model, async () => {
 
 <template>
   <ProviderSettingsLayout
+    v-if="providerMetadata"
     :provider-name="providerMetadata.localizedName"
     :provider-icon-color="providerMetadata.iconColor"
     :on-back="() => router.back()"

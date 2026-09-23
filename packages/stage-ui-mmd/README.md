@@ -45,6 +45,7 @@ import { MMDScene, useMMD } from '@proj-airi/stage-ui-mmd'
 ```vue
 <MMDScene
   v-model:state="state"
+  :audio-context="audioContext"
   :model-src="modelUrl"
   :cursor-position="cursorPosition"
   :current-audio-source="audioSource"

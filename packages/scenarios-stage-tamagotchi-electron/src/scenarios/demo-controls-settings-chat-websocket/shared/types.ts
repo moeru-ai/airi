@@ -1,6 +1,6 @@
 import type { VishotArtifact } from '@vishot/source-electron'
 
-import type { StageTamagotchiScenarioContext } from '../../../context.ts'
+import type { StageTamagotchiScenarioContext } from '../../../context'
 
 export type ManualSectionId = 'overview' | 'settings' | 'devtools'
 export type ManualCaptureStepKind = 'main-window' | 'controls-island' | 'chat-window' | 'settings-overview' | 'settings-route' | 'connection'

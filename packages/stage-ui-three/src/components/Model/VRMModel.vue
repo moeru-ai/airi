@@ -98,6 +98,7 @@ import {
 
 /*
   * Props:
+  * - modelId: stable display model identity
   * - modelSrc: model src string to load model asset
   * - idleAnimation: animation src for model
   * - loadAnimations: TBC
@@ -108,9 +109,14 @@ import {
   * - modelRotationY: The rotation of the model (y-axis)
 */
 const props = withDefaults(defineProps<{
+  /** The context that owns `currentAudioSource`. */
+  audioContext?: AudioContext
   currentAudioSource?: AudioBufferSourceNode
   cursorPosition?: { x: number, y: number }
-  lastCommittedModelSrc?: string
+  /** The stable identity of the last model that completed scene binding. */
+  lastCommittedModelId?: string
+  /** Stable display model identity. Runtime resource URLs can change across reloads. */
+  modelId: string
   modelSrc?: string
   idleAnimation: string
   // loadAnimations?: string[]
@@ -148,8 +154,10 @@ const emit = defineEmits<{
 }>()
 
 const {
+  audioContext,
   currentAudioSource,
-  lastCommittedModelSrc,
+  lastCommittedModelId,
+  modelId,
   modelSrc,
   idleAnimation,
   // loadAnimations, // TBC
@@ -194,8 +202,11 @@ type UpdatableMaterial = Material & {
 // Expressions
 const blink = useBlink()
 const idleEyeSaccades = useIdleEyeSaccades()
-const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
-const vrmLipSync = useVRMLipSync(currentAudioSource)
+// shallowRef: the composable object must stay non-reactive, otherwise Vue
+// deep-unwraps nested refs/computed (e.g. isEmoteActive) and breaks reads
+// like vrmEmote.value.isEmoteActive.value in the render loop.
+const vrmEmote = shallowRef<ReturnType<typeof useVRMEmote>>()
+const vrmLipSync = useVRMLipSync(audioContext, currentAudioSource)
 
 // For sky box update
 const nprProgramVersion = ref(0)
@@ -216,6 +227,13 @@ function measureFrameStep(enabled: boolean, fn: () => void) {
 
 function getRendererInstance() {
   return renderer?.instance as WebGLRenderer | undefined
+}
+
+function updateIblProbe(mode = normalizeEnvMode(envSelect.value)) {
+  if (!airiIblProbe && scene.value)
+    airiIblProbe = createIblProbeController(scene.value)
+
+  airiIblProbe?.update(mode, skyBoxIntensity.value, nprIrrSH.value ?? null)
 }
 
 function toErrorMessage(error: unknown) {
@@ -300,7 +318,19 @@ function clearActiveManagedVrmRefs() {
   interactionColliders.value = undefined
 }
 
+function applyModelTransform(group: Group) {
+  group.position.set(
+    modelOffset.value.x,
+    modelOffset.value.y,
+    modelOffset.value.z,
+  )
+  group.rotation.y = MathUtils.degToRad(modelRotationY.value)
+}
+
 function applyManagedVrmInstance(instance: ManagedVrmInstance) {
+  // A reload creates a new group while the saved transform can stay unchanged.
+  // Apply it during every commit because the value watchers will not run again.
+  applyModelTransform(instance.group)
   vrm.value = instance.vrm
   vrmGroup.value = instance.group
   vrmAnimationMixer.value = instance.mixer
@@ -450,14 +480,30 @@ function bindManagedVrmInstanceRenderLoop() {
     const lookAtMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.lookAt?.update?.(delta)
     })
+    const isEmoteActive = vrmEmote.value?.isEmoteActive?.value ?? false
+
     const blinkAndSaccadeMs = measureFrameStep(tracingEnabled, () => {
-      blink.update(activeVrm, delta)
-    })
-    const emoteMs = measureFrameStep(tracingEnabled, () => {
-      vrmEmote.value?.update(delta)
+      // The blink controller always advances so an emote starting mid-blink
+      // cannot leave the eyelid stuck; during an emote it only holds the
+      // blink morph at 0 instead of driving the sine curve.
+      blink.update(activeVrm, delta, { suppress: isEmoteActive })
     })
     const lipSyncMs = measureFrameStep(tracingEnabled, () => {
       vrmLipSync.update(activeVrm, delta)
+    })
+    // Read after lipSyncMs, not before: vrmLipSync.update() is what flips
+    // this flag for the current frame. Reading it earlier in the frame would
+    // hand the emote a stale value from the previous frame, letting it
+    // overwrite the mouth morph lip sync just wrote on the first frame of an
+    // utterance.
+    const isLipSyncActive = vrmLipSync.isLipSyncActive?.value ?? false
+    const emoteMs = measureFrameStep(tracingEnabled, () => {
+      // Runs after lip sync: while speech is active the emote yields viseme
+      // mouth morphs (skipVisemes), and once lip sync falls silent the emote
+      // re-asserts its mouth targets over lip sync's zeroed weights. The
+      // state machine keeps advancing either way, so emotion transitions and
+      // the reset timeout stay in sync during long utterances.
+      vrmEmote.value?.update(delta, { skipVisemes: isLipSyncActive })
     })
     const expressionMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.expressionManager?.update()
@@ -490,7 +536,16 @@ function bindManagedVrmInstanceRenderLoop() {
   }).off
 }
 
-function commitManagedVrmInstance(instance: ManagedVrmInstance) {
+function commitManagedVrmInstance(
+  instance: ManagedVrmInstance,
+  reason: 'initial-load' | 'model-reload' | 'model-switch',
+) {
+  // Keep the active model visible until its replacement is ready. No asynchronous
+  // work occurs between this cleanup and the replacement scene commit.
+  if (reason !== 'initial-load')
+    componentCleanUp(reason, { invalidate: false })
+
+  updateIblProbe()
   scene.value?.add(instance.group)
   applyManagedVrmInstance(instance)
   bindManagedVrmInstanceRenderLoop()
@@ -637,10 +692,10 @@ function buildSceneBootstrap(activeVrm: VRM, cacheHit: boolean): SceneBootstrap 
 }
 
 function resolveVrmLoadReason(): 'initial-load' | 'model-reload' | 'model-switch' {
-  if (!lastCommittedModelSrc.value)
+  if (!lastCommittedModelId.value)
     return 'initial-load'
 
-  if (lastCommittedModelSrc.value !== modelSrc.value)
+  if (lastCommittedModelId.value !== modelId.value)
     return 'model-switch'
 
   return 'model-reload'
@@ -696,13 +751,6 @@ async function loadModel() {
         nextVrmAnimationMixer = reusableInstance.mixer
         nextVrmEmote = reusableInstance.emote
 
-        if (!airiIblProbe && scene.value)
-          airiIblProbe = createIblProbeController(scene.value)
-
-        if (currentLoadReason === 'model-switch') {
-          componentCleanUp('model-switch', { invalidate: false })
-        }
-
         runVrmLoadHooks({
           cacheHit: true,
           camera: camera.value,
@@ -711,7 +759,7 @@ async function loadModel() {
           vrmGroup: reusableInstance.group,
         })
         emit('sceneBootstrap', buildSceneBootstrap(reusableInstance.vrm, true))
-        commitManagedVrmInstance(reusableInstance)
+        commitManagedVrmInstance(reusableInstance, currentLoadReason)
         didCommitLoad = true
 
         if (isStageThreeRuntimeTraceEnabled()) {
@@ -814,10 +862,6 @@ async function loadModel() {
       injectDiffuseIBL(mat)
     }
 
-    // MToon material sky box lightProbe setting
-    if (!airiIblProbe && scene.value)
-      airiIblProbe = createIblProbeController(scene.value)
-
     // Material traverse setting
     _vrm.scene.traverse((child) => {
       if (child instanceof Mesh && child.material) {
@@ -855,10 +899,6 @@ async function loadModel() {
       }
     })
 
-    if (currentLoadReason === 'model-switch') {
-      componentCleanUp('model-switch', { invalidate: false })
-    }
-
     emit('sceneBootstrap', buildSceneBootstrap(_vrm, false))
 
     const nextInteractionColliders = createVrmInteractionColliders(_vrm)
@@ -869,7 +909,7 @@ async function loadModel() {
       interactionColliders: nextInteractionColliders,
       mixer: nextVrmAnimationMixer,
       vrm: _vrm,
-    }))
+    }), currentLoadReason)
     didCommitLoad = true
 
     if (isStageThreeRuntimeTraceEnabled()) {
@@ -948,19 +988,13 @@ onMounted(async () => {
   }, { immediate: true })
   // update model position
   watch(modelOffset, () => {
-    if (vrmGroup.value) {
-      vrmGroup.value.position.set(
-        modelOffset.value.x,
-        modelOffset.value.y,
-        modelOffset.value.z,
-      )
-    }
+    if (vrmGroup.value)
+      applyModelTransform(vrmGroup.value)
   }, { immediate: true, deep: true })
   // update model rotation
-  watch(modelRotationY, (newRotationY) => {
-    if (vrmGroup.value) {
-      vrmGroup.value.rotation.y = MathUtils.degToRad(newRotationY)
-    }
+  watch(modelRotationY, () => {
+    if (vrmGroup.value)
+      applyModelTransform(vrmGroup.value)
   }, { immediate: true })
   // update NPR sky box
   watch([envSelect, skyBoxIntensity, nprIrrSH], async () => {
@@ -1000,7 +1034,7 @@ onMounted(async () => {
       intensity: skyBoxIntensity.value,
       sh: nprIrrSH.value ?? null,
     })
-    airiIblProbe?.update(mode, skyBoxIntensity.value, nprIrrSH.value ?? null)
+    updateIblProbe(mode)
   }, { immediate: true })
   watch(focusPos, (newPos) => {
     idleEyeSaccades.instantUpdate(vrm.value, newPos)

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { useMediaQuery } from '@vueuse/core'
 import { dirname, sep } from 'pathe'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Separator } from 'reka-ui'
 import { useData, useRoute } from 'vitepress'
@@ -22,6 +23,14 @@ watch(path, () => {
   isPopoverOpen.value = false
 })
 
+// Close the mobile menu when crossing to desktop: its teleported popup loses
+// its anchor once the trigger is hidden by xl:hidden and sticks to the corner.
+const isDesktop = useMediaQuery('(min-width: 1280px)')
+watch(isDesktop, (value) => {
+  if (value)
+    isPopoverOpen.value = false
+})
+
 function isNavLinkActive(link: string, path: string) {
   let normalizedLink = link.toLowerCase()
   normalizedLink = normalizedLink.split(sep).filter(Boolean).length > (site.value.base !== '' ? 3 : 2) ? `${dirname(normalizedLink)}/` : normalizedLink
@@ -33,7 +42,7 @@ function isNavLinkActive(link: string, path: string) {
 
 <template>
   <!-- eslint-disable vue/prefer-separate-static-class -->
-  <nav class="hidden items-center lg:flex">
+  <nav class="hidden items-center xl:flex">
     <template
       v-for="nav in theme.nav"
       :key="nav.text"
@@ -92,7 +101,7 @@ function isNavLinkActive(link: string, path: string) {
     </a>
   </nav>
 
-  <div class="lg:hidden">
+  <div class="xl:hidden">
     <DropdownMenuRoot v-model:open="isPopoverOpen">
       <DropdownMenuTrigger class="rounded-lg p-2">
         <Icon icon="lucide:ellipsis" class="text-lg" />

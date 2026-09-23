@@ -410,16 +410,16 @@ export interface UseFetchReturn<T> {
     payload?: MaybeRefOrGetter<unknown>,
     type?: string,
   ) => UseFetchReturn<T> & PromiseLike<UseFetchReturn<T>>
-  json: <JSON = any>() => UseFetchReturn<JSON>
-    & PromiseLike<UseFetchReturn<JSON>>
+  json: <JSON = any>() => UseFetchReturn<JSON> &
+    PromiseLike<UseFetchReturn<JSON>>
   text: () => UseFetchReturn<string> & PromiseLike<UseFetchReturn<string>>
   blob: () => UseFetchReturn<Blob> & PromiseLike<UseFetchReturn<Blob>>
-  arrayBuffer: () => UseFetchReturn<ArrayBuffer>
-    & PromiseLike<UseFetchReturn<ArrayBuffer>>
-  formData: () => UseFetchReturn<FormData>
-    & PromiseLike<UseFetchReturn<FormData>>
+  arrayBuffer: () => UseFetchReturn<ArrayBuffer> &
+    PromiseLike<UseFetchReturn<ArrayBuffer>>
+  formData: () => UseFetchReturn<FormData> &
+    PromiseLike<UseFetchReturn<FormData>>
 }
-type Combination = 'overwrite' | 'chain'
+type Combination = "overwrite" | "chain"
 export interface BeforeFetchContext {
   /**
    * The computed url of the current request

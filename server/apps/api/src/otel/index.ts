@@ -14,6 +14,7 @@ import { metrics, trace } from '@opentelemetry/api'
 import { logs, SeverityNumber } from '@opentelemetry/api-logs'
 
 import {
+  METRIC_AIRI_DB_POOL_CONNECTIONS,
   METRIC_AIRI_EMAIL_DURATION,
   METRIC_AIRI_EMAIL_FAILURES,
   METRIC_AIRI_EMAIL_SEND,
@@ -21,7 +22,6 @@ import {
   METRIC_AIRI_FLUX_UNBILLED,
   METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC,
   METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_RELOAD,
-  METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_WRITE,
   METRIC_AIRI_GEN_AI_GATEWAY_DECRYPT_FAILURES,
   METRIC_AIRI_GEN_AI_GATEWAY_FALLBACK_COUNT,
   METRIC_AIRI_GEN_AI_GATEWAY_KEY_EXHAUSTED_COUNT,
@@ -33,7 +33,6 @@ import {
   METRIC_AIRI_GEN_AI_GATEWAY_UPSTREAM_ERRORS,
   METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED,
   METRIC_AIRI_OBSERVABILITY_READ_ERRORS,
-  METRIC_AIRI_PRODUCT_EVENTS,
   METRIC_AIRI_RATE_LIMIT_BLOCKED,
   METRIC_AIRI_STRIPE_REVENUE,
   METRIC_AIRI_TTS_CHARS,
@@ -54,14 +53,8 @@ import {
   METRIC_STRIPE_CHECKOUT_COMPLETED,
   METRIC_STRIPE_CHECKOUT_CREATED,
   METRIC_STRIPE_EVENTS,
-  METRIC_STRIPE_PAYMENT_FAILED,
-  METRIC_STRIPE_SUBSCRIPTION_EVENT,
-  METRIC_USER_ACTIVE_ROLLING,
-  METRIC_USER_ACTIVE_SESSIONS,
-  METRIC_USER_DISTINCT_ACTIVE,
   METRIC_USER_LOGIN,
   METRIC_USER_REGISTERED,
-  METRIC_USER_TOTAL,
   METRIC_WS_CONNECTIONS_ACTIVE,
   METRIC_WS_MESSAGES_RECEIVED,
   METRIC_WS_MESSAGES_SENT,
@@ -75,73 +68,6 @@ export interface AuthMetrics {
   failures: Counter
   userRegistered: Counter
   userLogin: Counter
-  /**
-   * Pull-based gauge for total registered users.
-   *
-   * Use when:
-   * - Reporting current account-base size. Pair with
-   *   {@link AuthMetrics.userRegistered} for signup deltas over a time window.
-   *
-   * Expects:
-   * - Backed by `SELECT COUNT(*) FROM "user"`. Same cluster-wide truth as the
-   *   other DB-backed gauges; dashboards MUST aggregate with `max()`/`avg()`,
-   *   not `sum()`.
-   */
-  totalUsers: ObservableGauge
-  /**
-   * Cluster-wide active session count, sourced from Postgres (Better Auth
-   * `session` table where `expires_at > NOW()`).
-   *
-   * Why ObservableGauge instead of UpDownCounter:
-   * - UpDownCounter drifts: TTL expiration never fires a -1, and multi-
-   *   replica deploys split +1 / -1 across instances (signin on A, signout
-   *   on B). The previous implementation went unboundedly positive.
-   * - Reading from the source-of-truth DB at scrape time makes the metric
-   *   self-correcting.
-   *
-   * Multi-replica note:
-   * - Every replica reads the same DB and reports the same value, so the
-   *   dashboard MUST aggregate with `max()` (or `avg()`), NOT `sum()`.
-   *   Using sum() would multiply the real count by the replica count.
-   * - See `server/apps/api/docs/ai-context/observability-conventions.md`,
-   *   "Multi-Replica Considerations".
-   */
-  activeSessions: ObservableGauge
-  /**
-   * Pull-based gauge for distinct users with ≥1 non-expired session.
-   *
-   * Use when:
-   * - Querying real "active users" — not session rows. Better Auth creates a
-   *   new `session` row per sign-in and per OIDC token refresh, and never
-   *   GCs expired rows, so {@link AuthMetrics.activeSessions} drifts up
-   *   over time even when the actual user base is small.
-   *
-   * Expects:
-   * - Backed by `SELECT COUNT(DISTINCT user_id) FROM session WHERE expires_at > now()`.
-   *   Same cluster-wide truth as `activeSessions`; dashboards MUST aggregate
-   *   with `avg()`, not `sum()` — see observability-conventions.md.
-   */
-  distinctActiveUsers: ObservableGauge
-  /**
-   * Pull-based gauge for rolling-window distinct active users (DAU / WAU /
-   * MAU).
-   *
-   * Use when:
-   * - Reporting "how many users were active in the last 24h / 7d / 30d" —
-   *   the standard product-engagement funnel, distinct from
-   *   {@link AuthMetrics.distinctActiveUsers} which only counts users with a
-   *   currently-live session.
-   *
-   * Expects:
-   * - Backed by `COUNT(*) FILTER (WHERE last_seen_at > now() - window)` over
-   *   the `user` table. `last_seen_at` is touched on sign-in and on every
-   *   OIDC access-token refresh (~hourly), so it is a per-user last-activity
-   *   timestamp (see the `user.lastSeenAt` schema note).
-   * - Observed once per window with a `window` attribute (`24h` / `7d` /
-   *   `30d`). Same cluster-wide truth as the other DB-backed gauges;
-   *   dashboards MUST aggregate with `max()`/`avg()`, not `sum()`.
-   */
-  rollingActiveUsers: ObservableGauge
 }
 
 export interface EngagementMetrics {
@@ -163,7 +89,7 @@ export interface EngagementMetrics {
    *   scrape instead of leaking forever.
    *
    * Expects:
-   * - Caller (`createChatWsHandlers`) registers exactly one callback via
+   * - Caller (`createChatWsRuntime`) registers exactly one callback via
    *   `addCallback`. Multiple callbacks would double-count.
    */
   wsConnectionsActive: ObservableGauge
@@ -184,8 +110,6 @@ export interface EngagementMetrics {
 export interface RevenueMetrics {
   stripeCheckoutCreated: Counter
   stripeCheckoutCompleted: Counter
-  stripePaymentFailed: Counter
-  stripeSubscriptionEvent: Counter
   stripeEvents: Counter
   stripeRevenue: Counter
   fluxInsufficientBalance: Counter
@@ -241,12 +165,12 @@ export interface GatewayMetrics {
    */
   upstreamErrors: Counter
   /**
-   * All keys (across all upstreams) failed in a single request — the user gets
-   * a 5xx. Primary alert source for user-facing degradation.
-   * Recommended label: `provider`.
+   * The configured route exhausted every allowed key and upstream in one
+   * request. The user gets a 5xx. Primary alert source for user-facing
+   * degradation. Recommended labels: `provider`, `status_code`, `surface`.
    *
    * Recommended alert:
-   *   `increase(airi_gen_ai_gateway_key_exhausted_total[5m]) > 0` → page on-call.
+   *   Filter to operational status codes before paging on this metric.
    */
   keyExhaustedCount: Counter
   /**
@@ -278,13 +202,6 @@ export interface GatewayMetrics {
    * is dead.
    */
   subscriberState: Counter
-  /**
-   * Admin endpoint write events for `LLM_ROUTER_CONFIG`. Labels: `result`
-   * (`success` | `4xx` | `5xx`), `actor_email`. Audit-trail surrogate
-   * given v1 keeps the flat-admin-role permission model (R16a known
-   * limitation).
-   */
-  configWrite: Counter
   /**
    * Pub/Sub invalidation messages dropped because the HMAC did not verify.
    * >0 = forged or replayed message — investigate Redis access boundary.
@@ -325,29 +242,23 @@ export interface RateLimitMetrics {
 
 export interface ObservabilityMetrics {
   /**
-   * Counts failures inside metric-pipeline callbacks (e.g. a DB-backed
-   * ObservableGauge that couldn't read from Postgres). Use for self-monitoring
-   * — when this is rising, treat the affected gauge's reported value as
-   * potentially stale.
+   * Counts failures inside metric-pipeline callbacks (for example, a Redis-
+   * backed ObservableGauge that could not refresh). Use for self-monitoring —
+   * when this is rising, treat the affected gauge's value as potentially
+   * stale.
    *
    * Labels: `metric` (the failing gauge's logical name).
    */
   metricReadErrors: Counter
 }
 
-export interface ProductMetrics {
+export interface DatabaseMetrics {
   /**
-   * Low-cardinality product event counter.
-   *
-   * Use when:
-   * - Reporting feature/event volume in Prometheus and Grafana.
-   *
-   * Expects:
-   * - Labels stay bounded (`feature`, `action`, `status`, optional
-   *   `source`). Never attach `user_id`, `session_id`, request ids, models
-   *   with unbounded aliases, or free-form error messages here.
+   * Per-process pg pool counts. Labels: `pool_state` (`max`, `total`, `used`,
+   * `idle`, `waiting`). Use `used / max` for capacity and `waiting > 0` for
+   * saturation. Do not use `used / (used + idle)` as a capacity ratio.
    */
-  events: Counter
+  poolConnections: ObservableGauge
 }
 
 export interface OtelInstance {
@@ -356,10 +267,10 @@ export interface OtelInstance {
   revenue: RevenueMetrics
   genAi: GenAiMetrics
   gateway: GatewayMetrics
+  database: DatabaseMetrics
   email: EmailMetrics
   rateLimit: RateLimitMetrics
   observability: ObservabilityMetrics
-  product: ProductMetrics
 }
 
 /**
@@ -401,18 +312,6 @@ export function initOtel(env: Env): OtelInstance | null {
     userLogin: meter.createCounter(METRIC_USER_LOGIN, {
       description: 'Number of user sign-ins',
     }),
-    totalUsers: meter.createObservableGauge(METRIC_USER_TOTAL, {
-      description: 'Total registered users sourced from Postgres (cluster-wide; dashboard must use max(), not sum())',
-    }),
-    activeSessions: meter.createObservableGauge(METRIC_USER_ACTIVE_SESSIONS, {
-      description: 'Active user sessions sourced from Postgres (cluster-wide; dashboard must use avg(), not sum())',
-    }),
-    distinctActiveUsers: meter.createObservableGauge(METRIC_USER_DISTINCT_ACTIVE, {
-      description: 'Distinct users with ≥1 non-expired session — true active-user count, immune to per-row session inflation (cluster-wide; dashboard must use avg(), not sum())',
-    }),
-    rollingActiveUsers: meter.createObservableGauge(METRIC_USER_ACTIVE_ROLLING, {
-      description: 'Rolling-window distinct active users (DAU/WAU/MAU) from user.last_seen_at, labelled by window=24h|7d|30d (cluster-wide; dashboard must use max(), not sum())',
-    }),
   }
 
   // Engagement metrics
@@ -450,12 +349,6 @@ export function initOtel(env: Env): OtelInstance | null {
     }),
     stripeCheckoutCompleted: meter.createCounter(METRIC_STRIPE_CHECKOUT_COMPLETED, {
       description: 'Number of Stripe checkout sessions completed',
-    }),
-    stripePaymentFailed: meter.createCounter(METRIC_STRIPE_PAYMENT_FAILED, {
-      description: 'Number of failed Stripe payments',
-    }),
-    stripeSubscriptionEvent: meter.createCounter(METRIC_STRIPE_SUBSCRIPTION_EVENT, {
-      description: 'Number of Stripe subscription lifecycle events',
     }),
     stripeEvents: meter.createCounter(METRIC_STRIPE_EVENTS, {
       description: 'Number of Stripe webhook events processed',
@@ -533,9 +426,6 @@ export function initOtel(env: Env): OtelInstance | null {
     subscriberState: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_SUBSCRIBER_STATE, {
       description: 'Pub/Sub subscriber lifecycle state transitions',
     }),
-    configWrite: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_WRITE, {
-      description: 'Admin endpoint LLM_ROUTER_CONFIG write events (audit-trail surrogate)',
-    }),
     configInvalidHmac: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC, {
       description: 'Pub/Sub invalidation messages dropped due to HMAC mismatch (forged or replayed)',
     }),
@@ -575,9 +465,9 @@ export function initOtel(env: Env): OtelInstance | null {
     }),
   }
 
-  const product: ProductMetrics = {
-    events: meter.createCounter(METRIC_AIRI_PRODUCT_EVENTS, {
-      description: 'Low-cardinality product event volume. Distinct users live in Postgres product_events, not Prometheus labels.',
+  const database: DatabaseMetrics = {
+    poolConnections: meter.createObservableGauge(METRIC_AIRI_DB_POOL_CONNECTIONS, {
+      description: 'Local pg pool connections by capacity, use, idle, and waiting state',
     }),
   }
 
@@ -603,8 +493,6 @@ export function initOtel(env: Env): OtelInstance | null {
     engagement.wsMessagesReceived,
     revenue.stripeCheckoutCreated,
     revenue.stripeCheckoutCompleted,
-    revenue.stripePaymentFailed,
-    revenue.stripeSubscriptionEvent,
     revenue.stripeEvents,
     revenue.stripeRevenue,
     revenue.fluxInsufficientBalance,
@@ -624,17 +512,15 @@ export function initOtel(env: Env): OtelInstance | null {
     gateway.configReload,
     gateway.decryptFailures,
     gateway.subscriberState,
-    gateway.configWrite,
     gateway.configInvalidHmac,
     email.send,
     email.failures,
     rateLimit.blocked,
     observability.metricReadErrors,
-    product.events,
   ]
   for (const counter of counters) counter.add(0)
 
-  return { auth, engagement, revenue, genAi, gateway, email, rateLimit, observability, product }
+  return { auth, engagement, revenue, genAi, gateway, database, email, rateLimit, observability }
 }
 
 const severityMap: Record<string, SeverityNumber> = {

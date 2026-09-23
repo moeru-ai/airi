@@ -70,9 +70,9 @@ stop()
 ```ts
 export interface OnElementRemovalOptions
   extends
-  ConfigurableWindow,
-  ConfigurableDocumentOrShadowRoot,
-  WatchOptionsBase {}
+    ConfigurableWindow,
+    ConfigurableDocumentOrShadowRoot,
+    WatchOptionsBase {}
 /**
  * Fires when the element or any element containing it is removed.
  *

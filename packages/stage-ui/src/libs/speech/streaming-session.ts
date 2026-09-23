@@ -64,6 +64,7 @@ export interface StreamingTtsSessionOptions {
   ttsSource?: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
   /** Low-cardinality voice bucket sent to server-side product analytics. */
   ttsVoiceType?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
+  turnId?: string
   /** Caller-side abort signal. Closes the ws and rejects with `AbortError`. */
   signal?: AbortSignal
 }
@@ -99,6 +100,7 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
     ttsTrigger: options.ttsTrigger ?? 'manual',
     ttsSource: options.ttsSource ?? 'manual_preview',
     ttsVoiceType: options.ttsVoiceType ?? 'unknown',
+    turnId: options.turnId,
     connection: options.connection,
   })
 
@@ -255,6 +257,7 @@ function toWebSocketUrl(
     ttsTrigger: 'auto' | 'manual'
     ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
     ttsVoiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
+    turnId?: string
     connection: StreamingTtsConnection
   },
 ): string {
@@ -264,6 +267,8 @@ function toWebSocketUrl(
   u.searchParams.set('tts_trigger', analytics.ttsTrigger)
   u.searchParams.set('tts_source', analytics.ttsSource)
   u.searchParams.set('tts_voice_type', analytics.ttsVoiceType)
+  if (analytics.turnId)
+    u.searchParams.set('turn_id', analytics.turnId)
   u.searchParams.set('tts_credential_mode', analytics.connection.credentialMode)
   u.searchParams.set('tts_provider_id', analytics.connection.providerId)
   return u.toString()

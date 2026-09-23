@@ -63,19 +63,19 @@ Use `@dark:` regardless of config:
 presetWind3({
   // Dark mode strategy
   dark: 'class', // 'class' | 'media' | { light: '.light', dark: '.dark' }
-
+  
   // Generate pseudo selector as [group=""] instead of .group
   attributifyPseudo: false,
-
+  
   // CSS custom properties prefix
   variablePrefix: 'un-',
-
+  
   // Utils prefix
   prefix: '',
-
+  
   // Generate preflight CSS
   preflight: true, // true | false | 'on-demand'
-
+  
   // Mark all utilities as !important
   important: false, // boolean | string (selector)
 })
@@ -188,7 +188,7 @@ Generates:
 }
 ```
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/presets/wind3
 -->

@@ -16,7 +16,6 @@ pnpm add -D unocss
 ```ts
 // vite.config.ts
 import UnoCSS from 'unocss/vite'
-
 import { defineConfig } from 'vite'
 
 export default defineConfig({
@@ -134,10 +133,9 @@ Works out of the box with `@vitejs/plugin-vue`.
 ### Svelte
 
 ```ts
+import { svelte } from '@sveltejs/vite-plugin-svelte'
 import extractorSvelte from '@unocss/extractor-svelte'
 import UnoCSS from 'unocss/vite'
-
-import { svelte } from '@sveltejs/vite-plugin-svelte'
 
 export default {
   plugins: [
@@ -186,8 +184,8 @@ export default {
 ### Elm
 
 ```ts
-import UnoCSS from 'unocss/vite'
 import Elm from 'vite-plugin-elm'
+import UnoCSS from 'unocss/vite'
 
 export default {
   plugins: [
@@ -279,7 +277,7 @@ export const classes = {
 }
 ```
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/integrations/vite
 -->

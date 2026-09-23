@@ -97,21 +97,21 @@ export interface UntilToMatchOptions extends ConfigurableFlushSync {
    *
    * @default 'false'
    */
-  deep?: WatchOptions['deep']
+  deep?: WatchOptions["deep"]
 }
 export interface UntilBaseInstance<T, Not extends boolean = false> {
   toMatch: (<U extends T = T>(
     condition: (v: T) => v is U,
     options?: UntilToMatchOptions,
-  ) => Not extends true ? Promise<Exclude<T, U>> : Promise<U>)
-  & ((
-    condition: (v: T) => boolean,
-    options?: UntilToMatchOptions,
-  ) => Promise<T>)
+  ) => Not extends true ? Promise<Exclude<T, U>> : Promise<U>) &
+    ((
+      condition: (v: T) => boolean,
+      options?: UntilToMatchOptions,
+    ) => Promise<T>)
   changed: (options?: UntilToMatchOptions) => Promise<T>
   changedTimes: (n?: number, options?: UntilToMatchOptions) => Promise<T>
 }
-type Falsy = false | void | null | undefined | 0 | 0n | ''
+type Falsy = false | void | null | undefined | 0 | 0n | ""
 export interface UntilValueInstance<
   T,
   Not extends boolean = false,

@@ -3,12 +3,16 @@ import { defineInvoke } from '@moeru/eventa'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '@proj-airi/stage-ui/services/speech/bus'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { storeToRefs } from 'pinia'
 import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import InteractiveArea from '../components/InteractiveArea.vue'
 import WindowTitleBar from '../components/Window/TitleBar.vue'
+import ChatPageShell from './chat-page-shell.vue'
 
+const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
 const getOutputPlaybackState = defineInvoke(getSpeechBusContext(), speechOutputGetPlaybackState)
 const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton({
@@ -25,26 +29,13 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div h-full w-full pt="44px" overflow-y-scroll>
+  <ChatPageShell>
     <WindowTitleBar
-      title="Chat"
+      :title="activeCard?.name || 'AIRI'"
       icon="i-solar:chat-line-bold"
       @title-click="sessionsDrawerOpen = true"
     >
       <template #actions>
-        <button
-          data-testid="conversation-selector-button"
-          :class="[
-            'h-7 w-7 flex items-center justify-center rounded-md outline-none',
-            'text-base text-neutral-400 transition-colors transition-transform active:scale-95',
-            'hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
-          ]"
-          :title="t('stage.chat.sessions.title')"
-          :aria-label="t('stage.chat.sessions.title')"
-          @click="sessionsDrawerOpen = true"
-        >
-          <div class="i-solar:chat-line-bold-duotone" />
-        </button>
         <button
           data-testid="speech-mute-button"
           :class="[
@@ -66,10 +57,10 @@ const { t } = useI18n()
     </WindowTitleBar>
     <InteractiveArea
       class="interaction-area block"
-      h-full w-full p-4 transition="opacity duration-250"
+      h-full w-full transition="opacity duration-250"
     />
     <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
-  </div>
+  </ChatPageShell>
 </template>
 
 <route lang="yaml">

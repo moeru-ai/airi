@@ -91,7 +91,7 @@ type MapQueueTask<T extends any[]> = {
   [K in keyof T]: UseAsyncQueueTask<T[K]>
 }
 export interface UseAsyncQueueResult<T> {
-  state: 'aborted' | 'fulfilled' | 'pending' | 'rejected'
+  state: "aborted" | "fulfilled" | "pending" | "rejected"
   data: T | null
 }
 export interface UseAsyncQueueReturn<T> {

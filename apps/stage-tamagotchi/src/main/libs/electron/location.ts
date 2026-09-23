@@ -92,9 +92,19 @@ export async function load(window: BrowserWindow, url: string | { url: string, o
 }
 
 /**
- * A helper function to construct URL with hash route, which is commonly used in our app since we are using hash-based routing in renderer.
+ * Adds a hash route and optional query to an Electron renderer location.
+ *
+ * @example
+ * withHashRoute({ url: 'http://localhost:5173' }, '/about', {
+ *   query: { 'synced-leader': 'false' },
+ * })
+ * // => { url: 'http://localhost:5173/?synced-leader=false#/about' }
  */
-export function withHashRoute(baseUrl: string | { url: string } | { file: string }, hashRoute: string) {
+export function withHashRoute(
+  baseUrl: string | { url: string } | { file: string },
+  hashRoute: string,
+  options: Pick<LoadFileOptions, 'query'> = {},
+) {
   if (typeof baseUrl === 'object' && 'url' in baseUrl) {
     // trim `/` suffix
     const baseURLinURL = new URL(baseUrl.url)
@@ -103,12 +113,15 @@ export function withHashRoute(baseUrl: string | { url: string } | { file: string
     const trimmedPathname = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
     baseURLinURL.pathname = trimmedPathname
 
+    for (const [key, value] of Object.entries(options.query ?? {}))
+      baseURLinURL.searchParams.set(key, value)
+
     baseURLinURL.hash = hashRoute
 
     return { url: baseURLinURL.toString() } satisfies { url: string, options?: LoadURLOptions }
   }
   if (typeof baseUrl === 'object' && 'file' in baseUrl) {
-    return { file: `${baseUrl.file}`, options: { hash: hashRoute } } satisfies { file: string, options?: LoadFileOptions }
+    return { file: `${baseUrl.file}`, options: { hash: hashRoute, ...options } } satisfies { file: string, options?: LoadFileOptions }
   }
 
   // trim `/` suffix
@@ -117,6 +130,9 @@ export function withHashRoute(baseUrl: string | { url: string } | { file: string
   const pathname = baseURLinURL.pathname
   const trimmedPathname = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
   baseURLinURL.pathname = trimmedPathname
+
+  for (const [key, value] of Object.entries(options.query ?? {}))
+    baseURLinURL.searchParams.set(key, value)
 
   baseURLinURL.hash = hashRoute
 

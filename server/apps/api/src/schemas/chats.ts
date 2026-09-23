@@ -1,6 +1,7 @@
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 
-import { integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
@@ -66,6 +67,10 @@ export const chatMembers = pgTable(
     userId: text('user_id'),
     characterId: text('character_id'),
   },
+  table => [
+    index('chat_members_user_id_member_type_chat_id_idx').on(table.userId, table.memberType, table.chatId),
+    index('chat_members_chat_id_member_type_user_id_idx').on(table.chatId, table.memberType, table.userId),
+  ],
 )
 
 export const messages = pgTable(
@@ -89,6 +94,12 @@ export const messages = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
     deletedAt: timestamp('deleted_at'),
   },
+  table => [
+    index('messages_chat_id_seq_idx').on(table.chatId, table.seq),
+    index('messages_chat_id_seq_active_idx')
+      .on(table.chatId, table.seq)
+      .where(sql`${table.deletedAt} IS NULL`),
+  ],
 )
 
 export type Message = InferSelectModel<typeof messages>

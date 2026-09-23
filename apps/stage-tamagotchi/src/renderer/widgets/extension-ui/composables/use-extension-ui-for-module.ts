@@ -1,6 +1,5 @@
+import type { PluginHostModuleSummary } from '@proj-airi/stage-shared/plugin-host'
 import type { ComputedRef } from 'vue'
-
-import type { PluginHostModuleSummary } from '../../../../shared/eventa/plugin/host'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isPlainObject } from 'es-toolkit'

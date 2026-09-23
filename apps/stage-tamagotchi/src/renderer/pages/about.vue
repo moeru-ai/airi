@@ -7,11 +7,9 @@ import semver from 'semver'
 
 import { useElectronAutoUpdater, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { AboutContent, BugReportDialog, createBugReportPageContext, MarkdownRenderer } from '@proj-airi/stage-ui/components'
-import { useAnalytics, useBreakpoints } from '@proj-airi/stage-ui/composables'
-import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
-import { Button, ContainerError, DoubleCheckButton, FieldSelect, Progress } from '@proj-airi/ui'
+import { useAnalytics, useBreakpoints, useBuildInfo } from '@proj-airi/stage-ui/composables'
+import { Button, ContainerError, DoubleCheckButton, FieldSelect, Progress, ScrollableArea } from '@proj-airi/ui'
 import { useClipboard } from '@vueuse/core'
-import { storeToRefs } from 'pinia'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -19,8 +17,7 @@ import { useI18n } from 'vue-i18n'
 
 import { electronGetUpdaterPreferences, electronSetUpdaterPreferences } from '../../shared/eventa'
 
-const analyticsStore = useSharedAnalyticsStore()
-const { buildInfo } = storeToRefs(analyticsStore)
+const buildInfo = useBuildInfo()
 const { t } = useI18n()
 const { copy: copyToClipboard, isSupported: isClipboardSupported } = useClipboard()
 
@@ -115,7 +112,7 @@ function normalizeSemver(version: string | undefined) {
 }
 
 const isDowngradeUpdate = computed(() => {
-  const currentVersion = normalizeSemver(buildInfo.value.version)
+  const currentVersion = normalizeSemver(buildInfo.version)
   const targetVersion = normalizeSemver(updateState.value.info?.version)
   if (!currentVersion || !targetVersion)
     return false
@@ -152,7 +149,7 @@ function confirmDownload() {
 
 function openBugReportDialog() {
   const details = [
-    `Current version: ${buildInfo.value.version}`,
+    `Current version: ${buildInfo.version}`,
     `Update status: ${updateState.value.status}`,
     updaterErrorMessage.value ? `Error: ${updaterErrorMessage.value}` : '',
   ]
@@ -420,9 +417,13 @@ onMounted(() => {
             {{ t('tamagotchi.stage.about.update.dialog.description', { version: updateState.info?.version }) }}
           </DialogDescription>
 
-          <div class="min-h-0 flex-1 overflow-y-auto border border-neutral-200 rounded-lg bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-950/50">
+          <ScrollableArea
+            :class="['min-h-0 flex-1 border border-neutral-200 rounded-lg bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950/50']"
+            :style="{ maxHeight: 'calc(85vh - 12rem)' }"
+            :viewport-class="['p-4']"
+          >
             <MarkdownRenderer :content="releaseNotesContent || t('tamagotchi.stage.about.update.dialog.no-release-notes-markdown')" class="text-sm" />
-          </div>
+          </ScrollableArea>
 
           <div class="mt-6 flex justify-end gap-3">
             <Button @click="showChangelog = false">
@@ -450,9 +451,12 @@ onMounted(() => {
               {{ t('tamagotchi.stage.about.update.dialog.description', { version: updateState.info?.version }) }}
             </DrawerDescription>
 
-            <div class="min-h-0 flex-1 overflow-y-auto border border-neutral-200 rounded-lg bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-950/50">
+            <ScrollableArea
+              :class="['min-h-0 flex-1 border border-neutral-200 rounded-lg bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950/50']"
+              :viewport-class="['p-4']"
+            >
               <MarkdownRenderer :content="releaseNotesContent || t('tamagotchi.stage.about.update.dialog.no-release-notes-markdown')" class="text-sm" />
-            </div>
+            </ScrollableArea>
 
             <div class="mt-4 flex gap-3">
               <Button block @click="showChangelog = false">

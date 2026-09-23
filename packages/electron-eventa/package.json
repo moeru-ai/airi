@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/electron-eventa",
   "type": "module",
-  "version": "0.11.3",
+  "version": "0.12.0-beta.5",
   "private": true,
   "description": "Shared Eventa contracts for Electron IPC",
   "author": {
@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "electron": ">=39 <41"
+    "electron": ">=39 <44"
   },
   "dependencies": {
     "@moeru/eventa": "catalog:",

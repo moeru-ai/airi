@@ -1,35 +1,40 @@
+import type { Conversation } from '@proj-airi/core-agent'
+import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 /* eslint-disable style/indent-binary-ops */
 /* eslint-disable style/operator-linebreak */
-
-import type { WebSocketEventOf } from '@proj-airi/server-sdk'
-import type { Store, StoreDefinition } from 'pinia'
+import type { Pinia, Store, StoreDefinition } from 'pinia'
 import type { Mock } from 'vitest'
 import type { UnwrapRef } from 'vue'
 import type z from 'zod'
 
-import type { StreamEvent } from '../../llm'
+import type { StreamEvent } from '../../ai/chat-llm/llm'
 import type { AiriCard } from '../../modules'
 
-import { createTestingPinia } from '@pinia/testing'
+import { renderConversationPreview } from '@proj-airi/core-agent'
 import { tool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
-import { setActivePinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
-import { useLLM } from '../../llm'
+import { useLLM } from '../../ai/chat-llm/llm'
+import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
-import { useProvidersStore } from '../../providers'
+import { useProviderStore } from '../../providers/provider'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
+    locale: ref('en'),
     t: (key: string) => key,
+    te: () => true,
   }),
 }))
 
-function mockedStore<TStoreDef extends () => unknown>(
+function mockedStore<TStoreDef extends (pinia?: Pinia) => unknown>(
   useStore: TStoreDef,
+  pinia?: Pinia,
 ): TStoreDef extends StoreDefinition<
   infer Id,
   infer State,
@@ -50,7 +55,7 @@ function mockedStore<TStoreDef extends () => unknown>(
     [K in keyof Getters]: UnwrapRef<Getters[K]>
   }
   : ReturnType<TStoreDef> {
-  return useStore() as any
+  return useStore(pinia) as any
 }
 
 function getObjectSchema(schema?: Record<string, any>) {
@@ -102,13 +107,19 @@ describe('sparkNotifyCommandSchema', () => {
 })
 
 describe('store character-orchestrator', () => {
+  const sendSparkCommandMock = vi.fn()
+  let pinia: ReturnType<typeof createPinia>
+
   beforeEach(() => {
-    const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false })
+    pinia = createPinia()
     setActivePinia(pinia)
 
-    const mockGetProviderInstance = vi.fn()
-    mockedStore(useProvidersStore).getProviderInstance = mockGetProviderInstance
-    mockedStore(useProvidersStore).getProviderInstance.mockResolvedValue({ chat: (_model: string) => ({} as any) })
+    sendSparkCommandMock.mockReset()
+    mockedStore(useModsServerChannelStore, pinia).send = sendSparkCommandMock
+
+    const mockGetChatProviderInstance = vi.fn()
+    mockedStore(useProviderStore, pinia).getChatProviderInstance = mockGetChatProviderInstance
+    mockedStore(useProviderStore, pinia).getChatProviderInstance.mockResolvedValue({ generation: (model: string) => ({ protocol: 'chat-completions', config: { model, apiKey: 'test', baseURL: 'https://example.com/v1/' } }) })
 
     const consciousnessStore = useConsciousnessStore(pinia)
     consciousnessStore.activeProvider = 'mock-provider'
@@ -146,8 +157,8 @@ describe('store character-orchestrator', () => {
 
   it('handles immediate spark:notify with reaction and commands', async () => {
     const mockStream = vi.fn()
-    mockedStore(useLLM).stream = mockStream
-    mockedStore(useLLM).stream.mockImplementation(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+    mockedStore(useLLM, pinia).stream = mockStream
+    mockedStore(useLLM, pinia).stream.mockImplementation(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
       if (options?.tools?.length) {
         await options.tools[1].execute({ commands: [{
           destinations: ['minecraft'],
@@ -164,11 +175,11 @@ describe('store character-orchestrator', () => {
     })
 
     const mockOnSparkNotifyReactionStreamEvent = vi.fn()
-    mockedStore(useCharacterStore).onSparkNotifyReactionStreamEvent = mockOnSparkNotifyReactionStreamEvent
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = mockOnSparkNotifyReactionStreamEvent
     const mockOnSparkNotifyReactionStreamEnd = vi.fn()
-    mockedStore(useCharacterStore).onSparkNotifyReactionStreamEnd = mockOnSparkNotifyReactionStreamEnd
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEnd = mockOnSparkNotifyReactionStreamEnd
 
-    const store = useCharacterOrchestratorStore()
+    const store = useCharacterOrchestratorStore(pinia)
     const event: WebSocketEventOf<'spark:notify'> = {
       type: 'spark:notify',
       source: 'minecraft',
@@ -194,7 +205,7 @@ describe('store character-orchestrator', () => {
     expect(mockStream.mock.calls).toHaveLength(1)
     expect(mockStream.mock.calls[0][0]).toEqual('mock-model')
     expect(mockStream.mock.calls[0][1]).not.toBeNull()
-    expect(mockStream.mock.calls[0][2]).toHaveLength(2)
+    expect((mockStream.mock.calls[0][2] as Conversation).turns).toHaveLength(2)
     expect(mockStream.mock.calls[0][3]).toHaveProperty('tools')
 
     expect(mockOnSparkNotifyReactionStreamEvent).toHaveBeenCalledWith(event.data.id, 'Ahhh, got hit by zombie!')
@@ -203,18 +214,18 @@ describe('store character-orchestrator', () => {
 
   it('supports forcing text-only spark:notify responses', async () => {
     const mockStream = vi.fn()
-    mockedStore(useLLM).stream = mockStream
-    mockedStore(useLLM).stream.mockImplementation(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+    mockedStore(useLLM, pinia).stream = mockStream
+    mockedStore(useLLM, pinia).stream.mockImplementation(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'I choose d5 to pressure the center.' } satisfies StreamEvent)
       await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
     })
 
     const onDelta = vi.fn()
     const onEnd = vi.fn()
-    mockedStore(useCharacterStore).onSparkNotifyReactionStreamEvent = onDelta
-    mockedStore(useCharacterStore).onSparkNotifyReactionStreamEnd = onEnd
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = onDelta
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEnd = onEnd
 
-    const store = useCharacterOrchestratorStore()
+    const store = useCharacterOrchestratorStore(pinia)
     const event: WebSocketEventOf<'spark:notify'> = {
       type: 'spark:notify',
       source: 'plugin:airi-plugin-game-chess',
@@ -232,19 +243,21 @@ describe('store character-orchestrator', () => {
       forceTextResponse: true,
     })
 
-    const streamOptions = mockStream.mock.calls[0][3]
-    expect(streamOptions.supportsTools).toBe(false)
-    expect(streamOptions.waitForTools).toBe(false)
-    expect(streamOptions.tools).toEqual([])
-    expect(streamOptions.toolChoice).toBeUndefined()
+    const streamOptions = mockStream.mock.lastCall?.[3]
+    expect(streamOptions).toMatchObject({
+      supportsTools: false,
+      tools: [],
+      waitForTools: false,
+    })
+    expect(streamOptions?.toolChoice).toBeUndefined()
     expect(onDelta).toHaveBeenCalled()
     expect(onEnd).toHaveBeenCalled()
   })
 
   it('supports forcing spark-command responses', async () => {
     const mockStream = vi.fn()
-    mockedStore(useLLM).stream = mockStream
-    mockedStore(useLLM).stream.mockImplementation(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+    mockedStore(useLLM, pinia).stream = mockStream
+    mockedStore(useLLM, pinia).stream.mockImplementation(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
       const sparkCommandTool = options?.tools?.find((tool: any) => tool.function?.name === 'builtIn_sparkCommand')
       await sparkCommandTool.execute({
         commands: [{
@@ -262,10 +275,10 @@ describe('store character-orchestrator', () => {
 
     const onDelta = vi.fn()
     const onEnd = vi.fn()
-    mockedStore(useCharacterStore).onSparkNotifyReactionStreamEvent = onDelta
-    mockedStore(useCharacterStore).onSparkNotifyReactionStreamEnd = onEnd
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = onDelta
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEnd = onEnd
 
-    const store = useCharacterOrchestratorStore()
+    const store = useCharacterOrchestratorStore(pinia)
     const event: WebSocketEventOf<'spark:notify'> = {
       type: 'spark:notify',
       source: 'minecraft',
@@ -283,27 +296,34 @@ describe('store character-orchestrator', () => {
       forceSparkCommandResponse: true,
     })
 
-    const streamOptions = mockStream.mock.calls[0][3]
-    expect(streamOptions.supportsTools).toBe(true)
-    expect(streamOptions.waitForTools).toBe(true)
-    expect(streamOptions.toolChoice).toEqual({
-      type: 'function',
-      function: { name: 'builtIn_sparkCommand' },
+    const streamOptions = mockStream.mock.lastCall?.[3]
+    expect(streamOptions).toMatchObject({
+      supportsTools: true,
+      toolChoice: {
+        type: 'function',
+        function: { name: 'builtIn_sparkCommand' },
+      },
+      waitForTools: true,
     })
     expect(result?.commands?.length).toBe(1)
+    expect(sendSparkCommandMock).toHaveBeenCalledWith({
+      type: 'spark:command',
+      data: result?.commands[0],
+    })
     expect(onDelta).not.toHaveBeenCalled()
     expect(onEnd).toHaveBeenCalledWith(event.data.id, '')
   })
 
-  it('forwards runtime-only message overrides into the rendered spark prompt', async () => {
+  // https://github.com/moeru-ai/airi/pull/2464#discussion_r3933609456
+  it('preserves runtime rules when a Spark caller replaces the user payload', async () => {
     const mockStream = vi.fn()
-    mockedStore(useLLM).stream = mockStream
-    mockedStore(useLLM).stream.mockImplementation(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+    mockedStore(useLLM, pinia).stream = mockStream
+    mockedStore(useLLM, pinia).stream.mockImplementation(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'legacy-safe text' } satisfies StreamEvent)
       await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
     })
 
-    const store = useCharacterOrchestratorStore()
+    const store = useCharacterOrchestratorStore(pinia)
     const event: WebSocketEventOf<'spark:notify'> = {
       type: 'spark:notify',
       source: 'plugin:airi-plugin-game-chess',
@@ -322,11 +342,16 @@ describe('store character-orchestrator', () => {
       messageOverride: {
         appendSystemInstructions: ['Plugin-specific hint'],
         appendUserSections: ['Rendered board snapshot'],
+        replaceUserMessage: 'Replacement user payload',
       },
     })
 
-    const renderedMessages = mockStream.mock.calls[0]?.[2] as Array<{ role: string, content: string }> | undefined
-    expect(String(renderedMessages?.[0]?.content)).toContain('Plugin-specific hint')
-    expect(String(renderedMessages?.[1]?.content)).toContain('Rendered board snapshot')
+    const context = mockStream.mock.lastCall?.[2] as Conversation | undefined
+    const renderedMessages = context ? renderConversationPreview(context).map(message => message.content) : undefined
+    expect(String(renderedMessages?.[0])).toContain('Plugin-specific hint')
+    expect(String(renderedMessages?.[1])).toContain('Replacement user payload')
+    expect(String(renderedMessages?.[1])).toContain('Rendered board snapshot')
+    expect(String(renderedMessages?.[1])).toContain('base.prompt.emotion')
+    expect(String(renderedMessages?.[1])).toContain('base.prompt.emoji')
   })
 })

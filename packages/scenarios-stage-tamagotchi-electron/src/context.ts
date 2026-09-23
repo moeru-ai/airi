@@ -1,14 +1,15 @@
 import type { ElectronScenario, ScenarioContext } from '@vishot/source-electron'
 import type { Page } from 'playwright'
 
-import type { StageWindowName, StageWindowSnapshot } from './runtime/windows.ts'
+import type { StageWindowName, StageWindowSnapshot } from './runtime/windows'
 
 import { defineScenario } from '@vishot/source-electron'
 
-import { dismissDialog, dismissDrawer, swipeDownDrawer } from './runtime/overlays.ts'
-import { expandControlsIsland, openChatFromControlsIsland, openHearingFromControlsIsland, openSettingsFromControlsIsland, waitForControlsIslandReady } from './runtime/selectors.ts'
-import { goToSettingsConnectionPage, goToSettingsRoute } from './runtime/settings.ts'
-import { waitForStageWindow } from './runtime/windows.ts'
+import { swipe } from './runtime/gestures'
+import { dismissDialog, dismissDrawer, swipeDownDrawer } from './runtime/overlays'
+import { expandControlsIsland, openChatFromControlsIsland, openHearingFromControlsIsland, openSettingsFromControlsIsland, waitForControlsIslandReady } from './runtime/selectors'
+import { goToSettingsConnectionPage, goToSettingsRoute } from './runtime/settings'
+import { waitForStageWindow } from './runtime/windows'
 
 export interface StageWindowsApi {
   waitFor: (name: StageWindowName, timeout?: number) => Promise<StageWindowSnapshot>
@@ -37,6 +38,10 @@ export interface DrawersApi {
   dismiss: (page: Page) => Promise<void>
 }
 
+export interface GesturesApi {
+  swipe: typeof swipe
+}
+
 /**
  * Generic Vishot Electron context plus AIRI stage-tamagotchi navigation helpers.
  */
@@ -46,6 +51,7 @@ export interface StageTamagotchiScenarioContext extends ScenarioContext {
   settingsWindow: SettingsWindowApi
   dialogs: DialogsApi
   drawers: DrawersApi
+  gestures: GesturesApi
 }
 
 export interface StageTamagotchiScenario {
@@ -106,6 +112,9 @@ export function createStageTamagotchiScenarioContext(context: ScenarioContext): 
       dismiss(page) {
         return dismissDrawer(page)
       },
+    },
+    gestures: {
+      swipe,
     },
   }
 }

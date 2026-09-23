@@ -9,12 +9,13 @@
   * contract Stage.vue expects from every renderer.
 */
 
-import type { SkinnedMesh } from 'three'
+import type { SkinnedMesh, Texture } from 'three'
 
 import type { GazeOffset, MMDAnimationManager, MorphController } from '../../composables/mmd'
 import type { ResolvedMMDModel } from '../../utils/mmd-loader'
 
 import { errorMessageFrom } from '@moeru/std'
+import { coverRect } from '@proj-airi/stage-shared'
 import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import {
@@ -29,11 +30,13 @@ import {
   Quaternion,
   Scene,
   SRGBColorSpace,
+  TextureLoader,
+  Vector2,
   Vector3,
   WebGLRenderer,
 } from 'three'
 import { OrbitControls } from 'three-stdlib'
-import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import {
   createGazeController,
@@ -57,10 +60,17 @@ import {
 } from '../../utils/mmd-materials'
 
 const props = withDefaults(defineProps<{
+  /** The context that owns `currentAudioSource`. */
+  audioContext?: AudioContext
   modelSrc?: string
   modelId?: string
   paused?: boolean
   cursorPosition?: { x: number, y: number }
+  /**
+   * Scene painted behind the model, inside this canvas rather than under it, so one
+   * readback answers for the whole stage.
+   */
+  backgroundUrl?: string | null
   currentAudioSource?: AudioBufferSourceNode
   enableOrbitControls?: boolean
 }>(), {
@@ -120,11 +130,11 @@ const registeredMotions = new Set<string>()
 const clock = new Clock()
 let rafHandle = 0
 
-// Lip-sync owns Vue lifecycle hooks, so it must be created during setup. It
-// is fed the live audio source and applied to whichever morphs are mounted.
-const audioRef = shallowRef<AudioBufferSourceNode | undefined>(props.currentAudioSource)
-watch(() => props.currentAudioSource, v => audioRef.value = v)
-const lipSync = useMMDLipSync(audioRef)
+// Lip-sync owns Vue lifecycle hooks, so it must be created during setup.
+const lipSync = useMMDLipSync(
+  toRef(props, 'audioContext'),
+  toRef(props, 'currentAudioSource'),
+)
 const blink = useMMDBlink()
 let gaze: ReturnType<typeof createGazeController> | undefined
 
@@ -206,6 +216,9 @@ function setupScene() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2) * renderScale.value)
 
   scene = new Scene()
+  // The scene is already chosen when the renderer mounts, so the watcher below never
+  // fires for it.
+  void syncBackground()
   camera = new PerspectiveCamera(cameraFov.value, 1, 0.1, 1000)
   camera.position.set(0, 1, 3)
 
@@ -250,6 +263,82 @@ function frameCamera() {
   controls.update()
 }
 
+let backgroundTexture: Texture | undefined
+
+/**
+ * Fits the scene over the canvas, matching the `cover` framing it had as a CSS layer.
+ *
+ * A background texture covers the viewport whatever its own shape, so the fit is
+ * expressed by sampling a smaller window of it rather than by placing a rectangle.
+ *
+ * Nothing is marked dirty: a background rebuilds its own texture matrix each frame,
+ * while marking the texture would re-upload it and recompile the background shader.
+ */
+function layoutBackground() {
+  if (!backgroundTexture || !renderer)
+    return
+
+  // `Texture.image` is whatever the loader produced; a decoded image carries its size.
+  const image = backgroundTexture.image as { width?: number, height?: number } | undefined
+  if (!image?.width || !image?.height)
+    return
+
+  const size = renderer.getSize(new Vector2())
+  if (!size.x || !size.y)
+    return
+
+  const rect = coverRect({ width: size.x, height: size.y }, { width: image.width, height: image.height })
+  backgroundTexture.repeat.set(size.x / rect.width, size.y / rect.height)
+  backgroundTexture.offset.set(-rect.x / rect.width, -rect.y / rect.height)
+}
+
+async function syncBackground() {
+  if (!scene)
+    return
+
+  const url = props.backgroundUrl
+  if (!url) {
+    scene.background = null
+    backgroundTexture?.dispose()
+    backgroundTexture = undefined
+    return
+  }
+
+  const owner = scene
+  // A scene that cannot decode leaves the stage as it is, rather than throwing where
+  // nothing is waiting to catch it.
+  let texture: Texture
+  try {
+    texture = await new TextureLoader().loadAsync(url)
+  }
+  catch {
+    return
+  }
+
+  // Scene art is authored in sRGB. Saying so keeps the renderer from encoding it a
+  // second time, and marks the background as already display-referred so tone mapping
+  // leaves it alone.
+  texture.colorSpace = SRGBColorSpace
+  // This renderer keeps three's premultiplied drawing buffer, and a background is
+  // written to it unblended, so the scene has to arrive premultiplied as well. Scene art
+  // is roughly half soft alpha, which is where the difference would show.
+  texture.premultiplyAlpha = true
+
+  // A later scene wins, and so does a later stage: both can be replaced while the
+  // texture loads.
+  if (props.backgroundUrl !== url || scene !== owner) {
+    texture.dispose()
+    return
+  }
+
+  backgroundTexture?.dispose()
+  backgroundTexture = texture
+  scene.background = texture
+  layoutBackground()
+}
+
+watch(() => props.backgroundUrl, () => void syncBackground())
+
 function resize() {
   if (!renderer || !camera || !canvasRef.value)
     return
@@ -260,6 +349,7 @@ function resize() {
   renderer.setSize(w, h, false)
   camera.aspect = w / h
   camera.updateProjectionMatrix()
+  layoutBackground()
 }
 
 function renderLoop() {
@@ -443,6 +533,8 @@ onUnmounted(() => {
   resizeObserver?.disconnect()
   disposeModel()
   controls?.dispose()
+  backgroundTexture?.dispose()
+  backgroundTexture = undefined
   if (renderer) {
     renderer.dispose()
     renderer.forceContextLoss()

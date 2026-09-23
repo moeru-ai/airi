@@ -1,15 +1,19 @@
 <script setup lang="ts">
+import type { ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
+import { useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useDeferredMount } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 
+import ChatPanelHeader from '../Widgets/chat-panel-header.vue'
 import ChatActionButtons from '../Widgets/ChatActionButtons.vue'
 import ChatArea from '../Widgets/ChatArea.vue'
 import ChatContainer from '../Widgets/ChatContainer.vue'
@@ -17,22 +21,50 @@ import ChatContainer from '../Widgets/ChatContainer.vue'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 
 const { isReady } = useDeferredMount()
-const { sending } = storeToRefs(useChatOrchestratorStore())
-const { messages } = storeToRefs(useChatSessionStore())
+const chatOrchestrator = useChatStore()
+const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
+const { activeSessionId, messages } = storeToRefs(useChatSessionStore())
 const { streamingMessage } = storeToRefs(useChatStreamStore())
+const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 
 const isLoading = ref(true)
+const composer = useChatComposer<ChatImageAttachment>({
+  activeSessionId,
+  send: submission => chatOrchestrator.send({
+    sessionId: submission.sessionId,
+    text: submission.text,
+    attachments: submission.attachments.map(({ type, data, mimeType }) => ({ type, data, mimeType })),
+    replyToMessageId: submission.replyToMessageId,
+  }),
+})
+const { clearReplyForMessage, selectReply } = composer
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const isActiveSessionSending = computed(() => (
+  (sending.value && activeSendSessionId.value === activeSessionId.value)
+  || isReceivingRemoteStream.value
+))
+const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
+  ? activeStreamingMessage.value
+  : streamingMessage.value)
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 
-function handleDeleteMessage(index: number) {
-  const message = messages.value[index]
-  messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
+async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
+  const { index, message } = payload
+  await useChatSessionStore().deleteMessage({
+    sessionId: activeSessionId.value,
+    messageId: message?.id,
+    index,
+  })
   trackChatMessageDeleted({
     source: 'history',
     message_role: message?.role ?? 'unknown',
   })
+  clearReplyForMessage(message)
+}
+
+async function handleRetryMessage(index: number) {
+  await chatOrchestrator.retry({ sessionId: activeSessionId.value, index })
 }
 </script>
 
@@ -47,20 +79,23 @@ function handleDeleteMessage(index: number) {
         >
           <div h-full w="1/3" origin-left bg-primary-500 class="animate-scan" />
         </div>
-        <div w="full" max-h="<md:[60%]" py="<sm:2" flex="~ col" rounded="lg" relative h-full flex-1 overflow-hidden px="2 <md:0" py-4>
+        <ChatPanelHeader />
+        <div w="full" max-h="<md:[60%]" py="<sm:2" flex="~ col" rounded="lg" relative min-h-0 flex-1 overflow-hidden px="2 <md:0" py-4>
           <ChatHistory
             v-if="isReady"
             :messages="historyMessages"
-            :sending="sending"
-            :streaming-message="streamingMessage"
+            :sending="isActiveSessionSending"
+            :streaming-message="visibleStreamingMessage"
             h-full
             variant="desktop"
-            @delete-message="handleDeleteMessage($event.index)"
+            @delete-message="handleDeleteMessage"
+            @reply-message="selectReply"
+            @retry-message="handleRetryMessage($event.index)"
             @tool-call-rerun="rerunToolCall"
             @vue:mounted="isLoading = false"
           />
         </div>
-        <ChatArea />
+        <ChatArea :composer="composer" :generating="isActiveSessionSending" />
       </ChatContainer>
     </div>
 

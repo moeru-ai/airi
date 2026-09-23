@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
+
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronMouseAroundWindowBorder, useElectronMouseInWindow } from '@proj-airi/electron-vueuse'
 import { createFadeAnimator, PoppinText } from '@proj-airi/stage-ui/components'
@@ -21,7 +23,6 @@ const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBo
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 // Broadcast channel for captions
-type CaptionChannelEvent = | { type: 'caption-speaker', text: string } | { type: 'caption-assistant', text: string }
 const { data } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 const { items: captionItems, add: addCaptionItem, dispose: disposeCaptionItems } = useCaptionItems({ ttlMs: CAPTION_TEXT_EXPIRY_MS })
 

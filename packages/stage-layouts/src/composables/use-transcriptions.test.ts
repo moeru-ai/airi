@@ -18,9 +18,16 @@ function createMockStore() {
 }
 
 const mockTranscribedContent = 'test content'
+interface MockStreamingCallbacks {
+  onSentenceEnd: (delta: string) => void
+  onSpeechEnd?: (text: string) => void
+  onTranscriptionUpdate?: (text: string) => void
+}
+
 function createMockPipeline() {
   return {
-    transcribeForMediaStream: vi.fn().mockImplementation((_stream, options: { onSentenceEnd: (delta: string) => void }) => {
+    releaseStreamingTranscriptionConsumer: vi.fn().mockResolvedValue(undefined),
+    transcribeForMediaStream: vi.fn().mockImplementation((_stream, options: MockStreamingCallbacks) => {
       options.onSentenceEnd(mockTranscribedContent)
     }),
     stopStreamingTranscription: vi.fn().mockResolvedValue(undefined),
@@ -49,8 +56,8 @@ vi.mock('@proj-airi/stage-ui/stores/modules/hearing', () => ({
   useHearingSpeechInputPipeline: vi.fn().mockImplementation(() => mockHearingPipeline),
 }))
 
-vi.mock('@proj-airi/stage-ui/stores/providers', () => ({
-  useProvidersStore: vi.fn().mockImplementation(() => mockProvidersStore),
+vi.mock('@proj-airi/stage-ui/stores/providers/provider', () => ({
+  useProviderStore: vi.fn().mockImplementation(() => mockProvidersStore),
 }))
 
 vi.mock('@proj-airi/stage-ui/stores/settings', () => ({
@@ -263,6 +270,55 @@ describe('useTranscriptions', () => {
       expect(mockInput.value).toBe(`${prependText} ${mockTranscribedContent}`)
     })
 
+    it('replaces volatile snapshots when the provider corrects text', async () => {
+      // ROOT CAUSE:
+      //
+      // The input consumer only accepted final deltas. It had no operation for
+      // replacing a provider-owned draft when the provider corrected that text.
+      const mockInput = ref('prefix')
+      const observedInputs: string[] = []
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.supportsStreamInput.value = true
+      mockHearingPipeline.transcribeForMediaStream.mockImplementation((_stream, options: MockStreamingCallbacks) => {
+        options.onTranscriptionUpdate?.('今天天气很号')
+        observedInputs.push(mockInput.value)
+        options.onTranscriptionUpdate?.('今天天气很好')
+        observedInputs.push(mockInput.value)
+        options.onSentenceEnd('今天天气很好')
+      })
+
+      const { startStreamingTranscription }
+        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
+
+      await startStreamingTranscription()
+
+      expect(observedInputs).toEqual(['prefix 今天天气很号', 'prefix 今天天气很好'])
+      expect(mockInput.value).toBe('prefix 今天天气很好')
+    })
+
+    it('preserves manual input changes during a volatile transcription', async () => {
+      const mockInput = ref('prefix')
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.supportsStreamInput.value = true
+      mockHearingPipeline.transcribeForMediaStream.mockImplementation((_stream, options: MockStreamingCallbacks) => {
+        options.onTranscriptionUpdate?.('provider draft')
+        mockInput.value = 'manual edit'
+        options.onTranscriptionUpdate?.('provider correction')
+        options.onSentenceEnd('provider final')
+      })
+
+      const { startStreamingTranscription }
+        = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
+
+      await startStreamingTranscription()
+
+      expect(mockInput.value).toBe('manual edit')
+    })
+
     it('should trigger auto-send after delay', async () => {
       const mockInput = ref('')
       const mockSendMessage = vi.fn()
@@ -329,7 +385,7 @@ describe('useTranscriptions', () => {
       await stopStreamingTranscription()
       await nextTick()
       expect(isListening.value).toBe(false)
-      expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalledWith(true)
+      expect(mockHearingPipeline.releaseStreamingTranscriptionConsumer).toHaveBeenCalledOnce()
     })
 
     it('should stop streaming on unmount', async () => {
@@ -350,7 +406,7 @@ describe('useTranscriptions', () => {
 
       app.unmount()
       await nextTick()
-      expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalled()
+      expect(mockHearingPipeline.releaseStreamingTranscriptionConsumer).toHaveBeenCalled()
     })
   })
 

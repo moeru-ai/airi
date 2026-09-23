@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Vishot for AIRI"
+  short_description: "Capture AIRI model-import scenarios"
+  default_prompt: "Use $use-vishot-for-airi to import a local avatar model and capture it in AIRI."

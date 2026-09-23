@@ -6,6 +6,7 @@ import { ref, watch } from 'vue'
 
 import LoadingModules from './loading-modules.vue'
 
+import { stageOpaqueAttribute } from '../../../composables/use-stage-painted-mask'
 import { useResourcesStore } from '../../../stores/resources'
 
 const {
@@ -26,16 +27,23 @@ function handleClick() {
 </script>
 
 <template>
-  <div fixed left-0 top-3 w-full flex flex-col items-center>
+  <!--
+    The container spans the whole stage width while only its pill is interactive. The
+    stage window asks the document what sits under the cursor before it passes a click
+    to the application behind, so a container that answers would take the strip beside
+    the pill with it.
+  -->
+  <div pointer-events-none fixed left-0 top-3 w-full flex flex-col items-center>
     <TooltipProvider v-if="atLeastOneLoadingDelay10s" :delay-duration="150">
       <TooltipRoot :open="loadingProgressOpen" disable-closing-trigger @update:open="(state) => loadingProgressOpen = state">
         <TooltipTrigger>
           <Transition name="fade">
             <div
               v-if="atLeastOneLoadingDelay5s"
+              :[stageOpaqueAttribute]="true"
               w="fit"
               bg="white/80 dark:neutral-900/80"
-              mb-1 flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 text-sm shadow-md backdrop-blur-md
+              pointer-events-auto mb-1 flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 text-sm shadow-md backdrop-blur-md
               @click="handleClick"
             >
               <div v-if="atLeastOneLoading" i-svg-spinners:pulse-ring pointer-events-none />

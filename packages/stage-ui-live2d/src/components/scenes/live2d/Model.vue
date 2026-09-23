@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
+import type { Filter } from '@pixi/core'
+import type {
+  AmbientLightEnvironment,
+  AmbientLightFilterOptions,
+  NormalizedRectangle,
+  ScreenAmbientLightMode,
+} from '@proj-airi/stage-shared/screen-ambient-light'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
+import { ambientLightDefaults, ambientLightNeutralEnvironment, ambientLightPerceptualLevel, wholeWindowRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useTheme } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { animate } from 'animejs'
@@ -16,18 +24,24 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 
 import {
   createBeatSyncController,
+  createLive2DMotionSpring,
+  disableLive2DSdkBreath,
   useExpressionController,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
+  useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
+  useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginLipSync,
+  useMotionUpdatePluginManualControl,
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
-import { useL2dViewControl, useLive2dParams } from '../../../stores'
+import { ScreenAmbientLightFilter } from '../../../filters/screen-ambient-light'
+import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -50,6 +64,13 @@ const props = withDefaults(defineProps<{
   live2dForceAutoBlinkEnabled?: boolean
   live2dExpressionEnabled?: boolean
   live2dShadowEnabled?: boolean
+  screenAmbientLightActive?: boolean
+  screenAmbientLightFilterOptions?: AmbientLightFilterOptions
+  screenAmbientLightEnvironment?: AmbientLightEnvironment
+  screenAmbientLightSubject?: NormalizedRectangle
+  screenAmbientLightMode?: ScreenAmbientLightMode
+  screenAmbientLightStrength?: number
+  screenAmbientLightSquint?: number
 }>(), {
   mouthOpenSize: 0,
   nowSpeaking: false,
@@ -67,6 +88,13 @@ const props = withDefaults(defineProps<{
   live2dForceAutoBlinkEnabled: false,
   live2dExpressionEnabled: true,
   live2dShadowEnabled: true,
+  screenAmbientLightActive: false,
+  screenAmbientLightFilterOptions: () => ({ ...ambientLightDefaults.filter }),
+  screenAmbientLightEnvironment: () => ambientLightNeutralEnvironment,
+  screenAmbientLightSubject: () => wholeWindowRectangle,
+  screenAmbientLightMode: ambientLightDefaults.mode,
+  screenAmbientLightStrength: ambientLightDefaults.strength,
+  screenAmbientLightSquint: ambientLightDefaults.squint,
 })
 
 const emits = defineEmits<{
@@ -76,6 +104,10 @@ const emits = defineEmits<{
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const { position, scale } = useL2dViewControl()
+const {
+  breathControl: manualBreathControl,
+  control: manualMotionControl,
+} = storeToRefs(useLive2DMotionControl())
 
 const modelSrcRef = toRef(() => props.modelSrc)
 
@@ -85,15 +117,17 @@ let isUnmounted = false
 
 const modelLoadMutex = new Mutex()
 
+const manualMotionSpring = createLive2DMotionSpring()
+const manualControlOffset = computed(() => getLive2DMotionControlModelOffset(manualMotionSpring.output.value))
 const offset = computed(() => ({
-  x: (position.value.x / 100) * props.width,
-  y: -(position.value.y / 100) * props.height,
+  x: (position.value.x / 100) * props.width + manualControlOffset.value.x,
+  y: -(position.value.y / 100) * props.height + manualControlOffset.value.y,
 }))
 
 const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
 const focusAt = toRef(() => props.focusAt)
-const model = ref<Live2DModel<PixiLive2DInternalModel>>()
+const model = shallowRef<Live2DModel<PixiLive2DInternalModel>>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
@@ -101,12 +135,37 @@ const nowSpeaking = toRef(() => props.nowSpeaking)
 const lastUpdateTime = ref(0)
 
 const { isDark: dark } = useTheme()
+
+/** Shadow opacity over a black screen, before the exposure fades it. */
+const dropShadowBaseAlpha = 0.2
+
+/**
+ * Softness of the drop shadow, in pixels.
+ *
+ * At 0 the shadow is a hard copy of the silhouette, offset by its distance. A
+ * dark desktop hides that copy at this opacity, but over a white window it
+ * reads as a second character. It also carries the theme hue: measured over
+ * white, the hard shadow took the band beside the character to red 242.3 while
+ * blue stayed at 252.7, which shows as a cyan edge.
+ */
+const dropShadowBlur = 10
+
+/**
+ * How much a bright screen fades the drop shadow out.
+ *
+ * The shadow separates the character from the desktop, and the light wrap
+ * blends the same edge. A bright desktop is where the shadow is most visible,
+ * so it recedes there and keeps full strength over a dark desktop.
+ */
+const dropShadowExposureFalloff = 0.75
+
 const dropShadowFilter = shallowRef(new DropShadowFilter({
-  alpha: 0.2,
-  blur: 0,
+  alpha: dropShadowBaseAlpha,
+  blur: dropShadowBlur,
   distance: 20,
   rotation: 45,
 }))
+const screenAmbientLightFilter = shallowRef(new ScreenAmbientLightFilter())
 
 let resizeAnimation: ReturnType<typeof animate> | undefined
 
@@ -174,13 +233,22 @@ const live2dAutoBlinkEnabled = toRef(() => props.live2dAutoBlinkEnabled)
 const live2dForceAutoBlinkEnabled = toRef(() => props.live2dForceAutoBlinkEnabled)
 const live2dExpressionEnabled = toRef(() => props.live2dExpressionEnabled)
 const live2dShadowEnabled = toRef(() => props.live2dShadowEnabled)
+const screenAmbientLightActive = toRef(() => props.screenAmbientLightActive)
+const screenAmbientLightFilterOptions = toRef(() => props.screenAmbientLightFilterOptions)
+const screenAmbientLightEnvironment = toRef(() => props.screenAmbientLightEnvironment)
+const screenAmbientLightSubject = toRef(() => props.screenAmbientLightSubject)
+const screenAmbientLightMode = toRef(() => props.screenAmbientLightMode)
+const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
+const screenAmbientLightSquint = toRef(() => props.screenAmbientLightSquint)
 
 // --- Expression controller
-const internalModelRef = ref<PixiLive2DInternalModel>()
+const internalModelRef = shallowRef<PixiLive2DInternalModel>()
 const expressionController = useExpressionController({
   internalModel: internalModelRef,
-  modelId: props.modelId,
 })
+// This identity belongs to model.value. It changes only when a model load
+// commits, so expression initialization cannot observe a newer prop by mistake.
+let loadedModelId: string | undefined
 // Saved SDK manager references for runtime expression toggle (restore on disable)
 const savedEyeBlink = shallowRef<any>(null)
 const savedExpressionManager = shallowRef<any>(null)
@@ -204,7 +272,15 @@ async function loadModel() {
   await until(modelLoading).not.toBeTruthy()
 
   await modelLoadMutex.acquire()
+  try {
+    await performModelLoad()
+  }
+  finally {
+    modelLoadMutex.release()
+  }
+}
 
+async function performModelLoad() {
   modelLoading.value = true
   componentState.value = 'loading'
 
@@ -226,6 +302,7 @@ async function loadModel() {
     // Dispose expression controller before destroying the old model
     expressionController.dispose()
     internalModelRef.value = undefined
+    loadedModelId = undefined
 
     try {
       pixiApp.value.stage.removeChild(model.value)
@@ -236,7 +313,11 @@ async function loadModel() {
     }
     model.value = undefined
   }
-  if (!modelSrcRef.value) {
+  const pendingModel = {
+    id: props.modelId,
+    src: modelSrcRef.value,
+  }
+  if (!pendingModel.src) {
     console.warn('No Live2D model source provided.')
     modelLoading.value = false
     componentState.value = 'mounted'
@@ -251,7 +332,7 @@ async function loadModel() {
     }
 
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
+    await Live2DFactory.setupLive2DModel(live2DModel, { url: pendingModel.src, id: pendingModel.id }, { autoInteract: false })
     availableMotions.value.forEach((motion) => {
       if (motion.motionName in Emotion) {
         motionMap.value[motion.fileName] = motion.motionName
@@ -283,6 +364,7 @@ async function loadModel() {
     const internalModel = model.value.internalModel
     const coreModel = internalModel.coreModel
     const motionManager = internalModel.motionManager
+    disableLive2DSdkBreath(internalModel)
     coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
     availableMotions.value = Object
@@ -359,7 +441,20 @@ async function loadModel() {
     // This ensures blink respects expression state (0 × blinkFactor = 0).
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
+    // After the blink plugin, so that it only narrows the value a blink returns
+    // to. The signal is the light behind the character, not the screen level:
+    // that is a mean over the whole capture, and a bright window opening in a
+    // far corner would otherwise reach the eyes.
+    motionManagerUpdate.register(
+      useMotionUpdatePluginLightSquint(
+        () => ambientLightPerceptualLevel(screenAmbientLightEnvironment.value.behindLuminance),
+        () => (screenAmbientLightActive.value ? screenAmbientLightSquint.value : 0),
+      ),
+      'final',
+    )
+    motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
@@ -415,6 +510,7 @@ async function loadModel() {
     // toggled off at runtime.
     savedEyeBlink.value = internalModel.eyeBlink
     savedExpressionManager.value = motionManager.expressionManager
+    loadedModelId = pendingModel.id
 
     // --- Expression controller initialisation (conditional)
     if (live2dExpressionEnabled.value) {
@@ -444,10 +540,9 @@ async function loadModel() {
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
-    await initExpressionController(internalModelRef.value).catch((err) => {
+    await initExpressionController(internalModelRef.value, loadedModelId).catch((err) => {
       console.warn('[Model.vue] Expression controller initialization failed:', err)
     })
-    modelLoadMutex.release()
   }
 }
 
@@ -458,7 +553,7 @@ async function loadModel() {
  * This is intentionally fire-and-forget from loadModel so that a failure in
  * expression loading does not prevent the model itself from rendering.
  */
-async function initExpressionController(internalModel?: PixiLive2DInternalModel) {
+async function initExpressionController(internalModel?: PixiLive2DInternalModel, modelId?: string) {
   // Dispose any previous state (handles model reloads)
   expressionController.dispose()
 
@@ -482,7 +577,7 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
     return response.text()
   }
 
-  await expressionController.initialise(expressionRefs, readExpFile)
+  await expressionController.initialise(modelId, expressionRefs, readExpFile)
 }
 
 async function setMotion(motionName: string, index?: number) {
@@ -505,31 +600,84 @@ async function setMotion(motionName: string, index?: number) {
 const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
-function updateDropShadowFilter() {
-  if (!model.value)
+function updateAmbientLightFilter() {
+  if (!screenAmbientLightActive.value)
     return
 
-  if (!live2dShadowEnabled.value) {
-    model.value.filters = []
-    return
-  }
+  screenAmbientLightFilter.value.update({
+    environment: screenAmbientLightEnvironment.value,
+    // The measurement placed its maps around this rectangle, so the shader has
+    // to read them from it rather than from the whole window.
+    subject: screenAmbientLightSubject.value,
+    mode: screenAmbientLightMode.value,
+    strength: screenAmbientLightStrength.value,
+    options: screenAmbientLightFilterOptions.value,
+  })
+}
+
+function updateDropShadow() {
+  // The measured screen level only applies while the ambient light is running.
+  // Without it the shadow keeps one strength, which is the behavior for a stage
+  // that never samples the screen.
+  const exposure = screenAmbientLightActive.value
+    ? screenAmbientLightEnvironment.value.exposure
+    : 0
+  dropShadowFilter.value.alpha = dropShadowBaseAlpha * (1 - dropShadowExposureFalloff * exposure)
 
   if (!dropShadowColorComputer.value)
     return
 
   const color = getComputedStyle(dropShadowColorComputer.value).backgroundColor
   dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
-  model.value.filters = [dropShadowFilter.value]
+}
+
+// The filter array is replaced only when the set of filters changes. The
+// shadow loop below runs every frame, and a fresh array per frame would make
+// Pixi re-evaluate the filter stack for nothing.
+function updateFilterStack() {
+  if (!model.value)
+    return
+
+  const filters: Filter[] = []
+  if (screenAmbientLightActive.value)
+    filters.push(screenAmbientLightFilter.value)
+  if (live2dShadowEnabled.value)
+    filters.push(dropShadowFilter.value)
+
+  const current = model.value.filters ?? []
+  const unchanged = current.length === filters.length
+    && current.every((filter, index) => filter === filters[index])
+  if (!unchanged)
+    model.value.filters = filters
+}
+
+function updateModelFilters() {
+  updateAmbientLightFilter()
+  updateDropShadow()
+  updateFilterStack()
 }
 
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
-watch(dark, updateDropShadowFilter, { immediate: true })
-watch([model, themeColorsHue], updateDropShadowFilter)
-watch(live2dShadowEnabled, updateDropShadowFilter)
+watch(dark, updateModelFilters, { immediate: true })
+watch([model, themeColorsHue], updateModelFilters)
+watch([live2dShadowEnabled, screenAmbientLightActive], updateFilterStack)
+watch(
+  [
+    screenAmbientLightActive,
+    screenAmbientLightFilterOptions,
+    screenAmbientLightEnvironment,
+    screenAmbientLightMode,
+    screenAmbientLightStrength,
+  ],
+  updateModelFilters,
+)
 
 // TODO: This is hacky!
+// The theme hue animates, so the shadow color follows it once per frame. Only
+// the shadow color belongs here. The ambient-light uniforms update on change,
+// and the light maps would otherwise upload on every frame.
 function updateDropShadowFilterLoop() {
-  updateDropShadowFilter()
+  updateDropShadow()
   if (!live2dShadowEnabled.value) {
     dropShadowAnimationId.value = 0
     return
@@ -718,7 +866,7 @@ watch(live2dExpressionEnabled, (enabled) => {
     }
 
     internalModelRef.value = im
-    initExpressionController(im).catch((err) => {
+    initExpressionController(im, loadedModelId).catch((err) => {
       console.warn('[Model.vue] Expression controller initialisation failed:', err)
     })
   }
@@ -745,7 +893,7 @@ onMounted(() => {
 })
 
 onMounted(async () => {
-  updateDropShadowFilter()
+  updateModelFilters()
 })
 
 onUnmounted(() => {
@@ -753,6 +901,16 @@ onUnmounted(() => {
   resizeAnimation?.pause()
   disposeShouldUpdateView?.()
   expressionController.dispose()
+  loadedModelId = undefined
+
+  // Destroying a display object does not destroy its filters, and each mount
+  // creates its own pair, so the light-map textures and the blur pass would
+  // stay on the GPU for every renderer switch. The stack comes off the model
+  // first so that nothing can reference a destroyed filter.
+  if (model.value)
+    model.value.filters = []
+  screenAmbientLightFilter.value.destroy()
+  dropShadowFilter.value.destroy()
 })
 
 function listMotionGroups() {

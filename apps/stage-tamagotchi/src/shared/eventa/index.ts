@@ -128,7 +128,7 @@ export interface WidgetsAddPayload {
   // size presets or explicit spans; renderer decides mapping
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
-  // auto-dismiss in ms; if omitted, persistent until closed by user
+  /** Automatic destruction delay in milliseconds. If omitted or zero, the widget stays until an explicit close. */
   ttlMs?: number
 }
 
@@ -138,6 +138,7 @@ export interface WidgetsUpdatePayload {
   alwaysOnTop?: boolean
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
+  /** Replaces the automatic destruction delay. If omitted, the current expiry time does not change. */
   ttlMs?: number
 }
 
@@ -201,51 +202,6 @@ export interface WidgetsIframeRequestFailurePayload extends WidgetsIframeRequest
 export type WidgetsIframeRequestResultPayload
   = | WidgetsIframeRequestSuccessPayload
     | WidgetsIframeRequestFailurePayload
-
-export interface PluginManifestSummary {
-  extensionId: string
-  entrypoints: Record<string, string | undefined>
-  path: string
-  enabled: boolean
-  loaded: boolean
-  isNew: boolean
-}
-
-export interface PluginRegistrySnapshot {
-  root: string
-  plugins: PluginManifestSummary[]
-}
-
-// TODO: Replace these manually duplicated IPC types with re-exports from
-// @proj-airi/plugin-sdk (CapabilityDescriptor) once stage-ui and the shared
-// eventa layer can depend on the SDK without introducing unwanted coupling.
-export interface PluginCapabilityPayload {
-  key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  metadata?: Record<string, unknown>
-}
-
-export interface PluginCapabilityState {
-  key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  metadata?: Record<string, unknown>
-  updatedAt: number
-}
-
-export interface PluginHostSessionSummary {
-  id: string
-  extensionId: string
-  phase: string
-  runtime: 'electron' | 'node' | 'web'
-  moduleId: string
-}
-
-export interface PluginHostDebugSnapshot {
-  registry: PluginRegistrySnapshot
-  sessions: PluginHostSessionSummary[]
-  capabilities: PluginCapabilityState[]
-  refreshedAt: number
-}
 
 export interface ElectronMcpStdioServerConfig {
   command: string

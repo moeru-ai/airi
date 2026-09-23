@@ -96,6 +96,7 @@ export default {
   asar: true,
   asarUnpack: [
     '**/*.node',
+    '**/node_modules/@auv-js/cli-*/bin/**',
   ],
   extraResources: [
     {
@@ -135,6 +136,7 @@ export default {
     runAfterFinish: true,
   },
   mac: {
+    entitlements: 'build/entitlements.mac.plist',
     entitlementsInherit: 'build/entitlements.mac.plist',
     // NOTICE: Same channel rule as Windows. Keep `${arch}` here so generated metadata resolves
     // to architecture-specific update feeds on macOS (for example: `latest-x64-mac.yml`, `latest-arm64-mac.yml`).
@@ -206,14 +208,13 @@ export default {
       // - Linux arm64 -> `latest-arm64-linux-arm64.yml`
       channel: 'latest-${arch}',
     },
-    extendInfo: [
-      {
-        NSMicrophoneUsageDescription: 'AIRI requires microphone access for voice interaction',
-      },
-      {
-        NSCameraUsageDescription: 'AIRI requires camera access for vision understanding',
-      },
-    ],
+    extendInfo: {
+      NSAppleEventsUsageDescription: 'AIRI uses Automation to control apps for computer-use tasks.',
+      NSMicrophoneUsageDescription: 'AIRI requires microphone access for voice interaction',
+      NSSpeechRecognitionUsageDescription: 'AIRI uses Apple Speech to transcribe voice interactions on this device',
+      NSCameraUsageDescription: 'AIRI requires camera access for vision understanding',
+      NSBluetoothAlwaysUsageDescription: 'AIRI uses Bluetooth to read game controller input',
+    },
     // For self-publishing, testing, and distribution after modified the code without access to
     // an Apple Developer account, comment and uncomment the following 4 lines.
     // Later on when you obtained one, you can set up the necessary certificates and provisioning
