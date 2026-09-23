@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { calculateFluxFromUsage, extractUsageFromBody } from '../billing'
+import { calculateFluxFromUsage, extractUsageFromBody, priceOpenRouterUsage } from '../billing'
 
 describe('extractUsageFromBody', () => {
   it('returns promptTokens and completionTokens from a normal body', () => {
     const body = { usage: { prompt_tokens: 100, completion_tokens: 200 } }
-    expect(extractUsageFromBody(body)).toEqual({ promptTokens: 100, completionTokens: 200 })
+    expect(extractUsageFromBody(body)).toEqual({ promptTokens: 100, completionTokens: 200, providerUsage: body.usage })
   })
 
   it('returns empty object when body has no usage field', () => {
@@ -20,12 +20,12 @@ describe('extractUsageFromBody', () => {
     expect(extractUsageFromBody(undefined)).toEqual({})
   })
 
-  it('returns empty object when usage is null', () => {
-    expect(extractUsageFromBody({ usage: null })).toEqual({})
+  it('retains a null receipt without inventing token usage', () => {
+    expect(extractUsageFromBody({ usage: null })).toEqual({ providerUsage: null })
   })
 
-  it('returns empty object when usage is falsy zero-like value (0)', () => {
-    expect(extractUsageFromBody({ usage: 0 })).toEqual({})
+  it('retains invalid usage for reconciliation without inventing token usage', () => {
+    expect(extractUsageFromBody({ usage: 0 })).toEqual({ providerUsage: 0 })
   })
 
   it('returns only promptTokens when completion_tokens is missing', () => {
@@ -54,6 +54,49 @@ describe('extractUsageFromBody', () => {
     const result = extractUsageFromBody(body)
     expect(result.promptTokens).toBe(0)
     expect(result.completionTokens).toBe(0)
+  })
+})
+
+describe('openRouter cost pricing', () => {
+  const pricing = { fluxPerUsd: 1000, multiplier: 1.5 }
+
+  it('uses the reported cost without applying a second cache discount', () => {
+    const usage = extractUsageFromBody({ id: 'gen-1', usage: { cost: 0.002, prompt_tokens: 10_000, prompt_tokens_details: { cached_tokens: 9000 } } })
+    expect(priceOpenRouterUsage(usage, pricing)).toEqual({ pricing, costUsd: 0.002, microFlux: 3_000_000 })
+    expect(usage.providerUsage).toMatchObject({ prompt_tokens_details: { cached_tokens: 9000 } })
+  })
+
+  it('preserves a free request as an explicit zero cost', () => {
+    expect(priceOpenRouterUsage({ generationId: 'gen-free', providerUsage: { cost: 0 } }, pricing))
+      .toEqual({ pricing, costUsd: 0, microFlux: 0 })
+  })
+
+  it('multiplies decimal prices without floating point boundary overcharges', () => {
+    expect(priceOpenRouterUsage({ generationId: 'gen-decimal', providerUsage: { cost: 0.07 } }, { fluxPerUsd: 100, multiplier: 1 }).microFlux)
+      .toBe(7_000_000)
+    expect(priceOpenRouterUsage({ generationId: 'gen-small', providerUsage: { cost: 1e-10 } }, pricing).microFlux)
+      .toBe(1)
+  })
+
+  it.each([undefined, null, -1, '0.01', Number.NaN, Number.POSITIVE_INFINITY])('keeps invalid cost %s pending', (cost) => {
+    expect(priceOpenRouterUsage({ generationId: 'gen-invalid', providerUsage: { cost } }, pricing).pendingReason)
+      .toBe('missing_or_invalid_cost')
+  })
+
+  it('does not treat a BYOK fee as the full inference cost', () => {
+    expect(priceOpenRouterUsage({ generationId: 'gen-byok', providerUsage: { cost: 0.001, is_byok: true } }, pricing).pendingReason)
+      .toBe('byok_cost_not_supported')
+  })
+
+  it('requires a generation ID and rejects unsafe integer charges', () => {
+    expect(priceOpenRouterUsage({ providerUsage: { cost: 1 } }, pricing).pendingReason).toBe('missing_generation_id')
+    expect(priceOpenRouterUsage({ generationId: 'gen-huge', providerUsage: { cost: 1e20 } }, pricing).pendingReason).toBe('cost_out_of_range')
+  })
+
+  it('reads Responses accounting fields and keeps raw cost details', () => {
+    const usage = { input_tokens: 100, output_tokens: 20, cost: 0.004, cost_details: { upstream_inference_cost: 0.003 } }
+    expect(extractUsageFromBody({ id: 'gen-responses', usage }, 'responses'))
+      .toEqual({ generationId: 'gen-responses', providerUsage: usage, promptTokens: 100, completionTokens: 20 })
   })
 })
 

@@ -25,6 +25,19 @@ describe('configKVService', () => {
     expectTypeOf(service.get('FLUX_PER_REQUEST')).toEqualTypeOf<Promise<number>>()
   })
 
+  it('does not enable OpenRouter cost billing without explicit prices', async () => {
+    expect(await service.getOptional('OPENROUTER_COST_BILLING')).toBeNull()
+  })
+
+  it('loads both OpenRouter price factors and rejects invalid configuration', async () => {
+    store._store.set('OPENROUTER_COST_BILLING', JSON.stringify({ fluxPerUsd: 1000, multiplier: 1.5 }))
+    expect(await service.get('OPENROUTER_COST_BILLING')).toEqual({ fluxPerUsd: 1000, multiplier: 1.5 })
+    for (const value of [{ fluxPerUsd: 1000 }, { fluxPerUsd: -1, multiplier: 1 }, { fluxPerUsd: 1, multiplier: 0 }]) {
+      store._store.set('OPENROUTER_COST_BILLING', JSON.stringify(value))
+      await expect(service.refresh('OPENROUTER_COST_BILLING')).rejects.toMatchObject({ errorCode: 'CONFIG_INVALID' })
+    }
+  })
+
   it('get should throw 503 when key is not set', async () => {
     await expect(service.getOrThrow('FLUX_PER_1K_CHARS_TTS'))
       .rejects

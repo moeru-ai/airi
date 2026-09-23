@@ -1,13 +1,15 @@
 import type { InferOutput } from 'valibot'
 
+import type { UsageInfo } from '../../../../../services/domain/billing/billing'
 import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
 import { EventSourceParserStream } from '@xsai/shared-stream'
-import { array, integer, looseObject, minValue, nullable, number, object, optional, picklist, pipe, regex, safeParse, string, unknown } from 'valibot'
+import { array, integer, looseObject, minValue, nullable, number, optional, picklist, pipe, regex, safeParse, string, unknown } from 'valibot'
 
+import { extractUsageFromBody } from '../../../../../services/domain/billing/billing'
 import { ApiError, createBadGatewayError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
 import { buildSafeErrorResponseHeaders } from '../../http/response'
@@ -20,7 +22,7 @@ const responseSchema = looseObject({
   id: string(),
   status: picklist(['completed', 'failed', 'incomplete', 'in_progress', 'queued', 'cancelled']),
   output: array(unknown()),
-  usage: optional(nullable(object({ input_tokens: tokens, output_tokens: tokens, total_tokens: tokens }))),
+  usage: optional(nullable(looseObject({ input_tokens: tokens, output_tokens: tokens, total_tokens: tokens }))),
 })
 const eventSchema = looseObject({
   type: pipe(string(), regex(/^[^\r\n]+$/, 'Responses event types cannot contain line breaks')),
@@ -155,10 +157,25 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     // One request has one terminal outcome. A delivered terminal frame owns settlement;
     // cancellation before delivery and unexpected EOF own the failure path.
     let terminal = false
+    let lastUsage: UsageInfo = {}
+    let pendingReceipt: Promise<void> | undefined
     function fail(status: number, message: string) {
       if (terminal)
         return
       terminal = true
+      const price = billing.priceChatUsage(lastUsage, policy, routeCtx.provider)
+      if (upstream.ok && price.costPricing) {
+        pendingReceipt = billing.settleChat({
+          ...lastUsage,
+          ...price,
+          userId: input.userId,
+          requestId,
+          model,
+          pendingReason: 'response_not_completed',
+          stage: input.policy.stream ? 'streaming' : 'non_streaming',
+          logger,
+        }).then(() => {}).catch(error => logger.withError(error).withFields({ requestId, generationId: lastUsage.generationId }).error('Failed to save pending cost receipt'))
+      }
       generation.fail(message)
       telemetry.failSpan(span, message)
       const durationMs = Date.now() - startedAt
@@ -174,12 +191,13 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         return
       }
       terminal = true
-      const usage = { promptTokens: response.usage?.input_tokens, completionTokens: response.usage?.output_tokens }
-      const amount = billing.priceChatUsage(usage, policy)
+      const usage = extractUsageFromBody(response, 'responses')
+      const price = billing.priceChatUsage(usage, policy, routeCtx.provider)
+      const amount = price.amount
       const stage = input.policy.stream ? 'streaming' : 'non_streaming'
       let charged = 0
       try {
-        charged = await billing.settleChat({ ...usage, userId: input.userId, requestId, model, amount, stage, logger })
+        charged = await billing.settleChat({ ...usage, ...price, userId: input.userId, requestId, model, stage, logger })
       }
       catch (error) {
         // Generation has completed. A debit failure is revenue telemetry, not a new provider attempt.
@@ -201,6 +219,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     }
     if (!upstream.body) {
       fail(502, 'Responses upstream returned no body')
+      await pendingReceipt
       throw createBadGatewayError('Responses upstream returned no body')
     }
 
@@ -209,6 +228,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         // Abort the body pipe too: the router's header timeout no longer owns this stream.
         const body = upstream.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>(), { signal: input.abortSignal })
         const value: unknown = await new Response(body).json()
+        lastUsage = extractUsageFromBody(value, 'responses')
         const parsed = safeParse(responseSchema, value)
         if (!parsed.success)
           throw createBadGatewayError('Invalid Responses JSON response')
@@ -223,6 +243,9 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         if (input.abortSignal?.aborted)
           throw error
         throw createBadGatewayError('Invalid Responses JSON response')
+      }
+      finally {
+        await pendingReceipt
       }
     }
 
@@ -275,6 +298,8 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
           if (!event.success)
             throw new Error('Invalid Responses SSE event')
           const type = event.output.type
+          if (event.output.response !== undefined)
+            lastUsage = extractUsageFromBody(event.output.response, 'responses')
           if (openRouterStream)
             observeOpenRouterEvent(openRouterStream, event.output)
           if (firstOutputDelta && type.endsWith('.delta')) {
@@ -318,6 +343,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         logger.withFields({ requestId, reason: errorMessageFrom(error) }).warn('Responses stream interrupted')
       }
       finally {
+        await pendingReceipt
         input.abortSignal?.removeEventListener('abort', cancel)
         await reader.cancel().catch(error => logger.withError(error).warn('Failed to close Responses reader'))
         reader.releaseLock()

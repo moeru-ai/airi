@@ -113,16 +113,94 @@ Keep search Items and citation annotations in the client history for replay and 
 
 The Responses operation lives in `operations/responses/index.ts`. Its request contract lives in `operations/responses/request.ts`.
 
-Web search adds no separate Flux debit. The hosted service absorbs the upstream search-call fee.
-Search content tokens in the returned usage follow the existing token rate.
+Web search adds no separate Flux debit. Under token pricing, the hosted service absorbs the upstream search-call fee.
+Under OpenRouter cost pricing, any search fee included in `usage.cost` contributes to the Flux charge.
 
-A completed result uses `usage.input_tokens` and `usage.output_tokens` with the existing Flux pricing policy.
-When usage is absent, the existing per-request rate applies. Failed, incomplete, cancelled, malformed,
-and truncated streams incur no debit. Each request has one settlement ID, so duplicate terminal events cannot charge twice.
+A completed result uses the configured Flux pricing policy described below.
+Under token pricing, missing usage selects the per-request rate. Failed, incomplete, cancelled, malformed,
+and truncated streams incur no immediate debit. OpenRouter cost pricing saves these receipts for reconciliation.
+Each request has one settlement ID, so duplicate terminal events cannot charge twice.
 A client disconnect cancels the upstream reader. A delivered terminal event authorizes settlement. The gateway closes the stream after that settlement attempt.
 
 Before release, configure a Responses-capable upstream and verify authenticated requests and Flux settlement in the target environment.
 The architecture and test scope are in [the hosted Responses ADR](../../docs/ai/adr/2026-09-15-hosted-responses.md).
+
+### LLM Flux pricing
+
+The default policy charges `ceil((input + output) / 1000 * FLUX_PER_1K_TOKENS)`, with a minimum of one Flux.
+Missing token counts select `FLUX_PER_REQUEST`. The schema defaults are one Flux per thousand tokens and five Flux per request.
+These are configuration defaults, not a statement about production prices.
+
+`OPENROUTER_COST_BILLING` enables cost pricing for the resolved `openrouter.ai` provider in both generation protocols.
+Its JSON value must contain positive `fluxPerUsd` and `multiplier` numbers. This configuration has no default.
+For example, `{ "fluxPerUsd": 1000, "multiplier": 1.5 }` charges three Flux for `usage.cost = 0.002` USD.
+This example is not a recommended sale price.
+Other providers keep the token policy, even when they return a `cost` field.
+
+Each cost charge uses `usage.cost * fluxPerUsd * multiplier`. It does not apply another cache discount.
+Decimal arithmetic rounds each cost up to one micro-Flux. One Flux equals 1,000,000 micro-Flux.
+The account retains fractional charges until they reach one whole Flux. An explicit zero cost settles at zero.
+The integer wallet, top-up amounts, and transaction API keep their existing units.
+
+The `llm_cost_receipt` table retains usage, generation ID, price snapshot, and settlement status.
+Missing or invalid cost, BYOK usage, and interrupted results create pending receipts without a token-rate fallback.
+`settleOpenRouterCost` can reconcile a pending receipt with recovered usage and its original request ID.
+It uses the saved price snapshot and rejects a different generation ID.
+This version has no automatic generation lookup, reconciliation worker, or operator UI.
+Automatic lookup belongs to phase two. Phase one leaves pending receipts uncharged and monitors their volume.
+Pending receipts are not free usage. They do not automatically debit the wallet later in this version.
+
+Apply `0025_openrouter_cost_receipts.sql` before deploying this code, even when cost pricing is disabled.
+The migration preserves existing balances and initializes each fractional remainder to zero.
+Then configure prices only after charge samples agree with the OpenRouter account history.
+Do not enable this policy for OpenRouter keys that use BYOK provider credentials.
+
+Authorization still checks the `FLUX_PER_REQUEST` balance. It does not reserve the maximum output cost.
+Partial balances drain to zero. The ledger and receipt retain unpaid whole Flux for review.
+Each generated server request ID owns one settlement. A new HTTP retry is a new request, not a replay of the old ID.
+The [cost billing ADR](../../docs/ai/adr/2026-09-23-openrouter-cost-billing.md) describes the transaction boundary and test scope.
+
+#### Cost receipt monitoring
+
+Use receipts, not `flux_consumed = 0`, to count unresolved charges.
+A zero debit can mean free usage, a fractional charge, a pending receipt, or an empty wallet.
+These reports cover persisted cost receipts only. They exclude token-priced requests and failures before receipt persistence.
+
+```sql
+SELECT
+  count(*) AS receipts,
+  count(*) FILTER (WHERE status = 'pending') AS pending,
+  round(100.0 * count(*) FILTER (WHERE status = 'pending')
+    / nullif(count(*), 0), 2) AS pending_percent,
+  count(*) FILTER (WHERE status = 'pending' AND generation_id IS NULL) AS pending_without_id,
+  coalesce(sum(requested - charged) FILTER (WHERE status = 'settled'), 0) AS unpaid_flux
+FROM llm_cost_receipt
+WHERE created_at >= now() - interval '24 hours';
+
+SELECT pending_reason, model, count(*) AS receipts, min(created_at) AS oldest
+FROM llm_cost_receipt
+WHERE status = 'pending'
+GROUP BY pending_reason, model
+ORDER BY receipts DESC;
+
+SELECT request_id, generation_id, model, pending_reason, created_at
+FROM llm_cost_receipt
+WHERE status = 'pending'
+ORDER BY created_at
+LIMIT 100;
+```
+
+The receipt and `flux_transaction` share `(user_id, request_id)`.
+The current `llm_request_log` has no request ID and cannot provide this join.
+The planned Activity and agent trace work will add request correlation. It is not part of this billing change.
+
+Structured runtime logs use `event = llm.cost_receipt` and `billingStatus = pending | settled | failed`.
+Pending logs include the reason. Failed logs identify transactions that could not save a receipt.
+Do not add pending requests to a USD loss total when their cost is unknown.
+Monitor persistence errors separately because they are absent from these SQL reports.
+Do not infer completeness from a zero pending count. A process crash before persistence can leave no receipt or error log.
+Reassess automatic lookup when pending volume or known unpaid cost becomes material.
+Choose an alert threshold after representative traffic provides a baseline. This change does not install an alert or dashboard.
 
 ### Generation protocol ownership
 
