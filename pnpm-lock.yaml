@@ -8613,6 +8613,20 @@ packages:
       web-worker:
         optional: true
 
+  '@moeru/eventa@1.0.0-beta.1':
+    resolution: {integrity: sha512-4VPs+FlTdIMtlNdBvERvF+e9pnSbz+PN7dgztADtaETCQsSDk9ptHJuzajRBhOlr364k4TotroZa9rrIoVelRQ==}
+    peerDependencies:
+      electron: '>=30'
+      h3: 2.0.0-beta.1
+      web-worker: ^1.5.0
+    peerDependenciesMeta:
+      electron:
+        optional: true
+      h3:
+        optional: true
+      web-worker:
+        optional: true
+
   '@moeru/eventa@1.0.1':
     resolution: {integrity: sha512-dDQcB/acJBhMiOFrleXMuCSTtbAGsIZWNSNkoEB31wWBIrg4VwDtaX/XtMq8dAjmD3ixPnjSPtb2/rMbwZBseQ==}
     peerDependencies:
@@ -8629,20 +8643,6 @@ packages:
       h3:
         optional: true
       hono:
-        optional: true
-      web-worker:
-        optional: true
-
-  '@moeru/eventa@1.0.0-beta.1':
-    resolution: {integrity: sha512-4VPs+FlTdIMtlNdBvERvF+e9pnSbz+PN7dgztADtaETCQsSDk9ptHJuzajRBhOlr364k4TotroZa9rrIoVelRQ==}
-    peerDependencies:
-      electron: '>=30'
-      h3: 2.0.0-beta.1
-      web-worker: ^1.5.0
-    peerDependenciesMeta:
-      electron:
-        optional: true
-      h3:
         optional: true
       web-worker:
         optional: true
@@ -23131,6 +23131,13 @@ snapshots:
       electron: 43.4.1(supports-color@10.2.2)
       h3: 2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7))
 
+  '@moeru/eventa@1.0.0-beta.1(electron@43.4.1(supports-color@10.2.2))':
+    dependencies:
+      nanoid: 5.1.16
+      picomatch: 4.0.5
+    optionalDependencies:
+      electron: 43.4.1(supports-color@10.2.2)
+
   '@moeru/eventa@1.0.1(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)':
     dependencies:
       nanoid: 6.0.1
@@ -23139,13 +23146,6 @@ snapshots:
       electron: 43.4.1(supports-color@10.2.2)
       h3: 2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7))
       hono: 4.13.3
-
-  '@moeru/eventa@1.0.0-beta.1(electron@43.4.1(supports-color@10.2.2))':
-    dependencies:
-      nanoid: 5.1.16
-      picomatch: 4.0.5
-    optionalDependencies:
-      electron: 43.4.1(supports-color@10.2.2)
 
   '@moeru/std@0.1.0-beta.1': {}
 
