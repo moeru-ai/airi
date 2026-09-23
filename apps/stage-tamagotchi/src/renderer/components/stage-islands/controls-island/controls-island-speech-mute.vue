@@ -29,26 +29,22 @@ const label = computed(() => speechMuted.value
       :aria-pressed="speechMuted"
       @click="toggleSpeechMuted"
     >
-      <Transition name="fade" mode="out-in">
-        <div
-          v-if="speechMuted"
-          key="muted"
-          :class="[
-            iconClass,
-            'i-solar:volume-cross-outline',
-            'text-neutral-800 dark:text-neutral-300',
-          ]"
-        />
-        <div
-          v-else
-          key="unmuted"
-          :class="[
-            iconClass,
-            'i-solar:volume-loud-outline',
-            'text-neutral-800 dark:text-neutral-300',
-          ]"
-        />
-      </Transition>
+      <div
+        v-if="speechMuted"
+        :class="[
+          iconClass,
+          'i-solar:volume-cross-outline',
+          'text-neutral-800 dark:text-neutral-300',
+        ]"
+      />
+      <div
+        v-else
+        :class="[
+          iconClass,
+          'i-solar:volume-loud-outline',
+          'text-neutral-800 dark:text-neutral-300',
+        ]"
+      />
     </ControlButton>
     <template #tooltip>
       {{ label }}
