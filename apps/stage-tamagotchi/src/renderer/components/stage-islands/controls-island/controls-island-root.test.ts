@@ -105,20 +105,20 @@ afterEach(() => {
 })
 
 describe('resolveControlsIslandDock', () => {
-  it('places the island in the top-left screen quadrant', () => {
-    expect(resolve({ x: 100, y: 100, width: 450, height: 600 })).toBe('top-left')
+  it('docks opposite the top-left screen edge', () => {
+    expect(resolve({ x: 100, y: 100, width: 450, height: 600 })).toBe('bottom-left')
   })
 
-  it('places the island in the top-right screen quadrant', () => {
-    expect(resolve({ x: 1370, y: 100, width: 450, height: 600 })).toBe('top-right')
+  it('docks opposite the top-right screen edge', () => {
+    expect(resolve({ x: 1370, y: 100, width: 450, height: 600 })).toBe('bottom-right')
   })
 
-  it('places the island in the bottom-left screen quadrant', () => {
-    expect(resolve({ x: 100, y: 430, width: 450, height: 600 })).toBe('bottom-left')
+  it('docks opposite the bottom-left screen edge', () => {
+    expect(resolve({ x: 100, y: 430, width: 450, height: 600 })).toBe('top-left')
   })
 
-  it('places the island in the bottom-right screen quadrant', () => {
-    expect(resolve({ x: 1370, y: 430, width: 450, height: 600 })).toBe('bottom-right')
+  it('docks opposite the bottom-right screen edge', () => {
+    expect(resolve({ x: 1370, y: 430, width: 450, height: 600 })).toBe('top-right')
   })
 
   it('uses the display that contains the largest window area', () => {
@@ -133,7 +133,7 @@ describe('resolveControlsIslandDock', () => {
       windowBounds: { x: -500, y: -300, width: 450, height: 600 },
     })
 
-    expect(dock).toBe('bottom-right')
+    expect(dock).toBe('top-right')
   })
 
   it('keeps the previous dock inside the display center dead zone', () => {
@@ -173,7 +173,7 @@ describe('controlsIslandRoot', () => {
     const { host } = mountRoot()
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-right',
+      dock: 'top-right',
       phase: 'idle',
     })
 
@@ -186,7 +186,7 @@ describe('controlsIslandRoot', () => {
     await vi.advanceTimersByTimeAsync(999)
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-right',
+      dock: 'top-right',
       phase: 'idle',
     })
 
@@ -197,7 +197,7 @@ describe('controlsIslandRoot', () => {
     await vi.advanceTimersByTimeAsync(149)
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-right',
+      dock: 'top-right',
       phase: 'leaving',
     })
 
@@ -235,7 +235,7 @@ describe('controlsIslandRoot', () => {
     await vi.advanceTimersByTimeAsync(1000)
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-right',
+      dock: 'top-right',
       phase: 'idle',
     })
 
