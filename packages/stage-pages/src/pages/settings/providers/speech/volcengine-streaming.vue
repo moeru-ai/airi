@@ -122,10 +122,16 @@ watchDebounced(draftApiKey, async (key) => {
   if (!keyEdited.value)
     return
   providerConfigStore.ensureProvider(providerId, providerId)
-  await providerConfigStore.updateProviderConfig(providerId, { ...providerConfig.value, apiKey: key }, 'unconfigured')
+  // The BYOK key stays in local provider settings. Remote provider updates persist their config on the server.
+  await providerConfigStore.patchProviderConfig(providerId, { apiKey: key })
+  await providersStore.initializeProvider(providerId)
   if (key.trim()) {
-    await providersStore.initializeProvider(providerId)
+    if (await providersStore.validateProvider(providerId, { force: true }))
+      providersStore.forceProviderConfigured(providerId)
     await loadCatalog()
+  }
+  else {
+    providersStore.setProviderUnconfigured(providerId)
   }
 }, { debounce: 500 })
 
@@ -133,6 +139,10 @@ watch(isAuthenticated, async (authenticated) => {
   if (authenticated) {
     providerConfigStore.ensureProvider(providerId, providerId)
     await providersStore.initializeProvider(providerId)
+    if (typeof providerConfig.value?.apiKey === 'string' && providerConfig.value.apiKey.trim()) {
+      if (await providersStore.validateProvider(providerId, { force: true }))
+        providersStore.forceProviderConfigured(providerId)
+    }
     await loadCatalog()
   }
 }, { immediate: true })
