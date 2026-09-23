@@ -68,28 +68,6 @@ Account deletion continues when neither token is stored, because AIRI has no Goo
 This does not revoke consent in the user's Google Account.
 If either token is stored, Auth must complete its existing revocation policy before it deletes AIRI data.
 
-## Steam sign-in profile
-
-Steam OpenID does not return a display name or an avatar.
-When `STEAM_PUBLISHER_KEY` is set, Auth reads the Steam profile for a new user.
-The persona name becomes the account name.
-The full avatar URL becomes the account image.
-
-Set `STEAM_PUBLISHER_KEY` in one of these places:
-
-- For the standalone Auth process, set the variable in `server/apps/auth/.env.local`.
-- For `pnpm dev:backend`, set the variable in `server/apps/api/.env.local`.
-  Compose loads `server/apps/api/.env` and `.env.local` into the Auth container, in that order.
-  Compose does not load `server/apps/auth/.env.local`.
-  Run `pnpm dev:backend` again after you edit the file.
-- For Railway, set the variable on the Auth service.
-
-If the key is empty, Auth still creates the user.
-The account name stays `Steam User {SteamID64}`.
-The account image stays empty.
-A later sign-in does not change the name or the image.
-Linking Steam to an existing account does not change the name or the image.
-
 ## Railway
 
 Deploy this as the Auth Railway service. Keep the service Root Directory at
