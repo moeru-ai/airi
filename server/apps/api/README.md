@@ -131,26 +131,28 @@ The default policy charges `ceil((input + output) / 1000 * FLUX_PER_1K_TOKENS)`,
 Missing token counts select `FLUX_PER_REQUEST`. The schema defaults are one Flux per thousand tokens and five Flux per request.
 These are configuration defaults, not a statement about production prices.
 
-`OPENROUTER_COST_BILLING` enables cost pricing for the resolved `openrouter.ai` provider in both generation protocols.
-Its JSON value must contain positive `fluxPerUsd` and `multiplier` numbers. This configuration has no default.
-For example, `{ "fluxPerUsd": 1000, "multiplier": 1.5 }` charges three Flux for `usage.cost = 0.002` USD.
+`LLM_COST_BILLING` maps provider IDs to positive `fluxPerUsd` and `multiplier` numbers. This configuration has no default.
+For example, `{ "openrouter": { "fluxPerUsd": 1000, "multiplier": 1.5 } }` charges three Flux for a reported cost of 0.002 USD.
 This example is not a recommended sale price.
-Other providers keep the token policy, even when they return a `cost` field.
+Provider adapters convert wire usage into normalized USD costs. Only the OpenRouter adapter is implemented in this version.
+Its trusted hostname is `openrouter.ai`, and its stored provider ID is `openrouter`.
+Unconfigured providers and providers without an adapter keep the token policy, even when they return a `cost` field.
+Adding a configuration entry alone does not implement an adapter.
 
 Each cost charge uses `usage.cost * fluxPerUsd * multiplier`. It does not apply another cache discount.
 Decimal arithmetic rounds each cost up to one micro-Flux. One Flux equals 1,000,000 micro-Flux.
 The account retains fractional charges until they reach one whole Flux. An explicit zero cost settles at zero.
 The integer wallet, top-up amounts, and transaction API keep their existing units.
 
-The `llm_cost_receipt` table retains usage, generation ID, price snapshot, and settlement status.
+The `llm_cost_receipt` table retains provider ID, usage, generation ID, price snapshot, and settlement status.
 Missing or invalid cost, BYOK usage, and interrupted results create pending receipts without a token-rate fallback.
-`settleOpenRouterCost` can reconcile a pending receipt with recovered usage and its original request ID.
-It uses the saved price snapshot and rejects a different generation ID.
+`settleLlmCost` can reconcile a pending receipt with recovered usage and its original request ID.
+It uses the saved price snapshot and rejects a different provider or generation ID.
 This version has no automatic generation lookup, reconciliation worker, or operator UI.
 Automatic lookup belongs to phase two. Phase one leaves pending receipts uncharged and monitors their volume.
 Pending receipts are not free usage. They do not automatically debit the wallet later in this version.
 
-Apply `0025_openrouter_cost_receipts.sql` before deploying this code, even when cost pricing is disabled.
+Apply `0025_llm_cost_receipts.sql` before deploying this code, even when cost pricing is disabled.
 The migration preserves existing balances and initializes each fractional remainder to zero.
 Then configure prices only after charge samples agree with the OpenRouter account history.
 Do not enable this policy for OpenRouter keys that use BYOK provider credentials.
@@ -158,7 +160,7 @@ Do not enable this policy for OpenRouter keys that use BYOK provider credentials
 Authorization still checks the `FLUX_PER_REQUEST` balance. It does not reserve the maximum output cost.
 Partial balances drain to zero. The ledger and receipt retain unpaid whole Flux for review.
 Each generated server request ID owns one settlement. A new HTTP retry is a new request, not a replay of the old ID.
-The [cost billing ADR](../../docs/ai/adr/2026-09-23-openrouter-cost-billing.md) describes the transaction boundary and test scope.
+The [cost billing ADR](../../docs/ai/adr/2026-09-23-provider-cost-billing.md) describes the transaction boundary and test scope.
 
 #### Cost receipt monitoring
 
@@ -177,13 +179,13 @@ SELECT
 FROM llm_cost_receipt
 WHERE created_at >= now() - interval '24 hours';
 
-SELECT pending_reason, model, count(*) AS receipts, min(created_at) AS oldest
+SELECT provider, pending_reason, model, count(*) AS receipts, min(created_at) AS oldest
 FROM llm_cost_receipt
 WHERE status = 'pending'
-GROUP BY pending_reason, model
+GROUP BY provider, pending_reason, model
 ORDER BY receipts DESC;
 
-SELECT request_id, generation_id, model, pending_reason, created_at
+SELECT provider, request_id, generation_id, model, pending_reason, created_at
 FROM llm_cost_receipt
 WHERE status = 'pending'
 ORDER BY created_at

@@ -164,7 +164,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         return
       terminal = true
       const price = billing.priceChatUsage(lastUsage, policy, routeCtx.provider)
-      if (upstream.ok && price.costPricing) {
+      if (upstream.ok && price.costReceipt) {
         pendingReceipt = billing.settleChat({
           ...lastUsage,
           ...price,

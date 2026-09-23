@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { calculateFluxFromUsage, extractUsageFromBody, priceOpenRouterUsage } from '../billing'
+import { calculateFluxFromUsage, extractUsageFromBody, priceLlmCost } from '../billing'
 
 describe('extractUsageFromBody', () => {
   it('returns promptTokens and completionTokens from a normal body', () => {
@@ -57,40 +57,40 @@ describe('extractUsageFromBody', () => {
   })
 })
 
-describe('openRouter cost pricing', () => {
+describe('provider cost pricing', () => {
   const pricing = { fluxPerUsd: 1000, multiplier: 1.5 }
 
   it('uses the reported cost without applying a second cache discount', () => {
-    const usage = extractUsageFromBody({ id: 'gen-1', usage: { cost: 0.002, prompt_tokens: 10_000, prompt_tokens_details: { cached_tokens: 9000 } } })
-    expect(priceOpenRouterUsage(usage, pricing)).toEqual({ pricing, costUsd: 0.002, microFlux: 3_000_000 })
+    const usage = { costUsd: 0.002, ...extractUsageFromBody({ id: 'gen-1', usage: { prompt_tokens: 10_000, prompt_tokens_details: { cached_tokens: 9000 } } }) }
+    expect(priceLlmCost(usage, pricing)).toEqual({ pricing, costUsd: 0.002, microFlux: 3_000_000 })
     expect(usage.providerUsage).toMatchObject({ prompt_tokens_details: { cached_tokens: 9000 } })
   })
 
   it('preserves a free request as an explicit zero cost', () => {
-    expect(priceOpenRouterUsage({ generationId: 'gen-free', providerUsage: { cost: 0 } }, pricing))
+    expect(priceLlmCost({ generationId: 'gen-free', costUsd: 0 }, pricing))
       .toEqual({ pricing, costUsd: 0, microFlux: 0 })
   })
 
   it('multiplies decimal prices without floating point boundary overcharges', () => {
-    expect(priceOpenRouterUsage({ generationId: 'gen-decimal', providerUsage: { cost: 0.07 } }, { fluxPerUsd: 100, multiplier: 1 }).microFlux)
+    expect(priceLlmCost({ generationId: 'gen-decimal', costUsd: 0.07 }, { fluxPerUsd: 100, multiplier: 1 }).microFlux)
       .toBe(7_000_000)
-    expect(priceOpenRouterUsage({ generationId: 'gen-small', providerUsage: { cost: 1e-10 } }, pricing).microFlux)
+    expect(priceLlmCost({ generationId: 'gen-small', costUsd: 1e-10 }, pricing).microFlux)
       .toBe(1)
   })
 
-  it.each([undefined, null, -1, '0.01', Number.NaN, Number.POSITIVE_INFINITY])('keeps invalid cost %s pending', (cost) => {
-    expect(priceOpenRouterUsage({ generationId: 'gen-invalid', providerUsage: { cost } }, pricing).pendingReason)
+  it.each([undefined, -1, Number.NaN, Number.POSITIVE_INFINITY])('keeps invalid cost %s pending', (costUsd) => {
+    expect(priceLlmCost({ generationId: 'gen-invalid', costUsd }, pricing).pendingReason)
       .toBe('missing_or_invalid_cost')
   })
 
-  it('does not treat a BYOK fee as the full inference cost', () => {
-    expect(priceOpenRouterUsage({ generationId: 'gen-byok', providerUsage: { cost: 0.001, is_byok: true } }, pricing).pendingReason)
-      .toBe('byok_cost_not_supported')
+  it('preserves the adapter reason without pricing an unconfirmed cost', () => {
+    expect(priceLlmCost({ generationId: 'gen-pending', costUsd: 0.001, pendingReason: 'unconfirmed_provider_cost' }, pricing).pendingReason)
+      .toBe('unconfirmed_provider_cost')
   })
 
   it('requires a generation ID and rejects unsafe integer charges', () => {
-    expect(priceOpenRouterUsage({ providerUsage: { cost: 1 } }, pricing).pendingReason).toBe('missing_generation_id')
-    expect(priceOpenRouterUsage({ generationId: 'gen-huge', providerUsage: { cost: 1e20 } }, pricing).pendingReason).toBe('cost_out_of_range')
+    expect(priceLlmCost({ costUsd: 1 }, pricing).pendingReason).toBe('missing_generation_id')
+    expect(priceLlmCost({ generationId: 'gen-huge', costUsd: 1e20 }, pricing).pendingReason).toBe('cost_out_of_range')
   })
 
   it('reads Responses accounting fields and keeps raw cost details', () => {

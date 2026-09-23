@@ -27,6 +27,7 @@ import {
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
 } from './analytics'
+import { createOpenAiRouteBilling } from './middlewares/billing'
 import { tracer } from './middlewares/telemetry'
 
 function createMockFluxService(flux = 100): FluxService {
@@ -2552,6 +2553,21 @@ function responsesHarness(response: () => Response, balance = 100, genAi: GenAiM
 describe('openRouter cost billing through HTTP routes', () => {
   let db: Database
   const pricing = { fluxPerUsd: 1000, multiplier: 1.5 }
+
+  // https://github.com/moeru-ai/airi/pull/2644#discussion_r4082125150
+  it('quotes a nonzero failure estimate and selects prices by adapter provider ID', async () => {
+    const policy = createOpenAiRouteBilling({
+      billingService: createMockBillingService(),
+      configKV: createMockConfigKV({ LLM_COST_BILLING: { openrouter: pricing, other: { fluxPerUsd: 20, multiplier: 7 } } }),
+      fluxService: createMockFluxService(),
+      ttsMeter: createMockTtsMeter(),
+    })
+    const authorization = await policy.authorizeChat(testUser.id)
+    const quote = policy.priceChatUsage({ generationId: 'gen-estimate', providerUsage: { cost: 0.0002 } }, authorization, 'openrouter.ai')
+    expect(quote.amount).toBe(0.3)
+    expect(quote.costReceipt).toMatchObject({ provider: 'openrouter', pricing, usage: { costUsd: 0.0002 } })
+    expect(policy.priceChatUsage({ providerUsage: { cost: 10 } }, authorization, 'other.example').costReceipt).toBeUndefined()
+  })
   beforeAll(async () => {
     db = await mockDB({ userFlux, fluxTransaction, llmCostReceipt })
   })
@@ -2563,7 +2579,7 @@ describe('openRouter cost billing through HTTP routes', () => {
   })
 
   function harness(response: () => Response, provider = 'openrouter.ai', enabled = true) {
-    const config = createMockConfigKV({ OPENROUTER_COST_BILLING: enabled ? pricing : undefined, FLUX_PER_1K_TOKENS: 1 })
+    const config = createMockConfigKV({ LLM_COST_BILLING: enabled ? { openrouter: pricing } : undefined, FLUX_PER_1K_TOKENS: 1 })
     const billing = createBillingService(db, createTestRedis(), config)
     const logs = createMockRequestLogService()
     const router = createMockLlmRouter({ route: vi.fn(async (_request, context) => {
@@ -2601,7 +2617,7 @@ describe('openRouter cost billing through HTTP routes', () => {
         expect(await response.text()).toContain('gen-cost')
         await vi.waitFor(async () => {
           const [receipt] = await db.select().from(llmCostReceipt)
-          expect(receipt).toMatchObject({ status: 'settled', charged: 3, costUsd: '0.002', pricing })
+          expect(receipt).toMatchObject({ provider: 'openrouter', status: 'settled', charged: 3, costUsd: '0.002', pricing })
         })
         const [wallet] = await db.select().from(userFlux)
         expect(wallet.flux).toBe(97)
@@ -2651,6 +2667,43 @@ describe('openRouter cost billing through HTTP routes', () => {
     })
     const [wallet] = await db.select().from(userFlux)
     expect(wallet.flux).toBe(100)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2644#discussion_r4082125157
+  it('forwards a keep-alive before any data frame and preserves raw SSE bytes', async () => {
+    const heartbeat = ': keep-alive\r\n\r\n'
+    const terminal = 'data: {"id":"gen-heartbeat","usage":{"cost":0.002}}\r\n\r\ndata: [DONE]\r\n\r\n'
+    let upstreamController: ReadableStreamDefaultController<Uint8Array>
+    const { app } = harness(() => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        upstreamController = controller
+        controller.enqueue(new TextEncoder().encode(heartbeat))
+      },
+    }), { headers: { 'Content-Type': 'text/event-stream', 'Content-Length': String(heartbeat.length + terminal.length) } }))
+    const response = await app.request('/api/v1/openai/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [], stream: true }),
+    }, { user: testUser })
+    const reader = response.body!.getReader()
+    let first: Awaited<ReturnType<typeof reader.read>> | undefined
+    const firstRead = reader.read().then((value) => {
+      first = value
+    })
+    try {
+      await vi.waitFor(() => expect(first?.done).toBe(false), { timeout: 500 })
+      expect(new TextDecoder().decode(first?.value)).toBe(heartbeat)
+      expect(response.headers.get('content-length')).toBeNull()
+    }
+    finally {
+      upstreamController!.enqueue(new TextEncoder().encode(terminal))
+      upstreamController!.close()
+      await firstRead
+    }
+    const rest = await reader.read()
+    expect(new TextDecoder().decode(rest.value)).toBe(terminal)
+    await reader.read()
+    await vi.waitFor(async () => expect((await db.select().from(llmCostReceipt))[0]).toMatchObject({ charged: 3 }))
   })
 
   it('saves a pending receipt and cancels upstream when the chat client disconnects', async () => {

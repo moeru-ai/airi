@@ -3,7 +3,7 @@ import type { InferOutput } from 'valibot'
 import { any, array, boolean, check, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
 
 import { generationProtocolSchema } from '../../../schemas/generation-protocol'
-import { openRouterCostPricingSchema } from '../../domain/billing/billing'
+import { costPricingSchema } from '../../domain/billing/billing'
 
 /**
  * LLM/TTS router config tree. Single composite entry under configKV holds the
@@ -245,7 +245,7 @@ export const llmRouterConfigSchema = object({
  * - stored JSON shape
  */
 export const configEntrySchemas = {
-  OPENROUTER_COST_BILLING: optional(openRouterCostPricingSchema),
+  LLM_COST_BILLING: optional(record(pipe(string(), nonEmpty()), costPricingSchema)),
   FLUX_PER_REQUEST: optional(number(), 5),
   INITIAL_USER_FLUX: optional(number(), 0),
   FLUX_PER_1K_TOKENS: optional(number(), 1),

@@ -2,14 +2,14 @@ import type { InferOutput } from 'valibot'
 
 import type { GenerationProtocol } from '../../../schemas/generation-protocol'
 
-import { boolean, finite, integer, looseObject, minValue, nonEmpty, nullish, number, object, optional, pipe, safeParse, string, unknown } from 'valibot'
+import { finite, integer, looseObject, minValue, nonEmpty, nullish, number, object, optional, pipe, safeParse, string, unknown } from 'valibot'
 
-/** Price snapshot for OpenRouter credit requests. There are no default sale prices. */
-export const openRouterCostPricingSchema = object({
+/** Price snapshot for provider-reported USD costs. There are no default sale prices. */
+export const costPricingSchema = object({
   fluxPerUsd: pipe(number(), finite(), minValue(Number.MIN_VALUE)),
   multiplier: pipe(number(), finite(), minValue(Number.MIN_VALUE)),
 })
-export type OpenRouterCostPricing = InferOutput<typeof openRouterCostPricingSchema>
+export type CostPricing = InferOutput<typeof costPricingSchema>
 
 const tokenCount = nullish(pipe(number(), finite(), integer(), minValue(0)))
 const usageSchema = looseObject({
@@ -19,10 +19,7 @@ const usageSchema = looseObject({
   output_tokens: tokenCount,
 })
 const envelopeSchema = object({ id: optional(string()), usage: optional(unknown()) })
-const costSchema = object({
-  cost: pipe(number(), finite(), minValue(0)),
-  is_byok: optional(boolean()),
-})
+const costSchema = pipe(number(), finite(), minValue(0))
 const generationIdSchema = pipe(string(), nonEmpty())
 
 /** Unknown cost is kept separate from a provider-reported zero cost. */
@@ -31,6 +28,12 @@ export interface UsageInfo {
   completionTokens?: number
   generationId?: string
   providerUsage?: unknown
+}
+
+/** Provider adapters normalize costs to USD and retain the original usage for audit. */
+export interface CostUsage extends UsageInfo {
+  costUsd?: number
+  pendingReason?: string
 }
 
 /** Reads accounting fields without changing the response forwarded to the client. */
@@ -48,13 +51,13 @@ export function extractUsageFromBody(body: unknown, protocol: GenerationProtocol
 }
 
 /** A pending receipt must be reconciled, never priced with the token fallback. */
-export type OpenRouterCostCharge = {
-  pricing: OpenRouterCostPricing
+export type CostCharge = {
+  pricing: CostPricing
   costUsd: number
   microFlux: number
   pendingReason?: undefined
 } | {
-  pricing: OpenRouterCostPricing
+  pricing: CostPricing
   costUsd?: number
   microFlux?: undefined
   pendingReason: string
@@ -69,27 +72,27 @@ function decimalFraction(value: number): [bigint, bigint] {
   return scale >= 0 ? [numerator, 10n ** BigInt(scale)] : [numerator * 10n ** BigInt(-scale), 1n]
 }
 
-/** Quotes a micro-Flux charge from an OpenRouter receipt, including a price snapshot. */
-export function priceOpenRouterUsage(usage: UsageInfo, pricing: OpenRouterCostPricing): OpenRouterCostCharge {
-  const cost = safeParse(costSchema, usage.providerUsage)
+/** Quotes a micro-Flux charge from normalized USD usage, without provider wire knowledge. */
+export function priceLlmCost(usage: CostUsage, pricing: CostPricing): CostCharge {
+  if (usage.pendingReason !== undefined)
+    return { pricing, costUsd: usage.costUsd, pendingReason: usage.pendingReason }
+  const cost = safeParse(costSchema, usage.costUsd)
   if (!cost.success)
     return { pricing, pendingReason: 'missing_or_invalid_cost' }
-  if (cost.output.is_byok)
-    return { pricing, pendingReason: 'byok_cost_not_supported' }
   if (!safeParse(generationIdSchema, usage.generationId).success)
     return { pricing, pendingReason: 'missing_generation_id' }
 
   let numerator = 1_000_000n
   let denominator = 1n
-  for (const value of [cost.output.cost, pricing.fluxPerUsd, pricing.multiplier]) {
+  for (const value of [cost.output, pricing.fluxPerUsd, pricing.multiplier]) {
     const [n, d] = decimalFraction(value)
     numerator *= n
     denominator *= d
   }
   const microFlux = (numerator + denominator - 1n) / denominator
   if (microFlux > BigInt(Number.MAX_SAFE_INTEGER - 1_000_000))
-    return { pricing, costUsd: cost.output.cost, pendingReason: 'cost_out_of_range' }
-  return { pricing, costUsd: cost.output.cost, microFlux: Number(microFlux) }
+    return { pricing, costUsd: cost.output, pendingReason: 'cost_out_of_range' }
+  return { pricing, costUsd: cost.output, microFlux: Number(microFlux) }
 }
 
 export function calculateFluxFromUsage(usage: UsageInfo, fluxPer1kTokens: number, fallbackRate: number): number {

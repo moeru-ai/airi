@@ -3,16 +3,16 @@ import type Redis from 'ioredis'
 import type { Database } from '../../../libs/db'
 import type { RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
-import type { OpenRouterCostPricing, UsageInfo } from './billing'
+import type { CostPricing, CostUsage } from './billing'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq } from 'drizzle-orm'
-import { parse } from 'valibot'
+import { nonEmpty, parse, pipe, string } from 'valibot'
 
 import { llmCostReceipt } from '../../../schemas/llm-cost-receipt'
 import { createPaymentRequiredError } from '../../../utils/error'
 import { invalidateBalanceCache, writeBalanceCache } from '../flux-cache'
-import { openRouterCostPricingSchema, priceOpenRouterUsage } from './billing'
+import { costPricingSchema, priceLlmCost } from './billing'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
@@ -185,14 +185,16 @@ export function createBillingService(
      * Reconciliation reuses the original price snapshot and request ID.
      * Pending receipts do not modify the balance or the fractional remainder.
      */
-    async settleOpenRouterCost(input: {
+    async settleLlmCost(input: {
+      provider: string
       userId: string
       requestId: string
       model: string
-      usage: UsageInfo
-      pricing: OpenRouterCostPricing
+      usage: CostUsage
+      pricing: CostPricing
       pendingReason?: string
     }): Promise<{ charged: number, requested: number, pending: boolean }> {
+      const provider = parse(pipe(string(), nonEmpty()), input.provider)
       const result = await db.transaction(async (tx) => {
         // All receipts for this account share the wallet lock, including zero charges.
         // The idempotency lookup must follow the lock to see concurrent settlements.
@@ -201,6 +203,8 @@ export function createBillingService(
           throw new Error(`No flux record for user ${input.userId}`)
         const key = and(eq(llmCostReceipt.userId, input.userId), eq(llmCostReceipt.requestId, input.requestId))
         const [existing] = await tx.select().from(llmCostReceipt).where(key)
+        if (existing && existing.provider !== provider)
+          throw new Error('Provider does not match the cost receipt')
         if (existing?.status === 'settled') {
           if (existing.charged === null)
             throw new Error('Settled cost receipt has no charged amount')
@@ -209,15 +213,15 @@ export function createBillingService(
         if (existing?.generationId && input.usage.generationId !== existing.generationId)
           throw new Error('Generation ID does not match the pending receipt')
 
-        const pricing = parse(openRouterCostPricingSchema, existing ? existing.pricing : input.pricing)
-        const charge = priceOpenRouterUsage(input.usage, pricing)
+        const pricing = parse(costPricingSchema, existing ? existing.pricing : input.pricing)
+        const charge = priceLlmCost(input.usage, pricing)
         if (input.pendingReason !== undefined || charge.pendingReason !== undefined) {
           await tx.insert(llmCostReceipt).values({
             userId: input.userId,
             requestId: input.requestId,
             generationId: input.usage.generationId,
             model: input.model,
-            provider: 'openrouter.ai',
+            provider,
             status: 'pending',
             pendingReason: input.pendingReason ?? charge.pendingReason,
             pricing,
@@ -251,7 +255,8 @@ export function createBillingService(
             promptTokens: input.usage.promptTokens,
             completionTokens: input.usage.completionTokens,
             billing: {
-              method: 'openrouter_cost',
+              method: 'provider_cost',
+              provider,
               generationId: input.usage.generationId,
               costUsd: charge.costUsd,
               ...pricing,
@@ -278,7 +283,7 @@ export function createBillingService(
           userId: input.userId,
           requestId: input.requestId,
           model: input.model,
-          provider: 'openrouter.ai',
+          provider,
           pricing,
         }).onConflictDoUpdate({ target: [llmCostReceipt.userId, llmCostReceipt.requestId], set: settled })
         return { charged, requested, pending: false, balance, replay: false }
@@ -291,8 +296,8 @@ export function createBillingService(
           generationId: input.usage.generationId,
           userId: input.userId,
           model: input.model,
-          provider: 'openrouter.ai',
-        }).error('Failed to persist OpenRouter cost receipt')
+          provider,
+        }).error('Failed to persist LLM cost receipt')
         throw error
       })
       if (!result.pending && !result.replay)
@@ -304,7 +309,7 @@ export function createBillingService(
         generationId: input.usage.generationId,
         userId: input.userId,
         model: input.model,
-        provider: 'openrouter.ai',
+        provider,
         pendingReason: result.pendingReason,
         charged: result.charged,
         requested: result.requested,
@@ -312,9 +317,9 @@ export function createBillingService(
         replay: result.replay,
       })
       if (result.pending)
-        receiptLogger.warn('OpenRouter cost receipt remains pending')
+        receiptLogger.warn('LLM cost receipt remains pending')
       else if (!result.replay)
-        receiptLogger.log('OpenRouter cost receipt settled')
+        receiptLogger.log('LLM cost receipt settled')
       return { charged: result.charged, requested: result.requested, pending: result.pending }
     },
 

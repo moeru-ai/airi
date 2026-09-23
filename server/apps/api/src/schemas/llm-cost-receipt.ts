@@ -6,6 +6,7 @@ export const llmCostReceipt = pgTable('llm_cost_receipt', {
   requestId: text('request_id').notNull(),
   generationId: text('generation_id'),
   model: text('model').notNull(),
+  // Stable adapter ID, not the model vendor or client-supplied provider metadata.
   provider: text('provider').notNull(),
   status: text('status').notNull(),
   pendingReason: text('pending_reason'),

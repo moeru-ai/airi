@@ -26,15 +26,15 @@ describe('configKVService', () => {
   })
 
   it('does not enable OpenRouter cost billing without explicit prices', async () => {
-    expect(await service.getOptional('OPENROUTER_COST_BILLING')).toBeNull()
+    expect(await service.getOptional('LLM_COST_BILLING')).toBeNull()
   })
 
   it('loads both OpenRouter price factors and rejects invalid configuration', async () => {
-    store._store.set('OPENROUTER_COST_BILLING', JSON.stringify({ fluxPerUsd: 1000, multiplier: 1.5 }))
-    expect(await service.get('OPENROUTER_COST_BILLING')).toEqual({ fluxPerUsd: 1000, multiplier: 1.5 })
+    store._store.set('LLM_COST_BILLING', JSON.stringify({ openrouter: { fluxPerUsd: 1000, multiplier: 1.5 }, another: { fluxPerUsd: 200, multiplier: 2 } }))
+    expect(await service.get('LLM_COST_BILLING')).toEqual({ openrouter: { fluxPerUsd: 1000, multiplier: 1.5 }, another: { fluxPerUsd: 200, multiplier: 2 } })
     for (const value of [{ fluxPerUsd: 1000 }, { fluxPerUsd: -1, multiplier: 1 }, { fluxPerUsd: 1, multiplier: 0 }]) {
-      store._store.set('OPENROUTER_COST_BILLING', JSON.stringify(value))
-      await expect(service.refresh('OPENROUTER_COST_BILLING')).rejects.toMatchObject({ errorCode: 'CONFIG_INVALID' })
+      store._store.set('LLM_COST_BILLING', JSON.stringify({ openrouter: value }))
+      await expect(service.refresh('LLM_COST_BILLING')).rejects.toMatchObject({ errorCode: 'CONFIG_INVALID' })
     }
   })
 

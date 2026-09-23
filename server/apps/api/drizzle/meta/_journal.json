@@ -181,7 +181,7 @@
       "idx": 25,
       "version": "7",
       "when": 1790162091806,
-      "tag": "0025_openrouter_cost_receipts",
+      "tag": "0025_llm_cost_receipts",
       "breakpoints": true
     }
   ]

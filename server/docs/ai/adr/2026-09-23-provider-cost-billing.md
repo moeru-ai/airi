@@ -1,15 +1,20 @@
-# OpenRouter cost billing
+# Provider cost billing
 
 Status: accepted for a local implementation. Production prices and rollout are not approved.
 
 ## Decision
 
-For OpenRouter credit requests, use `usage.cost` in USD as the charge basis.
+The billing domain accepts normalized USD costs with an explicit provider ID.
+Provider adapters own wire fields and provider-specific restrictions. Only the OpenRouter adapter ships in this version.
+For OpenRouter credit requests, its adapter uses `usage.cost` in USD as the charge basis.
 Multiply this cost by configured `fluxPerUsd` and `multiplier` values.
 Do not apply another cache discount. OpenRouter already includes cache pricing in the cost.
 
-The optional `OPENROUTER_COST_BILLING` configuration enables this policy only for the resolved `openrouter.ai` provider.
-Other providers use the existing token or request policy.
+The optional `LLM_COST_BILLING` configuration maps provider IDs to price factors.
+The adapter registry maps the trusted router hostname to a provider ID, such as `openrouter.ai` to `openrouter`.
+Providers without an adapter or configured prices use the existing token or request policy.
+The receipt, ledger, and logs retain the adapter's provider ID. The billing service contains no provider-specific parsing or constants.
+Reconciliation rejects a provider change, including a replay of a settled receipt.
 The configuration has no default prices. Each request captures its configuration before routing.
 
 ## Current behavior
@@ -24,6 +29,8 @@ An interrupted stream does not currently debit Flux.
 
 Chat Completions and Responses both retain the provider usage and generation ID.
 Chat streaming uses complete SSE frames, not a fixed tail buffer, to collect usage.
+The stream forwards original bytes, including keep-alive comments. A parser observes a bounded copy for accounting.
+The response omits upstream Content-Length because the DONE marker can end forwarding before upstream EOF.
 An explicit zero cost settles at zero. Missing, invalid, BYOK, and interrupted receipts remain pending in PostgreSQL.
 Pending receipts never select the token price. A pending receipt is not a free request.
 The service supports settlement of a pending receipt with recovered usage and its original price snapshot.
@@ -51,6 +58,8 @@ flowchart LR
   Routes[Chat and Responses] --> Policy[Route billing policy]
   Policy --> Config[Config KV]
   Policy --> Usage[Usage validation and cost conversion]
+  Policy --> Adapter[Provider cost adapters]
+  Adapter --> Usage
   Policy --> Billing[Billing service]
   Billing --> DB[PostgreSQL wallet, receipt, ledger]
   Billing --> Cache[Balance cache]
@@ -61,6 +70,7 @@ flowchart LR
 ```text
 server/apps/api/
   src/services/adapters/config-kv/definitions.ts
+  src/services/adapters/llm/cost.ts
   src/services/domain/flux.ts
   src/services/domain/billing/
     billing.ts
@@ -103,6 +113,8 @@ sequenceDiagram
 ## Test plan
 
 - Check exact decimal conversion, zero, invalid cost, and BYOK classification.
+- Check settlement for another normalized provider, provider identity on receipts and ledger, and rejection of cross-provider replay.
+- Check provider-specific configuration selection, nonzero failed-settlement estimates, and SSE keep-alive forwarding.
 - Check both protocols with JSON and SSE responses, including split frames and trailing events.
 - Check pending receipts and zero-cost records in a real PGlite database.
 - Check repeated requests, concurrent charges, remainder carry, and partial balances.

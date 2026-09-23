@@ -191,14 +191,58 @@ function streamChatCompletion(input: {
 }) {
   // Streaming: return response immediately, bill after stream ends
   const { readable, writable } = new TransformStream()
-  const reader = input.response.body!.pipeThrough(new TextDecoderStream())
-    .pipeThrough(new EventSourceParserStream({ onError: 'terminate' }))
-    .getReader()
+  const reader = input.response.body!.getReader()
   const writer = writable.getWriter()
-  const encoder = new TextEncoder()
+  const decoder = new TextDecoder()
   let usage: UsageInfo = {}
   let receivedDone = false
   let invalidReceipt = false
+  let firstChunkAt = Number.NaN
+  // Parse a bounded copy for accounting while forwarding the original bytes, including keep-alives.
+  const parser = new EventSourceParserStream({
+    onError: () => {
+      invalidReceipt = true
+    },
+  })
+  const parserWriter = parser.writable.getWriter()
+  const events = parser.readable.getReader()
+  const observation = (async () => {
+    while (true) {
+      const { done, value } = await events.read()
+      if (done)
+        break
+      if (receivedDone)
+        continue
+      if (value.data === '[DONE]') {
+        receivedDone = true
+        continue
+      }
+      if (!Number.isFinite(firstChunkAt)) {
+        firstChunkAt = Date.now()
+        input.telemetry.recordFirstToken({
+          firstChunkAt,
+          model: input.requestModel,
+          provider: input.routeCtxProvider,
+          startedAt: input.startedAt,
+          operation: 'chat',
+        })
+      }
+      try {
+        const observed = extractUsageFromBody(JSON.parse(value.data))
+        if (observed.generationId !== undefined) {
+          if (usage.generationId !== undefined && observed.generationId !== usage.generationId)
+            invalidReceipt = true
+          usage.generationId = observed.generationId
+        }
+        if (observed.providerUsage != null)
+          usage = { ...observed, generationId: observed.generationId ?? usage.generationId }
+      }
+      catch (error) {
+        invalidReceipt = true
+        input.logger.withError(error).warn('Invalid chat usage frame')
+      }
+    }
+  })()
   let downstreamCancelled = false
   void writer.closed.catch(() => {
     downstreamCancelled = true
@@ -206,11 +250,6 @@ function streamChatCompletion(input: {
   })
   let streamCompleted = false
   let streamInterrupted = false
-  // First-chunk timestamp for gen_ai.client.first_token.duration. Latched
-  // on the first SSE event from upstream — captures perceived "time to first
-  // token" for streaming clients. NaN until the first chunk lands so
-  // `Number.isFinite` gates the histogram record.
-  let firstChunkAt = Number.NaN
 
   // Process stream in background
   ;(async () => {
@@ -223,37 +262,9 @@ function streamChatCompletion(input: {
           streamCompleted = true
           break
         }
-        if (!Number.isFinite(firstChunkAt)) {
-          firstChunkAt = Date.now()
-          input.telemetry.recordFirstToken({
-            firstChunkAt,
-            model: input.requestModel,
-            provider: input.routeCtxProvider,
-            startedAt: input.startedAt,
-            operation: 'chat',
-          })
-        }
-        const text = `${value.event ? `event: ${value.event}\n` : ''}${value.id ? `id: ${value.id}\n` : ''}data: ${value.data.replaceAll('\n', '\ndata: ')}\n\n`
-        if (value.data === '[DONE]') {
-          receivedDone = true
-        }
-        else {
-          try {
-            const observed = extractUsageFromBody(JSON.parse(value.data))
-            if (observed.generationId !== undefined) {
-              if (usage.generationId !== undefined && observed.generationId !== usage.generationId)
-                invalidReceipt = true
-              usage.generationId = observed.generationId
-            }
-            if (observed.providerUsage != null)
-              usage = { ...observed, generationId: observed.generationId ?? usage.generationId }
-          }
-          catch (error) {
-            invalidReceipt = true
-            input.logger.withError(error).warn('Invalid chat usage frame')
-          }
-        }
-        await writer.write(encoder.encode(text))
+        const text = decoder.decode(value, { stream: true })
+        await parserWriter.write(text)
+        await writer.write(value)
         // Accumulate the assistant completion for the Langfuse trace output
         // (no-op when tracing is off). Module owns SSE parsing + the cap.
         input.generationTrace.appendStreamChunk(text)
@@ -282,9 +293,13 @@ function streamChatCompletion(input: {
       return
     }
     finally {
+      await parserWriter.close()
+      await observation
+      parserWriter.releaseLock()
+      events.releaseLock()
       if (streamInterrupted) {
         const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
-        if (price.costPricing) {
+        if (price.costReceipt) {
           try {
             await input.billing.settleChat({
               ...usage,
@@ -380,9 +395,12 @@ function streamChatCompletion(input: {
     }
   })()
 
+  const headers = buildSafeResponseHeaders(input.response)
+  // DONE can close the stream before upstream EOF, so the upstream length is not authoritative.
+  headers.delete('content-length')
   return new Response(readable, {
     status: input.response.status,
-    headers: buildSafeResponseHeaders(input.response),
+    headers,
   })
 }
 
@@ -411,7 +429,7 @@ async function completeNonStreamingChat(input: {
   }
   catch (err) {
     const price = input.billing.priceChatUsage({}, input.billingPolicy, input.routeCtxProvider)
-    if (price.costPricing) {
+    if (price.costReceipt) {
       try {
         await input.billing.settleChat({
           ...price,
