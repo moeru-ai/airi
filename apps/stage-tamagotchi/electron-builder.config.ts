@@ -90,8 +90,7 @@ export default {
     // Transformers runs inside browser workers in the desktop app. Sharp is its
     // Node-only image backend and has no packaged main-process consumer.
     '!**/node_modules/sharp{,/**}',
-    '!**/node_modules/@img/sharp-darwin-arm64{,/**}',
-    '!**/node_modules/@img/sharp-libvips-darwin-arm64{,/**}',
+    '!**/node_modules/@img/sharp-*{,/**}',
     // uiohook-napi loads the selected prebuild. Its bundled libuiohook C source is
     // only used to build that binary and does not participate in runtime loading.
     '!**/node_modules/uiohook-napi/libuiohook{,/**}',
