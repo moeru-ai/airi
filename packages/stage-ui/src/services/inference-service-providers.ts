@@ -43,14 +43,14 @@ export interface InferenceServiceProvidersRemoteClient {
 
 function asReplicaRow(value: unknown): ProviderReplicaRow {
   const item = value as {
-    configId: string
+    instanceId: string
     definitionId: string
     config?: Record<string, unknown>
     updatedAt: string
     deletedAt?: string | null
   }
   return {
-    id: item.configId,
+    id: item.instanceId,
     definitionId: item.definitionId,
     config: item.config ?? {},
     updatedAt: item.updatedAt,

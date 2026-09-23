@@ -20,7 +20,7 @@ export function createProviderRoutes(providerService: ProviderService) {
 
     .put('/:id', async (c) => {
       const user = c.get('user')!
-      const configId = c.req.param('id')
+      const instanceId = c.req.param('id')
       const body = await c.req.json()
       const result = safeParse(UpsertProviderConfigSchema, body)
 
@@ -28,7 +28,7 @@ export function createProviderRoutes(providerService: ProviderService) {
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
 
       const provider = await providerService.upsert({
-        configId,
+        instanceId,
         ownerId: user.id,
         definitionId: result.output.definitionId,
         config: result.output.config,
@@ -38,8 +38,8 @@ export function createProviderRoutes(providerService: ProviderService) {
 
     .delete('/:id', async (c) => {
       const user = c.get('user')!
-      const configId = c.req.param('id')
-      await providerService.tombstone(configId, user.id)
+      const instanceId = c.req.param('id')
+      await providerService.tombstone(instanceId, user.id)
       return c.body(null, 204)
     })
 }

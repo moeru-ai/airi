@@ -76,16 +76,16 @@ describe('providerRoutes', () => {
     }), { user: testUser } as never)
 
     expect(res.status).toBe(200)
-    const data = await res.json() as { configId: string, config: Record<string, unknown> }
-    expect(data.configId).toBe('prov-1')
+    const data = await res.json() as { instanceId: string, config: Record<string, unknown> }
+    expect(data.instanceId).toBe('prov-1')
     expect(data.config).toEqual({ apiKey: 'sk-123' })
   })
 
   it('delete /:id should tombstone and get / should still return the row', async () => {
     const listed = await app.fetch(new Request('http://localhost/'), { user: testUser } as never)
-    const [current] = await listed.json() as { configId: string, updatedAt: string }[]
+    const [current] = await listed.json() as { instanceId: string, updatedAt: string }[]
 
-    const res = await app.fetch(new Request(`http://localhost/${current.configId}`, {
+    const res = await app.fetch(new Request(`http://localhost/${current.instanceId}`, {
       method: 'DELETE',
     }), { user: testUser } as never)
 

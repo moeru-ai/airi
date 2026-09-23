@@ -1629,10 +1629,9 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "uuid",
+          "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "owner_id": {
           "name": "owner_id",
@@ -1640,8 +1639,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "config_id": {
-          "name": "config_id",
+        "instance_id": {
+          "name": "instance_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -1680,8 +1679,8 @@
         }
       },
       "indexes": {
-        "user_provider_configs_owner_config_uidx": {
-          "name": "user_provider_configs_owner_config_uidx",
+        "user_provider_configs_owner_instance_uidx": {
+          "name": "user_provider_configs_owner_instance_uidx",
           "columns": [
             {
               "expression": "owner_id",
@@ -1690,7 +1689,7 @@
               "nulls": "last"
             },
             {
-              "expression": "config_id",
+              "expression": "instance_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

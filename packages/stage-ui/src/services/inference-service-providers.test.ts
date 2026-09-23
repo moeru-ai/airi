@@ -12,7 +12,7 @@ function createClient() {
             status: 200,
             json: async () => [{
               id: 'srv-provider-1',
-              configId: 'provider-1',
+              instanceId: 'provider-1',
               definitionId: 'openai-compatible',
               config: { baseUrl: 'https://example.com/v1/' },
               updatedAt: '2026-01-02T00:00:00.000Z',
@@ -25,7 +25,7 @@ function createClient() {
               status: 200,
               json: async (): Promise<unknown> => ({
                 id: 'srv-provider-1',
-                configId: 'provider-1',
+                instanceId: 'provider-1',
                 definitionId: 'openai-compatible',
                 config: { apiKey: 'sk-test' },
                 updatedAt: '2026-01-03T00:00:00.000Z',

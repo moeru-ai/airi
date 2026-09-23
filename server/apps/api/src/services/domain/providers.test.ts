@@ -31,13 +31,13 @@ describe('providerService', () => {
   // https://github.com/moeru-ai/airi/pull/2471#discussion_r3997091188
   it('stores the client instance id apart from the server primary key', async () => {
     const result = await service.upsert({
-      configId: 'prov-1',
+      instanceId: 'prov-1',
       ownerId: testUser.id,
       definitionId: 'openai',
       config: { apiKey: 'sk-123' },
     })
 
-    expect(result.configId).toBe('prov-1')
+    expect(result.instanceId).toBe('prov-1')
     expect(result.id).not.toBe('prov-1')
     expect(result.definitionId).toBe('openai')
     expect(result.config).toEqual({ apiKey: 'sk-123' })
@@ -47,20 +47,20 @@ describe('providerService', () => {
     const stored = await db.query.userProviderConfigs.findFirst({
       where: eq(schema.userProviderConfigs.id, result.id),
     })
-    expect(stored?.configId).toBe('prov-1')
+    expect(stored?.instanceId).toBe('prov-1')
     expect(stored?.config.startsWith('v1.')).toBe(true)
     expect(stored?.config).not.toContain('sk-123')
   })
 
   it('lists live rows and tombstones for the owner', async () => {
     await service.upsert({
-      configId: 'prov-2',
+      instanceId: 'prov-2',
       ownerId: testUser.id,
       definitionId: 'anthropic',
       config: { apiKey: 'sk-live' },
     })
     await service.upsert({
-      configId: 'prov-3',
+      instanceId: 'prov-3',
       ownerId: testUser.id,
       definitionId: 'anthropic',
       config: { apiKey: 'sk-gone' },
@@ -68,24 +68,24 @@ describe('providerService', () => {
     await service.tombstone('prov-3', testUser.id)
 
     const listed = await service.listAll(testUser.id)
-    const configIds = listed.map(row => row.configId).sort()
-    expect(configIds).toEqual(['prov-1', 'prov-2', 'prov-3'])
+    const instanceIds = listed.map(row => row.instanceId).sort()
+    expect(instanceIds).toEqual(['prov-1', 'prov-2', 'prov-3'])
 
-    const tombstone = listed.find(row => row.configId === 'prov-3')
+    const tombstone = listed.find(row => row.instanceId === 'prov-3')
     expect(tombstone?.deletedAt).toEqual(expect.any(String))
     expect(tombstone?.config).toEqual({ apiKey: 'sk-gone' })
   })
 
   it('lets a later write overwrite the stored replica', async () => {
     const first = await service.upsert({
-      configId: 'prov-1',
+      instanceId: 'prov-1',
       ownerId: testUser.id,
       definitionId: 'openai',
       config: { apiKey: 'sk-new' },
     })
 
     const overwritten = await service.upsert({
-      configId: 'prov-1',
+      instanceId: 'prov-1',
       ownerId: testUser.id,
       definitionId: 'openai',
       config: { apiKey: 'sk-overwritten' },
@@ -97,9 +97,9 @@ describe('providerService', () => {
   })
 
   it('does not change createdAt on later writes', async () => {
-    const first = (await service.listAll(testUser.id)).find(row => row.configId === 'prov-2')!
+    const first = (await service.listAll(testUser.id)).find(row => row.instanceId === 'prov-2')!
     const updated = await service.upsert({
-      configId: 'prov-2',
+      instanceId: 'prov-2',
       ownerId: testUser.id,
       definitionId: 'anthropic',
       config: { apiKey: 'sk-later' },
@@ -117,25 +117,25 @@ describe('providerService', () => {
     }).returning()
 
     const other = await service.upsert({
-      configId: 'prov-1',
+      instanceId: 'prov-1',
       ownerId: otherUser.id,
       definitionId: 'openai',
       config: { apiKey: 'sk-other' },
     })
 
-    expect(other.configId).toBe('prov-1')
+    expect(other.instanceId).toBe('prov-1')
     expect(other.config).toEqual({ apiKey: 'sk-other' })
 
     const ownerRows = await service.listAll(testUser.id)
     const otherRows = await service.listAll(otherUser.id)
-    expect(ownerRows.find(row => row.configId === 'prov-1')?.config).toEqual({ apiKey: 'sk-overwritten' })
-    expect(otherRows.map(row => row.configId)).toEqual(['prov-1'])
-    expect(otherRows[0]?.id).not.toBe(ownerRows.find(row => row.configId === 'prov-1')?.id)
+    expect(ownerRows.find(row => row.instanceId === 'prov-1')?.config).toEqual({ apiKey: 'sk-overwritten' })
+    expect(otherRows.map(row => row.instanceId)).toEqual(['prov-1'])
+    expect(otherRows[0]?.id).not.toBe(ownerRows.find(row => row.instanceId === 'prov-1')?.id)
     expect(otherRows[0]?.config).toEqual({ apiKey: 'sk-other' })
   })
 
   // https://github.com/moeru-ai/airi/pull/2471#discussion_r3999470562
-  it('accepts concurrent first writes of the same owner and config id', async () => {
+  it('accepts concurrent first writes of the same owner and instance id', async () => {
     // ROOT CAUSE:
     //
     // upsert selected insert vs update after findOwnedRow. Two first PUTs
@@ -145,13 +145,13 @@ describe('providerService', () => {
     // INSERT ON CONFLICT DO UPDATE makes both requests succeed as one row.
     const results = await Promise.all([
       service.upsert({
-        configId: 'openai',
+        instanceId: 'openai',
         ownerId: testUser.id,
         definitionId: 'openai',
         config: { apiKey: 'sk-a' },
       }),
       service.upsert({
-        configId: 'openai',
+        instanceId: 'openai',
         ownerId: testUser.id,
         definitionId: 'openai',
         config: { apiKey: 'sk-b' },
@@ -159,12 +159,12 @@ describe('providerService', () => {
     ])
 
     expect(results).toHaveLength(2)
-    expect(results[0]?.configId).toBe('openai')
-    expect(results[1]?.configId).toBe('openai')
+    expect(results[0]?.instanceId).toBe('openai')
+    expect(results[1]?.instanceId).toBe('openai')
     expect(results[0]?.id).toBe(results[1]?.id)
 
     const listed = await service.listAll(testUser.id)
-    const openaiRows = listed.filter(row => row.configId === 'openai')
+    const openaiRows = listed.filter(row => row.instanceId === 'openai')
     expect(openaiRows).toHaveLength(1)
     expect(['sk-a', 'sk-b']).toContain(openaiRows[0]?.config.apiKey)
   })
