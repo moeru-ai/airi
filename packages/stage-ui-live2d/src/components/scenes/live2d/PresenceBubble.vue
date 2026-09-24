@@ -27,6 +27,9 @@ const props = withDefaults(defineProps<{
    */
   headAnchor: () => Live2DModelCanvasRect | undefined
   state: PresenceBubbleState
+  /** Stage size in stage units, watched so a resize places the bubble again. */
+  width: number
+  height: number
   /** Device pixels per stage unit, so the bubble is painted at display density. */
   resolution?: number
 }>(), {
@@ -230,9 +233,17 @@ onUnmounted(() => {
   current.destroy({ texture: true, baseTexture: true })
 })
 
-// A resize rebuilds the stage's coordinate space, so the seat is dropped rather
-// than carried over: the next frame places the bubble at its new coordinates
-// without travelling there.
+// The canvas draws a frame during a resize, so the bubble is placed again at
+// once rather than on the next tick. The spring is left alone: stage units do
+// not change when the canvas does, so its position is still meaningful and
+// releasing it here would snap the bubble to the head for the whole drag, which
+// is when its weight shows most.
+watch([() => props.width, () => props.height], () => {
+  drawFrame(0)
+}, { flush: 'post' })
+
+// Render scale does change what a stage unit means, so a position carried across
+// it describes a stage that no longer exists.
 watch(() => props.resolution, () => {
   follower.release()
   decisionHead = undefined

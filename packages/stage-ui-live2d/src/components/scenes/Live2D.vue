@@ -188,6 +188,8 @@ defineExpose({
         :app="app"
         :head-anchor="() => live2dModelRef?.headAnchor()"
         :state="props.presence"
+        :width="width"
+        :height="height"
         :resolution="live2dRenderScale"
       />
     </Live2DCanvas>
