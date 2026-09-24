@@ -552,12 +552,26 @@ watch(isDirty, (value) => {
   dirty.value = value
 }, { immediate: true })
 
-watch(() => props.cardId, async () => {
+let hasInitializedEditor = false
+let hasLoadedCard = false
+
+watch([
+  () => props.cardId,
+  () => props.cardId ? cardStore.getCard(props.cardId) : undefined,
+], async ([cardId, existingCard], [previousCardId]) => {
+  const shouldInitialize = !hasInitializedEditor
+    || cardId !== previousCardId
+    || (!hasLoadedCard && !!existingCard)
+  if (!shouldInitialize)
+    return
+
   showError.value = false
   errorMessage.value = ''
   hasLoadedModuleOptions = false
   isInitializingModuleSelections = true
   card.value = initializeCard()
+  hasInitializedEditor = true
+  hasLoadedCard = !!existingCard
   await nextTick()
   isInitializingModuleSelections = false
   initialSnapshot.value = createEditorSnapshot()
