@@ -117,6 +117,22 @@ let decisionHead: Live2DModelCanvasRect | undefined
 let uploadedRevision = -1
 let elapsedMs = 0
 
+/**
+ * Takes the bubble off the stage and drops everything it was carrying.
+ *
+ * A hidden bubble keeps no seat, because the model can be replaced or moved
+ * while it is away and reappearing from the old coordinates would send it across
+ * the stage. The palette is marked stale for the same reason: the theme can
+ * change while nothing is drawn.
+ */
+function hide(sprite: PixiSprite) {
+  sprite.visible = false
+  follower.release()
+  decisionHead = undefined
+  placementMode = undefined
+  paletteAgeMs = paletteRefreshMs
+}
+
 function drawFrame(deltaMs: number) {
   const current = sprite.value
   if (!current)
@@ -124,22 +140,24 @@ function drawFrame(deltaMs: number) {
 
   elapsedMs += deltaMs
 
+  // Nothing to show is the resting state, so it costs one comparison. Measuring
+  // the head walks every tracked drawable's vertices and reading the palette
+  // forces a style recalculation, and neither result would be used.
+  const content = resolvePresenceBubbleContent(props.state, elapsedMs)
+  if (!content) {
+    hide(current)
+    return
+  }
+
   paletteAgeMs += deltaMs
   if (paletteAgeMs >= paletteRefreshMs) {
     paletteAgeMs = 0
     palette = readPalette()
   }
 
-  const content = resolvePresenceBubbleContent(props.state, elapsedMs)
   const head = props.headAnchor()
-  if (!content || !head) {
-    current.visible = false
-    // A hidden bubble keeps no seat. The model can be replaced or moved while it
-    // is away, and reappearing from the old coordinates would send it across the
-    // stage.
-    follower.release()
-    decisionHead = undefined
-    placementMode = undefined
+  if (!head) {
+    hide(current)
     return
   }
 
