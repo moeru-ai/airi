@@ -67,6 +67,8 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
   const loaded = ref(false)
   const loading = ref(false)
   let activeSpan: Span | undefined
+  let initialization: Promise<void> | undefined
+  let generation = 0
 
   function finishActiveSpan(aborted: boolean) {
     if (!activeSpan)
@@ -84,13 +86,17 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
   const minSpeechDurationMs = toRef(options.minSpeechDurationMs)
 
   async function init() {
-    if (loaded.value || loading.value || manager.value)
+    if (loaded.value)
       return
 
+    if (initialization)
+      return await initialization
+
+    const currentGeneration = ++generation
     loading.value = true
     inferenceError.value = ''
 
-    try {
+    const currentInitialization = (async () => {
       const vadConfig = resolveVADConfig(
         threshold.value,
         minSilenceDurationMs.value,
@@ -98,13 +104,15 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
         minSpeechDurationMs.value,
       )
 
-      vad.value = await createVAD({
+      const createdVad = await createVAD({
         sampleRate: 16000,
         ...vadConfig,
       })
+      if (generation !== currentGeneration)
+        return
 
       // Set up event handlers
-      vad.value.on('speech-start', () => {
+      createdVad.on('speech-start', () => {
         finishActiveSpan(true)
         activeSpan = startSpan(IOSpanNames.VoiceActivityDetection, undefined, {
           [IOAttributes.Subsystem]: IOSubsystems.VAD,
@@ -113,28 +121,28 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
         options?.onSpeechStart?.()
       })
 
-      vad.value.on('speech-audio', (event) => {
+      createdVad.on('speech-audio', (event) => {
         options?.onSpeechAudio?.(event)
       })
 
-      vad.value.on('speech-end', () => {
+      createdVad.on('speech-end', () => {
         isSpeech.value = false
         options?.onSpeechEnd?.()
       })
 
-      vad.value.on('speech-cancel', () => {
+      createdVad.on('speech-cancel', () => {
         finishActiveSpan(true)
         isSpeech.value = false
         options?.onSpeechCancel?.()
       })
 
-      vad.value.on('speech-ready', (event) => {
+      createdVad.on('speech-ready', (event) => {
         activeSpan?.setAttribute(IOAttributes.VADAudioDurationMs, event.duration)
         finishActiveSpan(false)
         options?.onSpeechReady?.(event)
       })
 
-      vad.value.on('debug', ({ data }) => {
+      createdVad.on('debug', ({ data }) => {
         if (data?.probability !== undefined) {
           isSpeechProb.value = data.probability
 
@@ -146,14 +154,14 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
         }
       })
 
-      vad.value.on('status', ({ type, message }) => {
+      createdVad.on('status', ({ type, message }) => {
         if (type === 'error') {
           inferenceError.value = message
         }
       })
 
       // Create and initialize audio manager
-      const m = createVADStates(vad.value, workerUrl, {
+      const m = createVADStates(createdVad, workerUrl, {
         minChunkSize: 512,
         // NOTICE: VAD will have it's own audio context since
         // it needs special sample rate and latency settings
@@ -163,28 +171,56 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
         },
       })
 
-      await m.initialize()
-      manager.value = m
-      loaded.value = true
-    }
-    catch (error) {
-      inferenceError.value = errorMessageFromValue(error)
-    }
-    finally {
-      loading.value = false
-    }
+      try {
+        await m.initialize()
+        if (generation !== currentGeneration) {
+          m.dispose()
+          return
+        }
+
+        vad.value = createdVad
+        manager.value = m
+        loaded.value = true
+      }
+      catch (error) {
+        m.dispose()
+        throw error
+      }
+    })()
+    const settledInitialization = currentInitialization
+      .catch((error) => {
+        if (generation === currentGeneration)
+          inferenceError.value = errorMessageFromValue(error)
+      })
+      .finally(() => {
+        if (initialization === settledInitialization)
+          initialization = undefined
+        if (generation === currentGeneration)
+          loading.value = false
+      })
+    initialization = settledInitialization
+    await settledInitialization
   }
 
   async function start(stream: MediaStream) {
-    if (manager.value)
-      await manager.value.start(stream)
+    const currentManager = manager.value
+    const currentGeneration = generation
+    if (!currentManager)
+      return
+
+    await currentManager.start(stream)
+    if (generation !== currentGeneration || manager.value !== currentManager)
+      currentManager.dispose()
   }
 
   function dispose() {
+    generation += 1
+    initialization = undefined
     finishActiveSpan(true)
     manager.value?.stop()
     manager.value?.dispose()
     manager.value = undefined
+    vad.value = undefined
 
     isSpeech.value = false
     isSpeechProb.value = 0
