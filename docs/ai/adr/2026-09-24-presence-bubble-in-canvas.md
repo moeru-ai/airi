@@ -1,6 +1,6 @@
 # The presence bubble is drawn inside the model canvas
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
@@ -48,12 +48,18 @@ model's height, which a humanoid format makes a safe thing to assume. The offset
 from the bone to the drawn head follows the bone's own up axis, so a tilted head
 stays right.
 
-Live2D states neither. `internalModel.hitAreas` is authored per model and the
-models this project ships declare only a body, and drawable ids are written in
-the artist's own language, so no name can be matched. The tracker measures the
-drawables once and follows the ones it keeps. That selection is a heuristic and
-is the weakest part of this design; the authoritative replacement is to perturb
-the standard head-angle parameter once and keep whatever moves.
+Live2D has no such bone. A `Head` or `Face` hit area names it when the author
+declared one, which three of the seven models shipped with the Cubism SDK do.
+Otherwise the rig answers: the standard head-angle parameters are turned to the
+end of their range furthest from rest, physics is run, and the drawables that
+moved are the head. The body's own parameters are turned as a control, so a
+drawable that merely follows the head is not counted. Six of the seven define at
+least one head-angle parameter; the seventh is a dog, whose head does not turn on
+its own.
+
+A model that states neither shows no bubble. Placing it from where drawables sit
+assumes the model was drawn upright with nothing above the head, and a hat, tall
+hair or a raised arm breaks that.
 
 ## State model
 

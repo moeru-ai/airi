@@ -31,6 +31,7 @@ export interface Live2DHeadSource {
     getParameterValueById: (id: string) => number
     setParameterValueById: (id: string, value: number) => void
     getParameterMaximumValue: (index: number) => number
+    getParameterMinimumValue: (index: number) => number
   }
   getDrawableBounds: (index: number) => Bounds
   /**
@@ -59,22 +60,6 @@ const headAreaNames = new Set(['head', 'face'])
  * independently and which therefore has no head to follow.
  */
 const headAngleParameterIds = ['ParamAngleX', 'ParamAngleY', 'ParamAngleZ']
-
-/**
- * Cubism's standard parameters for leaning the body.
- *
- * Measured as a control. Models often let the body follow the head a little, and
- * a drawable that answers to both belongs to the body.
- */
-const bodyAngleParameterIds = ['ParamBodyAngleX', 'ParamBodyAngleY', 'ParamBodyAngleZ']
-
-/**
- * How much more a drawable must move with the head than with the body.
- *
- * Separates what the head carries from what merely follows it. Comparative, so
- * it needs no knowledge of how far either turns.
- */
-const headOverBodyMargin = 2
 
 /** Simulated seconds given to physics so its springs reach their new rest. */
 const physicsSettleSeconds = 0.6
@@ -142,12 +127,16 @@ export function createLive2DHeadTracker() {
   }
 
   /**
-   * Turns the head, then the body, and keeps what answers to the head alone.
+   * Turns the head and keeps whatever moved with it.
    *
-   * Physics runs between the two, so hair and accessories the head swings
-   * indirectly move as they would on screen. Every parameter is put back and the
-   * model settled again before returning, so the pose a caller sees is the one it
-   * had.
+   * Physics runs before the reading, so hair and accessories the head swings
+   * indirectly move as they would on screen. The parameters are put back and the
+   * springs settled again, so the pose a caller sees is the one it had.
+   *
+   * Leaning the body is not measured as a control: a body carries the head with
+   * it, so a head drawable answers to both and comparing the two rejects the
+   * head itself. What merely follows the head barely moves, and the threshold
+   * below already drops it.
    */
   function selectByHeadAngle(internalModel: Live2DHeadSource) {
     const core = internalModel.coreModel
@@ -158,11 +147,10 @@ export function createLive2DHeadTracker() {
       .filter(parameter => parameter.index >= 0)
 
     const head = present(headAngleParameterIds)
-    const body = present(bodyAngleParameterIds)
     if (head.length === 0 || count === 0)
       return undefined
 
-    const turning = [...head, ...body]
+    const turning = head
     const held = turning.map(parameter => core.getParameterValueById(parameter.id))
     const restore = () => turning.forEach((parameter, at) => core.setParameterValueById(parameter.id, held[at]))
 
@@ -174,10 +162,25 @@ export function createLive2DHeadTracker() {
       core.update()
     }
 
+    /**
+     * The end of a parameter's range furthest from where it rests.
+     *
+     * Always turning toward the maximum measures nothing when the model already
+     * sits there, which a motion can leave it doing at the moment the bubble
+     * first appears.
+     */
+    const farEnd = (parameter: { id: string, index: number }, from: number) => {
+      const maximum = core.getParameterMaximumValue(parameter.index)
+      const minimum = core.getParameterMinimumValue(parameter.index)
+      return Math.abs(maximum - from) >= Math.abs(from - minimum) ? maximum : minimum
+    }
+
     const turn = (parameters: typeof head) => {
       restore()
-      for (const parameter of parameters)
-        core.setParameterValueById(parameter.id, core.getParameterMaximumValue(parameter.index))
+      for (const parameter of parameters) {
+        const at = turning.indexOf(parameter)
+        core.setParameterValueById(parameter.id, farEnd(parameter, held[at]))
+      }
 
       settle()
       return measureEvery(internalModel, count)
@@ -188,7 +191,6 @@ export function createLive2DHeadTracker() {
     const resting = measureEvery(internalModel, count)
 
     const turned = turn(head)
-    const leaned = body.length > 0 ? turn(body) : undefined
 
     restore()
     settle()
@@ -201,7 +203,6 @@ export function createLive2DHeadTracker() {
     const moved = byHead
       .map((distance, index) => ({ distance, index }))
       .filter(entry => entry.distance >= largest * movedShare)
-      .filter(entry => !leaned || entry.distance > travelled(resting[entry.index], leaned[entry.index]) * headOverBodyMargin)
       .map(entry => entry.index)
 
     return moved.length > 0 ? moved : undefined

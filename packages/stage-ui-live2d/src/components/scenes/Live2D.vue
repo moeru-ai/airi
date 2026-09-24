@@ -11,7 +11,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
-import Live2DPresenceBubble from './live2d/PresenceBubble.vue'
+import Live2DPresenceBubble from './live2d/presence-bubble.vue'
 
 import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
 

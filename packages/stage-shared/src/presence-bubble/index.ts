@@ -1,3 +1,4 @@
+export * from './clock'
 export * from './content'
 export * from './follow'
 export * from './painter'

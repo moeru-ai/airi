@@ -123,7 +123,7 @@ export function choosePresenceBubbleMode(
 }
 
 /**
- * Turns a chosen position into coordinates for the tail tip.
+ * Turns a chosen position into the panel's top left corner.
  *
  * Separate from the choice so the two can read different measurements: the
  * choice is settled to keep it from flickering, while these coordinates follow
@@ -138,7 +138,7 @@ export function choosePresenceBubbleMode(
  *   headX: 140, headY: 120, headWidth: 120, headHeight: 140,
  *   bubbleWidth: 68, bubbleHeight: 55,
  * }, 'above')
- * // => { x: 181, y: 116, tailSide: 'right', mode: 'above' }
+ * // => { x: 166, y: 61, mode: 'above' }
  */
 export function resolvePresenceBubblePlacement(
   input: PresenceBubblePlacementInput,

@@ -10,6 +10,7 @@ import { Sprite } from '@pixi/sprite'
 import { UPDATE_PRIORITY } from '@pixi/ticker'
 import {
   choosePresenceBubbleMode,
+  createPresenceFrameClock,
   PresenceBubbleFollower,
   PresenceBubblePainter,
   resolvePresenceBubbleContent,
@@ -95,14 +96,13 @@ let palette = fallbackPalette
 let paletteAgeMs = paletteRefreshMs
 
 /**
- * When the bubble was last drawn, from `performance.now()`.
+ * Hands out the time since the last drawing, wherever it came from.
  *
- * The ticker reports its own interval, but a resize asks for a frame between
- * ticks and has no interval to report. Stamping each draw lets that caller
- * advance the spring by the time that actually passed, which matters most when
- * `settings/live2d/max-fps` makes the gap between ticks long.
+ * The ticker and a resize both draw, and each measuring its own interval counts
+ * the stretch between them twice.
  */
-let lastDrawnAt = 0
+const frameClock = createPresenceFrameClock(() => performance.now())
+
 // Kept between frames so the bubble holds a position while it still fits.
 let placementMode: PresenceBubblePlacementMode | undefined
 
@@ -145,7 +145,8 @@ function hide(sprite: PixiSprite) {
   paletteAgeMs = paletteRefreshMs
 }
 
-function drawFrame(deltaMs: number) {
+function drawFrame() {
+  const deltaMs = frameClock.since()
   const current = sprite.value
   if (!current)
     return
@@ -246,15 +247,6 @@ function drawFrame(deltaMs: number) {
   current.height = frame.height
   current.position.set(settled.x, settled.y)
   current.visible = true
-  lastDrawnAt = performance.now()
-}
-
-function drawFrameNow() {
-  drawFrame(lastDrawnAt === 0 ? 0 : performance.now() - lastDrawnAt)
-}
-
-function onTick() {
-  drawFrame(props.app.ticker.deltaMS)
 }
 
 onMounted(() => {
@@ -269,11 +261,11 @@ onMounted(() => {
   // frame draws. The pose it reads is the previous frame's, because the Live2D
   // model updates its drawables during render; the follower's lag is larger than
   // that by design.
-  props.app.ticker.add(onTick, undefined, UPDATE_PRIORITY.HIGH)
+  props.app.ticker.add(drawFrame, undefined, UPDATE_PRIORITY.HIGH)
 })
 
 onUnmounted(() => {
-  props.app.ticker.remove(onTick)
+  props.app.ticker.remove(drawFrame)
 
   const current = sprite.value
   sprite.value = undefined
@@ -288,7 +280,7 @@ onUnmounted(() => {
 // once rather than on the next tick. The spring is advanced, not released:
 // releasing it would snap the bubble to the head for the whole drag, which is
 // when its weight shows most.
-watch([() => props.width, () => props.height], drawFrameNow, { flush: 'post' })
+watch([() => props.width, () => props.height], drawFrame, { flush: 'post' })
 
 // Render scale does change what a stage unit means, so a position carried across
 // it describes a stage that no longer exists.

@@ -37,7 +37,7 @@ import {
 } from 'three'
 import { computed, nextTick, onMounted, onUnmounted, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
-import PresenceBubble from './PresenceBubble.vue'
+import PresenceBubble from './presence-bubble.vue'
 
 // From stage-ui-three package
 import { useRenderTargetRegionAtClientPoint } from '../composables/render-target'

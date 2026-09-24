@@ -43,8 +43,10 @@ export interface PresenceBubbleFrame {
    */
   tailReach: number
   /**
-   * Point inside the frame that the caller places on the head target: the tail
-   * tip for the thinking bubble, and the badge centre for the unread circle.
+   * The panel's top left inside the drawn surface.
+   *
+   * What a caller places. The surface is padded on every side for the shadow and
+   * the tail, so its own corner is not the panel's.
    */
   anchorX: number
   anchorY: number

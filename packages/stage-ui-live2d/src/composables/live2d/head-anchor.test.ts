@@ -55,6 +55,7 @@ function riggedModel(options: RiggedModelOptions): Live2DHeadSource & { updates:
       getParameterValueById: (id: string) => values.get(id) ?? 0,
       setParameterValueById: (id: string, value: number) => void values.set(id, value),
       getParameterMaximumValue: () => 30,
+      getParameterMinimumValue: () => -30,
     },
     getDrawableBounds: (index: number) => {
       let offset = 0
@@ -125,8 +126,8 @@ describe('live2D head tracker', () => {
   })
 
   it('drops what follows the body as much as the head', () => {
-    // Models often let the body carry the head a little. Such a drawable answers
-    // to both, and taking it would widen the head over the whole torso.
+    // A drawable the body carries does not move when only the head turns, so it
+    // never reaches the threshold.
     const model = riggedModel({
       drawables: 4,
       head: [0],
@@ -138,6 +139,21 @@ describe('live2D head tracker', () => {
 
     // The one drawable the head carries, measured back at rest.
     expect(bounds).toEqual({ x: 0, y: 0, width: 8, height: 8 })
+  })
+
+  it('finds the head on a model already turned to its limit', () => {
+    // ROOT CAUSE:
+    //
+    // The probe always turned toward the maximum:
+    //
+    //   core.setParameterValueById(id, core.getParameterMaximumValue(index))
+    //
+    // A model resting there moved nothing, so no drawable was kept, and the
+    // failure was cached until the model was replaced.
+    const model = riggedModel({ drawables: 4, head: [1] })
+    model.coreModel.setParameterValueById('ParamAngleX', 30)
+
+    expect(createLive2DHeadTracker().bounds(model)).toEqual({ x: 30, y: 10, width: 8, height: 8 })
   })
 
   it('answers again for a replaced model after a reset', () => {
