@@ -7,9 +7,9 @@ import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
 import type { AliyunNlsSession } from './session'
 
 import { Buffer } from 'node:buffer'
+import { randomUUID } from 'node:crypto'
 
 import { useLogger } from '@guiiai/logg'
-import { errorMessageFrom } from '@moeru/std'
 import { literal, safeParse, strictObject, variant } from 'valibot'
 
 import { resolveOfficialAliyunNlsCredentialsFromConfig } from './config'
@@ -17,6 +17,8 @@ import { createAliyunNlsSession } from './session'
 
 const log = useLogger('audio-transcription-ws').useGlobalConfig()
 const MAX_AUDIO_BYTES = 16000 * 2 * 60
+const STARTUP_TIMEOUT_MS = 30_000
+const SESSION_TIMEOUT_MS = 75_000
 
 const AudioTranscriptionClientControlMessageSchema = variant('event', [
   strictObject({
@@ -69,6 +71,23 @@ export function createAudioTranscriptionWsHandlers(options: {
     let state: ClientState = 'waiting'
     let totalAudioBytes = 0
     let sessionTimer: ReturnType<typeof setTimeout> | undefined
+    let usageRecorded = false
+    const requestId = randomUUID()
+
+    function recordUsage(outcome: 'completed' | 'cancelled' | 'disconnected' | 'failed') {
+      if (usageRecorded)
+        return
+      usageRecorded = true
+      // Count only PCM bytes forwarded to Aliyun. The log has no transcript or
+      // credentials. Pricing remains a separate policy decision.
+      log.withFields({
+        userId,
+        requestId,
+        outcome,
+        audioBytes: totalAudioBytes,
+        audioDurationMs: Math.ceil(totalAudioBytes / 32),
+      }).log('ASR usage recorded')
+    }
 
     function clearSessionTimer() {
       if (sessionTimer)
@@ -89,6 +108,8 @@ export function createAudioTranscriptionWsHandlers(options: {
     function closeWithError(code: string, message: string, closeCode: number = 1011) {
       if (state === 'finished')
         return
+      log.withFields({ userId, code, totalAudioBytes }).warn('ASR session failed')
+      recordUsage('failed')
       state = 'finished'
       clearSessionTimer()
       send({ event: 'error', code, message })
@@ -117,6 +138,7 @@ export function createAudioTranscriptionWsHandlers(options: {
               return
             }
             state = 'ready'
+            scheduleSessionTimeout(SESSION_TIMEOUT_MS)
             send({ event: 'session.started' })
           },
           onTranscriptSnapshot(text, isFinal, durationMilliseconds) {
@@ -130,19 +152,20 @@ export function createAudioTranscriptionWsHandlers(options: {
               return
             state = 'finished'
             clearSessionTimer()
+            recordUsage('completed')
             send({ event: 'session.finished' })
             client?.close(1000, 'completed')
           },
           onError(error) {
-            log.withError(error).withFields({ userId }).warn('ASR upstream failed')
-            closeWithError('upstream_error', error.message)
+            log.withFields({ userId, errorName: error.name }).warn('ASR upstream failed')
+            closeWithError('upstream_error', 'The ASR upstream failed.')
           },
         })
         await upstream.start()
       }
       catch (error) {
-        log.withError(error).withFields({ userId }).warn('ASR session failed to start')
-        closeWithError('session_start_failed', errorMessageFrom(error) ?? 'The ASR session failed to start.')
+        log.withFields({ userId, errorName: error instanceof Error ? error.name : 'unknown' }).warn('ASR session failed to start')
+        closeWithError('session_start_failed', 'The ASR session failed to start.')
       }
     }
 
@@ -154,7 +177,7 @@ export function createAudioTranscriptionWsHandlers(options: {
             return
           }
           state = 'starting'
-          scheduleSessionTimeout(90_000)
+          scheduleSessionTimeout(STARTUP_TIMEOUT_MS)
           void startSession()
           break
         case 'stop':
@@ -167,7 +190,8 @@ export function createAudioTranscriptionWsHandlers(options: {
             upstream.stop()
           }
           catch (error) {
-            closeWithError('session_stop_failed', errorMessageFrom(error) ?? 'The ASR session did not stop.')
+            log.withFields({ userId, errorName: error instanceof Error ? error.name : 'unknown' }).warn('ASR upstream did not stop')
+            closeWithError('session_stop_failed', 'The ASR session did not stop.')
           }
           break
         case 'cancel':
@@ -175,6 +199,7 @@ export function createAudioTranscriptionWsHandlers(options: {
             return
           state = 'finished'
           clearSessionTimer()
+          recordUsage('cancelled')
           upstream?.cancel()
           client?.close(1000, 'cancelled')
           break
@@ -215,7 +240,8 @@ export function createAudioTranscriptionWsHandlers(options: {
           totalAudioBytes += chunk.byteLength
         }
         catch (error) {
-          closeWithError('audio_forward_failed', errorMessageFrom(error) ?? 'The audio frame was not sent.')
+          log.withFields({ userId, errorName: error instanceof Error ? error.name : 'unknown' }).warn('ASR audio forwarding failed')
+          closeWithError('audio_forward_failed', 'The audio frame was not sent.')
         }
       },
       onClose() {
@@ -223,12 +249,14 @@ export function createAudioTranscriptionWsHandlers(options: {
           return
         state = 'finished'
         clearSessionTimer()
+        recordUsage('disconnected')
         upstream?.cancel()
       },
-      onError(event, ws) {
-        log.withFields({ userId, event: String(event) }).warn('ASR client WebSocket failed')
+      onError(_event, ws) {
+        log.withFields({ userId }).warn('ASR client WebSocket failed')
         state = 'finished'
         clearSessionTimer()
+        recordUsage('failed')
         upstream?.cancel()
         try {
           ws.close(1011, 'client_error')

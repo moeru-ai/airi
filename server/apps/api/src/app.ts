@@ -105,6 +105,7 @@ interface AppDeps {
 }
 
 const MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES = 8192
+const MAX_ASR_WS_FRAME_BYTES = 64 * 1024
 /** Allows one maximum-size inline file plus JSON envelope overhead. */
 const RESPONSES_MAX_REQUEST_BYTES = 40 * 1024 * 1024
 const DEFAULT_API_MAX_REQUEST_BYTES = 1024 * 1024
@@ -160,8 +161,16 @@ export async function buildApp(deps: AppDeps) {
   // WebSocket setup — must be registered BEFORE bodyLimit middleware
   const { injectWebSocket, upgradeWebSocket, wss } = createNodeWebSocket({ app })
   const chatWsPayloadLimit = createChatWsPayloadLimit(MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES)
+  const asrWsPayloadLimit = createChatWsPayloadLimit(MAX_ASR_WS_FRAME_BYTES)
   wss.on('connection', (socket, request) => {
-    if (new URL(request.url ?? '/', 'http://localhost').pathname !== '/ws/v2/chat')
+    const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+    if (pathname === '/api/v1/audio/transcriptions/ws') {
+      // The total-session limit runs after ws parses each frame. Keep the
+      // transport's allocation bounded before route dispatch.
+      asrWsPayloadLimit.restrict(socket)
+      return
+    }
+    if (pathname !== '/ws/v2/chat')
       return
 
     // NOTICE:

@@ -107,4 +107,31 @@ describe('audio transcription WebSocket route', () => {
     }])
     expect(client.close).toHaveBeenCalledWith(1008, 'official_asr_not_configured')
   })
+
+  // https://github.com/moeru-ai/airi/pull/2290#discussion_r3789206857
+  // ROOT CAUSE:
+  // The token request can put signed query parameters in the thrown error.
+  // Returning that error to an authenticated WebSocket client leaks secrets.
+  it('does not send upstream request details to the client', async () => {
+    const setup = createAudioTranscriptionWsHandlers({
+      configKV: { getOptional: vi.fn(async () => {
+        throw new Error('https://nls-meta.example/?AccessKeyId=private-id&Signature=private-signature')
+      }) } as never,
+      envelopeCrypto: {} as never,
+      providerCatalogService: {} as never,
+    })
+    const events = setup('user-123')
+    const client = createMockClient()
+    open(events, client)
+    message(events, client, JSON.stringify({ event: 'start', model: 'auto', format: 'pcm', sample_rate: 16000 }))
+
+    await expect.poll(() => client.sent.length).toBe(1)
+    expect(JSON.stringify(client.sent)).not.toContain('private-id')
+    expect(JSON.stringify(client.sent)).not.toContain('private-signature')
+    expect(client.sent.map(frame => JSON.parse(frame))).toEqual([{
+      event: 'error',
+      code: 'session_start_failed',
+      message: 'The ASR session failed to start.',
+    }])
+  })
 })

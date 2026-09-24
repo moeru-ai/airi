@@ -8,6 +8,7 @@ import WebSocket from 'ws'
 
 import { merge } from '@moeru/std'
 import { ofetch } from 'ofetch'
+import { literal, number, object, optional, safeParse, string, union } from 'valibot'
 
 interface AliyunNlsToken {
   token: string
@@ -24,15 +25,14 @@ interface AliyunNlsStartPayload {
   max_sentence_silence?: number
 }
 
-interface AliyunNlsServerEvent {
-  header?: {
-    name?: string
-  }
-  payload?: {
-    result?: string
-    time?: number
-  }
-}
+const AliyunNlsServerEventSchema = union([
+  object({ header: object({ name: literal('TranscriptionStarted') }) }),
+  object({ header: object({ name: literal('SentenceBegin') }) }),
+  object({ header: object({ name: literal('TranscriptionResultChanged') }), payload: object({ result: string(), time: optional(number()) }) }),
+  object({ header: object({ name: literal('SentenceEnd') }), payload: object({ result: string(), time: optional(number()) }) }),
+  object({ header: object({ name: literal('TaskFailed') }) }),
+  object({ header: object({ name: literal('TranscriptionCompleted') }) }),
+])
 
 /** Controls one upstream Aliyun NLS WebSocket task and its lifecycle. */
 export interface AliyunNlsSession {
@@ -186,14 +186,21 @@ export function createAliyunNlsSession(options: CreateAliyunNlsSessionOptions): 
     if (state === 'finished')
       return
 
-    let event: AliyunNlsServerEvent
+    let parsed: unknown
     try {
-      event = JSON.parse(data.toString()) as AliyunNlsServerEvent
+      parsed = JSON.parse(data.toString())
     }
     catch {
       reportError(new Error('Aliyun NLS returned an invalid JSON frame.'))
       return
     }
+
+    const result = safeParse(AliyunNlsServerEventSchema, parsed)
+    if (!result.success) {
+      reportError(new Error('Aliyun NLS returned an invalid frame.'))
+      return
+    }
+    const event = result.output
 
     switch (event.header?.name) {
       case 'TranscriptionStarted':
@@ -205,15 +212,25 @@ export function createAliyunNlsSession(options: CreateAliyunNlsSessionOptions): 
         clearStartupTimer()
         options.onStarted()
         break
+      case 'SentenceBegin':
+        break
       case 'TranscriptionResultChanged':
+        if (!('payload' in event)) {
+          reportError(new Error('Aliyun NLS returned an invalid frame.'))
+          return
+        }
         if (state === 'ready' || state === 'stopping')
-          options.onTranscriptSnapshot(committedText + (event.payload?.result ?? ''), false, event.payload?.time ?? 0)
+          options.onTranscriptSnapshot(committedText + event.payload.result, false, event.payload.time ?? 0)
         break
       case 'SentenceEnd': {
-        const delta = event.payload?.result ? `${event.payload.result}\n` : ''
+        if (!('payload' in event)) {
+          reportError(new Error('Aliyun NLS returned an invalid frame.'))
+          return
+        }
+        const delta = event.payload.result ? `${event.payload.result}\n` : ''
         if (delta) {
           committedText += delta
-          options.onTranscriptSnapshot(committedText, true, event.payload?.time ?? 0)
+          options.onTranscriptSnapshot(committedText, true, event.payload.time ?? 0)
         }
         options.onTranscriptDone()
         break

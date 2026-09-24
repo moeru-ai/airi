@@ -6,33 +6,17 @@ import { getAuthToken } from '../../../auth'
 
 interface OfficialStreamTranscriptionOptions extends StreamTranscriptionOptions {
   model?: string
-  /** Maximum time to open the socket and receive session.started. @default 15000 */
+  /** Maximum time to open the socket and receive session.started. @default 45000 */
   startupTimeoutMs?: number
 }
 
 type AudioChunk = ArrayBuffer | ArrayBufferView
-
-function createDeferred<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void
-  let reject!: (reason?: unknown) => void
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-  return { promise, reject, resolve }
-}
 
 function resolveAudioStream(options: OfficialStreamTranscriptionOptions): ReadableStream<AudioChunk> {
   const stream = options.inputAudioStream ?? options.inputStream ?? options.file?.stream()
   if (!stream)
     throw new TypeError('Audio stream or file is required for official transcription.')
   return stream as ReadableStream<AudioChunk>
-}
-
-function toUint8Array(chunk: AudioChunk): Uint8Array {
-  if (chunk instanceof ArrayBuffer)
-    return new Uint8Array(chunk)
-  return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
 }
 
 function toWebSocketURL(baseURL: URL | string): string {
@@ -56,7 +40,7 @@ function toWebSocketURL(baseURL: URL | string): string {
 /** Streams one VAD speech segment through the official ASR WebSocket. */
 export function streamOfficialTranscription(options: OfficialStreamTranscriptionOptions): AIRIStreamTranscriptionResult {
   const audioStream = resolveAudioStream(options)
-  const deferredText = createDeferred<string>()
+  const deferredText = Promise.withResolvers<string>()
   void deferredText.promise.catch(() => {})
 
   let text = ''
@@ -152,8 +136,13 @@ export function streamOfficialTranscription(options: OfficialStreamTranscription
       const { done, value } = await audioReader.read()
       if (done)
         break
-      await waitForSocketCapacity()
-      socket.send(new Uint8Array(toUint8Array(value)))
+      const pcm = value instanceof ArrayBuffer
+        ? new Uint8Array(value)
+        : new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+      for (let offset = 0; offset < pcm.byteLength; offset += 32 * 1024) {
+        await waitForSocketCapacity()
+        socket.send(pcm.slice(offset, offset + 32 * 1024))
+      }
     }
 
     if (!settled && !options.abortSignal?.aborted)
@@ -217,58 +206,50 @@ export function streamOfficialTranscription(options: OfficialStreamTranscription
     }
   }
 
-  queueMicrotask(() => {
-    try {
-      const token = getAuthToken()
-      if (!token) {
-        fail(new Error('Official ASR requires authentication.'))
-        return
-      }
-      if (!options.baseURL) {
-        fail(new Error('Official ASR WebSocket URL is missing.'))
-        return
-      }
-      if (options.abortSignal?.aborted) {
-        handleAbort()
-        return
-      }
+  try {
+    const token = getAuthToken()
+    if (!token)
+      throw new Error('Official ASR requires authentication.')
+    if (!options.baseURL)
+      throw new Error('Official ASR WebSocket URL is missing.')
+    if (options.abortSignal?.aborted)
+      throw options.abortSignal.reason ?? new DOMException('Aborted', 'AbortError')
 
-      options.abortSignal?.addEventListener('abort', handleAbort, { once: true })
-      startupTimer = setTimeout(() => fail(new Error('Official ASR did not start in time.')), options.startupTimeoutMs ?? 15000)
-      // The browser cannot set an Authorization header on WebSocket upgrades.
-      // Keep the bearer out of URLs and access logs by carrying it in a
-      // dedicated handshake protocol value over WSS.
-      socket = new WebSocket(toWebSocketURL(options.baseURL), ['airi-asr-v1', `airi-auth.${token}`])
-      socket.binaryType = 'arraybuffer'
-      socket.addEventListener('open', () => {
-        socket?.send(JSON.stringify({
-          event: 'start',
-          model: 'auto',
-          format: 'pcm',
-          sample_rate: 16000,
-        } satisfies AudioTranscriptionClientControlMessage))
-      })
-      socket.addEventListener('message', (event) => {
-        if (typeof event.data !== 'string') {
-          fail(new Error('Official ASR returned an unexpected binary frame.'))
-          return
-        }
-        handleServerMessage(event.data)
-      })
-      socket.addEventListener('error', () => {
-        // The browser exposes the close code and reason on the following event.
-      })
-      socket.addEventListener('close', (event) => {
-        if (settled || sessionFinished)
-          return
-        const reason = event.reason || `closed_${event.code}`
-        fail(new Error(`Official ASR WebSocket closed before session.finished: ${reason}`))
-      })
-    }
-    catch (error) {
-      fail(error)
-    }
-  })
+    options.abortSignal?.addEventListener('abort', handleAbort, { once: true })
+    startupTimer = setTimeout(() => fail(new Error('Official ASR did not start in time.')), options.startupTimeoutMs ?? 45000)
+    // The browser cannot set an Authorization header on WebSocket upgrades.
+    // Keep the bearer out of URLs and access logs by carrying it in a
+    // dedicated handshake protocol value over WSS.
+    socket = new WebSocket(toWebSocketURL(options.baseURL), ['airi-asr-v1', `airi-auth.${token}`])
+    socket.binaryType = 'arraybuffer'
+    socket.addEventListener('open', () => {
+      socket?.send(JSON.stringify({
+        event: 'start',
+        model: 'auto',
+        format: 'pcm',
+        sample_rate: 16000,
+      } satisfies AudioTranscriptionClientControlMessage))
+    })
+    socket.addEventListener('message', (event) => {
+      if (typeof event.data !== 'string') {
+        fail(new Error('Official ASR returned an unexpected binary frame.'))
+        return
+      }
+      handleServerMessage(event.data)
+    })
+    socket.addEventListener('error', () => {
+      // The browser exposes the close code and reason on the following event.
+    })
+    socket.addEventListener('close', (event) => {
+      if (settled || sessionFinished)
+        return
+      const reason = event.reason || `closed_${event.code}`
+      fail(new Error(`Official ASR WebSocket closed before session.finished: ${reason}`))
+    })
+  }
+  catch (error) {
+    fail(error)
+  }
 
   return {
     fullStream,

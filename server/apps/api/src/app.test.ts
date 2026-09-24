@@ -1,5 +1,7 @@
 import type { AddressInfo } from 'node:net'
 
+import { Buffer } from 'node:buffer'
+
 import WebSocket from 'ws'
 
 import { serve } from '@hono/node-server'
@@ -122,6 +124,20 @@ describe('business API app', () => {
       })
       authorized.close(1000, 'test_complete')
       await new Promise<void>(resolve => authorized.once('close', () => resolve()))
+
+      // https://github.com/moeru-ai/airi/pull/2290#discussion_r4087049686
+      // ROOT CAUSE:
+      // The route's byte counter runs after ws allocates each frame. Limit
+      // the receiver itself so one peer cannot allocate the 100 MiB default.
+      const oversized = new WebSocket(`ws://127.0.0.1:${port}/api/v1/audio/transcriptions/ws`, ['airi-asr-v1', 'airi-auth.test-token'])
+      await new Promise<void>((resolve, reject) => {
+        oversized.once('open', resolve)
+        oversized.once('error', reject)
+      })
+      oversized.once('error', () => {})
+      const oversizedClose = new Promise<number>(resolve => oversized.once('close', resolve))
+      oversized.send(Buffer.alloc(64 * 1024 + 1))
+      expect(await oversizedClose).toBe(1009)
     }
     finally {
       await new Promise<void>(resolve => server.close(() => resolve()))

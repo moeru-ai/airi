@@ -130,6 +130,7 @@ describe('createAliyunNlsSession', () => {
   it('emits interim text before speech ends and replaces it with the final sentence', async () => {
     upstream = await startMockAliyunUpstream((socket) => {
       socket.send(JSON.stringify({ header: { name: 'TranscriptionStarted' } }))
+      socket.send(JSON.stringify({ header: { name: 'SentenceBegin' }, payload: { index: 1, time: 0 } }))
       socket.send(JSON.stringify({ header: { name: 'TranscriptionResultChanged' }, payload: { result: 'hel' } }))
       socket.send(JSON.stringify({ header: { name: 'TranscriptionResultChanged' }, payload: { result: 'hello' } }))
       socket.send(JSON.stringify({ header: { name: 'SentenceEnd' }, payload: { result: 'hello!' } }))
@@ -179,6 +180,33 @@ describe('createAliyunNlsSession', () => {
     await expect.poll(() => errors.map(error => error.message)).toEqual([
       'Aliyun NLS returned an invalid JSON frame.',
     ])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2290#discussion_r4087049692
+  // ROOT CAUSE:
+  // Valid JSON with a non-string transcript bypassed the old type cast and
+  // corrupted the text sent to the client. Reject the frame at the boundary.
+  it('rejects an Aliyun frame with a non-string transcript', async () => {
+    upstream = await startMockAliyunUpstream((socket) => {
+      socket.send(JSON.stringify({ header: { name: 'TranscriptionStarted' } }))
+      socket.send(JSON.stringify({ header: { name: 'TranscriptionResultChanged' }, payload: { result: 42 } }))
+    })
+    const errors: Error[] = []
+    const snapshots: string[] = []
+    const session = createAliyunNlsSession({
+      credentials: { accessKeyId: 'ak', accessKeySecret: 'secret', appKey: 'app', region: 'cn-shanghai' },
+      createToken: async () => ({ token: 'mock-token', expiresAt: Date.now() + 3600_000 }),
+      websocketBaseURL: upstream.url,
+      onStarted() {},
+      onTranscriptSnapshot(text) { snapshots.push(text) },
+      onTranscriptDone() {},
+      onFinished() {},
+      onError(error) { errors.push(error) },
+    })
+
+    await session.start()
+    await expect.poll(() => errors.map(error => error.message)).toEqual(['Aliyun NLS returned an invalid frame.'])
+    expect(snapshots).toEqual([])
   })
 
   it('fails if the upstream never confirms that transcription started', async () => {

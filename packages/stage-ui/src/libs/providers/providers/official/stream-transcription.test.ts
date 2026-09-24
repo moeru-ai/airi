@@ -120,6 +120,26 @@ describe('streamOfficialTranscription', () => {
     expect(server.controlFrames.map(frame => frame.event)).toEqual(['start', 'stop'])
   })
 
+  // ROOT CAUSE:
+  // VAD can yield a PCM chunk larger than the server's 64 KiB frame limit.
+  // Split the chunk before sending so valid speech is not rejected.
+  it('splits large PCM chunks below the server frame limit', async () => {
+    server = await startMockServer()
+    const pcm = new Uint8Array(70 * 1024).fill(7)
+    const audioStream = new ReadableStream<ArrayBuffer>({
+      start(controller) {
+        controller.enqueue(pcm.buffer)
+        controller.close()
+      },
+    })
+    const result = streamOfficialTranscription({ baseURL: new URL(server.url), inputAudioStream: audioStream, model: 'auto' })
+
+    await expect(result.text).resolves.toBe('hello AIRI\n')
+    expect(server.binaryFrames.length).toBeGreaterThan(1)
+    expect(server.binaryFrames.every(frame => frame.byteLength <= 32 * 1024)).toBe(true)
+    expect(Buffer.concat(server.binaryFrames)).toEqual(Buffer.from(pcm))
+  })
+
   it('shows interim text before the input stream ends', async () => {
     server = await startMockServer('interim')
     let inputController!: ReadableStreamDefaultController<ArrayBuffer>
