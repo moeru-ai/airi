@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { choosePresenceBubbleMode, presenceBubbleTailInset, resolvePresenceBubblePlacement } from './placement'
+import { choosePresenceBubbleMode, resolvePresenceBubblePlacement } from './placement'
 
 /** A stage with the character low and centred, leaving room on every side. */
 function roomyStage() {
@@ -67,11 +67,11 @@ describe('presence bubble mode', () => {
 })
 
 describe('presence bubble placement', () => {
-  it('points the tail back at the head from the side it sits on', () => {
-    const placement = resolvePresenceBubblePlacement({ ...roomyStage(), headY: 20 }, 'right')
+  it('stands clear of the head on the side it was sent to', () => {
+    const stage = { ...roomyStage(), headY: 20 }
+    const placement = resolvePresenceBubblePlacement(stage, 'right')
 
-    expect(placement.tailSide).toBe('left')
-    expect(placement.x).toBeGreaterThan(roomyStage().headX)
+    expect(placement.x).toBeGreaterThanOrEqual(stage.headX + stage.headWidth)
   })
 
   it('keeps the whole bubble on stage when nothing fits', () => {
@@ -86,11 +86,10 @@ describe('presence bubble placement', () => {
     }
 
     const placement = resolvePresenceBubblePlacement(narrow, 'right')
-    const left = placement.x - presenceBubbleTailInset
 
-    expect(left).toBeGreaterThanOrEqual(0)
-    expect(left + narrow.bubbleWidth).toBeLessThanOrEqual(narrow.stageWidth)
-    expect(placement.y).toBeLessThanOrEqual(narrow.stageHeight)
+    expect(placement.x).toBeGreaterThanOrEqual(0)
+    expect(placement.x + narrow.bubbleWidth).toBeLessThanOrEqual(narrow.stageWidth)
+    expect(placement.y + narrow.bubbleHeight).toBeLessThanOrEqual(narrow.stageHeight)
   })
 
   it('reports coordinates from the box it is given, not from a settled one', () => {

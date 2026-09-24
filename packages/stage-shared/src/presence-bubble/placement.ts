@@ -1,6 +1,3 @@
-/** Edge of the bubble the tail leaves from, pointing back at the head. */
-export type PresenceBubbleTailSide = 'left' | 'right'
-
 /**
  * Where the bubble sits relative to the head.
  *
@@ -32,10 +29,9 @@ export interface PresenceBubblePlacementInput {
 }
 
 export interface PresenceBubblePlacementResult {
-  /** Where the tail tip belongs, in stage units. */
+  /** Top left of the panel, in stage units. */
   x: number
   y: number
-  tailSide: PresenceBubbleTailSide
   mode: PresenceBubblePlacementMode
 }
 
@@ -56,9 +52,6 @@ const defaults = {
  * promptly.
  */
 const switchHysteresis = 6
-
-/** Horizontal distance from the tail tip to the near edge of the panel. */
-export const presenceBubbleTailInset = 15
 
 /**
  * Share of the head's height a side-placed bubble's base sits below the crown.
@@ -168,20 +161,5 @@ export function resolvePresenceBubblePlacement(
   const left = Math.min(Math.max(box.left, margin), Math.max(margin, input.stageWidth - margin - input.bubbleWidth))
   const top = Math.min(Math.max(box.top, margin), Math.max(margin, input.stageHeight - margin - input.bubbleHeight))
 
-  // The tail leaves from the bottom corner nearer the head, so the tip points
-  // back at the character wherever the clamp moved the panel to.
-  const tailSide: PresenceBubbleTailSide = mode === 'right'
-    ? 'left'
-    : mode === 'left'
-      ? 'right'
-      : (headCentre >= left + input.bubbleWidth / 2 ? 'right' : 'left')
-
-  return {
-    x: tailSide === 'left'
-      ? left + presenceBubbleTailInset
-      : left + input.bubbleWidth - presenceBubbleTailInset,
-    y: top + input.bubbleHeight,
-    tailSide,
-    mode,
-  }
+  return { x: left, y: top, mode }
 }

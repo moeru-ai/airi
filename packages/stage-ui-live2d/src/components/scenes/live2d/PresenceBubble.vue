@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
 import type { Sprite as PixiSprite } from '@pixi/sprite'
-import type { PresenceBubblePalette, PresenceBubblePlacementMode, PresenceBubbleState, PresenceBubbleTailSide } from '@proj-airi/stage-shared'
+import type { PresenceBubblePalette, PresenceBubblePlacementMode, PresenceBubbleState } from '@proj-airi/stage-shared'
 
 import type { Live2DModelCanvasRect } from '../../../composables/live2d'
 
@@ -98,9 +98,16 @@ let paletteAgeMs = paletteRefreshMs
  * `settings/live2d/max-fps` makes the gap between ticks long.
  */
 let lastDrawnAt = 0
-let tailSide: PresenceBubbleTailSide | undefined
 // Kept between frames so the bubble holds a position while it still fits.
 let placementMode: PresenceBubblePlacementMode | undefined
+
+/**
+ * Space left between the tail's tip and the head, in stage units.
+ *
+ * The panel stands off by this plus the tail's own reach, so the tail spans
+ * the distance instead of being drawn into the character.
+ */
+const headClearance = 4
 
 /**
  * Time the decision takes to follow a change in the head's box, in milliseconds.
@@ -161,19 +168,14 @@ function drawFrame(deltaMs: number) {
     return
   }
 
-  const paintOptions = () => ({ resolution: props.resolution, palette, tailSide })
-
-  // Painting first gives the size the placement needs. A repeat with the same
-  // content returns the cached description without touching the canvas, so the
-  // second call below only costs a repaint when the tail actually moved.
-  let frame = painter.paint(content, paintOptions())
-  if (!frame) {
-    current.visible = false
+  // Measuring first gives the size the placement needs. The drawing happens once,
+  // below, so the panel and its tail always come from the same numbers.
+  const measured = painter.measure(content, { resolution: props.resolution, palette })
+  if (!measured) {
+    hide(current)
     return
   }
 
-  // The renderer is sized in device pixels and the stage scales by the same
-  // factor, so stage units are what the placement and the head anchor share.
   decisionHead = decisionHead
     ? {
         x: smoothTowards(decisionHead.x, head.x, deltaMs, decisionSettleMs),
@@ -186,13 +188,15 @@ function drawFrame(deltaMs: number) {
   const stage = {
     stageWidth: props.app.screen.width / props.resolution,
     stageHeight: props.app.screen.height / props.resolution,
-    bubbleWidth: frame.width,
-    bubbleHeight: frame.height,
+    bubbleWidth: measured.panelWidth,
+    bubbleHeight: measured.panelHeight,
+    // The tail spans this, so the panel stands off by it and the tip lands on
+    // the head rather than inside it.
+    gap: measured.tailReach + headClearance,
   }
 
   // The settled box decides which position to take, and the measured box says
-  // where that position is. Deciding on the measured box reconsiders on every
-  // breath; placing on the settled box leaves the bubble trailing the head.
+  // where that position is.
   placementMode = choosePresenceBubbleMode({
     ...stage,
     headX: decisionHead.x,
@@ -209,10 +213,19 @@ function drawFrame(deltaMs: number) {
     headHeight: head.height,
   }, placementMode)
 
-  if (placement.tailSide !== tailSide) {
-    tailSide = placement.tailSide
-    frame = painter.paint(content, paintOptions()) ?? frame
-  }
+  const settled = follower.update(placement.x, placement.y, deltaMs)
+
+  // The tail is aimed from where the panel actually sits, which the spring is
+  // still carrying toward its target, so it keeps pointing at the head while it
+  // travels.
+  const frame = painter.paint(content, {
+    resolution: props.resolution,
+    palette,
+    tailTarget: {
+      x: head.x + head.width / 2 - settled.x,
+      y: head.y + head.height / 2 - settled.y,
+    },
+  }) ?? measured
 
   if (frame.revision !== uploadedRevision) {
     uploadedRevision = frame.revision
@@ -224,14 +237,11 @@ function drawFrame(deltaMs: number) {
   current.anchor.set(frame.anchorX / frame.width, frame.anchorY / frame.height)
   current.width = frame.width
   current.height = frame.height
-
-  const settled = follower.update(placement.x, placement.y, deltaMs)
   current.position.set(settled.x, settled.y)
   current.visible = true
   lastDrawnAt = performance.now()
 }
 
-/** Draws a frame outside the ticker, advancing by the time since the last one. */
 function drawFrameNow() {
   drawFrame(lastDrawnAt === 0 ? 0 : performance.now() - lastDrawnAt)
 }

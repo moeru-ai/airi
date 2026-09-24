@@ -1,8 +1,6 @@
 import type { PresenceBubbleContent } from './content'
-import type { PresenceBubbleTailSide } from './placement'
 
 import { formatUnreadBadge, presenceBubbleDotPhases } from './content'
-import { presenceBubbleTailInset } from './placement'
 
 export interface PresenceBubblePaintOptions {
   /**
@@ -13,15 +11,37 @@ export interface PresenceBubblePaintOptions {
    */
   resolution: number
   palette: PresenceBubblePalette
-  /** Edge the tail leaves from, so it points back at the head. */
-  tailSide?: PresenceBubbleTailSide
+  /**
+   * Where the head is, in the panel's own coordinates.
+   *
+   * The tail is aimed at it. Omitted, the panel is drawn without one.
+   */
+  tailTarget?: PresenceBubblePoint
 }
 
 /** A painted bubble, sized in the caller's coordinate units. */
 export interface PresenceBubbleFrame {
   canvas: HTMLCanvasElement
+  /** Size of the drawn surface, which holds the shadow and the tail too. */
   width: number
   height: number
+  /**
+   * Size of the panel alone.
+   *
+   * What a caller places: the surface is larger by the room the shadow and the
+   * tail need, and treating that as the bubble's size pushes it away from the
+   * character by the padding.
+   */
+  panelWidth: number
+  panelHeight: number
+  /**
+   * How far the tail reaches past the panel.
+   *
+   * A caller adds this to the distance it keeps from the head, so the tail has
+   * somewhere to span. Without it the panel sits against the head and the tail
+   * is drawn straight into it.
+   */
+  tailReach: number
   /**
    * Point inside the frame that the caller places on the head target: the tail
    * tip for the thinking bubble, and the badge centre for the unread circle.
@@ -43,6 +63,14 @@ export interface PresenceBubbleFrame {
  */
 const shadowPadding = 8
 
+/**
+ * Room kept around the panel for everything drawn outside it, in caller units.
+ *
+ * The tail leaves from whichever side faces the head, so the room has to be on
+ * every side rather than under the panel alone.
+ */
+const surfacePadding = shadowPadding + 11
+
 /** Drop shadow, matching the lift the controls island buttons already have. */
 const shadow = {
   blur: 7,
@@ -54,11 +82,15 @@ const shadow = {
 /** Panel geometry shared by both kinds of bubble, in caller units. */
 const panel = {
   height: 30,
-  radius: presenceBubbleTailInset,
+  radius: 15,
   tailWidth: 10,
   tailHeight: 9,
   /** Width when the panel holds the thinking dots. */
   thinkingWidth: 52,
+  /** How far the tail reaches past the panel, at most. */
+  tailReach: 11,
+  /** Half the width of the tail where it meets the panel. */
+  tailBase: 6,
   /** Space either side of the unread text. */
   unreadPaddingX: 11,
   /** Narrowest an unread panel may be, so a single digit still reads as a bubble. */
@@ -96,6 +128,12 @@ const unreadMarkHeight = unreadMark.barHeight + unreadMark.dotGap + unreadMark.d
  * this file picks a colour, which is what keeps the bubble on theme when the
  * palette or the primary hue changes.
  */
+/** A point in the panel's own coordinates, measured from its top left. */
+export interface PresenceBubblePoint {
+  x: number
+  y: number
+}
+
 export interface PresenceBubblePalette {
   /** Panel fill. */
   panel: string
@@ -128,7 +166,12 @@ function withAlpha(hex: string, alpha: number) {
 function contentKey(content: PresenceBubbleContent, options: PresenceBubblePaintOptions) {
   const detail = content.kind === 'thinking' ? content.phase : formatUnreadBadge(content.count)
   const palette = Object.values(options.palette).join(',')
-  return `${content.kind}:${detail}:${palette}:${options.resolution}:${options.tailSide ?? 'left'}`
+  // The tail is redrawn when it would visibly move, not on every sub-pixel of
+  // head motion the spring smooths away.
+  const target = options.tailTarget
+    ? `${Math.round(options.tailTarget.x / 2)},${Math.round(options.tailTarget.y / 2)}`
+    : 'none'
+  return `${content.kind}:${detail}:${palette}:${options.resolution}:${target}`
 }
 
 /**
@@ -165,6 +208,20 @@ export class PresenceBubblePainter {
   }
 
   /**
+   * Reports the frame this content would occupy, without drawing it.
+   *
+   * A caller needs the panel's size to decide where it goes, and the tail is
+   * aimed from there. Measuring first keeps that to one drawing per frame, so
+   * the panel and the tail always come from the same numbers.
+   */
+  measure(content: PresenceBubbleContent | undefined, options: PresenceBubblePaintOptions) {
+    if (!content)
+      return undefined
+
+    return this.frameFor(content, options)
+  }
+
+  /**
    * Repaints only when the visible result would differ, and reports the frame to
    * place. Returns `undefined` when nothing should be drawn.
    */
@@ -185,7 +242,7 @@ export class PresenceBubblePainter {
   }
 
   private frameFor(content: PresenceBubbleContent, options: PresenceBubblePaintOptions): PresenceBubbleFrame {
-    return this.describePanel(this.panelWidth(content, options), options)
+    return this.describePanel(this.panelWidth(content, options))
   }
 
   /** Width the count occupies, in caller units. */
@@ -226,15 +283,16 @@ export class PresenceBubblePainter {
     ctx.fill()
   }
 
-  private describePanel(width: number, options: PresenceBubblePaintOptions): PresenceBubbleFrame {
-    const bodyHeight = panel.height + panel.tailHeight
-    const tipX = options.tailSide === 'right' ? width - presenceBubbleTailInset : presenceBubbleTailInset
+  private describePanel(width: number): PresenceBubbleFrame {
     return {
       canvas: this.canvas,
-      width: width + shadowPadding * 2,
-      height: bodyHeight + shadowPadding * 2,
-      anchorX: tipX + shadowPadding,
-      anchorY: bodyHeight + shadowPadding,
+      width: width + surfacePadding * 2,
+      height: panel.height + surfacePadding * 2,
+      panelWidth: width,
+      panelHeight: panel.height,
+      tailReach: panel.tailReach,
+      anchorX: surfacePadding,
+      anchorY: surfacePadding,
       revision: this.revision,
     }
   }
@@ -263,33 +321,135 @@ export class PresenceBubblePainter {
   }
 
   /**
-   * Traces the panel and its tail as one path.
+   * Walks the panel's outline, in device pixels, clockwise from the top edge.
    *
-   * One shape for both kinds, so an unread count reads as the character's own
-   * bubble rather than as a notification badge stuck to its head. The tail is
-   * part of the path, so the shadow falls around the whole silhouette instead of
-   * seaming where the tail meets the panel.
+   * @param distance - How far along the outline, wrapping at its length.
    */
-  private tracePanel(width: number, resolution: number) {
+  private outlinePointAt(distance: number, width: number, height: number, radius: number) {
+    const straightX = width - radius * 2
+    const straightY = height - radius * 2
+    const corner = radius * Math.PI / 2
+    const perimeter = straightX * 2 + straightY * 2 + corner * 4
+
+    let along = distance % perimeter
+    if (along < 0)
+      along += perimeter
+
+    const onArc = (centreX: number, centreY: number, from: number, travelled: number) => {
+      const angle = from + travelled / radius
+      return { x: centreX + Math.cos(angle) * radius, y: centreY + Math.sin(angle) * radius }
+    }
+
+    if (along < straightX)
+      return { x: radius + along, y: 0 }
+    along -= straightX
+
+    if (along < corner)
+      return onArc(width - radius, radius, -Math.PI / 2, along)
+    along -= corner
+
+    if (along < straightY)
+      return { x: width, y: radius + along }
+    along -= straightY
+
+    if (along < corner)
+      return onArc(width - radius, height - radius, 0, along)
+    along -= corner
+
+    if (along < straightX)
+      return { x: width - radius - along, y: height }
+    along -= straightX
+
+    if (along < corner)
+      return onArc(radius, height - radius, Math.PI / 2, along)
+    along -= corner
+
+    if (along < straightY)
+      return { x: 0, y: height - radius - along }
+    along -= straightY
+
+    return onArc(radius, radius, Math.PI, along)
+  }
+
+  /**
+   * Traces the panel and its tail as one outline.
+   *
+   * The tail is part of the boundary rather than a second shape laid over it:
+   * the walk around the panel leaves the outline at the tail's root, goes out to
+   * the tip, and rejoins. Nothing can come apart, because there is no join.
+   */
+  private tracePanel(width: number, target: PresenceBubblePoint | undefined, resolution: number) {
     const ctx = this.context
     const panelWidth = width * resolution
     const panelHeight = panel.height * resolution
-    const tailWidth = panel.tailWidth * resolution
-    const tailHeight = panel.tailHeight * resolution
-    const radius = panel.radius * resolution
+    const radius = Math.min(panel.radius * resolution, panelHeight / 2, panelWidth / 2)
+
+    const straightX = panelWidth - radius * 2
+    const straightY = panelHeight - radius * 2
+    const perimeter = straightX * 2 + straightY * 2 + radius * Math.PI * 2
+    const step = Math.max(1, perimeter / 160)
+
+    const centreX = panelWidth / 2
+    const centreY = panelHeight / 2
+    const toTargetX = target ? target.x * resolution - centreX : 0
+    const toTargetY = target ? target.y * resolution - centreY : 0
+    const distance = Math.hypot(toTargetX, toTargetY)
+
+    const point = (at: number) => this.outlinePointAt(at, panelWidth, panelHeight, radius)
+
+    // A target inside the panel gives no direction to leave along, so the panel
+    // is drawn closed.
+    if (!target || distance < radius) {
+      ctx.beginPath()
+      for (let at = 0; at < perimeter; at += step) {
+        const { x, y } = point(at)
+        if (at === 0)
+          ctx.moveTo(x, y)
+        else
+          ctx.lineTo(x, y)
+      }
+      ctx.closePath()
+      return
+    }
+
+    const direction = Math.atan2(toTargetY, toTargetX)
+
+    // The outline is convex and wraps the centre once, so the angle it is seen
+    // at rises with the walk. Scanning for the closest angle finds where the
+    // tail belongs, on the outline itself rather than on a rectangle around it.
+    let exitAt = 0
+    let closest = Number.POSITIVE_INFINITY
+    for (let at = 0; at < perimeter; at += step) {
+      const { x, y } = point(at)
+      const difference = Math.abs(Math.atan2(y - centreY, x - centreX) - direction)
+      const wrapped = Math.min(difference, Math.PI * 2 - difference)
+      if (wrapped < closest) {
+        closest = wrapped
+        exitAt = at
+      }
+    }
+
+    const root = Math.min(panel.tailBase * resolution, perimeter / 6)
+    const exit = point(exitAt)
+    const reach = Math.min(panel.tailReach * resolution, distance - Math.hypot(exit.x - centreX, exit.y - centreY))
+    const tipX = centreX + Math.cos(direction) * (Math.hypot(exit.x - centreX, exit.y - centreY) + Math.max(reach, 0))
+    const tipY = centreY + Math.sin(direction) * (Math.hypot(exit.x - centreX, exit.y - centreY) + Math.max(reach, 0))
+
+    // Walk the outline from one side of the root all the way round to the other,
+    // then out to the tip and back, so the whole thing closes as one boundary.
+    const from = exitAt + root
+    const span = perimeter - root * 2
 
     ctx.beginPath()
-    ctx.moveTo(radius, 0)
-    ctx.lineTo(panelWidth - radius, 0)
-    ctx.arcTo(panelWidth, 0, panelWidth, radius, radius)
-    ctx.lineTo(panelWidth, panelHeight - radius)
-    ctx.arcTo(panelWidth, panelHeight, panelWidth - radius, panelHeight, radius)
-    ctx.lineTo(radius + tailWidth, panelHeight)
-    ctx.lineTo(radius, panelHeight + tailHeight)
-    ctx.lineTo(radius, panelHeight)
-    ctx.arcTo(0, panelHeight, 0, panelHeight - radius, radius)
-    ctx.lineTo(0, radius)
-    ctx.arcTo(0, 0, radius, 0, radius)
+    const startPoint = point(from)
+    ctx.moveTo(startPoint.x, startPoint.y)
+    for (let along = step; along < span; along += step) {
+      const { x, y } = point(from + along)
+      ctx.lineTo(x, y)
+    }
+    const endPoint = point(from + span)
+    ctx.lineTo(endPoint.x, endPoint.y)
+    ctx.lineTo(tipX, tipY)
     ctx.closePath()
   }
 
@@ -299,22 +459,16 @@ export class PresenceBubblePainter {
    */
   private beginPanel(content: PresenceBubbleContent, options: PresenceBubblePaintOptions) {
     const width = this.panelWidth(content, options)
-    const frame = this.describePanel(width, options)
+    const frame = this.describePanel(width)
     const { resolution } = options
 
     this.resize(frame.width, frame.height, resolution)
 
     const ctx = this.context
     ctx.save()
-    // The panel is symmetric, so a tail on the other side is the same drawing
-    // flipped. Mirroring here keeps one path rather than two that can drift.
-    if (options.tailSide === 'right') {
-      ctx.translate(frame.width * resolution, 0)
-      ctx.scale(-1, 1)
-    }
-    ctx.translate(shadowPadding * resolution, shadowPadding * resolution)
+    ctx.translate(surfacePadding * resolution, surfacePadding * resolution)
 
-    this.tracePanel(width, resolution)
+    this.tracePanel(width, options.tailTarget, resolution)
 
     // Depth comes from the shadow alone. An outline at this size reads as a hard
     // edge against the character rather than as a raised surface.
@@ -358,12 +512,6 @@ export class PresenceBubblePainter {
     const content: PresenceBubbleContent = { kind: 'unread', count }
     const { frame, width, height } = this.beginPanel(content, options)
     const ctx = this.context
-
-    // Mirrored panels flip their contents too, so the text is flipped back.
-    if (options.tailSide === 'right') {
-      ctx.translate(width, 0)
-      ctx.scale(-1, 1)
-    }
 
     const { resolution } = options
     const countWidth = this.unreadCountWidth(count, options) * resolution
