@@ -33,6 +33,13 @@ export interface Live2DHeadSource {
     getParameterMaximumValue: (index: number) => number
   }
   getDrawableBounds: (index: number) => Bounds
+  /**
+   * The model's physics, when it has any.
+   *
+   * Running it during the measurement is what makes hair and accessories that
+   * the head only swings indirectly show up as part of the head.
+   */
+  physics?: { evaluate: (coreModel: unknown, deltaTimeSeconds: number) => void }
 }
 
 /**
@@ -52,6 +59,28 @@ const headAreaNames = new Set(['head', 'face'])
  * independently and which therefore has no head to follow.
  */
 const headAngleParameterIds = ['ParamAngleX', 'ParamAngleY', 'ParamAngleZ']
+
+/**
+ * Cubism's standard parameters for leaning the body.
+ *
+ * Measured as a control. Models often let the body follow the head a little, and
+ * a drawable that answers to both belongs to the body.
+ */
+const bodyAngleParameterIds = ['ParamBodyAngleX', 'ParamBodyAngleY', 'ParamBodyAngleZ']
+
+/**
+ * How much more a drawable must move with the head than with the body.
+ *
+ * Separates what the head carries from what merely follows it. Comparative, so
+ * it needs no knowledge of how far either turns.
+ */
+const headOverBodyMargin = 2
+
+/** Simulated seconds given to physics so its springs reach their new rest. */
+const physicsSettleSeconds = 0.6
+
+/** Step physics is advanced by, matching a rate every model is authored against. */
+const physicsStepSeconds = 1 / 30
 
 /**
  * Share of the largest observed movement a drawable must reach to count.
@@ -113,43 +142,66 @@ export function createLive2DHeadTracker() {
   }
 
   /**
-   * Turns the head once and keeps whatever moved.
+   * Turns the head, then the body, and keeps what answers to the head alone.
    *
-   * The parameters are put back and the model updated again before returning, so
-   * the pose a caller sees is the one it had.
+   * Physics runs between the two, so hair and accessories the head swings
+   * indirectly move as they would on screen. Every parameter is put back and the
+   * model settled again before returning, so the pose a caller sees is the one it
+   * had.
    */
   function selectByHeadAngle(internalModel: Live2DHeadSource) {
     const core = internalModel.coreModel
-    const available = headAngleParameterIds
+    const count = core.getDrawableCount()
+
+    const present = (ids: string[]) => ids
       .map(id => ({ id, index: core.getParameterIndex(id) }))
       .filter(parameter => parameter.index >= 0)
 
-    const count = core.getDrawableCount()
-    if (available.length === 0 || count === 0)
+    const head = present(headAngleParameterIds)
+    const body = present(bodyAngleParameterIds)
+    if (head.length === 0 || count === 0)
       return undefined
 
-    const held = available.map(parameter => core.getParameterValueById(parameter.id))
+    const turning = [...head, ...body]
+    const held = turning.map(parameter => core.getParameterValueById(parameter.id))
+    const restore = () => turning.forEach((parameter, at) => core.setParameterValueById(parameter.id, held[at]))
 
-    core.update()
+    const settle = () => {
+      const steps = Math.ceil(physicsSettleSeconds / physicsStepSeconds)
+      for (let step = 0; step < steps; step++)
+        internalModel.physics?.evaluate(core, physicsStepSeconds)
+
+      core.update()
+    }
+
+    const turn = (parameters: typeof head) => {
+      restore()
+      for (const parameter of parameters)
+        core.setParameterValueById(parameter.id, core.getParameterMaximumValue(parameter.index))
+
+      settle()
+      return measureEvery(internalModel, count)
+    }
+
+    restore()
+    settle()
     const resting = measureEvery(internalModel, count)
 
-    for (const parameter of available)
-      core.setParameterValueById(parameter.id, core.getParameterMaximumValue(parameter.index))
+    const turned = turn(head)
+    const leaned = body.length > 0 ? turn(body) : undefined
 
-    core.update()
-    const turned = measureEvery(internalModel, count)
+    restore()
+    settle()
 
-    available.forEach((parameter, at) => core.setParameterValueById(parameter.id, held[at]))
-    core.update()
-
-    const movement = resting.map((bounds, index) => travelled(bounds, turned[index]))
-    const largest = Math.max(...movement)
+    const byHead = resting.map((bounds, index) => travelled(bounds, turned[index]))
+    const largest = Math.max(...byHead)
     if (largest <= 0)
       return undefined
 
-    const moved = movement
+    const moved = byHead
       .map((distance, index) => ({ distance, index }))
       .filter(entry => entry.distance >= largest * movedShare)
+      .filter(entry => !leaned || entry.distance > travelled(resting[entry.index], leaned[entry.index]) * headOverBodyMargin)
       .map(entry => entry.index)
 
     return moved.length > 0 ? moved : undefined
