@@ -109,6 +109,12 @@ const menu = computed(() => [
     icon: 'i-solar:keyboard-bold-duotone',
     to: '/devtools/global-shortcut',
   },
+  {
+    title: 'Presence Bubble',
+    description: 'Drive the bubble above the character and watch it in the main window',
+    icon: 'i-solar:chat-line-line-duotone',
+    to: '/devtools/presence-bubble',
+  },
 ])
 
 const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
