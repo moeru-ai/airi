@@ -113,7 +113,6 @@ function drawFrame(deltaMs: number) {
 
   const viewportWidth = sizes.width.value
   const viewportHeight = sizes.height.value
-  const head = headBoxOnScreen(active, viewportWidth, viewportHeight)
   const advanced = advancer.advance({
     state: props.state,
     deltaMs,
@@ -121,15 +120,13 @@ function drawFrame(deltaMs: number) {
     resolution: props.resolution,
     stageWidth: viewportWidth,
     stageHeight: viewportHeight,
-    head,
+    head: () => headBoxOnScreen(active, viewportWidth, viewportHeight),
     readPalette: () => readPalette?.() ?? fallbackPalette,
   })
   if (!advanced) {
     current.visible = false
     return
   }
-  if (!head)
-    return
 
   if (advanced.repainted) {
     // Uploading on every frame would send the same pixels to the GPU at the
@@ -147,7 +144,7 @@ function drawFrame(deltaMs: number) {
     1,
   )
 
-  current.position.copy(screenPointToWorld(active, advanced.x, advanced.y, head.depth, viewportWidth, viewportHeight))
+  current.position.copy(screenPointToWorld(active, advanced.x, advanced.y, advanced.head.depth, viewportWidth, viewportHeight))
   current.visible = true
 }
 

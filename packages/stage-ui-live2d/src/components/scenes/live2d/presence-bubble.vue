@@ -88,7 +88,6 @@ function drawFrame() {
   if (!current)
     return
 
-  const head = props.headAnchor()
   const advanced = advancer.advance({
     state: props.state,
     deltaMs,
@@ -96,7 +95,7 @@ function drawFrame() {
     resolution: props.resolution,
     stageWidth: props.app.screen.width / props.resolution,
     stageHeight: props.app.screen.height / props.resolution,
-    head,
+    head: props.headAnchor,
     readPalette,
   })
   if (!advanced) {

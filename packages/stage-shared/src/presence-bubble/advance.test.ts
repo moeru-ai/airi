@@ -55,12 +55,42 @@ function advance(subject: PresenceBubbleAdvancer, head: { x: number, y: number, 
     resolution: 2,
     stageWidth: 260,
     stageHeight: 100,
-    head,
+    head: () => head,
     readPalette: () => palette,
   })
 }
 
 describe('presence bubble advancer', () => {
+  it('does not measure the head while there is nothing to show', () => {
+    // ROOT CAUSE:
+    //
+    // Sharing the frame loop moved the head measurement ahead of the content
+    // check, so every idle frame walked the tracked drawables:
+    //
+    //   const head = props.headAnchor()
+    //   advancer.advance({ ..., head })
+    //
+    // The head is now a getter the advancer calls after it has content.
+    const subject = createAdvancer()
+    let measured = 0
+
+    subject.advance({
+      state: { thinking: false, unreadCount: 0 },
+      deltaMs: 16,
+      animated: true,
+      resolution: 2,
+      stageWidth: 260,
+      stageHeight: 100,
+      head: () => {
+        measured++
+        return { x: 150, y: 20, width: 80, height: 80 }
+      },
+      readPalette: () => palette,
+    })
+
+    expect(measured).toBe(0)
+  })
+
   it('releases the follower while hidden', () => {
     const subject = createAdvancer()
     advance(subject, { x: 150, y: 20, width: 80, height: 80 })
@@ -72,7 +102,7 @@ describe('presence bubble advancer', () => {
       resolution: 2,
       stageWidth: 260,
       stageHeight: 100,
-      head: undefined,
+      head: () => undefined,
       readPalette: () => palette,
     })).toBeUndefined()
 
