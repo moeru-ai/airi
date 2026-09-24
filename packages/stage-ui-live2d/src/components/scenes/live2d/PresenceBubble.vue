@@ -88,6 +88,16 @@ const paletteRefreshMs = 200
 
 let palette = fallbackPalette
 let paletteAgeMs = paletteRefreshMs
+
+/**
+ * When the bubble was last drawn, from `performance.now()`.
+ *
+ * The ticker reports its own interval, but a resize asks for a frame between
+ * ticks and has no interval to report. Stamping each draw lets that caller
+ * advance the spring by the time that actually passed, which matters most when
+ * `settings/live2d/max-fps` makes the gap between ticks long.
+ */
+let lastDrawnAt = 0
 let tailSide: PresenceBubbleTailSide | undefined
 // Kept between frames so the bubble holds a position while it still fits.
 let placementMode: PresenceBubblePlacementMode | undefined
@@ -200,6 +210,12 @@ function drawFrame(deltaMs: number) {
   const settled = follower.update(placement.x, placement.y, deltaMs)
   current.position.set(settled.x, settled.y)
   current.visible = true
+  lastDrawnAt = performance.now()
+}
+
+/** Draws a frame outside the ticker, advancing by the time since the last one. */
+function drawFrameNow() {
+  drawFrame(lastDrawnAt === 0 ? 0 : performance.now() - lastDrawnAt)
 }
 
 function onTick() {
@@ -233,14 +249,11 @@ onUnmounted(() => {
   current.destroy({ texture: true, baseTexture: true })
 })
 
-// The canvas draws a frame during a resize, so the bubble is placed again at
-// once rather than on the next tick. The spring is left alone: stage units do
-// not change when the canvas does, so its position is still meaningful and
-// releasing it here would snap the bubble to the head for the whole drag, which
-// is when its weight shows most.
-watch([() => props.width, () => props.height], () => {
-  drawFrame(0)
-}, { flush: 'post' })
+// The canvas draws a frame during a resize, so the bubble is drawn again at
+// once rather than on the next tick. The spring is advanced, not released:
+// releasing it would snap the bubble to the head for the whole drag, which is
+// when its weight shows most.
+watch([() => props.width, () => props.height], drawFrameNow, { flush: 'post' })
 
 // Render scale does change what a stage unit means, so a position carried across
 // it describes a stage that no longer exists.

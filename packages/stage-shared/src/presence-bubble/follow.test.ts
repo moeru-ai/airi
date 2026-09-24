@@ -73,6 +73,17 @@ describe('presence bubble follower', () => {
     expect(position).toBeLessThan(200)
   })
 
+  it('does not move when asked to advance by no time', () => {
+    // A caller drawing outside the ticker has no interval of its own to report.
+    // Passing zero leaves the bubble where it was, so such a caller has to
+    // measure the time that actually passed instead.
+    const follower = new PresenceBubbleFollower()
+    follower.update(100, 100, 16)
+    const seated = follower.update(100, 100, 16)
+
+    expect(follower.update(900, 900, 0)).toEqual(seated)
+  })
+
   it('seats the bubble on its target again after a release', () => {
     const follower = new PresenceBubbleFollower()
     follower.update(0, 0, 16)
