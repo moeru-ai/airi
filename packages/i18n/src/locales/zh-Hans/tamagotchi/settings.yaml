@@ -47,6 +47,19 @@ pages:
 devtools:
   title: 开发者选项
   pages:
+    presence-bubble:
+      title: 状态气泡
+      description: 从这里驱动角色头顶的气泡,效果显示在主窗口
+      override:
+        title: 由此处驱动气泡
+        description: 关闭时,除非有对话回合正在进行,舞台不显示气泡。
+      thinking:
+        title: 思考中
+        description: 显示三个点。优先级高于未读数量。
+      unread:
+        title: 未读消息
+        description: 在头部旁以气泡显示,内含提示标记和数量。
+      main-window-note: 改动会即时反映在 AIRI 主窗口。
     context-flow:
       title: Context Flow
     editor:

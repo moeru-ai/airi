@@ -164,7 +164,7 @@ function withAlpha(hex: string, alpha: number) {
 }
 
 function contentKey(content: PresenceBubbleContent, options: PresenceBubblePaintOptions) {
-  const detail = content.kind === 'thinking' ? content.phase : formatUnreadBadge(content.count)
+  const detail = content.kind === 'thinking' ? `${content.phase}:${content.animated}` : formatUnreadBadge(content.count)
   const palette = Object.values(options.palette).join(',')
   // The tail is redrawn when it would visibly move, not on every sub-pixel of
   // head motion the spring smooths away.
@@ -237,7 +237,7 @@ export class PresenceBubblePainter {
     this.revision += 1
 
     return content.kind === 'thinking'
-      ? this.paintThinking(content.phase, options)
+      ? this.paintThinking(content.phase, content.animated, options)
       : this.paintUnread(content.count, options)
   }
 
@@ -480,8 +480,8 @@ export class PresenceBubblePainter {
     return { frame, width: width * resolution, height: panel.height * resolution }
   }
 
-  private paintThinking(phase: number, options: PresenceBubblePaintOptions): PresenceBubbleFrame {
-    const content: PresenceBubbleContent = { kind: 'thinking', phase }
+  private paintThinking(phase: number, animated: boolean, options: PresenceBubblePaintOptions): PresenceBubbleFrame {
+    const content: PresenceBubbleContent = { kind: 'thinking', phase, animated }
     const { frame, width, height } = this.beginPanel(content, options)
     const ctx = this.context
     const { resolution } = options
@@ -494,8 +494,9 @@ export class PresenceBubblePainter {
       // Each dot leads the next by a third of the cycle, so the three read as one
       // travelling pulse rather than three independent blinks.
       const offset = (phase / presenceBubbleDotPhases + index / 3) % 1
-      const lift = Math.sin(offset * Math.PI * 2)
-      ctx.globalAlpha = 0.35 + 0.65 * Math.max(0, lift)
+      const lift = animated ? Math.sin(offset * Math.PI * 2) : 0
+      // At rest the three read as one mark rather than a paused wave.
+      ctx.globalAlpha = animated ? 0.35 + 0.65 * Math.max(0, lift) : 0.8
       ctx.beginPath()
       ctx.arc(firstX + dotGap * index, height / 2 - lift * dotRadius * 0.6, dotRadius, 0, Math.PI * 2)
       ctx.fillStyle = options.palette.ink

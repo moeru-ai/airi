@@ -110,8 +110,8 @@ const menu = computed(() => [
     to: '/devtools/global-shortcut',
   },
   {
-    title: 'Presence Bubble',
-    description: 'Drive the bubble above the character and watch it in the main window',
+    title: t('tamagotchi.settings.devtools.pages.presence-bubble.title'),
+    description: t('tamagotchi.settings.devtools.pages.presence-bubble.description'),
     icon: 'i-solar:chat-line-line-duotone',
     to: '/devtools/presence-bubble',
   },

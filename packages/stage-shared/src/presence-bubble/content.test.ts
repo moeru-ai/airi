@@ -15,7 +15,7 @@ describe('presence bubble content', () => {
   it('puts a turn in progress ahead of a count of unread messages', () => {
     const content = resolvePresenceBubbleContent({ thinking: true, unreadCount: 14 }, 0)
 
-    expect(content).toEqual({ kind: 'thinking', phase: 0 })
+    expect(content).toEqual({ kind: 'thinking', phase: 0, animated: true })
   })
 
   it('shows unread once the turn is over', () => {
@@ -24,11 +24,28 @@ describe('presence bubble content', () => {
     expect(content).toEqual({ kind: 'unread', count: 14 })
   })
 
+  it('holds one frame for a viewer who asked for reduced motion', () => {
+    const thinking = { thinking: true, unreadCount: 0 }
+    const still = { animated: false }
+
+    const atStart = resolvePresenceBubbleContent(thinking, 0, still)
+    const later = resolvePresenceBubbleContent(thinking, presenceBubbleDotCycleMs * 3.7, still)
+
+    expect(atStart).toEqual({ kind: 'thinking', phase: 0, animated: false })
+    expect(later).toEqual(atStart)
+  })
+
+  it('still reports a turn in progress while the dots are held', () => {
+    const content = resolvePresenceBubbleContent({ thinking: true, unreadCount: 9 }, 0, { animated: false })
+
+    expect(content?.kind).toBe('thinking')
+  })
+
   it('advances the dots in whole steps and repeats each cycle', () => {
     const half = resolvePresenceBubbleContent({ thinking: true, unreadCount: 0 }, presenceBubbleDotCycleMs / 2)
     const next = resolvePresenceBubbleContent({ thinking: true, unreadCount: 0 }, presenceBubbleDotCycleMs * 1.5)
 
-    expect(half).toEqual({ kind: 'thinking', phase: presenceBubbleDotPhases / 2 })
+    expect(half).toEqual({ kind: 'thinking', phase: presenceBubbleDotPhases / 2, animated: true })
     expect(next).toEqual(half)
   })
 })

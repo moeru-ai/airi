@@ -16,6 +16,7 @@ import {
   resolvePresenceBubblePlacement,
   smoothTowards,
 } from '@proj-airi/stage-shared'
+import { usePreferredReducedMotion } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { onMounted, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 
@@ -37,6 +38,10 @@ const props = withDefaults(defineProps<{
 })
 
 const sprite = shallowRef<PixiSprite>()
+// The viewer's motion preference is read here, where the browser is, and the
+// shared layer is told rather than asking.
+const preferredMotion = usePreferredReducedMotion()
+
 const painter = new PresenceBubblePainter()
 const follower = new PresenceBubbleFollower()
 
@@ -150,7 +155,9 @@ function drawFrame(deltaMs: number) {
   // Nothing to show is the resting state, so it costs one comparison. Measuring
   // the head walks every tracked drawable's vertices and reading the palette
   // forces a style recalculation, and neither result would be used.
-  const content = resolvePresenceBubbleContent(props.state, elapsedMs)
+  const content = resolvePresenceBubbleContent(props.state, elapsedMs, {
+    animated: preferredMotion.value !== 'reduce',
+  })
   if (!content) {
     hide(current)
     return
@@ -293,11 +300,11 @@ watch(() => props.resolution, () => {
 
 <template>
   <div hidden>
-    <div ref="panelProbe" bg="neutral-50 dark:neutral-800" />
-    <div ref="shadowProbe" bg="neutral-900 dark:neutral-950" />
-    <div ref="inkProbe" bg="neutral-700 dark:neutral-200" />
-    <div ref="badgeProbe" bg="primary-500 dark:primary-400" />
-    <div ref="badgeInkProbe" bg="neutral-50 dark:neutral-900" />
+    <div ref="panelProbe" :class="['bg-neutral-50 dark:bg-neutral-800']" />
+    <div ref="shadowProbe" :class="['bg-neutral-900 dark:bg-neutral-950']" />
+    <div ref="inkProbe" :class="['bg-neutral-700 dark:bg-neutral-200']" />
+    <div ref="badgeProbe" :class="['bg-primary-500 dark:bg-primary-400']" />
+    <div ref="badgeInkProbe" :class="['bg-neutral-50 dark:bg-neutral-900']" />
   </div>
   <slot />
 </template>

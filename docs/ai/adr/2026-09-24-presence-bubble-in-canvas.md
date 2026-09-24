@@ -35,17 +35,25 @@ between them.
   paints stop the window passing the mouse through, the same as the character.
 - The bubble shows one thing at a time, by precedence: thinking, then unread.
   A spoken line will take precedence over both when it lands.
-- Unread is a count in a small circle. It is not a sentence, and the character
-  does not narrate it.
+- Unread is a mark and a count, drawn in the same panel the dots use, in the
+  accent colour. One shape for both states reads as the character's own bubble
+  rather than as a badge stuck to its head. It is not a sentence, and the
+  character does not narrate it.
 
 ## Anchor resolution
 
-Live2D reads `internalModel.hitAreas`. A model that defines no head area falls
-back to the top of the model's bounds, because hit areas are authored per model
-and this project does not control them.
+VRM states where the head is: `humanoid.getNormalizedBoneNode('head')` turns and
+nods with it. Nothing states how large it is, so the reach is a share of the
+model's height, which a humanoid format makes a safe thing to assume. The offset
+from the bone to the drawn head follows the bone's own up axis, so a tilted head
+stays right.
 
-VRM reads `humanoid.getNormalizedBoneNode('head')` and projects its world position
-through the active camera.
+Live2D states neither. `internalModel.hitAreas` is authored per model and the
+models this project ships declare only a body, and drawable ids are written in
+the artist's own language, so no name can be matched. The tracker measures the
+drawables once and follows the ones it keeps. That selection is a heuristic and
+is the weakest part of this design; the authoritative replacement is to perturb
+the standard head-angle parameter once and keep whatever moves.
 
 ## State model
 
@@ -61,6 +69,9 @@ stateDiagram-v2
 
 ## Consequences
 
+- The panel and its tail are one outline, traced in a single walk. Drawing them
+  as two shapes and relying on the fill to join them leaves a seam that reopens
+  at some angles whatever the overlap.
 - A translucent, blurred treatment is not available. `backdrop-filter` blurs what
   the DOM composites behind an element, and the canvas has nothing behind it: the
   window is transparent and the desktop is not in the scene. Pixi and Three can
