@@ -43,13 +43,30 @@ describe('presence bubble follower', () => {
   })
 
   it('treats a long stall as a pause rather than simulating it', () => {
+    // ROOT CAUSE:
+    //
+    // This asserted only `afterStall.x < 200`. The spring converges over four
+    // seconds rather than overshooting, so it landed on 200 with the cap
+    // removed and the assertion still held by a rounding error.
+    //
+    // The cap is what stops one frame costing a step per 8ms of the gap. A
+    // stall now has to land exactly where the longest allowed frame lands.
     const stalled = new PresenceBubbleFollower()
     stalled.update(0, 0, 16)
 
-    const afterStall = stalled.update(200, 0, 4000)
+    const longestFrame = new PresenceBubbleFollower()
+    longestFrame.update(0, 0, 16)
 
-    // Integrating four seconds at once would overshoot far past the target.
-    expect(afterStall.x).toBeLessThan(200)
+    expect(stalled.update(200, 0, 4000)).toEqual(longestFrame.update(200, 0, 100))
+  })
+
+  it('integrates a long frame in steps rather than one leap', () => {
+    // A single Euler step across 100ms throws the bubble past the head; the
+    // sub-steps converge on it.
+    const follower = new PresenceBubbleFollower()
+    follower.update(0, 0, 16)
+
+    expect(follower.update(200, 0, 100).x).toBeLessThan(200)
   })
 
   it('keeps advancing while the target moves every frame', () => {
@@ -92,6 +109,21 @@ describe('presence bubble follower', () => {
     follower.release()
 
     expect(follower.update(500, 300, 16)).toEqual({ x: 500, y: 300 })
+  })
+
+  it('arrives at rest after a release rather than carrying its speed', () => {
+    // A release seats the bubble on its target. Keeping the speed it had would
+    // then push it straight back off, which is the flying-in that seating is
+    // there to avoid.
+    const follower = new PresenceBubbleFollower()
+    follower.update(0, 0, 16)
+    for (let frame = 0; frame < 6; frame++)
+      follower.update(600, 0, 16)
+
+    follower.release()
+    follower.update(100, 100, 16)
+
+    expect(follower.update(100, 100, 16)).toEqual({ x: 100, y: 100 })
   })
 })
 

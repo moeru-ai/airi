@@ -2,7 +2,7 @@ import type { Matrix } from '@pixi/math'
 import type { Bounds } from 'pixi-live2d-display/cubism4'
 
 /** A point in the model's own canvas space, before any stage transform. */
-export interface Live2DModelCanvasPoint {
+interface Live2DModelCanvasPoint {
   x: number
   y: number
 }
@@ -150,9 +150,8 @@ export function createLive2DHeadTracker() {
     if (head.length === 0 || count === 0)
       return undefined
 
-    const turning = head
-    const held = turning.map(parameter => core.getParameterValueById(parameter.id))
-    const restore = () => turning.forEach((parameter, at) => core.setParameterValueById(parameter.id, held[at]))
+    const held = head.map(parameter => core.getParameterValueById(parameter.id))
+    const restore = () => head.forEach((parameter, at) => core.setParameterValueById(parameter.id, held[at]))
 
     const settle = () => {
       const steps = Math.ceil(physicsSettleSeconds / physicsStepSeconds)
@@ -175,22 +174,13 @@ export function createLive2DHeadTracker() {
       return Math.abs(maximum - from) >= Math.abs(from - minimum) ? maximum : minimum
     }
 
-    const turn = (parameters: typeof head) => {
-      restore()
-      for (const parameter of parameters) {
-        const at = turning.indexOf(parameter)
-        core.setParameterValueById(parameter.id, farEnd(parameter, held[at]))
-      }
-
-      settle()
-      return measureEvery(internalModel, count)
-    }
-
     restore()
     settle()
     const resting = measureEvery(internalModel, count)
 
-    const turned = turn(head)
+    head.forEach((parameter, at) => core.setParameterValueById(parameter.id, farEnd(parameter, held[at])))
+    settle()
+    const turned = measureEvery(internalModel, count)
 
     restore()
     settle()
@@ -259,7 +249,7 @@ export function createLive2DHeadTracker() {
  * Source: `toModelPosition` in
  * node_modules/pixi-live2d-display/dist/cubism4.es.js.
  */
-export function live2DCanvasPointToParent(
+function live2DCanvasPointToParent(
   point: Live2DModelCanvasPoint,
   internalModelLocalTransform: Matrix,
   modelLocalTransform: Matrix,

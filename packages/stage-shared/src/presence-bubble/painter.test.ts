@@ -126,4 +126,15 @@ describe('presence bubble painter', () => {
     expect(frame?.panelWidth).toBeLessThan(frame!.width)
     expect(frame?.anchorX).toBe((frame!.width - frame!.panelWidth) / 2)
   })
+
+  it('pads the surface for everything drawn outside the panel', () => {
+    // The tail leaves from whichever side faces the head and the shadow spreads
+    // on all of them, so the room around the panel has to hold both. A canvas
+    // clips either one at its edge like any other drawing.
+    const frame = painter().paint(thinking, options)!
+
+    expect(frame.anchorX).toBeGreaterThan(frame.tailReach)
+    expect(frame.anchorY).toBeGreaterThan(frame.tailReach)
+    expect(frame.height - frame.anchorY - frame.panelHeight).toBeGreaterThan(frame.tailReach)
+  })
 })

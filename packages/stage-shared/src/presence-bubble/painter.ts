@@ -85,8 +85,6 @@ const shadow = {
 const panel = {
   height: 30,
   radius: 15,
-  tailWidth: 10,
-  tailHeight: 9,
   /** Width when the panel holds the thinking dots. */
   thinkingWidth: 52,
   /** How far the tail reaches past the panel, at most. */

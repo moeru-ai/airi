@@ -1,8 +1,15 @@
+import type { PresenceBubblePlacementMode } from './placement'
+
 import { describe, expect, it } from 'vitest'
 
 import { choosePresenceBubbleMode, resolvePresenceBubblePlacement } from './placement'
 
-/** A stage with the character low and centred, leaving room on every side. */
+/**
+ * A stage with the character low and centred, leaving room on every side.
+ *
+ * The gap is what the adapters pass: the tail's reach plus the clearance they
+ * keep past its tip.
+ */
 function roomyStage() {
   return {
     stageWidth: 420,
@@ -13,6 +20,7 @@ function roomyStage() {
     headHeight: 140,
     bubbleWidth: 68,
     bubbleHeight: 55,
+    gap: 15,
   }
 }
 
@@ -52,17 +60,29 @@ describe('presence bubble mode', () => {
   })
 
   it('holds its side while the head sways across the boundary', () => {
-    // Breathing moves the head a few units per frame. Without a band between the
-    // keep and take thresholds the bubble changes sides on alternate frames.
-    const atBoundary = { ...roomyStage(), headY: 20, headX: 208, stageWidth: 420 }
-    let mode = choosePresenceBubbleMode(atBoundary)
+    // ROOT CAUSE:
+    //
+    // This swayed the head where both sides had room to spare, so no sway could
+    // change the answer, and it compared the result against a fresh call on the
+    // resting box, which moved with it:
+    //
+    //   expect(mode).toBe(choosePresenceBubbleMode(atBoundary))
+    //
+    // Removing the band left both tests passing. The head now sways where the
+    // right has between `bubbleWidth - switchHysteresis` and `bubbleWidth` of
+    // room: enough to keep, not enough to take, and the left is roomier, so
+    // without the band every frame would hand it to the left.
+    const atBoundary = { ...roomyStage(), headY: 20, headX: 215 }
 
+    let mode: PresenceBubblePlacementMode = 'right'
+    const taken = new Set<PresenceBubblePlacementMode>()
     for (let frame = 0; frame < 12; frame++) {
-      const swayed = { ...atBoundary, headX: 208 + (frame % 2 === 0 ? 3 : -3) }
+      const swayed = { ...atBoundary, headX: 215 + (frame % 2 === 0 ? 2 : -2) }
       mode = choosePresenceBubbleMode(swayed, mode)
+      taken.add(mode)
     }
 
-    expect(mode).toBe(choosePresenceBubbleMode(atBoundary))
+    expect([...taken]).toEqual(['right'])
   })
 })
 
@@ -89,7 +109,18 @@ describe('presence bubble placement', () => {
 
     expect(placement.x).toBeGreaterThanOrEqual(0)
     expect(placement.x + narrow.bubbleWidth).toBeLessThanOrEqual(narrow.stageWidth)
+    // A side placement sits a bubble's height above the head's crown, which on a
+    // cramped stage is off the top of it.
+    expect(placement.y).toBeGreaterThanOrEqual(0)
     expect(placement.y + narrow.bubbleHeight).toBeLessThanOrEqual(narrow.stageHeight)
+  })
+
+  it('centres the panel on the head when it sits above', () => {
+    const stage = roomyStage()
+
+    const placement = resolvePresenceBubblePlacement(stage, 'above')
+
+    expect(placement.x + stage.bubbleWidth / 2).toBe(stage.headX + stage.headWidth / 2)
   })
 
   it('reports coordinates from the box it is given, not from a settled one', () => {

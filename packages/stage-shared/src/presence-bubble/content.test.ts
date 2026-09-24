@@ -25,7 +25,9 @@ describe('presence bubble content', () => {
   })
 
   it('holds one frame for a viewer who asked for reduced motion', () => {
-    const thinking = { thinking: true, unreadCount: 0 }
+    // Unread as well, so the held frame is also shown to outrank a count: a
+    // viewer who stopped the dots still has to see that a turn is running.
+    const thinking = { thinking: true, unreadCount: 9 }
     const still = { animated: false }
 
     const atStart = resolvePresenceBubbleContent(thinking, 0, still)
@@ -33,12 +35,6 @@ describe('presence bubble content', () => {
 
     expect(atStart).toEqual({ kind: 'thinking', phase: 0, animated: false })
     expect(later).toEqual(atStart)
-  })
-
-  it('still reports a turn in progress while the dots are held', () => {
-    const content = resolvePresenceBubbleContent({ thinking: true, unreadCount: 9 }, 0, { animated: false })
-
-    expect(content?.kind).toBe('thinking')
   })
 
   it('advances the dots in whole steps and repeats each cycle', () => {
