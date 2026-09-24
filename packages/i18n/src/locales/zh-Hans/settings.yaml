@@ -679,6 +679,9 @@ pages:
             show_less: 显示更多
             show_more: 收起
             temperature_label: 温度
+            temperature_enabled: 自定义温度
+            top_p_enabled: 自定义 Top P
+            sampling_override_description: 默认关闭。仅在模型支持此参数时启用。部分模型只允许同时使用一个采样参数。
             temperature_description: 控制模型输出的随机性。较低的温度（例如 0.2）会使输出更精确和确定；较高的温度（例如 1.0）会增加创造力和多样性。
             top_p_label: Top P
             top_p_description: 控制模型输出的多样性（核采样）。较低的值（例如 0.2）会将输出限制在概率较高的词汇；较高的值（例如 1.0）则会包含更广泛的可能性。
