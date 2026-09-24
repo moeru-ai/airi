@@ -12,7 +12,7 @@ import {
 } from '@proj-airi/stage-shared'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { usePreferredReducedMotion } from '@vueuse/core'
-import { CanvasTexture, Sprite, SpriteMaterial, Vector3 as ThreeVector3 } from 'three'
+import { CanvasTexture, Sprite, SpriteMaterial, SRGBColorSpace, Vector3 as ThreeVector3 } from 'three'
 import { inject, onMounted, onUnmounted, shallowRef } from 'vue'
 
 import { presenceBubblePaletteKey } from './presence-bubble-palette'
@@ -254,9 +254,15 @@ onMounted(() => {
   palette = readPalette?.() ?? fallbackPalette
 
   const texture = new CanvasTexture(painter.canvasElement())
+  // The painter draws in the colours the stylesheet gives it, which are sRGB.
+  // A texture left unlabelled is read as linear and the theme comes out wrong.
+  texture.colorSpace = SRGBColorSpace
   const created = new Sprite(new SpriteMaterial({
     map: texture,
     transparent: true,
+    // The bubble is interface, not a lit surface. Tone mapping would pull it
+    // toward whatever exposure the scene is graded at.
+    toneMapped: false,
     // The bubble belongs in front of the character whatever the pose puts
     // between them, and it writes no depth so nothing sorts against it.
     depthTest: false,

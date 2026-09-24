@@ -16,7 +16,7 @@ function createWindow(namespace: string, leadership: LeadershipMode) {
   pinia.use(runtime.plugin)
   createApp({}).use(pinia)
   contexts.push({ pinia, runtime })
-  return pinia
+  return { pinia, runtime }
 }
 
 afterEach(() => {
@@ -39,11 +39,11 @@ describe('presence bubble developer control', () => {
     const namespace = `presence-bubble-${Math.random().toString(36).slice(2)}`
 
     const stageWindow = createWindow(namespace, 'leader-only')
-    setActivePinia(stageWindow)
+    setActivePinia(stageWindow.pinia)
     const stage = useSettingsPresenceBubble()
 
     const settingsWindow = createWindow(namespace, 'follower-only')
-    setActivePinia(settingsWindow)
+    setActivePinia(settingsWindow.pinia)
     const settings = useSettingsPresenceBubble()
 
     settings.presenceBubbleOverrideEnabled = true
@@ -52,15 +52,49 @@ describe('presence bubble developer control', () => {
     await vi.waitFor(() => expect(stage.presenceOverride).toEqual({ thinking: true, unreadCount: 0 }))
   })
 
+  it('takes a leader snapshot without proposing one back', async () => {
+    // A remote snapshot runs the local watchers, and a store that answered one
+    // by writing its own state would send a proposal back for every change the
+    // other window made.
+    const namespace = `presence-bubble-${Math.random().toString(36).slice(2)}`
+
+    const stageWindow = createWindow(namespace, 'leader-only')
+    await vi.waitFor(() => expect(stageWindow.runtime.isLeader()).toBe(true))
+    setActivePinia(stageWindow.pinia)
+    const stage = useSettingsPresenceBubble()
+
+    const settingsWindow = createWindow(namespace, 'follower-only')
+    setActivePinia(settingsWindow.pinia)
+    const settings = useSettingsPresenceBubble()
+    // Counting before the windows agree who leads would include the snapshots
+    // they exchange while settling that.
+    await vi.waitFor(() => expect(settingsWindow.runtime.getLeaderId()).toBe(stageWindow.runtime.participantId))
+
+    let stageMutations = 0
+    let settingsMutations = 0
+    let settingsActions = 0
+    stage.$subscribe(() => stageMutations++, { flush: 'sync' })
+    settings.$subscribe(() => settingsMutations++, { flush: 'sync' })
+    settings.$onAction(() => settingsActions++)
+
+    stage.presenceBubbleOverrideThinking = true
+    await vi.waitFor(() => expect(settings.presenceBubbleOverrideThinking).toBe(true))
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(stageMutations).toBe(1)
+    expect(settingsMutations).toBe(1)
+    expect(settingsActions).toBe(0)
+  })
+
   it('reports no override while the control is off, so the stage reads its own signals', async () => {
     const namespace = `presence-bubble-${Math.random().toString(36).slice(2)}`
 
     const stageWindow = createWindow(namespace, 'leader-only')
-    setActivePinia(stageWindow)
+    setActivePinia(stageWindow.pinia)
     const stage = useSettingsPresenceBubble()
 
     const settingsWindow = createWindow(namespace, 'follower-only')
-    setActivePinia(settingsWindow)
+    setActivePinia(settingsWindow.pinia)
     const settings = useSettingsPresenceBubble()
 
     settings.presenceBubbleOverrideUnread = 14
