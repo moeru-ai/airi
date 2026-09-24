@@ -7,6 +7,7 @@ import { electron } from '@proj-airi/electron-eventa'
 import {
   useElectronEventaInvoke,
   useElectronMouseAroundWindowBorder,
+  useElectronMouseInElement,
   useElectronMouseInWindow,
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
@@ -51,6 +52,13 @@ import {
   DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS,
   shouldSuppressVoiceInput,
 } from '../utils/voice-input-suppression'
+
+const announcementsRef = ref<InstanceType<typeof HoloCoupon>>()
+const announcementsOpen = ref(false)
+const announcementTrigger = toRef(() => announcementsRef.value?.triggerElement)
+const { isOutside: isOutsideAnnouncements } = useElectronMouseInElement(announcementTrigger)
+// Removed triggers must not keep a stale native hit-test result interactive.
+const insideAnnouncements = computed(() => !!announcementTrigger.value && !isOutsideAnnouncements.value)
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
@@ -281,7 +289,8 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
  * Upstream:
  * - {@link isOutsideFor250Ms} and {@link isAroundWindowBorderFor250Ms}
  * - {@link isOutsideWindow}, {@link isTransparent}, and {@link isTransparentForMouseEvents}
- * - {@link controlsOverlayActive}, {@link fadeOnHoverEnabled}, {@link alwaysOnTop}, and {@link stagePaused}
+ * - {@link controlsOverlayActive}, {@link announcementsOpen}, and {@link insideAnnouncements}
+ * - {@link fadeOnHoverEnabled}, {@link alwaysOnTop}, and {@link stagePaused}
  *
  * Downstream:
  * - {@link resolveFadeOnHoverInteraction}
@@ -295,8 +304,8 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  if (controlsOverlayActive.value) {
-    // Portaled controls must receive clicks even outside the Island's bounds.
+  if (controlsOverlayActive.value || announcementsOpen.value) {
+    // Portaled content and its outside-click dismissal need native pointer events.
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
@@ -309,7 +318,7 @@ function handleFadeOnHoverInteractionChange() {
   const insideControls = !isOutside.value || !isOutsideFor250Ms.value
   const nearBorder = isAroundWindowBorder.value || isAroundWindowBorderFor250Ms.value
 
-  if (insideControls || nearBorder) {
+  if (insideControls || insideAnnouncements.value || nearBorder) {
     // Inside interactive controls or near resize border: do NOT ignore events
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
@@ -331,7 +340,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
+  [isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, insideAnnouncements, announcementsOpen, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -843,8 +852,8 @@ const cursorPosition = computed(() => ({
           so that the screen sampler does not read AIRI's own colors as desktop
           light. ResourceStatusIsland marks its pill itself, because its root
           spans the whole stage width. Tooltips and dialogs need none: reka-ui
-          portals them to the body and the mask finds them there. HoloCoupon
-          never renders (v-if="false").
+          portals them to the body and the mask finds them there. The announcement
+          trigger and card are also portaled to the body.
         -->
         <ResourceStatusIsland />
         <WidgetStage
@@ -855,8 +864,11 @@ const cursorPosition = computed(() => ({
           :cursor-position="cursorPosition"
           :paused="stagePaused"
         />
-        <HoloCoupon />
-        <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
+        <ControlsIslandRoot v-slot="{ isLeft }" :frozen="controlsIslandInteractionActive || announcementsOpen">
+          <HoloCoupon
+            ref="announcementsRef" v-model:open="announcementsOpen" client="desktop"
+            :trigger-side="isLeft ? 'right' : 'left'"
+          />
           <ControlsIsland
             ref="controlsIslandRef"
             :[stageOpaqueAttribute]="true"
