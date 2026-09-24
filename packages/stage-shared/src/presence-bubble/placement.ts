@@ -20,12 +20,11 @@ export interface PresenceBubblePlacementInput {
   /**
    * Distance the bubble keeps from the head's box.
    *
-   * Negative lets it cross the box, which reads as depth but overlaps the
-   * character in ordinary use, so the default stays clear of it.
+   * Callers pass the tail's reach plus the clearance they want past it, so the
+   * tail spans the distance rather than being drawn into the character.
+   * Negative lets it cross the box, which reads as depth but overlaps.
    */
-  gap?: number
-  /** Distance the bubble keeps from the stage edges. */
-  margin?: number
+  gap: number
 }
 
 export interface PresenceBubblePlacementResult {
@@ -35,13 +34,8 @@ export interface PresenceBubblePlacementResult {
   mode: PresenceBubblePlacementMode
 }
 
-const defaults = {
-  // Small, because the box is the union of the drawables standing in for the
-  // head and already reaches past the face. A wider gap pushes the bubble off
-  // the hair and wastes the room it needs at small window sizes.
-  gap: 4,
-  margin: 6,
-} as const
+/** Distance the bubble keeps from the stage edges, in caller units. */
+const margin = 6
 
 /**
  * Room a position must gain or lose, in caller units, before the bubble moves.
@@ -88,8 +82,7 @@ export function choosePresenceBubbleMode(
   input: PresenceBubblePlacementInput,
   current?: PresenceBubblePlacementMode,
 ): PresenceBubblePlacementMode {
-  const gap = input.gap ?? defaults.gap
-  const margin = input.margin ?? defaults.margin
+  const { gap } = input
 
   const headLeft = input.headX
   const headRight = input.headX + input.headWidth
@@ -144,8 +137,7 @@ export function resolvePresenceBubblePlacement(
   input: PresenceBubblePlacementInput,
   mode: PresenceBubblePlacementMode,
 ): PresenceBubblePlacementResult {
-  const gap = input.gap ?? defaults.gap
-  const margin = input.margin ?? defaults.margin
+  const { gap } = input
 
   const headLeft = input.headX
   const headRight = input.headX + input.headWidth

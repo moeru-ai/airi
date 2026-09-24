@@ -1,15 +1,3 @@
-export interface PresenceBubbleFollowOptions {
-  /** Pull toward the head. Higher closes the gap sooner. */
-  stiffness?: number
-  /** Resistance to travel. Higher settles with less overshoot. */
-  damping?: number
-  /**
-   * How long one position is held before the next is committed, in
-   * milliseconds. `0` follows every frame.
-   */
-  holdMs?: number
-}
-
 export interface PresenceBubblePlacement {
   x: number
   y: number
@@ -26,55 +14,33 @@ const maxStepMs = 1000 / 120
 /**
  * Longest span a single update may integrate at all, in milliseconds.
  *
- * A backgrounded window, a breakpoint or a stalled frame can report a gap of
- * seconds. Simulating all of it would fling the bubble across the stage before
- * it settles, so the gap is treated as a pause and the bubble resumes from where
- * it was.
+ * A backgrounded window or a stalled frame can report a gap of seconds. The
+ * spring converges over such a gap rather than overshooting, but it costs one
+ * step per 8ms to get there, so the gap is treated as a pause: the bubble
+ * resumes from where it was and closes the distance over the frames that follow.
  */
 const maxCatchUpMs = 100
 
-const defaults = {
-  stiffness: 170,
-  damping: 20,
-  // Follow every frame. Holding a position is what limited animation does to a
-  // drawing, and the thinking dots are drawn that way, but a bubble that trails
-  // the head is read as motion: quantizing it looks like dropped frames rather
-  // than like an animation choice.
-  holdMs: 0,
-} as const satisfies Required<PresenceBubbleFollowOptions>
+/** Pull toward the head. Higher closes the gap sooner. */
+const stiffness = 170
+
+/** Resistance to travel. Higher settles with less overshoot. */
+const damping = 20
 
 /**
- * Trails a moving head the way a held object trails the hand, and commits its
- * position in steps.
+ * Trails a moving head the way a held object trails the hand.
  *
- * Two behaviours are deliberately separate. The spring gives the bubble weight,
- * so it lags into a turn and overshoots slightly before settling. The hold
- * quantizes when that position is drawn, which reads as the stepped motion of
- * limited animation rather than a smooth slide.
- *
- * Time drives both, not frames: the stage renders at whatever
- * `settings/live2d/max-fps` allows, and the bubble must feel the same at either
- * rate.
+ * The spring gives the bubble weight, so it lags into a turn and overshoots
+ * slightly before settling. Time drives it, not frames: the stage renders at
+ * whatever `settings/live2d/max-fps` allows, and the bubble must feel the same
+ * at either rate.
  */
 export class PresenceBubbleFollower {
-  private readonly stiffness: number
-  private readonly damping: number
-  private readonly holdMs: number
-
   private x = 0
   private y = 0
   private velocityX = 0
   private velocityY = 0
-  private heldX = 0
-  private heldY = 0
-  private holdElapsedMs = 0
   private settled = false
-
-  constructor(options: PresenceBubbleFollowOptions = {}) {
-    this.stiffness = options.stiffness ?? defaults.stiffness
-    this.damping = options.damping ?? defaults.damping
-    this.holdMs = Math.max(0, options.holdMs ?? defaults.holdMs)
-  }
 
   /**
    * Places the bubble on a point with no travel and no velocity.
@@ -84,11 +50,10 @@ export class PresenceBubbleFollower {
    * and springing away from it would read as the bubble flying in.
    */
   reset(x: number, y: number) {
-    this.x = this.heldX = x
-    this.y = this.heldY = y
+    this.x = x
+    this.y = y
     this.velocityX = 0
     this.velocityY = 0
-    this.holdElapsedMs = 0
     this.settled = true
   }
 
@@ -108,7 +73,7 @@ export class PresenceBubbleFollower {
   update(targetX: number, targetY: number, deltaMs: number): PresenceBubblePlacement {
     if (!this.settled) {
       this.reset(targetX, targetY)
-      return { x: this.heldX, y: this.heldY }
+      return { x: this.x, y: this.y }
     }
 
     let remainingMs = Math.min(Math.max(deltaMs, 0), maxCatchUpMs)
@@ -116,27 +81,15 @@ export class PresenceBubbleFollower {
       const stepMs = Math.min(remainingMs, maxStepMs)
       const step = stepMs / 1000
 
-      this.velocityX += ((targetX - this.x) * this.stiffness - this.velocityX * this.damping) * step
-      this.velocityY += ((targetY - this.y) * this.stiffness - this.velocityY * this.damping) * step
+      this.velocityX += ((targetX - this.x) * stiffness - this.velocityX * damping) * step
+      this.velocityY += ((targetY - this.y) * stiffness - this.velocityY * damping) * step
       this.x += this.velocityX * step
       this.y += this.velocityY * step
 
       remainingMs -= stepMs
     }
 
-    if (this.holdMs === 0)
-      return { x: this.x, y: this.y }
-
-    this.holdElapsedMs += deltaMs
-    if (this.holdElapsedMs >= this.holdMs) {
-      // Drop whole holds rather than carrying the remainder, so a long frame
-      // commits once instead of queueing catch-up commits behind it.
-      this.holdElapsedMs %= this.holdMs
-      this.heldX = this.x
-      this.heldY = this.y
-    }
-
-    return { x: this.heldX, y: this.heldY }
+    return { x: this.x, y: this.y }
   }
 }
 
