@@ -97,10 +97,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const credits = ref(0)
 
-  // Cross-app "user must log in" flag. Setting this to true triggers an
-  // immediate OIDC redirect on web (mobile + desktop). Electron skips this
-  // path because controls-island-auth-button listens for IPC and handles
-  // sign-in in the main process.
+  // The leader owns this cross-window login request. Web consumes it locally;
+  // Electron renderers compete to consume it before starting the IPC flow.
   const needsLogin = ref(false)
   const { isMobile } = useBreakpoints()
 
@@ -400,6 +398,13 @@ export const useAuthStore = defineStore('auth', () => {
     return true
   }
 
+  /** Publishes a login request on the leader before any renderer can consume it. */
+  async function requestLogin(): Promise<void> {
+    if (isAuthenticated.value)
+      return
+    needsLogin.value = true
+  }
+
   /** Requests sign-in only if the failed request still belongs to this session. */
   async function expireSession(expectedVersion: number): Promise<void> {
     if (expectedVersion !== sessionVersion.value || signingOut)
@@ -477,6 +482,7 @@ export const useAuthStore = defineStore('auth', () => {
     refreshTokenNow,
     sessionVersion,
     consumeLoginRequest,
+    requestLogin,
     expireSession,
     clearAllAuthState,
   }
@@ -491,6 +497,7 @@ export const useAuthStore = defineStore('auth', () => {
       'clearAllAuthState',
       'expireSession',
       'consumeLoginRequest',
+      'requestLogin',
     ],
     state: true,
   },
