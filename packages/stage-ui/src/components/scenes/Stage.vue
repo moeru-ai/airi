@@ -14,7 +14,6 @@ import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
-import { presenceBubbleIdle } from '@proj-airi/stage-shared'
 import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
@@ -243,11 +242,18 @@ function resetAssistantSpeechSurface(source: string) {
   }
 }
 
+const { sending: chatSending } = storeToRefs(useChatStore())
 const { presenceOverride } = storeToRefs(useSettingsPresenceBubble())
 
-// Only the developer control feeds the bubble for now. The chat signals are
-// wired in a later change, so that this one stays about drawing and placing it.
-const presenceBubble = computed<PresenceBubbleState>(() => presenceOverride.value ?? presenceBubbleIdle)
+// `sending` is raised before the request leaves and cleared once the send
+// settles, which is the span the character has nothing to say yet.
+//
+// Unread stays at zero: nothing reports whether the chat window is showing, so
+// there is no read cursor to count against.
+const presenceBubble = computed<PresenceBubbleState>(() => presenceOverride.value ?? {
+  thinking: chatSending.value,
+  unreadCount: 0,
+})
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
