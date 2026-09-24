@@ -30,6 +30,14 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const isListening = ref(false)
   const transcriptionConsumerId = `interactive-area:${useId()}`
   const streamingInput = useStreamingTranscriptionInput(messageInput)
+  let intentRevision = 0
+  let lifecycle = Promise.resolve()
+
+  function queueTransition(operation: () => Promise<void>) {
+    const next = lifecycle.then(operation)
+    lifecycle = next.then(() => undefined, () => undefined)
+    return next
+  }
 
   // Auto-send logic
   let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
@@ -60,10 +68,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }, autoSendDelay.value)
   }
 
-  const stopStreaming = async () => {
-    streamingInput.clear()
-    clearPendingAutoSend()
-
+  const stopStreamingNow = async () => {
     try {
       console.info('Stopping transcription...', { source: 'useTranscriptions' })
       await releaseStreamingTranscriptionConsumer(transcriptionConsumerId)
@@ -76,7 +81,10 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }
   }
 
-  const startStreaming = async () => {
+  const startStreamingNow = async (revision: number) => {
+    if (revision !== intentRevision)
+      return
+
     console.info('Starting streaming transcription', {
       enabled: hearingEnabled.value,
       hasStream: !!stream.value,
@@ -116,6 +124,8 @@ export function useTranscriptions(options: TranscriptionOptions) {
       }
       // Wait for reactivity to update
       await nextTick()
+      if (revision !== intentRevision)
+        return
 
       // Verify the provider was set to Web Speech API
       if (hearingStore.activeTranscriptionProvider !== 'browser-web-speech-api') {
@@ -140,6 +150,8 @@ export function useTranscriptions(options: TranscriptionOptions) {
       if (!stream.value) {
         console.info('Requesting microphone permission', { source: 'useTranscriptions' })
         await askPermission()
+        if (revision !== intentRevision)
+          return
 
         // If still no stream, try starting it manually
         if (!stream.value && hearingEnabled.value) {
@@ -148,6 +160,8 @@ export function useTranscriptions(options: TranscriptionOptions) {
           // Wait for the stream to become available with a timeout.
           try {
             await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
+            if (revision !== intentRevision)
+              return
           }
           catch {
             console.error('Timed out waiting for audio stream. Stopping transcription.', { source: 'useTranscriptions' })
@@ -161,6 +175,9 @@ export function useTranscriptions(options: TranscriptionOptions) {
       console.error('Failed to request microphone permission:', err, { source: 'useTranscriptions' })
       isListening.value = false
     }
+
+    if (revision !== intentRevision)
+      return
 
     if (!stream.value) {
       const errorMsg = 'Failed to get audio stream for transcription. Please check microphone permissions and ensure a device is selected.'
@@ -177,15 +194,29 @@ export function useTranscriptions(options: TranscriptionOptions) {
     try {
       await transcribeForMediaStream(stream.value, {
         consumerId: transcriptionConsumerId,
+        priority: 'manual',
         onSentenceEnd: (delta) => {
+          if (revision !== intentRevision)
+            return
           if (streamingInput.commit(delta)) {
             console.info('Received final transcription:', delta, { source: 'useTranscriptions' })
             debouncedAutoSend()
           }
         },
-        onSpeechEnd: streamingInput.clear,
-        onTranscriptionUpdate: streamingInput.replace,
+        onSpeechEnd: () => {
+          if (revision === intentRevision)
+            streamingInput.clear()
+        },
+        onTranscriptionUpdate: (text) => {
+          if (revision === intentRevision)
+            streamingInput.replace(text)
+        },
       })
+
+      if (revision !== intentRevision)
+        return
+      if (hearingPipeline.error)
+        throw new Error(hearingPipeline.error)
 
       // Only set listening to true if transcription started successfully
       // (transcribeForMediaStream might return early if session already exists)
@@ -198,6 +229,32 @@ export function useTranscriptions(options: TranscriptionOptions) {
       isListening.value = false
       throw err
     }
+  }
+
+  const startStreaming = () => {
+    const revision = ++intentRevision
+    return queueTransition(async () => {
+      if (revision !== intentRevision)
+        return
+
+      // Manual dictation owns results from the moment the user asks to listen.
+      hearingPipeline.claimStreamingTranscriptionConsumer({ consumerId: transcriptionConsumerId, priority: 'manual' })
+      try {
+        await startStreamingNow(revision)
+      }
+      finally {
+        if (!isListening.value)
+          await releaseStreamingTranscriptionConsumer(transcriptionConsumerId)
+      }
+    })
+  }
+
+  const stopStreaming = () => {
+    intentRevision += 1
+    isListening.value = false
+    streamingInput.clear()
+    clearPendingAutoSend()
+    return queueTransition(stopStreamingNow)
   }
 
   // Watch for auto-send setting changes and clear pending sends if disabled
@@ -217,8 +274,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   })
 
   onScopeDispose(() => {
-    clearPendingAutoSend()
-    stopStreaming()
+    void stopStreaming()
   })
 
   return {

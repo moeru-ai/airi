@@ -121,6 +121,7 @@ interface MediaStreamTranscriptionOptions extends StreamingTranscriptionConsumer
 interface VadSpeechSegment {
   audioChunks: Uint8Array[]
   audioStreamController?: ReadableStreamDefaultController<Uint8Array>
+  callbacks: StreamingTranscriptionCallbacks
 }
 
 export const CONFIDENCE_THRESHOLD_DISABLED = -3
@@ -580,11 +581,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   const providersStore = useProviderStore()
   const providerStore = useProviderConfigStore()
   const streamingConsumers = new StreamingTranscriptionConsumers()
-  const streamingCallbacks = {
-    onSentenceEnd: (delta: string) => streamingConsumers.emitSentenceEnd(delta),
-    onSpeechEnd: (text: string) => streamingConsumers.emitSpeechEnd(text),
-    onTranscriptionUpdate: (text: string) => streamingConsumers.emitTranscriptionUpdate(text),
-  }
   const {
     trackVoiceInputCancelled,
     trackVoiceInputStarted,
@@ -606,7 +602,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     lifecycle: ReturnType<typeof createVadStreamingSession<VadSpeechSegment>>
     stream: MediaStream
     providerId: string
-    callbacks: StreamingTranscriptionCallbacks
     activeSegment?: VadSpeechSegment
   }>()
 
@@ -622,6 +617,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   /** Removes callbacks owned by one streaming transcription consumer. */
   function removeStreamingTranscriptionConsumer(consumerId: string) {
     streamingConsumers.remove(consumerId)
+  }
+
+  /** Reserves result ownership while a manual consumer acquires the microphone. */
+  function claimStreamingTranscriptionConsumer(consumer: StreamingTranscriptionConsumer) {
+    streamingConsumers.register(consumer)
   }
 
   /** Releases one owner without stopping transcription needed by another owner. */
@@ -930,26 +930,33 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       audioStreamController: undefined as ReadableStreamDefaultController<Uint8Array> | undefined,
       abortController,
       providerId,
-      callbacks: vadSession.callbacks,
+      callbacks: segment.callbacks,
     }
     const audioStream = createVadAudioStream(segment)
     session.audioStreamController = segment.audioStreamController
     streamingSession.value = session
     startStreamingAsrSpan(providerId)
 
-    const result = await hearingStore.transcription(
-      providerId,
-      provider,
-      activeTranscriptionModel.value,
-      { inputAudioStream: audioStream },
-      undefined,
-      {
-        providerOptions: {
-          abortSignal: abortController.signal,
-          ...options.providerOptions,
+    let result: HearingTranscriptionResult
+    try {
+      result = await hearingStore.transcription(
+        providerId,
+        provider,
+        activeTranscriptionModel.value,
+        { inputAudioStream: audioStream },
+        undefined,
+        {
+          providerOptions: {
+            abortSignal: abortController.signal,
+            ...options.providerOptions,
+          },
         },
-      },
-    )
+      )
+    }
+    catch (cause) {
+      await stopRealtimeTranscription(session, true)
+      throw cause
+    }
 
     if (streamingSession.value !== session)
       return
@@ -966,7 +973,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     let vadSession!: NonNullable<typeof streamingVadSession.value>
     const vad = useVAD(vadWorkletUrl, {
       onSpeechStart: () => {
-        const segment: VadSpeechSegment = { audioChunks: [] }
+        const segment: VadSpeechSegment = {
+          audioChunks: [],
+          callbacks: streamingConsumers.beginUtterance(),
+        }
         vadSession.activeSegment = segment
         vadSession.lifecycle.onSpeechStart(segment)
       },
@@ -977,13 +987,16 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         vadSession.lifecycle.onSpeechEnd()
       },
       onSpeechCancel: () => {
-        vadSession.lifecycle.onSpeechEnd()
+        vadSession.lifecycle.onSpeechCancel()
       },
     })
     const lifecycle = createVadStreamingSession<VadSpeechSegment>({
       start: async segment => await startVadRealtimeTranscription(providerId, options, vadSession, segment),
       stop: async () => {
         await finishRealtimeTranscription()
+      },
+      cancel: async () => {
+        await stopRealtimeTranscription(streamingSession.value, true)
       },
       onError: (err) => {
         error.value = errorMessage(err)
@@ -995,7 +1008,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       lifecycle,
       stream,
       providerId,
-      callbacks: streamingCallbacks,
     }
     streamingVadSession.value = vadSession
 
@@ -1133,12 +1145,16 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           }
         }
 
+        let speechCallbacks = streamingConsumers.beginUtterance()
         const result = streamWebSpeechAPITranscription(stream, {
           language,
           continuous: (options?.providerOptions?.continuous as boolean) ?? (providerConfig.continuous as boolean) ?? true,
           interimResults: (options?.providerOptions?.interimResults as boolean) ?? (providerConfig.interimResults as boolean) ?? true,
           maxAlternatives: (options?.providerOptions?.maxAlternatives as number) ?? (providerConfig.maxAlternatives as number) ?? 1,
           abortSignal: abortController.signal,
+          onSpeechStart: () => {
+            speechCallbacks = streamingConsumers.beginUtterance()
+          },
           onSentenceEnd: (delta) => {
             if (abortController.signal.aborted)
               return
@@ -1146,7 +1162,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
             if (asrSpan)
               asrSpan.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: delta })
             // Call the options callback
-            streamingCallbacks.onSentenceEnd(delta)
+            speechCallbacks.onSentenceEnd?.(delta)
           },
           onSpeechEnd: (text) => {
             if (abortController.signal.aborted)
@@ -1157,7 +1173,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
               asrSpan = undefined
             }
             // Call the options callback
-            streamingCallbacks.onSpeechEnd(text)
+            speechCallbacks.onSpeechEnd?.(text)
           },
         })
 
@@ -1173,7 +1189,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           idleTimer,
           mediaStream: stream,
           providerId,
-          callbacks: streamingCallbacks,
         } as any // Type assertion needed because recognition is extra
 
         // Initial idle timer (only if enabled)
@@ -1308,6 +1323,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     transcribeForRecording,
     transcribeForMediaStream,
     removeStreamingTranscriptionConsumer,
+    claimStreamingTranscriptionConsumer,
     releaseStreamingTranscriptionConsumer,
     stopStreamingTranscription,
     supportsStreamInput,

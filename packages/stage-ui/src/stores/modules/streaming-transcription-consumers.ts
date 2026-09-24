@@ -10,24 +10,31 @@ export interface StreamingTranscriptionCallbacks {
 export interface StreamingTranscriptionConsumer extends StreamingTranscriptionCallbacks {
   /** Identifies the callback owner across registration updates and cleanup. */
   consumerId: string
+  /** Manual dictation takes ownership while active; a test panel outranks automatic send. */
+  priority: 'automatic' | 'manual' | 'playground'
 }
 
 /**
- * Routes one provider session to independent consumers.
+ * Routes one provider session to one current input owner.
  *
- * A consumer can replace its callbacks without restarting the provider. The
- * registry isolates callback failures so one consumer cannot block another.
+ * A consumer can replace its callbacks without restarting the provider.
+ * The newest consumer wins at the same priority. This prevents a transcript
+ * from entering both the composer and the automatic-send path.
  */
 export class StreamingTranscriptionConsumers {
-  private readonly consumers = new Map<string, StreamingTranscriptionCallbacks>()
+  private readonly consumers = new Map<string, { consumer: StreamingTranscriptionConsumer }>()
 
   /** Registers or replaces the callbacks for one consumer. */
   register(consumer: StreamingTranscriptionConsumer) {
-    this.consumers.set(consumer.consumerId, {
-      onSentenceEnd: consumer.onSentenceEnd,
-      onSpeechEnd: consumer.onSpeechEnd,
-      onTranscriptionUpdate: consumer.onTranscriptionUpdate,
-    })
+    const registration = this.consumers.get(consumer.consumerId)
+    if (registration) {
+      registration.consumer = consumer
+      this.consumers.delete(consumer.consumerId)
+      this.consumers.set(consumer.consumerId, registration)
+    }
+    else {
+      this.consumers.set(consumer.consumerId, { consumer })
+    }
   }
 
   /** Removes callbacks for one consumer. */
@@ -40,29 +47,40 @@ export class StreamingTranscriptionConsumers {
     return this.consumers.size > 0
   }
 
-  /** Sends a completed sentence to all current consumers. */
-  emitSentenceEnd(delta: string) {
-    this.emit('onSentenceEnd', delta)
-  }
+  /** Captures result ownership for one speech segment, including late final results. */
+  beginUtterance(): StreamingTranscriptionCallbacks {
+    const rank = { automatic: 0, playground: 1, manual: 2 }
+    let owner: { consumer: StreamingTranscriptionConsumer } | undefined
+    for (const registration of this.consumers.values()) {
+      if (!owner || rank[registration.consumer.priority] >= rank[owner.consumer.priority])
+        owner = registration
+    }
+    const registration = owner
+    const emit = (callbackName: keyof StreamingTranscriptionCallbacks, text: string) => {
+      if (!registration || this.consumers.get(registration.consumer.consumerId) !== registration)
+        return
 
-  /** Sends completed speech text to all current consumers. */
-  emitSpeechEnd(text: string) {
-    this.emit('onSpeechEnd', text)
-  }
+      // A newly selected owner can suppress an in-flight result, but cannot inherit it.
+      let currentOwner = registration
+      for (const current of this.consumers.values()) {
+        if (rank[current.consumer.priority] >= rank[currentOwner.consumer.priority])
+          currentOwner = current
+      }
+      if (currentOwner !== registration)
+        return
 
-  /** Sends the complete current transcript to all current consumers. */
-  emitTranscriptionUpdate(text: string) {
-    this.emit('onTranscriptionUpdate', text)
-  }
-
-  private emit(callbackName: keyof StreamingTranscriptionCallbacks, text: string) {
-    for (const [consumerId, callbacks] of this.consumers) {
       try {
-        callbacks[callbackName]?.(text)
+        registration.consumer[callbackName]?.(text)
       }
       catch (cause) {
-        console.error(`[Hearing Pipeline] Streaming consumer ${consumerId} ${callbackName} failed:`, cause)
+        console.error(`[Hearing Pipeline] Streaming consumer ${registration.consumer.consumerId} ${callbackName} failed:`, cause)
       }
+    }
+
+    return {
+      onSentenceEnd: delta => emit('onSentenceEnd', delta),
+      onSpeechEnd: text => emit('onSpeechEnd', text),
+      onTranscriptionUpdate: text => emit('onTranscriptionUpdate', text),
     }
   }
 }
