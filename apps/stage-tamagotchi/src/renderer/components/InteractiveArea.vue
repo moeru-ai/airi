@@ -5,7 +5,7 @@ import type { ChatToolCallRerunEvent } from '@proj-airi/stage-ui/stores/tool-cal
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
-import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { ChatHistory, HearingConfigDialog, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
@@ -14,13 +14,14 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { BasicTextarea, GhostButton } from '@proj-airi/ui'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { BasicButton, BasicTextarea, GhostButton } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 import ChatViewportLayout from './chat-viewport-layout.vue'
@@ -28,11 +29,11 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
 import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
 
-const router = useRouter()
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
 const lastEnterTime = ref(0)
 // Each request captures this composer selection, including retries and tool reruns.
 const computerUseEnabled = ref(true)
+const hearingDialogOpen = shallowRef(false)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -40,6 +41,8 @@ const chatStream = useChatStreamStore()
 const backgroundStore = useBackgroundStore()
 const journalPreviewStore = useJournalPreviewStore()
 const airiCardStore = useAiriCardStore()
+const { autoSendEnabled } = storeToRefs(useHearingStore())
+const { enabled: microphoneEnabled, permissionGranted: microphonePermissionGranted } = storeToRefs(useSettingsAudioDevice())
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
@@ -96,12 +99,6 @@ const latestImageEntries = computed(() => {
     return []
   return backgroundStore.journalEntries.slice(0, 3)
 })
-
-function navigateToImageJournal() {
-  if (!activeCardId.value)
-    return
-  router.push(`/settings/airi-card?cardId=${activeCardId.value}&tab=gallery`)
-}
 
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
@@ -327,20 +324,53 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
         <p v-if="pendingImages" role="status" :class="['px-2 text-sm text-neutral-500']">
           {{ t('stage.chat.images.reading') }}
         </p>
-        <div :class="['flex shrink-0 items-center justify-end gap-2 py-1']">
+        <div :class="['w-full shrink-0 overflow-hidden bg-transparent']">
+          <ChatReplyPreview
+            :target="replyTarget"
+            @cancel="handleCancelReply"
+          />
+          <BasicTextarea
+            v-model="messageInput"
+            :submit-on-enter="false"
+            :placeholder="t('stage.message')"
+            :class="[
+              'ph-no-capture w-full resize-none overflow-y-auto border-0 bg-transparent p-2 font-medium outline-none [scrollbar-gutter:stable]',
+              'max-h-[10lh] min-h-[2lh]',
+              'text-neutral-700 placeholder:text-neutral-400 dark:text-neutral-200 dark:placeholder:text-neutral-500',
+              'transition-colors duration-200 ease-out motion-reduce:transition-none',
+            ]"
+            @compositionstart="isComposing = true"
+            @compositionend="isComposing = false"
+            @keydown="handleMessageInputKeydown"
+            @paste-file="handleFilePaste"
+          />
+        </div>
+        <div data-testid="chat-composer-actions" :class="['flex shrink-0 items-center gap-1 pt-1']">
           <GhostButton
             size="unset"
-            :class="['h-9 w-9 transition-colors duration-200 motion-reduce:transition-none']"
+            :class="['size-9 transition-colors duration-200 motion-reduce:transition-none']"
             :title="t('stage.chat.images.attach')"
             :aria-label="t('stage.chat.images.attach')"
             @click="handleManualAttach"
           >
             <span :class="['i-solar:paperclip-bold-duotone h-5 w-5']" />
           </GhostButton>
+          <HearingConfigDialog v-model:show="hearingDialogOpen" v-model:auto-send="autoSendEnabled" :granted="microphonePermissionGranted">
+            <GhostButton
+              data-testid="voice-input-button"
+              size="unset"
+              :class="['size-9']"
+              :active="microphoneEnabled"
+              :title="t('stage.chat.voice-input')"
+              :aria-label="t('stage.chat.voice-input')"
+            >
+              <span :class="[microphoneEnabled ? 'i-solar:microphone-3-outline' : 'i-ph:microphone-slash', 'size-5']" />
+            </GhostButton>
+          </HearingConfigDialog>
           <GhostButton
             data-testid="computer-use-toggle"
             size="unset"
-            :class="['h-9 gap-2 px-2 text-xs']"
+            :class="['size-9']"
             :aria-label="t('stage.computer-use.label')"
             :title="t('stage.computer-use.description')"
             :active="computerUseEnabled"
@@ -349,13 +379,13 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
             @click="computerUseEnabled = !computerUseEnabled"
           >
             <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
-            <span>{{ t('stage.computer-use.label') }}</span>
           </GhostButton>
+          <span aria-hidden="true" :class="['mx-1 h-5 w-px bg-neutral-300/70 dark:bg-neutral-700/70']" />
           <DropdownMenuRoot>
             <DropdownMenuTrigger as-child>
               <GhostButton
                 size="unset"
-                :class="['h-9 w-9']"
+                :class="['size-9']"
                 :title="t('stage.send-mode.title')"
                 :aria-label="t('stage.send-mode.title')"
               >
@@ -397,19 +427,9 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
           </DropdownMenuRoot>
 
           <GhostButton
-            size="unset"
-            :class="['h-9 w-9']"
-            title="Image Journal"
-            aria-label="Image Journal"
-            @click="navigateToImageJournal"
-          >
-            <span :class="['i-solar:gallery-bold-duotone h-5 w-5']" />
-          </GhostButton>
-
-          <GhostButton
             v-if="showStopAction"
             size="unset"
-            :class="['ml-auto h-9 w-9']"
+            :class="['ml-auto size-9 rounded-full']"
             data-testid="stop-speaking-button"
             :title="t('stage.chat.actions.stop')"
             :aria-label="t('stage.chat.actions.stop')"
@@ -418,17 +438,20 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
             <span :class="['i-solar:stop-bold-duotone h-4 w-4']" />
           </GhostButton>
 
-          <GhostButton
+          <BasicButton
             v-else
             size="unset"
             :aria-label="t('stage.chat.actions.send')"
             :title="t('stage.chat.actions.send')"
             :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
-            :class="['ml-auto h-9 w-9 transition-colors duration-200', 'disabled:pointer-events-none motion-reduce:transition-none']"
+            :class="[
+              'ml-auto size-9 rounded-full bg-primary-500 text-white',
+              'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500 motion-reduce:transition-none',
+            ]"
             @click="handleSend"
           >
             <span :class="['i-solar:arrow-up-outline h-5 w-5']" />
-          </GhostButton>
+          </BasicButton>
           <input
             ref="fileInput"
             type="file"
@@ -437,31 +460,6 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
             multiple
             @change="handleFileSelect"
           >
-        </div>
-        <div
-          :class="[
-            'w-full shrink-0 overflow-hidden bg-transparent',
-          ]"
-        >
-          <ChatReplyPreview
-            :target="replyTarget"
-            @cancel="handleCancelReply"
-          />
-          <BasicTextarea
-            v-model="messageInput"
-            :submit-on-enter="false"
-            :placeholder="t('stage.message')"
-            :class="[
-              'ph-no-capture w-full resize-none overflow-y-auto border-0 bg-transparent p-2 font-medium outline-none [scrollbar-gutter:stable]',
-              'max-h-[10lh] min-h-[1lh]',
-              'text-neutral-700 placeholder:text-neutral-400 dark:text-neutral-200 dark:placeholder:text-neutral-500',
-              'transition-colors duration-200 ease-out motion-reduce:transition-none',
-            ]"
-            @compositionstart="isComposing = true"
-            @compositionend="isComposing = false"
-            @keydown="handleMessageInputKeydown"
-            @paste-file="handleFilePaste"
-          />
         </div>
       </div>
     </template>
