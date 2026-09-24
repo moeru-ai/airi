@@ -238,7 +238,9 @@ export function streamOfficialTranscription(options: OfficialStreamTranscription
       handleServerMessage(event.data)
     })
     socket.addEventListener('error', () => {
-      // The browser exposes the close code and reason on the following event.
+      // Browser WebSocket error events have no diagnostic detail. The close
+      // event that follows supplies the code used to fail the transcription.
+      console.warn('[Official ASR] WebSocket transport error')
     })
     socket.addEventListener('close', (event) => {
       if (settled || sessionFinished)
