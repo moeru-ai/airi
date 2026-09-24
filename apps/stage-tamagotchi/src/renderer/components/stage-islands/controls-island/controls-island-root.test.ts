@@ -204,7 +204,7 @@ describe('controlsIslandRoot', () => {
     await vi.advanceTimersByTimeAsync(1)
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-left',
+      dock: 'top-left',
       phase: 'entering',
     })
 
@@ -247,14 +247,14 @@ describe('controlsIslandRoot', () => {
     await vi.advanceTimersByTimeAsync(315)
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-left',
+      dock: 'top-left',
       phase: 'arriving',
     })
 
     await vi.advanceTimersByTimeAsync(1)
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-left',
+      dock: 'top-left',
       phase: 'idle',
     })
   })
