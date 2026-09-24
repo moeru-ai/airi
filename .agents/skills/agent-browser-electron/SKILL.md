@@ -11,6 +11,18 @@ Inspect Electron renderer windows reliably when `agent-browser` alone is not eno
 
 Prefer raw CDP target discovery over guessing from `tab list`, then use `agent-browser --cdp <port> tab` stable tab IDs to interact with the renderer target you want.
 
+## Preserve Window Roles
+
+Before navigation, identify each relevant window's business role and the action that opens it. Inspect the app's window factories and open handlers when the role is unclear. Correlate those roles with CDP targets before interaction.
+
+A renderer route does not define the complete window. Window creation also establishes mouse handling, focus, transparency, IPC handlers, and lifecycle behavior. Loading another route does not transfer those responsibilities.
+
+- Keep the main stage in its main window. Do not replace it with settings or chat through `open`, `goto`, `location.hash`, router calls, or `loadURL`.
+- Open the target window through the app UI. For diagnostic access, use its existing Electron open handler when UI access fails. Report that distinction in the results.
+- Enumerate CDP targets again after the window opens. Attach to that window, then navigate within its business role.
+- If clicks fail, inspect the target window and its mouse or focus behavior. Do not bypass the failure through navigation in another window.
+- After the interaction, verify that the main stage remains intact and that the target window accepts input. Programmatic activation alone does not prove that user clicks work.
+
 ## Why Raw CDP Discovery
 
 Use raw CDP target discovery because `agent-browser` is operating as a convenience layer on top of Chrome DevTools Protocol, and that layer can hide or flatten details that matter in Electron.
@@ -62,7 +74,7 @@ APP_REMOTE_DEBUG=true APP_REMOTE_DEBUG_PORT=9250 pnpm dev:tamagotchi
 
 Adjust the port to match what the user actually started. If the project uses a different mechanism, inspect its Electron launch code before giving command advice.
 
-2. Ensure the Electron window exists.
+2. Identify the target window's role and ensure that the window exists.
 
 If the app uses lazy window creation, `agent-browser` cannot inspect a window that has not been created yet. Open it from the app UI or trigger its Electron-side open handler first.
 
@@ -143,6 +155,8 @@ Use this order when the Electron app has multiple windows:
 
 In `apps/stage-tamagotchi`, some windows are lazy-created. The main window loads `/#/`; settings loads `/#/settings`; chat loads `/#/chat`; BeatSync loads `/beat-sync.html`.
 
+The main window hosts the stage and its controls. Settings and chat have separate window owners. For a hearing test, open the settings window first, then navigate that window to `/settings/modules/hearing`. Do not set the main window's hash to this route. Stage mouse handling can leave the substituted page unable to accept clicks.
+
 The `9250` examples below assume the app was started by the person running it with:
 
 ```bash
@@ -154,6 +168,8 @@ That port is not intrinsic to AIRI or Electron. It depends on the current comman
 Relevant files:
 - `apps/stage-tamagotchi/src/main/windows/chat/index.ts`
 - `apps/stage-tamagotchi/src/main/windows/main/index.ts`
+- `apps/stage-tamagotchi/src/main/windows/main/rpc/index.electron.ts`
+- `apps/stage-tamagotchi/src/main/windows/settings/index.ts`
 - `apps/stage-tamagotchi/src/main/libs/electron/window-manager/reusable.ts`
 - `apps/stage-tamagotchi/src/renderer/components/stage-islands/controls-island/index.vue`
 

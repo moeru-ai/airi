@@ -18,6 +18,7 @@ export const useVisionStore = defineStore('vision', () => {
   const activeModel = useLocalStorageManualReset('settings/vision/active-model', '', persistenceOptions)
   const activeCustomModelName = useLocalStorageManualReset('settings/vision/active-custom-model', '', persistenceOptions)
   const ollamaThinkingEnabled = useLocalStorageManualReset('settings/vision/ollama-thinking-enabled', false, persistenceOptions)
+  const useForChat = useLocalStorageManualReset('settings/vision/use-for-chat', true, persistenceOptions)
   const modelSearchQuery = refManualReset('')
 
   const supportsModelListing = computed(() => {
@@ -70,11 +71,13 @@ export const useVisionStore = defineStore('vision', () => {
   }
 
   function resetState() {
+    useForChat.reset()
     activeProvider.reset()
     resetModelSelection()
   }
 
   return {
+    useForChat,
     activeProvider,
     activeModel,
     customModelName: activeCustomModelName,

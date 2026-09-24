@@ -70,6 +70,7 @@ catalog:
   '@capacitor/cli': ^8.5.0
   '@capacitor/core': ^8.5.0
   '@capacitor/ios': ^8.5.0
+  '@capacitor/keyboard': ^8.0.5
   '@capacitor/local-notifications': ^8.3.1
   '@date-fns/utc': ^2.1.1
   '@discordjs/voice': ^0.19.2
@@ -133,7 +134,7 @@ catalog:
   '@mediapipe/tasks-vision': ^1.0.1
   '@modelcontextprotocol/sdk': ^1.30.0
   '@moeru/eslint-config': 0.1.0-beta.19
-  '@moeru/eventa': 1.0.0
+  '@moeru/eventa': 1.0.1
   '@moeru/std': 0.1.0-beta.17
   '@moeru/three-mmd': 0.2.0-beta.2
   '@moeru/three-mmd-physics-ammo': 0.2.0-beta.2
@@ -254,6 +255,7 @@ catalog:
   '@xsai/model': 0.5.0
   '@xsai/shared': 0.5.0
   '@xsai/shared-chat': 0.5.0
+  '@xsai/shared-stream': 0.5.0
   '@xsai/stream-text': 0.5.0
   '@xsai/stream-transcription': 0.5.0
   '@xsai/tool': 0.5.0

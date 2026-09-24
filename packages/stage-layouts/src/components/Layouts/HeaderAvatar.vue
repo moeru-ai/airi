@@ -66,7 +66,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
           type="button"
           :aria-label="userName || t('settings.pages.account.title')"
           :class="[
-            'group flex items-center gap-2 rounded-full border-2 p-1 outline-none backdrop-blur-md',
+            'group h-10 flex items-center gap-2 rounded-full border-2 p-1 outline-none shadow-sm backdrop-blur-md',
             compact ? 'size-11 justify-center focus-visible:ring-2 focus-visible:ring-primary-500' : 'pl-1 pr-3',
             'border-neutral-100/60 bg-neutral-50/70 dark:border-neutral-800/30 dark:bg-neutral-800/70',
             'hover:bg-neutral-100 data-[state=open]:bg-neutral-100',

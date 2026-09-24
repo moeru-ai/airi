@@ -90,6 +90,10 @@ export const useAuthStore = defineStore('auth', () => {
   const oidcClientId = ref<string | null>(null)
   const tokenExpiry = ref<number | null>(null)
   const initialized = ref(false)
+  // This runtime version follows user intent across windows. New sign-in, logout,
+  // and explicit clearing advance it. Requests from older versions cannot commit.
+  const sessionVersion = ref(0)
+  let signingOut = false
 
   const credits = ref(0)
 
@@ -152,17 +156,29 @@ export const useAuthStore = defineStore('auth', () => {
   // must not trigger multiple token exchanges. All share one in-flight promise.
   let inflightRefresh: Promise<string | null> | null = null
 
-  async function refreshTokenNow(): Promise<string | null> {
+  /**
+   * Refreshes credentials only for the requested session version.
+   * Stale or rejected requests return null and never return another account's token.
+   * @param expectedVersion Session version captured by the caller. Defaults to the current version.
+   */
+  async function refreshTokenNow(expectedVersion = sessionVersion.value): Promise<string | null> {
+    if (expectedVersion !== sessionVersion.value || signingOut)
+      return null
     if (inflightRefresh)
       return inflightRefresh
 
     if (!refreshToken.value || !oidcClientId.value)
       return null
 
-    inflightRefresh = (async () => {
+    const version = expectedVersion
+    let requestToken = token.value
+    const refresh = (async () => {
       try {
         const tokens = await refreshAccessToken(oidcClientId.value!, refreshToken.value!)
+        if (version !== sessionVersion.value || requestToken !== token.value)
+          return null
         token.value = tokens.access_token
+        requestToken = tokens.access_token
         storage.setAccessToken(tokens.access_token)
         if (tokens.refresh_token) {
           refreshToken.value = tokens.refresh_token
@@ -174,20 +190,22 @@ export const useAuthStore = defineStore('auth', () => {
           scheduleTokenRefresh(tokens.expires_in)
         }
 
-        await fetchSession(tokens.access_token)
-        return tokens.access_token
+        const authenticated = await fetchSession(tokens.access_token)
+        return authenticated && version === sessionVersion.value ? tokens.access_token : null
       }
       catch (error) {
+        if (version !== sessionVersion.value || requestToken !== token.value)
+          return null
         console.error('OIDC token refresh failed', errorMessageFrom(error))
         clearAuthState()
         return null
       }
-      finally {
+    })().finally(() => {
+      if (inflightRefresh === refresh)
         inflightRefresh = null
-      }
-    })()
-
-    return inflightRefresh
+    })
+    inflightRefresh = refresh
+    return refresh
   }
 
   const { start: startRefreshTimer, stop: stopRefreshTimer } = useTimeoutFn(
@@ -245,6 +263,7 @@ export const useAuthStore = defineStore('auth', () => {
     const hasRefreshToken = !!refreshToken.value
     const hasClientId = !!oidcClientId.value
     if (hasRefreshToken !== hasClientId) {
+      sessionVersion.value += 1
       clearAuthState()
       return
     }
@@ -255,6 +274,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function completeSignIn(tokens: AuthTokenSet): Promise<boolean> {
+    sessionVersion.value += 1
+    inflightRefresh = null
+    signingOut = false
     token.value = tokens.accessToken
     refreshToken.value = tokens.refreshToken ?? null
     idToken.value = tokens.idToken ?? null
@@ -273,7 +295,14 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function fetchSession(accessToken: string | null = token.value): Promise<boolean> {
+    if (signingOut || accessToken !== token.value)
+      return false
+    const version = sessionVersion.value
     const data = await requestAuthSession(accessToken)
+    // A refresh can replace the token without changing the user-intent version.
+    // Both must still match before identity or failure state is committed.
+    if (version !== sessionVersion.value || accessToken !== token.value)
+      return false
     if (data) {
       user.value = data.user
       session.value = data.session
@@ -299,6 +328,10 @@ export const useAuthStore = defineStore('auth', () => {
     const idTokenHint = idToken.value
     const clientId = oidcClientId.value
     const bearerToken = token.value
+    const version = ++sessionVersion.value
+    signingOut = true
+    stopRefreshTimer()
+    inflightRefresh = null
 
     // Delete the server session before local state. A new authorization request
     // can otherwise reuse the server cookie and restore the previous identity.
@@ -323,11 +356,14 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('Server sign-out failed', errorMessageFrom(error))
     }
 
-    clearAuthState()
+    if (version === sessionVersion.value)
+      clearAuthState()
   }
 
   /**
-   * Reset every auth-related field atomically.
+   * Clear identity, credentials, and pending refresh work together.
+   * Callers advance the version for login/logout intent. Credential rejection
+   * keeps it so the matching API request can still ask the user to sign in.
    *
    * Use when: signing out, refresh fails, session is rejected by server, or
    * persisted state is detected inconsistent.
@@ -338,6 +374,8 @@ export const useAuthStore = defineStore('auth', () => {
    * loop silently until the user lands on a page that calls fetchSession.
    */
   function clearAuthState(): void {
+    signingOut = false
+    inflightRefresh = null
     stopRefreshTimer()
     user.value = null
     session.value = null
@@ -350,16 +388,36 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function clearAllAuthState(): Promise<void> {
+    sessionVersion.value += 1
     clearAuthState()
+  }
+
+  /** Grants one renderer ownership of a shared login request. */
+  async function consumeLoginRequest(): Promise<boolean> {
+    if (!needsLogin.value || isAuthenticated.value)
+      return false
+    needsLogin.value = false
+    return true
+  }
+
+  /** Requests sign-in only if the failed request still belongs to this session. */
+  async function expireSession(expectedVersion: number): Promise<void> {
+    if (expectedVersion !== sessionVersion.value || signingOut)
+      return
+    sessionVersion.value += 1
+    clearAuthState()
+    needsLogin.value = true
   }
 
   const updateCredits = async () => {
     if (!isAuthenticated.value)
       return
+    const version = sessionVersion.value
     const res = await client.api.v1.flux.$get()
     if (res.ok) {
       const data = await res.json()
-      credits.value = data.flux
+      if (version === sessionVersion.value && isAuthenticated.value)
+        credits.value = data.flux
     }
   }
 
@@ -417,6 +475,9 @@ export const useAuthStore = defineStore('auth', () => {
     listSessions,
     signOut,
     refreshTokenNow,
+    sessionVersion,
+    consumeLoginRequest,
+    expireSession,
     clearAllAuthState,
   }
 }, {
@@ -428,6 +489,8 @@ export const useAuthStore = defineStore('auth', () => {
       'signOut',
       'refreshTokenNow',
       'clearAllAuthState',
+      'expireSession',
+      'consumeLoginRequest',
     ],
     state: true,
   },
