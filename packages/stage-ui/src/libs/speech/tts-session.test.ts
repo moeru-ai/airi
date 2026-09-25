@@ -46,6 +46,10 @@ function makePlaybackManagerStub<TAudio = AudioBuffer>(): PlaybackManagerSubset<
 
 function makeStreamingSnapshot(overrides: Partial<StreamingSessionSnapshot> = {}): StreamingSessionSnapshot {
   return {
+    connection: {
+      credentialMode: 'official',
+      providerId: 'official-provider-speech-streaming',
+    },
     model: 'volcengine/seed-tts-2.0',
     voice: 'mock-voice',
     voiceType: 'official_selected',

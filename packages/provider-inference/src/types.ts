@@ -339,6 +339,12 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
      */
     speech?: {
       transport: 'rest' | 'bidirectional-ws'
+      /** Resolves the credential policy for one streaming session from this provider's configuration. */
+      resolveConnection?: (config: TConfig) => {
+        credentialMode: 'official' | 'byok'
+        providerId: string
+        apiKey?: string
+      }
     }
   }
   /**

@@ -9,6 +9,7 @@ import './kokoro-local'
 import './nvidia'
 import './official'
 import './prompt-api'
+import './volcengine-streaming'
 
 registerProviders(portableProviderDefinitions)
 
@@ -23,3 +24,5 @@ export {
 } from './registry'
 
 export type { StageProviderId } from './registry'
+
+export { VOLCENGINE_STREAMING_PROVIDER_ID } from './volcengine-streaming'

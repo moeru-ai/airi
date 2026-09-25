@@ -131,6 +131,7 @@ describe('provider config store', () => {
       apiKey: 'sk-test',
       baseUrl: 'https://example.com/v1/',
     })
+    expect(mocks.service.patchConfigRemote).not.toHaveBeenCalled()
   })
 
   it('does not create an incomplete provider while patching configuration', async () => {

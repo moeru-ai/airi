@@ -249,7 +249,13 @@ export const providerOfficialSpeechStreaming = defineProvider({
   // session adapter (`tts-session.ts`) picks the streaming path without
   // hard-coding provider id. Default for every other provider is `'rest'`.
   capabilities: {
-    speech: { transport: 'bidirectional-ws' },
+    speech: {
+      transport: 'bidirectional-ws',
+      resolveConnection: () => ({
+        credentialMode: 'official',
+        providerId: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
+      }),
+    },
   },
   createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {

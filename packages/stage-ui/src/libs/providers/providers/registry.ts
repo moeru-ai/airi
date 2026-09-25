@@ -19,6 +19,7 @@ import type {
   providerOfficialSpeechStreaming,
   providerOfficialTranscription,
 } from './official'
+import type { providerVolcengineStreaming } from './volcengine-streaming'
 
 import { orderBy } from 'es-toolkit'
 
@@ -37,6 +38,7 @@ type StageOnlyProviderId
     | typeof providerOfficialSpeech.id
     | typeof providerOfficialSpeechStreaming.id
     | typeof providerOfficialTranscription.id
+    | typeof providerVolcengineStreaming.id
 
 /** IDs of definitions registered by stage-ui, including portable definitions. */
 export type StageProviderId = PortableProviderId | StageOnlyProviderId

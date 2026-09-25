@@ -245,6 +245,8 @@ export async function buildApp(deps: AppDeps) {
       source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
       voiceType: parseTtsVoiceType(c.req.query('tts_voice_type')),
       turnId: c.req.query('turn_id'),
+      credentialMode: c.req.query('tts_credential_mode') === 'byok' ? 'byok' : 'official',
+      providerId: c.req.query('tts_provider_id'),
     })
   }))
 

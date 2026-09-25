@@ -728,11 +728,11 @@ function stopSpeechOutput(reason: string) {
 /**
  * Resolves the official streaming TTS model for the current Stage session.
  */
-function resolveStreamingSessionModel(): string | null {
+function resolveStreamingSessionModel(providerId: string): string | null {
   const activeModel = activeSpeechModel.value as string | undefined
   const sessionModel = activeModel?.includes('/')
     ? activeModel
-    : providersStore.getDefaultModelForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    : providersStore.getDefaultModelForProvider(providerId)
   if (!sessionModel?.includes('/'))
     return null
   return sessionModel
@@ -740,6 +740,13 @@ function resolveStreamingSessionModel(): string | null {
 
 function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null {
   if (speechMuted.value)
+    return null
+
+  const providerId = activeSpeechProvider.value
+  if (!providerId)
+    return null
+  const connection = getDefinedProvider(providerId)?.capabilities?.speech?.resolveConnection?.(providerStore.getProviderConfig(providerId) ?? {})
+  if (!connection || (connection.credentialMode === 'byok' && !connection.apiKey))
     return null
 
   // Snapshotted once per session, so a mid-session provider/voice swap
@@ -757,7 +764,7 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   // a provider switch) must NOT reach the bridge, so fall back to the
   // server-curated default instead of a hardcoded id. Returns null (segmenter
   // fallback) when neither resolves, rather than guessing a resource id.
-  const sessionModel = resolveStreamingSessionModel()
+  const sessionModel = resolveStreamingSessionModel(providerId)
   if (!sessionModel)
     return null
   const apiResourceId = sessionModel.split('/', 2)[1]
@@ -766,6 +773,7 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   // Buffer the entire session and decode at session.finished instead.
   const bufferEntireSession = apiResourceId.startsWith('seed-tts-2.0') || apiResourceId.startsWith('seed-icl-2.0')
   return {
+    connection,
     model: sessionModel,
     voice: voiceId,
     voiceType: resolveStageVoiceType(),

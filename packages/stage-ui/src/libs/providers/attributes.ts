@@ -101,6 +101,7 @@ const providerAttributesById = {
   'together-ai': paidCloud,
   'voicevox': freeLocal,
   'volcengine': paidCloud,
+  'volcengine-streaming': paidCloud,
   'volcengine-coding-plan': paidCloud,
   'xai': paidCloud,
   'zai': paidCloud,

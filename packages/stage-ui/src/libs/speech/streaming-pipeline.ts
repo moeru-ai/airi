@@ -1,3 +1,5 @@
+import type { StreamingTtsConnection } from './streaming-connection'
+
 import { getAuthToken } from '../auth'
 import { SERVER_URL } from '../server'
 
@@ -36,6 +38,8 @@ export interface StreamingTtsPipelineEvents {
 }
 
 export interface StreamingTtsPipelineOptions extends StreamingTtsPipelineEvents {
+  /** Provider-owned credential and billing policy for this session. */
+  connection: StreamingTtsConnection
   /** Server URL override. Defaults to {@link SERVER_URL}. */
   serverUrl?: string
   /** Override the auth token (Bearer). Defaults to {@link getAuthToken}. */
@@ -127,6 +131,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     ttsSource: options.ttsSource ?? 'chat_auto_tts',
     ttsVoiceType: options.ttsVoiceType ?? 'unknown',
     turnId: options.turnId,
+    connection: options.connection,
   })
   const ws = new WebSocket(wsUrl)
   ws.binaryType = 'arraybuffer'
@@ -241,6 +246,13 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
   }
 
   ws.addEventListener('open', () => {
+    if (options.connection.credentialMode === 'byok') {
+      ws.send(JSON.stringify({
+        event: 'credentials',
+        provider: 'volcengine',
+        api_key: options.connection.apiKey,
+      }))
+    }
     const startFrame = {
       event: 'start',
       model: options.model,
@@ -421,6 +433,7 @@ function toWebSocketUrl(
     ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
     ttsVoiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
     turnId?: string
+    connection: StreamingTtsConnection
   },
 ): string {
   const u = new URL(path, httpBase)
@@ -431,6 +444,8 @@ function toWebSocketUrl(
   u.searchParams.set('tts_voice_type', analytics.ttsVoiceType)
   if (analytics.turnId)
     u.searchParams.set('turn_id', analytics.turnId)
+  u.searchParams.set('tts_credential_mode', analytics.connection.credentialMode)
+  u.searchParams.set('tts_provider_id', analytics.connection.providerId)
   return u.toString()
 }
 
