@@ -4,7 +4,7 @@ import type { BrowserWindow } from 'electron'
 import type { ElectronWindowLifecycleState } from '../../../shared/eventa'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
+import { bounds, electronEvents, startLoopGetBounds } from '@proj-airi/electron-eventa'
 import { createRendererLoop, safeClose } from '@proj-airi/electron-vueuse/main'
 import { isWindows } from 'std-env'
 
@@ -19,6 +19,8 @@ import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecy
 import { resizeWindowByDelta, setWindowAlwaysOnTop } from '../../windows/shared/window'
 
 export function createWindowService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
+  let screenLocked = false
+  let suspended = false
   function getWindowLifecycleState(reason: ElectronWindowLifecycleState['reason']): ElectronWindowLifecycleState {
     return {
       focused: params.window.isFocused(),
@@ -26,6 +28,8 @@ export function createWindowService(params: { context: ReturnType<typeof createC
       reason,
       updatedAt: Date.now(),
       visible: params.window.isVisible(),
+      suspended,
+      screenLocked,
     }
   }
 
@@ -54,6 +58,23 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   params.window.on('restore', () => emitWindowLifecycle('restore'))
   params.window.on('focus', () => emitWindowLifecycle('focus'))
   params.window.on('blur', () => emitWindowLifecycle('blur'))
+
+  params.context.on(electronEvents.powerMonitor.suspended, () => {
+    suspended = true
+    emitWindowLifecycle('suspended')
+  })
+  params.context.on(electronEvents.powerMonitor.resumed, () => {
+    suspended = false
+    emitWindowLifecycle('resumed')
+  })
+  params.context.on(electronEvents.powerMonitor.lockScreen, () => {
+    screenLocked = true
+    emitWindowLifecycle('lock-screen')
+  })
+  params.context.on(electronEvents.powerMonitor.unlockScreen, () => {
+    screenLocked = false
+    emitWindowLifecycle('unlock-screen')
+  })
 
   defineInvokeHandler(params.context, electron.window.getBounds, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
