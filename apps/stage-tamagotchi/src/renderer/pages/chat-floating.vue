@@ -174,12 +174,12 @@ function moveByKeyboard(delta: WindowDelta) {
               'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
             ]"
           >
-            <GhostButton
-              size="unset"
+            <button
               :title="t('tamagotchi.stage.chat-window.resize')"
               :aria-label="t('tamagotchi.stage.chat-window.resize')"
               :class="[
-                'size-8 touch-none rounded-full! text-neutral-500 dark:text-neutral-400',
+                'size-8 touch-none rounded-full',
+                'flex items-center justify-center outline-none transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
                 characterOnLeft ? 'cursor-nesw-resize' : 'cursor-nwse-resize',
               ]"
               @pointerdown="holdPointer"
@@ -188,7 +188,7 @@ function moveByKeyboard(delta: WindowDelta) {
               @keydown="handleArrowKey($event, resizeBy)"
             >
               <div :class="[characterOnLeft ? 'i-solar:arrow-right-up-linear' : 'i-solar:arrow-left-up-linear', 'size-4']" />
-            </GhostButton>
+            </button>
           </div>
 
           <div
@@ -197,19 +197,18 @@ function moveByKeyboard(delta: WindowDelta) {
               'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
             ]"
           >
-            <GhostButton
+            <button
               v-if="freePlacement"
-              size="unset"
               :title="t('tamagotchi.stage.chat-window.move')"
               :aria-label="t('tamagotchi.stage.chat-window.move')"
-              :class="['h-7 w-5 cursor-grab touch-none rounded-full! text-neutral-400']"
+              :class="['h-7 w-5 cursor-grab touch-none rounded-full', 'flex items-center justify-center outline-none transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400']"
               @pointerdown="holdPointer"
               @pointermove="moveWithHeldPointer"
               @lostpointercapture="releasePointer"
               @keydown="handleArrowKey($event, moveByKeyboard)"
             >
               <div class="i-ph:dots-six-vertical-bold size-4" />
-            </GhostButton>
+            </button>
             <GhostButton
               size="unset"
               :class="['min-w-0 gap-2 rounded-full! px-2 py-0.5']"

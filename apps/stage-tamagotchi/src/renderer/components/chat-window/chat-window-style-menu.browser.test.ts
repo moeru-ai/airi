@@ -32,6 +32,30 @@ async function choose(style: string) {
 }
 
 describe('chatWindowStyleMenu', () => {
+  it('rests the trigger in the secondary icon color of the title bar', async () => {
+    // ROOT CAUSE:
+    //
+    // The trigger passed text-neutral-400 to GhostButton, whose own
+    // text-neutral-700 comes later in the UnoCSS output. The icon was dark in
+    // light mode and gray in dark mode.
+    //
+    // The trigger is now a plain button that owns its color, like the mute
+    // button beside it.
+    mocks.getPreferences.mockResolvedValue({ mode: 'legacy', placement: 'attached', pinned: true })
+    const screen = await render(ChatWindowStyleMenu, {
+      global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
+    })
+    onTestFinished(() => screen.unmount())
+    const reference = document.createElement('div')
+    reference.className = 'text-neutral-400'
+    document.body.append(reference)
+    onTestFinished(() => reference.remove())
+
+    const trigger = page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' })
+    await expect.element(trigger).toBeEnabled()
+    expect(getComputedStyle(trigger.element()).color).toBe(getComputedStyle(reference).color)
+  })
+
   it('keeps showing the latest choice when an earlier choice fails after it', async () => {
     // ROOT CAUSE:
     //

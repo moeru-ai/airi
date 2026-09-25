@@ -2,7 +2,6 @@
 import type { ChatWindowPreferences } from '../../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { GhostButton } from '@proj-airi/ui'
 import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -104,16 +103,19 @@ const itemClasses = [
 <template>
   <DropdownMenuRoot>
     <DropdownMenuTrigger as-child :disabled="!preferences">
-      <GhostButton
+      <button
         v-bind="$attrs"
-        size="unset"
         :disabled="!preferences"
-        :class="['size-7 text-neutral-400 dark:text-neutral-500']"
+        :class="[
+          'h-7 w-7 flex items-center justify-center rounded-md outline-none',
+          'text-base transition-colors transition-transform active:scale-95 disabled:opacity-50',
+          'text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
+        ]"
         :title="t('tamagotchi.stage.chat-window.style.title')"
         :aria-label="t('tamagotchi.stage.chat-window.style.title')"
       >
-        <div class="i-solar:layers-minimalistic-bold-duotone size-4" />
-      </GhostButton>
+        <div class="i-solar:layers-minimalistic-bold-duotone" />
+      </button>
     </DropdownMenuTrigger>
     <DropdownMenuPortal>
       <DropdownMenuContent
