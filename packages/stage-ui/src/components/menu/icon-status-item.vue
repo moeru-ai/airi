@@ -23,14 +23,14 @@ const props = defineProps<{
     drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
     class="menu-icon-status-item"
     transition="all ease-in-out duration-400"
-    w-full cursor-pointer of-hidden rounded-xl
+    h-full w-full cursor-pointer of-hidden rounded-xl
   >
     <RouterLink
       flex="~ row"
       class="menu-icon-status-item-link"
       bg="white dark:neutral-900"
       transition="all ease-in-out duration-400"
-      relative h-full w-full items-center overflow-hidden rounded-lg p-5 text-left
+      relative w-full flex-1 items-start overflow-hidden rounded-lg p-5 text-left
       :to=" props.to"
     >
       <div z-1 flex-1>
