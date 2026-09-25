@@ -8,6 +8,7 @@ import { ref } from 'vue'
 import { useCharacterNotebookStore, useCharacterStore } from '../'
 import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prompt'
 import { useLLM } from '../../ai/chat-llm/llm'
+import { useCorticoStore } from '../../cortico'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
 
@@ -272,6 +273,10 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
     eventUnsubscribes.push(
       modsServerChannelStore.onEvent('spark:notify', async (event) => {
+        // The cortico persona loop owns spark:notify while enabled; running
+        // the dedicated reaction agent too would split the brain.
+        if (useCorticoStore().enabled)
+          return
         try {
           await handleIncomingSparkNotify(event)
         }

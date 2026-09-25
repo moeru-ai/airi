@@ -43,6 +43,7 @@ import { useConsciousnessStore } from './modules/consciousness'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { executeToolCallRerun } from './tool-call-rerun'
+import { useCorticoStore } from './cortico'
 
 interface ForkOptions {
   fromSessionId?: string
@@ -180,6 +181,9 @@ export const useChatStore = defineStore('chat', () => {
   // the system prompt is composed, which would expose web_search on the first turn
   // without its paired prompt-injection defense.
   useWebSearchStore()
+  // Instantiate the cortico store eagerly so its enabled-watcher auto-connects
+  // the bridge socket on page load instead of waiting for the first send.
+  useCorticoStore()
   const consciousnessStore = useConsciousnessStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
@@ -206,8 +210,12 @@ export const useChatStore = defineStore('chat', () => {
    * A promoted renderer restarts the leader-owned cloud consumer.
    */
   async function initialize(syncedPinia: SyncedPiniaRuntime) {
-    stopLeadershipListener ??= syncedPinia.onLeadershipChange((isLeader) => {
-      if (!isLeader) {
+    const cortico = useCorticoStore()
+    stopLeadershipListener ??= syncedPinia.onLeadershipChange((leader) => {
+      // The bridge socket lives only on the leader window; followers keep
+      // state synced through pinia and never replay frames locally.
+      cortico.setLeader(leader)
+      if (!leader) {
         chatSession.dispose()
         return
       }
@@ -455,6 +463,13 @@ export const useChatStore = defineStore('chat', () => {
     options: ChatOrchestratorSendOptions,
     targetSessionId?: string,
   ) {
+    const cortico = useCorticoStore()
+    if (cortico.enabled) {
+      const sessionId = targetSessionId ?? chatSession.activeSessionId
+      const message: ChatHistoryItem = { role: 'user', content: sendingMessage, createdAt: Date.now() }
+      await cortico.send(sendingMessage, undefined, sessionId)
+      return { messages: [message], sessionId }
+    }
     return runtime.ingest(sendingMessage, options, targetSessionId)
   }
 
@@ -488,8 +503,23 @@ export const useChatStore = defineStore('chat', () => {
       content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
     })
   }
-
   async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
+    const cortico = useCorticoStore()
+    if (cortico.enabled) {
+      const message: ChatHistoryItem = { role: 'user', content: payload.text, createdAt: Date.now() }
+      chatSession.appendSessionMessage(payload.sessionId, message)
+      const images = (payload.attachments ?? [])
+        .filter(a => a.type === 'image')
+        .map(a => `data:${a.mimeType};base64,${a.data}`)
+      await runtime.hooks.emitBeforeSendHooks(payload.text, {
+        turnId: nanoid(),
+        message: { role: 'assistant', content: '', slices: [], tool_results: [] },
+        contexts: {},
+        composedMessage: [],
+      })
+      await cortico.send(payload.text, images, payload.sessionId)
+      return { messages: [message], sessionId: payload.sessionId }
+    }
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if ((!providerId || !modelId) && (providerId !== 'prompt-api'))

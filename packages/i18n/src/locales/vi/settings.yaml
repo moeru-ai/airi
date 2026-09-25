@@ -731,12 +731,9 @@ pages:
               Nhà cung cấp của bạn không trả về các đoạn (segment) verbose_json.
               Lọc kết quả dựa trên độ tin cậy không có tác dụng cho đoạn phiên
               âm mới nhất.
-    memory-long-term:
-      description: Cài đặt và quản lý trí nhớ dài hạn
-      title: Trí nhớ dài hạn
-    memory-short-term:
-      description: Cài đặt và quản lý trí nhớ ngắn hạn
-      title: Trí nhớ ngắn hạn
+    memory:
+      description: Không gian trí nhớ của persona (Cortico)
+      title: Trí nhớ
     messaging-discord:
       description: Trò chuyện & gọi thoại qua Discord
       title: Discord

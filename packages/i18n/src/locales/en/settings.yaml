@@ -789,12 +789,9 @@ pages:
             verbose-json-unsupported: >-
               Your provider did not return verbose_json segments. Confidence
               filtering had no effect on the last transcription.
-    memory-long-term:
-      description: Long-term memory specific settings and management
-      title: Long-Term Memory
-    memory-short-term:
-      description: Short-term memory specific settings and management
-      title: Short-Term Memory
+    memory:
+      description: Persona memory workspace (Cortico)
+      title: Memory
     messaging-discord:
       description: Chat & voice chat over Discord
       title: Discord

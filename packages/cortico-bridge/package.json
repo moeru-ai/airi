@@ -1,0 +1,25 @@
+{
+  "name": "@proj-airi/cortico-bridge",
+  "type": "module",
+  "version": "0.12.0-beta.5",
+  "private": true,
+  "description": "Hosts a Cortico Core + Persona (corti-soulmate) and exposes the AIRI stage as a Cortico World over WebSocket",
+  "scripts": {
+    "dev": "tsx ./src/bin/dev.ts",
+    "start": "tsx ./src/bin/dev.ts",
+    "test:mod": "tsx ./src/bin/test-mod.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-sdk-shared": "workspace:^",
+    "@xsai/shared-chat": "catalog:",
+    "@xsai/stream-text": "catalog:",
+    "tsx": "catalog:",
+    "ws": "catalog:"
+  },
+  "devDependencies": {
+    "@types/ws": "catalog:",
+    "typescript": "catalog:"
+  }
+}

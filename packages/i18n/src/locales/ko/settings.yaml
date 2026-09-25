@@ -697,12 +697,9 @@ pages:
             verbose-json-unsupported: >-
               Your provider did not return verbose_json segments. Confidence
               filtering had no effect on the last transcription.
-    memory-long-term:
-      description: 장기 메모리 관련 설정 및 관리
-      title: 장기 메모리
-    memory-short-term:
-      description: 단기 메모리 관련 설정 및 관리
-      title: 단기 메모리
+    memory:
+      description: 페르소나 메모리 작업 공간 (Cortico)
+      title: 메모리
     messaging-discord:
       description: Discord를 통한 채팅 및 음성 채팅
       title: Discord

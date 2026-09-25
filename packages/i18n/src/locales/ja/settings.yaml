@@ -684,12 +684,9 @@ pages:
             verbose-json-unsupported: >-
               プロバイダーから verbose_json
               セグメントが返されませんでした。信頼度フィルタリングは最後の文字起こしに影響を及ぼしませんでした。
-    memory-long-term:
-      description: 長期記憶固有の設定と管理
-      title: 長期記憶
-    memory-short-term:
-      description: 短期記憶固有の設定と管理
-      title: 短期記憶
+    memory:
+      description: ペルソナの記憶ワークスペース（Cortico）
+      title: 記憶
     messaging-discord:
       description: Discordでのチャットとボイスチャット
       title: Discord

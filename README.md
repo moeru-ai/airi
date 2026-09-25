@@ -279,10 +279,24 @@ pnpm i
 pnpm dev
 ```
 
+> [!IMPORTANT]
+> The Cortico persona core runs in a separate bridge process. The browser build alone cannot drive
+> persona memory, chat turns, or the Memory settings page — start the bridge in a second terminal
+> before using Stage Web:
+>
+> ```shell
+> pnpm dev:bridge
+> ```
+>
+> The bridge listens on `ws://localhost:6122` by default (override with `CORTICO_BRIDGE_PORT`) and
+> stores its persona workspace under `./deployments/airi` (override with `CORTICO_DEPLOYMENT`).
+> Enable it in the app under **Settings → Consciousness → Cortico**.
+
 ### Stage Web (Browser Version at [airi.moeru.ai](https://airi.moeru.ai))
 
 ```shell
-pnpm dev
+pnpm dev:bridge  # terminal 1: Cortico persona bridge
+pnpm dev         # terminal 2: Stage Web
 ```
 
 ### Stage Tamagotchi (Desktop Version)

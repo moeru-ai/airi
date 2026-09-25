@@ -3,6 +3,7 @@ import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@pr
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useCorticoStore } from '@proj-airi/stage-ui/stores/cortico'
 import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
@@ -32,6 +33,16 @@ const {
   temperature,
   topP,
 } = storeToRefs(consciousnessStore)
+
+const corticoStore = useCorticoStore()
+const { enabled: corticoEnabled, bridgeUrl: corticoBridgeUrl, connected: corticoConnected, lastError: corticoLastError } = storeToRefs(corticoStore)
+
+function onCorticoToggle(value: boolean) {
+  if (value)
+    corticoStore.connect()
+  else
+    corticoStore.disconnect()
+}
 
 const { t } = useI18n()
 const { trackModelSwitched, trackProviderClick } = useAnalytics()
@@ -349,6 +360,29 @@ async function updateTopPEnabled(value: boolean) {
         :step="0.1"
         :format-value="value => value.toFixed(1)"
       />
+    </div>
+  </div>
+
+  <!-- Cortico persona core -->
+  <div :class="['bg-neutral-50 dark:bg-[rgba(0,0,0,0.3)]', 'rounded-xl', 'p-4', 'flex flex-col gap-4', 'mt-4']">
+    <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
+      Cortico Persona Core
+    </h2>
+    <FieldCheckbox
+      v-model="corticoEnabled"
+      label="Use Cortico persona core (corti-soulmate)"
+      @update:model-value="onCorticoToggle"
+    />
+    <div v-if="corticoEnabled" class="flex flex-col gap-2">
+      <label class="text-sm font-medium">Bridge WebSocket URL</label>
+      <input
+        v-model="corticoBridgeUrl" type="text"
+        class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+        placeholder="ws://localhost:6122"
+      >
+      <div class="text-sm" :class="corticoConnected ? 'text-green-600' : 'text-amber-600'">
+        {{ corticoConnected ? 'Connected' : (corticoLastError || 'Not connected') }}
+      </div>
     </div>
   </div>
 

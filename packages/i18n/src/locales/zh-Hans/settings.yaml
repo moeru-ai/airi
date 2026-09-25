@@ -750,12 +750,9 @@ pages:
             disabled: 禁用
             verbose-json-note: 注意：如果您的提供商不支持 verbose_json 结果处理，此设置将不会有任何效果。
             verbose-json-unsupported: 如果您的提供商没有返回 verbose_json 结果。置信度阈值将不会影响转录。
-    memory-long-term:
-      description: 长期记忆
-      title: 长期记忆
-    memory-short-term:
-      description: 短期记忆
-      title: 短期记忆
+    memory:
+      description: 人格记忆工作区（Cortico）
+      title: 记忆
     messaging-discord:
       description: Discord 发消息和语音聊天
       title: Discord
