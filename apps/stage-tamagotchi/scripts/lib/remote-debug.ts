@@ -95,13 +95,15 @@ export async function findDebugTarget(debugPort: number, label: string, predicat
 }
 
 /**
- * Minimal CDP client: enough to send commands and await their matching
- * response by id. Smoke scripts only ever drive one target at a time, so
- * this does not track event subscriptions beyond what callers add directly.
+ * Minimal CDP client: enough to send commands, await their matching
+ * response by id, and observe protocol events by method name. Smoke scripts
+ * only ever drive one target at a time, so events are not scoped by
+ * `sessionId`.
  */
 export class CdpClient {
   private socket?: WebSocket
   private nextId = 1
+  private eventListeners = new Map<string, Set<(params: Record<string, unknown>) => void>>()
   private pending = new Map<number, {
     resolve: (value: Record<string, unknown>) => void
     reject: (error: Error) => void
@@ -112,8 +114,12 @@ export class CdpClient {
     this.socket.addEventListener('message', (event) => {
       const payload = JSON.parse(String(event.data)) as Record<string, unknown>
       const id = typeof payload.id === 'number' ? payload.id : undefined
-      if (id === undefined)
+      if (id === undefined) {
+        // Messages without `id` are protocol events, not command responses.
+        if (typeof payload.method === 'string')
+          this.emitEvent(payload.method, isRecord(payload.params) ? payload.params : {})
         return
+      }
 
       const pending = this.pending.get(id)
       if (!pending)
@@ -142,6 +148,21 @@ export class CdpClient {
       socket.addEventListener('error', () => reject(new Error(`failed to connect CDP target: ${url}`)), { once: true })
     })
     return new CdpClient(socket)
+  }
+
+  /**
+   * Subscribes to a CDP event such as `Runtime.exceptionThrown`. The caller
+   * must still enable the owning domain (e.g. `Runtime.enable`). Returns an
+   * unsubscribe function.
+   */
+  on(method: string, listener: (params: Record<string, unknown>) => void): () => void {
+    let listeners = this.eventListeners.get(method)
+    if (!listeners) {
+      listeners = new Set()
+      this.eventListeners.set(method, listeners)
+    }
+    listeners.add(listener)
+    return () => listeners.delete(listener)
   }
 
   async send(method: string, params?: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -184,6 +205,11 @@ export class CdpClient {
     this.failPending('CDP socket closed')
     this.socket?.close()
     this.socket = undefined
+  }
+
+  private emitEvent(method: string, params: Record<string, unknown>) {
+    for (const listener of this.eventListeners.get(method) ?? [])
+      listener(params)
   }
 
   private failPending(reason: string) {

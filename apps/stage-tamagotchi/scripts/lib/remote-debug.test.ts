@@ -37,4 +37,23 @@ describe('cdpClient', () => {
     await expect(pending).rejects.toThrow('CDP socket closed before completing request 1')
     expect(socket.close).toHaveBeenCalledTimes(1)
   })
+
+  it('dispatches protocol events to method listeners without touching pending requests', async () => {
+    const socket = createMockSocket()
+    const client = new CdpClient(socket as never)
+    const listener = vi.fn()
+    const unsubscribe = client.on('Runtime.exceptionThrown', listener)
+
+    const pending = client.send('Runtime.enable')
+    socket.emit('message', { data: JSON.stringify({ method: 'Runtime.exceptionThrown', params: { exceptionDetails: { text: 'boom' } } }) })
+    socket.emit('message', { data: JSON.stringify({ id: 1, result: {} }) })
+
+    await expect(pending).resolves.toEqual({ id: 1, result: {} })
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(listener).toHaveBeenCalledWith({ exceptionDetails: { text: 'boom' } })
+
+    unsubscribe()
+    socket.emit('message', { data: JSON.stringify({ method: 'Runtime.exceptionThrown', params: {} }) })
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
 })
