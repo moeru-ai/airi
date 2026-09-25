@@ -61,6 +61,37 @@ describe('authentication request ownership', () => {
     await result
   }
 
+  it('publishes a follower login request on the leader before it can be consumed', async () => {
+    vi.stubEnv('RUNTIME_ENVIRONMENT', 'electron')
+    const namespace = `auth-login-request-${crypto.randomUUID()}`
+    const leader = createSyncedPiniaPlugin({ namespace, leadership: 'leader-only' })
+    const follower = createSyncedPiniaPlugin({ namespace, leadership: 'follower-only' })
+    const followerPinia = createPinia().use(follower.plugin)
+    pinia.use(leader.plugin)
+    createApp({}).use(pinia)
+    createApp({}).use(followerPinia)
+    const owner = useAuthStore(pinia)
+    const replica = useAuthStore(followerPinia)
+    try {
+      await expect.poll(() => leader.isLeader()).toBe(true)
+      await expect.poll(() => follower.getLeaderId()).toBe(leader.participantId)
+      const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+
+      await replica.requestLogin()
+
+      expect(owner.needsLogin).toBe(true)
+      expect(await owner.consumeLoginRequest()).toBe(true)
+      expect(await replica.consumeLoginRequest()).toBe(false)
+      expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
+    }
+    finally {
+      leader.dispose()
+      follower.dispose()
+      disposePinia(followerPinia)
+      vi.unstubAllEnvs()
+    }
+  })
+
   it('consumes one login request across synchronized renderers without snapshot writeback', async () => {
     vi.stubEnv('RUNTIME_ENVIRONMENT', 'electron')
     const namespace = `auth-races-${crypto.randomUUID()}`
