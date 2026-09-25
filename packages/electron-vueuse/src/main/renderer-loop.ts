@@ -72,16 +72,36 @@ export function createRendererLoop(params: { window: BrowserWindow, run: () => P
 
   stopLoopWhenRendererIsGone(params.window, stop)
 
+  // A hidden window paints nothing, so its renderer has no use for what the
+  // loop sends. The loop pauses while the window is hidden and resumes when
+  // the window shows again, if the renderer started it.
+  let started = false
+
   const startLoop = () => {
+    started = true
     if (!ensureRendererIsAvailable(params.window, stop)) {
       return
     }
 
-    start()
+    if (params.window.isVisible()) {
+      start()
+    }
   }
+
+  const stopLoop = () => {
+    started = false
+    stop()
+  }
+
+  params.window.on('hide', stop)
+  params.window.on('show', () => {
+    if (started) {
+      startLoop()
+    }
+  })
 
   return {
     start: startLoop,
-    stop,
+    stop: stopLoop,
   }
 }

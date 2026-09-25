@@ -60,7 +60,14 @@ async function apply(next: ChatWindowPreferences) {
   const previous = preferences.value
   preferences.value = next
   const draft = previous && next.mode !== previous.mode ? props.collectDraft?.() : undefined
-  await setPreferences({ preferences: next, draft })
+  try {
+    await setPreferences({ preferences: next, draft })
+  }
+  catch (error) {
+    // The main process kept or restored the previous mode; show that one.
+    preferences.value = previous
+    console.error('[chat-window] Failed to switch the chat window style:', error)
+  }
 }
 
 // The legacy window keeps the floating placement, so switching back to the

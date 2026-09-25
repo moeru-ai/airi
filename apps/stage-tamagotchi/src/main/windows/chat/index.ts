@@ -114,14 +114,12 @@ export function setupChatWindowManager(params: {
     })
 
     defineInvokeHandler(context, electronChatWindowGetPreferences, () => getPreferences())
-    defineInvokeHandler(context, electronChatWindowSetPreferences, (payload) => {
-      if (!payload)
-        return
-
-      // Not awaited: a mode switch closes the window that asked for it, which
-      // must not wait on its own reply.
-      void setPreferences(payload.preferences, payload.draft)
-        .catch(error => console.error('[chat-window] Failed to apply preferences:', error))
+    // A switch that succeeds closes the window that asked for it, and its
+    // reply goes nowhere. A switch that fails answers with the error, so the
+    // menu can show the mode that is really open.
+    defineInvokeHandler(context, electronChatWindowSetPreferences, async (payload) => {
+      if (payload)
+        await setPreferences(payload.preferences, payload.draft)
     })
     defineInvokeHandler(context, electronChatWindowTakeDraft, () => {
       const draft = pendingDraft
@@ -130,7 +128,6 @@ export function setupChatWindowManager(params: {
     })
   }
 
-  let legacyWindow: BrowserWindow | undefined
   const legacy = createReusableWindow(async () => {
     const window = new BrowserWindow({
       title: 'Chat',
@@ -154,11 +151,6 @@ export function setupChatWindowManager(params: {
     // `onlySameWindow` hears only this window and disposes with it, so a mode
     // switch that closes the window leaves no handlers behind.
     const { context } = createElectronContext(ipcMain, window, { onlySameWindow: true })
-    legacyWindow = window
-    window.on('closed', () => {
-      if (legacyWindow === window)
-        legacyWindow = undefined
-    })
 
     try {
       await setupChatInvokes(window, context)
@@ -197,7 +189,7 @@ export function setupChatWindowManager(params: {
 
   const modeSwitch = createChatModeSwitch({
     getMode: () => getConfig().mode,
-    legacy: { open: openLegacy, close: () => legacyWindow?.close() },
+    legacy: { open: openLegacy, close: legacy.close },
     floating: { open: floating.open, close: floating.close },
   })
 
@@ -208,7 +200,18 @@ export function setupChatWindowManager(params: {
     if (next.mode !== previous.mode) {
       if (draft)
         pendingDraft = draft
-      await modeSwitch.show()
+      try {
+        await modeSwitch.show()
+      }
+      catch (error) {
+        // The new window did not open, so the old one still shows the chat
+        // and keeps its draft. The saved mode goes back to match it, unless a
+        // newer choice has replaced it meanwhile.
+        pendingDraft = undefined
+        if (getConfig().mode === next.mode)
+          updateConfig({ ...getConfig(), mode: previous.mode })
+        throw error
+      }
       return
     }
 

@@ -24,6 +24,7 @@ import {
   electronChatFloatingStateChanged,
 } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation, transparentWindowConfig } from '../shared/window'
 import { attachedChatOffset, chooseAttachedChatLayout, preferredAttachedChatLayout, resizeFloatingChatFromGrip } from './floating-placement'
 
@@ -44,7 +45,7 @@ export interface FloatingChatWindow {
   open: () => Promise<void>
   /** Folds a shown chat, or opens a folded or hidden one. The chat button calls this. */
   toggle: () => Promise<void>
-  /** Destroys the window, when the user switches to the legacy mode. */
+  /** Closes the window, including one that is still being created. */
   close: () => void
   /** Moves the window into the persisted placement. */
   applyPlacement: () => void
@@ -88,8 +89,6 @@ export function setupFloatingChatWindow(params: {
   /** Registers the services that every chat renderer uses, shared with the legacy window. */
   setupChatInvokes: (window: BrowserWindow, context: EventaContext) => Promise<void>
 }): FloatingChatWindow {
-  let window: BrowserWindow | undefined
-  let creating: Promise<BrowserWindow> | undefined
   let context: EventaContext | undefined
   let folded = true
   let layout: AttachedChatLayout = { ...preferredAttachedChatLayout }
@@ -371,8 +370,10 @@ export function setupFloatingChatWindow(params: {
     const { context: targetContext } = createElectronContext(ipcMain, target, { onlySameWindow: true })
     context = targetContext
     // Every platform reports `move`; `moved` is only on macOS and Windows.
+    // Only a free chat owns its position; an attached one follows the main
+    // window, and the grip saves its size.
     const persistMove = debounce(() => {
-      if (!target.isDestroyed())
+      if (!target.isDestroyed() && params.getPlacement() === 'free')
         persistBounds(target)
     }, 300)
     target.on('move', persistMove)
@@ -386,8 +387,7 @@ export function setupFloatingChatWindow(params: {
       persistMove.cancel()
       detachFromMain?.()
       detachFromMain = undefined
-      if (window === target || !window) {
-        window = undefined
+      if (context === targetContext) {
         context = undefined
         folded = true
         relocating = false
@@ -436,22 +436,10 @@ export function setupFloatingChatWindow(params: {
     return target
   }
 
-  async function ensureWindow() {
-    if (window && !isRendererUnavailable(window))
-      return window
-
-    creating ??= createWindow().then((created) => {
-      window = created
-      return created
-    }).finally(() => {
-      creating = undefined
-    })
-
-    return creating
-  }
+  const reusable = createReusableWindow(createWindow)
 
   async function open() {
-    const target = await ensureWindow()
+    const target = await reusable.getWindow()
     folded = false
     emitState()
 
@@ -476,18 +464,18 @@ export function setupFloatingChatWindow(params: {
   return {
     open,
     async toggle() {
-      if (window && !window.isDestroyed() && window.isVisible() && !folded) {
+      const window = reusable.getOpenWindow()
+      if (window && window.isVisible() && !folded) {
         fold(window)
         return
       }
 
       await open()
     },
-    close() {
-      window?.destroy()
-    },
+    close: reusable.close,
     applyPlacement() {
-      if (window && !window.isDestroyed())
+      const window = reusable.getOpenWindow()
+      if (window)
         applyPlacementTo(window)
     },
   }

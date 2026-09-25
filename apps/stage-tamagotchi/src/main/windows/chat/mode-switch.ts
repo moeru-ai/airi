@@ -4,10 +4,7 @@ import type { ChatWindowMode } from '../../../shared/eventa'
 export interface ChatModeWindow {
   /** Shows the chat in this mode, creating the window when needed. */
   open: () => Promise<void>
-  /**
-   * Closes the window of this mode. It never runs while an open of the same
-   * switch is in flight, because the switch runs its work one at a time.
-   */
+  /** Closes the window of this mode, including one that is still being created. */
   close: () => void
 }
 

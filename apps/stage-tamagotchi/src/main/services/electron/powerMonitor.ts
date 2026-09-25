@@ -9,11 +9,16 @@ import { powerMonitor } from 'electron'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 
 export function createPowerMonitorService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
+  // The listeners live on the app-wide power monitor, so they go with the
+  // window that owns them. A chat mode switch recreates a window, and each
+  // copy would otherwise stay subscribed until the app quits.
   function onOff<EM extends EventEmitter, E extends string>(eventEmitter: EM, event: E, listener: Parameters<EM['on']>[1]) {
-    eventEmitter.on(event, listener)
-    onAppBeforeQuit(() => {
+    const remove = () => {
       eventEmitter.off(event, listener)
-    })
+    }
+    eventEmitter.on(event, listener)
+    params.window.once('closed', remove)
+    onAppBeforeQuit(remove)
   }
 
   onOff(powerMonitor, 'suspend', () => params.context.emit(electronEvents.powerMonitor.suspended, undefined))
