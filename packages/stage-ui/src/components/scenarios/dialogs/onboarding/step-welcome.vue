@@ -36,9 +36,9 @@ const languages = computed(() => {
   return Object.entries(all).map(([value, label]) => ({ value, label }))
 })
 
-function handleLogin() {
+async function handleLogin() {
   onboardingStore.showingSetup = false
-  authStore.needsLogin = true
+  await authStore.requestLogin()
 }
 
 function handleLocalSetup() {
