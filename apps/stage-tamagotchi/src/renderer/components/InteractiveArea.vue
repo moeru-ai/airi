@@ -351,13 +351,14 @@ defineExpose({ restoreDraft, snapshotDraft })
       <div
         ref="message-composer"
         :class="[
-          'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl p-3',
+          'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl',
           // The composer layer clips overflow, which would cut a ring or a
-          // shadow; a border stays inside the box.
+          // shadow; a border stays inside the box. The floating composer is
+          // its own island, so it keeps tighter padding than the windowed one.
           props.surface === 'opaque'
-            ? 'border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900'
+            ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
             : [
-              'bg-neutral-100/70 backdrop-blur-xl dark:bg-neutral-900/65',
+              'bg-neutral-100/70 p-3 backdrop-blur-xl dark:bg-neutral-900/65',
               'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-900 motion-reduce:transition-none',
             ],
         ]"

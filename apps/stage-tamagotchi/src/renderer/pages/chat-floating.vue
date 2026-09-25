@@ -155,7 +155,7 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
         <div :class="['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']">
           <div
             :class="[
-              'shrink-0 rounded-full p-0.5 shadow-md',
+              'chat-floating-island shrink-0 rounded-full p-0.5 shadow-md',
               'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
             ]"
           >
@@ -178,7 +178,7 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
           <div
             data-testid="chat-floating-title"
             :class="[
-              'min-w-0 flex items-center gap-1 rounded-full p-1 shadow-md',
+              'chat-floating-island min-w-0 flex items-center gap-1 rounded-full p-1 shadow-md',
               'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
             ]"
           >
@@ -218,6 +218,15 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
 </template>
 
 <style scoped>
+/*
+ * The islands are round, so the hover and focus shapes of their buttons are
+ * round too. The shared buttons keep the square corners they use in the
+ * windowed title bar.
+ */
+.chat-floating-island :deep(button) {
+  border-radius: 9999px;
+}
+
 /*
  * The chat folds into the bottom corner beside the character: bottom-right
  * when the chat is on the left of the character, bottom-left when it is on
