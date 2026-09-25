@@ -12,6 +12,7 @@ export default defineConfig({
       'packages/cap-vite',
       'packages/ccc',
       'packages/core-agent',
+      'packages/electron-screen-capture',
       'packages/i18n',
       'packages/input-gamepad',
       'packages/input-gamepad-vueuse',
