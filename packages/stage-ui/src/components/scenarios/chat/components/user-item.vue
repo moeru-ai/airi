@@ -19,11 +19,7 @@ const props = withDefaults(defineProps<{
   canReply?: boolean
   scrollContainer?: HTMLElement | null
   variant?: 'desktop' | 'mobile'
-  /**
-   * How the bubble paints its background. `opaque` is for hosts with nothing
-   * behind the history, such as a transparent window over the desktop, where a
-   * translucent bubble takes the contrast of whatever is under it.
-   */
+  /** How the bubble paints its background; see `ChatHistory`'s `surface`. */
   surface?: 'translucent' | 'opaque'
 }>(), {
   canReply: false,

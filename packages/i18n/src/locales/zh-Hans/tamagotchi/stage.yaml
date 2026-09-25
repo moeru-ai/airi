@@ -14,6 +14,7 @@ docs:
     disable: 总是显示
   'open-settings': 打开设置
   'open-chat': 打开聊天
+  'hide-chat': 收起聊天
   'refresh': 刷新
   'center-main-window': 移至屏幕中央
   'open-hearing-controls': 打开听力控制

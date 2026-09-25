@@ -1,5 +1,5 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
-import type { Rectangle } from 'electron'
+import type { ResizeDirection } from '@proj-airi/electron-eventa'
 
 import type { ChatFloatingPlacement, ChatFloatingState } from '../../../shared/eventa'
 import type { AttachedChatLayout } from './floating-placement'
@@ -25,13 +25,17 @@ import {
 } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { protectPrivilegedWindowNavigation, transparentWindowConfig } from '../shared/window'
-import { attachedChatOffset, chooseAttachedChatLayout, preferredAttachedChatLayout, resizeFloatingChatFromGrip } from './floating-placement'
+import { clampBoundsWithinRect } from '../shared/display'
+import { protectPrivilegedWindowNavigation, resizeWindowByDelta, transparentWindowConfig } from '../shared/window'
+import { attachedChatOffset, chooseAttachedChatLayout, preferredAttachedChatLayout } from './floating-placement'
 
 type EventaContext = ReturnType<typeof createContext>['context']
 
+/** Smallest floating chat that still shows the composer above one short bubble. */
+const minimumSize = { width: 300, height: 260 }
+
 /** Floating chat bounds that the chat window config persists. */
-export interface FloatingChatBounds {
+interface FloatingChatBounds {
   width: number
   height: number
   /** Position in `free` placement. Attached placement derives it from the main window. */
@@ -40,7 +44,7 @@ export interface FloatingChatBounds {
 }
 
 /** The transparent chat window of the `floating` chat mode. */
-export interface FloatingChatWindow {
+interface FloatingChatWindow {
   /** Shows the chat unfolded and focused, creating the window when needed. */
   open: () => Promise<void>
   /** Folds a shown chat, or opens a folded or hidden one. The chat button calls this. */
@@ -49,15 +53,19 @@ export interface FloatingChatWindow {
   close: () => void
   /** Moves the window into the persisted placement. */
   applyPlacement: () => void
+  /** Whether the chat is unfolded, which the chat button shows as pressed. */
+  isUnfolded: () => boolean
 }
 
-function clampIntoWorkArea(bounds: Rectangle): Rectangle {
-  const workArea = screen.getDisplayMatching(bounds).workArea
-  return {
-    ...bounds,
-    x: Math.min(Math.max(bounds.x, workArea.x), workArea.x + workArea.width - bounds.width),
-    y: Math.min(Math.max(bounds.y, workArea.y), workArea.y + workArea.height - bounds.height),
-  }
+/**
+ * The resize grip sits on the top corner away from the character, and the
+ * chat grows away from the edges it shares with the main window: a bottom
+ * anchored chat grows up, a top anchored one down.
+ */
+function gripDirection(layout: AttachedChatLayout): ResizeDirection {
+  const vertical = layout.anchor === 'bottom' ? 'n' : 's'
+  const horizontal = layout.side === 'left' ? 'w' : 'e'
+  return `${vertical}${horizontal}`
 }
 
 /**
@@ -88,6 +96,8 @@ export function setupFloatingChatWindow(params: {
   saveBounds: (bounds: FloatingChatBounds) => void
   /** Registers the services that every chat renderer uses, shared with the legacy window. */
   setupChatInvokes: (window: BrowserWindow, context: EventaContext) => Promise<void>
+  /** Called when the chat folds or unfolds. */
+  onFoldedChange: () => void
 }): FloatingChatWindow {
   let context: EventaContext | undefined
   let folded = true
@@ -113,17 +123,23 @@ export function setupFloatingChatWindow(params: {
     context?.emit(electronChatFloatingStateChanged, currentState())
   }
 
-  function attachedPosition(main: BrowserWindow, target: BrowserWindow) {
-    const mainBounds = main.getBounds()
-    const offset = attachedChatOffset(mainBounds, target.getBounds(), screen.getDisplayMatching(mainBounds).workArea, layout)
-    return { x: mainBounds.x + offset.x, y: mainBounds.y + offset.y }
+  function setFolded(value: boolean) {
+    if (folded === value)
+      return
+    folded = value
+    params.onFoldedChange()
   }
 
   function moveToLayout(main: BrowserWindow, target: BrowserWindow) {
-    const position = attachedPosition(main, target)
+    const mainBounds = main.getBounds()
     const bounds = target.getBounds()
-    if (bounds.x !== position.x || bounds.y !== position.y)
-      target.setPosition(position.x, position.y)
+    const offset = attachedChatOffset(mainBounds, bounds, screen.getDisplayMatching(mainBounds).workArea, layout)
+    const x = mainBounds.x + offset.x
+    const y = mainBounds.y + offset.y
+    // A child window has already moved with the main window, so this is
+    // usually a no-op during a drag.
+    if (bounds.x !== x || bounds.y !== y)
+      target.setPosition(x, y)
   }
 
   function stopSlide() {
@@ -310,26 +326,21 @@ export function setupFloatingChatWindow(params: {
   }
 
   function resizeBy(target: BrowserWindow, delta: { deltaX: number, deltaY: number }) {
-    const bounds = target.getBounds()
     const main = params.getMainWindow()
+    const attachedTo = params.getPlacement() === 'attached' && main && !main.isDestroyed() ? main : undefined
 
-    if (params.getPlacement() === 'attached' && main && !main.isDestroyed()) {
-      // The layout stays during a resize, so the chat never jumps to the other
-      // side under the cursor.
-      stopSlide()
-      const size = resizeFloatingChatFromGrip(bounds, delta, layout, screen.getDisplayMatching(bounds).workArea)
-      target.setSize(size.width, size.height)
-      moveToLayout(main, target)
-    }
-    else {
-      // Free placement keeps the bottom-right corner, opposite the grip.
-      const size = resizeFloatingChatFromGrip(bounds, delta, preferredAttachedChatLayout, screen.getDisplayMatching(bounds).workArea)
-      target.setBounds({
-        x: bounds.x + bounds.width - size.width,
-        y: bounds.y + bounds.height - size.height,
-        ...size,
-      })
-    }
+    // The layout stays during a resize, so the chat never jumps to the other
+    // side under the cursor. A free chat has its grip at the top-left.
+    stopSlide()
+    resizeWindowByDelta({
+      window: target,
+      ...delta,
+      direction: attachedTo ? gripDirection(layout) : 'nw',
+      minWidth: minimumSize.width,
+      minHeight: minimumSize.height,
+    })
+    if (attachedTo)
+      moveToLayout(attachedTo, target)
 
     persistBounds(target)
   }
@@ -352,8 +363,10 @@ export function setupFloatingChatWindow(params: {
       ...transparentWindowConfig(),
     })
 
-    if (params.getPlacement() === 'free' && saved.x != null && saved.y != null)
-      target.setBounds(clampIntoWorkArea({ x: saved.x, y: saved.y, width: saved.width, height: saved.height }))
+    if (params.getPlacement() === 'free' && saved.x != null && saved.y != null) {
+      const bounds = { x: saved.x, y: saved.y, width: saved.width, height: saved.height }
+      target.setBounds(clampBoundsWithinRect(bounds, screen.getDisplayMatching(bounds).workArea))
+    }
 
     target.setVisibleOnAllWorkspaces(true)
     if (isMacOS) {
@@ -389,7 +402,7 @@ export function setupFloatingChatWindow(params: {
       detachFromMain = undefined
       if (context === targetContext) {
         context = undefined
-        folded = true
+        setFolded(true)
         relocating = false
         pinned = false
       }
@@ -440,7 +453,7 @@ export function setupFloatingChatWindow(params: {
 
   async function open() {
     const target = await reusable.getWindow()
-    folded = false
+    setFolded(false)
     emitState()
 
     if (target.isMinimized())
@@ -451,7 +464,7 @@ export function setupFloatingChatWindow(params: {
   }
 
   function fold(target: BrowserWindow) {
-    folded = true
+    setFolded(true)
     // A renderer that cannot animate would never report the fold as settled.
     if (isRendererUnavailable(target)) {
       target.hide()
@@ -478,5 +491,6 @@ export function setupFloatingChatWindow(params: {
       if (window)
         applyPlacementTo(window)
     },
+    isUnfolded: () => !folded,
   }
 }

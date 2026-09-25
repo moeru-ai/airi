@@ -1,7 +1,9 @@
 import type { ChatWindowMode } from '../../../shared/eventa'
 
+import { Mutex } from 'es-toolkit/promise'
+
 /** Opens and closes the window of one chat mode. */
-export interface ChatModeWindow {
+interface ChatModeWindow {
   /** Shows the chat in this mode, creating the window when needed. */
   open: () => Promise<void>
   /** Closes the window of this mode, including one that is still being created. */
@@ -23,13 +25,17 @@ export function createChatModeSwitch(params: {
   legacy: ChatModeWindow
   floating: ChatModeWindow
 }) {
-  let tail: Promise<unknown> = Promise.resolve()
+  const mutex = new Mutex()
 
   /** Runs chat window work after the work queued before it, even if that failed. */
-  function run<T>(task: () => Promise<T>): Promise<T> {
-    const result = tail.then(task, task)
-    tail = result.catch(() => undefined)
-    return result
+  async function run<T>(task: () => Promise<T>): Promise<T> {
+    await mutex.acquire()
+    try {
+      return await task()
+    }
+    finally {
+      mutex.release()
+    }
   }
 
   /**

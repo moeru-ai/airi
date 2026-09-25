@@ -38,7 +38,18 @@ onMounted(async () => {
   preferences.value = await getPreferences()
 })
 
-type ChatWindowStyleId = 'legacy' | 'floating-attached' | 'floating-free'
+/**
+ * The preferences each menu item selects. The legacy window keeps the
+ * floating placement, so switching back to the floating chat restores the
+ * placement the user had.
+ */
+const styleChoices = {
+  'legacy': { mode: 'legacy' },
+  'floating-attached': { mode: 'floating', placement: 'attached' },
+  'floating-free': { mode: 'floating', placement: 'free' },
+} as const satisfies Record<string, Partial<ChatWindowPreferences>>
+
+type ChatWindowStyleId = keyof typeof styleChoices
 
 const styles = computed(() => [
   { id: 'legacy', icon: 'i-solar:window-frame-bold-duotone', label: t('tamagotchi.stage.chat-window.style.legacy') },
@@ -70,18 +81,9 @@ async function apply(next: ChatWindowPreferences) {
   }
 }
 
-// The legacy window keeps the floating placement, so switching back to the
-// floating chat restores the placement the user had.
-async function selectStyle(id: unknown) {
-  if (!preferences.value || id === currentStyleId.value)
-    return
-
-  if (id === 'legacy')
-    await apply({ ...preferences.value, mode: 'legacy' })
-  else if (id === 'floating-attached')
-    await apply({ ...preferences.value, mode: 'floating', placement: 'attached' })
-  else if (id === 'floating-free')
-    await apply({ ...preferences.value, mode: 'floating', placement: 'free' })
+async function selectStyle(id: ChatWindowStyleId) {
+  if (preferences.value && id !== currentStyleId.value)
+    await apply({ ...preferences.value, ...styleChoices[id] })
 }
 
 async function setPinned(pinned: boolean) {
@@ -101,7 +103,6 @@ const itemClasses = [
   <DropdownMenuRoot>
     <DropdownMenuTrigger as-child :disabled="!preferences">
       <GhostButton
-        data-testid="chat-window-style-button"
         size="unset"
         :disabled="!preferences"
         :class="['size-7 text-neutral-400 dark:text-neutral-500']"
@@ -120,12 +121,13 @@ const itemClasses = [
           'bg-white dark:bg-neutral-800',
         ]"
       >
-        <DropdownMenuRadioGroup :model-value="currentStyleId" @update:model-value="selectStyle">
+        <DropdownMenuRadioGroup :model-value="currentStyleId">
           <DropdownMenuRadioItem
             v-for="style in styles"
             :key="style.id"
             :value="style.id"
             :class="itemClasses"
+            @select="selectStyle(style.id)"
           >
             <div :class="[style.icon, 'size-4 shrink-0']" />
             <span class="flex-1">{{ style.label }}</span>
@@ -137,7 +139,6 @@ const itemClasses = [
         <template v-if="pinnable && preferences">
           <DropdownMenuSeparator :class="['mx-2 h-px bg-neutral-200 dark:bg-neutral-700']" />
           <DropdownMenuCheckboxItem
-            data-testid="chat-window-pin-toggle"
             :model-value="preferences.pinned"
             :class="itemClasses"
             @update:model-value="setPinned"

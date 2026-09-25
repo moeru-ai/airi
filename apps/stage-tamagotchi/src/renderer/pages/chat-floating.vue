@@ -6,7 +6,7 @@ import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, shallowRef, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
@@ -39,10 +39,11 @@ const takeDraft = useElectronEventaInvoke(electronChatWindowTakeDraft)
 
 // The main process can emit before this page mounts, so the first state comes
 // from the invoke and later ones from the event.
-getElectronEventaContext().on(electronChatFloatingStateChanged, (event) => {
+const stopStateChanged = getElectronEventaContext().on(electronChatFloatingStateChanged, (event) => {
   if (event?.body)
     state.value = event.body
 })
+onScopeDispose(stopStateChanged)
 onMounted(async () => {
   state.value = await getState()
 
@@ -59,14 +60,6 @@ const freePlacement = computed(() => state.value.placement === 'free')
 // other side keeps the unsent draft, attachments and reply target.
 const contentShown = computed(() => !state.value.folded && !state.value.relocating)
 
-// A move to the other side of the character folds and unfolds the content
-// faster than the chat button does, so the chat is not gone for long. The
-// flag lasts until the content has unfolded on the new side.
-const quickFold = shallowRef(false)
-watch(() => state.value.relocating, (relocating) => {
-  if (relocating)
-    quickFold.value = true
-})
 // The character stands on the other side of the chat: the chat folds toward
 // it, and the resize grip sits away from it.
 const characterOnLeft = computed(() => state.value.side === 'right')
@@ -76,48 +69,39 @@ interface WindowDelta {
   deltaY: number
 }
 
-let stopPointerDrag: (() => void) | undefined
-
 /**
- * Sends the movement of a pointer held on a grip or handle to the main
- * process, which moves or resizes the window.
- *
- * Screen coordinates stay valid while the window moves under the pointer.
- * `lostpointercapture` ends the drag for every reason the capture can end:
- * release, cancel, or removal of the element.
+ * The screen position of the pointer held on a grip or handle, or `undefined`
+ * when none is held. Pointer capture sends the moves to that element even
+ * when the window lags behind the pointer, and screen coordinates stay valid
+ * while the window moves under it.
  */
-function trackPointerDrag(event: PointerEvent, applyDelta: (delta: WindowDelta) => unknown) {
-  stopPointerDrag?.()
-  const element = event.currentTarget as HTMLElement
-  element.setPointerCapture(event.pointerId)
+let heldPointer: { x: number, y: number } | undefined
 
-  let lastX = event.screenX
-  let lastY = event.screenY
-
-  function handleMove(moveEvent: PointerEvent) {
-    // Whole pixels only; the rounding remainder carries into the next move.
-    const deltaX = Math.round(moveEvent.screenX - lastX)
-    const deltaY = Math.round(moveEvent.screenY - lastY)
-    if (deltaX === 0 && deltaY === 0)
-      return
-
-    lastX += deltaX
-    lastY += deltaY
-    void applyDelta({ deltaX, deltaY })
-  }
-
-  function stop() {
-    stopPointerDrag = undefined
-    element.removeEventListener('pointermove', handleMove)
-    element.removeEventListener('lostpointercapture', stop)
-  }
-
-  stopPointerDrag = stop
-  element.addEventListener('pointermove', handleMove)
-  element.addEventListener('lostpointercapture', stop)
+function holdPointer(event: PointerEvent) {
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  heldPointer = { x: event.screenX, y: event.screenY }
 }
 
-onBeforeUnmount(() => stopPointerDrag?.())
+/** Sends the held pointer's movement to the main process, which moves or resizes the window. */
+function dragHeldPointer(event: PointerEvent, applyDelta: (delta: WindowDelta) => unknown) {
+  if (!heldPointer)
+    return
+
+  // Whole pixels only; the rounding remainder carries into the next move.
+  const deltaX = Math.round(event.screenX - heldPointer.x)
+  const deltaY = Math.round(event.screenY - heldPointer.y)
+  if (deltaX === 0 && deltaY === 0)
+    return
+
+  heldPointer.x += deltaX
+  heldPointer.y += deltaY
+  void applyDelta({ deltaX, deltaY })
+}
+
+// Capture ends on release, cancel or removal of the element alike.
+function releasePointer() {
+  heldPointer = undefined
+}
 
 /** Keyboard step for the resize grip and the drag handle, in screen pixels. */
 const keyboardStep = 16
@@ -142,14 +126,11 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
 
 <template>
   <div
-    data-testid="chat-floating-page"
     :class="['relative h-full w-full']"
-    :style="{ '--chat-floating-fold-duration': quickFold ? '200ms' : '380ms' }"
   >
     <Transition
       :name="characterOnLeft ? 'chat-floating-fold-left' : 'chat-floating-fold-right'"
       @after-leave="reportContentHidden()"
-      @after-enter="quickFold = false"
     >
       <div v-show="contentShown" :class="['absolute inset-0 flex flex-col gap-1 pt-3']">
         <div :class="['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']">
@@ -160,7 +141,6 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
             ]"
           >
             <GhostButton
-              data-testid="chat-floating-resize-grip"
               size="unset"
               :title="t('tamagotchi.stage.chat-window.resize')"
               :aria-label="t('tamagotchi.stage.chat-window.resize')"
@@ -168,7 +148,9 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
                 'size-8 touch-none rounded-full text-neutral-500 dark:text-neutral-400',
                 characterOnLeft ? 'cursor-nesw-resize' : 'cursor-nwse-resize',
               ]"
-              @pointerdown="trackPointerDrag($event, resizeBy)"
+              @pointerdown="holdPointer"
+              @pointermove="dragHeldPointer($event, resizeBy)"
+              @lostpointercapture="releasePointer"
               @keydown="handleArrowKey($event, resizeBy)"
             >
               <div :class="[characterOnLeft ? 'i-solar:arrow-right-up-linear' : 'i-solar:arrow-left-up-linear', 'size-4']" />
@@ -176,7 +158,6 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
           </div>
 
           <div
-            data-testid="chat-floating-title"
             :class="[
               'chat-floating-island min-w-0 flex items-center gap-1 rounded-full p-1 shadow-md',
               'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
@@ -184,12 +165,13 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
           >
             <GhostButton
               v-if="freePlacement"
-              data-testid="chat-floating-drag-handle"
               size="unset"
               :title="t('tamagotchi.stage.chat-window.move')"
               :aria-label="t('tamagotchi.stage.chat-window.move')"
               :class="['h-7 w-5 cursor-grab touch-none text-neutral-400']"
-              @pointerdown="trackPointerDrag($event, moveBy)"
+              @pointerdown="holdPointer"
+              @pointermove="dragHeldPointer($event, moveBy)"
+              @lostpointercapture="releasePointer"
               @keydown="handleArrowKey($event, moveBy)"
             >
               <div class="i-ph:dots-six-vertical-bold size-4" />
@@ -208,8 +190,7 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
         </div>
 
         <div :class="['relative min-h-0 flex-1']">
-          <!-- The empty history passes clicks through, so the wheel cannot reveal the scrollbar there; hovering does. -->
-          <InteractiveArea ref="interactive-area" surface="opaque" history-scrollbar="hover" />
+          <InteractiveArea ref="interactive-area" floating />
         </div>
       </div>
     </Transition>
@@ -237,9 +218,9 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
 .chat-floating-fold-left-enter-active,
 .chat-floating-fold-left-leave-active {
   transition:
-    clip-path var(--chat-floating-fold-duration) cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform var(--chat-floating-fold-duration) cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity var(--chat-floating-fold-duration) ease;
+    clip-path 380ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 380ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 380ms ease;
 }
 
 .chat-floating-fold-right-enter-active,

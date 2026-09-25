@@ -1,7 +1,7 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { InferOutput } from 'valibot'
 
-import type { ChatDraftHandover, ChatWindowPreferences } from '../../../shared/eventa'
+import type { ChatButtonState, ChatDraftHandover, ChatWindowPreferences } from '../../../shared/eventa'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
@@ -20,7 +20,7 @@ import { electronChatWindowGetPreferences, electronChatWindowSetPreferences, ele
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
+import { protectPrivilegedWindowNavigation } from '../shared'
 import { setupFloatingChatWindow } from './floating'
 import { createChatModeSwitch } from './mode-switch'
 import { setupChatWindowElectronInvokes } from './rpc/index.electron'
@@ -30,8 +30,7 @@ type EventaContext = ReturnType<typeof createContext>['context']
 const chatWindowConfigSchema = object({
   mode: picklist(['legacy', 'floating']),
   placement: picklist(['attached', 'free']),
-  // A choice the user has not made yet keeps the chat on top, as before.
-  pinned: optional(boolean(), true),
+  pinned: boolean(),
   floating: object({
     width: number(),
     height: number(),
@@ -59,10 +58,13 @@ export interface ChatWindowManager {
   /** Shows the chat and brings it to the front. Spotlight notifications call this. */
   open: () => Promise<void>
   /**
-   * Runs the Controls Island chat button. The legacy window shows and focuses;
-   * the floating chat folds when it is shown and unfolds otherwise.
+   * Runs the Controls Island chat button. The legacy window comes to the
+   * front; the floating chat folds when it is shown and unfolds otherwise.
    */
   toggle: () => Promise<void>
+  getButtonState: () => ChatButtonState
+  /** Calls `listener` whenever the button state changes. Returns the function that stops it. */
+  onButtonStateChange: (listener: (state: ChatButtonState) => void) => () => void
 }
 
 /**
@@ -169,6 +171,8 @@ export function setupChatWindowManager(params: {
     return window
   })
 
+  const buttonStateListeners = new Set<(state: ChatButtonState) => void>()
+
   const floating = setupFloatingChatWindow({
     getMainWindow: params.getMainWindow,
     getPlacement: () => getConfig().placement,
@@ -176,7 +180,19 @@ export function setupChatWindowManager(params: {
     getBounds: () => getConfig().floating,
     saveBounds: bounds => updateConfig({ ...getConfig(), floating: bounds }),
     setupChatInvokes,
+    onFoldedChange: () => emitButtonState(),
   })
+
+  function getButtonState(): ChatButtonState {
+    const mode = getConfig().mode
+    return { mode, floatingShown: mode === 'floating' && floating.isUnfolded() }
+  }
+
+  function emitButtonState() {
+    const state = getButtonState()
+    for (const listener of buttonStateListeners)
+      listener(state)
+  }
 
   async function openLegacy() {
     const window = await legacy.getWindow()
@@ -202,6 +218,7 @@ export function setupChatWindowManager(params: {
         pendingDraft = draft
       try {
         await modeSwitch.show()
+        emitButtonState()
       }
       catch (error) {
         // The new window did not open, so the old one still shows the chat
@@ -210,6 +227,7 @@ export function setupChatWindowManager(params: {
         pendingDraft = undefined
         if (getConfig().mode === next.mode)
           updateConfig({ ...getConfig(), mode: previous.mode })
+        emitButtonState()
         throw error
       }
       return
@@ -220,17 +238,17 @@ export function setupChatWindowManager(params: {
   }
 
   return {
-    open: () => modeSwitch.run(async () => {
-      if (getConfig().mode === 'floating')
-        await floating.open()
-      else
-        await openLegacy()
-    }),
+    open: modeSwitch.show,
     toggle: () => modeSwitch.run(async () => {
       if (getConfig().mode === 'floating')
         await floating.toggle()
       else
-        toggleWindowShow(await legacy.getWindow())
+        await openLegacy()
     }),
+    getButtonState,
+    onButtonStateChange(listener) {
+      buttonStateListeners.add(listener)
+      return () => buttonStateListeners.delete(listener)
+    },
   }
 }

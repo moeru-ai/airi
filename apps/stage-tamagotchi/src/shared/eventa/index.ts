@@ -113,6 +113,21 @@ export interface ChatDraftHandover {
   attachments: { data: string, mimeType: string, name: string }[]
 }
 
+/**
+ * What the Controls Island chat button reflects. In the floating mode the
+ * button folds and unfolds the chat, so it shows a pressed state while the
+ * chat is unfolded. In the legacy mode it only opens the window and has no
+ * pressed state.
+ */
+export interface ChatButtonState {
+  mode: ChatWindowMode
+  /** `true` while the floating chat is unfolded; always `false` in the legacy mode. */
+  floatingShown: boolean
+}
+
+export const electronGetChatButtonState = defineInvokeEventa<ChatButtonState>('eventa:invoke:electron:windows:chat:get-button-state')
+export const electronChatButtonStateChanged = defineEventa<ChatButtonState>('eventa:event:electron:windows:chat:button-state-changed')
+
 export const electronChatWindowGetPreferences = defineInvokeEventa<ChatWindowPreferences>('eventa:invoke:electron:windows:chat:get-preferences')
 /**
  * Persists the preferences and swaps the open chat window when the mode

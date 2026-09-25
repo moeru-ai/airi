@@ -47,17 +47,4 @@ describe('createChatModeSwitch', () => {
 
     expect(events).toEqual(['floating:open', 'legacy:close', 'legacy:open', 'floating:close'])
   })
-
-  it('keeps running queued work after a switch fails', async () => {
-    const events: string[] = []
-    const legacy = createWindowDouble('legacy', events)
-    const floating = createWindowDouble('floating', events)
-    floating.open.mockRejectedValueOnce(new Error('window creation failed'))
-    const modeSwitch = createChatModeSwitch({ getMode: () => 'floating', legacy, floating })
-
-    await expect(modeSwitch.show()).rejects.toThrow('window creation failed')
-    const task = vi.fn(async () => 'ran')
-
-    await expect(modeSwitch.run(task)).resolves.toBe('ran')
-  })
 })

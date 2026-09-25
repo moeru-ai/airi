@@ -16,7 +16,16 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
-import { electronCenterMainWindow, electronOpenChat, electronOpenEditor, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
+import {
+  electronCenterMainWindow,
+  electronChatButtonStateChanged,
+  electronGetChatButtonState,
+  electronOpenChat,
+  electronOpenEditor,
+  electronOpenMainDevtools,
+  electronOpenSettings,
+  noticeWindowEventa,
+} from '../../../../shared/eventa'
 import { createAuthService } from '../../../services/airi/auth'
 import { createGodotStageService } from '../../../services/airi/godot-stage'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
@@ -60,5 +69,8 @@ export async function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronOpenEditor, () => params.editorWindow.openWindow())
   defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))
   defineInvokeHandler(context, electronOpenChat, () => params.chatWindow.toggle())
+  defineInvokeHandler(context, electronGetChatButtonState, () => params.chatWindow.getButtonState())
+  const stopChatButtonState = params.chatWindow.onButtonStateChange(state => context.emit(electronChatButtonStateChanged, state))
+  params.window.once('closed', stopChatButtonState)
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
 }

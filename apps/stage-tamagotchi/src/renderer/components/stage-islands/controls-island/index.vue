@@ -13,6 +13,7 @@ import StatusIsland from '../status-island/index.vue'
 import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
 import ControlsIslandAuthButton from './controls-island-auth-button.vue'
+import ControlsIslandChatButton from './controls-island-chat-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
@@ -23,7 +24,6 @@ import {
   electron,
   electronAppQuit,
   electronCenterMainWindow,
-  electronOpenChat,
   electronOpenSettings,
   electronStartDraggingWindow,
   electronWindowSetAlwaysOnTop,
@@ -49,7 +49,6 @@ const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
-const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 const quitApp = useElectronEventaInvoke(electronAppQuit)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
@@ -453,19 +452,7 @@ function resetMainWindowPosition() {
             :icon-class="adjustStyleClasses.icon"
           />
 
-          <ControlButtonTooltip side="inward">
-            <ControlButton
-              v-track-button="{ name: 'controls_island_action', action: 'toggle_chat' }"
-              :button-style="adjustStyleClasses.button"
-              :aria-label="t('tamagotchi.stage.controls-island.open-chat')"
-              @click="() => openChat()"
-            >
-              <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-            </ControlButton>
-            <template #tooltip>
-              {{ t('tamagotchi.stage.controls-island.open-chat') }}
-            </template>
-          </ControlButtonTooltip>
+          <ControlsIslandChatButton :button-style="adjustStyleClasses.button" :icon-class="adjustStyleClasses.icon" />
 
           <ControlButtonTooltip side="inward">
             <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">

@@ -3,30 +3,16 @@ import type { MaybeRefOrGetter } from 'vue'
 import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke, useElectronRelativeMouse } from '@proj-airi/electron-vueuse'
 import { useEventListener } from '@vueuse/core'
+import { parse } from 'culori'
 import { computed, shallowRef, toValue, watch } from 'vue'
 
-/**
- * Reads the alpha of a computed CSS color.
- *
- * @example
- * colorAlpha('rgba(0, 0, 0, 0.5)')
- * // => 0.5
- * colorAlpha('oklch(0.9 0.02 220 / 60%)')
- * // => 0.6
- */
-function colorAlpha(color: string) {
-  if (color === 'transparent')
-    return 0
+function paintsBackground(style: CSSStyleDeclaration) {
+  if (style.backgroundImage !== 'none')
+    return true
 
-  // Space separated colors put the alpha after a slash; legacy `rgba()` puts
-  // it fourth after commas. Every other form is opaque.
-  const alpha = color.includes('/')
-    ? color.slice(color.lastIndexOf('/') + 1).replace(')', '').trim()
-    : color.startsWith('rgba(') || color.startsWith('hsla(')
-      ? color.slice(color.lastIndexOf(',') + 1).replace(')', '').trim()
-      : '1'
-
-  return alpha.endsWith('%') ? Number.parseFloat(alpha) / 100 : Number.parseFloat(alpha)
+  // culori leaves `alpha` out of opaque colors.
+  const color = parse(style.backgroundColor)
+  return !!color && (color.alpha ?? 1) > 0
 }
 
 /**
@@ -45,7 +31,7 @@ function isPaintedAt(target: Element) {
     const style = getComputedStyle(element)
     if (style.opacity === '0' || style.visibility === 'hidden')
       return false
-    if (!painted && (colorAlpha(style.backgroundColor) > 0 || style.backgroundImage !== 'none'))
+    if (!painted && paintsBackground(style))
       painted = true
   }
   return painted

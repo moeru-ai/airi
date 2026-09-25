@@ -33,17 +33,15 @@ import { artistryToolReferences, computerUseToolReferences, widgetToolReferences
 
 const props = withDefaults(defineProps<{
   /**
-   * How the chat paints its surfaces. The legacy window draws a backdrop
-   * behind the chat, so bubbles and the composer stay translucent. The
-   * floating window draws nothing else, so `opaque` gives them solid
-   * backgrounds that keep their contrast over any desktop.
+   * `true` in the transparent floating chat window, which draws nothing
+   * behind the chat. Bubbles, the composer and the welcome card then paint
+   * solid backgrounds that keep their contrast over any desktop, and the
+   * history scrollbar shows on hover, because the wheel over the empty
+   * history reaches the app below instead.
    */
-  surface?: 'translucent' | 'opaque'
-  /** When the history scrollbar shows; see `ChatHistory`'s `scrollbar`. */
-  historyScrollbar?: 'scroll' | 'hover'
+  floating?: boolean
 }>(), {
-  surface: 'translucent',
-  historyScrollbar: 'scroll',
+  floating: false,
 })
 
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
@@ -312,14 +310,13 @@ defineExpose({ restoreDraft, snapshotDraft })
       -->
       <div
         v-if="!historyMessages.some(message => message.role !== 'system') && !isActiveSessionSending"
-        data-testid="chat-empty-state"
         :class="['chat-empty-state pointer-events-none absolute inset-x-0 top-0 flex items-center justify-center overflow-hidden px-6']"
         :style="{ bottom: `calc(${tailInset}px + 1rem)` }"
       >
         <div
           :class="[
             'flex flex-col items-center gap-3 text-center',
-            props.surface === 'opaque' ? 'rounded-2xl bg-white px-6 py-6 shadow-md dark:bg-neutral-900' : '',
+            props.floating ? 'rounded-2xl bg-white px-6 py-6 shadow-md dark:bg-neutral-900' : '',
           ]"
         >
           <div :class="['chat-empty-state-icon size-14 flex items-center justify-center rounded-2xl bg-primary-100/60 text-primary-500 dark:bg-primary-900/30']">
@@ -338,8 +335,8 @@ defineExpose({ restoreDraft, snapshotDraft })
         :streaming-message="visibleStreamingMessage"
         :tail-inset="tailInset"
         :tool-call-renderers="toolCallRenderers"
-        :surface="props.surface"
-        :scrollbar="props.historyScrollbar"
+        :surface="props.floating ? 'opaque' : 'translucent'"
+        :scrollbar="props.floating ? 'hover' : 'scroll'"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
         @retry-message="handleRetryMessage($event.index)"
@@ -355,7 +352,7 @@ defineExpose({ restoreDraft, snapshotDraft })
           // The composer layer clips overflow, which would cut a ring or a
           // shadow; a border stays inside the box. The floating composer is
           // its own island, so it keeps tighter padding than the windowed one.
-          props.surface === 'opaque'
+          props.floating
             ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
             : [
               'bg-neutral-100/70 p-3 backdrop-blur-xl dark:bg-neutral-900/65',
