@@ -1,6 +1,5 @@
 type LifecycleHook = () => Promise<void> | void
 
-const onAppReadyHooks = [] as LifecycleHook[]
 const onAppBeforeQuitHooks = [] as LifecycleHook[]
 const onAppWindowAllClosedHooks = [] as LifecycleHook[]
 
@@ -21,17 +20,9 @@ function register(hooks: LifecycleHook[], fn: LifecycleHook) {
 // Runs a copy of the list: a hook can close a window, and the window removes
 // its own hooks while the list is being run.
 async function emit(hooks: LifecycleHook[]) {
-  for (const fn of [...hooks]) {
+  for (const fn of hooks.slice()) {
     await fn()
   }
-}
-
-export function onAppReady(fn: LifecycleHook) {
-  return register(onAppReadyHooks, fn)
-}
-
-export async function emitAppReady() {
-  await emit(onAppReadyHooks)
 }
 
 export function onAppBeforeQuit(fn: LifecycleHook) {
