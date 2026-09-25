@@ -553,6 +553,27 @@ describe('interactive area synchronized state', () => {
     expect(inputRect.bottom).toBeLessThanOrEqual(layoutRect.bottom)
   })
 
+  it('keeps the welcome card above the composer in a short window', async () => {
+    // ROOT CAUSE:
+    //
+    // The welcome card sat a third of the way down the history, and in a
+    // short window the composer covered its bottom.
+    //
+    // The card now centers above the composer and drops its icon when short.
+    const { screen } = await renderArea()
+    const layout = screen.getByTestId('chat-viewport-layout').element() as HTMLElement
+    layout.style.height = '300px'
+    layout.style.width = '380px'
+
+    const composer = screen.getByTestId('chat-composer-layer').element() as HTMLElement
+    const description = screen.getByText('stage.chat.images.empty').element() as HTMLElement
+
+    await vi.waitFor(() => {
+      expect(description.getBoundingClientRect().height).toBeGreaterThan(0)
+      expect(description.getBoundingClientRect().bottom).toBeLessThanOrEqual(composer.getBoundingClientRect().top)
+    })
+  })
+
   // https://github.com/moeru-ai/airi/pull/2399
   it('connects the production history viewport to the fixed composer', async () => {
     // ROOT CAUSE:

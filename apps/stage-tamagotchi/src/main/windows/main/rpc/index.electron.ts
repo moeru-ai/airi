@@ -5,6 +5,7 @@ import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { GodotStageManager } from '../../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
+import type { ChatWindowManager } from '../../chat'
 import type { EditorWindowManager } from '../../editor'
 import type { NoticeWindowManager } from '../../notice'
 import type { OnboardingWindowManager } from '../../onboarding'
@@ -22,7 +23,6 @@ import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createOnboardingService } from '../../../services/airi/onboarding'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
-import { toggleWindowShow } from '../../shared'
 import { centerWindowOnDisplay } from '../../shared/display'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
@@ -30,7 +30,7 @@ export async function setupMainWindowElectronInvokes(params: {
   window: BrowserWindow
   editorWindow: EditorWindowManager
   settingsWindow: SettingsWindowManager
-  chatWindow: () => Promise<BrowserWindow>
+  chatWindow: ChatWindowManager
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
@@ -59,6 +59,6 @@ export async function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenEditor, () => params.editorWindow.openWindow())
   defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))
-  defineInvokeHandler(context, electronOpenChat, async () => toggleWindowShow(await params.chatWindow()))
+  defineInvokeHandler(context, electronOpenChat, () => params.chatWindow.toggle())
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
 }

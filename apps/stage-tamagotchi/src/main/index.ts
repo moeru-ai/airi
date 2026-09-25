@@ -44,7 +44,7 @@ import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
-import { setupChatWindowReusableFunc } from './windows/chat'
+import { setupChatWindowManager } from './windows/chat'
 import { isDesktopOverlayEnabled, setupDesktopOverlayWindow } from './windows/desktop-overlay'
 import { setupDevtoolsWindow } from './windows/devtools'
 import { setupEditorWindowManager } from './windows/editor'
@@ -252,7 +252,10 @@ app.whenReady().then(async () => {
 
   const chatWindow = injeca.provide('windows:chat', {
     dependsOn: { widgetsManager, serverChannel, mcpStdioManager, i18n },
-    build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
+    build: ({ dependsOn }) => setupChatWindowManager({
+      ...dependsOn,
+      getMainWindow: () => userFacingMainWindow,
+    }),
   })
 
   const spotlightWindow = injeca.provide('windows:spotlight', {

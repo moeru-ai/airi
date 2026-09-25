@@ -26,6 +26,7 @@ import type {
   VrmLoadStartTracePayload,
   VrmUpdateFrameTracePayload,
 } from '@proj-airi/stage-ui-three/trace'
+import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
@@ -39,6 +40,104 @@ export const electronOpenEditor = defineInvokeEventa<void>('eventa:invoke:electr
 export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
+
+/**
+ * Which window the Controls Island chat button opens.
+ *
+ * - `legacy`: the opaque chat window with a title bar.
+ * - `floating`: a transparent, click-through window where only the chat
+ *   bubbles and controls are drawn. The chat button folds and unfolds it.
+ */
+export type ChatWindowMode = 'legacy' | 'floating'
+
+/**
+ * Where the floating chat window stays.
+ *
+ * - `attached`: beside the main window, moving with it.
+ * - `free`: where the user drags it.
+ */
+export type ChatFloatingPlacement = 'attached' | 'free'
+
+/** Chat window choices that the main process persists for every chat renderer. */
+export interface ChatWindowPreferences {
+  mode: ChatWindowMode
+  placement: ChatFloatingPlacement
+  /**
+   * Keeps a `free` floating chat above other windows. An `attached` chat
+   * ignores it and follows the main window's pin state instead.
+   */
+  pinned: boolean
+}
+
+/** What the floating chat renderer needs from the main process to lay itself out. */
+export interface ChatFloatingState {
+  placement: ChatFloatingPlacement
+  /**
+   * The side of the main window that the chat sits on in `attached` placement.
+   * The renderer folds toward the character on this side and puts the resize
+   * grip on the other. `left` in `free` placement.
+   */
+  side: 'left' | 'right'
+  /**
+   * `true` after the chat button folds the chat. The renderer plays the fold
+   * and then calls {@link electronChatFloatingContentHidden}, so the main
+   * process hides the window only after the animation.
+   */
+  folded: boolean
+  /**
+   * `true` while an attached chat moves to the other side of the main window.
+   * The renderer folds the content toward the character and calls
+   * {@link electronChatFloatingContentHidden}; the main process then moves the
+   * window and reports `false` with the new `side`, and the content unfolds.
+   */
+  relocating: boolean
+  /**
+   * Whether the chat window stays above other windows: the main window's pin
+   * when attached, the chat's own pin when free. The renderer passes clicks
+   * through only while it is `true`, like the main window.
+   */
+  pinned: boolean
+}
+
+/**
+ * Unsent composer content that a chat mode switch carries to the next chat
+ * window. Each renderer owns its composer, so the window that asks for the
+ * switch hands its content over through the main process.
+ */
+export interface ChatDraftHandover {
+  /** The chat session the content belongs to; another session discards it. */
+  sessionId: string
+  text: string
+  replyTarget?: ChatHistoryReplyPayload
+  /** Images as the composer sends them: base64 data without the data URL prefix. */
+  attachments: { data: string, mimeType: string, name: string }[]
+}
+
+export const electronChatWindowGetPreferences = defineInvokeEventa<ChatWindowPreferences>('eventa:invoke:electron:windows:chat:get-preferences')
+/**
+ * Persists the preferences and swaps the open chat window when the mode
+ * changes. A `draft` goes to the next chat window through
+ * {@link electronChatWindowTakeDraft}.
+ */
+export const electronChatWindowSetPreferences = defineInvokeEventa<void, { preferences: ChatWindowPreferences, draft?: ChatDraftHandover }>('eventa:invoke:electron:windows:chat:set-preferences')
+/** Returns the handed over draft once, then forgets it. */
+export const electronChatWindowTakeDraft = defineInvokeEventa<ChatDraftHandover | undefined>('eventa:invoke:electron:windows:chat:take-draft')
+export const electronChatFloatingGetState = defineInvokeEventa<ChatFloatingState>('eventa:invoke:electron:windows:chat-floating:get-state')
+export const electronChatFloatingStateChanged = defineEventa<ChatFloatingState>('eventa:event:electron:windows:chat-floating:state-changed')
+/** The renderer finished hiding the chat content for a fold or a relocation. */
+export const electronChatFloatingContentHidden = defineInvokeEventa<void>('eventa:invoke:electron:windows:chat-floating:content-hidden')
+/**
+ * Resizes the floating chat window from its resize grip, by the cursor
+ * movement in screen pixels. The window grows away from the character, so the
+ * corner beside the main window stays in place.
+ */
+export const electronChatFloatingResizeBy = defineInvokeEventa<void, { deltaX: number, deltaY: number }>('eventa:invoke:electron:windows:chat-floating:resize-by')
+/**
+ * Moves a `free` floating chat by the cursor movement of its drag handle, in
+ * whole screen pixels. The handle does not use `app-region: drag`: a native
+ * drag region on this click-through window stops click-through from working.
+ */
+export const electronChatFloatingMoveBy = defineInvokeEventa<void, { deltaX: number, deltaY: number }>('eventa:invoke:electron:windows:chat-floating:move-by')
 export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:hide')
 export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
 export const electronSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:electron:windows:spotlight:shortcut:get')

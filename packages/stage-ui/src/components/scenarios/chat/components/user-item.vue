@@ -19,10 +19,17 @@ const props = withDefaults(defineProps<{
   canReply?: boolean
   scrollContainer?: HTMLElement | null
   variant?: 'desktop' | 'mobile'
+  /**
+   * How the bubble paints its background. `opaque` is for hosts with nothing
+   * behind the history, such as a transparent window over the desktop, where a
+   * translucent bubble takes the contrast of whatever is under it.
+   */
+  surface?: 'translucent' | 'opaque'
 }>(), {
   canReply: false,
   scrollContainer: null,
   variant: 'desktop',
+  surface: 'translucent',
 })
 
 const emit = defineEmits<{
@@ -54,11 +61,18 @@ const containerClasses = computed(() => [
   props.variant === 'mobile' ? 'ml-0 flex-row' : 'ml-12 flex-row-reverse',
 ])
 
-const boxClasses = computed(() => [
-  props.variant === 'mobile'
-    ? ['px-2 py-1.5 text-sm', 'bg-neutral-100/60 backdrop-blur-xl dark:bg-neutral-800/60']
-    : ['px-3 pt-3 pb-2', 'bg-neutral-100/80 dark:bg-neutral-800/80'],
-])
+const boxClasses = computed(() => {
+  const spacing = props.variant === 'mobile' ? 'px-2 py-1.5 text-sm' : 'px-3 pt-3 pb-2'
+  if (props.surface === 'opaque')
+    return [spacing, 'bg-neutral-100 shadow-md dark:bg-neutral-800']
+
+  return [
+    spacing,
+    props.variant === 'mobile'
+      ? 'bg-neutral-100/60 backdrop-blur-xl dark:bg-neutral-800/60'
+      : 'bg-neutral-100/80 dark:bg-neutral-800/80',
+  ]
+})
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
 </script>
 

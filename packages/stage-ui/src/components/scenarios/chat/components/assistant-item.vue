@@ -25,12 +25,19 @@ const props = withDefaults(defineProps<{
   scrollContainer?: HTMLElement | null
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'
+  /**
+   * How the bubble paints its background. `opaque` is for hosts with nothing
+   * behind the history, such as a transparent window over the desktop, where a
+   * translucent bubble takes the contrast of whatever is under it.
+   */
+  surface?: 'translucent' | 'opaque'
   toolCallRenderers?: ChatToolCallRendererRegistry
 }>(), {
   canReply: false,
   showPlaceholder: false,
   scrollContainer: null,
   variant: 'desktop',
+  surface: 'translucent',
   toolCallRenderers: () => ({}),
 })
 
@@ -103,11 +110,18 @@ function getToolCallRenderer(slice: ChatSlices) {
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
 const containerClass = computed(() => props.variant === 'mobile' ? 'mr-0' : 'mr-12')
-const boxClasses = computed(() => [
-  props.variant === 'mobile'
-    ? ['px-2 py-2 text-sm', 'bg-primary-50/60 backdrop-blur-xl dark:bg-primary-950/60']
-    : ['px-3 py-3', 'bg-primary-50/80 dark:bg-primary-950/75'],
-])
+const boxClasses = computed(() => {
+  const spacing = props.variant === 'mobile' ? 'px-2 py-2 text-sm' : 'px-3 py-3'
+  if (props.surface === 'opaque')
+    return [spacing, 'bg-primary-50 shadow-md dark:bg-primary-950']
+
+  return [
+    spacing,
+    props.variant === 'mobile'
+      ? 'bg-primary-50/60 backdrop-blur-xl dark:bg-primary-950/60'
+      : 'bg-primary-50/80 dark:bg-primary-950/75',
+  ]
+})
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
 </script>
 
