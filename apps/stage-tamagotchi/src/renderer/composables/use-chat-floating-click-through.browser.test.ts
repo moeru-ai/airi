@@ -75,6 +75,36 @@ describe('useChatFloatingClickThrough', () => {
     await vi.waitFor(() => expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([false, { forward: true }]))
   })
 
+  it('takes the pointer over text inside a painted bubble', async () => {
+    // Text has no background of its own. Judging only the element under the
+    // cursor would pass a click on a message's words through to the desktop.
+    mocks.cursor!.x.value = 40
+    mocks.cursor!.y.value = 40
+    let hitTest = () => {}
+    const screen = await render(defineComponent({
+      setup() {
+        hitTest = useChatFloatingClickThrough({ pinned: true }).hitTest
+        return () => h('div', {
+          style: { position: 'fixed', left: '0', top: '0', width: '100px', height: '100px', background: 'white' },
+        }, [h('span', { style: { display: 'block', width: '100%', height: '100%' } }, 'message')])
+      },
+    }))
+    onTestFinished(() => screen.unmount())
+    hitTest()
+
+    await vi.waitFor(() => expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([false, { forward: true }]))
+  })
+
+  it('lets clicks through again once a held pointer is released', async () => {
+    await renderPage()
+
+    window.dispatchEvent(new PointerEvent('pointerdown'))
+    await vi.waitFor(() => expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([false, { forward: true }]))
+
+    window.dispatchEvent(new PointerEvent('pointerup'))
+    await vi.waitFor(() => expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }]))
+  })
+
   it('keeps the pointer while a still hand scrolls a gap under the cursor', async () => {
     // ROOT CAUSE:
     //

@@ -603,6 +603,60 @@ describe('interactive area synchronized state', () => {
     expect(draft?.attachments).toEqual([{ data: btoa('image'), mimeType: 'image/png', name: 'image.png' }])
   })
 
+  it('restores the text, reply target and images of a mode switch draft', async () => {
+    let area: InstanceType<typeof InteractiveArea> | undefined
+    await renderArea(defineComponent({
+      setup: () => () => h(InteractiveArea, {
+        ref: (instance) => {
+          area = (instance ?? undefined) as InstanceType<typeof InteractiveArea> | undefined
+        },
+      }),
+    }))
+    if (!area)
+      throw new Error('Expected the composer.')
+    const draft = {
+      sessionId: 'session-b',
+      text: 'unsent',
+      replyTarget: { label: 'You', message: { id: 'reply-target', role: 'user' as const, content: 'Reply target' } },
+      attachments: [{ data: btoa('image'), mimeType: 'image/png', name: 'image.png' }],
+    }
+
+    await expect(area.restoreDraft(draft)).resolves.toBe(true)
+    const captured = await area.snapshotDraft()
+
+    expect(captured).toEqual(draft)
+  })
+
+  it('captures a reply picked from the history as a mode switch draft that can cross IPC', async () => {
+    // The history hands out reactive message proxies. The draft crosses IPC
+    // with structuredClone, which throws on a proxy, so the switch failed
+    // whenever a reply was selected.
+    let area: InstanceType<typeof InteractiveArea> | undefined
+    const { chatSession, screen } = await renderArea(defineComponent({
+      setup: () => () => h(InteractiveArea, {
+        ref: (instance) => {
+          area = (instance ?? undefined) as InstanceType<typeof InteractiveArea> | undefined
+        },
+      }),
+    }))
+    if (!area)
+      throw new Error('Expected the composer.')
+    chatSession.$patch((state) => {
+      state.sessionMessages['session-b'] = [{ id: 'reply-target', role: 'user', content: 'Reply target' }]
+    })
+    await vi.waitFor(() => expect(screen.container.querySelector('[data-swipeable]')).not.toBeNull())
+    dispatchHorizontalPan(screen.container.querySelector<HTMLElement>('[data-swipeable]')!)
+    await vi.waitFor(() => {
+      const cancelButton = screen.container.querySelector('[aria-label="stage.chat.reply.cancel"]')
+      expect(cancelButton?.parentElement?.getAttribute('aria-hidden')).toBe('false')
+    })
+
+    const captured = await area.snapshotDraft()
+
+    expect(captured?.replyTarget?.message.id).toBe('reply-target')
+    expect(() => structuredClone(captured)).not.toThrow()
+  })
+
   // https://github.com/moeru-ai/airi/pull/2399
   it('connects the production history viewport to the fixed composer', async () => {
     // ROOT CAUSE:

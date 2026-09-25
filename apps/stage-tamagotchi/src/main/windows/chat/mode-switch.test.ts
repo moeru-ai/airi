@@ -102,6 +102,20 @@ describe('createChatModeSwitch', () => {
     expect(legacy.text).toBe('unsent')
   })
 
+  it('leaves the open window alone when the mode does not change', async () => {
+    // A pin or placement change saves the preferences through the same
+    // switch. Treating the open window as the next one would wait for a draft
+    // it never settles, and the rollback would then close it.
+    const { legacy, floating, modeSwitch } = setup({ floatingRestores: true })
+
+    await modeSwitch.switchTo('legacy')
+
+    expect(legacy.collectDraft).not.toHaveBeenCalled()
+    expect(legacy.open).not.toHaveBeenCalled()
+    expect(legacy.close).not.toHaveBeenCalled()
+    expect(floating.open).not.toHaveBeenCalled()
+  })
+
   it('does not let the window being closed settle the draft', async () => {
     const { legacy, floating, modeSwitch } = setup({ floatingRestores: false })
     // The legacy page reloads during the switch and reports like a new page.
