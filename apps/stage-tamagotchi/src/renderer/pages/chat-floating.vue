@@ -16,11 +16,11 @@ import InteractiveArea from '../components/InteractiveArea.vue'
 import {
   electronChatFloatingContentHidden,
   electronChatFloatingGetState,
-  electronChatFloatingMoveBy,
+  electronChatFloatingMoveTo,
   electronChatFloatingResizeBy,
   electronChatFloatingStateChanged,
-  electronChatWindowTakeDraft,
 } from '../../shared/eventa'
+import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
@@ -34,8 +34,7 @@ const state = shallowRef<ChatFloatingState>({ placement: 'attached', side: 'left
 const getState = useElectronEventaInvoke(electronChatFloatingGetState)
 const reportContentHidden = useElectronEventaInvoke(electronChatFloatingContentHidden)
 const resizeBy = useElectronEventaInvoke(electronChatFloatingResizeBy)
-const moveBy = useElectronEventaInvoke(electronChatFloatingMoveBy)
-const takeDraft = useElectronEventaInvoke(electronChatWindowTakeDraft)
+const moveTo = useElectronEventaInvoke(electronChatFloatingMoveTo)
 
 // The main process can emit before this page mounts, so the first state comes
 // from the invoke and later ones from the event.
@@ -46,14 +45,10 @@ const stopStateChanged = getElectronEventaContext().on(electronChatFloatingState
 onScopeDispose(stopStateChanged)
 onMounted(async () => {
   state.value = await getState()
-
-  // A mode switch from the legacy window hands its unsent content to this one.
-  const draft = await takeDraft()
-  if (draft)
-    await interactiveArea.value?.restoreDraft(draft)
 })
 
-useChatFloatingClickThrough({ pinned: () => state.value.pinned })
+useChatDraftHandover(interactiveArea)
+const { hitTest } = useChatFloatingClickThrough({ pinned: () => state.value.pinned })
 
 const freePlacement = computed(() => state.value.placement === 'free')
 // The content stays mounted while it is hidden, so a fold or a move to the
@@ -70,32 +65,66 @@ interface WindowDelta {
 }
 
 /**
- * The screen position of the pointer held on a grip or handle, or `undefined`
- * when none is held. Pointer capture sends the moves to that element even
- * when the window lags behind the pointer, and screen coordinates stay valid
- * while the window moves under it.
+ * A press on the resize grip or the drag handle, in screen pixels, which stay
+ * valid while the window moves under the pointer. Pointer capture sends the
+ * moves to the pressed element even when the window lags behind the pointer.
  */
-let heldPointer: { x: number, y: number } | undefined
+interface HeldPointer {
+  pressX: number
+  pressY: number
+  /** Window position when the press started. */
+  windowX: number
+  windowY: number
+  /** Pointer movement already sent as resize steps. */
+  resizedX: number
+  resizedY: number
+}
+
+/** `undefined` when neither the grip nor the handle is held. */
+let heldPointer: HeldPointer | undefined
 
 function holdPointer(event: PointerEvent) {
   (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
-  heldPointer = { x: event.screenX, y: event.screenY }
+  heldPointer = {
+    pressX: event.screenX,
+    pressY: event.screenY,
+    windowX: window.screenX,
+    windowY: window.screenY,
+    resizedX: 0,
+    resizedY: 0,
+  }
 }
 
-/** Sends the held pointer's movement to the main process, which moves or resizes the window. */
-function dragHeldPointer(event: PointerEvent, applyDelta: (delta: WindowDelta) => unknown) {
+/** Sends the pointer movement since the last step to the main process, which resizes the window. */
+function resizeWithHeldPointer(event: PointerEvent) {
   if (!heldPointer)
     return
 
-  // Whole pixels only; the rounding remainder carries into the next move.
-  const deltaX = Math.round(event.screenX - heldPointer.x)
-  const deltaY = Math.round(event.screenY - heldPointer.y)
+  // Whole pixels only; the rounding remainder carries into the next step.
+  const deltaX = Math.round(event.screenX - heldPointer.pressX) - heldPointer.resizedX
+  const deltaY = Math.round(event.screenY - heldPointer.pressY) - heldPointer.resizedY
   if (deltaX === 0 && deltaY === 0)
     return
 
-  heldPointer.x += deltaX
-  heldPointer.y += deltaY
-  void applyDelta({ deltaX, deltaY })
+  heldPointer.resizedX += deltaX
+  heldPointer.resizedY += deltaY
+  void resizeBy({ deltaX, deltaY })
+}
+
+/**
+ * Asks for the window position that the pointer movement since the press
+ * gives. It is measured from the press, not from the window: a screen edge
+ * can stop the window, and a drag that goes on must still reach the next
+ * display.
+ */
+function moveWithHeldPointer(event: PointerEvent) {
+  if (!heldPointer)
+    return
+
+  void moveTo({
+    x: Math.round(heldPointer.windowX + event.screenX - heldPointer.pressX),
+    y: Math.round(heldPointer.windowY + event.screenY - heldPointer.pressY),
+  })
 }
 
 // Capture ends on release, cancel or removal of the element alike.
@@ -122,6 +151,10 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
   event.preventDefault()
   void applyDelta(delta)
 }
+
+function moveByKeyboard(delta: WindowDelta) {
+  return moveTo({ x: window.screenX + delta.deltaX, y: window.screenY + delta.deltaY })
+}
 </script>
 
 <template>
@@ -130,13 +163,14 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
   >
     <Transition
       :name="characterOnLeft ? 'chat-floating-fold-left' : 'chat-floating-fold-right'"
+      @after-enter="hitTest"
       @after-leave="reportContentHidden()"
     >
       <div v-show="contentShown" :class="['absolute inset-0 flex flex-col gap-1 pt-3']">
         <div :class="['flex items-center gap-2 px-4', characterOnLeft ? 'flex-row-reverse' : '']">
           <div
             :class="[
-              'chat-floating-island shrink-0 rounded-full p-0.5 shadow-md',
+              'shrink-0 rounded-full p-0.5 shadow-md',
               'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
             ]"
           >
@@ -145,11 +179,11 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
               :title="t('tamagotchi.stage.chat-window.resize')"
               :aria-label="t('tamagotchi.stage.chat-window.resize')"
               :class="[
-                'size-8 touch-none rounded-full text-neutral-500 dark:text-neutral-400',
+                'size-8 touch-none rounded-full! text-neutral-500 dark:text-neutral-400',
                 characterOnLeft ? 'cursor-nesw-resize' : 'cursor-nwse-resize',
               ]"
               @pointerdown="holdPointer"
-              @pointermove="dragHeldPointer($event, resizeBy)"
+              @pointermove="resizeWithHeldPointer"
               @lostpointercapture="releasePointer"
               @keydown="handleArrowKey($event, resizeBy)"
             >
@@ -159,7 +193,7 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
 
           <div
             :class="[
-              'chat-floating-island min-w-0 flex items-center gap-1 rounded-full p-1 shadow-md',
+              'min-w-0 flex items-center gap-1 rounded-full p-1 shadow-md',
               'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
             ]"
           >
@@ -168,24 +202,24 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
               size="unset"
               :title="t('tamagotchi.stage.chat-window.move')"
               :aria-label="t('tamagotchi.stage.chat-window.move')"
-              :class="['h-7 w-5 cursor-grab touch-none text-neutral-400']"
+              :class="['h-7 w-5 cursor-grab touch-none rounded-full! text-neutral-400']"
               @pointerdown="holdPointer"
-              @pointermove="dragHeldPointer($event, moveBy)"
+              @pointermove="moveWithHeldPointer"
               @lostpointercapture="releasePointer"
-              @keydown="handleArrowKey($event, moveBy)"
+              @keydown="handleArrowKey($event, moveByKeyboard)"
             >
               <div class="i-ph:dots-six-vertical-bold size-4" />
             </GhostButton>
             <GhostButton
               size="unset"
-              :class="['min-w-0 gap-2 rounded-full px-2 py-0.5']"
+              :class="['min-w-0 gap-2 rounded-full! px-2 py-0.5']"
               @click="sessionsDrawerOpen = true"
             >
               <div class="i-solar:chat-line-bold shrink-0 text-neutral-400 dark:text-neutral-500" />
               <span class="truncate text-sm">{{ activeCard?.name || 'AIRI' }}</span>
             </GhostButton>
-            <ChatSpeechMuteButton />
-            <ChatWindowStyleMenu :collect-draft="() => interactiveArea?.snapshotDraft()" />
+            <ChatSpeechMuteButton :class="['rounded-full!']" />
+            <ChatWindowStyleMenu :class="['rounded-full!']" />
           </div>
         </div>
 
@@ -199,15 +233,6 @@ function handleArrowKey(event: KeyboardEvent, applyDelta: (delta: WindowDelta) =
 </template>
 
 <style scoped>
-/*
- * The islands are round, so the hover and focus shapes of their buttons are
- * round too. The shared buttons keep the square corners they use in the
- * windowed title bar.
- */
-.chat-floating-island :deep(button) {
-  border-radius: 9999px;
-}
-
 /*
  * The chat folds into the bottom corner beside the character: bottom-right
  * when the chat is on the left of the character, bottom-left when it is on

@@ -17,7 +17,7 @@ import { createPinia, disposePinia } from 'pinia'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page, userEvent } from 'vitest/browser'
-import { nextTick } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -572,6 +572,35 @@ describe('interactive area synchronized state', () => {
       expect(description.getBoundingClientRect().height).toBeGreaterThan(0)
       expect(description.getBoundingClientRect().bottom).toBeLessThanOrEqual(composer.getBoundingClientRect().top)
     })
+  })
+
+  it('waits for an image that is still being read before it captures a mode switch draft', async () => {
+    // ROOT CAUSE:
+    //
+    // The draft for a chat mode switch was captured at once. An image that
+    // was still being read had not joined the attachments, and the switch
+    // closed the window that was reading it.
+    //
+    // The capture now waits until no image is being read.
+    let area: InstanceType<typeof InteractiveArea> | undefined
+    const { screen } = await renderArea(defineComponent({
+      setup: () => () => h(InteractiveArea, {
+        ref: (instance) => {
+          area = (instance ?? undefined) as InstanceType<typeof InteractiveArea> | undefined
+        },
+      }),
+    }))
+    const input = screen.container.querySelector<HTMLInputElement>('input[type="file"]')
+    if (!input || !area)
+      throw new Error('Expected the chat image input and the composer.')
+
+    const transfer = new DataTransfer()
+    transfer.items.add(new File(['image'], 'image.png', { type: 'image/png' }))
+    input.files = transfer.files
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    const draft = await area.snapshotDraft()
+
+    expect(draft?.attachments).toEqual([{ data: btoa('image'), mimeType: 'image/png', name: 'image.png' }])
   })
 
   // https://github.com/moeru-ai/airi/pull/2399

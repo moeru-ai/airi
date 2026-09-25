@@ -1,10 +1,10 @@
 import type { MaybeRefOrGetter } from 'vue'
 
 import { electron } from '@proj-airi/electron-eventa'
-import { useElectronEventaInvoke, useElectronRelativeMouse } from '@proj-airi/electron-vueuse'
-import { useEventListener } from '@vueuse/core'
+import { useElectronEventaInvoke, useElectronMouse, useElectronRelativeMouse } from '@proj-airi/electron-vueuse'
+import { useEventListener, useMutationObserver } from '@vueuse/core'
 import { parse } from 'culori'
-import { computed, shallowRef, toValue, watch } from 'vue'
+import { shallowRef, toValue, watch } from 'vue'
 
 function paintsBackground(style: CSSStyleDeclaration) {
   if (style.backgroundImage !== 'none')
@@ -38,6 +38,13 @@ function isPaintedAt(target: Element) {
 }
 
 /**
+ * How far, in screen pixels, a hand may shake while the window keeps the
+ * pointer over a spot it no longer paints. A scroll moves the gap between two
+ * bubbles under a still hand, and the wheel must keep scrolling the chat.
+ */
+const handJitter = 8
+
+/**
  * An open dialog or menu, by its ARIA role. It takes the whole window, so an
  * outside click reaches it and closes it instead of passing to the app below.
  */
@@ -55,42 +62,76 @@ const openOverlaySelector = '[role="dialog"], [role="alertdialog"], [role="menu"
  *   scrollbar, a text selection or a resize keeps going off the painted area.
  * - A dialog or menu is open.
  * - The page paints something under the cursor.
+ * - The page painted under the cursor, and the hand has not pressed or moved
+ *   more than {@link handJitter} on the screen since.
  *
  * The main process creates the window click-through. The cursor position comes
  * from the main process, not from DOM events, because a click-through window
  * receives no mouse events on Linux. Each position is hit-tested against the
  * document, which also answers while the window is click-through.
+ *
+ * The page can also change under a cursor that stays still. A dialog or menu
+ * that opens or closes runs the hit test again, and so does the returned
+ * `hitTest`, which the page calls once the chat has unfolded.
  */
 export function useChatFloatingClickThrough(options: {
   /** Whether the chat window stays above other windows. */
   pinned: MaybeRefOrGetter<boolean>
 }) {
   const { x, y } = useElectronRelativeMouse()
+  // An attached window moves with the main window, so only the screen
+  // position tells whether the hand moved.
+  const hand = useElectronMouse()
   const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
+
+  /** Screen position of the hand when the cursor last found paint; a press clears it. */
+  let paintedAt: { x: number, y: number } | undefined
 
   // A press only reaches the page while the window takes the pointer, so the
   // hold starts over something painted and ends wherever the pointer is let go.
   const pointerHeld = shallowRef(false)
-  useEventListener(window, 'pointerdown', () => pointerHeld.value = true, { capture: true })
+  useEventListener(window, 'pointerdown', () => {
+    pointerHeld.value = true
+    paintedAt = undefined
+  }, { capture: true })
   useEventListener(window, 'pointerup', () => pointerHeld.value = false, { capture: true })
   useEventListener(window, 'pointercancel', () => pointerHeld.value = false, { capture: true })
   useEventListener(window, 'blur', () => pointerHeld.value = false)
 
-  const takesPointer = computed(() => {
+  function takesPointer() {
     if (!toValue(options.pinned) || pointerHeld.value)
       return true
 
-    // The cursor position is the dependency that re-runs this; an overlay that
-    // opens or closes is found again on the next cursor move.
     if (document.querySelector(openOverlaySelector))
       return true
 
     const target = document.elementFromPoint(x.value, y.value)
-    return !!target && isPaintedAt(target)
-  })
+    if (target && isPaintedAt(target)) {
+      paintedAt = { x: hand.x.value, y: hand.y.value }
+      return true
+    }
 
-  // Immediate, so a reloaded renderer does not inherit the previous page's state.
-  watch(takesPointer, (value) => {
-    void setIgnoreMouseEvents([!value, { forward: true }])
-  }, { immediate: true })
+    if (paintedAt && Math.hypot(hand.x.value - paintedAt.x, hand.y.value - paintedAt.y) <= handJitter)
+      return true
+
+    paintedAt = undefined
+    return false
+  }
+
+  // `undefined` until the first hit test, so a reloaded renderer does not
+  // inherit the previous page's state.
+  let appliedTakesPointer: boolean | undefined
+  function hitTest() {
+    const next = takesPointer()
+    if (next === appliedTakesPointer)
+      return
+    appliedTakesPointer = next
+    void setIgnoreMouseEvents([!next, { forward: true }])
+  }
+
+  // Dialogs and menus mount straight into the body.
+  useMutationObserver(document.body, hitTest, { childList: true })
+  watch([() => toValue(options.pinned), pointerHeld, x, y], hitTest, { immediate: true })
+
+  return { hitTest }
 }

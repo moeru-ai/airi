@@ -22,7 +22,7 @@ import { BasicButton, BasicTextarea, GhostButton } from '@proj-airi/ui'
 import { until, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, nextTick, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
@@ -254,17 +254,20 @@ function fileFromBase64(attachment: ChatDraftHandover['attachments'][number]) {
 
 /**
  * Captures the unsent composer content for a chat mode switch, which closes
- * this window. Returns `undefined` when there is nothing to carry over.
+ * this window. An image that is still being read joins the content before it
+ * is captured. Returns `undefined` when there is nothing to carry over.
  */
-function snapshotDraft(): ChatDraftHandover | undefined {
+async function snapshotDraft(): Promise<ChatDraftHandover | undefined> {
+  await until(pendingImages).toBe(0)
   if (!messageInput.value && attachments.value.length === 0 && !replyTarget.value)
     return undefined
 
+  const reply = replyTarget.value
   return {
     sessionId: activeSessionId.value,
     text: messageInput.value,
-    // A plain copy: the store's reactive message proxies cannot cross IPC.
-    replyTarget: replyTarget.value && JSON.parse(JSON.stringify(replyTarget.value)),
+    // The history hands out reactive message proxies, which cannot cross IPC.
+    replyTarget: reply && { label: reply.label, message: structuredClone(toRaw(reply.message)) },
     attachments: attachments.value.map(attachment => ({
       data: attachment.data,
       mimeType: attachment.mimeType,
@@ -274,16 +277,18 @@ function snapshotDraft(): ChatDraftHandover | undefined {
 }
 
 /**
- * Puts content from another chat window back into the composer.
+ * Puts content from another chat window back into the composer, and returns
+ * whether it did.
  *
  * A new window receives the synchronized session state after it mounts, so
  * the content waits for its session to become active. Content for another
- * session, or a session that does not arrive, is dropped.
+ * session, or a session that does not arrive, is not restored, and the mode
+ * switch keeps the window that still holds it.
  */
-async function restoreDraft(draft: ChatDraftHandover) {
+async function restoreDraft(draft: ChatDraftHandover): Promise<boolean> {
   await until(activeSessionId).toBe(draft.sessionId, { timeout: 5000 })
   if (activeSessionId.value !== draft.sessionId)
-    return
+    return false
 
   messageInput.value = draft.text
   if (draft.replyTarget)
@@ -295,6 +300,7 @@ async function restoreDraft(draft: ChatDraftHandover) {
     file: fileFromBase64(attachment),
     previewId: crypto.randomUUID(),
   })))
+  return true
 }
 
 defineExpose({ restoreDraft, snapshotDraft })

@@ -66,7 +66,9 @@ export function createRendererLoop(params: { window: BrowserWindow, run: () => P
 
     throw error
   }, {
-    autoStart: params.autoStart ?? false,
+    // `startLoop` below owns starting, so an `autoStart` loop also waits for
+    // a visible window.
+    autoStart: false,
     interval: params.interval,
   })
 
@@ -74,7 +76,7 @@ export function createRendererLoop(params: { window: BrowserWindow, run: () => P
 
   // A hidden window paints nothing, so its renderer has no use for what the
   // loop sends. The loop pauses while the window is hidden and resumes when
-  // the window shows again, if the renderer started it.
+  // the window shows again, if it was started and not stopped since.
   let started = false
 
   const startLoop = () => {
@@ -99,6 +101,10 @@ export function createRendererLoop(params: { window: BrowserWindow, run: () => P
       startLoop()
     }
   })
+
+  if (params.autoStart) {
+    startLoop()
+  }
 
   return {
     start: startLoop,

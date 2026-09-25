@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatDraftHandover, ChatWindowPreferences } from '../../../shared/eventa'
+import type { ChatWindowPreferences } from '../../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { GhostButton } from '@proj-airi/ui'
@@ -19,13 +19,9 @@ import { useI18n } from 'vue-i18n'
 
 import { electronChatWindowGetPreferences, electronChatWindowSetPreferences } from '../../../shared/eventa'
 
-const props = defineProps<{
-  /**
-   * Captures the unsent composer content of this window. A mode switch closes
-   * the window, so the content goes to the next chat window.
-   */
-  collectDraft?: () => ChatDraftHandover | undefined
-}>()
+// The root is the menu, which renders no element, so a class from the parent
+// goes to the trigger button.
+defineOptions({ inheritAttrs: false })
 
 const getPreferences = useElectronEventaInvoke(electronChatWindowGetPreferences)
 const setPreferences = useElectronEventaInvoke(electronChatWindowSetPreferences)
@@ -67,17 +63,23 @@ const currentStyleId = computed<ChatWindowStyleId | undefined>(() => {
 // its own.
 const pinnable = computed(() => currentStyleId.value === 'floating-free')
 
+/** Counts choices, so only the latest one decides what the menu shows. */
+let latestChoice = 0
+
 async function apply(next: ChatWindowPreferences) {
-  const previous = preferences.value
+  const choice = ++latestChoice
   preferences.value = next
-  const draft = previous && next.mode !== previous.mode ? props.collectDraft?.() : undefined
   try {
-    await setPreferences({ preferences: next, draft })
+    await setPreferences(next)
   }
   catch (error) {
-    // The main process kept or restored the previous mode; show that one.
-    preferences.value = previous
     console.error('[chat-window] Failed to switch the chat window style:', error)
+    // The main process kept the open window and its saved mode. A newer
+    // choice already shows its own preferences, and it reads them back itself
+    // if it fails too.
+    const saved = await getPreferences()
+    if (choice === latestChoice)
+      preferences.value = saved
   }
 }
 
@@ -103,13 +105,14 @@ const itemClasses = [
   <DropdownMenuRoot>
     <DropdownMenuTrigger as-child :disabled="!preferences">
       <GhostButton
+        v-bind="$attrs"
         size="unset"
         :disabled="!preferences"
         :class="['size-7 text-neutral-400 dark:text-neutral-500']"
         :title="t('tamagotchi.stage.chat-window.style.title')"
         :aria-label="t('tamagotchi.stage.chat-window.style.title')"
       >
-        <div class="i-solar:layers-minimalistic-bold-duotone" />
+        <div class="i-solar:layers-minimalistic-bold-duotone size-4" />
       </GhostButton>
     </DropdownMenuTrigger>
     <DropdownMenuPortal>

@@ -1,6 +1,10 @@
 import type { Point, Rectangle, Size } from 'electron'
 
+import type { DisplayArea } from '../../../shared/utils/electron/display'
+
 import { clamp } from 'es-toolkit'
+
+import { clampBoundsWithinRect, findDominantDisplayArea } from '../../../shared/utils/electron/display'
 
 /**
  * Room an attached chat needs beyond a fit before it returns to the preferred
@@ -85,4 +89,21 @@ export function attachedChatOffset(
     x: clamp(x, workArea.x, workArea.x + workArea.width - size.width) - main.x,
     y: clamp(y, workArea.y, workArea.y + workArea.height - size.height) - main.y,
   }
+}
+
+/**
+ * Bounds that keep the floating chat whole on one display.
+ *
+ * The chat has no title bar: its resize grip and drag handle are the only way
+ * to move it back, so no part of it may leave the work area. The display that
+ * would hold most of `bounds` takes the chat, which lets a drag carry it onto
+ * another display. A chat larger than that work area shrinks to it.
+ *
+ * @example
+ * keepChatOnDisplay({ x: 1800, y: 0, width: 380, height: 560 }, [{ bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 25, width: 1920, height: 1055 } }])
+ * // => { x: 1540, y: 25, width: 380, height: 560 }
+ */
+export function keepChatOnDisplay(bounds: Rectangle, displays: readonly DisplayArea[]): Rectangle {
+  const display = findDominantDisplayArea(bounds, displays)
+  return display ? clampBoundsWithinRect(bounds, display.workArea) : bounds
 }

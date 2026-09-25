@@ -1,7 +1,7 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { InferOutput } from 'valibot'
 
-import type { ChatButtonState, ChatDraftHandover, ChatWindowPreferences } from '../../../shared/eventa'
+import type { ChatButtonState, ChatDraftHandover, ChatWindowMode, ChatWindowPreferences } from '../../../shared/eventa'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
@@ -9,14 +9,21 @@ import type { WidgetsWindowManager } from '../widgets'
 
 import { join, resolve } from 'node:path'
 
-import { defineInvokeHandler } from '@moeru/eventa'
+import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext as createElectronContext } from '@moeru/eventa/adapters/electron/main'
+import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, ipcMain } from 'electron'
 import { boolean, number, object, optional, picklist } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { electronChatWindowGetPreferences, electronChatWindowSetPreferences, electronChatWindowTakeDraft } from '../../../shared/eventa'
+import {
+  electronChatWindowCollectDraft,
+  electronChatWindowDraftSettled,
+  electronChatWindowGetPreferences,
+  electronChatWindowSetPreferences,
+  electronChatWindowTakeDraft,
+} from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
@@ -52,6 +59,13 @@ const defaultChatWindowConfig: ChatWindowConfig = {
   pinned: true,
   floating: { width: 380, height: 560 },
 }
+
+/**
+ * Longest wait for a chat window to hand over its draft. The renderer first
+ * lets pending image reads finish, and large images take a few seconds to
+ * compress. A window that misses it stops the switch and keeps its draft.
+ */
+const draftCollectTimeout = 10_000
 
 /** Opens the chat in the mode the user chose. */
 export interface ChatWindowManager {
@@ -99,13 +113,19 @@ export function setupChatWindowManager(params: {
   }
 
   /**
-   * Unsent composer content from the window that asked for a mode switch,
-   * kept until the next chat window takes it. A window that fails to open
-   * leaves it for the next chat window that does.
+   * Asks a chat renderer for its unsent draft. Each chat window adds its own
+   * entry in setupDraftHandover, and the entry goes away with the window.
    */
-  let pendingDraft: ChatDraftHandover | undefined
+  const draftCollectors = new WeakMap<BrowserWindow, () => Promise<ChatDraftHandover | undefined>>()
 
-  async function setupChatInvokes(window: BrowserWindow, context: EventaContext) {
+  async function collectDraft(window: BrowserWindow | undefined) {
+    // A closed window or a crashed renderer has no draft left to carry.
+    if (!window || isRendererUnavailable(window))
+      return undefined
+    return draftCollectors.get(window)?.()
+  }
+
+  async function setupChatInvokes(window: BrowserWindow, context: EventaContext, mode: ChatWindowMode) {
     await setupChatWindowElectronInvokes({
       context,
       window,
@@ -117,17 +137,13 @@ export function setupChatWindowManager(params: {
 
     defineInvokeHandler(context, electronChatWindowGetPreferences, () => getPreferences())
     // A switch that succeeds closes the window that asked for it, and its
-    // reply goes nowhere. A switch that fails answers with the error, so the
-    // menu can show the mode that is really open.
-    defineInvokeHandler(context, electronChatWindowSetPreferences, async (payload) => {
-      if (payload)
-        await setPreferences(payload.preferences, payload.draft)
+    // reply goes nowhere. A switch that fails answers with the error, and the
+    // menu reads the saved preferences again.
+    defineInvokeHandler(context, electronChatWindowSetPreferences, async (preferences) => {
+      if (preferences)
+        await setPreferences(preferences)
     })
-    defineInvokeHandler(context, electronChatWindowTakeDraft, () => {
-      const draft = pendingDraft
-      pendingDraft = undefined
-      return draft
-    })
+    setupDraftHandover(window, context, mode)
   }
 
   const legacy = createReusableWindow(async () => {
@@ -155,7 +171,7 @@ export function setupChatWindowManager(params: {
     const { context } = createElectronContext(ipcMain, window, { onlySameWindow: true })
 
     try {
-      await setupChatInvokes(window, context)
+      await setupChatInvokes(window, context, 'legacy')
       await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/chat', {
         query: {
           'stage-runtime': 'minimal',
@@ -179,7 +195,7 @@ export function setupChatWindowManager(params: {
     getPinned: () => getConfig().pinned,
     getBounds: () => getConfig().floating,
     saveBounds: bounds => updateConfig({ ...getConfig(), floating: bounds }),
-    setupChatInvokes,
+    setupChatInvokes: (window, context) => setupChatInvokes(window, context, 'floating'),
     onFoldedChange: () => emitButtonState(),
   })
 
@@ -205,36 +221,42 @@ export function setupChatWindowManager(params: {
 
   const modeSwitch = createChatModeSwitch({
     getMode: () => getConfig().mode,
-    legacy: { open: openLegacy, close: legacy.close },
-    floating: { open: floating.open, close: floating.close },
+    setMode: mode => updateConfig({ ...getConfig(), mode }),
+    legacy: { open: openLegacy, close: legacy.close, collectDraft: async () => collectDraft(legacy.getOpenWindow()) },
+    floating: { open: floating.open, close: floating.close, collectDraft: async () => collectDraft(floating.getOpenWindow()) },
   })
 
-  async function setPreferences(next: ChatWindowPreferences, draft?: ChatDraftHandover) {
-    const previous = getConfig()
-    updateConfig({ ...previous, mode: next.mode, placement: next.placement, pinned: next.pinned })
+  /**
+   * Lets the mode switch collect this window's draft when it closes the
+   * window, and hand a draft to it when it opens the window. `mode` is the
+   * correlation key of the handover.
+   */
+  function setupDraftHandover(window: BrowserWindow, context: EventaContext, mode: ChatWindowMode) {
+    defineInvokeHandler(context, electronChatWindowTakeDraft, () => modeSwitch.takeDraft(mode))
+    defineInvokeHandler(context, electronChatWindowDraftSettled, (payload) => {
+      modeSwitch.settleDraft(mode, payload?.restored ?? false)
+    })
 
-    if (next.mode !== previous.mode) {
-      if (draft)
-        pendingDraft = draft
-      try {
-        await modeSwitch.show()
-        emitButtonState()
-      }
-      catch (error) {
-        // The new window did not open, so the old one still shows the chat
-        // and keeps its draft. The saved mode goes back to match it, unless a
-        // newer choice has replaced it meanwhile.
-        pendingDraft = undefined
-        if (getConfig().mode === next.mode)
-          updateConfig({ ...getConfig(), mode: previous.mode })
-        emitButtonState()
-        throw error
-      }
-      return
+    const requestDraft = defineInvoke(context, electronChatWindowCollectDraft)
+    draftCollectors.set(window, () => requestDraft(undefined, { signal: AbortSignal.timeout(draftCollectTimeout) }))
+  }
+
+  async function setPreferences(next: ChatWindowPreferences) {
+    // The placement is saved first, so a floating window that the mode switch
+    // below creates starts in it.
+    await modeSwitch.run(async () => {
+      const previous = getConfig()
+      updateConfig({ ...previous, placement: next.placement, pinned: next.pinned })
+      if (next.placement !== previous.placement || next.pinned !== previous.pinned)
+        floating.applyPlacement()
+    })
+
+    try {
+      await modeSwitch.switchTo(next.mode)
     }
-
-    if (next.placement !== previous.placement || next.pinned !== previous.pinned)
-      await modeSwitch.run(async () => floating.applyPlacement())
+    finally {
+      emitButtonState()
+    }
   }
 
   return {

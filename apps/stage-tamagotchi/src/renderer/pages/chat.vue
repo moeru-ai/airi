@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { storeToRefs } from 'pinia'
-import { onMounted, shallowRef, useTemplateRef } from 'vue'
+import { shallowRef, useTemplateRef } from 'vue'
 
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
 import ChatWindowStyleMenu from '../components/chat-window/chat-window-style-menu.vue'
@@ -11,19 +10,13 @@ import InteractiveArea from '../components/InteractiveArea.vue'
 import WindowTitleBar from '../components/Window/TitleBar.vue'
 import ChatPageShell from './chat-page-shell.vue'
 
-import { electronChatWindowTakeDraft } from '../../shared/eventa'
+import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
-const takeDraft = useElectronEventaInvoke(electronChatWindowTakeDraft)
 
-// A mode switch from the floating chat hands its unsent content to this window.
-onMounted(async () => {
-  const draft = await takeDraft()
-  if (draft)
-    await interactiveArea.value?.restoreDraft(draft)
-})
+useChatDraftHandover(interactiveArea)
 </script>
 
 <template>
@@ -35,7 +28,7 @@ onMounted(async () => {
     >
       <template #actions>
         <ChatSpeechMuteButton />
-        <ChatWindowStyleMenu :collect-draft="() => interactiveArea?.snapshotDraft()" />
+        <ChatWindowStyleMenu />
       </template>
     </WindowTitleBar>
     <InteractiveArea

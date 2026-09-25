@@ -139,13 +139,6 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
 }
 
-/** Moves `bounds` into `rect` without changing its size. */
-export function clampBoundsWithinRect(bounds: Rectangle, rect: Rectangle): Rectangle {
-  const x = Math.min(Math.max(bounds.x, rect.x), rect.x + rect.width - bounds.width)
-  const y = Math.min(Math.max(bounds.y, rect.y), rect.y + rect.height - bounds.height)
-  return { x, y, width: bounds.width, height: bounds.height }
-}
-
 interface SizeActual { actual: number }
 interface SizePercentage { percentage: number }
 type Size = SizeActual | SizePercentage | number

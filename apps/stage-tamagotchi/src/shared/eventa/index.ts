@@ -100,9 +100,9 @@ export interface ChatFloatingState {
 }
 
 /**
- * Unsent composer content that a chat mode switch carries to the next chat
- * window. Each renderer owns its composer, so the window that asks for the
- * switch hands its content over through the main process.
+ * Unsent composer content that a chat mode switch carries from the window it
+ * closes to the window it opens. Each renderer owns its composer, so the
+ * content crosses through the main process.
  */
 export interface ChatDraftHandover {
   /** The chat session the content belongs to; another session discards it. */
@@ -131,12 +131,29 @@ export const electronChatButtonStateChanged = defineEventa<ChatButtonState>('eve
 export const electronChatWindowGetPreferences = defineInvokeEventa<ChatWindowPreferences>('eventa:invoke:electron:windows:chat:get-preferences')
 /**
  * Persists the preferences and swaps the open chat window when the mode
- * changes. A `draft` goes to the next chat window through
- * {@link electronChatWindowTakeDraft}.
+ * changes. The swap carries the unsent draft over, and it rejects without
+ * closing the open window when the draft cannot be carried.
  */
-export const electronChatWindowSetPreferences = defineInvokeEventa<void, { preferences: ChatWindowPreferences, draft?: ChatDraftHandover }>('eventa:invoke:electron:windows:chat:set-preferences')
-/** Returns the handed over draft once, then forgets it. */
+export const electronChatWindowSetPreferences = defineInvokeEventa<void, ChatWindowPreferences>('eventa:invoke:electron:windows:chat:set-preferences')
+/**
+ * Asks the chat window that a mode switch is about to close for its unsent
+ * draft. The main process invokes it and the chat renderer answers, after any
+ * image it is still reading has entered the draft.
+ */
+export const electronChatWindowCollectDraft = defineInvokeEventa<ChatDraftHandover | undefined>('eventa:invoke:electron:windows:chat:collect-draft')
+/**
+ * Returns the draft that a mode switch carries into the calling chat window.
+ * A chat renderer calls it once it has mounted, and `undefined` means there
+ * is nothing to put back.
+ */
 export const electronChatWindowTakeDraft = defineInvokeEventa<ChatDraftHandover | undefined>('eventa:invoke:electron:windows:chat:take-draft')
+/**
+ * Reports what happened to the taken draft. The mode switch closes the
+ * previous window only after `restored: true`; with `false` it closes the new
+ * window instead, and the draft stays where it was. A window with no draft to
+ * take reports `true`, which also tells the switch the page has mounted.
+ */
+export const electronChatWindowDraftSettled = defineInvokeEventa<void, { restored: boolean }>('eventa:invoke:electron:windows:chat:draft-settled')
 export const electronChatFloatingGetState = defineInvokeEventa<ChatFloatingState>('eventa:invoke:electron:windows:chat-floating:get-state')
 export const electronChatFloatingStateChanged = defineEventa<ChatFloatingState>('eventa:event:electron:windows:chat-floating:state-changed')
 /** The renderer finished hiding the chat content for a fold or a relocation. */
@@ -148,11 +165,14 @@ export const electronChatFloatingContentHidden = defineInvokeEventa<void>('event
  */
 export const electronChatFloatingResizeBy = defineInvokeEventa<void, { deltaX: number, deltaY: number }>('eventa:invoke:electron:windows:chat-floating:resize-by')
 /**
- * Moves a `free` floating chat by the cursor movement of its drag handle, in
- * whole screen pixels. The handle does not use `app-region: drag`: a native
- * drag region on this click-through window stops click-through from working.
+ * Moves a `free` floating chat to where its drag handle puts it: the window
+ * position in screen pixels, before any screen edge stops it. The main
+ * process keeps the whole chat on the display that would hold most of it, so
+ * a drag can carry the chat to another display. The handle does not use
+ * `app-region: drag`: a native drag region on this click-through window stops
+ * click-through from working.
  */
-export const electronChatFloatingMoveBy = defineInvokeEventa<void, { deltaX: number, deltaY: number }>('eventa:invoke:electron:windows:chat-floating:move-by')
+export const electronChatFloatingMoveTo = defineInvokeEventa<void, { x: number, y: number }>('eventa:invoke:electron:windows:chat-floating:move-to')
 export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:hide')
 export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
 export const electronSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:electron:windows:spotlight:shortcut:get')

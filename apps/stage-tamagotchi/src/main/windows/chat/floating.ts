@@ -1,5 +1,6 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { ResizeDirection } from '@proj-airi/electron-eventa'
+import type { Point } from 'electron'
 
 import type { ChatFloatingPlacement, ChatFloatingState } from '../../../shared/eventa'
 import type { AttachedChatLayout } from './floating-placement'
@@ -19,15 +20,14 @@ import icon from '../../../../resources/icon.png?asset'
 import {
   electronChatFloatingContentHidden,
   electronChatFloatingGetState,
-  electronChatFloatingMoveBy,
+  electronChatFloatingMoveTo,
   electronChatFloatingResizeBy,
   electronChatFloatingStateChanged,
 } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { clampBoundsWithinRect } from '../shared/display'
-import { protectPrivilegedWindowNavigation, resizeWindowByDelta, transparentWindowConfig } from '../shared/window'
-import { attachedChatOffset, chooseAttachedChatLayout, preferredAttachedChatLayout } from './floating-placement'
+import { protectPrivilegedWindowNavigation, resizeBoundsByDelta, transparentWindowConfig } from '../shared/window'
+import { attachedChatOffset, chooseAttachedChatLayout, keepChatOnDisplay, preferredAttachedChatLayout } from './floating-placement'
 
 type EventaContext = ReturnType<typeof createContext>['context']
 
@@ -51,6 +51,8 @@ interface FloatingChatWindow {
   toggle: () => Promise<void>
   /** Closes the window, including one that is still being created. */
   close: () => void
+  /** Returns the window without creating one. */
+  getOpenWindow: () => BrowserWindow | undefined
   /** Moves the window into the persisted placement. */
   applyPlacement: () => void
   /** Whether the chat is unfolded, which the chat button shows as pressed. */
@@ -309,12 +311,12 @@ export function setupFloatingChatWindow(params: {
     emitState()
   }
 
-  function moveBy(target: BrowserWindow, delta: { deltaX: number, deltaY: number }) {
+  function moveTo(target: BrowserWindow, position: Point) {
     if (params.getPlacement() !== 'free')
       return
 
-    const bounds = target.getBounds()
-    target.setPosition(bounds.x + Math.round(delta.deltaX), bounds.y + Math.round(delta.deltaY))
+    const { width, height } = target.getBounds()
+    target.setBounds(keepChatOnDisplay({ ...position, width, height }, screen.getAllDisplays()))
   }
 
   function persistBounds(target: BrowserWindow) {
@@ -332,13 +334,15 @@ export function setupFloatingChatWindow(params: {
     // The layout stays during a resize, so the chat never jumps to the other
     // side under the cursor. A free chat has its grip at the top-left.
     stopSlide()
-    resizeWindowByDelta({
-      window: target,
+    const resized = resizeBoundsByDelta(target.getBounds(), {
       ...delta,
       direction: attachedTo ? gripDirection(layout) : 'nw',
       minWidth: minimumSize.width,
       minHeight: minimumSize.height,
     })
+    // The chat stops growing at the edges of the work area, so the grip stays
+    // in reach.
+    target.setBounds(keepChatOnDisplay(resized, screen.getAllDisplays()))
     if (attachedTo)
       moveToLayout(attachedTo, target)
 
@@ -363,10 +367,9 @@ export function setupFloatingChatWindow(params: {
       ...transparentWindowConfig(),
     })
 
-    if (params.getPlacement() === 'free' && saved.x != null && saved.y != null) {
-      const bounds = { x: saved.x, y: saved.y, width: saved.width, height: saved.height }
-      target.setBounds(clampBoundsWithinRect(bounds, screen.getDisplayMatching(bounds).workArea))
-    }
+    // The saved position may be on a display that is gone or smaller now.
+    if (params.getPlacement() === 'free' && saved.x != null && saved.y != null)
+      target.setBounds(keepChatOnDisplay({ x: saved.x, y: saved.y, width: saved.width, height: saved.height }, screen.getAllDisplays()))
 
     target.setVisibleOnAllWorkspaces(true)
     if (isMacOS) {
@@ -378,7 +381,6 @@ export function setupFloatingChatWindow(params: {
     target.setIgnoreMouseEvents(true, { forward: true })
     protectPrivilegedWindowNavigation(target)
 
-    ipcMain.setMaxListeners(0)
     // `onlySameWindow` hears only this window and disposes with it.
     const { context: targetContext } = createElectronContext(ipcMain, target, { onlySameWindow: true })
     context = targetContext
@@ -426,9 +428,9 @@ export function setupFloatingChatWindow(params: {
       if (delta)
         resizeBy(target, delta)
     })
-    defineInvokeHandler(targetContext, electronChatFloatingMoveBy, (delta) => {
-      if (delta)
-        moveBy(target, delta)
+    defineInvokeHandler(targetContext, electronChatFloatingMoveTo, (position) => {
+      if (position)
+        moveTo(target, position)
     })
 
     try {
@@ -486,6 +488,7 @@ export function setupFloatingChatWindow(params: {
       await open()
     },
     close: reusable.close,
+    getOpenWindow: reusable.getOpenWindow,
     applyPlacement() {
       const window = reusable.getOpenWindow()
       if (window)

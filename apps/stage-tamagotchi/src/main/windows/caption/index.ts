@@ -18,10 +18,11 @@ import { boolean, number, object, optional, record, string } from 'valibot'
 import icon from '../../../../resources/icon.png?asset'
 
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../../shared/eventa'
+import { clampBoundsWithinRect } from '../../../shared/utils/electron/display'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { clampBoundsWithinRect, mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
+import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
 import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared/window'
 
 const captionConfigSchema = object({
