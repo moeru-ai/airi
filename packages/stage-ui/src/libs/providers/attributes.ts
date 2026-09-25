@@ -55,6 +55,7 @@ const providerAttributesById = {
   'byteplus': paidCloud,
   'byteplus-coding-plan': paidCloud,
   'cerebras-ai': paidCloud,
+  'cheaperinference': paidCloud,
   'cloudflare-workers-ai': paidCloud,
   'comet-api': paidCloud,
   'comet-api-speech': paidCloud,
