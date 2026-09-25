@@ -5,7 +5,7 @@ import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { array, check, integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform, url } from 'valibot'
+import { array, check, integer, maxValue, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform, url } from 'valibot'
 
 const AdditionalTrustedOriginsSchema = pipe(
   string(),
@@ -108,6 +108,20 @@ const EnvSchema = object({
   OPENPANEL_CLIENT_ID: optional(string()),
   OPENPANEL_CLIENT_SECRET: optional(string()),
   REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
+  S3_ACCESS_KEY_ID: optional(pipe(string(), nonEmpty('S3_ACCESS_KEY_ID must not be empty when set'))),
+  S3_BUCKET: optional(pipe(string(), nonEmpty('S3_BUCKET must not be empty when set'))),
+  S3_ENDPOINT: optional(pipe(string(), url('S3_ENDPOINT must be a valid URL'))),
+  S3_FORCE_PATH_STYLE: optional(
+    pipe(
+      string(),
+      picklist(['true', 'false']),
+      transform(value => value === 'true'),
+    ),
+    'true',
+  ),
+  S3_REGION: optional(pipe(string(), nonEmpty('S3_REGION must not be empty when set'))),
+  S3_SECRET_ACCESS_KEY: optional(pipe(string(), nonEmpty('S3_SECRET_ACCESS_KEY must not be empty when set'))),
+  S3_SIGNED_URL_TTL_SECONDS: optionalIntegerFromString(900, 'S3_SIGNED_URL_TTL_SECONDS', 60),
   STRIPE_SECRET_KEY: optional(string()),
 
   STRIPE_WEBHOOK_SECRET: optional(string()),

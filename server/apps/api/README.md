@@ -7,7 +7,7 @@ auth/OIDC routes.
 ## Responsibilities
 
 - Hono business APIs and WebSocket endpoints.
-- Characters, chats, providers, Flux, Stripe, model routing, and billing.
+- Characters, chats, private attachments, providers, Flux, Stripe, model routing, and billing.
 - PostgreSQL migration ownership for the currently shared database. Drizzle reads the checked-in `drizzle/` journal and SQL files at startup.
 - Redis cache, configuration KV, and cross-instance Pub/Sub.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
@@ -35,6 +35,25 @@ Prices from Stripe. `GET /packages` returns `stripePriceId`. Checkout accepts
 `stripePriceId`. Label, flux amount, and display prices come from Price
 metadata and Stripe amounts.
 The adapter maps a verified session onto a `ClaimReceipt`, then calls `settle`.
+
+## Private chat attachments
+
+The attachment API uses a private S3-compatible bucket. The browser uploads each file through a short-lived presigned PUT URL.
+The API checks the object size, content type, and SHA-256 metadata before a message can reference the attachment.
+
+Set these variables:
+
+- `S3_BUCKET`
+- `S3_REGION`
+
+Set `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` together for services that use static credentials.
+Omit both to use the AWS SDK default credential provider chain, including IAM roles.
+`S3_ENDPOINT` selects a compatible service such as MinIO, R2, or Railway Bucket. Omit it for AWS S3.
+`S3_FORCE_PATH_STYLE` defaults to `true`. Set it to `false` when the service requires virtual-hosted bucket URLs.
+`S3_SIGNED_URL_TTL_SECONDS` defaults to 900 seconds.
+
+Allow browser `PUT` requests in the bucket CORS policy. Allow the `content-type` and `x-amz-meta-sha256` request headers.
+Keep the bucket private. Clients download objects only after the API checks attachment ownership or chat membership.
 
 ## Run locally
 

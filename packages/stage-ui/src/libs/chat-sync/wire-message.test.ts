@@ -7,6 +7,7 @@ import { extractMessageText, isCloudSyncableMessage, mergeCloudMessagesIntoLocal
 
 function makeWire(partial: Partial<WireMessage> & Pick<WireMessage, 'id' | 'seq'>): WireMessage {
   return {
+    attachments: [],
     chatId: partial.chatId ?? 'chat-1',
     senderId: partial.senderId ?? null,
     role: partial.role ?? 'assistant',
@@ -109,6 +110,7 @@ describe('wireMessageToLocal', () => {
       senderId: null,
       role: 'assistant',
       content: 'reply',
+      attachments: [],
       seq: 7,
       createdAt: 1730000000000,
       updatedAt: 1730000000000,
@@ -134,6 +136,7 @@ describe('wireMessageToLocal', () => {
       senderId: null,
       role: 'assistant',
       content: '',
+      attachments: [],
       seq: 1,
       createdAt: 0,
       updatedAt: 0,
@@ -154,6 +157,7 @@ describe('wireMessageToLocal', () => {
       senderId: null,
       role: 'tool',
       content: '',
+      attachments: [],
       seq: 1,
       createdAt: 0,
       updatedAt: 0,
@@ -161,6 +165,22 @@ describe('wireMessageToLocal', () => {
     const local = wireMessageToLocal(wire)
     expect(local.role).toBe('error')
     expect(local.content).toContain('tool message')
+  })
+
+  it('restores downloaded attachments as local image content', () => {
+    const wire = makeWire({
+      id: 'm-image',
+      seq: 2,
+      role: 'user',
+      content: 'look',
+      attachments: [{ id: 'attachment-1', mimeType: 'image/png', size: 4 }],
+    })
+    const local = wireMessageToLocal(wire, new Map([['attachment-1', 'data:image/png;base64,dGVzdA==']]))
+
+    expect(local.content).toEqual([
+      { type: 'text', text: 'look' },
+      { type: 'image_url', image_url: { url: 'data:image/png;base64,dGVzdA==' } },
+    ])
   })
 })
 

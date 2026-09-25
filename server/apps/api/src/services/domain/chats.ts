@@ -9,7 +9,7 @@ import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import { createBadRequestError, createConflictError, createForbiddenError, createNotFoundError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
 
-import * as schema from '../../schemas/chats'
+import * as schema from '../../schemas'
 
 const logger = useLogger('chats')
 
@@ -234,6 +234,20 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         if (!chatRow)
           throw createNotFoundError('Chat not found')
 
+        const attachmentIds = [...new Set(messages.flatMap(message => message.mediaIds ?? []))]
+        if (attachmentIds.length > 0) {
+          const ownedAttachments = await tx
+            .select({ id: schema.attachments.id })
+            .from(schema.attachments)
+            .where(and(
+              inArray(schema.attachments.id, attachmentIds),
+              eq(schema.attachments.ownerId, userId),
+              eq(schema.attachments.state, 'ready'),
+            ))
+          if (ownedAttachments.length !== attachmentIds.length)
+            throw createBadRequestError('Messages can reference only ready attachments owned by the sender')
+        }
+
         // Get current max seq for this chat
         const [{ maxSeq }] = await tx
           .select({ maxSeq: sql<number>`coalesce(max(${schema.messages.seq}), 0)` })
@@ -251,6 +265,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
               senderId: schema.messages.senderId,
               role: schema.messages.role,
               content: schema.messages.content,
+              mediaIds: schema.messages.mediaIds,
             }).from(schema.messages).where(inArray(schema.messages.id, messageIds))
           : []
 
@@ -275,6 +290,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
             && existingMessage.role === 'assistant'
             && message.role === 'assistant'
             && existingMessage.content === message.content
+            && JSON.stringify(existingMessage.mediaIds) === JSON.stringify(message.mediaIds ?? [])
           ) {
             unchangedLegacyAssistantIds.add(message.id)
             return false
@@ -304,7 +320,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
               seq: currentSeq,
               content: m.content,
               replyToMessageId: m.replyToMessageId ?? null,
-              mediaIds: [] as string[],
+              mediaIds: m.mediaIds ?? [],
               stickerIds: [] as string[],
               createdAt: now,
               updatedAt: now,
@@ -317,7 +333,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         for (const m of updateMsgs) {
           currentSeq++
           await tx.update(schema.messages)
-            .set({ content: m.content, replyToMessageId: m.replyToMessageId ?? null, seq: currentSeq, updatedAt: now })
+            .set({ content: m.content, mediaIds: m.mediaIds ?? [], replyToMessageId: m.replyToMessageId ?? null, seq: currentSeq, updatedAt: now })
             .where(and(eq(schema.messages.id, m.id), eq(schema.messages.chatId, chatId)))
         }
 
@@ -470,12 +486,29 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           .from(schema.messages)
           .where(eq(schema.messages.chatId, chatId))
 
+        const attachmentIds = [...new Set(rows.flatMap(row => row.mediaIds))]
+        const attachmentRows = attachmentIds.length > 0
+          ? await tx
+              .select({
+                id: schema.attachments.id,
+                mimeType: schema.attachments.mimeType,
+                size: schema.attachments.size,
+              })
+              .from(schema.attachments)
+              .where(and(
+                inArray(schema.attachments.id, attachmentIds),
+                eq(schema.attachments.state, 'ready'),
+              ))
+          : []
+        const attachmentsById = new Map(attachmentRows.map(attachment => [attachment.id, attachment]))
+
         const wireMessages: WireMessage[] = rows.map(r => ({
           id: r.id,
           chatId: r.chatId,
           senderId: r.senderId,
           role: r.role as MessageRole,
           content: r.content,
+          attachments: r.mediaIds.flatMap(id => attachmentsById.get(id) ?? []),
           replyToMessageId: r.replyToMessageId,
           seq: r.seq!,
           createdAt: r.createdAt.getTime(),

@@ -11,6 +11,7 @@ export type {
   PullMessagesResponse,
   SendMessagesRequest,
   SendMessagesResponse,
+  WireAttachment,
   WireMessage,
 } from './chat'
 export {
