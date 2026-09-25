@@ -316,9 +316,8 @@ interface EditorSection {
 
 // Module section styling shared by the chat / vision / speech / body groups.
 const moduleSectionClasses = [
-  'rounded-xl border border-neutral-200/70 dark:border-neutral-800',
-  'bg-neutral-50/60 dark:bg-neutral-900/40',
-  'p-4',
+  'rounded-xl p-4',
+  'bg-neutral-200/40 dark:bg-neutral-800/40',
 ]
 const moduleSectionHeaderClasses = [
   'mb-3 flex items-center gap-2',
