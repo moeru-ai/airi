@@ -24,7 +24,7 @@ Each installable Extension package has an `extension.airi.json` file at its root
     "uses": [
       {
         "id": "dev.airi.example",
-        "version": "1.0.0",
+        "version": "^1.0.0",
         "optional": true
       }
     ]
@@ -32,7 +32,11 @@ Each installable Extension package has an `extension.airi.json` file at its root
 }
 ```
 
-Manifest parsing is strict. Unknown fields, unsafe ids, empty entrypoints, and missing runtime entrypoints fail validation. Kit declarations use exact semantic versions. The manifest owns the Extension version used by the Host session. `defineExtension(...)` owns runtime setup and must use the same Extension id.
+Manifest parsing is strict. Unknown fields, unsafe ids, empty entrypoints, and missing runtime entrypoints fail validation.
+
+Kit Provider declarations use exact semantic versions. Kit Consumer declarations accept semantic version ranges.
+
+The manifest owns the Extension version for the Host session. `defineExtension(...)` must use the same Extension id.
 
 ## Kit API Naming
 

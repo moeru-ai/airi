@@ -1,6 +1,6 @@
 import type { KitRef } from '@proj-airi/plugin-sdk'
 import type { ToolKitRuntime } from '@proj-airi/plugin-sdk-tamagotchi/tools'
-import type { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionHost, HostProvidedKitDeclaration, KitDescriptor } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type { SetupExtensionHostOptions } from '../types'
 import type { GameletOrchestrationRuntime } from './gamelet/orchestration'
@@ -8,9 +8,9 @@ import type { GameletOrchestrationRuntime } from './gamelet/orchestration'
 import { gameletKit, toolKit } from '@proj-airi/plugin-sdk-tamagotchi'
 import { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
 
-import { registerGameletPluginKit } from './gamelet'
+import { gameletPluginKitDescriptor, registerGameletPluginKit } from './gamelet'
 import { createGameletOrchestrationRuntime } from './gamelet/orchestration'
-import { registerWidgetPluginKit } from './widget'
+import { registerWidgetPluginKit, widgetPluginKitDescriptor } from './widget'
 
 type GameletKitClient = ReturnType<typeof gameletKit.createClient>
 type ToolKitClient = ReturnType<typeof toolKit.createClient>
@@ -79,6 +79,41 @@ function createHostToolKit(options: { tools: TamagotchiToolRegistry }): KitRef<T
   }
 }
 
+type HostKitDeclarationSource
+  = | Pick<KitDescriptor, 'kitId' | 'version'>
+    | Pick<KitRef<unknown>, 'id' | 'version'>
+
+/**
+ * Collects stable Host Kit declarations from descriptors and runtime Kit references.
+ *
+ * The function merges matching declarations. It throws when one Kit ID has
+ * different versions because the Planner cannot select one Host contract.
+ *
+ * @example
+ * collectHostProvidedKitDeclarations([
+ *   { kitId: 'kit.gamelet', version: '1.0.0' },
+ *   { id: 'kit.gamelet', version: '1.0.0' },
+ * ])
+ * // => [{ id: 'kit.gamelet', version: '1.0.0' }]
+ */
+function collectHostProvidedKitDeclarations(
+  sources: readonly HostKitDeclarationSource[],
+): HostProvidedKitDeclaration[] {
+  const versionByKitId = new Map<string, string>()
+  for (const source of sources) {
+    const id = 'id' in source ? source.id : source.kitId
+    const currentVersion = versionByKitId.get(id)
+    if (currentVersion && currentVersion !== source.version) {
+      throw new Error(`Host Kit "${id}" has conflicting versions ${currentVersion} and ${source.version}.`)
+    }
+    versionByKitId.set(id, source.version)
+  }
+
+  return [...versionByKitId]
+    .map(([id, version]) => ({ id, version }))
+    .sort((left, right) => left.id.localeCompare(right.id))
+}
+
 /**
  * Creates the built-in kit runtime installed by the Electron extension host.
  *
@@ -94,19 +129,28 @@ function createHostToolKit(options: { tools: TamagotchiToolRegistry }): KitRef<T
  */
 export function createBuiltInExtensionKitRuntime(options: SetupExtensionHostOptions): {
   registerHostKits: (host: ExtensionHost) => void
+  hostProvidedKits: readonly HostProvidedKitDeclaration[]
   tools: TamagotchiToolRegistry
   dispose: () => void
 } {
   const gamelets = createGameletOrchestrationRuntime(options.widgetsManager)
   const tools = new TamagotchiToolRegistry()
+  const toolKitRef = createHostToolKit({ tools })
+  const hostProvidedKits = collectHostProvidedKitDeclarations([
+    widgetPluginKitDescriptor,
+    gameletPluginKitDescriptor,
+    gameletKit,
+    toolKitRef,
+  ])
 
   return {
     registerHostKits(host) {
       registerWidgetPluginKit(host)
       registerGameletPluginKit(host)
       host.registerKitApi(createHostGameletKit({ host, gamelets }))
-      host.registerKitApi(createHostToolKit({ tools }))
+      host.registerKitApi(toolKitRef)
     },
+    hostProvidedKits,
     tools,
     dispose() {
       gamelets.dispose()
