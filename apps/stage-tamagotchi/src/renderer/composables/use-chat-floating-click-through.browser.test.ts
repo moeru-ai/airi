@@ -1,4 +1,4 @@
-import type { ShallowRef } from 'vue'
+import type { MaybeRefOrGetter, ShallowRef, VNode } from 'vue'
 
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
@@ -46,6 +46,23 @@ async function renderPage() {
   return { shown, hitTest: () => hitTest() }
 }
 
+/** Mounts `content` under the cursor and runs the hit test once it is painted. */
+async function renderPainted(content: () => VNode, pinned: MaybeRefOrGetter<boolean> = true) {
+  mocks.cursor!.x.value = 40
+  mocks.cursor!.y.value = 40
+  let hitTest = () => {}
+  const screen = await render(defineComponent({
+    setup() {
+      hitTest = useChatFloatingClickThrough({ pinned }).hitTest
+      return content
+    },
+  }))
+  onTestFinished(() => screen.unmount())
+  hitTest()
+}
+
+const box = { position: 'fixed', left: '0', top: '0', width: '100px', height: '100px' }
+
 describe('useChatFloatingClickThrough', () => {
   it('takes the pointer when a menu opens under a cursor that does not move', async () => {
     // ROOT CAUSE:
@@ -78,25 +95,44 @@ describe('useChatFloatingClickThrough', () => {
   it('takes the pointer over text inside a painted bubble', async () => {
     // Text has no background of its own. Judging only the element under the
     // cursor would pass a click on a message's words through to the desktop.
-    mocks.cursor!.x.value = 40
-    mocks.cursor!.y.value = 40
-    let hitTest = () => {}
-    const screen = await render(defineComponent({
-      setup() {
-        hitTest = useChatFloatingClickThrough({ pinned: true }).hitTest
-        return () => h('div', {
-          style: { position: 'fixed', left: '0', top: '0', width: '100px', height: '100px', background: 'white' },
-        }, [h('span', { style: { display: 'block', width: '100%', height: '100%' } }, 'message')])
-      },
-    }))
-    onTestFinished(() => screen.unmount())
-    hitTest()
+    await renderPainted(() => h('div', { style: { ...box, background: 'white' } }, [
+      h('span', { style: { display: 'block', width: '100%', height: '100%' } }, 'message'),
+    ]))
 
     await vi.waitFor(() => expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([false, { forward: true }]))
   })
 
+  it('takes the pointer over a gradient background', async () => {
+    await renderPainted(() => h('div', { style: { ...box, backgroundImage: 'linear-gradient(white, white)' } }))
+
+    await vi.waitFor(() => expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([false, { forward: true }]))
+  })
+
+  it('lets clicks through content that is faded out', async () => {
+    await renderPainted(() => h('div', { style: { opacity: '0' } }, [h('div', { style: { ...box, background: 'white' } })]))
+
+    await vi.waitFor(() => expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }]))
+  })
+
+  it('takes the pointer at once while the chat is not pinned', async () => {
+    // Clicks passing through an unpinned window would sink it behind the app
+    // that receives them. The pin choice applies without a cursor move.
+    const pinned = shallowRef(true)
+    await renderPainted(() => h('div'), pinned)
+    await vi.waitFor(() => expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }]))
+
+    pinned.value = false
+    await vi.waitFor(() => expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([false, { forward: true }]))
+  })
+
   it('lets clicks through again once a held pointer is released', async () => {
-    await renderPage()
+    const { shown, hitTest } = await renderPage()
+    shown.value = true
+    await nextTick()
+    hitTest()
+    // The pressed content goes away while the hand stays still.
+    shown.value = false
+    await nextTick()
 
     window.dispatchEvent(new PointerEvent('pointerdown'))
     await vi.waitFor(() => expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([false, { forward: true }]))
@@ -128,5 +164,10 @@ describe('useChatFloatingClickThrough', () => {
 
     mocks.cursor!.x.value = 60
     await vi.waitFor(() => expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }]))
+
+    // Coming back near the old spot, where nothing is painted now, stays click-through.
+    mocks.cursor!.x.value = 44
+    await nextTick()
+    expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }])
   })
 })

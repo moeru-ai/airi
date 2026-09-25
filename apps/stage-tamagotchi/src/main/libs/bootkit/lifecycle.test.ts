@@ -3,14 +3,19 @@ import { describe, expect, it, vi } from 'vitest'
 import { emitAppBeforeQuit, onAppBeforeQuit } from './lifecycle'
 
 describe('onAppBeforeQuit', () => {
-  it('does not run a hook after its owner removed it', async () => {
+  it('does not run a hook after its owner removed it, and a second removal touches no other hook', async () => {
     const hook = vi.fn()
+    const other = vi.fn()
     const off = onAppBeforeQuit(hook)
+    const offOther = onAppBeforeQuit(other)
 
+    off()
     off()
     await emitAppBeforeQuit()
 
     expect(hook).not.toHaveBeenCalled()
+    expect(other).toHaveBeenCalled()
+    offOther()
   })
 
   it('runs every hook when one of them removes another hook', async () => {

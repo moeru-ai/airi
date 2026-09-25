@@ -35,6 +35,21 @@ describe('chooseAttachedChatLayout', () => {
     expect(justFits.anchor).toBe('top')
     expect(roomToSpare.anchor).toBe('bottom')
   })
+
+  it('goes back to the left side when neither side has room to spare', () => {
+    const wide = { x: 100, y: 300, width: 1500, height: 600 }
+    const leftJustFits = { x: 380, y: 300, width: 1300, height: 600 }
+
+    expect(chooseAttachedChatLayout(wide, chatSize, workArea, preferredAttachedChatLayout).side).toBe('left')
+    expect(chooseAttachedChatLayout(leftJustFits, chatSize, workArea, { side: 'right', anchor: 'bottom' }).side).toBe('left')
+  })
+
+  it('lines the chat up with the top of a main window on a display below the first', () => {
+    const lowerWorkArea = { x: 0, y: 1080, width: 1920, height: 1055 }
+    const layout = chooseAttachedChatLayout({ x: 1000, y: 1080, width: 450, height: 300 }, chatSize, lowerWorkArea, preferredAttachedChatLayout)
+
+    expect(layout.anchor).toBe('top')
+  })
 })
 
 describe('attachedChatOffset', () => {
@@ -48,6 +63,12 @@ describe('attachedChatOffset', () => {
     const offset = attachedChatOffset({ x: 100, y: 25, width: 450, height: 300 }, chatSize, workArea, { side: 'right', anchor: 'top' })
 
     expect(offset).toEqual({ x: 450, y: 0 })
+  })
+
+  it('keeps a chat without room beside the main window inside the work area', () => {
+    const offset = attachedChatOffset({ x: 100, y: 25, width: 450, height: 300 }, chatSize, workArea, preferredAttachedChatLayout)
+
+    expect(offset).toEqual({ x: -100, y: 0 })
   })
 })
 

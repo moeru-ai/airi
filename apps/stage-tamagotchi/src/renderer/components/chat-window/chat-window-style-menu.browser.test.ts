@@ -88,4 +88,41 @@ describe('chatWindowStyleMenu', () => {
     await page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' }).click()
     await expect.element(page.getByRole('menuitemradio', { name: 'tamagotchi.stage.chat-window.style.floating-free' })).toHaveAttribute('aria-checked', 'true')
   })
+
+  it('waits for the saved preferences, offers the pin only to a free chat, and ignores the current style', async () => {
+    const saved = Promise.withResolvers<ChatWindowPreferences>()
+    mocks.getPreferences.mockReturnValue(saved.promise)
+    mocks.setPreferences.mockClear()
+    const screen = await render(ChatWindowStyleMenu, {
+      global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
+    })
+    onTestFinished(() => screen.unmount())
+    const trigger = page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' })
+    // A choice made before the preferences arrive would overwrite them.
+    await expect.element(trigger).toBeDisabled()
+
+    saved.resolve({ mode: 'floating', placement: 'attached', pinned: true })
+    await expect.element(trigger).toBeEnabled()
+    await choose('floating-attached')
+
+    expect(mocks.setPreferences).not.toHaveBeenCalled()
+    await trigger.click()
+    await expect.element(page.getByRole('menuitemcheckbox')).not.toBeInTheDocument()
+  })
+
+  it('shows the saved style again when a switch fails', async () => {
+    mocks.getPreferences.mockResolvedValue({ mode: 'legacy', placement: 'attached', pinned: true })
+    mocks.setPreferences.mockRejectedValueOnce(new Error('The new chat window could not restore the draft'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const screen = await render(ChatWindowStyleMenu, {
+      global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
+    })
+    onTestFinished(() => screen.unmount())
+    await expect.element(page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' })).toBeEnabled()
+
+    await choose('floating-free')
+
+    await page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' }).click()
+    await expect.element(page.getByRole('menuitemradio', { name: 'tamagotchi.stage.chat-window.style.legacy' })).toHaveAttribute('aria-checked', 'true')
+  })
 })

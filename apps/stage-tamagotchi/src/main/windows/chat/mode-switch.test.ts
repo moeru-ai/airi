@@ -1,6 +1,6 @@
 import type { ChatDraftHandover, ChatWindowMode } from '../../../shared/eventa'
 
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createChatModeSwitch } from './mode-switch'
 
@@ -67,6 +67,10 @@ function setup(options: { floatingRestores: boolean }) {
 }
 
 describe('createChatModeSwitch', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('carries the draft through a quick floating then legacy switch', async () => {
     // ROOT CAUSE:
     //
@@ -116,12 +120,13 @@ describe('createChatModeSwitch', () => {
     expect(floating.open).not.toHaveBeenCalled()
   })
 
-  it('does not let the window being closed settle the draft', async () => {
+  it('does not let the window being closed take or settle the draft', async () => {
     const { legacy, floating, modeSwitch } = setup({ floatingRestores: false })
     // The legacy page reloads during the switch and reports like a new page.
     floating.open.mockImplementationOnce(async () => {
       floating.isOpen = true
       setTimeout(() => {
+        expect(modeSwitch.takeDraft('legacy')).toBeUndefined()
         modeSwitch.settleDraft('legacy', true)
         modeSwitch.settleDraft('floating', false)
       })
@@ -130,5 +135,48 @@ describe('createChatModeSwitch', () => {
     await expect(modeSwitch.switchTo('floating')).rejects.toThrow('could not restore the draft')
 
     expect(legacy.isOpen).toBe(true)
+  })
+
+  it('waits for a slow restore, and gives up on a window that never reports', async () => {
+    vi.useFakeTimers()
+    const { legacy, floating, modeSwitch, getMode } = setup({ floatingRestores: true })
+    // The new page reports only after the synchronized session arrives.
+    floating.open.mockImplementationOnce(async () => {
+      floating.isOpen = true
+      setTimeout(() => modeSwitch.settleDraft('floating', true), 5_000)
+    })
+    const slowSwitch = modeSwitch.switchTo('floating')
+    await vi.advanceTimersByTimeAsync(5_000)
+    await expect(slowSwitch).resolves.toBeUndefined()
+    expect(legacy.isOpen).toBe(false)
+
+    // A page that never reports must not hold the queue forever.
+    legacy.open.mockImplementationOnce(async () => {
+      legacy.isOpen = true
+    })
+    const stuckSwitch = expect(modeSwitch.switchTo('legacy')).rejects.toThrow()
+    await vi.advanceTimersByTimeAsync(10_000)
+    await stuckSwitch
+    expect(getMode()).toBe('floating')
+    expect(legacy.close).toHaveBeenCalled()
+  })
+
+  it('drops the handed over draft once the switch ends', async () => {
+    const { modeSwitch } = setup({ floatingRestores: true })
+
+    await modeSwitch.switchTo('floating')
+
+    expect(modeSwitch.takeDraft('floating')).toBeUndefined()
+  })
+
+  it('closes the other mode window when it shows the saved mode', async () => {
+    const { legacy, floating, modeSwitch } = setup({ floatingRestores: true })
+
+    await modeSwitch.switchTo('floating')
+    legacy.isOpen = true
+    await modeSwitch.show()
+
+    expect(floating.isOpen).toBe(true)
+    expect(legacy.isOpen).toBe(false)
   })
 })
