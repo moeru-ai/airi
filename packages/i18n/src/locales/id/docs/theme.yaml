@@ -1,0 +1,51 @@
+doc:
+  outline:
+    title: Pada halaman ini
+  community:
+    title: Komunitas
+    edit:
+      title: Edit halaman ini
+    star-github:
+      title: Beri Bintang di GitHub
+    discord:
+      title: Mengobrol di Discord
+    support:
+      title: Dukung proyek ini
+  next-page:
+    title: Halaman selanjutnya
+  previous-page:
+    title: Halaman sebelumnya
+  published-at: Diterbitkan pada {date}
+home:
+  subtitle: >-
+    Menciptakan kembali Neuro-sama, sebuah wadah jiwa untuk waifu AI / karakter
+    virtual agar hadir ke dunia kita.
+  download:
+    title: Unduh
+  get-started:
+    title: Memulai
+  try-live:
+    title: Coba Langsung
+search:
+  title: Cari
+  placeholder: Cari dokumentasi...
+navbar:
+  appearance:
+    title: Tampilan
+  language:
+    title: Bahasa
+pages:
+  characters:
+    title: Karakter
+blog:
+  title: Blog & DevLog
+  subtitle: Ikuti perjalanan kami dan dapatkan kabar terbaru dari tim pengembang.
+  card:
+    post:
+      read-more:
+        title: Baca selengkapnya
+  no-posts: Tidak ada postingan di kategori ini.
+  categories:
+    all: Semua
+    devlog: DevLog
+    dreamlog: DreamLog

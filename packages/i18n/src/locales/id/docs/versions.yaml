@@ -1,0 +1,22 @@
+download-buttons:
+  latest-stable: Rilis Stabil Terbaru
+  latest-prerelease: Pra-rilis Terbaru
+  latest-nightly: Build Nightly Terbaru
+  download: Unduh
+  view-release: Lihat Rilis
+  stable-use-case-1: Penggunaan produksi
+  stable-use-case-2: Pengguna yang menginginkan pengalaman stabil
+  stable-use-case-3: Siaran langsung dan pembuatan konten
+  prerelease-use-case-1: Pengguna awal yang ingin mencoba fitur baru
+  prerelease-use-case-2: Menguji dan memberikan masukan kepada pengembang
+  prerelease-use-case-3: Pengguna yang tidak keberatan dengan bug sesekali
+releases-list:
+  stable: Stabil
+  prerelease: Pra-rilis
+  nightly: Nightly
+  released-on: Dirilis pada
+  built-on: Dibuat pada
+  no-releases: 'Saat ini belum ada rilis yang tersedia. Periksa {link} secara langsung.'
+  no-nightly: 'Saat ini belum ada build nightly yang tersedia. Periksa {link} secara langsung.'
+  releases-page: halaman rilis
+  workflow-page: halaman alur kerja

@@ -1,0 +1,1910 @@
+common:
+  save: Simpan
+animations:
+  stage-transitions:
+    title: Nonaktifkan Transisi Panggung
+  use-page-specific-transitions:
+    description: Beberapa halaman memiliki transisinya sendiri, ini akan menimpa transisi panggung
+    title: Gunakan Transisi Khusus Halaman
+dialogs:
+  onboarding:
+    official:
+      title: Penyedia Resmi AIRI
+    title: Selamat Datang di AIRI!
+    description: Mari siapkan penyedia AI pertama Anda untuk memulai.
+    selectProvider: Pilih Penyedia AI
+    configureProvider: Konfigurasikan {provider}
+    apiKey: Kunci API
+    apiKeyHelp: Dapatkan kunci API Anda dari {provider} dan tempelkan di sini
+    baseUrl: URL Dasar
+    baseUrlHelp: URL endpoint API (gunakan default jika ragu)
+    accountId: ID Akun
+    validationRunning: Menjalankan pengujian
+    validationSuccess: Validasi konfigurasi berhasil
+    validationPartial: Konfigurasi tervalidasi sebagian
+    validationFailed: Validasi konfigurasi gagal
+    validationError: 'Kesalahan validasi: {error}'
+    testGeneration: Uji Ping API
+    testGenerationRunning: Memeriksa ping...
+    testGenerationFailed: Pengujian ping gagal
+    retryPingCheck: Coba Lagi
+    skipForNow: Lewati untuk sekarang
+    saveAndContinue: Simpan dan Lanjutkan
+    next: Selanjutnya
+    retry: Coba Lagi
+    credentialsSafeLabel: Jaga keamanan kunci API dan kredensial Anda!
+    credentialsSafeLocal: AIRI berjalan sepenuhnya secara lokal di komputer Anda, dan kami tidak akan pernah mencuri kredensial Anda untuk penyedia AI / LLM. Namun perlu diingat bahwa kunci API adalah informasi sensitif. Pastikan untuk menjaganya tetap aman dan jangan membagikannya kepada siapa pun.
+    credentialsSafeOpenSource: AIRI adalah proyek sumber terbuka di {github}, jika Anda ingin memeriksa bagaimana kami mengelola kredensial Anda, silakan periksa kode kami.
+    enableChatCheck: Izinkan AIRI mengirim pesan "ping" ke model obrolan pertama yang tersedia untuk memeriksa ketersediaan
+    start: Ayo Mulai!
+    loginPrompt: Masuk untuk menggunakan penyedia resmi AIRI demi pengalaman terbaik.
+    loginAction: Masuk
+    setupWithoutSigningIn: Siapkan dengan penyedia Anda sendiri
+    flux: Flux
+    buyFlux: Isi Ulang Flux
+    select-model: Pilih model
+    no-models: Tidak ada model yang tersedia
+    no-models-help: Silakan kembali ke langkah sebelumnya dan periksa kunci API Anda, atau periksa koneksi internet.
+    permissions:
+      title: Manajemen izin
+      description: Anda dapat memberikan izin yang diperlukan sekarang atau melanjutkan dan mengonfigurasinya nanti.
+      notificationsTitle: Notifikasi
+      notificationsDescription: Izinkan pengingat dan pembaruan status penting.
+      microphoneTitle: Mikrofon
+      microphoneDescription: Izinkan AIRI menggunakan mikrofon Anda untuk masukan suara dan transkripsi.
+      requestAction: Minta izin akses
+      optionalHint: Anda dapat melanjutkan meskipun izin ini tidak diberikan.
+      stateGranted: Diizinkan
+      stateNotGranted: Tidak diizinkan
+  bug-report:
+    title: Laporan bug (´;ω;`)ヾ(･∀･`)
+    subtitle: Ups, maaf ada sesuatu yang bermasalah. Bisakah Anda memberi tahu kami apa yang terjadi?
+    trigger-label: Laporkan Bug
+    submit-label: Kirim Laporan Bug
+    triage-description: Sertakan tangkapan layar dan konteks halaman untuk membantu kami menganalisis masalah ini.
+    description-placeholder: Langkah-langkah reproduksi, perilaku yang diharapkan, dan perilaku sebenarnya
+    include-current-page-screenshot: Sertakan tangkapan layar halaman saat ini
+    manual-media:
+      label: Pilih tangkapan layar / rekaman secara manual
+      optional: Opsional.
+    media-files:
+      label: Berkas media
+      description: 'Opsional: pilih secara manual.'
+      placeholder: Pilih berkas gambar atau video
+      selected-count: '{count} berkas dipilih'
+    last-submitted-preview: Pratinjau Muatan yang Terakhir Dikirim
+language:
+  title: Bahasa
+  description: |
+    Bahasa antarmuka. Anda dapat mengatur bahasa karakter nanti.
+controls-island:
+  icon-size:
+    title: Ukuran Ikon Controls Island
+    description: Sesuaikan ukuran ikon controls island
+    auto: Otomatis (responsif)
+    large: Besar (default)
+    small: Kecil
+analytics:
+  notice:
+    title: Analitik penggunaan
+    description: AIRI mengumpulkan analitik penggunaan anonim untuk membantu kami memahami bagaimana aplikasi digunakan dan meningkatkan stabilitas. Tidak ada data pribadi yang dikumpulkan.
+    privacyPrefix: Baca
+    privacyLink: kebijakan privasi
+    onboardingHint: Anda dapat mematikan analitik nanti di Pengaturan > Sistem > Umum.
+    settingsHint: Anda dapat mematikan analitik kapan saja.
+  toggle:
+    title: Aktifkan analitik penggunaan
+    description: Matikan ini untuk menolak pengumpulan data analitik.
+  disabled:
+    title: Analitik dinonaktifkan untuk versi pengembangan ini
+model-select:
+  panel-callout:
+    support-status-header: Kami mendukung model 2D dan 3D
+    support-status: |
+      Klik {select-button} untuk memilih atau mengimpor model. Saat ini, format {zip} (untuk model Live2D dan Spine), {vrm} (untuk model VRM), dan {mmd} (untuk model MMD yang diarsipkan dalam zip bersama teksturnya) didukung.
+    model-type-example: |
+      Neuro-sama menggunakan model 2D yang digerakkan oleh kerangka kerja buatan Live2D Inc, sedangkan Grok Ani (di Grok Companion) menggunakan model 3D dengan format terbuka VRM / MMD.
+  select-model:
+    title: Pemilih Model
+    button: Pilih model
+    select: Pilih
+    import: Impor
+    remove: Hapus
+    confirm: Konfirmasi
+  live2d-report:
+    title: Sebelum mengimpor
+    description: Tinjau data model dan setiap masalah yang ditemukan dalam arsip.
+    description-short: Tinjau data model dan masalah.
+    close: Tutup
+    model:
+      title: Model
+      files: '{count} berkas'
+      types:
+        cubism: Cubism {version} ({format})
+        cubism-compatible: Cubism 3+ ({format})
+        unknown: Tidak diketahui
+    resources:
+      title: Sumber Daya
+      motions: Gerakan (Motions)
+      expressions: Ekspresi
+      parameters: Parameter
+      textures: Tekstur
+      referenced-and-found: '{referenced} dirujuk · {found} ditemukan'
+      referenced: '{count} dirujuk'
+      found: '{count} ditemukan'
+    issues:
+      title: Masalah
+      errors: '{count} kesalahan'
+      warnings: '{count} peringatan'
+      none: Tidak ada masalah yang ditemukan.
+      how-to-fix: Cara memperbaiki
+      resolve-before-import: Selesaikan kesalahan sebelum mengimpor.
+    actions:
+      cancel: Batal
+      confirm: Konfirmasi Impor
+      import-anyway: Tetap Impor
+live2d:
+  change-model:
+    from-file: Muat dari Berkas
+    from-file-select: Pilih
+    from-url: Muat dari URL
+    from-url-confirm: Muat
+    from-url-placeholder: Masukkan URL model Live2D
+    title: Ganti Model
+  edit-motion-map:
+    title: Edit pemetaan gerakan
+  map-motions:
+    play: Putar Gerakan
+    title: Pemetaan Gerakan
+  title: Pengaturan Live2D
+  scale-and-position:
+    title: Skala dan Posisi
+    scale: Skala
+    x: X
+    y: Y
+  switch-to-vrm:
+    title: Beralih ke Avatar 3D?
+    change-to-vrm: Klik di sini untuk beralih ke pengaturan avatar 3D (VRM)
+  theme-color-from-model:
+    title: Ekstrak warna dari model
+    description: |
+      Ekstrak warna dominan dari kanvas rendering saat ini. Klik pada warna untuk menerapkannya ke AIRI. Coba ekstrak beberapa kali dengan pose model yang berbeda jika warnanya belum sesuai keinginan.
+    button-extract:
+      title: Ekstrak
+  animation:
+    title: Animasi
+    motion-driver:
+      title: Penggerak gerakan
+      description: Pilih bagaimana AIRI menghasilkan gerakan diam tubuh dan mata.
+      options:
+        universal:
+          title: Universal
+          description: Gunakan gerakan model, gerakan mata diam, dan pelacakan kursor.
+        magic:
+          title: MAGIC
+          description: Hasilkan gerakan dari dataset bawaan MAGIC.
+      magic:
+        profile:
+          title: Profil MAGIC
+          description: Pilih dataset gerakan bawaan yang sesuai dengan penggerak MAGIC.
+          options:
+            idle-calm:
+              title: Diam / tenang
+              description: Gunakan rekaman gerakan diam dan tenang bawaan.
+            speaking-excited:
+              title: Berbicara / antusias
+              description: Gunakan rekaman gerakan berbicara dan antusias bawaan.
+        skip-mouth-open:
+          title: Lewati bukaan mulut yang dihasilkan
+          description: Pertahankan sinkronisasi bibir saat berbicara. Nonaktifkan opsi ini untuk menggunakan bukaan mulut dari profil.
+        force-view-target:
+          title: Paksa target pandangan ke depan
+          description: Jaga agar mata tetap mengarah ke depan saat MAGIC menggerakkan kepala.
+    focus:
+      title: Aktifkan pelacakan kursor
+      description: Menatap kursor saat sedang bergerak. Gerakan mata diam berlanjut setelah kursor berhenti.
+      offset: Offset mata (%)
+    force-idle-eye-animation:
+      title: Gerakan mata saat diam
+      description: Menatap ke sekeliling secara acak saat tidak ada fokus kursor aktif.
+    blink-enable:
+      title: Aktifkan kedipan
+      description: Biarkan model berkedip.
+    auto-blink:
+      title: Otomatis
+      description: Gunakan animasi kedipan bawaan dari model
+    force-auto-blink:
+      title: Paksa
+      description: Paksa animasi berkedip menggunakan pengatur waktu eksternal
+    blink-mode:
+      title: Mode kedipan
+      description: Pilih kedipan bawaan model atau pengatur waktu kedipan paksa AIRI.
+    idle-motion:
+      title: Animasi diam (idle)
+      no-motion: Tidak ada animasi yang tersedia
+      placeholder: Pilih animasi
+      disable-motion: Dinonaktifkan
+      disable-motion-description: Nonaktifkan animasi diam
+  parameters:
+    title: Parameter Model
+    render-scale:
+      title: Skala render
+    fps:
+      title: FPS
+      description: Batasi laju bingkai rendering
+      options:
+        unlimited: ∞
+    shadow: Bayangan jatuh
+    reset-parameters: Atur ulang ke parameter default
+  clear-model-cache: Hapus cache model
+  expressions:
+    title: Ekspresi
+    override-toggle: Sistem ekspresi
+    sdk-preset-preserved-notice: |
+      Manajer ekspresi SDK dan kedipan mata tetap dipertahankan saat dinonaktifkan.
+    no-expression: Tidak ada ekspresi yang tersedia untuk model ini.
+    llm-integration-wip: Integrasi alat LLM belum terhubung.
+    save-default: Simpan default ekspresi
+    reset: Atur ulang semua ekspresi
+    expose-to-llm-toggle: Ekspos ke LLM
+    expose-to-llm-options:
+      none: Tidak Ada
+      all: Semua
+      custom: Kustom
+microphone: Mikrofon
+models: Model
+pages:
+  account:
+    title: Akun
+    description: Lihat profil Anda dan kelola akun
+    notLoggedIn: Masuk untuk melihat akun Anda dan mengakses semua fitur
+    login: Masuk
+    logout: Keluar
+    fluxBalance: Saldo Flux
+    viewFluxDetails: Lihat detail
+    signedInAs: Masuk sebagai
+    profile:
+      tab: Profil
+      title: Profil
+      description: Kelola nama tampilan publik Anda.
+      name:
+        label: Nama tampilan
+        placeholder: Bagaimana orang lain melihat Anda
+      avatar:
+        gravatarNotice: Avatar dari Gravatar.
+        gravatarLink: Kelola di gravatar.com
+      action:
+        save: Simpan perubahan
+      message:
+        saved: Profil diperbarui.
+      error:
+        fallback: Kami tidak dapat menyimpan perubahan Anda.
+    connections:
+      tab: Akun terhubung
+      title: Akun terhubung
+      description: Masuk ke AIRI melalui penyedia ini. Putuskan tautan untuk mencabut akses, lalu tautkan kembali untuk beralih ke akun lain.
+      status:
+        linked: Terhubung
+        notLinked: Belum terhubung
+        linkedSince: Terhubung sejak {date}
+      action:
+        link: Hubungkan
+        unlink: Putuskan
+      message:
+        loading: Memuat akun yang terhubung...
+        unlinked: '{provider} diputuskan.'
+        linked: '{provider} terhubung.'
+        linkStarted: Mengalihkan ke {provider}…
+      error:
+        listFailed: Tidak dapat memuat akun yang terhubung.
+        unlinkFailed: Tidak dapat memutuskan akun ini.
+        linkFailed: Tidak dapat memulai alur penautan.
+        accountAlreadyLinkedToDifferentUser: Akun OAuth ini sudah terhubung ke akun AIRI lain. Pilih akun penyedia yang berbeda, atau putuskan tautannya dari akun AIRI lain terlebih dahulu.
+        oauthCallbackFailed: Kami tidak dapat menghubungkan akun OAuth ini. Coba lagi atau pilih akun penyedia lain.
+        lastAccount: Ini adalah satu-satunya metode masuk Anda. Buat kata sandi terlebih dahulu sebelum memutuskan tautannya.
+    security:
+      tab: Keamanan
+      title: Keamanan
+      description: Ubah kata sandi Anda. Perangkat Anda yang lain akan dikeluarkan.
+      setDescription: Anda masuk melalui penyedia sosial, jadi belum ada kata sandi saat ini. Kami akan mengirimkan tautan aman ke email untuk membuatnya.
+      currentPassword:
+        label: Kata sandi saat ini
+        placeholder: Masukkan kata sandi saat ini
+      newPassword:
+        label: Kata sandi baru
+        placeholder: Minimal 8 karakter
+      confirmPassword:
+        label: Konfirmasi kata sandi baru
+        placeholder: Ulangi kata sandi baru Anda
+      action:
+        changePassword: Ubah kata sandi
+        sendSetLink: Kirim tautan ke email untuk membuat kata sandi
+      message:
+        changed: Kata sandi berhasil diubah. Sesi lain telah dikeluarkan.
+        setLinkSent: Periksa {email} untuk tautan pembuatan kata sandi Anda.
+      error:
+        fallback: Kami tidak dapat mengubah kata sandi Anda.
+        setLinkFailed: Kami tidak dapat mengirimkan tautan pembuatan kata sandi.
+        passwordMismatch: Kata sandi baru dan konfirmasi kata sandi tidak cocok.
+        passwordSameAsCurrent: Kata sandi baru harus berbeda dari kata sandi saat ini.
+    danger:
+      tab: Zona Bahaya
+      title: Zona Bahaya
+      description: Tindakan akun yang tidak dapat diurungkan ada di sini.
+      deleteAccount:
+        title: Hapus akun
+        description: Hapus akun dan data pribadi Anda secara permanen.
+        action: Hapus akun
+        modal:
+          title: Hapus akun?
+          warning: Tindakan ini tidak dapat diurungkan. Langganan aktif akan dibatalkan, dan saldo Flux akan dikosongkan.
+          confirmEmail:
+            label: Ketik email Anda untuk mengonfirmasi
+            placeholder: ''
+            mismatch: Email tidak cocok.
+          confirm: Kirim email konfirmasi
+          cancel: Batal
+        message:
+          emailSent: Periksa {email} untuk tautan penghapusan.
+        error:
+          fallback: Tidak dapat memulai penghapusan. Coba lagi nanti.
+  card:
+    activate: Aktifkan
+    active: Aktif
+    active_badge: Sedang Aktif
+    activation_notice: Beralih ke {name}. Percakapan saat ini sekarang menggunakan karakter ini.
+    cancel: Batal
+    save: Simpan perubahan
+    save_and_activate: Simpan dan aktifkan
+    card_not_found: Kartu tidak ditemukan
+    character: Karakter
+    close: Tutup
+    chat:
+      provider: Obrolan / Penyedia
+    consciousness:
+      model: Kesadaran / Model
+    vision:
+      provider: Visi / Penyedia
+      model: Visi / Model
+    created_by: dibuat oleh
+    creator_notes: Catatan Pembuat
+    delete: Hapus
+    delete_card: Hapus Kartu
+    delete_confirmation: Apakah Anda yakin ingin menghapus kartu ini?
+    description: Gunakan preset kartu karakter AIRI
+    description_label: Deskripsi
+    drop_here: Lepaskan untuk mengunggah
+    create_card: Buat Kartu baru
+    edit_card: Edit Kartu
+    creation:
+      identity: Identitas
+      name: Nama
+      nickname: Nama Panggilan
+      description: Deskripsi
+      behavior: Perilaku
+      greetings: Sapaan (satu per baris)
+      settings: Pengaturan
+      version: Versi
+      create: Buat
+      defaults:
+        name: Nama
+        personality: Anda adalah manusia biasa yang penasaran dengan segalanya.
+        scenario: Anda baru saja terbangun dan melupakan segalanya tentang kehidupan Anda sebelumnya.
+        systemprompt: Anda akan menerima pesan, jawablah seperti manusia sungguhan.
+        posthistoryinstructions: Ingatlah untuk meniru manusia biasa.
+      modules_info: Konfigurasikan modul untuk kartu karakter ini. Bidang kosong mewarisi pengaturan global.
+      sections:
+        chat: Obrolan
+        vision: Visi
+        speech: Suara
+        body: Tubuh
+      use_default: Gunakan default
+      use_default_not_configured: Gunakan default (belum dikonfigurasi)
+      inherit_global_settings: Warisi pengaturan global
+      fields_info:
+        subtitle: Anda dapat mencantumkan detail tentang karakter yang Anda buat, menjelaskan latar belakang dan konteksnya, serta bagaimana interaksi harus dijawab.
+        name: Nama formal karakter ini.
+        nickname: Nama panggilan yang akan diprioritaskan saat memanggil karakter.
+        description: Deskripsi dari karakter ini.
+        notes: Catatan pribadi tambahan jika diperlukan.
+        personality: Jelaskan kepribadian karakter Anda di sini. Pemalu? Penasaran? Atau lainnya?
+        scenario: Bagaimana suasana di sekitarnya? Apa situasi saat ini?
+        greetings_field: Sapaan
+        greetings: Bagaimana karakter Anda mengucapkan salam atau sapaan awal?
+        systemprompt: Jelaskan kepada AI LLM bagaimana seharusnya ia merespons saat dipicu.
+        posthistoryinstructions: Letakkan instruksi di sini yang harus dibaca AI LLM setelah riwayat pesan.
+        version: Versi kartu, naikkan versi ini jika Anda melakukan perubahan dari kartu sebelumnya.
+        consciousness_model: Pilih model kesadaran (model AI) untuk karakter ini.
+        speech_model: Pilih model sintesis suara dan pengisi suara untuk karakter ini.
+      errors:
+        model_required: Pilih model untuk setiap penyedia eksplisit. Model tidak dapat diwarisi dari penyedia yang berbeda.
+        name: Nama harus valid atau tidak boleh kosong.
+        version: 'Kesalahan: Nomor versi tidak valid!'
+        description: 'Kesalahan: Anda harus menyertakan deskripsi untuk kartu ini.'
+        personality: 'Kesalahan: Kepribadian harus diisi untuk karakter ini.'
+        scenario: 'Kesalahan: Skenario wajib diisi.'
+        systemprompt: 'Kesalahan: Harap masukkan prompt sistem.'
+        posthistoryinstructions: 'Kesalahan: Prompt pasca-riwayat wajib diisi.'
+        invalid_artistry_json: 'Kesalahan: Opsi penyedia Artistry memuat format JSON yang tidak valid.'
+      none: Tidak Ada
+    modules: Modul
+    name_asc: Nama (A-Z)
+    name_desc: Nama (Z-A)
+    no_cards: Belum ada kartu. Klik tombol di atas untuk mengunggah!
+    no_results: Tidak ada kartu yang cocok
+    personality: Kepribadian
+    posthistoryinstructions: Instruksi Pasca-Riwayat
+    recent: Baru Saja Ditambahkan
+    scenario: Skenario
+    search: Cari kartu...
+    sort_by: Urutkan berdasarkan
+    body-model: Tubuh / Model Tampilan
+    speech:
+      provider: Suara / Penyedia
+      model: Suara / Model
+      voice: Suara / Pengisi Suara
+    systemprompt: Prompt Sistem
+    title: Kartu AIRI
+    try_different_search: Coba istilah pencarian yang berbeda
+    export: Ekspor
+    exported: Paket kartu berhasil diekspor
+    export_failed: Gagal mengekspor paket kartu
+    imported: Paket kartu berhasil diimpor
+    import_missing_file: Paket kartu kehilangan berkas yang diperlukan
+    import_invalid_file: Berkas paket kartu tidak valid
+    upload: Unggah
+    upload_desc: Klik atau seret paket kartu AIRI untuk mengimpor
+  memory:
+    description: Tempat memori disimpan dan diatur
+    title: Memori
+  data:
+    title: Data
+    description: Kelola data AIRI yang tersimpan, ekspor, dan atur ulang
+    sections:
+      chats:
+        title: Sesi obrolan
+        description: Ekspor atau impor sesi obrolan yang tersimpan.
+        export: Ekspor obrolan
+        import: Impor obrolan
+        delete: Hapus semua sesi obrolan
+      models:
+        title: Model
+        description: Hapus model Live2D, VRM, Spine, dan MMD yang diimpor.
+        delete: Hapus semua model
+      modules:
+        title: Modul
+        description: Atur ulang preferensi modul dan kredensial.
+        reset: Atur ulang pengaturan modul
+      providers:
+        title: Penyedia
+        description: Atur ulang semua pengaturan dan kredensial penyedia.
+        reset: Atur ulang pengaturan penyedia
+      danger:
+        title: Zona bahaya
+        description: Tindakan tidak dapat diurungkan. Ekspor apa yang Anda butuhkan sebelum melanjutkan.
+      all:
+        title: Hapus semua data
+        description: Hapus semua pengaturan lokal, konfigurasi penyedia, dan model.
+        delete: Hapus semua data
+      desktop-folder:
+        title: Buka folder data aplikasi
+        description: Buka folder data AIRI di pengelola berkas Anda.
+        open: Buka folder
+      desktop:
+        title: Atur ulang pengaturan & status desktop
+        description: Bersihkan pengaturan desktop AIRI dan status runtime.
+        center: Pindahkan jendela desktop ke tengah layar
+        reset: Atur ulang data desktop
+    confirmations:
+      tooltip: Apakah Anda yakin?
+      yes: Ya
+    status:
+      exported: Sesi obrolan berhasil diekspor.
+      imported: Sesi obrolan berhasil diimpor.
+      import_error: Gagal mengimpor sesi obrolan. Harap periksa format berkas.
+      chats_deleted: Sesi obrolan dihapus.
+      models_deleted: Model dihapus.
+      modules_reset: Pengaturan modul diatur ulang.
+      providers_reset: Pengaturan penyedia diatur ulang.
+      all_deleted: Semua data lokal dihapus.
+      desktop_window_centered: Jendela desktop dipindahkan ke tengah layar.
+      desktop_reset: Data desktop diatur ulang.
+  models:
+    description: Live2D, VRM, Spine, MMD, dll.
+    title: Model
+    sections:
+      section:
+        live2d:
+          title: Live2D
+          description: Konfigurasikan model dan pengaturan Live2D
+        vrm:
+          title: VRM
+          description: Konfigurasikan model dan pengaturan 3D VRM
+        scene: Suasana (Scene)
+  modules:
+    beat_sync:
+      description: Bergerak seirama dengan ketukan dari sumber audio
+      title: Beat Sync
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: Mulai tangkapan layar
+            stop: Berhenti
+          description: Pilih sumber audio untuk mendeteksi ketukan.
+          title: Sumber audio
+        beat_visualizer:
+          title: Visualizer ketukan
+        parameters:
+          advanced_parameters: Advanced Parameters
+          description: Tweak the beat detection parameters.
+          title: Parameters
+          parameters:
+            adaptive_threshold:
+              description: Whether to apply adaptive thresholds based on signal variance over time.
+              label: Adaptive threshold
+            buffer_duration:
+              description: Duration of the internal analysis buffer.
+              label: Buffer duration
+            envelope_filter_frequency:
+              description: Frequency for the envelope filter applied to smooth energy changes.
+              label: Envelope filter frequency
+            highpass_filter_frequency:
+              description: Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+              label: Highpass filter frequency
+            lowpass_filter_frequency:
+              description: Frequency for the lowpass filter applied to reduce high frequencies like vocals.
+              label: Lowpass filter frequency
+            min_beat_interval:
+              description: Maximum BPM or minimum interval between detected beats.
+              label: Max BPM / Min beat interval
+            sensitivity:
+              label: Sensitivity
+            spectral_flux:
+              description: Whether to enable spectral flux-based onset detection.
+              label: Spectral flux
+            warmup:
+              description: Whether to warm up before detecting beats for better accuracy.
+              label: Warmup
+    artistry:
+      title: Artistry
+      description: Pembuatan gambar, latar belakang suasana, dan menggambar.
+      page:
+        title: Konfigurasi Penyedia Artistry
+        description: Pilih penyedia backend aktif untuk pembuatan gambar. Karakter dapat menimpanya di pengaturan Kartu mereka.
+      providers:
+        none:
+          name: Tidak Ada
+          description: Lewati dan nonaktifkan modul pembuatan gambar secara global.
+        comfyui:
+          name: ComfyUI (Lokal)
+          description: Gunakan instans ComfyUI lokal melalui WSL untuk pembuatan gambar.
+        replicate:
+          name: Replicate.ai (Cloud)
+          description: Gunakan model berbasis cloud melalui Replicate API.
+        nanobanana:
+          name: Nano Banana (Pratinjau)
+          description: Gunakan Google AI Studio untuk pratinjau gambar dan reaksi.
+      card:
+        description: Konfigurasikan bagaimana AIRI menghasilkan gambar dan konten visual.
+        comfyui_empty: Belum ada alur kerja ComfyUI yang dikonfigurasikan. Buka Pengaturan > Modul > Artistry untuk mengonfigurasinya.
+        exposed_fields: '{count} exposed fields'
+        open_on_replicate: Open on Replicate
+        instruction_sync:
+          title: ComfyUI Instruction Sync
+          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
+          apply: Apply Recommended Prompt
+          keep: Keep Existing
+      provider: Penyedia
+      spawn_mode: Mode Muncul
+      autonomous: Otonom
+      model: Model
+      prompt-prefix: Awalan Prompt
+      options: Opsi
+      widget-instructions: Instruksi Widget
+    categories:
+      essential: Penting
+      messaging: Olah Pesan
+      gaming: Permainan
+      artistry: Artistry
+    consciousness:
+      description: Kepribadian, model yang diinginkan, dll.
+      sections:
+        section:
+          provider-model-selection:
+            collapse: Ciutkan
+            custom_model_placeholder: Masukkan nama model kustom...
+            current_model_label: 'Model saat ini:'
+            description: Pilih penyedia LLM yang cocok untuk kesadaran
+            error: Gagal memuat model
+            health_check_failed: Health check failed
+            no_providers_configured_title: No Providers Configured
+            no_providers_configured_description: Click here to set up your LLM providers
+            expand: Expand
+            loading: Loading available models...
+            manual_model_name: Model Name
+            manual_model_placeholder: Enter the model name to use with this provider
+            no_models: Tidak ada model yang ditemukan
+            no_models_description: No models were found for this provider
+            no_search_results: No matching models
+            no_search_results_description: No models match '{query}'. Try a different search term.
+            not_supported: Model listing not supported
+            not_supported_description: This provider doesn't support model listing functionality
+            search_placeholder: Search models...
+            search_results: Found {count} of {total} models
+            show_less: Show less
+            show_more: Show more
+            temperature_label: Temperature
+            temperature_enabled: Custom temperature
+            top_p_enabled: Custom Top P
+            sampling_override_description: Off by default. Enable only if your model supports this parameter. Some models accept only one sampling parameter at a time.
+            temperature_description: Control the randomness of the model's output. A lower value (e.g. 0.2) results in more deterministic, precise, and analytical output, while a higher value (e.g. 1.0) increases creativity and diversity.
+            top_p_label: Top P
+            top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.
+            subtitle: Select a default model from the provider
+            title: Pemilihan Model
+            header: Pemilihan Model
+            refresh: Segarkan model
+            search: Cari model...
+          model-options:
+            title: Model options
+            thinking:
+              label: Thinking
+      title: Kesadaran
+    description: Pemikiran, visi, sintesis suara, permainan, dll.
+    gaming-factorio:
+      description: Bermain Factorio!
+      title: Factorio
+      enable: Aktifkan Integrasi Factorio
+      enable-description: Izinkan AIRI berinteraksi dengan permainan Factorio
+      server-address: Alamat Server
+      server-address-description: Alamat IP atau hostname server Factorio
+      server-address-placeholder: Masukkan alamat server (misalnya localhost atau 192.168.1.100)
+      server-port: Port Server
+      server-port-description: Port RCON server Factorio
+      username: Nama Pengguna
+      username-description: Nama pengguna untuk autentikasi RCON
+      username-placeholder: Masukkan nama pengguna RCON
+      configured: Factorio telah dikonfigurasi dengan benar!
+    gaming-minecraft:
+      description: Bermain Minecraft!
+      title: Minecraft
+      enable: Aktifkan Integrasi Minecraft
+      enable-description: Sertakan pengetahuan mandiri Minecraft dalam obrolan Panggung dan pertahankan visibilitas runtime pasif aktif.
+      configured: Minecraft telah dikonfigurasi dengan benar!
+      read-only:
+        title: Shell hanya-baca
+        description: Panggung saat ini mengekspos Minecraft sebagai data lingkungan pasif. Perilaku interaksi aktif akan tersedia di pembaruan mendatang.
+      setup:
+        title: Penyiapan
+        description: Konfigurasikan koneksi bot Minecraft
+      runtime:
+        title: Waktu proses (Runtime)
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
+        unknown: Unknown
+        description: Status bot Minecraft saat ini
+      debug:
+        title: Debug
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
+        description: Data debug bot
+      status:
+        service-online: Service online
+        service-offline: Service offline
+        no-runtime-context: No bot context observed yet
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
+        online: Terhubung
+        offline: Terputus
+    hearing:
+      description: Konfigurasikan cara kerja pengenalan ucapan
+      title: Pendengaran
+      sections:
+        section:
+          provider-selection:
+            description: Pilih penyedia pengenalan ucapan yang sesuai
+          playground:
+            current: Transkrip saat ini
+            description: Dengarkan melalui pipeline Pendengaran yang aktif dan simpan setiap segmen ucapan yang selesai di bawah
+            empty: Start monitoring and speak into the selected microphone.
+            error-title: Transcription error
+            listening: Mendengarkan...
+            no-transcription: No speech was recognized in this audio.
+            segment: Speech segment {number}
+            start: Mulai mendengarkan
+            stop: Berhenti mendengarkan
+            title: Area Uji Pendengaran
+            transcribing: Transcribing…
+            transcription-failed: Transcription failed.
+            history: Riwayat
+            waveform: Bentuk Gelombang
+          confidence-threshold:
+            title: Confidence Threshold
+            description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+            disabled: Disabled
+            verbose-json-note: 'Note: If your provider does not support verbose_json responses, this setting will have no effect.'
+            verbose-json-unsupported: Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
+    memory-long-term:
+      description: Penyimpanan memori persisten
+      title: Memori Jangka Panjang
+    memory-short-term:
+      description: Memori percakapan sementara
+      title: Memori Jangka Pendek
+    messaging-discord:
+      description: Mengobrol & obrolan suara lewat Discord
+      title: Discord
+      enable: Aktifkan Integrasi Discord
+      enable-description: Izinkan AIRI berinteraksi melalui Discord
+      token: Token Bot
+      token-description: Token bot Discord Anda
+      token-placeholder: Masukkan token bot Discord Anda
+      configured: Discord telah dikonfigurasi dengan benar!
+    speech:
+      description: Sintesis suara
+      sections:
+        section:
+          playground:
+            buttons:
+              stop:
+                label: Berhenti
+            select-voice:
+              loading: Memuat model...
+              required: Silakan pilih suara
+          voice-pack:
+            description: Pilih suara yang dikurasi untuk karakter aktif
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Paket Suara
+          provider-voice-selection:
+            custom_model_placeholder: Enter custom model name...
+            custom_voice_placeholder: Enter custom voice ID...
+            description: Select the suitable speech provider
+            no_models: No models available
+            no_models_description: No models were found for this provider
+            no_voices: No voices available
+            no_voices_description: No voices were found for this provider
+            no_voices_hint: You can enter a custom voice name below.
+            pause: Pause
+            play_sample: Play Sample
+            search_models_placeholder: Search models...
+            search_models_results: Found {count} of {total} models
+            search_voices_placeholder: Search voices...
+            search_voices_results: Found {count} of {total} voices
+            unsupported_voice_warning_title: No supported voices
+            unsupported_voice_warning_content: Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
+            show_less: Show less
+            show_more: Show more
+            title: Provider
+          voice-settings:
+            input-ssml:
+              placeholder: Enter SSML text...
+            use-ssml:
+              description: Enable to input raw SSML instead of plain text
+              label: Use Custom SSML
+      title: Suara
+    title: Modul
+    vision:
+      description: Visi
+      title: Visi
+    x:
+      description: Penjelajahan dan penggunaan X / Twitter
+      title: X / Twitter
+      enable: Aktifkan Integrasi X / Twitter
+      enable-description: Izinkan AIRI berinteraksi dengan X / Twitter
+      api-key: Kunci API
+      api-key-description: Kunci API X / Twitter Anda
+      api-key-placeholder: Masukkan kunci API X / Twitter Anda
+      api-secret: Rahasia API
+      api-secret-description: Kunci rahasia API X / Twitter Anda
+      api-secret-placeholder: Masukkan rahasia API X / Twitter Anda
+      access-token: Token Akses
+      access-token-description: Token akses X / Twitter Anda
+      access-token-placeholder: Masukkan token akses X / Twitter Anda
+      access-token-secret: Rahasia Token Akses
+      access-token-secret-description: Rahasia token akses X / Twitter Anda
+      access-token-secret-placeholder: Masukkan rahasia token akses X / Twitter Anda
+      configured: X / Twitter telah dikonfigurasi dengan benar!
+    web-search:
+      title: Pencarian Web
+      description: Izinkan AIRI mencari web untuk informasi terkini
+      enable: Aktifkan Pencarian Web
+      enable-description: Izinkan AIRI menelusuri web selama obrolan
+      api-key: Kunci API Tavily
+      api-key-description: Pencarian web didukung oleh Tavily. Dapatkan kunci API gratis di tavily.com.
+      api-key-placeholder: Masukkan kunci API Tavily Anda
+      configured: Pencarian web telah dikonfigurasi dengan benar!
+    mcp-server:
+      title: Server MCP
+      description: Konfigurasikan server MCP dan bawa peralatannya ke dalam AIRI.
+      config-path: Berkas konfigurasi
+      runtime-title: Status waktu proses
+      empty: Belum ada server MCP — klik "Tambah server" di bawah untuk membuatnya, atau tempel konfigurasi melalui "Edit JSON".
+      error-title: Ups
+      success-title: Selesai!
+      existing:
+        title: Dikonfigurasi
+        description: Server dicatat di mcp.json. Klik baris mana saja untuk memperluas dan mengeditnya.
+        empty: Belum ada apa-apa di sini. Tambahkan satu di bawah!
+      add:
+        title: Baru
+        description: Isi server baru, lalu klik "Simpan dan mulai ulang" — ini akan berpindah ke "Dikonfigurasi" di atas.
+        pending-badge: Belum disimpan
+      status:
+        unknown: belum dimuat
+      actions:
+        open-config: Tampilkan di pengelola berkas
+        apply-and-restart: Simpan dan mulai ulang
+        restart: Mulai ulang MCP
+        add-server: Tambah server
+        add-env: Tambah variabel
+        remove: Hapus
+        test: Uji
+        edit-json: Edit JSON
+        close-json: Close
+        format-json: Format
+        reset-draft: Reset
+        apply-json: Apply
+        cancel: Batal
+        expand: Expand
+        collapse: Collapse
+        save: Simpan
+      fields:
+        identifier:
+          label: Identifier
+          description: Unique name; becomes the key in mcp.json.
+          placeholder: e.g. filesystem
+        command: Perintah
+        args: Argumen (satu per baris)
+        cwd:
+          label: Working directory
+          description: Optional directory used as the process working directory.
+          placeholder: e.g. /Users/you/project
+        env: Variabel lingkungan
+        enabled:
+          label: Enabled
+        name: Nama server
+      json:
+        title: Edit mcp.json
+        description: Konfigurasikan server MCP langsung dalam format JSON.
+        placeholder: Paste mcp.json here…
+      test:
+        title: Test connection
+        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
+        pick-server-label: Server
+        no-servers: Nothing to test yet
+        no-server-selected: Pick a server first.
+        server-disabled: '"{name}" is disabled — enable it on the card first.'
+        disabled-suffix: disabled
+        untitled: untitled
+        running: Menguji...
+        success: Koneksi berhasil! {count} alat ditemukan.
+        failure: Connection failed after {ms}ms
+        failed: 'Koneksi gagal: {error}'
+      errors:
+        empty-identifier: Server
+        duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
+        empty-command: '"{name}" is missing a command.'
+        invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
+        save-failed: Gagal menyimpan konfigurasi MCP.
+        load-failed: Gagal memuat konfigurasi MCP.
+      messages:
+        opened: Opened {path} in your file manager
+        json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
+        restarted: Server MCP dimulai ulang.
+        saved: Konfigurasi MCP disimpan.
+  flux:
+    title: Flux
+    buy: Isi Ulang
+    currency: Mata Uang
+    description: Flux Saat Ini
+    packagesError: Gagal memuat paket. Silakan coba lagi nanti.
+    checkout:
+      success: Pembayaran berhasil! Saldo Flux Anda telah diisi ulang.
+      canceled: Pembayaran dibatalkan.
+      error: Terjadi kesalahan. Silakan coba lagi nanti.
+    audit:
+      title: Riwayat Transaksi
+      time: Waktu
+      type: Tipe
+      detail: Detail
+      amount: Jumlah
+      typeAddition: Pengisian
+      typeConsumption: Penggunaan
+      typeInitial: Pemberian Awal
+      typePromo: Pemberian Promo
+      loading: Memuat riwayat...
+      empty: Belum ada catatan transaksi.
+      loadMore: Muat Lebih Banyak
+      delayHint: Catatan penggunaan mungkin tertunda hingga 1 menit
+      ttsRequests: permintaan
+    packages:
+      title: Paket Flux
+      buy: Isi Ulang
+      description: Pilihan paket Flux yang tersedia.
+  providers:
+    catalog:
+      edit:
+        config-id-not-found: Konfigurasi penyedia tidak ditemukan.
+        definition-id-not-found: Definisi penyedia tidak ditemukan.
+        actions:
+          more-options: Opsi lainnya
+          delete: Hapus
+        validation:
+          failed:
+            title: Harap periksa pengaturan penyedia Anda, validasi gagal.
+            description: Anda tetap dapat menyimpan konfigurasi saat ini jika ingin melanjutkan.
+            action: Tetap simpan
+        config:
+          loading: Loading provider settings...
+          load-error: Failed to load provider settings.
+          save-error: Failed to save provider settings.
+          retry: Retry
+          common:
+            fields:
+              field:
+                web-search:
+                  label: Web search
+                  description: Allow supported OpenAI models to search when needed. Uses your API key and can incur search charges. Requires Responses API.
+                api-protocol:
+                  label: API protocol
+                  description: Choose the API supported by this provider and model.
+                api-key:
+                  label: Kunci API
+                  description: Kunci API yang digunakan untuk mengotorisasi permintaan ke penyedia ini
+                  placeholder: sk-...
+                base-url:
+                  label: URL Dasar
+                  description: URL dasar yang digunakan untuk terhubung ke layanan jarak jauh. Sering kali berbentuk http://localhost:11434/v1 atau https://example.com/v1.
+                  placeholder: URL dasar...
+                download-model:
+                  label: Unduh Model
+                  description: Unduh model Chromium Prompt API
+                headers:
+                  label: Header HTTP Kustom
+                  description: Tambahkan header HTTP kustom
+                  key:
+                    placeholder: Kunci
+                  value:
+                    placeholder: Nilai
+                thinking-mode:
+                  label: Mode Berpikir
+                  description: |
+                    Mengontrol perilaku berpikir Ollama. GPT-OSS hanya mendukung tingkat rendah/sedang/tinggi (low/medium/high).
+                  options:
+                    auto: Otomatis (default penyedia)
+                    disable: Nonaktifkan
+                    enable: Aktifkan
+                    low: Rendah
+                    medium: Sedang
+                    high: Tinggi
+        validators:
+          actions:
+            validate: Validasi
+          empty: Tidak ada langkah validasi yang tersedia.
+          openai-compatible:
+            check-config:
+              title: Configuration
+            check-connectivity:
+              title: Konektivitas
+            check-supports-model-listing:
+              title: Daftar Model
+            check-supports-chat-completion:
+              title: Penyelesaian Obrolan (Chat Completion)
+          prompt-api:
+            check-availability:
+              title: Ketersediaan
+          status:
+            validating: Memvalidasi...
+            valid: Lolos
+            invalid: Terjadi kesalahan
+          title: Pemeriksaan
+          providers:
+            provider:
+              ollama:
+                troubleshooting:
+                  validators:
+                    openai-compatible-check-connectivity:
+                      label: Konfigurasi tambahan diperlukan untuk Ollama
+                      content: Pemeriksaan konektivitas gagal untuk Ollama. Jangan khawatir, instans Ollama memerlukan konfigurasi tambahan agar dapat terhubung. Anda perlu menyetel <code>OLLAMA_HOST</code> secara eksplisit saat menjalankan aplikasi atau server CLI Ollama. Untuk informasi lebih rinci, lihat <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">panduan integrasi Ollama</a>.
+        providers:
+          provider:
+            ollama:
+              troubleshooting:
+                validators:
+                  openai-compatible-check-connectivity:
+                    label: Extra configuration needed for Ollama
+                    content: Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
+        title: Edit Katalog Penyedia
+        description: Sesuaikan model dan endpoint yang tersedia untuk penyedia ini
+        button: Edit Katalog
+    common:
+      continueAnyway: Tetap Lanjutkan
+      goToModelSelection: Pilih Model →
+      fields:
+        field:
+          api-key:
+            label: Masukan Kunci API
+      section:
+        advanced:
+          fields:
+            field:
+              headers:
+                description: Tambahkan header HTTP kustom
+                key:
+                  placeholder: Kunci
+                label: Header HTTP
+                value:
+                  placeholder: Nilai
+          title: Lanjutan
+        basic:
+          description: Pengaturan penting
+          title: Dasar
+        voice:
+          title: Pengaturan Suara
+    labels:
+      recommended: Disarankan
+    filters:
+      pricing: Harga
+      deployment: Penerapan
+      all: Semua
+      free: Gratis
+      paid: Berbayar
+      internal: Internal
+      local: Lokal
+      cloud: Cloud
+    categories:
+      chat:
+        title: Obrolan
+        description: 'Penyedia model pembuatan teks. Contoh: OpenRouter, OpenAI, Ollama.'
+      vision:
+        title: Visi
+        description: Penyedia model visi untuk pemahaman gambar.
+      speech:
+        title: Suara
+        description: 'Penyedia model suara (text-to-speech). Contoh: ElevenLabs, Azure Speech.'
+      transcription:
+        title: Transkripsi
+        description: 'Penyedia model transkripsi (speech-to-text). Contoh: Whisper.cpp, OpenAI, Azure Speech.'
+      artistry:
+        title: Artistry
+        description: 'Penyedia model pembuatan gambar dan desain. Contoh: ComfyUI, Replicate.'
+        items:
+          comfyui:
+            description: Penggerak pembuatan gambar lokal.
+          replicate:
+            description: Layanan inferensi model berbasis cloud.
+          nanobanana:
+            description: Pratinjau Gambar Google AI Studio.
+    helpinfo:
+      title: Pertama kali di sini?
+      description: |
+        AIRI memerlukan setidaknya satu penyedia {chat} yang dikonfigurasi untuk berpikir dan berperilaku semestinya. Anda dapat menganggapnya sebagai otak dari karakter yang hidup di dalam sistem AIRI.
+    explained:
+      chat: 'Penyedia model pembuatan teks. Contoh: OpenRouter, OpenAI, Ollama.'
+      Speech: 'Penyedia model sintesis suara (text-to-speech). Contoh: ElevenLabs, Azure Speech.'
+      Transcription: 'Penyedia model transkripsi (speech-to-text). Contoh: Whisper.cpp, OpenAI, Azure Speech.'
+    description: LLM, penyedia suara, dll.
+    provider:
+      apple-speech-transcription:
+        title: Apple Speech
+        description: On-device speech recognition on macOS 26 or later. No API key is required.
+        fields:
+          locale:
+            label: Locale
+            description: Use an exact Apple Speech locale, such as en-US or zh-CN.
+            placeholder: en-US
+      app-local-audio-transcription:
+        title: Aplikasi (Lokal)
+        description: https://github.com/moeru-ai/xsai-transformers
+      app-local-audio-speech:
+        title: Aplikasi (Lokal)
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-transcription:
+        title: Peramban (Lokal)
+        description: https://github.com/moeru-ai/xsai-transformers
+      browser-local-audio-speech:
+        title: Peramban (Lokal)
+        description: https://github.com/moeru-ai/xsai-transformers
+      alibaba-cloud-model-studio:
+        description: bailian.console.aliyun.com
+        title: Alibaba Cloud Model Studio
+      amazon-bedrock:
+        title: Amazon Bedrock
+        description: aws.amazon.com/bedrock
+        config:
+          api-key:
+            label: Bedrock API Key
+            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            placeholder: bedrock-...
+          region:
+            label: AWS Region
+            description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
+      anthropic:
+        description: anthropic.com
+        title: Anthropic | Claude
+        helpinfo:
+          title: Sebelum Anda mulai
+          description:
+            part1: Meskipun Anthropic baru-baru ini mengumumkan dukungan beta untuk kompatibilitas SDK OpenAI
+            part2: (Anda dapat membaca selengkapnya di sini)
+            part3: namun karena detail implementasi disertai dengan
+            part4: pembatasan yang tidak selaras dengan SDK OpenAI, saat ini tidak memungkinkan untuk menggunakan penyedia ini secara langsung di peramban.
+            part5: Jika Anda perlu menggunakan penyedia ini, Anda memerlukan backend proxy khusus seperti Fungsi Serverless yang berjalan di
+            part6: atau layanan bypass CORS untuk melewati pembatasan CORS.
+      cloudflare-workers-ai:
+        description: cloudflare.com
+        fields:
+          field:
+            account-id:
+              description: ID Akun Cloudflare
+              label: ID Akun
+              placeholder: ID Akun Cloudflare Anda
+            api-key:
+              placeholder: Masukkan Kunci API Cloudflare
+        title: Cloudflare Workers AI
+      common:
+        status:
+          validating: Memvalidasi
+          valid: Konfigurasi tampaknya valid.
+        fields:
+          field:
+            pitch:
+              description: Sesuaikan nada suara hasil sintesis (misalnya lebih melengking atau lebih berat)
+              label: Nada (Pitch)
+            speed:
+              description: Sesuaikan kecepatan berbicara
+              label: Kecepatan
+            volume:
+              description: Sesuaikan volume suara
+              label: Volume
+      voicevox:
+        description: voicevox.hiroshiba.jp
+        title: VOICEVOX
+        fields:
+          field:
+            intonation:
+              description: Adjust how much the intonation of the reading varies
+              label: Intonation
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
+      aivis-speech:
+        description: aivis-project.com
+        title: AivisSpeech
+        fields:
+          field:
+            intonation:
+              description: Adjust how strongly the speaking style is expressed
+              label: Emotion expression strength
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
+      deepgram-tts:
+        description: deepgram.com
+        title: Deepgram
+      speech-noop:
+        title: Tidak Ada
+        description: Tidak ada keluaran suara.
+      comfyui:
+        settings:
+          title: ComfyUI (Local)
+          heading: ComfyUI Native API
+          description: Connect to your local ComfyUI and bring your own workflows.
+          info:
+            what_you_need:
+              label: What You Need
+              value: ComfyUI running locally or on your network.
+            how_to_export:
+              label: How To Export
+              value: Enable Dev Mode → "Save (API Format)".
+            scope_boundary:
+              label: Scope Boundary
+              value: Model downloads & node installs are your job.
+          connection:
+            title: Connection
+            connected: Connected
+            failed: Connection failed
+            error_prefix: Error
+            test: Test
+            testing: Testing...
+            unknown_error: Unknown connection error
+            unknown_gpu: Unknown GPU
+            server_url:
+              label: Server URL
+              description: The address where ComfyUI is running
+              placeholder: http://localhost:8188
+          cors:
+            title: CORS Block Detected
+            description: ComfyUI blocks requests from other applications by default. To allow AIRI to connect, you must start ComfyUI with the `--enable-cors-header "*"` flag.
+            command: python main.py --enable-cors-header "*"
+          workflows:
+            title: Workflow Templates
+            upload: Upload Workflow
+            cancel_upload: Cancel
+            empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
+            exposed_parameters: Exposed Parameters
+            summary: '{nodes} nodes · {fields} exposed fields'
+            remove: Remove
+            config_snippet: Artistry Config Snippet
+            copy_json: Copy JSON
+            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
+          upload:
+            prompt: Drop or select a workflow_api.json file
+            invalid_json: Invalid JSON
+            workflow_name:
+              label: Workflow Name
+              description: Give this workflow a recognizable name
+              placeholder: e.g. Anime Text2Img
+            select_fields: 'Select fields to expose to the AI agent:'
+            fields_exposed: '{count} field(s) exposed'
+            save: Save Workflow
+      replicate:
+        settings:
+          title: Replicate.ai
+          heading: Replicate.ai Configuration
+          description: Configure your cloud image generation settings.
+          api_key:
+            label: API Key
+            description: Your Replicate API token (starts with r8_)
+            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          default_model:
+            label: Default Model
+            description: Fallback owner/model string to use if the character card doesn't specify one
+            placeholder: black-forest-labs/flux-schnell
+          aspect_ratio:
+            label: Aspect Ratio
+            description: Default image aspect ratio (e.g. 16:9, 1:1, 9:16)
+            placeholder: 16:9
+          inference_steps:
+            label: Inference Steps
+            description: Number of steps for the diffusion process (lower is faster, higher is better quality)
+      nanobanana:
+        settings:
+          title: Nano Banana
+          heading: Nano Banana (Google AI Studio)
+          description: Configure Google Gemini's native image generation capabilities.
+          api_key:
+            label: API Key
+            description: Your Google AI Studio API Key
+            placeholder: AIpk...
+          preferred_model:
+            label: Preferred Model
+            description: The specific Gemini image preview model to use
+          default_resolution:
+            label: Default Resolution
+            description: The target resolution for generated images
+          model_options:
+            nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
+            nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
+            nano_banana: Nano Banana (Gemini 2.5 Flash Image)
+      deepseek:
+        description: deepseek.com
+        fields:
+          field:
+            thinking-mode:
+              description: Controls whether DeepSeek reasoning models use thinking in chat requests.
+        title: DeepSeek
+      elevenlabs:
+        description: elevenlabs.io
+        fields:
+          field:
+            simularity-boost:
+              description: Kepatuhan kesamaan suara
+              label: Peningkatan Kesamaan
+            speaker-boost:
+              description: Tingkatkan kesamaan pembicara
+              label: Peningkatan Pembicara
+            speed:
+              description: Kecepatan pembuatan suara
+              label: Kecepatan
+            stability:
+              description: Stabilitas dan keacakan suara
+              label: Stabilitas
+            style:
+              description: Eksagerasi gaya suara
+              label: Style
+        playground:
+          buttons:
+            button:
+              test-voice:
+                generating: Menghasilkan...
+                label: Uji Suara
+          fields:
+            field:
+              input:
+                placeholder: Masukkan teks untuk menguji suara...
+              language:
+                description: Pilih bahasa suara
+                label: Bahasa
+              voice:
+                description: Pilih suara yang diinginkan
+                label: Suara
+          title: Area Uji Suara
+          validation:
+            error-missing-api-key: Harap masukkan kunci API untuk menguji suara.
+        title: ElevenLabs
+      kokoro-local:
+        description: Sintesis suara lokal menggunakan Kokoro-82M.
+        fields:
+          field:
+            model:
+              label: Pemilihan Model
+              description: Model yang lebih kecil memuat lebih cepat tetapi kualitasnya mungkin sedikit lebih rendah.
+        models:
+          fp32-webgpu:
+            description: Model presisi penuh menggunakan WebGPU - Disarankan untuk perangkat yang didukung
+          fp32:
+            description: Model presisi penuh
+          fp16:
+            description: Presisi setengah
+          q8:
+            description: Terkuantisasi 8-bit
+          q4:
+            description: Terkuantisasi 4-bit
+          q4f16:
+            description: 4-bit dengan FP16
+        playground:
+          default-text: Halo! Ini adalah pengujian sistem sintesis suara Kokoro.
+          title: Area Uji Suara
+        title: Kokoro TTS (Local)
+      fireworks:
+        description: fireworks.ai
+        title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
+      microsoft-speech:
+        description: speech.microsoft.com
+        fields:
+          field:
+            region:
+              description: Wilayah Layanan Ucapan (Speech Service)
+              label: Wilayah
+        title: Microsoft / Azure Speech
+      index-tts-vllm:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS
+        callout_indextts2_unavailable_title: Dukungan Terbatas
+        callout_indextts2_unavailable: Dukungan untuk IndexTTS2 saat ini tidak tersedia. Silakan gunakan IndexTTS.
+      azure-ai-foundry:
+        description: Azure AI Foundry
+        title: Azure AI Foundry
+      minimax:
+        description: minimaxi.com
+        title: MiniMax
+      minimax-global:
+        description: minimax.io
+        title: MiniMax Global
+      minimax-speech:
+        description: minimax.io
+        title: MiniMax Speech
+      mimo:
+        description: api.xiaomimimo.com
+        title: Xiaomi MiMo
+      mistral:
+        description: mistral.ai
+        title: Mistral
+      moonshot:
+        description: moonshot.ai
+        title: Moonshot AI
+      modelscope:
+        description: modelscope.cn
+        title: ModelScope
+      novita:
+        description: novita.ai
+        title: Novita
+      ollama:
+        description: ollama.ai
+        title: Ollama
+      openai:
+        description: openai.com
+        title: OpenAI
+      azure-openai:
+        description: API Azure OpenAI
+        title: Azure OpenAI
+      openai-compatible:
+        description: Kompatibel dengan OpenAI
+        title: Kompatibel dengan OpenAI
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
+      n1n:
+        description: n1n.ai - Penyedia API AI berkinerja tinggi.
+        title: n1n
+      openpaths:
+        description: openpaths.io
+        title: OpenPaths
+      openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
+        description: openrouter.ai
+        title: OpenRouter
+      perplexity:
+        description: perplexity.ai
+        title: Perplexity
+      player2:
+        description: player2.game
+        title: Player2
+      together:
+        description: together.ai
+        title: Together.ai
+      google-generative-ai:
+        description: gemini.google.com
+        title: Google Gemini
+      groq:
+        description: groq.com
+        title: Groq
+      featherless:
+        description: featherless.ai
+        title: Featherless AI
+      lm-studio:
+        description: lmstudio.ai
+        title: LM Studio
+      vllm:
+        description: vllm.ai
+        title: vLLM
+      volcengine:
+        description: volcengine.com
+        fields:
+          field:
+            appId:
+              description: ID Aplikasi dari proyek yang dapat Anda peroleh di Konsol
+              label: ID Aplikasi
+        title: Volcano Engine
+      volcengine-coding-plan:
+        description: Volcengine Coding Plan
+        models:
+          ark-code-latest:
+            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
+          legacy:
+            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
+        title: Volcengine Coding Plan
+      byteplus:
+        description: byteplus.com
+        title: BytePlus
+      byteplus-coding-plan:
+        description: BytePlus Coding Plan
+        title: BytePlus Coding Plan
+      xai:
+        description: x.ai
+        title: xAI
+      zai:
+        description: z.ai
+        title: Z.ai
+      302-ai:
+        description: 302.AI
+        title: 302.AI
+      comet-api:
+        description: CometAPI.com
+        title: Comet API
+      cerebras:
+        description: cerebras.ai
+        title: Cerebras
+      aliyun-nls:
+        description: Aliyun NLS
+        title: Aliyun NLS
+      browser-web-speech-api:
+        description: STT bawaan peramban (memerlukan Chrome/Edge/Safari)
+        title: Web Speech API
+      prompt-api:
+        description: Dengan Prompt API, Anda dapat mengirimkan permintaan bahasa alami ke model fondasi di Chrome.
+        title: Prompt API
+      official:
+        title: Penyedia Resmi
+        description: Penyedia AI resmi oleh AIRI.
+        speech-title: Penyedia Suara Resmi
+        speech-description: Penyedia sintesis suara (text-to-speech) resmi oleh AIRI.
+        speech-streaming-title: Official Streaming Speech Provider
+        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
+        transcription-title: Penyedia Transkripsi Resmi
+        transcription-description: Penyedia transkripsi (speech-to-text) resmi oleh AIRI.
+      transcriptions:
+        playground:
+          title: Area Uji Transkripsi
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (diskon 10%)
+    title: Penyedia
+  connection:
+    description: Konfigurasikan koneksi server WebSocket
+    title: Koneksi
+    websocket-url:
+      description: Alamat yang digunakan aplikasi ini untuk terhubung ke server lokal.
+      label: Alamat Server
+      placeholder: ws://localhost:6121/ws
+    server-hostname:
+      label: Ekspos ke Semua
+      description: Izinkan perangkat lain di jaringan lokal untuk terhubung ke server ini.
+    server-auth-token:
+      label: Token Pemasangan (Pairing)
+      description: Perangkat lain menggunakan token ini untuk memasangkan dengan server ini. AIRI menghasilkan token saat bidang ini kosong.
+      placeholder: Buat otomatis
+    qr:
+      title: Pemasangan (Pairing)
+      description: Pindai kode QR ini dengan aplikasi seluler. Aplikasi mencoba setiap alamat lokal dan menyimpan alamat pertama yang berfungsi.
+      refresh: Segarkan
+      image-alt: Kode QR pemasangan AIRI
+      candidates: Kandidat alamat
+      token-hint: Kode QR mencakup token pemasangan. Jangan bagikan kode QR secara publik.
+      errors:
+        title: Kode QR tidak tersedia
+        unavailable: Gagal menyiapkan kode QR koneksi.
+    qr-scan:
+      title: Koneksi Cepat
+      description: Pindai kode QR dari Tamagotchi untuk koneksi cepat
+      instructions: Arahkan kamera ke kode QR koneksi AIRI.
+      action: Pindai
+      success:
+        title: Alamat terhubung disimpan
+        description: 'URL yang digunakan: {url}'
+      errors:
+        title: Pemindaian QR gagal
+        failed: Gagal memindai atau menghubungkan dengan kode QR.
+  system:
+    color-scheme:
+      description: Ubah skema warna panggung.
+      title: Skema Warna
+    developer:
+      description: Beberapa opsi pengembang.
+      title: Pengembang
+    general:
+      description: Tema gelap, bahasa, dll.
+      title: Umum
+    permissions:
+      description: Lihat status izin saat ini.
+      title: Manajemen Izin
+    description: Pengaturan sistem
+    sections:
+      section:
+        custom-color:
+          fields:
+            field:
+              primary-color:
+                label: Warna utama
+                rgb-on:
+                  title: Saya Ingin Dinamis!
+          title: Skema Warna
+        developer:
+          title: Pengembang
+          sections:
+            section:
+              performance-visualizer:
+                title: Visualizer Kinerja
+                description: Tampilkan FPS, waktu bingkai, tugas panjang, dan metrik memori peramban yang didukung
+              markdown-stress:
+                title: Uji Beban Markdown
+                description: Uji kinerja penguraian dan perenderan Markdown dengan beban obrolan berat
+              plugin-host:
+                actions:
+                  enable-and-load: Aktifkan dan Muat
+                  disable-and-unload: Nonaktifkan dan Lepas
+                  import-folder: Impor Folder
+                  confirm-import: Impor Ekstensi
+                  cancel-import: Batal
+                errors:
+                  enable-and-load: Gagal mengaktifkan dan memuat plugin {extensionId}.
+                  disable-and-unload: Gagal menonaktifkan dan melepas plugin {extensionId}.
+                  prepare-import: Gagal memeriksa folder Ekstensi.
+                  commit-import: Gagal mengimpor Ekstensi {extensionId}.
+                  cancel-import: Gagal membatalkan impor Ekstensi.
+                import:
+                  title: Tinjau Impor Ekstensi
+                  description: Ekstensi tetap dinonaktifkan dan belum dimuat setelah diimpor.
+                  source: Folder sumber
+                  runtimes: Lingkungan runtime
+                  entrypoints: Titik masuk (entrypoints)
+                  package-size: Paket
+                  package-size-value: '{fileCount} berkas · {totalBytes}'
+                  permissions: Izin
+                  kits: Kit
+                  no-permissions: Tidak ada izin yang dideklarasikan.
+                  no-kits: Tidak ada Kit yang dideklarasikan.
+                  imported: Berhasil mengimpor Ekstensi {extensionId}.
+              use-magic-keys:
+                title: Alat useMagicKeys
+                description: Uji pintasan
+              audio-record:
+                title: Rekaman Audio
+                description: Uji composable terkait audio
+              background-gradient-blending:
+                title: Perpaduan warna tema latar belakang
+                description: Uji perpaduan warna & tema
+              background-removal:
+                title: Penghapusan latar belakang (memerlukan WebGPU)
+                description: Utilitas untuk penghapusan latar belakang
+              chat:
+                title: Obrolan
+                description: Obrolan
+              gesture-circle:
+                title: Lingkaran Gestur (Khusus Desktop)
+                description: Uji pengenalan gestur
+              image:
+                title: Gambar
+                description: Gambar
+              polaroid:
+                title: Polaroid
+                description: Utilitas untuk memotret model
+              context-flow:
+                description: Periksa pembaruan konteks masuk dan peristiwa aliran obrolan keluar
+              websocket-inspector:
+                title: Inspektur WebSocket
+                description: Periksa lalu lintas mentah WebSocket
+              vibrant:
+                title: Ekstraksi warna
+                description: Uji ekstraksi warna
+              providers-transcription-realtime-aliyun-nls:
+                title: Transkriptor Real-time Aliyun
+                description: Alirkan audio mikrofon ke Aliyun NLS dan periksa transkrip langsung
+              performance-playground:
+                title: Taman Bermain Kinerja
+                description: Taman bermain ekspresi VRM + sinkronisasi bibir TTS
+        theme-presets:
+          presets:
+            default:
+              colors:
+                color-1: Hijau AIRI
+              description: Warna tema kehijauan default dari AIRI untuk Anda!
+              title: Warna Default
+            morandi:
+              colors:
+                color-1: Taupe
+                color-2: Beige
+                color-3: Abu-abu Abu
+                color-4: Taupe Muda
+                color-5: Gading (Ivory)
+                color-6: Abu-abu Zaitun
+                color-7: Pasir
+                color-8: Abu-abu Hangat
+              description: Warna lembut dan teduh yang terinspirasi dari lukisan Giorgio Morandi
+              title: Warna Morandi
+            monet:
+              colors:
+                color-1: Biru Langit
+                color-2: Kabut
+                color-3: Pasir
+                color-4: Hijau Lumut
+                color-5: Teratai
+                color-6: Gandum
+                color-7: Biru Batu Sabak
+                color-8: Sage
+              description: Palet impresionis yang terinspirasi dari karya Claude Monet
+              title: Warna Monet
+            japanese:
+              colors:
+                color-1: Tan
+                color-2: Taupe Hangat
+                color-3: Umber
+                color-4: Kopi
+                color-5: Perunggu
+                color-6: Emas
+                color-7: Mustard
+                color-8: Amber
+              description: Palet warna tradisional Jepang
+              title: Warna Tradisional Jepang
+            nordic:
+              colors:
+                color-1: Biru Nordik
+                color-2: Es
+                color-3: Fjord
+                color-4: Baja
+                color-5: Gletser
+                color-6: Batu Sabak
+                color-7: Awan
+                color-8: Batu
+              description: Skema warna minimalis Skandinavia
+              title: Warna Nordik
+            chinese:
+              colors:
+                color-1: Fajar Merona
+                color-2: Merah Tiongkok
+                color-3: Cokelat Berasap
+                color-4: Hijau Bambu
+                color-5: Ungu Tua
+                color-6: Kuning Emas
+                color-7: Biru Langit Azure
+                color-8: Ochre
+              description: Warna tradisional Tiongkok, terinspirasi dari tekstil kuno, porselen, dan lukisan
+              title: Warna Tradisional Tiongkok
+          title: Preset Skema Warna
+    title: Sistem
+  page:
+    developers:
+      open-devtools:
+        title: Buka Alat Pengembang
+        button: Buka
+  credits:
+    buy: Beli
+  scene:
+    title: Suasana (Scenes)
+    description: Sesuaikan lingkungan virtual untuk karakter Anda.
+    beta_label: Sistem Suasana
+    beta_description: Setiap kartu karakter menentukan latar belakang pilihannya sendiri dari galeri ini. Mengaturnya di sini akan menjadikannya sebagai default untuk karakter yang sedang aktif.
+    background_image:
+      title: Latar Belakang Karakter Aktif
+      no_background: Tidak ada latar belakang aktif untuk karakter ini. Unggah gambar persegi atau lanskap untuk hasil terbaik.
+      upload: Unggah ke Galeri
+      change: Ganti Latar Belakang
+      clear: Hapus Default
+    gallery:
+      title: Galeri Suasana
+      empty: Belum ada gambar di galeri. Unggah gambar di atas!
+      set_as_global: Atur sebagai Default Karakter
+      delete: Hapus dari Galeri
+      global_badge: Default Karakter
+      active_badge: Suasana Saat Ini
+      delete_confirm: Apakah Anda yakin ingin menghapus latar belakang ini?
+    tip:
+      label: Tips!
+      description: Menggunakan gambar persegi akan memanfaatkan pemotongan <b>cover</b> dalam mode potret, berfokus pada bagian tengah suasana.
+sections:
+  section:
+    general:
+      title: General
+    title: Pengaturan
+theme:
+  title: Tema
+  description: Pilih tema antarmuka
+title: Pengaturan
+voices: Suara
+vrm:
+  change-model:
+    from-file: Muat dari Berkas
+    from-file-select: Select
+    from-url: Muat dari URL
+    from-url-confirm: Load
+    from-url-placeholder: Enter VRM model URL
+    title: Ganti Model
+  title: Pengaturan VRM
+  scale-and-position:
+    model-info-title: Model Size Information
+    model-info-x: Width (X)
+    model-info-y: Height (Y)
+    model-info-z: Depth (Z)
+    tips: |
+      Edit the initial position the VRM model.
+      Coordinate axes are visualised.
+    scale: Skala
+    x: X
+    y: Y
+    z: Z
+    fov: FOV (degree)
+    rotation-y: Rotation (Y-axis)
+    camera-distance: Camera distance
+    eye-tracking-mode:
+      title: Looking at
+      options:
+        option:
+          camera: Camera
+          mouse: Mouse
+          disabled: Disabled
+    title: Skala dan Posisi
+  switch-to-vrm:
+    title: Switch to Live2D Avatar?
+    change-to-vrm: Click here to switch to the Live2D avatar setting
+  theme-color-from-model:
+    button-extract:
+      title: Extract
+  skybox:
+    skybox-intensity: SkyBox Intensity
+    skybox-specular-mix: Specular Mix
+  animation:
+    title: Animasi
+    idle-motion: Animasi Diam (Idle)
+  expressions:
+    title: Ekspresi
+  switch-to-live2d:
+    title: Beralih ke Avatar 2D?
+    change-to-live2d: Klik di sini untuk beralih ke pengaturan avatar 2D (Live2D)
+spine:
+  title: Pengaturan Spine
+  scale-and-position:
+    title: Skala dan Posisi
+    scale: Skala
+    x: X
+    y: Y
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  animation:
+    title: Animasi
+    idle-animation: Idle Animation
+    mix-duration: Mix Duration (seconds)
+    speed: Animation Speed
+    idle-motion: Animasi Diam (Idle)
+  appearance:
+    title: Appearance
+  variant:
+    title: Variant
+    current-variant: Active Variant
+  skin:
+    title: Skin
+    current-skin: Current Skin
+  rendering:
+    title: Rendering
+    max-fps: Maximum FPS
+    render-scale: Render Scale
+  fps:
+    options:
+      unlimited: Unlimited
+  change-model:
+    title: Ganti Model
+    from-file: Muat dari Berkas
+    from-url: Muat dari URL
+mmd:
+  title: Pengaturan MMD
+  scale-and-position:
+    title: Skala dan Posisi
+    scale: Skala
+    x: X
+    y: Y
+    rotation: Rotation
+    z: Z
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  physics:
+    title: Physics & Rig
+    enabled: Enable physics (hair, skirt, accessories)
+    ik: Enable IK (inverse kinematics)
+    grant: Enable append-bone propagation
+    gravity: Gravity strength
+  gaze:
+    title: Gaze
+    tracking: Looking at
+    options:
+      cursor: Mouse
+      camera: Camera
+      none: Disabled
+  animation:
+    title: Animasi
+    idle-motion: Idle Motion
+    import-motion: Import Motion (.vmd)
+    play-once: Preview Animation
+    remove: Remove motion
+    description: Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
+    motion: Gerakan (VMD)
+    camera: Kamera (VMD)
+    audio: Audio
+  morphs:
+    title: Morphs
+    auto: (auto)
+    revert: Revert to auto
+    no-morphs: This model exposes no morphs.
+    description: The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
+  materials:
+    title: Materials
+    no-materials: This model exposes no materials.
+    description: Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
+  change-model:
+    title: Ganti Model
+    from-file: Muat dari Berkas
+    from-url: Muat dari URL
+tachie:
+  title: Pengaturan Tachie
+  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
+  scale-and-position:
+    title: Skala dan Posisi
+    scale: Skala
+    x: X
+    y: Y
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  rendering:
+    title: Rendering
+    render-scale: Render Scale
+    shadow: Theme-colored drop shadow
+  change-model:
+    title: Ganti Gambar
+    from-file: Muat dari Berkas
+    from-url: Muat dari URL
+websocket-secure-enabled:
+  title: Aktifkan WebSocket Aman (WSS)
+  description: Gunakan koneksi aman untuk transmisi data
+wip:
+  title: Dalam Pengerjaan
+  description: Fitur ini sedang dikembangkan dan akan segera hadir.

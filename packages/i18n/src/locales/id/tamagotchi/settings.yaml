@@ -1,0 +1,514 @@
+allow-visible-on-all-workspaces:
+  title: Visibilitas Lintas-Ruang Kerja
+  description: Izinkan jendela terlihat di semua ruang kerja, khusus macOS.
+spotlight:
+  errors:
+    unknown: Kesalahan tidak diketahui
+    prefix: 'Terjadi kesalahan: {message}'
+    shortcutRegistrationFailed: 'Terjadi kesalahan: gagal mendaftarkan pintasan Spotlight.'
+pages:
+  modules:
+    mcp-server:
+      description: Hubungkan dan kelola server serta alat MCP
+      title: Server MCP
+  system:
+    sections:
+      section:
+        window-shortcuts:
+          title: Pintasan Papan Ketik
+    window-shortcuts:
+      description: Ubah pintasan jendela.
+      title: Pintasan Jendela
+      empty: Belum diatur
+      spotlight:
+        title: Pintasan Spotlight
+        description: Klik pintasan, lalu tekan kombinasi tombol baru. Tekan Esc untuk membatalkan.
+      actions:
+        recording: Tekan tombol
+        reset: Atur Ulang
+      errors:
+        load: Gagal memuat pintasan
+        conflict: Pintasan sudah digunakan.
+        failed: Gagal memperbarui pintasan
+        requiresModifier: Gunakan setidaknya satu tombol pengubah seperti Cmd, Ctrl, Alt, atau Super.
+      toggle-move:
+        label: Alihkan Geser
+      toggle-resize:
+        label: Alihkan Ubah Ukuran
+      toggle-ignore-mouse-event:
+        label: Alihkan Abaikan Interaksi Tetikus
+      press-keys: Tekan Tombol...
+    developer:
+      sections:
+        section:
+          use-window-mouse:
+            title: Alat useWindowMouse
+            description: Uji posisi kursor jendela Electron
+devtools:
+  title: Pengembang
+  pages:
+    context-flow:
+      title: Alur Konteks
+    live2d-ambient-light:
+      title: Pencahayaan Ambien Live2D
+      description: Sesuaikan pengambilan sampel layar dan shader cahaya warna Live2D
+      controls:
+        title: Sumber cahaya dan keluaran
+      enabled:
+        title: Cahaya ambien
+        description: Terapkan filter cahaya ambien ke model Live2D aktif.
+      source:
+        title: Sumber cahaya
+        options:
+          screen-capture: Tangkapan layar
+          forced-color: Warna paksa
+      mode:
+        title: Mode pencahayaan
+        options:
+          window-gradient: Gradien jendela
+          global: Ambien global
+      forced-color:
+        title: Warna uji
+        description: Terapkan warna ini tanpa tangkapan layar.
+      strength:
+        title: Kekuatan cahaya
+        description: Atur jumlah efek keseluruhan. Nilai 1 adalah tampilan default, hingga 3 membuat pendaran cahaya dan lampu latar lebih kuat.
+      squint:
+        title: Menyipit saat perubahan terang
+        description: Menyempitkan mata ketika layar menjadi terang lebih cepat daripada adaptasi karakter. Layar yang tetap terang membiarkan mata terbuka. Nilai 0 mematikan fitur ini.
+      main-window-note: Perubahan akan muncul di jendela utama AIRI.
+      diagnostics:
+        title: Diagnostik tangkapan
+        waiting: Menunggu diagnostik dari jendela utama AIRI.
+        status:
+          disabled: Dinonaktifkan
+          starting: Memulai
+          capturing: Menangkap
+          forced-color: Warna paksa
+          error: Kesalahan
+        capture:
+          title: Status tangkapan
+          description: Periksa layar yang dipilih, dimensi tangkapan, dan koordinat pengecualian.
+          display: Layar dan batas
+          video-size: Video sumber
+          sample-size: Bingkai sampel
+          window-bounds: Batas jendela AIRI
+          excluded-region: Wilayah yang dikecualikan
+          exposure: Eksposur layar
+          behind-luminance: Cahaya di belakang karakter
+          updated: Pembaruan terakhir
+        preview:
+          title: Tangkapan diperkecil
+          description: Persegi panjang merah menandai jendela AIRI. Garis putus-putus menandai area yang dicakup peta cahaya.
+          unavailable: Tidak ada bingkai tangkapan yang tersedia.
+        pixels:
+          title: Keputusan piksel
+          total: Total
+          accepted: Diterima
+          excluded: Dicat
+          transparent: Transparan
+          see-through: Tembus pandang
+        maps:
+          title: Peta cahaya
+          window: Setiap peta mencakup jendela AIRI dan setengah jendela di setiap sisinya. Garis luar menandai jendela.
+          unavailable: Tidak ada lingkungan yang tersedia.
+          target: Terukur
+          applied: Diterapkan setelah penghalusan
+          surround:
+            title: Peta sekeliling
+            description: Pemburaman lebar layar di sekitar dan di belakang jendela. Membawa warna cahaya dan arah asalnya.
+          contact:
+            title: Peta kontak
+            description: Pemburaman sempit dari konten yang sama. Peta ini mengontrol pembungkusan cahaya dan tepi lampu latar.
+      sampling:
+        title: Pengambilan sampel layar
+        capture-interval:
+          title: Interval tangkapan
+          description: Atur waktu antar pengambilan sampel layar. Aliran tangkapan berjalan pada kecepatan ini.
+        response-time:
+          title: Waktu respons
+          description: Atur seberapa cepat warna sampel beradaptasi dengan perubahan layar.
+        sample-width:
+          title: Ukuran sampel
+          description: Atur lebar bingkai tangkapan yang diperkecil. Bingkai yang lebih lebar memberikan detail lebih banyak pada peta cahaya. Tinggi mengikuti layar Anda.
+        neutral-color-weight:
+          title: Bobot warna netral
+          description: Atur bobot minimum untuk warna bersaturasi rendah. Konten berwarna berbobot lebih tinggi dibanding abu-abu.
+      shader:
+        title: Respons shader
+        dark-base:
+          title: Batas bawah kecerahan
+          description: Atur kecerahan model di atas layar hitam. Layar putih menampilkan model normal, dan layar lebih gelap meredupkannya ke batas ini.
+        base-curve:
+          title: Kurva kecerahan
+          description: Atur bagaimana kecerahan model meningkat antara batas bawah dan gambar aslinya. Di atas 1, layar setengah terang menjaga model lebih dekat ke batas bawah.
+        local-share:
+          title: Porsi cahaya lokal
+          description: Atur seberapa banyak kecerahan model mengikuti cahaya di sebelahnya daripada keseluruhan layar. Pada nilai 0, model mempertahankan satu kecerahan di mana pun posisinya.
+        tint:
+          title: Nuansa warna
+          description: Atur seberapa banyak rona layar diserap model. Pada nilai 0 hanya kecerahan layar yang mempengaruhi model.
+        color-boost:
+          title: Penguat warna cahaya redup
+          description: Atur seberapa banyak warna ekstra yang diambil model dari cahaya redup namun jenuh. Kecerahan tetap sesuai cahaya, dan tidak ada saluran yang turun di bawah model tanpa cahaya.
+        wrap-intensity:
+          title: Intensitas pembungkus cahaya
+          description: Atur seberapa kuat warna latar belakang merembes ke tepi model.
+        wrap-saturation:
+          title: Saturasi pembungkus cahaya
+          description: Atur seberapa banyak rona layar yang dipertahankan cahaya pembungkus. 0 menambahkan cahaya putih dengan kecerahan sama. 1 menambahkan warna layar penuh.
+        backlight:
+          title: Lampu latar
+          description: Atur seberapa kuat cahaya dari belakang karakter menerangi tepi tipis di sepanjang tubuhnya.
+        wrap-diffuse:
+          title: Lebar pembungkus cahaya
+          description: Atur seberapa jauh warna latar belakang merembes ke dalam tepi model.
+        translucent-wrap:
+          title: Kurangi pembungkusan pada bagian transparan
+          description: Skalakan pembungkus cahaya dan tepi berdasarkan kuadrat alfa model. Bagian yang digambar dengan alfa parsial sudah memperlihatkan desktop di belakangnya.
+      preview-shader:
+        title: Pratinjau shader
+        description: Jalankan shader sebenarnya pada kartu uji, dengan lingkungan langsung dan pengaturan di atas.
+        window-mapping: Filter menganggap kanvas ini sebagai seluruh jendela panggung, sehingga pratinjau bukan salinan piksel yang persis dari panggung.
+        filtered: Keluaran shader
+        unavailable: Pratinjau membutuhkan WebGL, dan jendela ini tidak dapat membuat konteksnya.
+        environment:
+          live: Cahaya berasal dari tangkapan terbaru yang dipublikasikan jendela utama AIRI.
+          neutral: Belum ada tangkapan yang masuk, pratinjau menggunakan lingkungan netral.
+        regions:
+          title: Wilayah kartu uji
+          body: Badan lebar membawa gradasi sRGB {low} ke {high}. Kecerahan, kontras, kroma, dan ruang tampil di sepanjang area ini.
+          bars: Batang selebar {first}, {second}, {third}, {fourth}, dan {fifth} piksel. Menunjukkan seberapa jauh pembungkus cahaya meresap ke dalam bentuk tipis.
+          patches: Kedua bercak digambar pada alfa {strong} dan {weak}, yang dipengaruhi oleh opsi pengurangan pembungkusan pada bagian transparan.
+    editor:
+      title: Editor AIRI
+      description: Buka jendela Editor AIRI mandiri
+      button: Buka Editor
+    lag-visualizer:
+      title: Visualizer Jeda (Lag)
+    live2d-motion:
+      title: Kontrol Gerakan Live2D
+      description: Kontrol gerakan mata, kepala, dan tubuh Live2D.
+      actions:
+        back: Kembali
+      system-audio:
+        title: Sinkronisasi bibir audio sistem
+        description: Tangkap audio dari pemutar lain. Masukan yang sama menggerakkan Beat Sync dan gerakan mulut Live2D.
+        signal: Sinyal masukan
+        mouth-open: Bukaan mulut
+        input-volume-threshold: Ambang batas volume masukan
+        random-close-delay: Jeda penutupan acak
+        random-close-probability: Probabilitas penutupan acak
+        actions:
+          start: Mulai masukan
+          stop: Hentikan masukan
+      panels:
+        direct-control: Kontrol langsung
+        preview: Pratinjau model
+        timeline: Linimasa
+        inference: Inferensi model
+      preview:
+        groups:
+          expression: Ekspresi
+          offset: Offset posisi
+        values:
+          squint: Menyipit
+          mouth-form: Bentuk
+          mouth-open: Terbuka
+      joystick-label: Joystick gerakan Live2D
+      wave:
+        toggle: Mode perahu
+      instructions: Geser joystick, atau gunakan tombol panah untuk X/Y. R untuk sedikit menyipit. F untuk menyipit lebih kuat. C untuk menutup mata. W/S untuk mengubah bentuk mulut. Spasi untuk membuka mulut. A/D untuk menggerakkan tubuh pada sumbu X. Q/E untuk memiringkan kepala. Melepas tombol mengembalikan posisi ke tengah dengan mulus.
+      parameter-note: Joystick mengontrol X/Y. R memetakan ke 1/3 menyipit. F memetakan ke 2/3 menyipit. C menutup mata sepenuhnya. W/S memetakan bentuk mulut ±1. Spasi memetakan bukaan mulut 1. A/D memetakan tubuh X ±10°. Q/E memetakan kepala Z ±30°.
+      input:
+        keyboard: Papan Ketik
+        controller: Pengontrol (Gamepad)
+      input-actions:
+        move-body-head: Gerakkan tubuh dan kepala
+        tilt-head: Miringkan kepala
+        blink: Berkedip
+        open-mouth: Buka mulut
+        mouth-shape: Ubah bentuk mulut
+      eye-view:
+        title: Pandangan mata terkunci
+        description: Pilih target. Mata akan mengimbangi gerakan kepala agar tetap menatap target.
+        pad-label: Target pandangan mata terkunci
+        actions:
+          enable: Aktifkan fiksasi
+          disable: Nonaktifkan fiksasi
+          center: Pusatkan target
+        counter:
+          label: Kekuatan penyeimbang kepala
+          description: Seberapa kuat mata mengimbangi gerakan X/Y kepala.
+        values:
+          target: Target
+          output: Keluaran mata
+      editor:
+        title: Editor gerakan
+        instructions: Kurva abu-abu adalah sumbernya. Tambahkan overlay gerakan atau keyframe target pandangan. Pilih trek, lalu seret titik-titiknya.
+        play: Putar linimasa
+        pause: Jeda linimasa
+        undo: Urungkan
+        redo: Ulangi
+        crop-to-view: Pangkas ke tampilan
+        reset-view: Atur ulang tampilan
+        export-project: Ekspor proyek
+        import-project: Impor proyek
+        import-error: Berkas ini bukan proyek gerakan Live2D AIRI yang valid.
+        playback:
+          label: Kontrol pemutaran linimasa
+          start: Lompat ke awal
+          step-backward: Mundur satu langkah
+          step-forward: Maju satu langkah
+          end: Lompat ke akhir
+          timecode: Kode waktu saat ini dan total
+        input-actions:
+          play: Putar
+          stop: Berhenti
+          start: Ke awal
+          end: Ke akhir
+          step-backward: Mundur satu langkah
+          step-forward: Maju satu langkah
+          restart-recording: Rekam ulang
+          clear-timeline: Bersihkan linimasa
+          previous-track: Pilih trek sebelumnya
+          next-track: Pilih trek berikutnya
+        timeline-label: Linimasa gerakan
+        timeline-help: Seret penggaris untuk scrubbing. Gunakan roda tetikus untuk memperbesar. Tahan Shift dan seret untuk menggeser. Klik dua kali kurva untuk menambah titik. Setiap kunci target pandangan berlaku sampai kunci berikutnya.
+        overlay-count: '{count} lapisan overlay'
+        controls:
+          add: Tambah
+          replace: Ganti
+          create-keyframes: Buat keyframe
+          weight: Bobot
+          remove: Hapus
+        tracks:
+          viewTargetX: Target pandangan X
+          viewTargetY: Target pandangan Y
+          eyeX: Mata X
+          eyeY: Mata Y
+          eyeOpen: Bukaan mata
+          headX: Kepala X
+          headY: Kepala Y
+          headZ: Kepala Z
+          bodyX: Tubuh X
+          bodyY: Tubuh Y
+          bodyZ: Tubuh Z
+          mouthForm: Bentuk mulut
+          mouthOpen: Bukaan mulut
+      var:
+        title: Generator gerakan diam (idle) VAR
+        description: Menyesuaikan rekaman gerakan, lalu menghasilkan urutan gerakan diam baru.
+        actions:
+          fit: Sesuaikan gerakan saat ini
+          refit: Sesuaikan ulang gerakan saat ini
+          generate: Hasilkan gerakan
+          stop: Hentikan pembuatan
+          new-seed: Seed baru
+        order:
+          label: Orde VAR
+          description: Bingkai sebelumnya yang digunakan untuk setiap prediksi.
+        residual:
+          label: Kekuatan residu
+          description: Variasi yang dihasilkan. Nol bersifat deterministik.
+        diagnostics:
+          source: Sumber
+          model: Model
+          fit: Kesesuaian
+          run: Hasil proses
+        status:
+          no-source: Impor atau rekam gerakan terlebih dahulu
+          source-ready: '{count} sampel · {duration} dtk'
+          fit-failed: Penyesuaian VAR gagal.
+        values:
+          frames: '{count} bingkai'
+          model: '{channels} saluran · {features} istilah'
+          fit: '{frames} bingkai · RMSE {error} · {duration} md'
+          run: 'seed {seed} · {duration}'
+      ar-hmm:
+        title: Generator gerakan diam (idle) AR-HMM
+        description: Mempelajari pola gerakan dan transisi untuk variasi gerakan diam.
+        actions:
+          fit: Sesuaikan gerakan
+          refit: Sesuaikan ulang
+          generate: Hasilkan
+          stop: Berhenti
+          new-seed: Seed baru
+        states:
+          label: Pola tersembunyi (hidden states)
+          description: Pola gerakan yang dapat dipelajari model.
+        order:
+          label: Orde AR
+          description: Bingkai sebelumnya yang digunakan dalam setiap pola.
+        residual:
+          label: Kekuatan inovasi
+          description: Variasi di dalam setiap pola gerakan.
+        diagnostics:
+          source: Sumber
+          model: Model
+          fit: Kesesuaian
+          states: Okupansi pola
+          run: Hasil proses
+        status:
+          no-source: Impor atau rekam gerakan terlebih dahulu
+          source-ready: '{count} sampel · {duration} dtk'
+          fit-failed: Penyesuaian AR-HMM gagal.
+        values:
+          count: '{count} pola'
+          frames: '{count} bingkai'
+          model: '{states} pola · {channels} saluran · {features} istilah'
+          fit: 'log p/bingkai {likelihood} · {duration} md'
+          states: '{occupancy} · menetap {dwell} dtk'
+          run: 'pola {state} · seed {seed} · {duration}'
+      output-filter:
+        title: Filter keluaran generator
+        description: Menghaluskan keluaran generator dan menahan perubahan kecil sebelum pegas menerima setiap pose.
+        actions:
+          enable: Aktifkan filter
+          disable: Nonaktifkan filter
+          reset: Atur ulang status
+        smoothing:
+          label: Penghalusan EMA
+          description: Memadukan setiap target yang diterima dengan keluaran sebelumnya. Nilai lebih tinggi mengurangi jitter tetapi menambah jeda.
+        cutoff:
+          label: Batas perubahan (cutoff)
+          description: Menahan saluran sampai perubahan normal kumulatifnya mencapai nilai ini.
+        diagnostics:
+          status: Status
+          input-change: MAE perubahan mentah
+          output-change: MAE perubahan terfilter
+          cutoff-tracks: Saluran tertahan
+        status:
+          waiting: Menunggu generator
+          filtering: Menyaring keluaran generator
+          bypassed: Meneruskan keluaran mentah generator
+      breath:
+        title: Pernapasan manual
+        description: Mengontrol ParamBreath dengan waktu tarik napas, hembus napas, dan jeda yang dapat disesuaikan tanpa menambahkan data napas ke rekaman.
+        actions:
+          enable: Aktifkan pernapasan
+          disable: Nonaktifkan pernapasan
+          reset: Atur ulang siklus
+        cycle:
+          label: Durasi napas
+          description: Menetapkan durasi satu tarikan dan hembusan napas sebelum jeda setelah hembusan.
+        inhale:
+          label: Porsi tarik napas
+          description: Menetapkan bagian durasi napas yang digunakan untuk menarik napas. Sisa waktunya adalah hembusan napas.
+        dwell:
+          label: Jeda setelah hembusan
+          description: Menahan ParamBreath pada nilai minimum sebelum tarikan napas berikutnya.
+        minimum:
+          label: Minimum
+          description: Nilai terendah yang ditulis ke ParamBreath.
+        maximum:
+          label: Maksimum
+          description: Nilai tertinggi yang ditulis ke ParamBreath.
+        diagnostics:
+          stage: Tahap
+          phase: Progres siklus
+          output: Keluaran ParamBreath
+        stage:
+          inhale: Tarik napas
+          exhale: Hembuskan napas
+          dwell: Jeda setelah hembusan
+      spring:
+        follow:
+          label: Ikuti
+          description: Seberapa cepat gerakan mengikuti joystick.
+        inertia:
+          label: Inersia
+          description: Seberapa banyak momentum yang dipertahankan dalam gerakan.
+      groups:
+        eyes: Mata
+        head: Kepala
+        body: Tubuh
+      recording:
+        actions:
+          record: Rekam
+          stop-recording: Berhenti merekam
+          play: Putar
+          stop-playback: Berhenti memutar
+          export: Ekspor
+          import: Impor
+        status:
+          empty: Belum ada rekaman gerakan
+          recording: Merekam gerakan
+          playing: Memutar gerakan
+          ready: '{count} sampel · {duration}'
+        import-error: Berkas ini bukan rekaman gerakan Live2D AIRI yang valid.
+    performance-visualizer:
+      title: Visualizer Kinerja
+      description: Periksa metrik kinerja langsung dan diagnostik runtime
+      resource-events:
+        title: Peristiwa sumber daya terbaru
+        description: Peristiwa terbaru di posisi teratas. Waktu dihitung dalam milidetik sejak perender sumber dimulai.
+        empty: Tidak ada peristiwa sumber daya yang direkam. Muat atau alihkan model VRM saat pelacakan aktif.
+        columns:
+          time: Waktu (md)
+          phase: Tahap
+          reason: Alasan
+          textures: Tekstur
+          geometries: Geometri
+          meshes: Mesh
+          materials: Material
+      controls:
+        enable-all:
+          label: Aktifkan semua metrik yang tersedia
+          description: Aktifkan setiap metrik yang didukung peramban ini.
+        start-recording: Mulai merekam
+        stop-recording: Hentikan rekaman ({seconds} dtk)
+        export-last-recording: Ekspor rekaman terakhir
+      metrics:
+        fps:
+          label: FPS
+          description: Laju bingkai animasi selama 10 detik terakhir. Setiap sampel adalah 1000 dibagi interval bingkai dalam milidetik.
+        frame-duration:
+          label: Waktu bingkai (md)
+          description: Waktu antar bingkai animasi selama 10 detik terakhir.
+        long-task:
+          label: Tugas panjang (long task)
+          description: Tugas thread utama yang memerlukan waktu minimal 50 md.
+          unsupported: Peramban ini tidak mengekspos pencatatan waktu tugas panjang.
+        memory:
+          label: Heap JS (MB)
+          description: Penggunaan memori heap JavaScript dari API performance.memory Chromium.
+          unsupported: Peramban ini tidak mengekspos penggunaan memori heap JavaScript.
+      recording:
+        title: Rekaman terakhir
+        duration: Durasi {duration} md
+        limit: Rekaman berhenti otomatis setelah 60 detik.
+      history:
+        title: Riwayat FPS
+        latest: Terbaru
+        minimum: Min
+        maximum: Maks
+        seconds-ago: '-{seconds} dtk'
+        end: 0 dtk
+        empty: Tidak ada sampel FPS. Aktifkan FPS untuk mengumpulkan sampel.
+      overlay:
+        title: Kinerja
+        move: Geser hamparan kinerja
+        reset-position: Atur ulang posisi hamparan
+        record: Rekam
+        stop: Berhenti
+        export: Ekspor rekaman terakhir
+        average: rata-rata
+    markdown-stress:
+      title: Uji Beban Markdown
+      description: Uji kinerja penguraian dan perenderan Markdown dengan beban obrolan yang berat
+    io-tracer:
+      title: Pelacak I/O
+    widgets-calling:
+      title: Pemanggilan Widget
+
+screen-capture:
+  permissions-prompt:
+    title: Tangkapan Layar
+    description: Untuk menangkap layar atau jendela, izin perekaman layar dan audio sistem diperlukan.
+    open-preferences: Buka Pengaturan Sistem
+    dismiss: Abaikan
+    instructions:
+      step-1: Buka "Pengaturan Sistem", pilih "Privasi & Keamanan" di bilah samping.
+      step-2: Di bagian "Perekaman Layar & Audio Sistem" dan "Perekaman Audio Sistem Saja", aktifkan sakelar untuk AIRI.
+      step-2-note: Jika AIRI tidak tercantum, tambahkan secara manual dengan mengeklik tombol "+" dan memilih AIRI dari folder Aplikasi.
