@@ -18,8 +18,13 @@ export function createScreenService(params: { context: ReturnType<typeof createC
     },
   })
 
-  onAppWindowAllClosed(() => stop())
-  onAppBeforeQuit(() => stop())
+  // The loop stops with its window; these cover the app closing first.
+  const offAllClosed = onAppWindowAllClosed(() => stop())
+  const offBeforeQuit = onAppBeforeQuit(() => stop())
+  params.window.once('closed', () => {
+    offAllClosed()
+    offBeforeQuit()
+  })
   defineInvokeHandler(params.context, startLoopGetCursorScreenPoint, () => start())
 
   defineInvokeHandler(params.context, electron.screen.getAllDisplays, () => screen.getAllDisplays())

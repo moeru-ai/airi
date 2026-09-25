@@ -17,8 +17,11 @@ export function createPowerMonitorService(params: { context: ReturnType<typeof c
       eventEmitter.off(event, listener)
     }
     eventEmitter.on(event, listener)
-    params.window.once('closed', remove)
-    onAppBeforeQuit(remove)
+    const offBeforeQuit = onAppBeforeQuit(remove)
+    params.window.once('closed', () => {
+      remove()
+      offBeforeQuit()
+    })
   }
 
   onOff(powerMonitor, 'suspend', () => params.context.emit(electronEvents.powerMonitor.suspended, undefined))
