@@ -14,6 +14,7 @@ function getRequiredProvider(id: string) {
 }
 
 const atlasCloudProvider = getRequiredProvider('atlascloud')
+const cheaperInferenceProvider = getRequiredProvider('cheaperinference')
 const openAICompatibleProvider = getRequiredProvider('openai-compatible')
 
 /**
@@ -55,6 +56,20 @@ describe('services inference-service-providers', () => {
     })
     expect(inferenceServiceProvidersService.buildLocal(atlasCloudProvider.id, { apiKey: 'test-key' })).toEqual(expect.objectContaining({
       definitionId: atlasCloudProvider.id,
+      config: { apiKey: 'test-key' },
+    }))
+  })
+
+  it('lists Cheaper Inference as a built-in OpenAI-compatible provider', async () => {
+    const schema = await cheaperInferenceProvider.createProviderConfig({ t: (key: string) => key })
+
+    expect(cheaperInferenceProvider.name).toBe('Cheaper Inference')
+    expect(parseSchema(schema, { apiKey: 'test-key' })).toEqual({
+      apiKey: 'test-key',
+      baseUrl: 'https://api.cheaperinference.com/v1',
+    })
+    expect(inferenceServiceProvidersService.buildLocal(cheaperInferenceProvider.id, { apiKey: 'test-key' })).toEqual(expect.objectContaining({
+      definitionId: cheaperInferenceProvider.id,
       config: { apiKey: 'test-key' },
     }))
   })
