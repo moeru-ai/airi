@@ -44,6 +44,7 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 patchedDependencies:
+  '@xsai-ext/responses@0.5.0': patches/@xsai-ext__responses@0.5.0.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
   sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
@@ -56,6 +57,8 @@ catalog:
   '@antfu/eslint-config': 8.2.0
   '@anthropic-ai/claude-code': ^2.1.241
   '@arethetypeswrong/core': ^0.18.5
+  '@auv-js/cli': 0.0.16
+  '@auv-js/sdk': 0.0.16
   '@ax-llm/ax': ^24.0.5
   '@better-auth/cli': ^1.4.22
   '@better-auth/drizzle-adapter': 1.6.25
@@ -67,6 +70,7 @@ catalog:
   '@capacitor/cli': ^8.5.0
   '@capacitor/core': ^8.5.0
   '@capacitor/ios': ^8.5.0
+  '@capacitor/keyboard': ^8.0.5
   '@capacitor/local-notifications': ^8.3.1
   '@date-fns/utc': ^2.1.1
   '@discordjs/voice': ^0.19.2
@@ -130,7 +134,7 @@ catalog:
   '@mediapipe/tasks-vision': ^1.0.1
   '@modelcontextprotocol/sdk': ^1.30.0
   '@moeru/eslint-config': 0.1.0-beta.19
-  '@moeru/eventa': 1.0.0
+  '@moeru/eventa': 1.0.1
   '@moeru/std': 0.1.0-beta.17
   '@moeru/three-mmd': 0.2.0-beta.2
   '@moeru/three-mmd-physics-ammo': 0.2.0-beta.2
@@ -240,6 +244,7 @@ catalog:
   '@xsai-apple-speech/transcription-native-darwin-arm64': 0.1.3
   '@xsai-apple-speech/transcription-native-darwin-x64': 0.1.3
   '@xsai-ext/providers': 0.5.0
+  '@xsai-ext/responses': 0.5.0
   '@xsai-transformers/embed': ^0.1.0
   '@xsai-transformers/shared': ^0.1.0
   '@xsai-transformers/transcription': ^0.1.0
@@ -250,6 +255,7 @@ catalog:
   '@xsai/model': 0.5.0
   '@xsai/shared': 0.5.0
   '@xsai/shared-chat': 0.5.0
+  '@xsai/shared-stream': 0.5.0
   '@xsai/stream-text': 0.5.0
   '@xsai/stream-transcription': 0.5.0
   '@xsai/tool': 0.5.0
@@ -295,6 +301,7 @@ catalog:
   eslint-plugin-format: ^2.0.1
   eslint-plugin-oxlint: ^1.79.0
   eslint-plugin-perfectionist: ^5.10.1
+  eslint-plugin-slop: 0.1.3
   eventemitter3: ^5.0.4
   fflate: ^0.8.3
   floating-vue: ^5.2.2
@@ -339,6 +346,7 @@ catalog:
   mineflayer-tool: ^1.2.0
   minisearch: ^7.2.0
   mkcert: ^3.2.0
+  model-bank: 1.0.20260904203849
   motion-v: ^2.4.0
   nano-staged: ^1.0.2
   nanoid: ^6.0.1
@@ -449,6 +457,7 @@ catalog:
   wxt: ^0.21.4
   xast-util-to-xml: ^4.0.0
   xastscript: ^4.0.0
+  xsai-chromium-prompt: ^0.2.2
   xsschema: 0.5.0
   yaml: ^2.9.0
   yauzl: ^3.4.0

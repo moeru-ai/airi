@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
+import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatHistory } from '@proj-airi/stage-ui/components'
-import { ChatReplyPreview, ChatSessionsDrawer, useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -16,16 +16,15 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { BasicButton, BasicTextarea } from '@proj-airi/ui'
-import { onLongPress, useEventListener, usePointerSwipe } from '@vueuse/core'
-import { animate, spring } from 'animejs'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import MobileSettingsDrawer from './mobile-settings-drawer.vue'
 import MobileHeader from './MobileHeader.vue'
 
+import { useChatInterruption } from '../../composables/use-chat-interruption'
 import { useMobileInteractiveAreaLayout } from '../../composables/use-mobile-interactive-area-layout'
 import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
@@ -53,21 +52,38 @@ const visibleStreamingMessage = computed(() => activeSendSessionId.value === act
   : streamingMessage.value)
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
-const composer = useChatComposer({
+const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
   send: submission => chatOrchestrator.send({
     sessionId: submission.sessionId,
     text: submission.text,
+    attachments: submission.attachments.map(({ type, data, mimeType }) => ({ type, data, mimeType })),
     replyToMessageId: submission.replyToMessageId,
   }),
 })
 const {
+  attachments,
+  removeAttachment,
   clearReplyForMessage,
   draft: messageInput,
   isComposing,
   replyTarget,
   selectReply,
 } = composer
+const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
+const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
+const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
+const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
+  sessionId: activeSessionId,
+  generating: isActiveSessionSending,
+  hasSubmission,
+  submit: async (hooks) => {
+    await composer.submit({
+      beforeSend: hooks && (submission => hooks.beforeSend(submission.sessionId)),
+      afterSendStarted: hooks && (submission => hooks.afterSendStarted(submission.sessionId)),
+    })
+  },
+})
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
@@ -83,15 +99,14 @@ async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: n
   clearReplyForMessage(message)
 }
 
-const inputBubbleDocked = shallowRef(false)
-const inputBubbleDragging = shallowRef(false)
-const inputBubbleAnimating = shallowRef(false)
+async function handleRetryMessage(index: number) {
+  await chatOrchestrator.retry({ sessionId: activeSessionId.value, index })
+}
+
 const sessionsDrawerOpen = shallowRef(false)
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
 const inputBubble = useTemplateRef<HTMLElement>('inputBubble')
-const inputBubbleDockTarget = useTemplateRef<HTMLElement>('inputBubbleDockTarget')
-const inputBubbleIcon = useTemplateRef<HTMLElement>('inputBubbleIcon')
 const interactionControls = useTemplateRef<HTMLElement>('interactionControls')
 const controlsIsland = useTemplateRef<HTMLElement>('controlsIsland')
 const controlsIslandContent = useTemplateRef<HTMLElement>('controlsIslandContent')
@@ -207,20 +222,6 @@ function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
-function isAndroidDevice() {
-  return /Android/i.test(navigator.userAgent)
-}
-
-const messageInputPointerEventsClass = computed(() => {
-  if (inputBubbleDocked.value)
-    return 'pointer-events-none'
-
-  if (isAndroidDevice())
-    return 'pointer-events-none group-focus-within:pointer-events-auto'
-
-  return 'pointer-events-auto'
-})
-
 useTranscriptions(
   {
     messageInputRef: messageInput,
@@ -228,7 +229,7 @@ useTranscriptions(
     isStageTamagotchi,
   },
 )
-const { showStopSpeakingButton, speechMuted, stopSpeakingFromChat, toggleSpeechMuted } = useStopSpeakingButton()
+const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
 const characterVoiceEnabled = computed({
   get: () => !speechMuted.value,
   set: (value) => {
@@ -237,154 +238,7 @@ const characterVoiceEnabled = computed({
   },
 })
 
-let suppressNextInputBubbleClick = false
-
-async function resetInputBubblePosition() {
-  await animate(inputBubble.value!, {
-    transform: 'translate3d(0px, 0px, 0px) scale(1)',
-    ease: spring({ bounce: 0.3, duration: 320 }),
-  })
-}
-
-async function setInputBubbleDocked(docked: boolean) {
-  if (inputBubbleDocked.value === docked)
-    return
-
-  inputBubbleAnimating.value = true
-  const bubble = inputBubble.value!
-  const source = bubble.getBoundingClientRect()
-  bubble.style.transform = 'translate3d(0px, 0px, 0px) scale(1)'
-  if (!docked) {
-    bubble.style.removeProperty('width')
-    bubble.style.removeProperty('max-width')
-    bubble.style.removeProperty('height')
-  }
-  inputBubbleDocked.value = docked
-  await nextTick()
-
-  const destination = bubble.getBoundingClientRect()
-  const target = docked ? inputBubbleDockTarget.value!.getBoundingClientRect() : destination
-  const startX = source.left + source.width / 2 - destination.left - destination.width / 2
-  const startY = source.top - destination.top
-  const endX = target.left + target.width / 2 - destination.left - destination.width / 2
-  const endY = target.top + target.height / 2 - destination.top - destination.height / 2
-  const messageInput = bubble.querySelector<HTMLTextAreaElement>('textarea')!
-
-  await Promise.all([
-    animate(bubble, {
-      width: [`${source.width}px`, `${target.width}px`],
-      maxWidth: [`${source.width}px`, `${target.width}px`],
-      height: [`${source.height}px`, `${target.height}px`],
-      transform: [
-        `translate3d(${startX}px, ${startY}px, 0)`,
-        `translate3d(${endX}px, ${endY}px, 0)`,
-      ],
-      ease: spring({ bounce: docked ? 0.35 : 0.25, duration: 400 }),
-    }),
-    animate(messageInput, {
-      opacity: docked ? 0 : 1,
-      duration: 120,
-      ease: 'out(2)',
-    }),
-    animate(inputBubbleIcon.value!, {
-      opacity: docked ? 1 : 0,
-      duration: 120,
-      ease: 'out(2)',
-    }),
-  ])
-
-  if (!docked) {
-    bubble.style.removeProperty('width')
-    bubble.style.removeProperty('max-width')
-    bubble.style.removeProperty('height')
-  }
-  inputBubbleAnimating.value = false
-  await nextTick()
-}
-
-const {
-  distanceX: inputBubbleDistanceX,
-  distanceY: inputBubbleDistanceY,
-} = usePointerSwipe(inputBubble, {
-  threshold: 0,
-  onSwipe: handleInputBubbleSwipe,
-  onSwipeEnd: finishInputBubbleDrag,
-})
-
-async function finishInputBubbleDrag() {
-  if (!inputBubbleDragging.value)
-    return
-
-  inputBubbleDragging.value = false
-  const upwardDistance = inputBubbleDistanceY.value
-  const draggedTowardDock = upwardDistance >= 64
-    && upwardDistance > Math.abs(inputBubbleDistanceX.value)
-  if (draggedTowardDock)
-    await setInputBubbleDocked(true)
-  else
-    await resetInputBubblePosition()
-}
-
-function handleInputBubbleSwipe() {
-  if (!inputBubbleDragging.value)
-    return
-
-  inputBubble.value!.style.transform = `translate3d(${-inputBubbleDistanceX.value}px, ${-inputBubbleDistanceY.value}px, 0) scale(.98)`
-}
-
-function handleInputBubbleLongPress() {
-  if (inputBubbleDocked.value)
-    return
-
-  suppressNextInputBubbleClick = true
-  inputBubbleDragging.value = true
-  inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!.blur()
-  inputBubble.value!.style.transform = 'translate3d(0, 0, 0) scale(.98)'
-}
-
-function handleInputBubblePointerDown(event: PointerEvent) {
-  suppressNextInputBubbleClick = false
-
-  const messageInput = inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!
-
-  // NOTICE:
-  // The focused textarea must suppress native text selection before a dock drag starts.
-  // A blurred textarea must keep native activation so Safari can cancel an active keyboard dismissal.
-  // See the closing-focus regression in adaptive-input.test.ts.
-  // Remove this branch when Safari exposes a keyboard lifecycle that can cancel an active dismissal.
-  if (document.activeElement === messageInput)
-    event.preventDefault()
-}
-
-function handleInputBubbleContextMenu(event: MouseEvent) {
-  if (isAndroidDevice())
-    event.preventDefault()
-}
-
-onLongPress(inputBubble, handleInputBubbleLongPress, {
-  delay: 500,
-  distanceThreshold: 10,
-  onMouseUp: (_duration, _distance, longPressed) => longPressed && finishInputBubbleDrag(),
-})
-
-async function handleInputBubbleClick() {
-  if (suppressNextInputBubbleClick) {
-    suppressNextInputBubbleClick = false
-    return
-  }
-
-  if (inputBubbleDocked.value) {
-    await setInputBubbleDocked(false)
-    return
-  }
-
-  inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!.focus()
-}
-
 async function handleReplyMessage(payload: ChatHistoryReplyPayload) {
-  if (inputBubbleDocked.value)
-    await setInputBubbleDocked(false)
-
   selectReply(payload)
   await nextTick()
   inputBubble.value?.querySelector<HTMLTextAreaElement>('textarea')?.focus()
@@ -396,17 +250,6 @@ async function handleCancelReply() {
   inputBubble.value?.querySelector<HTMLTextAreaElement>('textarea')?.focus()
 }
 
-async function handleInputBubblePointerCancel() {
-  inputBubbleDragging.value = false
-  await resetInputBubblePosition()
-}
-
-useEventListener(inputBubble, 'pointercancel', handleInputBubblePointerCancel)
-
-onMounted(() => {
-  inputBubble.value!.style.setProperty('touch-action', 'none')
-})
-
 async function handleSubmit() {
   if (!isMobileDevice()) {
     await handleSend()
@@ -414,7 +257,8 @@ async function handleSubmit() {
 }
 
 async function handleSend() {
-  await composer.submit()
+  if (!pendingImages.value)
+    await submitInterruptingResponse()
 }
 
 function teardownAnalyzer() {
@@ -514,6 +358,7 @@ onUnmounted(() => {
             :class="chatHistoryClass"
             @delete-message="handleDeleteMessage"
             @reply-message="handleReplyMessage"
+            @retry-message="handleRetryMessage($event.index)"
             @tool-call-rerun="rerunToolCall"
           />
         </Transition>
@@ -544,11 +389,6 @@ onUnmounted(() => {
             'flex flex-col gap-1',
           ]"
         >
-          <div
-            ref="inputBubbleDockTarget"
-            data-testid="mobile-input-bubble-dock-target"
-            class="invisible size-10 shrink-0 self-end"
-          />
           <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
         </div>
       </div>
@@ -561,35 +401,43 @@ onUnmounted(() => {
         ]"
         :style="messageComposerStyle"
       >
+        <button
+          type="button"
+          :aria-label="t('stage.chat.images.attach')"
+          :class="[
+            'size-10 shrink-0 flex items-center justify-center self-end rounded-full',
+            'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 text-primary-600 backdrop-blur-md',
+            'dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-primary-300',
+            'transition-colors duration-200 hover:bg-primary-100/80 dark:hover:bg-primary-900/60 motion-reduce:transition-none',
+          ]"
+          @click="imageInput?.click()"
+        >
+          <span :class="['i-solar:paperclip-bold-duotone size-5']" />
+        </button>
+        <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">
         <div
           ref="inputBubble"
           data-testid="mobile-input-bubble"
-          :data-dragging="inputBubbleDragging"
           :class="[
-            'group relative mx-auto min-h-10 flex flex-col justify-center origin-center overflow-hidden',
-            'touch-none select-none focus-within:touch-auto focus-within:select-text',
+            'relative min-h-10 min-w-0 flex flex-1 flex-col justify-center overflow-hidden rounded-[1lh]',
             'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 backdrop-blur-md',
             'dark:border-neutral-700/60 dark:bg-neutral-950/80',
-            inputBubbleDragging || inputBubbleAnimating
-              ? 'transition-none'
-              : 'transition-[max-width] duration-320 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]',
-            inputBubbleDocked
-              ? [
-                'h-10 max-w-10 w-10 cursor-pointer rounded-xl',
-                'border-neutral-100/60 bg-neutral-50/70 dark:border-neutral-800/30 dark:bg-neutral-800/70',
-              ]
-              : 'max-w-[70%] w-full rounded-[1lh] focus-within:max-w-full',
           ]"
-          @click="handleInputBubbleClick"
-          @contextmenu="handleInputBubbleContextMenu"
-          @pointerdown="handleInputBubblePointerDown"
         >
           <ChatReplyPreview
             :target="replyTarget"
             :class="['w-full']"
             @cancel="handleCancelReply"
           />
-          <!-- Android handles touch from the scrollable textarea, so it needs touch-none to keep the bubble drag active. -->
+          <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2']">
+            <ChatImageAttachmentPreview v-for="(attachment, index) in attachments" :key="attachment.previewId" :file="attachment.file" @remove="removeAttachment(index)" />
+          </div>
+          <p v-if="imageError" role="alert" :class="['px-3 py-1 text-xs text-red-600 dark:text-red-400']">
+            {{ imageError }}
+          </p>
+          <p v-if="pendingImages" role="status" :class="['px-3 py-1 text-xs text-neutral-500']">
+            {{ t('stage.chat.images.reading') }}
+          </p>
           <BasicTextarea
             v-model="messageInput"
             autocomplete="off"
@@ -599,53 +447,51 @@ onUnmounted(() => {
             :placeholder="t('stage.message')"
             :class="[
               'font-cute',
-              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full touch-none resize-none overflow-y-scroll scrollbar-none',
+              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full resize-none overflow-y-scroll scrollbar-none',
               'border-2 border-solid border-transparent bg-transparent px-4 py-0.5 outline-none',
               'text-neutral-500 dark:text-neutral-100',
               'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
               'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
               'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
-              messageInputPointerEventsClass,
               themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
             ]"
             default-height="1lh"
             @submit="handleSubmit"
+            @paste-file="addFiles"
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
           />
-          <div
-            ref="inputBubbleIcon"
-            aria-hidden="true"
-            class="pointer-events-none absolute inset-0 flex items-center justify-center text-neutral-500 opacity-0 dark:text-neutral-400"
-          >
-            <div class="i-solar:keyboard-bold-duotone size-5" />
-          </div>
         </div>
-        <button
-          v-if="showStopSpeakingButton"
-          data-testid="stop-speaking-button"
-          :class="[
-            'h-[calc(1lh+4px+4px)] w-[calc(1lh+4px+4px)] flex items-center justify-center self-end rounded-md outline-none',
-            'text-lg text-neutral-500 transition-all duration-200 active:scale-95 dark:text-neutral-400',
-            'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
-          ]"
-          title="Stop speaking"
-          aria-label="Stop speaking"
-          @click="stopSpeakingFromChat"
-        >
-          <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
-        </button>
-        <button
-          v-if="messageInput.trim() || isComposing"
-          :aria-label="t('stage.chat.actions.send')"
-          w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]" aspect-square flex items-center self-end justify-center rounded-full outline-none backdrop-blur-md
-          text="neutral-500 hover:neutral-600 dark:neutral-900 dark:hover:neutral-800"
-          bg="primary-50/80 dark:neutral-100/80 hover:neutral-50"
-          transition="all duration-250 ease-in-out"
-          @click="handleSend"
-        >
-          <div i-solar:arrow-up-outline />
-        </button>
+        <div :class="['min-w-10 shrink-0 flex items-end justify-end gap-1']">
+          <button
+            v-if="showStopAction"
+            data-testid="stop-speaking-button"
+            :class="[
+              'size-10 flex items-center justify-center rounded-full outline-none backdrop-blur-md',
+              'border-2 border-solid border-neutral-200/60 bg-neutral-100/80',
+              'text-lg text-neutral-500 transition-all duration-200 active:scale-95',
+              'dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-neutral-400',
+              'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
+            ]"
+            :title="t('stage.chat.actions.stop')"
+            :aria-label="t('stage.chat.actions.stop')"
+            @click="stopActiveResponse"
+          >
+            <div class="i-solar:stop-outline size-5" />
+          </button>
+          <button
+            v-else-if="hasSubmission"
+            :disabled="!!pendingImages"
+            :aria-label="t('stage.chat.actions.send')"
+            :class="[
+              'size-10 flex items-center justify-center rounded-full bg-primary-500 text-white outline-none backdrop-blur-md',
+              'transition-colors duration-200 hover:bg-primary-600 disabled:opacity-40 motion-reduce:transition-none',
+            ]"
+            @click="handleSend"
+          >
+            <div class="i-solar:arrow-up-outline size-5" />
+          </button>
+        </div>
       </div>
     </div>
     <div

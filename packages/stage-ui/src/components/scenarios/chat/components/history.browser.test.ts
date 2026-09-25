@@ -431,6 +431,57 @@ describe('chat history', () => {
     ]])
   })
 
+  it('emits retry-message for an error after partial assistant output', async () => {
+    const messages: ChatHistoryItem[] = [
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', interrupted: true, content: 'partial reply', slices: [{ type: 'text', text: 'partial reply' }], tool_results: [] },
+      { role: 'error', content: 'Stream interrupted' },
+    ]
+
+    const screen = await render(ChatHistory, {
+      props: {
+        messages,
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await screen.getByRole('button', { name: 'Retry' }).click()
+
+    expect(screen.emitted('retryMessage')).toEqual([[
+      {
+        message: messages[2],
+        index: 2,
+        key: getChatHistoryItemKey(messages[2], 2),
+      },
+    ]])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Searching backward from every error crossed a completed assistant turn.
+  // A provider setup error could therefore offer Retry for an older prompt and
+  // delete its valid response. Only an adjacent interrupted turn is retriable.
+  it('does not retry an error across a completed assistant response', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [
+          { role: 'user', content: 'hello' },
+          { role: 'assistant', content: 'complete reply', slices: [{ type: 'text', text: 'complete reply' }], tool_results: [] },
+          { role: 'error', content: 'Provider configuration failed' },
+        ],
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    expect(screen.container.textContent).not.toContain('Retry')
+  })
+
   it('does not render the retry button when the error is not preceded by a user message', async () => {
     const screen = await render(ChatHistory, {
       props: {
@@ -692,6 +743,7 @@ describe('chat history', () => {
   //
   // The resistance curve maps each raw position. Reverse input moves the message
   // immediately, and the release position still decides commit.
+  // https://github.com/moeru-ai/airi/pull/2617
   it('lets a desktop pan move back before release', async () => {
     const message: ChatHistoryItem = {
       id: 'desktop-momentum-return-target',
@@ -716,26 +768,49 @@ describe('chat history', () => {
     if (!swipeRoot || !swipeSurface)
       throw new Error('Expected a desktop message swipe surface.')
 
-    dispatchHorizontalPan(swipeRoot, 100)
-    await new Promise(resolve => requestAnimationFrame(resolve))
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 100), 3)
+    // ROOT CAUSE:
+    // A real frame plus an 80 ms wait can exceed the recognizer's 100 ms idle
+    // deadline on CI. Control the idle clock while browser frames remain real.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      dispatchHorizontalPan(swipeRoot, 100)
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 100), 3)
 
-    dispatchHorizontalPan(swipeRoot, -30)
-    await new Promise(resolve => requestAnimationFrame(resolve))
-    const reversedOffset = getExpectedLeftSwipeOffset(swipeRoot, 70)
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
+      dispatchHorizontalPan(swipeRoot, -30)
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      const reversedOffset = getExpectedLeftSwipeOffset(swipeRoot, 70)
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
 
-    await new Promise(resolve => setTimeout(resolve, 80))
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
-    expect(screen.emitted('replyMessage')).toBeUndefined()
+      vi.advanceTimersByTime(80)
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
+      expect(screen.emitted('replyMessage')).toBeUndefined()
 
-    dispatchHorizontalPan(swipeRoot, -30)
-    await new Promise(resolve => requestAnimationFrame(resolve))
-    const releaseOffset = getExpectedLeftSwipeOffset(swipeRoot, 40)
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(releaseOffset, 3)
+      dispatchHorizontalPan(swipeRoot, -30)
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      const releaseOffset = getExpectedLeftSwipeOffset(swipeRoot, 40)
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(releaseOffset, 3)
 
-    await new Promise(resolve => setTimeout(resolve, 120))
-    expect(getTranslateX(swipeSurface)).not.toBeCloseTo(releaseOffset, 3)
+      // The last reverse event resets the idle deadline and cancels the reply.
+      vi.advanceTimersByTime(99)
+      await nextTick()
+      expect(swipeSurface.dataset.swipeActive).toBe('true')
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(releaseOffset, 3)
+      expect(screen.emitted('replyMessage')).toBeUndefined()
+
+      vi.advanceTimersByTime(1)
+      await nextTick()
+      expect(swipeSurface.dataset.swipeActive).toBe('false')
+      expect(screen.emitted('replyMessage')).toBeUndefined()
+    }
+    finally {
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    }
+
+    await vi.waitFor(() => {
+      expect(getTranslateX(swipeSurface)).toBe(0)
+    })
     expect(screen.emitted('replyMessage')).toBeUndefined()
   })
 
@@ -1514,6 +1589,36 @@ describe('chat history', () => {
     dispatchTouchPointer(trigger, 'pointerdown', 100)
 
     expect(trigger.dataset.pressing).toBe('false')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2477
+  it('keeps repeated tool call ids separate when rendering and rerunning (PR #2477)', async () => {
+    // ROOT CAUSE:
+    // A call-id lookup displayed the latest result for every matching invocation.
+    // The rerun event also lost the selected round. Each block needs its own identity.
+    const message: ChatHistoryItem = {
+      role: 'assistant',
+      content: '',
+      slices: [0, 1].map(index => ({ type: 'tool-call', toolCall: { toolCallId: 'same', toolCallType: 'function', toolName: 'weather', args: JSON.stringify({ index }) } })),
+      tool_results: [{ id: 'same', result: 'First result' }, { id: 'same', result: 'Second result' }],
+      generationTranscript: {
+        type: 'assistant',
+        id: 'turn',
+        status: 'completed',
+        rounds: [0, 1].map(index => ({
+          id: `round-${index}`,
+          content: [],
+          projectionIssues: [],
+          toolInvocations: [{ id: `invocation-${index}`, callId: 'same', name: 'weather', arguments: JSON.stringify({ index }), execution: { status: 'succeeded', output: [{ type: 'text', text: index === 0 ? 'First result' : 'Second result' }] } }],
+        })),
+      },
+    }
+    const screen = await render(ChatHistory, {
+      props: { messages: [message], style: 'height: 480px; width: 480px; overflow-y: auto;' },
+      global: { plugins: [createEnglishI18n()] },
+    })
+    await screen.getByLabelText('Re-run tool call').nth(1).click()
+    expect(screen.emitted('toolCallRerun')).toEqual([[expect.objectContaining({ invocationId: 'invocation-1', toolCallId: 'same' })]])
   })
 
   it('emits tool-call-rerun with message context when a tool call rerun button is clicked', async () => {

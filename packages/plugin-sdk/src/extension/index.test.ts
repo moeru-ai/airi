@@ -36,18 +36,16 @@ describe('defineExtension', () => {
     const setup = vi.fn(async () => {})
     const extension = defineExtension({
       id: 'airi-extension-test',
-      version: '1.0.0',
       setup,
     })
 
     expect(extension.id).toBe('airi-extension-test')
-    expect(extension.version).toBe('1.0.0')
 
     const subscriptions = new DisposableStore()
     await extension.setup({
       extension: {
         id: extension.id,
-        version: extension.version,
+        version: '1.0.0',
         sessionId: 'session-1',
       },
       subscriptions,

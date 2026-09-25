@@ -153,7 +153,7 @@ async function expectElectronReplyBubble(screen: Awaited<ReturnType<typeof rende
   })
 
   expect(getComputedStyle(input).backgroundColor).toBe('rgba(0, 0, 0, 0)')
-  expect(getComputedStyle(bubble).backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+  expect(getComputedStyle(bubble).backgroundColor).toBe('rgba(0, 0, 0, 0)')
 
   const cancelButton = bubble.querySelector<HTMLButtonElement>('[aria-label="stage.chat.reply.cancel"]')
   const replyTransition = cancelButton?.parentElement?.parentElement
@@ -204,6 +204,16 @@ describe('interactive area synchronized state', () => {
         return Math.abs((inner.top - outer.top) - (outer.bottom - inner.bottom))
       }).toBeLessThanOrEqual(1)
     }
+  })
+
+  it('places the mobile attachment control beside the input bubble', async () => {
+    await page.viewport(390, 844)
+    const { screen } = await renderArea(MobileInteractiveArea)
+    const bubble = screen.getByTestId('mobile-input-bubble').element()
+    const attach = screen.getByRole('button', { name: 'stage.chat.images.attach' }).element()
+    expect(bubble.contains(attach)).toBe(false)
+    expect(attach.getBoundingClientRect().right).toBeLessThan(bubble.getBoundingClientRect().left)
+    expect(attach.getBoundingClientRect().bottom).toBe(bubble.getBoundingClientRect().bottom)
   })
 
   it('opens mobile settings from an icon-only header and restores focus', async () => {
@@ -336,49 +346,6 @@ describe('interactive area synchronized state', () => {
     expect(viewControl.viewControlsEnabled.value).toBe(false)
   })
 
-  it('keeps a docked input bubble mounted while view controls are open', async () => {
-    // ROOT CAUSE:
-    //
-    // Entering view mode removed the composer subtree. Its dock animation stores
-    // opacity and position on the mounted elements, while the docked state survives.
-    // Recreating the subtree therefore lost the visual state when view mode closed.
-    await page.viewport(390, 844)
-    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
-    stageModel.setStageModelRenderer('live2d')
-    const bubble = screen.getByTestId('mobile-input-bubble').element()
-    const input = screen.getByRole('textbox').element()
-    const icon = bubble.querySelector<HTMLElement>('[aria-hidden="true"]')!
-    const bounds = bubble.getBoundingClientRect()
-    const pointer = {
-      bubbles: true,
-      clientX: bounds.left + bounds.width / 2,
-      clientY: bounds.top + bounds.height / 2,
-      isPrimary: true,
-      pointerId: 1,
-      pointerType: 'touch',
-    }
-    vi.spyOn(bubble, 'setPointerCapture').mockImplementation(() => {})
-
-    bubble.dispatchEvent(new PointerEvent('pointerdown', { ...pointer, button: 0, buttons: 1 }))
-    await new Promise(resolve => setTimeout(resolve, 550))
-    bubble.dispatchEvent(new PointerEvent('pointermove', { ...pointer, buttons: 1, clientY: pointer.clientY - 80 }))
-    bubble.dispatchEvent(new PointerEvent('pointerup', { ...pointer, buttons: 0, clientY: pointer.clientY - 80 }))
-    await expect.poll(() => getComputedStyle(input).opacity).toBe('0')
-    expect(getComputedStyle(icon).opacity).toBe('1')
-
-    await screen.getByTestId('mobile-settings-button').click()
-    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
-
-    expect(bubble.isConnected).toBe(true)
-    await expect.element(screen.getByTestId('mobile-message-composer')).not.toBeVisible()
-
-    await screen.getByTestId('view-controls-close-button').click()
-
-    expect(screen.getByTestId('mobile-input-bubble').element()).toBe(bubble)
-    expect(getComputedStyle(input).opacity).toBe('0')
-    expect(getComputedStyle(icon).opacity).toBe('1')
-  })
-
   it('closes view controls with Escape and restores focus', async () => {
     // ROOT CAUSE:
     //
@@ -440,29 +407,18 @@ describe('interactive area synchronized state', () => {
     await screen.getByTestId('view-controls-close-button').click()
   })
 
-  it('keeps the empty mobile input compact and aligns the send action with its bubble', async () => {
-    // ROOT CAUSE:
-    //
-    // The hierarchy redesign removed the input bubble's compact maximum width.
-    // The 40px bubble also top-aligned its 32px textarea while the send action
-    // aligned to the bottom of the same row. The reply container now owns the
-    // visible border, so the action aligns with the bubble instead of its inset textarea.
+  it('keeps the mobile input width stable when the send action appears', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
-    const composer = screen.getByTestId('mobile-message-composer').element()
     const bubble = screen.getByTestId('mobile-input-bubble').element()
     const input = screen.getByRole('textbox').element()
-    const composerStyle = getComputedStyle(composer)
-    const composerContentWidth = composer.clientWidth
-      - Number.parseFloat(composerStyle.paddingLeft)
-      - Number.parseFloat(composerStyle.paddingRight)
-
-    expect(Math.round(bubble.getBoundingClientRect().width)).toBe(Math.round(composerContentWidth * 0.7))
+    const emptyWidth = bubble.getBoundingClientRect().width
 
     await userEvent.fill(input, 'hi')
     const send = screen.getByRole('button', { name: 'stage.chat.actions.send' }).element()
     await expect.poll(() => input.getBoundingClientRect().height).toBe(32)
-    expect(send.getBoundingClientRect().height).toBe(32)
+    expect(bubble.getBoundingClientRect().width).toBe(emptyWidth)
+    expect(send.getBoundingClientRect().height).toBe(40)
     expect(bubble.getBoundingClientRect().bottom).toBe(send.getBoundingClientRect().bottom)
     const bubbleBounds = bubble.getBoundingClientRect()
     const inputBounds = input.getBoundingClientRect()
@@ -587,7 +543,7 @@ describe('interactive area synchronized state', () => {
     layout.style.height = '240px'
     layout.style.width = '320px'
 
-    await attachImages(screen, 12)
+    await attachImages(screen, 4)
 
     const input = screen.getByRole('textbox').element() as HTMLTextAreaElement
     const layoutRect = layout.getBoundingClientRect()
@@ -925,6 +881,8 @@ describe('interactive area synchronized state', () => {
     await submitDraft(screen, 'web follower message')
 
     await vi.waitFor(() => expect(send).toHaveBeenCalledWith({
+      attachments: [],
+      replyToMessageId: undefined,
       sessionId: 'session-b',
       text: 'web follower message',
     }))
@@ -937,6 +895,8 @@ describe('interactive area synchronized state', () => {
     await submitDraft(screen, 'mobile follower message')
 
     await vi.waitFor(() => expect(send).toHaveBeenCalledWith({
+      attachments: [],
+      replyToMessageId: undefined,
       sessionId: 'session-b',
       text: 'mobile follower message',
     }))

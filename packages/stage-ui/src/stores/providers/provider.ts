@@ -1,19 +1,11 @@
-import type {
-  ChatProvider,
-  ChatProviderWithExtraOptions,
-  EmbedProvider,
-  EmbedProviderWithExtraOptions,
-  SpeechProvider,
-  SpeechProviderWithExtraOptions,
-  TranscriptionProvider,
-  TranscriptionProviderWithExtraOptions,
-} from '@xsai-ext/providers/utils'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type {} from 'pinia-plugin-synced'
 
 import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/providers'
 import type { ChatRequestOptions, ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
+import { getGenerationProvider } from '@proj-airi/provider-inference'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { computedAsync, useAsyncState, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
@@ -65,20 +57,6 @@ export interface ProviderRuntimeState {
 const emptyProviderModels: ModelInfo[] = []
 Object.freeze(emptyProviderModels)
 
-function withChatRequestOptions(
-  provider: ChatProviderWithExtraOptions<string, ChatRequestOptions>,
-  options: ChatRequestOptions,
-): ChatProvider {
-  const decorated = {
-    ...provider,
-    chat(model: string) {
-      return provider.chat(model, options)
-    },
-  }
-
-  return decorated
-}
-
 // Only the provider data plane crosses renderer boundaries. Async derived refs
 // stay in useProviderStore and recompute locally instead of being patched as
 // authoritative state by pinia-plugin-synced.
@@ -110,7 +88,7 @@ export const useProviderStore = defineStore('provider', () => {
   const addedProviders = computed(() => providerConfigStore.addedProviders)
   // Provider instances contain functions and transport handles. Keep this map
   // private so it never enters Pinia state.
-  const providerInstanceCache = new Map<string, unknown>()
+  const providerInstanceCache = new Map<string, { configKey: string | undefined, instance: unknown }>()
   const { t } = useI18n()
 
   const VISION_PROVIDER_ID_PREFIX = 'vision-'
@@ -555,6 +533,7 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   function normalizeProviderModels(providerId: string, models: Array<{
+    metadata?: ModelInfo['metadata']
     context_length?: number
     contextLength?: number
     deprecated?: boolean
@@ -564,6 +543,7 @@ export const useProviderStore = defineStore('provider', () => {
     name?: string
   }>) {
     return models.map(model => ({
+      metadata: model.metadata,
       id: model.id,
       name: model.name ?? model.display_name ?? model.id,
       provider: providerId,
@@ -740,6 +720,7 @@ export const useProviderStore = defineStore('provider', () => {
       const catalog = await listProviderModels(providerId, config || {})
       const normalizedModels = uniqBy(catalog.models.filter(model => !!model.id), m => m.id)
         .map(model => ({
+          metadata: model.metadata,
           id: model.id,
           name: model.name,
           description: model.description,
@@ -766,7 +747,7 @@ export const useProviderStore = defineStore('provider', () => {
         }
         // Synced action results pass through structuredClone. Return local
         // catalog values because reading models back from state returns a Vue
-        // proxy and provider-specific metadata is not part of synced state.
+        // proxy. Catalog metadata contains only serializable data.
         return {
           ...catalog,
           models: normalizedModels,
@@ -894,22 +875,12 @@ export const useProviderStore = defineStore('provider', () => {
     }
   }
 
-  // Function to get provider object by provider id
-  async function getProviderInstance<R extends
-  | ChatProvider
-  | ChatProviderWithExtraOptions
-  | EmbedProvider
-  | EmbedProviderWithExtraOptions
-  | SpeechProvider
-  | SpeechProviderWithExtraOptions
-  | TranscriptionProvider
-  | TranscriptionProviderWithExtraOptions,
-  >(providerId: string): Promise<R> {
+  /**
+   * Returns an instance owned by this renderer for the current configuration.
+   * A replicated configuration invalidates the previous instance before reuse.
+   */
+  async function getProviderInstance<R extends ProviderInstance>(providerId: string): Promise<R> {
     await waitForProviderMetadata()
-    const cached = providerInstanceCache.get(providerId) as R | undefined
-    if (cached)
-      return cached
-
     const definition = getProviderDefinition(providerId)
 
     // Providers that don't require credentials use empty config
@@ -921,12 +892,21 @@ export const useProviderStore = defineStore('provider', () => {
       providerConfigStore.ensureProvider(providerId, definitionId, config)
     }
 
-    if (!config && !noCredentials)
+    if (!config && !noCredentials && (providerId !== 'prompt-api'))
       throw new Error(`Provider credentials for ${providerId} not found`)
+
+    // Configuration snapshots can arrive after a follower creates an instance.
+    // Compare serialized values so an equivalent snapshot preserves its transport.
+    const configKey = JSON.stringify(config)
+    const cached = providerInstanceCache.get(providerId)
+    if (cached && cached.configKey === configKey)
+      return cached.instance as R
+    if (cached)
+      await disposeProviderInstance(providerId)
 
     try {
       const instance = await definition.createProvider(config || {})
-      providerInstanceCache.set(providerId, instance)
+      providerInstanceCache.set(providerId, { configKey, instance })
       return instance as R
     }
     catch (error) {
@@ -941,23 +921,23 @@ export const useProviderStore = defineStore('provider', () => {
    */
   async function getChatProviderInstance(
     providerId: string,
-    options: ChatRequestOptions,
-  ): Promise<ChatProvider> {
-    const provider = await getProviderInstance<ChatProviderWithExtraOptions<string, ChatRequestOptions>>(providerId)
-    const definition = findProviderDefinition(providerId)
-    const reasoning = definition?.capabilities?.chat?.reasoning
-    if (!reasoning?.modes.includes(options.reasoning))
-      return provider
-
-    return withChatRequestOptions(provider, options)
+    options?: ChatRequestOptions,
+  ): Promise<GenerationProvider> {
+    const provider = getGenerationProvider(await getProviderInstance(providerId))
+    if (!provider)
+      throw new Error(`Provider ${providerId} does not support generation`)
+    const reasoning = findProviderDefinition(providerId)?.capabilities?.chat?.reasoning
+    const requestOptions = options && reasoning?.modes.includes(options.reasoning) ? options : undefined
+    return { generation: model => provider.generation(model, requestOptions) }
   }
 
+  /** Releases this renderer's transport; each window owns its own instance cache. */
   async function disposeProviderInstance(providerId: string) {
-    const instance = providerInstanceCache.get(providerId) as { dispose?: () => Promise<void> | void } | undefined
+    const instance = providerInstanceCache.get(providerId)?.instance as { dispose?: () => Promise<void> | void } | undefined
+    // Remove ownership before awaiting cleanup so a concurrent request cannot reuse it.
+    providerInstanceCache.delete(providerId)
     if (instance?.dispose)
       await instance.dispose()
-
-    providerInstanceCache.delete(providerId)
   }
 
   const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {
@@ -1032,6 +1012,10 @@ export const useProviderStore = defineStore('provider', () => {
     return !!addedProviders.value[providerId] || isProviderConfigDirty(providerId)
   }
 
+  function shouldListProviderForPromptApi(providerId: string) {
+    return providerId === 'prompt-api' && 'LanguageModel' in globalThis
+  }
+
   function isProviderAvailableWithoutConfiguration(providerId: string) {
     return providerConfiguredBy(providerId) !== 'authentication'
       && getProviderDefinition(providerId).requiresCredentials === false
@@ -1065,7 +1049,8 @@ export const useProviderStore = defineStore('provider', () => {
     return allChatProvidersMetadata.value.filter(metadata =>
       isProviderConfiguredForModule(metadata.id)
       || (providerConfiguredBy(metadata.id) !== 'authentication' && shouldListProvider(metadata.id))
-      || isProviderAvailableWithoutConfiguration(metadata.id),
+      || isProviderAvailableWithoutConfiguration(metadata.id)
+      || shouldListProviderForPromptApi(metadata.id),
     )
   })
 
@@ -1156,7 +1141,6 @@ export const useProviderStore = defineStore('provider', () => {
   synced: {
     actions: [
       'deleteProvider',
-      'disposeProviderInstance',
       'fetchModelsForProvider',
       'forceProviderConfigured',
       'initializeProvider',

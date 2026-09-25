@@ -25,6 +25,7 @@
     "@capacitor/barcode-scanner": "catalog:",
     "@capacitor/core": "catalog:",
     "@capacitor/ios": "catalog:",
+    "@capacitor/keyboard": "catalog:",
     "@capacitor/local-notifications": "catalog:",
     "@date-fns/utc": "catalog:",
     "@fontsource-variable/nunito": "catalog:",

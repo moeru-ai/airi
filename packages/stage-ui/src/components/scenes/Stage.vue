@@ -546,6 +546,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
           trigger: 'auto',
           source: 'chat_auto_tts',
           voice_type: resolveStageVoiceType(),
+          ...(request.turnId != null && { turn_id: request.turnId }),
         },
       )
 
@@ -768,6 +769,7 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
     model: sessionModel,
     voice: voiceId,
     voiceType: resolveStageVoiceType(),
+    turnId,
     bufferEntireSession,
     extraBody: {
       api_resource_id: apiResourceId,
@@ -998,54 +1000,6 @@ async function captureCharacterFrame() {
     return mmdSceneRef.value?.captureFrame()
 }
 
-async function captureFrame() {
-  const charBlob = await captureCharacterFrame()
-
-  if (!activeBackgroundUrl.value || !charBlob)
-    return charBlob
-
-  try {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    if (!ctx)
-      return charBlob
-
-    // Load background image
-    const bgImg = new Image()
-    bgImg.crossOrigin = 'anonymous'
-    bgImg.src = activeBackgroundUrl.value
-    await new Promise((resolve, reject) => {
-      bgImg.onload = resolve
-      bgImg.onerror = reject
-    })
-
-    // Load character frame
-    const charImg = await createImageBitmap(charBlob)
-
-    // Match canvas size to the captured frame (respects DPI/Render Scale)
-    canvas.width = charImg.width
-    canvas.height = charImg.height
-
-    // Draw background with "cover" logic
-    const scale = Math.max(canvas.width / bgImg.width, canvas.height / bgImg.height)
-    const w = bgImg.width * scale
-    const h = bgImg.height * scale
-    const x = (canvas.width - w) / 2
-    const y = (canvas.height - h) / 2
-
-    ctx.drawImage(bgImg, x, y, w, h)
-
-    // Draw character on top
-    ctx.drawImage(charImg, 0, 0)
-
-    return new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
-  }
-  catch (error) {
-    console.error('[Stage] Failed to composite photo with background:', error)
-    return charBlob // Fallback to character-only
-  }
-}
-
 onUnmounted(() => {
   disposePlaybackStateHandler()
   resetLive2dLipSync()
@@ -1063,28 +1017,22 @@ onUnmounted(() => {
 
 defineExpose({
   canvasElement,
-  captureFrame,
+  /**
+   * The frame already carries the scene: every renderer paints it into the canvas it
+   * draws to, so what comes back is the whole picture.
+   */
+  captureFrame: captureCharacterFrame,
   readRenderTargetRegionAtClientPoint,
+  setExpression: async (expression: string, intensity = 1) => {
+    if (stageModelRenderer.value === 'vrm') {
+      await vrmViewerRef.value?.setExpression(expression, intensity)
+    }
+  },
 })
 </script>
 
 <template>
   <div relative h-full w-full>
-    <!-- Scene Background Layer -->
-    <div
-      v-if="activeBackgroundUrl"
-      :class="[
-        'absolute left-0 top-0 z-0 h-full w-full',
-        'transition-opacity duration-500',
-      ]"
-      :style="{
-        backgroundImage: `url(${activeBackgroundUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }"
-    />
-
     <div relative h-full w-full>
       <Live2DScene
         v-if="stageModelRenderer === 'live2d' && showStage"
@@ -1094,6 +1042,7 @@ defineExpose({
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
+        :background-url="activeBackgroundUrl"
         :cursor-position="cursorPosition"
         :mouth-open-size="mouthOpenSize"
         :now-speaking="nowSpeaking"
@@ -1109,6 +1058,7 @@ defineExpose({
         v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
         v-model:state="componentState"
+        :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
         :model-id="stageModelSelected"
         :model-src="stageModelSelectedUrl"
@@ -1126,6 +1076,7 @@ defineExpose({
         v-if="stageModelRenderer === 'spine' && showStage"
         ref="spineSceneRef"
         v-model:state="componentState"
+        :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" min-h="100 sm:100"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
@@ -1141,6 +1092,7 @@ defineExpose({
         v-if="stageModelRenderer === 'tachie' && showStage"
         ref="tachieSceneRef"
         v-model:state="componentState"
+        :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" min-h="100 sm:100"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
@@ -1154,6 +1106,7 @@ defineExpose({
         v-if="stageModelRenderer === 'mmd' && showStage"
         ref="mmdSceneRef"
         v-model:state="componentState"
+        :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" min-h="100 sm:100"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"

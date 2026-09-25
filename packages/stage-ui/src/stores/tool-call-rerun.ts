@@ -3,17 +3,32 @@ import type { Tool } from '@xsai/shared-chat'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlicesToolCallResult } from '../types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
+import { chatContentToInputSegments } from '@proj-airi/core-agent'
 
 import { toolNameFrom } from './ai/chat-llm/tool-resolver'
 
-export interface ToolCallRerunPayload<TToolset extends string = string> {
+/** Identifies one tool invocation inside the selected assistant message. */
+export interface ToolCallRerunRequest {
+  /** Required when the provider repeats a call id across rounds. */
+  invocationId?: string
+  toolCallId: string
+  toolName: string
+  args: string
+}
+
+/** The history component attaches its message location before forwarding the rerun. */
+export interface ChatToolCallRerunEvent extends ToolCallRerunRequest {
+  message: ChatHistoryItem
+  index: number
+  key: string | number
+}
+
+/** History location and runtime selection for a tool rerun. */
+export interface ToolCallRerunPayload<TToolset extends string = string> extends ToolCallRerunRequest {
   sessionId?: string
   messageId?: string
   index?: number
   toolset?: TToolset
-  toolCallId: string
-  toolName: string
-  args: string
 }
 
 interface ExecuteToolCallRerunOptions<TToolset extends string = string> {
@@ -25,46 +40,75 @@ interface ExecuteToolCallRerunOptions<TToolset extends string = string> {
 type ToolCallResultInput = Omit<ChatSlicesToolCallResult, 'type'>
 type ToolExecuteOptions = NonNullable<Parameters<Tool['execute']>[1]>
 
-/**
- * Returns a copy of an assistant message with the result for one tool call replaced.
- *
- * The chat UI can read results from `tool_results` or inline `tool-call-result`
- * slices. Reruns update both representations for the same id so stored and
- * inline messages stay consistent.
- */
-export function replaceToolCallResult(message: ChatAssistantMessage, result: ToolCallResultInput): ChatAssistantMessage {
-  const toolResult = {
-    id: result.id,
-    isError: result.isError,
-    result: result.result,
+function findInvocation(message: ChatAssistantMessage, callId: string, invocationId?: string) {
+  const candidates = message.generationTranscript?.rounds.flatMap((round, roundIndex) =>
+    round.toolInvocations.filter(call => call.callId === callId).map(call => ({ call, roundIndex })),
+  )
+  if (invocationId !== undefined) {
+    const matches = candidates?.filter(candidate => candidate.call.id === invocationId)
+    if (!candidates || matches?.length !== 1)
+      throw new Error(`Tool invocation "${invocationId}" is missing or ambiguous.`)
+    return { ...matches[0], occurrence: candidates.indexOf(matches[0]) }
   }
-  const resultSlice: ChatSlicesToolCallResult = {
-    type: 'tool-call-result',
-    ...toolResult,
-  }
+  if (candidates && candidates.length > 1)
+    throw new Error(`Tool call "${callId}" is ambiguous. Select an invocation.`)
+  return candidates?.[0] ? { ...candidates[0], occurrence: 0 } : undefined
+}
 
+/**
+ * Replaces one execution and its display results, preserving their order.
+ * Native continuation for this round and later rounds becomes stale after the edit.
+ * Repeated provider call ids require an AIRI invocation id.
+ */
+export function replaceToolCallResult(message: ChatAssistantMessage, result: ToolCallResultInput, invocationId?: string): ChatAssistantMessage {
+  const target = findInvocation(message, result.id, invocationId)
+  const occurrence = target?.occurrence ?? 0
+  const toolResult = { id: result.id, isError: result.isError, result: result.result }
+  const resultSlice: ChatSlicesToolCallResult = { type: 'tool-call-result', ...toolResult }
+  let generationTranscript = message.generationTranscript
+  if (generationTranscript && target) {
+    generationTranscript = {
+      ...generationTranscript,
+      rounds: generationTranscript.rounds.map((round, index) => index < target.roundIndex
+        ? round
+        : {
+            ...round,
+            // Later native rounds depend on the old result, even when their executions do not change.
+            continuation: undefined,
+            toolInvocations: round.toolInvocations.map(call => index !== target.roundIndex || call.id !== target.call.id
+              ? call
+              : { ...call, execution: { status: result.isError ? 'failed' : 'succeeded', output: chatContentToInputSegments(result.result) } }),
+          }),
+    }
+  }
+  // Display and imported provider results follow occurrence order for each call id.
+  // Their protocol envelopes do not carry AIRI invocation ids.
+  let providerOccurrence = 0
+  let sliceOccurrence = 0
+  let storedOccurrence = 0
+  let replaced = false
+  const toolResults = message.tool_results.map((item) => {
+    if (item.id !== result.id || storedOccurrence++ !== occurrence)
+      return item
+    replaced = true
+    return toolResult
+  })
+  if (!replaced)
+    toolResults.push(toolResult)
   return {
     ...message,
-    providerTranscript: message.providerTranscript?.map((providerMessage) => {
-      if (providerMessage.role === 'tool' && providerMessage.tool_call_id === result.id) {
-        return {
-          ...providerMessage,
-          content: result.result ?? '',
-        }
-      }
-
-      return providerMessage
+    generationTranscript,
+    providerTranscript: message.providerTranscript?.map((item) => {
+      if (item.role === 'tool' && item.tool_call_id === result.id && providerOccurrence++ === occurrence)
+        return { ...item, content: result.result ?? '' }
+      return item
     }),
     slices: message.slices.map((slice) => {
-      if (slice.type === 'tool-call-result' && slice.id === result.id)
+      if (slice.type === 'tool-call-result' && slice.id === result.id && sliceOccurrence++ === occurrence)
         return resultSlice
-
       return slice
     }),
-    tool_results: [
-      ...message.tool_results.filter(item => item.id !== result.id),
-      toolResult,
-    ],
+    tool_results: toolResults,
   }
 }
 
@@ -87,11 +131,15 @@ export async function executeToolCallRerun<TToolset extends string = string>(
   if (!hasMatchingToolCall(targetMessage, payload))
     throw new Error(`Assistant message does not contain tool call "${payload.toolCallId}" for "${payload.toolName}".`)
 
+  const invocation = findInvocation(targetMessage, payload.toolCallId, payload.invocationId)
+  if (invocation && invocation.call.name !== payload.toolName)
+    throw new Error('The selected invocation does not match the tool name.')
+
   const replaceTargetMessage = (result: ToolCallResultInput) => messages.map((item, itemIndex) => {
     if (itemIndex !== targetIndex)
       return item
 
-    return replaceToolCallResult(targetMessage, result)
+    return replaceToolCallResult(targetMessage, result, payload.invocationId)
   })
 
   const tools = await options.resolveTools()

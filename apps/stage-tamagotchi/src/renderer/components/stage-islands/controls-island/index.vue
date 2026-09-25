@@ -4,7 +4,7 @@ import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInEl
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ScrollableArea, useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn, useMousePressed } from '@vueuse/core'
+import { refDebounced, useIntervalFn, useMouseInElement, useMousePressed } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -16,7 +16,7 @@ import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
-import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
+import ControlsIslandSpeechMute from './controls-island-speech-mute.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
@@ -96,16 +96,31 @@ function setOverlay(key: string, active: boolean) {
   blockingOverlays.delete(key)
 }
 
+// NOTICE: On native Wayland, `isOutsideByCursor` can get permanently stuck
+// because it is driven by Electron's screen.getCursorScreenPoint(), which
+// Chromium's Ozone/Wayland backend cannot query reliably the way X11 does.
+// Source: https://github.com/moeru-ai/airi/issues/2521 (CachyOS + KDE
+// Plasma, Flatpak). OR it with the DOM-based `isOutsideByDom`
+// (useMouseInElement), which self-corrects on every pointermove and needs
+// no OS-level cursor query, so a broken cursor signal cannot force a false
+// collapse. The stage reads this paired result for click-through hit
+// testing, where DOM events may not reach the renderer at all.
+// Removal condition: once Ozone/Wayland reports the absolute
+// cursor position reliably upstream, or the click-through hit-testing no
+// longer depends on this composable.
+const { isOutside: isOutsideByCursor } = useElectronMouseInElement(islandElement)
+const { isOutside: isOutsideByDom } = useMouseInElement(islandElement)
+const isOutside = computed(() => isOutsideByCursor.value && isOutsideByDom.value)
+const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
+
 // The stage page observes this element for cursor hit testing.
 defineExpose({
   get element() { return islandElement.value },
+  get isOutside() { return isOutside.value },
   get overlayActive() { return blockingOverlays.size > 0 || pressed.value },
   get hearingDialogOpen() { return blockingOverlays.has('hearing') },
   set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
 })
-
-const { isOutside } = useElectronMouseInElement(islandElement)
-const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
 watch(isOutsideAfter2seconds, (outside) => {
   if (outside && expanded.value && !isBlocked.value) {
@@ -263,7 +278,7 @@ function resetMainWindowPosition() {
             data-testid="controls-menu"
             orientation="both"
             :style="panelStyle"
-            :class="['w-max shrink-0', panelPositionClasses]"
+            :class="['w-max shrink-0 rounded-2xl', panelPositionClasses]"
             viewport-class="overscroll-contain"
           >
             <div
@@ -468,7 +483,7 @@ function resetMainWindowPosition() {
             </template>
           </ControlButtonTooltip>
 
-          <ControlsIslandStopSpeaking
+          <ControlsIslandSpeechMute
             :button-style="adjustStyleClasses.button"
             :icon-class="adjustStyleClasses.icon"
           />

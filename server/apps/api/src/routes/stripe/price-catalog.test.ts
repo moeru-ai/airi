@@ -53,11 +53,15 @@ describe('listStripePackages', () => {
 
   it('reuses the Stripe price cache for the same product', async () => {
     const list = vi.fn(async () => ({ data: [listedPrice()] }))
-    const catalog = createStripePriceCatalog(createStripe({ list }), createTestRedis())
+    const redis = createTestRedis()
+    const catalog = createStripePriceCatalog(createStripe({ list }), redis)
 
     await listStripePackages(catalog, productId)
     await listStripePackages(catalog, productId)
     expect(list).toHaveBeenCalledTimes(1)
+    expect(await redis.get('stripe:prices')).not.toBeNull()
+    expect(await redis.ttl('stripe:prices')).toBeGreaterThan(0)
+    expect(await redis.ttl('stripe:prices')).toBeLessThanOrEqual(300)
   })
 
   it('returns no packages when Stripe price list fails', async () => {
@@ -77,7 +81,8 @@ describe('listStripePackages', () => {
     const list = vi.fn()
       .mockRejectedValueOnce(new Error('timeout'))
       .mockResolvedValue({ data: [listedPrice()] })
-    const catalog = createStripePriceCatalog(createStripe({ list }), createTestRedis())
+    const redis = createTestRedis()
+    const catalog = createStripePriceCatalog(createStripe({ list }), redis)
 
     await expect(listStripePackages(catalog, productId)).resolves.toEqual([])
     expect(await listStripePackages(catalog, productId)).toHaveLength(1)
