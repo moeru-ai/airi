@@ -6,9 +6,9 @@ import { createPinia, disposePinia } from 'pinia'
 import { expect, it, vi } from 'vitest'
 import { createApp, h, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 
-import CardCreationDialog from '../../../../stage-pages/src/pages/settings/airi-card/components/CardCreationDialog.vue'
+import CardEditor from '../../../../stage-pages/src/pages/settings/airi-card/components/CardEditor.vue'
 
 import { useProviderConfigStore } from '../providers/config'
 import { useAiriCardStore } from './airi-card'
@@ -17,7 +17,7 @@ import { useSpeechStore } from './speech'
 // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967236115
 // ROOT CAUSE: Unsaved dialog selections loaded into the runtime catalog and
 // cleared its selected voice. Preview responses must remain local to the dialog.
-it.each(['completed', 'closed', 'replaced'])('isolates card preview responses when %s', async (scenario) => {
+it.each(['completed', 'unmounted', 'replaced'])('isolates card preview responses when %s', async (scenario) => {
   localStorage.clear()
   let voice = 'runtime'
   const fetchVoices = vi.fn<typeof fetch>(async () => Response.json({ voices: [{ id: voice, name: voice, languages: [] }], data: [] }))
@@ -25,18 +25,26 @@ it.each(['completed', 'closed', 'replaced'])('isolates card preview responses wh
   const deferred = Promise.withResolvers<Response>()
   const pinia = createPinia()
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
-  const open = ref(false)
   const cardId = ref('')
   const container = document.createElement('div')
   document.body.append(container)
-  const app = createApp({
-    setup() {
-      useSpeechStore()
-      return () => h(CardCreationDialog, { modelValue: open.value, cardId: cardId.value, initialTab: 'modules' })
-    },
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{
+      path: '/',
+      component: {
+        setup() {
+          useSpeechStore()
+          return () => h(CardEditor, { cardId: cardId.value, initialSection: 'modules' })
+        },
+      },
+    }],
   })
-  app.use(pinia).use(PiniaColada).use(MotionPlugin).use(i18n).use(createRouter({ history: createMemoryHistory(), routes: [] })).mount(container)
+  const app = createApp({ render: () => h(RouterView) })
+  app.use(pinia).use(PiniaColada).use(MotionPlugin).use(i18n).use(router).mount(container)
   try {
+    await router.push('/')
+    await router.isReady()
     const speech = useSpeechStore(pinia)
     await useProviderConfigStore(pinia).ensureProvider('microsoft-speech', 'microsoft-speech', {
       apiKey: 'key',
@@ -62,10 +70,9 @@ it.each(['completed', 'closed', 'replaced'])('isolates card preview responses wh
     fetchVoices.mockClear()
     if (scenario !== 'completed')
       fetchVoices.mockImplementationOnce(() => deferred.promise)
-    open.value = true
     await vi.waitFor(() => expect(fetchVoices).toHaveBeenCalled())
-    if (scenario === 'closed') {
-      open.value = false
+    if (scenario === 'unmounted') {
+      app.unmount()
     }
     else if (scenario === 'replaced') {
       cardId.value = await draft('newer-model')
@@ -73,14 +80,13 @@ it.each(['completed', 'closed', 'replaced'])('isolates card preview responses wh
     }
     deferred.resolve(Response.json({ voices: [{ id: 'obsolete', name: 'Obsolete', languages: [] }] }))
     await new Promise(resolve => setTimeout(resolve, 100))
-    if (scenario !== 'closed') {
+    if (scenario !== 'unmounted') {
       const label = Array.from(document.querySelectorAll('label')).find(element => element.textContent?.trim() === i18n.global.t('settings.pages.card.speech.voice'))
       const trigger = label?.parentElement?.querySelector('button')
       expect(trigger).toBeTruthy()
       trigger!.click()
       await vi.waitFor(() => expect(Array.from(document.querySelectorAll('[role="option"]')).some(element => element.textContent?.includes('preview'))).toBe(true))
       expect(Array.from(document.querySelectorAll('[role="option"]')).some(element => element.textContent?.includes('Obsolete'))).toBe(false)
-      open.value = false
     }
     expect(speech.activeSpeechModel).toBe('runtime-model')
     expect(speech.activeSpeechVoiceId).toBe('runtime')
