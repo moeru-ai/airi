@@ -3,11 +3,20 @@ name: Tamagotchi Linux Window Smoke
 # Compiling stage-tamagotchi on Linux (see the `build-test` job in ci.yml)
 # only proves the code type-checks and bundles. It never launches the app,
 # so regressions in the Ozone/X11 vs Wayland switches
-# (src/main/libs/electron/linux-command-line-switches.ts), the frameless
-# transparent window config, or GPU init under a headless display have
-# historically only surfaced when a contributor happened to run the app on
-# their own Linux desktop. These jobs launch the real built app under a
-# real (headless) display server and assert the main window renders.
+# (src/main/index.ts, src/main/app/ozone.ts), the frameless transparent
+# window config, or GPU init under a headless display have historically
+# only surfaced when a contributor happened to run the app on their own
+# Linux desktop. These jobs launch the real built app under a real
+# (headless) display server and assert the main window renders.
+#
+# Reproduce a failure locally with the same inputs the job records in
+# report.json (artifact `linux-window-render-smoke-*`):
+#
+#   pnpm install --frozen-lockfile && pnpm run build:packages
+#   pnpm -F @proj-airi/stage-tamagotchi run build
+#   SMOKE_EXPECT_OZONE_PLATFORM=x11 \
+#     xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" \
+#     pnpm -F @proj-airi/stage-tamagotchi run smoke:linux-window-render
 
 on:
   push:
@@ -24,25 +33,60 @@ on:
     # the Wayland-only branch actually changes.
     - cron: '0 18 * * *'
 
+# A newer push to the same PR supersedes the running smoke; main and
+# scheduled runs are keyed by run id so they never cancel each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  # Fixed locale and timezone so renderer output, logs, and screenshots do
+  # not depend on the runner image defaults.
+  LANG: C.UTF-8
+  TZ: UTC
+  # CI runners cannot set up the setuid chrome-sandbox helper; disable
+  # Chromium's OS sandbox instead of chasing SUID errors that are unrelated
+  # to the app-level `webPreferences.sandbox` setting used for the renderer.
+  ELECTRON_DISABLE_SANDBOX: '1'
+  # Non-hidden on purpose: actions/upload-artifact skips hidden paths such
+  # as `.temp/`, which left earlier failed runs without any artifact.
+  SMOKE_REPORT_DIR: ${{ github.workspace }}/smoke-report
+
 jobs:
   x11-window-render:
     name: X11 window render (Xvfb)
     if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'moeru-ai:i18n/')) }}
-    runs-on: ubuntu-latest
+    # Pinned instead of ubuntu-latest: the apt package names below
+    # (libasound2t64) and the Xvfb/Mesa versions are image-specific.
+    runs-on: ubuntu-24.04
+    # Each launch phase has its own 60-120s budget inside the script; this
+    # only stops a wedged display server or install from holding a runner
+    # for the 6h default.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
         with:
-          node-version: lts/*
-          cache: pnpm
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      # Same Node.js pin as ci.yml; see the NOTICE there for why it is pinned.
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
 
       - name: Install Electron runtime + Xvfb dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             xvfb \
+            xauth \
             libgtk-3-0 \
             libnotify4 \
             libnss3 \
@@ -57,41 +101,64 @@ jobs:
       - run: pnpm run build:packages
       - run: pnpm -F @proj-airi/stage-tamagotchi run build
 
+      - name: Record toolchain versions
+        run: |
+          mkdir -p "${SMOKE_REPORT_DIR}"
+          {
+            echo "runner: ${ImageOS:-unknown} ${ImageVersion:-unknown}"
+            echo "node: $(node --version)"
+            echo "pnpm: $(pnpm --version)"
+            dpkg-query -W -f='${Package} ${Version}\n' xvfb libgtk-3-0 libnss3 libgbm1 libdrm2 mesa-libgallium 2>/dev/null || true
+          } | tee "${SMOKE_REPORT_DIR}/toolchain.txt"
+
       - name: Run window-render smoke under Xvfb
         env:
-          # CI runners cannot set up the setuid chrome-sandbox helper;
-          # disable Chromium's OS sandbox instead of chasing SUID errors
-          # that are unrelated to the app-level `webPreferences.sandbox`
-          # setting already used for the renderer.
-          ELECTRON_DISABLE_SANDBOX: '1'
-        run: xvfb-run -a pnpm -F @proj-airi/stage-tamagotchi run smoke:linux-window-render
+          SMOKE_EXPECT_OZONE_PLATFORM: x11
+        # Pin the screen instead of relying on the xvfb-run/Xvfb default,
+        # which differs across releases. The transparent frameless main
+        # window needs a 24-bit visual, and a fixed size keeps window
+        # placement and screenshots comparable between runs.
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24 -nolisten tcp" \
+            pnpm -F @proj-airi/stage-tamagotchi run smoke:linux-window-render
 
-      - name: Upload main window screenshot
+      - name: Upload smoke report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: linux-window-render-smoke-x11
-          path: .temp/linux-window-render-smoke-*/
-          if-no-files-found: ignore
+          path: |
+            ${{ env.SMOKE_REPORT_DIR }}/*
+            !${{ env.SMOKE_REPORT_DIR }}/stage-user-data/**
+          if-no-files-found: warn
           retention-days: 14
 
   wayland-window-render:
     name: Wayland window render (weston headless)
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
         with:
-          node-version: lts/*
-          cache: pnpm
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
 
       - name: Install Electron runtime + Weston dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             weston \
             libgtk-3-0 \
             libnotify4 \
@@ -107,6 +174,17 @@ jobs:
       - run: pnpm run build:packages
       - run: pnpm -F @proj-airi/stage-tamagotchi run build
 
+      - name: Record toolchain versions
+        run: |
+          mkdir -p "${SMOKE_REPORT_DIR}"
+          {
+            echo "runner: ${ImageOS:-unknown} ${ImageVersion:-unknown}"
+            echo "node: $(node --version)"
+            echo "pnpm: $(pnpm --version)"
+            echo "weston: $(weston --version 2>&1)"
+            dpkg-query -W -f='${Package} ${Version}\n' weston libgtk-3-0 libnss3 libgbm1 libdrm2 mesa-libgallium 2>/dev/null || true
+          } | tee "${SMOKE_REPORT_DIR}/toolchain.txt"
+
       - name: Start headless Weston compositor
         run: |
           export XDG_RUNTIME_DIR="${RUNNER_TEMP}/xdg-runtime"
@@ -114,11 +192,21 @@ jobs:
           chmod 0700 "${XDG_RUNTIME_DIR}"
           echo "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}" >> "$GITHUB_ENV"
 
-          weston --backend=headless-backend.so --socket=wayland-1 --idle-time=0 &
-          echo "WESTON_PID=$!" >> "$GITHUB_ENV"
+          # Fixed output size for the same reason as the Xvfb screen: the
+          # main window must fit, and screenshots stay comparable.
+          weston --backend=headless-backend.so --socket=wayland-1 --idle-time=0 \
+            --width=1920 --height=1080 \
+            --log="${SMOKE_REPORT_DIR}/weston.log" &
+          WESTON_PID=$!
+          echo "WESTON_PID=${WESTON_PID}" >> "$GITHUB_ENV"
 
           for _ in $(seq 1 50); do
             [ -S "${XDG_RUNTIME_DIR}/wayland-1" ] && exit 0
+            if ! kill -0 "${WESTON_PID}" 2>/dev/null; then
+              echo "weston exited before creating its wayland-1 socket" >&2
+              cat "${SMOKE_REPORT_DIR}/weston.log" >&2 || true
+              exit 1
+            fi
             sleep 0.2
           done
           echo "weston did not create its wayland-1 socket in time" >&2
@@ -126,20 +214,27 @@ jobs:
 
       - name: Run window-render smoke against the Wayland Ozone backend
         env:
-          ELECTRON_DISABLE_SANDBOX: '1'
           XDG_SESSION_TYPE: wayland
           WAYLAND_DISPLAY: wayland-1
-        run: pnpm -F @proj-airi/stage-tamagotchi run smoke:linux-window-render
+          SMOKE_EXPECT_OZONE_PLATFORM: wayland
+        # No DISPLAY is set, so an XWayland fallback cannot connect anywhere;
+        # SMOKE_EXPECT_OZONE_PLATFORM additionally asserts the child
+        # processes really ran the Wayland backend.
+        run: |
+          unset DISPLAY
+          pnpm -F @proj-airi/stage-tamagotchi run smoke:linux-window-render
 
       - name: Stop Weston
         if: always()
         run: kill "${WESTON_PID}" 2>/dev/null || true
 
-      - name: Upload main window screenshot
+      - name: Upload smoke report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: linux-window-render-smoke-wayland
-          path: .temp/linux-window-render-smoke-*/
-          if-no-files-found: ignore
+          path: |
+            ${{ env.SMOKE_REPORT_DIR }}/*
+            !${{ env.SMOKE_REPORT_DIR }}/stage-user-data/**
+          if-no-files-found: warn
           retention-days: 14
