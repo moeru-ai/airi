@@ -1,178 +1,123 @@
 import type { Database } from '../../libs/db'
+import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
 
 import { useLogger } from '@guiiai/logg'
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
+
+import { createNotFoundError } from '../../utils/error'
 
 import * as schema from '../../schemas/providers'
 
 const logger = useLogger('providers')
 
-export function createProviderService(db: Database) {
+const CONFIG_MODEL_NAME = 'user-provider-configs'
+
+interface ProviderConfigDto {
+  id: string
+  instanceId: string
+  ownerId: string
+  definitionId: string
+  config: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
+}
+
+interface UpsertProviderConfigInput {
+  instanceId: string
+  ownerId: string
+  definitionId: string
+  config: Record<string, unknown>
+}
+
+function configAad(ownerId: string, instanceId: string) {
   return {
-    async findAll(ownerId: string) {
-      const userConfigs = db
-        .select({
-          id: schema.userProviderConfigs.id,
-          definitionId: schema.userProviderConfigs.definitionId,
-          name: schema.userProviderConfigs.name,
-          config: schema.userProviderConfigs.config,
-          validated: schema.userProviderConfigs.validated,
-          validationBypassed: schema.userProviderConfigs.validationBypassed,
-          createdAt: schema.userProviderConfigs.createdAt,
-          updatedAt: schema.userProviderConfigs.updatedAt,
-          isSystem: sql<boolean>`false`.as('is_system'),
-        })
-        .from(schema.userProviderConfigs)
-        .where(
-          and(
-            eq(schema.userProviderConfigs.ownerId, ownerId),
-            isNull(schema.userProviderConfigs.deletedAt),
-          ),
-        )
+    modelName: CONFIG_MODEL_NAME,
+    keyEntryId: `${ownerId}:${instanceId}`,
+  }
+}
 
-      const systemConfigs = db
-        .select({
-          id: schema.systemProviderConfigs.id,
-          definitionId: schema.systemProviderConfigs.definitionId,
-          name: schema.systemProviderConfigs.name,
-          config: schema.systemProviderConfigs.config,
-          validated: schema.systemProviderConfigs.validated,
-          validationBypassed: schema.systemProviderConfigs.validationBypassed,
-          createdAt: schema.systemProviderConfigs.createdAt,
-          updatedAt: schema.systemProviderConfigs.updatedAt,
-          isSystem: sql<boolean>`true`.as('is_system'),
-        })
-        .from(schema.systemProviderConfigs)
-        .where(isNull(schema.systemProviderConfigs.deletedAt))
+export function createProviderService(db: Database, envelopeCrypto: EnvelopeCrypto) {
+  function encryptConfig(ownerId: string, instanceId: string, config: Record<string, unknown>): string {
+    return envelopeCrypto.encryptKey(JSON.stringify(config), configAad(ownerId, instanceId))
+  }
 
-      return await userConfigs.unionAll(systemConfigs)
+  function decryptConfig(ownerId: string, instanceId: string, ciphertext: string): Record<string, unknown> {
+    const plaintext = envelopeCrypto.decryptKey(ciphertext, configAad(ownerId, instanceId)).toString('utf8')
+    return JSON.parse(plaintext) as Record<string, unknown>
+  }
+
+  function toDto(row: schema.UserProviderConfig): ProviderConfigDto {
+    return {
+      id: row.id,
+      instanceId: row.instanceId,
+      ownerId: row.ownerId,
+      definitionId: row.definitionId,
+      config: decryptConfig(row.ownerId, row.instanceId, row.config),
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      deletedAt: row.deletedAt?.toISOString() ?? null,
+    }
+  }
+
+  async function findOwnedRow(instanceId: string, ownerId: string) {
+    return db.query.userProviderConfigs.findFirst({
+      where: and(
+        eq(schema.userProviderConfigs.ownerId, ownerId),
+        eq(schema.userProviderConfigs.instanceId, instanceId),
+      ),
+    })
+  }
+
+  return {
+    async listAll(ownerId: string): Promise<ProviderConfigDto[]> {
+      const rows = await db.query.userProviderConfigs.findMany({
+        where: eq(schema.userProviderConfigs.ownerId, ownerId),
+      })
+      return rows.map(row => toDto(row))
     },
 
-    async findUserConfigsByOwnerId(ownerId: string) {
-      return await db.query.userProviderConfigs.findMany({
-        where: and(
+    async upsert(input: UpsertProviderConfigInput): Promise<ProviderConfigDto> {
+      const now = new Date()
+      const ciphertext = encryptConfig(input.ownerId, input.instanceId, input.config)
+      const [row] = await db.insert(schema.userProviderConfigs).values({
+        ownerId: input.ownerId,
+        instanceId: input.instanceId,
+        definitionId: input.definitionId,
+        config: ciphertext,
+        createdAt: now,
+        updatedAt: now,
+      }).onConflictDoUpdate({
+        target: [schema.userProviderConfigs.ownerId, schema.userProviderConfigs.instanceId],
+        set: {
+          definitionId: input.definitionId,
+          config: ciphertext,
+          updatedAt: now,
+          deletedAt: null,
+        },
+      }).returning()
+      logger.withFields({ id: row.id, instanceId: row.instanceId, ownerId: input.ownerId, definitionId: input.definitionId }).log('Upserted user provider config')
+      return toDto(row)
+    },
+
+    async tombstone(instanceId: string, ownerId: string): Promise<void> {
+      const existing = await findOwnedRow(instanceId, ownerId)
+      if (!existing)
+        throw createNotFoundError()
+
+      const now = new Date()
+      await db.update(schema.userProviderConfigs)
+        .set({ deletedAt: now, updatedAt: now })
+        .where(and(
+          eq(schema.userProviderConfigs.id, existing.id),
           eq(schema.userProviderConfigs.ownerId, ownerId),
-          isNull(schema.userProviderConfigs.deletedAt),
-        ),
-      })
-    },
-
-    async findById(id: string, ownerId: string) {
-      const userConfig = await db.query.userProviderConfigs.findFirst({
-        where: and(
-          eq(schema.userProviderConfigs.id, id),
-          eq(schema.userProviderConfigs.ownerId, ownerId),
-          isNull(schema.userProviderConfigs.deletedAt),
-        ),
-      })
-
-      if (userConfig) {
-        return { ...userConfig, isSystem: false }
-      }
-
-      const systemConfig = await db.query.systemProviderConfigs.findFirst({
-        where: and(
-          eq(schema.systemProviderConfigs.id, id),
-          isNull(schema.systemProviderConfigs.deletedAt),
-        ),
-      })
-
-      if (systemConfig) {
-        return { ...systemConfig, isSystem: true }
-      }
-
-      return null
-    },
-
-    async findUserConfigById(id: string) {
-      return await db.query.userProviderConfigs.findFirst({
-        where: and(
-          eq(schema.userProviderConfigs.id, id),
-          isNull(schema.userProviderConfigs.deletedAt),
-        ),
-      })
-    },
-
-    async createUserConfig(data: schema.NewUserProviderConfig) {
-      const [inserted] = await db.insert(schema.userProviderConfigs).values(data).returning()
-      logger.withFields({ id: inserted.id, ownerId: data.ownerId, definitionId: data.definitionId }).log('Created user provider config')
-      return inserted
-    },
-
-    async updateUserConfig(id: string, data: Partial<schema.NewUserProviderConfig>) {
-      const [updated] = await db.update(schema.userProviderConfigs)
-        .set({ ...data, updatedAt: new Date() })
-        .where(and(
-          eq(schema.userProviderConfigs.id, id),
-          isNull(schema.userProviderConfigs.deletedAt),
         ))
-        .returning()
-      logger.withFields({ id }).log('Updated user provider config')
-      return updated
-    },
-
-    async deleteUserConfig(id: string) {
-      const result = await db.update(schema.userProviderConfigs)
-        .set({ deletedAt: new Date() })
-        .where(and(
-          eq(schema.userProviderConfigs.id, id),
-          isNull(schema.userProviderConfigs.deletedAt),
-        ))
-        .returning()
-      logger.withFields({ id }).log('Deleted user provider config')
-      return result
-    },
-
-    // System Provider Configs
-    async findSystemConfigs() {
-      return await db.query.systemProviderConfigs.findMany({
-        where: isNull(schema.systemProviderConfigs.deletedAt),
-      })
-    },
-
-    async findSystemConfigById(id: string) {
-      return await db.query.systemProviderConfigs.findFirst({
-        where: and(
-          eq(schema.systemProviderConfigs.id, id),
-          isNull(schema.systemProviderConfigs.deletedAt),
-        ),
-      })
-    },
-
-    async createSystemConfig(data: schema.NewSystemProviderConfig) {
-      const [inserted] = await db.insert(schema.systemProviderConfigs).values(data).returning()
-      logger.withFields({ id: inserted.id, definitionId: data.definitionId }).log('Created system provider config')
-      return inserted
-    },
-
-    async updateSystemConfig(id: string, data: Partial<schema.NewSystemProviderConfig>) {
-      const [updated] = await db.update(schema.systemProviderConfigs)
-        .set({ ...data, updatedAt: new Date() })
-        .where(and(
-          eq(schema.systemProviderConfigs.id, id),
-          isNull(schema.systemProviderConfigs.deletedAt),
-        ))
-        .returning()
-      logger.withFields({ id }).log('Updated system provider config')
-      return updated
-    },
-
-    async deleteSystemConfig(id: string) {
-      const result = await db.update(schema.systemProviderConfigs)
-        .set({ deletedAt: new Date() })
-        .where(and(
-          eq(schema.systemProviderConfigs.id, id),
-          isNull(schema.systemProviderConfigs.deletedAt),
-        ))
-        .returning()
-      logger.withFields({ id }).log('Deleted system provider config')
-      return result
+      logger.withFields({ id: existing.id, instanceId, ownerId }).log('Tombstoned user provider config')
     },
 
     /**
      * Soft-delete every `user_provider_configs` row owned by the user.
-     * Called from the user-deletion pipeline. System configs are not
-     * touched (they are not user-scoped).
+     * Called from the user-deletion pipeline.
      *
      * Idempotent: `WHERE deletedAt IS NULL` skips already-stamped rows.
      */
