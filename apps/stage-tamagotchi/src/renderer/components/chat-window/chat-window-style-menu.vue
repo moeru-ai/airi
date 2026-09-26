@@ -108,6 +108,7 @@ const itemClasses = [
         :disabled="!preferences"
         :class="[
           'h-7 w-7 flex items-center justify-center rounded-md outline-none',
+          'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
           'text-base transition-colors transition-transform active:scale-95 disabled:opacity-50',
           'text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
         ]"

@@ -23,6 +23,7 @@ const { t } = useI18n()
     data-testid="speech-mute-button"
     :class="[
       'h-7 w-7 flex items-center justify-center rounded-md outline-none',
+      'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
       'text-base transition-colors transition-transform active:scale-95',
       speechMuted
         ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300'

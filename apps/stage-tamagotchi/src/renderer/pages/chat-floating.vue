@@ -186,7 +186,7 @@ function moveByKeyboard(delta: WindowDelta) {
               :aria-label="t('tamagotchi.stage.chat-window.resize')"
               :class="[
                 'size-8 touch-none rounded-full',
-                'flex items-center justify-center outline-none transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
+                'flex items-center justify-center outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300 transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
                 characterOnLeft ? 'cursor-nesw-resize' : 'cursor-nwse-resize',
               ]"
               @pointerdown="holdPointer"
@@ -208,7 +208,7 @@ function moveByKeyboard(delta: WindowDelta) {
               v-if="freePlacement"
               :title="t('tamagotchi.stage.chat-window.move')"
               :aria-label="t('tamagotchi.stage.chat-window.move')"
-              :class="['h-7 w-5 shrink-0 cursor-grab touch-none rounded-full', 'flex items-center justify-center outline-none transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400']"
+              :class="['h-7 w-5 shrink-0 cursor-grab touch-none rounded-full', 'flex items-center justify-center outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300 transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400']"
               @pointerdown="holdPointer"
               @pointermove="moveWithHeldPointer"
               @lostpointercapture="releasePointer"
@@ -220,6 +220,7 @@ function moveByKeyboard(delta: WindowDelta) {
             <button
               :class="[
                 'min-w-0 flex items-center gap-2 rounded-full px-2 py-0.5 outline-none transition-colors',
+                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
                 'text-neutral-700 hover:bg-primary-500/10 hover:text-primary-700 dark:text-neutral-200 dark:hover:bg-primary-400/10 dark:hover:text-primary-300',
               ]"
               @click="sessionsDrawerOpen = true"
@@ -245,7 +246,7 @@ function moveByKeyboard(delta: WindowDelta) {
             <button
               :title="t('tamagotchi.stage.chat-window.fold')"
               :aria-label="t('tamagotchi.stage.chat-window.fold')"
-              :class="['size-8 rounded-full', 'flex items-center justify-center outline-none transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400']"
+              :class="['size-8 rounded-full', 'flex items-center justify-center outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300 transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400']"
               @click="foldChat()"
             >
               <!-- A free chat folds into its bottom-right corner, so the arrow points there. -->
