@@ -50,9 +50,9 @@ async function triggerExport() {
   }
 }
 
-function deleteChats() {
+async function deleteChats() {
   try {
-    deleteAllChatSessions()
+    await deleteAllChatSessions()
     trackDataAction({ action: 'chats_cleared' })
     emitStatus(t('settings.pages.data.status.chats_deleted'))
   }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { VirtualizerHandle } from 'virtua/vue'
 
+import type { ChatToolCallRerunEvent, ToolCallRerunRequest } from '../../../../stores/tool-call-rerun'
 import type { ChatHistoryItem, StreamingAssistantMessage } from '../../../../types/chat'
 import type { ChatHistoryReplyPayload } from '../reply'
 import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
@@ -48,7 +49,7 @@ const emit = defineEmits<{
   (e: 'deleteMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
   (e: 'replyMessage', payload: ChatHistoryReplyPayload): void
   (e: 'retryMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
-  (e: 'toolCallRerun', payload: { message: ChatHistoryItem, index: number, key: string | number, toolCallId: string, toolName: string, args: string }): void
+  (e: 'toolCallRerun', payload: ChatToolCallRerunEvent): void
 }>()
 
 /** Keeps about two mobile viewports ready so fast flicks do not expose an unmounted gap. */
@@ -102,6 +103,16 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
 
   return [...props.messages, streaming.value]
 })
+function canRetryMessageAt(index: number) {
+  const precedingMessage = renderMessages.value[index - 1]
+  if (precedingMessage?.role === 'user')
+    return true
+
+  if (precedingMessage?.role === 'assistant' && precedingMessage.interrupted)
+    return renderMessages.value[index - 2]?.role === 'user'
+
+  return false
+}
 const messagesById = computed(() => new Map(
   renderMessages.value.flatMap(message => message.id ? [[message.id, message] as const] : []),
 ))
@@ -114,7 +125,7 @@ const { itemProps } = useVirtualizerBottomAlignment({
   virtualizer: virtualizerRef,
 })
 
-const { onUserScroll } = useChatHistoryScroll({
+useChatHistoryScroll({
   container: chatHistoryRef,
   messages: renderMessages,
   getKey: getChatHistoryItemKey,
@@ -174,10 +185,14 @@ function getReplyTarget(message: ChatHistoryItem): ChatHistoryReplyPayload | und
   }
 }
 
+/**
+ * Triggering workflow: ChatAssistantItem `toolCallRerun` -> emitToolCallRerun
+ * -> the parent runtime's tool rerun handler, with this message location.
+ */
 function emitToolCallRerun(
   message: ChatHistoryItem,
   index: number,
-  payload: { toolCallId: string, toolName: string, args: string },
+  payload: ToolCallRerunRequest,
 ) {
   emit('toolCallRerun', {
     message,
@@ -193,7 +208,6 @@ function emitToolCallRerun(
     ref="scroll-container"
     v-bind="$attrs"
     :variant="variant"
-    @scrollbar-pointerdown="onUserScroll"
   >
     <Virtualizer
       ref="virtualizer"
@@ -215,7 +229,7 @@ function emitToolCallRerun(
             :message="message"
             :label="labels.error"
             :retry-label="labels.retry"
-            :can-retry="renderMessages[index - 1]?.role === 'user'"
+            :can-retry="canRetryMessageAt(index)"
             :show-placeholder="sending && index === renderMessages.length - 1"
             :scroll-container="chatHistoryRef"
             :variant="variant"

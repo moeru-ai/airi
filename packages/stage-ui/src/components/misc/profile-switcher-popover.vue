@@ -282,19 +282,25 @@ function toggleOpen() {
       :content-align="props.contentAlign"
       variant="blurry"
       shape="rounded"
+      :class="[
+        'h-10! w-auto! max-w-48 gap-1.5! px-1! pr-2.5! shadow-sm',
+        'data-[state=open]:ring-2 data-[state=open]:ring-primary-500/20',
+      ]"
     >
       <template #value="{ option, placeholder }">
-        <div :class="['min-w-0', 'flex', 'items-center', 'gap-2', 'px-1 py-1.5']">
+        <div :class="['min-w-0 flex items-center gap-2']">
           <div
             :class="[
-              'size-6 shrink-0',
-              option?.value === activeCardId ? 'i-solar:check-circle-bold-duotone text-primary-500' : option?.icon ?? 'i-solar:emoji-funny-square-broken text-neutral-400',
+              'size-7 shrink-0 flex items-center justify-center rounded-full',
+              'bg-primary-100/80 text-primary-600',
+              'dark:bg-primary-900/40 dark:text-primary-300',
             ]"
-          />
+          >
+            <div :class="['i-solar:emoji-funny-square-bold-duotone size-4.5']" />
+          </div>
           <span
             :class="[
-              'inline-block w-full flex-1',
-              'text-sm',
+              'min-w-0 truncate text-sm font-medium',
               'select-none',
               option ? 'text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 dark:text-neutral-500',
             ]"

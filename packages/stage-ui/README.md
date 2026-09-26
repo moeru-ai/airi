@@ -2,6 +2,34 @@
 
 Shared core for stage
 
+## Chat sampling
+
+In **Settings → Modules → Consciousness**, custom temperature and Top P are off
+by default. Enable each parameter only when the selected model supports it.
+Some models accept only one sampling parameter at a time.
+
+Disabling a parameter keeps its slider value but omits it from chat requests.
+Previously saved values remain disabled until the user enables them. Explicit
+per-request overrides still take precedence over these settings.
+
+## Chat images
+
+Web and Electron composers share image drafts and previews. They accept PNG,
+JPEG, WebP, and GIF files up to 20 MB each, through file selection or paste.
+Previews own their Object URLs. Session changes discard pending image reads.
+Failed sends restore the draft through the shared composer.
+
+Choose a provider and model in **Settings → Modules → Vision** and enable
+**Use the vision model for chat images** for a text-only chat model.
+The vision model describes images before the selected chat model replies.
+Local history keeps the images. Provider prompts replace images with descriptions,
+including images from earlier turns and retries. Earlier images can require another
+vision request on later turns. Cloud history currently stores only message text.
+
+Disable this option to send images directly to a chat model that supports them.
+Without a configured vision model, images also go directly to the chat model.
+Use this flow for chat attachments, not periodic screen capture.
+
 ## Character-card module settings
 
 The card store owns three distinct states:

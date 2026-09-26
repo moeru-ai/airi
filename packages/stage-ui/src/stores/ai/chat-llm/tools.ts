@@ -10,6 +10,8 @@ export interface ToolDefinition extends Omit<Tool, 'execute'> {
   id: string
   /** Includes this tool when a request does not select it explicitly. */
   defaultActive?: boolean
+  /** Requires selection on each request; history and default activation cannot grant access. */
+  requiresExplicitSelection?: boolean
 }
 
 /** A tool definition with the executor that is available in the current runtime. */
@@ -18,6 +20,8 @@ export interface ExecutableTool extends Tool {
   id: string
   /** Includes this tool when a request does not select it explicitly. */
   defaultActive?: boolean
+  /** Requires selection on each request; history and default activation cannot grant access. */
+  requiresExplicitSelection?: boolean
 }
 
 function unavailableToolResult(name: string) {
@@ -47,7 +51,7 @@ export const useLlmToolsStore = defineStore('llm-tools', () => {
   }
 
   const activeTools = computed<Tool[]>(() => tools.value
-    .filter(tool => tool.defaultActive !== false)
+    .filter(tool => tool.defaultActive !== false && !tool.requiresExplicitSelection)
     .map(executableToolFrom))
 
   /** Resolves registered tools in the requested model-facing name order. */
@@ -68,6 +72,7 @@ export const useLlmToolsStore = defineStore('llm-tools', () => {
         type: tool.type,
         function: tool.function,
         ...(tool.defaultActive === undefined ? {} : { defaultActive: tool.defaultActive }),
+        ...(tool.requiresExplicitSelection === undefined ? {} : { requiresExplicitSelection: tool.requiresExplicitSelection }),
       })
       const existingIndex = definitions.findIndex(item => item.id === tool.id)
 

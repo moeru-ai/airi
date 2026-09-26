@@ -31,11 +31,15 @@ function createTestDeps() {
     productEventService: {
       track: vi.fn(async () => undefined),
     } as never,
-    configKV: { getOrThrow: vi.fn() } as never,
+    configKV: { getOrThrow: vi.fn(), getOptional: vi.fn(async () => 1) } as never,
     redis: redis as never,
     env: {
       API_SERVER_URL: 'https://api.airi.build',
       AUTH_SERVER_URL: 'https://api.airi.build',
+      TEST_AUTH_TOKEN: 'test-token',
+      TEST_AUTH_USER_ID: 'user-1',
+      TEST_AUTH_USER_EMAIL: 'test@example.com',
+      TEST_AUTH_USER_NAME: 'Test User',
     } as never,
     otel: null,
     userDeletionService: { register: vi.fn(), softDeleteAll: vi.fn() },
@@ -74,5 +78,32 @@ describe('business API app', () => {
 
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ service: 'airi-api' })
+  })
+
+  // ROOT CAUSE:
+  //
+  // The former global 1 MiB limit ran before the Responses route's auth
+  // guard, so it both rejected supported inline media and inspected a large
+  // unauthenticated body before returning 401.
+  it('authenticates a large Responses request before applying its route limit', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/api/v1/openai/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: ' '.repeat(1024 * 1024 + 1),
+    })
+
+    expect(response.status).toBe(401)
+  })
+
+  it('allows an authenticated Responses body beyond the default API limit', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/api/v1/openai/responses', {
+      method: 'POST',
+      headers: { 'authorization': 'Bearer test-token', 'Content-Type': 'application/json' },
+      body: ' '.repeat(1024 * 1024 + 1),
+    })
+
+    expect(response.status).toBe(400)
   })
 })

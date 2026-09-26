@@ -1,6 +1,6 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Session, User } from 'better-auth'
 
+import { isGenerationProvider } from '@proj-airi/provider-inference'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
@@ -226,15 +226,20 @@ describe('provider store synchronization boundary', () => {
       baseUrl: 'https://api.openai.com/v1/',
     })
 
-    const baseProvider = await store.getProviderInstance<ChatProvider>('openai')
+    const baseProvider = await store.getProviderInstance('openai')
     const reasoningDisabledProvider = await store.getChatProviderInstance('openai', { reasoning: 'disabled' })
     const reasoningEnabledProvider = await store.getChatProviderInstance('openai', { reasoning: 'enabled' })
 
     expect(reasoningDisabledProvider).not.toBe(baseProvider)
     expect(reasoningEnabledProvider).not.toBe(baseProvider)
-    expect(reasoningDisabledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'none' })
-    expect(reasoningEnabledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'medium' })
-    expect(baseProvider.chat('any-model')).not.toHaveProperty('reasoningEffort')
+    // Use a catalog model that supports both efforts; unknown models omit reasoning fields.
+    expect(reasoningDisabledProvider.generation('gpt-5.1').config).toMatchObject({ reasoning: { effort: 'none' } })
+    expect(reasoningEnabledProvider.generation('gpt-5.1').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
+    expect(reasoningDisabledProvider.generation('any-model').config).not.toHaveProperty('reasoning')
+    expect(reasoningEnabledProvider.generation('any-model').config).not.toHaveProperty('reasoning')
+    if (!isGenerationProvider(baseProvider))
+      throw new Error('Expected generation provider')
+    expect(baseProvider.generation('gpt-5.1').config).not.toHaveProperty('reasoning')
   })
 
   // ROOT CAUSE:

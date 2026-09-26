@@ -20,10 +20,26 @@ mobile-tools:
   close-view: Save and close view controls
   hearing: Hearing
 chat:
+  voice-input: Voice input
+  images:
+    empty: Share a thought or a picture.
+    use-vision: Use the vision model for chat images
+    use-vision-description: Choose a provider and model below. It reads attached images before your chat model replies. Without a vision model, images go directly to the chat model.
+    attach: 'Attach images'
+    remove: 'Remove {name}'
+    unsupported: 'Use PNG, JPEG, WebP, or GIF images.'
+    too-large: 'Each image must be 3 MB or smaller.'
+    too-many: 'Attach up to {count} images at a time.'
+    total-too-large: 'All attached images together must be 3 MB or smaller.'
+    read-failed: 'Could not read this image. Try again.'
+    no-description: 'The vision model returned no image description. Check Settings → Modules → Vision and try again.'
+    reading: 'Reading images…'
+    description: 'Image attachment'
   actions:
     reply: Reply
     retry: Retry
     send: Send message
+    stop: Stop response
   message:
     character-name:
       airi: AIRI
@@ -43,6 +59,7 @@ chat:
     row: 'Conversation {n}'
   sessions:
     delete-short: Delete
+    confirm-delete-short: Confirm delete
     title: Conversations
     new: New conversation
     current: Current
@@ -145,3 +162,7 @@ websocket-status:
   connected: Connected
   disconnected: No connection
   open-settings: Open connection settings
+
+computer-use:
+  label: Use computer
+  description: Allow this chat window to inspect and control native apps on this computer.

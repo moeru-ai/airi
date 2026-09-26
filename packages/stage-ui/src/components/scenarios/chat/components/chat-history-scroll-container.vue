@@ -10,10 +10,6 @@ const props = defineProps<{
   variant: 'desktop' | 'mobile'
 }>()
 
-const emit = defineEmits<{
-  scrollbarPointerdown: [event: PointerEvent]
-}>()
-
 const desktopAreaRef = useTemplateRef<InstanceType<typeof ScrollableArea>>('desktop-area')
 const mobileViewportRef = useTemplateRef<HTMLElement>('mobile-viewport')
 const viewport = computed<HTMLElement | null>(() => props.variant === 'desktop'
@@ -37,7 +33,6 @@ defineExpose({
     :class="[
       'chat-history-scroll-area h-full w-full',
     ]"
-    @scrollbar-pointerdown="emit('scrollbarPointerdown', $event)"
   >
     <slot />
   </ScrollableArea>

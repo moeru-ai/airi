@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ToolCallRerunRequest } from '../../../../stores/tool-call-rerun'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatSlicesText, ChatSlicesToolCallResult } from '../../../../types/chat'
 import type { ChatHistoryReplyPayload } from '../reply'
 import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
@@ -7,6 +8,7 @@ import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 
 import ChatReplyQuote from './reply-quote.vue'
+import ResponseCitations from './response-citations.vue'
 import ChatResponsePart from './response-part.vue'
 import ChatToolCallBlock from './tool-call-block.vue'
 
@@ -36,7 +38,7 @@ const emit = defineEmits<{
   (e: 'copy'): void
   (e: 'delete'): void
   (e: 'reply'): void
-  (e: 'toolCallRerun', payload: { toolCallId: string, toolName: string, args: string }): void
+  (e: 'toolCallRerun', payload: ToolCallRerunRequest): void
 }>()
 
 const resolvedSlices = computed<ChatSlices[]>(() => {
@@ -57,20 +59,38 @@ const resolvedSlices = computed<ChatSlices[]>(() => {
   return []
 })
 
-const toolResultById = computed(() => {
+const toolResultBySlice = computed(() => {
   return createToolCallResultLookup(resolvedSlices.value, props.message.tool_results)
 })
 
-function getToolCallResult(slice: ChatSlices): ChatSlicesToolCallResult | undefined {
-  if (slice.type !== 'tool-call') {
-    return undefined
-  }
-
-  return toolResultById.value.get(slice.toolCall.toolCallId)
+function getToolCallResult(sliceIndex: number): ChatSlicesToolCallResult | undefined {
+  return toolResultBySlice.value.get(sliceIndex)
 }
 
-function getToolCallState(slice: ChatSlices): 'executing' | 'done' | 'error' {
-  return resolveToolCallBlockState(getToolCallResult(slice))
+const invocationBySlice = computed(() => {
+  const invocations = props.message.generationTranscript?.rounds.flatMap(round => round.toolInvocations)
+  const occurrences = new Map<string, number>()
+  const ids = new Map<number, string>()
+  for (const [index, slice] of resolvedSlices.value.entries()) {
+    if (slice.type !== 'tool-call')
+      continue
+    const callId = slice.toolCall.toolCallId
+    const occurrence = occurrences.get(callId) ?? 0
+    occurrences.set(callId, occurrence + 1)
+    const invocation = invocations?.filter(call => call.callId === callId)[occurrence]
+    if (invocation)
+      ids.set(index, invocation.id)
+  }
+  return ids
+})
+
+/**
+ * Triggering workflow: ChatToolCallBlock `toolCallRerun` -> emitToolCallRerun
+ * -> ChatHistory `toolCallRerun` -> executeToolCallRerun in the owning runtime.
+ */
+function emitToolCallRerun(sliceIndex: number, payload: ToolCallRerunRequest) {
+  const invocationId = invocationBySlice.value.get(sliceIndex)
+  emit('toolCallRerun', invocationId === undefined ? payload : { ...payload, invocationId })
 }
 
 function getToolCallRenderer(slice: ChatSlices) {
@@ -131,9 +151,9 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 :tool-call-id="slice.toolCall.toolCallId"
                 :tool-name="slice.toolCall.toolName"
                 :args="slice.toolCall.args"
-                :state="getToolCallState(slice)"
-                :result="getToolCallResult(slice)?.result"
-                @tool-call-rerun="emit('toolCallRerun', $event)"
+                :state="resolveToolCallBlockState(getToolCallResult(sliceIndex))"
+                :result="getToolCallResult(sliceIndex)?.result"
+                @tool-call-rerun="emitToolCallRerun(sliceIndex, $event)"
               />
               <template v-else-if="slice.type === 'tool-call-result'" />
               <template v-else-if="slice.type === 'text'">
@@ -141,7 +161,8 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
               </template>
             </template>
           </div>
-          <div v-else-if="showLoader" i-eos-icons:three-dots-loading />
+          <ResponseCitations v-if="message.citations?.length" :citations="message.citations" />
+          <div v-if="!resolvedSlices.length && showLoader" i-eos-icons:three-dots-loading />
         </div>
       </template>
     </ChatActionMenu>

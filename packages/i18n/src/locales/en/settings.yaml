@@ -378,6 +378,7 @@ pages:
     save: Save changes
     save_and_activate: Save and activate
     card_not_found: Card not found
+    back: Back
     character: Character
     close: Close
     chat:
@@ -397,6 +398,13 @@ pages:
     drop_here: Drop to upload
     create_card: Create a new Card
     edit_card: Edit Card
+    saved: Card saved
+    unsaved:
+      badge: Unsaved
+      title: Discard changes?
+      message: Your changes are not saved. If you leave this page, you will lose them.
+      keep_editing: Keep editing
+      discard: Discard changes
     creation:
       identity: Identity
       name: Name
@@ -415,6 +423,11 @@ pages:
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
         Configure modules for this character card. Empty fields inherit global settings.
+      sections:
+        chat: Chat
+        vision: Vision
+        speech: Speech
+        body: Body
       use_default: Use default
       use_default_not_configured: Use default (not configured)
       inherit_global_settings: Inherit global settings
@@ -451,6 +464,7 @@ pages:
         posthistoryinstructions: 'Error: Post history prompt is required.'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
       none: None
+      none_disabled: None (Disabled)
     modules: Modules
     name_asc: Name (A-Z)
     name_desc: Name (Z-A)
@@ -645,9 +659,11 @@ pages:
       model:
         label: Artistry Model (Optional Override)
         description: Model identifier if needed by provider
+        placeholder: e.g. black-forest-labs/flux-schnell
       prompt-prefix:
         label: Artistry Prompt Default Prefix
         description: Pre-pended to every prompt sent to the image generator.
+        placeholder: e.g. Masterpiece, high quality, 1girl, anime,
       options:
         label: Artistry Provider Options (JSON)
       widget-instructions:
@@ -687,6 +703,9 @@ pages:
             show_less: Show less
             show_more: Show more
             temperature_label: Temperature
+            temperature_enabled: Custom temperature
+            top_p_enabled: Custom Top P
+            sampling_override_description: Off by default. Enable only if your model supports this parameter. Some models accept only one sampling parameter at a time.
             temperature_description: Control the randomness of the model's output. A lower value (e.g. 0.2) results in more deterministic, precise, and analytical output, while a higher value (e.g. 1.0) increases creativity and diversity.
             top_p_label: Top P
             top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.
@@ -1010,6 +1029,12 @@ pages:
           common:
             fields:
               field:
+                web-search:
+                  label: Web search
+                  description: Allow supported OpenAI models to search when needed. Uses your API key and can incur search charges. Requires Responses API.
+                api-protocol:
+                  label: API protocol
+                  description: Choose the API supported by this provider and model.
                 api-key:
                   label: API Key
                   description: API Key used to authorize requests to this provider
@@ -1020,6 +1045,9 @@ pages:
                     The base url used to connect to remote service. Often looks
                     like http://localhost:11434/v1 or https://example.com/v1.
                   placeholder: Base url...
+                download-model:
+                  label: Download Model
+                  description: Download Chromium Prompt API model
                 headers:
                   label: Custom HTTP Headers
                   description: Add custom HTTP headers
@@ -1052,6 +1080,9 @@ pages:
               title: List Models
             check-supports-chat-completion:
               title: Chat Completion
+          prompt-api:
+            check-availability:
+              title: Availability
           status:
             validating: Validating...
             valid: Passed
@@ -1555,6 +1586,9 @@ pages:
       browser-web-speech-api:
         description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
+      prompt-api:
+        description: With the Prompt API, you can send natural language requests to the foundation model in Chrome.
+        title: Prompt API
       official:
         title: Official Provider
         description: Official AI provider by AIRI.
@@ -1650,9 +1684,28 @@ pages:
                 actions:
                   enable-and-load: Enable and Load
                   disable-and-unload: Disable and Unload
+                  import-folder: Import Folder
+                  confirm-import: Import Extension
+                  cancel-import: Cancel
                 errors:
                   enable-and-load: 'Failed to enable and load plugin {extensionId}.'
                   disable-and-unload: 'Failed to disable and unload plugin {extensionId}.'
+                  prepare-import: Failed to inspect the Extension folder.
+                  commit-import: 'Failed to import Extension {extensionId}.'
+                  cancel-import: Failed to cancel the Extension import.
+                import:
+                  title: Review Extension Import
+                  description: The Extension stays disabled and unloaded after import.
+                  source: Source folder
+                  runtimes: Runtimes
+                  entrypoints: Entrypoints
+                  package-size: Package
+                  package-size-value: '{fileCount} files · {totalBytes}'
+                  permissions: Permissions
+                  kits: Kits
+                  no-permissions: No permissions declared.
+                  no-kits: No Kits declared.
+                  imported: 'Imported Extension {extensionId}.'
               use-magic-keys:
                 title: useMagicKeys Tool
                 description: Test shortcuts

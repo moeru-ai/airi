@@ -13,7 +13,6 @@ import type {
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { stripeCheckoutSession } from '../../../schemas/stripe'
 import { createInternalError } from '../../../utils/error'
 
 import * as schema from '../../../schemas/payment'
@@ -116,22 +115,6 @@ export function createPaymentService(db: Database, billing: BillingService) {
 
           if (order.status !== 'pending')
             return { applied: false as const }
-
-          // NOTICE:
-          // Old and new replicas must claim the same retained checkout row.
-          // Migration 0023 is a snapshot; an old webhook can credit after it.
-          // See BillingService.creditCheckoutSession on the pre-CORE version.
-          // Remove this claim only when all old payment writers are retired.
-          if (order.processor === 'stripe') {
-            const [legacy] = await tx.select().from(stripeCheckoutSession).where(eq(stripeCheckoutSession.stripeSessionId, receipt.processorOrderId)).for('update')
-            if (legacy?.fluxCredited) {
-              await tx.update(schema.paymentOrder).set({ status: 'paid', creditedAt: legacy.updatedAt, updatedAt: new Date() }).where(eq(schema.paymentOrder.id, order.id))
-              return { applied: false as const }
-            }
-            if (legacy) {
-              await tx.update(stripeCheckoutSession).set({ fluxCredited: true, updatedAt: new Date() }).where(eq(stripeCheckoutSession.id, legacy.id))
-            }
-          }
 
           const fluxAmount = order.fluxAmount
           if (fluxAmount == null || fluxAmount <= 0)
