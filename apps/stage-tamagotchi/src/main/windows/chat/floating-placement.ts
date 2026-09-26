@@ -92,7 +92,21 @@ export function attachedChatOffset(
 }
 
 /**
- * Bounds that keep the floating chat whole on one display.
+ * Rounds a window coordinate or size to what `BrowserWindow.setPosition` and
+ * `setBounds` accept. They reject fractions and negative zero, and
+ * `Math.round(-0.3)` is negative zero.
+ *
+ * @example
+ * wholePixels(-0.3)
+ * // => 0
+ */
+export function wholePixels(value: number) {
+  // Adding 0 turns -0 into 0.
+  return Math.round(value) + 0
+}
+
+/**
+ * Bounds that keep the floating chat whole on one display, in whole pixels.
  *
  * The chat has no title bar: its resize grip and drag handle are the only way
  * to move it back, so no part of it may leave the work area. The display that
@@ -105,5 +119,6 @@ export function attachedChatOffset(
  */
 export function keepChatOnDisplay(bounds: Rectangle, displays: readonly DisplayArea[]): Rectangle {
   const display = findDominantDisplayArea(bounds, displays)
-  return display ? clampBoundsWithinRect(bounds, display.workArea) : bounds
+  const kept = display ? clampBoundsWithinRect(bounds, display.workArea) : bounds
+  return { x: wholePixels(kept.x), y: wholePixels(kept.y), width: wholePixels(kept.width), height: wholePixels(kept.height) }
 }

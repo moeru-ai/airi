@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { attachedChatOffset, chooseAttachedChatLayout, keepChatOnDisplay, preferredAttachedChatLayout } from './floating-placement'
+import { attachedChatOffset, chooseAttachedChatLayout, keepChatOnDisplay, preferredAttachedChatLayout, wholePixels } from './floating-placement'
 
 const workArea = { x: 0, y: 25, width: 1920, height: 1055 }
 const chatSize = { width: 360, height: 520 }
@@ -108,5 +108,32 @@ describe('keepChatOnDisplay', () => {
     const bounds = keepChatOnDisplay({ x: -1280, y: 0, width: 1400, height: 1000 }, displays)
 
     expect(bounds).toEqual({ x: -1280, y: 0, width: 1280, height: 800 })
+  })
+})
+
+describe('wholePixels', () => {
+  it('gives setPosition and setBounds whole pixels without negative zero', () => {
+    // ROOT CAUSE:
+    //
+    // The attached chat slid to a new anchor with
+    // `setPosition(Math.round(x), Math.round(y))`. Near a display edge,
+    // `Math.round(-0.3)` is -0, and Electron rejects it as a conversion
+    // failure, which crashed the main process on Windows.
+    //
+    // Window coordinates now go through wholePixels.
+    expect(Object.is(wholePixels(-0.3), 0)).toBe(true)
+    expect(wholePixels(12.5)).toBe(13)
+  })
+
+  it('keeps a dragged chat in whole pixels on a display left of the first', () => {
+    const leftDisplay = { bounds: { x: -1920, y: 0, width: 1920, height: 1080 }, workArea: { x: -1920, y: 0, width: 1920, height: 1080 } }
+
+    const kept = keepChatOnDisplay({ x: -380.3, y: 100.6, width: 380, height: 560 }, [leftDisplay])
+
+    expect(kept).toEqual({ x: -380, y: 101, width: 380, height: 560 })
+
+    // A work area that starts left of 0 lets -0 through the clamp.
+    const wideDisplay = { bounds: { x: -1920, y: 0, width: 3840, height: 1080 }, workArea: { x: -1920, y: 0, width: 3840, height: 1080 } }
+    expect(Object.is(keepChatOnDisplay({ x: -0, y: 100, width: 380, height: 560 }, [wideDisplay]).x, 0)).toBe(true)
   })
 })

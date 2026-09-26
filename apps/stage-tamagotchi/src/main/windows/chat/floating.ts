@@ -27,7 +27,7 @@ import {
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation, resizeBoundsByDelta, transparentWindowConfig } from '../shared/window'
-import { attachedChatOffset, chooseAttachedChatLayout, keepChatOnDisplay, preferredAttachedChatLayout } from './floating-placement'
+import { attachedChatOffset, chooseAttachedChatLayout, keepChatOnDisplay, preferredAttachedChatLayout, wholePixels } from './floating-placement'
 
 type EventaContext = ReturnType<typeof createContext>['context']
 
@@ -170,7 +170,7 @@ export function setupFloatingChatWindow(params: {
         if (target.isDestroyed() || main.isDestroyed())
           return
         const current = main.getBounds()
-        target.setPosition(Math.round(current.x + offset.x), Math.round(current.y + offset.y))
+        target.setPosition(wholePixels(current.x + offset.x), wholePixels(current.y + offset.y))
       },
       onComplete: () => {
         slide = undefined
