@@ -9,7 +9,7 @@ export default mergeConfigs([
     presets: [
       presetWebFonts({
         fonts: {
-          ...presetWebFontsFonts('none'),
+          ...presetWebFontsFonts('none', { includeSpecialFonts: false }),
         },
         timeouts: {
           warning: 5000,
