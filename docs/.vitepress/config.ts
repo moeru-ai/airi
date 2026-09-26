@@ -170,6 +170,7 @@ export default defineConfig<ThemeConfig>({
                       { text: 'BytePlus', link: withBase('/en/docs/manual/config/providers/consciousness/byteplus') },
                       { text: 'BytePlus Coding Plan', link: withBase('/en/docs/manual/config/providers/consciousness/byteplus-coding-plan') },
                       { text: 'Cerebras', link: withBase('/en/docs/manual/config/providers/consciousness/cerebras') },
+                      { text: 'Cheaper Inference', link: withBase('/en/docs/manual/config/providers/consciousness/cheaperinference') },
                       { text: 'Comet API', link: withBase('/en/docs/manual/config/providers/consciousness/comet-api') },
                       { text: 'Google Gemini', link: withBase('/en/docs/manual/config/providers/consciousness/google-gemini') },
                       { text: 'xAI', link: withBase('/en/docs/manual/config/providers/consciousness/xai') },
