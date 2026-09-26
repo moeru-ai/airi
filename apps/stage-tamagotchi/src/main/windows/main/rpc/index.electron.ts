@@ -40,12 +40,10 @@ export async function setupMainWindowElectronInvokes(params: {
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
 }) {
-  // TODO: once we refactored eventa to support window-namespaced contexts,
-  // we can remove the setMaxListeners call below since eventa will be able to dispatch and
-  // manage events within eventa's context system.
+  // Each bound context registers listeners on the shared ipcMain instance.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.window)
+  const { context } = createContext(ipcMain, params.window, { onlySameWindow: true })
 
   await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })

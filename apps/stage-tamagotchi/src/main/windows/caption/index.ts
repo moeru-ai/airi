@@ -298,14 +298,12 @@ export function setupCaptionWindowManager(params: {
   }
 
   const reusable = createReusableWindow(async () => {
-    // TODO: once we refactored eventa to support window-namespaced contexts,
-    // we can remove the setMaxListeners call below since eventa will be able to dispatch and
-    // manage events within eventa's context system.
+    // Each bound context registers listeners on the shared ipcMain instance.
     ipcMain.setMaxListeners(0)
 
     const window = createCaptionWindow()
     currentWindow = window
-    const { context } = createContext(ipcMain, window)
+    const { context } = createContext(ipcMain, window, { onlySameWindow: true })
     eventaContext = context
 
     await setupBaseWindowElectronInvokes({ context, window, serverChannel: params.serverChannel, i18n: params.i18n })

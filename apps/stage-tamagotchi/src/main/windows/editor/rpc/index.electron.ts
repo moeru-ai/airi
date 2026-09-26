@@ -17,10 +17,10 @@ export async function setupEditorWindowInvokes(params: {
   i18n: I18n
   serverChannel: ServerChannel
 }) {
-  // TODO: Remove this once Eventa supports window-namespaced Electron contexts.
+  // Each bound context registers listeners on the shared ipcMain instance.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.window)
+  const { context } = createContext(ipcMain, params.window, { onlySameWindow: true })
 
   await setupBaseWindowElectronInvokes({
     context,

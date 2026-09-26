@@ -122,7 +122,7 @@ export function setupSpotlightWindowManager(params: {
 
     window.on('blur', () => window.hide())
 
-    const { context } = createContext(ipcMain, window)
+    const { context } = createContext(ipcMain, window, { onlySameWindow: true })
     await setupBaseWindowElectronInvokes({ context, window, i18n: params.i18n, serverChannel: params.serverChannel })
 
     // Only the Spotlight window may call these private invokes.

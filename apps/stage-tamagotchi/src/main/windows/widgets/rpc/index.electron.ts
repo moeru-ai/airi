@@ -26,9 +26,7 @@ export async function setupWidgetsWindowInvokes(params: {
   i18n: I18n
   serverChannel: ServerChannel
 }) {
-  // TODO: once we refactored eventa to support window-namespaced contexts,
-  // we can remove the setMaxListeners call below since eventa will be able to dispatch and
-  // manage events within eventa's context system.
+  // Each bound context registers listeners on the shared ipcMain instance.
   ipcMain.setMaxListeners(0)
 
   const { context, dispose } = createContext(ipcMain, params.widgetWindow, { onlySameWindow: true })

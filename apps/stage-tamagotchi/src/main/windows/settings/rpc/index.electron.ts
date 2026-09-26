@@ -42,12 +42,10 @@ export async function setupSettingsWindowInvokes(params: {
   globalShortcut: GlobalShortcutService
   spotlightWindow: SpotlightWindowManager
 }) {
-  // TODO: once we refactored eventa to support window-namespaced contexts,
-  // we can remove the setMaxListeners call below since eventa will be able to dispatch and
-  // manage events within eventa's context system.
+  // Each bound context registers listeners on the shared ipcMain instance.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.settingsWindow)
+  const { context } = createContext(ipcMain, params.settingsWindow, { onlySameWindow: true })
 
   await setupBaseWindowElectronInvokes({ context, window: params.settingsWindow, i18n: params.i18n, serverChannel: params.serverChannel })
 

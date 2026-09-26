@@ -38,11 +38,9 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
   const windows = new Map<string, { window: BrowserWindow, context: ReturnType<typeof createContext>['context'] }>()
 
   async function bindContext(id: string, payload: Payload, win: BrowserWindow) {
-    // TODO: once we refactored eventa to support window-namespaced contexts,
-    // we can remove the setMaxListeners call below since eventa will be able to dispatch and
-    // manage events within eventa's context system.
+    // Each bound context registers listeners on the shared ipcMain instance.
     ipcMain.setMaxListeners(0)
-    const { context } = createContext(ipcMain, win)
+    const { context } = createContext(ipcMain, win, { onlySameWindow: true })
 
     defineInvokeHandler(context, params.eventa.pageMounted, (req) => {
       if (req?.id && req.id !== id)

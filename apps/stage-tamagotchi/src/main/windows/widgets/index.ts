@@ -433,14 +433,12 @@ export function setupWidgetsWindowManager(params: {
   }
 
   async function createWindowForContext(windowContext: WidgetWindowContext, initialRoute: string): Promise<BrowserWindow> {
-    // TODO: once we refactored eventa to support window-namespaced contexts,
-    // we can remove the setMaxListeners call below since eventa will be able to dispatch and
-    // manage events within eventa's context system.
+    // Each bound context registers listeners on the shared ipcMain instance.
     ipcMain.setMaxListeners(0)
 
     const window = createWidgetsWindow()
     windowContext.window = window
-    windowContext.eventa = createContext(ipcMain, window)
+    windowContext.eventa = createContext(ipcMain, window, { onlySameWindow: true })
 
     /**
      * Releases the state owned by one closed widget window.
