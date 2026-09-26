@@ -283,6 +283,9 @@ export function setupFloatingChatWindow(params: {
     }
     main.on('move', follow)
     main.on('resize', follow)
+    // A minimized chat does not follow the main window, so it catches up when
+    // it comes back.
+    target.on('restore', follow)
     main.on('hide', hideWithMain)
     main.on('show', showWithMain)
     main.on('always-on-top-changed', followAlwaysOnTop)
@@ -294,6 +297,8 @@ export function setupFloatingChatWindow(params: {
       main.off('hide', hideWithMain)
       main.off('show', showWithMain)
       main.off('always-on-top-changed', followAlwaysOnTop)
+      if (!target.isDestroyed())
+        target.off('restore', follow)
       if (linksToMain && !target.isDestroyed()) {
         target.off('focus', unlinkFromMain)
         target.off('blur', linkToMain)
