@@ -18,8 +18,8 @@ docs:
   'center-main-window': Переместить в центр экрана
   'open-hearing-controls': Управление слухом
   'drag-to-move-window': Перетащите окно
-  'stop-speaking': Остановить воспроизведение
-  'speaker-idle': Динамик
+  'mute': Mute
+  'unmute': Unmute
   'switch-to-light-mode': Переключить на светлую тему
   'switch-to-dark-mode': Переключить на темную тему
   'pin-on-top': Прикрепить на верх
@@ -39,6 +39,8 @@ widgets:
     description: Виджеты появятся здесь, когда появится инструмент или плагин.
   loading: Загрузка виджета…
   waiting: Ожидание данных виджета "{id}"…
+inlay:
+  close: Close
 notice:
   'fade-on-hover':
     title: Исчезать при наведении
@@ -91,7 +93,7 @@ about:
       checking: Проверка...
       latest-version: Последняя версия
       disabled-dev: Обновления отключены в Dev
-      managed-by-store: Обновления управляются магазином приложений
+      managed-by-store: Обновления, управляемые вашим магазином приложений
       retry-check: Повторить проверку
       restart-silent: Перезапустите, чтобы обновить автоматически
       restart-install: Перезапустите для установки обновления

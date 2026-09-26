@@ -19,7 +19,7 @@ docs:
   'open-hearing-controls': 打开听力控制
   'drag-to-move-window': 拖动以移动窗口
   'mute': 静音
-  'unmute': 取消静音
+  'unmute': 解除静音
   'switch-to-light-mode': 切换到亮色模式
   'switch-to-dark-mode': 切换到暗色模式
   'pin-on-top': 置顶窗口
@@ -39,10 +39,8 @@ widgets:
     description: 工具或插件生成的小部件将会出现在这里。
   loading: 正在加载小部件…
   waiting: 正在等待小部件 "{id}" 的数据…
-
 inlay:
   close: 关闭
-
 notice:
   'fade-on-hover':
     title: 悬停淡出
@@ -95,7 +93,7 @@ about:
       checking: 正在检查...
       latest-version: 最新版本
       disabled-dev: 已禁用开发环境时的更新
-      managed-by-store: 更新由应用商店管理
+      managed-by-store: 更新由您的应用商店管理
       retry-check: 重新检查
       restart-silent: 重新启动以静默更新
       restart-install: 重启并安装更新

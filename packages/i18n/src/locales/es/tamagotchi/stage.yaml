@@ -15,11 +15,11 @@ docs:
   'open-settings': Abrir configuración
   'open-chat': Abrir Chat
   'refresh': Actualizar
-  'center-main-window': Move to screen center
+  'center-main-window': Mover al centro de la pantalla
   'open-hearing-controls': Abrir controles de audición
   'drag-to-move-window': Arrastra para mover la ventana
-  'stop-speaking': Detener voz
-  'speaker-idle': Altavoz
+  'mute': Mute
+  'unmute': Unmute
   'switch-to-light-mode': Cambiar a modo claro
   'switch-to-dark-mode': Cambiar a modo oscuro
   'pin-on-top': Anclar Arriba
@@ -39,6 +39,8 @@ widgets:
     description: Los Widgets aparecerán aquí cuando una herramienta o plugin produzca uno.
   loading: Cargando widget…
   waiting: Esperando los datos del widget "{id}"…
+inlay:
+  close: Close
 notice:
   'fade-on-hover':
     title: Desvanecer al pasar el cursor
@@ -91,7 +93,7 @@ about:
       checking: Verificando...
       latest-version: Última versión
       disabled-dev: Actualizaciones desactivadas en Dev
-      managed-by-store: Las actualizaciones se gestionan desde la tienda de aplicaciones
+      managed-by-store: Updates managed by your app store
       retry-check: Reintentar verificación
       restart-silent: Reiniciar para actualizar silenciosamente
       restart-install: Reiniciar e instalar actualización
