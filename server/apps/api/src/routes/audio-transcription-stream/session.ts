@@ -142,19 +142,30 @@ function createClientEvent(credentials: AliyunNlsCredentials, name: 'StartTransc
   })
 }
 
-async function writeAudioToUpstream(audioStream: ReadableStream<Uint8Array>, ws: WebSocket, credentials: AliyunNlsCredentials, sessionId: string) {
+async function writeAudioToUpstream(
+  audioStream: ReadableStream<Uint8Array>,
+  ws: WebSocket,
+  credentials: AliyunNlsCredentials,
+  sessionId: string,
+  onReader: (reader: ReadableStreamDefaultReader<Uint8Array> | undefined) => void,
+  isCancelled: () => boolean,
+) {
   const reader = audioStream.getReader()
+  onReader(reader)
   try {
     while (true) {
       const { done, value } = await reader.read()
       if (done)
         break
-      if (value)
+      if (value && !isCancelled() && ws.readyState === WebSocket.OPEN)
         ws.send(value, { binary: true })
     }
   }
   finally {
-    ws.send(createClientEvent(credentials, 'StopTranscription', sessionId))
+    onReader(undefined)
+    reader.releaseLock()
+    if (!isCancelled() && ws.readyState === WebSocket.OPEN)
+      ws.send(createClientEvent(credentials, 'StopTranscription', sessionId))
   }
 }
 
@@ -172,25 +183,51 @@ async function writeAudioToUpstream(audioStream: ReadableStream<Uint8Array>, ws:
  * - A `text/event-stream` response consumable by the shared `streamTranscription` adapter.
  */
 export function createAliyunNlsStreamResponse(options: CreateAliyunNlsStreamResponseOptions): Response {
+  let cancelled = false
+  let finished = false
+  let upstream: WebSocket | undefined
+  let audioReader: ReadableStreamDefaultReader<Uint8Array> | undefined
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
       const createToken = options.createToken ?? createAliyunNlsToken
       const token = await createToken(options.credentials)
+      if (cancelled)
+        return
       const sessionId = randomUUID().replaceAll('-', '')
       const upstreamURL = new URL(options.websocketBaseURL ?? nlsWebSocketEndpointFromRegion(options.credentials.region))
       upstreamURL.searchParams.set('token', token.token)
 
       const ws = new WebSocket(upstreamURL)
+      upstream = ws
 
       ws.on('open', () => {
+        if (cancelled) {
+          ws.close(1000, 'client_cancelled')
+          return
+        }
         ws.send(createClientEvent(options.credentials, 'StartTranscription', sessionId, merge(DEFAULT_SESSION_OPTIONS, options.sessionOptions)))
       })
 
       ws.on('message', (data) => {
+        if (cancelled)
+          return
         const event = JSON.parse(data.toString()) as AliyunNlsServerEvent
         switch (event.header?.name) {
           case 'TranscriptionStarted':
-            void writeAudioToUpstream(options.audioStream, ws, options.credentials, sessionId)
+            void writeAudioToUpstream(
+              options.audioStream,
+              ws,
+              options.credentials,
+              sessionId,
+              (reader) => { audioReader = reader },
+              () => cancelled || finished,
+            ).catch((error) => {
+              if (cancelled || finished)
+                return
+              finished = true
+              controller.error(error)
+              ws.close(1011, 'audio_read_failed')
+            })
             break
           case 'SentenceEnd': {
             const text = event.payload?.result ? `${event.payload.result}\n` : ''
@@ -200,6 +237,8 @@ export function createAliyunNlsStreamResponse(options: CreateAliyunNlsStreamResp
             break
           }
           case 'TranscriptionCompleted':
+            finished = true
+            void audioReader?.cancel()
             controller.close()
             ws.close(1000, 'completed')
             break
@@ -207,10 +246,17 @@ export function createAliyunNlsStreamResponse(options: CreateAliyunNlsStreamResp
       })
 
       ws.on('error', (error) => {
-        controller.error(error)
+        finished = true
+        void audioReader?.cancel()
+        if (!cancelled)
+          controller.error(error)
       })
 
       ws.on('close', () => {
+        finished = true
+        void audioReader?.cancel()
+        if (cancelled)
+          return
         try {
           controller.close()
         }
@@ -218,7 +264,16 @@ export function createAliyunNlsStreamResponse(options: CreateAliyunNlsStreamResp
       })
     },
     cancel() {
-      // The upstream websocket is closed by its own completion/error handlers.
+      cancelled = true
+      if (audioReader)
+        void audioReader.cancel()
+      else if (!options.audioStream.locked)
+        void options.audioStream.cancel()
+
+      if (upstream?.readyState === WebSocket.OPEN)
+        upstream.close(1000, 'client_cancelled')
+      else if (upstream?.readyState === WebSocket.CONNECTING)
+        upstream.terminate()
     },
   })
 

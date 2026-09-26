@@ -15,6 +15,7 @@ import { createI18n } from 'vue-i18n'
 import OnboardingDialog from './onboarding.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
 
+import { useAuthStore } from '../../../../stores/auth'
 import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
 
@@ -87,7 +88,25 @@ afterEach(() => {
   }
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   localStorage.clear()
+})
+
+it('publishes the onboarding login click on the leader', async () => {
+  vi.stubEnv('RUNTIME_ENVIRONMENT', 'electron')
+  const namespace = `onboarding-login:${crypto.randomUUID()}`
+  const leader = createSyncedContext(namespace, 'leader-only')
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+  const follower = createSyncedContext(namespace, 'follower-only')
+  await expect.poll(() => follower.runtime.getLeaderId()).toBe(leader.runtime.participantId)
+  const screen = await render(OnboardingDialog, {
+    global: { plugins: [follower.pinia, PiniaColada, createTestI18n()] },
+  })
+
+  await screen.getByRole('button', { name: 'Sign in' }).click()
+
+  await expect.poll(() => useAuthStore(leader.pinia).needsLogin).toBe(true)
+  await expect.poll(() => useAuthStore(follower.pinia).needsLogin).toBe(true)
 })
 
 // ROOT CAUSE:

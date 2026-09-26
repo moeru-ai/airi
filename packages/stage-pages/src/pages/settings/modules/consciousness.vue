@@ -19,7 +19,7 @@ const consciousnessStore = useConsciousnessStore()
 const consciousnessSettingsStore = useConsciousnessSettingsStore()
 const { configuredProviders } = storeToRefs(providerStore)
 const { moduleChatProvidersMetadata } = storeToRefs(providersStore)
-const { reasoning } = storeToRefs(consciousnessSettingsStore)
+const { reasoning, temperatureEnabled, topPEnabled } = storeToRefs(consciousnessSettingsStore)
 const {
   activeProvider,
   activeModel,
@@ -29,8 +29,8 @@ const {
   providerModels,
   isLoadingActiveProviderModels,
   activeProviderModelError,
-  activeTemperature,
-  activeTopP,
+  temperature,
+  topP,
 } = storeToRefs(consciousnessStore)
 
 const { t } = useI18n()
@@ -66,6 +66,14 @@ async function handleDeleteProvider(providerId: string) {
 
 async function updateReasoning(value: boolean) {
   await consciousnessSettingsStore.setReasoning(value)
+}
+
+async function updateTemperatureEnabled(value: boolean) {
+  await consciousnessSettingsStore.setTemperatureEnabled(value)
+}
+
+async function updateTopPEnabled(value: boolean) {
+  await consciousnessSettingsStore.setTopPEnabled(value)
 }
 </script>
 
@@ -309,8 +317,15 @@ async function updateReasoning(value: boolean) {
 
   <div v-if="activeProvider" :class="['bg-neutral-50 dark:bg-[rgba(0,0,0,0.3)]', 'rounded-xl', 'p-4', 'flex flex-col gap-4', 'mt-4']">
     <div :class="['flex flex-col gap-4']">
+      <FieldCheckbox
+        :model-value="temperatureEnabled"
+        :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.temperature_enabled')"
+        :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.sampling_override_description')"
+        @update:model-value="updateTemperatureEnabled"
+      />
       <FieldRange
-        v-model="activeTemperature"
+        v-if="temperatureEnabled"
+        v-model="temperature"
         :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.temperature_label')"
         :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.temperature_description')"
         :min="0"
@@ -318,8 +333,15 @@ async function updateReasoning(value: boolean) {
         :step="0.1"
         :format-value="value => value.toFixed(1)"
       />
+      <FieldCheckbox
+        :model-value="topPEnabled"
+        :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.top_p_enabled')"
+        :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.sampling_override_description')"
+        @update:model-value="updateTopPEnabled"
+      />
       <FieldRange
-        v-model="activeTopP"
+        v-if="topPEnabled"
+        v-model="topP"
         :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.top_p_label')"
         :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.top_p_description')"
         :min="0"

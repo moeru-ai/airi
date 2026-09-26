@@ -378,6 +378,7 @@ pages:
     save: Save changes
     save_and_activate: Save and activate
     card_not_found: Card not found
+    back: Back
     character: Character
     close: Close
     chat:
@@ -397,6 +398,13 @@ pages:
     drop_here: Drop to upload
     create_card: Create a new Card
     edit_card: Edit Card
+    saved: Card saved
+    unsaved:
+      badge: Unsaved
+      title: Discard changes?
+      message: Your changes are not saved. If you leave this page, you will lose them.
+      keep_editing: Keep editing
+      discard: Discard changes
     creation:
       identity: Identity
       name: Name
@@ -456,6 +464,7 @@ pages:
         posthistoryinstructions: 'Error: Post history prompt is required.'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
       none: None
+      none_disabled: None (Disabled)
     modules: Modules
     name_asc: Name (A-Z)
     name_desc: Name (Z-A)
@@ -650,9 +659,11 @@ pages:
       model:
         label: Artistry Model (Optional Override)
         description: Model identifier if needed by provider
+        placeholder: e.g. black-forest-labs/flux-schnell
       prompt-prefix:
         label: Artistry Prompt Default Prefix
         description: Pre-pended to every prompt sent to the image generator.
+        placeholder: e.g. Masterpiece, high quality, 1girl, anime,
       options:
         label: Artistry Provider Options (JSON)
       widget-instructions:
@@ -692,6 +703,9 @@ pages:
             show_less: Show less
             show_more: Show more
             temperature_label: Temperature
+            temperature_enabled: Custom temperature
+            top_p_enabled: Custom Top P
+            sampling_override_description: Off by default. Enable only if your model supports this parameter. Some models accept only one sampling parameter at a time.
             temperature_description: Control the randomness of the model's output. A lower value (e.g. 0.2) results in more deterministic, precise, and analytical output, while a higher value (e.g. 1.0) increases creativity and diversity.
             top_p_label: Top P
             top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.

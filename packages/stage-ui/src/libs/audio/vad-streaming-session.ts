@@ -1,5 +1,5 @@
-export interface VadStreamingSessionOptions {
-  start: () => Promise<void>
+export interface VadStreamingSessionOptions<T = void> {
+  start: (segment: T) => Promise<void>
   stop: () => Promise<void>
   onError?: (error: unknown) => void
 }
@@ -10,7 +10,7 @@ export interface VadStreamingSessionOptions {
  * A detected speech segment owns one provider session. The session starts when
  * VAD detects speech and stops after VAD reports the configured silence period.
  */
-export function createVadStreamingSession(options: VadStreamingSessionOptions) {
+export function createVadStreamingSession<T = void>(options: VadStreamingSessionOptions<T>) {
   let disposed = false
   let speechActive = false
   let providerSessionActive = false
@@ -23,7 +23,7 @@ export function createVadStreamingSession(options: VadStreamingSessionOptions) {
     return lifecycle
   }
 
-  function onSpeechStart() {
+  function onSpeechStart(segment: T) {
     if (disposed || speechActive)
       return
 
@@ -33,7 +33,7 @@ export function createVadStreamingSession(options: VadStreamingSessionOptions) {
         return
 
       try {
-        await options.start()
+        await options.start(segment)
         providerSessionActive = true
       }
       catch (error) {
