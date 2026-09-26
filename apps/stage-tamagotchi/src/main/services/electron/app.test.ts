@@ -34,7 +34,7 @@ describe('createAppService', () => {
     appMock.getPath.mockReturnValue('/tmp/airi-user-data')
     shellMock.openPath.mockResolvedValue('')
 
-    createAppService({ context: context as never, window: {} as never })
+    createAppService({ context: context as never })
 
     const openUserDataFolder = defineInvoke(context, electronAppOpenUserDataFolder)
 
@@ -48,7 +48,7 @@ describe('createAppService', () => {
     appMock.getPath.mockReturnValue('/tmp/airi-user-data')
     shellMock.openPath.mockResolvedValue('Failed to open path')
 
-    createAppService({ context: context as never, window: {} as never })
+    createAppService({ context: context as never })
 
     const openUserDataFolder = defineInvoke(context, electronAppOpenUserDataFolder)
 

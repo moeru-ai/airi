@@ -56,9 +56,7 @@ import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { setupSpotlightWindowManager } from './windows/spotlight'
 import { setupWidgetsWindowManager } from './windows/widgets'
 
-// TODO: once we refactored eventa to support window-namespaced contexts,
-// we can remove the setMaxListeners call below since eventa will be able to dispatch and
-// manage events within eventa's context system.
+// Bound Eventa contexts register listeners on the shared ipcMain instance.
 ipcMain.setMaxListeners(100)
 
 setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))

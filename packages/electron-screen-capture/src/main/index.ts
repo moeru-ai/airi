@@ -216,11 +216,7 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     return sources.map(source => toSerializableDesktopCapturerSource(source))
   })
 
-  defineInvokeHandler(context, screenCapture.setSource, async (request, eventaOptions) => {
-    // FIXME: Would be better if `onlySameWindow` in `createContext` also filters out invocations here.
-    if (window.webContents.id !== eventaOptions?.raw.ipcMainEvent.sender.id)
-      return
-
+  defineInvokeHandler(context, screenCapture.setSource, async (request) => {
     const { timeout } = request
     if (typeof timeout === 'number' && (timeout <= 0 || !Number.isFinite(timeout) || Number.isNaN(timeout))) {
       throw new Error('timeout must be a positive finite number')

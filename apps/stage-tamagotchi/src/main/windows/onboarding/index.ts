@@ -60,12 +60,10 @@ export function setupOnboardingWindowManager(params: {
     newWindow.on('ready-to-show', () => newWindow.show())
     protectPrivilegedWindowNavigation(newWindow)
 
-    // TODO: once we refactored eventa to support window-namespaced contexts,
-    // we can remove the setMaxListeners call below since eventa will be able to dispatch and
-    // manage events within eventa's context system.
+    // Each bound context registers listeners on the shared ipcMain instance.
     ipcMain.setMaxListeners(0)
 
-    const { context } = createContext(ipcMain, newWindow)
+    const { context } = createContext(ipcMain, newWindow, { onlySameWindow: true })
 
     defineInvokeHandler(context, electronOnboardingClose, async () => {
       safeClose(newWindow)
