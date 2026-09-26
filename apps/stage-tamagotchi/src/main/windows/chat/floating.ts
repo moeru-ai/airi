@@ -232,20 +232,19 @@ export function setupFloatingChatWindow(params: {
   /**
    * Keeps an attached chat beside the main window.
    *
-   * While the chat does not have keyboard focus, it is a child window of the
-   * main window, and the window manager moves it with the main window. This
-   * matters on macOS: the window server drags the main window by itself and
-   * reports few `move` events during the drag, so a chat that only answered
-   * them would trail far behind.
+   * On macOS, while the chat does not have keyboard focus, it is a child
+   * window of the main window, and the window server moves it with the main
+   * window. The window server drags the main window by itself and reports few
+   * `move` events during the drag, so a chat that only answered them would
+   * trail far behind.
    *
-   * While the chat has keyboard focus, it leaves the main window. A child
-   * takes its parent's window level, and the main window's level covers the
-   * input method candidates of the text typed into the chat. The two states
-   * do not overlap: a drag of the main window moves the focus to it.
+   * On macOS, while the chat has keyboard focus, it leaves the main window. A
+   * child takes its parent's window level, and the main window's level covers
+   * the input method candidates of the text typed into the chat.
    *
-   * The `move` and `resize` handlers run in both states. They place a chat
-   * that the window manager did not move with its parent, and they change the
-   * layout when the current one stops fitting.
+   * The `move` and `resize` handlers run on every platform. They place a chat
+   * that the window manager did not move with the main window, and they
+   * change the layout when the current one stops fitting.
    */
   function attachToMain(target: BrowserWindow) {
     const main = params.getMainWindow()
@@ -270,10 +269,18 @@ export function setupFloatingChatWindow(params: {
     layout = chooseAttachedChatLayout(mainBounds, target.getBounds(), screen.getDisplayMatching(mainBounds).workArea, preferredAttachedChatLayout)
     moveToLayout(main, target)
     target.setAlwaysOnTop(main.isAlwaysOnTop())
-    if (!target.isFocused())
-      linkToMain()
-    target.on('focus', unlinkFromMain)
-    target.on('blur', linkToMain)
+    // NOTICE:
+    // Only macOS moves a child window with its parent during a drag, so only
+    // macOS links the chat. With this link, the attached chat on Windows
+    // flickered and used much CPU; the unlinked free chat did not.
+    // Removal condition: a Windows build that keeps the link stable.
+    const linksToMain = isMacOS
+    if (linksToMain) {
+      if (!target.isFocused())
+        linkToMain()
+      target.on('focus', unlinkFromMain)
+      target.on('blur', linkToMain)
+    }
     main.on('move', follow)
     main.on('resize', follow)
     main.on('hide', hideWithMain)
@@ -287,7 +294,7 @@ export function setupFloatingChatWindow(params: {
       main.off('hide', hideWithMain)
       main.off('show', showWithMain)
       main.off('always-on-top-changed', followAlwaysOnTop)
-      if (!target.isDestroyed()) {
+      if (linksToMain && !target.isDestroyed()) {
         target.off('focus', unlinkFromMain)
         target.off('blur', linkToMain)
         unlinkFromMain()
