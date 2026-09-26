@@ -358,6 +358,7 @@ pages:
     save: 保存更改
     save_and_activate: 保存并激活
     card_not_found: 未找到角色卡
+    back: 返回
     character: 角色设定
     close: 关闭
     chat:
@@ -377,6 +378,13 @@ pages:
     drop_here: 放开以上传文件
     create_card: 创建新角色卡
     edit_card: 卡片编辑
+    saved: 角色卡已保存
+    unsaved:
+      badge: 未保存
+      title: 放弃更改？
+      message: 当前更改尚未保存。离开后更改不会保留。
+      keep_editing: 继续编辑
+      discard: 放弃更改
     creation:
       identity: 身份
       name: 名字
@@ -394,7 +402,7 @@ pages:
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
       modules_info: >-
-        配置此角色卡的模块。空字段将继承全局设置。
+        配置此角色卡的模块。留空会继承全局设置。
       sections:
         chat: 聊天
         vision: 视觉
@@ -404,7 +412,7 @@ pages:
       use_default_not_configured: 使用默认（未配置）
       inherit_global_settings: 继承全局设置
       fields_info:
-        subtitle: 您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
+        subtitle: 在这里填写角色的详细信息、背景和互动方式。
         name: 是该角色的正式名称。
         nickname: 您也可以提供一个昵称，它将被优先使用。
         description: 该角色的描述。
@@ -429,6 +437,7 @@ pages:
         posthistoryinstructions: '错误：必须提供消息历史后的提示。'
         invalid_artistry_json: '错误：绘图提供商选项包含无效 JSON。'
       none: 无
+      none_disabled: 无（禁用）
     modules: 模块
     name_asc: 名称 (A-Z)
     name_desc: 名称 (Z-A)
@@ -589,50 +598,48 @@ pages:
       card:
         description: 配置 AIRI 生成图像和视觉内容的方式。
         comfyui_empty: 未配置 ComfyUI 工作流。前往设置 → 提供商 → ComfyUI 上传工作流模板。
-        exposed_fields: '{count} exposed fields'
-        open_on_replicate: Open on Replicate
+        exposed_fields: '{count} 个公开字段'
+        open_on_replicate: 在 Replicate 打开
         instruction_sync:
-          title: ComfyUI Instruction Sync
+          title: ComfyUI 指令同步
           description: >-
-            A specialized prompt is ready for your {workflowName} workflow.
-            Applying this will overwrite current widget instructions so the AI
-            knows how to use this specific template.
-          apply: Apply Recommended Prompt
-          keep: Keep Existing
-      provider: Artistry Provider
+            已为工作流 {workflowName} 准备好专用提示词。应用后会覆盖当前组件指令，
+            让 AI 了解如何使用这个模板。
+          apply: 应用推荐提示词
+          keep: 保留现有内容
+      provider: 绘图提供商
       spawn_mode:
-        label: Manifestation Mode (Spawn Mode)
-        description: Choose how images are delivered to the interface.
+        label: 呈现方式（生成模式）
+        description: 选择图像在界面中的呈现方式。
         options:
-          bg: Background Environment
-          inline: Inline Chat
-          widget: Overlay Widget
-          bg_widget: Dual (Background + Widget)
+          bg: 背景环境
+          inline: 聊天内联
+          widget: 悬浮组件
+          bg_widget: 背景与悬浮组件
       autonomous:
-        title: Cinematic Autonomy (Autonomous Artist)
+        title: 自动绘图（自主画师）
         description: >-
-          When enabled, the "Producer" runs in parallel to the character to
-          decide if a visual is needed. This prevents the character from
-          forgetting to manifest scenes.
-        threshold: Manifestation Threshold
+          启用后，“制作人”会与角色并行运行，判断何时需要视觉内容，
+          避免角色忘记呈现场景。
+        threshold: 绘图触发阈值
         threshold_description: >-
-          Use {min} for aggressive scene creation or {max} to require stronger
-          evidence before generating.
-        threshold_min: Always Generate (0%)
-        threshold_max: Strict (100%)
+          使用 {min} 会更主动地生成场景；使用 {max} 则要求更强的判断依据才会生成。
+        threshold_min: 始终生成（0%）
+        threshold_max: 严格（100%）
       model:
-        label: Artistry Model (Optional Override)
-        description: Model identifier if needed by provider
+        label: 绘图模型（可选覆盖）
+        description: 提供商需要时填写模型标识符
+        placeholder: 例如：black-forest-labs/flux-schnell
       prompt-prefix:
-        label: Artistry Prompt Default Prefix
-        description: Pre-pended to every prompt sent to the image generator.
+        label: 绘图提示词默认前缀
+        description: 添加到发送给图像生成器的每条提示词前。
+        placeholder: 例如：Masterpiece, high quality, 1girl, anime,
       options:
-        label: Artistry Provider Options (JSON)
+        label: 绘图提供商选项（JSON）
       widget-instructions:
-        label: Widget System Prompt
+        label: 组件系统提示词
         description: >-
-          Custom instructions for the AI on how to use the generation
-          capabilities.
+          自定义 AI 使用图像生成能力的指令。
     categories:
       essential: 基础
       messaging: Messaging
@@ -1075,6 +1082,10 @@ pages:
           title: 声音配置
     labels:
       recommended: 推荐
+    sync:
+      synced: 已同步
+      pending: 等待上传
+      not-uploaded: 未上传。请先在这台设备上完成这个提供商。
     filters:
       pricing: 价格
       deployment: 部署
