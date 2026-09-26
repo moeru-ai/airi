@@ -176,6 +176,13 @@
       "when": 1787808818776,
       "tag": "0024_drop_stripe_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790162091806,
+      "tag": "0025_llm_cost_receipts",
+      "breakpoints": true
     }
   ]
 }

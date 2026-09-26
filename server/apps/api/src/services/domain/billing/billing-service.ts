@@ -3,12 +3,16 @@ import type Redis from 'ioredis'
 import type { Database } from '../../../libs/db'
 import type { RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
+import type { CostPricing, CostUsage } from './billing'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq } from 'drizzle-orm'
+import { nonEmpty, parse, pipe, string } from 'valibot'
 
+import { llmCostReceipt } from '../../../schemas/llm-cost-receipt'
 import { createPaymentRequiredError } from '../../../utils/error'
 import { invalidateBalanceCache, writeBalanceCache } from '../flux-cache'
+import { costPricingSchema, priceLlmCost } from './billing'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
@@ -176,6 +180,149 @@ export function createBillingService(
   }
 
   return {
+    /**
+     * Saves a provider receipt and settles whole Flux under the account row lock.
+     * Reconciliation reuses the original price snapshot and request ID.
+     * Pending receipts do not modify the balance or the fractional remainder.
+     */
+    async settleLlmCost(input: {
+      provider: string
+      userId: string
+      requestId: string
+      model: string
+      usage: CostUsage
+      pricing: CostPricing
+      pendingReason?: string
+    }): Promise<{ charged: number, requested: number, pending: boolean }> {
+      const provider = parse(pipe(string(), nonEmpty()), input.provider)
+      const result = await db.transaction(async (tx) => {
+        // All receipts for this account share the wallet lock, including zero charges.
+        // The idempotency lookup must follow the lock to see concurrent settlements.
+        const [wallet] = await tx.select().from(fluxSchema.userFlux).where(eq(fluxSchema.userFlux.userId, input.userId)).for('update')
+        if (!wallet)
+          throw new Error(`No flux record for user ${input.userId}`)
+        const key = and(eq(llmCostReceipt.userId, input.userId), eq(llmCostReceipt.requestId, input.requestId))
+        const [existing] = await tx.select().from(llmCostReceipt).where(key)
+        if (existing && existing.provider !== provider)
+          throw new Error('Provider does not match the cost receipt')
+        if (existing?.status === 'settled') {
+          if (existing.charged === null)
+            throw new Error('Settled cost receipt has no charged amount')
+          return { charged: existing.charged, requested: existing.charged, pending: false, balance: wallet.flux, replay: true }
+        }
+        if (existing?.generationId && input.usage.generationId !== existing.generationId)
+          throw new Error('Generation ID does not match the pending receipt')
+
+        const pricing = parse(costPricingSchema, existing ? existing.pricing : input.pricing)
+        const charge = priceLlmCost(input.usage, pricing)
+        if (input.pendingReason !== undefined || charge.pendingReason !== undefined) {
+          await tx.insert(llmCostReceipt).values({
+            userId: input.userId,
+            requestId: input.requestId,
+            generationId: input.usage.generationId,
+            model: input.model,
+            provider,
+            status: 'pending',
+            pendingReason: input.pendingReason ?? charge.pendingReason,
+            pricing,
+            usage: input.usage.providerUsage,
+            costUsd: charge.costUsd?.toString(),
+          }).onConflictDoNothing()
+          return { charged: 0, requested: 0, pending: true, balance: wallet.flux, replay: false, pendingReason: existing?.pendingReason ?? input.pendingReason ?? charge.pendingReason }
+        }
+
+        const totalMicroFlux = wallet.llmCostRemainder + charge.microFlux
+        const requested = Math.floor(totalMicroFlux / 1_000_000)
+        const remainder = totalMicroFlux % 1_000_000
+        const charged = Math.min(requested, Math.max(0, wallet.flux))
+        const balance = wallet.flux - charged
+        await tx.update(fluxSchema.userFlux).set({
+          flux: balance,
+          llmCostRemainder: remainder,
+          updatedAt: new Date(),
+        }).where(eq(fluxSchema.userFlux.userId, input.userId))
+        await tx.insert(fluxTxSchema.fluxTransaction).values({
+          userId: input.userId,
+          requestId: input.requestId,
+          type: 'debit',
+          amount: charged,
+          balanceBefore: wallet.flux,
+          balanceAfter: balance,
+          description: 'llm_request',
+          metadata: {
+            source: 'llm.request',
+            model: existing?.model ?? input.model,
+            promptTokens: input.usage.promptTokens,
+            completionTokens: input.usage.completionTokens,
+            billing: {
+              method: 'provider_cost',
+              provider,
+              generationId: input.usage.generationId,
+              costUsd: charge.costUsd,
+              ...pricing,
+              microFlux: charge.microFlux,
+              remainderBefore: wallet.llmCostRemainder,
+              remainderAfter: remainder,
+            },
+            ...(charged < requested && { requestedAmount: requested, unbilled: requested - charged }),
+          },
+        })
+        const settled = {
+          status: 'settled',
+          pendingReason: null,
+          generationId: input.usage.generationId,
+          usage: input.usage.providerUsage,
+          costUsd: charge.costUsd.toString(),
+          microFlux: charge.microFlux,
+          charged,
+          requested,
+          updatedAt: new Date(),
+        }
+        await tx.insert(llmCostReceipt).values({
+          ...settled,
+          userId: input.userId,
+          requestId: input.requestId,
+          model: input.model,
+          provider,
+          pricing,
+        }).onConflictDoUpdate({ target: [llmCostReceipt.userId, llmCostReceipt.requestId], set: settled })
+        return { charged, requested, pending: false, balance, replay: false }
+      }).catch((error) => {
+        // A failed transaction cannot retain its receipt. Keep correlation fields outside the database.
+        logger.withError(error).withFields({
+          event: 'llm.cost_receipt',
+          billingStatus: 'failed',
+          requestId: input.requestId,
+          generationId: input.usage.generationId,
+          userId: input.userId,
+          model: input.model,
+          provider,
+        }).error('Failed to persist LLM cost receipt')
+        throw error
+      })
+      if (!result.pending && !result.replay)
+        await updateRedisCache(input.userId, result.balance)
+      const receiptLogger = logger.withFields({
+        event: 'llm.cost_receipt',
+        billingStatus: result.pending ? 'pending' : 'settled',
+        requestId: input.requestId,
+        generationId: input.usage.generationId,
+        userId: input.userId,
+        model: input.model,
+        provider,
+        pendingReason: result.pendingReason,
+        charged: result.charged,
+        requested: result.requested,
+        unbilled: result.requested - result.charged,
+        replay: result.replay,
+      })
+      if (result.pending)
+        receiptLogger.warn('LLM cost receipt remains pending')
+      else if (!result.replay)
+        receiptLogger.log('LLM cost receipt settled')
+      return { charged: result.charged, requested: result.requested, pending: result.pending }
+    },
+
     /**
      * Debit flux for an LLM API request (chat, TTS).
      * Token usage is persisted in the `flux_transaction.metadata` column so

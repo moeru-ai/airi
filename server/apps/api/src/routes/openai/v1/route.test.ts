@@ -1,3 +1,4 @@
+import type { Database } from '../../../libs/db'
 import type { GenAiMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { BillingService } from '../../../services/domain/billing/billing-service'
@@ -11,15 +12,22 @@ import type { VoicePackService } from '../../../services/domain/voice-packs'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createV1Routes } from '.'
+import { mockDB } from '../../../libs/mock-db'
+import { createTestRedis } from '../../../libs/tests/redis'
+import { userFlux } from '../../../schemas/flux'
+import { fluxTransaction } from '../../../schemas/flux-transaction'
+import { llmCostReceipt } from '../../../schemas/llm-cost-receipt'
+import { createBillingService } from '../../../services/domain/billing/billing-service'
 import { ApiError } from '../../../utils/error'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
 } from './analytics'
+import { createOpenAiRouteBilling } from './middlewares/billing'
 import { tracer } from './middlewares/telemetry'
 
 function createMockFluxService(flux = 100): FluxService {
@@ -2541,6 +2549,203 @@ function responsesHarness(response: () => Response, balance = 100, genAi: GenAiM
   }, { user: testUser })
   return { app, send, billing, logs, tracing, router }
 }
+
+describe('openRouter cost billing through HTTP routes', () => {
+  let db: Database
+  const pricing = { fluxPerUsd: 1000, multiplier: 1.5 }
+
+  // https://github.com/moeru-ai/airi/pull/2644#discussion_r4082125150
+  it('quotes a nonzero failure estimate and selects prices by adapter provider ID', async () => {
+    const policy = createOpenAiRouteBilling({
+      billingService: createMockBillingService(),
+      configKV: createMockConfigKV({ LLM_COST_BILLING: { openrouter: pricing, other: { fluxPerUsd: 20, multiplier: 7 } } }),
+      fluxService: createMockFluxService(),
+      ttsMeter: createMockTtsMeter(),
+    })
+    const authorization = await policy.authorizeChat(testUser.id)
+    const quote = policy.priceChatUsage({ generationId: 'gen-estimate', providerUsage: { cost: 0.0002 } }, authorization, 'openrouter.ai')
+    expect(quote.amount).toBe(0.3)
+    expect(quote.costReceipt).toMatchObject({ provider: 'openrouter', pricing, usage: { costUsd: 0.0002 } })
+    expect(policy.priceChatUsage({ providerUsage: { cost: 10 } }, authorization, 'other.example').costReceipt).toBeUndefined()
+  })
+  beforeAll(async () => {
+    db = await mockDB({ userFlux, fluxTransaction, llmCostReceipt })
+  })
+  beforeEach(async () => {
+    await db.delete(llmCostReceipt)
+    await db.delete(fluxTransaction)
+    await db.delete(userFlux)
+    await db.insert(userFlux).values({ userId: testUser.id, flux: 100 })
+  })
+
+  function harness(response: () => Response, provider = 'openrouter.ai', enabled = true) {
+    const config = createMockConfigKV({ LLM_COST_BILLING: enabled ? { openrouter: pricing } : undefined, FLUX_PER_1K_TOKENS: 1 })
+    const billing = createBillingService(db, createTestRedis(), config)
+    const logs = createMockRequestLogService()
+    const router = createMockLlmRouter({ route: vi.fn(async (_request, context) => {
+      if (context)
+        context.provider = provider
+      return response()
+    }) })
+    const app = createTestApp(createMockFluxService(), config, billing, logs, undefined, router)
+    return { app, logs }
+  }
+
+  for (const protocol of ['chat/completions', 'responses']) {
+    for (const stream of [false, true]) {
+      it(`settles reported cost for ${protocol}, stream=${stream}`, async () => {
+        const result = protocol === 'responses'
+          ? { ...responsesResult(), id: 'gen-cost', usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150, cost: 0.002 } }
+          : { id: 'gen-cost', choices: [], usage: { prompt_tokens: 100, completion_tokens: 50, cost: 0.002, prompt_tokens_details: { cached_tokens: 90 } } }
+        const frame = protocol === 'responses'
+          ? `event: response.completed\ndata: ${JSON.stringify({ type: 'response.completed', response: result })}\n\n`
+          : `data: ${JSON.stringify(result)}\n\ndata: ${JSON.stringify({ id: 'gen-cost', choices: [], padding: 'x'.repeat(3000) })}\n\ndata: [DONE]\n\n`
+        const { app, logs } = harness(() => stream
+          ? new Response(new ReadableStream({ start(controller) {
+              const bytes = new TextEncoder().encode(frame)
+              controller.enqueue(bytes.slice(0, 37))
+              controller.enqueue(bytes.slice(37))
+              controller.close()
+            } }), { headers: { 'Content-Type': 'text/event-stream' } })
+          : Response.json(result))
+        const response = await app.request(`/api/v1/openai/${protocol}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: [], input: 'hello', stream }),
+        }, { user: testUser })
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain('gen-cost')
+        await vi.waitFor(async () => {
+          const [receipt] = await db.select().from(llmCostReceipt)
+          expect(receipt).toMatchObject({ provider: 'openrouter', status: 'settled', charged: 3, costUsd: '0.002', pricing })
+        })
+        const [wallet] = await db.select().from(userFlux)
+        expect(wallet.flux).toBe(97)
+        expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ fluxConsumed: 3 }))
+      })
+    }
+  }
+
+  it.each([undefined, 0, -1])('distinguishes missing, zero, and invalid reported cost: %s', async (cost) => {
+    const { app } = harness(() => Response.json({ id: 'gen-boundary', choices: [], usage: { prompt_tokens: 1000, completion_tokens: 1000, cost } }))
+    const response = await app.request('/api/v1/openai/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [] }),
+    }, { user: testUser })
+    expect(response.status).toBe(200)
+    const [receipt] = await db.select().from(llmCostReceipt)
+    expect(receipt.status).toBe(cost === 0 ? 'settled' : 'pending')
+    const [wallet] = await db.select().from(userFlux)
+    expect(wallet.flux).toBe(100)
+  })
+
+  it.each([['other.example', true], ['openrouter.ai', false]] as const)('keeps the configured token policy for provider=%s, cost enabled=%s', async (provider, enabled) => {
+    const { app } = harness(() => Response.json({ id: 'gen-other', usage: { prompt_tokens: 1000, completion_tokens: 1000, cost: 10 } }), provider, enabled)
+    const response = await app.request('/api/v1/openai/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [] }),
+    }, { user: testUser })
+    expect(response.status).toBe(200)
+    const [wallet] = await db.select().from(userFlux)
+    expect(wallet.flux).toBe(98)
+    expect(await db.select().from(llmCostReceipt)).toHaveLength(0)
+  })
+
+  it('records a chat stream without DONE as pending even if it reports cost', async () => {
+    const { app } = harness(() => new Response(`data: ${JSON.stringify({ id: 'gen-partial', usage: { cost: 1 } })}\n\n`, { headers: { 'Content-Type': 'text/event-stream' } }))
+    const response = await app.request('/api/v1/openai/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [], stream: true }),
+    }, { user: testUser })
+    await response.text()
+    await vi.waitFor(async () => {
+      const [receipt] = await db.select().from(llmCostReceipt)
+      expect(receipt).toMatchObject({ status: 'pending', pendingReason: 'incomplete_or_invalid_stream', generationId: 'gen-partial' })
+    })
+    const [wallet] = await db.select().from(userFlux)
+    expect(wallet.flux).toBe(100)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2644#discussion_r4082125157
+  it('forwards a keep-alive before any data frame and preserves raw SSE bytes', async () => {
+    const heartbeat = ': keep-alive\r\n\r\n'
+    const terminal = 'data: {"id":"gen-heartbeat","usage":{"cost":0.002}}\r\n\r\ndata: [DONE]\r\n\r\n'
+    let upstreamController: ReadableStreamDefaultController<Uint8Array>
+    const { app } = harness(() => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        upstreamController = controller
+        controller.enqueue(new TextEncoder().encode(heartbeat))
+      },
+    }), { headers: { 'Content-Type': 'text/event-stream', 'Content-Length': String(heartbeat.length + terminal.length) } }))
+    const response = await app.request('/api/v1/openai/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [], stream: true }),
+    }, { user: testUser })
+    const reader = response.body!.getReader()
+    let first: Awaited<ReturnType<typeof reader.read>> | undefined
+    const firstRead = reader.read().then((value) => {
+      first = value
+    })
+    try {
+      await vi.waitFor(() => expect(first?.done).toBe(false), { timeout: 500 })
+      expect(new TextDecoder().decode(first?.value)).toBe(heartbeat)
+      expect(response.headers.get('content-length')).toBeNull()
+    }
+    finally {
+      upstreamController!.enqueue(new TextEncoder().encode(terminal))
+      upstreamController!.close()
+      await firstRead
+    }
+    const rest = await reader.read()
+    expect(new TextDecoder().decode(rest.value)).toBe(terminal)
+    await reader.read()
+    await vi.waitFor(async () => expect((await db.select().from(llmCostReceipt))[0]).toMatchObject({ charged: 3 }))
+  })
+
+  it('saves a pending receipt and cancels upstream when the chat client disconnects', async () => {
+    const cancelled = vi.fn()
+    const { app } = harness(() => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: {"id":"gen-disconnect","choices":[]}\n\n'))
+      },
+      cancel: cancelled,
+    }), { headers: { 'Content-Type': 'text/event-stream' } }))
+    const response = await app.request('/api/v1/openai/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [], stream: true }),
+    }, { user: testUser })
+    const reader = response.body!.getReader()
+    await reader.read()
+    await reader.cancel()
+    await vi.waitFor(async () => {
+      expect(cancelled).toHaveBeenCalled()
+      const [receipt] = await db.select().from(llmCostReceipt)
+      expect(receipt).toMatchObject({ status: 'pending', pendingReason: 'stream_interrupted', generationId: 'gen-disconnect' })
+    })
+    expect(await db.select().from(fluxTransaction)).toHaveLength(0)
+  })
+
+  it('saves the Responses generation ID on unexpected EOF', async () => {
+    const result = { ...responsesResult('in_progress'), id: 'gen-eof', output: [], usage: null }
+    const { app } = harness(() => new Response(`event: response.created\ndata: ${JSON.stringify({ type: 'response.created', response: result })}\n\n`, { headers: { 'Content-Type': 'text/event-stream' } }))
+    const response = await app.request('/api/v1/openai/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: 'hello', stream: true }),
+    }, { user: testUser })
+    await expect(response.text()).rejects.toThrow()
+    await vi.waitFor(async () => {
+      const [receipt] = await db.select().from(llmCostReceipt)
+      expect(receipt).toMatchObject({ status: 'pending', pendingReason: 'response_not_completed', generationId: 'gen-eof' })
+    })
+    expect(await db.select().from(fluxTransaction)).toHaveLength(0)
+  })
+})
 
 function responsesFrame(status = 'completed') {
   return `event: response.${status}\nid: event-1\ndata: ${JSON.stringify({ type: `response.${status}`, response: responsesResult(status) })}\n\n`

@@ -4,6 +4,7 @@ import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
+import { EventSourceParserStream } from '@xsai/shared-stream'
 
 import { extractUsageFromBody } from '../../../../../services/domain/billing/billing'
 import { nanoid } from '../../../../../utils/id'
@@ -193,41 +194,84 @@ function streamChatCompletion(input: {
   const reader = input.response.body!.getReader()
   const writer = writable.getWriter()
   const decoder = new TextDecoder()
-  // Buffer last 2KB to handle chunk boundary splits for usage extraction
-  let tailBuffer = ''
+  let usage: UsageInfo = {}
+  let receivedDone = false
+  let invalidReceipt = false
+  let firstChunkAt = Number.NaN
+  // Parse a bounded copy for accounting while forwarding the original bytes, including keep-alives.
+  const parser = new EventSourceParserStream({
+    onError: () => {
+      invalidReceipt = true
+    },
+  })
+  const parserWriter = parser.writable.getWriter()
+  const events = parser.readable.getReader()
+  const observation = (async () => {
+    while (true) {
+      const { done, value } = await events.read()
+      if (done)
+        break
+      if (receivedDone)
+        continue
+      if (value.data === '[DONE]') {
+        receivedDone = true
+        continue
+      }
+      if (!Number.isFinite(firstChunkAt)) {
+        firstChunkAt = Date.now()
+        input.telemetry.recordFirstToken({
+          firstChunkAt,
+          model: input.requestModel,
+          provider: input.routeCtxProvider,
+          startedAt: input.startedAt,
+          operation: 'chat',
+        })
+      }
+      try {
+        const observed = extractUsageFromBody(JSON.parse(value.data))
+        if (observed.generationId !== undefined) {
+          if (usage.generationId !== undefined && observed.generationId !== usage.generationId)
+            invalidReceipt = true
+          usage.generationId = observed.generationId
+        }
+        if (observed.providerUsage != null)
+          usage = { ...observed, generationId: observed.generationId ?? usage.generationId }
+      }
+      catch (error) {
+        invalidReceipt = true
+        input.logger.withError(error).warn('Invalid chat usage frame')
+      }
+    }
+  })()
+  let downstreamCancelled = false
+  void writer.closed.catch(() => {
+    downstreamCancelled = true
+    return reader.cancel().catch(error => input.logger.withError(error).warn('Failed to cancel chat reader'))
+  })
   let streamCompleted = false
   let streamInterrupted = false
-  // First-chunk timestamp for gen_ai.client.first_token.duration. Latched
-  // on the first byte from upstream — captures perceived "time to first
-  // token" for streaming clients. NaN until the first chunk lands so
-  // `Number.isFinite` gates the histogram record.
-  let firstChunkAt = Number.NaN
 
   // Process stream in background
   ;(async () => {
     try {
       while (true) {
         const { done, value } = await reader.read()
+        if (downstreamCancelled)
+          throw new Error('Chat downstream cancelled')
         if (done) {
           streamCompleted = true
           break
         }
-        if (!Number.isFinite(firstChunkAt)) {
-          firstChunkAt = Date.now()
-          input.telemetry.recordFirstToken({
-            firstChunkAt,
-            model: input.requestModel,
-            provider: input.routeCtxProvider,
-            startedAt: input.startedAt,
-            operation: 'chat',
-          })
-        }
-        await writer.write(value)
         const text = decoder.decode(value, { stream: true })
-        tailBuffer = (tailBuffer + text).slice(-2048)
+        await parserWriter.write(text)
+        await writer.write(value)
         // Accumulate the assistant completion for the Langfuse trace output
         // (no-op when tracing is off). Module owns SSE parsing + the cap.
         input.generationTrace.appendStreamChunk(text)
+        if (receivedDone) {
+          streamCompleted = true
+          break
+        }
       }
     }
     catch (err) {
@@ -249,7 +293,29 @@ function streamChatCompletion(input: {
       return
     }
     finally {
+      await parserWriter.close()
+      await observation
+      parserWriter.releaseLock()
+      events.releaseLock()
       if (streamInterrupted) {
+        const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
+        if (price.costReceipt) {
+          try {
+            await input.billing.settleChat({
+              ...usage,
+              ...price,
+              pendingReason: 'stream_interrupted',
+              userId: input.userId,
+              requestId: input.requestId,
+              model: input.requestModel,
+              stage: 'streaming',
+              logger: input.logger,
+            })
+          }
+          catch (error) {
+            input.logger.withError(error).withFields({ requestId: input.requestId, generationId: usage.generationId }).error('Failed to save pending cost receipt')
+          }
+        }
         input.telemetry.endSpan(input.span)
         input.generationTrace.fail('Gateway stream interrupted')
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
@@ -262,29 +328,8 @@ function streamChatCompletion(input: {
           input.logger.withError(err).warn('Failed to close stream writer')
         }
 
-        let usage: UsageInfo = {}
-        try {
-          const lines = tailBuffer.split('\n').filter(l => l.startsWith('data: ') && !l.includes('[DONE]'))
-          const lastDataLine = lines.at(-1)
-          if (lastDataLine) {
-            const json = JSON.parse(lastDataLine.slice(6))
-            usage = extractUsageFromBody(json)
-          }
-        }
-        catch (err) { input.logger.withError(err).warn('Failed to extract usage from stream, falling back to flat rate') }
-
-        const fluxConsumed = input.billing.priceChatUsage(usage, input.billingPolicy)
-
-        input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed })
-        input.telemetry.endSpan(input.span)
-        // Streaming output comes from appendStreamChunk above, so succeed
-        // omits it and the module uses the assembled assistant text.
-        input.generationTrace.succeed({
-          promptTokens: usage.promptTokens,
-          completionTokens: usage.completionTokens,
-          fluxConsumed,
-        })
-        input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed, ...usage })
+        const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
+        const fluxConsumed = price.amount
 
         // Debit flux via DB transaction (source of truth)
         // NOTICE: streaming response is already sent, so we cannot reject on failure.
@@ -299,7 +344,8 @@ function streamChatCompletion(input: {
         try {
           actualCharged = await input.billing.settleChat({
             userId: input.userId,
-            amount: fluxConsumed,
+            ...price,
+            pendingReason: invalidReceipt || !receivedDone ? 'incomplete_or_invalid_stream' : undefined,
             requestId: input.requestId,
             model: input.requestModel,
             stage: 'streaming',
@@ -315,6 +361,11 @@ function streamChatCompletion(input: {
           input.billing.recordChatDebitFailure({ amount: fluxConsumed, model: input.requestModel, stage: 'streaming' })
           input.logger.withError(err).withFields({ userId: input.userId, fluxConsumed, requestId: input.requestId }).error('Failed to debit flux after streaming — unpaid usage')
         }
+
+        input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: actualCharged })
+        input.telemetry.endSpan(input.span)
+        input.generationTrace.succeed({ promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, fluxConsumed: actualCharged })
+        input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: actualCharged })
 
         input.telemetry.recordRequestLog({
           userId: input.userId,
@@ -338,12 +389,18 @@ function streamChatCompletion(input: {
           stream: true,
         }).log('chat completion delivered')
       }
+      await reader.cancel().catch(error => input.logger.withError(error).warn('Failed to close chat reader'))
+      reader.releaseLock()
+      writer.releaseLock()
     }
   })()
 
+  const headers = buildSafeResponseHeaders(input.response)
+  // DONE can close the stream before upstream EOF, so the upstream length is not authoritative.
+  headers.delete('content-length')
   return new Response(readable, {
     status: input.response.status,
-    headers: buildSafeResponseHeaders(input.response),
+    headers,
   })
 }
 
@@ -371,37 +428,53 @@ async function completeNonStreamingChat(input: {
     responseBody = await input.response.json()
   }
   catch (err) {
+    const price = input.billing.priceChatUsage({}, input.billingPolicy, input.routeCtxProvider)
+    if (price.costReceipt) {
+      try {
+        await input.billing.settleChat({
+          ...price,
+          userId: input.userId,
+          requestId: input.requestId,
+          model: input.requestModel,
+          stage: 'non_streaming',
+          logger: input.logger,
+          pendingReason: 'invalid_response_body',
+        })
+      }
+      catch (error) {
+        input.logger.withError(error).withFields({ requestId: input.requestId }).error('Failed to save pending cost receipt')
+      }
+    }
     input.telemetry.failSpan(input.span, 'Failed to parse upstream response body')
     input.generationTrace.fail('Failed to parse upstream response body')
     input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
     throw err
   }
   const usage = extractUsageFromBody(responseBody)
-  const fluxConsumed = input.billing.priceChatUsage(usage, input.billingPolicy)
-
-  input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed })
-  input.telemetry.endSpan(input.span)
-  input.generationTrace.succeed({
-    output: responseBody,
-    promptTokens: usage.promptTokens,
-    completionTokens: usage.completionTokens,
-    fluxConsumed,
-  })
-  input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed, ...usage })
+  const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
 
   // Debit flux via DB transaction (source of truth).
   // The upstream call has already happened (cost incurred), so partial
   // debit + `fluxUnbilled` is the only sane recovery — same shape as the
   // streaming path. `balance <= 0` still throws and bubbles up as 402.
-  const actualCharged = await input.billing.settleChat({
-    userId: input.userId,
-    amount: fluxConsumed,
-    requestId: input.requestId,
-    model: input.requestModel,
-    stage: 'non_streaming',
-    logger: input.logger,
-    ...usage,
-  })
+  let actualCharged = 0
+  try {
+    actualCharged = await input.billing.settleChat({
+      userId: input.userId,
+      ...price,
+      requestId: input.requestId,
+      model: input.requestModel,
+      stage: 'non_streaming',
+      logger: input.logger,
+      ...usage,
+    })
+  }
+  finally {
+    input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: actualCharged })
+    input.telemetry.endSpan(input.span)
+    input.generationTrace.succeed({ output: responseBody, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, fluxConsumed: actualCharged })
+    input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: actualCharged })
+  }
 
   input.telemetry.recordRequestLog({
     userId: input.userId,
