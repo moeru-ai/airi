@@ -162,6 +162,7 @@ export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOpti
 export function streamWebSpeechAPITranscription(
   _mediaStream: MediaStream,
   options?: WebSpeechAPIExtraOptions & {
+    onSpeechStart?: () => void
     onSentenceEnd?: (delta: string) => void
     onSpeechEnd?: (text: string) => void
   },
@@ -362,6 +363,7 @@ export function streamWebSpeechAPITranscription(
     newRecognition.onresult = sourceRecognition.onresult
     newRecognition.onerror = sourceRecognition.onerror
     newRecognition.onend = sourceRecognition.onend
+    newRecognition.onspeechstart = sourceRecognition.onspeechstart
     recognitionInstance = newRecognition
     newRecognition.start()
     return newRecognition
@@ -432,6 +434,7 @@ export function streamWebSpeechAPITranscription(
 
   recognition.onspeechstart = () => {
     console.info('Web Speech API speech detected')
+    options?.onSpeechStart?.()
   }
 
   recognition.onspeechend = () => {

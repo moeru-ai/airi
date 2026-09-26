@@ -170,6 +170,7 @@ async function setupAudioMonitoring() {
       // The page VAD below only drives the visualization for streaming providers.
       await transcribeForMediaStream(stream.value, {
         consumerId: hearingPlaygroundTranscriptionConsumerId,
+        priority: 'playground',
         onSpeechEnd: finishStreaming,
         onTranscriptionUpdate: replaceStreamingText,
       })

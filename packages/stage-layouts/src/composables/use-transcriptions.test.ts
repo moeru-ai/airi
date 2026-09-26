@@ -26,6 +26,7 @@ interface MockStreamingCallbacks {
 
 function createMockPipeline() {
   return {
+    claimStreamingTranscriptionConsumer: vi.fn(),
     releaseStreamingTranscriptionConsumer: vi.fn().mockResolvedValue(undefined),
     transcribeForMediaStream: vi.fn().mockImplementation((_stream, options: MockStreamingCallbacks) => {
       options.onSentenceEnd(mockTranscribedContent)
@@ -38,7 +39,7 @@ function createMockPipeline() {
 function createMockAudioDevice() {
   const instance = {
     enabled: ref(false),
-    stream: ref(null),
+    stream: ref<MediaStream | null>(null),
     askPermission: vi.fn().mockResolvedValue(undefined),
     startStream: vi.fn(),
   }
@@ -183,6 +184,57 @@ describe('useTranscriptions', () => {
   })
 
   describe('streaming Logic', () => {
+    it('does not start ASR after dictation is stopped during microphone permission', async () => {
+      // ROOT CAUSE:
+      // The old start resumed after the permission promise even if stop had run.
+      // A newer intent invalidates that start before it can bind ASR.
+      let releasePermission!: () => void
+      mockHearingStore.configured.value = true
+      mockAudioDevice.enabled.value = true
+      mockAudioDevice.askPermission.mockImplementation(() => new Promise<void>((resolve) => {
+        releasePermission = resolve
+      }))
+
+      const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(createOptions())
+      const starting = startStreamingTranscription()
+      await vi.waitFor(() => expect(mockAudioDevice.askPermission).toHaveBeenCalledOnce())
+      const stopping = stopStreamingTranscription()
+      releasePermission()
+      await Promise.all([starting, stopping])
+
+      expect(isListening.value).toBe(false)
+      expect(mockHearingPipeline.transcribeForMediaStream).not.toHaveBeenCalled()
+      expect(mockHearingPipeline.releaseStreamingTranscriptionConsumer).toHaveBeenCalled()
+    })
+
+    it('does not accept a late ASR result after dictation is stopped', async () => {
+      // ROOT CAUSE:
+      // A provider callback can arrive after stop while its start is still pending.
+      // The callback must match the current listening intent.
+      let finishStart!: () => void
+      let onSentenceEnd!: (text: string) => void
+      mockHearingStore.configured.value = true
+      mockAudioDevice.enabled.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as MediaStream
+      mockHearingPipeline.transcribeForMediaStream.mockImplementation((_stream, options: MockStreamingCallbacks) => {
+        onSentenceEnd = options.onSentenceEnd
+        return new Promise<void>((resolve) => {
+          finishStart = resolve
+        })
+      })
+
+      const input = ref('')
+      const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions({ ...createOptions(), messageInputRef: input })
+      const starting = startStreamingTranscription()
+      await vi.waitFor(() => expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledOnce())
+      const stopping = stopStreamingTranscription()
+      finishStart()
+      await Promise.all([starting, stopping])
+      onSentenceEnd('stale transcript')
+
+      expect(isListening.value).toBe(false)
+      expect(input.value).toBe('')
+    })
     it('should start streaming if stream exists and provider supports it', async () => {
       mockHearingStore.configured.value = true
       mockAudioDevice.stream.value = { id: 'stream-1' } as any

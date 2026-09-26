@@ -31,6 +31,13 @@ measurement.
 - An aborted session cannot deliver late transcript callbacks to a new binding.
 - ASR response cancellation closes the server's upstream WebSocket and stops
   reading the request audio.
+- The page binding and each VAD utterance expose typed lifecycle states. A
+  separate intent revision guards manual dictation while it acquires a stream.
+- One consumer owns each speech segment. Manual dictation outranks the test
+  panel, which outranks automatic send. Releasing an owner drops its late
+  results; the next segment selects a new owner.
+- VAD cancellation aborts its ASR session. Silence finishes the session and may
+  deliver a final transcript.
 
 ## State model
 
@@ -46,11 +53,31 @@ stateDiagram-v2
   Stopping --> Disabled: no desired binding
   Stopping --> WaitingForStream: enabled, stream absent
   Stopping --> Starting: latest binding ready
-  Starting --> Stopping: startup failed
+  Starting --> Error: startup failed, partial resources released
+  Error --> Starting: retry with stream
+  Error --> Disabled: disable
+  Disabled --> Disposed: unmount
+  WaitingForStream --> Disposed: unmount
+  Starting --> Disposed: unmount after cleanup
+  Listening --> Disposed: unmount after cleanup
 ```
 
 `Starting → Stopping` waits for the in-flight start before releasing its partial
 resources. A queued older start is skipped when a newer request supersedes it.
+
+Each VAD utterance has an ID and follows `idle → opening → streaming → closing
+→ idle`. A provider failure enters `error`; the next utterance can retry.
+Cancellation takes the `closing` path but aborts the provider. Completion of an
+old utterance cannot overwrite the state of a newer one.
+
+Manual dictation has a separate intent revision. Stop invalidates any pending
+permission or ASR start immediately, then releases the consumer in the same
+serialized lifecycle. Late provider callbacks are ignored.
+
+The VAD path captures an owner for each segment before it starts ASR. The Web
+Speech API path captures an owner when speech starts. A new owner can suppress
+an in-flight result but cannot inherit it. This prevents a late manual result
+from entering automatic send after the composer releases its consumer.
 
 ## Streaming ASR topology
 
@@ -64,13 +91,18 @@ flowchart LR
   API --> Token[Aliyun token]
   Token --> WS[Aliyun NLS WebSocket]
   WS --> SSE[SSE transcript]
-  SSE --> Consumers[Page and chat input consumers]
+  SSE --> Owner[One active input owner]
 ```
 
 The browser-to-AIRI leg already uploads audio incrementally and receives SSE.
 Changing only that leg to WebSocket does not remove the AIRI-to-Aliyun hop.
 The current ASR route does not write a per-user usage ledger; the separate TTS
 WebSocket route performs a balance preflight and bills its session at completion.
+
+This state machine owns microphone input and transcript delivery only. A future
+Agent Realtime session owns duplex transport, interruption, TTS, and playback.
+The ASR provider operations behind the utterance state can change from HTTP
+streaming to WebSocket without changing microphone binding or input ownership.
 
 ## Sequence and timing points
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { VoiceInputBinding } from '@proj-airi/stage-ui/libs/audio/voice-input-binding'
+import type { VoiceInputBinding, VoiceInputRequest } from '@proj-airi/stage-ui/libs/audio/voice-input-binding'
 
 import Header from '@proj-airi/stage-layouts/components/Layouts/Header.vue'
 import InteractiveArea from '@proj-airi/stage-layouts/components/Layouts/InteractiveArea.vue'
@@ -113,6 +113,7 @@ async function startAudioInteraction(binding: VoiceInputBinding) {
   if (binding.mode === 'stream') {
     await transcribeForMediaStream(binding.stream, {
       consumerId: transcriptionConsumerId,
+      priority: 'automatic',
       onSentenceEnd: (text) => {
         if (currentBinding === binding)
           void sendVoiceInputTextToChat(text)
@@ -167,16 +168,14 @@ const voiceInputBinding = createVoiceInputBinding({
 })
 
 watch([enabled, stream, supportsStreamInput], ([isEnabled, currentStream, supportsStream]) => {
-  const binding: VoiceInputBinding | undefined = isEnabled && currentStream
-    ? { stream: currentStream, mode: supportsStream ? 'stream' : 'recording' }
-    : undefined
-  void voiceInputBinding.update(binding).catch((error) => {
+  const request: VoiceInputRequest = { enabled: isEnabled, stream: currentStream, mode: supportsStream ? 'stream' : 'recording' }
+  void voiceInputBinding.update(request).catch((error) => {
     console.error('Audio interaction failed:', error)
   })
 }, { immediate: true })
 
 onUnmounted(() => {
-  void voiceInputBinding.update().catch(error => console.error('Failed to stop audio interaction:', error))
+  void voiceInputBinding.dispose().catch(error => console.error('Failed to stop audio interaction:', error))
 })
 
 const { x: mouseX, y: mouseY } = useMouse()
