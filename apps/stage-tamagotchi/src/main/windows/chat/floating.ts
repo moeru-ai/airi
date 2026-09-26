@@ -487,7 +487,9 @@ export function setupFloatingChatWindow(params: {
     open,
     async toggle() {
       const window = reusable.getOpenWindow()
-      if (window && window.isVisible() && !folded) {
+      // The chat button shows the fold state, so a press always flips it. A
+      // minimized or covered chat folds on this press and opens on the next.
+      if (window && !folded) {
         fold(window)
         return
       }
