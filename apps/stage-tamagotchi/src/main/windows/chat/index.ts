@@ -49,12 +49,13 @@ const chatWindowConfigSchema = object({
 type ChatWindowConfig = InferOutput<typeof chatWindowConfigSchema>
 
 /**
- * The legacy window stays the default until the floating mode has user
- * feedback. The floating size fits the composer and a few bubbles beside the
- * default 450x600 main window.
+ * The floating chat beside the character is the default, so users try it and
+ * give feedback. The style menu in both chat windows switches back to the
+ * legacy window. The floating size fits the composer and a few bubbles beside
+ * the default 450x600 main window.
  */
 const defaultChatWindowConfig: ChatWindowConfig = {
-  mode: 'legacy',
+  mode: 'floating',
   placement: 'attached',
   pinned: true,
   floating: { width: 380, height: 560 },
