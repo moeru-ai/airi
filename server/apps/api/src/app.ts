@@ -81,7 +81,7 @@ import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
 import { ApiError, createInternalError } from './utils/error'
 import { nanoid } from './utils/id'
-import { getTrustedOrigin } from './utils/origin'
+import { getTrustedCorsOrigin } from './utils/origin'
 
 interface AppDeps {
   db: Database
@@ -136,7 +136,7 @@ export async function buildApp(deps: AppDeps) {
     .use(
       '/api/*',
       cors({
-        origin: origin => getTrustedOrigin(origin, deps.env.ADDITIONAL_TRUSTED_ORIGINS),
+        origin: (origin, c) => getTrustedCorsOrigin(origin, c.req.path, deps.env.ADDITIONAL_TRUSTED_ORIGINS),
         credentials: true,
       }),
     )
