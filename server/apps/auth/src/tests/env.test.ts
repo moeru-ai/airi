@@ -23,6 +23,7 @@ describe('parseAuthEnv', () => {
     expect(env.PUBLIC_URL).toBe('https://api.airi.build')
     expect(env.RESOURCE_SERVER_URL).toBe('https://resource.internal')
     expect(env.BETTER_AUTH_SECRET).toBe('identity-secret-at-least-32-characters')
+    expect(env.STEAM_PUBLISHER_KEY).toBe('')
     expect('LLM_ROUTER_MASTER_KEY' in env).toBe(false)
     expect('STRIPE_SECRET_KEY' in env).toBe(false)
     expect('TEST_AUTH_TOKEN' in env).toBe(false)
