@@ -8,6 +8,7 @@ import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
+import type { StageSpeechSessionOptions } from '../../services/stage-speech-session-host'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { sleep } from '@moeru/std'
@@ -40,7 +41,9 @@ import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
+import { useBilingualCaptionBus } from '../../services/bilingual-captions'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
+import { registerStageSpeechSessionOpener } from '../../services/stage-speech-session-host'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
@@ -50,6 +53,7 @@ import { useSpeechStore } from '../../stores/modules/speech'
 import { useProviderConfigStore } from '../../stores/providers/config'
 import { useProviderStore } from '../../stores/providers/provider'
 import { useSettings } from '../../stores/settings'
+import { useSettingsBilingualSubtitles } from '../../stores/settings/bilingual-subtitles'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
 
@@ -74,6 +78,7 @@ const tachieSceneRef = ref<InstanceType<typeof TachieScene>>()
 const mmdSceneRef = ref<InstanceType<typeof MMDScene>>()
 
 const settingsStore = useSettings()
+const bilingualSettingsStore = useSettingsBilingualSubtitles()
 const {
   stageModelRenderer,
   stageViewControlsEnabled,
@@ -169,7 +174,7 @@ function onVRMInteract(target: VrmInteractionTarget) {
   vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
 }
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenTranslation, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
@@ -202,6 +207,17 @@ watch([stageModelRenderer, stageModelSelected, stageModelSelectedUrl], () => {
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 const assistantCaption = ref('')
 
+// Shared bilingual caption bus. Both chat turns and spark reactions route
+// their translated fragments and playback items through this single owner.
+const bilingualCaptionBus = useBilingualCaptionBus()
+// Turn owning the current speech surface. Late chunks from an interrupted
+// turn must not repopulate captions after the new turn reset the surface.
+let activeSpeechTurnId: string | undefined
+// Whether the active turn opened a TTS session. A muted turn collects
+// translation pairs but never plays, so no playback or pipeline event can
+// flush them. The response-end hook flushes that turn explicitly.
+let activeTurnSpeechEnabled = false
+
 type PresentEvent
   = | { type: 'assistant-reset' }
     | { type: 'assistant-append', text: string }
@@ -225,6 +241,10 @@ function resetAssistantSpeechSurface(source: string) {
   nowSpeaking.value = false
   mouthOpenSize.value = 0
   assistantCaption.value = ''
+
+  activeSpeechTurnId = undefined
+  activeTurnSpeechEnabled = false
+  bilingualCaptionBus.resetAll()
 
   try {
     postCaption({ type: 'caption-assistant', text: '' })
@@ -579,6 +599,9 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
 initIOTracer()
 useIOTraceBridge(speechPipeline)
 void speechRuntimeStore.registerHost(speechPipeline)
+// Lets spark reactions and other non-chat speakers open the same
+// transport-aware session (bidirectional-ws or segmenter) as chat.
+const disposeStageSpeechSessionOpener = registerStageSpeechSessionOpener(createStageSpeechSession)
 
 speechPipeline.on('onSpecial', (segment) => {
   if (segment.special) {
@@ -592,6 +615,11 @@ speechPipeline.on('onSpecial', (segment) => {
 
 speechPipeline.on('onTurnEnd', (turnId) => {
   streamingControl.completeTurn(turnId)
+  // Covers the REST/segmenter path, including turns where TTS produced no
+  // audio (null results): flush any translation pairs playback never
+  // reached. Turns with audio already flushed via the playback drain event,
+  // and the flush is idempotent.
+  bilingualCaptionBus.flushTurn(turnId)
 })
 
 speechPipeline.on('onTurnCancel', ({ turnId }) => {
@@ -627,7 +655,28 @@ bindSpeakingStateToPlaybackManager(playbackManager, {
     catch {
       // BroadcastChannel may be closed - don't break playback
     }
+
+    // Reveal the translation when its sentence ends, so the translated
+    // line and the spoken line stay aligned. Only the boundary item (the
+    // last piece of a sentence) advances the queue; word-limit pieces of a
+    // long sentence do not. The buffered WebSocket session emits one item
+    // for the whole turn without the flag and advances through
+    // `onSentenceBoundary` instead.
+    if (item.sentenceBoundary) {
+      bilingualCaptionBus.routePlaybackItem({
+        turnId: item.turnId,
+        intentId: item.intentId,
+      })
+    }
   },
+})
+
+// The whole utterance finished (every scheduled item ended, including ones
+// queued behind others). This is the moment to reveal translations playback
+// never reached. Never flush while audio is still pending: that used to dump
+// every remaining translation at once near the start of long replies.
+playbackManager.onIntentDrained(({ intentId, turnId }) => {
+  bilingualCaptionBus.flushIntent(intentId, turnId)
 })
 
 function startLipSyncLoop() {
@@ -717,9 +766,31 @@ function setupAnalyser() {
 // decision point. See `packages/stage-ui/src/libs/speech/tts-session.ts`.
 let currentSession: StageTtsSession | null = null
 
+// Live bidirectional-ws sessions for every speaker (chat replies, spark
+// reactions). The streaming adapter bypasses speechPipeline and owns its
+// upstream WebSocket alone: `stopAll` purges scheduled items but cannot
+// close the socket, and `schedule()` keeps accepting sentences a
+// still-open socket delivers. `currentSession` only references chat, so
+// these sessions are cancelled through cancelLiveStreamingSessions on
+// stop, mute, interrupt/replace, and unmount. Each removes itself on
+// terminal onDone/onError.
+const liveStreamingSessions = new Set<StageTtsSession>()
+
+// Closes upstream WebSockets of every live streaming session (chat and
+// non-chat speakers). playbackManager/speechPipeline teardown purges
+// scheduled audio but cannot close the socket, so without this a stopped
+// or muted streaming session keeps scheduling new audio. Session cancel
+// is idempotent.
+function cancelLiveStreamingSessions(reason: string) {
+  for (const session of liveStreamingSessions)
+    session.cancel(reason)
+  liveStreamingSessions.clear()
+}
+
 function stopSpeechOutput(reason: string) {
   currentSession?.cancel(reason)
   currentSession = null
+  cancelLiveStreamingSessions(reason)
   speechPipeline.stopAll(reason)
   playbackManager.stopAll(reason)
   resetAssistantSpeechSurface(reason)
@@ -790,28 +861,51 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
   return getDefinedProvider(providerId)?.capabilities?.speech?.transport
 }
 
-function openTtsSession(turnId: string): StageTtsSession {
+function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsSession {
+  const { turnId, flushBoundaries, priority = 'normal', behavior = 'queue', ownerId = activeCardId.value } = options
+
+  // Spark reactions cut in on top of whatever is speaking. Mirror the
+  // pre-open teardown a new chat message performs, without touching the
+  // chat turn bookkeeping (activeSpeechTurnId) owned by the chat hooks.
+  if (behavior === 'interrupt' || behavior === 'replace') {
+    currentSession?.cancel(behavior)
+    currentSession = null
+    cancelLiveStreamingSessions(behavior)
+    speechPipeline.stopAll(behavior)
+    playbackManager.stopAll(behavior)
+  }
+
   // A session must only clear the module-level `currentSession` if it IS that session. The previous
   // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
   // are not assigned to `currentSession` (e.g. one-off read-aloud sessions): one of those finishing
   // would null a still-active chat session and drop the rest of the reply. Capture the session and
   // compare identity; the `stream-` guard is preserved so segmenter sessions still don't self-clear.
   let session: StageTtsSession | null = null
+  const streamingSnapshot = buildStreamingSnapshot(turnId)
   const clearIfActive = () => {
     if (session && currentSession === session && session.intentId.startsWith('stream-'))
       currentSession = null
   }
+  // Terminal hooks fire asynchronously, after `session` is assigned.
+  const untrackSession = () => {
+    if (session)
+      liveStreamingSessions.delete(session)
+  }
   session = createStageTtsSession<AudioBuffer>({
     transport: resolveSpeechTransport(activeSpeechProvider.value),
-    streaming: () => buildStreamingSnapshot(turnId),
+    streaming: () => streamingSnapshot,
     audioContext,
     playbackManager,
     openIntent: opts => speechRuntimeStore.openIntent(opts),
     intentOptions: () => ({
       turnId,
-      ownerId: activeCardId.value,
-      priority: 'normal',
-      behavior: 'queue',
+      ownerId,
+      priority,
+      behavior,
+      // Captured by the caller before any async hook work, so the TTS
+      // segmenter uses the same mode as the prompt and the splitter for
+      // this turn even if settings change during setup.
+      boundaryMode: flushBoundaries ? 'flush' : undefined,
     }),
     hooks: {
       onError: (err) => {
@@ -821,17 +915,45 @@ function openTtsSession(turnId: string): StageTtsSession {
           error: err,
         })
         // Drop the failed session so no further audio is queued, but let the
-        // playback manager keep draining already-queued audio and emit its own
-        // terminal events. Calling resetSpeakingState() here would force the
-        // mouth shut while audio is still playing.
+        // playback manager keep draining already-queued audio. The session
+        // adapter seals the intent on termination (onDone always follows
+        // onError), so the terminal intent-drained event performs the final
+        // translation flush once audio actually stops — immediately when the
+        // session produced no audio at all. Flushing here would dump
+        // subtitles while queued audio is still playing.
+        untrackSession()
         clearIfActive()
       },
+      onSentenceBoundary: () => {
+        // Only buffered TTS (one audio item for the whole session) uses
+        // upstream boundary events. Non-buffered streaming emits one item
+        // per sentence, whose playback start drives the queue. Advancing
+        // here too would double-count.
+        if (!streamingSnapshot?.bufferEntireSession)
+          return
+        bilingualCaptionBus.advancePlayback(turnId)
+      },
       onDone: () => {
+        // Stream closed, but scheduled audio may still be playing. The
+        // playback intent-drained event performs the final flush once audio
+        // actually finishes, so nothing is dumped early here.
+        untrackSession()
         clearIfActive()
       },
     },
   })
+  // Streaming playback items carry no turnId; map their intent id so
+  // translation captions align on the bidirectional-ws transport too.
+  // Segmenter items already carry the turnId and this mapping is simply
+  // unused for them.
+  if (session.intentId.startsWith('stream-'))
+    liveStreamingSessions.add(session)
+  bilingualCaptionBus.mapIntentToTurn(session.intentId, turnId)
   return session
+}
+
+function openTtsSession(turnId: string, flushBoundaries: boolean): StageTtsSession {
+  return createStageSpeechSession({ turnId, flushBoundaries, priority: 'normal', behavior: 'queue' })
 }
 
 watch(latestStopRequest, (request) => {
@@ -849,6 +971,14 @@ watch(speechMuted, (muted) => {
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
+  activeSpeechTurnId = context.turnId
+
+  // Read bilingual mode before any await below. The orchestrator captured
+  // its own snapshot before this hook started; re-reading after setupLipSync
+  // could pair that mode with the opposite chunker mode if settings changed
+  // during the await (flush chunking on plain text, or punctuation chunking
+  // with pair markers).
+  const flushBoundaries = Boolean(bilingualSettingsStore.snapshot())
 
   currentSession?.cancel('new-message')
   currentSession = null
@@ -856,17 +986,28 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   if (speechMuted.value)
     return
 
+  activeTurnSpeechEnabled = true
   setupAnalyser()
   await setupLipSync()
-  currentSession = openTtsSession(context.turnId)
+  // openTtsSession maps the session intent id to this turn for caption
+  // alignment, for both the streaming and the segmenter adapter.
+  currentSession = openTtsSession(context.turnId, flushBoundaries)
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {
   currentMotion.value = { group: EmotionThinkMotionName }
 }))
 
-chatHookCleanups.push(onTokenLiteral(async (literal) => {
+chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
+  if (context.turnId !== activeSpeechTurnId)
+    return
   currentSession?.appendText(literal)
+}))
+
+chatHookCleanups.push(onTokenTranslation(async (translation, context) => {
+  if (context.turnId !== activeSpeechTurnId)
+    return
+  bilingualCaptionBus.ingestTranslation(context.turnId, translation)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special, context) => {
@@ -884,8 +1025,20 @@ chatHookCleanups.push(onStreamEnd(async () => {
   currentSession?.finishInput()
 }))
 
-chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
+chatHookCleanups.push(onAssistantResponseEnd(async () => {
   currentSession?.end()
+  // A muted (or otherwise speech-less) turn never scheduled playback, so no
+  // intent-drained or pipeline turn-end event can reveal its pairs. Publish
+  // the collected translations once at response end instead. Spoken turns
+  // already revealed every pair during playback; flushTurn is idempotent.
+  const turnId = activeSpeechTurnId
+  if (turnId && !activeTurnSpeechEnabled)
+    bilingualCaptionBus.flushTurn(turnId)
+  // No timed translation dump here: translations for pairs playback never
+  // reaches are flushed when the utterance actually finishes — the playback
+  // manager's intent-drained event, speechPipeline onTurnEnd, or the
+  // streaming session's onDone hook. A timer at text-end would reveal every
+  // remaining translation while long replies are still speaking.
   // Streaming sessions null-out via the onDone hook; segmenter sessions
   // stay around until the next `onBeforeMessageComposed` cancels them
   // (the segmenter pipeline's IntentHandle.end is idempotent and
@@ -1002,16 +1155,20 @@ async function captureCharacterFrame() {
 
 onUnmounted(() => {
   disposePlaybackStateHandler()
+  disposeStageSpeechSessionOpener()
   resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
   // Tear down any in-flight TTS session (segmenter or streaming) and
   // drain playback. Without this, a still-open streaming ws keeps
   // feeding sentences into a playbackManager whose listeners still
-  // mutate component refs (caption / nowSpeaking). Codex review: HIGH
-  // #1 + MEDIUM #5.
+  // mutate component refs (caption / nowSpeaking). currentSession only
+  // covers chat; liveStreamingSessions also closes non-chat speakers
+  // (spark reactions) whose sockets playback/pipeline teardown cannot
+  // reach.
   currentSession?.cancel('unmount')
   currentSession = null
+  cancelLiveStreamingSessions('unmount')
   playbackManager.stopAll('unmount')
 })
 

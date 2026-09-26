@@ -7,9 +7,11 @@ import { ref } from 'vue'
 
 import { useCharacterNotebookStore, useCharacterStore } from '../'
 import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prompt'
+import { hasStageSpeechSessionHost } from '../../../services/stage-speech-session-host'
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
+import { useSettingsBilingualSubtitles } from '../../settings/bilingual-subtitles'
 
 export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
 
@@ -21,6 +23,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const notebookStore = useCharacterNotebookStore()
   const { systemPrompt } = storeToRefs(characterStore)
   const runtimePrompt = useAiriRuntimePrompt()
+  const bilingualSettings = useSettingsBilingualSubtitles()
   const modsServerChannelStore = useModsServerChannelStore()
 
   const processing = ref(false)
@@ -128,6 +131,23 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     processing.value = true
 
     try {
+      // In bilingual mode the reaction must follow the same tagged format as
+      // chat replies. Append the instruction as a system instruction while
+      // preserving any caller-provided message override.
+      const bilingualInstruction = bilingualSettings.instruction()
+      const effectiveControl: SparkNotifyResponseControl | undefined = bilingualInstruction
+        ? {
+            ...control,
+            messageOverride: {
+              ...control?.messageOverride,
+              appendSystemInstructions: [
+                ...(control?.messageOverride?.appendSystemInstructions ?? []),
+                bilingualInstruction,
+              ],
+            },
+          }
+        : control
+
       const result = await sparkNotifyAgent.handle({
         event,
         selectedChat: {
@@ -137,7 +157,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
         },
         systemPrompt: systemPrompt.value,
         runtimePrompt: runtimePrompt.value,
-        control,
+        control: effectiveControl,
       })
       if (!result.commands.length)
         return result
@@ -157,6 +177,14 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   async function handleIncomingSparkNotify(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
+    // The event reaches every renderer, but only the window that mounts
+    // Stage can speak and caption the reaction. Other windows (for
+    // example the settings window) skip it so the model does not run once
+    // per open window. Widget requests arrive in the Stage window through
+    // the context bridge, which calls this same function.
+    if (!hasStageSpeechSessionHost())
+      return undefined
+
     if (event.data.urgency === 'immediate' && !processing.value) {
       return await processSparkNotify(event, control)
     }
@@ -181,6 +209,11 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   function enqueueDueTasks(now: number) {
+    // Notebook reminders are spoken reactions: only the Stage window may
+    // schedule them.
+    if (!hasStageSpeechSessionHost())
+      return
+
     const dueTasks = notebookStore.getDueTasks(now, attentionConfig.value.taskNotifyWindowMs)
     if (!dueTasks.length)
       return
