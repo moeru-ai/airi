@@ -87,6 +87,9 @@ describe('onboarding provider save synchronization', () => {
     await follower.providerConfigStore.patchProviderConfig(providerId, config)
     await follower.providerStore.forceProviderConfigured(providerId)
 
+    expect(leader.providerConfigStore.providers[providerId]?.status).toBe('configured')
+    expect(leader.providerConfigStore.addedProviders[providerId]).toBe(true)
+
     // The leader owns persistence and must hold the saved credentials.
     await expect.poll(() => leader.providerConfigStore.getProviderConfig(providerId)).toMatchObject(config)
     expect(leader.providerConfigStore.providers[providerId]?.status).toBe('configured')
