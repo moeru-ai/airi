@@ -52,10 +52,11 @@ Live2D has no such bone. A `Head` or `Face` hit area names it when the author
 declared one, which three of the seven models shipped with the Cubism SDK do.
 Otherwise the rig answers: the standard head-angle parameters are turned to the
 end of their range furthest from rest, physics is run, and the drawables that
-moved are the head. The body's own parameters are turned as a control, so a
-drawable that merely follows the head is not counted. Six of the seven define at
-least one head-angle parameter; the seventh is a dog, whose head does not turn on
-its own.
+moved are the head. The body is not turned as a control: a body carries the head
+with it, so a head drawable answers to both, and comparing the two would reject
+the head itself. A drawable that merely follows the head barely moves, and a
+share of the largest movement drops it. Six of the seven define at least one
+head-angle parameter; the seventh is a dog, whose head does not turn on its own.
 
 A model that states neither shows no bubble. Placing it from where drawables sit
 assumes the model was drawn upright with nothing above the head, and a hat, tall
