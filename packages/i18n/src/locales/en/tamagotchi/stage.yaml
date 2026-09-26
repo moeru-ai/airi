@@ -14,6 +14,7 @@ docs:
     disable: Always show
   'open-settings': Open settings
   'open-chat': Open Chat
+  'hide-chat': Hide Chat
   'refresh': Refresh
   'center-main-window': Move to screen center
   'open-hearing-controls': Open hearing Controls
@@ -32,6 +33,16 @@ docs:
   'logging-in': Signing in...
   'account': Account
   'logout': Sign out
+
+'chat-window':
+  style:
+    title: Chat window style
+    legacy: Classic window
+    floating-attached: Floating, beside the character
+    floating-free: Floating, anywhere on screen
+    pinned: Keep on top
+  resize: Drag to resize the chat
+  move: Drag to move the chat
 
 widgets:
   close: Close widget

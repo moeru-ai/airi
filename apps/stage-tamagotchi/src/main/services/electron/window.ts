@@ -40,8 +40,13 @@ export function createWindowService(params: { context: ReturnType<typeof createC
     },
   })
 
-  onAppWindowAllClosed(() => stop())
-  onAppBeforeQuit(() => stop())
+  // The loop stops with its window; these cover the app closing first.
+  const offAllClosed = onAppWindowAllClosed(() => stop())
+  const offBeforeQuit = onAppBeforeQuit(() => stop())
+  params.window.once('closed', () => {
+    offAllClosed()
+    offBeforeQuit()
+  })
   defineInvokeHandler(params.context, startLoopGetBounds, () => start())
   defineInvokeHandler(params.context, electronGetWindowLifecycleState, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id)

@@ -1,33 +1,42 @@
-const onAppReadyHooks = [] as (() => Promise<void> | void)[]
-const onAppBeforeQuitHooks = [] as (() => Promise<void> | void)[]
-const onAppWindowAllClosedHooks = [] as (() => Promise<void> | void)[]
+type LifecycleHook = () => Promise<void> | void
 
-export function onAppReady(fn: () => Promise<void> | void) {
-  onAppReadyHooks.push(fn)
+const onAppBeforeQuitHooks = [] as LifecycleHook[]
+const onAppWindowAllClosedHooks = [] as LifecycleHook[]
+
+/**
+ * Adds a hook and returns the function that removes it. A hook owned by a
+ * window must be removed when the window closes, or the list keeps the hook
+ * and everything it holds for the life of the app.
+ */
+function register(hooks: LifecycleHook[], fn: LifecycleHook) {
+  hooks.push(fn)
+  return () => {
+    const index = hooks.indexOf(fn)
+    if (index !== -1)
+      hooks.splice(index, 1)
+  }
 }
 
-export async function emitAppReady() {
-  for (const fn of onAppReadyHooks) {
+// Runs a copy of the list: a hook can close a window, and the window removes
+// its own hooks while the list is being run.
+async function emit(hooks: LifecycleHook[]) {
+  for (const fn of hooks.slice()) {
     await fn()
   }
 }
 
-export function onAppBeforeQuit(fn: () => Promise<void> | void) {
-  onAppBeforeQuitHooks.push(fn)
+export function onAppBeforeQuit(fn: LifecycleHook) {
+  return register(onAppBeforeQuitHooks, fn)
 }
 
 export async function emitAppBeforeQuit() {
-  for (const fn of onAppBeforeQuitHooks) {
-    await fn()
-  }
+  await emit(onAppBeforeQuitHooks)
 }
 
-export function onAppWindowAllClosed(fn: () => Promise<void> | void) {
-  onAppWindowAllClosedHooks.push(fn)
+export function onAppWindowAllClosed(fn: LifecycleHook) {
+  return register(onAppWindowAllClosedHooks, fn)
 }
 
 export async function emitAppWindowAllClosed() {
-  for (const fn of onAppWindowAllClosedHooks) {
-    await fn()
-  }
+  await emit(onAppWindowAllClosedHooks)
 }

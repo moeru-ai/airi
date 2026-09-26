@@ -17,11 +17,14 @@ const props = withDefaults(defineProps<{
   canRetry?: boolean
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'
+  /** How the bubble paints its background; see `ChatHistory`'s `surface`. */
+  surface?: 'translucent' | 'opaque'
 }>(), {
   canRetry: false,
   scrollContainer: null,
   showPlaceholder: false,
   variant: 'desktop',
+  surface: 'translucent',
 })
 
 const emit = defineEmits<{
@@ -30,13 +33,18 @@ const emit = defineEmits<{
   (e: 'delete'): void
 }>()
 
-const boxClasses = computed(() => [
-  'min-w-0',
-  'max-w-full',
-  props.variant === 'mobile'
-    ? ['px-2 py-2 text-sm', 'bg-violet-100/60 backdrop-blur-xl dark:bg-violet-950/60']
-    : ['px-3 py-3', 'bg-violet-100/80 dark:bg-violet-950/80'],
-])
+const boxClasses = computed(() => {
+  const spacing = ['min-w-0', 'max-w-full', props.variant === 'mobile' ? 'px-2 py-2 text-sm' : 'px-3 py-3']
+  if (props.surface === 'opaque')
+    return [spacing, 'bg-violet-100 shadow-md dark:bg-violet-950']
+
+  return [
+    spacing,
+    props.variant === 'mobile'
+      ? 'bg-violet-100/60 backdrop-blur-xl dark:bg-violet-950/60'
+      : 'bg-violet-100/80 dark:bg-violet-950/80',
+  ]
+})
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
 </script>
 

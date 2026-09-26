@@ -14,6 +14,7 @@ docs:
     disable: 总是显示
   'open-settings': 打开设置
   'open-chat': 打开聊天
+  'hide-chat': 收起聊天
   'refresh': 刷新
   'center-main-window': 移至屏幕中央
   'open-hearing-controls': 打开听力控制
@@ -32,6 +33,16 @@ docs:
   'logging-in': 登录中...
   'account': 账号
   'logout': 退出登录
+'chat-window':
+  style:
+    title: 聊天窗口样式
+    legacy: 经典窗口
+    floating-attached: 悬浮，吸附在角色旁
+    floating-free: 悬浮，自由摆放
+    pinned: 保持置顶
+  resize: 拖动以调整聊天大小
+  move: 拖动以移动聊天
+
 widgets:
   close: 关闭小部件
   empty:

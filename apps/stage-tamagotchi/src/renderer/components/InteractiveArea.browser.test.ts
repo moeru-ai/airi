@@ -17,7 +17,7 @@ import { createPinia, disposePinia } from 'pinia'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page, userEvent } from 'vitest/browser'
-import { nextTick } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -551,6 +551,110 @@ describe('interactive area synchronized state', () => {
 
     expect(inputRect.top).toBeGreaterThanOrEqual(layoutRect.top)
     expect(inputRect.bottom).toBeLessThanOrEqual(layoutRect.bottom)
+  })
+
+  it('keeps the welcome card above the composer in a short window', async () => {
+    // ROOT CAUSE:
+    //
+    // The welcome card sat a third of the way down the history, and in a
+    // short window the composer covered its bottom.
+    //
+    // The card now centers above the composer and drops its icon when short.
+    const { screen } = await renderArea()
+    const layout = screen.getByTestId('chat-viewport-layout').element() as HTMLElement
+    layout.style.height = '300px'
+    layout.style.width = '380px'
+
+    const composer = screen.getByTestId('chat-composer-layer').element() as HTMLElement
+    const description = screen.getByText('stage.chat.images.empty').element() as HTMLElement
+
+    await vi.waitFor(() => {
+      expect(description.getBoundingClientRect().height).toBeGreaterThan(0)
+      expect(description.getBoundingClientRect().bottom).toBeLessThanOrEqual(composer.getBoundingClientRect().top)
+    })
+  })
+
+  it('waits for an image that is still being read before it captures a mode switch draft', async () => {
+    // ROOT CAUSE:
+    //
+    // The draft for a chat mode switch was captured at once. An image that
+    // was still being read had not joined the attachments, and the switch
+    // closed the window that was reading it.
+    //
+    // The capture now waits until no image is being read.
+    let area: InstanceType<typeof InteractiveArea> | undefined
+    const { screen } = await renderArea(defineComponent({
+      setup: () => () => h(InteractiveArea, {
+        ref: (instance) => {
+          area = (instance ?? undefined) as InstanceType<typeof InteractiveArea> | undefined
+        },
+      }),
+    }))
+    const input = screen.container.querySelector<HTMLInputElement>('input[type="file"]')
+    if (!input || !area)
+      throw new Error('Expected the chat image input and the composer.')
+
+    const transfer = new DataTransfer()
+    transfer.items.add(new File(['image'], 'image.png', { type: 'image/png' }))
+    input.files = transfer.files
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    const draft = await area.snapshotDraft()
+
+    expect(draft?.attachments).toEqual([{ data: btoa('image'), mimeType: 'image/png', name: 'image.png' }])
+  })
+
+  it('restores the text, reply target and images of a mode switch draft', async () => {
+    let area: InstanceType<typeof InteractiveArea> | undefined
+    await renderArea(defineComponent({
+      setup: () => () => h(InteractiveArea, {
+        ref: (instance) => {
+          area = (instance ?? undefined) as InstanceType<typeof InteractiveArea> | undefined
+        },
+      }),
+    }))
+    if (!area)
+      throw new Error('Expected the composer.')
+    const draft = {
+      sessionId: 'session-b',
+      text: 'unsent',
+      replyTarget: { label: 'You', message: { id: 'reply-target', role: 'user' as const, content: 'Reply target' } },
+      attachments: [{ data: btoa('image'), mimeType: 'image/png', name: 'image.png' }],
+    }
+
+    await expect(area.restoreDraft(draft)).resolves.toBe(true)
+    const captured = await area.snapshotDraft()
+
+    expect(captured).toEqual(draft)
+  })
+
+  it('captures a reply picked from the history as a mode switch draft that can cross IPC', async () => {
+    // The history hands out reactive message proxies. The draft crosses IPC
+    // with structuredClone, which throws on a proxy, so the switch failed
+    // whenever a reply was selected.
+    let area: InstanceType<typeof InteractiveArea> | undefined
+    const { chatSession, screen } = await renderArea(defineComponent({
+      setup: () => () => h(InteractiveArea, {
+        ref: (instance) => {
+          area = (instance ?? undefined) as InstanceType<typeof InteractiveArea> | undefined
+        },
+      }),
+    }))
+    if (!area)
+      throw new Error('Expected the composer.')
+    chatSession.$patch((state) => {
+      state.sessionMessages['session-b'] = [{ id: 'reply-target', role: 'user', content: 'Reply target' }]
+    })
+    await vi.waitFor(() => expect(screen.container.querySelector('[data-swipeable]')).not.toBeNull())
+    dispatchHorizontalPan(screen.container.querySelector<HTMLElement>('[data-swipeable]')!)
+    await vi.waitFor(() => {
+      const cancelButton = screen.container.querySelector('[aria-label="stage.chat.reply.cancel"]')
+      expect(cancelButton?.parentElement?.getAttribute('aria-hidden')).toBe('false')
+    })
+
+    const captured = await area.snapshotDraft()
+
+    expect(captured?.replyTarget?.message.id).toBe('reply-target')
+    expect(() => structuredClone(captured)).not.toThrow()
   })
 
   // https://github.com/moeru-ai/airi/pull/2399
