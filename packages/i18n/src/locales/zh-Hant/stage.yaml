@@ -1,26 +1,81 @@
+character-switcher:
+  title: Switch character
+  manage: Manage characters
+  empty: No characters yet
+  failed: Could not switch characters. Try again.
+mobile-tools:
+  sign-in: Sign in to AIRI
+  account-description: Account and preferences
+  sound: Sound
+  character-voice: Character voice
+  title: Settings
+  appearance: Appearance
+  dark-mode: Dark mode
+  application: Application
+  more: More
+  background: Background
+  settings: All settings
+  about: About
+  view: View
+  close-view: Save and close view controls
+  hearing: Hearing
 chat:
+  voice-input: Voice input
+  images:
+    empty: Share a thought or a picture.
+    use-vision: Use the vision model for chat images
+    use-vision-description: Choose a provider and model below. It reads attached images before your chat model replies. Without a vision model, images go directly to the chat model.
+    attach: 'Attach images'
+    remove: 'Remove {name}'
+    unsupported: 'Use PNG, JPEG, WebP, or GIF images.'
+    too-large: 'Each image must be 3 MB or smaller.'
+    too-many: 'Attach up to {count} images at a time.'
+    total-too-large: 'All attached images together must be 3 MB or smaller.'
+    read-failed: 'Could not read this image. Try again.'
+    no-description: 'The vision model returned no image description. Check Settings → Modules → Vision and try again.'
+    reading: 'Reading images…'
+    description: 'Image attachment'
   actions:
+    reply: Reply
     retry: 重試
+    send: Send message
+    stop: Stop response
   message:
     character-name:
       airi: AIRI
       core-system: 核心系統
       you: 你
+  reply:
+    cancel: Cancel reply
+    message: Message
+    replying-to: Replying to {name}
   reasoning: 推理
+  swipe-demo:
+    show-label: Show labels
+    delete: Delete
+    archive: Archive
+    pin: Pin
+    actions: Show actions
+    row: 'Conversation {n}'
   sessions:
+    delete-short: Delete
+    confirm-delete-short: Confirm delete
     title: 對話
-    new: + 新增
+    new: New conversation
+    current: Current
+    confirm-delete: Delete this conversation and its messages?
+    cancel: Cancel
     empty: 尚無對話
     cloud-badge: 已同步至雲端
     new-chat-fallback: 新對話
     delete: 刪除對話
 render-error:
-  title: '{renderer} 無法算繪這個模型'
-  description: 模型已經選取，但舞台無法顯示它。
+  title: '{renderer} could not render this model'
+  description: The model is selected, but the Stage could not display it.
   report-description: |-
-    {renderer} 無法算繪選取的模型。
-    模型 ID：{modelId}
-    錯誤：{error}
+    {renderer} failed to render the selected model.
+    Model ID: {modelId}
+    Error: {error}
 message: 說點什麼...
 send-mode:
   title: 傳送按鍵
@@ -28,8 +83,8 @@ send-mode:
   ctrl-enter: Ctrl + Enter
   double-enter: Enter + Enter
 speech-output:
-  mute: 靜音語音
-  unmute: 恢復語音
+  mute: Mute voice
+  unmute: Unmute voice
 operations:
   load-models: 載入模型
   load-models-status:
@@ -107,3 +162,6 @@ websocket-status:
   connected: 已連線
   disconnected: 未連線
   open-settings: 開啟連線設定
+computer-use:
+  label: Use computer
+  description: Allow this chat window to inspect and control native apps on this computer.
