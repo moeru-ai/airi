@@ -406,7 +406,7 @@ export const useProviderStore = defineStore('provider', () => {
     await waitForProviderMetadata()
     if (!providerConfigStore.getProvider(providerId)) {
       const definitionId = getProviderDefinitionId(providerId)
-      providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
+      await providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
     }
     initializeProviderRuntimeState(providerId)
   }
@@ -519,7 +519,7 @@ export const useProviderStore = defineStore('provider', () => {
     delete providerRuntimeState.value[providerId]
   }
 
-  function forceProviderConfigured(providerId: string) {
+  async function forceProviderConfigured(providerId: string) {
     if (providerRuntimeState.value[providerId]) {
       // Also cache the current config to prevent re-validation from overwriting
       const config = providerCredentials.value[providerId]
@@ -527,16 +527,17 @@ export const useProviderStore = defineStore('provider', () => {
         providerRuntimeState.value[providerId].validatedCredentialHash = JSON.stringify(config)
       }
     }
-    providerConfigStore.setProviderStatus(providerId, 'configured')
-    markProviderAdded(providerId)
+    // The leader stores status before this action resolves. Callers read it immediately.
+    await providerConfigStore.setProviderStatus(providerId, 'configured')
+    await markProviderAdded(providerId)
   }
 
-  function setProviderUnconfigured(providerId: string) {
+  async function setProviderUnconfigured(providerId: string) {
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].validatedCredentialHash = undefined
     }
-    providerConfigStore.setProviderStatus(providerId, 'unconfigured')
-    unmarkProviderAdded(providerId)
+    await providerConfigStore.setProviderStatus(providerId, 'unconfigured')
+    await unmarkProviderAdded(providerId)
   }
 
   async function resetProviderSettings() {
