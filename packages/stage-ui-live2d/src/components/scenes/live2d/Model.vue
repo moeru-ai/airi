@@ -24,8 +24,10 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 
 import {
   createBeatSyncController,
+  createLive2DHeadTracker,
   createLive2DMotionSpring,
   disableLive2DSdkBreath,
+  live2DCanvasRectToParent,
   useExpressionController,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
@@ -242,6 +244,9 @@ const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
 const screenAmbientLightSquint = toRef(() => props.screenAmbientLightSquint)
 
 // --- Expression controller
+// Chooses which drawables stand in for the head once per model, so it is reset
+// whenever the model is replaced.
+const headTracker = createLive2DHeadTracker()
 const internalModelRef = shallowRef<PixiLive2DInternalModel>()
 const expressionController = useExpressionController({
   internalModel: internalModelRef,
@@ -312,6 +317,7 @@ async function performModelLoad() {
       console.warn('Error removing old model:', error)
     }
     model.value = undefined
+    headTracker.reset()
   }
   const pendingModel = {
     id: props.modelId,
@@ -917,12 +923,46 @@ function listMotionGroups() {
   return availableMotions.value
 }
 
+/**
+ * The head's box in the space the stage draws in, or `undefined` while no model
+ * is loaded.
+ *
+ * The model owns where its head is; a consumer that draws beside the character
+ * reads this rather than reaching into the internal model itself.
+ */
+function headAnchor() {
+  const current = model.value
+  if (!current)
+    return undefined
+
+  // Read the internal model off the instance rather than `internalModelRef`,
+  // which the expression controller owns: it holds a value only while Live2D
+  // expressions are enabled, and is cleared when they are turned off.
+  const internalModel = current.internalModel
+
+  // Pixi refreshes a local transform while it renders. A caller running ahead of
+  // the render would otherwise place against the previous scale and position,
+  // which is visible on the frame a resize or a fit lands on.
+  current.transform.updateLocalTransform()
+
+  const headRect = headTracker.bounds(internalModel)
+  if (!headRect)
+    return undefined
+
+  return live2DCanvasRectToParent(
+    headRect,
+    internalModel.localTransform,
+    current.transform.localTransform,
+  )
+}
+
 defineExpose({
   setMotion,
   listMotionGroups,
   modelNormalizeParams,
   initialModelHeight,
   initialModelWidth,
+  headAnchor,
 })
 
 import.meta.hot?.dispose(() => {
