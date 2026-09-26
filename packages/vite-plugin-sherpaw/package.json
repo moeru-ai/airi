@@ -1,0 +1,40 @@
+{
+  "name": "@proj-airi/vite-plugin-sherpaw",
+  "type": "module",
+  "private": true,
+  "description": "Expose remote and bundled Sherpaw speech models to Vite applications",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./assets": {
+      "types": "./dist/assets.d.mts",
+      "default": "./dist/assets.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/sherpaw-models": "workspace:^",
+    "@proj-airi/unplugin-fetch": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "unplugin-basemove": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:vitest"
+  }
+}

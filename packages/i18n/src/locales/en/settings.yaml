@@ -1178,6 +1178,12 @@ pages:
         OpenAI, Azure Speech
     description: LLMs, speech providers, etc.
     provider:
+      sherpaw-transcription:
+        title: Sherpaw
+        description: Local speech recognition with bundled or on-demand models. No API key is required.
+        model:
+          label: Model
+          description: Select an available model. Recognition detects one of its supported languages. A change restarts the current session.
       apple-speech-transcription:
         title: Apple Speech
         description: On-device speech recognition on macOS 26 or later. No API key is required.

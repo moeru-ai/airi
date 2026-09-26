@@ -24,6 +24,7 @@ import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { createVadStreamingSession } from '../../libs/audio/vad-streaming-session'
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
 import { APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID, executeAppleSpeechStream } from '../../libs/providers/providers/apple-speech'
+import { executeSherpawStream, SHERPAW_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/sherpaw'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
 import { useVAD } from '../ai/models/vad'
 import { useProviderConfigStore } from '../providers/config'
@@ -243,6 +244,7 @@ export function resolveTranscriptionFileName(file: File, explicitFileName?: stri
 
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamTranscription,
+  [SHERPAW_TRANSCRIPTION_PROVIDER_ID]: executeSherpawStream,
   [APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID]: executeAppleSpeechStream,
   [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
@@ -455,6 +457,11 @@ export const useHearingStore = defineStore('hearing-store', () => {
       if (features.supportsStreamOutput && streamExecutor) {
         // TODO: integrate VAD-driven silence detection to stop and restart realtime sessions based on silence thresholds.
         const request = provider.transcription(model, options?.providerOptions)
+
+        // Recorder files contain encoded media. Sherpaw accepts only the raw PCM16 stream from the live pipeline.
+        if (providerId === SHERPAW_TRANSCRIPTION_PROVIDER_ID && normalizedInput.file && !normalizedInput.inputAudioStream) {
+          throw new Error('Sherpaw requires live microphone input. Recorded file input is not supported.')
+        }
 
         // Stream branches: emit succeeded with char_count=0 once the
         // executor returns successfully — char count is only known by

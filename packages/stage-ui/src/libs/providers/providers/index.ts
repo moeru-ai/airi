@@ -4,6 +4,7 @@ import { registerProviders } from './registry'
 
 import './aliyun-nls'
 import './apple-speech'
+import './sherpaw'
 import './local-audio'
 import './kokoro-local'
 import './nvidia'

@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path'
+import { env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
@@ -12,8 +13,10 @@ import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
+import { paraformerBilingualZhEn, zipformerBilingualZhEn, zipformerMultilingual } from '@proj-airi/sherpaw-models'
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
+import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
 import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
@@ -254,6 +257,12 @@ export default defineConfig({
         fullInstall: true,
       }),
 
+      Sherpaw({
+        models: [paraformerBilingualZhEn, zipformerBilingualZhEn, zipformerMultilingual],
+        // Release builds opt in to one bundled default. Development and CI stay lazy.
+        bundledModels: env.SHERPAW_BUNDLE_DEFAULT_MODEL === 'true' ? [paraformerBilingualZhEn] : [],
+        cacheDir: sharedCacheDir,
+      }),
       DownloadLive2DSDK(),
       Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
       Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),

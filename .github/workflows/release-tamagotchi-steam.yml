@@ -4,6 +4,9 @@ permissions:
   contents: read
   actions: read
 
+env:
+  SHERPAW_BUNDLE_DEFAULT_MODEL: 'true'
+
 on:
   release:
     types:
