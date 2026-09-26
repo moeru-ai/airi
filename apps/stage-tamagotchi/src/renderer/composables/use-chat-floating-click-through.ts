@@ -4,7 +4,7 @@ import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke, useElectronMouse, useElectronRelativeMouse } from '@proj-airi/electron-vueuse'
 import { useEventListener, useMutationObserver } from '@vueuse/core'
 import { parse } from 'culori'
-import { shallowRef, toValue, watch } from 'vue'
+import { nextTick, shallowRef, toValue, watch } from 'vue'
 
 function paintsBackground(style: CSSStyleDeclaration) {
   if (style.backgroundImage !== 'none')
@@ -49,6 +49,23 @@ const handJitter = 8
  * outside click reaches it and closes it instead of passing to the app below.
  */
 const openOverlaySelector = '[role="dialog"], [role="alertdialog"], [role="menu"]'
+
+/**
+ * Closes the open dialogs and menus of the page.
+ *
+ * They close only on events inside this page, such as an outside click. A
+ * fold happens in another window, and the folded window keeps its page, so
+ * an open menu would stay on screen during the fold and come back with the
+ * next unfold. Every reka layer closes on Escape, and only the topmost layer
+ * takes each press, so this presses it once per open layer.
+ */
+export async function dismissOverlays() {
+  const openLayer = `:is(${openOverlaySelector})[data-state="open"]`
+  for (let presses = 0; presses < 5 && document.querySelector(openLayer); presses++) {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await nextTick()
+  }
+}
 
 /**
  * Keeps the transparent floating chat window click-through wherever the page

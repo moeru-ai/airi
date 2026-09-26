@@ -1,10 +1,11 @@
 import type { MaybeRefOrGetter, ShallowRef, VNode } from 'vue'
 
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { defineComponent, h, nextTick, shallowRef, vShow, withDirectives } from 'vue'
 
-import { useChatFloatingClickThrough } from './use-chat-floating-click-through'
+import { dismissOverlays, useChatFloatingClickThrough } from './use-chat-floating-click-through'
 
 const mocks = vi.hoisted(() => ({
   setIgnoreMouseEvents: vi.fn(),
@@ -169,5 +170,26 @@ describe('useChatFloatingClickThrough', () => {
     mocks.cursor!.x.value = 44
     await nextTick()
     expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }])
+  })
+
+  it('closes an open menu when the chat hides', async () => {
+    // ROOT CAUSE:
+    //
+    // A menu closes only on events inside its page. The fold click happens in
+    // the main window, so the menu stayed open through the fold.
+    //
+    // The floating page now closes its menus and dialogs as the content hides.
+    const screen = await render(defineComponent({
+      setup: () => () => h(DropdownMenuRoot, { defaultOpen: true }, () => [
+        h(DropdownMenuTrigger, () => 'Style'),
+        h(DropdownMenuPortal, () => h(DropdownMenuContent, () => h(DropdownMenuItem, () => 'Classic window'))),
+      ]),
+    }))
+    onTestFinished(() => screen.unmount())
+    await vi.waitFor(() => expect(document.querySelector('[role="menu"]')).not.toBeNull())
+
+    await dismissOverlays()
+
+    await vi.waitFor(() => expect(document.querySelector('[role="menu"]')).toBeNull())
   })
 })

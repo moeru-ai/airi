@@ -6,7 +6,7 @@ import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onScopeDispose, shallowRef, useTemplateRef } from 'vue'
+import { computed, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
@@ -21,7 +21,7 @@ import {
   electronChatFloatingStateChanged,
 } from '../../shared/eventa'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
-import { useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
+import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
@@ -54,6 +54,12 @@ const freePlacement = computed(() => state.value.placement === 'free')
 // The content stays mounted while it is hidden, so a fold or a move to the
 // other side keeps the unsent draft, attachments and reply target.
 const contentShown = computed(() => !state.value.folded && !state.value.relocating)
+// Menus and dialogs close as the content hides, so they neither stay on
+// screen during the fold nor come back with the next unfold.
+watch(contentShown, (shown) => {
+  if (!shown)
+    void dismissOverlays()
+})
 
 // The character stands on the other side of the chat: the chat folds toward
 // it, and the resize grip sits away from it.
