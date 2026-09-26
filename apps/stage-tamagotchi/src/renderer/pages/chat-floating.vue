@@ -4,7 +4,6 @@ import type { ChatFloatingState } from '../../shared/eventa'
 import { getElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -15,6 +14,7 @@ import InteractiveArea from '../components/InteractiveArea.vue'
 
 import {
   electronChatFloatingContentHidden,
+  electronChatFloatingFold,
   electronChatFloatingGetState,
   electronChatFloatingMoveTo,
   electronChatFloatingResizeBy,
@@ -35,6 +35,7 @@ const getState = useElectronEventaInvoke(electronChatFloatingGetState)
 const reportContentHidden = useElectronEventaInvoke(electronChatFloatingContentHidden)
 const resizeBy = useElectronEventaInvoke(electronChatFloatingResizeBy)
 const moveTo = useElectronEventaInvoke(electronChatFloatingMoveTo)
+const foldChat = useElectronEventaInvoke(electronChatFloatingFold)
 
 // The main process can emit before this page mounts, so the first state comes
 // from the invoke and later ones from the event.
@@ -207,7 +208,7 @@ function moveByKeyboard(delta: WindowDelta) {
               v-if="freePlacement"
               :title="t('tamagotchi.stage.chat-window.move')"
               :aria-label="t('tamagotchi.stage.chat-window.move')"
-              :class="['h-7 w-5 cursor-grab touch-none rounded-full', 'flex items-center justify-center outline-none transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400']"
+              :class="['h-7 w-5 shrink-0 cursor-grab touch-none rounded-full', 'flex items-center justify-center outline-none transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400']"
               @pointerdown="holdPointer"
               @pointermove="moveWithHeldPointer"
               @lostpointercapture="releasePointer"
@@ -215,16 +216,41 @@ function moveByKeyboard(delta: WindowDelta) {
             >
               <div class="i-ph:dots-six-vertical-bold size-4" />
             </button>
-            <GhostButton
-              size="unset"
-              :class="['min-w-0 gap-2 rounded-full! px-2 py-0.5']"
+            <!-- A plain button: GhostButton wraps its slot in a span that cannot shrink, so a long name could not truncate. -->
+            <button
+              :class="[
+                'min-w-0 flex items-center gap-2 rounded-full px-2 py-0.5 outline-none transition-colors',
+                'text-neutral-700 hover:bg-primary-500/10 hover:text-primary-700 dark:text-neutral-200 dark:hover:bg-primary-400/10 dark:hover:text-primary-300',
+              ]"
               @click="sessionsDrawerOpen = true"
             >
               <div class="i-solar:chat-line-bold shrink-0 text-neutral-400 dark:text-neutral-500" />
-              <span class="truncate text-sm">{{ activeCard?.name || 'AIRI' }}</span>
-            </GhostButton>
-            <ChatSpeechMuteButton :class="['rounded-full!']" />
-            <ChatWindowStyleMenu :class="['rounded-full!']" />
+              <span class="truncate text-sm font-medium">{{ activeCard?.name || 'AIRI' }}</span>
+            </button>
+            <ChatSpeechMuteButton :class="['shrink-0 rounded-full!']" />
+            <ChatWindowStyleMenu :class="['shrink-0 rounded-full!']" />
+          </div>
+
+          <!--
+            A free chat can sit far from the character and its chat button, so
+            it folds from here too. An attached chat sits beside that button.
+          -->
+          <div
+            v-if="freePlacement"
+            :class="[
+              'shrink-0 rounded-full p-0.5 shadow-md',
+              'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
+            ]"
+          >
+            <button
+              :title="t('tamagotchi.stage.chat-window.fold')"
+              :aria-label="t('tamagotchi.stage.chat-window.fold')"
+              :class="['size-8 rounded-full', 'flex items-center justify-center outline-none transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400']"
+              @click="foldChat()"
+            >
+              <!-- A free chat folds into its bottom-right corner, so the arrow points there. -->
+              <div class="i-solar:minimize-square-3-linear size-4 -scale-x-100" />
+            </button>
           </div>
         </div>
 

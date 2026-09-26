@@ -19,6 +19,7 @@ import icon from '../../../../resources/icon.png?asset'
 
 import {
   electronChatFloatingContentHidden,
+  electronChatFloatingFold,
   electronChatFloatingGetState,
   electronChatFloatingMoveTo,
   electronChatFloatingResizeBy,
@@ -436,6 +437,7 @@ export function setupFloatingChatWindow(params: {
       if (relocating && main && !main.isDestroyed())
         finishRelocation(main, target)
     })
+    defineInvokeHandler(targetContext, electronChatFloatingFold, () => fold(target))
     defineInvokeHandler(targetContext, electronChatFloatingResizeBy, (delta) => {
       if (delta)
         resizeBy(target, delta)

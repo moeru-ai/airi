@@ -43,6 +43,7 @@ docs:
     pinned: Keep on top
   resize: Drag to resize the chat
   move: Drag to move the chat
+  fold: Hide chat
 
 widgets:
   close: Close widget

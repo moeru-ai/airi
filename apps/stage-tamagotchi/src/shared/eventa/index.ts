@@ -173,6 +173,11 @@ export const electronChatFloatingResizeBy = defineInvokeEventa<void, { deltaX: n
  * click-through from working.
  */
 export const electronChatFloatingMoveTo = defineInvokeEventa<void, { x: number, y: number }>('eventa:invoke:electron:windows:chat-floating:move-to')
+/**
+ * Folds the floating chat from its own fold button, as the Controls Island
+ * chat button does, so the button there shows the chat as closed.
+ */
+export const electronChatFloatingFold = defineInvokeEventa<void>('eventa:invoke:electron:windows:chat-floating:fold')
 export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:hide')
 export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
 export const electronSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:electron:windows:spotlight:shortcut:get')

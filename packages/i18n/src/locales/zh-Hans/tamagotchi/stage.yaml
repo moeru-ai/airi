@@ -42,6 +42,7 @@ docs:
     pinned: 保持置顶
   resize: 拖动以调整聊天大小
   move: 拖动以移动聊天
+  fold: 收起聊天
 
 widgets:
   close: 关闭小部件
