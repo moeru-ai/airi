@@ -24,6 +24,7 @@ import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { createVadStreamingSession } from '../../libs/audio/vad-streaming-session'
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
 import { APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID, executeAppleSpeechStream } from '../../libs/providers/providers/apple-speech'
+import { streamOfficialTranscription } from '../../libs/providers/providers/official/stream-transcription'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
 import { useVAD } from '../ai/models/vad'
 import { useProviderConfigStore } from '../providers/config'
@@ -244,7 +245,7 @@ export function resolveTranscriptionFileName(file: File, explicitFileName?: stri
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamTranscription,
   [APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID]: executeAppleSpeechStream,
-  [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamTranscription,
+  [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamOfficialTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
 }
 
@@ -897,8 +898,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         }
       }
       catch (err) {
-        if (!isExpectedStreamStopError(err))
+        if (!isExpectedStreamStopError(err)) {
+          if (!session.abortController.signal.aborted)
+            error.value = errorMessage(err)
           console.error('Error reading text stream:', err)
+        }
       }
       finally {
         if (!session.abortController.signal.aborted && latestSnapshotIsFinal && fullText.trim()) {
@@ -921,6 +925,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     vadSession: NonNullable<typeof streamingVadSession.value>,
     segment: VadSpeechSegment,
   ) {
+    error.value = undefined
     const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
     if (!provider)
       throw new Error('Failed to initialize speech provider')

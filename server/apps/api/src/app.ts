@@ -48,7 +48,7 @@ import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
 import { createAppleIapRoutes } from './routes/apple-iap'
 import { createVerifier as createAppleIapVerifier } from './routes/apple-iap/verifier'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
-import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
+import { createAudioTranscriptionWsHandlers } from './routes/audio-transcription-ws'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsRuntime } from './routes/chat-ws/runtime'
 import { createChatWsV1Handlers } from './routes/chat-ws/v1'
@@ -109,6 +109,7 @@ interface AppDeps {
 }
 
 const MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES = 8192
+const MAX_ASR_WS_FRAME_BYTES = 64 * 1024
 /** Allows one maximum-size inline file plus JSON envelope overhead. */
 const RESPONSES_MAX_REQUEST_BYTES = 40 * 1024 * 1024
 const DEFAULT_API_MAX_REQUEST_BYTES = 1024 * 1024
@@ -164,8 +165,16 @@ export async function buildApp(deps: AppDeps) {
   // WebSocket setup — must be registered BEFORE bodyLimit middleware
   const { injectWebSocket, upgradeWebSocket, wss } = createNodeWebSocket({ app })
   const chatWsPayloadLimit = createChatWsPayloadLimit(MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES)
+  const asrWsPayloadLimit = createChatWsPayloadLimit(MAX_ASR_WS_FRAME_BYTES)
   wss.on('connection', (socket, request) => {
-    if (new URL(request.url ?? '/', 'http://localhost').pathname !== '/ws/v2/chat')
+    const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+    if (pathname === '/api/v1/audio/transcriptions/ws') {
+      // The total-session limit runs after ws parses each frame. Keep the
+      // transport's allocation bounded before route dispatch.
+      asrWsPayloadLimit.restrict(socket)
+      return
+    }
+    if (pathname !== '/ws/v2/chat')
       return
 
     // NOTICE:
@@ -252,15 +261,28 @@ export async function buildApp(deps: AppDeps) {
     })
   }))
 
-  // Realtime ASR proxy. Mounted before the global bodyLimit middleware because
-  // the request body is a live microphone PCM stream rather than a bounded JSON
-  // payload. Auth is resolved manually here for the same reason.
-  app.post('/api/v1/audio/transcriptions/stream', createAudioTranscriptionStreamHandler({
-    db: deps.db,
-    env: deps.env,
+  // Bidirectional ASR proxy. One client connection maps to one Aliyun NLS
+  // session. The browser carries its bearer in the handshake protocol header.
+  const audioTranscriptionWsSetup = createAudioTranscriptionWsHandlers({
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
     providerCatalogService: deps.providerCatalogService,
+  })
+  app.get('/api/v1/audio/transcriptions/ws', upgradeWebSocket(async (c) => {
+    const protocols = c.req.header('sec-websocket-protocol')?.split(',').map(protocol => protocol.trim())
+    const token = protocols?.find(protocol => protocol.startsWith('airi-auth.'))?.slice('airi-auth.'.length)
+    if (!token)
+      return createUnauthorizedWsEvents()
+
+    const session = await resolveRequestAuth(
+      deps.db,
+      deps.env,
+      new Headers({ Authorization: `Bearer ${token}` }),
+    )
+    if (!session?.user)
+      return createUnauthorizedWsEvents()
+
+    return audioTranscriptionWsSetup(session.user.id)
   }))
 
   // Cross-instance config invalidation. The subscriber owns its own

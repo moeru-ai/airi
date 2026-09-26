@@ -1,0 +1,137 @@
+import type { WSContext, WSEvents } from 'hono/ws'
+
+import { Buffer } from 'node:buffer'
+
+import { describe, expect, it, vi } from 'vitest'
+
+import { createAudioTranscriptionWsHandlers } from './index'
+
+interface MockClient {
+  close: ReturnType<typeof vi.fn>
+  context: WSContext
+  sent: string[]
+}
+
+function createMockClient(): MockClient {
+  const sent: string[] = []
+  const close = vi.fn()
+  const context = {
+    send(data: string) {
+      sent.push(data)
+    },
+    close,
+    readyState: 1,
+    binaryType: 'arraybuffer',
+    raw: {},
+    protocol: '',
+    url: null,
+  } as unknown as WSContext
+
+  return { close, context, sent }
+}
+
+function createHandlers(): WSEvents {
+  const setup = createAudioTranscriptionWsHandlers({
+    configKV: { getOptional: vi.fn(async () => null) } as never,
+    envelopeCrypto: {} as never,
+    providerCatalogService: {} as never,
+  })
+  return setup('user-123')
+}
+
+function open(events: WSEvents, client: MockClient) {
+  events.onOpen?.(new Event('open'), client.context)
+}
+
+function message(events: WSEvents, client: MockClient, data: string | Buffer) {
+  events.onMessage?.(new MessageEvent('message', { data }), client.context)
+}
+
+describe('audio transcription WebSocket route', () => {
+  it('rejects invalid control frames', () => {
+    const events = createHandlers()
+    const client = createMockClient()
+    open(events, client)
+
+    message(events, client, JSON.stringify({ event: 'start', model: 'auto', format: 'mp3', sample_rate: 16000 }))
+
+    expect(client.sent.map(frame => JSON.parse(frame))).toEqual([{
+      event: 'error',
+      code: 'invalid_control_frame',
+      message: 'The control frame is invalid.',
+    }])
+    expect(client.close).toHaveBeenCalledWith(1008, 'invalid_control_frame')
+  })
+
+  it('rejects audio before the upstream session is ready', () => {
+    const events = createHandlers()
+    const client = createMockClient()
+    open(events, client)
+
+    message(events, client, Buffer.from([1, 2]))
+
+    expect(client.sent.map(frame => JSON.parse(frame))).toEqual([{
+      event: 'error',
+      code: 'invalid_audio_frame',
+      message: 'The audio frame is not valid in the current state.',
+    }])
+    expect(client.close).toHaveBeenCalledWith(1008, 'invalid_audio_frame')
+  })
+
+  it('rejects an oversized audio frame before allocating an upstream session', () => {
+    const events = createHandlers()
+    const client = createMockClient()
+    open(events, client)
+
+    message(events, client, Buffer.alloc(16000 * 2 * 60 + 1))
+
+    expect(client.sent.map(frame => JSON.parse(frame))).toEqual([{
+      event: 'error',
+      code: 'audio_limit_exceeded',
+      message: 'The ASR audio limit was exceeded.',
+    }])
+    expect(client.close).toHaveBeenCalledWith(1009, 'audio_limit_exceeded')
+  })
+
+  it('reports missing official ASR configuration after start', async () => {
+    const events = createHandlers()
+    const client = createMockClient()
+    open(events, client)
+
+    message(events, client, JSON.stringify({ event: 'start', model: 'auto', format: 'pcm', sample_rate: 16000 }))
+
+    await expect.poll(() => client.sent.map(frame => JSON.parse(frame))).toEqual([{
+      event: 'error',
+      code: 'official_asr_not_configured',
+      message: 'Official ASR is not configured.',
+    }])
+    expect(client.close).toHaveBeenCalledWith(1008, 'official_asr_not_configured')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2290#discussion_r3789206857
+  // ROOT CAUSE:
+  // The token request can put signed query parameters in the thrown error.
+  // Returning that error to an authenticated WebSocket client leaks secrets.
+  it('does not send upstream request details to the client', async () => {
+    const setup = createAudioTranscriptionWsHandlers({
+      configKV: { getOptional: vi.fn(async () => {
+        throw new Error('https://nls-meta.example/?AccessKeyId=private-id&Signature=private-signature')
+      }) } as never,
+      envelopeCrypto: {} as never,
+      providerCatalogService: {} as never,
+    })
+    const events = setup('user-123')
+    const client = createMockClient()
+    open(events, client)
+    message(events, client, JSON.stringify({ event: 'start', model: 'auto', format: 'pcm', sample_rate: 16000 }))
+
+    await expect.poll(() => client.sent.length).toBe(1)
+    expect(JSON.stringify(client.sent)).not.toContain('private-id')
+    expect(JSON.stringify(client.sent)).not.toContain('private-signature')
+    expect(client.sent.map(frame => JSON.parse(frame))).toEqual([{
+      event: 'error',
+      code: 'session_start_failed',
+      message: 'The ASR session failed to start.',
+    }])
+  })
+})

@@ -44,10 +44,11 @@ describe('resolveStreamTranscriptionExecutor', () => {
    * @example
    * resolveStreamTranscriptionExecutor('official-provider-transcription')
    */
-  it('routes the official transcription provider through the Aliyun streaming executor', () => {
+  it('routes official transcription through its authenticated WebSocket executor', () => {
     const executor = resolveStreamTranscriptionExecutor('official-provider-transcription')
 
-    expect(executor).toBe(resolveStreamTranscriptionExecutor('aliyun-nls-transcription'))
+    expect(executor).toBeDefined()
+    expect(executor).not.toBe(resolveStreamTranscriptionExecutor('aliyun-nls-transcription'))
   })
 })
 

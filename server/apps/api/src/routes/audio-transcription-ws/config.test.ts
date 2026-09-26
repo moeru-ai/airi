@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createEnvelopeCrypto } from '../../utils/envelope-crypto'
 import { ApiError } from '../../utils/error'
-import { resolveOfficialAliyunNlsCredentials, resolveOfficialAliyunNlsCredentialsFromConfig } from './route'
+import { resolveOfficialAliyunNlsCredentials, resolveOfficialAliyunNlsCredentialsFromConfig } from './config'
 
 function createRouterConfig(overrides?: Partial<RouterConfig>): RouterConfig {
   return {
