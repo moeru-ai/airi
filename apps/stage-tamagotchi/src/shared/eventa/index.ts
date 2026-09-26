@@ -226,9 +226,6 @@ export interface RequestWindowPending {
   payload?: Record<string, any>
 }
 
-// Reference window helpers are generic; callers can alias for clarity
-export type NoticeAction = 'confirm' | 'cancel' | 'close'
-
 export function createRequestWindowEventa(namespace: string) {
   const prefix = (name: string) => `eventa:${name}:electron:windows:${namespace}`
   return {
