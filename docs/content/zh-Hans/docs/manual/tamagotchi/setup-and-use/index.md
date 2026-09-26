@@ -259,7 +259,7 @@ API Key、AccessKey Secret 和其他服务凭据只应保存在您的设备中�
 #### > 意识
 
 可参考[聊天模型](../../config/llm.md)进行配置。
-![AIRI 意识设置界面](image-3.png)
+![AIRI 意识设置界面](image-3.avif)
 
 #### > 发声
 可参考[语音输入与输出](../../config/audio.md)进行配置。如果您不想让 AIRI 发声，请选择「无」。
@@ -268,7 +268,7 @@ API Key、AccessKey Secret 和其他服务凭据只应保存在您的设备中�
 - Pitch（音调）仅对支持该参数的服务商和模型生效。
 :::
 
-![AIRI 发声设置界面](image-4.png)
+![AIRI 发声设置界面](image-4.avif)
 
 #### > 听觉
 可参考[语音输入与输出](../../config/audio.md)进行配置。如果您暂不使用语音输入，请选择「无」。
@@ -282,10 +282,10 @@ STT 是「语音转文本」（Speech-to-Text）的缩写，也称自动语音�
 
 ::: info 在 macOS 上使用时
 第一次在 macOS 上使用 AIRI 的语音输入功能时，需要进行一次性麦克风权限授权操作。看到如下提示时，请选择允许（Allow），否则该功能将无法正常使用。
-![macOS 权限申请窗口](image-7.png)
+![macOS 权限申请窗口](image-7.avif)
 :::
 
-![AIRI 听觉设置界面](image-6.png)
+![AIRI 听觉设置界面](image-6.avif)
 
 除此之外，您还可以：
 
@@ -486,7 +486,7 @@ API Key、AccessKey Secret 和其他服务凭据只应保存在当前设备的�
 - 视觉理解使用与聊天服务商相同的凭据，并须选择支持图像输入的聊天模型；详情见[视觉理解](../../config/vision.md)。
 :::
 
-![AIRI 服务来源设置界面](image-8.png)
+![AIRI 服务来源设置界面](image-8.avif)
 
 ::: tip 技术性建议
 服务商列表以 AIRI 当前版本为准。若您的服务商不在列表里但支持 OpenAI 兼容接口，可使用 **OpenAI 兼容 API** 配置；Base URL 和模型 ID 必须按照该服务商的官方文档填写。
@@ -501,7 +501,7 @@ API Key、AccessKey Secret 和其他服务凭据只应保存在当前设备的�
 该部分可以删除或清理相关数据，而且无法恢复，请谨慎操作。在执行删除和重置操作前，建议先再确认一遍内容。
 :::
 
-![AIRI 数据设置界面](image-14.png)
+![AIRI 数据设置界面](image-14.avif)
 
 ::: tip 网页版特性说明
 打开应用数据文件夹和重置桌面设置和状态仅在桌面版可用，网页/移动版 App 不可用。
@@ -512,11 +512,11 @@ API Key、AccessKey Secret 和其他服务凭据只应保存在当前设备的�
 
 “连接”用于配置 AIRI 的服务通道。您可以设置 WebSocket 地址，并在需要加密传输时启用 TLS。桌面端还可选择仅本机访问、允许局域网访问或填写高级主机名（暂不可用），并设置访问令牌；页面会提供二维码，方便其他设备连接。仅在受信任的网络中开放局域网访问，并妥善保管访问令牌。
 
-![AIRI 连接设置界面](image-15.png)
+![AIRI 连接设置界面](image-15.avif)
 
 ::: tip macOS 可能需要管理员验证
 启用安全 WebSocket 时，AIRI 会将本地证书加入 macOS 登录钥匙串。系统可能要求使用 Touch ID 或输入 Mac 登录密码授权此操作。验证指纹或 Mac 登录密码以继续。
-![macOS 管理员验证](image-16.png)
+![macOS 管理员验证](image-16.avif)
 :::
 
 
