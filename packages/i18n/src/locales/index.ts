@@ -1,6 +1,7 @@
 import en from './en'
 import es from './es'
 import fr from './fr'
+import id from './id'
 import ja from './ja'
 import ko from './ko'
 import ru from './ru'
@@ -12,6 +13,7 @@ export default {
   en,
   es,
   fr,
+  id,
   ko,
   ja,
   ru,

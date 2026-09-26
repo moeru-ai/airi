@@ -1,0 +1,27 @@
+menu:
+  labels:
+    label:
+      show: Tampilkan
+      adjust_sizes: Sesuaikan ukuran
+      recommended_size: Disarankan (450x600)
+      full_height: Tinggi Penuh
+      half_height: Setengah Tinggi
+      full_screen: Layar Penuh
+      align_to: Ratakan ke
+      center: Tengah
+      top_left: Kiri Atas
+      top_right: Kanan Atas
+      bottom_left: Kiri Bawah
+      bottom_right: Kanan Bawah
+      settings: Pengaturan...
+      about: Tentang...
+      open_inlay: Buka Inlay...
+      open_widgets: Buka Widget...
+      open_caption: Buka Teks Takarir...
+      close_caption: Tutup Teks Takarir...
+      caption_overlay: Hamparan Takarir
+      follow_window: Ikuti jendela
+      reset_position: Atur ulang posisi
+      devtools: DevTools
+      troubleshoot_beatsync: Pemecahan Masalah BeatSync...
+      quit: Keluar

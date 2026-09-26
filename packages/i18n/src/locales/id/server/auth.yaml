@@ -1,0 +1,203 @@
+electronCallback:
+  title:
+    loading: Menyelesaikan proses masuk
+    openingAiri: Membuka AIRI
+    signedIn: Anda telah masuk
+    signInFailed: Gagal masuk
+    finishSignInInAiri: Selesaikan proses masuk di AIRI
+    openAiriToContinue: Buka AIRI untuk melanjutkan
+  message:
+    checkingResponse: Memeriksa respons masuk Anda dan menyiapkan pengalihan ke AIRI.
+    passingToAiri: Mengalihkan proses masuk Anda kembali ke AIRI. Halaman ini akan segera ditutup.
+    syncedAndSafeToClose: Kami telah memberi tahu klien AIRI tempat Anda masuk.
+    invalidResponse: Respons masuk ini tidak dapat digunakan.
+    loopbackUnreachable: Peramban tidak dapat menjangkau AIRI melalui port callback lokal.
+    tryOpenDirectly: Kami akan mencoba membuka pengalihan lokal secara langsung. Jika masih gagal, gunakan tombol di bawah ini.
+    automaticHandoffFailed: Pengalihan otomatis tidak selesai dalam sesi peramban ini.
+  label:
+    signIn: Masuk
+    safeToClose: Tab ini sekarang aman untuk ditutup.
+    whyStillHere: Mengapa tab ini masih terbuka?
+  action:
+    openAiriManually: Buka AIRI secara manual
+  hint:
+    closeTabManually: Beberapa peramban tidak mengizinkan halaman ini menutup sendiri secara otomatis. Anda dapat menutupnya secara manual.
+signIn:
+  title: Masuk
+  step:
+    identify:
+      heading: Masuk
+      description: Masukkan email Anda untuk masuk atau membuat akun.
+    password:
+      heading: Selamat datang kembali
+      description: Lanjutkan sebagai {email}.
+    create:
+      heading: Buat akun Anda
+      description: Kami akan membuat akun baru untuk {email}.
+  email:
+    label: Email
+    placeholder: anda{'@'}example.com
+  password:
+    label: Kata sandi
+    placeholder: Kata sandi Anda
+  newPassword:
+    label: Buat kata sandi
+    placeholder: Minimal 8 karakter
+  confirmPassword:
+    label: Konfirmasi kata sandi
+    placeholder: Ulangi kata sandi Anda
+  name:
+    label: Nama tampilan
+    placeholder: Opsional, default menggunakan nama pengguna email Anda
+  action:
+    continue: Lanjutkan
+    signIn: Masuk
+    createAccount: Buat akun
+    forgotPassword: Lupa kata sandi?
+    useDifferentEmail: Gunakan email lain
+  divider:
+    or: atau
+  message:
+    redirecting: Mengalihkan ke {provider}…
+  error:
+    fallback: Gagal masuk
+    providerTimeout: Waktu masuk penyedia habis. Silakan coba lagi.
+    unknown: Terjadi kesalahan yang tidak diketahui
+    socialOnlyNoPassword: Email ini terdaftar menggunakan Google atau GitHub. Masuk dengan tombol di bawah; Anda dapat menambahkan kata sandi di pengaturan akun setelah masuk.
+    passwordMismatch: Kata sandi dan konfirmasi kata sandi tidak cocok.
+    invalidEmail: Silakan masukkan alamat email yang valid.
+  footer:
+    prefix: Dengan melanjutkan, Anda menyetujui
+    terms: Ketentuan Layanan
+    and: dan
+    privacy: Kebijakan Privasi
+verifyEmail:
+  title:
+    pending: Periksa kotak masuk Anda
+    success: Email terverifikasi
+    failed: Verifikasi gagal
+  message:
+    pending: Kami telah mengirimkan tautan verifikasi ke email Anda. Buka tautan tersebut untuk menyelesaikan pembuatan akun Anda — halaman ini akan berlanjut otomatis setelah Anda mengeklik tautan.
+    pendingWithAddress: Kami telah mengirimkan tautan verifikasi ke {email}. Buka tautan tersebut untuk menyelesaikan pembuatan akun Anda — halaman ini akan berlanjut otomatis setelah Anda mengeklik tautan.
+    success: Email Anda telah diverifikasi dan Anda telah masuk. Anda dapat menutup tab ini.
+    failed: Kami tidak dapat memverifikasi email Anda ({error}). Coba minta tautan baru.
+  action:
+    backToSignIn: Kembali ke halaman masuk
+forgotPassword:
+  title: Atur ulang kata sandi Anda
+  description: Masukkan alamat email yang terhubung dengan akun Anda dan kami akan mengirimkan tautan pengaturan ulang.
+  email:
+    label: Email
+    placeholder: anda{'@'}example.com
+  action:
+    send: Kirim tautan atur ulang
+    backToSignIn: Kembali ke halaman masuk
+  message:
+    sent: Jika {email} cocok dengan sebuah akun, tautan atur ulang sedang dalam perjalanan.
+  error:
+    fallback: Kami tidak dapat mengirimkan email pengaturan ulang kata sandi.
+deleteAccount:
+  title:
+    success: Akun dihapus
+    failed: Tidak dapat menghapus akun
+  message:
+    success: Akun Anda telah dihapus.
+  action:
+    closeTab: Anda dapat menutup tab ini.
+resetPassword:
+  title:
+    default: Buat kata sandi baru
+    success: Kata sandi diperbarui
+  password:
+    label: Kata sandi baru
+    placeholder: Minimal 8 karakter
+  confirmPassword:
+    label: Konfirmasi kata sandi baru
+    placeholder: Ulangi kata sandi baru Anda
+  action:
+    reset: Perbarui kata sandi
+    goSignIn: Menuju ke halaman masuk
+  message:
+    success: Kata sandi Anda telah diperbarui. Masuk dengan kata sandi baru Anda.
+  error:
+    fallback: Kami tidak dapat memperbarui kata sandi Anda.
+    missingToken: Tautan atur ulang tidak valid atau sudah kedaluwarsa.
+    passwordMismatch: Kata sandi dan konfirmasi kata sandi tidak cocok.
+profile:
+  title: Profil akun
+  description: Kelola avatar, nama tampilan, dan akun yang terhubung.
+  section:
+    profile: Profil
+    avatar: Avatar
+    password: Kata sandi
+    linkedAccounts: Akun terhubung
+  field:
+    email: Email
+    emailVerified: Status email
+    createdAt: Bergabung
+  label:
+    verified: Terverifikasi
+    unverified: Belum terverifikasi
+  name:
+    label: Nama tampilan
+    placeholder: Bagaimana orang lain melihat Anda
+  avatar:
+    altText: Avatar profil
+    gravatarNotice: Avatar dari Gravatar.
+    gravatarLink: Kelola di gravatar.com
+  password:
+    currentLabel: Kata sandi saat ini
+    currentPlaceholder: Masukkan kata sandi saat ini
+    newLabel: Kata sandi baru
+    newPlaceholder: Minimal 8 karakter
+    confirmLabel: Konfirmasi kata sandi baru
+    confirmPlaceholder: Ulangi kata sandi baru Anda
+    setDescription: Anda masuk melalui penyedia akun sosial, sehingga belum ada kata sandi saat ini. Kami akan mengirimkan tautan aman ke email Anda untuk membuatnya.
+    setLinkSent: Periksa {email} untuk tautan pembuatan kata sandi Anda.
+    setLinkFailed: Kami tidak dapat mengirimkan tautan pembuatan kata sandi.
+  linkedAccounts:
+    description: Masuk ke AIRI melalui penyedia ini. Putuskan tautan untuk mencabut akses, lalu tautkan kembali untuk beralih ke akun lain.
+    status:
+      linked: Terhubung
+      notLinked: Belum terhubung
+      linkedSince: Terhubung sejak {date}
+    action:
+      link: Hubungkan
+      unlink: Putuskan
+    message:
+      loading: Memuat akun yang terhubung...
+      unlinked: '{provider} telah diputuskan.'
+      linkStarted: Mengalihkan ke {provider}…
+    error:
+      listFailed: Tidak dapat memuat akun yang terhubung.
+      unlinkFailed: Tidak dapat memutuskan akun ini.
+      linkFailed: Tidak dapat memulai proses penautan.
+      lastAccount: Ini adalah satu-satunya metode masuk Anda. Buat kata sandi terlebih dahulu sebelum memutuskan tautannya.
+  action:
+    saveProfile: Simpan perubahan
+    changePassword: Ubah kata sandi
+    sendSetPasswordLink: Kirim tautan ke email untuk membuat kata sandi
+    signOut: Keluar
+  message:
+    loading: Memuat profil Anda...
+    profileSaved: Profil diperbarui.
+    passwordChanged: Kata sandi berhasil diubah. Sesi lain telah dikeluarkan.
+  error:
+    loadFailed: Kami tidak dapat memuat profil Anda.
+    saveFailed: Kami tidak dapat menyimpan perubahan Anda.
+    changePasswordFailed: Kami tidak dapat mengubah kata sandi Anda.
+    signOutFailed: Kami tidak dapat mengeluarkan Anda.
+    passwordMismatch: Kata sandi baru dan konfirmasi kata sandi tidak cocok.
+    passwordSameAsCurrent: Kata sandi baru harus berbeda dari kata sandi saat ini.
+webCallback:
+  title:
+    signIn: Masuk
+    errorLabel: Terjadi kesalahan saat memproses proses masuk Anda
+    loading: Sedang masuk...
+  message:
+    missingCodeOrState: Kode otorisasi atau state tidak ditemukan
+    missingFlowState: State alur OIDC tidak ditemukan - silakan coba masuk kembali
+    tokenExchangeFailed: Pertukaran token gagal
+    finalizing: Menyelesaikan autentikasi dengan AIRI.
+  action:
+    tryAgain: Coba lagi

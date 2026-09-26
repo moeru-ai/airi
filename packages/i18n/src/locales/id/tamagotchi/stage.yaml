@@ -1,0 +1,108 @@
+operations:
+  load-models: Muat Model
+  load-models-status:
+    loading: Memuat
+    ready: Siap
+docs:
+  theme:
+    navbar:
+      appearance:
+        title: Tampilan
+'controls-island':
+  'fade-on-hover':
+    enable: Sembunyikan otomatis
+    disable: Selalu tampilkan
+  'open-settings': Buka pengaturan
+  'open-chat': Buka Obrolan
+  'refresh': Segarkan
+  'center-main-window': Pindahkan ke tengah layar
+  'open-hearing-controls': Buka kontrol pendengaran
+  'drag-to-move-window': Seret untuk memindahkan jendela
+  'mute': Senyapkan
+  'unmute': Bunyikan
+  'switch-to-light-mode': Beralih ke mode terang
+  'switch-to-dark-mode': Beralih ke mode gelap
+  'pin-on-top': Sematkan di atas
+  'unpin-from-top': Lepas sematan dari atas
+  'switch-profile': Ganti Profil
+  'close': Tutup
+  'expand': Perluas
+  'collapse': Ciutkan
+  'login': Masuk
+  'logging-in': Sedang masuk...
+  'account': Akun
+  'logout': Keluar
+
+widgets:
+  close: Tutup widget
+  empty:
+    title: Tidak ada widget aktif
+    description: Widget akan muncul di sini saat alat atau plugin memunculkannya.
+  loading: Memuat widget…
+  waiting: Menunggu data widget untuk "{id}"…
+
+inlay:
+  close: Tutup
+
+notice:
+  'fade-on-hover':
+    title: Memudar saat Disorot
+    intro: Memudarkan karakter secara otomatis saat kursor Anda berada di dekatnya. Ini membantu mengurangi gangguan namun tetap menjaga karakter Anda terlihat.
+    opacity: Setelah diaktifkan, opasitas turun menjadi {value} untuk {targets} saat kursor Anda berada di dekatnya.
+    toggle: Anda dapat menonaktifkannya dengan mengarahkan kursor ke {controls}, lalu mengeklik ikon {icon} lagi.
+    controls-label: Controls Island
+    icon-label: ikon mata dicoret
+    value: '0'
+    targets: Karakter dan Antarmuka
+    confirm: Mengerti
+    dont-show-again: Jangan tampilkan lagi
+    preparing: Menyiapkan…
+    read-more: Baca selengkapnya
+    preview-title: Apa ini?
+
+about:
+  subtitle: Versi Desktop
+  current-version: Versi Saat Ini
+  common:
+    cancel: Batal
+  links:
+    title: Tautan
+    home: Beranda
+    documentation: Dokumentasi
+    github: GitHub
+  update:
+    lane:
+      label: Jalur pembaruan
+      description: Pilih saluran rilis yang ingin diikuti
+      placeholder: Pilih jalur pembaruan
+    channels:
+      auto: Otomatis
+      stable: Stabil
+      alpha: Alfa
+      beta: Beta
+      nightly: Nightly
+      canary: Canary
+    status:
+      downloading: Mengunduh pembaruan...
+      error-prefix: Kesalahan
+      latest: Versi terbaru (v{version}).
+      downloaded:
+        windows: Pembaruan siap dipasang secara senyap (v{version}).
+        restart: Pembaruan siap dipasang saat mulai ulang (v{version}).
+    actions:
+      download: Unduh Pembaruan
+      download-short: Unduh
+      confirm-download: Konfirmasi Unduhan
+      check-for-updates: Periksa pembaruan
+      checking: Memeriksa...
+      latest-version: Versi terbaru
+      disabled-dev: Pembaruan dinonaktifkan di Dev
+      managed-by-store: Pembaruan dikelola oleh toko aplikasi Anda
+      retry-check: Coba Periksa Lagi
+      restart-silent: Mulai ulang untuk memperbarui secara senyap
+      restart-install: Mulai ulang untuk memasang pembaruan
+      confirm-restart: Konfirmasi Mulai Ulang
+    dialog:
+      title: Pembaruan Tersedia
+      description: Versi baru (v{version}) tersedia.
+      no-release-notes-markdown: _Catatan rilis tidak tersedia._

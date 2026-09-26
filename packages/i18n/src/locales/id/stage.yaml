@@ -1,0 +1,168 @@
+character-switcher:
+  title: Ganti karakter
+  manage: Kelola karakter
+  empty: Belum ada karakter
+  failed: Gagal mengganti karakter. Coba lagi.
+mobile-tools:
+  sign-in: Masuk ke AIRI
+  account-description: Akun dan preferensi
+  sound: Suara
+  character-voice: Suara karakter
+  title: Pengaturan
+  appearance: Tampilan
+  dark-mode: Mode gelap
+  application: Aplikasi
+  more: Lainnya
+  background: Latar belakang
+  settings: Semua pengaturan
+  about: Tentang
+  view: Tampilan
+  close-view: Simpan dan tutup kontrol tampilan
+  hearing: Pendengaran
+chat:
+  voice-input: Masukan suara
+  images:
+    empty: Bagikan pemikiran atau gambar.
+    use-vision: Gunakan model visi untuk gambar obrolan
+    use-vision-description: Pilih penyedia dan model di bawah. Model ini membaca gambar yang dilampirkan sebelum model obrolan Anda membalas. Tanpa model visi, gambar dikirim langsung ke model obrolan.
+    attach: 'Lampirkan gambar'
+    remove: 'Hapus {name}'
+    unsupported: 'Gunakan format gambar PNG, JPEG, WebP, atau GIF.'
+    too-large: 'Ukuran setiap gambar maksimal 3 MB.'
+    too-many: 'Lampirkan maksimal {count} gambar sekaligus.'
+    total-too-large: 'Total ukuran semua gambar yang dilampirkan maksimal 3 MB.'
+    read-failed: 'Tidak dapat membaca gambar ini. Coba lagi.'
+    no-description: 'Model visi tidak mengembalikan deskripsi gambar. Periksa Pengaturan → Modul → Visi dan coba lagi.'
+    reading: 'Membaca gambar…'
+    description: 'Lampiran gambar'
+  actions:
+    reply: Balas
+    retry: Coba lagi
+    send: Kirim pesan
+    stop: Hentikan respons
+  message:
+    character-name:
+      airi: AIRI
+      core-system: Sistem Inti
+      you: Anda
+  reply:
+    cancel: Batal membalas
+    message: Pesan
+    replying-to: Membalas ke {name}
+  reasoning: Penalaran
+  swipe-demo:
+    show-label: Tampilkan label
+    delete: Hapus
+    archive: Arsip
+    pin: Sematkan
+    actions: Tampilkan aksi
+    row: 'Percakapan {n}'
+  sessions:
+    delete-short: Hapus
+    confirm-delete-short: Konfirmasi hapus
+    title: Percakapan
+    new: Percakapan baru
+    current: Saat ini
+    confirm-delete: Hapus percakapan ini beserta seluruh pesannya?
+    cancel: Batal
+    empty: Belum ada percakapan
+    cloud-badge: Disinkronkan ke cloud
+    new-chat-fallback: Obrolan baru
+    delete: Hapus percakapan
+render-error:
+  title: '{renderer} tidak dapat merender model ini'
+  description: Model telah dipilih, tetapi Panggung tidak dapat menampilkannya.
+  report-description: |-
+    {renderer} gagal merender model yang dipilih.
+    ID Model: {modelId}
+    Kesalahan: {error}
+message: Katakan sesuatu...
+send-mode:
+  title: Tombol kirim
+  enter: Enter
+  ctrl-enter: Ctrl + Enter
+  double-enter: Dua Kali Enter
+speech-output:
+  mute: Matikan suara
+  unmute: Nyalakan suara
+operations:
+  load-models: Muat Model
+  load-models-status:
+    loading: Memuat
+    ready: Siap
+select-a-audio-input: Pilih Masukan Audio
+select-a-model: Pilih model
+select-a-voice: Pilih suara
+viewers:
+  debug-menu:
+    emotions: Emosi
+    emotions-btn:
+      angry: 😠 Marah
+      awkward: 😳 Canggung
+      happy: 😄 Bahagia
+      neutral: 🙂 Netral
+      question: 🤔 Bertanya
+      sad: 😫 Sedih
+      surprised: 🤯 Terkejut
+      think: 🤨 Berpikir
+    vrm:
+      camera: Kamera
+      model:
+        title: Model
+profile-switcher:
+  no-profile: Tanpa Profil
+  no-profiles: Belum ada profil
+  save-as-new: Simpan sebagai Profil Baru
+  new-profile-name: Nama profil
+  manage: Kelola Profil
+promo-banner:
+  items:
+    signin:
+      watermark: Bulan
+      fallbackLabel: Hadiah Bulan
+      title: Masuk 7 Hari
+      eventName: Masuk setiap hari untuk klaim stardust, bingkai avatar, dan hadiah peluncuran.
+      date: 28/03 - 10/04
+      reward: Hingga 120 Stardust
+      cta: Masuk
+    build:
+      watermark: Bangun
+      fallbackLabel: Bonus Bangun
+      title: Bonus Peti Pasokan
+      eventName: Selesaikan tugas pembangunan untuk mendapatkan kupon bonus dan material ganda.
+      date: 30/03 - 12/04
+      reward: 5 Kupon Pasokan + Material Peningkatan
+      cta: Lihat Tugas
+    spring:
+      watermark: Musim Semi
+      fallbackLabel: Undian Musim Semi
+      title: Karnaval Kapsul
+      eventName: Ikuti undian musim semi untuk membuka gelembung, hiasan, dan furnitur bertema.
+      date: 01/04 - 18/04
+      reward: Tarikan Pertama Setengah Harga + Hiasan Langka
+      cta: Undi Sekarang
+    coupon:
+      watermark: Bicara
+      fallbackLabel: Kupon
+      title: Kupon Isi Ulang
+      eventName: Selesaikan interaksi obrolan untuk mengklaim kupon paket ekspansi dan paket suara.
+      date: 02/04 - 20/04
+      reward: Hemat 6 untuk 30 / Hemat 15 untuk 68
+      cta: Klaim Kupon
+    home:
+      watermark: Beranda
+      fallbackLabel: Tema Ruangan
+      title: Pembaruan Tema Musim Semi
+      eventName: Buka tema jendela, meja, dan lampu tidur untuk menyegarkan suasana ruangan Anda.
+      date: 05/04 - 22/04
+      reward: Tiket Undian Tema Gratis saat Masuk
+      cta: Lihat Tema
+waiting: Menunggu
+websocket-status:
+  connected: Terhubung
+  disconnected: Tidak ada koneksi
+  open-settings: Buka pengaturan koneksi
+
+computer-use:
+  label: Gunakan komputer
+  description: Izinkan jendela obrolan ini untuk memeriksa dan mengontrol aplikasi bawaan di komputer ini.
