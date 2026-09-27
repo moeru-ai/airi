@@ -9,6 +9,7 @@ import { EventSourceParserStream } from '@xsai/shared-stream'
 import { array, nullish, object, safeParse, string, unknown } from 'valibot'
 
 import { extractUsageFromBody } from '../../../../../services/domain/billing/billing'
+import { ApiError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
 import { buildSafeErrorResponseHeaders, buildSafeResponseHeaders } from '../../http/response'
 import { createOpenAiRouteBilling } from '../../middlewares/billing'
@@ -65,13 +66,13 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
       stream,
       messageCount: Array.isArray(body.messages) ? body.messages.length : undefined,
     }).log('chat completion request')
+    const startedAt = Date.now()
+    await deps.billingService.beginLlmRequest({ userId: input.userId, requestId, model: requestModel, policy: billingPolicy })
+
     // Server-connection attrs come from the router (which knows the actual
     // upstream baseURL it dispatched to) — it enriches the active span with
     // its own `airi.gen_ai.gateway.*` attrs on success.
     const span = telemetry.startGenerationSpan({ model: requestModel, stream, operation: 'chat' })
-
-    const startedAt = Date.now()
-    await deps.billingService.beginLlmRequest({ userId: input.userId, requestId, model: requestModel, policy: billingPolicy })
 
     // Router throws ApiError (502/503/504/400) on full exhaustion or unknown
     // model. We do NOT catch here — global app.onError renders the ApiError
@@ -99,6 +100,9 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
       requestModel = routed.modelId
     }
     catch (err) {
+      let status: number = err instanceof ApiError ? err.statusCode : 500
+      if (clientAbort?.aborted)
+        status = 499
       telemetry.failSpan(span, 'Router exhausted or unknown model')
       deps.llmTracing.startChatGeneration({
         protocol: 'chat-completions',
@@ -109,8 +113,8 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
         userId: input.userId,
         sessionId: input.sessionId,
       }).fail('Router exhausted or unknown model')
-      telemetry.recordMetrics({ model: requestModel, status: 502, type: 'chat', provider: routeCtx.provider, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
-      telemetry.recordRequestLog({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status: clientAbort?.aborted ? 499 : 502, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
+      telemetry.recordMetrics({ model: requestModel, status, type: 'chat', provider: routeCtx.provider, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
+      telemetry.recordRequestLog({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
       throw err
     }
 

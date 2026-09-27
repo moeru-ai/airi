@@ -3281,6 +3281,43 @@ it('issue #2479 keeps the last upstream error when a later alias candidate lacks
   expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
 })
 
+it.each([503, 504, 500] as const)('records the actual chat routing failure status %s', async (status) => {
+  const failure = status === 500 ? new Error('unexpected failure') : new ApiError(status, 'GATEWAY_ERROR', 'route failed')
+  const router = createMockLlmRouter({ route: vi.fn(async () => {
+    throw failure
+  }) })
+  const logs = createMockRequestLogService()
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, logs, undefined, router)
+  const response = await app.request('/api/v1/openai/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [] }),
+  }, { user: testUser })
+  expect(response.status).toBe(status)
+  expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status }))
+})
+
+it('does not open a generation span or dispatch when billing intake fails', async () => {
+  const billing = createMockBillingService()
+  vi.mocked(billing.beginLlmRequest).mockRejectedValueOnce(new Error('database unavailable'))
+  const router = createMockLlmRouter()
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, undefined, undefined, router)
+  const startSpan = vi.spyOn(tracer, 'startSpan')
+  try {
+    const response = await app.request('/api/v1/openai/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [] }),
+    }, { user: testUser })
+    expect(response.status).toBe(500)
+    expect(router.route).not.toHaveBeenCalled()
+    expect(startSpan).not.toHaveBeenCalled()
+  }
+  finally {
+    startSpan.mockRestore()
+  }
+})
+
 // https://github.com/moeru-ai/airi/pull/2554#discussion_r4044384477
 it('pR #2554 surfaces a later routing failure instead of an earlier HTTP response', async () => {
   const catalog = createMockProviderCatalogService()
