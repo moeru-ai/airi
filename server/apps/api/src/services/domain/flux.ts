@@ -29,6 +29,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
 
       // 2. Cache miss — load from DB
       let record = await db.query.userFlux.findFirst({
+        columns: { llmCostRemainder: false },
         where: and(
           eq(schema.userFlux.userId, userId),
           isNull(schema.userFlux.deletedAt),
@@ -60,6 +61,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
 
         // Re-read to handle race condition (another request may have initialized first)
         record = await db.query.userFlux.findFirst({
+          columns: { llmCostRemainder: false },
           where: and(
             eq(schema.userFlux.userId, userId),
             isNull(schema.userFlux.deletedAt),

@@ -6,6 +6,8 @@ import { bigint, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 export const userFlux = pgTable('user_flux', {
   userId: text('user_id').primaryKey(),
   flux: bigint('flux', { mode: 'number' }).notNull().default(0),
+  // Cost billing carries fractional Flux here. Wallet and payment units remain whole Flux.
+  llmCostRemainder: bigint('llm_cost_remainder', { mode: 'number' }).notNull().default(0),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 })

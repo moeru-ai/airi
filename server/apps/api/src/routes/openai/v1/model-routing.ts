@@ -51,6 +51,7 @@ export async function routeModelAliasCandidates(input: {
   protocol?: LlmRouteRequest['protocol']
   requiresWebSearch?: boolean
   attempts?: LlmRouteRequest['attempts']
+  authorizeDispatch: NonNullable<LlmRouteRequest['authorizeDispatch']>
 }): Promise<{
   modelId: string
   response: Response
@@ -72,6 +73,7 @@ export async function routeModelAliasCandidates(input: {
         headers: {},
         abortSignal: input.abortSignal,
         attempts: input.attempts,
+        authorizeDispatch: input.authorizeDispatch,
       }, routeCtx)
       await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
       if (response.ok || index === input.modelIds.length - 1)
@@ -81,7 +83,7 @@ export async function routeModelAliasCandidates(input: {
       lastResponse = { modelId, response, routeCtx: { ...routeCtx } }
     }
     catch (err) {
-      if (err instanceof ApiError && err.errorCode === 'LLM_TRACKING_UNAVAILABLE') {
+      if (err instanceof ApiError && ['LLM_TRACKING_UNAVAILABLE', 'LLM_BILLING_UNAVAILABLE'].includes(err.errorCode)) {
         await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
         throw err
       }

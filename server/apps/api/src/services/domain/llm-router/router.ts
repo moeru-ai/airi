@@ -454,6 +454,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       throw createServiceUnavailableError('No upstream supports the requested protocol', 'LLM_PROTOCOL_UNAVAILABLE')
     if (candidates.length === 0)
       throw createServiceUnavailableError('No upstream supports web search for the requested model', 'LLM_WEB_SEARCH_UNAVAILABLE')
+    for (const { upstream } of candidates)
+      req.authorizeDispatch?.({ gateway: deriveProviderTag(upstream.baseURL), model: upstream.overrideModel ?? req.modelName })
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
     const fallbackHttpCodes = llmModel.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
