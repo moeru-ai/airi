@@ -54,7 +54,7 @@ const { t } = useI18n()
 const modelSelectorOpen = ref(false)
 const settingsStore = useSettings()
 const airiCardStore = useAiriCardStore()
-const { stageModelRenderer, stageModelSelected, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
+const { stageModelRenderer, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
 
 const effectiveRenderer = computed(() => resolveModelSettingsPanelRenderer({
   settingsRenderer: stageModelRenderer.value,
@@ -62,7 +62,6 @@ const effectiveRenderer = computed(() => resolveModelSettingsPanelRenderer({
 }))
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
-  stageModelSelected.value = selectedModel?.id ?? ''
   await airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
   await settingsStore.updateStageModel()
 }

@@ -18,7 +18,17 @@ const useTestAuthStore = defineStore('auth', () => {
 const useTestAiriCardStore = defineStore('airi-card', () => {
   const activeCardId = ref('default')
   const systemPrompt = ref('')
-  return { activeCardId, systemPrompt }
+  return {
+    activeCardId,
+    systemPrompt,
+    initialize: async () => {},
+    getCard: () => ({ name: 'Character' }),
+    resolveCharacter: () => ({ systemPrompt: systemPrompt.value }),
+    activateCard: async (id: string) => {
+      activeCardId.value = id
+      return true
+    },
+  }
 })
 
 vi.doMock('../auth', () => {

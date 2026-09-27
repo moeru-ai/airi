@@ -1,5 +1,3 @@
-import type {} from 'pinia-plugin-synced'
-
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, isRef, ref, watch } from 'vue'
@@ -20,9 +18,7 @@ export interface ComfyUIWorkflowTemplate {
 }
 
 export const useArtistryStore = defineStore('artistry', () => {
-  // Pinia synchronization is the only cross-window state channel. These refs
-  // still load and save durable values, but storage events must not echo a
-  // second copy of the same state between Electron renderers.
+  // Persist the startup choice without replicating this window's active character settings.
   const persistenceOptions = { listenToStorageChanges: false }
 
   // --- Persistent Global Settings (User Preferences) ---
@@ -198,10 +194,6 @@ export const useArtistryStore = defineStore('artistry', () => {
     resetToGlobal,
     resetState,
   }
-}, {
-  synced: {
-    state: true,
-  },
 })
 
 /**

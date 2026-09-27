@@ -1,5 +1,3 @@
-import type {} from 'pinia-plugin-synced'
-
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { defineStore } from 'pinia'
@@ -10,8 +8,7 @@ import { useProviderStore } from '../../providers/provider'
 export const useVisionStore = defineStore('vision', () => {
   const providersStore = useProviderStore()
 
-  // Pinia synchronization owns live cross-window state. localStorage only
-  // loads and saves durable values for this synchronized store.
+  // Persist the startup choice without replicating this window's active character settings.
   const persistenceOptions = { listenToStorageChanges: false }
 
   const activeProvider = useLocalStorageManualReset('settings/vision/active-provider', '', persistenceOptions)
@@ -95,8 +92,4 @@ export const useVisionStore = defineStore('vision', () => {
     getModelsForProvider,
     resetState,
   }
-}, {
-  synced: {
-    state: true,
-  },
 })

@@ -6,6 +6,8 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 
+import { useChatSessionStore } from '../chat/session-store'
+import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
 import { useConsciousnessStore } from './consciousness'
 
@@ -29,12 +31,87 @@ function createContext(runtime?: SyncedPiniaRuntime) {
 }
 
 describe('persisted and replicated card defaults', () => {
-  beforeEach(() => {
-    localStorage.clear()
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ voices: [], recommended: {}, data: [] }))))
+  it('keeps character selection and effective configuration local to each window', async () => {
+    const namespace = `character-windows-${crypto.randomUUID()}`
+    const leaderRuntime = createSyncedPiniaPlugin({ namespace, leadership: 'leader-only' })
+    const leader = createContext(leaderRuntime)
+    await expect.poll(() => leaderRuntime.isLeader()).toBe(true)
+    leader.consciousness.activeProvider = 'ollama'
+    leader.consciousness.activeModel = 'global-model'
+    await leader.cards.initialize()
+    const cardId = await leader.cards.addCard({
+      ...leader.cards.activeCard!,
+      name: 'Independent character',
+      description: 'Independent prompt',
+      extensions: {
+        airi: {
+          agents: {},
+          modules: {
+            consciousness: { provider: 'ollama', model: 'character-model' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+            displayModelId: 'preset-vrm-1',
+          },
+        },
+      },
+    }, 'scratch')
+    const followerRuntime = createSyncedPiniaPlugin({ namespace, leadership: 'follower-only' })
+    const follower = createContext(followerRuntime)
+    await expect.poll(() => follower.cards.cards.has(cardId)).toBe(true)
+    await follower.cards.initialize()
+    await follower.cards.activateCard(cardId)
+    expect(follower.cards.activeCardId).toBe(cardId)
+    expect(leader.cards.activeCardId).toBe('default')
+    expect(follower.consciousness.activeModel).toBe('character-model')
+    expect(leader.consciousness.activeModel).toBe('global-model')
+    expect(follower.cards.currentModels.displayModelId).toBe('preset-vrm-1')
+    expect(leader.cards.currentModels.displayModelId).toBe('preset-live2d-1')
+
+    const leaderChats = useChatSessionStore(leader.pinia)
+    const followerChats = useChatSessionStore(follower.pinia)
+    await leaderChats.initialize()
+    await followerChats.initialize()
+    const leaderSessionId = leaderChats.activeSessionId
+    const followerSessionId = followerChats.activeSessionId
+    expect(leaderChats.sessionMetas[leaderSessionId].characterId).toBe('default')
+    expect(followerChats.sessionMetas[followerSessionId].characterId).toBe(cardId)
+    expect(followerChats.messages[0].content).toContain('Independent prompt')
+    expect(leaderChats.messages[0].content).not.toContain('Independent prompt')
+
+    const anotherSessionId = await followerChats.createSession(cardId)
+    expect(followerChats.activeSessionId).toBe(anotherSessionId)
+    expect(leaderChats.activeSessionId).toBe(leaderSessionId)
+    await follower.cards.activateCard('default')
+    await expect.poll(() => followerChats.sessionMetas[followerChats.activeSessionId]?.characterId).toBe('default')
+    await followerChats.setActiveSession(followerSessionId)
+    expect(follower.cards.activeCardId).toBe(cardId)
+    expect(follower.cards.currentModels.displayModelId).toBe('preset-vrm-1')
+    expect(leader.cards.activeCardId).toBe('default')
+    expect(leaderChats.activeSessionId).toBe(leaderSessionId)
+    await followerChats.resetAllSessions()
+    await expect.poll(() => leaderChats.sessionMetas[leaderChats.activeSessionId]?.characterId).toBe('default')
+    await expect.poll(() => followerChats.sessionMetas[followerChats.activeSessionId]?.characterId).toBe(cardId)
+    const retainedSessionId = followerChats.activeSessionId
+    await follower.cards.removeCard(cardId)
+    await expect.poll(() => follower.cards.activeCardId).toBe('default')
+    await expect.poll(() => followerChats.sessionMetas[followerChats.activeSessionId]?.characterId).toBe('default')
+    expect(followerChats.sessionMetas[retainedSessionId].characterId).toBe(cardId)
   })
 
-  afterEach(() => {
+  beforeEach(() => {
+    localStorage.clear()
+    const fetchAsset = globalThis.fetch.bind(globalThis)
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), location.href)
+      if (url.origin === location.origin)
+        return fetchAsset(input, init)
+      return new Response(JSON.stringify({ voices: [], recommended: {}, data: [] }))
+    }))
+  })
+
+  afterEach(async () => {
+    for (const pinia of piniaInstances)
+      await useSettingsStageModel(pinia).updateStageModel()
     for (const runtime of runtimes.splice(0))
       runtime.dispose()
     for (const pinia of piniaInstances.splice(0))
@@ -74,6 +151,7 @@ describe('persisted and replicated card defaults', () => {
     const followerRuntime = createSyncedPiniaPlugin({ namespace, leadership: 'follower-only', onError })
     const follower = createContext(followerRuntime)
     await expect.poll(() => follower.cards.moduleDefaults?.consciousness.model).toBe('global-model')
+    await follower.cards.initialize()
     await expect.poll(() => follower.consciousness.activeModel).toBe('global-model')
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
     await leader.cards.updateCard('default', {
@@ -102,7 +180,9 @@ describe('persisted and replicated card defaults', () => {
       },
     }, 'import')
     await leader.cards.activateCard(explicit)
-    await expect.poll(() => follower.consciousness.activeModel).toBe('card-model')
+    expect(leader.consciousness.activeModel).toBe('card-model')
+    expect(follower.cards.activeCardId).toBe('default')
+    expect(follower.consciousness.activeModel).toBe('global-model')
     await leader.cards.activateCard('default')
     await expect.poll(() => follower.consciousness.activeModel).toBe('global-model')
     expect(follower.cards.moduleDefaults?.consciousness.model).toBe('global-model')

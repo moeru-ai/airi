@@ -9,7 +9,7 @@ import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessio
 import { errorMessageFrom } from '@moeru/std'
 import { cloneDeep } from 'es-toolkit'
 import { nanoid } from 'nanoid'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
@@ -57,13 +57,18 @@ const OUTBOX_MAX_ATTEMPTS = 5
 
 const useChatSessionSelectionStore = defineStore('chat-session-selection', () => {
   const activeSessionId = ref('')
+  const characterSessions = ref<Record<string, string>>({})
 
-  return { activeSessionId }
+  return { activeSessionId, characterSessions }
 })
 
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
-  const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
+  const pinia = getActivePinia()
+  const cardStore = useAiriCardStore()
+  const { activeCardId, systemPrompt } = storeToRefs(cardStore)
+  let selectionGeneration = 0
+  let selectingCharacterId: string | undefined
 
   const chatSessionSelection = useChatSessionSelectionStore()
   // The selected conversation belongs to one window. Expose it through the
@@ -83,7 +88,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const isReady = computed(() => ready.value)
   const initializing = ref(false)
   let initializePromise: Promise<void> | null = null
-  let ensureActivePromise: Promise<string> | null = null
+  const ensureActivePromises = new Map<string, Promise<string>>()
   // Bumped by `clearInMemoryState` (user swap / teardown). The
   // `ensureActiveSessionForCharacter` IIFE captures this at call time and
   // bails after every await once it changes, so a stale hydrate from the
@@ -204,25 +209,25 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     } satisfies ChatHistoryItem
   }
 
-  function generateInitialMessage() {
-    return generateInitialMessageFromPrompt(systemPrompt.value)
+  function generateInitialMessage(characterId = getCurrentCharacterId()) {
+    const card = cardStore.resolveCharacter(characterId)
+    return generateInitialMessageFromPrompt(card.systemPrompt)
   }
 
-  function refreshActiveSessionSystemMessage() {
-    const sessionId = activeSessionId.value
+  async function refreshSessionSystemMessage(sessionId: string) {
     const meta = sessionMetas.value[sessionId]
 
     // A card switch updates `systemPrompt` before its character session has
     // necessarily finished loading. Never rewrite the previous character's
     // session or persist an empty in-memory placeholder over an IDB history
     // that is still being hydrated.
-    if (!sessionId || !loadedSessions.has(sessionId) || meta?.characterId !== getCurrentCharacterId())
+    if (!sessionId || !loadedSessions.has(sessionId) || !meta || !cardStore.getCard(meta.characterId))
       return
 
     const currentMessages = sessionMessages.value[sessionId] ?? []
     const systemMessageIndex = currentMessages.findIndex(message => message.role === 'system')
     const currentSystemMessage = currentMessages[systemMessageIndex]
-    const resolvedSystemMessage = generateInitialMessage()
+    const resolvedSystemMessage = generateInitialMessage(meta.characterId)
 
     if (currentSystemMessage?.content === resolvedSystemMessage.content)
       return
@@ -413,8 +418,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           }
           staleSessions.delete(sessionId)
           loadedSessions.add(sessionId)
-          if (activeSessionId.value === sessionId)
-            refreshActiveSessionSystemMessage()
+          await refreshSessionSystemMessage(sessionId)
         }
 
         // Local and cloud hydration are separate. A failed cloud pull leaves
@@ -473,7 +477,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * - The new session id. When `setActive` is not `false` the session is
    *   also made the active one.
    */
-  async function createSession(characterId: string, options?: { setActive?: boolean, messages?: ChatHistoryItem[], title?: string }) {
+  async function createCharacterSession(characterId: string, options?: { setActive?: boolean, messages?: ChatHistoryItem[], title?: string }) {
     const currentUserId = getCurrentUserId()
     const sessionId = nanoid()
     const now = Date.now()
@@ -486,7 +490,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       updatedAt: now,
     }
 
-    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessage()]
+    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessage(characterId)]
 
     sessionMetas.value[sessionId] = meta
     replaceSessionMessages(sessionId, initialMessages, { persist: false })
@@ -509,9 +513,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, record))
     await persistIndex()
 
-    if (options?.setActive !== false)
-      activeSessionId.value = sessionId
-
     captureAnalyticsEvent('conversation_created', {
       conversation_id: sessionId,
       source: options?.messages?.length ? 'fork' : 'new_session',
@@ -526,6 +527,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (currentUserId !== 'local')
       void reconcileCloudSessions()
 
+    return sessionId
+  }
+
+  /** Creates a conversation and selects it only in the requesting window. */
+  async function createSession(characterId: string, options?: { setActive?: boolean, messages?: ChatHistoryItem[], title?: string }) {
+    const sessionId = await useChatSessionStore(pinia).createCharacterSession(characterId, options)
+    if (options?.setActive !== false)
+      await setActiveSession(sessionId)
     return sessionId
   }
 
@@ -640,7 +649,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
     }
 
-    const replacementSessionId = await createSession(characterId, { setActive: wasActive })
+    const replacementSessionId = await createCharacterSession(characterId, { setActive: wasActive })
     if (!wasActive) {
       // The synchronized leader may be displaying a different character, but
       // this replacement is still the canonical fallback for the character
@@ -660,43 +669,32 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * callers share a single in-flight promise so a rapid `[userId, characterId]`
    * change burst does not produce duplicate sessions.
    */
-  async function ensureActiveSessionForCharacter(): Promise<string> {
-    if (ensureActivePromise)
-      return ensureActivePromise
-    const myEpoch = ensureActiveEpoch
-    const isStaleEpoch = () => myEpoch !== ensureActiveEpoch
-    ensureActivePromise = (async () => {
+  async function ensureActiveSessionForCharacter(characterId = getCurrentCharacterId()): Promise<string> {
+    const existing = ensureActivePromises.get(characterId)
+    if (existing)
+      return existing
+    const epoch = ensureActiveEpoch
+    const operation = (async () => {
       const currentUserId = getCurrentUserId()
-      const characterId = getCurrentCharacterId()
-
       if (!index.value || index.value.userId !== currentUserId)
         await loadIndexForUser(currentUserId)
-      if (isStaleEpoch())
+      if (epoch !== ensureActiveEpoch)
         return ''
-
       const characterIndex = getCharacterIndex(characterId)
-      if (!characterIndex)
-        return createSession(characterId)
-
-      if (!characterIndex.activeSessionId)
-        return createSession(characterId)
-
-      activeSessionId.value = characterIndex.activeSessionId
-      // Use the public action so follower hydration is routed to the elected
-      // leader instead of becoming a stale full-state proposal.
-      await useChatSessionStore().loadSession(characterIndex.activeSessionId)
+      if (!characterIndex?.activeSessionId)
+        return createCharacterSession(characterId, { setActive: false })
+      await useChatSessionStore(pinia).loadSession(characterIndex.activeSessionId)
+      if (epoch !== ensureActiveEpoch)
+        return ''
       return characterIndex.activeSessionId
     })()
+    ensureActivePromises.set(characterId, operation)
     try {
-      return await ensureActivePromise
+      return await operation
     }
     finally {
-      // Only release the slot if we still own it. A user swap mid-flight
-      // bumps the epoch and `clearInMemoryState` already nulled the slot —
-      // a fresh hydrate may now own it and unconditional null would clobber
-      // the new owner.
-      if (myEpoch === ensureActiveEpoch)
-        ensureActivePromise = null
+      if (ensureActivePromises.get(characterId) === operation)
+        ensureActivePromises.delete(characterId)
     }
   }
 
@@ -901,7 +899,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           cloudChatId: remote.id,
         }
         sessionMetas.value[remote.id] = adoptedMeta
-        sessionMessages.value[remote.id] = [generateInitialMessage()]
+        sessionMessages.value[remote.id] = [generateInitialMessage(adoptedMeta.characterId)]
         ensureGeneration(remote.id)
 
         if (!index.value)
@@ -1044,7 +1042,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // singleflight slot so the post-swap rehydrate can start a fresh IIFE
     // for the new user.
     ensureActiveEpoch += 1
-    ensureActivePromise = null
+    ensureActivePromises.clear()
     sessionMessages.value = {}
     sessionMetas.value = {}
     sessionGenerations.value = {}
@@ -1075,20 +1073,35 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (!sessionStateMatchesCurrentUser()) {
       teardownCloudWsClient()
       clearInMemoryState()
+      await loadIndexForUser(getCurrentUserId())
     }
-
-    await ensureCurrentSession()
   }
 
   /**
    * Resolves the canonical session and starts its persistence consumers.
    * The synchronization plugin routes this action to one renderer.
    */
-  async function ensureCurrentSession(): Promise<string> {
-    const sessionId = await ensureActiveSessionForCharacter()
+  async function ensureCharacterSession(characterId: string): Promise<string> {
+    const sessionId = await ensureActiveSessionForCharacter(characterId)
     await refreshOutboxPendingCount()
     ensureCloudWsClient()
     return sessionId
+  }
+
+  /** Opens this window's remembered conversation without navigating another renderer. */
+  async function ensureCurrentSession(): Promise<string> {
+    const characterId = getCurrentCharacterId()
+    const generation = ++selectionGeneration
+    const remembered = chatSessionSelection.characterSessions[characterId]
+    const canonical = await useChatSessionStore(pinia).ensureCharacterSession(characterId)
+    const sessionId = remembered && hasKnownSession(remembered)
+      ? remembered
+      : canonical
+    if (generation !== selectionGeneration || characterId !== getCurrentCharacterId())
+      return ''
+    if (sessionId)
+      await setActiveSession(sessionId)
+    return activeSessionId.value === sessionId ? sessionId : ''
   }
 
   /**
@@ -1306,7 +1319,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
     initializing.value = true
     initializePromise = (async () => {
-      const sessionId = await useChatSessionStore().ensureCurrentSession()
+      await cardStore.initialize()
+      const sessionId = await useChatSessionStore(pinia).ensureCurrentSession()
       if (sessionId)
         activeSessionId.value = sessionId
       else
@@ -1327,7 +1341,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function ensureSession(sessionId: string) {
     ensureGeneration(sessionId)
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
-      replaceSessionMessages(sessionId, [generateInitialMessage()], { persist: false })
+      replaceSessionMessages(sessionId, [generateInitialMessage(sessionMetas.value[sessionId].characterId)], { persist: false })
     }
   }
 
@@ -1371,12 +1385,31 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   /** Selects and hydrates one conversation only in the current window. */
   async function setActiveSession(sessionId: string) {
-    activeSessionId.value = sessionId
-
-    if (ready.value)
-      await useChatSessionStore().loadSession(sessionId)
-    else if (!hasKnownSession(sessionId))
-      ensureSession(sessionId)
+    const generation = ++selectionGeneration
+    const loaded = await useChatSessionStore(pinia).loadSession(sessionId)
+    if (!loaded)
+      throw new Error(`Conversation "${sessionId}" does not exist`)
+    const meta = sessionMetas.value[sessionId]
+    if (!meta)
+      throw new Error(`Conversation "${sessionId}" has no metadata`)
+    if (generation !== selectionGeneration)
+      return
+    if (meta.userId !== getCurrentUserId())
+      throw new Error('Conversation belongs to another account')
+    selectingCharacterId = meta.characterId
+    try {
+      if (meta.characterId !== getCurrentCharacterId() && !await cardStore.activateCard(meta.characterId))
+        return
+      if (generation !== selectionGeneration || meta.characterId !== getCurrentCharacterId())
+        return
+      activeSessionId.value = sessionId
+      chatSessionSelection.characterSessions[meta.characterId] = sessionId
+      await useChatSessionStore(pinia).refreshSessionSystemMessage(sessionId)
+    }
+    finally {
+      if (selectingCharacterId === meta.characterId)
+        selectingCharacterId = undefined
+    }
   }
 
   function applyRemoteSnapshot(snapshot: {
@@ -1414,7 +1447,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function cleanupMessages(sessionId = activeSessionId.value) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
-    setSessionMessages(sessionId, [generateInitialMessage()])
+    setSessionMessages(sessionId, [generateInitialMessage(sessionMetas.value[sessionId].characterId)])
   }
 
   function getAllSessions() {
@@ -1423,13 +1456,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   async function resetAllSessions() {
     const currentUserId = getCurrentUserId()
-    const characterId = getCurrentCharacterId()
+    const characterIds = new Set([getCurrentCharacterId()])
     const sessionIds = new Set<string>()
 
     if (index.value?.userId === currentUserId) {
       for (const character of Object.values(index.value.characters)) {
-        for (const sessionId of Object.keys(character.sessions))
+        for (const [sessionId, meta] of Object.entries(character.sessions)) {
           sessionIds.add(sessionId)
+          if (cardStore.getCard(meta.characterId))
+            characterIds.add(meta.characterId)
+        }
       }
     }
 
@@ -1449,7 +1485,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       characters: {},
     }
 
-    await createSession(characterId)
+    for (const characterId of characterIds)
+      await createCharacterSession(characterId)
   }
 
   function getSessionMessages(sessionId: string) {
@@ -1479,12 +1516,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   async function forkSession(options: { fromSessionId: string, atIndex?: number, reason?: string, hidden?: boolean }) {
-    const characterId = getCurrentCharacterId()
-    await loadSession(options.fromSessionId)
+    if (!await loadSession(options.fromSessionId))
+      throw new Error('Failed to load the source conversation')
+    const characterId = sessionMetas.value[options.fromSessionId].characterId
     const parentMessages = getSessionMessages(options.fromSessionId)
     const forkIndex = options.atIndex ?? parentMessages.length
     const nextMessages = parentMessages.slice(0, forkIndex)
-    return await createSession(characterId, { setActive: false, messages: nextMessages })
+    return await createCharacterSession(characterId, { setActive: false, messages: nextMessages })
   }
 
   async function exportSessions(): Promise<ChatSessionsExport> {
@@ -1582,14 +1620,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // every follower would fan one deletion out into several empty chats.
   })
 
-  watch(activeCardId, async () => {
-    if (!ready.value)
+  watch(activeCardId, async (characterId) => {
+    if (!ready.value || characterId === selectingCharacterId)
       return
 
     try {
-      const sessionId = await useChatSessionStore().ensureCurrentSession()
-      if (sessionId)
-        activeSessionId.value = sessionId
+      await ensureCurrentSession()
     }
     catch (error) {
       console.error('[chat-session] Failed to select a session for the current character:', error)
@@ -1600,17 +1636,21 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // the leader so followers never write synchronized chat state directly.
   watch(userId, async () => {
     try {
-      await useChatSessionStore().activateCurrentUser()
+      await useChatSessionStore(pinia).activateCurrentUser()
+      chatSessionSelection.characterSessions = {}
+      if (ready.value || initializing.value)
+        await ensureCurrentSession()
     }
     catch (error) {
       console.error('[chat-session] Failed to activate the current user:', error)
     }
   })
 
-  // Keep the active conversation aligned with edits to the active card. The
-  // active session id is included because card switching resolves the target
-  // session asynchronously after the card prompt itself has already changed.
-  watch([systemPrompt, activeSessionId], refreshActiveSessionSystemMessage)
+  // Card edits refresh the owning conversation. Selection also refreshes after hydration.
+  watch(systemPrompt, async () => {
+    if (activeSessionId.value)
+      await useChatSessionStore(pinia).refreshSessionSystemMessage(activeSessionId.value)
+  })
 
   return {
     isReady,
@@ -1646,11 +1686,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     exportSessions,
     importSessions,
     createSession,
+    createCharacterSession,
     loadSession,
     refreshSession,
     deleteSession,
     activateCurrentUser,
     ensureCurrentSession,
+    ensureCharacterSession,
+    refreshSessionSystemMessage,
 
     cloudSyncReady,
     outboxPendingCount,
@@ -1660,10 +1703,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   synced: {
     actions: [
       'activateCurrentUser',
-      'createSession',
+      'createCharacterSession',
       'deleteMessage',
       'deleteSession',
-      'ensureCurrentSession',
+      'ensureCharacterSession',
+      'refreshSessionSystemMessage',
       'exportSessions',
       'forkSession',
       'importSessions',

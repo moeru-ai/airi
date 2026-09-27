@@ -1,5 +1,3 @@
-import type {} from 'pinia-plugin-synced'
-
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { defineStore } from 'pinia'
@@ -12,9 +10,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProviderStore()
   const settingsStore = useConsciousnessSettingsStore()
 
-  // Pinia synchronization owns live cross-window state. localStorage remains
-  // durable persistence, but storage events must not reflect state back into
-  // the store and publish another synchronized snapshot.
+  // Persist the startup choice without replicating this window's active character settings.
   const persistenceOptions = { listenToStorageChanges: false }
 
   // State
@@ -159,8 +155,4 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     getChatProviderInstance,
     resetState,
   }
-}, {
-  synced: {
-    state: true,
-  },
 })

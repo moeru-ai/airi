@@ -16,6 +16,7 @@ import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { captureAnalyticsEvent, enableAnalyticsCapture, isAnalyticsAvailableInBuild } from '../../libs/product-signals/client'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
+import { useAiriCardStore } from './airi-card'
 import { useSpeechStore } from './speech'
 
 // Analytics delivery is external IO. Exercise the real page and stores while
@@ -34,6 +35,7 @@ function mountRenderer(namespace: string, page?: Component) {
   const app = createApp({
     setup() {
       useSpeechStore()
+      useAiriCardStore()
       return () => page ? h(page) : null
     },
   })
@@ -91,13 +93,15 @@ it.each(['mount', 'provider change'])('handles interrupted model discovery after
     }
     postMessage.call(this, message)
   })
+  await useAiriCardStore(leader.pinia).initialize()
   const follower = mountRenderer(namespace, SpeechSettings)
+  await useAiriCardStore(follower.pinia).initialize()
   const globalErrors = vi.fn()
   follower.app.config.errorHandler = globalErrors
   if (trigger === 'provider change') {
     await vi.waitFor(() => expect(completed).toBeGreaterThan(0))
     interrupt = true
-    await leader.speech.selectProviderModel('microsoft-speech', 'v1')
+    await follower.speech.selectProviderModel('microsoft-speech', 'v1')
   }
   await vi.waitFor(() => expect(blocked).toBeGreaterThan(0))
   follower.runtime.dispose()
@@ -126,6 +130,7 @@ it('reports the committed provider and model after a settings-page click', async
   await useProviderStore(leader.pinia).forceProviderConfigured('microsoft-speech')
   await leader.speech.selectProviderModel('speech-noop', 'previous-model')
   const follower = mountRenderer(namespace, SpeechSettings)
+  await useAiriCardStore(follower.pinia).initialize()
   await vi.waitFor(() => expect(follower.speech.activeSpeechModel).toBe('previous-model'))
   await vi.waitFor(() => expect(follower.container.querySelector('input[value="microsoft-speech"]')).not.toBeNull())
   const input = follower.container.querySelector<HTMLInputElement>('input[value="microsoft-speech"]')!
@@ -153,13 +158,14 @@ it('shows a manual model transport failure in the settings page', async () => {
   await useProviderStore(leader.pinia).forceProviderConfigured(provider)
   await leader.speech.selectProviderModel(provider, 'tts-1')
   const follower = mountRenderer(namespace, SpeechSettings)
+  await useAiriCardStore(follower.pinia).initialize()
   await vi.waitFor(() => expect(follower.container.querySelector('input[placeholder="tts-1"]')).not.toBeNull())
   await new Promise(resolve => setTimeout(resolve, 100))
   const globalErrors = vi.fn()
   follower.app.config.errorHandler = globalErrors
   const postMessage = BroadcastChannel.prototype.postMessage
   vi.spyOn(BroadcastChannel.prototype, 'postMessage').mockImplementation(function (this: BroadcastChannel, message) {
-    if (JSON.stringify(message).includes('selectProviderModel'))
+    if (JSON.stringify(message).includes('updateModules'))
       throw new Error('Model selection transport unavailable')
     postMessage.call(this, message)
   })

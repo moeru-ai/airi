@@ -11,7 +11,7 @@ const { initialStageModelId, resetLegacyModelIdentity } = vi.hoisted(() => ({
   resetLegacyModelIdentity: vi.fn(),
 }))
 
-vi.mock('@proj-airi/stage-ui-three', () => ({
+vi.mock('@proj-airi/stage-ui-three/stores/model', () => ({
   useModelStore: () => ({ resetLegacyModelIdentity }),
 }))
 

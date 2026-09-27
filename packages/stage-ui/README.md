@@ -42,7 +42,32 @@ Use `configureForAuthentication` for login and logout. It updates global
 defaults, then reapplies the active card without saving defaults into that card.
 Use card commands for activation and explicit edits. Settings pages must not
 save cards from watchers: authentication and remote snapshots also trigger them.
-The synchronization leader owns these commands; followers receive snapshots.
+The catalog leader owns card and default edits. Character selection and resolved
+runtime settings belong to each window. A catalog snapshot updates the selected
+character's settings without changing that window's selection.
+
+## Character conversations
+
+The card id is the character identity. Do not use its editable name as a key.
+A character binds its card settings, display model, and multiple conversations.
+Conversation metadata stores the owning `characterId`.
+
+- Use `useAiriCardStore().activateCard(id)` to select a character.
+- Use `useChatSessionStore().createSession(characterId)` to start a conversation.
+- Use `setActiveSession(sessionId)` to open history and select its character.
+- Use `updateActiveCardDisplayModel(id)` to save a character's display binding.
+- Use `resolveCharacter(id)` to resolve settings for background or leader work.
+  Do not read the leader window's current card when handling another conversation.
+
+Shared actions create and hydrate conversation data. Local commands own navigation.
+Two windows can therefore show different characters and different conversations.
+Each window remembers its last conversation per character during its lifetime.
+The persisted index supplies the initial conversation for a new window.
+
+Deleting a card does not delete its conversation history. Windows showing the
+deleted card select the built-in character. Starting a new turn still requires
+an existing owning card. Cloud-only conversations keep the existing default-card
+association; this change does not add cloud character synchronization.
 
 Models inherit only within the same provider. Voices also require the same
 model. A different provider without a model stays unconfigured rather than
