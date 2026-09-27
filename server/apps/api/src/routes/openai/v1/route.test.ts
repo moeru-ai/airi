@@ -19,8 +19,11 @@ import { mockDB } from '../../../libs/mock-db'
 import { createTestRedis } from '../../../libs/tests/redis'
 import { userFlux } from '../../../schemas/flux'
 import { fluxTransaction } from '../../../schemas/flux-transaction'
-import { llmCostReceipt } from '../../../schemas/llm-cost-receipt'
+import { llmRequestAttempt } from '../../../schemas/llm-request-attempt'
+import { llmRequestLog } from '../../../schemas/llm-request-log'
+import { llmRequestSettlement } from '../../../schemas/llm-request-settlement'
 import { createBillingService } from '../../../services/domain/billing/billing-service'
+import { createRequestLogService } from '../../../services/domain/request-log'
 import { ApiError } from '../../../utils/error'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -91,6 +94,11 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
 
 function createMockRequestLogService(): RequestLogService {
   return {
+    beginRequest: vi.fn(async () => undefined),
+    observeAttempts: () => ({ start: vi.fn(async () => 'attempt'), finish: vi.fn(async () => undefined) }),
+    getRequest: vi.fn(async () => ({ request: undefined, attempts: [], settlement: undefined })),
+    listRequests: vi.fn(async () => []),
+    recoverStaleRequests: vi.fn(async () => []),
     logRequest: vi.fn(async () => undefined),
   }
 }
@@ -1160,7 +1168,7 @@ describe('v1CompletionsRoutes', () => {
       await Promise.resolve()
 
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
-      expect(requestLogService.logRequest).not.toHaveBeenCalled()
+      expect(requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0, protocol: 'chat-completions' }))
     })
   })
 
@@ -2569,10 +2577,12 @@ describe('openRouter cost billing through HTTP routes', () => {
     expect(policy.priceChatUsage({ providerUsage: { cost: 10 } }, authorization, 'other.example').costReceipt).toBeUndefined()
   })
   beforeAll(async () => {
-    db = await mockDB({ userFlux, fluxTransaction, llmCostReceipt })
+    db = await mockDB({ userFlux, fluxTransaction, llmRequestLog, llmRequestAttempt, llmRequestSettlement })
   })
   beforeEach(async () => {
-    await db.delete(llmCostReceipt)
+    await db.delete(llmRequestSettlement)
+    await db.delete(llmRequestAttempt)
+    await db.delete(llmRequestLog)
     await db.delete(fluxTransaction)
     await db.delete(userFlux)
     await db.insert(userFlux).values({ userId: testUser.id, flux: 100 })
@@ -2581,10 +2591,13 @@ describe('openRouter cost billing through HTTP routes', () => {
   function harness(response: () => Response, provider = 'openrouter.ai', enabled = true) {
     const config = createMockConfigKV({ LLM_COST_BILLING: enabled ? { openrouter: pricing } : undefined, FLUX_PER_1K_TOKENS: 1 })
     const billing = createBillingService(db, createTestRedis(), config)
-    const logs = createMockRequestLogService()
+    const logs = createRequestLogService(db)
+    vi.spyOn(logs, 'logRequest')
     const router = createMockLlmRouter({ route: vi.fn(async (_request, context) => {
-      if (context)
+      if (context) {
         context.provider = provider
+        context.upstreamModel = 'vendor/native-model'
+      }
       return response()
     }) })
     const app = createTestApp(createMockFluxService(), config, billing, logs, undefined, router)
@@ -2595,11 +2608,11 @@ describe('openRouter cost billing through HTTP routes', () => {
     for (const stream of [false, true]) {
       it(`settles reported cost for ${protocol}, stream=${stream}`, async () => {
         const result = protocol === 'responses'
-          ? { ...responsesResult(), id: 'gen-cost', usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150, cost: 0.002 } }
-          : { id: 'gen-cost', choices: [], usage: { prompt_tokens: 100, completion_tokens: 50, cost: 0.002, prompt_tokens_details: { cached_tokens: 90 } } }
+          ? { ...responsesResult(), id: 'gen-cost', model: 'returned-model', provider: 'Inference Provider', usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150, cost: 0.002, input_tokens_details: { cached_tokens: 90 }, output_tokens_details: { reasoning_tokens: 12 }, future_meter: { units: 4 } } }
+          : { id: 'gen-cost', model: 'returned-model', provider: 'Inference Provider', choices: [{ finish_reason: 'stop' }], usage: { prompt_tokens: 100, completion_tokens: 50, cost: 0.002, prompt_tokens_details: { cached_tokens: 90 }, completion_tokens_details: { reasoning_tokens: 12 }, future_meter: { units: 4 } } }
         const frame = protocol === 'responses'
           ? `event: response.completed\ndata: ${JSON.stringify({ type: 'response.completed', response: result })}\n\n`
-          : `data: ${JSON.stringify(result)}\n\ndata: ${JSON.stringify({ id: 'gen-cost', choices: [], padding: 'x'.repeat(3000) })}\n\ndata: [DONE]\n\n`
+          : `data: ${JSON.stringify(result)}\n\ndata: ${JSON.stringify({ id: 'gen-cost', choices: [], usage: null, padding: 'x'.repeat(3000) })}\n\ndata: [DONE]\n\n`
         const { app, logs } = harness(() => stream
           ? new Response(new ReadableStream({ start(controller) {
               const bytes = new TextEncoder().encode(frame)
@@ -2616,12 +2629,25 @@ describe('openRouter cost billing through HTTP routes', () => {
         expect(response.status).toBe(200)
         expect(await response.text()).toContain('gen-cost')
         await vi.waitFor(async () => {
-          const [receipt] = await db.select().from(llmCostReceipt)
-          expect(receipt).toMatchObject({ provider: 'openrouter', status: 'settled', charged: 3, costUsd: '0.002', pricing })
+          const [receipt] = await db.select().from(llmRequestSettlement)
+          expect(receipt).toMatchObject({ billingProvider: 'openrouter', billingStatus: 'settled', fluxConsumed: 3, costUsd: '0.002', pricing })
         })
         const [wallet] = await db.select().from(userFlux)
         expect(wallet.flux).toBe(97)
         expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ fluxConsumed: 3 }))
+        await Promise.all(vi.mocked(logs.logRequest).mock.results.map(result => result.value))
+        const entries = await db.select().from(llmRequestLog)
+        expect(entries).toHaveLength(1)
+        expect(entries[0]).toMatchObject({
+          gateway: 'openrouter.ai',
+          upstreamProvider: 'Inference Provider',
+          upstreamModel: 'vendor/native-model',
+          responseModel: 'returned-model',
+          cachedTokens: 90,
+          reasoningTokens: 12,
+          providerUsage: { future_meter: { units: 4 } },
+          fluxConsumed: 3,
+        })
       })
     }
   }
@@ -2634,8 +2660,8 @@ describe('openRouter cost billing through HTTP routes', () => {
       body: JSON.stringify({ messages: [] }),
     }, { user: testUser })
     expect(response.status).toBe(200)
-    const [receipt] = await db.select().from(llmCostReceipt)
-    expect(receipt.status).toBe(cost === 0 ? 'settled' : 'pending')
+    const [receipt] = await db.select().from(llmRequestSettlement)
+    expect(receipt.billingStatus).toBe(cost === 0 ? 'settled' : 'pending')
     const [wallet] = await db.select().from(userFlux)
     expect(wallet.flux).toBe(100)
   })
@@ -2650,7 +2676,11 @@ describe('openRouter cost billing through HTTP routes', () => {
     expect(response.status).toBe(200)
     const [wallet] = await db.select().from(userFlux)
     expect(wallet.flux).toBe(98)
-    expect(await db.select().from(llmCostReceipt)).toHaveLength(0)
+    await vi.waitFor(async () => {
+      const entries = await db.select().from(llmRequestLog)
+      expect(entries).toHaveLength(1)
+      expect(entries[0]).toMatchObject({ fluxConsumed: 2, gateway: provider })
+    })
   })
 
   it('records a chat stream without DONE as pending even if it reports cost', async () => {
@@ -2662,11 +2692,49 @@ describe('openRouter cost billing through HTTP routes', () => {
     }, { user: testUser })
     await response.text()
     await vi.waitFor(async () => {
-      const [receipt] = await db.select().from(llmCostReceipt)
-      expect(receipt).toMatchObject({ status: 'pending', pendingReason: 'incomplete_or_invalid_stream', generationId: 'gen-partial' })
+      const [receipt] = await db.select().from(llmRequestSettlement)
+      expect(receipt).toMatchObject({ billingStatus: 'pending', pendingReason: 'incomplete_or_invalid_stream', generationId: 'gen-partial' })
     })
     const [wallet] = await db.select().from(userFlux)
     expect(wallet.flux).toBe(100)
+  })
+
+  it('measures first output after metadata frames and retains metadata through the usage frame', async () => {
+    let now = 1000
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    let upstream: ReadableStreamDefaultController<Uint8Array> | undefined
+    const encoder = new TextEncoder()
+    const { app } = harness(() => new Response(new ReadableStream({
+      start(controller) {
+        upstream = controller
+      },
+    }), { headers: { 'Content-Type': 'text/event-stream' } }))
+    try {
+      const response = await app.request('/api/v1/openai/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [], stream: true }),
+      }, { user: testUser })
+      const reader = response.body!.getReader()
+      upstream!.enqueue(encoder.encode('data: {"id":"gen-timing","model":"actual-model","provider":"Inference Provider","choices":[{"delta":{"role":"assistant"}}]}\n\n'))
+      await reader.read()
+      now = 1050
+      upstream!.enqueue(encoder.encode('data: {"id":"gen-timing","choices":[{"delta":{"content":"private output"}}]}\n\n'))
+      await reader.read()
+      now = 1100
+      upstream!.enqueue(encoder.encode('data: {"id":"gen-timing","choices":[{"finish_reason":"stop"}],"usage":{"cost":0.002,"prompt_tokens":100,"completion_tokens":20}}\n\ndata: [DONE]\n\n'))
+      upstream!.close()
+      await reader.read()
+      await reader.read()
+      await vi.waitFor(async () => {
+        const [entry] = await db.select().from(llmRequestLog)
+        expect(entry).toMatchObject({ timeToFirstTokenMs: 50, durationMs: 100, responseModel: 'actual-model', upstreamProvider: 'Inference Provider', finishReason: 'stop', fluxConsumed: 3 })
+        expect(JSON.stringify(entry)).not.toContain('private output')
+      })
+    }
+    finally {
+      clock.mockRestore()
+    }
   })
 
   // https://github.com/moeru-ai/airi/pull/2644#discussion_r4082125157
@@ -2703,7 +2771,7 @@ describe('openRouter cost billing through HTTP routes', () => {
     const rest = await reader.read()
     expect(new TextDecoder().decode(rest.value)).toBe(terminal)
     await reader.read()
-    await vi.waitFor(async () => expect((await db.select().from(llmCostReceipt))[0]).toMatchObject({ charged: 3 }))
+    await vi.waitFor(async () => expect((await db.select().from(llmRequestLog))[0]).toMatchObject({ fluxConsumed: 3 }))
   })
 
   it('saves a pending receipt and cancels upstream when the chat client disconnects', async () => {
@@ -2724,8 +2792,8 @@ describe('openRouter cost billing through HTTP routes', () => {
     await reader.cancel()
     await vi.waitFor(async () => {
       expect(cancelled).toHaveBeenCalled()
-      const [receipt] = await db.select().from(llmCostReceipt)
-      expect(receipt).toMatchObject({ status: 'pending', pendingReason: 'stream_interrupted', generationId: 'gen-disconnect' })
+      const [receipt] = await db.select().from(llmRequestSettlement)
+      expect(receipt).toMatchObject({ billingStatus: 'pending', pendingReason: 'stream_interrupted', generationId: 'gen-disconnect' })
     })
     expect(await db.select().from(fluxTransaction)).toHaveLength(0)
   })
@@ -2740,8 +2808,8 @@ describe('openRouter cost billing through HTTP routes', () => {
     }, { user: testUser })
     await expect(response.text()).rejects.toThrow()
     await vi.waitFor(async () => {
-      const [receipt] = await db.select().from(llmCostReceipt)
-      expect(receipt).toMatchObject({ status: 'pending', pendingReason: 'response_not_completed', generationId: 'gen-eof' })
+      const [receipt] = await db.select().from(llmRequestSettlement)
+      expect(receipt).toMatchObject({ billingStatus: 'pending', pendingReason: 'response_not_completed', generationId: 'gen-eof' })
     })
     expect(await db.select().from(fluxTransaction)).toHaveLength(0)
   })

@@ -20,6 +20,7 @@ mobile-tools:
   close-view: Save and close view controls
   hearing: Hearing
 chat:
+  voice-input: Voice input
   images:
     empty: Share a thought or a picture.
     use-vision: Use the vision model for chat images

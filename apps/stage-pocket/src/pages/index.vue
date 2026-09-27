@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { VoiceInputBinding } from '@proj-airi/stage-ui/libs/audio/voice-input-binding'
+
 import Header from '@proj-airi/stage-layouts/components/Layouts/Header.vue'
 import InteractiveArea from '@proj-airi/stage-layouts/components/Layouts/InteractiveArea.vue'
 import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/MobileInteractiveArea.vue'
@@ -10,6 +12,7 @@ import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
+import { createVoiceInputBinding } from '@proj-airi/stage-ui/libs/audio/voice-input-binding'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -54,7 +57,7 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { removeStreamingTranscriptionConsumer, transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+const { releaseStreamingTranscriptionConsumer, transcribeForRecording, transcribeForMediaStream } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
@@ -63,13 +66,12 @@ const chatStore = useChatStore()
 /** Identifies this page in the shared streaming transcription session. */
 const transcriptionConsumerId = 'stage-pocket:voice-input'
 
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
-
 const {
   init: initVAD,
   dispose: disposeVAD,
   start: startVAD,
   loaded: vadLoaded,
+  inferenceError: vadError,
 } = useVAD(workletUrl, {
   threshold: ref(0.6),
   onSpeechStart: () => handleSpeechStart(),
@@ -78,6 +80,7 @@ const {
 })
 
 let stopOnStopRecord: (() => void) | undefined
+let currentBinding: VoiceInputBinding | undefined
 
 async function sendVoiceInputTextToChat(text: string | undefined) {
   if (!text?.trim())
@@ -103,87 +106,73 @@ async function sendVoiceInputTextToChat(text: string | undefined) {
   }
 }
 
-async function startAudioInteraction() {
-  try {
-    await initVAD()
-    if (stream.value)
-      await startVAD(stream.value)
-
-    // Hook once
-    stopOnStopRecord = onStopRecord(async (recording) => {
-      const text = await transcribeForRecording(recording)
-      await sendVoiceInputTextToChat(text)
+async function startAudioInteraction(binding: VoiceInputBinding) {
+  currentBinding = binding
+  if (binding.mode === 'stream') {
+    await transcribeForMediaStream(binding.stream, {
+      consumerId: transcriptionConsumerId,
+      onSentenceEnd: (text) => {
+        if (currentBinding === binding)
+          void sendVoiceInputTextToChat(text)
+      },
     })
+    if (hearingPipeline.error)
+      throw new Error(hearingPipeline.error)
+    return
   }
-  catch (e) {
-    console.error('Audio interaction init failed:', e)
-  }
+
+  await initVAD()
+  if (!vadLoaded.value)
+    throw new Error(vadError.value || 'Failed to initialize voice activity detection.')
+  if (currentBinding !== binding)
+    return
+  await startVAD(binding.stream)
+
+  stopOnStopRecord = onStopRecord(async (recording) => {
+    const text = await transcribeForRecording(recording)
+    if (currentBinding === binding)
+      await sendVoiceInputTextToChat(text)
+  })
 }
 
 async function handleSpeechStart() {
-  if (shouldUseStreamInput.value && stream.value) {
-    // Use both callbacks to support incremental updates and final transcript replacement.
-    // ChatArea uses only onSentenceEnd to avoid re-adding deleted text.
-    await transcribeForMediaStream(stream.value, {
-      consumerId: transcriptionConsumerId,
-      onSentenceEnd: (delta) => {
-        void sendVoiceInputTextToChat(delta)
-      },
-    })
-    return
-  }
-
-  startRecord()
+  if (currentBinding?.mode === 'recording')
+    await startRecord()
 }
 
 async function handleSpeechEnd() {
-  if (shouldUseStreamInput.value) {
-    // Keep streaming session alive; idle timer in pipeline will handle teardown.
-    return
-  }
-
-  stopRecord()
+  if (currentBinding?.mode === 'recording')
+    await stopRecord()
 }
 
 async function handleSpeechCancel() {
-  if (!shouldUseStreamInput.value)
+  if (currentBinding?.mode === 'recording')
     await discardRecord()
 }
 
-function stopAudioInteraction() {
-  try {
-    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
-    stopOnStopRecord?.()
-    stopOnStopRecord = undefined
-    // Stop any active streaming transcription sessions to prevent session leakage
-    void stopStreamingTranscription(true)
-    disposeVAD()
-  }
-  catch {}
+async function stopAudioInteraction() {
+  currentBinding = undefined
+  stopOnStopRecord?.()
+  stopOnStopRecord = undefined
+  disposeVAD()
+  await discardRecord()
+  await releaseStreamingTranscriptionConsumer(transcriptionConsumerId)
 }
 
-watch(enabled, async (val) => {
-  if (val) {
-    await startAudioInteraction()
-  }
-  else {
-    stopAudioInteraction()
-  }
+const voiceInputBinding = createVoiceInputBinding({
+  start: startAudioInteraction,
+  stop: stopAudioInteraction,
+})
+
+watch([enabled, stream, supportsStreamInput], ([isEnabled, currentStream, supportsStream]) => {
+  const binding: VoiceInputBinding | undefined = isEnabled && currentStream
+    ? { stream: currentStream, mode: supportsStream ? 'stream' : 'recording' }
+    : undefined
+  void voiceInputBinding.update(binding).catch(error => console.error('Audio interaction failed:', error))
 }, { immediate: true })
 
 onUnmounted(() => {
-  stopAudioInteraction()
-})
-
-watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
-  if (enabled.value && loaded && s) {
-    try {
-      await startVAD(s)
-    }
-    catch (e) {
-      console.error('Failed to start VAD with stream:', e)
-    }
-  }
+  void voiceInputBinding.update().catch(error => console.error('Failed to stop audio interaction:', error))
 })
 </script>
 

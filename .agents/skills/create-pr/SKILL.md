@@ -51,49 +51,23 @@ When a change map is useful, prefer this table:
 
 Use module or domain names in the first column. Do not use a raw file list as the module map. Prose is sufficient for a single local module.
 
-### Feature PRs
+## Behavior Evidence Workflow
 
-A feature PR body must explain the new capability and its verified behavior. Add the following context when it helps reviewers:
+Apply this workflow when the diff changes runtime behavior. A small wording, styling, or local cleanup change does not need a behavior diagram.
 
-- The user or system capability that the feature adds.
-- The new modules and the changed responsibilities of existing modules.
-- The new call, event, data, or state flow.
-- The feature boundaries, disabled or failure behavior, and rollout constraints.
-- The tests and runtime evidence that demonstrate the new behavior.
+1. List the changed behavior scenarios with a stable ID and short title. Include affected state transitions, async ordering, retries, cancellation, event routing, persistence, cleanup, and failure or recovery paths.
+2. For each scenario, select the smallest evidence form that makes the change reviewable: prose for a local path, a module flow for changed ownership or dependencies, a sequence diagram for ordering, or a state diagram for changed transitions or terminal states.
+3. For a fix that changes a flow or state model, provide comparable `Before` and `After` diagrams. For a feature, show the resulting flow or state model and explain any replaced behavior.
+4. Cover every listed scenario in the PR body or name it as unverified. Do not silently omit a changed path because a diagram seems optional.
+5. Inspect the evidence against the diff. Keep node names and abstraction level consistent across a `Before` and `After` pair.
 
-Use a compact Mermaid module diagram when the feature crosses module boundaries. Use a sequence diagram when timing or ordering is central. Use a state or data-ownership diagram when persisted state is central.
+When a scenario changes state, show the states, triggering events or commands, and terminal or recovery states that the diff affects. When it changes ordering, show the participants and the order of calls, events, retries, or cleanup. Name correlation and idempotency keys when they isolate concurrent work.
 
-### Fix PRs
-
-A fix PR body must explain the observed failure, root cause, correction, and regression protection. Concise prose is sufficient when the fault and correction stay local.
-
-Use a relevant Before/After diagram pair when the root cause or correction depends on structure, ordering, lifecycle, or state:
-
-- Use module diagrams when ownership, dependencies, or call edges changed.
-- Use sequence diagrams when order, retry, cancellation, cleanup, or event routing changed.
-- Use state diagrams when transitions, terminal states, persistence, or recovery changed.
-
-Keep the same node names, participants, direction, and abstraction level in both diagrams. This makes the changed edges and steps easy to compare. Label the diagrams `Before` and `After`.
-
-If a fix changes more than one of these views, include each pair that materially helps the review. Do not force a diagram for a local or self-explanatory fix. Explain an omitted diagram only when reviewers can reasonably expect one.
-
-### Refactor and Maintenance PRs
-
-Describe the preserved behavior and the moved responsibility. Include diagrams only when a boundary, dependency, lifecycle, or ownership model changed.
-
-## Diagram Rules
-
-- Draw only the nodes that explain the change.
-- Label arrows with calls, events, commands, or data.
-- Identify the owner of domain rules and mutable state.
-- Show external systems, IPC, queues, databases, caches, and configuration when they affect the change.
-- Make each `alt` branch match a code branch or mark it as an open question.
-- Name correlation keys, idempotency keys, request IDs, or session IDs when they isolate concurrent work.
-- Do not present an inferred path as verified behavior.
+Keep diagrams tied to code. Label arrows with calls, events, commands, or data. Identify domain-rule and mutable-state owners. Show external systems, IPC, queues, databases, caches, and configuration when they affect the behavior. Match each `alt` branch to a code branch. Mark inferred paths as assumptions or open questions.
 
 ## Boundary and Verification Mapping
 
-Select risks that match the diff. Start with inputs and side effects. Then examine failure, retry, duplicate delivery, concurrency, ordering, authorization, cleanup, migration, and rollback.
+Select risks that match the diff. Start with inputs and side effects. Then examine failure, retry, duplicate delivery, concurrency, ordering, authorization, cleanup, migration, and rollback. Reuse the behavior scenario IDs when they connect an invariant to its evidence.
 
 Map each high-risk invariant to existing tests, new tests, CI checks, or an unverified runtime condition. A green CI result proves only that its configured checks passed.
 

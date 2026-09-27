@@ -1,7 +1,7 @@
 import type { GenAiMetrics } from '../../../../otel'
 import type { UsageInfo } from '../../../../services/domain/billing/billing'
 import type { LlmRouteContext } from '../../../../services/domain/llm-router'
-import type { RequestLogService } from '../../../../services/domain/request-log'
+import type { RequestLogEntry, RequestLogService } from '../../../../services/domain/request-log'
 
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
@@ -30,13 +30,7 @@ export interface OperationMetricsInput extends UsageInfo {
   fluxConsumed: number
 }
 
-export interface RequestLogInput extends UsageInfo {
-  userId: string
-  model: string
-  status: number
-  durationMs: number
-  fluxConsumed: number
-}
+export type RequestLogInput = RequestLogEntry
 
 type GenerationOperation = 'chat' | 'responses'
 
@@ -91,9 +85,7 @@ export function createRouteTelemetry(deps: {
   }
 
   function recordRequestLog(entry: RequestLogInput) {
-    // Best-effort: a failed request log must not surface to the user — the
-    // upstream LLM response has already been delivered (or is mid-stream) by
-    // the time we get here. Log loss is observability-only.
+    // This enriches observations only. Cost evidence is awaited inside the billing transaction.
     deps.requestLogService.logRequest(entry).catch(err => logger.withError(err).warn('Failed to write llm_request_log row'))
   }
 

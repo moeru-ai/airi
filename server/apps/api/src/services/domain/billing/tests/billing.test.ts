@@ -3,13 +3,47 @@ import { describe, expect, it } from 'vitest'
 import { calculateFluxFromUsage, extractUsageFromBody, priceLlmCost } from '../billing'
 
 describe('extractUsageFromBody', () => {
+  it('keeps valid accounting when optional provider metadata is malformed', () => {
+    const body = { id: 'gen-1', provider: 42, usage: { prompt_tokens: 100, completion_tokens: 20, cost: 0.002, prompt_tokens_details: 'invalid' } }
+    const usage = extractUsageFromBody(body)
+    expect(usage).toMatchObject({ generationId: 'gen-1', promptTokens: 100, completionTokens: 20, providerUsage: body.usage })
+    expect(calculateFluxFromUsage(usage, 10, 99)).toBe(2)
+  })
+
+  it('projects accounting metadata without storing completion content or request headers', () => {
+    const usage = extractUsageFromBody({
+      id: 'gen-1',
+      provider: 'Inference Provider',
+      model: 'actual-model',
+      service_tier: 'priority',
+      upstream_id: 'upstream-1',
+      request_id: 'gateway-1',
+      headers: { authorization: 'secret' },
+      choices: [{ finish_reason: 'stop', native_finish_reason: 'end_turn', message: { content: 'private output' } }],
+      usage: { prompt_tokens: 100, completion_tokens: 20, prompt_tokens_details: { cached_tokens: 80, cache_write_tokens: 10 }, completion_tokens_details: { reasoning_tokens: 5 }, extra_meter: { units: 4 } },
+    })
+    expect(usage).toMatchObject({
+      upstreamProvider: 'Inference Provider',
+      responseModel: 'actual-model',
+      cachedTokens: 80,
+      cacheWriteTokens: 10,
+      reasoningTokens: 5,
+      finishReason: 'stop',
+      nativeFinishReason: 'end_turn',
+      providerMetadata: { service_tier: 'priority', upstream_id: 'upstream-1', request_id: 'gateway-1' },
+      providerUsage: { extra_meter: { units: 4 } },
+    })
+    expect(JSON.stringify(usage)).not.toContain('private output')
+    expect(JSON.stringify(usage)).not.toContain('secret')
+  })
+
   it('returns promptTokens and completionTokens from a normal body', () => {
     const body = { usage: { prompt_tokens: 100, completion_tokens: 200 } }
     expect(extractUsageFromBody(body)).toEqual({ promptTokens: 100, completionTokens: 200, providerUsage: body.usage })
   })
 
-  it('returns empty object when body has no usage field', () => {
-    expect(extractUsageFromBody({ model: 'gpt-4' })).toEqual({})
+  it('retains the returned model even when usage is missing', () => {
+    expect(extractUsageFromBody({ model: 'gpt-4' })).toEqual({ responseModel: 'gpt-4' })
   })
 
   it('returns empty object for null body', () => {

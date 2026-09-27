@@ -1,6 +1,7 @@
 import type { InferOutput } from 'valibot'
 
 import type { UsageInfo } from '../../../../../services/domain/billing/billing'
+import type { BillingObservation } from '../../../../../services/domain/request-log'
 import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
 
@@ -113,6 +114,8 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const { requiresWebSearch } = input.policy
     const alias = await resolveModelAliasPlan(deps, model, { protocol: 'responses', requiresWebSearch })
     const startedAt = Date.now()
+    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, status: 0, durationMs: 0, fluxConsumed: 0 }, policy)
+    const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
     let routeCtx = newRouteContext()
     const span = telemetry.startGenerationSpan({ model, stream: input.policy.stream, operation: 'responses' })
     const startTrace = () => deps.llmTracing.startChatGeneration({
@@ -134,6 +137,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         protocol: 'responses',
         requiresWebSearch,
         abortSignal: input.abortSignal,
+        attempts,
       }))
       upstream = routed.response
       routeCtx = routed.routeCtx
@@ -149,7 +153,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       startTrace().fail('Responses routing failed')
       const durationMs = Date.now() - startedAt
       telemetry.recordMetrics({ model, status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
-      telemetry.recordRequestLog({ userId: input.userId, model, status, durationMs, fluxConsumed: 0 })
+      telemetry.recordRequestLog({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status, durationMs, fluxConsumed: 0 })
       throw error
     }
 
@@ -158,14 +162,30 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     // cancellation before delivery and unexpected EOF own the failure path.
     let terminal = false
     let lastUsage: UsageInfo = {}
+    let timeToFirstTokenMs: number | undefined
     let pendingReceipt: Promise<void> | undefined
+    const observation: BillingObservation = {
+      startedAt: new Date(startedAt),
+      attemptId: routeCtx.attemptId,
+      status: upstream.status,
+      durationMs: Date.now() - startedAt,
+      protocol: 'responses',
+      stream: input.policy.stream,
+      requestedModel: input.policy.model,
+      sessionId: input.sessionId,
+      gateway: routeCtx.provider,
+      upstreamModel: routeCtx.upstreamModel,
+      routing: { triedUpstreams: routeCtx.triedUpstreams, triedKeys: routeCtx.triedKeys, lastStatus: routeCtx.lastStatus ?? undefined },
+    }
     function fail(status: number, message: string) {
       if (terminal)
         return
       terminal = true
+      const durationMs = Date.now() - startedAt
       const price = billing.priceChatUsage(lastUsage, policy, routeCtx.provider)
       if (upstream.ok && price.costReceipt) {
         pendingReceipt = billing.settleChat({
+          observation: { ...observation, status, durationMs, timeToFirstTokenMs },
           ...lastUsage,
           ...price,
           userId: input.userId,
@@ -178,9 +198,8 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       }
       generation.fail(message)
       telemetry.failSpan(span, message)
-      const durationMs = Date.now() - startedAt
       telemetry.recordMetrics({ model, status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
-      telemetry.recordRequestLog({ userId: input.userId, model, status, durationMs, fluxConsumed: 0 })
+      telemetry.recordRequestLog({ ...observation, ...lastUsage, timeToFirstTokenMs, userId: input.userId, requestId, model, status, durationMs, fluxConsumed: 0 })
     }
 
     async function complete(response: InferOutput<typeof responseSchema>) {
@@ -191,13 +210,14 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         return
       }
       terminal = true
-      const usage = extractUsageFromBody(response, 'responses')
+      const usage = { ...lastUsage, ...Object.fromEntries(Object.entries(extractUsageFromBody(response, 'responses')).filter(([, value]) => value != null)) }
+      const durationMs = Date.now() - startedAt
       const price = billing.priceChatUsage(usage, policy, routeCtx.provider)
       const amount = price.amount
       const stage = input.policy.stream ? 'streaming' : 'non_streaming'
       let charged = 0
       try {
-        charged = await billing.settleChat({ ...usage, ...price, userId: input.userId, requestId, model, stage, logger })
+        charged = await billing.settleChat({ ...usage, ...price, observation: { ...observation, durationMs, timeToFirstTokenMs }, userId: input.userId, requestId, model, stage, logger })
       }
       catch (error) {
         // Generation has completed. A debit failure is revenue telemetry, not a new provider attempt.
@@ -207,9 +227,8 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       telemetry.recordUsageOnSpan(span, { ...usage, fluxConsumed: charged })
       telemetry.endSpan(span)
       generation.succeed({ ...usage, output: response.output, fluxConsumed: charged })
-      const durationMs = Date.now() - startedAt
       telemetry.recordMetrics({ ...usage, model, status: upstream.status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: charged })
-      telemetry.recordRequestLog({ ...usage, userId: input.userId, model, status: upstream.status, durationMs, fluxConsumed: charged })
+      telemetry.recordRequestLog({ ...observation, ...usage, timeToFirstTokenMs, userId: input.userId, requestId, model, status: upstream.status, durationMs, fluxConsumed: charged })
     }
 
     telemetry.setHttpStatus(span, upstream.status)
@@ -299,11 +318,12 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
             throw new Error('Invalid Responses SSE event')
           const type = event.output.type
           if (event.output.response !== undefined)
-            lastUsage = extractUsageFromBody(event.output.response, 'responses')
+            lastUsage = { ...lastUsage, ...Object.fromEntries(Object.entries(extractUsageFromBody(event.output.response, 'responses')).filter(([, value]) => value != null)) }
           if (openRouterStream)
             observeOpenRouterEvent(openRouterStream, event.output)
           if (firstOutputDelta && type.endsWith('.delta')) {
             firstOutputDelta = false
+            timeToFirstTokenMs = Date.now() - startedAt
             telemetry.recordFirstToken({ model, provider: routeCtx.provider, startedAt, firstChunkAt: Date.now(), operation: 'responses' })
           }
           const terminalEvent = ['response.completed', 'response.failed', 'response.incomplete'].includes(type)

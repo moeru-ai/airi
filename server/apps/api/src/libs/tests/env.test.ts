@@ -20,6 +20,7 @@ describe('parseEnv', () => {
     expect(env.DATABASE_URL).toBe('postgres://example')
     expect(env.REDIS_URL).toBe('redis://example')
     expect(env.ADDITIONAL_TRUSTED_ORIGINS).toEqual([])
+    expect(env.APPLE_IAP_APPS).toEqual([])
     expect('BETTER_AUTH_SECRET' in env).toBe(false)
     expect('AUTH_GOOGLE_CLIENT_ID' in env).toBe(false)
     expect('RESEND_API_KEY' in env).toBe(false)
@@ -96,5 +97,17 @@ describe('parseEnv', () => {
     expect(env.LLM_ROUTER_MASTER_KEY.length).toBe(32)
     expect(env.LLM_ROUTER_MASTER_KEY_PREVIOUS?.length).toBe(32)
     expect(env.LLM_ROUTER_MASTER_KEY.equals(env.LLM_ROUTER_MASTER_KEY_PREVIOUS!)).toBe(false)
+  })
+
+  it('parses APPLE_IAP_APPS as a list of Apple apps', () => {
+    const env = parseEnv({
+      ...baseEnv(),
+      APPLE_IAP_APPS: ' ai.moeru.airi-pocket , ai.moeru.airi-lite:123456 ',
+    })
+
+    expect(env.APPLE_IAP_APPS).toEqual([
+      { bundleId: 'ai.moeru.airi-pocket' },
+      { bundleId: 'ai.moeru.airi-lite', appAppleId: 123456 },
+    ])
   })
 })

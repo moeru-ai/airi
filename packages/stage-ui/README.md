@@ -2,6 +2,16 @@
 
 Shared core for stage
 
+## Chat sampling
+
+In **Settings → Modules → Consciousness**, custom temperature and Top P are off
+by default. Enable each parameter only when the selected model supports it.
+Some models accept only one sampling parameter at a time.
+
+Disabling a parameter keeps its slider value but omits it from chat requests.
+Previously saved values remain disabled until the user enables them. Explicit
+per-request overrides still take precedence over these settings.
+
 ## Chat images
 
 Web and Electron composers share image drafts and previews. They accept PNG,

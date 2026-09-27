@@ -7,6 +7,7 @@ import { ref } from 'vue'
 
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
 import { useConsciousnessStore } from '../../modules/consciousness'
+import { useConsciousnessSettingsStore } from '../../modules/consciousness-settings'
 import { useContextBridgeStore } from './context-bridge'
 import { createContextChannel } from './context-channel'
 
@@ -393,8 +394,10 @@ describe('context bridge contract', () => {
     })
     consciousness.activeProvider = 'mock-provider'
     consciousness.activeModel = 'mock-model'
-    consciousness.activeTemperature = 0.3
-    consciousness.activeTopP = 0.8
+    consciousness.temperature = 0.3
+    consciousness.topP = 0.8
+    await useConsciousnessSettingsStore().setTemperatureEnabled(true)
+    await useConsciousnessSettingsStore().setTopPEnabled(true)
     getProviderInstanceMock.mockResolvedValueOnce({})
     const store = useContextBridgeStore()
     await store.initialize()
