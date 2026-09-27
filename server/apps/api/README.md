@@ -209,7 +209,7 @@ The account retains fractional charges until they reach one whole Flux. An expli
 The integer wallet, top-up amounts, and transaction API keep their existing units.
 
 `llm_request_settlement` retains provider ID, usage evidence, generation ID, price snapshot, and settlement status.
-The existing `llm_request_log` stays unchanged. Request and attempt tracking is a separate change.
+Diagnostic request and attempt tracking has separate ownership and retention. See the tracking section below.
 Missing or invalid cost, BYOK usage, and interrupted results create pending receipts without a token-rate fallback.
 `settleLlmCost` can reconcile a pending receipt with recovered usage and its original request ID.
 It uses the saved price snapshot and rejects a different provider or generation ID.
@@ -269,7 +269,37 @@ Pending logs include the reason. Failed logs identify transactions that could no
 Do not add pending requests to a USD loss total when their cost is unknown.
 Monitor persistence errors separately because they are absent from these SQL reports.
 Evidence is limited to 16,384 JSON characters with common content and credential keys removed.
-This change does not add request detail APIs, an Activity UI, a reconciliation worker, or an alert.
+Billing does not own request detail APIs. There is no Activity UI, reconciliation worker, or alert.
+
+### LLM request tracking
+
+Tracking extends the existing request log and records each local upstream dispatch in `llm_request_attempt`.
+It applies to cost, token and per-request pricing. Billing intake and settlement remain owned by the billing service.
+Apply `0026_llm_cost_settlement.sql` and then `0027_llm_request_tracking.sql` before deploying.
+
+| Fields | Meaning |
+| --- | --- |
+| Gateway and upstream provider | Routed hostname and inference provider reported by the gateway; distinct from the billing adapter ID. |
+| Requested, routed, upstream and response models | Client alias, selected route, dispatched model and reported response model. |
+| Request, generation, session and interaction IDs | Request correlation, gateway generation and product context. |
+| Status, state, timing and routing | Request/attempt outcomes, first output and local retry counters. |
+| Tokens and provider usage | Totals, cache reads/writes, reasoning and bounded provider-specific facts. |
+| Metadata and dimensions | Versioned extensibility without storing full prompts, completions or headers. |
+
+Unknown facts stay null. Hidden retries inside an external gateway are not local attempts.
+Generation-only details require a future lookup adapter. New frequently queried dimensions can gain explicit columns later.
+
+Authenticated owner-scoped list/detail APIs are `/api/v1/llm-requests` and `/api/v1/llm-requests/:requestId`.
+They omit raw evidence, credential references and internal price snapshots.
+There is no Activity UI or cross-user admin API in this change.
+
+Request and attempt writes happen before dispatch. A tracking write failure stops dispatch.
+Billing intake happens first, so a tracking failure can leave an unresolved settlement with no generation ID.
+That state does not prove the provider incurred cost. Final diagnostic writes remain best effort.
+`recoverStaleRequests(before)` marks stale running observations unknown without charging or replaying upstream calls.
+There is no automatic recovery or retention scheduler. Diagnostic deletion does not delete accounting evidence.
+
+The [request tracking ADR](../../docs/ai/adr/2026-09-27-llm-request-tracking.md) defines ownership, lifecycle and query boundaries.
 
 ### Generation protocol ownership
 

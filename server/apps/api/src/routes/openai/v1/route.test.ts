@@ -19,6 +19,7 @@ import { mockDB } from '../../../libs/mock-db'
 import { createTestRedis } from '../../../libs/tests/redis'
 import { userFlux } from '../../../schemas/flux'
 import { fluxTransaction } from '../../../schemas/flux-transaction'
+import { llmRequestAttempt } from '../../../schemas/llm-request-attempt'
 import { llmRequestLog } from '../../../schemas/llm-request-log'
 import { llmRequestSettlement } from '../../../schemas/llm-request-settlement'
 import { createBillingService } from '../../../services/domain/billing/billing-service'
@@ -94,6 +95,11 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
 
 function createMockRequestLogService(): RequestLogService {
   return {
+    beginRequest: vi.fn(async () => undefined),
+    observeAttempts: () => ({ start: vi.fn(async () => 'attempt'), finish: vi.fn(async () => undefined) }),
+    getRequest: vi.fn(async () => ({ request: undefined, attempts: [], settlement: undefined })),
+    listRequests: vi.fn(async () => []),
+    recoverStaleRequests: vi.fn(async () => []),
     logRequest: vi.fn(async () => undefined),
   }
 }
@@ -2572,10 +2578,11 @@ describe('openRouter cost billing through HTTP routes', () => {
     expect(policy.priceChatUsage({ providerUsage: { cost: 10 } }, authorization, 'other.example').costReceipt).toBeUndefined()
   })
   beforeAll(async () => {
-    db = await mockDB({ userFlux, fluxTransaction, llmRequestLog, llmRequestSettlement })
+    db = await mockDB({ userFlux, fluxTransaction, llmRequestLog, llmRequestAttempt, llmRequestSettlement })
   })
   beforeEach(async () => {
     await db.delete(llmRequestSettlement)
+    await db.delete(llmRequestAttempt)
     await db.delete(llmRequestLog)
     await db.delete(fluxTransaction)
     await db.delete(userFlux)
@@ -2632,6 +2639,7 @@ describe('openRouter cost billing through HTTP routes', () => {
         await Promise.all(vi.mocked(logs.logRequest).mock.results.map(result => result.value))
         const entries = await db.select().from(llmRequestLog)
         expect(entries).toHaveLength(1)
+        expect(entries[0]).toMatchObject({ gateway: 'openrouter.ai', upstreamProvider: 'Inference Provider', upstreamModel: 'vendor/native-model', responseModel: 'returned-model', cachedTokens: 90, reasoningTokens: 12, fluxConsumed: 3, state: 'completed' })
         const [settlement] = await db.select().from(llmRequestSettlement)
         expect(settlement.evidence).toMatchObject({ observation: {
           gateway: 'openrouter.ai',

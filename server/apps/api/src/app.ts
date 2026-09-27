@@ -57,6 +57,7 @@ import { createChatWsPayloadLimit } from './routes/chat-ws/v2/payload-limit'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
+import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
@@ -420,6 +421,7 @@ export async function buildApp(deps: AppDeps) {
      * Flux routes.
      */
     .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService))
+    .route('/api/v1/llm-requests', createLlmRequestRoutes(deps.requestLogService))
 
     /**
      * Stripe routes.

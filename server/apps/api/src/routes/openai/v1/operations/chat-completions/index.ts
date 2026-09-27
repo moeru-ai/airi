@@ -72,6 +72,8 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
 
     const startedAt = Date.now()
     await deps.billingService.beginLlmRequest({ userId: input.userId, requestId, model: requestModel, policy: billingPolicy })
+    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0 })
+    const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
 
     // Router throws ApiError (502/503/504/400) on full exhaustion or unknown
     // model. We do NOT catch here — global app.onError renders the ApiError
@@ -93,6 +95,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
           modelIds: aliasPlan.modelIds,
           routeCtx,
           abortSignal: clientAbort,
+          attempts,
         }))
       response = routed.response
       routeCtx = routed.routeCtx
@@ -117,6 +120,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
     const durationMs = Date.now() - startedAt
     const observation: BillingObservation = {
       startedAt: new Date(startedAt),
+      attemptId: routeCtx.attemptId,
       status: response.status,
       durationMs,
       protocol: 'chat-completions',
