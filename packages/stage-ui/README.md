@@ -63,11 +63,20 @@ Shared actions create and hydrate conversation data. Local commands own navigati
 Two windows can therefore show different characters and different conversations.
 Each window remembers its last conversation per character during its lifetime.
 The persisted index supplies the initial conversation for a new window.
+Global vision request policies remain shared in `useVisionSettingsStore`.
+Use its explicit actions to change these policies without changing local models.
 
 Deleting a card does not delete its conversation history. Windows showing the
 deleted card select the built-in character. Starting a new turn still requires
 an existing owning card. Cloud-only conversations keep the existing default-card
 association; this change does not add cloud character synchronization.
+
+The conversation list shows character ownership. Deleted-character conversations
+remain listed and can be deleted, but cannot be opened or silently reassigned.
+The model panel shows whether the current character binds a model or inherits
+the global default. Use its reset action to remove the binding, not copy the
+resolved default into the card. Shared binding edits affect all windows using
+that character; selecting a conversation affects only the current window.
 
 Models inherit only within the same provider. Voices also require the same
 model. A different provider without a model stays unconfigured rather than

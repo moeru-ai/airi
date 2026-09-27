@@ -56,6 +56,18 @@ function sessionMeta(sessionId: string, title: string, updatedAt: number): ChatS
 function createSessionsPinia() {
   const pinia = createPinia()
   pinia.state.value = {
+    'airi-card-catalog': {
+      cards: new Map([['default', {
+        name: 'ReLU',
+        version: '1.0.0',
+        description: 'Test character',
+        extensions: { airi: { agents: {}, modules: {
+          consciousness: { provider: '', model: '' },
+          vision: { provider: '', model: '' },
+          speech: { provider: '', model: '', voice_id: '' },
+        } } },
+      }]]),
+    },
     'chat-session-selection': {
       activeSessionId: 'session-b',
     },

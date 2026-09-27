@@ -2,6 +2,7 @@
 import type { ChatSessionMeta } from '../../../../types/chat-session'
 import type { SessionRow } from './sessions-list.vue'
 
+import { errorMessageFrom } from '@moeru/std'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -31,7 +32,8 @@ const { t, locale } = useI18n()
 const chatSession = useChatSessionStore()
 const chat = useChatStore()
 const { sessionMetas, sessionMessages, activeSessionId } = storeToRefs(chatSession)
-const { activeCardId } = storeToRefs(useAiriCardStore())
+const cardStore = useAiriCardStore()
+const { activeCardId, activeCard } = storeToRefs(cardStore)
 const { userId } = storeToRefs(useAuthStore())
 const { activeModel } = storeToRefs(useConsciousnessStore())
 const { trackChatSessionSelected, trackChatSessionStarted } = useAnalytics()
@@ -39,6 +41,7 @@ const { trackChatSessionSelected, trackChatSessionStarted } = useAnalytics()
 // Creating includes persistence and cloud reconciliation, so prevent a
 // second click from creating an orphan session while the first is pending.
 const isCreatingSession = ref(false)
+const actionError = ref('')
 
 // Keep another account's sessions hidden while an account swap rehydrates.
 const ownedSessions = computed(() => {
@@ -105,6 +108,8 @@ const rows = computed<SessionRow[]>(() => {
       preview: previewFor(meta),
       isActive: meta.sessionId === activeSessionId.value,
       updatedAtLabel: formatUpdatedAt(meta.updatedAt),
+      characterName: cardStore.getCard(meta.characterId)?.name,
+      unavailable: !cardStore.getCard(meta.characterId),
     }))
   list.sort((a, b) => b.meta.updatedAt - a.meta.updatedAt)
   return list
@@ -112,6 +117,9 @@ const rows = computed<SessionRow[]>(() => {
 
 async function selectSession(sessionId: string) {
   const selectedRow = rows.value.find(row => row.meta.sessionId === sessionId)
+  actionError.value = ''
+  if (!selectedRow || selectedRow.unavailable)
+    return
   if (sessionId !== activeSessionId.value && selectedRow) {
     trackChatSessionSelected({
       source: 'sessions_drawer',
@@ -119,19 +127,24 @@ async function selectSession(sessionId: string) {
       cloud_synced: !!selectedRow.meta.cloudChatId,
     })
   }
-  await chatSession.setActiveSession(sessionId)
-  showDialog.value = false
+  try {
+    await chatSession.setActiveSession(sessionId)
+    if (activeSessionId.value === sessionId)
+      showDialog.value = false
+  }
+  catch (error) {
+    actionError.value = errorMessageFrom(error) ?? t('stage.chat.sessions.action-failed')
+  }
 }
 
 async function startNewSession() {
   if (isCreatingSession.value)
     return
   isCreatingSession.value = true
+  actionError.value = ''
   try {
     const characterId = activeCardId.value || 'default'
     const selectionBeforeCreation = activeSessionId.value
-    // Creation runs in the synchronized leader, while navigation belongs to
-    // this window. Activating inside createSession would navigate the leader.
     const sessionId = await chatSession.createSession(characterId, { setActive: false })
     // Rows remain interactive while creation is persisted in the leader. Do
     // not let that stale continuation replace a newer local user selection.
@@ -141,6 +154,9 @@ async function startNewSession() {
     // user action belongs in the retention denominator.
     trackChatSessionStarted(activeModel.value || 'unknown')
     showDialog.value = false
+  }
+  catch (error) {
+    actionError.value = errorMessageFrom(error) ?? t('stage.chat.sessions.action-failed')
   }
   finally {
     isCreatingSession.value = false
@@ -183,6 +199,22 @@ watch(showDialog, async (open) => {
     @select-session="selectSession"
     @delete-session="chat.deleteSession"
   >
+    <template #context>
+      <div :class="['mb-3 px-2 text-sm']">
+        <p v-if="activeCard" :class="['font-medium']">
+          {{ t('stage.chat.sessions.character-context', { name: activeCard.name }) }}
+        </p>
+        <p :class="['mt-1 text-xs text-neutral-500 dark:text-neutral-400']">
+          {{ t('stage.chat.sessions.window-scope') }}
+        </p>
+        <p v-if="rows.some(row => row.unavailable)" :class="['mt-2 text-xs text-amber-700 dark:text-amber-300']">
+          {{ t('stage.chat.sessions.character-deleted-help') }}
+        </p>
+        <p v-if="actionError" role="alert" :class="['mt-2 text-sm text-red-600 dark:text-red-400']">
+          {{ actionError }}
+        </p>
+      </div>
+    </template>
     <template #trigger>
       <slot name="trigger" />
     </template>

@@ -113,6 +113,14 @@ analytics:
   disabled:
     title: Analytics disabled for this development build
 model-select:
+  character-binding:
+    title: 'Model for {name}'
+    inherited: Uses global default
+    bound: Bound to this character
+    no-model: No model selected
+    shared-scope: Model changes apply to this character in all windows. Other characters keep their settings.
+    use-default: Use global default
+    save-failed: Could not save the model binding. The character may have been deleted.
   panel-callout:
     support-status-header: We support both 2D and 3D models
     support-status: >
@@ -373,7 +381,7 @@ pages:
     activate: Activate
     active: Active
     active_badge: Currently Active
-    activation_notice: Switched to {name}. The current conversation now uses this character.
+    activation_notice: Switched to {name} and their conversations in this window. Existing conversations keep their character.
     cancel: Cancel action
     save: Save changes
     save_and_activate: Save and activate

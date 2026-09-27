@@ -31,6 +31,7 @@ function createTestI18n() {
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
               'cloud-badge': 'Cloud synced',
+              'character-deleted': 'Character deleted',
             },
           },
         },
@@ -90,6 +91,25 @@ function createHarness(rows = [
 }
 
 describe('sessions dialog actions', () => {
+  it('shows conversation ownership and keeps deleted-character conversations unavailable', async () => {
+    const screen = await render(SessionsDialog, {
+      props: {
+        open: true,
+        isDesktop: true,
+        isCreatingSession: false,
+        rows: [
+          { meta: sessionMeta('available', 2), preview: 'Moon notes', characterName: 'Luna', isActive: true, updatedAtLabel: 'now' },
+          { meta: sessionMeta('retained', 1), preview: 'Retained conversation', unavailable: true, isActive: false, updatedAtLabel: 'yesterday' },
+        ],
+      },
+      global: { plugins: [createTestI18n()] },
+    })
+
+    await expect.element(screen.getByRole('button', { name: /Moon notes Luna/ })).toBeEnabled()
+    await expect.element(screen.getByRole('button', { name: /Retained conversation Character deleted/ })).toBeDisabled()
+    await expect.element(screen.getByRole('button', { name: 'Delete conversation: Retained conversation' })).toBeEnabled()
+  })
+
   it('opens the compact desktop list from its conversation trigger', async () => {
     const rows = [
       { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, updatedAtLabel: 'now' },

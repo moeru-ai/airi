@@ -98,6 +98,14 @@ analytics:
   disabled:
     title: 此开发版本的使用数据及崩溃分析功能已禁用
 model-select:
+  character-binding:
+    title: '{name} 的模型'
+    inherited: 继承全局默认
+    bound: 已绑定到此角色
+    no-model: 未选择模型
+    shared-scope: 修改模型会影响所有窗口中的此角色，其他角色的设置不变。
+    use-default: 使用全局默认
+    save-failed: 无法保存模型绑定，该角色可能已被删除。
   panel-callout:
     support-status-header: 我们同时支持 2D 和 3D 模型
     support-status: >
@@ -353,7 +361,7 @@ pages:
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
-    activation_notice: 已切换到 {name}，当前会话将使用该角色。
+    activation_notice: 已在当前窗口切换到 {name} 及其对话，已有对话的角色归属保持不变。
     cancel: 取消操作
     save: 保存更改
     save_and_activate: 保存并激活

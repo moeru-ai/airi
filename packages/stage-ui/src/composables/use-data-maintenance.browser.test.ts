@@ -71,7 +71,7 @@ afterEach(() => {
 // https://github.com/moeru-ai/airi/pull/2490#discussion_r3968502055
 // ROOT CAUSE: Sequential awaits stopped independent module cleanup after one
 // leader RPC failed. Every reset must settle before the caller receives the error.
-it.each(['resetSettings', 'resetState'])('continues independent module resets when the %s RPC fails', async (action) => {
+it('continues independent module resets when the shared policy reset RPC fails', async () => {
   localStorage.clear()
   vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
   const namespace = `maintenance:${crypto.randomUUID()}`
@@ -101,12 +101,12 @@ it.each(['resetSettings', 'resetState'])('continues independent module resets wh
   }
   const postMessage = BroadcastChannel.prototype.postMessage
   vi.spyOn(BroadcastChannel.prototype, 'postMessage').mockImplementation(function (this: BroadcastChannel, message) {
-    if (JSON.stringify(message).includes(`"${action}"`))
+    if (JSON.stringify(message).includes('"resetState"'))
       throw new Error('Reset transport unavailable')
     postMessage.call(this, message)
   })
   await expect(follower.maintenance.resetModulesSettings()).rejects.toThrow('Reset transport unavailable')
   expect(resetModules).toEqual(modules.map(module => module.$id))
   expect(useMinecraftStore(pinia).latestRuntimeContextText).toBe('')
-  expect(useConsciousnessSettingsStore(leader.pinia).reasoning).toBe(action === 'resetState')
+  expect(useConsciousnessSettingsStore(leader.pinia).reasoning).toBe(true)
 })

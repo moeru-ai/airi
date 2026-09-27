@@ -4,9 +4,11 @@ import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
 import { useProviderStore } from '../../providers/provider'
+import { useVisionSettingsStore } from './settings'
 
 export const useVisionStore = defineStore('vision', () => {
   const providersStore = useProviderStore()
+  const settings = useVisionSettingsStore()
 
   // Persist the startup choice without replicating this window's active character settings.
   const persistenceOptions = { listenToStorageChanges: false }
@@ -14,8 +16,8 @@ export const useVisionStore = defineStore('vision', () => {
   const activeProvider = useLocalStorageManualReset('settings/vision/active-provider', '', persistenceOptions)
   const activeModel = useLocalStorageManualReset('settings/vision/active-model', '', persistenceOptions)
   const activeCustomModelName = useLocalStorageManualReset('settings/vision/active-custom-model', '', persistenceOptions)
-  const ollamaThinkingEnabled = useLocalStorageManualReset('settings/vision/ollama-thinking-enabled', false, persistenceOptions)
-  const useForChat = useLocalStorageManualReset('settings/vision/use-for-chat', true, persistenceOptions)
+  const ollamaThinkingEnabled = computed(() => settings.ollamaThinkingEnabled)
+  const useForChat = computed(() => settings.useForChat)
   const modelSearchQuery = refManualReset('')
 
   const supportsModelListing = computed(() => {
@@ -67,10 +69,10 @@ export const useVisionStore = defineStore('vision', () => {
     return []
   }
 
-  function resetState() {
-    useForChat.reset()
+  async function resetState() {
     activeProvider.reset()
     resetModelSelection()
+    await settings.setUseForChat(true)
   }
 
   return {

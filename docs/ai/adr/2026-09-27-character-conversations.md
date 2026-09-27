@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented locally. No UI redesign or hosted schema change.
+Implemented with minimal ownership UI. No page redesign or hosted schema change.
 
 ## Context
 
@@ -48,12 +48,24 @@ implements this policy for runtime activation and conversation sends.
 - A window remembers its selected conversation per character only for its
   lifetime. Existing persisted indexes seed new windows.
 - Provider credentials and account identity keep their existing shared owners.
+- Global vision request policies remain shared through explicit leader actions.
+  Their snapshots do not change a window's selected vision provider or model.
 - This change does not add remote card synchronization or change cloud chat
   schemas. Cloud-only conversations keep their existing default-card binding.
 - This change does not redesign page layouts, add group chat, or change
   autonomous artistry scheduling.
 
 ## Verification
+
+The conversation list shows each character and explains window-local selection.
+Deleted-character rows remain visible and deletable, but cannot be opened.
+The model panel shows the active character, explicit binding or inheritance,
+and a command to restore global inheritance. Binding edits affect every window
+that uses that character. English and Simplified Chinese explain these scopes.
+
+Stage Web captures cover desktop and mobile layouts. Browser interactions verify
+that opening history selects its character and that resetting a binding restores
+inheritance. Installed desktop and native mobile acceptance remain separate.
 
 Real Pinia and BroadcastChannel browser tests cover independent character,
 model, and conversation selection; shared card edits without follower state
