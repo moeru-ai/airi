@@ -438,14 +438,22 @@ function resolveStageVoiceType(provider: string): 'official_selected' | 'custom_
 
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
   tts: async (request, signal) => {
-    const selection = turnSpeech
-    if (!selection || selection.turnId !== request.turnId)
-      return null
-
     if (signal.aborted)
       return null
 
     if (speechMuted.value)
+      return null
+
+    // Spark reactions and explicit character output also use this host pipeline.
+    // They have no conversation context and retain the host's selected speech settings.
+    const selection = turnSpeech?.turnId === request.turnId && turnSpeech
+      ? turnSpeech
+      : await speechStore.resolveSpeechSelection({
+          provider: speechStore.activeSpeechProvider,
+          model: speechStore.activeSpeechModel,
+          voice_id: speechStore.activeSpeechVoiceId,
+        })
+    if (signal.aborted)
       return null
 
     if (selection.provider === 'speech-noop')
