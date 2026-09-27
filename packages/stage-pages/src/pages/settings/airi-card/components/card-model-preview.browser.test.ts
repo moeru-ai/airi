@@ -9,7 +9,7 @@ import CardModelPreview from './card-model-preview.vue'
 
 import 'virtual:uno.css'
 
-it.each([false, true])('shows bindings without changing the active character (profile: %s)', async (profile) => {
+it('shows bindings without changing the active character', async () => {
   localStorage.clear()
   const pinia = createPinia()
   pinia.state.value = {
@@ -31,7 +31,7 @@ it.each([false, true])('shows bindings without changing the active character (pr
   }
   const i18n = createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })
   const screen = await render(CardModelPreview, {
-    props: { modelId: 'card-model', profile },
+    props: { modelId: 'card-model' },
     global: { plugins: [pinia, PiniaColada, i18n] },
   })
   const cards = useAiriCardStore(pinia)

@@ -34,4 +34,4 @@ The card library contains read-only portrait cards. Each card opens `/settings/a
 
 The editor's Model section uses the same read-only model preview with its draft selection. Model settings are separate from Modules. Selection changes persist only through the existing save actions. The profile opens that editor without activating the card. Activation, export, and deletion remain explicit profile actions.
 
-Desktop and mobile profiles render the model summary with the shared character card's horizontal layout. The editor keeps its larger draft preview. Both preserve explicit, inherited, and unavailable model states.
+Desktop and mobile profiles and the editor's Model section render the same horizontal model summary. The editor supplies its draft binding; the profile supplies the saved binding. Both preserve explicit, inherited, and unavailable model states.
