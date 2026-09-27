@@ -65,6 +65,9 @@ The endpoint model list remains authoritative for availability. Catalog data onl
 Custom endpoints receive no metadata from official routes. There is no separate online catalog request or cache.
 Upgrade the pinned model-bank dependency to refresh metadata.
 
+Chutes has no model-bank catalog. Its `/v1/models` response already reports modalities, features, output limits, and USD prices per million tokens.
+The Chutes definition maps these fields to `ModelInfo.metadata` directly. Image input sets `abilities.vision`, so chat sends images to the model without the vision module.
+
 `ModelInfo.metadata` uses model-bank's exported `AIChatModelCard` contract for abilities, settings, and pricing.
 Currency and fixed, tiered, or lookup pricing remain intact. Catalog prices are advisory data, not Flux billing quotes.
 Reported search abilities do not select a native tool implementation.

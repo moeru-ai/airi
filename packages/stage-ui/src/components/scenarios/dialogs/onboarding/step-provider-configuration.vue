@@ -213,6 +213,7 @@ function getApiKeyPlaceholder(providerId: string): string {
     'modelscope': 'ms-...',
     'fireworks-ai': 'fw-...',
     'featherless-ai': 'fw-...',
+    'chutes-ai': 'cpk_...',
     'nvidia': 'nvapi-...',
     'novita-ai': 'nvt-...',
   }
