@@ -1,5 +1,5 @@
 {
-  "id": "7d9c669b-4071-4d85-9faf-ef3082dba8e0",
+  "id": "669a573a-a6d3-4451-a85f-6b912e5a3f90",
   "prevId": "443b9ff2-195a-44d3-9c96-0bafe92889a6",
   "version": "7",
   "dialect": "postgresql",
@@ -969,13 +969,6 @@
           "notNull": true,
           "default": 0
         },
-        "llm_cost_remainder": {
-          "name": "llm_cost_remainder",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp",
@@ -1789,12 +1782,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "micro_flux": {
-          "name": "micro_flux",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "requested_flux": {
           "name": "requested_flux",
           "type": "bigint",
@@ -1803,18 +1790,6 @@
         },
         "flux_consumed": {
           "name": "flux_consumed",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "remainder_before": {
-          "name": "remainder_before",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "remainder_after": {
-          "name": "remainder_after",
           "type": "bigint",
           "primaryKey": false,
           "notNull": false

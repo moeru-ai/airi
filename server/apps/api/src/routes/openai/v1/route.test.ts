@@ -46,9 +46,9 @@ function createMockBillingService(flux = 100): BillingService {
     beginLlmRequest: vi.fn(async () => undefined),
     settleLlmCost: vi.fn(async (input: Parameters<BillingService['settleLlmCost']>[0]) => {
       const quote = priceLlmCost(input.usage, input.pricing)
-      if (input.pendingReason || quote.microFlux === undefined)
+      if (input.pendingReason || quote.requestedFlux === undefined)
         return { charged: 0, requested: 0, pending: true }
-      const requested = Math.floor(quote.microFlux / 1_000_000)
+      const requested = quote.requestedFlux
       const charged = Math.min(requested, balance)
       balance -= charged
       return { charged, requested, pending: false }
@@ -2613,7 +2613,7 @@ describe('openRouter cost billing through HTTP routes', () => {
     })
     const authorization = await policy.authorizeChat(testUser.id)
     const quote = policy.priceChatUsage({ generationId: 'gen-estimate', providerUsage: { cost: 0.0002 } }, authorization, 'openrouter.ai')
-    expect(quote.amount).toBe(0.3)
+    expect(quote.amount).toBe(1)
     expect(quote.costReceipt).toMatchObject({ provider: 'openrouter', pricing, usage: { costUsd: 0.0002 } })
     expect(() => policy.priceChatUsage({ providerUsage: { cost: 10 } }, authorization, 'other.example')).toThrow('LLM cost adapter or price is missing')
   })
@@ -2648,10 +2648,10 @@ describe('openRouter cost billing through HTTP routes', () => {
 
   for (const protocol of ['chat/completions', 'responses']) {
     for (const stream of [false, true]) {
-      it(`settles reported cost for ${protocol}, stream=${stream}`, async () => {
+      it.each([{ cost: 0.0002, expectedFlux: 1 }, { cost: 0.0008, expectedFlux: 2 }, { cost: 0.002, expectedFlux: 3 }])(`settles rounded cost for ${protocol}, stream=${stream}: $cost USD`, async ({ cost, expectedFlux }) => {
         const result = protocol === 'responses'
-          ? { ...responsesResult(), id: 'gen-cost', model: 'returned-model', provider: 'Inference Provider', usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150, cost: 0.002, input_tokens_details: { cached_tokens: 90 }, output_tokens_details: { reasoning_tokens: 12 }, future_meter: { units: 4 } } }
-          : { id: 'gen-cost', model: 'returned-model', provider: 'Inference Provider', choices: [{ finish_reason: 'stop' }], usage: { prompt_tokens: 100, completion_tokens: 50, cost: 0.002, prompt_tokens_details: { cached_tokens: 90 }, completion_tokens_details: { reasoning_tokens: 12 }, future_meter: { units: 4 } } }
+          ? { ...responsesResult(), id: 'gen-cost', model: 'returned-model', provider: 'Inference Provider', usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150, cost, input_tokens_details: { cached_tokens: 90 }, output_tokens_details: { reasoning_tokens: 12 }, future_meter: { units: 4 } } }
+          : { id: 'gen-cost', model: 'returned-model', provider: 'Inference Provider', choices: [{ finish_reason: 'stop' }], usage: { prompt_tokens: 100, completion_tokens: 50, cost, prompt_tokens_details: { cached_tokens: 90 }, completion_tokens_details: { reasoning_tokens: 12 }, future_meter: { units: 4 } } }
         const frame = protocol === 'responses'
           ? `event: response.completed\ndata: ${JSON.stringify({ type: 'response.completed', response: result })}\n\n`
           : `data: ${JSON.stringify(result)}\n\ndata: ${JSON.stringify({ id: 'gen-cost', choices: [], usage: null, padding: 'x'.repeat(3000) })}\n\ndata: [DONE]\n\n`
@@ -2672,15 +2672,15 @@ describe('openRouter cost billing through HTTP routes', () => {
         expect(await response.text()).toContain('gen-cost')
         await vi.waitFor(async () => {
           const [receipt] = await db.select().from(llmRequestSettlement)
-          expect(receipt).toMatchObject({ billingProvider: 'openrouter', billingStatus: 'settled', fluxConsumed: 3, costUsd: '0.002', pricing })
+          expect(receipt).toMatchObject({ billingProvider: 'openrouter', billingStatus: 'settled', fluxConsumed: expectedFlux, costUsd: String(cost), pricing })
         })
         const [wallet] = await db.select().from(userFlux)
-        expect(wallet.flux).toBe(97)
-        expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ fluxConsumed: 3 }))
+        expect(wallet.flux).toBe(100 - expectedFlux)
+        expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ fluxConsumed: expectedFlux }))
         await Promise.all(vi.mocked(logs.logRequest).mock.results.map(result => result.value))
         const entries = await db.select().from(llmRequestLog)
         expect(entries).toHaveLength(1)
-        expect(entries[0]).toMatchObject({ gateway: 'openrouter.ai', upstreamProvider: 'Inference Provider', upstreamModel: 'vendor/native-model', responseModel: 'returned-model', cachedTokens: 90, reasoningTokens: 12, fluxConsumed: 3, state: 'completed' })
+        expect(entries[0]).toMatchObject({ gateway: 'openrouter.ai', upstreamProvider: 'Inference Provider', upstreamModel: 'vendor/native-model', responseModel: 'returned-model', cachedTokens: 90, reasoningTokens: 12, fluxConsumed: expectedFlux, state: 'completed' })
         const [settlement] = await db.select().from(llmRequestSettlement)
         expect(settlement.evidence).toMatchObject({ observation: {
           gateway: 'openrouter.ai',

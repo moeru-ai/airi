@@ -96,7 +96,7 @@ export function createOpenAiRouteBilling(deps: {
     const pricing = policy.costPricing[adapter.provider]
     const costUsage = adapter.extractUsage(usage)
     const charge = priceLlmCost(costUsage, pricing)
-    const amount = charge.microFlux === undefined ? 0 : charge.microFlux / 1_000_000
+    const amount = charge.requestedFlux ?? 0
     return { amount, costReceipt: { provider: adapter.provider, usage: costUsage, pricing } }
   }
 

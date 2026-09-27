@@ -32,12 +32,12 @@ const generationIdSchema = pipe(string(), nonEmpty())
 export type CostCharge = {
   pricing: CostPricing
   costUsd: number
-  microFlux: number
+  requestedFlux: number
   pendingReason?: undefined
 } | {
   pricing: CostPricing
   costUsd?: number
-  microFlux?: undefined
+  requestedFlux?: undefined
   pendingReason: string
 }
 
@@ -50,7 +50,7 @@ function decimalFraction(value: number): [bigint, bigint] {
   return scale >= 0 ? [numerator, 10n ** BigInt(scale)] : [numerator * 10n ** BigInt(-scale), 1n]
 }
 
-/** Quotes a micro-Flux charge from normalized USD usage, without provider wire knowledge. */
+/** Quotes a whole-Flux charge rounded up per request from normalized USD usage, without provider wire knowledge. */
 export function priceLlmCost(usage: Pick<CostUsage, 'costUsd' | 'pendingReason' | 'generationId'>, pricing: CostPricing): CostCharge {
   if (usage.pendingReason !== undefined)
     return { pricing, costUsd: usage.costUsd, pendingReason: usage.pendingReason }
@@ -60,15 +60,15 @@ export function priceLlmCost(usage: Pick<CostUsage, 'costUsd' | 'pendingReason' 
   if (!safeParse(generationIdSchema, usage.generationId).success)
     return { pricing, pendingReason: 'missing_generation_id' }
 
-  let numerator = 1_000_000n
+  let numerator = 1n
   let denominator = 1n
   for (const value of [cost.output, pricing.fluxPerUsd, pricing.multiplier]) {
-    const [n, d] = decimalFraction(value)
-    numerator *= n
-    denominator *= d
+    const [factorNumerator, factorDenominator] = decimalFraction(value)
+    numerator *= factorNumerator
+    denominator *= factorDenominator
   }
-  const microFlux = (numerator + denominator - 1n) / denominator
-  if (microFlux > BigInt(Number.MAX_SAFE_INTEGER - 1_000_000))
+  const requestedFlux = (numerator + denominator - 1n) / denominator
+  if (requestedFlux > BigInt(Number.MAX_SAFE_INTEGER))
     return { pricing, costUsd: cost.output, pendingReason: 'cost_out_of_range' }
-  return { pricing, costUsd: cost.output, microFlux: Number(microFlux) }
+  return { pricing, costUsd: cost.output, requestedFlux: Number(requestedFlux) }
 }

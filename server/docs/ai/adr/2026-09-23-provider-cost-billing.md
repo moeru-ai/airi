@@ -5,7 +5,7 @@ Status: accepted
 
 ## Decision and scope
 
-Request tracking is the foundation PR. This billing PR depends on it.
+Request tracking is already merged into main. This PR adds only billing migration 0027.
 Every hosted Chat Completions and Responses call uses normalized-cost settlement.
 There is no optional cost-billing path and no LLM token-rate or per-request fallback.
 
@@ -56,7 +56,7 @@ sequenceDiagram
     alt Cost missing or result incomplete
       API->>DB: Keep pending without debit
     else Valid normalized cost
-      API->>DB: Lock wallet, check replay, commit charge and fractional carry
+      API->>DB: Lock wallet, check replay, commit rounded charge
     end
   end
 ```
@@ -89,7 +89,11 @@ Apply tracking migration 0026 before billing migration 0027. These replace unpub
 Settlement owns price snapshots and durable evidence. Logs do not query or update settlement storage.
 Save pending evidence before charging; commit wallet, remainder, ledger and settled state under the wallet lock.
 Settled replay cannot charge twice. Preserve original provider, generation ID and price snapshot.
-Whole Flux units, fractional carry and speech debit behavior remain unchanged.
+Each request charges ceil(costUsd × fluxPerUsd × multiplier) in whole Flux.
+Round once, after multiplication, using decimal arithmetic to avoid floating-point boundary overcharges.
+An explicit zero cost stays zero. Missing cost stays pending. No fractional balance carries between requests.
+Remove the unmerged draft remainder fields from migration 0027; do not add another migration.
+Speech metering and its Redis debt behavior remain unchanged.
 LLM deployments without supported adapters and configured prices now reject requests intentionally.
 LLM_MINIMUM_BALANCE is an admission threshold, not a reservation or fixed charge.
 Old FLUX_PER_REQUEST and FLUX_PER_1K_TOKENS values no longer affect hosted LLM requests.
@@ -99,4 +103,5 @@ Old FLUX_PER_REQUEST and FLUX_PER_1K_TOKENS values no longer affect hosted LLM r
 No production price configuration, deployment, automatic reconciliation worker or model-price-table implementation.
 Test missing configuration/adapter before dispatch, default cost settlement, zero versus absent cost,
 minimum-balance independence, fallback dispatch validation, interrupted streams, replay and speech-meter regressions.
+Verify independent per-request ceiling, exact decimal boundaries, tiny positive costs, concurrent replay and transaction rollback.
 Apply both migrations locally. Run focused tests, workspace typecheck and lint.

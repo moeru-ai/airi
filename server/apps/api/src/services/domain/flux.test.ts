@@ -54,7 +54,6 @@ describe('fluxService (DB-backed)', () => {
   it('getFlux should initialize new user with INITIAL_USER_FLUX and populate Redis', async () => {
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(100)
-    expect(record).not.toHaveProperty('llmCostRemainder')
     expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '100', 'EX', 60)
   })
 
@@ -80,11 +79,10 @@ describe('fluxService (DB-backed)', () => {
 
   it('getFlux should load from DB when Redis cache misses', async () => {
     // Pre-insert user flux directly
-    await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42, llmCostRemainder: 500_000 })
+    await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42 })
 
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(42)
-    expect(record).not.toHaveProperty('llmCostRemainder')
     expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '42', 'EX', 60)
   })
 

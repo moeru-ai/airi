@@ -200,7 +200,7 @@ export function createBillingService(
     /**
      * Saves a provider receipt and settles whole Flux under the account row lock.
      * Reconciliation reuses the original price snapshot and request ID.
-     * Pending receipts do not modify the balance or the fractional remainder.
+     * Pending receipts do not modify the balance. Positive costs round up once per request.
      */
     async settleLlmCost(input: {
       provider: string
@@ -301,14 +301,11 @@ export function createBillingService(
           return { charged: 0, requested: 0, pending: true, balance: wallet.flux, replay: false, pendingReason: existing?.pendingReason ?? input.pendingReason ?? charge.pendingReason }
         }
 
-        const totalMicroFlux = wallet.llmCostRemainder + charge.microFlux
-        const requested = Math.floor(totalMicroFlux / 1_000_000)
-        const remainder = totalMicroFlux % 1_000_000
+        const requested = charge.requestedFlux
         const charged = Math.min(requested, Math.max(0, wallet.flux))
         const balance = wallet.flux - charged
         await tx.update(fluxSchema.userFlux).set({
           flux: balance,
-          llmCostRemainder: remainder,
           updatedAt: new Date(),
         }).where(eq(fluxSchema.userFlux.userId, input.userId))
         await tx.insert(fluxTxSchema.fluxTransaction).values({
@@ -332,9 +329,8 @@ export function createBillingService(
               generationId: input.usage.generationId,
               costUsd: charge.costUsd,
               ...pricing,
-              microFlux: charge.microFlux,
-              remainderBefore: wallet.llmCostRemainder,
-              remainderAfter: remainder,
+              requestedFlux: requested,
+              rounding: 'ceil',
             },
             ...(charged < requested && { requestedAmount: requested, unbilled: requested - charged }),
           },
@@ -347,13 +343,10 @@ export function createBillingService(
           generationId: input.usage.generationId,
           providerUsage: observation.providerUsage,
           costUsd: charge.costUsd.toString(),
-          microFlux: charge.microFlux,
           fluxConsumed: charged,
           requestedFlux: requested,
           pricing,
           settledAt: new Date(),
-          remainderBefore: wallet.llmCostRemainder,
-          remainderAfter: remainder,
         }
         await tx.insert(llmRequestSettlement).values({ id: settlementId, ...settled }).onConflictDoUpdate({
           target: [llmRequestSettlement.userId, llmRequestSettlement.requestId],

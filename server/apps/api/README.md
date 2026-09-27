@@ -204,7 +204,8 @@ Missing configuration rejects the request with `LLM_BILLING_UNAVAILABLE`; alias 
 Only the OpenRouter adapter is implemented. Other gateways cannot serve hosted LLM traffic until they have an explicit adapter and prices.
 
 Missing or invalid returned cost, BYOK fees, and incomplete output leave a pending settlement without a token-rate estimate.
-An explicit zero cost settles at zero. Fractions accumulate as micro-Flux; the wallet still stores whole Flux.
+Each request charges `ceil(costUsd * fluxPerUsd * multiplier)` in whole Flux, after applying the multiplier.
+An explicit zero cost settles at zero. Every positive cost rounds up; no fractional remainder carries between requests.
 Billing retains the original price snapshot, usage evidence and provider/generation identity for reconciliation.
 There is no automatic reconciliation worker in this release.
 
@@ -212,7 +213,7 @@ A future model-price-table adapter is a supported pricing mode, not a fallback.
 It must validate model rates before dispatch and produce standardized USD cost with a versioned rate snapshot and measured usage.
 This release does not implement that adapter.
 
-Merge request tracking #2673 first, then billing #2644.
+Request tracking #2673 is merged. Billing #2644 adds only migration 0027.
 Apply `0026_llm_request_tracking.sql` before `0027_llm_cost_settlement.sql`.
 Configure supported provider prices before deploying the billing change; missing prices intentionally stop LLM calls.
 These migrations replace unpublished PR drafts and must not be applied over an already-applied earlier draft.

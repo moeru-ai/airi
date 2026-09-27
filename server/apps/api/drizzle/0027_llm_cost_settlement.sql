@@ -13,17 +13,13 @@ CREATE TABLE "llm_request_settlement" (
 	"evidence" jsonb,
 	"provider_usage" jsonb,
 	"cost_usd" text,
-	"micro_flux" bigint,
 	"requested_flux" bigint,
 	"flux_consumed" bigint,
-	"remainder_before" bigint,
-	"remainder_after" bigint,
 	"schema_version" integer DEFAULT 1 NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"settled_at" timestamp
 );
 --> statement-breakpoint
-ALTER TABLE "user_flux" ADD COLUMN "llm_cost_remainder" bigint DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE "flux_transaction" ADD COLUMN "settlement_id" text;--> statement-breakpoint
 ALTER TABLE "flux_transaction" ADD COLUMN "operation_id" text;--> statement-breakpoint
 CREATE UNIQUE INDEX "llm_settlement_user_request_uidx" ON "llm_request_settlement" USING btree ("user_id","request_id");--> statement-breakpoint
