@@ -190,13 +190,6 @@
       "when": 1790506677840,
       "tag": "0026_llm_request_tracking",
       "breakpoints": true
-    },
-    {
-      "idx": 27,
-      "version": "7",
-      "when": 1790516864922,
-      "tag": "0027_apple_sandbox_identity",
-      "breakpoints": true
     }
   ]
 }

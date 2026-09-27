@@ -2,10 +2,8 @@ import type { Database } from '../../../../libs/db'
 import type { ConfigKVService } from '../../../adapters/config-kv'
 import type { ClaimReceipt, EvidenceReceipt } from '../types'
 
-import { readFile } from 'node:fs/promises'
-
 import { Environment } from '@apple/app-store-server-library'
-import { eq, sql } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../../libs/mock-db'
@@ -340,33 +338,13 @@ describe('payment CORE', () => {
     expect(flux?.flux).toBe(1000)
   })
 
-  // ROOT CAUSE:
-  // PR #2674 changed the Sandbox order ID without changing legacy stored IDs.
-  // A unique index on Apple's original identity must cover both representations.
-  // https://github.com/moeru-ai/airi/pull/2674
-  it('does not credit a legacy sandbox order again under its new ID', async () => {
-    const fields = { transactionId: 'legacy_txn', productId: 'starter', appAccountToken: 'token-1' }
-    const payload = { bundleId: 'ai.moeru.airi-pocket', environment: Environment.SANDBOX }
-    const current = evidenceReceiptFromTransaction(payload, fields, 'user-pay-1', { fluxAmount: 500 })
-    await payment.settle({ ...current, processorOrderId: fields.transactionId })
-
-    const replay = await payment.settle(current)
-
-    expect(replay.applied).toBe(false)
-    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
-    expect(flux.flux).toBe(500)
-    const orders = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
-    expect(orders).toHaveLength(1)
-    expect(orders[0].processorOrderId).toBe('legacy_txn')
-  })
-
-  it('deduplicates concurrent legacy and new sandbox order IDs', async () => {
+  it('credits concurrent deliveries of a new sandbox transaction once', async () => {
     const fields = { transactionId: 'race_txn', productId: 'starter', appAccountToken: 'token-1' }
     const payload = { bundleId: 'ai.moeru.airi-pocket', environment: Environment.SANDBOX }
     const current = evidenceReceiptFromTransaction(payload, fields, 'user-pay-1', { fluxAmount: 500 })
     const results = await Promise.all([
       payment.settle(current),
-      payment.settle({ ...current, processorOrderId: fields.transactionId }),
+      payment.settle(current),
     ])
 
     expect(results.filter(result => result.applied)).toHaveLength(1)
@@ -391,26 +369,5 @@ describe('payment CORE', () => {
 
     expect((await payment.settle(first)).applied).toBe(true)
     expect((await payment.settle(second)).applied).toBe(true)
-  })
-
-  it('applies the checked-in migration to a database with a legacy sandbox order', async () => {
-    // Model the deployed schema before this PR, then execute the actual migration.
-    await db.execute(sql`DROP INDEX payment_order_apple_sandbox_identity_uidx`)
-    const fields = { transactionId: 'migration_txn', productId: 'starter', appAccountToken: 'token-1' }
-    const current = evidenceReceiptFromTransaction(
-      { bundleId: 'ai.moeru.airi-pocket', environment: Environment.SANDBOX },
-      fields,
-      'user-pay-1',
-      { fluxAmount: 500 },
-    )
-    await payment.settle({ ...current, processorOrderId: fields.transactionId })
-    const migration = await readFile(new URL('../../../../../drizzle/0027_apple_sandbox_identity.sql', import.meta.url), 'utf8')
-    await db.execute(sql.raw(migration))
-
-    expect((await payment.settle(current)).applied).toBe(false)
-    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
-    expect(flux.flux).toBe(500)
-    const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
-    expect(order.processorOrderId).toBe('migration_txn')
   })
 })

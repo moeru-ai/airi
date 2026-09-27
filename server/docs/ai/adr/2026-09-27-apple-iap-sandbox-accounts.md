@@ -27,13 +27,12 @@ This is account-level access control, not a second wallet or database.
 Sandbox Flux enters the existing balance of a dedicated test account and can
 consume real provider resources. Operators must use new, dedicated accounts,
 keep them separate from normal accounts, and remove access after testing.
-A partial unique index on the Sandbox bundle and original transaction ID
-covers both legacy raw order IDs and new namespaced IDs. Payment CORE already
-uses `ON CONFLICT DO NOTHING`, so either representation claims the purchase
-once, including during rolling deployment. Historical rows stay unchanged.
-Apply the migration before the new API serves requests. Index creation fails
-if duplicate historical identities already exist; operators must reconcile
-those records rather than delete financial history automatically.
+The deployment owner confirmed that there are no historical Sandbox orders
+and no old Sandbox writers during rollout. New Sandbox purchases use the
+namespaced order ID from their first settlement. The existing unique index
+on `(processor, processor_order_id)` prevents duplicate grants, including
+concurrent device and notification deliveries. No schema migration or
+historical order compatibility is required for this rollout.
 
 This change does not deploy services, configure App Store Connect, implement
 refunds, create test accounts, or publish an iOS build. General TestFlight
@@ -54,8 +53,6 @@ flowchart LR
 
 ```text
 server/apps/api/
-  drizzle/0027_apple_sandbox_identity.sql  # Protect historical and new order identities
-  src/schemas/payment.ts                 # Declare the Sandbox identity constraint
   src/libs/env.ts                         # Parse the user allowlist
   src/app.ts                              # Wire verifier and route policy
   src/routes/apple-iap/verifier.ts        # Verified sandbox routing

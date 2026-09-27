@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX "payment_order_apple_sandbox_identity_uidx" ON "payment_order" USING btree (("processor_data"->>'bundleId'),("processor_data"->>'transactionId')) WHERE "payment_order"."processor" = 'apple_iap' AND "payment_order"."processor_data"->>'environment' = 'Sandbox';
