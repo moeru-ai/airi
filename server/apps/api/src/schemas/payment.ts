@@ -28,6 +28,11 @@ export const paymentOrder = pgTable('payment_order', {
   uniqueIndex('payment_order_processor_order_uidx')
     .on(table.processor, table.processorOrderId)
     .where(sql`processor_order_id IS NOT NULL`),
+  // Legacy Sandbox order IDs lack the namespace. The signed Apple identity
+  // keeps retries and concurrent old/new API instances from crediting twice.
+  uniqueIndex('payment_order_apple_sandbox_identity_uidx')
+    .on(sql`(${table.processorData}->>'bundleId')`, sql`(${table.processorData}->>'transactionId')`)
+    .where(sql`${table.processor} = 'apple_iap' AND ${table.processorData}->>'environment' = 'Sandbox'`),
   index('payment_order_user_id_idx').on(table.userId),
 ])
 

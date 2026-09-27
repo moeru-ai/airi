@@ -255,9 +255,12 @@ check the resolved Sandbox account before settlement. A blocked device gets
 Use **new, dedicated accounts**. Sandbox Flux enters their existing balance
 and can spend real provider resources. This is account-level access control,
 not a separate wallet or database. Do not use a normal account for this list.
-Before enabling an old sandbox account, reconcile its legacy payment orders.
-New sandbox orders use `sandbox:<bundleId>:<transactionId>` as the processor
-order ID. A replay of an older, unprefixed order must not receive a second grant.
+The startup migration adds a unique index on the original Sandbox bundle
+and transaction ID. It protects legacy orders and concurrent old/new API
+instances without rewriting historical rows. New sandbox orders use `sandbox:<bundleId>:<transactionId>` as the processor
+order ID. A replay of an older, unprefixed order does not receive a second grant.
+If historical duplicates already exist, the migration fails rather than changing
+balances or deleting history. Reconcile those records before deployment.
 Production order IDs do not change.
 
 Before the first device test:
