@@ -11,8 +11,9 @@ The application owns one client and destroys its connections at shutdown. Missin
 ## Scope
 
 Support server uploads, streamed downloads, HEAD, deletion, and presigned PUT/GET URLs.
-Support custom endpoints, path-style requests, static credentials, session tokens, and the AWS default credential chain.
-Use explicit region configuration when storage is enabled. Signed URLs expire after 900 seconds by default.
+Support custom endpoints and optional path-style requests for services such as MinIO.
+Use the AWS default credential chain, including standard AWS environment variables and IAM roles. Do not define separate S3 credential variables.
+Use explicit region configuration when storage is enabled. Signed URLs have a fixed 900-second lifetime.
 
 ## Non-goals
 
@@ -76,7 +77,8 @@ The adapter preserves object keys exactly and never derives them from untrusted 
 
 ## Test plan
 
-- Validate disabled, complete, and incomplete configuration, credentials, endpoints, and URL expiry bounds.
+- Validate disabled, complete, and incomplete configuration and endpoints.
+- Verify signing through standard AWS environment credentials, including session tokens, with a fixed 900-second expiry.
 - Exercise actual SDK signing with deterministic test credentials and verify signed headers and addressing modes.
 - Exercise object requests through a local HTTP server and verify bytes, metadata, errors, and stream consumption.
 - Exercise a disposable MinIO bucket, including direct uploads and rejection of changed signed headers.

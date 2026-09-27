@@ -2,18 +2,25 @@ import { Buffer } from 'node:buffer'
 import { once } from 'node:events'
 import { createServer } from 'node:http'
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createS3ObjectStore } from './object-store'
 
 const config = {
   S3_BUCKET: 'private-bucket',
   S3_REGION: 'us-east-1',
-  S3_ACCESS_KEY_ID: 'test-access',
-  S3_SECRET_ACCESS_KEY: 'test-secret',
 }
 
 describe('s3 object store', () => {
+  beforeEach(() => {
+    vi.stubEnv('AWS_ACCESS_KEY_ID', 'test-access')
+    vi.stubEnv('AWS_SECRET_ACCESS_KEY', 'test-secret')
+    vi.stubEnv('AWS_SESSION_TOKEN', undefined)
+    vi.stubEnv('AWS_PROFILE', undefined)
+  })
+
+  afterEach(() => vi.unstubAllEnvs())
+
   it('does not create storage when unconfigured', () => {
     expect(createS3ObjectStore({})).toBeUndefined()
   })
@@ -27,6 +34,7 @@ describe('s3 object store', () => {
       expect(url.pathname).toBe('/private-bucket/attachments/image%20one/original')
       expect(url.searchParams.get('X-Amz-Algorithm')).toBe('AWS4-HMAC-SHA256')
       expect(url.searchParams.get('X-Amz-Expires')).toBe('900')
+      expect(url.searchParams.get('X-Amz-Credential')).toMatch(/^test-access\//)
       expect(url.searchParams.get('X-Amz-SignedHeaders')?.split(';')).toEqual(['content-type', 'host', 'x-amz-meta-sha256'])
       expect(url.searchParams.has('x-amz-meta-sha256')).toBe(false)
       expect(url.searchParams.has('x-amz-checksum-crc32')).toBe(false)
@@ -37,14 +45,15 @@ describe('s3 object store', () => {
     }
   })
 
-  it('signs virtual-hosted downloads with temporary credentials and explicit expiry', async () => {
-    const store = createS3ObjectStore({ ...config, S3_SESSION_TOKEN: 'test-session', S3_SIGNED_URL_TTL_SECONDS: 60 })!
+  it('signs virtual-hosted downloads with AWS session credentials and fixed expiry', async () => {
+    vi.stubEnv('AWS_SESSION_TOKEN', 'test-session')
+    const store = createS3ObjectStore(config)!
     try {
       const url = new URL(await store.createDownloadUrl('voices/sample.wav'))
       expect(url.hostname).toBe('private-bucket.s3.us-east-1.amazonaws.com')
       expect(url.pathname).toBe('/voices/sample.wav')
       expect(url.searchParams.get('X-Amz-Security-Token')).toBe('test-session')
-      expect(url.searchParams.get('X-Amz-Expires')).toBe('60')
+      expect(url.searchParams.get('X-Amz-Expires')).toBe('900')
       expect(url.searchParams.get('X-Amz-Signature')).toMatch(/^[a-f0-9]{64}$/)
     }
     finally {

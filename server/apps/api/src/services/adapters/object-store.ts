@@ -18,15 +18,12 @@ export function createS3ObjectStore(config: S3Environment) {
     region: config.S3_REGION,
     endpoint: config.S3_ENDPOINT,
     forcePathStyle: config.S3_FORCE_PATH_STYLE ?? false,
-    credentials: config.S3_ACCESS_KEY_ID && config.S3_SECRET_ACCESS_KEY
-      ? { accessKeyId: config.S3_ACCESS_KEY_ID, secretAccessKey: config.S3_SECRET_ACCESS_KEY, sessionToken: config.S3_SESSION_TOKEN }
-      : undefined,
     // Direct uploads are signed before their body exists. An automatic checksum
     // would bind the URL to an empty body instead of the uploader's bytes.
     requestChecksumCalculation: 'WHEN_REQUIRED',
   })
   const bucket = config.S3_BUCKET
-  const expiresIn = config.S3_SIGNED_URL_TTL_SECONDS ?? 900
+  const expiresIn = 900
 
   return {
     /** Uploads bytes to the exact key. Domain callers own size limits and overwrite policy. */

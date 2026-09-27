@@ -20,12 +20,10 @@ describe('parseEnv', () => {
       S3_BUCKET: 'private-bucket',
       S3_REGION: 'auto',
       S3_FORCE_PATH_STYLE: 'false',
-      S3_SIGNED_URL_TTL_SECONDS: '300',
     })
     expect(env.S3_BUCKET).toBe('private-bucket')
     expect(env.S3_REGION).toBe('auto')
     expect(env.S3_FORCE_PATH_STYLE).toBe(false)
-    expect(env.S3_SIGNED_URL_TTL_SECONDS).toBe(300)
   })
 
   it('parses the API environment without Identity-provider credentials', () => {

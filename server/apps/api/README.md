@@ -42,14 +42,13 @@ disable it. Partial configuration fails startup.
 | `S3_REGION` | AWS region, or the region required by the compatible service | Unset |
 | `S3_ENDPOINT` | Custom HTTP(S) endpoint for R2, MinIO, Railway, or another S3 service | AWS endpoint |
 | `S3_FORCE_PATH_STYLE` | `true` for endpoint/bucket/key addressing, `false` for virtual-hosted addressing | `false` |
-| `S3_ACCESS_KEY_ID` | Static access key, paired with the secret | AWS credential chain |
-| `S3_SECRET_ACCESS_KEY` | Static secret, paired with the access key | AWS credential chain |
-| `S3_SESSION_TOKEN` | Session token for explicit temporary credentials | Unset |
-| `S3_SIGNED_URL_TTL_SECONDS` | Presigned URL lifetime, integer from 1 through 604800 | `900` |
 
-For IAM roles, omit all three `S3_*` credential variables. The SDK uses its
+For static credentials, set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+For temporary credentials, also set `AWS_SESSION_TOKEN`. For IAM roles, omit these
+variables. The SDK resolves credentials through its
 [default credential chain](https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/setting-credentials-node.html).
-Temporary credentials can expire before a signed URL's requested lifetime.
+Signed URLs have a fixed 15-minute lifetime. Temporary credentials can expire sooner.
+Leave `S3_FORCE_PATH_STYLE` unset unless the service requires path-style addressing, such as a local MinIO server.
 Use HTTPS for remote endpoints. HTTP supports local S3 development servers.
 The adapter does not create buckets or change bucket policies.
 
@@ -77,7 +76,7 @@ methods, and returned upload headers. CORS configuration remains deployment-owne
 See [the storage ADR](../../docs/ai/adr/2026-09-27-s3-object-storage.md).
 
 To run the optional integration test, point `TEST_S3_ENDPOINT` at a disposable
-S3-compatible server. Set `TEST_S3_ACCESS_KEY_ID` and `TEST_S3_SECRET_ACCESS_KEY`
+S3-compatible server. Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
 to its test credentials. The test creates and deletes a unique bucket.
 
 ```sh

@@ -15,15 +15,12 @@ describe.skipIf(!process.env.TEST_S3_ENDPOINT)('s3-compatible server integration
       S3_BUCKET: `airi-s3-test-${randomUUID()}`,
       S3_REGION: 'us-east-1',
       S3_ENDPOINT: process.env.TEST_S3_ENDPOINT,
-      S3_ACCESS_KEY_ID: process.env.TEST_S3_ACCESS_KEY_ID,
-      S3_SECRET_ACCESS_KEY: process.env.TEST_S3_SECRET_ACCESS_KEY,
       S3_FORCE_PATH_STYLE: 'true',
     })
     const admin = new S3Client({
       region: config.S3_REGION,
       endpoint: config.S3_ENDPOINT,
       forcePathStyle: true,
-      credentials: { accessKeyId: config.S3_ACCESS_KEY_ID!, secretAccessKey: config.S3_SECRET_ACCESS_KEY! },
     })
     const store = createS3ObjectStore(config)!
     const objectKey = 'audio/test sample.wav'
