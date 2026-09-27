@@ -63,6 +63,7 @@ import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
+import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
@@ -570,6 +571,16 @@ export async function createApp() {
     },
   })
 
+  const objectStore = injeca.provide('datastore:objectStore', {
+    dependsOn: { env: parsedEnv, lifecycle },
+    build: ({ dependsOn }) => {
+      const store = createS3ObjectStore(dependsOn.env)
+      if (store)
+        dependsOn.lifecycle.appHooks.onStop(() => store.dispose())
+      return store
+    },
+  })
+
   const configKV = injeca.provide('datastore:configKV', {
     dependsOn: { db, redis },
     build: ({ dependsOn }) => createConfigKVService(createConfigKVStore(dependsOn.db, dependsOn.redis)),
@@ -743,6 +754,7 @@ export async function createApp() {
 
   await injeca.start()
   const resolved = await injeca.resolve({
+    objectStore,
     db,
     characterService,
     chatService,
