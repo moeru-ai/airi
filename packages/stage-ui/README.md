@@ -32,6 +32,8 @@ Use this flow for chat attachments, not periodic screen capture.
 
 ## Character-card module settings
 
+`components/characters/character-card.vue` owns the portrait, avatar, title, description, and blurred-cover layout shared by the local card library and v2 directory. Pass display data through props and page-owned controls through the `cover-actions`, `meta`, and `footer` slots. Do not put stores, navigation, model binding, or remote mutations in this component. The separate menu card remains a different presentation.
+
 The card store owns three distinct states:
 
 - `moduleDefaults` stores global provider, model, voice, and display selections.
