@@ -28,6 +28,7 @@ import {
 import { generationAdapters } from '../../adapters/llm'
 import { getAdapter } from '../../adapters/tts'
 import { TtsUpstreamResponseError } from '../../adapters/tts/types'
+import { captureErrorMessage, captureErrorResponse } from '../request-content'
 import { createConfigLoader } from './config-loader'
 import { mapUpstreamError } from './error-mapping'
 import { createKeyRotator } from './key-rotator'
@@ -355,9 +356,10 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
             req.abortSignal.removeEventListener('abort', callerOnAbort)
         }
 
+        const errorBody = response.ok || !attemptId ? undefined : await captureErrorResponse(response.clone())
         if (attemptId) {
           persisting = true
-          await req.attempts!.finish(attemptId, { state: response.ok ? 'headers_received' : 'failed', status: response.status, errorCode: response.ok ? undefined : 'upstream_http' }).catch(async (error) => {
+          await req.attempts!.finish(attemptId, { state: response.ok ? 'headers_received' : 'failed', status: response.status, errorCode: response.ok ? undefined : 'upstream_http', errorBody }).catch(async (error) => {
             await discardUpstreamResponse(response)
             throw error
           })
@@ -382,7 +384,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         // later fallback wins, this router cancels the discarded response.
         // Source: codex review 2026-05-15 HIGH #2 (cancel) + cause-propagation
         // follow-up 2026-05-16 (snippet).
-        const bodySnippet = await readUpstreamBodySnippet(response.clone())
+        const bodySnippet = errorBody ? errorBody.text.slice(0, UPSTREAM_BODY_SNIPPET_MAX) : await readUpstreamBodySnippet(response.clone())
         const failure = { keyId: key.id, status, bodySnippet, response }
         failures.push(failure)
         onAttemptFailure(failure)
@@ -411,6 +413,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           await req.attempts!.finish(attemptId, {
             state: req.abortSignal?.aborted ? 'cancelled' : 'unknown',
             errorCode: req.abortSignal?.aborted ? 'client_cancelled' : 'transport_error',
+            errorBody: captureErrorMessage(err),
           }).catch(() => {
             throw createServiceUnavailableError('Failed to persist upstream attempt', 'LLM_TRACKING_UNAVAILABLE')
           })
