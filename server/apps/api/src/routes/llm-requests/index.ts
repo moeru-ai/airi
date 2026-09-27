@@ -2,7 +2,7 @@ import type { RequestLogService } from '../../services/domain/request-log'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
-import { maxLength, nonEmpty, parse, pipe, string } from 'valibot'
+import { maxLength, nonEmpty, parse, pipe, safeParse, string } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
 import { LimitOffsetPaginationQuerySchema } from '../../utils/http-query'
@@ -24,8 +24,10 @@ export function createLlmRequestRoutes(service: RequestLogService) {
       })), hasMore: rows.length > limit })
     })
     .get('/:requestId', async (context) => {
-      const requestId = parse(pipe(string(), nonEmpty(), maxLength(128)), context.req.param('requestId'))
-      const { request, attempts } = await service.getRequest(context.get('user')!.id, requestId)
+      const requestId = safeParse(pipe(string(), nonEmpty(), maxLength(128)), context.req.param('requestId'))
+      if (!requestId.success)
+        return context.json({ error: 'INVALID_REQUEST_ID' }, 400)
+      const { request, attempts } = await service.getRequest(context.get('user')!.id, requestId.output)
       if (!request)
         return context.json({ error: 'NOT_FOUND' }, 404)
       return context.json({

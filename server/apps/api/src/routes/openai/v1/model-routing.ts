@@ -62,7 +62,8 @@ export async function routeModelAliasCandidates(input: {
   let lastResponse: { modelId: string, response: Response, routeCtx: ReturnType<typeof newRouteContext> } | undefined
   for (let index = 0; index < input.modelIds.length; index += 1) {
     const modelId = input.modelIds[index]
-    Object.assign(input.routeCtx, newRouteContext())
+    const { triedUpstreams, triedKeys } = input.routeCtx
+    Object.assign(input.routeCtx, newRouteContext(), { triedUpstreams, triedKeys })
     const routeCtx = input.routeCtx
     try {
       const response = await input.deps.llmRouter.route({
@@ -106,7 +107,7 @@ export async function routeModelAliasCandidates(input: {
   }
 
   if (lastResponse)
-    return lastResponse
+    return { ...lastResponse, routeCtx: { ...lastResponse.routeCtx, triedUpstreams: input.routeCtx.triedUpstreams, triedKeys: input.routeCtx.triedKeys } }
   throw lastError
 }
 

@@ -64,7 +64,7 @@ describe('request log and billing ownership', () => {
     expect(await logs.getRequest('other-user', observation.requestId)).toEqual({ request: undefined, attempts: [] })
   })
 
-  it.each([499, 502])('keeps upstream header status when final request status is %s', async (status) => {
+  it.each([302, 499, 502])('keeps upstream header status when final request status is %s', async (status) => {
     const logs = createRequestLogService(db)
     await logs.beginRequest(observation)
     const attempts = logs.observeAttempts(observation.userId, observation.requestId)
@@ -114,6 +114,7 @@ describe('request log and billing ownership', () => {
     expect(body).not.toContain('secret-key-reference')
     expect(body).not.toContain('fallbackRate')
     expect((await app.request('/missing')).status).toBe(404)
+    expect((await app.request(`/${'x'.repeat(129)}`)).status).toBe(400)
     await db.insert(llmRequestLog).values({ ...observation, userId: 'other', requestId: 'private-request' })
     expect((await app.request('/private-request')).status).toBe(404)
     const listing = await app.request('/?limit=1')
