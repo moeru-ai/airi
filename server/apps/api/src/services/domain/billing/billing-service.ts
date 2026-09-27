@@ -3,7 +3,7 @@ import type Redis from 'ioredis'
 import type { Database } from '../../../libs/db'
 import type { RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
-import type { BillingObservation } from '../request-log'
+import type { BillingObservation } from '../generation-observation'
 import type { CostPricing, CostUsage } from './billing'
 
 import { useLogger } from '@guiiai/logg'
@@ -13,7 +13,7 @@ import { nonEmpty, parse, pipe, string } from 'valibot'
 import { llmRequestSettlement } from '../../../schemas/llm-request-settlement'
 import { createPaymentRequiredError } from '../../../utils/error'
 import { invalidateBalanceCache, writeBalanceCache } from '../flux-cache'
-import { requestLogSchema } from '../request-log'
+import { generationObservationSchema } from '../generation-observation'
 import { billingPolicySchema, calculateFluxFromUsage, costPricingSchema, priceLlmCost } from './billing'
 
 import * as fluxSchema from '../../../schemas/flux'
@@ -83,7 +83,7 @@ export function createBillingService(
         if (existing?.method === 'provider_cost')
           throw new Error('Billing method does not match the settlement')
         const policy = parse(billingPolicySchema, existing ? existing.pricing : detail.pricing)
-        const observation = parse(requestLogSchema, { ...detail.observation, ...input.metadata, userId: input.userId, requestId, fluxConsumed: 0 })
+        const observation = parse(generationObservationSchema, { ...detail.observation, ...input.metadata, userId: input.userId, requestId, fluxConsumed: 0 })
         const method: 'request' | 'tokens' = policy.fluxPer1kTokens == null ? 'request' : 'tokens'
         const amount = policy.fluxPer1kTokens == null ? policy.fallbackRate : calculateFluxFromUsage({ promptTokens: observation.promptTokens, completionTokens: observation.completionTokens }, policy.fluxPer1kTokens, policy.fallbackRate)
         if (existing?.billingStatus !== 'settled') {
@@ -167,7 +167,7 @@ export function createBillingService(
 
       let settlementId: string | undefined
       if (input.settlement && input.requestId) {
-        const observation = parse(requestLogSchema, { ...input.settlement.observation, userId: input.userId, requestId: input.requestId, model: input.metadata?.model, fluxConsumed: 0 })
+        const observation = parse(generationObservationSchema, { ...input.settlement.observation, userId: input.userId, requestId: input.requestId, model: input.metadata?.model, fluxConsumed: 0 })
         const [settlement] = await tx.insert(llmRequestSettlement).values({
           userId: input.userId,
           requestId: input.requestId,
@@ -254,6 +254,22 @@ export function createBillingService(
   }
 
   return {
+    /** Saves the authorized price before dispatch, independently of diagnostic logging. */
+    async beginLlmRequest(input: { userId: string, requestId: string, model: string, policy: unknown }) {
+      const policy = parse(billingPolicySchema, input.policy)
+      const userId = parse(pipe(string(), nonEmpty()), input.userId)
+      const requestId = parse(pipe(string(), nonEmpty()), input.requestId)
+      await db.insert(llmRequestSettlement).values({
+        userId,
+        requestId,
+        model: input.model,
+        method: 'unresolved',
+        billingStatus: 'pending',
+        pendingReason: 'awaiting_result',
+        pricing: policy,
+      })
+    },
+
     /**
      * Saves a provider receipt and settles whole Flux under the account row lock.
      * Reconciliation reuses the original price snapshot and request ID.
@@ -270,7 +286,7 @@ export function createBillingService(
       observation: BillingObservation
     }): Promise<{ charged: number, requested: number, pending: boolean }> {
       const provider = parse(pipe(string(), nonEmpty()), input.provider)
-      const observation = parse(requestLogSchema, {
+      const observation = parse(generationObservationSchema, {
         ...input.observation,
         ...input.usage,
         userId: input.userId,

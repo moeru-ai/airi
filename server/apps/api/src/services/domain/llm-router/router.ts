@@ -282,7 +282,6 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     perAttemptTimeoutMs: number,
     fallbackHttpCodes: number[],
     onAttemptFailure: (failure: HttpAttemptFailure) => void,
-    ctx?: LlmRouteContext,
   ): Promise<
     | { kind: 'ok', response: Response, attemptIndex: number, upstreamModel: string }
     | { kind: 'exhausted', failures: HttpAttemptFailure[] }
@@ -294,18 +293,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     let attemptIndex = 0
 
     for (const key of rotator) {
-      let attemptId: string | undefined
-      let persisting = false
       try {
         const effectiveModel = upstream.overrideModel ?? req.modelName
         const request = adapter.request({ upstream, request: req, apiKey: key.plaintext.toString('utf8') })
-        persisting = true
-        attemptId = await req.attempts?.start({ gateway: provider, routeId: upstream.id, credentialId: key.id, model: effectiveModel })
-        persisting = false
-        if (ctx) {
-          ctx.attemptId = attemptId
-          ctx.triedKeys += 1
-        }
 
         // NOTICE:
         // We compose two AbortSignals — per-attempt timeout and the caller's
@@ -338,14 +328,6 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
             req.abortSignal.removeEventListener('abort', callerOnAbort)
         }
 
-        if (attemptId) {
-          persisting = true
-          await req.attempts!.finish(attemptId, { state: response.ok ? 'headers_received' : 'failed', status: response.status, errorCode: response.ok ? undefined : 'upstream_http' }).catch(async (error) => {
-            await discardUpstreamResponse(response)
-            throw error
-          })
-          persisting = false
-        }
         if (response.ok) {
           await Promise.all(failures.map(failure => discardUpstreamResponse(failure.response)))
           // First 2xx wins. Enrich the active span and return.
@@ -388,16 +370,6 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         }
       }
       catch (err) {
-        if (persisting)
-          throw createServiceUnavailableError('Failed to persist upstream attempt', 'LLM_TRACKING_UNAVAILABLE')
-        if (attemptId) {
-          await req.attempts!.finish(attemptId, {
-            state: req.abortSignal?.aborted ? 'cancelled' : 'unknown',
-            errorCode: req.abortSignal?.aborted ? 'client_cancelled' : 'transport_error',
-          }).catch(() => {
-            throw createServiceUnavailableError('Failed to persist upstream attempt', 'LLM_TRACKING_UNAVAILABLE')
-          })
-        }
         // Distinguish caller-abort (client disconnect) from our per-attempt
         // timeout. The router does NOT fall back on caller-abort: there is
         // no longer a client waiting for a response.
@@ -469,8 +441,6 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       // exhaustion it holds the last one tried.
       if (ctx)
         ctx.provider = provider
-      if (ctx)
-        ctx.triedUpstreams += 1
 
       const perAttemptTimeoutMs = upstream.timeoutMs ?? defaults.perAttemptTimeoutMs ?? 30000
 
@@ -481,12 +451,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         req,
         perAttemptTimeoutMs,
         fallbackHttpCodes,
-        (failure) => {
-          allFailures.push({ provider, ...failure })
-          if (ctx)
-            ctx.lastStatus = failure.status
-        },
-        ctx,
+        (failure) => { allFailures.push({ provider, ...failure }) },
       )
 
       if (result.kind === 'ok') {

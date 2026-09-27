@@ -1,7 +1,7 @@
 import type { InferOutput } from 'valibot'
 
 import type { UsageInfo } from '../../../../../services/domain/billing/billing'
-import type { BillingObservation } from '../../../../../services/domain/request-log'
+import type { BillingObservation } from '../../../../../services/domain/generation-observation'
 import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
 
@@ -114,8 +114,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const { requiresWebSearch } = input.policy
     const alias = await resolveModelAliasPlan(deps, model, { protocol: 'responses', requiresWebSearch })
     const startedAt = Date.now()
-    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, status: 0, durationMs: 0, fluxConsumed: 0 }, policy)
-    const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
+    await deps.billingService.beginLlmRequest({ userId: input.userId, requestId, model, policy })
     let routeCtx = newRouteContext()
     const span = telemetry.startGenerationSpan({ model, stream: input.policy.stream, operation: 'responses' })
     const startTrace = () => deps.llmTracing.startChatGeneration({
@@ -137,7 +136,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         protocol: 'responses',
         requiresWebSearch,
         abortSignal: input.abortSignal,
-        attempts,
       }))
       upstream = routed.response
       routeCtx = routed.routeCtx
@@ -166,7 +164,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     let pendingReceipt: Promise<void> | undefined
     const observation: BillingObservation = {
       startedAt: new Date(startedAt),
-      attemptId: routeCtx.attemptId,
       status: upstream.status,
       durationMs: Date.now() - startedAt,
       protocol: 'responses',

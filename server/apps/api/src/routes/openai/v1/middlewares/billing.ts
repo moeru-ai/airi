@@ -4,7 +4,7 @@ import type { BillingPolicy, CostPricing, CostUsage, UsageInfo } from '../../../
 import type { BillingService } from '../../../../services/domain/billing/billing-service'
 import type { FluxMeter } from '../../../../services/domain/billing/flux-meter'
 import type { FluxService } from '../../../../services/domain/flux'
-import type { BillingObservation } from '../../../../services/domain/request-log'
+import type { BillingObservation } from '../../../../services/domain/generation-observation'
 
 import { resolveProviderCostAdapter } from '../../../../services/adapters/llm/cost'
 import { calculateFluxFromUsage, priceLlmCost } from '../../../../services/domain/billing/billing'

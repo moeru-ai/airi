@@ -1,7 +1,8 @@
 import type { GenAiMetrics } from '../../../../otel'
 import type { UsageInfo } from '../../../../services/domain/billing/billing'
+import type { GenerationObservation } from '../../../../services/domain/generation-observation'
 import type { LlmRouteContext } from '../../../../services/domain/llm-router'
-import type { RequestLogEntry, RequestLogService } from '../../../../services/domain/request-log'
+import type { RequestLogService } from '../../../../services/domain/request-log'
 
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
@@ -30,7 +31,7 @@ export interface OperationMetricsInput extends UsageInfo {
   fluxConsumed: number
 }
 
-export type RequestLogInput = RequestLogEntry
+export type RequestLogInput = GenerationObservation
 
 type GenerationOperation = 'chat' | 'responses'
 

@@ -19,7 +19,6 @@ import { mockDB } from '../../../libs/mock-db'
 import { createTestRedis } from '../../../libs/tests/redis'
 import { userFlux } from '../../../schemas/flux'
 import { fluxTransaction } from '../../../schemas/flux-transaction'
-import { llmRequestAttempt } from '../../../schemas/llm-request-attempt'
 import { llmRequestLog } from '../../../schemas/llm-request-log'
 import { llmRequestSettlement } from '../../../schemas/llm-request-settlement'
 import { createBillingService } from '../../../services/domain/billing/billing-service'
@@ -42,6 +41,7 @@ function createMockFluxService(flux = 100): FluxService {
 function createMockBillingService(flux = 100): BillingService {
   let balance = flux
   return {
+    beginLlmRequest: vi.fn(async () => undefined),
     consumeFluxForLLM: vi.fn(async (input: { userId: string, amount: number }) => {
       // Mirror billing-service.ts:debitFlux semantics so route tests see the
       // same `charged < requested` signal that production callers handle.
@@ -94,11 +94,6 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
 
 function createMockRequestLogService(): RequestLogService {
   return {
-    beginRequest: vi.fn(async () => undefined),
-    observeAttempts: () => ({ start: vi.fn(async () => 'attempt'), finish: vi.fn(async () => undefined) }),
-    getRequest: vi.fn(async () => ({ request: undefined, attempts: [], settlement: undefined })),
-    listRequests: vi.fn(async () => []),
-    recoverStaleRequests: vi.fn(async () => []),
     logRequest: vi.fn(async () => undefined),
   }
 }
@@ -2577,11 +2572,10 @@ describe('openRouter cost billing through HTTP routes', () => {
     expect(policy.priceChatUsage({ providerUsage: { cost: 10 } }, authorization, 'other.example').costReceipt).toBeUndefined()
   })
   beforeAll(async () => {
-    db = await mockDB({ userFlux, fluxTransaction, llmRequestLog, llmRequestAttempt, llmRequestSettlement })
+    db = await mockDB({ userFlux, fluxTransaction, llmRequestLog, llmRequestSettlement })
   })
   beforeEach(async () => {
     await db.delete(llmRequestSettlement)
-    await db.delete(llmRequestAttempt)
     await db.delete(llmRequestLog)
     await db.delete(fluxTransaction)
     await db.delete(userFlux)
@@ -2638,7 +2632,8 @@ describe('openRouter cost billing through HTTP routes', () => {
         await Promise.all(vi.mocked(logs.logRequest).mock.results.map(result => result.value))
         const entries = await db.select().from(llmRequestLog)
         expect(entries).toHaveLength(1)
-        expect(entries[0]).toMatchObject({
+        const [settlement] = await db.select().from(llmRequestSettlement)
+        expect(settlement.evidence).toMatchObject({ observation: {
           gateway: 'openrouter.ai',
           upstreamProvider: 'Inference Provider',
           upstreamModel: 'vendor/native-model',
@@ -2646,8 +2641,7 @@ describe('openRouter cost billing through HTTP routes', () => {
           cachedTokens: 90,
           reasoningTokens: 12,
           providerUsage: { future_meter: { units: 4 } },
-          fluxConsumed: 3,
-        })
+        } })
       })
     }
   }
@@ -2679,7 +2673,7 @@ describe('openRouter cost billing through HTTP routes', () => {
     await vi.waitFor(async () => {
       const entries = await db.select().from(llmRequestLog)
       expect(entries).toHaveLength(1)
-      expect(entries[0]).toMatchObject({ fluxConsumed: 2, gateway: provider })
+      expect(entries[0]).toMatchObject({ fluxConsumed: 2 })
     })
   })
 
@@ -2727,8 +2721,9 @@ describe('openRouter cost billing through HTTP routes', () => {
       await reader.read()
       await reader.read()
       await vi.waitFor(async () => {
-        const [entry] = await db.select().from(llmRequestLog)
-        expect(entry).toMatchObject({ timeToFirstTokenMs: 50, durationMs: 100, responseModel: 'actual-model', upstreamProvider: 'Inference Provider', finishReason: 'stop', fluxConsumed: 3 })
+        const [settlement] = await db.select().from(llmRequestSettlement)
+        const entry = settlement.evidence
+        expect(entry).toMatchObject({ observation: { timeToFirstTokenMs: 50, durationMs: 100, responseModel: 'actual-model', upstreamProvider: 'Inference Provider', finishReason: 'stop' } })
         expect(JSON.stringify(entry)).not.toContain('private output')
       })
     }

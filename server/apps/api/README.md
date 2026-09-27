@@ -209,7 +209,7 @@ The account retains fractional charges until they reach one whole Flux. An expli
 The integer wallet, top-up amounts, and transaction API keep their existing units.
 
 `llm_request_settlement` retains provider ID, usage evidence, generation ID, price snapshot, and settlement status.
-`llm_request_log` owns request summaries. `llm_request_attempt` records each local upstream dispatch.
+The existing `llm_request_log` stays unchanged. Request and attempt tracking is a separate change.
 Missing or invalid cost, BYOK usage, and interrupted results create pending receipts without a token-rate fallback.
 `settleLlmCost` can reconcile a pending receipt with recovered usage and its original request ID.
 It uses the saved price snapshot and rejects a different provider or generation ID.
@@ -217,7 +217,7 @@ This version has no automatic generation lookup, reconciliation worker, or opera
 Automatic lookup belongs to phase two. Phase one leaves pending receipts uncharged and monitors their volume.
 Pending receipts are not free usage. They do not automatically debit the wallet later in this version.
 
-Apply `0026_llm_request_accounting.sql` before deploying this code, even when cost pricing is disabled.
+Apply `0026_llm_cost_settlement.sql` before deploying this code, even when cost pricing is disabled.
 The migration preserves existing balances and initializes each fractional remainder to zero.
 Then configure prices only after charge samples agree with the OpenRouter account history.
 Do not enable this policy for OpenRouter keys that use BYOK provider credentials.
@@ -257,43 +257,19 @@ ORDER BY created_at
 LIMIT 100;
 ```
 
-The request log and `flux_transaction` share `(user_id, request_id)`.
-Historical rows retain a null request ID. New correlated requests have a unique row per user and request ID.
+The settlement and `flux_transaction` share `(user_id, request_id)`.
+Each settlement has a unique user and request ID. Billing persists the authorized price before dispatch.
 Cost settlement updates the settlement, wallet, remainder, and ledger in one transaction.
 Pending evidence is saved first, so a failed debit does not discard the recovered cost.
 Later observations cannot overwrite settlement evidence. Diagnostic rows may be removed without deleting accounting records.
 Pending and settled settlement rows must follow ledger retention rules. Do not purge them as disposable access logs.
 
-#### Gateway request details
-
-Chat Completions and Responses record the available gateway facts for both cost and token billing:
-
-| Fields | Meaning |
-| --- | --- |
-| `gateway`, `upstream_provider`, `billing_provider` | Routed hostname, inference provider reported by the gateway, and trusted cost adapter ID. These are different identities. |
-| `requested_model`, `model`, `upstream_model`, `response_model` | Client alias, selected route, dispatched model, and model reported in the response. |
-| `request_id`, `generation_id`, `session_id`, `protocol`, `stream` | Local correlation, gateway generation, conversation, and transport. |
-| `duration_ms`, `time_to_first_token_ms`, `status`, `routing` | Request duration, first output timing, final outcome, and router counters for the selected alias candidate. |
-| Token columns and `provider_usage` | Queryable token totals, cache reads/writes, reasoning tokens, and bounded usage evidence, including provider-specific fields. |
-| Finish reasons, `response_status`, `provider_metadata` | Reported completion state and selected response metadata, including service tier, fingerprint, and upstream IDs when returned. |
-| Settlement fields | Original price, normalized USD cost, micro-Flux charge, pending reason, and requested/charged Flux, stored separately. |
-
-Missing gateway facts stay null. Optional malformed observation fields do not discard valid billing usage.
-Provider metadata excludes prompt/completion bodies and request headers. Adapters may add safe gateway-specific facts to JSON metadata without a table migration.
-This records information returned on the request path. OpenRouter generation-only details still require a future lookup adapter.
-The schema supports richer Activity views; this change does not add an Activity API or interface.
-
 Structured runtime logs use `event = llm.cost_receipt` and `billingStatus = pending | settled | failed`.
 Pending logs include the reason. Failed logs identify transactions that could not save a receipt.
 Do not add pending requests to a USD loss total when their cost is unknown.
 Monitor persistence errors separately because they are absent from these SQL reports.
-Requests and attempts are saved before dispatch. A crash can still leave unknown results or no generation ID.
-Owner-scoped list/detail APIs use `/api/v1/llm-requests` and `/api/v1/llm-requests/:requestId`.
-They omit raw evidence, credential references, and internal prices. There is no Activity UI yet.
-`recoverStaleRequests(before)` marks stale running observations unknown. It does not charge or replay upstream calls.
 Evidence is limited to 16,384 JSON characters with common content and credential keys removed.
-Reassess automatic lookup when pending volume or known unpaid cost becomes material.
-Choose an alert threshold after representative traffic provides a baseline. This change does not install an alert or dashboard.
+This change does not add request detail APIs, an Activity UI, a reconciliation worker, or an alert.
 
 ### Generation protocol ownership
 

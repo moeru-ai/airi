@@ -24,7 +24,6 @@ import type {
   ttsRoutingSchema,
   ttsUpstreamSchema,
 } from '../../adapters/config-kv'
-import type { AttemptObserver } from './attempt'
 
 /**
  * Composite router config (the value at `LLM_ROUTER_CONFIG` in configKV).
@@ -117,7 +116,6 @@ export type ModelKind = 'llm' | 'tts'
  * chosen upstream.
  */
 export interface LlmRouteRequest {
-  attempts?: AttemptObserver
   /** Wire protocol. @default 'chat-completions' */
   protocol?: GenerationProtocol
   /** Select only upstreams whose effective model supports hosted web search. @default false */
@@ -152,7 +150,6 @@ export interface LlmRouteRequest {
  * status codes (or `'timeout'`) and counts are safe to carry.
  */
 export interface LlmRouteContext {
-  attemptId?: string
   /** Provider tag for OTel labels (e.g. `openrouter`). */
   provider: string
   /** Actual model id sent to the winning upstream after `overrideModel` rewrites. */
