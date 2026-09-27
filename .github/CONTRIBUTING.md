@@ -1,374 +1,241 @@
 # Start contributing to [Project AIRI](https://github.com/moeru-ai/airi)
 
-Hello! Thank you for your interest in contributing to this project. This guide will help you get started.
+Thank you for your interest in Project AIRI. This guide explains how to set up the repository, run an application, validate changes, and open a pull request.
 
 ## Prerequisites
 
 - [Git](https://git-scm.com/downloads)
-- [Node.js 23+](https://nodejs.org/en/download/)
-- [corepack](https://github.com/nodejs/corepack)
-- [pnpm](https://pnpm.io/installation)
+- [mise](https://mise.jdx.dev/installing-mise.html), or another tool that reads `.tool-versions`
 
-<details>
-<summary>Windows setup</summary>
+The repository pins Node.js and pnpm in [`.tool-versions`](../.tool-versions). The `packageManager` field in [`package.json`](../package.json) also pins pnpm.
 
-0. Download [Visual Studio](https://visualstudio.microsoft.com/downloads/) and follow the instructions here: https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
+### Windows
 
-   > Make sure to install Windows SDK and C++ build tools when installing Visual Studio.
-
-1. Open PowerShell
-2. Install [`scoop`](https://scoop.sh/)
+1. Open PowerShell.
+2. Install [Scoop](https://scoop.sh/).
 
    ```powershell
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
    ```
 
-3. Install `git`, Node.js, `rustup`, `msvc` through `scoop`
+3. Install Git and mise.
 
    ```powershell
-   scoop install git nodejs rustup
-
-   # For Rust dependencies
-   # Not required if you are not going to develop on either crates or apps/tamagotchi
-   scoop install main/rust-msvc
-   # Rust & Windows specific
-   rustup toolchain install stable-x86_64-pc-windows-msvc
-   rustup default stable-x86_64-pc-windows-msvc
+   scoop install git mise
    ```
 
-   > https://stackoverflow.com/a/64121601
+### macOS
 
-4. Install `pnpm` through `corepack`
+Install Git and mise with Homebrew:
 
-   ```powershell
-   corepack enable
-   corepack prepare pnpm@latest --activate
-   ```
+```shell
+brew install git mise
+```
 
-</details>
+### Linux
 
-<details>
-<summary>macOS setup</summary>
+Install Git from the [Linux instructions](https://git-scm.com/downloads/linux). Install mise with the [method for your distribution](https://mise.jdx.dev/installing-mise.html).
 
-0. Open Terminal (or iTerm2, Ghostty, Kitty, etc.)
-1. Install `git`, `node` through `brew`
+## Fork and clone
+
+1. Click **Fork** on the [moeru-ai/airi](https://github.com/moeru-ai/airi) repository page.
+2. Clone your fork:
 
    ```shell
-   brew install git node
+   git clone https://github.com/<your-github-username>/airi.git
+   cd airi
    ```
 
-2. Install `pnpm` through `corepack`
+3. Add the upstream repository:
 
    ```shell
-   corepack enable
-   corepack prepare pnpm@latest --activate
+   git remote add upstream https://github.com/moeru-ai/airi.git
    ```
 
-</details>
-
-<details>
-<summary>Linux setup</summary>
-
-0. Open terminal
-1. Follow [nodesource/distributions: NodeSource Node.js Binary Distributions](https://github.com/nodesource/distributions?tab=readme-ov-file#table-of-contents) to install `node`
-2. Follow [Git](https://git-scm.com/downloads/linux) to install `git`
-3. Install `pnpm` through `corepack`
+4. Create a working branch:
 
    ```shell
-   corepack enable
-   corepack prepare pnpm@latest --activate
+   git switch -c <your-branch-name>
    ```
 
-4. If you would love to help to develop the desktop version, you will need those dependencies:
+## Update an existing checkout
 
-   ```shell
-   sudo apt install \
-      libssl-dev \
-      libglib2.0-dev \
-      libgtk-3-dev \
-      libjavascriptcoregtk-4.1-dev \
-      libwebkit2gtk-4.1-dev
-   ```
-
-</details>
-
-## If you have already contributed to this project before
-
-> [!WARNING]
->
-> If you haven't cloned this repository, skip this section.
-
-Make sure your local repository is up to date with the upstream repository:
+If you already contributed to the project, fetch upstream changes and update `main`:
 
 ```shell
 git fetch --all
-git checkout main
+git switch main
 git pull upstream main --rebase
 ```
 
-If you have a working branch, to make your branch up to date with the upstream repository:
+Update an existing branch from `main`:
 
 ```shell
-git checkout <your-branch-name>
+git switch <your-branch-name>
 git rebase main
-```
-
-## Fork this project
-
-Click on the **Fork** button on the top right corner of the [moeru-ai/airi](https://github.com/moeru-ai/airi) page.
-
-## Clone
-
-```shell
-git clone https://github.com/<your-github-username>/airi.git
-cd airi
-```
-
-## Create your working branch
-
-```shell
-git checkout -b <your-branch-name>
 ```
 
 ## Install dependencies
 
-```shell
-corepack enable
-pnpm install
-
-# For Rust dependencies
-# Not required if you are not going to develop on either crates or apps/tamagotchi
-cargo fetch
-```
-
-> [!NOTE]
->
-> We would recommend to install [@antfu/ni](https://github.com/antfu-collective/ni) to make your script simpler.
->
-> ```shell
-> corepack enable
-> npm i -g @antfu/ni
-> ```
->
-> Once installed, you can
->
-> - use `ni` for `pnpm install`, `npm install` and `yarn install`.
-> - use `nr` for `pnpm run`, `npm run` and `yarn run`.
->
-> You don't need to care about the package manager, `ni` will help you choose the right one.
-
-## Choose the application you want to develop on
-
-### Stage Tamagotchi (Desktop version)
+Run these commands from the repository root:
 
 ```shell
-pnpm dev:tamagotchi
+mise install
+mise exec -- node --version
+mise exec -- pnpm --version
+mise exec -- pnpm install
 ```
 
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr dev:tamagotchi
-> ```
+The reported versions must match `.tool-versions` and `package.json`. Activate mise for your shell to omit `mise exec --`. Otherwise, use it before each pnpm command.
 
-> [!NOTE]
->
-> The `dev` and `start` scripts run `install-electron` before `electron-vite`.
->
-> Electron 42 removed the `postinstall` script. The `electron` package now downloads its binary
-> when you first run its `bin` entry. `electron-vite` reads `node_modules/electron/path.txt`
-> directly, so it never starts that download. A fresh install therefore fails with
-> `Error: Electron uninstall`.
->
-> `install-electron` runs the same code as the removed `postinstall` script. It returns
-> immediately when the binary is already present.
->
-> Remove this step after `electron-vite` supports the lazy download.
+You can optionally install [@antfu/ni](https://github.com/antfu-collective/ni):
 
-### Stage Web (Browser version for [airi.moeru.ai](https://airi.moeru.ai))
+```shell
+mise exec -- npm install --global @antfu/ni
+```
+
+Use `ni` instead of `pnpm install` and `nr` instead of `pnpm run` after installation.
+
+## Run an application
+
+Run commands from the repository root after you install dependencies.
+
+### Stage Web
+
+Start the browser application:
 
 ```shell
 pnpm dev
 ```
 
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr dev
-> ```
+Use `pnpm dev:web:https` when the local page needs HTTPS APIs. The browser application runs at the local URL shown in the terminal.
 
-### UI Storyboard
+### Stage Tamagotchi
 
-Browse the live UI component storyboard at [airi.moeru.ai/ui](https://airi.moeru.ai/ui/).
+Start the Electron desktop application:
+
+```shell
+pnpm dev:tamagotchi
+```
+
+Build the desktop application with:
+
+```shell
+pnpm -F @proj-airi/stage-tamagotchi build
+```
+
+### Stage Pocket
+
+Start an iOS device or simulator with its identifier:
+
+```shell
+pnpm dev:pocket:ios --target "<DEVICE_ID_OR_SIMULATOR_NAME>"
+```
+
+List available iOS devices and simulators:
+
+```shell
+pnpm -F @proj-airi/stage-pocket exec cap run ios --list
+```
+
+For Android, install Android Studio, the Android SDK, and Java 21. Then run:
+
+```shell
+pnpm dev:pocket:android
+```
+
+See [`apps/stage-pocket/android/README.md`](../apps/stage-pocket/android/README.md) for Android environment variables and device setup.
 
 ### Documentation site
+
+Start the documentation site:
 
 ```shell
 pnpm dev:docs
 ```
 
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr dev:docs
-> ```
+### UI storyboard
 
-### Telegram bot integration
+Start the shared UI storyboard:
 
-A Postgres database is required.
+```shell
+pnpm dev:ui
+```
+
+### Backend services
+
+Start the local backend stack with Docker:
+
+```shell
+pnpm dev:backend
+```
+
+Read [`server/README.md`](../server/README.md) before changing hosted backend code.
+
+### Integrations
+
+For an integration, install dependencies from the repository root, enter its directory, copy `.env` to `.env.local`, and fill in the required values.
+
+Telegram requires a local PostgreSQL service:
 
 ```shell
 cd integrations/telegram-bot
 docker compose up -d
-```
-
-Configure `.env`
-
-```shell
-cp .env .env.local
-```
-
-Edit the credentials in `.env.local`.
-
-Migrate the database
-
-```shell
 pnpm -F @proj-airi/telegram-bot db:generate
 pnpm -F @proj-airi/telegram-bot db:push
-```
-
-Run the bot
-
-```shell
 pnpm -F @proj-airi/telegram-bot start
 ```
 
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr -F @proj-airi/telegram-bot dev
-> ```
-
-### Discord bot integration
-
-```shell
-cd integrations/discord-bot
-```
-
-Configure `.env`
-
-```shell
-cp .env .env.local
-```
-
-Edit the credentials in `.env.local`.
-
-Run the bot
+Start the Discord bot with:
 
 ```shell
 pnpm -F @proj-airi/discord-bot start
 ```
 
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr -F @proj-airi/discord-bot dev
-> ```
-
-### Minecraft agent
+Start the Minecraft service with:
 
 ```shell
-cd integrations/minecraft
+pnpm -F @proj-airi/minecraft-bot dev
 ```
 
-Start a Minecraft client, export your world with desired port, and fill-in the port number in `.env.local`.
+## Validate changes
 
-Configure `.env`
+Run linting and type checking before you commit:
 
 ```shell
-cp .env .env.local
+pnpm lint
+pnpm typecheck
 ```
 
-Edit the credentials in `.env.local`.
-
-Run the bot
+Run the tests that cover the changed workspace. For the complete test suite, run:
 
 ```shell
-pnpm -F @proj-airi/minecraft-bot start
+pnpm test:run
 ```
 
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr -F @proj-airi/minecraft-bot dev
-> ```
+If you change a shared package or exported type, run the root `pnpm typecheck` command.
 
-## Commit
+## Commit and push
 
-### Before commit
-
-Please make sure lint (static checkers) and TypeScript compilers are satisfied:
+Add only the files for your change:
 
 ```shell
-pnpm lint && pnpm typecheck
-```
-
-If you are committing images, consider using AVIF format instead of PNG, JPG etc. You can convert existing images to AVIF by running:
-
-```shell
-pnpm to-avif <PATH_TO_IMAGE_OR_DIRECTORY1> <PATH_2> <PATH_3> ...
-```
-
-> [!NOTE]
->
-> If you have [@antfu/ni](https://github.com/antfu-collective/ni) installed, you can use `nr` to run the commands:
->
-> ```shell
-> nr lint && nr typecheck
-> ```
-
-### Commit
-
-```shell
-git add .
+git add <changed-files>
 git commit -m "<your-commit-message>"
+git push -u origin <your-branch-name>
 ```
 
-### Push to your fork repository
+Use a [Conventional Commit](https://www.conventionalcommits.org/) message, such as `feat(stage-ui): add a provider control`.
 
-```shell
-git push origin <your-branch-name> -u
-```
+## Create a pull request
 
-You should be able to browse the branch on your fork repository.
+Open the [moeru-ai/airi](https://github.com/moeru-ai/airi) repository page:
 
-> [!NOTE]
->
-> If this is your first time contributing to this project, you need to add the upstream repository too:
->
-> ```shell
-> git remote add upstream https://github.com/moeru-ai/airi.git
-> ```
+1. Click **Pull requests**.
+2. Click **New pull request**.
+3. Click **Compare across forks**.
+4. Select your fork and working branch.
+5. Review the changes and click **Create pull request**.
 
-## Creating Pull Request
-
-Navigate to [moeru-ai/airi](https://github.com/moeru-ai/airi) page, click on the **Pull requests** tab, and click on the **New pull request** button, click on the **Compare across forks** link, and select your fork repository.
-
-Review the changes, and click on the **Create pull request** button.
-
-## Whooo-ya! You made it!
-
-Congratulations! You made your first contribution to this project. You can now wait for the maintainers to review your pull request.
+Include the user-visible behavior, the checks that you ran, and any follow-up work in the pull request description.

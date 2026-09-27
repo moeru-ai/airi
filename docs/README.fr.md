@@ -266,6 +266,13 @@ Capacités :
 
 ## Développement
 
+Installez les outils et dépendances verrouillés depuis la racine du dépôt :
+
+```shell
+mise install
+mise exec -- pnpm install
+```
+
 > Pour des instructions détaillées sur le développement, suivez [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
 
 > [!NOTE]

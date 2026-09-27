@@ -266,6 +266,13 @@
 
 ## 開発
 
+リポジトリのルートで固定バージョンのツールと依存関係をインストールします：
+
+```shell
+mise install
+mise exec -- pnpm install
+```
+
 > このプロジェクトの詳細な開発手順については、[CONTRIBUTING.md](../.github/CONTRIBUTING.md)を参照してください
 
 > [!NOTE]
