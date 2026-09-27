@@ -11,8 +11,6 @@ export interface SessionRow {
   preview: string
   isActive: boolean
   updatedAtLabel: string
-  characterName?: string
-  unavailable?: boolean
 }
 </script>
 
@@ -94,7 +92,6 @@ function deleteDesktopSession(sessionId: string) {
             <BasicButton
               size="unset"
               :aria-current="row.isActive ? 'true' : undefined"
-              :disabled="row.unavailable"
               :class="[
                 'session-select active:scale-100! min-h-12 min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left',
                 'focus-visible:outline-2 focus-visible:outline-primary-500',
@@ -110,8 +107,6 @@ function deleteDesktopSession(sessionId: string) {
               />
               <span :class="['min-w-0 flex-1']">
                 <span :class="['block truncate text-sm font-medium']">{{ row.preview }}</span>
-                <span v-if="row.characterName" :class="['block truncate text-xs text-neutral-500 dark:text-neutral-400']">{{ row.characterName }}</span>
-                <span v-if="row.unavailable" :class="['block text-xs text-amber-700 dark:text-amber-300']">{{ t('stage.chat.sessions.character-deleted') }}</span>
                 <span :class="['mt-0.5 flex items-center gap-2 text-xs font-normal text-neutral-500 dark:text-neutral-400']">
                   <span>{{ row.updatedAtLabel }}</span>
                   <span
@@ -187,7 +182,6 @@ function deleteDesktopSession(sessionId: string) {
                 <BasicButton
                   size="unset"
                   :aria-current="row.isActive ? 'true' : undefined"
-                  :disabled="row.unavailable"
                   :class="[
                     'session-select active:scale-100! min-w-0 flex-1 text-left',
                     props.compact ? 'min-h-12 rounded-lg px-2 py-1.5' : 'min-h-20 rounded-2xl px-3 py-3',
@@ -213,8 +207,6 @@ function deleteDesktopSession(sessionId: string) {
                   />
                   <span :class="['min-w-0 flex-1']">
                     <span :class="['block truncate text-sm font-medium']">{{ row.preview }}</span>
-                    <span v-if="row.characterName" :class="['block truncate text-xs text-neutral-500 dark:text-neutral-400']">{{ row.characterName }}</span>
-                    <span v-if="row.unavailable" :class="['block text-xs text-amber-700 dark:text-amber-300']">{{ t('stage.chat.sessions.character-deleted') }}</span>
                     <span :class="['flex items-center gap-2 text-xs font-normal text-neutral-500 dark:text-neutral-400', props.compact ? 'mt-0.5' : 'mt-1']">
                       <span>{{ row.updatedAtLabel }}</span>
                       <span v-if="row.isActive && !props.compact" :class="['text-primary-600 dark:text-primary-300']">{{ t('stage.chat.sessions.current') }}</span>

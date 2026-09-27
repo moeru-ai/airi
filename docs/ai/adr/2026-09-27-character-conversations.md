@@ -2,7 +2,8 @@
 
 ## Status
 
-Implemented with minimal ownership UI. No page redesign or hosted schema change.
+Implemented with character-scoped conversations and model binding on cards.
+No page redesign or hosted schema change.
 
 ## Context
 
@@ -57,15 +58,19 @@ implements this policy for runtime activation and conversation sends.
 
 ## Verification
 
-The conversation list shows each character and explains window-local selection.
-Deleted-character rows remain visible and deletable, but cannot be opened.
-The model panel shows the active character, explicit binding or inheritance,
-and a command to restore global inheritance. Binding edits affect every window
-that uses that character. English and Simplified Chinese explain these scopes.
+The conversation selector shows only the current account's conversations for
+the selected character. Changing the character updates the list and selected
+conversation. Deleted-character history remains stored but is not in that list.
+
+Each card in the card list shows its model preview and a model selector.
+Editing an inactive card's binding does not select that card or change the
+current runtime model. Selecting a card restores its own model binding.
+The existing card editor keeps its module settings. Other UI stays unchanged.
 
 Stage Web captures cover desktop and mobile layouts. Browser interactions verify
-that opening history selects its character and that resetting a binding restores
-inheritance. Installed desktop and native mobile acceptance remain separate.
+that character selection changes the conversation list and model, and that
+editing another card does not navigate. Installed desktop and native mobile
+acceptance remain separate.
 
 Real Pinia and BroadcastChannel browser tests cover independent character,
 model, and conversation selection; shared card edits without follower state

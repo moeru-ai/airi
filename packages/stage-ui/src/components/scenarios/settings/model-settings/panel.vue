@@ -9,7 +9,6 @@ import type { Live2DExpressionSettingsCommand } from '@proj-airi/stage-ui-live2d
 import type { DisplayModel } from '../../../../stores/display-models'
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { errorMessageFrom } from '@moeru/std'
 import { Button, Callout, ScrollableArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
@@ -55,11 +54,7 @@ const { t } = useI18n()
 const modelSelectorOpen = ref(false)
 const settingsStore = useSettings()
 const airiCardStore = useAiriCardStore()
-const { activeCard } = storeToRefs(airiCardStore)
 const { stageModelRenderer, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
-const isSaving = ref(false)
-const saveError = ref('')
-const inheritsModel = computed(() => !activeCard.value?.extensions.airi.modules.displayModelId)
 
 const effectiveRenderer = computed(() => resolveModelSettingsPanelRenderer({
   settingsRenderer: stageModelRenderer.value,
@@ -67,24 +62,8 @@ const effectiveRenderer = computed(() => resolveModelSettingsPanelRenderer({
 }))
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
-  if (isSaving.value)
-    return
-  isSaving.value = true
-  saveError.value = ''
-  try {
-    const updated = await airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
-    if (!updated) {
-      saveError.value = t('settings.model-select.character-binding.save-failed')
-      return
-    }
-    await settingsStore.updateStageModel()
-  }
-  catch (error) {
-    saveError.value = errorMessageFrom(error) ?? t('settings.model-select.character-binding.save-failed')
-  }
-  finally {
-    isSaving.value = false
-  }
+  await airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
+  await settingsStore.updateStageModel()
 }
 </script>
 
@@ -96,26 +75,6 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
     ]"
   >
     <div :class="['flex flex-col gap-2 p-2']">
-      <section v-if="activeCard" :class="['rounded-xl bg-neutral-100 p-3 dark:bg-neutral-800']">
-        <h2 :class="['text-sm font-semibold']">
-          {{ t('settings.model-select.character-binding.title', { name: activeCard.name }) }}
-        </h2>
-        <p :class="['mt-1 text-sm']">
-          {{ stageModelSelectedDisplayModel?.name ?? t('settings.model-select.character-binding.no-model') }}
-          <span :class="['text-xs text-neutral-500 dark:text-neutral-400']">
-            · {{ t(inheritsModel ? 'settings.model-select.character-binding.inherited' : 'settings.model-select.character-binding.bound') }}
-          </span>
-        </p>
-        <p :class="['mt-2 text-xs text-neutral-500 dark:text-neutral-400']">
-          {{ t('settings.model-select.character-binding.shared-scope') }}
-        </p>
-        <Button v-if="!inheritsModel" :class="['mt-3']" variant="secondary" :loading="isSaving" @click="handleModelPick(undefined)">
-          {{ t('settings.model-select.character-binding.use-default') }}
-        </Button>
-        <p v-if="saveError" role="alert" :class="['mt-2 text-sm text-red-600 dark:text-red-400']">
-          {{ saveError }}
-        </p>
-      </section>
       <Callout :label="t('settings.model-select.panel-callout.support-status-header')">
         <i18n-t keypath="settings.model-select.panel-callout.support-status" tag="p">
           <template #select-button>
@@ -140,7 +99,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
       </Callout>
       <div :class="['flex flex-wrap items-center gap-2']">
         <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="stageModelSelectedDisplayModel" @pick="handleModelPick">
-          <Button :disabled="isSaving || !activeCard">
+          <Button>
             {{ t('settings.model-select.select-model.button') }}
           </Button>
         </ModelSelectorDialog>

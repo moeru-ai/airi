@@ -56,6 +56,7 @@ Conversation metadata stores the owning `characterId`.
 - Use `useChatSessionStore().createSession(characterId)` to start a conversation.
 - Use `setActiveSession(sessionId)` to open history and select its character.
 - Use `updateActiveCardDisplayModel(id)` to save a character's display binding.
+- Use `updateCardDisplayModel(cardId, id)` to edit a card without selecting it.
 - Use `resolveCharacter(id)` to resolve settings for background or leader work.
   Do not read the leader window's current card when handling another conversation.
 
@@ -71,12 +72,13 @@ deleted card select the built-in character. Starting a new turn still requires
 an existing owning card. Cloud-only conversations keep the existing default-card
 association; this change does not add cloud character synchronization.
 
-The conversation list shows character ownership. Deleted-character conversations
-remain listed and can be deleted, but cannot be opened or silently reassigned.
-The model panel shows whether the current character binds a model or inherits
-the global default. Use its reset action to remove the binding, not copy the
-resolved default into the card. Shared binding edits affect all windows using
-that character; selecting a conversation affects only the current window.
+The conversation list is filtered by the current account and selected character.
+Changing the character updates that list. Deleted-character conversations remain
+stored but are not shown under another character.
+Card-list model selectors edit explicit card ids, without selecting the card.
+An empty binding inherits the global default rather than copying its value.
+Shared binding edits affect all windows using that character; selecting a
+conversation affects only the current window.
 
 Models inherit only within the same provider. Voices also require the same
 model. A different provider without a model stays unconfigured rather than

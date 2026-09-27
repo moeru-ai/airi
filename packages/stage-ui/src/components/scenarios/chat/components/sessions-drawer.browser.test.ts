@@ -2,7 +2,7 @@ import type { ChatSessionMeta } from '../../../../types/chat-session'
 
 import { PiniaColada } from '@pinia/colada'
 import { createPinia } from 'pinia'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
@@ -10,6 +10,7 @@ import SessionsDrawer from './sessions-drawer.vue'
 
 import { useChatStore } from '../../../../stores/chat'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
@@ -56,18 +57,6 @@ function sessionMeta(sessionId: string, title: string, updatedAt: number): ChatS
 function createSessionsPinia() {
   const pinia = createPinia()
   pinia.state.value = {
-    'airi-card-catalog': {
-      cards: new Map([['default', {
-        name: 'ReLU',
-        version: '1.0.0',
-        description: 'Test character',
-        extensions: { airi: { agents: {}, modules: {
-          consciousness: { provider: '', model: '' },
-          vision: { provider: '', model: '' },
-          speech: { provider: '', model: '', voice_id: '' },
-        } } },
-      }]]),
-    },
     'chat-session-selection': {
       activeSessionId: 'session-b',
     },
@@ -88,6 +77,28 @@ function createSessionsPinia() {
 }
 
 describe('sessions drawer orchestration', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('shows only the current character conversations and changes the list with the character', async () => {
+    const pinia = createSessionsPinia()
+    pinia.state.value['chat-session'].sessionMetas['session-c'].characterId = 'another-character'
+    pinia.state.value['chat-session'].sessionMetas['session-a'].userId = 'another-account'
+    const screen = await render(SessionsDrawer, {
+      props: { modelValue: true },
+      global: { plugins: [pinia, PiniaColada, createTestI18n()] },
+    })
+
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: /^Chat A/ })).not.toBeInTheDocument()
+    await expect.element(screen.getByRole('button', { name: /^Chat C/ })).not.toBeInTheDocument()
+
+    useAiriCardStore(pinia).activeCardId = 'another-character'
+
+    await expect.element(screen.getByRole('button', { name: /^Chat C/ })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).not.toBeInTheDocument()
+    await expect.element(screen.getByRole('button', { name: /^Chat A/ })).not.toBeInTheDocument()
+  })
+
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743073795
   it('preserves a newer selection while active-session deletion is pending for Issue #2085', async () => {
     // ROOT CAUSE:

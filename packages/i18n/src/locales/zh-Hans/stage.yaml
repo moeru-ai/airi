@@ -58,11 +58,6 @@ chat:
     actions: 展开操作
     row: '示例会话 {n}'
   sessions:
-    character-context: '与 {name} 开启新对话'
-    window-scope: 打开对话时，仅在当前窗口切换到该对话所属的角色。
-    character-deleted: 角色已删除
-    character-deleted-help: 已删除角色的对话仍会保留，但无法打开，也不会被分配给其他角色。
-    action-failed: 无法打开对话，请重试。
     delete-short: 删除
     confirm-delete-short: 确认删除
     title: 对话

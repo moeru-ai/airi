@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { CursorFloating } from '@proj-airi/stage-ui/components'
 
+import CardModelBinding from './card-model-binding.vue'
+
 interface Props {
   id: string
   name: string
@@ -66,6 +68,8 @@ const emit = defineEmits<{
       <p v-if="description" line-clamp-3 min-h-40px flex-1 text-sm text="neutral-500 dark:neutral-400">
         {{ description }}
       </p>
+
+      <CardModelBinding :card-id="id" />
 
       <!-- Card stats -->
       <div z-1 flex items-center justify-between text-xs text="neutral-500 dark:neutral-400">

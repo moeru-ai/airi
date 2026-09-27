@@ -31,6 +31,28 @@ function createContext(runtime?: SyncedPiniaRuntime) {
 }
 
 describe('persisted and replicated card defaults', () => {
+  it('binds an inactive card without navigating and restores its model when selected', async () => {
+    const context = createContext()
+    await context.cards.initialize()
+    const originalModel = context.cards.currentModels.displayModelId
+    const cardId = await context.cards.addCard({ ...context.cards.activeCard!, name: 'Luna' }, 'scratch')
+
+    expect(await context.cards.updateCardDisplayModel(cardId, 'preset-vrm-1')).toBe(true)
+    expect(context.cards.activeCardId).toBe('default')
+    expect(context.cards.currentModels.displayModelId).toBe(originalModel)
+    expect(context.cards.getCard(cardId)?.extensions.airi.modules.displayModelId).toBe('preset-vrm-1')
+
+    await context.cards.activateCard(cardId)
+    expect(context.cards.currentModels.displayModelId).toBe('preset-vrm-1')
+    await context.cards.activateCard('default')
+    expect(context.cards.currentModels.displayModelId).toBe(originalModel)
+
+    await context.cards.updateCardDisplayModel(cardId, undefined)
+    expect(context.cards.getCard(cardId)?.extensions.airi.modules.displayModelId).toBeUndefined()
+    expect(context.cards.activeCardId).toBe('default')
+    expect(await context.cards.updateCardDisplayModel('deleted-card', 'preset-vrm-1')).toBe(false)
+  })
+
   it('keeps character selection and effective configuration local to each window', async () => {
     const namespace = `character-windows-${crypto.randomUUID()}`
     const leaderRuntime = createSyncedPiniaPlugin({ namespace, leadership: 'leader-only' })

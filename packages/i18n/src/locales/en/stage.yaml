@@ -58,11 +58,6 @@ chat:
     actions: Show actions
     row: 'Conversation {n}'
   sessions:
-    character-context: 'New conversations with {name}'
-    window-scope: Opening a conversation selects its character in this window only.
-    character-deleted: Character deleted
-    character-deleted-help: Conversations with deleted characters are kept, but cannot be opened. They are not assigned to another character.
-    action-failed: Could not open the conversation. Please try again.
     delete-short: Delete
     confirm-delete-short: Confirm delete
     title: Conversations

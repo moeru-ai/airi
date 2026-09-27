@@ -42,7 +42,6 @@ function preserveTriggerFocus(event: Event) {
     <template v-if="$slots.trigger" #trigger>
       <slot name="trigger" />
     </template>
-    <slot name="context" />
     <SessionsList
       :rows="rows"
       :is-creating-session="isCreatingSession"
@@ -66,7 +65,6 @@ function preserveTriggerFocus(event: Event) {
         ]"
         @open-auto-focus="preserveTriggerFocus"
       >
-        <slot name="context" />
         <BasicButton
           block
           size="unset"
@@ -111,7 +109,6 @@ function preserveTriggerFocus(event: Event) {
         <DialogTitle :class="['mb-5 text-xl font-semibold tracking-tight']">
           {{ t('stage.chat.sessions.title') }}
         </DialogTitle>
-        <slot name="context" />
         <SessionsList
           :rows="rows"
           :is-creating-session="isCreatingSession"

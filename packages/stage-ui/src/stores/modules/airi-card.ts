@@ -261,12 +261,17 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return catalog.updateModules(cardId, patch(resolveAiriExtension(card)))
   }
 
-  async function updateActiveCardDisplayModel(displayModelId: string | undefined) {
+  /** Saves a card's model binding without selecting that card. Empty bindings inherit the global model. */
+  async function updateCardDisplayModel(cardId: string, displayModelId: string | undefined) {
     await pendingAuthenticationSetup
-    const updated = await updateActiveCardModules(() => ({ displayModelId }))
-    if (updated)
+    const updated = await catalog.updateModules(cardId, { displayModelId })
+    if (updated && activeCardId.value === cardId)
       await applyActiveCardSettings()
     return updated
+  }
+
+  async function updateActiveCardDisplayModel(displayModelId: string | undefined) {
+    return updateCardDisplayModel(activeCardId.value, displayModelId)
   }
 
   async function updateActiveCardConsciousness(consciousness: AiriExtension['modules']['consciousness']) {
@@ -600,6 +605,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     updateCard,
     updateActiveCardConsciousness,
     updateActiveCardDisplayModel,
+    updateCardDisplayModel,
     updateActiveCardSpeech,
     updateActiveCardVision,
     getCard,
