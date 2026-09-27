@@ -14,6 +14,18 @@ function baseEnv(): Record<string, string> {
 }
 
 describe('parseEnv', () => {
+  it('includes validated S3 settings in the API environment', () => {
+    const env = parseEnv({
+      ...baseEnv(),
+      S3_BUCKET: 'private-bucket',
+      S3_REGION: 'auto',
+      S3_FORCE_PATH_STYLE: 'false',
+    })
+    expect(env.S3_BUCKET).toBe('private-bucket')
+    expect(env.S3_REGION).toBe('auto')
+    expect(env.S3_FORCE_PATH_STYLE).toBe(false)
+  })
+
   it('parses the API environment without Identity-provider credentials', () => {
     const env = parseEnv(baseEnv())
 

@@ -5,7 +5,9 @@ import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { array, check, integer, maxValue, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform, url } from 'valibot'
+import { array, check, integer, intersect, maxValue, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform, url } from 'valibot'
+
+import { S3EnvironmentSchema } from '../services/adapters/s3-config'
 
 const AdditionalTrustedOriginsSchema = pipe(
   string(),
@@ -63,7 +65,7 @@ function optionalNumberFromString(defaultValue: number, envKey: string, minimum:
   )
 }
 
-const EnvSchema = object({
+const EnvSchema = intersect([S3EnvironmentSchema, object({
   // Comma-separated exact origins (e.g. Capacitor dev server `https://10.x:5273`).
   // Prefer this over broad private-IP regex heuristics in production-like configs.
   ADDITIONAL_TRUSTED_ORIGINS: optional(
@@ -148,7 +150,7 @@ const EnvSchema = object({
   // file:// and sends no usable web origin. Web/mobile requests keep returning to
   // their own origin; only origin-less clients fall back to this.
   WEB_APP_URL: optional(string(), 'https://airi.moeru.ai'),
-})
+})])
 
 export type Env = InferOutput<typeof EnvSchema>
 

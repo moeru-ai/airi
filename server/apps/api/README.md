@@ -26,6 +26,63 @@ ConfigKV shares the write function while retaining its existing read policy.
 Keys use domain names: `config:{key}`, `stripe:prices`, and `user:{userId}:flux`.
 The cache functions do not add a key prefix.
 
+## Object storage
+
+The API provides an optional S3 adapter for private objects. It supports server
+uploads, streamed downloads, HEAD, deletion, and presigned PUT/GET URLs.
+Use it for domain-owned files such as attachments and audio. It does not provide
+public upload routes, access control, attachment records, or message sync.
+
+Set `S3_BUCKET` and `S3_REGION` to enable it. Leave all `S3_*` variables unset to
+disable it. Partial configuration fails startup.
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `S3_BUCKET` | Existing private bucket | Unset |
+| `S3_REGION` | AWS region, or the region required by the compatible service | Unset |
+| `S3_ENDPOINT` | Custom HTTP(S) endpoint for R2, MinIO, Railway, or another S3 service | AWS endpoint |
+| `S3_FORCE_PATH_STYLE` | `true` for endpoint/bucket/key addressing, `false` for virtual-hosted addressing | `false` |
+
+For static credentials, set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+For temporary credentials, also set `AWS_SESSION_TOKEN`. For IAM roles, omit these
+variables. The SDK resolves credentials through its
+[default credential chain](https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/setting-credentials-node.html).
+Signed URLs have a fixed 15-minute lifetime. Temporary credentials can expire sooner.
+Leave `S3_FORCE_PATH_STYLE` unset unless the service requires path-style addressing, such as a local MinIO server.
+Use HTTPS for remote endpoints. HTTP supports local S3 development servers.
+The adapter does not create buckets or change bucket policies.
+
+`app.ts` registers `datastore:objectStore` through Injeca and destroys its client
+on shutdown. Add this provider to a domain's `dependsOn` when it needs storage.
+An unconfigured provider resolves to `undefined`. The domain must decide whether
+storage is required for its operation.
+
+Domain services own object keys, authorization, size limits, and overwrite rules.
+The adapter preserves keys exactly. `putObject` accepts AWS `Key`, `Body`,
+`ContentType`, and `Metadata` fields. `getObject` returns the SDK response.
+Consume or destroy its `Body` stream to release the connection.
+HEAD, GET, PUT, and DELETE errors propagate to the caller.
+
+`createUploadTarget` returns a temporary URL and required headers. Send those
+headers unchanged with PUT. Content type and metadata are signed according to
+the [AWS presigner contract](https://github.com/aws/aws-sdk-js-v3/blob/main/packages/s3-request-presigner/README.md).
+The signature does not prove uploaded bytes match application metadata.
+The domain must validate the uploaded object before it marks a file complete.
+`createDownloadUrl` signs access without checking object existence.
+Authorize access before either signing operation. Do not persist or log signed URLs.
+For browser uploads, configure bucket CORS for the exact client origins, required
+methods, and returned upload headers. CORS configuration remains deployment-owned.
+
+See [the storage ADR](../../docs/ai/adr/2026-09-27-s3-object-storage.md).
+
+To run the optional integration test, point `TEST_S3_ENDPOINT` at a disposable
+S3-compatible server. Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+to its test credentials. The test creates and deletes a unique bucket.
+
+```sh
+pnpm -F @proj-airi/api-server exec vitest run src/services/adapters/object-store.integration.test.ts
+```
+
 ## Payment
 
 `src/services/domain/payment` owns pack grant and `payment_order` rows.
