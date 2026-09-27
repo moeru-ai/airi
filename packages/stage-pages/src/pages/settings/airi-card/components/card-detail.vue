@@ -349,7 +349,7 @@ function getModuleDisplayValue(value: string | undefined): string {
         </div>
       </header>
       <div :class="['min-h-0 flex-1 overflow-y-auto']">
-        <div :class="['mx-auto max-w-7xl grid grid-cols-1 gap-6 p-4 md:grid-cols-[18rem_minmax(0,1fr)] lg:gap-10 lg:p-6']">
+        <div :class="['mx-auto max-w-7xl grid grid-cols-1 gap-6 p-4 lg:grid-cols-[24rem_minmax(0,1fr)] lg:gap-10 lg:p-6']">
           <aside :class="['min-w-0 flex flex-col gap-4']">
             <CardModelPreview :model-id="selectedCard.extensions.airi.modules.displayModelId" profile />
             <div v-if="selectedCard.tags?.length" :class="['flex flex-wrap gap-1.5']">

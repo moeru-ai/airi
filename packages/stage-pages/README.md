@@ -33,3 +33,5 @@ The local library and v2 directory use `CharacterCard` from `@proj-airi/stage-ui
 The card library contains read-only portrait cards. Each card opens `/settings/airi-card/:cardId`, a standalone profile with the same full-page layout as the editor. The profile shows the selected card's model binding, not the active character's runtime model. Empty bindings inherit the catalog defaults. Missing models remain visible as unavailable bindings.
 
 The editor's Model section uses the same read-only model preview with its draft selection. Model settings are separate from Modules. Selection changes persist only through the existing save actions. The profile opens that editor without activating the card. Activation, export, and deletion remain explicit profile actions.
+
+Desktop and mobile profiles render the model summary with the shared character card's horizontal layout. The editor keeps its larger draft preview. Both preserve explicit, inherited, and unavailable model states.
