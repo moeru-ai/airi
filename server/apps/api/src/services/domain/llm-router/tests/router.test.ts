@@ -149,6 +149,48 @@ function failResponse(status: number, body: object = { error: 'bad' }) {
 }
 
 describe('createLlmRouterService', () => {
+  it('persists every key attempt before dispatch and never persists plaintext keys', async () => {
+    const { config, crypto } = makeConfig({ upstreams: [{ baseURL: 'https://up.example/v1', keyIds: ['first', 'second'] }] })
+    const events: string[] = []
+    const attempts = {
+      start: vi.fn(async (input: { credentialId: string }) => {
+        events.push(`start:${input.credentialId}`)
+        return input.credentialId
+      }),
+      finish: vi.fn(async (id: string, result: { state: string }) => { events.push(`finish:${id}:${result.state}`) }),
+    }
+    let calls = 0
+    const router = createLlmRouterService({
+      configKV: makeConfigKV(config),
+      envelopeCrypto: crypto,
+      redis: makeRedisStub(),
+      concurrencyLedger: makeLedger(),
+      gatewayMetrics: makeMetrics(),
+      fetchImpl: async () => {
+        calls += 1
+        events.push('fetch')
+        return new Response('{}', { status: calls === 1 ? 429 : 200 })
+      },
+    })
+    const ctx: LlmRouteContext = { provider: 'unknown', triedUpstreams: 0, triedKeys: 0, lastStatus: null }
+    await router.route({ modelName: 'openai/gpt-5-mini', body: {}, attempts }, ctx)
+    expect(events).toEqual(['start:first', 'fetch', 'finish:first:failed', 'start:second', 'fetch', 'finish:second:headers_received'])
+    expect(ctx.attemptId).toBe('second')
+    expect(ctx.triedKeys).toBe(2)
+    expect(JSON.stringify(attempts.start.mock.calls)).not.toContain('sk-')
+  })
+
+  it('does not dispatch or fall back after attempt persistence fails', async () => {
+    const { config, crypto } = makeConfig({ upstreams: [{ baseURL: 'https://up.example/v1', keyIds: ['first', 'second'] }] })
+    const fetchImpl = vi.fn(async () => happyResponse({}))
+    const router = createLlmRouterService({ configKV: makeConfigKV(config), envelopeCrypto: crypto, redis: makeRedisStub(), concurrencyLedger: makeLedger(), gatewayMetrics: makeMetrics(), fetchImpl })
+    await expect(router.route({ modelName: 'openai/gpt-5-mini', body: {}, attempts: {
+      start: async () => { throw new Error('database unavailable') },
+      finish: async () => {},
+    } })).rejects.toMatchObject({ errorCode: 'LLM_TRACKING_UNAVAILABLE' })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
   afterEach(() => {
     vi.restoreAllMocks()
   })
