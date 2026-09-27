@@ -59,7 +59,7 @@ export function createRequestLogService(db: Database) {
     async logRequest(entry: GenerationObservation) {
       const observation = parse(generationObservationSchema, entry)
       const table = schema.llmRequestLog
-      const state = observation.state ?? (observation.status === 499 ? 'cancelled' : observation.status >= 400 ? 'failed' : 'completed')
+      const state = observation.state ?? (observation.status === 499 ? 'cancelled' : observation.status >= 200 && observation.status < 300 ? 'completed' : 'failed')
       const summary = { ...observation, state, endedAt: new Date() }
       await db.insert(table).values(summary).onConflictDoUpdate({
         target: [table.userId, table.requestId],

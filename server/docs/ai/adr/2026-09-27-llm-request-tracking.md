@@ -98,6 +98,11 @@ OpenRouter and other gateways can gain adapters and metadata without changing th
 
 ## Verification plan
 
+Client input failures return 400. Request outcome follows the delivered status,
+including malformed upstream JSON and settlement rejection; attempts retain their
+upstream header status. Alias routing counters cover all candidates. Responses
+preserves the same interaction dimensions as Chat Completions.
+
 - Request and attempt lifecycle, local retry outcomes and ownership isolation.
 - Safe query DTOs, nullable history, bounded and sanitized provider evidence.
 - Diagnostic writes and retention never change wallet or ledger state.

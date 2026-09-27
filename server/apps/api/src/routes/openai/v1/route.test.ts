@@ -3191,3 +3191,76 @@ it('releases the terminal upstream stream before settlement completes', async ()
   resolveSettlement()
   await expect(body).resolves.toContain('response.completed')
 })
+it('preserves Responses interaction headers in request intake', async () => {
+  const harness = responsesHarness(() => Response.json(responsesResult()))
+  const response = await harness.app.request('/api/v1/openai/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', [AIRI_CHAT_ROUND_ID_HEADER]: 'round-1', [AIRI_CHAT_APP_SURFACE_HEADER]: 'web' },
+    body: JSON.stringify({ input: 'hello' }),
+  }, { user: testUser })
+  expect(response.status).toBe(200)
+  expect(harness.logs.beginRequest).toHaveBeenCalledWith(expect.objectContaining({ interactionId: 'round-1', dimensions: { appSurface: 'web' } }))
+})
+
+it('records failed Chat settlement with the status returned to the client', async () => {
+  const billing = createMockBillingService()
+  vi.mocked(billing.consumeFluxForLLM).mockRejectedValueOnce(new ApiError(402, 'PAYMENT_REQUIRED', 'Insufficient flux'))
+  const logs = createMockRequestLogService()
+  const tracing = createMockLlmTracing()
+  const router = createMockLlmRouter({ route: vi.fn(async () => Response.json({ id: 'chat-test', choices: [], usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0.001 } })) })
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, logs, undefined, router, tracing)
+  const response = await app.request('/api/v1/openai/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [] }),
+  }, { user: testUser })
+  expect(response.status).toBe(402)
+  expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 402, fluxConsumed: 0 }))
+})
+
+it('returns the recorded bad-gateway status for malformed Chat JSON', async () => {
+  const logs = createMockRequestLogService()
+  const router = createMockLlmRouter({ route: vi.fn(async () => new Response('invalid json')) })
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, logs, undefined, router)
+  const response = await app.request('/api/v1/openai/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [] }),
+  }, { user: testUser })
+  expect(response.status).toBe(502)
+  expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502 }))
+})
+
+it('accumulates routing counters across alias candidates', async () => {
+  const catalog = createMockProviderCatalogService()
+  const alias = await catalog.resolveEnabledAlias('llm', 'auto')
+  vi.mocked(catalog.resolveEnabledAlias).mockResolvedValue({ ...alias, routes: [
+    ...alias.routes,
+    { ...alias.routes[0], id: 'second-route', routerModelId: 'fallback', pool: 'fallback' },
+  ] })
+  const logs = createMockRequestLogService()
+  const router = createMockLlmRouter({ route: vi.fn(async ({ modelName }, context) => {
+    if (context) {
+      context.triedUpstreams += 1
+      context.triedKeys += 2
+    }
+    return modelName === 'fallback' ? Response.json(responsesResult()) : new Response('retry', { status: 503 })
+  }) })
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, logs, undefined, router, createMockLlmTracing(), undefined, undefined, catalog)
+  const response = await app.request('/api/v1/openai/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: 'hello' }),
+  }, { user: testUser })
+  expect(response.status).toBe(200)
+  expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ routing: expect.objectContaining({ triedUpstreams: 2, triedKeys: 4 }) }))
+})
+it('rejects a Responses stream whose generation ID changes', async () => {
+  const initial = { type: 'response.created', response: { ...responsesResult('in_progress'), id: 'response-first' } }
+  const stream = `event: response.created\ndata: ${JSON.stringify(initial)}\n\n${responsesFrame()}`
+  const harness = responsesHarness(() => new Response(stream), 100, null, 'openrouter.ai')
+  const response = await harness.send({ stream: true })
+  await response.text().catch(() => undefined)
+  await vi.waitFor(() => expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, generationId: 'response-first' })))
+  expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+})

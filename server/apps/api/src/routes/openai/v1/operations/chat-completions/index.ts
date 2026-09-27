@@ -9,7 +9,7 @@ import { EventSourceParserStream } from '@xsai/shared-stream'
 import { array, nullish, object, safeParse, string, unknown } from 'valibot'
 
 import { extractUsageFromBody } from '../../../../../services/domain/generation-usage'
-import { ApiError } from '../../../../../utils/error'
+import { ApiError, createBadGatewayError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
 import { buildSafeErrorResponseHeaders, buildSafeResponseHeaders } from '../../http/response'
 import { createOpenAiRouteBilling } from '../../middlewares/billing'
@@ -451,13 +451,13 @@ async function completeNonStreamingChat(input: {
   try {
     responseBody = await input.response.json()
   }
-  catch (err) {
+  catch {
     const observation = { ...input.observation, status: 502, durationMs: Date.now() - input.startedAt }
     input.telemetry.failSpan(input.span, 'Failed to parse upstream response body')
     input.telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: 0 })
     input.generationTrace.fail('Failed to parse upstream response body')
-    input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
-    throw err
+    input.telemetry.recordMetrics({ model: input.requestModel, status: 502, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
+    throw createBadGatewayError('Invalid Chat Completions JSON response')
   }
   const usage = extractUsageFromBody(responseBody)
   const observation = { ...input.observation, durationMs: Date.now() - input.startedAt }
@@ -479,13 +479,19 @@ async function completeNonStreamingChat(input: {
       ...usage,
     })
   }
-  finally {
-    input.telemetry.recordRequestLog({ ...observation, ...usage, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: actualCharged })
-    input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: actualCharged })
-    input.telemetry.endSpan(input.span)
-    input.generationTrace.succeed({ output: responseBody, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, fluxConsumed: actualCharged })
-    input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: actualCharged })
+  catch (error) {
+    const status = error instanceof ApiError ? error.statusCode : 500
+    input.telemetry.recordRequestLog({ ...observation, ...usage, status, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: actualCharged })
+    input.telemetry.failSpan(input.span, 'Chat settlement failed')
+    input.generationTrace.fail('Chat settlement failed')
+    input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status, type: 'chat', provider: input.routeCtxProvider, durationMs: observation.durationMs, fluxConsumed: actualCharged })
+    throw error
   }
+  input.telemetry.recordRequestLog({ ...observation, ...usage, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: actualCharged })
+  input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: actualCharged })
+  input.telemetry.endSpan(input.span)
+  input.generationTrace.succeed({ output: responseBody, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, fluxConsumed: actualCharged })
+  input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: actualCharged })
 
   input.logger.withFields({
     requestId: input.requestId,

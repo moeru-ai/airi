@@ -114,7 +114,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const { requiresWebSearch } = input.policy
     const alias = await resolveModelAliasPlan(deps, model, { protocol: 'responses', requiresWebSearch })
     const startedAt = Date.now()
-    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, status: 0, durationMs: 0, fluxConsumed: 0 })
+    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0 })
     const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
     let routeCtx = newRouteContext()
     const span = telemetry.startGenerationSpan({ model, stream: input.policy.stream, operation: 'responses' })
@@ -298,8 +298,12 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
           if (!event.success)
             throw new Error('Invalid Responses SSE event')
           const type = event.output.type
-          if (event.output.response !== undefined)
-            lastUsage = { ...lastUsage, ...Object.fromEntries(Object.entries(extractUsageFromBody(event.output.response, 'responses')).filter(([, value]) => value != null)) }
+          if (event.output.response !== undefined) {
+            const usage = extractUsageFromBody(event.output.response, 'responses')
+            if (lastUsage.generationId && usage.generationId && lastUsage.generationId !== usage.generationId)
+              throw new Error('Responses generation ID changed during the stream')
+            lastUsage = { ...lastUsage, ...Object.fromEntries(Object.entries(usage).filter(([, value]) => value != null)) }
+          }
           if (openRouterStream)
             observeOpenRouterEvent(openRouterStream, event.output)
           if (firstOutputDelta && type.endsWith('.delta')) {
