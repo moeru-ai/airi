@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   modelId?: string
-  compact?: boolean
+  profile?: boolean
 }>()
 
 const { t } = useI18n()
@@ -28,26 +28,26 @@ onMounted(async () => {
     :class="[
       'm-0 min-w-0 overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-700',
       'bg-neutral-50 dark:bg-neutral-900/50',
-      compact ? 'flex items-center gap-3 p-3' : 'flex flex-col',
+      profile ? 'flex items-center md:flex-col' : 'flex flex-col',
     ]"
   >
     <div
       :class="[
         'flex shrink-0 items-center justify-center overflow-hidden',
         'bg-gradient-to-b from-primary-100/70 to-neutral-100 dark:from-primary-900/20 dark:to-neutral-900',
-        compact ? 'size-16 rounded-lg' : 'h-48 md:h-80',
+        profile ? 'h-40 w-28 md:h-80 md:w-full' : 'h-48 md:h-80',
       ]"
     >
       <img
         v-if="imageSource && imageSource !== failedImage"
         :src="imageSource"
         :alt="model?.name"
-        :class="['h-full w-full object-contain', compact ? '' : 'p-4']"
+        :class="['h-full w-full object-contain p-4']"
         @error="failedImage = imageSource"
       >
-      <div v-else :class="['i-solar:ghost-bold-duotone text-primary-300 dark:text-primary-700', compact ? 'text-3xl' : 'text-6xl']" aria-hidden="true" />
+      <div v-else :class="['i-solar:ghost-bold-duotone text-6xl text-primary-300 dark:text-primary-700']" aria-hidden="true" />
     </div>
-    <figcaption :class="['min-w-0 flex flex-col gap-1', compact ? '' : 'p-4']">
+    <figcaption :class="['min-w-0 flex flex-col gap-1 p-4', profile && 'flex-1 md:w-full']">
       <span :class="['text-xs text-neutral-500 dark:text-neutral-400']">{{ t('settings.pages.card.body-model') }}</span>
       <span :class="['break-words text-sm font-medium']">
         {{ model?.name || t(effectiveModelId ? 'settings.pages.card.model-unavailable' : 'settings.pages.card.model-not-bound') }}

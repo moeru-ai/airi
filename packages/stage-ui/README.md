@@ -75,7 +75,8 @@ association; this change does not add cloud character synchronization.
 The conversation list is filtered by the current account and selected character.
 Changing the character updates that list. Deleted-character conversations remain
 stored but are not shown under another character.
-Card-list model selectors edit explicit card ids, without selecting the card.
+The card library opens read-only character profiles. Model bindings are edited
+in the card editor's Model section, without selecting the card.
 An empty binding inherits the global default rather than copying its value.
 Shared binding edits affect all windows using that character; selecting a
 conversation affects only the current window.

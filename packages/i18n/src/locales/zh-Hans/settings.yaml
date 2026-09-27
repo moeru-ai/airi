@@ -450,11 +450,12 @@ pages:
     search: 搜索角色卡...
     sort_by: 排序方式
     body-model: 身体 / 显示模型
-    model-for: '{name} 的模型'
+    model: 模型
+    view-card: 查看角色
+    library-description: 选择角色，查看角色资料、模型和设定。
     model-unavailable: 模型不可用
     model-bound: 已绑定此角色
     model-not-bound: 未选择模型
-    model-save-failed: 无法保存模型绑定，请重试。
     speech:
       provider: 语音 / 提供商
       model: 声音 / 模型

@@ -62,10 +62,11 @@ The conversation selector shows only the current account's conversations for
 the selected character. Changing the character updates the list and selected
 conversation. Deleted-character history remains stored but is not in that list.
 
-Each card in the card list shows its model preview and a model selector.
-Editing an inactive card's binding does not select that card or change the
-current runtime model. Selecting a card restores its own model binding.
-The existing card editor keeps its module settings. Other UI stays unchanged.
+The card library shows portraits and read-only summaries. A card opens a
+standalone profile page on desktop and mobile. The profile opens the existing
+editor, where Model is a separate section from Modules. Only Save commits a
+draft binding. Editing an inactive card does not select it or change the current
+runtime model. Activating a card restores its own model binding.
 
 Stage Web captures cover desktop and mobile layouts. Browser interactions verify
 that character selection changes the conversation list and model, and that

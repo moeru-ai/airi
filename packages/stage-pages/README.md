@@ -28,6 +28,6 @@ The active chat and vision provider routes live under `/settings/providers`. The
 
 ## Character card previews
 
-The card detail dialog shows the selected card's model binding, not the active character's runtime model. Empty bindings inherit the catalog defaults. Missing models remain visible as unavailable bindings.
+The card library contains read-only portrait cards. Each card opens `/settings/airi-card/:cardId`, a standalone profile with the same full-page layout as the editor. The profile shows the selected card's model binding, not the active character's runtime model. Empty bindings inherit the catalog defaults. Missing models remain visible as unavailable bindings.
 
-The editor uses the same read-only model preview with its draft selection. Selection changes persist only through the existing save actions. The detail dialog opens that editor without activating the card.
+The editor's Model section uses the same read-only model preview with its draft selection. Model settings are separate from Modules. Selection changes persist only through the existing save actions. The profile opens that editor without activating the card. Activation, export, and deletion remain explicit profile actions.
