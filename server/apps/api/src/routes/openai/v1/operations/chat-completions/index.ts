@@ -1,5 +1,5 @@
-import type { UsageInfo } from '../../../../../services/domain/billing/billing'
-import type { BillingObservation } from '../../../../../services/domain/generation-observation'
+import type { RequestObservation } from '../../../../../services/domain/generation-observation'
+import type { UsageInfo } from '../../../../../services/domain/generation-usage'
 import type { ChatAppSurface } from '../../analytics'
 import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
@@ -8,7 +8,7 @@ import { useLogger } from '@guiiai/logg'
 import { EventSourceParserStream } from '@xsai/shared-stream'
 import { array, nullish, object, safeParse, string, unknown } from 'valibot'
 
-import { extractUsageFromBody } from '../../../../../services/domain/billing/billing'
+import { extractUsageFromBody } from '../../../../../services/domain/generation-usage'
 import { ApiError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
 import { buildSafeErrorResponseHeaders, buildSafeResponseHeaders } from '../../http/response'
@@ -67,7 +67,6 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
       messageCount: Array.isArray(body.messages) ? body.messages.length : undefined,
     }).log('chat completion request')
     const startedAt = Date.now()
-    await deps.billingService.beginLlmRequest({ userId: input.userId, requestId, model: requestModel, policy: billingPolicy })
     await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0 })
     const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
 
@@ -122,7 +121,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
     }
 
     const durationMs = Date.now() - startedAt
-    const observation: BillingObservation = {
+    const observation: RequestObservation = {
       startedAt: new Date(startedAt),
       attemptId: routeCtx.attemptId,
       status: response.status,
@@ -208,7 +207,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
 }
 
 function streamChatCompletion(input: {
-  observation: BillingObservation
+  observation: RequestObservation
   deps: V1RouteDeps
   response: Response
   generationTrace: ReturnType<V1RouteDeps['llmTracing']['startChatGeneration']>
@@ -323,7 +322,7 @@ function streamChatCompletion(input: {
       return
     }
     finally {
-      const observation: BillingObservation = {
+      const observation: RequestObservation = {
         ...input.observation,
         durationMs: Date.now() - input.startedAt,
         status: streamInterrupted ? (downstreamCancelled ? 499 : 502) : input.response.status,
@@ -336,25 +335,6 @@ function streamChatCompletion(input: {
       parserWriter.releaseLock()
       events.releaseLock()
       if (streamInterrupted) {
-        const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
-        if (price.costReceipt) {
-          try {
-            await input.billing.settleChat({
-              observation,
-              ...usage,
-              ...price,
-              pendingReason: 'stream_interrupted',
-              userId: input.userId,
-              requestId: input.requestId,
-              model: input.requestModel,
-              stage: 'streaming',
-              logger: input.logger,
-            })
-          }
-          catch (error) {
-            input.logger.withError(error).withFields({ requestId: input.requestId, generationId: usage.generationId }).error('Failed to save pending cost receipt')
-          }
-        }
         input.telemetry.endSpan(input.span)
         input.generationTrace.fail('Gateway stream interrupted')
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
@@ -368,7 +348,7 @@ function streamChatCompletion(input: {
           input.logger.withError(err).warn('Failed to close stream writer')
         }
 
-        const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
+        const price = { amount: input.billing.priceChatUsage(usage, input.billingPolicy) }
         const fluxConsumed = price.amount
 
         // Debit flux via DB transaction (source of truth)
@@ -383,10 +363,8 @@ function streamChatCompletion(input: {
         let actualCharged = 0
         try {
           actualCharged = await input.billing.settleChat({
-            observation,
             userId: input.userId,
             ...price,
-            pendingReason: invalidReceipt || !receivedDone ? 'incomplete_or_invalid_stream' : undefined,
             requestId: input.requestId,
             model: input.requestModel,
             stage: 'streaming',
@@ -449,7 +427,7 @@ function streamChatCompletion(input: {
 }
 
 async function completeNonStreamingChat(input: {
-  observation: BillingObservation
+  observation: RequestObservation
   startedAt: number
   deps: V1RouteDeps
   response: Response
@@ -475,24 +453,6 @@ async function completeNonStreamingChat(input: {
   }
   catch (err) {
     const observation = { ...input.observation, status: 502, durationMs: Date.now() - input.startedAt }
-    const price = input.billing.priceChatUsage({}, input.billingPolicy, input.routeCtxProvider)
-    if (price.costReceipt) {
-      try {
-        await input.billing.settleChat({
-          observation,
-          ...price,
-          userId: input.userId,
-          requestId: input.requestId,
-          model: input.requestModel,
-          stage: 'non_streaming',
-          logger: input.logger,
-          pendingReason: 'invalid_response_body',
-        })
-      }
-      catch (error) {
-        input.logger.withError(error).withFields({ requestId: input.requestId }).error('Failed to save pending cost receipt')
-      }
-    }
     input.telemetry.failSpan(input.span, 'Failed to parse upstream response body')
     input.telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: 0 })
     input.generationTrace.fail('Failed to parse upstream response body')
@@ -501,7 +461,7 @@ async function completeNonStreamingChat(input: {
   }
   const usage = extractUsageFromBody(responseBody)
   const observation = { ...input.observation, durationMs: Date.now() - input.startedAt }
-  const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
+  const price = { amount: input.billing.priceChatUsage(usage, input.billingPolicy) }
 
   // Debit flux via DB transaction (source of truth).
   // The upstream call has already happened (cost incurred), so partial
@@ -510,7 +470,6 @@ async function completeNonStreamingChat(input: {
   let actualCharged = 0
   try {
     actualCharged = await input.billing.settleChat({
-      observation,
       userId: input.userId,
       ...price,
       requestId: input.requestId,

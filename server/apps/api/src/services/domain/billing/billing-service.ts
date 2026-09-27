@@ -3,18 +3,12 @@ import type Redis from 'ioredis'
 import type { Database } from '../../../libs/db'
 import type { RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
-import type { BillingObservation } from '../generation-observation'
-import type { CostPricing, CostUsage } from './billing'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq } from 'drizzle-orm'
-import { nonEmpty, parse, pipe, string } from 'valibot'
 
-import { llmRequestSettlement } from '../../../schemas/llm-request-settlement'
 import { createPaymentRequiredError } from '../../../utils/error'
 import { invalidateBalanceCache, writeBalanceCache } from '../flux-cache'
-import { generationObservationSchema } from '../generation-observation'
-import { billingPolicySchema, calculateFluxFromUsage, costPricingSchema, priceLlmCost } from './billing'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
@@ -70,52 +64,8 @@ export function createBillingService(
     description?: string
     source: string
     metadata?: Record<string, unknown>
-    settlement?: { method: 'tokens' | 'request', pricing: unknown, observation: BillingObservation }
   }): Promise<{ userId: string, flux: number, charged: number, requested: number }> {
-    if (input.settlement && input.requestId) {
-      const detail = input.settlement
-      const requestId = input.requestId
-      const prepared = await db.transaction(async (tx) => {
-        const [wallet] = await tx.select().from(fluxSchema.userFlux).where(eq(fluxSchema.userFlux.userId, input.userId)).for('update')
-        if (!wallet)
-          throw new Error(`No flux record for user ${input.userId}`)
-        const [existing] = await tx.select().from(llmRequestSettlement).where(and(eq(llmRequestSettlement.userId, input.userId), eq(llmRequestSettlement.requestId, requestId)))
-        if (existing?.method === 'provider_cost')
-          throw new Error('Billing method does not match the settlement')
-        const policy = parse(billingPolicySchema, existing ? existing.pricing : detail.pricing)
-        const observation = parse(generationObservationSchema, { ...detail.observation, ...input.metadata, userId: input.userId, requestId, fluxConsumed: 0 })
-        const method: 'request' | 'tokens' = policy.fluxPer1kTokens == null ? 'request' : 'tokens'
-        const amount = policy.fluxPer1kTokens == null ? policy.fallbackRate : calculateFluxFromUsage({ promptTokens: observation.promptTokens, completionTokens: observation.completionTokens }, policy.fluxPer1kTokens, policy.fallbackRate)
-        if (existing?.billingStatus !== 'settled') {
-          const pending = {
-            userId: input.userId,
-            requestId,
-            model: observation.model,
-            attemptId: observation.attemptId,
-            method,
-            pricing: policy,
-            evidence: { version: 1, source: 'product_policy', observation },
-            billingStatus: 'pending',
-            pendingReason: 'awaiting_settlement',
-            requestedFlux: amount,
-          }
-          await tx.insert(llmRequestSettlement).values(pending).onConflictDoUpdate({ target: [llmRequestSettlement.userId, llmRequestSettlement.requestId], set: pending })
-        }
-        return { amount, settlement: { method, pricing: policy, observation } }
-      })
-      input = { ...input, ...prepared }
-    }
     const result = await db.transaction(async (tx) => {
-      const [row] = await tx
-        .select({ flux: fluxSchema.userFlux.flux })
-        .from(fluxSchema.userFlux)
-        .where(eq(fluxSchema.userFlux.userId, input.userId))
-        .for('update')
-
-      if (!row) {
-        throw new Error(`No flux record for user ${input.userId}`)
-      }
-
       // Idempotency: a previous successful debit with the same requestId
       // returns the prior post-balance and skips the second deduction.
       // Mirrors creditFlux's idempotent path so retries (network errors,
@@ -148,6 +98,16 @@ export function createBillingService(
         }
       }
 
+      const [row] = await tx
+        .select({ flux: fluxSchema.userFlux.flux })
+        .from(fluxSchema.userFlux)
+        .where(eq(fluxSchema.userFlux.userId, input.userId))
+        .for('update')
+
+      if (!row) {
+        throw new Error(`No flux record for user ${input.userId}`)
+      }
+
       const balanceBefore = row.flux
       // Hard floor: zero (or somehow negative) balance still throws so
       // streaming callers' catch path fires `fluxUnbilled` with the full
@@ -165,42 +125,6 @@ export function createBillingService(
         metrics?.fluxInsufficientBalance.add(1)
       }
 
-      let settlementId: string | undefined
-      if (input.settlement && input.requestId) {
-        const observation = parse(generationObservationSchema, { ...input.settlement.observation, userId: input.userId, requestId: input.requestId, model: input.metadata?.model, fluxConsumed: 0 })
-        const [settlement] = await tx.insert(llmRequestSettlement).values({
-          userId: input.userId,
-          requestId: input.requestId,
-          model: observation.model,
-          attemptId: observation.attemptId,
-          method: input.settlement.method,
-          pricing: input.settlement.pricing,
-          evidence: { version: 1, source: 'product_policy', observation, usage: input.metadata },
-          billingStatus: 'settled',
-          pendingReason: null,
-          requestedFlux: input.amount,
-          fluxConsumed: chargedAmount,
-          settledAt: new Date(),
-        }).onConflictDoUpdate({
-          target: [llmRequestSettlement.userId, llmRequestSettlement.requestId],
-          set: {
-            method: input.settlement.method,
-            pricing: input.settlement.pricing,
-            evidence: { version: 1, source: 'product_policy', observation, usage: input.metadata },
-            attemptId: observation.attemptId,
-            billingStatus: 'settled',
-            pendingReason: null,
-            requestedFlux: input.amount,
-            fluxConsumed: chargedAmount,
-            settledAt: new Date(),
-          },
-          setWhere: eq(llmRequestSettlement.billingStatus, 'pending'),
-        }).returning({ id: llmRequestSettlement.id })
-        if (!settlement)
-          throw new Error('Settlement already has a different billing decision')
-        settlementId = settlement.id
-      }
-
       await tx.update(fluxSchema.userFlux)
         .set({ flux: balanceAfter, updatedAt: new Date() })
         .where(eq(fluxSchema.userFlux.userId, input.userId))
@@ -212,8 +136,6 @@ export function createBillingService(
         balanceBefore,
         balanceAfter,
         requestId: input.requestId,
-        settlementId,
-        operationId: settlementId ? `llm:${settlementId}:initial` : undefined,
         description: input.description ?? input.source,
         metadata: {
           ...input.metadata,
@@ -254,221 +176,6 @@ export function createBillingService(
   }
 
   return {
-    /** Saves the authorized price before dispatch, independently of diagnostic logging. */
-    async beginLlmRequest(input: { userId: string, requestId: string, model: string, policy: unknown }) {
-      const policy = parse(billingPolicySchema, input.policy)
-      const userId = parse(pipe(string(), nonEmpty()), input.userId)
-      const requestId = parse(pipe(string(), nonEmpty()), input.requestId)
-      await db.insert(llmRequestSettlement).values({
-        userId,
-        requestId,
-        model: input.model,
-        method: 'unresolved',
-        billingStatus: 'pending',
-        pendingReason: 'awaiting_result',
-        pricing: policy,
-      })
-    },
-
-    /**
-     * Saves a provider receipt and settles whole Flux under the account row lock.
-     * Reconciliation reuses the original price snapshot and request ID.
-     * Pending receipts do not modify the balance or the fractional remainder.
-     */
-    async settleLlmCost(input: {
-      provider: string
-      userId: string
-      requestId: string
-      model: string
-      usage: CostUsage
-      pricing: CostPricing
-      pendingReason?: string
-      observation: BillingObservation
-    }): Promise<{ charged: number, requested: number, pending: boolean }> {
-      const provider = parse(pipe(string(), nonEmpty()), input.provider)
-      const observation = parse(generationObservationSchema, {
-        ...input.observation,
-        ...input.usage,
-        userId: input.userId,
-        requestId: input.requestId,
-        model: input.model,
-        fluxConsumed: 0,
-      })
-      await db.transaction(async (tx) => {
-        const [wallet] = await tx.select().from(fluxSchema.userFlux).where(eq(fluxSchema.userFlux.userId, input.userId)).for('update')
-        if (!wallet)
-          throw new Error(`No flux record for user ${input.userId}`)
-        const key = and(eq(llmRequestSettlement.userId, input.userId), eq(llmRequestSettlement.requestId, input.requestId))
-        const [existing] = await tx.select().from(llmRequestSettlement).where(key)
-        if (existing?.billingProvider != null && existing.billingProvider !== provider)
-          throw new Error('Provider does not match the cost receipt')
-        if (existing?.generationId && input.usage.generationId !== existing.generationId)
-          throw new Error('Generation ID does not match the cost receipt')
-        if (existing?.billingStatus === 'settled')
-          return
-        if (existing && !['unresolved', 'provider_cost'].includes(existing.method))
-          throw new Error('Billing method does not match the settlement')
-        let savedPricing: unknown = input.pricing
-        if (existing?.method === 'provider_cost') {
-          savedPricing = existing.pricing
-        }
-        else if (existing?.method === 'unresolved') {
-          const policy = parse(billingPolicySchema, existing.pricing)
-          savedPricing = policy.costPricing?.[provider]
-          if (!savedPricing)
-            throw new Error('Provider cost pricing was not authorized for this request')
-        }
-        const pricing = parse(costPricingSchema, savedPricing)
-        const charge = priceLlmCost(input.usage, pricing)
-        const pending = {
-          userId: input.userId,
-          requestId: input.requestId,
-          model: input.model,
-          attemptId: observation.attemptId,
-          method: 'provider_cost',
-          billingProvider: provider,
-          billingStatus: 'pending',
-          pendingReason: input.pendingReason ?? charge.pendingReason ?? 'awaiting_settlement',
-          generationId: input.usage.generationId,
-          providerUsage: observation.providerUsage,
-          evidence: { version: 1, source: 'provider_reported', observation, usage: { ...input.usage, providerUsage: observation.providerUsage } },
-          costUsd: charge.costUsd?.toString(),
-          pricing,
-        }
-        await tx.insert(llmRequestSettlement).values(pending).onConflictDoUpdate({
-          target: [llmRequestSettlement.userId, llmRequestSettlement.requestId],
-          set: pending,
-        })
-      })
-      const result = await db.transaction(async (tx) => {
-        // All receipts for this account share the wallet lock, including zero charges.
-        // The idempotency lookup must follow the lock to see concurrent settlements.
-        const [wallet] = await tx.select().from(fluxSchema.userFlux).where(eq(fluxSchema.userFlux.userId, input.userId)).for('update')
-        if (!wallet)
-          throw new Error(`No flux record for user ${input.userId}`)
-        const key = and(eq(llmRequestSettlement.userId, input.userId), eq(llmRequestSettlement.requestId, input.requestId))
-        const [existing] = await tx.select().from(llmRequestSettlement).where(key)
-        if (existing?.billingProvider != null && existing.billingProvider !== provider)
-          throw new Error('Provider does not match the cost receipt')
-        if (existing?.generationId && input.usage.generationId !== existing.generationId)
-          throw new Error('Generation ID does not match the cost receipt')
-        if (existing?.billingStatus === 'settled')
-          return { charged: existing.fluxConsumed!, requested: existing.fluxConsumed!, pending: false, balance: wallet.flux, replay: true }
-
-        if (!existing || existing.method !== 'provider_cost')
-          throw new Error('Prepared cost settlement is missing')
-        const settlementId = existing.id
-        const pricing = parse(costPricingSchema, existing.pricing)
-        const evidence = {
-          userId: input.userId,
-          requestId: input.requestId,
-          model: input.model,
-          attemptId: observation.attemptId,
-          method: 'provider_cost',
-          generationId: input.usage.generationId,
-          providerUsage: observation.providerUsage,
-          evidence: { version: 1, source: 'provider_reported', observation, usage: { ...input.usage, providerUsage: observation.providerUsage } },
-        }
-        const charge = priceLlmCost(input.usage, pricing)
-        if (input.pendingReason !== undefined || charge.pendingReason !== undefined) {
-          return { charged: 0, requested: 0, pending: true, balance: wallet.flux, replay: false, pendingReason: existing?.pendingReason ?? input.pendingReason ?? charge.pendingReason }
-        }
-
-        const totalMicroFlux = wallet.llmCostRemainder + charge.microFlux
-        const requested = Math.floor(totalMicroFlux / 1_000_000)
-        const remainder = totalMicroFlux % 1_000_000
-        const charged = Math.min(requested, Math.max(0, wallet.flux))
-        const balance = wallet.flux - charged
-        await tx.update(fluxSchema.userFlux).set({
-          flux: balance,
-          llmCostRemainder: remainder,
-          updatedAt: new Date(),
-        }).where(eq(fluxSchema.userFlux.userId, input.userId))
-        await tx.insert(fluxTxSchema.fluxTransaction).values({
-          userId: input.userId,
-          requestId: input.requestId,
-          settlementId,
-          operationId: `llm:${settlementId}:initial`,
-          type: 'debit',
-          amount: charged,
-          balanceBefore: wallet.flux,
-          balanceAfter: balance,
-          description: 'llm_request',
-          metadata: {
-            source: 'llm.request',
-            model: existing?.model ?? input.model,
-            promptTokens: input.usage.promptTokens,
-            completionTokens: input.usage.completionTokens,
-            billing: {
-              method: 'provider_cost',
-              provider,
-              generationId: input.usage.generationId,
-              costUsd: charge.costUsd,
-              ...pricing,
-              microFlux: charge.microFlux,
-              remainderBefore: wallet.llmCostRemainder,
-              remainderAfter: remainder,
-            },
-            ...(charged < requested && { requestedAmount: requested, unbilled: requested - charged }),
-          },
-        })
-        const settled = {
-          ...evidence,
-          billingProvider: provider,
-          billingStatus: 'settled',
-          pendingReason: null,
-          generationId: input.usage.generationId,
-          providerUsage: observation.providerUsage,
-          costUsd: charge.costUsd.toString(),
-          microFlux: charge.microFlux,
-          fluxConsumed: charged,
-          requestedFlux: requested,
-          pricing,
-          settledAt: new Date(),
-          remainderBefore: wallet.llmCostRemainder,
-          remainderAfter: remainder,
-        }
-        await tx.insert(llmRequestSettlement).values({ id: settlementId, ...settled }).onConflictDoUpdate({
-          target: [llmRequestSettlement.userId, llmRequestSettlement.requestId],
-          set: settled,
-        })
-        return { charged, requested, pending: false, balance, replay: false }
-      }).catch((error) => {
-        // A failed transaction cannot retain its receipt. Keep correlation fields outside the database.
-        logger.withError(error).withFields({
-          event: 'llm.cost_receipt',
-          billingStatus: 'failed',
-          requestId: input.requestId,
-          generationId: input.usage.generationId,
-          userId: input.userId,
-          model: input.model,
-          provider,
-        }).error('Failed to persist LLM cost receipt')
-        throw error
-      })
-      if (!result.pending && !result.replay)
-        await updateRedisCache(input.userId, result.balance)
-      const receiptLogger = logger.withFields({
-        event: 'llm.cost_receipt',
-        billingStatus: result.pending ? 'pending' : 'settled',
-        requestId: input.requestId,
-        generationId: input.usage.generationId,
-        userId: input.userId,
-        model: input.model,
-        provider,
-        pendingReason: result.pendingReason,
-        charged: result.charged,
-        requested: result.requested,
-        unbilled: result.requested - result.charged,
-        replay: result.replay,
-      })
-      if (result.pending)
-        receiptLogger.warn('LLM cost receipt remains pending')
-      else if (!result.replay)
-        receiptLogger.log('LLM cost receipt settled')
-      return { charged: result.charged, requested: result.requested, pending: result.pending }
-    },
-
     /**
      * Debit flux for an LLM API request (chat, TTS).
      * Token usage is persisted in the `flux_transaction.metadata` column so
@@ -483,7 +190,6 @@ export function createBillingService(
       turnId?: string
       promptTokens?: number
       completionTokens?: number
-      settlement?: { method: 'tokens' | 'request', pricing: unknown, observation: BillingObservation }
     }): Promise<{ userId: string, flux: number, charged: number, requested: number }> {
       return debitFlux({
         userId: input.userId,
@@ -491,7 +197,6 @@ export function createBillingService(
         requestId: input.requestId,
         description: input.description,
         source: 'llm.request',
-        settlement: input.settlement,
         metadata: {
           ...(input.model != null && { model: input.model }),
           ...(input.turnId != null && { turnId: input.turnId }),

@@ -1,5 +1,5 @@
 {
-  "id": "45d08406-1c7f-4270-9f07-ad1f10ebc4fc",
+  "id": "443b9ff2-195a-44d3-9c96-0bafe92889a6",
   "prevId": "21bbc989-8ead-4bf0-8cc2-18a4ff4a29fa",
   "version": "7",
   "dialect": "postgresql",
@@ -969,13 +969,6 @@
           "notNull": true,
           "default": 0
         },
-        "llm_cost_remainder": {
-          "name": "llm_cost_remainder",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp",
@@ -1044,18 +1037,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "settlement_id": {
-          "name": "settlement_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "operation_id": {
-          "name": "operation_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "description": {
           "name": "description",
           "type": "text",
@@ -1107,43 +1088,6 @@
           "method": "btree",
           "with": {}
         },
-        "flux_tx_settlement_idx": {
-          "name": "flux_tx_settlement_idx",
-          "columns": [
-            {
-              "expression": "settlement_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "flux_tx_user_operation_uidx": {
-          "name": "flux_tx_user_operation_uidx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "operation_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "operation_id IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "flux_tx_user_request_uniq": {
           "name": "flux_tx_user_request_uniq",
           "columns": [
@@ -1162,6 +1106,210 @@
           ],
           "isUnique": true,
           "where": "request_id IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.llm_request_attempt": {
+      "name": "llm_request_attempt",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gateway": {
+          "name": "gateway",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "route_id": {
+          "name": "route_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credential_id": {
+          "name": "credential_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "upstream_provider": {
+          "name": "upstream_provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "response_model": {
+          "name": "response_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "generation_id": {
+          "name": "generation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error_code": {
+          "name": "error_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_to_first_token_ms": {
+          "name": "time_to_first_token_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_usage": {
+          "name": "provider_usage",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_metadata": {
+          "name": "provider_metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "llm_attempt_request_sequence_uidx": {
+          "name": "llm_attempt_request_sequence_uidx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "request_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sequence",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "llm_attempt_gateway_generation_idx": {
+          "name": "llm_attempt_gateway_generation_idx",
+          "columns": [
+            {
+              "expression": "gateway",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "generation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "llm_attempt_state_started_idx": {
+          "name": "llm_attempt_state_started_idx",
+          "columns": [
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "started_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1226,76 +1374,80 @@
           "primaryKey": false,
           "notNull": false
         },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
+        "total_tokens": {
+          "name": "total_tokens",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.llm_request_settlement": {
-      "name": "llm_request_settlement",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
+          "notNull": false
         },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
+        "cached_tokens": {
+          "name": "cached_tokens",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "cache_write_tokens": {
+          "name": "cache_write_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reasoning_tokens": {
+          "name": "reasoning_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "request_id": {
           "name": "request_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "attempt_id": {
-          "name": "attempt_id",
+        "session_id": {
+          "name": "session_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "model": {
-          "name": "model",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "method": {
-          "name": "method",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "billing_provider": {
-          "name": "billing_provider",
+        "protocol": {
+          "name": "protocol",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "billing_status": {
-          "name": "billing_status",
+        "stream": {
+          "name": "stream",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_model": {
+          "name": "requested_model",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "pending_reason": {
-          "name": "pending_reason",
+        "gateway": {
+          "name": "gateway",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "upstream_model": {
+          "name": "upstream_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "upstream_provider": {
+          "name": "upstream_provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "response_model": {
+          "name": "response_model",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -1306,14 +1458,32 @@
           "primaryKey": false,
           "notNull": false
         },
-        "pricing": {
-          "name": "pricing",
-          "type": "jsonb",
+        "finish_reason": {
+          "name": "finish_reason",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "evidence": {
-          "name": "evidence",
+        "native_finish_reason": {
+          "name": "native_finish_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "response_status": {
+          "name": "response_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_to_first_token_ms": {
+          "name": "time_to_first_token_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "routing": {
+          "name": "routing",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -1324,39 +1494,45 @@
           "primaryKey": false,
           "notNull": false
         },
-        "cost_usd": {
-          "name": "cost_usd",
+        "provider_metadata": {
+          "name": "provider_metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempt_id": {
+          "name": "attempt_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "micro_flux": {
-          "name": "micro_flux",
-          "type": "bigint",
+        "interaction_id": {
+          "name": "interaction_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "requested_flux": {
-          "name": "requested_flux",
-          "type": "bigint",
+        "state": {
+          "name": "state",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "flux_consumed": {
-          "name": "flux_consumed",
-          "type": "bigint",
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
-        "remainder_before": {
-          "name": "remainder_before",
-          "type": "bigint",
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
-        "remainder_after": {
-          "name": "remainder_after",
-          "type": "bigint",
+        "dimensions": {
+          "name": "dimensions",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -1373,17 +1549,11 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "settled_at": {
-          "name": "settled_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
-        "llm_settlement_user_request_uidx": {
-          "name": "llm_settlement_user_request_uidx",
+        "llm_request_log_user_request_uidx": {
+          "name": "llm_request_log_user_request_uidx",
           "columns": [
             {
               "expression": "user_id",
@@ -1399,15 +1569,58 @@
             }
           ],
           "isUnique": true,
+          "where": "request_id IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "llm_settlement_status_created_idx": {
-          "name": "llm_settlement_status_created_idx",
+        "llm_request_log_state_started_idx": {
+          "name": "llm_request_log_state_started_idx",
           "columns": [
             {
-              "expression": "billing_status",
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "started_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "llm_request_log_gateway_generation_idx": {
+          "name": "llm_request_log_gateway_generation_idx",
+          "columns": [
+            {
+              "expression": "gateway",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "generation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "llm_request_log_user_created_idx": {
+          "name": "llm_request_log_user_created_idx",
+          "columns": [
+            {
+              "expression": "user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

@@ -1,6 +1,6 @@
 import type { GenAiMetrics } from '../../../../otel'
-import type { UsageInfo } from '../../../../services/domain/billing/billing'
 import type { GenerationObservation } from '../../../../services/domain/generation-observation'
+import type { UsageInfo } from '../../../../services/domain/generation-usage'
 import type { LlmRouteContext } from '../../../../services/domain/llm-router'
 import type { RequestLogService } from '../../../../services/domain/request-log'
 
@@ -86,7 +86,6 @@ export function createRouteTelemetry(deps: {
   }
 
   function recordRequestLog(entry: RequestLogInput) {
-    // This enriches observations only. Cost evidence is awaited inside the billing transaction.
     deps.requestLogService.logRequest(entry).catch(err => logger.withError(err).warn('Failed to write llm_request_log row'))
   }
 

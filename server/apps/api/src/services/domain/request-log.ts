@@ -6,7 +6,6 @@ import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
 import { parse } from 'valibot'
 
 import { llmRequestAttempt } from '../../schemas/llm-request-attempt'
-import { llmRequestSettlement } from '../../schemas/llm-request-settlement'
 import { nanoid } from '../../utils/id'
 import { generationObservationSchema } from './generation-observation'
 import { attemptResultSchema, attemptStartSchema } from './llm-router/attempt'
@@ -43,8 +42,7 @@ export function createRequestLogService(db: Database) {
     async getRequest(userId: string, requestId: string) {
       const requests = await db.select().from(schema.llmRequestLog).where(and(eq(schema.llmRequestLog.userId, userId), eq(schema.llmRequestLog.requestId, requestId)))
       const attempts = await db.select().from(llmRequestAttempt).where(and(eq(llmRequestAttempt.userId, userId), eq(llmRequestAttempt.requestId, requestId))).orderBy(llmRequestAttempt.sequence)
-      const settlements = await db.select().from(llmRequestSettlement).where(and(eq(llmRequestSettlement.userId, userId), eq(llmRequestSettlement.requestId, requestId)))
-      return { request: requests.at(0), attempts, settlement: settlements.at(0) }
+      return { request: requests.at(0), attempts }
     },
 
     async listRequests(userId: string, limit = 50, offset = 0) {
@@ -68,7 +66,6 @@ export function createRequestLogService(db: Database) {
         targetWhere: sql`request_id IS NOT NULL`,
         set: {
           ...summary,
-          fluxConsumed: sql`coalesce((SELECT flux_consumed FROM llm_request_settlement WHERE user_id = ${observation.userId} AND request_id = ${observation.requestId ?? null} AND billing_status = 'settled'), excluded.flux_consumed)`,
           generationId: sql`coalesce(${table.generationId}, excluded.generation_id)`,
           providerUsage: sql`coalesce(excluded.provider_usage, ${table.providerUsage})`,
         },

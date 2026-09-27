@@ -25,8 +25,8 @@ export function createLlmRequestRoutes(service: RequestLogService) {
     })
     .get('/:requestId', async (context) => {
       const requestId = parse(pipe(string(), nonEmpty(), maxLength(128)), context.req.param('requestId'))
-      const { request, attempts, settlement } = await service.getRequest(context.get('user')!.id, requestId)
-      if (!request && !settlement)
+      const { request, attempts } = await service.getRequest(context.get('user')!.id, requestId)
+      if (!request)
         return context.json({ error: 'NOT_FOUND' }, 404)
       return context.json({
         request: request
@@ -59,13 +59,6 @@ export function createLlmRequestRoutes(service: RequestLogService) {
           startedAt: attempt.startedAt,
           endedAt: attempt.endedAt,
         })),
-        settlement: settlement
-          ? {
-              status: settlement.billingStatus,
-              fluxConsumed: settlement.fluxConsumed,
-              settledAt: settlement.settledAt,
-            }
-          : null,
       })
     })
 }

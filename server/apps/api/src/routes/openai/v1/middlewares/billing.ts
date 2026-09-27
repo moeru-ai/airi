@@ -1,13 +1,11 @@
 import type { RevenueMetrics } from '../../../../otel'
 import type { ConfigKVService } from '../../../../services/adapters/config-kv'
-import type { BillingPolicy, CostPricing, CostUsage, UsageInfo } from '../../../../services/domain/billing/billing'
 import type { BillingService } from '../../../../services/domain/billing/billing-service'
 import type { FluxMeter } from '../../../../services/domain/billing/flux-meter'
 import type { FluxService } from '../../../../services/domain/flux'
-import type { BillingObservation } from '../../../../services/domain/generation-observation'
+import type { UsageInfo } from '../../../../services/domain/generation-usage'
 
-import { resolveProviderCostAdapter } from '../../../../services/adapters/llm/cost'
-import { calculateFluxFromUsage, priceLlmCost } from '../../../../services/domain/billing/billing'
+import { calculateFluxFromUsage } from '../../../../services/domain/billing/billing'
 import { createPaymentRequiredError } from '../../../../utils/error'
 import { GEN_AI_ATTR_REQUEST_MODEL } from '../../../../utils/observability'
 
@@ -18,10 +16,6 @@ export interface ChatFluxDebitInput extends UsageInfo {
   requestId: string
   model: string
   amount: number
-  observation: BillingObservation
-  costReceipt?: { provider: string, usage: CostUsage, pricing: CostPricing }
-  pendingReason?: string
-  tokenPricing?: { method: 'tokens' | 'request', fallbackRate: number, fluxPer1kTokens?: number }
   stage: 'streaming' | 'non_streaming'
   logger: {
     withFields: (fields: Record<string, unknown>) => {
@@ -30,12 +24,9 @@ export interface ChatFluxDebitInput extends UsageInfo {
   }
 }
 
-export type ChatBillingPolicy = BillingPolicy
-
-interface ChatUsagePrice {
-  amount: number
-  costReceipt?: ChatFluxDebitInput['costReceipt']
-  tokenPricing?: ChatFluxDebitInput['tokenPricing']
+export interface ChatBillingPolicy {
+  fallbackRate: number
+  fluxPer1kTokens?: number
 }
 
 export interface TtsBillingAuthorization {
@@ -46,7 +37,7 @@ export interface TtsBillingAuthorization {
 export interface OpenAiRouteBilling {
   authorizeChat: (userId: string) => Promise<ChatBillingPolicy>
   authorizeTts: (userId: string, inputText: string) => Promise<TtsBillingAuthorization>
-  priceChatUsage: (usage: UsageInfo, policy: ChatBillingPolicy, provider: string) => ChatUsagePrice
+  priceChatUsage: (usage: UsageInfo, policy: ChatBillingPolicy) => number
   recordChatDebitFailure: (input: {
     amount: number
     model: string
@@ -83,29 +74,19 @@ export function createOpenAiRouteBilling(deps: {
   async function authorizeChat(userId: string): Promise<ChatBillingPolicy> {
     const fallbackRate = await deps.configKV.getOrThrow('FLUX_PER_REQUEST')
     const fluxPer1kTokens = await deps.configKV.get('FLUX_PER_1K_TOKENS')
-    const costPricing = await deps.configKV.getOptional('LLM_COST_BILLING')
 
     const flux = await deps.fluxService.getFlux(userId)
     if (flux.flux < fallbackRate) {
       throw createPaymentRequiredError('Insufficient flux')
     }
 
-    return { fallbackRate, fluxPer1kTokens, costPricing: costPricing ?? undefined }
+    return { fallbackRate, fluxPer1kTokens }
   }
 
-  function priceChatUsage(usage: UsageInfo, policy: ChatBillingPolicy, provider: string): ChatUsagePrice {
-    const adapter = resolveProviderCostAdapter(provider)
-    if (adapter && policy.costPricing && Object.hasOwn(policy.costPricing, adapter.provider)) {
-      const pricing = policy.costPricing[adapter.provider]
-      const costUsage = adapter.extractUsage(usage)
-      const charge = priceLlmCost(costUsage, pricing)
-      // This estimate reports failed settlement. Actual whole Flux depends on the wallet remainder.
-      const amount = charge.microFlux === undefined ? 0 : charge.microFlux / 1_000_000
-      return { amount, costReceipt: { provider: adapter.provider, usage: costUsage, pricing } }
-    }
+  function priceChatUsage(usage: UsageInfo, policy: ChatBillingPolicy): number {
     if (policy.fluxPer1kTokens == null)
-      return { amount: policy.fallbackRate, tokenPricing: { method: 'request', fallbackRate: policy.fallbackRate } }
-    return { amount: calculateFluxFromUsage(usage, policy.fluxPer1kTokens, policy.fallbackRate), tokenPricing: { method: 'tokens', fallbackRate: policy.fallbackRate, fluxPer1kTokens: policy.fluxPer1kTokens } }
+      return policy.fallbackRate
+    return calculateFluxFromUsage(usage, policy.fluxPer1kTokens, policy.fallbackRate)
   }
 
   async function settleChat(input: Omit<ChatFluxDebitInput, 'billingService' | 'revenue'>): Promise<number> {
@@ -161,27 +142,15 @@ export function createOpenAiRouteBilling(deps: {
 }
 
 export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> {
-  const result = input.costReceipt
-    ? await input.billingService.settleLlmCost({
-        provider: input.costReceipt.provider,
-        userId: input.userId,
-        requestId: input.requestId,
-        model: input.model,
-        usage: input.costReceipt.usage,
-        pricing: input.costReceipt.pricing,
-        pendingReason: input.pendingReason,
-        observation: input.observation,
-      })
-    : await input.billingService.consumeFluxForLLM({
-        userId: input.userId,
-        amount: input.amount,
-        requestId: input.requestId,
-        description: 'llm_request',
-        model: input.model,
-        promptTokens: input.promptTokens,
-        completionTokens: input.completionTokens,
-        settlement: input.tokenPricing ? { method: input.tokenPricing.method, pricing: input.tokenPricing, observation: input.observation } : undefined,
-      })
+  const result = await input.billingService.consumeFluxForLLM({
+    userId: input.userId,
+    amount: input.amount,
+    requestId: input.requestId,
+    description: 'llm_request',
+    model: input.model,
+    promptTokens: input.promptTokens,
+    completionTokens: input.completionTokens,
+  })
 
   if (result.charged < result.requested) {
     input.revenue?.fluxUnbilled.add(result.requested - result.charged, {

@@ -62,5 +62,5 @@ export const generationObservationSchema = object({
 /** Absent provider fields mean unknown, including historical rows written before request correlation. */
 export type GenerationObservation = InferOutput<typeof generationObservationSchema>
 
-/** Runtime observation accompanying a billing transaction; identity and charged Flux belong to billing. */
-export type BillingObservation = Omit<GenerationObservation, 'userId' | 'model' | 'requestId' | 'fluxConsumed'>
+/** Runtime request observation before identity and charged Flux are attached. */
+export type RequestObservation = Omit<GenerationObservation, 'userId' | 'model' | 'requestId' | 'fluxConsumed'>

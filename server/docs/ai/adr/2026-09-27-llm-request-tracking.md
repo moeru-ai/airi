@@ -6,16 +6,16 @@ Status: accepted
 ## Decision and scope
 
 Split diagnostic tracking from provider-cost settlement.
-This change is stacked on the billing PR. It does not own pricing, wallet mutation or settlement writes.
-Use the shared generation observation schema from the billing base.
-Logging may read settlements for correlation and charged-Flux summaries, but never creates or changes them.
+This change targets main. The billing PR depends on this tracking foundation.
+Tracking owns the shared observation contract and usage extraction, not pricing or wallet mutation.
+It neither imports nor queries settlement storage. Charged Flux in diagnostics is observational, not an accounting source of truth.
 
 ## Data ownership
 
 - `llm_request_log`: one summary per user and request ID, nullable correlation for historical rows, request lifecycle, selected models, usage, timing and dimensions.
 - `llm_request_attempt`: one local dispatch per request and sequence, route/credential references, gateway, status and provider evidence.
-- `llm_request_settlement`: inherited accounting record, owned only by billing.
-- `flux_transaction` and `user_flux`: inherited ledger and wallet, unchanged here.
+- `flux_transaction` and `user_flux`: existing ledger and wallet, unchanged here.
+- Settlement storage belongs to the later billing PR, not this migration.
 
 No cascading foreign key joins diagnostic retention to accounting retention.
 Deleting diagnostic rows cannot remove evidence or permit a settled request to charge twice.
@@ -31,8 +31,7 @@ flowchart LR
   Router[Local router] --> Tracking
   Tracking --> Requests[(Request summaries)]
   Tracking --> Attempts[(Local attempts)]
-  Tracking -. read only .-> Settlement[(Settlement)]
-  Billing --> Settlement
+  Billing --> Wallet[(Existing wallet)]
   Query[Owner-scoped HTTP query] --> Tracking
 ```
 
@@ -43,7 +42,7 @@ sequenceDiagram
   participant Tracking
   participant Router
   participant Provider
-  API->>Billing: Save authorized pending settlement
+  API->>Billing: Authorize existing billing policy
   API->>Tracking: Begin request
   API->>Router: Route with attempt observer
   loop Local dispatches
@@ -67,7 +66,7 @@ server/apps/api/
   src/services/domain/request-log.ts
   src/services/domain/llm-router/{attempt,router,types}.ts
   src/schemas/{llm-request-log,llm-request-attempt}.ts
-  drizzle/0027_llm_request_tracking.sql
+  drizzle/0026_llm_request_tracking.sql
 ```
 
 ## Lifecycle and failures
@@ -77,25 +76,23 @@ Attempts start as running, may receive headers, and end on failure or the select
 The explicit stale-recovery operation marks running observations unknown without inventing end times, usage or cost.
 It does not resubmit requests or mutate settlements. There is no recovery scheduler in this change.
 Request/attempt persistence is awaited before dispatch. Tracking failure stops dispatch rather than running an untracked retry.
-Billing intake precedes tracking; if tracking fails, the authorized settlement can remain pending with no generation ID.
-This is not evidence of incurred cost. Query and reconciliation must preserve that uncertainty.
+The later billing PR adds its own intake. Tracking does not create pending accounting rows.
 Final diagnostic writes remain best effort and do not roll back completed settlement.
 
 ## Query boundary
 
 Authenticated owner-scoped APIs expose `/api/v1/llm-requests` and `/api/v1/llm-requests/:requestId`.
-Every request, attempt and settlement query includes user ownership.
+Every request and attempt query includes user ownership. This API does not expose settlement data.
 DTOs omit raw evidence, credential references and internal price snapshots.
 The list uses bounded offset pagination. No admin cross-user API or Activity UI is included.
 
 ## Rollout and non-goals
 
-Merge billing first, then this PR. Retarget this PR to main after the parent merges.
-Apply 0026 billing migration before 0027 tracking migration.
-Do not rename or modify main's existing 0025 migration or the parent PR's 0026.
+Merge this PR first. The billing PR adds its separate 0027 migration afterward.
+This PR supplies only 0026 tracking migration. Main's existing 0025 stays unchanged.
 Historical rows remain readable with null new dimensions. Do not fabricate historical correlation or provider facts.
 This is not an upgrade path from the earlier unpublished combined migration draft.
-Cost pricing stays opt-in; tracking applies to both cost and token/request policies.
+This PR preserves main's billing behavior. The dependent billing PR removes the old LLM rate policy.
 No full prompt/completion bodies, automatic gateway lookup, independent gateway process, retention job or dashboard is added.
 OpenRouter and other gateways can gain adapters and metadata without changing the billing boundary.
 
@@ -103,8 +100,8 @@ OpenRouter and other gateways can gain adapters and metadata without changing th
 
 - Request and attempt lifecycle, local retry outcomes and ownership isolation.
 - Safe query DTOs, nullable history, bounded and sanitized provider evidence.
-- Diagnostic retention leaves settlement replay and accounting unchanged.
-- Request logging alone never creates a billing record.
+- Diagnostic writes and retention never change wallet or ledger state.
+- Tracking compiles and runs without settlement storage.
 - Apply both migrations in order, preserve historical rows and settled accounting.
 - Real HTTP routes with PGlite, billing regression suite, workspace typecheck and lint.
 - Live provider traffic and production deployment remain unverified.

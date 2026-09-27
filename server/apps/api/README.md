@@ -177,105 +177,22 @@ Keep search Items and citation annotations in the client history for replay and 
 
 The Responses operation lives in `operations/responses/index.ts`. Its request contract lives in `operations/responses/request.ts`.
 
-Web search adds no separate Flux debit. Under token pricing, the hosted service absorbs the upstream search-call fee.
-Under OpenRouter cost pricing, any search fee included in `usage.cost` contributes to the Flux charge.
+Web search adds no separate Flux debit. The hosted service absorbs the upstream search-call fee.
+Search content tokens in the returned usage follow the existing token rate.
 
-A completed result uses the configured Flux pricing policy described below.
-Under token pricing, missing usage selects the per-request rate. Failed, incomplete, cancelled, malformed,
-and truncated streams incur no immediate debit. OpenRouter cost pricing saves these receipts for reconciliation.
-Each request has one settlement ID, so duplicate terminal events cannot charge twice.
+A completed result uses `usage.input_tokens` and `usage.output_tokens` with the existing Flux pricing policy.
+When usage is absent, the existing per-request rate applies. Failed, incomplete, cancelled, malformed,
+and truncated streams incur no debit. Each request has one settlement ID, so duplicate terminal events cannot charge twice.
 A client disconnect cancels the upstream reader. A delivered terminal event authorizes settlement. The gateway closes the stream after that settlement attempt.
 
 Before release, configure a Responses-capable upstream and verify authenticated requests and Flux settlement in the target environment.
 The architecture and test scope are in [the hosted Responses ADR](../../docs/ai/adr/2026-09-15-hosted-responses.md).
 
-### LLM Flux pricing
-
-The default policy charges `ceil((input + output) / 1000 * FLUX_PER_1K_TOKENS)`, with a minimum of one Flux.
-Missing token counts select `FLUX_PER_REQUEST`. The schema defaults are one Flux per thousand tokens and five Flux per request.
-These are configuration defaults, not a statement about production prices.
-
-`LLM_COST_BILLING` maps provider IDs to positive `fluxPerUsd` and `multiplier` numbers. This configuration has no default.
-For example, `{ "openrouter": { "fluxPerUsd": 1000, "multiplier": 1.5 } }` charges three Flux for a reported cost of 0.002 USD.
-This example is not a recommended sale price.
-Provider adapters convert wire usage into normalized USD costs. Only the OpenRouter adapter is implemented in this version.
-Its trusted hostname is `openrouter.ai`, and its stored provider ID is `openrouter`.
-Unconfigured providers and providers without an adapter keep the token policy, even when they return a `cost` field.
-Adding a configuration entry alone does not implement an adapter.
-
-Each cost charge uses `usage.cost * fluxPerUsd * multiplier`. It does not apply another cache discount.
-Decimal arithmetic rounds each cost up to one micro-Flux. One Flux equals 1,000,000 micro-Flux.
-The account retains fractional charges until they reach one whole Flux. An explicit zero cost settles at zero.
-The integer wallet, top-up amounts, and transaction API keep their existing units.
-
-`llm_request_settlement` retains provider ID, usage evidence, generation ID, price snapshot, and settlement status.
-Diagnostic request and attempt tracking has separate ownership and retention. See the tracking section below.
-Missing or invalid cost, BYOK usage, and interrupted results create pending receipts without a token-rate fallback.
-`settleLlmCost` can reconcile a pending receipt with recovered usage and its original request ID.
-It uses the saved price snapshot and rejects a different provider or generation ID.
-This version has no automatic generation lookup, reconciliation worker, or operator UI.
-Automatic lookup belongs to phase two. Phase one leaves pending receipts uncharged and monitors their volume.
-Pending receipts are not free usage. They do not automatically debit the wallet later in this version.
-
-Apply `0026_llm_cost_settlement.sql` before deploying this code, even when cost pricing is disabled.
-The migration preserves existing balances and initializes each fractional remainder to zero.
-Then configure prices only after charge samples agree with the OpenRouter account history.
-Do not enable this policy for OpenRouter keys that use BYOK provider credentials.
-
-Authorization still checks the `FLUX_PER_REQUEST` balance. It does not reserve the maximum output cost.
-Partial balances drain to zero. The ledger and receipt retain unpaid whole Flux for review.
-Each generated server request ID owns one settlement. A new HTTP retry is a new request, not a replay of the old ID.
-The [cost billing ADR](../../docs/ai/adr/2026-09-23-provider-cost-billing.md) describes the transaction boundary and test scope.
-
-#### Cost receipt monitoring
-
-Use receipts, not `flux_consumed = 0`, to count unresolved charges.
-A zero debit can mean free usage, a fractional charge, a pending receipt, or an empty wallet.
-These reports cover settlement records, including token/request policies and unresolved dispatches. Filter by `method = 'provider_cost'` for cost-only reports.
-
-```sql
-SELECT
-  count(*) AS receipts,
-  count(*) FILTER (WHERE billing_status = 'pending') AS pending,
-  round(100.0 * count(*) FILTER (WHERE billing_status = 'pending')
-    / nullif(count(*), 0), 2) AS pending_percent,
-  count(*) FILTER (WHERE billing_status = 'pending' AND generation_id IS NULL) AS pending_without_id,
-  coalesce(sum(requested_flux - flux_consumed) FILTER (WHERE billing_status = 'settled'), 0) AS unpaid_flux
-FROM llm_request_settlement
-WHERE billing_status IS NOT NULL AND created_at >= now() - interval '24 hours';
-
-SELECT billing_provider, pending_reason, model, count(*) AS receipts, min(created_at) AS oldest
-FROM llm_request_settlement
-WHERE billing_status = 'pending'
-GROUP BY billing_provider, pending_reason, model
-ORDER BY receipts DESC;
-
-SELECT billing_provider, request_id, generation_id, model, pending_reason, created_at
-FROM llm_request_settlement
-WHERE billing_status = 'pending'
-ORDER BY created_at
-LIMIT 100;
-```
-
-The settlement and `flux_transaction` share `(user_id, request_id)`.
-Each settlement has a unique user and request ID. Billing persists the authorized price before dispatch.
-Cost settlement updates the settlement, wallet, remainder, and ledger in one transaction.
-Pending evidence is saved first, so a failed debit does not discard the recovered cost.
-Later observations cannot overwrite settlement evidence. Diagnostic rows may be removed without deleting accounting records.
-Pending and settled settlement rows must follow ledger retention rules. Do not purge them as disposable access logs.
-
-Structured runtime logs use `event = llm.cost_receipt` and `billingStatus = pending | settled | failed`.
-Pending logs include the reason. Failed logs identify transactions that could not save a receipt.
-Do not add pending requests to a USD loss total when their cost is unknown.
-Monitor persistence errors separately because they are absent from these SQL reports.
-Evidence is limited to 16,384 JSON characters with common content and credential keys removed.
-Billing does not own request detail APIs. There is no Activity UI, reconciliation worker, or alert.
-
 ### LLM request tracking
 
 Tracking extends the existing request log and records each local upstream dispatch in `llm_request_attempt`.
-It applies to cost, token and per-request pricing. Billing intake and settlement remain owned by the billing service.
-Apply `0026_llm_cost_settlement.sql` and then `0027_llm_request_tracking.sql` before deploying.
+It applies to cost, token and per-request pricing. Existing billing behavior stays unchanged. Tracking has no settlement-table dependency.
+Apply `0026_llm_request_tracking.sql` before deploying.
 
 | Fields | Meaning |
 | --- | --- |
@@ -294,8 +211,7 @@ They omit raw evidence, credential references and internal price snapshots.
 There is no Activity UI or cross-user admin API in this change.
 
 Request and attempt writes happen before dispatch. A tracking write failure stops dispatch.
-Billing intake happens first, so a tracking failure can leave an unresolved settlement with no generation ID.
-That state does not prove the provider incurred cost. Final diagnostic writes remain best effort.
+Final diagnostic writes remain best effort. Charged Flux in logs is observational, not an accounting authority.
 `recoverStaleRequests(before)` marks stale running observations unknown without charging or replaying upstream calls.
 There is no automatic recovery or retention scheduler. Diagnostic deletion does not delete accounting evidence.
 

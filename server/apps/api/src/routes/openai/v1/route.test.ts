@@ -1,4 +1,3 @@
-import type { Database } from '../../../libs/db'
 import type { GenAiMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { BillingService } from '../../../services/domain/billing/billing-service'
@@ -12,25 +11,15 @@ import type { VoicePackService } from '../../../services/domain/voice-packs'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createV1Routes } from '.'
-import { mockDB } from '../../../libs/mock-db'
-import { createTestRedis } from '../../../libs/tests/redis'
-import { userFlux } from '../../../schemas/flux'
-import { fluxTransaction } from '../../../schemas/flux-transaction'
-import { llmRequestAttempt } from '../../../schemas/llm-request-attempt'
-import { llmRequestLog } from '../../../schemas/llm-request-log'
-import { llmRequestSettlement } from '../../../schemas/llm-request-settlement'
-import { createBillingService } from '../../../services/domain/billing/billing-service'
-import { createRequestLogService } from '../../../services/domain/request-log'
 import { ApiError } from '../../../utils/error'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
 } from './analytics'
-import { createOpenAiRouteBilling } from './middlewares/billing'
 import { tracer } from './middlewares/telemetry'
 
 function createMockFluxService(flux = 100): FluxService {
@@ -42,7 +31,6 @@ function createMockFluxService(flux = 100): FluxService {
 function createMockBillingService(flux = 100): BillingService {
   let balance = flux
   return {
-    beginLlmRequest: vi.fn(async () => undefined),
     consumeFluxForLLM: vi.fn(async (input: { userId: string, amount: number }) => {
       // Mirror billing-service.ts:debitFlux semantics so route tests see the
       // same `charged < requested` signal that production callers handle.
@@ -97,7 +85,7 @@ function createMockRequestLogService(): RequestLogService {
   return {
     beginRequest: vi.fn(async () => undefined),
     observeAttempts: () => ({ start: vi.fn(async () => 'attempt'), finish: vi.fn(async () => undefined) }),
-    getRequest: vi.fn(async () => ({ request: undefined, attempts: [], settlement: undefined })),
+    getRequest: vi.fn(async () => ({ request: undefined, attempts: [] })),
     listRequests: vi.fn(async () => []),
     recoverStaleRequests: vi.fn(async () => []),
     logRequest: vi.fn(async () => undefined),
@@ -2559,265 +2547,6 @@ function responsesHarness(response: () => Response, balance = 100, genAi: GenAiM
   return { app, send, billing, logs, tracing, router }
 }
 
-describe('openRouter cost billing through HTTP routes', () => {
-  let db: Database
-  const pricing = { fluxPerUsd: 1000, multiplier: 1.5 }
-
-  // https://github.com/moeru-ai/airi/pull/2644#discussion_r4082125150
-  it('quotes a nonzero failure estimate and selects prices by adapter provider ID', async () => {
-    const policy = createOpenAiRouteBilling({
-      billingService: createMockBillingService(),
-      configKV: createMockConfigKV({ LLM_COST_BILLING: { openrouter: pricing, other: { fluxPerUsd: 20, multiplier: 7 } } }),
-      fluxService: createMockFluxService(),
-      ttsMeter: createMockTtsMeter(),
-    })
-    const authorization = await policy.authorizeChat(testUser.id)
-    const quote = policy.priceChatUsage({ generationId: 'gen-estimate', providerUsage: { cost: 0.0002 } }, authorization, 'openrouter.ai')
-    expect(quote.amount).toBe(0.3)
-    expect(quote.costReceipt).toMatchObject({ provider: 'openrouter', pricing, usage: { costUsd: 0.0002 } })
-    expect(policy.priceChatUsage({ providerUsage: { cost: 10 } }, authorization, 'other.example').costReceipt).toBeUndefined()
-  })
-  beforeAll(async () => {
-    db = await mockDB({ userFlux, fluxTransaction, llmRequestLog, llmRequestAttempt, llmRequestSettlement })
-  })
-  beforeEach(async () => {
-    await db.delete(llmRequestSettlement)
-    await db.delete(llmRequestAttempt)
-    await db.delete(llmRequestLog)
-    await db.delete(fluxTransaction)
-    await db.delete(userFlux)
-    await db.insert(userFlux).values({ userId: testUser.id, flux: 100 })
-  })
-
-  function harness(response: () => Response, provider = 'openrouter.ai', enabled = true) {
-    const config = createMockConfigKV({ LLM_COST_BILLING: enabled ? { openrouter: pricing } : undefined, FLUX_PER_1K_TOKENS: 1 })
-    const billing = createBillingService(db, createTestRedis(), config)
-    const logs = createRequestLogService(db)
-    vi.spyOn(logs, 'logRequest')
-    const router = createMockLlmRouter({ route: vi.fn(async (_request, context) => {
-      if (context) {
-        context.provider = provider
-        context.upstreamModel = 'vendor/native-model'
-      }
-      return response()
-    }) })
-    const app = createTestApp(createMockFluxService(), config, billing, logs, undefined, router)
-    return { app, logs }
-  }
-
-  for (const protocol of ['chat/completions', 'responses']) {
-    for (const stream of [false, true]) {
-      it(`settles reported cost for ${protocol}, stream=${stream}`, async () => {
-        const result = protocol === 'responses'
-          ? { ...responsesResult(), id: 'gen-cost', model: 'returned-model', provider: 'Inference Provider', usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150, cost: 0.002, input_tokens_details: { cached_tokens: 90 }, output_tokens_details: { reasoning_tokens: 12 }, future_meter: { units: 4 } } }
-          : { id: 'gen-cost', model: 'returned-model', provider: 'Inference Provider', choices: [{ finish_reason: 'stop' }], usage: { prompt_tokens: 100, completion_tokens: 50, cost: 0.002, prompt_tokens_details: { cached_tokens: 90 }, completion_tokens_details: { reasoning_tokens: 12 }, future_meter: { units: 4 } } }
-        const frame = protocol === 'responses'
-          ? `event: response.completed\ndata: ${JSON.stringify({ type: 'response.completed', response: result })}\n\n`
-          : `data: ${JSON.stringify(result)}\n\ndata: ${JSON.stringify({ id: 'gen-cost', choices: [], usage: null, padding: 'x'.repeat(3000) })}\n\ndata: [DONE]\n\n`
-        const { app, logs } = harness(() => stream
-          ? new Response(new ReadableStream({ start(controller) {
-              const bytes = new TextEncoder().encode(frame)
-              controller.enqueue(bytes.slice(0, 37))
-              controller.enqueue(bytes.slice(37))
-              controller.close()
-            } }), { headers: { 'Content-Type': 'text/event-stream' } })
-          : Response.json(result))
-        const response = await app.request(`/api/v1/openai/${protocol}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: [], input: 'hello', stream }),
-        }, { user: testUser })
-        expect(response.status).toBe(200)
-        expect(await response.text()).toContain('gen-cost')
-        await vi.waitFor(async () => {
-          const [receipt] = await db.select().from(llmRequestSettlement)
-          expect(receipt).toMatchObject({ billingProvider: 'openrouter', billingStatus: 'settled', fluxConsumed: 3, costUsd: '0.002', pricing })
-        })
-        const [wallet] = await db.select().from(userFlux)
-        expect(wallet.flux).toBe(97)
-        expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ fluxConsumed: 3 }))
-        await Promise.all(vi.mocked(logs.logRequest).mock.results.map(result => result.value))
-        const entries = await db.select().from(llmRequestLog)
-        expect(entries).toHaveLength(1)
-        expect(entries[0]).toMatchObject({ gateway: 'openrouter.ai', upstreamProvider: 'Inference Provider', upstreamModel: 'vendor/native-model', responseModel: 'returned-model', cachedTokens: 90, reasoningTokens: 12, fluxConsumed: 3, state: 'completed' })
-        const [settlement] = await db.select().from(llmRequestSettlement)
-        expect(settlement.evidence).toMatchObject({ observation: {
-          gateway: 'openrouter.ai',
-          upstreamProvider: 'Inference Provider',
-          upstreamModel: 'vendor/native-model',
-          responseModel: 'returned-model',
-          cachedTokens: 90,
-          reasoningTokens: 12,
-          providerUsage: { future_meter: { units: 4 } },
-        } })
-      })
-    }
-  }
-
-  it.each([undefined, 0, -1])('distinguishes missing, zero, and invalid reported cost: %s', async (cost) => {
-    const { app } = harness(() => Response.json({ id: 'gen-boundary', choices: [], usage: { prompt_tokens: 1000, completion_tokens: 1000, cost } }))
-    const response = await app.request('/api/v1/openai/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [] }),
-    }, { user: testUser })
-    expect(response.status).toBe(200)
-    const [receipt] = await db.select().from(llmRequestSettlement)
-    expect(receipt.billingStatus).toBe(cost === 0 ? 'settled' : 'pending')
-    const [wallet] = await db.select().from(userFlux)
-    expect(wallet.flux).toBe(100)
-  })
-
-  it.each([['other.example', true], ['openrouter.ai', false]] as const)('keeps the configured token policy for provider=%s, cost enabled=%s', async (provider, enabled) => {
-    const { app } = harness(() => Response.json({ id: 'gen-other', usage: { prompt_tokens: 1000, completion_tokens: 1000, cost: 10 } }), provider, enabled)
-    const response = await app.request('/api/v1/openai/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [] }),
-    }, { user: testUser })
-    expect(response.status).toBe(200)
-    const [wallet] = await db.select().from(userFlux)
-    expect(wallet.flux).toBe(98)
-    await vi.waitFor(async () => {
-      const entries = await db.select().from(llmRequestLog)
-      expect(entries).toHaveLength(1)
-      expect(entries[0]).toMatchObject({ fluxConsumed: 2 })
-    })
-  })
-
-  it('records a chat stream without DONE as pending even if it reports cost', async () => {
-    const { app } = harness(() => new Response(`data: ${JSON.stringify({ id: 'gen-partial', usage: { cost: 1 } })}\n\n`, { headers: { 'Content-Type': 'text/event-stream' } }))
-    const response = await app.request('/api/v1/openai/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [], stream: true }),
-    }, { user: testUser })
-    await response.text()
-    await vi.waitFor(async () => {
-      const [receipt] = await db.select().from(llmRequestSettlement)
-      expect(receipt).toMatchObject({ billingStatus: 'pending', pendingReason: 'incomplete_or_invalid_stream', generationId: 'gen-partial' })
-    })
-    const [wallet] = await db.select().from(userFlux)
-    expect(wallet.flux).toBe(100)
-  })
-
-  it('measures first output after metadata frames and retains metadata through the usage frame', async () => {
-    let now = 1000
-    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
-    let upstream: ReadableStreamDefaultController<Uint8Array> | undefined
-    const encoder = new TextEncoder()
-    const { app } = harness(() => new Response(new ReadableStream({
-      start(controller) {
-        upstream = controller
-      },
-    }), { headers: { 'Content-Type': 'text/event-stream' } }))
-    try {
-      const response = await app.request('/api/v1/openai/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [], stream: true }),
-      }, { user: testUser })
-      const reader = response.body!.getReader()
-      upstream!.enqueue(encoder.encode('data: {"id":"gen-timing","model":"actual-model","provider":"Inference Provider","choices":[{"delta":{"role":"assistant"}}]}\n\n'))
-      await reader.read()
-      now = 1050
-      upstream!.enqueue(encoder.encode('data: {"id":"gen-timing","choices":[{"delta":{"content":"private output"}}]}\n\n'))
-      await reader.read()
-      now = 1100
-      upstream!.enqueue(encoder.encode('data: {"id":"gen-timing","choices":[{"finish_reason":"stop"}],"usage":{"cost":0.002,"prompt_tokens":100,"completion_tokens":20}}\n\ndata: [DONE]\n\n'))
-      upstream!.close()
-      await reader.read()
-      await reader.read()
-      await vi.waitFor(async () => {
-        const [settlement] = await db.select().from(llmRequestSettlement)
-        const entry = settlement.evidence
-        expect(entry).toMatchObject({ observation: { timeToFirstTokenMs: 50, durationMs: 100, responseModel: 'actual-model', upstreamProvider: 'Inference Provider', finishReason: 'stop' } })
-        expect(JSON.stringify(entry)).not.toContain('private output')
-      })
-    }
-    finally {
-      clock.mockRestore()
-    }
-  })
-
-  // https://github.com/moeru-ai/airi/pull/2644#discussion_r4082125157
-  it('forwards a keep-alive before any data frame and preserves raw SSE bytes', async () => {
-    const heartbeat = ': keep-alive\r\n\r\n'
-    const terminal = 'data: {"id":"gen-heartbeat","usage":{"cost":0.002}}\r\n\r\ndata: [DONE]\r\n\r\n'
-    let upstreamController: ReadableStreamDefaultController<Uint8Array>
-    const { app } = harness(() => new Response(new ReadableStream<Uint8Array>({
-      start(controller) {
-        upstreamController = controller
-        controller.enqueue(new TextEncoder().encode(heartbeat))
-      },
-    }), { headers: { 'Content-Type': 'text/event-stream', 'Content-Length': String(heartbeat.length + terminal.length) } }))
-    const response = await app.request('/api/v1/openai/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [], stream: true }),
-    }, { user: testUser })
-    const reader = response.body!.getReader()
-    let first: Awaited<ReturnType<typeof reader.read>> | undefined
-    const firstRead = reader.read().then((value) => {
-      first = value
-    })
-    try {
-      await vi.waitFor(() => expect(first?.done).toBe(false), { timeout: 500 })
-      expect(new TextDecoder().decode(first?.value)).toBe(heartbeat)
-      expect(response.headers.get('content-length')).toBeNull()
-    }
-    finally {
-      upstreamController!.enqueue(new TextEncoder().encode(terminal))
-      upstreamController!.close()
-      await firstRead
-    }
-    const rest = await reader.read()
-    expect(new TextDecoder().decode(rest.value)).toBe(terminal)
-    await reader.read()
-    await vi.waitFor(async () => expect((await db.select().from(llmRequestLog))[0]).toMatchObject({ fluxConsumed: 3 }))
-  })
-
-  it('saves a pending receipt and cancels upstream when the chat client disconnects', async () => {
-    const cancelled = vi.fn()
-    const { app } = harness(() => new Response(new ReadableStream({
-      start(controller) {
-        controller.enqueue(new TextEncoder().encode('data: {"id":"gen-disconnect","choices":[]}\n\n'))
-      },
-      cancel: cancelled,
-    }), { headers: { 'Content-Type': 'text/event-stream' } }))
-    const response = await app.request('/api/v1/openai/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [], stream: true }),
-    }, { user: testUser })
-    const reader = response.body!.getReader()
-    await reader.read()
-    await reader.cancel()
-    await vi.waitFor(async () => {
-      expect(cancelled).toHaveBeenCalled()
-      const [receipt] = await db.select().from(llmRequestSettlement)
-      expect(receipt).toMatchObject({ billingStatus: 'pending', pendingReason: 'stream_interrupted', generationId: 'gen-disconnect' })
-    })
-    expect(await db.select().from(fluxTransaction)).toHaveLength(0)
-  })
-
-  it('saves the Responses generation ID on unexpected EOF', async () => {
-    const result = { ...responsesResult('in_progress'), id: 'gen-eof', output: [], usage: null }
-    const { app } = harness(() => new Response(`event: response.created\ndata: ${JSON.stringify({ type: 'response.created', response: result })}\n\n`, { headers: { 'Content-Type': 'text/event-stream' } }))
-    const response = await app.request('/api/v1/openai/responses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input: 'hello', stream: true }),
-    }, { user: testUser })
-    await expect(response.text()).rejects.toThrow()
-    await vi.waitFor(async () => {
-      const [receipt] = await db.select().from(llmRequestSettlement)
-      expect(receipt).toMatchObject({ billingStatus: 'pending', pendingReason: 'response_not_completed', generationId: 'gen-eof' })
-    })
-    expect(await db.select().from(fluxTransaction)).toHaveLength(0)
-  })
-})
-
 function responsesFrame(status = 'completed') {
   return `event: response.${status}\nid: event-1\ndata: ${JSON.stringify({ type: `response.${status}`, response: responsesResult(status) })}\n\n`
 }
@@ -3317,28 +3046,6 @@ it.each(['chat/completions', 'responses'])('does not open a generation span or d
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: [], input: 'hello' }),
-    }, { user: testUser })
-    expect(response.status).toBe(500)
-    expect(billing.beginLlmRequest).toHaveBeenCalledOnce()
-    expect(router.route).not.toHaveBeenCalled()
-    expect(startSpan).not.toHaveBeenCalled()
-  }
-  finally {
-    startSpan.mockRestore()
-  }
-})
-
-it('does not open a generation span or dispatch when billing intake fails', async () => {
-  const billing = createMockBillingService()
-  vi.mocked(billing.beginLlmRequest).mockRejectedValueOnce(new Error('database unavailable'))
-  const router = createMockLlmRouter()
-  const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, undefined, undefined, router)
-  const startSpan = vi.spyOn(tracer, 'startSpan')
-  try {
-    const response = await app.request('/api/v1/openai/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [] }),
     }, { user: testUser })
     expect(response.status).toBe(500)
     expect(router.route).not.toHaveBeenCalled()
