@@ -1,6 +1,6 @@
 # Apple IAP sandbox accounts
 
-Status: proposed for implementation review. The requester selected dedicated test accounts.
+Status: accepted. The requester confirmed dedicated test accounts.
 
 ## Decision
 
