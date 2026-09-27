@@ -452,6 +452,18 @@ describe('createChatOrchestratorRuntime', () => {
     })
   })
 
+  it('carries the target conversation through speech hooks and artistry callbacks for PR #2672', async () => {
+    const harness = createHarness()
+    const speechSessions: string[] = []
+    harness.runtime.hooks.onBeforeMessageComposed(async (_message, context) => {
+      speechSessions.push(context.sessionId)
+    })
+    await harness.runtime.ingest('from another role', { model: 'gpt-test', chatProvider: provider }, 'session-2')
+    expect(speechSessions).toEqual(['session-2'])
+    expect(harness.userTurns).toEqual([expect.objectContaining({ sessionId: 'session-2', messageText: 'from another role' })])
+    expect(harness.assistantTurns).toEqual([expect.objectContaining({ sessionId: 'session-2', messageText: 'assistant reply' })])
+  })
+
   it('keeps hook order and appends context prompt to the latest user message', async () => {
     const harness = createHarness()
     harness.contextSnapshot['system:weather'] = [

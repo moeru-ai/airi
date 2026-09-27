@@ -89,6 +89,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const initializing = ref(false)
   let initializePromise: Promise<void> | null = null
   const ensureActivePromises = new Map<string, Promise<string>>()
+  let indexHydration: { userId: string, epoch: number, promise: Promise<void> } | undefined
   // Bumped by `clearInMemoryState` (user swap / teardown). The
   // `ensureActiveSessionForCharacter` IIFE captures this at call time and
   // bails after every await once it changes, so a stale hydrate from the
@@ -252,7 +253,24 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   async function loadIndexForUser(currentUserId: string) {
+    const epoch = ensureActiveEpoch
+    if (indexHydration?.userId === currentUserId && indexHydration.epoch === epoch)
+      return indexHydration.promise
+    const operation = hydrateIndex(currentUserId, epoch)
+    indexHydration = { userId: currentUserId, epoch, promise: operation }
+    try {
+      await operation
+    }
+    finally {
+      if (indexHydration?.promise === operation)
+        indexHydration = undefined
+    }
+  }
+
+  async function hydrateIndex(currentUserId: string, epoch: number) {
     const stored = await chatSessionsRepo.getIndex(currentUserId)
+    if (epoch !== ensureActiveEpoch || currentUserId !== getCurrentUserId())
+      return
     index.value = stored ?? {
       userId: currentUserId,
       characters: {},
@@ -649,6 +667,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
     }
 
+    if (!cardStore.getCard(characterId)) {
+      if (wasActive)
+        activeSessionId.value = ''
+      return
+    }
     const replacementSessionId = await createCharacterSession(characterId, { setActive: wasActive })
     if (!wasActive) {
       // The synchronized leader may be displaying a different character, but
@@ -1092,6 +1115,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   async function ensureCurrentSession(): Promise<string> {
     const characterId = getCurrentCharacterId()
     const generation = ++selectionGeneration
+    if (sessionMetas.value[activeSessionId.value]?.characterId !== characterId)
+      activeSessionId.value = ''
+    if (!cardStore.getCard(characterId))
+      return ''
     const remembered = chatSessionSelection.characterSessions[characterId]
     const canonical = await useChatSessionStore(pinia).ensureCharacterSession(characterId)
     const sessionId = remembered && hasKnownSession(remembered)
@@ -1454,7 +1481,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return cloneDeep(sessionMessages.value)
   }
 
-  async function resetAllSessions() {
+  async function resetAllSessions(recreate = true) {
     const currentUserId = getCurrentUserId()
     const characterIds = new Set([getCurrentCharacterId()])
     const sessionIds = new Set<string>()
@@ -1485,8 +1512,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       characters: {},
     }
 
-    for (const characterId of characterIds)
-      await createCharacterSession(characterId)
+    await persistIndex()
+    if (recreate) {
+      for (const characterId of characterIds)
+        await createCharacterSession(characterId)
+    }
   }
 
   function getSessionMessages(sessionId: string) {
@@ -1559,7 +1589,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
   }
 
-  async function importSessions(payload: ChatSessionsExport) {
+  async function replaceSessions(payload: ChatSessionsExport) {
     if (payload.format !== 'chat-sessions-index:v1')
       return
 
@@ -1583,8 +1613,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         messages: cloneDeep(record.messages),
       }))
     }
+  }
 
-    await ensureActiveSessionForCharacter()
+  async function importSessions(payload: ChatSessionsExport) {
+    await useChatSessionStore(pinia).replaceSessions(payload)
+    chatSessionSelection.characterSessions = {}
+    activeSessionId.value = ''
+    await ensureCurrentSession()
   }
 
   let lastActiveSessionMeta: ChatSessionMeta | undefined
@@ -1630,7 +1665,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     catch (error) {
       console.error('[chat-session] Failed to select a session for the current character:', error)
     }
-  })
+  }, { flush: 'sync' })
 
   // Each renderer observes the synchronized identity. Route the transition to
   // the leader so followers never write synchronized chat state directly.
@@ -1685,6 +1720,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     forkSession,
     exportSessions,
     importSessions,
+    replaceSessions,
     createSession,
     createCharacterSession,
     loadSession,
@@ -1710,7 +1746,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'refreshSessionSystemMessage',
       'exportSessions',
       'forkSession',
-      'importSessions',
+      'replaceSessions',
       'loadSession',
       'pushMessageToCloud',
       'refreshSession',

@@ -4,6 +4,7 @@ import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { chatMessagesToTurns, streamFrom } from '@proj-airi/core-agent'
 import { artistryGenerateHeadless } from '@proj-airi/stage-shared'
+import { cloneDeep } from 'es-toolkit'
 import { defineStore } from 'pinia'
 import { ref, toRaw } from 'vue'
 import { toast } from 'vue-sonner'
@@ -14,7 +15,6 @@ import { useChatSessionStore } from '../chat/session-store'
 import { useProviderStore } from '../providers/provider'
 import { useAiriCardStore } from './airi-card'
 import { useArtistryStore } from './artistry'
-import { useConsciousnessStore } from './consciousness'
 
 const artistLog = import.meta.env.DEV ? console.info.bind(console, '[AutonomousArtist]') : () => {}
 
@@ -22,7 +22,6 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
   const cardStore = useAiriCardStore()
   const backgroundStore = useBackgroundStore()
   const artistryStore = useArtistryStore()
-  const consciousnessStore = useConsciousnessStore()
   const providersStore = useProviderStore()
   const chatSessionStore = useChatSessionStore()
 
@@ -48,18 +47,23 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
   /**
    * Analyzes the context in parallel and triggers a visual if threshold is met.
    */
-  async function runArtistTask(inputText: string, history: Message[] = [], targetOverride?: 'user' | 'assistant') {
+  async function runArtistTask(sessionId: string, inputText: string, history: Message[], target: 'user' | 'assistant') {
     if (isProcessing.value) {
       artistLog('Skipping task: Already processing another task.')
       return
     }
-    const { activeCard } = cardStore
-    const artistry = activeCard?.extensions?.airi?.modules?.artistry
+    const cardId = chatSessionStore.sessionMetas[sessionId]?.characterId
+    if (!cardId || !cardStore.cards.has(cardId))
+      return
+    const character = cloneDeep(cardStore.resolveCharacter(cardId))
+    const activeCard = character.card
+    const artistry = character.modules.artistry
     const autonomousEnabled = artistry?.autonomousEnabled ?? false
-    const target = targetOverride || artistry?.autonomousTarget || 'user'
+    if ((artistry?.autonomousTarget ?? 'user') !== target)
+      return
 
     artistLog('Triggered runArtistTask. State:', {
-      cardId: cardStore.activeCardId,
+      cardId,
       cardName: activeCard?.name,
       autonomousEnabled,
       target,
@@ -70,7 +74,13 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
     }
 
     const threshold = artistry.autonomousThreshold ?? 70
-    const cardId = cardStore.activeCardId
+    const generationConfig = cloneDeep({
+      provider: artistry.provider,
+      model: artistry.model,
+      promptPrefix: artistry.promptPrefix,
+      options: artistry.options,
+      globals: artistryStore.artistryGlobals,
+    })
 
     isProcessing.value = true
     artistLog('Starting analysis task...', { threshold, cardId, target })
@@ -142,8 +152,8 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         },
       ]
 
-      const modelId = consciousnessStore.activeModel
-      const providerId = consciousnessStore.activeProvider
+      const modelId = character.modules.consciousness.model
+      const providerId = character.modules.consciousness.provider
 
       artistLog('Sending rolled-up prompt to Director LLM...', {
         model: modelId,
@@ -224,13 +234,9 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
           return
         }
 
-        const artistryGlobals = artistryStore.artistryGlobals
         const generationPayload = {
-          prompt: artistry.promptPrefix ? `${artistry.promptPrefix} ${analysis.prompt}` : analysis.prompt,
-          model: artistry.model || artistryStore.activeModel,
-          provider: artistry.provider || artistryStore.activeProvider,
-          options: artistry.options || artistryStore.providerOptions,
-          globals: artistryGlobals,
+          ...generationConfig,
+          prompt: generationConfig.promptPrefix ? `${generationConfig.promptPrefix} ${analysis.prompt}` : analysis.prompt,
         }
 
         artistLog('Triggering Headless Generation with payload:', generationPayload)
@@ -289,7 +295,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
             case 'inline': {
               const imageUrl = result.imageUrl || result.base64
               const content = `![${analysis.title || 'Generated Image'}](${imageUrl})`
-              chatSessionStore.appendSessionMessage(chatSessionStore.activeSessionId, {
+              chatSessionStore.appendSessionMessage(sessionId, {
                 role: 'assistant',
                 content,
                 slices: [{ type: 'text', text: content }],

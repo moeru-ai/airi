@@ -9,8 +9,11 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { chatSessionsRepo } from '../database/repos/chat-sessions.repo'
 import { injectKeyPiniaSynced } from '../libs/pinia/synced-context'
+import { useChatSessionStore } from '../stores/chat/session-store'
 import { useModsServerChannelStore } from '../stores/mods/api/channel-server'
+import { useAiriCardStore } from '../stores/modules/airi-card'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
 import { useDiscordStore } from '../stores/modules/discord'
@@ -66,6 +69,32 @@ afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   localStorage.clear()
+})
+
+// https://github.com/moeru-ai/airi/pull/2672#discussion_r4115090779
+it('deletes custom sessions without recreating their prompts during a full reset', async () => {
+  localStorage.clear()
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const context = mountMaintenance(`delete-all:${crypto.randomUUID()}`, 'leader-only')
+  await expect.poll(() => context.runtime.isLeader()).toBe(true)
+  const cards = useAiriCardStore(context.pinia)
+  await cards.initialize()
+  const chats = useChatSessionStore(context.pinia)
+  await chats.initialize()
+  const id = await cards.addCard({ ...cards.activeCard!, name: 'Private role', systemPrompt: 'Private prompt to erase' }, 'scratch')
+  await cards.activateCard(id)
+  await expect.poll(() => chats.sessionMetas[chats.activeSessionId]?.characterId).toBe(id)
+  const archive = await chats.exportSessions()
+  const writes = vi.spyOn(chatSessionsRepo, 'saveSession')
+  await context.maintenance.deleteAllData()
+  expect(cards.cards.size).toBe(0)
+  expect(cards.moduleDefaults).toBeNull()
+  expect(cards.activeCardId).toBe('default')
+  expect(Object.keys(chats.sessionMetas)).toEqual([])
+  expect(writes).not.toHaveBeenCalled()
+  for (const sessionId of Object.keys(archive.sessions))
+    expect(await chatSessionsRepo.getSession(sessionId)).toBeNull()
+  expect((await chatSessionsRepo.getIndex(archive.index.userId))?.characters).toEqual({})
 })
 
 // https://github.com/moeru-ai/airi/pull/2490#discussion_r3968502055

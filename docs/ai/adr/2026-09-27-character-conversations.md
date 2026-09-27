@@ -29,12 +29,17 @@ Changing a shared card still updates windows that selected that same character.
 
 The chat session store separates shared data commands from local navigation.
 Creation and hydration receive an explicit character id. Opening a conversation
-selects its owning character and display model. Concurrent hydration is isolated
-by character; account epochs and local selection generations reject stale work.
+selects its owning character and display model. Character hydration shares one
+account-index read. Account epochs and local selection generations reject stale
+work. A role switch clears the prior conversation before hydration starts.
 
 The send path resolves the model and system prompt from conversation metadata.
 The runtime captures provider identity when it queues a turn and uses that same
 identity for streaming and telemetry. A later window selection cannot relabel it.
+Speech hooks and autonomous artistry callbacks carry the conversation id. Speech
+captures its provider, model, voice, and options at turn start. Artistry captures
+the conversation character before asynchronous analysis and appends images to
+that conversation, not the leader window's visible conversation.
 
 Empty card settings still inherit global defaults. A model cannot inherit across
 providers, and a voice cannot inherit across providers or models. One resolver
@@ -51,6 +56,12 @@ implements this policy for runtime activation and conversation sends.
 - Provider credentials and account identity keep their existing shared owners.
 - Global vision request policies remain shared through explicit leader actions.
   Their snapshots do not change a window's selected vision provider or model.
+- Sampling values and global artistry configuration have shared settings owners.
+  Leader actions persist them; card-specific runtime selections stay local.
+- Full data deletion removes sessions without creating replacement prompts.
+  Catalog reset is awaited and its snapshot cannot restore inherited defaults.
+  Session import replaces shared data, then repairs the requesting window's
+  selection locally. Deleted-character history can be deleted without a replacement.
 - This change does not add remote card synchronization or change cloud chat
   schemas. Cloud-only conversations keep their existing default-card binding.
 - This change does not redesign page layouts, add group chat, or change

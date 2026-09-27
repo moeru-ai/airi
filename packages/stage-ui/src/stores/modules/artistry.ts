@@ -1,6 +1,9 @@
-import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
-import { defineStore } from 'pinia'
-import { computed, isRef, ref, watch } from 'vue'
+import { defineStore, storeToRefs } from 'pinia'
+import { computed, isRef, ref } from 'vue'
+
+import { useArtistrySettingsStore } from './artistry-settings'
+
+export type { ComfyUIWorkflowTemplate } from './artistry-settings'
 
 export interface ResolvedArtistryConfig {
   provider?: string
@@ -10,76 +13,15 @@ export interface ResolvedArtistryConfig {
   globals: Record<string, any>
 }
 
-export interface ComfyUIWorkflowTemplate {
-  id: string
-  name: string
-  workflow: Record<string, any>
-  exposedFields: Record<string, string[]>
-}
-
 export const useArtistryStore = defineStore('artistry', () => {
-  // Persist the startup choice without replicating this window's active character settings.
-  const persistenceOptions = { listenToStorageChanges: false }
-
-  // --- Persistent Global Settings (User Preferences) ---
-  const globalProvider = useLocalStorageManualReset<string>('artistry-provider', 'none', persistenceOptions)
-  const globalModel = useLocalStorageManualReset<string>('artistry-model', '', persistenceOptions)
-  const globalPromptPrefix = useLocalStorageManualReset<string>('artistry-prompt-prefix', '', persistenceOptions)
-  const globalProviderOptions = useLocalStorageManualReset<Record<string, any> | undefined>('artistry-provider-options', undefined, persistenceOptions)
+  const settings = useArtistrySettingsStore()
+  const { globalProvider, globalModel, globalPromptPrefix, globalProviderOptions, comfyuiServerUrl, comfyuiSavedWorkflows, comfyuiActiveWorkflow, replicateApiKey, replicateDefaultModel, replicateAspectRatio, replicateInferenceSteps, nanobananaApiKey, nanobananaModel, nanobananaResolution } = storeToRefs(settings)
 
   // --- Active settings (transient, can be overridden by cards) ---
   const activeProvider = ref(globalProvider.value)
   const activeModel = ref(globalModel.value)
   const defaultPromptPrefix = ref(globalPromptPrefix.value)
   const providerOptions = ref(globalProviderOptions.value)
-
-  // --- ComfyUI provider settings ---
-  const comfyuiServerUrl = useLocalStorageManualReset<string>(
-    'artistry-comfyui-server-url',
-    'http://localhost:8188',
-    persistenceOptions,
-  )
-  const comfyuiSavedWorkflows = useLocalStorageManualReset<ComfyUIWorkflowTemplate[]>(
-    'artistry-comfyui-saved-workflows',
-    [],
-    persistenceOptions,
-  )
-  const comfyuiActiveWorkflow = useLocalStorageManualReset<string>(
-    'artistry-comfyui-active-workflow',
-    '',
-    persistenceOptions,
-  )
-
-  // --- Replicate provider settings ---
-  const replicateApiKey = useLocalStorageManualReset<string>('artistry-replicate-api-key', '', persistenceOptions)
-  const replicateDefaultModel = useLocalStorageManualReset<string>(
-    'artistry-replicate-default-model',
-    'black-forest-labs/flux-schnell',
-    persistenceOptions,
-  )
-  const replicateAspectRatio = useLocalStorageManualReset<string>(
-    'artistry-replicate-aspect-ratio',
-    '16:9',
-    persistenceOptions,
-  )
-  const replicateInferenceSteps = useLocalStorageManualReset<number>(
-    'artistry-replicate-inference-steps',
-    4,
-    persistenceOptions,
-  )
-
-  // --- Nano Banana (Google AI Studio) provider settings ---
-  const nanobananaApiKey = useLocalStorageManualReset<string>('artistry-nanobanana-api-key', '', persistenceOptions)
-  const nanobananaModel = useLocalStorageManualReset<string>(
-    'artistry-nanobanana-model',
-    'gemini-3.1-flash-image-preview',
-    persistenceOptions,
-  )
-  const nanobananaResolution = useLocalStorageManualReset<string>(
-    'artistry-nanobanana-resolution',
-    '1K',
-    persistenceOptions,
-  )
 
   /**
    * Resets active settings to match current global user preferences.
@@ -95,35 +37,27 @@ export const useArtistryStore = defineStore('artistry', () => {
   /**
    * Hard resets both global persistent settings and active transient state.
    */
-  function resetState() {
+  async function resetState() {
     // Reset persistent globals
-    globalProvider.reset()
-    globalModel.reset()
-    globalPromptPrefix.reset()
-    globalProviderOptions.reset()
+    await settings.setGlobalProvider('none')
+    await settings.setGlobalModel('')
+    await settings.setGlobalPromptPrefix('')
+    await settings.setGlobalProviderOptions(undefined)
 
-    comfyuiServerUrl.reset()
-    comfyuiSavedWorkflows.reset()
-    comfyuiActiveWorkflow.reset()
-    replicateApiKey.reset()
-    replicateDefaultModel.reset()
-    replicateAspectRatio.reset()
-    replicateInferenceSteps.reset()
-    nanobananaApiKey.reset()
-    nanobananaModel.reset()
-    nanobananaResolution.reset()
+    await settings.setComfyuiServerUrl('http://localhost:8188')
+    await settings.setComfyuiSavedWorkflows([])
+    await settings.setComfyuiActiveWorkflow('')
+    await settings.setReplicateApiKey('')
+    await settings.setReplicateDefaultModel('black-forest-labs/flux-schnell')
+    await settings.setReplicateAspectRatio('16:9')
+    await settings.setReplicateInferenceSteps(4)
+    await settings.setNanobananaApiKey('')
+    await settings.setNanobananaModel('gemini-3.1-flash-image-preview')
+    await settings.setNanobananaResolution('1K')
 
     // Sync active state
     resetToGlobal()
   }
-
-  // Sync active state when global state changes (e.g. from Settings page)
-  // NOTICE: We only sync if the active state currently matches the global state (i.e. no card override is active),
-  // OR we just sync anyway and let airi-card's watch override it again if a card is active.
-  // The latter is simpler and more predictable.
-  watch(globalProvider, val => activeProvider.value = val)
-  watch(globalModel, val => activeModel.value = val)
-  watch(globalPromptPrefix, val => defaultPromptPrefix.value = val)
 
   const configured = computed(() => {
     if (!activeProvider.value)

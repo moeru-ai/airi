@@ -443,15 +443,11 @@ export const useChatStore = defineStore('chat', () => {
         })
       }
     },
-    onUserTurnReady: ({ messageText, sessionMessages }) => {
-      const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
-      if (autonomousTarget === 'user')
-        void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
+    onUserTurnReady: ({ sessionId, messageText, sessionMessages }) => {
+      void artistryAutonomousStore.runArtistTask(sessionId, messageText, toProviderHistory(sessionMessages), 'user')
     },
-    onAssistantTurnReady: ({ messageText, sessionMessages }) => {
-      const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry
-      if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
-        void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
+    onAssistantTurnReady: ({ sessionId, messageText, sessionMessages }) => {
+      void artistryAutonomousStore.runArtistTask(sessionId, messageText, toProviderHistory(sessionMessages), 'assistant')
     },
   })
 

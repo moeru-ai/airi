@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
+import { useArtistrySettingsStore } from '@proj-airi/stage-ui/stores/modules/artistry-settings'
 import { FieldInput, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const artistryStore = useArtistryStore()
+const artistryStore = useArtistrySettingsStore()
 const { t } = useI18n()
 
 const {
@@ -45,25 +45,28 @@ const resolutionOptions = computed(() => [
 
     <div class="flex flex-col gap-4">
       <FieldInput
-        v-model="nanobananaApiKey"
+        :model-value="nanobananaApiKey"
         :label="t('settings.pages.providers.provider.nanobanana.settings.api_key.label')"
         :description="t('settings.pages.providers.provider.nanobanana.settings.api_key.description')"
         :placeholder="t('settings.pages.providers.provider.nanobanana.settings.api_key.placeholder')"
         type="password"
+        @update:model-value="artistryStore.setNanobananaApiKey($event ?? '')"
       />
 
       <FieldSelect
-        v-model="nanobananaModel"
+        :model-value="nanobananaModel"
         :label="t('settings.pages.providers.provider.nanobanana.settings.preferred_model.label')"
         :description="t('settings.pages.providers.provider.nanobanana.settings.preferred_model.description')"
         :options="modelOptions"
+        @update:model-value="artistryStore.setNanobananaModel($event ?? '')"
       />
 
       <FieldSelect
-        v-model="nanobananaResolution"
+        :model-value="nanobananaResolution"
         :label="t('settings.pages.providers.provider.nanobanana.settings.default_resolution.label')"
         :description="t('settings.pages.providers.provider.nanobanana.settings.default_resolution.description')"
         :options="resolutionOptions"
+        @update:model-value="artistryStore.setNanobananaResolution($event ?? '')"
       />
     </div>
   </div>

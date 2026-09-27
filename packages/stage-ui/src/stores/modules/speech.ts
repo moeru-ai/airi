@@ -1,5 +1,6 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
+import type { AiriExtension } from '../../types/airiCard'
 import type { VoiceCatalogConfiguration, VoiceCatalogIdentity, VoiceInfo } from '../providers/provider'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -8,7 +9,7 @@ import { refManualReset } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { isEqual } from 'es-toolkit'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
-import { computed, onScopeDispose, watch } from 'vue'
+import { computed, onScopeDispose, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
@@ -121,14 +122,50 @@ export const useSpeechStore = defineStore('speech', () => {
     )
   })
 
-  const supportsSSML = computed(() => {
+  function supportsSpeechSsml(provider: string, model: string) {
     // Currently only ElevenLabs and some other providers support SSML
     // only part voices are support SSML in cosyvoice-v2 which is provided by alibaba
-    if (activeSpeechProvider.value === 'alibaba-cloud-model-studio' && activeSpeechModel.value === 'cosyvoice-v2') {
+    if (provider === 'alibaba-cloud-model-studio' && model === 'cosyvoice-v2') {
       return true
     }
-    return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
-  })
+    return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(provider)
+  }
+
+  const supportsSSML = computed(() => supportsSpeechSsml(activeSpeechProvider.value, activeSpeechModel.value))
+
+  /** Captures one conversation's speech settings without changing this window's selection. */
+  async function resolveSpeechSelection(selection: AiriExtension['modules']['speech']) {
+    const provider = selection.provider
+    const model = selection.model
+    const voiceId = selection.voice_id
+    const configuration = structuredClone(toRaw(providerStore.getProviderConfig(provider)))
+    const snapshot = {
+      provider,
+      model,
+      providerConfig: configuration,
+      ssmlEnabled: selection.ssml ?? ssmlEnabled.value,
+      pitch: selection.pitch ?? pitch.value,
+      supportsSSML: supportsSpeechSsml(provider, model),
+    }
+    if (provider === 'openai-compatible-audio-speech') {
+      // Explicit card selections win over provider settings. The OpenAI defaults
+      // apply only when neither surface has selected a model or voice.
+      const configuredVoice = typeof configuration?.voice === 'string' ? configuration.voice : ''
+      const configuredModel = typeof configuration?.model === 'string' ? configuration.model : ''
+      const selectedVoice = voiceId || configuredVoice || 'alloy'
+      const voice: VoiceInfo = { id: selectedVoice, name: selectedVoice, description: selectedVoice, previewURL: '', languages: [{ code: 'en', title: 'English' }], provider, gender: 'neutral' }
+      return { ...snapshot, model: model || configuredModel || 'tts-1', voice }
+    }
+    const voices = await loadVoicesForProvider(provider, model || undefined)
+    const recommended = pickOfficialSpeechVoice({
+      activeSpeechProvider: provider,
+      activeSpeechVoiceId: voiceId,
+      availableVoices: { [provider]: voices },
+      uiLocale: locale.value,
+    })
+    const voice = voices.find(voice => voice.id === (recommended || voiceId))
+    return { ...snapshot, voice }
+  }
 
   // Only this window's loads own these counters. Older responses for a provider cannot
   // replace its newer catalog. Caller request status has separate local ownership.
@@ -208,7 +245,7 @@ export const useSpeechStore = defineStore('speech', () => {
       return []
     }
 
-    if (provider === activeSpeechProvider.value) {
+    if (!model && provider === activeSpeechProvider.value) {
       ensureActiveSpeechModel()
       model ??= activeSpeechModel.value || undefined
     }
@@ -642,6 +679,7 @@ export const useSpeechStore = defineStore('speech', () => {
     // Computed
     availableSpeechProvidersMetadata,
     supportsSSML,
+    resolveSpeechSelection,
     supportsModelListing,
     providerModels,
     isLoadingActiveProviderModels,

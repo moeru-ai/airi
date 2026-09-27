@@ -16,6 +16,7 @@ import { useProviderConfigStore } from '../providers/config'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardCatalog } from './airi-card-catalog'
 import { useArtistryStore } from './artistry'
+import { useArtistrySettingsStore } from './artistry-settings'
 import { useConsciousnessStore } from './consciousness'
 import { configureAsDefaultsIfEmpty, unconfigureAuthenticationProviders } from './default'
 import { useSpeechStore } from './speech'
@@ -241,15 +242,39 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const card = cards.value.get(id)
     if (!card)
       throw new Error(`Character "${id}" does not exist`)
-    const defaults = moduleDefaults.value
-    if (!defaults)
-      throw new Error('Character defaults have not been initialized')
-    const modules = resolveAiriExtension(card).modules
     return {
       id,
       card,
       systemPrompt: resolveSystemPrompt(card),
-      modules: resolveCardModules(modules, defaults),
+      modules: resolveAvailableModules(resolveAiriExtension(card).modules),
+    }
+  }
+
+  function resolveAvailableModules(modules: AiriExtension['modules']) {
+    const defaults = moduleDefaults.value
+    if (!defaults)
+      throw new Error('Character defaults have not been initialized')
+    const resolved = resolveCardModules(modules, defaults)
+    const providers = useProviderConfigStore(pinia).providers
+    for (const module of ['consciousness', 'vision', 'speech'] as const) {
+      const provider = providers[resolved[module].provider]
+      if (provider?.configuredBy === 'authentication' && provider.status === 'unconfigured') {
+        resolved[module].provider = module === 'speech' ? 'speech-noop' : ''
+        resolved[module].model = ''
+        if (module === 'speech')
+          resolved.speech.voice_id = ''
+      }
+    }
+    const globals = useArtistrySettingsStore(pinia)
+    const artistry = resolveModuleSelection({ provider: modules.artistry?.provider ?? '', model: modules.artistry?.model ?? '' }, { provider: globals.globalProvider, model: globals.globalModel })
+    return {
+      ...resolved,
+      artistry: {
+        ...modules.artistry,
+        ...artistry,
+        promptPrefix: modules.artistry?.promptPrefix || globals.globalPromptPrefix,
+        options: modules.artistry?.options ?? (artistry.provider === globals.globalProvider ? globals.globalProviderOptions : undefined),
+      },
     }
   }
 
@@ -258,6 +283,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const card = cards.value.get(cardId)
     if (!card)
       return false
+    await rememberInheritedSettings()
     return catalog.updateModules(cardId, patch(resolveAiriExtension(card)))
   }
 
@@ -271,6 +297,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   async function updateActiveCardDisplayModel(displayModelId: string | undefined) {
+    await pendingAuthenticationSetup
+    await rememberInheritedSettings()
     return updateCardDisplayModel(activeCardId.value, displayModelId)
   }
 
@@ -532,7 +560,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   async function applyActiveCardSettings(newCard = activeCard.value) {
     if (!moduleDefaults.value)
-      await catalog.updateDefaults(readRuntimeModules())
+      return
     const artistry = useArtistryStore(pinia)
 
     artistry.resetToGlobal()
@@ -545,49 +573,25 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!extension)
       return
 
-    const defaults = moduleDefaults.value
-    if (!defaults)
-      return
     const modules = extension.modules
-    const resolved = resolveCardModules(modules, defaults)
-    const providers = useProviderConfigStore(pinia).providers
-    for (const module of ['consciousness', 'vision', 'speech'] as const) {
-      const provider = providers[resolved[module].provider]
-      // Logout disables authenticated providers without deleting card choices.
-      if (provider?.configuredBy === 'authentication' && provider.status === 'unconfigured') {
-        resolved[module].provider = module === 'speech' ? 'speech-noop' : ''
-        resolved[module].model = ''
-        if (module === 'speech')
-          resolved.speech.voice_id = ''
-      }
-    }
+    const resolved = resolveAvailableModules(modules)
     appliedModules = modules
-
-    if (extension.modules?.artistry) {
-      const selection = resolveModuleSelection({
-        provider: extension.modules.artistry.provider ?? '',
-        model: extension.modules.artistry.model ?? '',
-      }, { provider: artistry.globalProvider, model: artistry.globalModel })
-      artistry.activeProvider = selection.provider
-      artistry.activeModel = selection.model
-      if (selection.provider !== artistry.globalProvider)
-        artistry.providerOptions = undefined
-      if (extension.modules.artistry.promptPrefix)
-        artistry.defaultPromptPrefix = extension.modules.artistry.promptPrefix
-      if (extension.modules.artistry.options)
-        artistry.providerOptions = extension.modules.artistry.options
-    }
+    artistry.activeProvider = resolved.artistry.provider
+    artistry.activeModel = resolved.artistry.model
+    artistry.defaultPromptPrefix = resolved.artistry.promptPrefix
+    artistry.providerOptions = resolved.artistry.options
     await writeRuntimeModules(resolved)
   }
 
-  function resetState() {
+  async function resetState() {
     initialized = false
     appliedModules = undefined
-    void catalog.resetState()
-    activeCardId.reset()
+    await catalog.resetState()
+    activeCardId.value = 'default'
   }
 
-  watch([activeCard, moduleDefaults], async () => {
+  const artistrySettings = useArtistrySettingsStore(pinia)
+  watch([activeCard, moduleDefaults, () => artistrySettings.globalProvider, () => artistrySettings.globalModel, () => artistrySettings.globalPromptPrefix, () => artistrySettings.globalProviderOptions], async () => {
     if (!initialized)
       return
     if (!activeCard.value)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { RadioCardSimple } from '@proj-airi/stage-ui/components'
-import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
+import { useArtistrySettingsStore } from '@proj-airi/stage-ui/stores/modules/artistry-settings'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -9,7 +9,7 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const { t } = useI18n()
-const artistryStore = useArtistryStore()
+const artistryStore = useArtistrySettingsStore()
 const { globalProvider } = storeToRefs(artistryStore)
 
 const availableProviders = computed(() => [
@@ -69,11 +69,12 @@ const availableProviders = computed(() => [
             v-for="provider in availableProviders"
             :id="provider.id"
             :key="provider.id"
-            v-model="globalProvider"
+            :model-value="globalProvider"
             name="artistry-provider"
             :value="provider.id"
             :title="provider.name"
             :description="provider.description"
+            @update:model-value="artistryStore.setGlobalProvider"
             @click="router.push(provider.configRoute)"
           />
         </fieldset>

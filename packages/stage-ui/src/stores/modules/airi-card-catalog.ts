@@ -60,8 +60,8 @@ export const useAiriCardCatalog = defineStore('airi-card-catalog', () => {
   }
 
   async function resetState() {
-    cards.reset()
-    moduleDefaults.reset()
+    cards.value = new Map()
+    moduleDefaults.value = null
   }
 
   return { cards, moduleDefaults, initialize, addCard, updateCard, updateModules, removeCard, updateDefaults, resetState }
