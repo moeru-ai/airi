@@ -497,10 +497,8 @@ async function completeNonStreamingChat(input: {
   const observation = { ...input.observation, durationMs: Date.now() - input.startedAt }
   const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
 
-  // Debit flux via DB transaction (source of truth).
-  // The upstream call has already happened (cost incurred), so partial
-  // debit + `fluxUnbilled` is the only sane recovery — same shape as the
-  // streaming path. `balance <= 0` still throws and bubbles up as 402.
+  // The upstream cost is already incurred. Settlement retains evidence and
+  // reports partial debits through `fluxUnbilled`, as in the streaming path.
   let actualCharged = 0
   try {
     actualCharged = await input.billing.settleChat({

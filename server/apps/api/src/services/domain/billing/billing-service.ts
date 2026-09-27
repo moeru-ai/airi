@@ -222,7 +222,7 @@ export function createBillingService(
         model: input.model,
         fluxConsumed: 0,
       })
-      await db.transaction(async (tx) => {
+      const result = await db.transaction(async (tx) => {
         const [wallet] = await tx.select().from(fluxSchema.userFlux).where(eq(fluxSchema.userFlux.userId, input.userId)).for('update')
         if (!wallet)
           throw new Error(`No flux record for user ${input.userId}`)
@@ -267,8 +267,7 @@ export function createBillingService(
           target: [llmRequestSettlement.userId, llmRequestSettlement.requestId],
           set: pending,
         })
-      })
-      const result = await db.transaction(async (tx) => {
+      }).then(() => db.transaction(async (tx) => {
         // All receipts for this account share the wallet lock, including zero charges.
         // The idempotency lookup must follow the lock to see concurrent settlements.
         const [wallet] = await tx.select().from(fluxSchema.userFlux).where(eq(fluxSchema.userFlux.userId, input.userId)).for('update')
@@ -361,7 +360,7 @@ export function createBillingService(
           set: settled,
         })
         return { charged, requested, pending: false, balance, replay: false }
-      }).catch((error) => {
+      })).catch((error) => {
         // A failed transaction cannot retain its receipt. Keep correlation fields outside the database.
         logger.withError(error).withFields({
           event: 'llm.cost_receipt',

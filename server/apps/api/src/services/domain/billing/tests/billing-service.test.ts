@@ -77,6 +77,23 @@ describe('billingService', () => {
       usage: { source: 'provider_reported' as const, generationId: `gen-${requestId}`, costUsd: cost, providerUsage: { cost }, promptTokens: 100, completionTokens: 20 },
     })
 
+    it('reports receipt intake transaction failures with correlation fields', async () => {
+      const output = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      const transaction = vi.spyOn(db, 'transaction').mockRejectedValueOnce(new Error('receipt storage unavailable'))
+      try {
+        await expect(billingService.settleLlmCost(receipt('failed-intake', 0.002))).rejects.toThrow('receipt storage unavailable')
+        expect(output).toHaveBeenCalledWith(expect.stringContaining('"event":"llm.cost_receipt"'))
+        expect(output).toHaveBeenCalledWith(expect.stringContaining('"requestId":"failed-intake"'))
+        expect(output).toHaveBeenCalledWith(expect.stringContaining('"billingStatus":"failed"'))
+        expect(await db.select().from(schema.llmRequestSettlement)).toHaveLength(0)
+        expect(await db.select().from(schema.fluxTransaction)).toHaveLength(0)
+      }
+      finally {
+        transaction.mockRestore()
+        output.mockRestore()
+      }
+    })
+
     // https://github.com/moeru-ai/airi/pull/2644
     it('settles normalized cost from another provider without parsing its wire fields', async () => {
       await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 100 })
