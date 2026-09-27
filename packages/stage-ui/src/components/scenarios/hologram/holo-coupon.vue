@@ -88,11 +88,11 @@ function scrollTo(index: number) {
   }
 }
 
-function handlePromoBannerAction(action: PromoBannerAction) {
+async function handlePromoBannerAction(action: PromoBannerAction) {
   close()
 
   if (action.type === 'login') {
-    authStore.needsLogin = true
+    await authStore.requestLogin()
     return
   }
 

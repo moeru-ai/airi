@@ -16,7 +16,7 @@ import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
-import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
+import ControlsIslandSpeechMute from './controls-island-speech-mute.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
@@ -483,7 +483,7 @@ function resetMainWindowPosition() {
             </template>
           </ControlButtonTooltip>
 
-          <ControlsIslandStopSpeaking
+          <ControlsIslandSpeechMute
             :button-style="adjustStyleClasses.button"
             :icon-class="adjustStyleClasses.icon"
           />

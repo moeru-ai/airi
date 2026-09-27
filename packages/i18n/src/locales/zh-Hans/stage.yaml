@@ -20,6 +20,7 @@ mobile-tools:
   close-view: 保存并关闭视图调节
   hearing: 听觉
 chat:
+  voice-input: 语音输入
   images:
     empty: 聊聊你的想法，或分享一张图片。
     use-vision: 使用视觉模型理解聊天图片

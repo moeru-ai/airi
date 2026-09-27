@@ -20,6 +20,7 @@ describe('streaming transcription consumers', () => {
     consumers.register({ consumerId: 'first', onSentenceEnd: firstOriginal })
     consumers.register({ consumerId: 'second', onSentenceEnd: second })
     consumers.register({ consumerId: 'first', onSentenceEnd: firstUpdated })
+    expect(consumers.hasConsumers()).toBe(true)
 
     consumers.emitSentenceEnd('hello')
 
@@ -35,6 +36,8 @@ describe('streaming transcription consumers', () => {
     expect(firstUpdated).toHaveBeenCalledOnce()
     expect(second).toHaveBeenCalledTimes(2)
     expect(second).toHaveBeenLastCalledWith('world')
+    consumers.remove('second')
+    expect(consumers.hasConsumers()).toBe(false)
   })
 
   it('continues delivery when one consumer throws', () => {

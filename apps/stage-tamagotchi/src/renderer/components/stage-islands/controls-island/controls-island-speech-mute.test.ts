@@ -1,17 +1,15 @@
 // @vitest-environment jsdom
 import type { ControlsIslandPlacement } from './use-controls-island-placement'
 
-import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
-import { createPinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
-import { createApp, h, nextTick, shallowRef } from 'vue'
+import { createApp, h, nextTick, ref, shallowRef } from 'vue'
 
-import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
+import ControlsIslandSpeechMute from './controls-island-speech-mute.vue'
 
 import { controlsIslandPlacementKey } from './use-controls-island-placement'
 
-const nowSpeakingRef = { value: false }
-const stopAllSpeakingMock = vi.fn()
+const speechMuted = ref(false)
+const toggleSpeechMutedMock = vi.fn()
 const placement: ControlsIslandPlacement = {
   dock: shallowRef('bottom-right'),
   isLeft: shallowRef(false),
@@ -21,9 +19,8 @@ const placement: ControlsIslandPlacement = {
 
 vi.mock('@proj-airi/stage-layouts/composables/useStopSpeakingButton', () => ({
   useStopSpeakingButton: () => ({
-    stopAllSpeaking: stopAllSpeakingMock,
-    showStopSpeakingButton: nowSpeakingRef,
-    stopSpeakingFromChat: vi.fn(),
+    speechMuted,
+    toggleSpeechMuted: toggleSpeechMutedMock,
   }),
 }))
 
@@ -39,51 +36,58 @@ vi.mock('vue-i18n', () => ({
 // Use the real primitives so this test also checks the production import graph.
 // https://github.com/moeru-ai/airi/pull/2536
 
-describe('controlsIslandStopSpeaking', () => {
+describe('controlsIslandSpeechMute', () => {
   function mountComponent() {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp({
-      render: () => h(ControlsIslandStopSpeaking, {
+      render: () => h(ControlsIslandSpeechMute, {
         buttonStyle: 'p-2',
         iconClass: 'size-5',
       }),
     })
-    const pinia = createPinia()
-    app.use(pinia)
-    useSpeakingStore(pinia).nowSpeaking = nowSpeakingRef.value
     app.provide(controlsIslandPlacementKey, placement)
     app.mount(host)
     return { host, app }
   }
 
-  it('renders idle state when not speaking', async () => {
-    nowSpeakingRef.value = false
+  it('offers to mute while speech output is on', async () => {
+    speechMuted.value = false
     const { host, app } = mountComponent()
     await nextTick()
-    expect(host.querySelectorAll('button')).toHaveLength(1)
+    const button = host.querySelector('button')
+    expect(button!.getAttribute('aria-label')).toBe('tamagotchi.stage.controls-island.mute')
+    expect(button!.getAttribute('aria-pressed')).toBe('false')
+    expect(host.querySelector('.i-solar\\:volume-loud-outline')).toBeTruthy()
     app.unmount()
     host.remove()
   })
 
-  it('renders active state when speaking', async () => {
-    nowSpeakingRef.value = true
+  it('offers to unmute while speech output is muted', async () => {
+    speechMuted.value = true
     const { host, app } = mountComponent()
     await nextTick()
-    expect(host.querySelectorAll('button')).toHaveLength(1)
+    const button = host.querySelector('button')
+    expect(button!.getAttribute('aria-label')).toBe('tamagotchi.stage.controls-island.unmute')
+    expect(button!.getAttribute('aria-pressed')).toBe('true')
+    expect(host.querySelector('.i-solar\\:volume-cross-outline')).toBeTruthy()
     app.unmount()
     host.remove()
   })
 
-  it('calls stopAllSpeaking on click', async () => {
-    stopAllSpeakingMock.mockClear()
-    nowSpeakingRef.value = false
+  // Muting is reachable before AIRI speaks, which is what keeps a user from
+  // paying for synthesis they do not want to hear. The chat panel's interrupt
+  // button owns stopping speech that already plays.
+  it('toggles speech output on click', async () => {
+    toggleSpeechMutedMock.mockClear()
+    speechMuted.value = false
     const { host, app } = mountComponent()
     await nextTick()
     const button = host.querySelector('button')
     expect(button).toBeTruthy()
+    expect(button!.disabled).toBe(false)
     button!.click()
-    expect(stopAllSpeakingMock).toHaveBeenCalledTimes(1)
+    expect(toggleSpeechMutedMock).toHaveBeenCalledTimes(1)
     app.unmount()
     host.remove()
   })
