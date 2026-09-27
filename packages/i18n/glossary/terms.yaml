@@ -4,7 +4,7 @@
 # the editor marks each term and offers the approved translation.
 #
 # Every field maps to one TBX element and carries the TBX name. schema.ts holds the mapping.
-# AGENTS.md, under "i18n / Glossary", says when a term belongs here and when it does not.
+# packages/i18n/AGENTS.md, under "Glossary", says when a term belongs here and when it does not.
 #
 # This repository owns English. Crowdin owns the other 8 languages, and the translated terms
 # arrive in packages/i18n/glossary/translations/ through a pull request.
