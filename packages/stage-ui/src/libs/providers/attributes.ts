@@ -44,6 +44,7 @@ const providerAttributesById = {
   'aliyun-nls-transcription': paidCloud,
   'amazon-bedrock': paidCloud,
   'anthropic': paidCloud,
+  'api-route': paidCloud,
   'app-local-audio-speech': freeLocal,
   'app-local-audio-transcription': freeLocal,
   'atlascloud': paidCloud,
