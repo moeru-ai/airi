@@ -25,3 +25,9 @@ Put primitive UI components in `@proj-airi/ui`. Put shared layouts in `@proj-air
 ## Provider settings
 
 The active chat and vision provider routes live under `/settings/providers`. They use `ProviderGenerationSettings` from stage-ui to render protocol and native search options from the provider catalog. The V2 editor is a separate consumer and does not replace these routes.
+
+## Character card previews
+
+The card detail dialog shows the selected card's model binding, not the active character's runtime model. Empty bindings inherit the catalog defaults. Missing models remain visible as unavailable bindings.
+
+The editor uses the same read-only model preview with its draft selection. Selection changes persist only through the existing save actions. The detail dialog opens that editor without activating the card.

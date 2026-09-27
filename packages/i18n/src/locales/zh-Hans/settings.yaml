@@ -452,6 +452,8 @@ pages:
     body-model: 身体 / 显示模型
     model-for: '{name} 的模型'
     model-unavailable: 模型不可用
+    model-bound: 已绑定此角色
+    model-not-bound: 未选择模型
     model-save-failed: 无法保存模型绑定，请重试。
     speech:
       provider: 语音 / 提供商

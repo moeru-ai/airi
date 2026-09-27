@@ -352,6 +352,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
     v-model="isCardDialogOpen"
     :card-id="selectedCardId"
     :initial-tab="initialTabId"
+    @edit="handleEditCard"
   />
 
   <!-- Background decoration -->

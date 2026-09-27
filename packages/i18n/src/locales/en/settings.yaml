@@ -479,6 +479,8 @@ pages:
     body-model: Body / Display Model
     model-for: 'Model for {name}'
     model-unavailable: Model unavailable
+    model-bound: Bound to this character
+    model-not-bound: No model selected
     model-save-failed: Could not save the model binding. Please try again.
     speech:
       provider: Speech / Provider

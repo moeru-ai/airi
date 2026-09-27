@@ -9,7 +9,7 @@ import { exportAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-im
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { Button, Select } from '@proj-airi/ui'
+import { Button, IconButton, Select } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import {
   DialogContent,
@@ -22,6 +22,7 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import CardModelPreview from './card-model-preview.vue'
 import DeleteCardDialog from './DeleteCardDialog.vue'
 
 interface Props {
@@ -33,6 +34,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
+  (e: 'edit', cardId: string): void
 }>()
 
 const { t } = useI18n()
@@ -322,348 +324,366 @@ function getModuleDisplayValue(value: string | undefined): string {
   <DialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800 sm:p-6" @interact-outside.prevent>
-        <div v-if="selectedCard" class="w-full flex flex-col gap-5">
-          <!-- Header with status indicator -->
-          <div flex="~ col" gap-3>
-            <div flex="~ row" items-center justify-between>
-              <div>
-                <div flex="~ row" items-center gap-2>
-                  <DialogTitle text-2xl font-normal class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent">
-                    {{ selectedCard.name }}
-                  </DialogTitle>
-                  <div v-if="isActive" class="flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs text-primary-600 font-medium dark:bg-primary-900/40 dark:text-primary-400">
-                    <div i-solar:check-circle-bold-duotone text-xs />
-                    {{ t('settings.pages.card.active_badge') }}
-                  </div>
-                </div>
-                <div mt-1 text-sm text-neutral-500 dark:text-neutral-400>
-                  v{{ selectedCard.version }}
-                  <template v-if="selectedCard.creator">
-                    · {{ t('settings.pages.card.created_by') }} <span font-medium>{{ selectedCard.creator }}</span>
-                  </template>
+      <DialogContent
+        :aria-describedby="undefined"
+        :class="[
+          'fixed left-1/2 top-1/2 z-100 m-0 max-h-[92dvh] w-[calc(100vw-1.5rem)] max-w-5xl overflow-auto',
+          'rounded-2xl border border-neutral-200 bg-white shadow-xl dark:border-neutral-700 dark:bg-neutral-800',
+          '-translate-x-1/2 -translate-y-1/2',
+          'data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow',
+        ]"
+        @interact-outside.prevent
+      >
+        <div v-if="selectedCard" :class="['w-full flex flex-col']">
+          <div :class="['sticky top-0 z-1 flex items-start justify-between gap-3 border-b border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-800 sm:px-6']">
+            <div :class="['min-w-0']">
+              <div :class="['flex flex-wrap items-center gap-2']">
+                <DialogTitle :class="['break-words text-2xl font-medium']">
+                  {{ selectedCard.name }}
+                </DialogTitle>
+                <div v-if="isActive" class="flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs text-primary-600 font-medium dark:bg-primary-900/40 dark:text-primary-400">
+                  <div i-solar:check-circle-bold-duotone text-xs />
+                  {{ t('settings.pages.card.active_badge') }}
                 </div>
               </div>
-
-              <!-- Action buttons -->
-              <div flex="~ row" gap-2>
+              <div :class="['mt-1 text-sm text-neutral-500 dark:text-neutral-400']">
+                v{{ selectedCard.version }}
+                <template v-if="selectedCard.creator">
+                  · {{ t('settings.pages.card.created_by') }} <span font-medium>{{ selectedCard.creator }}</span>
+                </template>
+              </div>
+            </div>
+            <IconButton
+              icon="i-solar:close-circle-linear"
+              :class="['size-9 rounded-lg text-xl hover:bg-neutral-100 dark:hover:bg-neutral-700']"
+              :aria-label="t('settings.pages.card.close')"
+              @click="emit('update:modelValue', false)"
+            />
+          </div>
+          <div :class="['grid min-w-0 grid-cols-1 gap-5 p-5 md:grid-cols-[16rem_minmax(0,1fr)] sm:p-6']">
+            <aside :class="['min-w-0 flex flex-col gap-4']">
+              <CardModelPreview :model-id="selectedCard.extensions.airi.modules.displayModelId" />
+              <div v-if="selectedCard.tags?.length" :class="['flex flex-wrap gap-1.5']">
+                <span v-for="tag in selectedCard.tags" :key="tag" :class="['rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300']">{{ tag }}</span>
+              </div>
+              <div :class="['grid grid-cols-2 gap-2']">
                 <Button
-
+                  icon="i-solar:pen-2-linear"
+                  :label="t('settings.pages.card.edit_card')"
+                  @click="emit('update:modelValue', false); emit('edit', cardId)"
+                />
+                <Button
                   icon="i-solar:download-minimalistic-bold-duotone"
                   :label="t('settings.pages.card.export')"
                   :disabled="isExportingCard"
                   @click="handleExportCard"
                 />
-                <!-- Activation button -->
-                <Button
+              </div>
+              <Button
+                :icon="isActive ? 'i-solar:check-circle-bold-duotone' : 'i-solar:play-circle-broken'"
+                :label="isActive ? t('settings.pages.card.active') : t('settings.pages.card.activate')"
+                color="primary"
+                variant="primary"
+                :disabled="isActive || isActivating"
+                :class="{ 'animate-pulse': isActivating }"
+                @click="handleActivate"
+              />
+            </aside>
+            <div :class="['min-w-0 flex flex-col gap-4']">
+              <!-- Card content tabs -->
+              <div :class="['min-w-0 overflow-x-auto']">
+                <div class="border-b border-neutral-200 dark:border-neutral-700">
+                  <div :class="['flex gap-1']">
+                    <button
+                      v-for="tab in tabs"
+                      :key="tab.id"
+                      :class="[
+                        'shrink-0 px-3 py-2.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+                        activeTab === tab.id
+                          ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500 dark:border-primary-400'
+                          : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300',
+                      ]"
+                      :aria-pressed="activeTab === tab.id"
+                      @click="activeTab = tab.id"
+                    >
+                      <div class="flex items-center gap-1">
+                        <div :class="tab.icon" />
+                        {{ tab.label }}
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-                  :icon="isActive ? 'i-solar:check-circle-bold-duotone' : 'i-solar:play-circle-broken'"
-                  :label="isActive ? t('settings.pages.card.active') : t('settings.pages.card.activate')"
-                  :disabled="isActive"
-                  :class="{ 'animate-pulse': isActivating }"
-                  @click="handleActivate"
-                />
-                <Button
-
-                  icon="i-solar:close-circle-bold-duotone"
-                  :label="t('settings.pages.card.cancel')"
-                  @click="emit('update:modelValue', false)"
+              <!-- Creator notes -->
+              <div v-if="activeTab === 'notes' && selectedCard.notes">
+                <div
+                  bg="white/60 dark:black/30"
+                  border="~ neutral-200/50 dark:neutral-700/30"
+                  max-h-60 overflow-auto whitespace-pre-line rounded-lg p-4 text-neutral-700 sm:max-h-80 dark:text-neutral-300 transition="all duration-200"
+                  hover="bg-white/80 dark:bg-black/40"
+                  v-html="highlightTagToHtml(selectedCard.notes)"
                 />
               </div>
-            </div>
 
-            <!-- Card content tabs -->
-            <div class="mt-4">
-              <div class="border-b border-neutral-200 dark:border-neutral-700">
-                <div class="flex justify-center -mb-px sm:justify-start space-x-1">
-                  <button
-                    v-for="tab in tabs"
-                    :key="tab.id"
-                    class="px-4 py-2 text-sm font-medium"
-                    :class="[
-                      activeTab === tab.id
-                        ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500 dark:border-primary-400'
-                        : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300',
-                    ]"
-                    @click="activeTab = tab.id"
-                  >
-                    <div class="flex items-center gap-1">
-                      <div :class="tab.icon" />
-                      {{ tab.label }}
+              <!-- Description section -->
+              <div v-if="activeTab === 'description' && selectedCard.description">
+                <div
+                  bg="white/60 dark:black/30"
+                  max-h-60 overflow-auto whitespace-pre-line rounded-lg p-4 sm:max-h-80
+                  text="neutral-600 dark:neutral-300"
+                  border="~ neutral-200/50 dark:neutral-700/30"
+                  v-html="highlightTagToHtml(selectedCard.description)"
+                />
+              </div>
+
+              <!-- Character -->
+              <div v-if="activeTab === 'character' && Object.values(characterSettings).some(value => !!value)">
+                <div flex="~ col" max-h-60 gap-4 overflow-auto pr-1 sm:max-h-80>
+                  <template v-for="(value, key) in characterSettings" :key="key">
+                    <div v-if="value" flex="~ col" gap-2>
+                      <h2 text-lg text-neutral-500 font-medium dark:text-neutral-400>
+                        {{ t(`settings.pages.card.${key.toLowerCase()}`) }}
+                      </h2>
+                      <div
+                        bg="white/60 dark:black/30"
+                        border="~ neutral-200/50 dark:neutral-700/30"
+                        transition="all duration-200"
+                        hover="bg-white/80 dark:bg-black/40"
+                        max-h-none overflow-auto whitespace-pre-line rounded-lg p-3 text-neutral-700 dark:text-neutral-300
+                        v-html="highlightTagToHtml(value)"
+                      />
                     </div>
-                  </button>
+                  </template>
                 </div>
               </div>
-            </div>
 
-            <!-- Creator notes -->
-            <div v-if="activeTab === 'notes' && selectedCard.notes">
-              <div
-                bg="white/60 dark:black/30"
-                border="~ neutral-200/50 dark:neutral-700/30"
-                max-h-60 overflow-auto whitespace-pre-line rounded-lg p-4 text-neutral-700 sm:max-h-80 dark:text-neutral-300 transition="all duration-200"
-                hover="bg-white/80 dark:bg-black/40"
-                v-html="highlightTagToHtml(selectedCard.notes)"
-              />
-            </div>
+              <!-- Modules -->
+              <div v-if="activeTab === 'modules'">
+                <div grid="~ cols-1 sm:cols-2" gap-4>
+                  <div
+                    flex="~ col"
+                    bg="white/60 dark:black/30"
+                    gap-1 rounded-lg p-3
+                    border="~ neutral-200/50 dark:neutral-700/30"
+                    transition="all duration-200"
+                    hover="bg-white/80 dark:bg-black/40"
+                  >
+                    <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                      <div i-lucide:brain />
+                      {{ t('settings.pages.card.chat.provider') }}
+                    </span>
+                    <div truncate font-medium>
+                      {{ getModuleDisplayValue(moduleSettings.consciousnessProvider) }}
+                    </div>
+                  </div>
 
-            <!-- Description section -->
-            <div v-if="activeTab === 'description' && selectedCard.description">
-              <div
-                bg="white/60 dark:black/30"
-                max-h-60 overflow-auto whitespace-pre-line rounded-lg p-4 sm:max-h-80
-                text="neutral-600 dark:neutral-300"
-                border="~ neutral-200/50 dark:neutral-700/30"
-                v-html="highlightTagToHtml(selectedCard.description)"
-              />
-            </div>
+                  <div
+                    flex="~ col"
+                    bg="white/60 dark:black/30"
+                    gap-1 rounded-lg p-3
+                    border="~ neutral-200/50 dark:neutral-700/30"
+                    transition="all duration-200"
+                    hover="bg-white/80 dark:bg-black/40"
+                  >
+                    <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                      <div i-lucide:ghost />
+                      {{ t('settings.pages.card.consciousness.model') }}
+                    </span>
+                    <div truncate font-medium>
+                      {{ getModuleDisplayValue(moduleSettings.consciousness) }}
+                    </div>
+                  </div>
 
-            <!-- Character -->
-            <div v-if="activeTab === 'character' && Object.values(characterSettings).some(value => !!value)">
-              <div flex="~ col" max-h-60 gap-4 overflow-auto pr-1 sm:max-h-80>
-                <template v-for="(value, key) in characterSettings" :key="key">
-                  <div v-if="value" flex="~ col" gap-2>
-                    <h2 text-lg text-neutral-500 font-medium dark:text-neutral-400>
-                      {{ t(`settings.pages.card.${key.toLowerCase()}`) }}
-                    </h2>
-                    <div
-                      bg="white/60 dark:black/30"
-                      border="~ neutral-200/50 dark:neutral-700/30"
-                      transition="all duration-200"
-                      hover="bg-white/80 dark:bg-black/40"
-                      max-h-none overflow-auto whitespace-pre-line rounded-lg p-3 text-neutral-700 dark:text-neutral-300
-                      v-html="highlightTagToHtml(value)"
+                  <div
+                    flex="~ col"
+                    bg="white/60 dark:black/30"
+                    gap-1 rounded-lg p-3
+                    border="~ neutral-200/50 dark:neutral-700/30"
+                    transition="all duration-200"
+                    hover="bg-white/80 dark:bg-black/40"
+                  >
+                    <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                      <div i-lucide:eye />
+                      {{ t('settings.pages.card.vision.provider') }}
+                    </span>
+                    <div truncate font-medium>
+                      {{ getModuleDisplayValue(moduleSettings.visionProvider) }}
+                    </div>
+                  </div>
+
+                  <div
+                    flex="~ col"
+                    bg="white/60 dark:black/30"
+                    gap-1 rounded-lg p-3
+                    border="~ neutral-200/50 dark:neutral-700/30"
+                    transition="all duration-200"
+                    hover="bg-white/80 dark:bg-black/40"
+                  >
+                    <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                      <div i-lucide:scan-eye />
+                      {{ t('settings.pages.card.vision.model') }}
+                    </span>
+                    <div truncate font-medium>
+                      {{ getModuleDisplayValue(moduleSettings.vision) }}
+                    </div>
+                  </div>
+
+                  <div
+                    flex="~ col"
+                    bg="white/60 dark:black/30"
+                    gap-1 rounded-lg p-3
+                    border="~ neutral-200/50 dark:neutral-700/30"
+                    transition="all duration-200"
+                    hover="bg-white/80 dark:bg-black/40"
+                  >
+                    <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                      <div i-lucide:radio />
+                      {{ t('settings.pages.card.speech.provider') }}
+                    </span>
+                    <div truncate font-medium>
+                      {{ getModuleDisplayValue(moduleSettings.speechProvider) }}
+                    </div>
+                  </div>
+
+                  <div
+                    flex="~ col"
+                    bg="white/60 dark:black/30"
+                    gap-2 rounded-lg p-3
+                    border="~ neutral-200/50 dark:neutral-700/30"
+                    transition="all duration-200"
+                    hover="bg-white/80 dark:bg-black/40"
+                  >
+                    <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                      <div i-lucide:mic />
+                      {{ t('settings.pages.card.speech.model') }}
+                    </span>
+                    <div truncate font-medium>
+                      {{ getModuleDisplayValue(moduleSettings.speech) }}
+                    </div>
+                  </div>
+
+                  <div
+                    flex="~ col"
+                    bg="white/60 dark:black/30"
+                    gap-2 rounded-lg p-3
+                    border="~ neutral-200/50 dark:neutral-700/30"
+                    transition="all duration-200"
+                    hover="bg-white/80 dark:bg-black/40"
+                  >
+                    <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                      <div i-lucide:music />
+                      {{ t('settings.pages.card.speech.voice') }}
+                    </span>
+                    <div truncate font-medium>
+                      {{ getModuleDisplayValue(moduleSettings.voice) }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Gallery -->
+              <div v-if="activeTab === 'gallery'">
+                <!-- Gallery Header / Preferred Background Selection -->
+                <div
+                  :class="[
+                    'mb-6 flex flex-row items-center justify-between gap-4',
+                    'border-b border-neutral-100 pb-4 dark:border-neutral-700/50',
+                  ]"
+                >
+                  <div class="flex flex-row items-center gap-3">
+                    <div class="flex flex-col gap-1">
+                      <h3 text-sm font-medium>
+                        Pinned Background
+                      </h3>
+                      <p text-xs text-neutral-500>
+                        Select the image to show when this character is active.
+                      </p>
+                    </div>
+                    <button
+                      :class="[
+                        'flex items-center justify-center size-7 rounded-md',
+                        'bg-neutral-100 dark:bg-neutral-800 text-neutral-500',
+                        'hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-300',
+                        'transition-all duration-200 active:scale-90',
+                      ]"
+                      :disabled="isRefreshingGallery"
+                      title="Refresh gallery"
+                      @click="handleRefreshGallery"
+                    >
+                      <div
+                        class="i-lucide:refresh-cw text-sm"
+                        :class="{ 'animate-spin': isRefreshingGallery }"
+                      />
+                    </button>
+                  </div>
+                  <div w-64>
+                    <Select
+                      v-model="activeBackgroundId"
+                      :options="backgroundOptions"
+                      placeholder="Select background"
                     />
                   </div>
-                </template>
-              </div>
-            </div>
-
-            <!-- Modules -->
-            <div v-if="activeTab === 'modules'">
-              <div grid="~ cols-1 sm:cols-2" gap-4>
-                <div
-                  flex="~ col"
-                  bg="white/60 dark:black/30"
-                  gap-1 rounded-lg p-3
-                  border="~ neutral-200/50 dark:neutral-700/30"
-                  transition="all duration-200"
-                  hover="bg-white/80 dark:bg-black/40"
-                >
-                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
-                    <div i-lucide:brain />
-                    {{ t('settings.pages.card.chat.provider') }}
-                  </span>
-                  <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.consciousnessProvider) }}
-                  </div>
                 </div>
 
                 <div
-                  flex="~ col"
-                  bg="white/60 dark:black/30"
-                  gap-1 rounded-lg p-3
-                  border="~ neutral-200/50 dark:neutral-700/30"
-                  transition="all duration-200"
-                  hover="bg-white/80 dark:bg-black/40"
+                  v-if="journalEntries.length === 0"
+                  :class="[
+                    'flex flex-col items-center justify-center',
+                    'border border-dashed border-neutral-200 rounded-xl',
+                    'bg-neutral-50/50 py-12 dark:border-neutral-700/50 dark:bg-neutral-900/50',
+                  ]"
                 >
-                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
-                    <div i-lucide:ghost />
-                    {{ t('settings.pages.card.consciousness.model') }}
-                  </span>
-                  <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.consciousness) }}
-                  </div>
+                  <div class="i-solar:gallery-wide-broken mb-3 text-5xl text-neutral-300 dark:text-neutral-600" />
+                  <p class="text-neutral-500 dark:text-neutral-400">
+                    No images in the journal yet.
+                  </p>
                 </div>
-
-                <div
-                  flex="~ col"
-                  bg="white/60 dark:black/30"
-                  gap-1 rounded-lg p-3
-                  border="~ neutral-200/50 dark:neutral-700/30"
-                  transition="all duration-200"
-                  hover="bg-white/80 dark:bg-black/40"
-                >
-                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
-                    <div i-lucide:eye />
-                    {{ t('settings.pages.card.vision.provider') }}
-                  </span>
-                  <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.visionProvider) }}
-                  </div>
-                </div>
-
-                <div
-                  flex="~ col"
-                  bg="white/60 dark:black/30"
-                  gap-1 rounded-lg p-3
-                  border="~ neutral-200/50 dark:neutral-700/30"
-                  transition="all duration-200"
-                  hover="bg-white/80 dark:bg-black/40"
-                >
-                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
-                    <div i-lucide:scan-eye />
-                    {{ t('settings.pages.card.vision.model') }}
-                  </span>
-                  <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.vision) }}
-                  </div>
-                </div>
-
-                <div
-                  flex="~ col"
-                  bg="white/60 dark:black/30"
-                  gap-1 rounded-lg p-3
-                  border="~ neutral-200/50 dark:neutral-700/30"
-                  transition="all duration-200"
-                  hover="bg-white/80 dark:bg-black/40"
-                >
-                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
-                    <div i-lucide:radio />
-                    {{ t('settings.pages.card.speech.provider') }}
-                  </span>
-                  <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.speechProvider) }}
-                  </div>
-                </div>
-
-                <div
-                  flex="~ col"
-                  bg="white/60 dark:black/30"
-                  gap-2 rounded-lg p-3
-                  border="~ neutral-200/50 dark:neutral-700/30"
-                  transition="all duration-200"
-                  hover="bg-white/80 dark:bg-black/40"
-                >
-                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
-                    <div i-lucide:mic />
-                    {{ t('settings.pages.card.speech.model') }}
-                  </span>
-                  <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.speech) }}
-                  </div>
-                </div>
-
-                <div
-                  flex="~ col"
-                  bg="white/60 dark:black/30"
-                  gap-2 rounded-lg p-3
-                  border="~ neutral-200/50 dark:neutral-700/30"
-                  transition="all duration-200"
-                  hover="bg-white/80 dark:bg-black/40"
-                >
-                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
-                    <div i-lucide:music />
-                    {{ t('settings.pages.card.speech.voice') }}
-                  </span>
-                  <div truncate font-medium>
-                    {{ getModuleDisplayValue(moduleSettings.voice) }}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Gallery -->
-            <div v-if="activeTab === 'gallery'">
-              <!-- Gallery Header / Preferred Background Selection -->
-              <div
-                :class="[
-                  'mb-6 flex flex-row items-center justify-between gap-4',
-                  'border-b border-neutral-100 pb-4 dark:border-neutral-700/50',
-                ]"
-              >
-                <div class="flex flex-row items-center gap-3">
-                  <div class="flex flex-col gap-1">
-                    <h3 text-sm font-medium>
-                      Pinned Background
-                    </h3>
-                    <p text-xs text-neutral-500>
-                      Select the image to show when this character is active.
-                    </p>
-                  </div>
-                  <button
-                    :class="[
-                      'flex items-center justify-center size-7 rounded-md',
-                      'bg-neutral-100 dark:bg-neutral-800 text-neutral-500',
-                      'hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-300',
-                      'transition-all duration-200 active:scale-90',
-                    ]"
-                    :disabled="isRefreshingGallery"
-                    title="Refresh gallery"
-                    @click="handleRefreshGallery"
+                <div v-else class="grid grid-cols-2 max-h-120 gap-4 overflow-y-auto pr-2 lg:grid-cols-4 sm:grid-cols-3">
+                  <div
+                    v-for="entry in journalEntries"
+                    :key="entry.id"
+                    class="group relative aspect-square overflow-hidden border border-neutral-200 rounded-lg bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900"
+                    :class="{ 'ring-2 ring-primary-500 border-primary-500': activeBackgroundId === entry.id }"
                   >
-                    <div
-                      class="i-lucide:refresh-cw text-sm"
-                      :class="{ 'animate-spin': isRefreshingGallery }"
-                    />
-                  </button>
-                </div>
-                <div w-64>
-                  <Select
-                    v-model="activeBackgroundId"
-                    :options="backgroundOptions"
-                    placeholder="Select background"
-                  />
-                </div>
-              </div>
-
-              <div
-                v-if="journalEntries.length === 0"
-                :class="[
-                  'flex flex-col items-center justify-center',
-                  'border border-dashed border-neutral-200 rounded-xl',
-                  'bg-neutral-50/50 py-12 dark:border-neutral-700/50 dark:bg-neutral-900/50',
-                ]"
-              >
-                <div class="i-solar:gallery-wide-broken mb-3 text-5xl text-neutral-300 dark:text-neutral-600" />
-                <p class="text-neutral-500 dark:text-neutral-400">
-                  No images in the journal yet.
-                </p>
-              </div>
-              <div v-else class="grid grid-cols-2 max-h-120 gap-4 overflow-y-auto pr-2 lg:grid-cols-4 sm:grid-cols-3">
-                <div
-                  v-for="entry in journalEntries"
-                  :key="entry.id"
-                  class="group relative aspect-square overflow-hidden border border-neutral-200 rounded-lg bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900"
-                  :class="{ 'ring-2 ring-primary-500 border-primary-500': activeBackgroundId === entry.id }"
-                >
-                  <img
-                    :src="backgroundStore.getBackgroundUrl(entry.id) ?? undefined"
-                    class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
-                    loading="lazy"
-                  >
-                  <!-- Overlay Actions -->
-                  <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                    <button
-                      class="flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] text-white font-bold backdrop-blur-md transition-all active:scale-95"
-                      :class="activeBackgroundId === entry.id ? 'bg-primary-500 hover:bg-primary-600' : 'bg-white/20 hover:bg-white/30'"
-                      @click="handleSetAsBackground(entry)"
+                    <img
+                      :src="backgroundStore.getBackgroundUrl(entry.id) ?? undefined"
+                      class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      loading="lazy"
                     >
-                      <div :class="activeBackgroundId === entry.id ? 'i-solar:pin-bold' : 'i-solar:pin-linear'" />
-                      {{ activeBackgroundId === entry.id ? 'ACTIVE BG' : 'SET AS BG' }}
-                    </button>
-                    <button
-                      class="flex items-center gap-1 rounded-full bg-blue-500/80 px-3 py-1.5 text-[10px] text-white font-bold backdrop-blur-md transition-all active:scale-95 hover:bg-blue-500"
-                      @click="handleDownloadEntry(entry.id, entry.title)"
-                    >
-                      <div class="i-solar:download-square-linear" />
-                      DOWNLOAD
-                    </button>
-                    <button
-                      class="flex items-center gap-1 rounded-full bg-red-500/80 px-3 py-1.5 text-[10px] text-white font-bold backdrop-blur-md transition-all active:scale-95 hover:bg-red-500"
-                      @click="handleDeleteEntry(entry.id)"
-                    >
-                      <div class="i-solar:trash-bin-trash-linear" />
-                      DELETE
-                    </button>
-                  </div>
-                  <!-- Info Badge -->
-                  <div class="pointer-events-none absolute bottom-1 left-1 right-1 truncate rounded bg-black/40 px-1.5 py-0.5 text-[9px] text-white/90 backdrop-blur-sm">
-                    {{ entry.title }}
-                  </div>
-                  <!-- Active Indicator -->
-                  <div v-if="activeBackgroundId === entry.id" class="absolute left-1 top-1 rounded bg-primary-500 p-1 text-white shadow-lg">
-                    <div class="i-solar:pin-bold text-[10px]" />
+                    <!-- Overlay Actions -->
+                    <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                      <button
+                        class="flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] text-white font-bold backdrop-blur-md transition-all active:scale-95"
+                        :class="activeBackgroundId === entry.id ? 'bg-primary-500 hover:bg-primary-600' : 'bg-white/20 hover:bg-white/30'"
+                        @click="handleSetAsBackground(entry)"
+                      >
+                        <div :class="activeBackgroundId === entry.id ? 'i-solar:pin-bold' : 'i-solar:pin-linear'" />
+                        {{ activeBackgroundId === entry.id ? 'ACTIVE BG' : 'SET AS BG' }}
+                      </button>
+                      <button
+                        class="flex items-center gap-1 rounded-full bg-blue-500/80 px-3 py-1.5 text-[10px] text-white font-bold backdrop-blur-md transition-all active:scale-95 hover:bg-blue-500"
+                        @click="handleDownloadEntry(entry.id, entry.title)"
+                      >
+                        <div class="i-solar:download-square-linear" />
+                        DOWNLOAD
+                      </button>
+                      <button
+                        class="flex items-center gap-1 rounded-full bg-red-500/80 px-3 py-1.5 text-[10px] text-white font-bold backdrop-blur-md transition-all active:scale-95 hover:bg-red-500"
+                        @click="handleDeleteEntry(entry.id)"
+                      >
+                        <div class="i-solar:trash-bin-trash-linear" />
+                        DELETE
+                      </button>
+                    </div>
+                    <!-- Info Badge -->
+                    <div class="pointer-events-none absolute bottom-1 left-1 right-1 truncate rounded bg-black/40 px-1.5 py-0.5 text-[9px] text-white/90 backdrop-blur-sm">
+                      {{ entry.title }}
+                    </div>
+                    <!-- Active Indicator -->
+                    <div v-if="activeBackgroundId === entry.id" class="absolute left-1 top-1 rounded bg-primary-500 p-1 text-white shadow-lg">
+                      <div class="i-solar:pin-bold text-[10px]" />
+                    </div>
                   </div>
                 </div>
               </div>

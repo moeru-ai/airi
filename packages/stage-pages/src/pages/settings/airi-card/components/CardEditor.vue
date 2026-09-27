@@ -24,6 +24,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, wat
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import CardModelPreview from './card-model-preview.vue'
 import CardCreationTabArtistry from './tabs/CardCreationTabArtistry.vue'
 
 interface Props {
@@ -1033,6 +1034,7 @@ function handleBack() {
                     :placeholder="getDefaultPlaceholder()"
                     class="w-full"
                   />
+                  <CardModelPreview :model-id="selectedDisplayModelId" compact />
                 </div>
               </section>
             </div>
