@@ -25,6 +25,7 @@ import { onAppBeforeQuit } from '../libs/bootkit/lifecycle'
 import { Animator } from '../windows/shared/animator'
 import { computeResizedBoundsAnchoredToDominantDisplay } from '../windows/shared/display'
 import { toggleWindowShow } from '../windows/shared/window'
+import { TrayAppVisibility } from './app-visibility'
 
 const RECOMMENDED_WIDTH = 450
 const RECOMMENDED_HEIGHT = 600
@@ -258,6 +259,8 @@ export function setupTray(params: {
       rebuildContextMenu()
     })
 
+    const appVisibility = new TrayAppVisibility()
+
     onAppBeforeQuit(() => {
       // Stop every menu rebuild source before canceling its pending trailing call.
       // The tray must remain alive until no callback can reach it.
@@ -270,6 +273,7 @@ export function setupTray(params: {
       rebuildContextMenu.cancel()
       mainWindowAnimator.stop()
 
+      appVisibility.dispose()
       appTray.destroy()
     })
 

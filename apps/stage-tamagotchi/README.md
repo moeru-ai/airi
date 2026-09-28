@@ -3,6 +3,11 @@
 The Electron desktop app runs AIRI characters, chat, voice, and desktop tools.
 Shared character behavior belongs in `packages/stage-ui`. Use `stage-web` for browser-only features.
 
+## Desktop integration
+
+After the tray starts, AIRI hides its macOS Dock icon and Windows taskbar entries, including entries for new windows.
+Use the tray menu to open AIRI windows or quit the app. Linux desktop behavior remains unchanged.
+
 ## Development
 
 From the repository root, run `pnpm install`, then `pnpm dev:tamagotchi`.
