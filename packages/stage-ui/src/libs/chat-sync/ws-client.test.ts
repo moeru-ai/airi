@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { ref } from 'vue'
 
-import { buildChatWsUrl, computeReconnectDelay, createChatWsUrlRef, mapStatus, WS_CLOSE_UNAUTHORIZED } from './ws-client'
+import { mergeCloudMessagesIntoLocal } from './wire-message'
+import { buildChatWsUrl, computeReconnectDelay, createChatWsUrlRef, mapStatus, parseNewMessagesPayload, WS_CLOSE_UNAUTHORIZED } from './ws-client'
 
 describe('buildChatWsUrl', () => {
   /**
@@ -198,5 +199,44 @@ describe('wS_CLOSE_UNAUTHORIZED', () => {
   // stay aligned or the close-code contract breaks silently.
   it('matches the server-side close code contract (4001, IANA private range)', () => {
     expect(WS_CLOSE_UNAUTHORIZED).toBe(4001)
+  })
+})
+
+describe('parseNewMessagesPayload', () => {
+  // https://github.com/moeru-ai/airi/issues/2671
+  it('keeps a tombstone through the broadcast parse so the merge removes the message for Issue #2671', () => {
+    // ROOT CAUSE:
+    //
+    // The push schema did not declare `deletedAt`. Valibot dropped it, so a
+    // broadcast tombstone reached the merge as an ordinary message. The merge
+    // kept the local copy and still advanced the cursor past the deletion.
+    const broadcast = {
+      chatId: 'chat-1',
+      fromSeq: 3,
+      toSeq: 3,
+      messages: [{
+        id: 'm1',
+        chatId: 'chat-1',
+        senderId: 'user-1',
+        role: 'user',
+        content: '',
+        replyToMessageId: null,
+        seq: 3,
+        createdAt: 1,
+        updatedAt: 2,
+        deletedAt: 2,
+      }],
+    }
+
+    const payload = parseNewMessagesPayload(broadcast)
+    expect(payload?.messages[0]?.deletedAt).toBe(2)
+
+    const merged = mergeCloudMessagesIntoLocal(
+      [{ role: 'user', content: 'first', id: 'm1', createdAt: 1 }],
+      2,
+      payload!,
+    )
+    expect(merged.messages).toEqual([])
+    expect(merged.maxSeq).toBe(3)
   })
 })

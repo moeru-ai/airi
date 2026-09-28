@@ -281,4 +281,43 @@ describe('mergeCloudMessagesIntoLocal', () => {
     expect(result.messages.map(m => m.id)).toEqual(['m1', 'm2', 'm3'])
     expect(result.maxSeq).toBe(9)
   })
+
+  /**
+   * @example
+   * Another device deleted `m1`. The pull from cursor `0` returns `m2` and
+   * the tombstone of `m1`. The local `m1` is removed, and the tombstone is
+   * not appended.
+   */
+  // https://github.com/moeru-ai/airi/issues/2671
+  it('removes a local message for a tombstone and does not append it for Issue #2671', () => {
+    const local: ChatHistoryItem[] = [
+      { role: 'user', content: 'first', id: 'm1', createdAt: 0 },
+      { role: 'user', content: 'second', id: 'm2', createdAt: 0 },
+    ]
+    const result = mergeCloudMessagesIntoLocal(
+      local,
+      0,
+      {
+        messages: [
+          makeWire({ id: 'm2', role: 'user', content: 'second', seq: 2 }),
+          makeWire({ id: 'm1', role: 'user', content: '', seq: 3, deletedAt: 1 }),
+        ],
+        toSeq: 3,
+      },
+    )
+    expect(result.dirty).toBe(true)
+    expect(result.maxSeq).toBe(3)
+    expect(result.messages).toEqual([local[1]])
+  })
+
+  it('ignores a tombstone for a message that the local list does not have', () => {
+    const local: ChatHistoryItem[] = [{ role: 'user', content: 'hi', id: 'm1', createdAt: 0 }]
+    const result = mergeCloudMessagesIntoLocal(
+      local,
+      2,
+      { messages: [makeWire({ id: 'gone', seq: 3, deletedAt: 1 })], toSeq: 3 },
+    )
+    expect(result.messages).toBe(local)
+    expect(result.maxSeq).toBe(3)
+  })
 })

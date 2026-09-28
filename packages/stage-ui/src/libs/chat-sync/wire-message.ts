@@ -173,6 +173,8 @@ export interface CloudMergeResult {
  * - `payload.messages` may arrive out of seq order (server pagination
  *   boundaries, pub/sub interleave). New messages are appended in seq order
  *   so the in-memory list stays monotonic.
+ * - A wire message with `deletedAt` is a tombstone. It removes the local
+ *   message with the same id and is never appended.
  *
  * Returns:
  * - `messages` — the new array (same reference if no-op).
@@ -196,10 +198,15 @@ export function mergeCloudMessagesIntoLocal(
   const sortedWire = [...payload.messages].sort((a, b) => a.seq - b.seq)
 
   const additions: ChatHistoryItem[] = []
+  const deletedIds = new Set<string>()
   let maxSeq = currentMaxSeq
   for (const wire of sortedWire) {
     if (wire.seq > maxSeq)
       maxSeq = wire.seq
+    if (wire.deletedAt != null) {
+      deletedIds.add(wire.id)
+      continue
+    }
     if (knownIds.has(wire.id))
       continue
     additions.push(wireMessageToLocal(wire))
@@ -210,12 +217,16 @@ export function mergeCloudMessagesIntoLocal(
   if (typeof payload.toSeq === 'number' && payload.toSeq > maxSeq)
     maxSeq = payload.toSeq
 
-  if (additions.length === 0 && maxSeq === currentMaxSeq) {
+  const kept = deletedIds.size > 0
+    ? currentMessages.filter(message => !message.id || !deletedIds.has(message.id))
+    : currentMessages
+
+  if (additions.length === 0 && kept.length === currentMessages.length && maxSeq === currentMaxSeq) {
     return { messages: currentMessages, maxSeq: currentMaxSeq, dirty: false }
   }
 
-  const messages = additions.length > 0
-    ? [...currentMessages, ...additions]
+  const messages = additions.length > 0 || kept.length !== currentMessages.length
+    ? [...kept, ...additions]
     : currentMessages
 
   return { messages, maxSeq, dirty: true }

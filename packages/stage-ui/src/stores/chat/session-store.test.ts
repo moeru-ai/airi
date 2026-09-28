@@ -23,6 +23,10 @@ const addTombstoneMock = vi.fn<(uid: string, id: string) => Promise<void>>()
 const deleteCloudChatMock = vi.fn<(id: string) => Promise<void>>()
 const listChatsMock = vi.fn()
 const pullMessagesMock = vi.fn()
+const deleteCloudMessagesMock = vi.fn()
+const enqueueOutboxMock = vi.fn()
+const dequeueOutboxMock = vi.fn()
+const isCloudSyncableMessageMock = vi.fn()
 const reconcileLocalAndRemoteMock = vi.fn()
 const connectCloudWsMock = vi.fn()
 let cloudWsStatus: 'idle' | 'open' = 'idle'
@@ -55,8 +59,8 @@ vi.mock('../../database/repos/chat-sessions.repo', () => ({
     saveSession: (id: string, rec: ChatSessionRecord) => saveSessionMock(id, rec),
     deleteSession: (id: string) => deleteSessionRepoMock(id),
     getOutbox: (uid: string) => getOutboxMock(uid),
-    enqueueOutbox: vi.fn().mockResolvedValue(undefined),
-    dequeueOutbox: vi.fn().mockResolvedValue(undefined),
+    enqueueOutbox: (...args: unknown[]) => enqueueOutboxMock(...args),
+    dequeueOutbox: (...args: unknown[]) => dequeueOutboxMock(...args),
     updateOutboxEntries: vi.fn().mockResolvedValue(undefined),
     dropOutboxForSession: (uid: string, id: string) => dropOutboxForSessionMock(uid, id),
     getTombstones: (uid: string) => getTombstonesMock(uid),
@@ -94,6 +98,7 @@ vi.mock('../../libs/chat-sync', () => ({
     destroy: vi.fn(),
     sendMessages: vi.fn().mockResolvedValue({ ok: true }),
     pullMessages: (...args: unknown[]) => pullMessagesMock(...args),
+    deleteMessages: (...args: unknown[]) => deleteCloudMessagesMock(...args),
     onNewMessages: () => () => {},
     onStatusChange: (listener: (status: 'idle' | 'open') => void) => {
       cloudStatusListener = listener
@@ -101,7 +106,7 @@ vi.mock('../../libs/chat-sync', () => ({
     },
   }),
   extractMessageText: (m: any) => (typeof m?.content === 'string' ? m.content : ''),
-  isCloudSyncableMessage: () => false,
+  isCloudSyncableMessage: (...args: unknown[]) => isCloudSyncableMessageMock(...args),
   mergeCloudMessagesIntoLocal: () => ({ dirty: false, messages: [], maxSeq: 0 }),
 }))
 
@@ -128,6 +133,10 @@ beforeEach(() => {
   deleteCloudChatMock.mockReset().mockResolvedValue(undefined)
   listChatsMock.mockReset().mockResolvedValue([])
   pullMessagesMock.mockReset().mockResolvedValue({ messages: [], seq: 0 })
+  deleteCloudMessagesMock.mockReset().mockResolvedValue({ seq: 0 })
+  enqueueOutboxMock.mockReset().mockResolvedValue(undefined)
+  dequeueOutboxMock.mockReset().mockResolvedValue(undefined)
+  isCloudSyncableMessageMock.mockReset().mockReturnValue(false)
   reconcileLocalAndRemoteMock.mockReset().mockReturnValue({ adopt: [], claim: [], create: [] })
   connectCloudWsMock.mockReset()
   cloudWsStatus = 'idle'
@@ -594,6 +603,106 @@ describe('chat-session-store · cloud deletion', () => {
 
     expect(addTombstoneMock).toHaveBeenCalledWith('cloud-user', 'pending-cloud-session')
     expect(deleteCloudChatMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('chat-session-store · cloud message deletion', () => {
+  // https://github.com/moeru-ai/airi/issues/2671
+  it('queues and sends the cloud deletion of a deleted message for Issue #2671', async () => {
+    // ROOT CAUSE:
+    //
+    // deleteMessage changed only local state. The server kept the message, so
+    // the catch-up pull after a switch of the character card brought it back.
+    userIdRef.value = 'cloud-user'
+    isCloudSyncableMessageMock.mockImplementation((message: { role: string }) => message.role === 'user')
+    const meta: ChatSessionMeta = {
+      sessionId: 'session-1',
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+      cloudChatId: 'cloud-chat-1',
+    }
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-1',
+      sessionMessages: {
+        'session-1': [
+          { id: 'system', role: 'system', content: 'prompt' },
+          { id: 'u1', role: 'user', content: 'first' },
+          { id: 'u2', role: 'user', content: 'second' },
+        ],
+      },
+      sessionMetas: { 'session-1': meta },
+    })
+    // Opening the socket starts a reconcile. This test covers only the direct deletion.
+    reconcileLocalAndRemoteMock.mockReturnValue({ adopt: [], claim: [], create: [] })
+    await store.initialize()
+    cloudWsStatus = 'open'
+
+    await store.deleteMessage({ sessionId: 'session-1', messageId: 'u1' })
+
+    expect(store.getSessionMessages('session-1').map(message => message.id)).toEqual(['system', 'u2'])
+    expect(enqueueOutboxMock).toHaveBeenCalledWith('cloud-user', expect.objectContaining({
+      kind: 'delete',
+      messageId: 'u1',
+      sessionId: 'session-1',
+      cloudChatId: 'cloud-chat-1',
+    }))
+    await vi.waitFor(() => {
+      expect(dequeueOutboxMock).toHaveBeenCalledWith('cloud-user', [expect.objectContaining({ kind: 'delete', messageId: 'u1' })])
+    })
+    expect(deleteCloudMessagesMock).toHaveBeenCalledWith({ chatId: 'cloud-chat-1', messageIds: ['u1'] })
+  })
+
+  it('sends a queued deletion when the outbox drains after a reconnect', async () => {
+    userIdRef.value = 'cloud-user'
+    const meta: ChatSessionMeta = {
+      sessionId: 'session-1',
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+      cloudChatId: 'cloud-chat-1',
+    }
+    getIndexMock.mockResolvedValue({
+      userId: 'cloud-user',
+      characters: { default: { activeSessionId: 'session-1', sessions: { 'session-1': meta } } },
+    })
+    getSessionMock.mockResolvedValue({ meta, messages: [] })
+    getOutboxMock.mockResolvedValue([
+      { kind: 'delete', messageId: 'offline-delete', sessionId: 'session-1', cloudChatId: 'cloud-chat-1', attempts: 0, queuedAt: 1 },
+    ])
+
+    const store = useChatSessionStore()
+    await store.initialize()
+    cloudWsStatus = 'open'
+    cloudStatusListener?.('open')
+
+    await vi.waitFor(() => {
+      expect(dequeueOutboxMock).toHaveBeenCalledWith('cloud-user', [expect.objectContaining({ kind: 'delete', messageId: 'offline-delete' })])
+    })
+    expect(deleteCloudMessagesMock).toHaveBeenCalledWith({ chatId: 'cloud-chat-1', messageIds: ['offline-delete'] })
+  })
+
+  it('does not queue a cloud deletion for a message that never syncs', async () => {
+    userIdRef.value = 'cloud-user'
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-1',
+      sessionMessages: {
+        'session-1': [
+          { id: 'system', role: 'system', content: 'prompt' },
+          { id: 'u1', role: 'user', content: 'first' },
+        ],
+      },
+      sessionMetas: {},
+    })
+
+    await store.deleteMessage({ sessionId: 'session-1', messageId: 'system' })
+
+    expect(enqueueOutboxMock).not.toHaveBeenCalled()
+    expect(deleteCloudMessagesMock).not.toHaveBeenCalled()
   })
 })
 
