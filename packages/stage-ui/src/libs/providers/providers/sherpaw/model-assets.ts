@@ -30,6 +30,7 @@ interface HostModelAssets {
   fetch: (model: ModelAsset, fileName: string, signal?: AbortSignal) => Promise<Response>
   list: () => Promise<ModelAssetStatus[]>
   ensure: (id: string) => Promise<void>
+  cancel: (id: string) => Promise<void>
   remove: (id: string) => Promise<void>
 }
 
@@ -57,6 +58,12 @@ export async function ensureSherpawModelAssets(id: string): Promise<void> {
   if (host && !isSherpawModelBundled(id))
     return host.ensure(id)
   return sherpawModelAssets.ensureAvailable(id)
+}
+
+export async function cancelSherpawModelAssets(id: string): Promise<void> {
+  if (host && !isSherpawModelBundled(id))
+    return host.cancel(id)
+  return sherpawModelAssets.cancel(id)
 }
 
 export async function removeSherpawModelAssets(id: string): Promise<void> {

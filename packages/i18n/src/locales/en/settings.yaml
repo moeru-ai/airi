@@ -1201,6 +1201,7 @@ pages:
           downloading: Downloading...
           error: Download failed
           download: Download now
+          cancel: Cancel
           remove: Remove download
       apple-speech-transcription:
         title: Apple Speech

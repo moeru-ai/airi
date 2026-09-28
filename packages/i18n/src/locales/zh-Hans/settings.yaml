@@ -1151,6 +1151,7 @@ pages:
           downloading: 正在下载…
           error: 下载失败
           download: 立即下载
+          cancel: 取消
           remove: 删除已下载文件
       apple-speech-transcription:
         title: Apple 语音识别

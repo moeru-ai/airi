@@ -98,6 +98,42 @@ describe('model asset repository', () => {
     expect(repository.list()[0]?.state).toBe('installed')
   })
 
+  it('waits for a canceled download to finish cleanup before retrying', async () => {
+    const { storage, installed } = createStorage()
+    let finishCleanup!: () => void
+    let installs = 0
+    storage.install = async (model, _onProgress, signal) => {
+      installs++
+      if (installs === 1) {
+        await new Promise<void>((resolve) => {
+          signal.addEventListener('abort', () => resolve(), { once: true })
+          if (signal.aborted)
+            resolve()
+        })
+        await new Promise<void>((resolve) => {
+          finishCleanup = resolve
+        })
+        signal.throwIfAborted()
+      }
+      installed.add(`${model.id}@${model.revision}`)
+    }
+    const repository = new ModelAssetRepository([remote], storage)
+    const download = repository.ensureAvailable('speech')
+    await vi.waitFor(() => expect(repository.list()[0]?.state).toBe('downloading'))
+
+    const cancellation = repository.cancel('speech')
+    await vi.waitFor(() => expect(finishCleanup).toBeTypeOf('function'))
+    expect(repository.list()[0]?.state).toBe('downloading')
+    finishCleanup()
+    await cancellation
+    await expect(download).rejects.toThrow()
+    expect(repository.list()[0]?.state).toBe('missing')
+
+    await repository.ensureAvailable('speech')
+    expect(installs).toBe(2)
+    expect(repository.list()[0]?.state).toBe('installed')
+  })
+
   it('starts a new install after canceling the last caller', async () => {
     const { storage, installed } = createStorage()
     let installs = 0
