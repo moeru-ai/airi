@@ -777,6 +777,58 @@ describe('chat-session-store · cloud message deletion', () => {
     expect(store.sessionMetas['session-1']?.cloudDeletedMessageIds).toEqual(['u1'])
   })
 
+  it('keeps a tombstone that is merged while a refresh reads an older IndexedDB record', async () => {
+    // ROOT CAUSE:
+    //
+    // refreshSession replaced the in-memory meta with the stored meta and
+    // merged the stored messages back. A tombstone merged during the read
+    // lost its deleted id and cursor, and the stored copy restored the message.
+    userIdRef.value = 'cloud-user'
+    const meta: ChatSessionMeta = {
+      sessionId: 'session-1',
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+      cloudChatId: 'cloud-chat-1',
+      cloudMaxSeq: 2,
+    }
+    const staleRecord = () => ({
+      meta: { ...meta },
+      messages: [
+        { id: 'u1', role: 'user' as const, content: 'first' },
+        { id: 'u2', role: 'user' as const, content: 'second' },
+      ],
+    })
+    getIndexMock.mockResolvedValue({
+      userId: 'cloud-user',
+      characters: { default: { activeSessionId: 'session-1', sessions: { 'session-1': meta } } },
+    })
+    getSessionMock.mockImplementation(async () => staleRecord())
+
+    const store = useChatSessionStore()
+    await store.initialize()
+
+    let resolveRead: (record: ReturnType<typeof staleRecord>) => void = () => {}
+    getSessionMock.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRead = resolve
+    }))
+    const refreshing = store.refreshSession('session-1')
+    await flushMicrotasks()
+
+    newMessagesListener?.({
+      chatId: 'cloud-chat-1',
+      fromSeq: 3,
+      toSeq: 3,
+      messages: [{ id: 'u1', chatId: 'cloud-chat-1', senderId: 'other-device', role: 'user', content: '', seq: 3, createdAt: 1, updatedAt: 2, deletedAt: 2 }],
+    })
+    resolveRead(staleRecord())
+    await refreshing
+
+    expect(store.getSessionMessages('session-1').filter(message => message.role === 'user').map(message => message.id)).toEqual(['u2'])
+    expect(store.sessionMetas['session-1']).toMatchObject({ cloudMaxSeq: 3, cloudDeletedMessageIds: ['u1'] })
+  })
+
   it('does not queue a cloud deletion for a message that never syncs', async () => {
     userIdRef.value = 'cloud-user'
     const store = useChatSessionStore()

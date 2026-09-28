@@ -375,6 +375,27 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   /**
+   * Combines the cloud sync state of a stored meta and the in-memory meta.
+   *
+   * Use when:
+   * - An IndexedDB record replaces the in-memory meta. The read can finish
+   *   after a merge advanced the cursor or recorded a deletion, so the
+   *   record is older than memory.
+   *
+   * Returns:
+   * - The higher cursor and the union of deleted ids. Both only grow, so
+   *   neither side can undo the other.
+   */
+  function mergeCloudSyncState(stored: ChatSessionMeta, current: ChatSessionMeta | undefined): Pick<ChatSessionMeta, 'cloudMaxSeq' | 'cloudDeletedMessageIds'> {
+    const cursors = [stored.cloudMaxSeq, current?.cloudMaxSeq].filter((seq): seq is number => seq !== undefined)
+    const deletedIds = [...new Set([...(stored.cloudDeletedMessageIds ?? []), ...(current?.cloudDeletedMessageIds ?? [])])]
+    return {
+      cloudMaxSeq: cursors.length > 0 ? Math.max(...cursors) : undefined,
+      cloudDeletedMessageIds: deletedIds.length > 0 ? deletedIds : undefined,
+    }
+  }
+
+  /**
    * Hydrate a single session's messages from IDB into memory. Idempotent —
    * subsequent calls for the same id are no-ops.
    *
@@ -425,9 +446,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
             return false
           if (stored) {
             const currentMessages = sessionMessages.value[sessionId] ?? []
-            const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
+            const syncState = mergeCloudSyncState(stored.meta, sessionMetas.value[sessionId])
+            const deleted = new Set(syncState.cloudDeletedMessageIds)
+            const loadedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
+            // The record can predate a tombstone that was merged during the read.
+            const mergedMessages = loadedMessages.some(message => message.id && deleted.has(message.id))
+              ? loadedMessages.filter(message => !message.id || !deleted.has(message.id))
+              : loadedMessages
 
-            sessionMetas.value[sessionId] = stored.meta
+            sessionMetas.value[sessionId] = { ...stored.meta, ...syncState }
             replaceSessionMessages(sessionId, mergedMessages, { persist: false })
             ensureGeneration(sessionId)
 

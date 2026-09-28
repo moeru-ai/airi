@@ -47,6 +47,8 @@ These rules cover two orders:
 
 The set grows only with deletions, and no later point makes an id safe to forget. It is removed with its session.
 
+A load from IndexedDB keeps these rules. `refreshSession` can read a record that predates a tombstone merged during the read. The load takes the higher `cloudMaxSeq` and the union of `cloudDeletedMessageIds` from the record and from memory. It then removes messages with deleted ids from the loaded history.
+
 The push schema in the WebSocket client declares `deletedAt`. A Valibot object schema drops undeclared keys, so without it a tombstone reaches the merge as a live message.
 
 Outbox settlement matches the message id and the operation kind. A deletion replaces a queued send of the same message, so the settlement of that older send must not remove the deletion.
@@ -70,11 +72,19 @@ A retry of the same request returns success and changes nothing.
 Clients released before this change (for example v0.12.0-beta.5) already sync chats, but their push schema does not declare `deletedAt`.
 They read a tombstone as a live message with empty content:
 
-- If the client has the message, it skips the tombstone because the id is known. The message stays, as it does today.
+- If the client has the message, it skips the tombstone because the id is known. The message stays.
 - If the client does not have the message, it appends an empty message. This happens on a first pull of a chat, or after the client missed both the send and the deletion.
 
-These clients never send deletions. The effect ends when the client updates.
-No version negotiation is added. The maintainers decide whether this window is acceptable before the server deploys.
+In both cases, the older client saves a cursor past the tombstone.
+After an update, the client pulls from that cursor, so it never receives the tombstone again.
+The leftover message or empty message stays in that session. **This change accepts that result.**
+
+- A user can delete a leftover message again on an updated client. The local message is removed, and the server treats the deletion of an already deleted id as a no-op.
+- Leftovers exist only for deletions made while the older client was still in use, and only on that older client's devices.
+- No replay or migration is added. A replay needs a pull from cursor `0` for every session, and the client pulls once without `limit`, which returns at most 100 rows. The client does not page.
+
+These clients never send deletions. No version negotiation is added.
+The maintainers decide whether this result is acceptable before the server deploys.
 
 ## Scope
 
@@ -176,4 +186,5 @@ Client tests:
 - Session store, with the real merge: an offline deletion, then a reconnect whose pull returns the message from cursor `0` before the outbox drains. The message stays deleted in memory and in the saved session, and the deletion is sent. This reproduces issue #2671.
 - Session store: a tombstone broadcast, then an older send broadcast of the same id. The message stays deleted, and the meta keeps the id.
 - Session store: a deletion is queued and sent directly, and a queued deletion is sent when the outbox drains.
+- Session store: `refreshSession` reads an older IndexedDB record while a tombstone is merged. The message stays deleted, and the meta keeps the higher cursor and the deleted id.
 - Each client rule was disabled in turn, and at least one test failed each time.
