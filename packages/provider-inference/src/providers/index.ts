@@ -10,6 +10,8 @@ import { providerAzureOpenAI } from './cloud/azure-openai'
 import { providerBytePlus } from './cloud/byteplus'
 import { providerBytePlusCodingPlan } from './cloud/byteplus-coding-plan'
 import { providerCerebrasAI } from './cloud/cerebras-ai'
+import { providerChutesAI } from './cloud/chutes-ai'
+import { providerChutesAISpeech, providerChutesAITranscription } from './cloud/chutes-ai-audio'
 import { providerCloudflareWorkersAI } from './cloud/cloudflare-workers-ai'
 import { providerCometAPI, providerCometAPISpeech, providerCometAPITranscription } from './cloud/comet-api'
 import { providerDeepSeek } from './cloud/deepseek'
@@ -95,6 +97,9 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   providerBytePlus,
   providerBytePlusCodingPlan,
   providerCerebrasAI,
+  providerChutesAI,
+  providerChutesAISpeech,
+  providerChutesAITranscription,
   providerCloudflareWorkersAI,
   providerCometAPI,
   providerCometAPISpeech,

@@ -1581,6 +1581,23 @@ pages:
       comet-api:
         description: CometAPI.com
         title: Comet API
+      chutes:
+        description: chutes.ai
+        title: Chutes
+        fields:
+          field:
+            speed:
+              description: Speaking speed for Kokoro voices. Qwen3-TTS ignores this value.
+            language:
+              label: Language
+              description: The language of the text that Qwen3-TTS reads, such as English, Chinese, or Japanese. Kokoro ignores this value.
+            instruct:
+              label: Style Instruction
+              description: Tells Qwen3-TTS how to speak. Kokoro ignores this value.
+              placeholder: Speak slowly in a calm, friendly voice.
+            playground-model:
+              label: Playground Model
+              description: The model that this playground uses. Select the model for AIRI on the Speech module page.
       cerebras:
         description: cerebras.ai
         title: Cerebras
