@@ -677,15 +677,18 @@ export class ExtensionHost {
     return this.providers.listReady()
   }
 
+  /** Returns a mutable descriptor copy from the current registration. Re-query after registration changes. */
   getKit(kitId: string): KitDescriptor | undefined {
     const kit = this.providers.getHostDescriptor(kitId)
     return kit ? cloneKitDescriptor(kit) : undefined
   }
 
+  /** Returns mutable descriptor copies from the current registrations. Re-query after registration changes. */
   listKits(runtime?: PluginRuntime): KitDescriptor[] {
     return this.providers.listHostDescriptors(runtime).map(cloneKitDescriptor)
   }
 
+  /** Returns a mutable capability copy from the current registration. Re-query after registration changes. */
   getKitCapabilities(kitId: string): KitCapabilityDescriptor[] {
     const capabilities = this.providers.getHostDescriptor(kitId)?.capabilities
     if (!capabilities) {
