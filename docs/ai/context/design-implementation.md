@@ -1,6 +1,6 @@
 # Design Implementation Notes
 
-The [AIRI Design Guide](../../../design.md) defines visual identity and reuse rules. This document records source findings and delivery procedures.
+The [AIRI Design Guide](../../../DESIGN.md) defines visual identity and reuse rules. This document records source findings and delivery procedures.
 
 ## Format Alignment
 
@@ -8,7 +8,9 @@ The guide follows the eight ordered sections in the [Google DESIGN.md specificat
 
 The optional YAML token block is omitted. Dynamic colors remain in Chromatic and theme settings. Static component values stay linked to their implementations.
 
-The lowercase filename follows AIRI's file naming rules. Root `AGENTS.md` explicitly references it. Automatic discovery by external tools is not assumed.
+The uppercase `DESIGN.md` filename follows the format convention. It is an explicit exception to AIRI's kebab-case file naming rule.
+
+Root `AGENTS.md` explicitly references it. Automatic discovery by external tools is not assumed.
 
 No Google CLI or new skill is installed. This change aligns document structure and content, not token export or CLI integration.
 
