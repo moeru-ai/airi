@@ -85,6 +85,12 @@ This change does not implement or populate a model price table.
 
 ## Persistence and compatibility
 
+Persist request tracking before billing intake. If routing exits without a key dispatch,
+close the unresolved intake as cancelled/not_dispatched instead of leaving false pending work.
+An attempted upstream call remains pending when its outcome or cost is unknown.
+Zero charges finalize settlement without a debit ledger row. Count underfunded settlements once after commit.
+Preserve the first generation ID when later Chat frames disagree, and keep that receipt pending.
+
 Settlement uses requestedFlux and chargedFlux for the requested and charged amounts.
 The charged amount is a result snapshot committed with its ledger entry, not a second debit authority.
 The ledger owns actual balance changes; settlement owns normalized cost, costSource, pricing and sanitized providerUsage.

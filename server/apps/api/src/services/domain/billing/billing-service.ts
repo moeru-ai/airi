@@ -197,6 +197,20 @@ export function createBillingService(
       })
     },
 
+    /** Closes only an unresolved intake after the caller confirms no upstream key was dispatched. */
+    async cancelUndispatchedLlmRequest(input: { userId: string, requestId: string }) {
+      await db.update(llmRequestSettlement).set({
+        billingStatus: 'cancelled',
+        pendingReason: 'not_dispatched',
+        settledAt: new Date(),
+      }).where(and(
+        eq(llmRequestSettlement.userId, input.userId),
+        eq(llmRequestSettlement.requestId, input.requestId),
+        eq(llmRequestSettlement.method, 'unresolved'),
+        eq(llmRequestSettlement.billingStatus, 'pending'),
+      ))
+    },
+
     /**
      * Saves a provider receipt and settles whole Flux under the account row lock.
      * Reconciliation reuses the original price snapshot and request ID.
@@ -228,6 +242,8 @@ export function createBillingService(
           throw new Error(`No flux record for user ${input.userId}`)
         const key = and(eq(llmRequestSettlement.userId, input.userId), eq(llmRequestSettlement.requestId, input.requestId))
         const [existing] = await tx.select().from(llmRequestSettlement).where(key)
+        if (existing?.billingStatus === 'cancelled')
+          throw new Error('Cannot settle an undispatched request')
         if (existing?.billingProvider != null && existing.billingProvider !== provider)
           throw new Error('Provider does not match the cost receipt')
         if (existing?.generationId && input.usage.generationId !== existing.generationId)
@@ -275,6 +291,8 @@ export function createBillingService(
           throw new Error(`No flux record for user ${input.userId}`)
         const key = and(eq(llmRequestSettlement.userId, input.userId), eq(llmRequestSettlement.requestId, input.requestId))
         const [existing] = await tx.select().from(llmRequestSettlement).where(key)
+        if (existing?.billingStatus === 'cancelled')
+          throw new Error('Cannot settle an undispatched request')
         if (existing?.billingProvider != null && existing.billingProvider !== provider)
           throw new Error('Provider does not match the cost receipt')
         if (existing?.generationId && input.usage.generationId !== existing.generationId)
@@ -294,28 +312,30 @@ export function createBillingService(
         const requested = charge.requestedFlux
         const charged = Math.min(requested, Math.max(0, wallet.flux))
         const balance = wallet.flux - charged
-        await tx.update(fluxSchema.userFlux).set({
-          flux: balance,
-          updatedAt: new Date(),
-        }).where(eq(fluxSchema.userFlux.userId, input.userId))
-        await tx.insert(fluxTxSchema.fluxTransaction).values({
-          userId: input.userId,
-          requestId: input.requestId,
-          settlementId,
-          operationId: `llm:${settlementId}:initial`,
-          type: 'debit',
-          amount: charged,
-          balanceBefore: wallet.flux,
-          balanceAfter: balance,
-          description: 'llm_request',
-          metadata: {
-            source: 'llm.request',
-            model: existing?.model ?? input.model,
-            promptTokens: input.usage.promptTokens,
-            completionTokens: input.usage.completionTokens,
-            ...(charged < requested && { requestedAmount: requested, unbilled: requested - charged }),
-          },
-        })
+        if (charged > 0) {
+          await tx.update(fluxSchema.userFlux).set({
+            flux: balance,
+            updatedAt: new Date(),
+          }).where(eq(fluxSchema.userFlux.userId, input.userId))
+          await tx.insert(fluxTxSchema.fluxTransaction).values({
+            userId: input.userId,
+            requestId: input.requestId,
+            settlementId,
+            operationId: `llm:${settlementId}:initial`,
+            type: 'debit',
+            amount: charged,
+            balanceBefore: wallet.flux,
+            balanceAfter: balance,
+            description: 'llm_request',
+            metadata: {
+              source: 'llm.request',
+              model: existing?.model ?? input.model,
+              promptTokens: input.usage.promptTokens,
+              completionTokens: input.usage.completionTokens,
+              ...(charged < requested && { requestedAmount: requested, unbilled: requested - charged }),
+            },
+          })
+        }
         const settled = {
           billingProvider: provider,
           billingStatus: 'settled',
@@ -343,8 +363,12 @@ export function createBillingService(
         }).error('Failed to persist LLM cost receipt')
         throw error
       })
-      if (!result.pending && !result.replay)
-        await updateRedisCache(input.userId, result.balance)
+      if (!result.pending && !result.replay) {
+        if (result.charged > 0)
+          await updateRedisCache(input.userId, result.balance)
+        if (result.charged < result.requested)
+          metrics?.fluxInsufficientBalance.add(1)
+      }
       const receiptLogger = logger.withFields({
         event: 'llm.cost_receipt',
         billingStatus: result.pending ? 'pending' : 'settled',

@@ -44,6 +44,7 @@ function createMockBillingService(flux = 100): BillingService {
   let balance = flux
   return {
     beginLlmRequest: vi.fn(async () => undefined),
+    cancelUndispatchedLlmRequest: vi.fn(async () => undefined),
     settleLlmCost: vi.fn(async (input: Parameters<BillingService['settleLlmCost']>[0]) => {
       const quote = priceLlmCost(input.usage, input.pricing)
       if (input.pendingReason || quote.requestedFlux === undefined)
@@ -2646,6 +2647,33 @@ describe('openRouter cost billing through HTTP routes', () => {
     return { app, logs }
   }
 
+  it.each(['chat/completions', 'responses'])('closes intake when dispatch authorization rejects %s', async (protocol) => {
+    const upstream = vi.fn(() => Response.json(responsesResult()))
+    const { app } = harness(upstream, 'unsupported.example')
+    const response = await app.request(`/api/v1/openai/${protocol}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [], input: 'hello' }),
+    }, { user: testUser })
+    expect(response.status).toBe(503)
+    expect(upstream).not.toHaveBeenCalled()
+    expect(await db.select().from(llmRequestSettlement)).toEqual([expect.objectContaining({ billingStatus: 'cancelled', pendingReason: 'not_dispatched' })])
+    expect(await db.select().from(fluxTransaction)).toHaveLength(0)
+  })
+
+  it('keeps the first Chat generation ID when later stream IDs disagree', async () => {
+    const frames = 'data: {"id":"first","choices":[]}\n\ndata: {"id":"second","usage":{"cost":0.002},"choices":[]}\n\ndata: [DONE]\n\n'
+    const { app } = harness(() => new Response(frames))
+    const response = await app.request('/api/v1/openai/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [], stream: true }),
+    }, { user: testUser })
+    await response.text()
+    await vi.waitFor(async () => expect(await db.select().from(llmRequestSettlement)).toEqual([expect.objectContaining({ generationId: 'first', billingStatus: 'pending' })]))
+    expect(await db.select().from(fluxTransaction)).toHaveLength(0)
+  })
+
   for (const protocol of ['chat/completions', 'responses']) {
     for (const stream of [false, true]) {
       it.each([{ cost: 0.0002, expectedFlux: 1 }, { cost: 0.0008, expectedFlux: 2 }, { cost: 0.002, expectedFlux: 3 }])(`settles rounded cost for ${protocol}, stream=${stream}: $cost USD`, async ({ cost, expectedFlux }) => {
@@ -3345,7 +3373,7 @@ it.each(['chat/completions', 'responses'])('does not open a generation span or d
       body: JSON.stringify({ messages: [], input: 'hello' }),
     }, { user: testUser })
     expect(response.status).toBe(500)
-    expect(billing.beginLlmRequest).toHaveBeenCalledOnce()
+    expect(billing.beginLlmRequest).not.toHaveBeenCalled()
     expect(router.route).not.toHaveBeenCalled()
     expect(startSpan).not.toHaveBeenCalled()
   }
@@ -3548,6 +3576,24 @@ it('returns the recorded bad-gateway status for malformed Chat JSON', async () =
   }, { user: testUser })
   expect(response.status).toBe(502)
   expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502 }))
+})
+
+it.each(['chat/completions', 'responses'])('does not cancel billing intake after dispatch fails for %s', async (protocol) => {
+  const billing = createMockBillingService()
+  const router = createMockLlmRouter({ route: vi.fn(async (_request, context) => {
+    if (context)
+      context.triedKeys += 1
+    throw new ApiError(504, 'GATEWAY_TIMEOUT', 'Upstream timed out')
+  }) })
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, undefined, undefined, router)
+  const response = await app.request(`/api/v1/openai/${protocol}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [], input: 'hello' }),
+  }, { user: testUser })
+  expect(response.status).toBe(504)
+  expect(billing.beginLlmRequest).toHaveBeenCalledTimes(1)
+  expect(billing.cancelUndispatchedLlmRequest).not.toHaveBeenCalled()
 })
 
 it('accumulates routing counters across alias candidates', async () => {

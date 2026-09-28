@@ -77,6 +77,32 @@ describe('billingService', () => {
       usage: { source: 'provider_reported' as const, generationId: `gen-${requestId}`, costUsd: cost, providerUsage: { cost }, promptTokens: 100, completionTokens: 20 },
     })
 
+    it('cancels only the matching unresolved intake and rejects later settlement', async () => {
+      await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 100 })
+      const input = receipt('not-dispatched', 0.002)
+      await billingService.beginLlmRequest({ ...input, policy: { minimumBalance: 1, costPricing: { openrouter: pricing } } })
+      await billingService.cancelUndispatchedLlmRequest({ ...input, userId: 'another-user' })
+      expect((await db.select().from(schema.llmRequestSettlement))[0].billingStatus).toBe('pending')
+      await billingService.cancelUndispatchedLlmRequest(input)
+      const [cancelled] = await db.select().from(schema.llmRequestSettlement)
+      await billingService.cancelUndispatchedLlmRequest(input)
+      expect(await db.select().from(schema.llmRequestSettlement)).toEqual([cancelled])
+      expect(cancelled).toMatchObject({ billingStatus: 'cancelled', pendingReason: 'not_dispatched' })
+      await expect(billingService.settleLlmCost(input)).rejects.toThrow('Cannot settle an undispatched request')
+      expect(await db.select().from(schema.fluxTransaction)).toHaveLength(0)
+      expect((await db.select().from(schema.userFlux))[0].flux).toBe(100)
+    })
+
+    it('does not cancel a received provider receipt', async () => {
+      await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 100 })
+      const input = receipt('received', undefined)
+      await billingService.settleLlmCost(input)
+      const [pending] = await db.select().from(schema.llmRequestSettlement)
+      await billingService.cancelUndispatchedLlmRequest(input)
+      expect(await db.select().from(schema.llmRequestSettlement)).toEqual([pending])
+      expect(pending.billingStatus).toBe('pending')
+    })
+
     it('reports receipt intake transaction failures with correlation fields', async () => {
       const output = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       const transaction = vi.spyOn(db, 'transaction').mockRejectedValueOnce(new Error('receipt storage unavailable'))
@@ -168,6 +194,28 @@ describe('billingService', () => {
       expect(wallet).toMatchObject({ flux: 0 })
       const [record] = await db.select().from(schema.llmRequestSettlement)
       expect(record).toMatchObject({ billingStatus: 'settled', costUsd: '0', chargedFlux: 0 })
+      expect(await db.select().from(schema.fluxTransaction)).toHaveLength(0)
+    })
+
+    it.each([0, 2])('counts underfunded settlements once with balance %s', async (balance) => {
+      const ignored = { add: vi.fn() }
+      const insufficient = { add: vi.fn() }
+      const service = createBillingService(db, redis, createMockConfigKV(), {
+        stripeCheckoutCreated: ignored,
+        stripeCheckoutCompleted: ignored,
+        stripeEvents: ignored,
+        stripeRevenue: ignored,
+        fluxInsufficientBalance: insufficient,
+        fluxCredited: ignored,
+        fluxUnbilled: ignored,
+        ttsChars: ignored,
+        ttsPreflightRejections: ignored,
+      })
+      await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: balance })
+      await service.settleLlmCost(receipt('underfunded', 0.002))
+      await service.settleLlmCost(receipt('underfunded', 0.002))
+      expect(insufficient.add).toHaveBeenCalledExactlyOnceWith(1)
+      expect(await db.select().from(schema.fluxTransaction)).toHaveLength(balance === 0 ? 0 : 1)
     })
 
     it('keeps missing cost pending and reconciles once with the original price', async () => {

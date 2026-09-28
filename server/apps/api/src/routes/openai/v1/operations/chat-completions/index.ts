@@ -67,8 +67,8 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
       messageCount: Array.isArray(body.messages) ? body.messages.length : undefined,
     }).log('chat completion request')
     const startedAt = Date.now()
-    await deps.billingService.beginLlmRequest({ userId: input.userId, requestId, model: requestModel, policy: billingPolicy })
     await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0 })
+    await deps.billingService.beginLlmRequest({ userId: input.userId, requestId, model: requestModel, policy: billingPolicy })
     const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
 
     // Server-connection attrs come from the router (which knows the actual
@@ -104,6 +104,11 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
       requestModel = routed.modelId
     }
     catch (err) {
+      if (routeCtx.triedKeys === 0) {
+        await deps.billingService.cancelUndispatchedLlmRequest({ userId: input.userId, requestId }).catch((error) => {
+          logger.withError(error).withFields({ requestId }).error('Failed to close undispatched LLM intake')
+        })
+      }
       let status: number = err instanceof ApiError ? err.statusCode : 500
       if (clientAbort?.aborted)
         status = 499
@@ -264,9 +269,10 @@ function streamChatCompletion(input: {
         if (observed.generationId !== undefined) {
           if (usage.generationId !== undefined && observed.generationId !== usage.generationId)
             invalidReceipt = true
-          usage.generationId = observed.generationId
+          else
+            usage.generationId = observed.generationId
         }
-        usage = { ...usage, ...Object.fromEntries(Object.entries(observed).filter(([, value]) => value != null)) }
+        usage = { ...usage, ...Object.fromEntries(Object.entries(observed).filter(([key, value]) => key !== 'generationId' && value != null)) }
       }
       catch (error) {
         invalidReceipt = true

@@ -206,6 +206,9 @@ Only the OpenRouter adapter is implemented. Other gateways cannot serve hosted L
 Missing or invalid returned cost, BYOK fees, and incomplete output leave a pending settlement without a token-rate estimate.
 Each request charges `ceil(costUsd * fluxPerUsd * multiplier)` in whole Flux, after applying the multiplier.
 An explicit zero cost settles at zero. Every positive cost rounds up; no fractional remainder carries between requests.
+Zero charges do not create debit ledger rows. Underfunded settlements increment the insufficient-balance metric once, not on replay.
+Routing failures before any upstream dispatch close the intake as `cancelled/not_dispatched`.
+Unknown outcomes after dispatch stay pending.
 Billing retains the original price snapshot, cost source, sanitized provider usage and provider/generation identity for reconciliation.
 Settlement stores `requestedFlux` and `chargedFlux`; its charged amount is a result snapshot committed with the ledger.
 `flux_transaction` owns actual balance changes and references the settlement, without copying its cost and price fields.
