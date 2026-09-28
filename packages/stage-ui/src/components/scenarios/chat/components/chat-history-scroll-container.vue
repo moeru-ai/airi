@@ -6,13 +6,13 @@ defineOptions({
   inheritAttrs: false,
 })
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   variant: 'desktop' | 'mobile'
-}>()
-
-const emit = defineEmits<{
-  scrollbarPointerdown: [event: PointerEvent]
-}>()
+  /** When the desktop scrollbar shows: while scrolling, or also while the pointer is over the history. */
+  scrollbar?: 'scroll' | 'hover'
+}>(), {
+  scrollbar: 'scroll',
+})
 
 const desktopAreaRef = useTemplateRef<InstanceType<typeof ScrollableArea>>('desktop-area')
 const mobileViewportRef = useTemplateRef<HTMLElement>('mobile-viewport')
@@ -30,14 +30,13 @@ defineExpose({
     v-if="props.variant === 'desktop'"
     ref="desktop-area"
     v-bind="$attrs"
-    type="scroll"
+    :type="props.scrollbar"
     :viewport-class="[
       'chat-history-list',
     ]"
     :class="[
       'chat-history-scroll-area h-full w-full',
     ]"
-    @scrollbar-pointerdown="emit('scrollbarPointerdown', $event)"
   >
     <slot />
   </ScrollableArea>

@@ -23,6 +23,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   const audioInputEnabled = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
   let audioInputStartGeneration = 0
   let audioInputStart: ReturnType<typeof startAudioInputStream> | undefined
+  let stopPendingAudioInput = false
 
   function syncSelectedAudioInputFromRuntime() {
     if (selectedAudioInputPersist.value !== selectedAudioInputNonPersist.value)
@@ -65,8 +66,14 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   }
 
   async function startStreamForGeneration(generation: number) {
+    stopPendingAudioInput = false
     syncSelectedAudioInputToRuntime()
     await getOrStartAudioInputStream()
+
+    if (stopPendingAudioInput) {
+      stopAudioInputStream()
+      return
+    }
 
     if (generation === audioInputStartGeneration)
       syncSelectedAudioInputFromRuntime()
@@ -78,6 +85,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
 
   function stopStream() {
     invalidateAudioInputStarts()
+    stopPendingAudioInput = true
     stopAudioInputStream()
   }
 
@@ -124,7 +132,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     if (hasSelectedInput)
       syncSelectedAudioInputToRuntime()
 
-    if (audioInputEnabled.value && hasSelectedInput) {
+    if (audioInputEnabled.value) {
       const generation = createAudioInputStartGeneration()
       startStreamForGeneration(generation).catch((error) => {
         handleStartStreamError(generation, error, 'Unable to initialize audio input stream:')

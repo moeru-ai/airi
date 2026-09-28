@@ -5,6 +5,9 @@ import type { LlmTracingDeps, V1RouteDeps } from './types'
 
 import { authGuard } from '../../../middlewares/auth'
 import { configGuard } from '../../../middlewares/config-guard'
+import { rateLimiter } from '../../../middlewares/rate-limit'
+import { generationOperation, generationProtocols } from '../../../schemas/generation-protocol'
+import { createBadRequestError } from '../../../utils/error'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
@@ -12,8 +15,9 @@ import {
   resolveChatAnalyticsSurface,
 } from './analytics'
 import { createV1Gateway } from './gateway'
-import { chatCompletionsRateLimit } from './middlewares'
 import { chatCompletions } from './operations/chat-completions'
+import { responsesCreate } from './operations/responses'
+import { parseResponsesRequest } from './operations/responses/request'
 import { createSpeechCatalogOperation } from './operations/speech-catalog'
 import { speechGeneration } from './operations/speech-generation'
 import { defaultLlmTracing } from './types'
@@ -27,6 +31,7 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
   const gateway = createV1Gateway(deps)
     .useHono('*', '*', authGuard)
     .useHono('openai', '/chat/*', configGuard(deps.configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet'))
+    .useHono('openai', '/responses', configGuard(deps.configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet'))
     .useHono('audio', '/speech', configGuard(deps.configKV, ['FLUX_PER_1K_CHARS_TTS'], 'TTS service is not available yet'))
 
   // OpenAI-compatible surface (mounted at /api/v1/openai). Only routes that
@@ -35,11 +40,39 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
   // real OpenAI route and the streaming TTS protocol has nothing to do with
   // OpenAI — keeping them here mislabelled the surface, so audio now mounts
   // at /api/v1/audio (see `audioRoutes` below).
-  const openai = gateway.route('openai')
-    .use('chat.completions', chatCompletionsRateLimit({ metrics: deps.rateLimitMetrics }))
+
+  // Authentication runs before this shared HTTP limiter, so both generation
+  // protocols use one user bucket before either route parses its request body.
+  const generationLimit = rateLimiter({ max: 60, windowSec: 60, metrics: deps.rateLimitMetrics, routeLabel: 'openai.completions' })
+  const openai = gateway
+    .useHono('openai', '/chat/*', generationLimit)
+    .useHono('openai', '/responses', generationLimit)
+    .route('openai')
   const openaiRoutes = openai
-    .post('/chat/completions', openai.handler(
-      'chat.completions',
+    .post(generationProtocols.responses.createPath, openai.handler(
+      generationOperation('responses'),
+      async (c) => {
+        let body: unknown
+        try {
+          body = await c.req.json()
+        }
+        catch {
+          throw createBadRequestError('Invalid Responses JSON body', 'INVALID_RESPONSES_REQUEST')
+        }
+        const request = parseResponsesRequest(body)
+        return {
+          userId: c.get('user')!.id,
+          ...request,
+          sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
+          roundId: c.req.header(AIRI_CHAT_ROUND_ID_HEADER),
+          appSurface: resolveChatAnalyticsSurface(c.req.header(AIRI_CHAT_APP_SURFACE_HEADER)),
+          abortSignal: c.req.raw.signal,
+        }
+      },
+      responsesCreate(deps),
+    ))
+    .post(generationProtocols['chat-completions'].createPath, openai.handler(
+      generationOperation('chat-completions'),
       async (c) => {
         const user = c.get('user')!
         const body = await c.req.json() as Record<string, unknown>

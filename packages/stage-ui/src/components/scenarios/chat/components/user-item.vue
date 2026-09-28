@@ -4,6 +4,7 @@ import type { ChatHistoryReplyPayload } from '../reply'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ChatReplyQuote from './reply-quote.vue'
 
@@ -18,10 +19,13 @@ const props = withDefaults(defineProps<{
   canReply?: boolean
   scrollContainer?: HTMLElement | null
   variant?: 'desktop' | 'mobile'
+  /** How the bubble paints its background; see `ChatHistory`'s `surface`. */
+  surface?: 'translucent' | 'opaque'
 }>(), {
   canReply: false,
   scrollContainer: null,
   variant: 'desktop',
+  surface: 'translucent',
 })
 
 const emit = defineEmits<{
@@ -30,32 +34,41 @@ const emit = defineEmits<{
   (e: 'reply'): void
 }>()
 
+const { t } = useI18n()
 const content = computed(() => {
   const raw = props.message.content
   if (typeof raw === 'string')
     return raw
 
   if (Array.isArray(raw)) {
-    const textPart = raw.find(part => 'type' in part && part.type === 'text') as { text?: string } | undefined
-    if (textPart?.text)
-      return textPart.text
-
-    return raw.map(entry => JSON.stringify(entry)).join('\n')
+    return raw.filter(part => part.type === 'text').map(part => part.text).join('\n')
   }
 
   return ''
 })
+
+const emptyImages: readonly string[] = Object.freeze([])
+const images = computed(() => typeof props.message.content === 'string'
+  ? emptyImages
+  : props.message.content.filter(part => part.type === 'image_url').map(part => part.image_url.url))
 
 const containerClasses = computed(() => [
   'flex',
   props.variant === 'mobile' ? 'ml-0 flex-row' : 'ml-12 flex-row-reverse',
 ])
 
-const boxClasses = computed(() => [
-  props.variant === 'mobile'
-    ? ['px-2 py-1.5 text-sm', 'bg-neutral-100/60 backdrop-blur-xl dark:bg-neutral-800/60']
-    : ['px-3 pt-3 pb-2', 'bg-neutral-100/80 dark:bg-neutral-800/80'],
-])
+const boxClasses = computed(() => {
+  const spacing = props.variant === 'mobile' ? 'px-2 py-1.5 text-sm' : 'px-3 pt-3 pb-2'
+  if (props.surface === 'opaque')
+    return [spacing, 'bg-neutral-100 shadow-md dark:bg-neutral-800']
+
+  return [
+    spacing,
+    props.variant === 'mobile'
+      ? 'bg-neutral-100/60 backdrop-blur-xl dark:bg-neutral-800/60'
+      : 'bg-neutral-100/80 dark:bg-neutral-800/80',
+  ]
+})
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
 </script>
 
@@ -85,6 +98,9 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           <ChatReplyQuote v-if="replyTarget" :target="replyTarget" />
           <div>
             <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ label }}</span>
+          </div>
+          <div v-if="images.length" :class="['flex flex-wrap gap-2 py-2']">
+            <img v-for="(image, index) in images" :key="index" :src="image" :alt="t('stage.chat.images.description')" :class="['max-h-64 max-w-full rounded-xl object-contain']">
           </div>
           <MarkdownRenderer
             :content="content as string"

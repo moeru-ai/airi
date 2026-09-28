@@ -19,6 +19,7 @@ const visionProcessingStore = useVisionProcessingStore()
 const { configuredProviders } = storeToRefs(providerStore)
 const { moduleVisionProvidersMetadata } = storeToRefs(providersStore)
 const {
+  useForChat,
   activeProvider,
   activeModel,
   customModelName,
@@ -93,6 +94,12 @@ function formatRelativeTime(timestamp: number | null) {
 
 <template>
   <div :class="['flex', 'flex-col', 'gap-6']">
+    <FieldCheckbox
+      v-model="useForChat"
+      :label="t('stage.chat.images.use-vision')"
+      :description="t('stage.chat.images.use-vision-description')"
+    />
+
     <div :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>

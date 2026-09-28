@@ -15,6 +15,8 @@ export interface VisionInferenceInput {
   imageDataUrl: string
   workloadId: VisionWorkloadId
   promptOverride?: string
+  /** Cancels this read when its owning chat turn ends. */
+  abortSignal?: AbortSignal
 }
 
 // TODO: this should be configurable
@@ -75,7 +77,7 @@ export function useVisionInference() {
 
     try {
       await llmStore.stream(activeModel.value, visionProvider, context, {
-        abortSignal: abortController.signal,
+        abortSignal: input.abortSignal ? AbortSignal.any([input.abortSignal, abortController.signal]) : abortController.signal,
         onStreamEvent: (event) => {
           if (event.type === 'text-delta') {
             buffer += event.text

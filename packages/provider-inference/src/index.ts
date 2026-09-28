@@ -17,6 +17,7 @@ export function listProviders() {
 }
 
 export { portableProviderDefinitions }
+export * from './generation'
 export { createWebSpeechAPIProvider, streamWebSpeechAPITranscription } from './providers/local/browser-web-speech-api'
 export * from './providers/registry'
 export * from './types'

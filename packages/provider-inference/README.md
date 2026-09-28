@@ -38,6 +38,9 @@ OpenAI and OpenAI Compatible configurations accept `api: 'chat-completions' | 'r
 `GenerationProvider.generation(model, options)` selects a protocol and returns its request configuration.
 Core-agent receives this single interface and projects context directly into the selected protocol.
 Protocol defaults and native tools remain provider-owned policy. The validation probe uses the selected protocol.
+`generationProtocolDefinitions` owns the display metadata for every protocol.
+Provider schemas use `generationProtocolOptions` to keep selector labels consistent.
+Adding a protocol requires a request type and a matching metadata entry. TypeScript reports an incomplete registry or provider request switch.
 
 ```ts
 const definition = getDefinedProvider('openai')
@@ -47,7 +50,8 @@ const provider = await definition.createProvider({
 })
 ```
 
-User-configured providers send Responses requests directly to their configured endpoint with their own API key. They do not require AIRI backend changes or Flux billing. The official provider continues to use Chat Completions; its Responses support is a separate gateway change.
+User-configured providers send Responses requests directly to their configured endpoint with their own API key. They do not require AIRI backend changes or Flux billing.
+The official provider defaults to Responses and lets the user select Chat Completions.
 
 OpenAI has a `webSearch` switch, disabled by default. The selected protocol must be Responses.
 Explicitly enabling search sends the hosted tool on the official OpenAI endpoint. The provider validates model support.

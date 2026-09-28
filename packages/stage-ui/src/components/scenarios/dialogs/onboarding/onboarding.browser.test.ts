@@ -15,6 +15,7 @@ import { createI18n } from 'vue-i18n'
 import OnboardingDialog from './onboarding.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
 
+import { useAuthStore } from '../../../../stores/auth'
 import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
 
@@ -87,7 +88,25 @@ afterEach(() => {
   }
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   localStorage.clear()
+})
+
+it('publishes the onboarding login click on the leader', async () => {
+  vi.stubEnv('RUNTIME_ENVIRONMENT', 'electron')
+  const namespace = `onboarding-login:${crypto.randomUUID()}`
+  const leader = createSyncedContext(namespace, 'leader-only')
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+  const follower = createSyncedContext(namespace, 'follower-only')
+  await expect.poll(() => follower.runtime.getLeaderId()).toBe(leader.runtime.participantId)
+  const screen = await render(OnboardingDialog, {
+    global: { plugins: [follower.pinia, PiniaColada, createTestI18n()] },
+  })
+
+  await screen.getByRole('button', { name: 'Sign in' }).click()
+
+  await expect.poll(() => useAuthStore(leader.pinia).needsLogin).toBe(true)
+  await expect.poll(() => useAuthStore(follower.pinia).needsLogin).toBe(true)
 })
 
 // ROOT CAUSE:
@@ -132,7 +151,9 @@ it('persists configured credentials through the leader and loads the model list'
 
   // The leader owns persistence and must hold the saved credentials.
   await expect.poll(() => leader.providerConfigStore.getProviderConfig(providerId)).toMatchObject(expectedConfig)
-  expect(leader.providerConfigStore.providers[providerId]?.status).toBe('configured')
+  // The dialog saves the config and then the status, each through its own
+  // leader call, so the status can reach the leader after the config.
+  await expect.poll(() => leader.providerConfigStore.providers[providerId]?.status).toBe('configured')
   expect(leader.providerConfigStore.addedProviders[providerId]).toBe(true)
 
   await expect.poll(() => JSON.parse(localStorage.getItem('settings/providers/configured') ?? '{}')).toMatchObject({

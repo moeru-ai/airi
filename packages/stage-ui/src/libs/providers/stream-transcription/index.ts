@@ -139,16 +139,24 @@ export function streamTranscription(options: StreamTranscriptionOptions): AIRISt
       const requestTarget = options.baseURL instanceof URL
         ? options.baseURL
         : new URL(typeof options.baseURL === 'string' ? options.baseURL : 'http://localhost')
-      const response = await fetcher(requestTarget, {
-        body: audioStream,
-        // Browser fetch requires half-duplex mode for a ReadableStream body.
-        // Keep this at the transport boundary so every SSE transcription
-        // provider receives the required request option.
-        duplex: 'half',
+      // NOTICE:
+      // Safari 27 fetch throws NotSupportedError when the request body is a ReadableStream.
+      // Chromium needs duplex half for a stream body. Firefox and Safari do not expose duplex.
+      // Source: https://developer.mozilla.org/en-US/docs/Web/API/Request/duplex
+      // Removal condition: `'duplex' in Request.prototype` is true in the Safari and Firefox versions we support.
+      const canStreamUpload = 'duplex' in Request.prototype
+      const requestInit: RequestInit & { duplex?: 'half' } = {
+        body: canStreamUpload
+          ? audioStream
+          : await new Response(audioStream).arrayBuffer(),
         headers: options.headers,
         method: 'POST',
         signal: options.abortSignal,
-      } as RequestInit & { duplex: 'half' })
+      }
+      if (canStreamUpload)
+        requestInit.duplex = 'half'
+
+      const response = await fetcher(requestTarget, requestInit)
 
       if (!response.ok)
         throw new Error(`Streaming transcription request failed with status ${response.status}`)
