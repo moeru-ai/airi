@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
+import { storage } from '../../database/storage'
 import { useChatSessionStore } from '../chat/session-store'
 import { useProviderConfigStore } from '../providers/config'
 import { useSettingsStageModel } from '../settings/stage-model'
@@ -303,11 +304,12 @@ describe('persisted and replicated card defaults', () => {
     await follower.cards.removeCard(cardId)
     await expect.poll(() => follower.cards.activeCardId).toBe('default')
     await expect.poll(() => followerChats.sessionMetas[followerChats.activeSessionId]?.characterId).toBe('default')
-    expect(followerChats.sessionMetas[retainedSessionId].characterId).toBe(cardId)
+    await expect.poll(() => followerChats.sessionMetas[retainedSessionId]).toBeUndefined()
   })
 
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear()
+    await storage.clear('local')
     const fetchAsset = globalThis.fetch.bind(globalThis)
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(input instanceof Request ? input.url : String(input), location.href)
@@ -341,8 +343,8 @@ describe('persisted and replicated card defaults', () => {
       displayModelId: 'preset-live2d-1',
     }))
     const { cards, consciousness } = createContext()
-    expect(cards.moduleDefaults?.consciousness.provider).toBe('ollama')
     await cards.initialize()
+    expect(cards.moduleDefaults?.consciousness.provider).toBe('ollama')
     expect(consciousness.activeModel).toBe('global-model')
   })
 

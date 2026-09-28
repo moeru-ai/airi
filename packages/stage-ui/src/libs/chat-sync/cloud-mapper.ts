@@ -9,6 +9,9 @@ const REMOTE_CHAT_TYPES = ['private', 'bot', 'group', 'channel'] as const
 const RemoteChatSchema = v.object({
   id: v.pipe(v.string(), v.minLength(1)),
   type: v.picklist(REMOTE_CHAT_TYPES),
+  contactId: v.nullable(v.string()),
+  contactOwnerId: v.nullable(v.string()),
+  legacyCharacterId: v.optional(v.nullable(v.string())),
   title: v.nullable(v.string()),
   createdAt: v.string(),
   updatedAt: v.string(),
@@ -25,6 +28,7 @@ export interface CreateRemoteChatInput {
   id?: string
   type?: 'private' | 'bot' | 'group' | 'channel'
   title?: string
+  contactId?: string
   members?: Array<{
     type: 'user' | 'character' | 'bot'
     userId?: string
@@ -56,6 +60,8 @@ export interface CreateCloudChatMapperOptions {
 }
 
 export interface CloudChatMapper {
+  /** Explicitly assigns an owned, unbound direct history. The server rejects groups and other owners. */
+  bindContact: (chatId: string, contactId: string) => Promise<RemoteChat>
   /** GET /api/v1/chats — returns the full list for the current user. */
   listChats: () => Promise<RemoteChat[]>
   /**
@@ -145,6 +151,18 @@ export function createCloudChatMapper(options: CreateCloudChatMapperOptions): Cl
   }
 
   return {
+    async bindContact(chatId, contactId) {
+      const response = await fetchImpl(endpoint(`/api/v1/chats/${encodeURIComponent(chatId)}/contact`), {
+        method: 'POST',
+        headers: jsonHeaders(),
+        body: JSON.stringify({ contactId }),
+        signal: timeoutSignal(),
+      })
+      const bound = await readJsonOrThrow(response, RemoteChatSchema)
+      if (bound.id !== chatId || bound.type !== 'bot' || bound.contactId !== contactId)
+        throw new Error('Conversation assignment does not match its requested contact')
+      return bound
+    },
     async listChats() {
       const res = await fetchImpl(endpoint('/api/v1/chats'), {
         method: 'GET',
@@ -171,12 +189,15 @@ export function createCloudChatMapper(options: CreateCloudChatMapperOptions): Cl
         })
         const all = await readJsonOrThrow(allRes, ListChatsResponseSchema)
         const found = all.chats.find(chat => chat.id === input.id)
-        if (found)
+        if (found && found.type === (input.type ?? 'group') && found.contactId === (input.contactId ?? null))
           return found
         // 409 with no matching record → server inconsistency; surface the
         // original error rather than pretending it succeeded.
       }
-      return await readJsonOrThrow(res, RemoteChatSchema)
+      const created = await readJsonOrThrow(res, RemoteChatSchema)
+      if ((input.id && created.id !== input.id) || created.type !== (input.type ?? 'group') || created.contactId !== (input.contactId ?? null))
+        throw new Error('Created conversation does not match its requested contact or identity')
+      return created
     },
     async deleteChat(chatId) {
       const res = await fetchImpl(endpoint(`/api/v1/chats/${encodeURIComponent(chatId)}`), {
@@ -202,7 +223,7 @@ export function createCloudChatMapper(options: CreateCloudChatMapperOptions): Cl
  */
 export interface ReconcilePlan {
   claim: Array<{ sessionId: string, cloudChatId: string }>
-  create: Array<{ sessionId: string, characterId: string }>
+  create: Array<{ sessionId: string, contactId: string }>
   adopt: RemoteChat[]
 }
 
@@ -258,7 +279,8 @@ export function reconcileLocalAndRemote(
       continue
     }
 
-    create.push({ sessionId: meta.sessionId, characterId: meta.characterId })
+    if (meta.contactId)
+      create.push({ sessionId: meta.sessionId, contactId: meta.contactId })
   }
 
   const adopt: RemoteChat[] = []
@@ -303,7 +325,7 @@ export async function applyCreateActions(
         // us to the punch.
         id: action.sessionId,
         type: 'bot',
-        members: [{ type: 'character', characterId: action.characterId }],
+        contactId: action.contactId,
       })
       return { sessionId: action.sessionId, cloudChatId: remote.id }
     }

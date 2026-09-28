@@ -68,6 +68,11 @@ chat:
     empty: 暂无对话
     cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
+    character: 角色
+    unbound: '未绑定历史（{count}）'
+    unbound-description: 这些历史记录尚未确认角色归属，可以直接查看。请选择一条私聊并绑定角色后再发送新消息。
+    assign: '将选中的对话绑定到 {name}'
+    assignment-failed: 无法绑定此对话，请重试。
     delete: 删除对话
 render-error:
   title: '{renderer} 无法渲染这个模型'

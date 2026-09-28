@@ -7,6 +7,7 @@ import { nextTick, ref } from 'vue'
 // Refs the store reads through the mocked `useAuthStore` / `useAiriCardStore`.
 // Tests mutate these to simulate auth and card swaps.
 const userIdRef = ref<string>('local')
+const authTokenRef = ref<string | null>(null)
 const activeCardIdRef = ref<string>('default')
 const systemPromptRef = ref<string>('')
 
@@ -26,7 +27,6 @@ const pullMessagesMock = vi.fn()
 const reconcileLocalAndRemoteMock = vi.fn()
 const connectCloudWsMock = vi.fn()
 let cloudWsStatus: 'idle' | 'open' = 'idle'
-let cloudStatusListener: ((status: 'idle' | 'open') => void) | undefined
 
 vi.mock('pinia', async () => {
   const actual = await vi.importActual<typeof import('pinia')>('pinia')
@@ -37,7 +37,7 @@ vi.mock('pinia', async () => {
 })
 
 vi.mock('../auth', () => ({
-  useAuthStore: () => ({ userId: userIdRef }),
+  useAuthStore: () => ({ userId: userIdRef, token: authTokenRef }),
 }))
 
 vi.mock('../modules/airi-card', () => ({
@@ -102,10 +102,7 @@ vi.mock('../../libs/chat-sync', () => ({
     sendMessages: vi.fn().mockResolvedValue({ ok: true }),
     pullMessages: (...args: unknown[]) => pullMessagesMock(...args),
     onNewMessages: () => () => {},
-    onStatusChange: (listener: (status: 'idle' | 'open') => void) => {
-      cloudStatusListener = listener
-      return () => {}
-    },
+    onStatusChange: () => () => {},
   }),
   extractMessageText: (m: any) => (typeof m?.content === 'string' ? m.content : ''),
   isCloudSyncableMessage: () => false,
@@ -138,7 +135,6 @@ beforeEach(() => {
   reconcileLocalAndRemoteMock.mockReset().mockReturnValue({ adopt: [], claim: [], create: [] })
   connectCloudWsMock.mockReset()
   cloudWsStatus = 'idle'
-  cloudStatusListener = undefined
 })
 
 afterEach(() => {
@@ -489,7 +485,7 @@ describe('chat-session-store · deletion and hydration failures', () => {
 
 describe('chat-session-store · cloud placeholder hydration', () => {
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743502032
-  it('retries cloud hydration when the reconcile pull for an adopted placeholder fails for Issue #2085', async () => {
+  it('retries cloud hydration after an adopted placeholder pull fails for Issue #2085', async () => {
     // ROOT CAUSE:
     //
     // Reconcile creates a system-only placeholder before its first cloud pull.
@@ -535,8 +531,6 @@ describe('chat-session-store · cloud placeholder hydration', () => {
       }
       return Promise.resolve({ meta: localMeta, messages: [] })
     })
-    listChatsMock.mockResolvedValue([remoteChat])
-    reconcileLocalAndRemoteMock.mockReturnValue({ adopt: [remoteChat], claim: [], create: [] })
     pullMessagesMock
       .mockRejectedValueOnce(new Error('temporary cloud failure'))
       .mockResolvedValueOnce({ messages: [], seq: 0 })
@@ -544,13 +538,13 @@ describe('chat-session-store · cloud placeholder hydration', () => {
 
     const store = useChatSessionStore()
     await store.initialize()
-    expect(cloudStatusListener).toBeDefined()
-
     cloudWsStatus = 'open'
-    cloudStatusListener?.('open')
-    await vi.waitFor(() => {
-      expect(store.cloudSyncReady).toBe(true)
-    })
+    const restored = await getSessionMock(remoteChat.id)
+    if (!restored)
+      throw new Error('Missing restored history fixture')
+    store.sessionMetas[remoteChat.id] = restored.meta
+    store.sessionMessages[remoteChat.id] = restored.messages
+    await store.loadSession(remoteChat.id)
     expect(pullMessagesMock).toHaveBeenCalledTimes(1)
 
     await store.setActiveSession(remoteChat.id)

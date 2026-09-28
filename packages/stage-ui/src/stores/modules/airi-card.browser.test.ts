@@ -3,29 +3,16 @@ import type { AiriCard } from './airi-card'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { storage } from '../../database/storage'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
+import { useAiriCardCatalog } from './airi-card-catalog'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 import { useVisionStore } from './vision'
 
 const { resetArtistryToGlobal } = vi.hoisted(() => ({
   resetArtistryToGlobal: vi.fn(),
-}))
-
-// NOTICE:
-// Vitest runs these store tests in Node, where localforage cannot select a
-// browser storage driver. The stage-model watcher legitimately asks the
-// display-model store to resolve IDs, so provide the storage boundary with a
-// deterministic no-op instead of allowing rejected driver initialization to
-// escape as an unrelated test error.
-vi.mock('localforage', () => ({
-  default: {
-    getItem: vi.fn(async () => undefined),
-    iterate: vi.fn(async () => undefined),
-    removeItem: vi.fn(async () => undefined),
-    setItem: vi.fn(async <T>(_: string, value: T) => value),
-  },
 }))
 
 vi.mock('./artistry', async () => {
@@ -87,7 +74,9 @@ vi.mock('vue-i18n', () => ({
  * describe('airi-card store', () => {})
  */
 describe('airi-card store', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    localStorage.clear()
+    await storage.clear('local')
     setActivePinia(createPinia())
     resetArtistryToGlobal.mockClear()
     useSpeechStore().$patch({
@@ -177,7 +166,7 @@ describe('airi-card store', () => {
 
   it('preserves ambiguous old default speech settings', async () => {
     const cardStore = useAiriCardStore()
-    cardStore.cards.set('default', {
+    const legacyCard: AiriCard = {
       name: 'ReLU',
       version: '1.0.0',
       description: 'Built-in card from before provider defaults loaded.',
@@ -191,7 +180,8 @@ describe('airi-card store', () => {
           agents: {},
         },
       },
-    })
+    }
+    localStorage.setItem('airi-cards', JSON.stringify([['default', legacyCard]]))
 
     await cardStore.initialize()
 
@@ -444,9 +434,8 @@ describe('airi-card store', () => {
     await cardStore.activateCard(cardId)
 
     const applicationsBeforeSnapshot = resetArtistryToGlobal.mock.calls.length
-    const synchronizedCards = new Map<string, AiriCard>(JSON.parse(JSON.stringify([...cardStore.cards])))
-
-    cardStore.$patch({ cards: synchronizedCards })
+    const catalog = useAiriCardCatalog()
+    catalog.$patch({ record: JSON.parse(JSON.stringify(catalog.record)) })
 
     expect(resetArtistryToGlobal).toHaveBeenCalledTimes(applicationsBeforeSnapshot)
   })
@@ -560,17 +549,20 @@ describe('airi-card store', () => {
 
   it('preserves a valid persisted active card during initialization', async () => {
     const cardStore = useAiriCardStore()
+    await cardStore.initialize()
     const cardId = await cardStore.addCard({
       name: 'Persisted active card',
       version: '1.0.0',
       description: 'Keep this selection.',
     }, 'scratch')
-    cardStore.activeCardId = cardId
+    await cardStore.activateCard(cardId)
 
-    await cardStore.initialize()
+    setActivePinia(createPinia())
+    const reloaded = useAiriCardStore()
+    await reloaded.initialize()
 
-    expect(cardStore.activeCardId).toBe(cardId)
-    expect(cardStore.activeCard?.name).toBe('Persisted active card')
+    expect(reloaded.activeCardId).toBe(cardId)
+    expect(reloaded.activeCard?.name).toBe('Persisted active card')
   })
 
   it('repairs a dangling persisted active card during initialization', async () => {

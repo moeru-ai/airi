@@ -32,6 +32,23 @@ Use this flow for chat attachments, not periodic screen capture.
 
 ## Character-card module settings
 
+### Account catalogs and pending sync
+
+`airi-card-catalog` owns an account-scoped IndexedDB record. Its leader actions
+persist edits before publishing snapshots. Card projections are read-only.
+The first signed-in account claims anonymous characters. Later accounts use
+separate catalogs. Switching accounts hides the previous catalog immediately.
+
+`contact-replica` stores pending mutations, deletion identities, and revision
+conflicts. Network failures retain the original mutation ids for retry.
+Deletion markers take precedence over pending edits. A missing list entry does
+not prove deletion. `character-document` exports only portable persona fields
+and module selections. Local assets and provider options stay on the device.
+
+Conversation reconciliation synchronizes contacts before listing cloud chats.
+New direct chats send the contact identity, not caller-supplied members.
+The deletion dialog warns that bound direct histories and cloud copies are deleted.
+
 `components/characters/character-card.vue` owns the portrait, avatar, title, description, and blurred-cover layout shared by the local card library and v2 directory. Its default layout is `portrait`; use `layout="horizontal"` for model summaries in character profiles and the editor. Pass display data through props and page-owned controls through the `cover-actions`, `meta`, and `footer` slots. Do not put stores, navigation, model binding, or remote mutations in this component. The separate menu card remains a different presentation.
 
 The card store owns three distinct states:
@@ -52,7 +69,9 @@ character's settings without changing that window's selection.
 
 The card id is the character identity. Do not use its editable name as a key.
 A character binds its card settings, display model, and multiple conversations.
-Conversation metadata stores the owning `characterId`.
+Conversation metadata stores the owning `characterId` and cloud `contactId`.
+An unverified binding has `characterId: null`. The `@unbound` index bucket is
+not a character identity. Unbound histories cannot send new model requests.
 
 - Use `useAiriCardStore().activateCard(id)` to select a character.
 - Use `useChatSessionStore().createSession(characterId)` to start a conversation.
@@ -69,14 +88,21 @@ The persisted index supplies the initial conversation for a new window.
 Global vision request policies remain shared in `useVisionSettingsStore`.
 Use its explicit actions to change these policies without changing local models.
 
-Deleting a card does not delete its conversation history. Windows showing the
-deleted card select the built-in character. Starting a new turn still requires
-an existing owning card. Cloud-only conversations keep the existing default-card
-association; this change does not add cloud character synchronization.
+Deleting a character deletes its bound direct histories and pending message sends.
+Deletion advances the session generation to invalidate late responses. Groups remain.
+Old cloud records with unknown type wait for verified ownership before local deletion.
+Cloud-only conversations use their contact binding. Unknown bindings remain unbound.
 
 The conversation list is filtered by the current account and selected character.
-Changing the character updates that list. Deleted-character conversations remain
-stored but are not shown under another character.
+Changing the character updates that list. The separate **Unassigned** view opens
+unbound histories without changing the selected character. Select an unbound
+direct conversation, then reopen the selector to assign it to the current character.
+Group histories stay read-only and cannot be assigned through this control.
+Assignment preserves messages and requires a confirmed cloud contact binding.
+
+The character library and profile show pending synchronization and revision conflicts.
+Users can keep the device version or the cloud version, then retry synchronization.
+The deletion dialog stays open while persistence runs and shows errors for retry.
 The card library opens read-only character profiles. Model bindings are edited
 in the card editor's Model section, without selecting the card.
 An empty binding inherits the global default rather than copying its value.

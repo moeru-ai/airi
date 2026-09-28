@@ -25,8 +25,10 @@ import {
 } from '../../libs/chat-sync'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
+import { UNBOUND_SESSION_GROUP } from '../../types/chat-session'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
+import { useAiriCardCatalog } from '../modules/airi-card-catalog'
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
 /**
@@ -66,6 +68,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
   const pinia = getActivePinia()
   const cardStore = useAiriCardStore()
+  const catalog = useAiriCardCatalog()
   const { activeCardId, systemPrompt } = storeToRefs(cardStore)
   let selectionGeneration = 0
   let selectingCharacterId: string | undefined
@@ -222,7 +225,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // necessarily finished loading. Never rewrite the previous character's
     // session or persist an empty in-memory placeholder over an IDB history
     // that is still being hydrated.
-    if (!sessionId || !loadedSessions.has(sessionId) || !meta || !cardStore.getCard(meta.characterId))
+    if (!sessionId || !loadedSessions.has(sessionId) || !meta?.characterId || !cardStore.getCard(meta.characterId))
       return
 
     const currentMessages = sessionMessages.value[sessionId] ?? []
@@ -317,7 +320,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       }
 
       sessionMetas.value[sessionId] = updatedMeta
-      const characterIndex = index.value?.characters[meta.characterId]
+      const characterIndex = index.value?.characters[meta.characterId ?? UNBOUND_SESSION_GROUP]
       if (characterIndex)
         characterIndex.sessions[sessionId] = updatedMeta
 
@@ -497,12 +500,18 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    */
   async function createCharacterSession(characterId: string, options?: { setActive?: boolean, messages?: ChatHistoryItem[], title?: string }) {
     const currentUserId = getCurrentUserId()
+    await catalog.activateAccount()
+    if (currentUserId !== getCurrentUserId())
+      throw new Error('Conversation creation account changed')
+    if (!cardStore.getCard(characterId))
+      throw new Error('Cannot create a conversation for a missing character')
     const sessionId = nanoid()
     const now = Date.now()
     const meta: ChatSessionMeta = {
       sessionId,
       userId: currentUserId,
       characterId,
+      conversationType: 'bot',
       title: options?.title,
       createdAt: now,
       updatedAt: now,
@@ -611,7 +620,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     loadingSessions.delete(sessionId)
 
     if (index.value) {
-      const characterIndex = index.value.characters[characterId]
+      const characterIndex = index.value.characters[characterId ?? UNBOUND_SESSION_GROUP]
       if (characterIndex) {
         delete characterIndex.sessions[sessionId]
         if (characterIndex.activeSessionId === sessionId)
@@ -650,7 +659,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       }
     }
 
-    const characterIndex = index.value?.characters[characterId]
+    const characterIndex = index.value?.characters[characterId ?? UNBOUND_SESSION_GROUP]
     const fallbackId = characterIndex
       ? Object.keys(characterIndex.sessions).find(id => sessionMetas.value[id])
       : undefined
@@ -667,7 +676,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
     }
 
-    if (!cardStore.getCard(characterId)) {
+    if (!characterId || !cardStore.getCard(characterId)) {
       if (wasActive)
         activeSessionId.value = ''
       return
@@ -785,22 +794,79 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
   }
 
-  /**
-   * Reconcile local sessions against the server `chats` table. Called after
-   * the local index loads and after every successful (re)connect.
-   *
-   * - Local sessions without a `cloudChatId` either claim a remote chat with
-   *   the same id or trigger `POST /api/v1/chats` to mint one.
-   * - Remote chats that have no local mapping are adopted as empty-shell
-   *   sessions; their messages are pulled lazily on first `loadSession`.
-   * - Remote chats whose id is in the user's tombstone set are skipped — the
-   *   user already deleted them locally and the server-side soft-delete may
-   *   not have committed yet.
-   *
-   * Reentrant: a single in-flight task is shared across concurrent callers.
-   * If a new "open" event fires while a reconcile is running, a follow-up
-   * pass is scheduled in `finally` so catch-up pulls do not get lost.
-   */
+  /** Deletes only confirmed direct histories. Older cloud records wait for verified type or contact ownership. */
+  async function purgeDeletedContacts() {
+    const ownerId = getCurrentUserId()
+    const epoch = ensureActiveEpoch
+    if (!index.value || index.value.userId !== ownerId)
+      await loadIndexForUser(ownerId)
+    if (epoch !== ensureActiveEpoch || ownerId !== getCurrentUserId())
+      return
+    const record = catalog.currentRecord
+    if (!record || record.ownerId !== ownerId)
+      return
+    for (const meta of Object.values(sessionMetas.value)) {
+      if (epoch !== ensureActiveEpoch || ownerId !== getCurrentUserId())
+        return
+      if (meta.userId !== ownerId)
+        continue
+      const deletedContact = meta.contactId && record.deletedContactIds.includes(meta.contactId)
+      const deletedRemote = meta.cloudChatId && record.deletedChatIds.includes(meta.cloudChatId)
+      const deletedLocal = meta.characterId && record.deletedCharacterIds.includes(meta.characterId)
+        && (!meta.cloudChatId || meta.conversationType === 'bot')
+      if (deletedContact || deletedRemote || deletedLocal)
+        await deleteSession(meta.sessionId)
+    }
+  }
+
+  /** The leader removes local tombstoned histories before attempting network reconciliation. */
+  async function synchronizeContacts() {
+    await purgeDeletedContacts()
+    if (getCurrentUserId() !== 'local' && authToken.value)
+      await reconcileCloudSessions()
+  }
+
+  /** Assigns an existing owned direct history without changing its messages or selecting another window. */
+  async function assignConversation(sessionId: string, characterId: string) {
+    const ownerId = getCurrentUserId()
+    const epoch = reconcileEpoch
+    const original = sessionMetas.value[sessionId]
+    if (!original || original.userId !== ownerId || original.characterId !== null || original.conversationType !== 'bot')
+      throw new Error('Only unbound direct conversations can be assigned')
+    if (ownerId === 'local' || !original.cloudChatId)
+      throw new Error('Sign in to assign this cloud conversation')
+    await catalog.syncContacts()
+    if (ownerId !== getCurrentUserId() || epoch !== reconcileEpoch)
+      throw new Error('Conversation assignment account changed')
+    const contact = catalog.currentRecord?.contacts[characterId]
+    if (!contact || contact.deletedAt || !cardStore.getCard(characterId))
+      throw new Error('The target character has not synchronized')
+    const bound = await getCloudMapper().bindContact(original.cloudChatId, contact.id)
+    if (ownerId !== getCurrentUserId() || epoch !== reconcileEpoch || !sessionMetas.value[sessionId])
+      throw new Error('Conversation assignment is no longer current')
+    if (bound.contactOwnerId !== ownerId)
+      throw new Error('Assigned contact belongs to another account')
+    if (!cardStore.getCard(characterId) || catalog.currentRecord?.deletedCharacterIds.includes(characterId))
+      throw new Error('The target character was deleted during assignment')
+    const updated = { ...sessionMetas.value[sessionId], characterId, contactId: contact.id, conversationType: bound.type }
+    sessionMetas.value[sessionId] = updated
+    if (index.value) {
+      const unbound = index.value.characters[UNBOUND_SESSION_GROUP]
+      if (unbound) {
+        delete unbound.sessions[sessionId]
+        if (unbound.activeSessionId === sessionId)
+          unbound.activeSessionId = ''
+      }
+      const group = index.value.characters[characterId] ?? { activeSessionId: '', sessions: {} }
+      group.sessions[sessionId] = updated
+      index.value.characters[characterId] = group
+    }
+    const snapshot = cloneDeep(updated)
+    await enqueuePersist(() => chatSessionsRepo.saveSessionMeta(snapshot))
+    await persistIndex()
+  }
+
+  /** Synchronizes contacts before chats; concurrent triggers share a pass and schedule one follow-up. Account changes invalidate results. */
   async function reconcileCloudSessions(): Promise<void> {
     if (cloudReconcileTask) {
       pendingReconcile = true
@@ -808,7 +874,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     const myEpoch = reconcileEpoch
-    const isStaleEpoch = () => myEpoch !== reconcileEpoch
+    const ownerId = getCurrentUserId()
+    const isStaleEpoch = () => myEpoch !== reconcileEpoch || ownerId !== getCurrentUserId()
 
     const reconcileTask = (async () => {
       const currentUserId = getCurrentUserId()
@@ -822,6 +889,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
       let remoteChats
       try {
+        await catalog.syncContacts()
+        if (isStaleEpoch())
+          return
         remoteChats = await mapper.listChats()
       }
       catch (err) {
@@ -835,6 +905,50 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       // Snapshot local metas owned by this user. Anonymous-era sessions are
       // not promoted to the cloud automatically — the user can re-open them
       // after signing in and the server is unaware of them.
+      const contacts = catalog.currentRecord?.contacts
+      if (!contacts)
+        return
+      const remoteById = new Map(remoteChats.map(chat => [chat.id, chat]))
+      const contactsById = new Map(Object.values(contacts).map(contact => [contact.id, contact]))
+      for (const meta of Object.values(sessionMetas.value)) {
+        if (meta.userId !== currentUserId)
+          continue
+        const remote = remoteById.get(meta.cloudChatId ?? meta.sessionId)
+        if (remote) {
+          if (remote.contactId && remote.contactOwnerId !== currentUserId)
+            throw new Error('Conversation contact belongs to another account')
+          const contact = remote.contactId ? contactsById.get(remote.contactId) : undefined
+          const characterId = contact && !contact.deletedAt ? contact.localCharacterId : null
+          if (meta.characterId !== characterId && index.value) {
+            const previousGroup = index.value.characters[meta.characterId ?? UNBOUND_SESSION_GROUP]
+            if (previousGroup) {
+              delete previousGroup.sessions[meta.sessionId]
+              if (previousGroup.activeSessionId === meta.sessionId)
+                previousGroup.activeSessionId = ''
+            }
+            const groupKey = characterId ?? UNBOUND_SESSION_GROUP
+            const group = index.value.characters[groupKey] ?? { activeSessionId: '', sessions: {} }
+            group.sessions[meta.sessionId] = meta
+            index.value.characters[groupKey] = group
+          }
+          meta.characterId = characterId
+          meta.contactId = remote.contactId ?? undefined
+          meta.conversationType = remote.type
+          const snapshot = cloneDeep(meta)
+          await enqueuePersist(async () => {
+            if (!isStaleEpoch() && sessionMetas.value[snapshot.sessionId])
+              await chatSessionsRepo.saveSessionMeta(snapshot)
+          })
+        }
+        else if (!meta.cloudChatId && meta.characterId) {
+          const contact = contacts[meta.characterId]
+          if (contact && !contact.deletedAt)
+            meta.contactId = contact.id
+        }
+      }
+      await purgeDeletedContacts()
+      if (isStaleEpoch())
+        return
       const localOwnedMetas = Object.values(sessionMetas.value).filter(meta => meta.userId === currentUserId)
       const plan = reconcileLocalAndRemote(localOwnedMetas, remoteChats)
 
@@ -864,7 +978,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         if (!meta)
           continue
         sessionMetas.value[action.sessionId] = { ...meta, cloudChatId: action.cloudChatId }
-        void persistSession(action.sessionId)
+        const snapshot = cloneDeep(sessionMetas.value[action.sessionId])
+        await enqueuePersist(() => chatSessionsRepo.saveSessionMeta(snapshot))
       }
 
       // create: POST /api/v1/chats and bind. Mapper handles 409-as-claim.
@@ -873,6 +988,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         return
       for (const result of createResults) {
         if (!result.cloudChatId)
+          continue
+        if (!await loadSession(result.sessionId) || isStaleEpoch())
           continue
         const meta = sessionMetas.value[result.sessionId]
         if (!meta)
@@ -912,27 +1029,36 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         if (sessionMetas.value[remote.id])
           continue
         const now = Date.now()
+        if (remote.contactId && remote.contactOwnerId !== currentUserId)
+          throw new Error('Conversation contact belongs to another account')
+        const contact = remote.contactId ? contactsById.get(remote.contactId) : undefined
+        if (contact?.deletedAt)
+          continue
+        const characterId = contact?.localCharacterId ?? null
         const adoptedMeta: ChatSessionMeta = {
           sessionId: remote.id,
           userId: currentUserId,
-          characterId: 'default',
+          characterId,
+          contactId: remote.contactId ?? undefined,
+          conversationType: remote.type,
           title: remote.title ?? undefined,
           createdAt: new Date(remote.createdAt).getTime() || now,
           updatedAt: new Date(remote.updatedAt).getTime() || now,
           cloudChatId: remote.id,
         }
         sessionMetas.value[remote.id] = adoptedMeta
-        sessionMessages.value[remote.id] = [generateInitialMessage(adoptedMeta.characterId)]
+        sessionMessages.value[remote.id] = characterId ? [generateInitialMessage(characterId)] : []
         ensureGeneration(remote.id)
 
         if (!index.value)
           index.value = { userId: currentUserId, characters: {} }
-        const characterIndex = index.value.characters[adoptedMeta.characterId] ?? {
+        const groupKey = characterId ?? UNBOUND_SESSION_GROUP
+        const characterIndex = index.value.characters[groupKey] ?? {
           activeSessionId: '',
           sessions: {},
         }
         characterIndex.sessions[remote.id] = adoptedMeta
-        index.value.characters[adoptedMeta.characterId] = characterIndex
+        index.value.characters[groupKey] = characterIndex
 
         // Snapshot the messages array — without a clone the subsequent
         // pullCloudMessages would mutate the same reference the queued
@@ -1175,11 +1301,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const userId = getCurrentUserId()
     if (userId === 'local')
       return
+    const meta = sessionMetas.value[sessionId]
+    if (!meta || meta.userId !== userId || !meta.characterId || !cardStore.getCard(meta.characterId))
+      return
 
     const entry: ChatSendOutboxEntry = {
       messageId: message.id,
       sessionId,
-      cloudChatId: sessionMetas.value[sessionId]?.cloudChatId,
+      cloudChatId: meta.cloudChatId,
       role: message.role,
       content: message.content,
       replyToMessageId: message.replyToMessageId,
@@ -1347,6 +1476,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     initializing.value = true
     initializePromise = (async () => {
       await cardStore.initialize()
+      await useChatSessionStore(pinia).synchronizeContacts()
       const sessionId = await useChatSessionStore(pinia).ensureCurrentSession()
       if (sessionId)
         activeSessionId.value = sessionId
@@ -1368,7 +1498,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function ensureSession(sessionId: string) {
     ensureGeneration(sessionId)
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
-      replaceSessionMessages(sessionId, [generateInitialMessage(sessionMetas.value[sessionId].characterId)], { persist: false })
+      const characterId = sessionMetas.value[sessionId]?.characterId
+      replaceSessionMessages(sessionId, characterId ? [generateInitialMessage(characterId)] : [], { persist: false })
     }
   }
 
@@ -1423,6 +1554,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
     if (meta.userId !== getCurrentUserId())
       throw new Error('Conversation belongs to another account')
+    if (meta.characterId === null) {
+      activeSessionId.value = sessionId
+      return
+    }
     selectingCharacterId = meta.characterId
     try {
       if (meta.characterId !== getCurrentCharacterId() && !await cardStore.activateCard(meta.characterId))
@@ -1474,7 +1609,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function cleanupMessages(sessionId = activeSessionId.value) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
-    setSessionMessages(sessionId, [generateInitialMessage(sessionMetas.value[sessionId].characterId)])
+    const characterId = sessionMetas.value[sessionId].characterId
+    setSessionMessages(sessionId, characterId ? [generateInitialMessage(characterId)] : [])
   }
 
   function getAllSessions() {
@@ -1490,7 +1626,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       for (const character of Object.values(index.value.characters)) {
         for (const [sessionId, meta] of Object.entries(character.sessions)) {
           sessionIds.add(sessionId)
-          if (cardStore.getCard(meta.characterId))
+          if (meta.characterId && cardStore.getCard(meta.characterId))
             characterIds.add(meta.characterId)
         }
       }
@@ -1549,6 +1685,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (!await loadSession(options.fromSessionId))
       throw new Error('Failed to load the source conversation')
     const characterId = sessionMetas.value[options.fromSessionId].characterId
+    if (!characterId)
+      throw new Error('Assign this conversation to a character before creating a branch')
     const parentMessages = getSessionMessages(options.fromSessionId)
     const forkIndex = options.atIndex ?? parentMessages.length
     const nextMessages = parentMessages.slice(0, forkIndex)
@@ -1681,6 +1819,22 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
   })
 
+  watch(() => {
+    const record = catalog.currentRecord
+    if (!record)
+      return ''
+    return JSON.stringify([record.ownerId, record.deletions, record.deletedCharacterIds, record.deletedContactIds, Object.values(record.writes).flat().map(command => command.mutationId)])
+  }, async () => {
+    if (!ready.value)
+      return
+    try {
+      await useChatSessionStore(pinia).synchronizeContacts()
+    }
+    catch (error) {
+      console.error('[chat-session] Contact synchronization failed:', errorMessageFrom(error))
+    }
+  })
+
   // Card edits refresh the owning conversation. Selection also refreshes after hydration.
   watch(systemPrompt, async () => {
     if (activeSessionId.value)
@@ -1730,6 +1884,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     ensureCurrentSession,
     ensureCharacterSession,
     refreshSessionSystemMessage,
+    synchronizeContacts,
+    assignConversation,
 
     cloudSyncReady,
     outboxPendingCount,
@@ -1751,6 +1907,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'pushMessageToCloud',
       'refreshSession',
       'resetAllSessions',
+      'synchronizeContacts',
+      'assignConversation',
     ],
     state: true,
   },

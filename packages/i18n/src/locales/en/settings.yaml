@@ -377,9 +377,9 @@ pages:
     cancel: Cancel action
     save: Save changes
     save_and_activate: Save and activate
-    card_not_found: Card not found
+    card_not_found: Character not found
     back: Back
-    character: Character
+    character: Persona
     close: Close
     chat:
       provider: Chat / Provider
@@ -391,14 +391,22 @@ pages:
     created_by: created by
     creator_notes: Creator Notes
     delete: Delete
-    delete_card: Delete Card
-    delete_confirmation: Are you sure you want to delete this card?
-    description: Use AIRI character card presets
+    delete_card: Delete Character
+    delete_failed: Could not delete this character. Try again.
+    sync:
+      pending: Changes are saved on this device. Cloud synchronization is pending, including any character and conversation deletions.
+      conflict: 'Both this device and the cloud changed {name}. Choose the version to keep. The other version will be replaced.'
+      keep-local: Keep device version
+      use-cloud: Use cloud version
+      retry: Synchronize now
+      failed: Synchronization failed. Your pending changes remain on this device.
+    delete_confirmation: Delete this character and all its bound direct conversations? Their cloud copies will also be deleted when synchronization resumes. This cannot be undone.
+    description: Manage characters and their settings
     description_label: Description
     drop_here: Drop to upload
-    create_card: Create a new Card
-    edit_card: Edit Card
-    saved: Card saved
+    create_card: Create a character
+    edit_card: Edit Character
+    saved: Character saved
     unsaved:
       badge: Unsaved
       title: Discard changes?
@@ -422,7 +430,7 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
-        Configure modules for this character card. Empty fields inherit global settings.
+        Configure modules for this character. Empty fields inherit global settings.
       sections:
         chat: Chat
         vision: Vision
@@ -474,7 +482,7 @@ pages:
     posthistoryinstructions: Post-History Instructions
     recent: Recently Added
     scenario: Scenario
-    search: Search cards...
+    search: Search characters...
     sort_by: Sort by
     body-model: Body / Display Model
     model: Model
@@ -488,7 +496,7 @@ pages:
       model: Speech / Model
       voice: Speech / Voice
     systemprompt: System Prompt
-    title: AIRI Card
+    title: Characters
     try_different_search: Try a different search term
     export: Export
     exported: Card package exported
@@ -622,7 +630,7 @@ pages:
       description: Image generation, scene background and drawing.
       page:
         title: Artistry Provider Configuration
-        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+        description: Select the active backend provider for image generation. Characters can override this in their settings.
       providers:
         none:
           name: None

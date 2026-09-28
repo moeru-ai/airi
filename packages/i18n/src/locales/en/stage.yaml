@@ -68,6 +68,11 @@ chat:
     empty: No conversations yet
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
+    character: Character
+    unbound: 'Unassigned ({count})'
+    unbound-description: These histories have no verified character. You can read them. Select a direct conversation to assign it before sending new messages.
+    assign: 'Assign selected conversation to {name}'
+    assignment-failed: Could not assign this conversation. Try again.
     delete: Delete conversation
 render-error:
   title: '{renderer} could not render this model'

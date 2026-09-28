@@ -3,6 +3,7 @@ import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
 import DOMPurify from 'dompurify'
 
+import { errorMessageFrom } from '@moeru/std'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useDownload } from '@proj-airi/stage-ui/composables/download'
 import { exportAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
@@ -16,6 +17,7 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
 import CardModelPreview from './card-model-preview.vue'
+import CharacterSyncStatus from './character-sync-status.vue'
 import DeleteCardDialog from './DeleteCardDialog.vue'
 
 interface Props {
@@ -138,13 +140,27 @@ function highlightTagToHtml(text: string) {
 
 // Delete confirmation
 const showDeleteConfirm = ref(false)
+const isDeleting = ref(false)
+const deleteError = ref('')
 
 async function handleDeleteConfirm() {
-  if (selectedCard.value) {
-    await removeCard(props.cardId)
+  if (!selectedCard.value || isDeleting.value)
+    return
+  isDeleting.value = true
+  deleteError.value = ''
+  try {
+    const removed = await removeCard(props.cardId)
+    if (!removed)
+      throw new Error(t('settings.pages.card.card_not_found'))
+    showDeleteConfirm.value = false
     emit('back')
   }
-  showDeleteConfirm.value = false
+  catch (error) {
+    deleteError.value = errorMessageFrom(error) ?? t('settings.pages.card.delete_failed')
+  }
+  finally {
+    isDeleting.value = false
+  }
 }
 
 // Background options including journal entries
@@ -312,6 +328,7 @@ function getModuleDisplayValue(value: string | undefined): string {
 </script>
 
 <template>
+  <CharacterSyncStatus :card-id="cardId" />
   <div :class="['h-full min-h-0 w-full flex flex-col bg-white dark:bg-neutral-950']">
     <div v-if="selectedCard" :class="['h-full min-h-0 w-full flex flex-col']">
       <header :class="['shrink-0 border-b border-neutral-200/70 dark:border-neutral-800']">
@@ -689,6 +706,8 @@ function getModuleDisplayValue(value: string | undefined): string {
   <DeleteCardDialog
     v-model="showDeleteConfirm"
     :card-name="selectedCard?.name"
+    :pending="isDeleting"
+    :error="deleteError"
     @confirm="handleDeleteConfirm"
     @cancel="showDeleteConfirm = false"
   />

@@ -10,6 +10,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 import CardListItem from './components/CardListItem.vue'
+import CharacterSyncStatus from './components/character-sync-status.vue'
 
 const { t } = useI18n()
 const cards = useAiriCardStore()
@@ -69,6 +70,7 @@ watch(() => [route.query.cardId, route.query.tab], ([cardId, tab]) => {
 
 <template>
   <div :class="['mx-auto max-w-7xl flex flex-col gap-6 p-4']">
+    <CharacterSyncStatus />
     <div :class="['flex flex-wrap items-center justify-between gap-4']">
       <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
         {{ t('settings.pages.card.library-description') }}

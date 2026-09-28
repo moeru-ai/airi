@@ -2,6 +2,8 @@
 import type { ChatSessionMeta } from '../../../../types/chat-session'
 import type { SessionRow } from './sessions-list.vue'
 
+import { errorMessageFrom } from '@moeru/std'
+import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -31,7 +33,7 @@ const { t, locale } = useI18n()
 const chatSession = useChatSessionStore()
 const chat = useChatStore()
 const { sessionMetas, sessionMessages, activeSessionId } = storeToRefs(chatSession)
-const { activeCardId } = storeToRefs(useAiriCardStore())
+const { activeCardId, activeCard } = storeToRefs(useAiriCardStore())
 const { userId } = storeToRefs(useAuthStore())
 const { activeModel } = storeToRefs(useConsciousnessStore())
 const { trackChatSessionSelected, trackChatSessionStarted } = useAnalytics()
@@ -39,9 +41,45 @@ const { trackChatSessionSelected, trackChatSessionStarted } = useAnalytics()
 // Creating includes persistence and cloud reconciliation, so prevent a
 // second click from creating an orphan session while the first is pending.
 const isCreatingSession = ref(false)
+const scope = ref<'character' | 'unbound'>('character')
+const isAssigning = ref(false)
+const assignmentError = ref('')
+const unboundSessions = computed(() => Object.values(sessionMetas.value).filter(meta => meta.userId === userId.value && meta.characterId === null))
+const assignableSession = computed(() => unboundSessions.value.find(meta => meta.sessionId === activeSessionId.value && meta.conversationType === 'bot'))
+
+async function assignSelectedSession() {
+  const session = assignableSession.value
+  const characterId = activeCardId.value
+  const ownerId = userId.value
+  if (!session || isAssigning.value)
+    return
+  isAssigning.value = true
+  assignmentError.value = ''
+  try {
+    await chatSession.assignConversation(session.sessionId, characterId)
+    if (userId.value === ownerId && activeCardId.value === characterId && activeSessionId.value === session.sessionId) {
+      scope.value = 'character'
+      await chatSession.setActiveSession(session.sessionId)
+    }
+  }
+  catch (error) {
+    if (userId.value === ownerId && activeCardId.value === characterId && activeSessionId.value === session.sessionId)
+      assignmentError.value = errorMessageFrom(error) ?? t('stage.chat.sessions.assignment-failed')
+  }
+  finally {
+    isAssigning.value = false
+  }
+}
+
+watch([activeCardId, userId], () => {
+  scope.value = 'character'
+  assignmentError.value = ''
+})
 
 // Keep another account's sessions hidden while an account swap rehydrates.
 const ownedSessions = computed(() => {
+  if (scope.value === 'unbound')
+    return unboundSessions.value
   const effectiveUserId = userId.value || 'local'
   return Object.values(sessionMetas.value).filter(meta => meta.userId === effectiveUserId && meta.characterId === activeCardId.value)
 })
@@ -152,7 +190,7 @@ async function startNewSession() {
 // re-added to `loadedSessions` as a phantom entry.
 let openGeneration = 0
 
-watch([showDialog, activeCardId], async ([open]) => {
+watch([showDialog, activeCardId, scope], async ([open]) => {
   if (!open)
     return
   openGeneration += 1
@@ -181,6 +219,26 @@ watch([showDialog, activeCardId], async ([open]) => {
     @select-session="selectSession"
     @delete-session="chat.deleteSession"
   >
+    <template #scope>
+      <div v-if="unboundSessions.length || scope === 'unbound'" :class="['mb-3 flex flex-col gap-2']">
+        <div :class="['flex gap-2']">
+          <Button :label="activeCard?.name || t('stage.chat.sessions.character')" :aria-pressed="scope === 'character'" @click="scope = 'character'" />
+          <Button :label="t('stage.chat.sessions.unbound', { count: unboundSessions.length })" :aria-pressed="scope === 'unbound'" @click="scope = 'unbound'" />
+        </div>
+        <p v-if="scope === 'unbound'" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+          {{ t('stage.chat.sessions.unbound-description') }}
+        </p>
+        <Button
+          v-if="scope === 'unbound' && assignableSession"
+          :label="t('stage.chat.sessions.assign', { name: activeCard?.name })"
+          :loading="isAssigning"
+          @click="assignSelectedSession"
+        />
+        <p v-if="assignmentError" role="alert" :class="['text-sm text-red-600 dark:text-red-400']">
+          {{ assignmentError }}
+        </p>
+      </div>
+    </template>
     <template #trigger>
       <slot name="trigger" />
     </template>

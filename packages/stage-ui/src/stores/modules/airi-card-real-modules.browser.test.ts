@@ -3,14 +3,17 @@ import type { Session, User } from 'better-auth'
 import type { AiriCard } from '../../types/airiCard'
 
 import { PiniaColada } from '@pinia/colada'
+import { cloneDeep } from 'es-toolkit'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp, nextTick, toRaw } from 'vue'
+import { createApp, nextTick } from 'vue'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
+import { storage } from '../../database/storage'
 import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from './airi-card'
+import { useAiriCardCatalog } from './airi-card-catalog'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
@@ -48,7 +51,9 @@ function card(provider = '', model = ''): AiriCard {
 }
 
 describe('card inheritance with real module stores', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    localStorage.clear()
+    await storage.clear('local')
     const pinia = createPinia()
     createApp({}).use(pinia).use(PiniaColada)
     setActivePinia(pinia)
@@ -96,7 +101,7 @@ describe('card inheritance with real module stores', () => {
     const cards = useAiriCardStore()
     const muted = card()
     muted.extensions.airi.modules.speech.provider = 'speech-noop'
-    cards.cards.set('default', muted)
+    localStorage.setItem('airi-cards', JSON.stringify([['default', muted]]))
     await cards.initialize()
     expect(cards.activeCard?.extensions.airi.modules.speech.provider).toBe('speech-noop')
     expect(useSpeechStore().activeSpeechProvider).toBe('speech-noop')
@@ -228,11 +233,7 @@ describe('card inheritance with real module stores', () => {
     await cards.initialize()
     const id = await cards.addCard(card('card-provider', 'card-model'), 'import')
     await cards.activateCard(id)
-    const snapshot = structuredClone({
-      cards: toRaw(cards.cards),
-      activeCardId: cards.activeCardId,
-      moduleDefaults: toRaw(cards.moduleDefaults),
-    })
+    const snapshot = cloneDeep(useAiriCardCatalog(leader).$state)
 
     const follower = createPinia()
     createApp({}).use(follower).use(PiniaColada)
@@ -243,7 +244,7 @@ describe('card inheritance with real module stores', () => {
     const followerCards = useAiriCardStore(follower)
     const updates = vi.fn()
     followerConsciousness.$subscribe(updates, { flush: 'sync' })
-    followerCards.$patch(snapshot)
+    useAiriCardCatalog(follower).$patch(state => Object.assign(state, snapshot))
     await nextTick()
     // Applying a card snapshot must not start another runtime transition.
     expect(updates).not.toHaveBeenCalled()

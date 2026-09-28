@@ -258,7 +258,10 @@ export const useChatStore = defineStore('chat', () => {
       const sessionId = options?.requestCorrelation?.conversationId
       if (!sessionId)
         throw new Error('Chat image inference requires a conversation')
-      const selection = cardStore.resolveCharacter(chatSession.sessionMetas[sessionId].characterId).modules.vision
+      const characterId = chatSession.sessionMetas[sessionId]?.characterId
+      if (!characterId)
+        throw new Error('Chat image inference requires a bound character')
+      const selection = cardStore.resolveCharacter(characterId).modules.vision
       const visionStore = useVisionStore()
       if (!supportsNativeVision && visionStore.useForChat && selection.provider && selection.model) {
         const { runVisionInference } = useVisionInference()
@@ -401,7 +404,12 @@ export const useChatStore = defineStore('chat', () => {
       stream: streamWithStageAdapters,
     },
     getActiveSessionId: () => activeSessionId.value,
-    getActiveProvider: sessionId => cardStore.resolveCharacter(chatSession.sessionMetas[sessionId].characterId).modules.consciousness.provider,
+    getActiveProvider: (sessionId) => {
+      const characterId = chatSession.sessionMetas[sessionId]?.characterId
+      if (!characterId)
+        throw new Error('Chat inference requires a bound character')
+      return cardStore.resolveCharacter(characterId).modules.consciousness.provider
+    },
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
@@ -495,6 +503,8 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error('Failed to load the target chat session')
 
     const meta = chatSession.sessionMetas[payload.sessionId]
+    if (!meta?.characterId)
+      throw new Error('Assign this conversation to a character before sending a message')
     const character = cardStore.resolveCharacter(meta.characterId)
     const { provider: providerId, model: modelId } = character.modules.consciousness
     if ((!providerId || !modelId) && providerId !== 'prompt-api')

@@ -35,6 +35,9 @@ function createTestI18n() {
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
               'cloud-badge': 'Cloud synced',
+              'character': 'Character',
+              'unbound': 'Unassigned ({count})',
+              'unbound-description': 'Read these histories or assign a direct conversation before sending.',
             },
           },
         },
@@ -78,6 +81,22 @@ function createSessionsPinia() {
 
 describe('sessions drawer orchestration', () => {
   beforeEach(() => localStorage.clear())
+
+  it('keeps unbound histories separate and opens them without changing the selected character', async () => {
+    const pinia = createSessionsPinia()
+    pinia.state.value['chat-session'].sessionMetas['session-a'].characterId = null
+    const screen = await render(SessionsDrawer, {
+      props: { modelValue: true },
+      global: { plugins: [pinia, PiniaColada, createTestI18n()] },
+    })
+    await expect.element(screen.getByRole('button', { name: /^Chat A/ })).not.toBeInTheDocument()
+    await screen.getByRole('button', { name: 'Unassigned (1)' }).click()
+    await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).not.toBeInTheDocument()
+    await screen.getByRole('button', { name: /^Chat A/ }).click()
+    expect(useChatSessionStore(pinia).activeSessionId).toBe('session-a')
+    expect(useAiriCardStore(pinia).activeCardId).toBe('default')
+  })
 
   it('shows only the current character conversations and changes the list with the character', async () => {
     const pinia = createSessionsPinia()
