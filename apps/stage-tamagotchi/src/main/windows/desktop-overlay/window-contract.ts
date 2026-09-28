@@ -1,5 +1,6 @@
 import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
+import { excludeWindowFromTaskbar } from '../shared/taskbar'
 import { showWindowOnAllWorkspaces } from '../shared/workspaces'
 
 /**
@@ -56,8 +57,9 @@ export function createDesktopOverlayWindowOptions(params: {
  * - Nothing; mutates Electron window flags in place
  */
 export function applyDesktopOverlayInputIsolation(
-  window: Pick<BrowserWindow, 'setAlwaysOnTop' | 'setContentProtection' | 'setIgnoreMouseEvents' | 'setVisibleOnAllWorkspaces'>,
+  window: Pick<BrowserWindow, 'setAlwaysOnTop' | 'setContentProtection' | 'setIgnoreMouseEvents' | 'setVisibleOnAllWorkspaces' | 'setSkipTaskbar'>,
 ): void {
+  excludeWindowFromTaskbar(window)
   window.setIgnoreMouseEvents(true, { forward: true })
   window.setAlwaysOnTop(true, 'screen-saver')
   window.setContentProtection(true)

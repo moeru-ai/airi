@@ -5,8 +5,10 @@ Shared character behavior belongs in `packages/stage-ui`. Use `stage-web` for br
 
 ## Desktop integration
 
-After the tray starts, AIRI hides its macOS Dock icon and Windows taskbar entries, including entries for new windows.
-Use the tray menu to open AIRI windows or quit the app. Linux desktop behavior remains unchanged.
+In Settings > System > General, enable **Hide taskbar / Dock icon** to keep AIRI in the tray only.
+This option is off by default. Changes apply immediately and persist across restarts.
+The tray menu can open windows or quit the app. Disabling the option restores ordinary Windows taskbar entries and the macOS Dock icon.
+Utility windows remain hidden from the taskbar. Linux desktop behavior remains unchanged.
 
 ## Development
 

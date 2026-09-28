@@ -12,6 +12,12 @@ pages:
       description: 连接与管理 MCP 服务器和工具
       title: MCP 服务器
   system:
+    general:
+      hide-app-icon:
+        title: 隐藏任务栏 / Dock 图标
+        description: 仅保留托盘图标，通过托盘菜单打开窗口或退出应用。修改立即生效。
+        load-error: 无法加载应用图标设置。
+        save-error: 无法更新应用图标设置。
     sections:
       section:
         window-shortcuts:

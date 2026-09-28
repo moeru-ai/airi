@@ -3,21 +3,48 @@ import type { BrowserWindow as ElectronBrowserWindow, Event } from 'electron'
 import { app, BrowserWindow } from 'electron'
 import { isWindows } from 'std-env'
 
-/** Owns taskbar visibility from tray readiness until app shutdown. */
+import { restoreWindowTaskbar } from '../windows/shared/taskbar'
+
+/** Applies the opt-in icon preference while the tray is available. */
 export class TrayAppVisibility {
-  constructor() {
-    app.dock?.hide()
+  constructor(private hidden = false) {
+    if (hidden)
+      app.dock?.hide()
 
     if (isWindows) {
       app.on('browser-window-created', this.onWindowCreated)
-      for (const window of BrowserWindow.getAllWindows()) {
-        window.setSkipTaskbar(true)
-      }
+      if (hidden)
+        this.applyTaskbarVisibility()
     }
   }
 
   private readonly onWindowCreated = (_event: Event, window: ElectronBrowserWindow): void => {
-    window.setSkipTaskbar(true)
+    if (this.hidden)
+      window.setSkipTaskbar(true)
+  }
+
+  /** Changes existing and future window visibility without restarting the app. */
+  async setHidden(hidden: boolean): Promise<void> {
+    if (this.hidden === hidden)
+      return
+
+    if (hidden)
+      app.dock?.hide()
+    else
+      await app.dock?.show()
+
+    this.hidden = hidden
+    if (isWindows)
+      this.applyTaskbarVisibility()
+  }
+
+  private applyTaskbarVisibility(): void {
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (this.hidden)
+        window.setSkipTaskbar(true)
+      else
+        restoreWindowTaskbar(window)
+    }
   }
 
   /** Removes the window listener before the tray is destroyed during shutdown. */
