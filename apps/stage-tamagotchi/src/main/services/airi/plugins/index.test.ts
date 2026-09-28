@@ -293,6 +293,17 @@ function createEmptyExtensionEntrypoint(id: string) {
   ].join('\n')
 }
 
+function createHostedProviderEntrypoint(extensionId: string, kitId: string) {
+  const pluginSdkUrl = pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href
+  return [
+    `import { defineExtension, defineKitContract, defineKitMethod } from ${JSON.stringify(pluginSdkUrl)}`,
+    `const contract = defineKitContract({ id: ${JSON.stringify(kitId)}, version: '1.0.0', methods: { read: defineKitMethod() }, events: {} })`,
+    `export default defineExtension({ id: ${JSON.stringify(extensionId)}, setup(ctx) {`,
+    '  ctx.kits.provide(contract, { methods: { read: () => "ready" } })',
+    '} })',
+  ].join('\n')
+}
+
 function createDeferred() {
   let resolvePromise: () => void = () => {}
   const promise = new Promise<void>((resolve) => {
@@ -1064,7 +1075,7 @@ describe('setupExtensionHost', () => {
     await mkdir(consumerDir, { recursive: true })
     await mkdir(providerDir, { recursive: true })
     await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('ordered-consumer'))
-    await writeFile(join(providerDir, 'extension.ts'), createEmptyExtensionEntrypoint('ordered-provider'))
+    await writeFile(join(providerDir, 'extension.ts'), createHostedProviderEntrypoint('ordered-provider', 'dev.airi.ordered'))
     await writeManifest({
       dir: consumerDir,
       name: 'ordered-consumer',
@@ -1130,12 +1141,29 @@ describe('setupExtensionHost', () => {
     ])
   })
 
+  it('registers and withdraws the Extension-hosted Kit example', async () => {
+    await installExampleExtension(pluginsDir, 'hosted-kit-provider', 'hosted-kit-provider.mjs')
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.setEnabled({ extensionId: 'hosted-kit-provider', enabled: true })
+    await service.loadEnabled()
+
+    expect(service.host.getKitProvider('dev.airi.example-hosted')).toMatchObject({
+      version: '1.0.0',
+      generation: 1,
+      owner: { kind: 'extension', extensionId: 'hosted-kit-provider' },
+    })
+
+    await service.setSystemEnabled(false)
+    expect(service.host.getKitProvider('dev.airi.example-hosted')).toBeUndefined()
+  })
+
   it('stops enabled Extensions without clearing enabled intent when the system is disabled', async () => {
     const providerDir = join(pluginsDir, 'system-provider')
     const consumerDir = join(pluginsDir, 'system-consumer')
     await mkdir(providerDir, { recursive: true })
     await mkdir(consumerDir, { recursive: true })
-    await writeFile(join(providerDir, 'extension.ts'), createEmptyExtensionEntrypoint('system-provider'))
+    await writeFile(join(providerDir, 'extension.ts'), createHostedProviderEntrypoint('system-provider', 'dev.airi.system'))
     await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('system-consumer'))
     await writeManifest({
       dir: providerDir,
@@ -1363,7 +1391,7 @@ describe('setupExtensionHost', () => {
     const consumerDir = join(pluginsDir, 'a-dispose-consumer')
     await mkdir(providerDir, { recursive: true })
     await mkdir(consumerDir, { recursive: true })
-    await writeFile(join(providerDir, 'extension.ts'), createEmptyExtensionEntrypoint('z-dispose-provider'))
+    await writeFile(join(providerDir, 'extension.ts'), createHostedProviderEntrypoint('z-dispose-provider', 'dev.airi.dispose'))
     await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('a-dispose-consumer'))
     await writeManifest({
       dir: providerDir,
@@ -1410,7 +1438,7 @@ describe('setupExtensionHost', () => {
     const consumerDir = join(pluginsDir, 'runtime-consumer')
     await mkdir(providerDir, { recursive: true })
     await mkdir(consumerDir, { recursive: true })
-    await writeFile(join(providerDir, 'extension.ts'), createEmptyExtensionEntrypoint('runtime-provider'))
+    await writeFile(join(providerDir, 'extension.ts'), createHostedProviderEntrypoint('runtime-provider', 'dev.airi.runtime'))
     await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('runtime-consumer'))
     await writeManifest({
       dir: providerDir,
@@ -1881,6 +1909,38 @@ describe('setupExtensionHost', () => {
     ]))
   })
 
+  it('keeps enabled intent without starting a required Consumer when Provider registration is missing', async () => {
+    const providerDir = join(pluginsDir, 'missing-registration-provider')
+    const consumerDir = join(pluginsDir, 'missing-registration-consumer')
+    await mkdir(providerDir, { recursive: true })
+    await mkdir(consumerDir, { recursive: true })
+    await writeFile(join(providerDir, 'extension.ts'), createEmptyExtensionEntrypoint('missing-registration-provider'))
+    await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('missing-registration-consumer'))
+    await writeManifest({
+      dir: providerDir,
+      name: 'missing-registration-provider',
+      entrypoint: './extension.ts',
+      kits: { provides: [{ id: 'dev.airi.missing-registration', version: '1.0.0', exposure: 'local-only' }] },
+    })
+    await writeManifest({
+      dir: consumerDir,
+      name: 'missing-registration-consumer',
+      entrypoint: './extension.ts',
+      kits: { uses: [{ id: 'dev.airi.missing-registration', version: '^1.0.0' }] },
+    })
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.setEnabled({ extensionId: 'missing-registration-provider', enabled: true })
+    await service.setEnabled({ extensionId: 'missing-registration-consumer', enabled: true })
+    const snapshot = await service.loadEnabled()
+
+    expect(snapshot.plugins).toEqual(expect.arrayContaining([
+      expect.objectContaining({ extensionId: 'missing-registration-provider', enabled: true, loaded: false }),
+      expect.objectContaining({ extensionId: 'missing-registration-consumer', enabled: true, loaded: false }),
+    ]))
+    expect(service.host.getKitProvider('dev.airi.missing-registration')).toBeUndefined()
+  })
+
   it('emits a plugin tools changed event after loading an extension through IPC', async () => {
     const pluginDir = join(pluginsDir, 'test-tools-changed')
     await mkdir(pluginDir, { recursive: true })
@@ -2064,7 +2124,7 @@ describe('setupExtensionHost', () => {
     const providerEntrypointPath = await writeEntrypoint({
       dir: providerDir,
       name: 'extension.ts',
-      contents: createEmptyExtensionEntrypoint('reload-provider'),
+      contents: createHostedProviderEntrypoint('reload-provider', 'dev.airi.reload-order'),
     })
     await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('reload-consumer'))
     await writeManifest({
@@ -2096,6 +2156,7 @@ describe('setupExtensionHost', () => {
     await invokeSetAutoReload({ extensionId: 'reload-provider', enabled: true })
 
     const before = await invokeInspect()
+    const oldGeneration = service.host.getKitProvider('dev.airi.reload-order')?.generation
     const oldSessionIdByExtensionId = new Map(
       before.sessions.map(session => [session.extensionId, session.id]),
     )
@@ -2107,7 +2168,7 @@ describe('setupExtensionHost', () => {
 
     await writeFile(
       providerEntrypointPath,
-      `${createEmptyExtensionEntrypoint('reload-provider')}\n// reload change`,
+      `${createHostedProviderEntrypoint('reload-provider', 'dev.airi.reload-order')}\n// reload change`,
     )
 
     const deadline = Date.now() + 3000
@@ -2135,6 +2196,7 @@ describe('setupExtensionHost', () => {
       'reload-provider',
       'reload-consumer',
     ])
+    expect(service.host.getKitProvider('dev.airi.reload-order')?.generation).toBe((oldGeneration ?? 0) + 1)
 
     await invokeSetAutoReload({ extensionId: 'reload-provider', enabled: false })
     await invokeSetEnabled({ extensionId: 'reload-consumer', enabled: false })
@@ -2151,7 +2213,7 @@ describe('setupExtensionHost', () => {
     const providerEntrypointPath = await writeEntrypoint({
       dir: providerDir,
       name: 'extension.ts',
-      contents: createEmptyExtensionEntrypoint('failure-reload-provider'),
+      contents: createHostedProviderEntrypoint('failure-reload-provider', 'dev.airi.reload-failure'),
     })
     await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('failure-reload-consumer'))
     await writeManifest({
@@ -2191,7 +2253,7 @@ describe('setupExtensionHost', () => {
 
     await writeFile(
       providerEntrypointPath,
-      `${createEmptyExtensionEntrypoint('failure-reload-provider')}\n// reload after failure`,
+      `${createHostedProviderEntrypoint('failure-reload-provider', 'dev.airi.reload-failure')}\n// reload after failure`,
     )
 
     await vi.waitFor(() => {
