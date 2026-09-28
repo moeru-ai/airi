@@ -232,6 +232,36 @@ describe('billingService', () => {
       expect(wallet.flux).toBe(97)
     })
 
+    it('persists missing cost without a second wallet-lock transaction', async () => {
+      await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 100 })
+      const transaction = vi.spyOn(db, 'transaction')
+      try {
+        expect(await billingService.settleLlmCost(receipt('pending-once', undefined))).toEqual({ charged: 0, requested: 0, pending: true })
+        expect(transaction).toHaveBeenCalledTimes(1)
+        expect(await db.select().from(schema.llmRequestSettlement)).toEqual([expect.objectContaining({ billingStatus: 'pending' })])
+        expect(await db.select().from(schema.fluxTransaction)).toHaveLength(0)
+      }
+      finally {
+        transaction.mockRestore()
+      }
+    })
+
+    it('returns a settled replay without a second wallet-lock transaction', async () => {
+      await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 100 })
+      const input = receipt('settled-once', 0.002)
+      await billingService.settleLlmCost(input)
+      const transaction = vi.spyOn(db, 'transaction')
+      try {
+        expect(await billingService.settleLlmCost(input)).toEqual({ charged: 3, requested: 3, pending: false })
+        expect(transaction).toHaveBeenCalledTimes(1)
+        expect(await db.select().from(schema.fluxTransaction)).toHaveLength(1)
+        expect((await db.select().from(schema.userFlux))[0].flux).toBe(97)
+      }
+      finally {
+        transaction.mockRestore()
+      }
+    })
+
     it('rejects reconciliation with a different generation ID', async () => {
       await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 100 })
       await billingService.settleLlmCost(receipt('pending', undefined))

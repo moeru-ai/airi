@@ -45,6 +45,7 @@ sequenceDiagram
   participant DB
   API->>API: Validate required prices and minimum balance
   API->>DB: Persist authorized policy
+  API->>Router: Validate complete alias plan
   API->>Router: Dispatch with pricing authorization
   Router->>Router: Validate adapter and prices for eligible upstreams
   alt Configuration missing
@@ -68,10 +69,13 @@ server/apps/api/
   src/services/adapters/llm/cost.ts
   src/services/adapters/config-kv/definitions.ts
   src/services/domain/billing/
+    tests/billing.load.ts
   src/services/domain/llm-router/{router,types}.ts
   src/routes/openai/v1/{middlewares/billing,model-routing,operations}/
   src/schemas/{llm-request-settlement,flux,flux-transaction}.ts
   drizzle/0027_llm_cost_settlement.sql
+  vitest.load.config.ts
+  compose.load.yaml
 ```
 
 ## Cost adapter contract
@@ -84,6 +88,19 @@ and calculate cost from measured usage with explicit cache and reasoning rules. 
 This change does not implement or populate a model price table.
 
 ## Persistence and compatibility
+
+The billing load suite runs against isolated PostgreSQL and Redis instances with production migrations and domain services.
+It measures multi-user requests, one-account contention, replay, pending cost, zero cost, and mixed speech/LLM debits.
+Every scenario checks ledger totals, wallet conservation, settlement count, and latency budgets.
+CI runs this suite on pull requests. Unit tests do not replace the load suite after core-path changes.
+The suite excludes provider latency, HTTP transport, production data volume, and production migration lock duration.
+Missing or invalid cost returns after the durable receipt transaction, without a second wallet lock.
+An already settled receipt returns under the first wallet lock, without another transaction or debit.
+Successful settlement retains its charged cost snapshot in the same transaction as the wallet and ledger update.
+
+Validate billing for every eligible upstream in the complete alias plan before dispatching its first candidate.
+Keep dispatch-time validation to reject configuration changes between plan validation and a later attempt.
+The router owns candidate selection and preflight validation. Protocol operations supply the authorized billing policy.
 
 Persist request tracking before billing intake. If routing exits without a key dispatch,
 close the unresolved intake as cancelled/not_dispatched instead of leaving false pending work.
@@ -100,7 +117,7 @@ Existing request-log fluxConsumed and schemaVersion fields remain unchanged; the
 
 Apply tracking migration 0026 before billing migration 0027. These replace unpublished PR drafts, not already-applied draft migrations.
 Settlement owns price snapshots and durable evidence. Logs do not query or update settlement storage.
-Save pending evidence before charging; commit wallet, remainder, ledger and settled state under the wallet lock.
+Save pending evidence before charging. Commit wallet, ledger and settled state under the wallet lock.
 Settled replay cannot charge twice. Preserve original provider, generation ID and price snapshot.
 Each request charges ceil(costUsd × fluxPerUsd × multiplier) in whole Flux.
 Round once, after multiplication, using decimal arithmetic to avoid floating-point boundary overcharges.

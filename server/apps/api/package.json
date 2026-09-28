@@ -12,6 +12,7 @@
     "start": "pnpm run apply:env -- tsx --import ./instrumentation.ts src/main.ts",
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
+    "test:load": "vitest run --config vitest.load.config.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "pnpm run apply:env -- drizzle-kit push"
   },

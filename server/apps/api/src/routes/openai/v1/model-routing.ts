@@ -58,6 +58,12 @@ export async function routeModelAliasCandidates(input: {
   routeCtx: ReturnType<typeof newRouteContext>
 }> {
   const logger = useLogger('model-alias-routing').useGlobalConfig()
+  await input.deps.llmRouter.validateLlmRoutes({
+    modelNames: input.modelIds,
+    protocol: input.protocol,
+    requiresWebSearch: input.requiresWebSearch,
+    authorizeDispatch: input.authorizeDispatch,
+  })
   let lastError: unknown
   let lastResponse: { modelId: string, response: Response, routeCtx: ReturnType<typeof newRouteContext> } | undefined
   for (let index = 0; index < input.modelIds.length; index += 1) {

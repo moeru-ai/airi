@@ -250,6 +250,23 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
   const ttsPoolSaturationTtlSeconds = options.ttsPoolSaturationTtlSeconds ?? 15
   const ttsVoiceCatalogLoads = new Map<string, Promise<Voice[]>>()
 
+  /** Validates all eligible alias candidates without decrypting keys or sending provider requests. */
+  async function validateLlmRoutes(input: {
+    modelNames: string[]
+    protocol?: LlmRouteRequest['protocol']
+    requiresWebSearch?: boolean
+    authorizeDispatch: NonNullable<LlmRouteRequest['authorizeDispatch']>
+  }): Promise<void> {
+    for (const modelName of input.modelNames) {
+      const slice = await configLoader.getModelConfig('llm', modelName)
+      if (slice.kind !== 'llm')
+        throw new Error(`Expected llm model slice for ${modelName}, got ${slice.kind}`)
+      const { candidates } = selectLlmCandidates(slice.model, { ...input, modelName })
+      for (const { upstream } of candidates)
+        input.authorizeDispatch({ gateway: deriveProviderTag(upstream.baseURL), model: upstream.overrideModel ?? modelName })
+    }
+  }
+
   /** Checks model-level protocol and hosted-search support without dispatching upstream traffic. */
   async function supportsLlmRoute(request: Pick<LlmRouteRequest, 'modelName' | 'protocol' | 'requiresWebSearch'>): Promise<boolean> {
     let slice: Awaited<ReturnType<typeof configLoader.getModelConfig>>
@@ -1216,6 +1233,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
   return {
     route,
     supportsLlmRoute,
+    validateLlmRoutes,
     routeTts,
     listTtsVoices,
     /**

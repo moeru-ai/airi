@@ -121,6 +121,48 @@ For source-level debugging, start `@proj-airi/api-server` and
 `server/docker-compose.yaml` exposes the local Caddy gateway at `http://localhost:6112` and keeps
 the API and Auth container ports private.
 
+## Billing load regression
+
+Run the load suite after changes to billing, request tracking, speech metering, or their database paths.
+The CI `Billing Load Test` job runs the same suite on every pull request and uploads its JSON report.
+This suite uses existing Vitest, pg, and ioredis dependencies. It does not call an LLM provider.
+
+From the repository root:
+
+```sh
+docker compose -p airi-billing-load -f server/apps/api/compose.load.yaml up -d --wait
+BILLING_LOAD_TEST=1 pnpm -F @proj-airi/api-server test:load
+docker compose -p airi-billing-load -f server/apps/api/compose.load.yaml down
+```
+
+The containers use temporary storage. The suite applies production migrations to the dedicated `airi_billing_load_test` database.
+It accepts only loopback hosts and Redis database 15. It deletes only rows and cache keys created by its run.
+Do not supply production credentials. No external environment file is loaded.
+If a port is occupied, set `BILLING_LOAD_POSTGRES_PORT` or `BILLING_LOAD_REDIS_PORT` for Compose.
+Set the matching `BILLING_LOAD_DATABASE_URL` or `BILLING_LOAD_REDIS_URL` for Vitest.
+
+The default run uses 256 operations per scenario, 16 concurrent workers, and a 20-connection PostgreSQL pool.
+Scenarios cover multiple users, one hot account, settled replay, concurrent replay, depleted balance, pending cost, zero cost, and mixed speech/LLM charges.
+Checks include exact debit totals, wallet conservation, unique ledger entries, settlement state, and zero-charge ledger exclusion.
+The pending path also permits only one wallet lock and at most 11 SQL statements per operation.
+Already settled replay permits one wallet lock and at most four SQL statements per operation.
+All scenarios permit at most 18 SQL statements per operation.
+
+The report is `server/apps/api/billing-load-results.json`. It contains throughput, P95/P99 latency, errors, sampled pool waiters, SQL counts, and wallet locks.
+Time budgets are deliberately broad for shared CI runners: P95 below 2 seconds, P99 below 5 seconds, and throughput above 25 operations/second.
+These budgets catch severe regressions. They are not production latency targets.
+Compare repeated reports on the same machine before drawing performance conclusions.
+
+For a larger run:
+
+```sh
+BILLING_LOAD_TEST=1 BILLING_LOAD_REQUESTS=4096 BILLING_LOAD_CONCURRENCY=64 pnpm -F @proj-airi/api-server test:load
+```
+
+The suite measures domain-service persistence and real Redis/PostgreSQL contention, not HTTP transport or provider latency.
+It does not establish production capacity or measure index creation against a production-sized ledger.
+An existing-ledger migration still needs a release-window assessment because migration 0027 creates non-concurrent indexes.
+
 ## Service boundaries
 
 - `AUTH_SERVER_URL` is Auth's canonical public issuer origin used for JWKS,

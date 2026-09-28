@@ -169,6 +169,7 @@ function createMockLlmRouter(impl?: Partial<LlmRouterService>): LlmRouterService
       })
     }),
     supportsLlmRoute: vi.fn(async () => true),
+    validateLlmRoutes: vi.fn(async () => undefined),
     // TTS default also forwards to fetch, against a stable path tests can
     // assert on. The mocked response body becomes the audio payload.
     routeTts: vi.fn(async ({ modelName, input, abortSignal }) => {
@@ -3594,6 +3595,33 @@ it.each(['chat/completions', 'responses'])('does not cancel billing intake after
   expect(response.status).toBe(504)
   expect(billing.beginLlmRequest).toHaveBeenCalledTimes(1)
   expect(billing.cancelUndispatchedLlmRequest).not.toHaveBeenCalled()
+})
+
+// https://github.com/moeru-ai/airi/pull/2644#discussion_r4122406969
+// ROOT CAUSE:
+// Sequential candidate validation allowed primary dispatch before fallback pricing validation.
+// Validate the complete alias plan before the first route call.
+it.each(['chat/completions', 'responses'])('validates the full alias plan before dispatch for %s (PR #2644)', async (protocol) => {
+  const catalog = createMockProviderCatalogService()
+  const alias = await catalog.resolveEnabledAlias('llm', 'auto')
+  vi.mocked(catalog.resolveEnabledAlias).mockResolvedValue({ ...alias, fallbackEnabled: true, routes: [
+    ...alias.routes,
+    { ...alias.routes[0], id: 'unpriced-route', routerModelId: 'unpriced', pool: 'fallback' },
+  ] })
+  const route = vi.fn(async () => Response.json(responsesResult()))
+  const validateLlmRoutes = vi.fn(async () => {
+    throw new ApiError(503, 'LLM_BILLING_UNAVAILABLE', 'Missing fallback price')
+  })
+  const router = createMockLlmRouter({ route, validateLlmRoutes })
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, router, undefined, undefined, undefined, catalog)
+  const response = await app.request(`/api/v1/openai/${protocol}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [], input: 'hello' }),
+  }, { user: testUser })
+  expect(response.status).toBe(503)
+  expect(validateLlmRoutes).toHaveBeenCalledWith(expect.objectContaining({ modelNames: [alias.routes[0].routerModelId, 'unpriced'] }))
+  expect(route).not.toHaveBeenCalled()
 })
 
 it('accumulates routing counters across alias candidates', async () => {
