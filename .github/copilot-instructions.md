@@ -6,7 +6,7 @@ This is the `moeru-ai/airi` pnpm monorepo. Prefer the smallest safe change and k
 
 - Follow the root `AGENTS.md` instructions.
 - Do not modify unrelated files.
-- Do not mix documentation, agent configuration, and runtime logic changes in one patch.
+- Do not mix agent configuration changes and runtime logic changes in one patch. Put documentation that describes the changed code in the same patch.
 - Do not change package files, lockfiles, or workspace configuration unless the task explicitly requires it.
 - Preserve existing test style and helpers.
 - Do not claim tests passed unless you actually ran them.

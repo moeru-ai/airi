@@ -23296,7 +23296,7 @@
       }
     },
     "isOneTime": false,
-    "monthlyDollars": 32,
+    "monthlyDollars": -1,
     "privacyLevel": "PUBLIC",
     "tierName": "Patreon",
     "createdAt": "2026-07-27T14:49:21.176+00:00",

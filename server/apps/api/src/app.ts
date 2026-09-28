@@ -57,12 +57,14 @@ import { createChatWsPayloadLimit } from './routes/chat-ws/v2/payload-limit'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
+import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
+import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
@@ -419,6 +421,7 @@ export async function buildApp(deps: AppDeps) {
      * Flux routes.
      */
     .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService))
+    .route('/api/v1/llm-requests', createLlmRequestRoutes(deps.requestLogService))
 
     /**
      * Stripe routes.
@@ -443,6 +446,7 @@ export async function buildApp(deps: AppDeps) {
       deps.appleIapVerifier,
       deps.configKV,
       deps.otel?.rateLimit ?? null,
+      deps.env.APPLE_IAP_SANDBOX_USER_IDS,
     ))
 
     /**
@@ -570,6 +574,16 @@ export async function createApp() {
     },
   })
 
+  const objectStore = injeca.provide('datastore:objectStore', {
+    dependsOn: { env: parsedEnv, lifecycle },
+    build: ({ dependsOn }) => {
+      const store = createS3ObjectStore(dependsOn.env)
+      if (store)
+        dependsOn.lifecycle.appHooks.onStop(() => store.dispose())
+      return store
+    },
+  })
+
   const configKV = injeca.provide('datastore:configKV', {
     dependsOn: { db, redis },
     build: ({ dependsOn }) => createConfigKVService(createConfigKVStore(dependsOn.db, dependsOn.redis)),
@@ -636,6 +650,7 @@ export async function createApp() {
         return await createAppleIapVerifier({
           apps: dependsOn.env.APPLE_IAP_APPS,
           env: dependsOn.env.APPLE_IAP_ENV,
+          allowSandbox: dependsOn.env.APPLE_IAP_SANDBOX_USER_IDS.length > 0,
         })
       }
       catch (error) {
@@ -743,6 +758,7 @@ export async function createApp() {
 
   await injeca.start()
   const resolved = await injeca.resolve({
+    objectStore,
     db,
     characterService,
     chatService,

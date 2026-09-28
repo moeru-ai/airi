@@ -4,6 +4,7 @@ import type { PaymentService } from '../../services/domain/payment'
 import type { HonoEnv } from '../../types/hono'
 import type { Verifier } from './verifier'
 
+import { Environment } from '@apple/app-store-server-library'
 import { Hono } from 'hono'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -36,6 +37,8 @@ const verifiedTransaction = {
   productId: 'ai.moeru.airi.flux.500',
   appAccountToken: storedToken,
   type: 'Consumable',
+  bundleId: 'ai.moeru.airi-pocket',
+  environment: Environment.PRODUCTION,
 }
 
 const starterApplePacks: ConfigDefinitions['APPLE_FLUX_PACKS'] = {
@@ -75,7 +78,7 @@ function createMockVerifier(overrides?: Partial<Verifier>): Verifier {
     verifyTransaction: vi.fn(async () => verifiedTransaction),
     verifyNotification: vi.fn(async () => ({
       notificationType: 'ONE_TIME_CHARGE',
-      data: { signedTransactionInfo: 'inner-jws' },
+      data: { signedTransactionInfo: 'inner-jws', bundleId: verifiedTransaction.bundleId, environment: Environment.PRODUCTION },
     })),
     ...overrides,
   } as Verifier
@@ -86,8 +89,9 @@ function createTestApp(
   verifier: Verifier | null,
   db: Database,
   configKV: ConfigKVService = createPacksConfigKV(),
+  sandboxUserIds: readonly string[] = [],
 ) {
-  const routes = createAppleIapRoutes(payment, db, verifier, configKV)
+  const routes = createAppleIapRoutes(payment, db, verifier, configKV, null, sandboxUserIds)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -343,6 +347,97 @@ describe('apple-iap routes', () => {
 
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ received: true })
+    expect(payment.settle).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  // A Sandbox verifier alone accepts purchases from every account. Both ingress
+  // paths must authorize the token owner before they can credit a shared wallet.
+  it('rejects sandbox submissions from users outside the allowlist', async () => {
+    await seedAppleAccount(testUser.id)
+    verifier = createMockVerifier({
+      verifyTransaction: vi.fn(async () => ({ ...verifiedTransaction, environment: Environment.SANDBOX })),
+    })
+    const app = createTestApp(payment, verifier, db)
+    const res = await post(app, '/transactions', { signedTransaction: 'jws' }, testUser)
+
+    expect(res.status).toBe(403)
+    expect(payment.settle).not.toHaveBeenCalled()
+  })
+
+  it('acknowledges sandbox notifications without crediting an unlisted account', async () => {
+    await seedAppleAccount(testUser.id)
+    verifier = createMockVerifier({
+      verifyTransaction: vi.fn(async () => ({ ...verifiedTransaction, environment: Environment.SANDBOX })),
+      verifyNotification: vi.fn(async () => ({
+        notificationType: 'ONE_TIME_CHARGE',
+        data: { signedTransactionInfo: 'inner-jws', bundleId: verifiedTransaction.bundleId, environment: Environment.SANDBOX },
+      })),
+    })
+    const app = createTestApp(payment, verifier, db)
+    const res = await post(app, '/notifications', { signedPayload: 'notify-jws' })
+
+    expect(res.status).toBe(200)
+    expect(payment.settle).not.toHaveBeenCalled()
+  })
+
+  it('uses the same sandbox order key for an allowed device and notification', async () => {
+    await seedAppleAccount(testUser.id)
+    verifier = createMockVerifier({
+      verifyTransaction: vi.fn(async () => ({ ...verifiedTransaction, environment: Environment.SANDBOX })),
+      verifyNotification: vi.fn(async () => ({
+        notificationType: 'ONE_TIME_CHARGE',
+        data: { signedTransactionInfo: 'inner-jws', bundleId: verifiedTransaction.bundleId, environment: Environment.SANDBOX },
+      })),
+    })
+    const app = createTestApp(payment, verifier, db, createPacksConfigKV(), [testUser.id])
+    const device = await post(app, '/transactions', { signedTransaction: 'jws' }, testUser)
+    const notification = await post(app, '/notifications', { signedPayload: 'notify-jws' })
+
+    expect(device.status).toBe(200)
+    expect(notification.status).toBe(200)
+    expect(payment.settle).toHaveBeenCalledTimes(2)
+    expect(payment.settle).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      processorOrderId: 'sandbox:ai.moeru.airi-pocket:txn_1',
+      userId: testUser.id,
+      extras: expect.objectContaining({ environment: Environment.SANDBOX }),
+    }))
+    expect(vi.mocked(payment.settle).mock.calls[0][0]).toEqual(vi.mocked(payment.settle).mock.calls[1][0])
+  })
+
+  it('does not let an allowed sandbox user submit another account token', async () => {
+    await seedAppleAccount(otherUser.id)
+    verifier = createMockVerifier({
+      verifyTransaction: vi.fn(async () => ({ ...verifiedTransaction, environment: Environment.SANDBOX })),
+    })
+    const app = createTestApp(payment, verifier, db, createPacksConfigKV(), [testUser.id])
+    const res = await post(app, '/transactions', { signedTransaction: 'jws' }, testUser)
+
+    expect(res.status).toBe(403)
+    expect(payment.settle).not.toHaveBeenCalled()
+  })
+
+  it('rejects an inner transaction from a different environment', async () => {
+    await seedAppleAccount(testUser.id)
+    verifier = createMockVerifier({
+      verifyTransaction: vi.fn(async () => ({ ...verifiedTransaction, environment: Environment.SANDBOX })),
+    })
+    const app = createTestApp(payment, verifier, db, createPacksConfigKV(), [testUser.id])
+    const res = await post(app, '/notifications', { signedPayload: 'notify-jws' })
+
+    expect(res.status).toBe(400)
+    expect(payment.settle).not.toHaveBeenCalled()
+  })
+
+  it('rejects an inner transaction from a different trusted app', async () => {
+    await seedAppleAccount(testUser.id)
+    verifier = createMockVerifier({
+      verifyTransaction: vi.fn(async () => ({ ...verifiedTransaction, bundleId: 'ai.moeru.airi-pocket-lab' })),
+    })
+    const app = createTestApp(payment, verifier, db)
+    const res = await post(app, '/notifications', { signedPayload: 'notify-jws' })
+
+    expect(res.status).toBe(400)
     expect(payment.settle).not.toHaveBeenCalled()
   })
 })

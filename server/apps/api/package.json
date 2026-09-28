@@ -17,6 +17,8 @@
   },
   "dependencies": {
     "@apple/app-store-server-library": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/s3-request-presigner": "catalog:",
     "@dotenvx/dotenvx": "catalog:",
     "@electric-sql/pglite": "catalog:",
     "@electric-sql/pglite-pgvector": "catalog:",

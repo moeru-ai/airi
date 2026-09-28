@@ -26,10 +26,11 @@ export function createAppleIapRoutes(
   verifier: Verifier | null,
   configKV: ConfigKVService,
   rateLimitMetrics?: RateLimitMetrics | null,
+  sandboxUserIds: readonly string[] = [],
 ) {
   const accountToken = createAccountTokenOperation(db, verifier)
-  const transactions = createTransactionsOperation(payment, db, verifier, configKV)
-  const notifications = createNotificationsOperation(payment, db, verifier, configKV)
+  const transactions = createTransactionsOperation(payment, db, verifier, configKV, sandboxUserIds)
+  const notifications = createNotificationsOperation(payment, db, verifier, configKV, sandboxUserIds)
 
   return new Hono<HonoEnv>()
     .post(

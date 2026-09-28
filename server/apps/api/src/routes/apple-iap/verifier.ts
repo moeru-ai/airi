@@ -14,6 +14,7 @@ import {
 } from '@apple/app-store-server-library'
 import { useLogger } from '@guiiai/logg'
 import { decodeJwt } from 'jose'
+import { object, optional, safeParse, string } from 'valibot'
 
 import { ApiError, createBadRequestError, createInternalError, createServiceUnavailableError } from '../../utils/error'
 
@@ -24,6 +25,8 @@ export type StoreKitEnv = 'sandbox' | 'production' | 'xcode'
 export interface VerifierOptions {
   apps: Array<{ bundleId: string, appAppleId?: number }>
   env: StoreKitEnv
+  /** Permit Sandbox verification beside Production. Account authorization is enforced by the routes. @default false */
+  allowSandbox?: boolean
 }
 
 const ROOT_CA_DIR = fileURLToPath(new URL('../../../assets/apple-root-ca', import.meta.url))
@@ -47,26 +50,31 @@ export async function createVerifier(options: VerifierOptions) {
     throw new Error('Each APPLE_IAP_APPS entry needs an App Store Connect id when APPLE_IAP_ENV is production')
 
   const rootCertificates = await loadAppleRootCertificates()
-  const verifiers = new Map<string, SignedDataVerifier>()
+  const verifiers = new Map<string, Map<string, SignedDataVerifier>>()
+  const environments = [STOREKIT_ENVIRONMENTS[options.env]]
+  if (options.env === 'production' && options.allowSandbox)
+    environments.push(Environment.SANDBOX)
 
   for (const app of options.apps) {
-    verifiers.set(app.bundleId, new SignedDataVerifier(
-      rootCertificates,
-      true,
-      STOREKIT_ENVIRONMENTS[options.env],
-      app.bundleId,
-      app.appAppleId,
-    ))
+    verifiers.set(app.bundleId, new Map(environments.map(environment => [
+      environment,
+      new SignedDataVerifier(rootCertificates, true, environment, app.bundleId, app.appAppleId),
+    ])))
   }
 
+  /** Selects a trust policy from unverified claims; the SDK must verify every claim again. */
   function verifierFor(jws: string, kind: 'transaction' | 'notification'): SignedDataVerifier {
-    const bundleId = peekBundleId(jws, kind)
-    const selected = bundleId ? verifiers.get(bundleId) : undefined
-    if (!selected)
+    const identity = peekIdentity(jws, kind)
+    const appVerifiers = identity?.bundleId ? verifiers.get(identity.bundleId) : undefined
+    if (!appVerifiers)
       throw createBadRequestError('Bundle identifier mismatch', 'BUNDLE_MISMATCH')
+    const selected = identity?.environment ? appVerifiers.get(identity.environment) : undefined
+    if (!selected)
+      throw createBadRequestError('Transaction environment mismatch', 'ENVIRONMENT_MISMATCH')
     return selected
   }
 
+  /** Verifies the transaction signature and its selected app/environment policy. */
   async function verifyTransaction(jws: string): Promise<JWSTransactionDecodedPayload> {
     try {
       return await verifierFor(jws, 'transaction').verifyAndDecodeTransaction(jws)
@@ -76,6 +84,7 @@ export async function createVerifier(options: VerifierOptions) {
     }
   }
 
+  /** Verifies the notification envelope before a route reads its transaction. */
   async function verifyNotification(signedPayload: string): Promise<ResponseBodyV2DecodedPayload> {
     try {
       return await verifierFor(signedPayload, 'notification').verifyAndDecodeNotification(signedPayload)
@@ -88,36 +97,53 @@ export async function createVerifier(options: VerifierOptions) {
   return { verifyTransaction, verifyNotification }
 }
 
-function peekBundleId(jws: string, kind: 'transaction' | 'notification'): string | undefined {
+const RoutingIdentitySchema = object({
+  bundleId: optional(string()),
+  environment: optional(string()),
+})
+const NotificationRoutingSchema = object({
+  data: optional(RoutingIdentitySchema),
+  summary: optional(RoutingIdentitySchema),
+  appData: optional(RoutingIdentitySchema),
+  externalPurchaseToken: optional(object({
+    bundleId: optional(string()),
+    externalPurchaseId: optional(string()),
+  })),
+})
+
+/** Reads routing hints only. No decoded value can authorize a purchase without SDK verification. */
+function peekIdentity(jws: string, kind: 'transaction' | 'notification') {
   try {
     const payload = decodeJwt(jws)
-    if (kind === 'transaction')
-      return readStringField(payload, 'bundleId')
-
-    for (const key of ['data', 'summary', 'externalPurchaseToken', 'appData']) {
-      const bundleId = readStringField(payload[key], 'bundleId')
-      if (bundleId)
-        return bundleId
+    if (kind === 'transaction') {
+      const parsed = safeParse(RoutingIdentitySchema, payload)
+      return parsed.success ? parsed.output : undefined
     }
 
-    return undefined
+    const parsed = safeParse(NotificationRoutingSchema, payload)
+    if (!parsed.success)
+      return undefined
+    const { data, summary, externalPurchaseToken, appData } = parsed.output
+    if (data)
+      return data
+    if (summary)
+      return summary
+    if (externalPurchaseToken) {
+      return {
+        bundleId: externalPurchaseToken.bundleId,
+        environment: externalPurchaseToken.externalPurchaseId?.startsWith('SANDBOX')
+          ? Environment.SANDBOX
+          : Environment.PRODUCTION,
+      }
+    }
+    return appData
   }
   catch {
     throw createBadRequestError(`Signed ${kind} failed verification`, 'JWS_VERIFICATION_FAILED')
   }
 }
 
-function readStringField(value: unknown, key: string): string | undefined {
-  if (!isRecord(value))
-    return undefined
-  const field = value[key]
-  return typeof field === 'string' && field !== '' ? field : undefined
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value != null && typeof value === 'object' && !Array.isArray(value)
-}
-
+/** Maps SDK errors to retryable server errors or permanent input failures. */
 function mapVerificationError(error: unknown, kind: 'transaction' | 'notification'): never {
   if (error instanceof ApiError)
     throw error

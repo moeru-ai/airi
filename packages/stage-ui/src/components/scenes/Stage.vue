@@ -1051,7 +1051,7 @@ defineExpose({
         ref="live2dSceneRef"
         v-model:state="componentState"
         :presence="presenceBubble"
-        min-w="50% <lg:full" min-h="100 sm:100"
+        min-w="50% <lg:full"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
@@ -1073,7 +1073,7 @@ defineExpose({
         v-model:state="componentState"
         :presence="presenceBubble"
         :background-url="activeBackgroundUrl"
-        min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        min-w="50% <lg:full" h-full w-full flex-1
         :model-id="stageModelSelected"
         :model-src="stageModelSelectedUrl"
         :cursor-position="cursorPosition"
@@ -1091,7 +1091,7 @@ defineExpose({
         ref="spineSceneRef"
         v-model:state="componentState"
         :background-url="activeBackgroundUrl"
-        min-w="50% <lg:full" min-h="100 sm:100"
+        min-w="50% <lg:full"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
@@ -1107,7 +1107,7 @@ defineExpose({
         ref="tachieSceneRef"
         v-model:state="componentState"
         :background-url="activeBackgroundUrl"
-        min-w="50% <lg:full" min-h="100 sm:100"
+        min-w="50% <lg:full"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
@@ -1121,7 +1121,7 @@ defineExpose({
         ref="mmdSceneRef"
         v-model:state="componentState"
         :background-url="activeBackgroundUrl"
-        min-w="50% <lg:full" min-h="100 sm:100"
+        min-w="50% <lg:full"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
