@@ -259,7 +259,7 @@ export function createBillingService(
           pendingReason: input.pendingReason ?? charge.pendingReason ?? 'awaiting_settlement',
           generationId: input.usage.generationId,
           providerUsage: observation.providerUsage,
-          evidence: { version: 1, source, observation, usage: { ...input.usage, providerUsage: observation.providerUsage } },
+          costSource: source,
           costUsd: charge.costUsd?.toString(),
           pricing,
         }
@@ -280,22 +280,12 @@ export function createBillingService(
         if (existing?.generationId && input.usage.generationId !== existing.generationId)
           throw new Error('Generation ID does not match the cost receipt')
         if (existing?.billingStatus === 'settled')
-          return { charged: existing.fluxConsumed!, requested: existing.fluxConsumed!, pending: false, balance: wallet.flux, replay: true }
+          return { charged: existing.chargedFlux!, requested: existing.chargedFlux!, pending: false, balance: wallet.flux, replay: true }
 
         if (!existing || existing.method !== 'provider_cost')
           throw new Error('Prepared cost settlement is missing')
         const settlementId = existing.id
         const pricing = parse(costPricingSchema, existing.pricing)
-        const evidence = {
-          userId: input.userId,
-          requestId: input.requestId,
-          model: input.model,
-          attemptId: observation.attemptId,
-          method: 'provider_cost',
-          generationId: input.usage.generationId,
-          providerUsage: observation.providerUsage,
-          evidence: { version: 1, source, observation, usage: { ...input.usage, providerUsage: observation.providerUsage } },
-        }
         const charge = priceLlmCost(input.usage, pricing)
         if (input.pendingReason !== undefined || charge.pendingReason !== undefined) {
           return { charged: 0, requested: 0, pending: true, balance: wallet.flux, replay: false, pendingReason: existing?.pendingReason ?? input.pendingReason ?? charge.pendingReason }
@@ -323,35 +313,22 @@ export function createBillingService(
             model: existing?.model ?? input.model,
             promptTokens: input.usage.promptTokens,
             completionTokens: input.usage.completionTokens,
-            billing: {
-              method: 'provider_cost',
-              provider,
-              generationId: input.usage.generationId,
-              costUsd: charge.costUsd,
-              ...pricing,
-              requestedFlux: requested,
-              rounding: 'ceil',
-            },
             ...(charged < requested && { requestedAmount: requested, unbilled: requested - charged }),
           },
         })
         const settled = {
-          ...evidence,
           billingProvider: provider,
           billingStatus: 'settled',
           pendingReason: null,
           generationId: input.usage.generationId,
           providerUsage: observation.providerUsage,
           costUsd: charge.costUsd.toString(),
-          fluxConsumed: charged,
+          chargedFlux: charged,
           requestedFlux: requested,
           pricing,
           settledAt: new Date(),
         }
-        await tx.insert(llmRequestSettlement).values({ id: settlementId, ...settled }).onConflictDoUpdate({
-          target: [llmRequestSettlement.userId, llmRequestSettlement.requestId],
-          set: settled,
-        })
+        await tx.update(llmRequestSettlement).set(settled).where(key)
         return { charged, requested, pending: false, balance, replay: false }
       })).catch((error) => {
         // A failed transaction cannot retain its receipt. Keep correlation fields outside the database.

@@ -2672,7 +2672,7 @@ describe('openRouter cost billing through HTTP routes', () => {
         expect(await response.text()).toContain('gen-cost')
         await vi.waitFor(async () => {
           const [receipt] = await db.select().from(llmRequestSettlement)
-          expect(receipt).toMatchObject({ billingProvider: 'openrouter', billingStatus: 'settled', fluxConsumed: expectedFlux, costUsd: String(cost), pricing })
+          expect(receipt).toMatchObject({ billingProvider: 'openrouter', billingStatus: 'settled', chargedFlux: expectedFlux, costUsd: String(cost), pricing })
         })
         const [wallet] = await db.select().from(userFlux)
         expect(wallet.flux).toBe(100 - expectedFlux)
@@ -2682,15 +2682,11 @@ describe('openRouter cost billing through HTTP routes', () => {
         expect(entries).toHaveLength(1)
         expect(entries[0]).toMatchObject({ gateway: 'openrouter.ai', upstreamProvider: 'Inference Provider', upstreamModel: 'vendor/native-model', responseModel: 'returned-model', cachedTokens: 90, reasoningTokens: 12, fluxConsumed: expectedFlux, state: 'completed' })
         const [settlement] = await db.select().from(llmRequestSettlement)
-        expect(settlement.evidence).toMatchObject({ observation: {
-          gateway: 'openrouter.ai',
-          upstreamProvider: 'Inference Provider',
-          upstreamModel: 'vendor/native-model',
-          responseModel: 'returned-model',
-          cachedTokens: 90,
-          reasoningTokens: 12,
+        expect(settlement).toMatchObject({
+          costSource: 'provider_reported',
           providerUsage: { future_meter: { units: 4 } },
-        } })
+        })
+        expect(settlement).not.toHaveProperty('evidence')
       })
     }
   }
@@ -2768,9 +2764,10 @@ describe('openRouter cost billing through HTTP routes', () => {
       await reader.read()
       await vi.waitFor(async () => {
         const [settlement] = await db.select().from(llmRequestSettlement)
-        const entry = settlement.evidence
-        expect(entry).toMatchObject({ observation: { timeToFirstTokenMs: 50, durationMs: 100, responseModel: 'actual-model', upstreamProvider: 'Inference Provider', finishReason: 'stop' } })
-        expect(JSON.stringify(entry)).not.toContain('private output')
+        expect(settlement).toMatchObject({ generationId: 'gen-timing', costSource: 'provider_reported', costUsd: '0.002' })
+        expect(JSON.stringify(settlement)).not.toContain('private output')
+        const [entry] = await db.select().from(llmRequestLog)
+        expect(entry).toMatchObject({ timeToFirstTokenMs: 50, durationMs: 100, responseModel: 'actual-model', upstreamProvider: 'Inference Provider', finishReason: 'stop' })
       })
     }
     finally {

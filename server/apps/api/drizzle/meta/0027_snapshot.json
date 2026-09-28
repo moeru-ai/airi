@@ -1,5 +1,5 @@
 {
-  "id": "669a573a-a6d3-4451-a85f-6b912e5a3f90",
+  "id": "16a8a635-1c66-4993-bf3e-af3b7e66c165",
   "prevId": "443b9ff2-195a-44d3-9c96-0bafe92889a6",
   "version": "7",
   "dialect": "postgresql",
@@ -1764,9 +1764,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "evidence": {
-          "name": "evidence",
-          "type": "jsonb",
+        "cost_source": {
+          "name": "cost_source",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -1788,18 +1788,11 @@
           "primaryKey": false,
           "notNull": false
         },
-        "flux_consumed": {
-          "name": "flux_consumed",
+        "charged_flux": {
+          "name": "charged_flux",
           "type": "bigint",
           "primaryKey": false,
           "notNull": false
-        },
-        "schema_version": {
-          "name": "schema_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
         },
         "created_at": {
           "name": "created_at",

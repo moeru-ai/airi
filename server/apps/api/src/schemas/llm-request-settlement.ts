@@ -1,4 +1,4 @@
-import { bigint, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { bigint, index, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
@@ -15,12 +15,11 @@ export const llmRequestSettlement = pgTable('llm_request_settlement', {
   pendingReason: text('pending_reason'),
   generationId: text('generation_id'),
   pricing: jsonb('pricing'),
-  evidence: jsonb('evidence'),
+  costSource: text('cost_source'),
   providerUsage: jsonb('provider_usage'),
   costUsd: text('cost_usd'),
   requestedFlux: bigint('requested_flux', { mode: 'number' }),
-  fluxConsumed: bigint('flux_consumed', { mode: 'number' }),
-  schemaVersion: integer('schema_version').notNull().default(1),
+  chargedFlux: bigint('charged_flux', { mode: 'number' }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   settledAt: timestamp('settled_at'),
 }, table => [

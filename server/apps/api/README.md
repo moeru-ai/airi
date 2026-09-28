@@ -206,7 +206,10 @@ Only the OpenRouter adapter is implemented. Other gateways cannot serve hosted L
 Missing or invalid returned cost, BYOK fees, and incomplete output leave a pending settlement without a token-rate estimate.
 Each request charges `ceil(costUsd * fluxPerUsd * multiplier)` in whole Flux, after applying the multiplier.
 An explicit zero cost settles at zero. Every positive cost rounds up; no fractional remainder carries between requests.
-Billing retains the original price snapshot, usage evidence and provider/generation identity for reconciliation.
+Billing retains the original price snapshot, cost source, sanitized provider usage and provider/generation identity for reconciliation.
+Settlement stores `requestedFlux` and `chargedFlux`; its charged amount is a result snapshot committed with the ledger.
+`flux_transaction` owns actual balance changes and references the settlement, without copying its cost and price fields.
+Request-log `fluxConsumed` remains an observation-time summary, not a live billing total.
 There is no automatic reconciliation worker in this release.
 
 A future model-price-table adapter is a supported pricing mode, not a fallback.

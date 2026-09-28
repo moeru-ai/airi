@@ -10,12 +10,11 @@ CREATE TABLE "llm_request_settlement" (
 	"pending_reason" text,
 	"generation_id" text,
 	"pricing" jsonb,
-	"evidence" jsonb,
+	"cost_source" text,
 	"provider_usage" jsonb,
 	"cost_usd" text,
 	"requested_flux" bigint,
-	"flux_consumed" bigint,
-	"schema_version" integer DEFAULT 1 NOT NULL,
+	"charged_flux" bigint,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"settled_at" timestamp
 );
