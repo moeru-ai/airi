@@ -25,3 +25,13 @@ Put primitive UI components in `@proj-airi/ui`. Put shared layouts in `@proj-air
 ## Provider settings
 
 The active chat and vision provider routes live under `/settings/providers`. They use `ProviderGenerationSettings` from stage-ui to render protocol and native search options from the provider catalog. The V2 editor is a separate consumer and does not replace these routes.
+
+## Character card previews
+
+The local library and v2 directory use `CharacterCard` from `@proj-airi/stage-ui/components/characters/index`. They share the v2 portrait layout. Each page supplies its own metadata and footer actions; the shared card does not load or edit character data.
+
+The card library contains read-only portrait cards. Each card opens `/settings/airi-card/:cardId`, a standalone profile with the same full-page layout as the editor. The profile shows the selected card's model binding, not the active character's runtime model. Empty bindings inherit the catalog defaults. Missing models remain visible as unavailable bindings.
+
+The editor's Model section uses the same read-only model preview with its draft selection. Model settings are separate from Modules. Selection changes persist only through the existing save actions. The profile opens that editor without activating the card. Activation, export, and deletion remain explicit profile actions.
+
+Desktop and mobile profiles and the editor's Model section render the same horizontal model summary. The editor supplies its draft binding; the profile supplies the saved binding. Both preserve explicit, inherited, and unavailable model states.

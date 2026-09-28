@@ -3,6 +3,7 @@ import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@pr
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
+import { useVisionSettingsStore } from '@proj-airi/stage-ui/stores/modules/vision/settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
@@ -15,6 +16,7 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const airiCardStore = useAiriCardStore()
 const visionStore = useVisionStore()
+const visionSettings = useVisionSettingsStore()
 const visionProcessingStore = useVisionProcessingStore()
 const { configuredProviders } = storeToRefs(providerStore)
 const { moduleVisionProvidersMetadata } = storeToRefs(providersStore)
@@ -95,9 +97,10 @@ function formatRelativeTime(timestamp: number | null) {
 <template>
   <div :class="['flex', 'flex-col', 'gap-6']">
     <FieldCheckbox
-      v-model="useForChat"
+      :model-value="useForChat"
       :label="t('stage.chat.images.use-vision')"
       :description="t('stage.chat.images.use-vision-description')"
+      @update:model-value="async (value) => { await visionSettings.setUseForChat(value) }"
     />
 
     <div :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
@@ -426,9 +429,10 @@ function formatRelativeTime(timestamp: number | null) {
         </div>
 
         <FieldCheckbox
-          v-model="ollamaThinkingEnabled"
+          :model-value="ollamaThinkingEnabled"
           label="Thinking (Ollama)"
           description="When enabled, vision requests sent through Ollama include `think: true`. When disabled, they include `think: false`."
+          @update:model-value="async (value) => { await visionSettings.setOllamaThinkingEnabled(value) }"
         />
       </div>
     </div>

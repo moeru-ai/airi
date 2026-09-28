@@ -113,14 +113,15 @@ export function useDataMaintenance() {
     threeStore.resetModelStore()
     mcpStore.resetState()
     onboardingStore.resetSetupState()
-    airiCardStore.resetState()
+    await airiCardStore.resetState()
   }
 
   async function deleteAllData() {
     await deleteAllModels()
     await resetProvidersSettings()
     await resetModulesSettings()
-    await deleteAllChatSessions()
+    await chatOrchestrator.cancelPendingSends()
+    await chatStore.resetAllSessions(false)
     await resetSettingsState()
   }
 

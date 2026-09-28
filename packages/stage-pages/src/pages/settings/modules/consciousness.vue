@@ -325,13 +325,14 @@ async function updateTopPEnabled(value: boolean) {
       />
       <FieldRange
         v-if="temperatureEnabled"
-        v-model="temperature"
+        :model-value="temperature"
         :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.temperature_label')"
         :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.temperature_description')"
         :min="0"
         :max="2"
         :step="0.1"
         :format-value="value => value.toFixed(1)"
+        @update:model-value="consciousnessSettingsStore.setTemperature"
       />
       <FieldCheckbox
         :model-value="topPEnabled"
@@ -341,13 +342,14 @@ async function updateTopPEnabled(value: boolean) {
       />
       <FieldRange
         v-if="topPEnabled"
-        v-model="topP"
+        :model-value="topP"
         :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.top_p_label')"
         :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.top_p_description')"
         :min="0"
         :max="1"
         :step="0.1"
         :format-value="value => value.toFixed(1)"
+        @update:model-value="consciousnessSettingsStore.setTopP"
       />
     </div>
   </div>

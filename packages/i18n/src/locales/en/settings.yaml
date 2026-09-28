@@ -477,6 +477,12 @@ pages:
     search: Search cards...
     sort_by: Sort by
     body-model: Body / Display Model
+    model: Model
+    view-card: View character
+    library-description: Choose a character to view their profile, model, and settings.
+    model-unavailable: Model unavailable
+    model-bound: Bound to this character
+    model-not-bound: No model selected
     speech:
       provider: Speech / Provider
       model: Speech / Model

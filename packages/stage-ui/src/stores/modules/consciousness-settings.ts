@@ -31,6 +31,20 @@ export const useConsciousnessSettingsStore = defineStore('consciousness-settings
   const reasoning = shallowRef(loadEnabled('reasoning'))
   const temperatureEnabled = shallowRef(loadEnabled('temperature-enabled'))
   const topPEnabled = shallowRef(loadEnabled('top-p-enabled'))
+  const temperature = shallowRef(typeof localStorage === 'undefined' ? 0.7 : Number(localStorage.getItem('settings/consciousness/active-temperature') ?? 0.7))
+  const topP = shallowRef(typeof localStorage === 'undefined' ? 1 : Number(localStorage.getItem('settings/consciousness/active-top-p') ?? 1))
+
+  async function setTemperature(value: number) {
+    temperature.value = value
+    if (typeof localStorage !== 'undefined')
+      localStorage.setItem('settings/consciousness/active-temperature', String(value))
+  }
+
+  async function setTopP(value: number) {
+    topP.value = value
+    if (typeof localStorage !== 'undefined')
+      localStorage.setItem('settings/consciousness/active-top-p', String(value))
+  }
 
   async function setReasoning(value: boolean) {
     reasoning.value = value
@@ -48,6 +62,8 @@ export const useConsciousnessSettingsStore = defineStore('consciousness-settings
   }
 
   async function resetState() {
+    await setTemperature(0.7)
+    await setTopP(1)
     await setReasoning(false)
     await setTemperatureEnabled(false)
     await setTopPEnabled(false)
@@ -55,6 +71,10 @@ export const useConsciousnessSettingsStore = defineStore('consciousness-settings
 
   return {
     reasoning,
+    temperature,
+    topP,
+    setTemperature,
+    setTopP,
     temperatureEnabled,
     topPEnabled,
     setReasoning,
@@ -64,7 +84,7 @@ export const useConsciousnessSettingsStore = defineStore('consciousness-settings
   }
 }, {
   synced: {
-    actions: ['resetState', 'setReasoning', 'setTemperatureEnabled', 'setTopPEnabled'],
+    actions: ['resetState', 'setReasoning', 'setTemperatureEnabled', 'setTopPEnabled', 'setTemperature', 'setTopP'],
     state: true,
   },
 })

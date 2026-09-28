@@ -89,4 +89,29 @@ describe('useVisionInference', () => {
 
     await expectation
   })
+
+  it('uses the conversation selection without changing the window selection', async () => {
+    const { runVisionInference } = useVisionInference()
+    await runVisionInference({
+      imageDataUrl: 'data:image/png;base64,Zm9v',
+      workloadId: 'screen:interpret',
+      selection: { provider: 'character-vision', model: 'character-model' },
+    })
+
+    expect(useProviderStore().getChatProviderInstance).toHaveBeenCalledWith('character-vision')
+    expect(stream.mock.calls[0]?.[0]).toBe('character-model')
+    expect(useVisionStore().activeProvider).toBe('openai')
+    expect(useVisionStore().activeModel).toBe('mock-model')
+  })
+
+  it('does not borrow window settings for an unconfigured character', async () => {
+    const { runVisionInference } = useVisionInference()
+    await expect(runVisionInference({
+      imageDataUrl: 'data:image/png;base64,Zm9v',
+      workloadId: 'screen:interpret',
+      selection: { provider: '', model: '' },
+    })).rejects.toThrow('Vision provider/model not configured')
+
+    expect(stream).not.toHaveBeenCalled()
+  })
 })

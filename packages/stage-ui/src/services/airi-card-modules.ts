@@ -16,3 +16,21 @@ export function resolveModuleSelection(
   const model = selection.model || (provider === defaults.provider ? defaults.model : '')
   return { provider, model }
 }
+
+/** Resolves inherited settings without carrying a voice across provider or model boundaries. */
+export function resolveCardModules(modules: AiriExtension['modules'], defaults: CardModuleDefaults): CardModuleDefaults {
+  const speech = resolveModuleSelection(modules.speech, defaults.speech)
+  return {
+    consciousness: resolveModuleSelection(modules.consciousness, defaults.consciousness),
+    vision: resolveModuleSelection(modules.vision, defaults.vision),
+    speech: {
+      ...speech,
+      voice_id: modules.speech.voice_id || (
+        speech.provider === defaults.speech.provider && speech.model === defaults.speech.model
+          ? defaults.speech.voice_id
+          : ''
+      ),
+    },
+    displayModelId: modules.displayModelId || defaults.displayModelId,
+  }
+}
