@@ -16,6 +16,10 @@
     "directory": "server/packages/server-sdk-shared"
   },
   "exports": {
+    "./contacts": {
+      "types": "./dist/contacts.d.mts",
+      "default": "./dist/contacts.mjs"
+    },
     ".": {
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"

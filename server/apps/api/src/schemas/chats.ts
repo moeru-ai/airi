@@ -1,9 +1,10 @@
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 
 import { sql } from 'drizzle-orm'
-import { index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { check, foreignKey, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
+import { contacts } from './contacts'
 
 export const media = pgTable(
   'media',
@@ -48,11 +49,22 @@ export const chats = pgTable(
 
     type: text('type').notNull().$type<ChatType>(),
     title: text('title'),
+    contactId: text('contact_id'),
+    contactOwnerId: text('contact_owner_id'),
 
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
     deletedAt: timestamp('deleted_at'),
   },
+  table => [
+    foreignKey({
+      name: 'chats_contact_owner_fk',
+      columns: [table.contactOwnerId, table.contactId],
+      foreignColumns: [contacts.ownerId, contacts.id],
+    }),
+    check('chats_contact_binding_check', sql`(${table.contactId} IS NULL AND ${table.contactOwnerId} IS NULL) OR (${table.contactId} IS NOT NULL AND ${table.contactOwnerId} IS NOT NULL AND ${table.type} = 'bot')`),
+    index('chats_contact_owner_idx').on(table.contactOwnerId, table.contactId),
+  ],
 )
 
 export type Chat = InferSelectModel<typeof chats>

@@ -5,7 +5,7 @@ import type { CharacterCapabilityConfig } from '../types/character-capability'
 
 import { user } from '@proj-airi/auth-shared'
 import { relations } from 'drizzle-orm'
-import { integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 import { characterBookmarks, characterLikes } from './user-character'
@@ -14,6 +14,7 @@ export const character = pgTable(
   'characters',
   {
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
+    isPrivate: boolean('is_private').notNull().default(false),
     version: text('version').notNull(),
     coverUrl: text('cover_url').notNull(),
 

@@ -55,6 +55,7 @@ import { createChatWsV1Handlers } from './routes/chat-ws/v1'
 import { createChatWsV2Handlers } from './routes/chat-ws/v2'
 import { createChatWsPayloadLimit } from './routes/chat-ws/v2/payload-limit'
 import { createChatRoutes } from './routes/chats'
+import { createContactRoutes } from './routes/contacts'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createLlmRequestRoutes } from './routes/llm-requests'
@@ -70,6 +71,7 @@ import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
 import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
+import { createContactService } from './services/domain/contacts'
 import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
@@ -89,6 +91,7 @@ interface AppDeps {
   db: Database
   characterService: CharacterService
   chatService: ChatService
+  contactService: ReturnType<typeof createContactService>
   providerService: ProviderService
   fluxService: FluxService
   fluxTransactionService: FluxTransactionService
@@ -407,6 +410,7 @@ export async function buildApp(deps: AppDeps) {
      * Chat routes are handled by the chat service.
      */
     .route('/api/v1/chats', createChatRoutes(deps.chatService))
+    .route('/api/v1/contacts', createContactRoutes(deps.contactService))
 
     /**
      * V1 OpenAI-compatible and audio routes. The factory returns two
@@ -632,6 +636,11 @@ export async function createApp() {
     build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
+  const contactService = injeca.provide('services:contacts', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createContactService(dependsOn.db),
+  })
+
   const stripe = injeca.provide('libs:stripe', {
     dependsOn: { env: parsedEnv },
     build: ({ dependsOn }) => {
@@ -703,7 +712,7 @@ export async function createApp() {
   // Domain knowledge stays inside each service instead of being copied into
   // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, chatService },
+    dependsOn: { paymentService, fluxService, providerService, characterService, chatService, contactService },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
       // priority: 20 = financial / cache state (Flux balance + Redis),
@@ -713,6 +722,7 @@ export async function createApp() {
       service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
       service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
       service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
+      service.register({ name: 'contacts', priority: 30, softDelete: ({ userId }) => dependsOn.contactService.deleteAllForUser(userId) })
       return service
     },
   })
@@ -762,6 +772,7 @@ export async function createApp() {
     db,
     characterService,
     chatService,
+    contactService,
     providerService,
     fluxService,
     fluxTransactionService,
@@ -792,6 +803,7 @@ export async function createApp() {
     db: resolved.db,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
+    contactService: resolved.contactService,
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
