@@ -13,6 +13,18 @@ Welcome back, this is [@LemonNekoGH](https://github.com/LemonNekoGH), one of the
 
 The last Dome Keeper DevLog was way back on [2026.02.16](../DevLog-2026.02.16/index.md), when I was still slogging through YOLO dataset collection. Half a year later, this line of work has changed direction a few times, and it finally landed on the question I find the most fun: **how do we get an AI to actually put its hands on the keyboard?**
 
+## Looking back
+
+To explain what this post is really about, it helps to rewind and see how this line of work got here.
+
+It starts with the [2025.08.26 DevLog](../DevLog-2025.08.26/index.md), when I was exploring the pure-vision side of `airi-factorio`: stuffing the Factorio client into Docker, piping its screen out over VNC, and running near-real-time object detection with YOLO11n. The idea was plain — let the AI see, then decide, then act.
+
+But Factorio is too free and too complex; I couldn't tame it. So on [2026.02.16](../DevLog-2026.02.16/index.md) I switched to the smaller Dome Keeper, wrote a mod, and started grinding out a YOLO dataset — hitting the usual pits along the way: coordinate spaces, letterboxing, and frames mislabeled under UI overlays. Those two posts already cover the details, so I won't repeat them here.
+
+Then one thing slowly became obvious: **seeing is not the same as playing.** A detector can tell me "there is some iron on screen," but it cannot tell me "hold this key for this frame." So, to avoid babysitting the game just to record data, I wrote a rule-based AI and let it play — and collect — by itself. That "collection script" kept growing: A\* navigation, mining, upgrades, defense, caves, relics — until it turned into a teacher that can actually finish a run.
+
+With that teacher around, the hardest question — where do demonstrations come from — solved itself: just let it play and record the whole thing. The **Quark Action** and **TaskExecutor** below are exactly what got carved out of that teacher along the way.
+
 ## LLMs are too slow, so we split the problem
 
 It all starts with a small, slightly disappointing observation: you cannot just hand the LLM the question "which key should be held for the next frame?"
