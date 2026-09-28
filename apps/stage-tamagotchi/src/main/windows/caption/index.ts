@@ -300,7 +300,7 @@ export function setupCaptionWindowManager(params: {
 
     const window = createCaptionWindow()
     currentWindow = window
-    const { context } = createContext(ipcMain, window)
+    const { context } = createContext(ipcMain, window, { onlySameWindow: true })
     eventaContext = context
 
     await setupBaseWindowElectronInvokes({ context, window, serverChannel: params.serverChannel, i18n: params.i18n })

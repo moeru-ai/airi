@@ -54,7 +54,7 @@ export async function setupMainWindowElectronInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.window)
+  const { context } = createContext(ipcMain, params.window, { onlySameWindow: true })
 
   await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
