@@ -319,5 +319,50 @@ describe('mergeCloudMessagesIntoLocal', () => {
     )
     expect(result.messages).toBe(local)
     expect(result.maxSeq).toBe(3)
+    expect(result.deletedIds).toEqual(['gone'])
+  })
+
+  /**
+   * @example
+   * The tombstone of `m1` arrives, then an older broadcast of its send. The
+   * server never restores a deleted message, so the older copy is stale.
+   */
+  it('does not restore a message when an older send arrives after its tombstone', () => {
+    const afterTombstone = mergeCloudMessagesIntoLocal(
+      [{ role: 'user', content: 'first', id: 'm1', createdAt: 0 }],
+      1,
+      { messages: [makeWire({ id: 'm1', seq: 3, deletedAt: 1 })], toSeq: 3 },
+    )
+    const afterLateSend = mergeCloudMessagesIntoLocal(
+      afterTombstone.messages,
+      afterTombstone.maxSeq,
+      { messages: [makeWire({ id: 'm1', role: 'user', content: 'first', seq: 1 })], toSeq: 1 },
+      afterTombstone.deletedIds,
+    )
+    expect(afterLateSend.messages).toEqual([])
+    expect(afterLateSend.deletedIds).toEqual(['m1'])
+  })
+
+  /**
+   * @example
+   * The user deleted `m1` offline. On reconnect, the pull runs before the
+   * outbox sends the deletion, so the server still returns `m1`.
+   */
+  it('does not restore a message whose local deletion the server has not confirmed', () => {
+    const local: ChatHistoryItem[] = [{ role: 'user', content: 'second', id: 'm2', createdAt: 0 }]
+    const result = mergeCloudMessagesIntoLocal(
+      local,
+      0,
+      {
+        messages: [
+          makeWire({ id: 'm1', role: 'user', content: 'first', seq: 1 }),
+          makeWire({ id: 'm2', role: 'user', content: 'second', seq: 2 }),
+        ],
+        toSeq: 2,
+      },
+      ['m1'],
+    )
+    expect(result.messages).toBe(local)
+    expect(result.maxSeq).toBe(2)
   })
 })

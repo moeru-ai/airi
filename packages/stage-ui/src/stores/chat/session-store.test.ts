@@ -31,6 +31,7 @@ const reconcileLocalAndRemoteMock = vi.fn()
 const connectCloudWsMock = vi.fn()
 let cloudWsStatus: 'idle' | 'open' = 'idle'
 let cloudStatusListener: ((status: 'idle' | 'open') => void) | undefined
+let newMessagesListener: ((payload: unknown) => void) | undefined
 
 vi.mock('pinia', async () => {
   const actual = await vi.importActual<typeof import('pinia')>('pinia')
@@ -84,7 +85,7 @@ vi.mock('../../libs/server', () => ({
 // Inert chat-sync surface. The store doesn't drive any cloud writes in these
 // tests (anonymous user for one, deferred index for the other), so noops are
 // sufficient. We keep `extractMessageText` realistic so message previews work.
-vi.mock('../../libs/chat-sync', () => ({
+vi.mock('../../libs/chat-sync', async () => ({
   applyCreateActions: vi.fn().mockResolvedValue([]),
   reconcileLocalAndRemote: (...args: unknown[]) => reconcileLocalAndRemoteMock(...args),
   createCloudChatMapper: () => ({
@@ -99,7 +100,10 @@ vi.mock('../../libs/chat-sync', () => ({
     sendMessages: vi.fn().mockResolvedValue({ ok: true }),
     pullMessages: (...args: unknown[]) => pullMessagesMock(...args),
     deleteMessages: (...args: unknown[]) => deleteCloudMessagesMock(...args),
-    onNewMessages: () => () => {},
+    onNewMessages: (listener: (payload: unknown) => void) => {
+      newMessagesListener = listener
+      return () => {}
+    },
     onStatusChange: (listener: (status: 'idle' | 'open') => void) => {
       cloudStatusListener = listener
       return () => {}
@@ -107,7 +111,8 @@ vi.mock('../../libs/chat-sync', () => ({
   }),
   extractMessageText: (m: any) => (typeof m?.content === 'string' ? m.content : ''),
   isCloudSyncableMessage: (...args: unknown[]) => isCloudSyncableMessageMock(...args),
-  mergeCloudMessagesIntoLocal: () => ({ dirty: false, messages: [], maxSeq: 0 }),
+  // The real merge, so tests can follow a pull into the local history.
+  mergeCloudMessagesIntoLocal: (await vi.importActual<typeof import('../../libs/chat-sync/wire-message')>('../../libs/chat-sync/wire-message')).mergeCloudMessagesIntoLocal,
 }))
 
 const { useChatSessionStore } = await import('./session-store')
@@ -141,6 +146,7 @@ beforeEach(() => {
   connectCloudWsMock.mockReset()
   cloudWsStatus = 'idle'
   cloudStatusListener = undefined
+  newMessagesListener = undefined
 })
 
 afterEach(() => {
@@ -683,6 +689,92 @@ describe('chat-session-store · cloud message deletion', () => {
       expect(dequeueOutboxMock).toHaveBeenCalledWith('cloud-user', [expect.objectContaining({ kind: 'delete', messageId: 'offline-delete' })])
     })
     expect(deleteCloudMessagesMock).toHaveBeenCalledWith({ chatId: 'cloud-chat-1', messageIds: ['offline-delete'] })
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2671
+  it('keeps an offline deletion when the reconnect pull runs before the outbox drains for Issue #2671', async () => {
+    // ROOT CAUSE:
+    //
+    // Reconcile pulls every mapped session before it drains the outbox. The
+    // server still had the message, so the pull merged it back and saved it.
+    // The later deletion succeeded, but the server excludes the sending
+    // connection from the broadcast, so nothing removed the local copy.
+    userIdRef.value = 'cloud-user'
+    isCloudSyncableMessageMock.mockImplementation((message: { role: string }) => message.role === 'user')
+    const meta: ChatSessionMeta = {
+      sessionId: 'session-1',
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+      cloudChatId: 'cloud-chat-1',
+    }
+    getIndexMock.mockResolvedValue({
+      userId: 'cloud-user',
+      characters: { default: { activeSessionId: 'session-1', sessions: { 'session-1': meta } } },
+    })
+    getSessionMock.mockImplementation(async () => ({
+      meta: { ...meta },
+      messages: [
+        { id: 'u1', role: 'user', content: 'first' },
+        { id: 'u2', role: 'user', content: 'second' },
+      ],
+    }))
+    const outbox: unknown[] = []
+    enqueueOutboxMock.mockImplementation(async (_userId: string, entry: unknown) => {
+      outbox.push(entry)
+    })
+    getOutboxMock.mockImplementation(async () => [...outbox])
+    const wire = (id: string, seq: number) => ({ id, chatId: 'cloud-chat-1', senderId: 'cloud-user', role: 'user', content: id, seq, createdAt: 1, updatedAt: 1 })
+    pullMessagesMock.mockResolvedValue({ messages: [wire('u1', 1), wire('u2', 2)], seq: 2 })
+
+    const store = useChatSessionStore()
+    await store.initialize()
+    await store.deleteMessage({ sessionId: 'session-1', messageId: 'u1' })
+    expect(deleteCloudMessagesMock).not.toHaveBeenCalled()
+
+    cloudWsStatus = 'open'
+    cloudStatusListener?.('open')
+    await vi.waitFor(() => {
+      expect(store.cloudSyncReady).toBe(true)
+    })
+
+    expect(pullMessagesMock).toHaveBeenCalledWith({ chatId: 'cloud-chat-1', afterSeq: 0 })
+    expect(deleteCloudMessagesMock).toHaveBeenCalledWith({ chatId: 'cloud-chat-1', messageIds: ['u1'] })
+    // The store adds its own system message, so compare the user turns only.
+    const userIds = (messages: Array<{ id?: string, role: string }> = []) => messages.filter(message => message.role === 'user').map(message => message.id)
+    expect(userIds(store.getSessionMessages('session-1'))).toEqual(['u2'])
+    expect(userIds(saveSessionMock.mock.calls.at(-1)?.[1].messages)).toEqual(['u2'])
+  })
+
+  it('keeps a message deleted when an older send broadcast arrives after its tombstone', async () => {
+    userIdRef.value = 'cloud-user'
+    const meta: ChatSessionMeta = {
+      sessionId: 'session-1',
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+      cloudChatId: 'cloud-chat-1',
+      cloudMaxSeq: 1,
+    }
+    getIndexMock.mockResolvedValue({
+      userId: 'cloud-user',
+      characters: { default: { activeSessionId: 'session-1', sessions: { 'session-1': meta } } },
+    })
+    getSessionMock.mockImplementation(async () => ({
+      meta: { ...meta },
+      messages: [{ id: 'u1', role: 'user', content: 'first' }],
+    }))
+    const wire = { id: 'u1', chatId: 'cloud-chat-1', senderId: 'other-device', role: 'user', content: 'first', createdAt: 1, updatedAt: 1 }
+
+    const store = useChatSessionStore()
+    await store.initialize()
+    newMessagesListener?.({ chatId: 'cloud-chat-1', fromSeq: 3, toSeq: 3, messages: [{ ...wire, content: '', seq: 3, deletedAt: 2 }] })
+    newMessagesListener?.({ chatId: 'cloud-chat-1', fromSeq: 1, toSeq: 1, messages: [{ ...wire, seq: 1 }] })
+
+    expect(store.getSessionMessages('session-1').filter(message => message.role === 'user')).toEqual([])
+    expect(store.sessionMetas['session-1']?.cloudDeletedMessageIds).toEqual(['u1'])
   })
 
   it('does not queue a cloud deletion for a message that never syncs', async () => {

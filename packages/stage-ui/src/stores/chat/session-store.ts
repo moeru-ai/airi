@@ -355,11 +355,21 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return keep
     })
 
+    const cloudMessageIds = getCurrentUserId() === 'local'
+      ? []
+      : removed.filter(message => message.id && isCloudSyncableMessage(message)).map(message => message.id!)
+    const meta = sessionMetas.value[payload.sessionId]
+    // Record the deletion before any await. A pull that runs before the server
+    // confirms the deletion must not merge the message back.
+    if (meta && cloudMessageIds.length > 0) {
+      sessionMetas.value[payload.sessionId] = {
+        ...meta,
+        cloudDeletedMessageIds: [...new Set([...(meta.cloudDeletedMessageIds ?? []), ...cloudMessageIds])],
+      }
+    }
+
     setSessionMessages(payload.sessionId, nextMessages)
 
-    const cloudMessageIds = removed
-      .filter(message => message.id && isCloudSyncableMessage(message))
-      .map(message => message.id!)
     if (cloudMessageIds.length > 0)
       await deleteMessagesInCloud(payload.sessionId, cloudMessageIds)
   }
@@ -741,12 +751,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
 
     const current = sessionMessages.value[sessionId] ?? []
-    const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq ?? 0, payload)
+    const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq ?? 0, payload, meta.cloudDeletedMessageIds)
     if (!merged.dirty)
       return
 
     sessionMessages.value[sessionId] = merged.messages
-    sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: merged.maxSeq }
+    sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: merged.maxSeq, cloudDeletedMessageIds: [...merged.deletedIds] }
     void persistSession(sessionId)
   }
 

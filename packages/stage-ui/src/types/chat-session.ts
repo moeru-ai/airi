@@ -21,6 +21,15 @@ export interface ChatSessionMeta {
    * @default undefined
    */
   cloudMaxSeq?: number
+  /**
+   * Message ids that are deleted in this session: local deletions, including
+   * those that the server has not confirmed yet, and received tombstones. A
+   * cloud message with one of these ids is never merged again, whatever its
+   * arrival order.
+   *
+   * @default undefined
+   */
+  cloudDeletedMessageIds?: string[]
 }
 
 export interface ChatSessionRecord {
