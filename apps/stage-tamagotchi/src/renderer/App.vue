@@ -2,13 +2,16 @@
 import type { ArtistrySyncPayload } from '@proj-airi/stage-shared'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
-import { useInferencePreload } from '@proj-airi/stage-ui/composables'
+import { StartupScreen } from '@proj-airi/stage-ui/components/scenarios/startup'
+import { updateModelAssetStatus, useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
+import { isSherpawModelBundled, setSherpawModelAssetHost } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -30,7 +33,7 @@ import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage
 import { useTheme } from '@proj-airi/ui'
 import { isEqual } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, watch } from 'vue'
+import { onMounted, onUnmounted, shallowRef, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
@@ -45,6 +48,7 @@ import {
   i18nGetLocale,
   i18nSetLocale,
 } from '../shared/eventa'
+import { electronModelAssetEnsure, electronModelAssetRemove, electronModelAssetsList, electronModelAssetStatusChanged } from '../shared/eventa/model-assets'
 import {
   electronPluginUpdateCapability,
   pluginProtocolListProviders,
@@ -81,6 +85,22 @@ const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settings
 const router = useRouter()
 const route = useRoute()
 const context = useElectronEventaContext()
+const listModelAssets = useElectronEventaInvoke(electronModelAssetsList)
+const ensureModelAsset = useElectronEventaInvoke(electronModelAssetEnsure)
+const removeModelAsset = useElectronEventaInvoke(electronModelAssetRemove)
+const stopModelAssetStatus = context.value.on(electronModelAssetStatusChanged, (event) => {
+  if (event.body && !isSherpawModelBundled(event.body.id))
+    updateModelAssetStatus(event.body)
+})
+setSherpawModelAssetHost({
+  fetch: (model, fileName, signal) => fetch(
+    `airi-model://assets/${encodeURIComponent(model.id)}/${encodeURIComponent(model.revision)}/${fileName}`,
+    { signal },
+  ),
+  list: listModelAssets,
+  ensure: ensureModelAsset,
+  remove: removeModelAsset,
+})
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const windowContext = resolveRendererWindowContext()
@@ -346,18 +366,39 @@ if (isSettingsWindow) {
   })
 }
 
+const startupReady = shallowRef(false)
+const startupFailed = shallowRef(false)
+const startupError = shallowRef<string>()
+
 onMounted(async () => {
-  // NOTICE: Issue #1658
-  // When Electron restarts, renderer localStorage may not be flushed to disk.
-  // The store's onMounted hook falls back to navigator.language, which triggers
-  // watch(language) and overwrites the main-process config with the OS locale.
-  // We must restore the correct locale from main process before allowing sync.
-  // https://github.com/moeru-ai/airi/issues/1658
-  await restoreLocale()
+  try {
+    void listModelAssets().then((statuses) => {
+      for (const status of statuses) {
+        if (!isSherpawModelBundled(status.id))
+          updateModelAssetStatus(status)
+      }
+    }).catch(error => console.warn('Failed to read model asset status:', error))
 
-  await chatStore.initialize(syncedPinia)
+    // NOTICE: Issue #1658
+    // When Electron restarts, renderer localStorage may not be flushed to disk.
+    // The store's onMounted hook falls back to navigator.language, which triggers
+    // watch(language) and overwrites the main-process config with the OS locale.
+    // We must restore the correct locale from main process before allowing sync.
+    // https://github.com/moeru-ai/airi/issues/1658
+    await restoreLocale()
 
-  await fullStageRuntime?.initialize()
+    await chatStore.initialize(syncedPinia)
+    startupReady.value = true
+    if (fullStageRuntime) {
+      void fullStageRuntime.initialize().catch((error) => {
+        console.error('Failed to initialize Stage runtime:', error)
+      })
+    }
+  }
+  catch (error) {
+    startupError.value = errorMessageFrom(error) ?? undefined
+    startupFailed.value = true
+  }
 })
 
 watch(themeColorsHue, () => {
@@ -369,6 +410,7 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
+  stopModelAssetStatus()
   stopLeadershipListener?.()
   chatStore.dispose()
   fullStageRuntime?.dispose()
@@ -380,7 +422,8 @@ onUnmounted(() => {
     <Toaster />
   </ToasterRoot>
   <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow" />
-  <RouterView />
+  <StartupScreen v-if="!startupReady" :failed="startupFailed" :error="startupError" transparent />
+  <RouterView v-else />
 </template>
 
 <style>

@@ -11,6 +11,10 @@
 Stage Pocket exposes Sherpaw models through the shared Vite plugin. The models load from pinned remote URLs when selected.
 Chinese and English start with Paraformer. Other languages use an available model that supports them.
 
+Selected remote models download into the WebView origin private file system.
+Sherpaw settings show download state and let users remove stored files.
+Verify origin private file system support on each target device.
+
 ## WebSocket Bridge
 
 Stage Pocket adds a host-backed WebSocket bridge for `@proj-airi/server-sdk`.

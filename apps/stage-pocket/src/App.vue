@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { errorMessageFrom } from '@moeru/std'
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { StartupScreen } from '@proj-airi/stage-ui/components/scenarios/startup'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -19,7 +21,7 @@ import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage
 import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
@@ -105,29 +107,40 @@ watch(settings.themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 // Initialize first-time setup check when app mounts
+const startupReady = shallowRef(false)
+const startupFailed = shallowRef(false)
+const startupError = shallowRef<string>()
+
 onMounted(async () => {
-  initializeAnalytics()
-  await authStore.initialize()
-  await displayModelsStore.initialize()
-  await cardStore.initialize()
-  registerAuthenticatedSetup()
-  if (!authStore.isAuthenticated)
-    await removeAuthenticationProviderConfiguration()
+  try {
+    initializeAnalytics()
+    await authStore.initialize()
+    await displayModelsStore.initialize()
+    await cardStore.initialize()
+    registerAuthenticatedSetup()
+    if (!authStore.isAuthenticated)
+      await removeAuthenticationProviderConfiguration()
 
-  if (onboardingStore.needsOnboarding) {
-    onboardingStore.showingSetup = true
+    if (onboardingStore.needsOnboarding) {
+      onboardingStore.showingSetup = true
+    }
+
+    await serverChannelStore.initialize({
+      possibleEvents: ['ui:configure'],
+      connector: getHostWebSocketConnector,
+    }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+    contextBridgeStore.initialize()
+    characterOrchestratorStore.initialize()
+
+    await displayModelsStore.loadDisplayModelsFromIndexedDB()
+    await settingsStore.initializeStageModel()
+    await settingsAudioDeviceStore.initialize()
+    startupReady.value = true
   }
-
-  await serverChannelStore.initialize({
-    possibleEvents: ['ui:configure'],
-    connector: getHostWebSocketConnector,
-  }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-  contextBridgeStore.initialize()
-  characterOrchestratorStore.initialize()
-
-  await displayModelsStore.loadDisplayModelsFromIndexedDB()
-  await settingsStore.initializeStageModel()
-  await settingsAudioDeviceStore.initialize()
+  catch (error) {
+    startupError.value = errorMessageFrom(error) ?? undefined
+    startupFailed.value = true
+  }
 })
 
 onUnmounted(() => {
@@ -159,7 +172,9 @@ const extraSteps = computed(() => [
 </script>
 
 <template>
+  <StartupScreen v-if="!startupReady" :failed="startupFailed" :error="startupError" />
   <StageTransitionGroup
+    v-else
     :primary-color="primaryColor"
     :secondary-color="secondaryColor"
     :tertiary-color="tertiaryColor"
@@ -181,6 +196,7 @@ const extraSteps = computed(() => [
 
   <!-- First Time Setup Dialog -->
   <OnboardingDialog
+    v-if="startupReady"
     v-model="showingSetup"
     :extra-steps="extraSteps"
     @configured="handleSetupConfigured"

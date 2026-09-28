@@ -10,6 +10,10 @@
     <meta name="apple-mobile-web-app-title" content="AIRI" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="rgb(18,18,18)" id="themeColor" />
+    <style>
+      .boot-splash { position: fixed; inset: 0; display: grid; place-items: center; background: #fff; color: #171717; font: 600 2.25rem system-ui; letter-spacing: .08em; }
+      @media (prefers-color-scheme: dark) { .boot-splash { background: #0a0a0a; color: #f5f5f5; } }
+    </style>
 
     <!-- Open Graph Protocol -->
     <meta property="og:title" content="AIRI">
@@ -43,7 +47,7 @@
     <script src="/assets/js/CubismSdkForWeb-5-r.3/Core/live2dcubismcore.min.js"></script>
   </head>
   <body class="font-sans">
-    <div id="app"></div>
+    <div id="app"><div class="boot-splash" role="status">AIRI</div></div>
     <script type="module" src="/src/main.ts"></script>
     <noscript> This website requires JavaScript to function properly. Please enable JavaScript to continue. </noscript>
   </body>

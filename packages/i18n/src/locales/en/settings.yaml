@@ -1192,6 +1192,16 @@ pages:
         model:
           label: Model
           description: Select an available model. Recognition detects one of its supported languages. A change restarts the current session.
+        asset:
+          title: Model files
+          unknown: Checking files...
+          bundled: Included with AIRI
+          installed: Stored on this device
+          missing: Download when used
+          downloading: Downloading...
+          error: Download failed
+          download: Download now
+          remove: Remove download
       apple-speech-transcription:
         title: Apple Speech
         description: On-device speech recognition on macOS 26 or later. No API key is required.

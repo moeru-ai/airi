@@ -3,6 +3,10 @@ character-switcher:
   manage: 管理角色
   empty: 暂无角色
   failed: 无法切换角色，请重试。
+startup:
+  loading: 正在启动 AIRI…
+  failed: AIRI 启动失败。
+  reload: 重新加载
 mobile-tools:
   sign-in: 登录 AIRI
   account-description: 账户与偏好
