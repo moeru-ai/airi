@@ -1,15 +1,70 @@
+character-switcher:
+  title: Переключить персонажа
+  manage: Управлять персонажами
+  empty: Пока нет персонажей
+  failed: Не удалось переключить персонажа. Попробуйте еще раз.
+mobile-tools:
+  sign-in: Войти в AIRI
+  account-description: Учётная запись и настройки
+  sound: Звук
+  character-voice: Голос персонажа
+  title: Настройки
+  appearance: Внешний вид
+  dark-mode: Тёмный режим
+  application: Приложение
+  more: Ещё
+  background: Фон
+  settings: Все настройки
+  about: Подробнее
+  view: Вид
+  close-view: Сохранить и закрыть управление видом
+  hearing: Слух
 chat:
+  voice-input: Voice input
+  images:
+    empty: Share a thought or a picture.
+    use-vision: Use the vision model for chat images
+    use-vision-description: Choose a provider and model below. It reads attached images before your chat model replies. Without a vision model, images go directly to the chat model.
+    attach: 'Attach images'
+    remove: 'Remove {name}'
+    unsupported: 'Use PNG, JPEG, WebP, or GIF images.'
+    too-large: 'Each image must be 3 MB or smaller.'
+    too-many: 'Attach up to {count} images at a time.'
+    total-too-large: 'All attached images together must be 3 MB or smaller.'
+    read-failed: 'Could not read this image. Try again.'
+    no-description: 'The vision model returned no image description. Check Settings → Modules → Vision and try again.'
+    reading: 'Reading images…'
+    description: 'Image attachment'
   actions:
+    reply: Ответить
     retry: Повторить
+    send: Отправить сообщение
+    stop: Stop response
   message:
     character-name:
       airi: AIRI
       core-system: Core система
       you: Ты
+  reply:
+    cancel: Отменить ответ
+    message: Сообщение
+    replying-to: Ответить на {name}
   reasoning: Причина
+  swipe-demo:
+    show-label: Show labels
+    delete: Delete
+    archive: Archive
+    pin: Pin
+    actions: Show actions
+    row: 'Conversation {n}'
   sessions:
+    delete-short: Delete
+    confirm-delete-short: Confirm delete
     title: Диалоги
     new: + Новый
+    current: Текущая
+    confirm-delete: Удалить этот диалог и его сообщения?
+    cancel: Отменить
     empty: Диалогов пока нет
     cloud-badge: Синхронизировано с облаком
     new-chat-fallback: Новый чат
@@ -107,3 +162,6 @@ websocket-status:
   connected: Подключено
   disconnected: Нет подключения
   open-settings: Открыть настройки подключения
+computer-use:
+  label: Use computer
+  description: Allow this chat window to inspect and control native apps on this computer.

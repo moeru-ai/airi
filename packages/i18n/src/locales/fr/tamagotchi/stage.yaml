@@ -14,12 +14,13 @@ docs:
     disable: Toujours afficher
   'open-settings': Ouvrir les paramètres
   'open-chat': Ouvrir le Chat
+  'hide-chat': Hide Chat
   'refresh': Actualiser
   'center-main-window': Move to screen center
   'open-hearing-controls': Ouvrir les contrôles d'écoute
   'drag-to-move-window': Glisser pour déplacer la fenêtre
-  'stop-speaking': Arrêter la parole
-  'speaker-idle': Haut-parleur
+  'mute': Mute
+  'unmute': Unmute
   'switch-to-light-mode': Passer au mode clair
   'switch-to-dark-mode': Passer au mode sombre
   'pin-on-top': Épingler en haut
@@ -32,6 +33,16 @@ docs:
   'logging-in': Connexion en cours...
   'account': Compte
   'logout': Compte
+'chat-window':
+  style:
+    title: Chat window style
+    legacy: Classic window
+    floating-attached: Floating, beside the character
+    floating-free: Floating, anywhere on screen
+    pinned: Keep on top
+  resize: Drag to resize the chat
+  move: Drag to move the chat
+  fold: Hide chat
 widgets:
   close: Fermer le widget
   empty:
@@ -39,6 +50,8 @@ widgets:
     description: Les widgets apparaîtront ici lorsqu'un outil ou un plugin en génèrera un.
   loading: Chargement du widget…
   waiting: En attente des données du widget pour "{id}"…
+inlay:
+  close: Close
 notice:
   'fade-on-hover':
     title: Disparaître au survol

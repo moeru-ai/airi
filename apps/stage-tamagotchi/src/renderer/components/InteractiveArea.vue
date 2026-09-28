@@ -4,6 +4,8 @@ import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/st
 import type { ChatToolCallRerunEvent } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
+import type { ChatDraftHandover } from '../../shared/eventa'
+
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatHistory, HearingConfigDialog, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
@@ -17,10 +19,10 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicButton, BasicTextarea, GhostButton } from '@proj-airi/ui'
-import { useLocalStorage } from '@vueuse/core'
+import { until, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, nextTick, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
@@ -28,6 +30,19 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
 import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
+
+const props = withDefaults(defineProps<{
+  /**
+   * `true` in the transparent floating chat window, which draws nothing
+   * behind the chat. Bubbles, the composer and the welcome card then paint
+   * solid backgrounds that keep their contrast over any desktop, and the
+   * history scrollbar shows on hover, because the wheel over the empty
+   * history reaches the app below instead.
+   */
+  floating?: boolean
+}>(), {
+  floating: false,
+})
 
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
 const lastEnterTime = ref(0)
@@ -231,19 +246,93 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
     tools: computerUseEnabled.value ? computerUseToolReferences : [],
   })
 }
+
+function fileFromBase64(attachment: ChatDraftHandover['attachments'][number]) {
+  const bytes = Uint8Array.from(atob(attachment.data), character => character.charCodeAt(0))
+  return new File([bytes], attachment.name, { type: attachment.mimeType })
+}
+
+/**
+ * Captures the unsent composer content for a chat mode switch, which closes
+ * this window. An image that is still being read joins the content before it
+ * is captured. Returns `undefined` when there is nothing to carry over.
+ */
+async function snapshotDraft(): Promise<ChatDraftHandover | undefined> {
+  await until(pendingImages).toBe(0)
+  if (!messageInput.value && attachments.value.length === 0 && !replyTarget.value)
+    return undefined
+
+  const reply = replyTarget.value
+  return {
+    sessionId: activeSessionId.value,
+    text: messageInput.value,
+    // The history hands out reactive message proxies, which cannot cross IPC.
+    replyTarget: reply && { label: reply.label, message: structuredClone(toRaw(reply.message)) },
+    attachments: attachments.value.map(attachment => ({
+      data: attachment.data,
+      mimeType: attachment.mimeType,
+      name: attachment.file.name,
+    })),
+  }
+}
+
+/**
+ * Puts content from another chat window back into the composer, and returns
+ * whether it did.
+ *
+ * A new window receives the synchronized session state after it mounts, so
+ * the content waits for its session to become active. Content for another
+ * session, or a session that does not arrive, is not restored, and the mode
+ * switch keeps the window that still holds it.
+ */
+async function restoreDraft(draft: ChatDraftHandover): Promise<boolean> {
+  await until(activeSessionId).toBe(draft.sessionId, { timeout: 5000 })
+  if (activeSessionId.value !== draft.sessionId)
+    return false
+
+  messageInput.value = draft.text
+  if (draft.replyTarget)
+    selectReply(draft.replyTarget)
+  composer.addAttachments(...draft.attachments.map(attachment => ({
+    type: 'image' as const,
+    data: attachment.data,
+    mimeType: attachment.mimeType,
+    file: fileFromBase64(attachment),
+    previewId: crypto.randomUUID(),
+  })))
+  return true
+}
+
+defineExpose({ restoreDraft, snapshotDraft })
 </script>
 
 <template>
   <ChatViewportLayout>
     <template #history="{ tailInset }">
-      <div v-if="!historyMessages.some(message => message.role !== 'system') && !isActiveSessionSending" :class="['pointer-events-none absolute inset-x-0 top-1/3 flex flex-col items-center gap-3 px-6 text-center']">
-        <div :class="['size-14 flex items-center justify-center rounded-2xl bg-primary-100/60 text-primary-500 dark:bg-primary-900/30']">
-          <span :class="['i-solar:chat-line-bold-duotone size-7']" />
+      <!--
+        The welcome card centers in the space above the composer, which covers
+        the bottom of the history. The container query below drops the icon,
+        then the description, when that space is too short for them.
+      -->
+      <div
+        v-if="!historyMessages.some(message => message.role !== 'system') && !isActiveSessionSending"
+        :class="['chat-empty-state pointer-events-none absolute inset-x-0 top-0 flex items-center justify-center overflow-hidden px-6']"
+        :style="{ bottom: `calc(${tailInset}px + 1rem)` }"
+      >
+        <div
+          :class="[
+            'flex flex-col items-center gap-3 text-center',
+            props.floating ? 'rounded-2xl bg-white px-6 py-6 shadow-md dark:bg-neutral-900' : '',
+          ]"
+        >
+          <div :class="['chat-empty-state-icon size-14 flex items-center justify-center rounded-2xl bg-primary-100/60 text-primary-500 dark:bg-primary-900/30']">
+            <span :class="['i-solar:chat-line-bold-duotone size-7']" />
+          </div>
+          <span :class="['font-cute text-xl text-neutral-700 dark:text-neutral-200']">{{ assistantLabel || 'AIRI' }}</span>
+          <p :class="['chat-empty-state-description text-sm text-neutral-500 dark:text-neutral-400']">
+            {{ t('stage.chat.images.empty') }}
+          </p>
         </div>
-        <span :class="['font-cute text-xl text-neutral-700 dark:text-neutral-200']">{{ assistantLabel || 'AIRI' }}</span>
-        <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
-          {{ t('stage.chat.images.empty') }}
-        </p>
       </div>
       <ChatHistory
         :messages="historyMessages"
@@ -252,6 +341,8 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
         :streaming-message="visibleStreamingMessage"
         :tail-inset="tailInset"
         :tool-call-renderers="toolCallRenderers"
+        :surface="props.floating ? 'opaque' : 'translucent'"
+        :scrollbar="props.floating ? 'hover' : 'scroll'"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
         @retry-message="handleRetryMessage($event.index)"
@@ -263,9 +354,16 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
       <div
         ref="message-composer"
         :class="[
-          'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl p-3',
-          'bg-neutral-100/70 backdrop-blur-xl dark:bg-neutral-900/65',
-          'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-900 motion-reduce:transition-none',
+          'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl',
+          // The composer layer clips overflow, which would cut a ring or a
+          // shadow; a border stays inside the box. The floating composer is
+          // its own island, so it keeps tighter padding than the windowed one.
+          props.floating
+            ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
+            : [
+              'bg-neutral-100/70 p-3 backdrop-blur-xl dark:bg-neutral-900/65',
+              'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-900 motion-reduce:transition-none',
+            ],
         ]"
       >
         <div
@@ -468,3 +566,22 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
   <!-- Shared Preview Modal -->
   <JournalPreviewModal />
 </template>
+
+<style scoped>
+.chat-empty-state {
+  container-type: size;
+}
+
+/* The card needs about 11rem with the icon and 5rem with the description. */
+@container (max-height: 12rem) {
+  .chat-empty-state-icon {
+    display: none;
+  }
+}
+
+@container (max-height: 6rem) {
+  .chat-empty-state-description {
+    display: none;
+  }
+}
+</style>

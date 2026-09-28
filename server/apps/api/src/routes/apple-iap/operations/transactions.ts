@@ -9,6 +9,7 @@ import { minLength, object, pipe, safeParse, string } from 'valibot'
 import { createBadRequestError, createForbiddenError } from '../../../utils/error'
 import {
   APPLE_IAP_PROCESSOR,
+  canCreditTransaction,
   evidenceReceiptFromTransaction,
   findLiveAccount,
   grantableConsumableTransaction,
@@ -31,6 +32,7 @@ export function createTransactionsOperation(
   db: Database,
   verifier: Verifier | null,
   configKV: ConfigKVService,
+  sandboxUserIds: readonly string[] = [],
 ) {
   return async (userId: string, body: unknown) => {
     const apple = requireVerifier(verifier)
@@ -48,6 +50,9 @@ export function createTransactionsOperation(
     const account = await findLiveAccount(db, { token: fields.appAccountToken })
     if (!account || account.userId !== userId)
       throw createForbiddenError('appAccountToken does not belong to the authenticated user')
+
+    if (!canCreditTransaction(payload, userId, sandboxUserIds))
+      throw createForbiddenError('Sandbox purchases require a dedicated test account')
 
     const pack = await resolveAppleIapPack(configKV, fields.productId)
     if (!pack) {

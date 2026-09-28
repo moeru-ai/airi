@@ -10,6 +10,15 @@ minimumReleaseAgeExclude:
   - electron-builder@26.16.1
   - '@moeru/*'
   - '@proj-airi/*'
+  # NOTICE:
+  # Sherpaw 0.2.1 contains the browser worker fix required by AIRI.
+  # pnpm blocks packages published within the last 72 hours.
+  # Source: https://github.com/moeru-ai/sherpaw/pull/18
+  # Remove these exceptions after 2026-09-30 19:54 UTC.
+  - '@sherpaw/asr@0.2.1'
+  - '@sherpaw/preloader@0.2.1'
+  - '@sherpaw/shared@0.2.1'
+  - '@sherpaw/xsai-transcription@0.2.1'
   - '@vishot/*'
   - '@xsai/*'
   - '@xsai-apple-speech/*'
@@ -194,6 +203,7 @@ catalog:
   '@radix-ui/colors': ^3.0.0
   '@ricky0123/vad-web': ^0.0.30
   '@rive-app/canvas-lite': ^2.40.1
+  '@sherpaw/xsai-transcription': 0.2.1
   '@shikijs/markdown-it': ^4.4.3
   '@shikijs/rehype': ^4.4.3
   '@shopify/draggable': ^1.2.1

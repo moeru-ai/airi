@@ -14,12 +14,13 @@ docs:
     disable: Всегда показывать
   'open-settings': Открыть настройки
   'open-chat': Открыть чат
+  'hide-chat': Hide Chat
   'refresh': Обновить результаты
   'center-main-window': Переместить в центр экрана
   'open-hearing-controls': Управление слухом
   'drag-to-move-window': Перетащите окно
-  'stop-speaking': Остановить воспроизведение
-  'speaker-idle': Динамик
+  'mute': Mute
+  'unmute': Unmute
   'switch-to-light-mode': Переключить на светлую тему
   'switch-to-dark-mode': Переключить на темную тему
   'pin-on-top': Прикрепить на верх
@@ -32,6 +33,16 @@ docs:
   'logging-in': Выполняется вход...
   'account': Аккаунт
   'logout': Выйти
+'chat-window':
+  style:
+    title: Chat window style
+    legacy: Classic window
+    floating-attached: Floating, beside the character
+    floating-free: Floating, anywhere on screen
+    pinned: Keep on top
+  resize: Drag to resize the chat
+  move: Drag to move the chat
+  fold: Hide chat
 widgets:
   close: Закрыть виджет
   empty:
@@ -39,6 +50,8 @@ widgets:
     description: Виджеты появятся здесь, когда появится инструмент или плагин.
   loading: Загрузка виджета…
   waiting: Ожидание данных виджета "{id}"…
+inlay:
+  close: Close
 notice:
   'fade-on-hover':
     title: Исчезать при наведении

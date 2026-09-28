@@ -142,6 +142,17 @@ describe('migrated provider definitions', () => {
     expect(configured?.valid).toBe(true)
   })
 
+  it('accepts each Sherpaw model and rejects unsupported model IDs', async () => {
+    const definition = getRequiredProvider('sherpaw-transcription')
+    const schema = await definition.createProviderConfig({ t: translate })
+
+    expect(z.parse(schema, {})).toEqual({ model: 'paraformer-zh-en', modelLanguageFilter: 'en' })
+    for (const model of ['paraformer-zh-en', 'zipformer-multilingual', 'x-asr-zh-en-480ms-int8'])
+      expect(z.parse(schema, { model })).toEqual({ model, modelLanguageFilter: 'en' })
+    expect(z.safeParse(schema, { model: 'zipformer-zh-en' }).success).toBe(false)
+    expect(z.safeParse(schema, { model: 'unknown-model' }).success).toBe(false)
+  })
+
   it('describes Web Speech API streaming support without runtime state', async () => {
     const definition = getRequiredProvider('browser-web-speech-api')
     const defaults = z.parse(await definition.createProviderConfig({ t: translate }), {})
