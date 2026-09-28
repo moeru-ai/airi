@@ -480,6 +480,11 @@ function captureExtensionProviderSessionInput(input: unknown): {
  * Extension pending and ready states use distinct slot variants. Every visible
  * Host aggregate change creates a generation. Exact-source leases prevent stale
  * cleanup from withdrawing replacement registrations.
+ *
+ * Pending transactions use `sessionId` as their global correlation key. A second
+ * pending transaction with the same key is rejected even when its Extension ID
+ * differs. Private transaction tokens isolate pending slots and stale rollback
+ * calls. Registration tokens separately isolate stale Provider handles.
  */
 export class KitProviderRegistry {
   private readonly slots = new Map<string, KitSlot>()
@@ -496,7 +501,11 @@ export class KitProviderRegistry {
     return (this.lastGenerations.get(id) ?? 0) + 1
   }
 
-  /** Registers one Host source and returns exact ownership for its lifecycle. */
+  /**
+   * Registers one Host source and returns exact ownership for its lifecycle.
+   *
+   * @param source Descriptor or Client factory source to register.
+   */
   contributeHost(source: Extract<HostKitSource, { kind: 'descriptor' }>): HostSourceLease<KitDescriptorSnapshot>
   contributeHost<TClient>(source: Extract<HostKitSource<TClient>, { kind: 'client-factory' }>): HostSourceLease<KitRef<TClient>>
   contributeHost<TClient>(source: HostKitSource<TClient>): HostSourceLease<KitDescriptorSnapshot | KitRef<TClient>> {
@@ -568,12 +577,14 @@ export class KitProviderRegistry {
   private withdrawHostSource(id: string, sourceKind: HostSourceKind, token: symbol): boolean {
     const current = this.slots.get(id)
     if (current?.state !== 'host-ready') {
+      // A stale lease cannot withdraw a slot that was removed or replaced by an Extension Provider.
       return false
     }
     const registered = sourceKind === 'descriptor'
       ? current.sources.descriptor
       : current.sources.clientFactory
     if (registered?.token !== token) {
+      // The source changed after this lease was issued, so disposal must leave the replacement intact.
       return false
     }
 
@@ -592,13 +603,13 @@ export class KitProviderRegistry {
     return true
   }
 
-  /** Returns the immutable Host descriptor accepted for one Kit. */
+  /** Returns the immutable descriptor captured from the current Host registration. Re-query after registration changes. */
   getHostDescriptor(id: string): KitDescriptorSnapshot | undefined {
     const slot = this.slots.get(id)
     return slot?.state === 'host-ready' ? slot.sources.descriptor?.payload : undefined
   }
 
-  /** Returns immutable Host descriptors, optionally filtered by runtime. */
+  /** Returns immutable point-in-time descriptors, optionally filtered by runtime. Re-query after registration changes. */
   listHostDescriptors(runtime?: PluginRuntime): readonly KitDescriptorSnapshot[] {
     return Object.freeze([...this.slots.values()]
       .filter((slot): slot is HostReadySlot => slot.state === 'host-ready')
@@ -608,7 +619,10 @@ export class KitProviderRegistry {
       }))
   }
 
-  /** Returns the receiver-free Host Client factory for one Kit. */
+  /**
+   * Returns the receiver-free factory captured from the current Host registration.
+   * A previously returned function is not revoked. Re-query before creating a Client after registration changes.
+   */
   getHostClientFactory<TClient>(id: string): HostClientFactory<TClient> | undefined {
     const slot = this.slots.get(id)
     if (slot?.state !== 'host-ready') {
@@ -617,7 +631,10 @@ export class KitProviderRegistry {
     return slot.sources.clientFactory?.payload.createClient as HostClientFactory<TClient> | undefined
   }
 
-  /** Reserves all declarations for one Extension setup transaction. */
+  /**
+   * Reserves all declarations for one Extension setup transaction.
+   * The owner session ID is the global correlation key, and a private token isolates every reserved slot.
+   */
   beginExtensionSession(input: ExtensionProviderSessionInput): ExtensionProviderTransaction {
     const { owner, declarations } = captureExtensionProviderSessionInput(input)
     if (this.transactions.has(owner.sessionId)) {
@@ -820,6 +837,7 @@ export class KitProviderRegistry {
 
   private rollbackTransaction(transaction: TransactionState): void {
     if (transaction.phase !== 'pending' || this.transactions.get(transaction.owner.sessionId) !== transaction) {
+      // Rollback is idempotent, and a stale transaction cannot remove another session's reservations.
       return
     }
     transaction.phase = 'rolled-back'
@@ -859,6 +877,7 @@ export class KitProviderRegistry {
       this.slots.delete(id)
       return true
     }
+    // The handle is stale or already disposed, so leaving the current registration unchanged is safe.
     return false
   }
 

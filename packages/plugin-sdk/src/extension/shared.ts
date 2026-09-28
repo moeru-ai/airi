@@ -39,6 +39,13 @@ export interface ExtensionKitConsumer {
 
 /** Root setup can provide Kits declared by its Manifest. Module scopes only consume Kits. */
 export interface ExtensionKitRegistry extends ExtensionKitConsumer {
+  /**
+   * Fills one Provider reservation in the current Extension setup transaction.
+   * The Provider remains pending until the Host commits the complete transaction.
+   *
+   * @param contract Contract identity and member definitions.
+   * @param provider Exact method handlers accepted for this registration.
+   */
   provide: <TContract extends KitContract>(contract: TContract, provider: KitProvider<TContract>) => KitProviderHandle
 }
 
