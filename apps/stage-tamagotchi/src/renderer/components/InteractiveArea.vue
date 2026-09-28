@@ -129,7 +129,7 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
 })
 
 async function handleSend() {
-  if (!pendingImages.value)
+  if (activeSessionId.value && !pendingImages.value)
     await submitInterruptingResponse()
 }
 
@@ -541,7 +541,7 @@ defineExpose({ restoreDraft, snapshotDraft })
             size="unset"
             :aria-label="t('stage.chat.actions.send')"
             :title="t('stage.chat.actions.send')"
-            :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
+            :disabled="!activeSessionId || !!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
             :class="[
               'ml-auto size-9 rounded-full bg-primary-500 text-white',
               'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500 motion-reduce:transition-none',

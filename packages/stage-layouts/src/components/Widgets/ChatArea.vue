@@ -81,7 +81,7 @@ const composerActionButtonClass = [
 ]
 
 async function handleSend() {
-  if (!pendingImages.value)
+  if (chatSession.activeSessionId && !pendingImages.value)
     await submitInterruptingResponse()
 }
 
@@ -296,7 +296,7 @@ watch(replyTarget, async (target) => {
           v-else
           type="button"
           :aria-label="t('stage.chat.actions.send')"
-          :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
+          :disabled="!chatSession.activeSessionId || !!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
           :class="[
             composerActionButtonClass,
             'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40',

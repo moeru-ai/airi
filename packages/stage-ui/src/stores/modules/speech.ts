@@ -133,8 +133,8 @@ export const useSpeechStore = defineStore('speech', () => {
 
   const supportsSSML = computed(() => supportsSpeechSsml(activeSpeechProvider.value, activeSpeechModel.value))
 
-  /** Captures one conversation's speech settings without changing this window's selection. */
-  async function resolveSpeechSelection(selection: AiriExtension['modules']['speech']) {
+  /** Captures stored speech settings without network discovery or changing this window's selection. */
+  function resolveSpeechSelection(selection: AiriExtension['modules']['speech']) {
     const provider = selection.provider
     const model = selection.model
     const voiceId = selection.voice_id
@@ -156,14 +156,19 @@ export const useSpeechStore = defineStore('speech', () => {
       const voice: VoiceInfo = { id: selectedVoice, name: selectedVoice, description: selectedVoice, previewURL: '', languages: [{ code: 'en', title: 'English' }], provider, gender: 'neutral' }
       return { ...snapshot, model: model || configuredModel || 'tts-1', voice }
     }
-    const voices = await loadVoicesForProvider(provider, model || undefined)
     const recommended = pickOfficialSpeechVoice({
       activeSpeechProvider: provider,
       activeSpeechVoiceId: voiceId,
-      availableVoices: { [provider]: voices },
+      availableVoices: availableVoices.value,
       uiLocale: locale.value,
     })
-    const voice = voices.find(voice => voice.id === (recommended || voiceId))
+    const selectedVoice = voiceId || recommended
+    const cachedVoice = availableVoices.value[provider]?.find(voice => voice.id === selectedVoice)
+    let voice: VoiceInfo | undefined
+    if (cachedVoice)
+      voice = structuredClone(toRaw(cachedVoice))
+    else if (selectedVoice)
+      voice = { id: selectedVoice, name: selectedVoice, description: '', previewURL: '', languages: [], provider, gender: 'neutral' }
     return { ...snapshot, voice }
   }
 
