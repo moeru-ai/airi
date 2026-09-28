@@ -72,7 +72,7 @@ A retry of the same request returns success and changes nothing.
 Clients released before this change (for example v0.12.0-beta.5) keep their current behavior: a deletion on another device does not reach them.
 
 - A message that the older client already has stays. Its merge skips a known id.
-- A message that the older client never had arrives as an empty message instead of the deleted text. Its push schema does not declare `deletedAt`, so it reads the tombstone as a message with empty content.
+- A message that the older client never had arrives as an empty message at the end of the history, instead of the deleted text at its original place. Its push schema does not declare `deletedAt`, so it reads the tombstone as a message with empty content and the `seq` of the deletion.
 - An older client never sends deletions, so its own deletions stay local.
 
 After an update, the client receives every later deletion.
@@ -81,6 +81,8 @@ This matches the current behavior, in which no deletion syncs.
 The user can delete such a message again, and the server treats a repeated deletion as a no-op.
 
 No version negotiation or replay is added.
+
+An equivalence test checked these statements with the chat sync code of v0.12.0-beta.5 and of the merge base. The test is described in the pull request. It is not committed, because it runs copies of the older code.
 
 ## Scope
 
