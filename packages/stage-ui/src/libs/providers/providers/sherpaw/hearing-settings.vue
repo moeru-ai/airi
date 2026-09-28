@@ -5,6 +5,8 @@ import { FieldCombobox } from '@proj-airi/ui'
 import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ModelAssetControls from './model-asset-controls.vue'
+
 import { useHearingProviderViewContext } from '../../hearing-view'
 import { availableSherpawModels } from './model-resources'
 
@@ -89,6 +91,7 @@ async function updateModel(value: string | undefined) {
       layout="vertical"
       @update:model-value="updateModel"
     />
+    <ModelAssetControls :model-id="model" />
     <p v-if="error" role="alert" :class="['text-sm', 'text-red-600 dark:text-red-400']">
       {{ error }}
     </p>

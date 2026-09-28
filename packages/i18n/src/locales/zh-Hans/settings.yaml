@@ -1335,6 +1335,16 @@ pages:
         model:
           label: 模型
           description: 选择可用模型，自动识别模型支持的语言。更改后会重新启动当前识别会话。
+        asset:
+          title: 模型文件
+          unknown: 正在检查文件…
+          bundled: AIRI 已内置
+          installed: 已存储在此设备上
+          missing: 使用时下载
+          downloading: 正在下载…
+          error: 下载失败
+          download: 立即下载
+          remove: 删除已下载文件
       apple-vision:
         title: Apple 视觉理解
         description: 使用 macOS 27 或更高版本的设备端 Apple 基础模型理解图片，无需 API 密钥。

@@ -1407,6 +1407,16 @@ pages:
         model:
           label: Model
           description: Select an available model. Recognition detects one of its supported languages. A change restarts the current session.
+        asset:
+          title: Model files
+          unknown: Checking files...
+          bundled: Included with AIRI
+          installed: Stored on this device
+          missing: Download when used
+          downloading: Downloading...
+          error: Download failed
+          download: Download now
+          remove: Remove download
       apple-vision:
         title: Apple Vision
         description: On-device image understanding with Apple Foundation Models on macOS 27 or later. No API key is required.

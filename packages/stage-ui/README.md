@@ -192,13 +192,18 @@ the Provider configuration and replaces its runtime.
 Each speech session currently owns a Worker, released when the session ends or is cancelled.
 
 Hosts must enable `@proj-airi/vite-plugin-sherpaw` to expose model assets.
-`provider-inference` owns recognition and Worker cleanup. `stage-ui` supplies model URLs, cached fetching, the Worker URL, and the Hearing view.
+`provider-inference` owns recognition and Worker cleanup. `stage-ui` supplies model URLs, local asset fetching, the Worker URL, and the Hearing view.
 The Provider is unavailable when the host does not include models.
 Use this Provider for local streaming recognition without API credentials.
-It requires Workers and WebAssembly. Web and Pocket load the selected model from its pinned remote URL.
-Desktop development uses cached local files. Desktop releases bundle all three models.
+It requires Workers and WebAssembly. Web and Pocket store selected remote models in OPFS.
+Desktop development stores selected models in the app user data directory.
+Desktop releases bundle X-ASR and store other models in the user data directory.
+Sherpaw settings show download state and let users install or remove remote models.
 Use a remote Provider when model download size or local memory makes that unsuitable.
 The existing VAD pipeline has separate model and runtime downloads.
+
+`libs/inference/transformers-cache` manages the browser cache used by Transformers
+and Kokoro. Sherpaw file pairs use the shared model asset repository.
 
 ### Compact Stage status
 
