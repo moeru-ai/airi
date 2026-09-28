@@ -21,6 +21,9 @@ mobile-tools:
   hearing: 听觉
 chat:
   voice-input: 语音输入
+  error-details:
+    show: 查看详情
+    hide: 收起详情
   images:
     empty: 聊聊你的想法，或分享一张图片。
     use-vision: 使用视觉模型理解聊天图片

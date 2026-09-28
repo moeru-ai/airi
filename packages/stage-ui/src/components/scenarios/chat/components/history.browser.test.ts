@@ -431,6 +431,35 @@ describe('chat history', () => {
     ]])
   })
 
+  // ROOT CAUSE:
+  //
+  // A provider can place a full response body inside one chat error message.
+  // The error item rendered that body immediately and could fill the mobile Stage.
+  // Keep a short summary visible and reveal the complete message on request.
+  it('keeps a long provider error compact until the user opens its details', async () => {
+    const responseBody = JSON.stringify({ error: { message: 'Invalid schema for configure_wake_words', metadata: 'x'.repeat(1200) } })
+    const content = `Remote sent 400 response: ${responseBody}`
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ role: 'user', content: 'Set a wake word' }, { role: 'error', content }],
+        style: 'height: 480px; width: 320px; overflow-y: auto;',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await vi.waitFor(() => expect(screen.container.textContent).toContain('Remote sent 400 response'))
+    expect(screen.container.textContent).toContain('Remote sent 400 response')
+    expect(screen.container.textContent).not.toContain('Invalid schema for configure_wake_words')
+
+    await screen.getByRole('button', { name: 'Show details' }).click()
+
+    expect(screen.container.textContent).toContain('Invalid schema for configure_wake_words')
+    const detailElement = screen.container.querySelector('pre')
+    if (!detailElement)
+      throw new Error('Expected the error detail panel')
+    expect(detailElement.getBoundingClientRect().height).toBeLessThanOrEqual(192)
+  })
+
   it('emits retry-message for an error after partial assistant output', async () => {
     const messages: ChatHistoryItem[] = [
       { role: 'user', content: 'hello' },

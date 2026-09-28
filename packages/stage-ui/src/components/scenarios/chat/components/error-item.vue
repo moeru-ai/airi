@@ -2,10 +2,10 @@
 import type { ChatHistoryItem, ErrorMessage } from '../../../../types/chat'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
-import { IconButton } from '@proj-airi/ui'
-import { computed } from 'vue'
+import { BasicButton, IconButton } from '@proj-airi/ui'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
 
@@ -32,6 +32,16 @@ const emit = defineEmits<{
   (e: 'retry'): void
   (e: 'delete'): void
 }>()
+const { t } = useI18n()
+const detailsOpen = ref(false)
+
+const summary = computed(() => {
+  const firstLine = props.message.content.trim().split(/\r?\n/u, 1)[0]
+  const payloadStart = firstLine.indexOf(': {')
+  const text = payloadStart >= 0 ? firstLine.slice(0, payloadStart) : firstLine
+  return text.length > 160 ? `${text.slice(0, 157)}…` : text
+})
+const hasDetails = computed(() => summary.value !== props.message.content)
 
 const boxClasses = computed(() => {
   const spacing = ['min-w-0', 'max-w-full', props.variant === 'mobile' ? 'px-2 py-2 text-sm' : 'px-3 py-3']
@@ -51,7 +61,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
 <template>
   <div
     :class="[
-      'flex flex-col',
+      'max-w-[min(28rem,calc(100vw-2rem))] flex flex-col',
       variant === 'mobile' ? 'mr-0' : 'mr-12',
       'font-cute',
     ]"
@@ -86,11 +96,24 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             <div i-solar:danger-triangle-bold-duotone text-violet-500 />
           </div>
           <div v-if="showPlaceholder" i-eos-icons:three-dots-loading />
-          <MarkdownRenderer
-            v-else
-            :content="message.content"
-            class="whitespace-pre-wrap break-all text-violet-500 dark:text-violet-300"
-          />
+          <template v-else>
+            <p :class="['m-0 break-words text-violet-500 dark:text-violet-300']">
+              {{ summary }}
+            </p>
+            <BasicButton
+              v-if="hasDetails"
+              size="unset"
+              :aria-expanded="detailsOpen"
+              :class="['mt-2 self-start rounded-full px-2 py-1 text-xs text-violet-600 dark:text-violet-200', 'hover:bg-violet-200/60 dark:hover:bg-violet-800/60']"
+              @click.stop="detailsOpen = !detailsOpen"
+            >
+              {{ t(detailsOpen ? 'stage.chat.error-details.hide' : 'stage.chat.error-details.show') }}
+            </BasicButton>
+            <pre
+              v-if="hasDetails && detailsOpen"
+              :class="['mt-2 mb-0 max-h-48 max-w-full overflow-auto whitespace-pre-wrap break-all rounded-lg bg-white/55 p-2 font-mono text-xs text-violet-700 dark:bg-black/30 dark:text-violet-200']"
+            >{{ message.content }}</pre>
+          </template>
         </div>
       </template>
     </ChatActionMenu>
