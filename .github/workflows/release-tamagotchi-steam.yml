@@ -5,7 +5,7 @@ permissions:
   actions: read
 
 env:
-  SHERPAW_BUNDLE_DEFAULT_MODEL: 'true'
+  SHERPAW_BUNDLE_MODELS: 'true'
 
 on:
   release:

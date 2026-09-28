@@ -1,10 +1,10 @@
-import type { SherpawModel } from '@proj-airi/sherpaw-models'
+import type { SherpawModel } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import type { Plugin } from 'vite'
 
 import { rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
-import { sherpawModelArtifactUrl, sherpawModelPath } from '@proj-airi/sherpaw-models'
+import { sherpawModelArtifactUrl, sherpawModelPath } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { normalizePath } from 'vite'
 
@@ -12,6 +12,8 @@ import { normalizePath } from 'vite'
 export interface SherpawOptions {
   /** Models exposed to the runtime. Remote models load lazily when first used. */
   models: readonly SherpawModel[]
+  /** Models served from the download cache during development. @default [] */
+  developmentModels?: readonly SherpawModel[]
   /** Models copied into the application build. @default [] */
   bundledModels?: readonly SherpawModel[]
   /** Shared download cache, resolved against the Vite root. @default '.cache' */
@@ -21,7 +23,7 @@ export interface SherpawOptions {
 /**
  * Exposes pinned remote model URLs and optionally bundles selected models.
  * Build imports let URL-rewriting plugins upload the files and remove local deployment copies.
- * Development downloads only models listed in `bundledModels` before Vite starts.
+ * Development downloads only `developmentModels` before Vite starts.
  */
 export function Sherpaw(options: SherpawOptions): Plugin {
   const moduleId = '@proj-airi/vite-plugin-sherpaw/assets'
@@ -34,18 +36,21 @@ export function Sherpaw(options: SherpawOptions): Plugin {
     enforce: 'pre',
     apply: (_config, environment) => !environment.isPreview,
     async configResolved(config) {
+      const localModels = config.command === 'serve'
+        ? options.developmentModels ?? []
+        : options.bundledModels ?? []
+
       const cacheDirectory = resolve(config.root, options.cacheDir ?? '.cache')
       if (config.publicDir)
         await rm(join(config.publicDir, 'sherpaw'), { recursive: true, force: true })
-      const imports: string[] = []
-      const entries = new Map(options.models.map(model => [
-        model.id,
-        `${JSON.stringify(model.id)}: { data: ${JSON.stringify(sherpawModelArtifactUrl(model, 'preload.data'))}, metadata: ${JSON.stringify(sherpawModelArtifactUrl(model, 'preload.js.metadata'))}, source: 'remote' }`,
-      ]))
 
-      for (const [index, model] of (options.bundledModels ?? []).entries()) {
+      const imports: string[] = []
+      const entries = new Map(options.models.map(model => [model.id, `${JSON.stringify(model.id)}: { data: ${JSON.stringify(sherpawModelArtifactUrl(model, 'preload.data'))}, metadata: ${JSON.stringify(sherpawModelArtifactUrl(model, 'preload.js.metadata'))}, source: 'remote' }`]))
+
+      for (const [index, model] of localModels.entries()) {
         if (!entries.has(model.id))
-          throw new Error(`Bundled Sherpaw model "${model.id}" must also be listed in models.`)
+          throw new Error(`Local Sherpaw model "${model.id}" must also be listed in models.`)
+
         const outputPath = sherpawModelPath(model)
         const downloads = (['preload.data', 'preload.js.metadata'] as const).map(filename => Download(
           sherpawModelArtifactUrl(model, filename),
@@ -67,10 +72,13 @@ export function Sherpaw(options: SherpawOptions): Plugin {
         // URL imports participate in Vite's renderBuiltUrl hook. no-inline keeps
         // the small metadata file on the same upload path as its model data.
         const directory = normalizePath(join(cacheDirectory, outputPath))
+
         imports.push(`import data${index} from ${JSON.stringify(`${directory}/preload.data?url&no-inline`)}`)
         imports.push(`import metadata${index} from ${JSON.stringify(`${directory}/preload.js.metadata?url&no-inline`)}`)
+
         entries.set(model.id, `${JSON.stringify(model.id)}: { data: data${index}, metadata: metadata${index}, source: 'bundled' }`)
       }
+
       assetModule = `${imports.join('\n')}\nexport const assets = { ${[...entries.values()].join(',')} }`
     },
     resolveId(id) {

@@ -1,68 +1,34 @@
-import type { AIRIStreamTranscriptionResult, StreamTranscriptionOptions } from '../../stream-transcription'
+import messages from '@proj-airi/i18n/locales'
+import workerURL from '@sherpaw/xsai-transcription/worker?worker&url'
 
-import { z } from 'zod'
+import { resolveSupportedLocale } from '@proj-airi/i18n'
+import { createSherpawTranscriptionDefinition } from '@proj-airi/provider-inference'
+import { isStageCapacitor } from '@proj-airi/stage-shared'
 
+import { fetchCachedModel } from '../../../inference/cache-utils'
 import { defineProvider } from '../registry'
-import { availableSherpawModels, formatSherpawModelName, sherpawModels } from './models'
+import { sherpawModelResources } from './model-resources'
 
-export const SHERPAW_TRANSCRIPTION_PROVIDER_ID = 'sherpaw-transcription'
+export { executeSherpawStream, SHERPAW_TRANSCRIPTION_PROVIDER_ID } from '@proj-airi/provider-inference'
 
-const configSchema = z.object({
-  model: z.enum(Object.values(sherpawModels).map(model => model.id)).default('paraformer-zh-en'),
-})
-
-/** Persisted model selection. Recognition detects one of its supported languages. */
-export type SherpawConfig = z.input<typeof configSchema>
-
-/** Runs the local request created by the Sherpaw Provider. */
-export function executeSherpawStream(options: StreamTranscriptionOptions): AIRIStreamTranscriptionResult {
-  if (!('startSherpaw' in options) || typeof options.startSherpaw !== 'function')
-    throw new TypeError('Sherpaw transcription requires a local Provider request.')
-  return options.startSherpaw(options)
+function getInterfaceLanguage(): string {
+  const language = globalThis.localStorage?.getItem('settings/language') || globalThis.navigator?.language || 'en'
+  return resolveSupportedLocale(language, Object.keys(messages))
 }
 
-export const providerSherpawTranscription = defineProvider<SherpawConfig, typeof SHERPAW_TRANSCRIPTION_PROVIDER_ID>({
-  id: SHERPAW_TRANSCRIPTION_PROVIDER_ID,
-  name: 'Sherpaw',
-  nameLocalize: ({ t }) => t('settings.pages.providers.provider.sherpaw-transcription.title'),
-  description: 'Local speech recognition with bundled or on-demand models. No API key is required.',
-  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.sherpaw-transcription.description'),
-  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
-  requiresCredentials: false,
-  isAvailableBy: () => availableSherpawModels.length > 0 && typeof Worker !== 'undefined' && typeof WebAssembly !== 'undefined',
+function isMobile(): boolean {
+  return isStageCapacitor() || (globalThis.matchMedia?.('(max-width: 767px)').matches ?? false)
+}
+
+export const providerSherpawTranscription = defineProvider({
+  ...createSherpawTranscriptionDefinition({
+    models: sherpawModelResources,
+    workerURL,
+    fetchModel: fetchCachedModel,
+    getInterfaceLanguage,
+    isMobile,
+  }),
   views: {
     hearing: () => import('./hearing-settings.vue'),
-  },
-  capabilities: {
-    transcription: {
-      protocol: 'native',
-      generateOutput: false,
-      streamInput: true,
-      streamOutput: true,
-    },
-  },
-  createProviderConfig: ({ t }) => configSchema.extend({
-    model: configSchema.shape.model.meta({
-      type: 'select',
-      labelLocalized: t('settings.pages.providers.provider.sherpaw-transcription.model.label'),
-      descriptionLocalized: t('settings.pages.providers.provider.sherpaw-transcription.model.description'),
-      options: availableSherpawModels.map(model => ({
-        value: model.id,
-        label: formatSherpawModelName(model, globalThis.navigator?.language ?? 'en'),
-      })),
-    }),
-  }),
-  async createProvider(config) {
-    const { createProvider } = await import('./runtime')
-    return createProvider(configSchema.parse(config))
-  },
-  validationRequiredWhen: () => false,
-  extraMethods: {
-    listModels: async () => [{
-      id: 'sherpaw',
-      name: 'Sherpaw',
-      provider: SHERPAW_TRANSCRIPTION_PROVIDER_ID,
-      description: 'Bundled model selected in Hearing settings.',
-    }],
   },
 })

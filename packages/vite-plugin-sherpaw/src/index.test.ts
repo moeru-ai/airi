@@ -3,13 +3,13 @@ import { join } from 'node:path'
 
 import Basemove from 'unplugin-basemove/vite'
 
-import { paraformerBilingualZhEn, sherpawModelPath, zipformerBilingualZhEn, zipformerMultilingual } from '@proj-airi/sherpaw-models'
+import { paraformerBilingualZhEn, sherpawModelPath, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { build, createServer } from 'vite'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 import { Sherpaw } from './index'
 
-const models = [paraformerBilingualZhEn, zipformerBilingualZhEn, zipformerMultilingual]
+const models = [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8]
 let root: string
 let cacheDir: string
 
@@ -37,7 +37,12 @@ afterEach(async () => {
 })
 
 it('exposes remote models without downloading or emitting their assets', async () => {
-  await build({ root, configFile: false, logLevel: 'silent', plugins: [Sherpaw({ models })] })
+  await build({
+    root,
+    configFile: false,
+    logLevel: 'silent',
+    plugins: [Sherpaw({ models, developmentModels: [paraformerBilingualZhEn], cacheDir })],
+  })
   const directory = join(root, 'dist', 'assets')
   const files = await readdir(directory)
   expect(files.filter(file => /\.(?:data|metadata)$/.test(file))).toEqual([])
@@ -68,6 +73,7 @@ it('bundles only the explicit bundled model subset', async () => {
   expect(code).toContain(`/nested/assets/${data[0]}`)
   expect(code).toContain('bundled')
   expect(code).toContain(zipformerMultilingual.revision)
+  expect(code).toContain(xAsrBilingualZhEnInt8.revision)
 })
 
 it('rejects a bundled model that the runtime catalogue does not expose', async () => {
@@ -124,10 +130,12 @@ it('keeps bundled model URLs relative for packaged Electron', async () => {
     configFile: false,
     logLevel: 'silent',
     base: './',
-    plugins: [Sherpaw({ models, bundledModels: [zipformerBilingualZhEn], cacheDir })],
+    plugins: [Sherpaw({ models, bundledModels: models, cacheDir })],
   })
   const directory = join(root, 'dist', 'assets')
   const files = await readdir(directory)
+  expect(files.filter(file => file.endsWith('.data'))).toHaveLength(models.length)
+  expect(files.filter(file => file.endsWith('.metadata'))).toHaveLength(models.length)
   const script = files.find(file => file.endsWith('.js'))!
   const code = await readFile(join(directory, script), 'utf8')
   expect(code).toContain('import.meta.url')
@@ -137,13 +145,13 @@ it('keeps bundled model URLs relative for packaged Electron', async () => {
   }
 })
 
-it('serves a bundled fixture through Vite during development', async () => {
+it('serves development models from the local cache and leaves other models remote', async () => {
   const server = await createServer({
     root,
     configFile: false,
     logLevel: 'silent',
     base: '/nested/',
-    plugins: [Sherpaw({ models, bundledModels: [paraformerBilingualZhEn], cacheDir })],
+    plugins: [Sherpaw({ models, developmentModels: [paraformerBilingualZhEn], cacheDir })],
     server: { host: '127.0.0.1', port: 0 },
   })
   try {
@@ -153,6 +161,10 @@ it('serves a bundled fixture through Vite during development', async () => {
       throw new Error('Vite did not expose a local test URL.')
     const module = await server.transformRequest('@proj-airi/vite-plugin-sherpaw/assets')
     expect(module?.code).toContain('paraformer-zh-en')
+    expect(module?.code).toContain('zipformer-multilingual')
+    expect(module?.code).toContain('x-asr-zh-en-480ms-int8')
+    expect(module?.code).toContain(zipformerMultilingual.revision)
+    expect(module?.code).toContain('source: \'remote\'')
     for (const filename of ['preload.data', 'preload.js.metadata']) {
       const path = `${sherpawModelPath(paraformerBilingualZhEn)}/${filename}`
       const url = `/nested/cache/${path}?no-inline`

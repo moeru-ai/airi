@@ -1135,6 +1135,10 @@ pages:
       sherpaw-transcription:
         title: Sherpaw
         description: 使用内置或按需加载的模型进行本地语音识别，无需 API 密钥。
+        language:
+          label: 模型语言
+          description: 只显示支持该语言的模型。选中的模型仍会自动识别其支持的语言。
+          all: 全部语言
         model:
           label: 模型
           description: 选择可用模型，自动识别模型支持的语言。更改后会重新启动当前识别会话。

@@ -9,6 +9,8 @@ export interface SherpawModel {
   supportedLanguages: readonly string[]
   /** Selects the recognizer architecture, independently of the supported languages. */
   recognizer: 'paraformer' | 'transducer'
+  /** Token segmentation passed to the recognizer. Sherpaw's X-ASR setup uses an empty value. */
+  modelingUnit: 'cjkchar' | ''
   /** Contains the published preload.data and preload.js.metadata pair. */
   directory: string
 }
@@ -21,17 +23,19 @@ export const paraformerBilingualZhEn = {
   repository: 'moeru-ai/sherpaw-paraformer-zh-en',
   supportedLanguages: ['zh', 'en'],
   recognizer: 'paraformer',
+  modelingUnit: 'cjkchar',
   directory: 'install/bin/wasm',
 } as const satisfies SherpawModel
 
-/** Chinese and English Zipformer distributed by Sherpaw. */
-export const zipformerBilingualZhEn = {
-  id: 'zipformer-zh-en',
-  name: 'Zipformer',
-  revision: 'ede617607a6d1b3d6a74e3090501fc0b360ea289',
-  repository: 'moeru-ai/sherpaw-zipformer-zh-en-2023-02-20',
+/** Quantized Chinese and English X-ASR distributed by Sherpaw. */
+export const xAsrBilingualZhEnInt8 = {
+  id: 'x-asr-zh-en-480ms-int8',
+  name: 'X-ASR 480 ms (INT8)',
+  revision: 'd9ab70a45493b97ae76e08574fcbc5ad0c5d0039',
+  repository: 'moeru-ai/sherpaw-x-asr-zh-en-480ms-int8',
   supportedLanguages: ['zh', 'en'],
   recognizer: 'transducer',
+  modelingUnit: '',
   directory: 'install/bin/wasm',
 } as const satisfies SherpawModel
 
@@ -43,16 +47,46 @@ export const zipformerMultilingual = {
   repository: 'moeru-ai/sherpa-onnx-streaming-zipformer-ar_en_id_ja_ru_th_vi_zh-2025-02-10',
   supportedLanguages: ['ar', 'en', 'id', 'ja', 'ru', 'th', 'vi', 'zh'],
   recognizer: 'transducer',
+  modelingUnit: 'cjkchar',
   directory: 'install/bin/wasm',
 } as const satisfies SherpawModel
 
 export const sherpawModels = {
   [paraformerBilingualZhEn.id]: paraformerBilingualZhEn,
-  [zipformerBilingualZhEn.id]: zipformerBilingualZhEn,
   [zipformerMultilingual.id]: zipformerMultilingual,
+  [xAsrBilingualZhEnInt8.id]: xAsrBilingualZhEnInt8,
 } as const
 
 export type SherpawModelId = keyof typeof sherpawModels
+
+/** Filters available models by one language. The all option keeps the full catalogue. */
+export function sherpawModelsForLanguage(models: readonly SherpawModel[], language: string): SherpawModel[] {
+  if (language === 'all')
+    return [...models]
+  return models.filter(model => model.supportedLanguages.includes(language))
+}
+
+/**
+ * Selects a model from the host catalogue. Language changes retain the current
+ * model when possible. For Chinese and English, new configurations prefer
+ * X-ASR on desktop and Paraformer on mobile.
+ */
+export function selectSherpawModel(
+  models: readonly SherpawModel[],
+  language: string,
+  options: { currentModelId?: string, isMobile?: boolean } = {},
+): SherpawModel | undefined {
+  const matchingModels = sherpawModelsForLanguage(models, language)
+  if (options.currentModelId !== undefined)
+    return matchingModels.find(model => model.id === options.currentModelId) ?? matchingModels[0]
+
+  const preferredId = options.isMobile || !['zh', 'en'].includes(language)
+    ? paraformerBilingualZhEn.id
+    : xAsrBilingualZhEnInt8.id
+  return matchingModels.find(model => model.id === preferredId)
+    ?? matchingModels[0]
+    ?? models[0]
+}
 
 /** Returns the revision-scoped cache path for a model download. */
 export function sherpawModelPath(model: SherpawModel): string {
@@ -80,14 +114,27 @@ export function sherpawModelArtifactUrl(
  * formatSherpawModelName(paraformerBilingualZhEn, 'en')
  * // => 'Paraformer — Chinese, English'
  */
-export function formatSherpawModelName(model: SherpawModel, locale: string): string {
-  let displayNames: Intl.DisplayNames
+function languageDisplayNames(locale: string): Intl.DisplayNames {
   try {
-    displayNames = new Intl.DisplayNames([locale], { type: 'language' })
+    return new Intl.DisplayNames([locale], { type: 'language' })
   }
   catch {
-    displayNames = new Intl.DisplayNames(['en'], { type: 'language' })
+    return new Intl.DisplayNames(['en'], { type: 'language' })
   }
+}
+
+/** Returns one language name in the current interface locale. */
+export function formatSherpawLanguageName(language: string, locale: string): string {
+  try {
+    return languageDisplayNames(locale).of(language) ?? language
+  }
+  catch {
+    return language
+  }
+}
+
+export function formatSherpawModelName(model: SherpawModel, locale: string): string {
+  const displayNames = languageDisplayNames(locale)
   const languages = model.supportedLanguages.map((language) => {
     try {
       return displayNames.of(language) ?? language

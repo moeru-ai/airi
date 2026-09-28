@@ -372,6 +372,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   async function loadModelsForProvider(provider: string) {
+    if (providersStore.findProviderDefinition(provider)?.requiresCredentials === false)
+      await providersStore.initializeProvider(provider)
+
     if (providersStore.supportsModelListing(provider)) {
       await providersStore.fetchModelsForProvider(provider)
     }
@@ -700,10 +703,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         }
 
         // Stop Web Speech API recognition if it exists
-        const result = session.result as any
-        if (result?.recognition) {
+        const recognition: unknown = session.result?.recognition
+        if (recognition && typeof recognition === 'object' && 'stop' in recognition && typeof recognition.stop === 'function') {
           try {
-            result.recognition.stop()
+            recognition.stop()
           }
           catch (err) {
             console.warn('Error stopping Web Speech API recognition:', err)
@@ -761,22 +764,20 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       clearTimeout(session.idleTimer)
 
     if (session.result?.mode === 'stream') {
+      let text: string | undefined
       try {
-        const text = await session.result.text
-
-        if (disposeProviderId) {
-          await providersStore.disposeProviderInstance(disposeProviderId)
-        }
-
-        return text
+        text = await session.result.text
       }
       catch (err) {
-        if (isExpectedStreamStopError(err))
-          return
-
-        error.value = errorMessage(err)
-        console.error('Error generating transcription:', error.value)
+        if (!isExpectedStreamStopError(err)) {
+          error.value = errorMessage(err)
+          console.error('Error generating transcription:', error.value)
+        }
       }
+
+      if (disposeProviderId)
+        await providersStore.disposeProviderInstance(disposeProviderId)
+      return text
     }
 
     const text = session.result?.text
@@ -824,6 +825,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     if (vadSession) {
       streamingVadSession.value = undefined
       vadSession.vad.dispose()
+      if (abort) {
+        const text = await stopRealtimeTranscription(realtimeSession, true, disposeProviderId)
+        await vadSession.lifecycle.dispose()
+        return text
+      }
       await vadSession.lifecycle.dispose()
     }
 

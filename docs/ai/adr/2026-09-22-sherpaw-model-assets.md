@@ -4,11 +4,17 @@ Status: accepted
 
 ## Decision
 
-Sherpaw model metadata lives in `@proj-airi/sherpaw-models`. The catalogue owns stable IDs, supported languages, recognizer architecture, pinned revisions, and artifact locations. It does not own storage or runtime state.
+Sherpaw model metadata and recognition logic live in `provider-inference/src/providers/local/sherpaw-transcription`. The catalogue owns stable IDs, supported languages, recognizer architecture, pinned revisions, and artifact locations. The provider owns each Worker session. The host supplies model URLs, caching, and the Worker URL.
 
-The Vite plugin exposes every configured model to the runtime. A model can use a pinned remote URL or a bundled URL. `bundledModels` is an explicit subset of `models`; the plugin downloads only that subset.
+The Vite plugin exposes every configured model to the runtime. A model can use a pinned remote URL or a local URL.
+`developmentModels` selects local development files. `bundledModels` selects production build files. Both lists are subsets of `models`.
 
-Web builds expose remote models and download the selected model when recognition starts. Desktop development and ordinary CI use the same lazy behavior. Desktop release workflows set `SHERPAW_BUNDLE_DEFAULT_MODEL=true` and bundle Paraformer as the default model. Other models remain pinned remote downloads.
+Web builds expose remote models and download the selected model when recognition starts.
+Desktop development downloads all three models to the shared repository cache before Vite starts. Ordinary CI keeps them remote.
+Desktop release workflows set `SHERPAW_BUNDLE_MODELS=true` and package all three models.
+Vite rewrites bundled model URLs to `airi-sherpaw://assets/` in Electron builds.
+The main process serves only model files from the renderer package through this protocol.
+Renderer `fetch()` cannot read the same files through `file://`.
 
 The UI derives its model options from the assets exposed by the host. It renders localized language names from `supportedLanguages`. It must not duplicate language lists in translation files or offer a model that the host did not expose.
 
@@ -43,15 +49,17 @@ The service will publish download and activation progress through the shared inf
 
 ## Build profiles
 
-| Profile | Remote models | Bundled models |
+| Profile | Remote models | Local models |
 | --- | --- | --- |
 | Web development and release | All configured models | None |
-| Desktop development | All configured models | None |
+| Desktop development | None | All three models in the repository cache |
 | Pull request CI | All configured models | None |
-| Desktop release | All configured models | Paraformer |
+| Desktop release | None | All three models in the application package |
 | Unit tests | Fixture metadata only | None |
 
-CI jobs that do not package a desktop release must not download production model artifacts. Release caching, when added, will use the model ID and pinned revision as the cache key.
+CI jobs that do not package a desktop release do not download production model artifacts.
+Development and release downloads use the model ID and pinned revision as the cache key.
+The Paraformer, multilingual Zipformer, and X-ASR INT8 model pairs total about 745 MB before packaging.
 
 ## Failure behavior
 

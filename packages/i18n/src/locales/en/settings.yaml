@@ -1185,6 +1185,10 @@ pages:
       sherpaw-transcription:
         title: Sherpaw
         description: Local speech recognition with bundled or on-demand models. No API key is required.
+        language:
+          label: Model language
+          description: Show models that support this language. The selected model still detects its supported languages.
+          all: All languages
         model:
           label: Model
           description: Select an available model. Recognition detects one of its supported languages. A change restarts the current session.

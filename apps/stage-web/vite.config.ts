@@ -17,7 +17,7 @@ import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
 import { tryCatch } from '@moeru/std'
-import { paraformerBilingualZhEn, zipformerBilingualZhEn, zipformerMultilingual } from '@proj-airi/sherpaw-models'
+import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
@@ -245,7 +245,7 @@ export default defineConfig({
     ...(env.VITEST ? [] : [VueDevTools()]),
 
     // Web exposes pinned remote models. The browser downloads only the selected model.
-    Sherpaw({ models: [paraformerBilingualZhEn, zipformerBilingualZhEn, zipformerMultilingual], cacheDir: sharedCacheDir }),
+    Sherpaw({ models: [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8], cacheDir: sharedCacheDir }),
     DownloadLive2DSDK(),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),

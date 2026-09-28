@@ -4,7 +4,7 @@ import type { FileLoggerHandle } from './app/file-logger'
 
 import process, { env, platform } from 'node:process'
 
-import { dirname } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
@@ -13,7 +13,7 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
-import { app, ipcMain, session } from 'electron'
+import { app, ipcMain, protocol, session } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
@@ -27,7 +27,7 @@ import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
-import { setElectronMainDirname } from './libs/electron/location'
+import { getElectronMainDirname, setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
 import { setupServerChannel } from './services/airi/channel-server'
@@ -40,6 +40,7 @@ import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupPermissionHandlers } from './services/electron/media-permissions'
+import { setupSherpawModelAssetsProtocol } from './services/electron/sherpaw-model-assets'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -62,6 +63,10 @@ import { setupWidgetsWindowManager } from './windows/widgets'
 ipcMain.setMaxListeners(100)
 
 setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'airi-sherpaw',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
+}])
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
@@ -152,6 +157,7 @@ app.whenReady().then(async () => {
     return
   }
 
+  setupSherpawModelAssetsProtocol(resolve(getElectronMainDirname(), '..', 'renderer'))
   setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
   // Initialize file logger and register the hook
