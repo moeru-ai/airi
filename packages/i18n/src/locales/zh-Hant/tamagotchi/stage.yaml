@@ -14,12 +14,13 @@ docs:
     disable: 總是顯示
   'open-settings': 開啟設定
   'open-chat': 打開聊天
+  'hide-chat': Hide Chat
   'refresh': 重新整理
   'center-main-window': Move to screen center
   'open-hearing-controls': 開啟聽力控制
   'drag-to-move-window': 長按以移動視窗
-  'stop-speaking': 停止說話
-  'speaker-idle': 揚聲器
+  'mute': Mute
+  'unmute': Unmute
   'switch-to-light-mode': 切換至亮色模式
   'switch-to-dark-mode': 切換至深色模式
   'pin-on-top': 置頂
@@ -32,6 +33,16 @@ docs:
   'logging-in': Signing in...
   'account': Account
   'logout': Sign out
+'chat-window':
+  style:
+    title: Chat window style
+    legacy: Classic window
+    floating-attached: Floating, beside the character
+    floating-free: Floating, anywhere on screen
+    pinned: Keep on top
+  resize: Drag to resize the chat
+  move: Drag to move the chat
+  fold: Hide chat
 widgets:
   close: Close widget
   empty:
@@ -39,6 +50,8 @@ widgets:
     description: Widgets will appear here when a tool or plugin spawns one.
   loading: Loading widget…
   waiting: Waiting for widget data for "{id}"…
+inlay:
+  close: Close
 notice:
   'fade-on-hover':
     title: 懸停淡出

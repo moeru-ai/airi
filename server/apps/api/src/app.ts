@@ -446,6 +446,7 @@ export async function buildApp(deps: AppDeps) {
       deps.appleIapVerifier,
       deps.configKV,
       deps.otel?.rateLimit ?? null,
+      deps.env.APPLE_IAP_SANDBOX_USER_IDS,
     ))
 
     /**
@@ -649,6 +650,7 @@ export async function createApp() {
         return await createAppleIapVerifier({
           apps: dependsOn.env.APPLE_IAP_APPS,
           env: dependsOn.env.APPLE_IAP_ENV,
+          allowSandbox: dependsOn.env.APPLE_IAP_SANDBOX_USER_IDS.length > 0,
         })
       }
       catch (error) {
