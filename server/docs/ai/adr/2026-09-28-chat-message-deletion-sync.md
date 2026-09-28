@@ -67,24 +67,20 @@ An id that is already deleted changes nothing.
 An id from another chat changes nothing. Its row blocks a tombstone, and this chat cannot delete it.
 A retry of the same request returns success and changes nothing.
 
-## Compatibility
+## Older clients
 
-Clients released before this change (for example v0.12.0-beta.5) already sync chats, but their push schema does not declare `deletedAt`.
-They read a tombstone as a live message with empty content:
+Clients released before this change (for example v0.12.0-beta.5) keep their current behavior: a deletion on another device does not reach them.
 
-- If the client has the message, it skips the tombstone because the id is known. The message stays.
-- If the client does not have the message, it appends an empty message. This happens on a first pull of a chat, or after the client missed both the send and the deletion.
+- A message that the older client already has stays. Its merge skips a known id.
+- A message that the older client never had arrives as an empty message instead of the deleted text. Its push schema does not declare `deletedAt`, so it reads the tombstone as a message with empty content.
+- An older client never sends deletions, so its own deletions stay local.
 
-In both cases, the older client saves a cursor past the tombstone.
-After an update, the client pulls from that cursor, so it never receives the tombstone again.
-The leftover message or empty message stays in that session. **This change accepts that result.**
+After an update, the client receives every later deletion.
+Deletions from before the update do not reach it, because its saved cursor is already past them.
+This matches the current behavior, in which no deletion syncs.
+The user can delete such a message again, and the server treats a repeated deletion as a no-op.
 
-- A user can delete a leftover message again on an updated client. The local message is removed, and the server treats the deletion of an already deleted id as a no-op.
-- Leftovers exist only for deletions made while the older client was still in use, and only on that older client's devices.
-- No replay or migration is added. A replay needs a pull from cursor `0` for every session, and the client pulls once without `limit`, which returns at most 100 rows. The client does not page.
-
-These clients never send deletions. No version negotiation is added.
-The maintainers decide whether this result is acceptable before the server deploys.
+No version negotiation or replay is added.
 
 ## Scope
 
