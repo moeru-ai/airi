@@ -431,6 +431,18 @@ describe('chat history', () => {
     ]])
   })
 
+  it('keeps short error formatting', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ role: 'error', content: '**Retry this request**' }],
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await vi.waitFor(() => expect(screen.container.querySelector('strong')?.textContent).toBe('Retry this request'))
+    expect(screen.container.querySelector('button[aria-expanded]')).toBeNull()
+  })
+
   // ROOT CAUSE:
   //
   // A provider can place a full response body inside one chat error message.
@@ -458,10 +470,7 @@ describe('chat history', () => {
     await expect.element(screen.getByRole('button', { name: 'Hide details' })).toHaveAttribute('aria-expanded', 'true')
 
     expect(screen.container.textContent).toContain('Invalid schema for configure_wake_words')
-    const detailElement = screen.container.querySelector('pre')
-    if (!detailElement)
-      throw new Error('Expected the error detail panel')
-    expect(detailElement.getBoundingClientRect().height).toBeLessThanOrEqual(192)
+    expect(screen.container.querySelector('pre')?.textContent).toBe(content)
   })
 
   it('emits retry-message for an error after partial assistant output', async () => {

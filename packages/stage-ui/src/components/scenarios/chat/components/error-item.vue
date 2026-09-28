@@ -6,6 +6,7 @@ import { BasicButton, IconButton } from '@proj-airi/ui'
 import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
 
@@ -41,7 +42,7 @@ const summary = computed(() => {
   const text = payloadStart >= 0 ? firstLine.slice(0, payloadStart) : firstLine
   return text.length > 160 ? `${text.slice(0, 157)}…` : text
 })
-const hasDetails = computed(() => summary.value !== props.message.content)
+const hasDetails = computed(() => props.message.content.length > 240 || props.message.content.split(/\r?\n/u).length > 4)
 
 const boxClasses = computed(() => {
   if (props.surface === 'opaque')
@@ -49,8 +50,8 @@ const boxClasses = computed(() => {
 
   return [
     props.variant === 'mobile'
-      ? 'bg-violet-100/90 backdrop-blur-xl dark:bg-violet-950/90'
-      : 'bg-violet-100/95 dark:bg-violet-950/95',
+      ? 'bg-violet-100/60 backdrop-blur-xl dark:bg-violet-950/60'
+      : 'bg-violet-100/80 dark:bg-violet-950/80',
   ]
 })
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
@@ -80,7 +81,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             'chat-message-item-container',
             boxClasses,
             'relative max-w-full overflow-hidden',
-            'min-w-20 flex flex-col rounded-2xl',
+            'min-w-20 flex flex-col rounded-xl',
             'h-unset <sm:h-fit',
             'shadow-sm shadow-violet-200/50 dark:shadow-none',
             (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
@@ -89,17 +90,14 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           <div :class="[variant === 'mobile' ? 'px-2 py-2' : 'px-3 py-3']">
             <div :class="['flex items-start justify-between gap-3']">
               <span :class="['min-w-0 text-xs text-neutral-500 font-medium dark:text-neutral-400']">{{ label }}</span>
-              <span
-                aria-hidden="true"
-                :class="[
-                  'size-7 shrink-0 flex items-center justify-center rounded-lg',
-                  'bg-violet-200/60 text-violet-600 dark:bg-violet-800/60 dark:text-violet-200',
-                ]"
-              >
-                <span :class="['i-solar:danger-triangle-bold-duotone size-4']" />
-              </span>
+              <span aria-hidden="true" :class="['i-solar:danger-triangle-bold-duotone size-4 shrink-0 text-violet-500']" />
             </div>
             <div v-if="showPlaceholder" :class="['i-eos-icons:three-dots-loading']" />
+            <MarkdownRenderer
+              v-else-if="!hasDetails"
+              :content="message.content"
+              class="break-words text-violet-500 dark:text-violet-300"
+            />
             <template v-else>
               <p :class="['mt-1 mb-0 break-words text-sm text-neutral-800 font-medium leading-relaxed dark:text-neutral-100']">
                 {{ summary }}
@@ -108,8 +106,8 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 v-if="hasDetails && detailsOpen"
                 :class="[
                   'mt-3 mb-0 max-h-48 max-w-full overflow-auto',
-                  'whitespace-pre-wrap break-all rounded-xl p-2 font-mono text-xs',
-                  'bg-white/60 text-neutral-700 dark:bg-black/25 dark:text-neutral-200',
+                  'whitespace-pre-wrap break-all font-mono text-xs',
+                  'text-neutral-700 dark:text-neutral-200',
                 ]"
               >{{ message.content }}</pre>
             </template>
