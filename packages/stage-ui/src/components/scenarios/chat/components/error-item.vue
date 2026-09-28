@@ -3,7 +3,7 @@ import type { ChatHistoryItem, ErrorMessage } from '../../../../types/chat'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { BasicButton, IconButton } from '@proj-airi/ui'
-import { computed, ref } from 'vue'
+import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getChatHistoryItemCopyText } from '../utils'
@@ -33,7 +33,7 @@ const emit = defineEmits<{
   (e: 'delete'): void
 }>()
 const { t } = useI18n()
-const detailsOpen = ref(false)
+const detailsOpen = shallowRef(false)
 
 const summary = computed(() => {
   const firstLine = props.message.content.trim().split(/\r?\n/u, 1)[0]
@@ -104,10 +104,22 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
               v-if="hasDetails"
               size="unset"
               :aria-expanded="detailsOpen"
-              :class="['mt-2 self-start rounded-full px-2 py-1 text-xs text-violet-600 dark:text-violet-200', 'hover:bg-violet-200/60 dark:hover:bg-violet-800/60']"
+              :class="[
+                'mt-2 self-start rounded-full border px-2.5 py-1 text-xs',
+                'border-violet-300/70 bg-violet-200/50 text-violet-700',
+                'hover:bg-violet-200/90 focus-visible:outline-2 focus-visible:outline-violet-500',
+                'dark:border-violet-700 dark:bg-violet-800/50 dark:text-violet-100 dark:hover:bg-violet-800',
+              ]"
               @click.stop="detailsOpen = !detailsOpen"
             >
               {{ t(detailsOpen ? 'stage.chat.error-details.hide' : 'stage.chat.error-details.show') }}
+              <span
+                aria-hidden="true"
+                :class="[
+                  'i-solar:alt-arrow-down-linear size-3.5 shrink-0 transition-transform duration-200',
+                  detailsOpen && 'rotate-180',
+                ]"
+              />
             </BasicButton>
             <pre
               v-if="hasDetails && detailsOpen"
