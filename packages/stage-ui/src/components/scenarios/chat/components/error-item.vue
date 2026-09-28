@@ -89,26 +89,19 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
           ]"
         >
-          <div flex="~ row" gap-2>
-            <div flex-1 class="inline <sm:hidden">
-              <span text-sm text="black/60 dark:white/65" font-normal>{{ label }}</span>
+          <div :class="['flex items-center gap-2']">
+            <div :class="['i-solar:danger-triangle-bold-duotone size-4 shrink-0 text-violet-500']" />
+            <div :class="['min-w-0 flex-1', '<sm:hidden']">
+              <span :class="['text-sm text-black/60 font-normal dark:text-white/65']">{{ label }}</span>
             </div>
-            <div i-solar:danger-triangle-bold-duotone text-violet-500 />
-          </div>
-          <div v-if="showPlaceholder" i-eos-icons:three-dots-loading />
-          <template v-else>
-            <p :class="['m-0 break-words text-violet-500 dark:text-violet-300']">
-              {{ summary }}
-            </p>
             <BasicButton
-              v-if="hasDetails"
+              v-if="hasDetails && !showPlaceholder"
               size="unset"
               :aria-expanded="detailsOpen"
               :class="[
-                'mt-2 self-start rounded-full border px-2.5 py-1 text-xs',
-                'border-violet-300/70 bg-violet-200/50 text-violet-700',
-                'hover:bg-violet-200/90 focus-visible:outline-2 focus-visible:outline-violet-500',
-                'dark:border-violet-700 dark:bg-violet-800/50 dark:text-violet-100 dark:hover:bg-violet-800',
+                'shrink-0 text-xs text-neutral-500',
+                'hover:text-violet-700 focus-visible:outline-2 focus-visible:outline-violet-500',
+                'dark:text-neutral-400 dark:hover:text-violet-100',
               ]"
               @click.stop="detailsOpen = !detailsOpen"
             >
@@ -121,6 +114,12 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 ]"
               />
             </BasicButton>
+          </div>
+          <div v-if="showPlaceholder" i-eos-icons:three-dots-loading />
+          <template v-else>
+            <p :class="['m-0 break-words text-violet-500 dark:text-violet-300']">
+              {{ summary }}
+            </p>
             <pre
               v-if="hasDetails && detailsOpen"
               :class="['mt-2 mb-0 max-h-48 max-w-full overflow-auto whitespace-pre-wrap break-all rounded-lg bg-white/55 p-2 font-mono text-xs text-violet-700 dark:bg-black/30 dark:text-violet-200']"
