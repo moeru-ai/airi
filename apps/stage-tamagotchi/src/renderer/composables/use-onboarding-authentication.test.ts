@@ -105,6 +105,7 @@ it('keeps the callback renderer alive until its completion report is acknowledge
   const closeWindow = vi.fn<() => Promise<void>>().mockResolvedValue()
   const scope = effectScope()
   scope.run(() => useOnboardingAuthentication({
+    consumeLoginRequest: vi.fn().mockResolvedValue(false),
     closeRequestId,
     closeWindow,
     isAuthenticated,
