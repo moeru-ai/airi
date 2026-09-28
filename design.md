@@ -62,7 +62,9 @@ Group controls by the decision they support. Keep descriptions next to their fie
 - On small screens, preserve reading order and reachable actions when content becomes a single column.
 - Keep fixed controls clear of scrollable content, safe areas, and the software keyboard.
 
-The [shared settings layout](./packages/stage-layouts/src/layouts/settings.vue) owns page padding, safe areas, the header, and the settings scroll container.
+The [web settings layout](./packages/stage-layouts/src/layouts/settings.vue) owns web page padding, safe areas, the header, and the settings scroll container.
+
+Electron uses its own [settings layout](./apps/stage-tamagotchi/src/renderer/layouts/settings.vue). Apply settings changes to the layout that owns the target application.
 
 ### Existing spacing references
 
@@ -165,7 +167,9 @@ Padding and text sizes do not guarantee touch target dimensions. Check the final
 
 Inputs use `neutral-50` backgrounds in light mode and `neutral-950` in dark mode. Focus borders use `primary-300` and `primary-400/50`, respectively.
 
-The `Input` variants `primary` and `secondary` currently look identical. `primary-dimmed` uses a darker neutral surface and omits the shadow class.
+The `Input` variants `primary` and `secondary` currently look identical. `primary-dimmed` omits the shadow class.
+
+In light mode, `primary-dimmed` uses `neutral-100` instead of `neutral-50`. In dark mode, it uses the lighter `neutral-800` instead of `neutral-950`.
 
 `Select` offers a pill shape through `shape="rounded"` and a translucent surface through `variant="blurry"`. Use these props instead of page-specific copies.
 

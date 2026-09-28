@@ -21,11 +21,14 @@ These findings come from source inspection. This guide does not change runtime c
 | Input declares size without corresponding styles | `input.vue` declares `size`, but its template only uses variant styles. | Define the size contract, then update the component, reference, and stories. |
 | Two Input variants look identical | `primary` and `secondary` contain identical style arrays. | Decide whether both names remain. Avoid page-specific differences. |
 | Focus treatment varies | Button and GhostButton define focus outlines. IconButton and OverlayButton do not define equivalent rules. | Check keyboard interactions before a shared correction. |
-| Theme transition rules differ from implementation | [useTheme](../../../packages/ui/src/composables/use-theme.ts) sets `disableTransition: true`. Repository rules require false for direct useDark calls. | Reuse the existing entry point while the shared transition policy is resolved. |
 | Motion timing and reduced-motion support vary | The motion implementations in the design guide define separate parameters. | Group changes by interaction type instead of replacing all durations. |
 | Global visual tokens are incomplete | Color variables are shared. Components still define most radii, spacing, and layer values. | Extract repeated requirements from real use cases before adding tokens. |
 
 Address keyboard focus and field sizing first. Then consolidate repeated visual parameters and check business pages. Each runtime change needs behavior and visual evidence.
+
+For theme switching, reuse [useTheme](../../../packages/ui/src/composables/use-theme.ts). The UnoCSS rules explicitly permit this composable despite its `disableTransition: true` setting.
+
+For direct `useDark` calls, set `disableTransition: false` as required by the repository rules.
 
 ## Design Workflow and Existing Skills
 
