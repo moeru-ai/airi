@@ -1,30 +1,26 @@
 # AIRI Design Guide
 
-This guide records the design language in `packages/ui` for interface design, component development, and review.
+## Overview
 
-It covers shared controls for `stage-web`, `stage-tamagotchi`, and `stage-pocket`. Business layouts belong to `stage-ui`, `stage-layouts`, and `stage-pages`.
+AIRI is a character companion interface. The stage gives the character room to remain present while conversation and controls stay within reach.
 
-The guide describes source behavior and reuse rules. It does not certify visual or accessibility acceptance across the apps. Known differences appear in Section 7.
+Rounded controls, soft neutral surfaces, and a configurable accent give the interface a friendly, personal character. Clear labels and visible states keep configuration tasks understandable.
 
-## 1. Design Language
+Treat the stage as a space for the character, with compact floating controls around it. Treat settings as a readable sequence of labeled decisions.
 
-The current UI combines neutral surfaces, a configurable primary color, rounded corners, translucent materials, and visible interaction feedback.
+Use translucency to relate floating controls to the stage. Use stable neutral surfaces where users read descriptions, enter values, or compare options.
 
-| Pattern | Current implementation | Reuse rule |
-| --- | --- | --- |
-| Separate color from emphasis | `Button.color` selects the palette. `variant` selects emphasis. | Do not bind primary actions to one fixed color. |
-| Neutral content surfaces | Inputs, drawers, and selects use `neutral` shades. | Preserve the component's foreground and background pairs. |
-| Corners depend on the control | Standard controls use `rounded-lg`. Overlays use larger corners. | Use existing shapes instead of one global radius override. |
-| Button feedback uses outlines | `Button` has no border. Hover and keyboard focus use an external outline. | Leave space around the control so containers do not clip the outline. |
-| Input feedback uses borders | `Input`, `Textarea`, and `Select` use 2px borders. | Preserve input borders instead of applying button styles. |
-| Overlay surfaces use translucency | `OverlayButton`, some buttons, and callouts use background blur. | Check controls and text against the actual background. |
-| Motion follows interaction | Controls scale on press, change color on selection, and animate panel transitions. | Reuse component behavior instead of duplicating it in pages. |
+This guide applies to shared interfaces in `stage-web`, `stage-tamagotchi`, and `stage-pocket`. Its visual patterns come from `packages/ui` and the existing application layouts.
 
-The [component reference](./docs/ai/context/ui-components.md) describes props, events, and slots. This guide explains visual choices and component boundaries.
+For unspecified details, reuse the nearest shared component and layout. Preserve its theme behavior, proportions, and interaction states.
 
-## 2. Themes, Colors, and Typography
+This document follows the section structure of the [Google DESIGN.md specification](https://github.com/google-labs-code/design.md/blob/main/docs/spec.md).
 
-### Theme sources
+The optional YAML token block is omitted. AIRI's dynamic palette and existing component values remain authoritative in their source files.
+
+API details belong in the [component reference](./docs/ai/context/ui-components.md). Source limitations and delivery procedures belong in the [implementation notes](./docs/ai/context/design-implementation.md).
+
+## Colors
 
 - [UnoCSS configuration](./uno.config.ts) provides Chromatic palettes, fonts, icons, and shared animations.
 - [UI fallback variables](./packages/ui/src/fallback.css) define `--chromatic-hue` and shade-specific chroma variables.
@@ -39,7 +35,7 @@ Buttons also support independent palettes, such as red, orange, and green. `Call
 
 Use text or icons to explain business states. A palette name does not establish a status meaning.
 
-### Fonts and text hierarchy
+## Typography
 
 `uno.config.ts` defines font families such as `sans`, `sans-rounded`, and `cute`. Controls generally inherit their host font.
 
@@ -54,9 +50,69 @@ Use text or icons to explain business states. A palette name does not establish 
 
 These values describe controls, not a global heading scale. Use the surrounding layout and adjacent pages as references for page titles and body text.
 
-## 3. Buttons
+## Layout & Spacing
 
-### Choose by purpose
+Group controls by the decision they support. Keep descriptions next to their fields and secondary actions near their primary action.
+
+### Stage and settings
+
+- Preserve the character's visible space when placing stage controls and conversation surfaces.
+- Use compact overlay actions for immediate stage tasks. Put detailed configuration in settings or a dedicated panel.
+- Reuse the shared settings layout and page header for consistent titles, return navigation, and scrolling.
+- On small screens, preserve reading order and reachable actions when content becomes a single column.
+- Keep fixed controls clear of scrollable content, safe areas, and the software keyboard.
+
+The [shared settings layout](./packages/stage-layouts/src/layouts/settings.vue) owns page padding, safe areas, the header, and the settings scroll container.
+
+### Existing spacing references
+
+| Relationship | Source value | Intent |
+| --- | --- | --- |
+| Button icon and label | `gap-2` | Keep the action readable as one unit. |
+| Field label block and control | `gap-4` in `FieldInput` | Separate explanation from interaction without separating the field. |
+| Drawer content edges | `px-5` | Align the title and controls on a common edge. |
+| Drawer bottom | At least 1rem, adjusted for the safe area | Keep the final action reachable. |
+| Drawer width and height | `max-w-lg`, maximum `90dvh` | Keep the panel readable and its content scrollable. |
+
+These are component references, not a universal page spacing scale. Retain existing layout values instead of imposing a new grid.
+
+## Elevation & Depth
+
+Use neutral surface changes to separate ordinary content. Use translucency and blur where a control floats over the character stage.
+
+| Surface | Existing treatment | Design role |
+| --- | --- | --- |
+| Standard inputs | Neutral fill, 2px border, `shadow-sm` | Define the editable area without a floating-card appearance. |
+| Overlay controls | Translucent neutral fill and background blur | Preserve a relationship to the stage while keeping actions legible. |
+| Callouts | Tinted surface and a vertical accent bar | Separate contextual guidance from ordinary text. |
+| Bottom drawer | Neutral surface, `shadow-xl`, and `bg-black/35` backdrop | Focus attention on a temporary task. |
+
+Button outlines express interaction, not elevation. Leave space for hover and focus outlines instead of clipping them at a container edge.
+
+Check translucent controls against bright, dark, and detailed backgrounds. A blur value alone does not guarantee readable text.
+
+Use existing popup and drawer layering. Do not increase local `z-index` values to compensate for an unclear stacking relationship.
+
+## Shapes
+
+Rounded rectangles are the default for everyday controls. Pills and circles distinguish compact actions and switches. Larger drawer corners frame a separate interaction surface.
+
+| Button shape | Current implementation |
+| --- | --- |
+| `rect` | `rounded-lg` |
+| `rounded` | `rounded-full` |
+| `circle` | `rounded-full`, no padding, and the corresponding square dimensions |
+| `parallelogram` | `rounded-lg`, -10° outer skew, and 10° content skew |
+
+Inputs and standard selects use `rounded-lg`. Overlay buttons and select popups use `rounded-xl`. Bottom drawers use 32px top corners.
+
+Keep parallelogram styling in the existing button shape. Preserve its counter-skew so labels remain upright.
+
+## Components
+
+### Buttons
+
+#### Choose by purpose
 
 | Component | Appearance and behavior | Use |
 | --- | --- | --- |
@@ -72,7 +128,7 @@ For primary actions, explicitly select `variant="primary"`. To follow the user's
 
 `GhostButton.active` preserves the selected surface. The caller supplies accessible toggle state, such as `aria-pressed`.
 
-### Sizes and shapes
+#### Sizes
 
 These values come from `BasicButton` and `Button`. They are not new tokens. Pixel equivalents assume a 16px root font size.
 
@@ -85,14 +141,7 @@ These values come from `BasicButton` and `Button`. They are not new tokens. Pixe
 
 `GhostButton` has separate compact sizes. Its `sm`, `md`, and `lg` minimum heights are `min-h-7`, `min-h-8`, and `min-h-10`.
 
-| Button shape | Current implementation |
-| --- | --- |
-| `rect` | `rounded-lg` |
-| `rounded` | `rounded-full` |
-| `circle` | `rounded-full`, no padding, and the corresponding square dimensions |
-| `parallelogram` | `rounded-lg`, -10° outer skew, and 10° content skew |
-
-### States and caller responsibilities
+#### States and caller responsibilities
 
 - `BasicButton` uses 200ms transitions and `active:scale-95` press feedback.
 - `loading` shows a spinner and disables the button to prevent repeated clicks.
@@ -104,7 +153,7 @@ These values come from `BasicButton` and `Button`. They are not new tokens. Pixe
 
 Padding and text sizes do not guarantee touch target dimensions. Check the final interactive area on mobile.
 
-## 4. Forms
+### Forms
 
 | Component | Current visual pattern | Use |
 | --- | --- | --- |
@@ -121,8 +170,6 @@ The `Input` variants `primary` and `secondary` currently look identical. `primar
 `Select` offers a pill shape through `shape="rounded"` and a translucent surface through `variant="blurry"`. Use these props instead of page-specific copies.
 
 Prefer the corresponding `Field*` component for labels and descriptions. Business forms own error associations, submission results, and asynchronous validation.
-
-## 5. Drawers, Callouts, and Swipe Actions
 
 ### BottomDrawer
 
@@ -147,7 +194,7 @@ Prefer the corresponding `Field*` component for labels and descriptions. Busines
 
 Use an opaque background for swipe content. If the visible label is hidden, preserve the accessible name. Business logic owns undo, deletion, and data state.
 
-## 6. Motion and Icons
+### Motion and icons
 
 | Implementation | Current motion |
 | --- | --- |
@@ -166,47 +213,24 @@ Icons use Iconify. Existing components and stories use sets such as Solar and Ph
 
 `BasicButton` uses a 16 × 16px icon container. Its spinner occupies the same area. Keep visual size and icon style consistent within an action group.
 
-## 7. Known Differences and Follow-up Work
+## Do's and Don'ts
 
-These findings come from source inspection. This guide does not change runtime code.
+### Do
 
-| Difference | Evidence | Follow-up |
-| --- | --- | --- |
-| Input declares size without corresponding styles | `input.vue` declares `size`, but its template only uses variant styles. | Define the size contract, then update the component, reference, and stories. |
-| Two Input variants look identical | `primary` and `secondary` contain identical style arrays. | Decide whether both names remain. Avoid page-specific differences. |
-| Focus treatment varies | Button and GhostButton define focus outlines. IconButton and OverlayButton do not define equivalent rules. | Check keyboard interactions before a shared correction. |
-| Theme transition rules differ from implementation | [useTheme](./packages/ui/src/composables/use-theme.ts) sets `disableTransition: true`. Repository rules require false for direct useDark calls. | Reuse the existing entry point while the shared transition policy is resolved. |
-| Motion timing and reduced-motion support vary | The implementations in Section 6 define separate parameters. | Group changes by interaction type instead of replacing all durations. |
-| Global visual tokens are incomplete | Color variables are shared. Components still define most radii, spacing, and layer values. | Extract repeated requirements from real use cases before adding tokens. |
+- Use existing component variants before adding a new appearance.
+- Let `primary` follow the user's hue and preserve separate light and dark treatments.
+- Keep stage controls compact and settings descriptions readable.
+- Preserve hover, focus, selected, disabled, and loading states when adapting a control.
+- Provide accessible names for icon actions and state information beyond color.
+- Check actual touch areas, long labels, safe areas, and reduced-motion behavior.
+- Keep component proportions and icon styles consistent within an action group.
 
-Address keyboard focus and field sizing first. Then consolidate repeated visual parameters and check business pages. Each runtime change needs behavior and visual evidence.
+### Don't
 
-## 8. Design Workflow and Existing Skills
-
-The repository already includes implementation, review, and screenshot skills. This documentation task requires no additional design skill installation.
-
-| Task | Entry point | Purpose |
-| --- | --- | --- |
-| Choose visual patterns and components | This guide and the [component reference](./docs/ai/context/ui-components.md) | Understand AIRI design conventions and APIs |
-| Write component styles | [enforce-rules-for-unocss](./.agents/skills/enforce-rules-for-unocss/SKILL.md) | Reuse controls, organize utilities, and preserve theme behavior |
-| Write Vue components | [vue-best-practices](./.agents/skills/vue-best-practices/SKILL.md) and [TypeScript rules](./.agents/skills/enforce-rules-for-typescript/SKILL.md) | Define component boundaries, state, and implementation practices |
-| Review interaction and accessibility | [web-design-guidelines](./.agents/skills/web-design-guidelines/SKILL.md) | Supply review checks alongside AIRI visual conventions |
-| Capture visual evidence | [use-vishot](./.agents/skills/use-vishot/SKILL.md) | Capture screenshots through the appropriate runtime scenarios |
-| Publish a UI PR | [create-pr](./.agents/skills/create-pr/SKILL.md) | Review affected behavior and provide comparable screenshots |
-
-The root `AGENTS.md` routes UI design work to this guide. Skills provide implementation and review procedures without duplicating the design reference.
-
-### For each design change
-
-1. Locate the shared control and existing business pages. Determine whether the difference belongs to the control or the scenario.
-2. Choose existing variants, sizes, and shapes before extending the API.
-3. When a shared component changes, update its reference and stories.
-4. Check light mode, dark mode, custom hues, long text, loading, and disabled states.
-5. Check keyboard focus, touch targets, the software keyboard, and safe areas.
-6. Record results and unverified items through the PR workflow.
-
-Run `pnpm dev:ui` for component previews. Histoire lives in `packages/stage-ui`.
-
-Start with the [button stories](./packages/stage-ui/src/components/misc/button.story.vue), [input stories](./packages/stage-ui/src/components/form/input/input.story.vue), [select stories](./packages/stage-ui/src/components/form/select/select.story.vue), and [swipe action stories](./packages/stage-ui/src/components/misc/swipe-actions.story.vue).
-
-Documentation changes require link and format checks. Runtime UI changes also require type checks, relevant tests, and visual acceptance. Source inspection does not replace runtime checks.
+- Do not replace the dynamic primary palette with a fixed brand hex value.
+- Do not apply translucent stage styling to every form or content region.
+- Do not replace all component radii or animation durations with one global value.
+- Do not remove focus outlines without an equivalent visible treatment.
+- Do not treat a component's color name as a complete business status definition.
+- Do not duplicate shared controls with page-specific styles.
+- Do not treat source inspection as proof of visual or accessibility acceptance.
