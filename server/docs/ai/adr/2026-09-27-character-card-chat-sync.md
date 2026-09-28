@@ -2,9 +2,9 @@
 
 ## Status
 
-This branch contains only the hosted contract, schema, migrations, and server tests.
-Client implementation and UI verification described later belong to the separate client worktree.
-They are not included in this server PR.
+This server PR is stacked on the character UI foundation in PR #2672.
+Its own diff contains the hosted contract, schema, migrations, and server tests.
+Client synchronization and its UI verification belong to the separate client PR.
 
 The user accepted the direction: characters define identities, contacts represent
 personal relationships, and conversations contain participants and messages.
