@@ -106,6 +106,7 @@
     "@proj-airi/stage-ui-tachie": "workspace:^",
     "@proj-airi/stage-ui-three": "workspace:^",
     "@proj-airi/ui": "workspace:^",
+    "@proj-airi/ui-loading-screens": "workspace:^",
     "@proj-airi/vite-plugin-sherpaw": "workspace:^",
     "@ricky0123/vad-web": "catalog:",
     "@sherpaw/xsai-transcription": "catalog:",

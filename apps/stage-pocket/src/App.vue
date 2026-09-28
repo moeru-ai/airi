@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
+import type { StartupSceneState } from '@proj-airi/stage-ui/composables/startup-scene'
+import type { Ref } from 'vue'
+
+import { OnboardingDialog, OnboardingStepAnalyticsNotice, StartupScreenProvider, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { createStartupProgress } from '@proj-airi/stage-ui/composables/startup-progress'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -18,10 +22,11 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
+import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterView } from 'vue-router'
+import { RouterView, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 import OnboardingPermissionsStep from './components/onboarding/step-permissions.vue'
@@ -31,6 +36,7 @@ import { getHostWebSocketConnector } from './modules/websocket-bridge'
 const contextBridgeStore = useContextBridgeStore()
 const authStore = useAuthStore()
 const i18n = useI18n()
+const router = useRouter()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
@@ -42,6 +48,23 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
+const startup = createStartupProgress([
+  { id: 'auth', requires: [] },
+  { id: 'modelIndex', requires: ['auth'] },
+  { id: 'card', requires: ['auth'] },
+  { id: 'services', requires: ['card'] },
+  { id: 'modelData', requires: ['modelIndex', 'services'] },
+  { id: 'modelSelection', requires: ['modelData'] },
+  { id: 'audio', requires: ['modelSelection'] },
+  { id: 'route', requires: [] },
+  { id: 'scene', requires: ['modelSelection', 'route'] },
+] as const)
+const startupProgress = startup.progress
+const startupOnboarding = ref(false)
+watch(showingSetup, (visible) => {
+  if (!visible)
+    startupOnboarding.value = false
+})
 useArtistryStore()
 useConsciousnessStore()
 useHearingStore()
@@ -104,31 +127,49 @@ watch(settings.themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', settings.themeColorsHueDynamic.value)
 }, { immediate: true })
 
-// Initialize first-time setup check when app mounts
-onMounted(async () => {
-  initializeAnalytics()
-  await authStore.initialize()
-  await displayModelsStore.initialize()
-  await cardStore.initialize()
-  registerAuthenticatedSetup()
-  if (!authStore.isAuthenticated)
-    await removeAuthenticationProviderConfiguration()
+async function loadStartup(sceneState: Ref<StartupSceneState>) {
+  try {
+    initializeAnalytics()
+    await authStore.initialize()
+    startup.complete('auth')
+    await displayModelsStore.initialize()
+    startup.complete('modelIndex')
+    await cardStore.initialize()
+    registerAuthenticatedSetup()
+    if (!authStore.isAuthenticated)
+      await removeAuthenticationProviderConfiguration()
+    startup.complete('card')
 
-  if (onboardingStore.needsOnboarding) {
-    onboardingStore.showingSetup = true
+    await serverChannelStore.initialize({
+      possibleEvents: ['ui:configure'],
+      connector: getHostWebSocketConnector,
+    }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+    contextBridgeStore.initialize()
+    characterOrchestratorStore.initialize()
+    startup.complete('services')
+
+    await displayModelsStore.loadDisplayModelsFromIndexedDB()
+    startup.complete('modelData')
+    await settingsStore.initializeStageModel()
+    startup.complete('modelSelection')
+    await settingsAudioDeviceStore.initialize()
+    startup.complete('audio')
   }
-
-  await serverChannelStore.initialize({
-    possibleEvents: ['ui:configure'],
-    connector: getHostWebSocketConnector,
-  }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-  contextBridgeStore.initialize()
-  characterOrchestratorStore.initialize()
-
-  await displayModelsStore.loadDisplayModelsFromIndexedDB()
-  await settingsStore.initializeStageModel()
-  await settingsAudioDeviceStore.initialize()
-})
+  finally {
+    await router.isReady().then(
+      () => { startup.complete('route') },
+      error => console.error('Failed to load initial route:', error),
+    )
+    if (startup.isComplete('modelSelection') && startup.isComplete('route') && router.currentRoute.value.name === 'IndexScenePage' && settings.stageModelRenderer.value !== 'disabled' && settings.stageModelSelectedUrl.value) {
+      await until(sceneState).toMatch(state => state === 'mounted' || state === 'error')
+      if (sceneState.value === 'mounted')
+        startup.complete('scene')
+    }
+    else if (startup.isComplete('modelSelection') && startup.isComplete('route')) {
+      startup.complete('scene')
+    }
+  }
+}
 
 onUnmounted(() => {
   stopAuthenticatedSetup?.()
@@ -136,13 +177,11 @@ onUnmounted(() => {
   contextBridgeStore.dispose()
 })
 
-// Handle first-time setup events
-function handleSetupConfigured() {
-  onboardingStore.markSetupCompleted()
-}
-
-function handleSetupSkipped() {
-  onboardingStore.markSetupSkipped()
+function openOnboardingAfterStartup() {
+  if (onboardingStore.needsOnboarding) {
+    startupOnboarding.value = true
+    onboardingStore.showingSetup = true
+  }
 }
 
 const extraSteps = computed(() => [
@@ -159,33 +198,44 @@ const extraSteps = computed(() => [
 </script>
 
 <template>
-  <StageTransitionGroup
-    :primary-color="primaryColor"
-    :secondary-color="secondaryColor"
-    :tertiary-color="tertiaryColor"
-    :colors="colors"
-    :z-index="100"
-    :disable-transitions="settings.disableTransitions.value"
-    :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
+  <StartupScreenProvider
+    :progress="startupProgress"
+    :load="loadStartup"
+    :instant-exit="onboardingStore.needsOnboarding"
+    logo-src="/favicon.svg"
+    :label="i18n.t('stage.operations.load-models-status.loading')"
+    @hidden="openOnboardingAfterStartup"
   >
-    <RouterView v-slot="{ Component }">
-      <KeepAlive :include="['IndexScenePage', 'StageScenePage']">
-        <component :is="Component" />
-      </KeepAlive>
-    </RouterView>
-  </StageTransitionGroup>
+    <StageTransitionGroup
+      :primary-color="primaryColor"
+      :secondary-color="secondaryColor"
+      :tertiary-color="tertiaryColor"
+      :colors="colors"
+      :z-index="100"
+      :disable-transitions="settings.disableTransitions.value"
+      :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
+    >
+      <RouterView v-slot="{ Component }">
+        <KeepAlive :include="['IndexScenePage', 'StageScenePage']">
+          <component :is="Component" />
+        </KeepAlive>
+      </RouterView>
+    </StageTransitionGroup>
 
-  <ToasterRoot @close="id => toast.dismiss(id)">
-    <Toaster rich-colors />
-  </ToasterRoot>
+    <ToasterRoot @close="id => toast.dismiss(id)">
+      <Toaster rich-colors />
+    </ToasterRoot>
 
-  <!-- First Time Setup Dialog -->
-  <OnboardingDialog
-    v-model="showingSetup"
-    :extra-steps="extraSteps"
-    @configured="handleSetupConfigured"
-    @skipped="handleSetupSkipped"
-  />
+    <!-- First Time Setup Dialog -->
+    <OnboardingDialog
+      v-model="showingSetup"
+      :scale-background="false"
+      :instant-open="startupOnboarding"
+      :extra-steps="extraSteps"
+      @configured="onboardingStore.markSetupCompleted()"
+      @skipped="onboardingStore.markSetupSkipped()"
+    />
+  </StartupScreenProvider>
 </template>
 
 <style>

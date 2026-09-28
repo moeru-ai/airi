@@ -17,6 +17,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./components": "./src/components/index.ts",
+    "./startup-screen": "./src/components/startup-screen.vue",
     "./*": "./*"
   },
   "scripts": {
@@ -27,15 +28,16 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@fontsource-variable/comfortaa": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/font-departure-mono": "workspace:^",
+    "@proj-airi/ui": "workspace:^",
     "@rive-app/canvas-lite": "catalog:",
     "@vueuse/core": "catalog:",
     "@vueuse/motion": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {
-    "@proj-airi/ui": "workspace:^",
     "@unocss/reset": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
     "vite": "catalog:",

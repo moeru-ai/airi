@@ -38,12 +38,50 @@
         const setting = localStorage.getItem('vueuse-color-scheme') || 'auto'
         if (setting === 'dark' || (prefersDark && setting !== 'light'))
           document.documentElement.classList.toggle('dark', true)
+
+        const savedHue = localStorage.getItem('settings/theme/colors/hue')
+        const hue = Number(savedHue)
+        if (savedHue !== null && Number.isFinite(hue) && hue >= 0 && hue <= 360)
+          document.documentElement.style.setProperty('--chromatic-hue', hue.toString())
       })()
     </script>
-    <script src="/assets/js/CubismSdkForWeb-5-r.3/Core/live2dcubismcore.min.js"></script>
+    <style>
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: max(calc(env(safe-area-inset-top) + 48px), calc(40vh - 82px)) 24px calc(env(safe-area-inset-bottom) + clamp(48px, 8vh, 96px));
+        background: #fff;
+        color: #262626;
+        font-family: "Comfortaa Variable", "Comfortaa", ui-sans-serif, system-ui, sans-serif;
+      }
+
+      #boot-splash .brand { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: 20px; }
+      #boot-splash img { width: 96px; height: 96px; filter: hue-rotate(calc(var(--chromatic-hue, 220.44) * 1deg)); }
+      #boot-splash strong { font-size: 32px; font-weight: 700; letter-spacing: 0.07em; padding-left: 0.07em; -webkit-text-stroke: 0.5px currentColor; }
+      #boot-splash .status { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: min(220px, 60vw); height: 44px; }
+      #boot-splash .track-space { width: 48px; height: 3px; margin-top: 28px; }
+      #app:not(:empty) + #boot-splash { display: none; }
+      html.dark #boot-splash { background: #171717; color: #f5f5f5; }
+    </style>
+    <noscript><style>#boot-splash { display: none; }</style></noscript>
   </head>
   <body class="font-sans">
     <div id="app"></div>
+    <div id="boot-splash" role="status" aria-busy="true">
+      <div class="brand">
+        <img src="/favicon.svg" alt="" />
+        <strong>AIRI</strong>
+      </div>
+      <div class="status"><span class="track-space" aria-hidden="true"></span></div>
+    </div>
+    <script src="/assets/js/CubismSdkForWeb-5-r.3/Core/live2dcubismcore.min.js"></script>
     <script type="module" src="/src/main.ts"></script>
     <noscript> This website requires JavaScript to function properly. Please enable JavaScript to continue. </noscript>
   </body>

@@ -12,6 +12,7 @@ import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
+import { startupSceneStateKey } from '@proj-airi/stage-ui/composables/startup-scene'
 import { createVoiceInputBinding } from '@proj-airi/stage-ui/libs/audio/voice-input-binding'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -20,9 +21,21 @@ import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/module
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, inject, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
 const paused = ref(false)
+const sceneState = ref<'pending' | 'loading' | 'mounted'>('pending')
+const startupSceneState = inject(startupSceneStateKey)
+
+watch(sceneState, (state) => {
+  if (state === 'mounted' && startupSceneState && startupSceneState.value !== 'error')
+    startupSceneState.value = 'mounted'
+})
+
+function markSceneFailed() {
+  if (startupSceneState)
+    startupSceneState.value = 'error'
+}
 
 function handleSettingsOpen(open: boolean) {
   paused.value = open
@@ -217,10 +230,12 @@ const cursorPosition = computed(() => ({
             <ViewControlSlider />
           </div>
           <WidgetStage
+            v-model:state="sceneState"
             h-full w-full
             :cursor-position="cursorPosition"
             :enable-orbit-controls="!isMobile"
             :paused="paused"
+            @error="markSceneFailed"
           />
         </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />

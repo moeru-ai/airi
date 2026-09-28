@@ -8,8 +8,8 @@ defineProps<{
 <template>
   <div relative overflow-hidden rounded-md>
     <div
-      :class="[barClass ? barClass : 'bg-primary-300 dark:bg-primary-300/50']"
-      absolute h-4 min-w-2 rounded-md will-change-width
+      :class="[barClass ? barClass : 'bg-primary-300 dark:bg-primary-300/50', progress > 0 && 'min-w-2']"
+      absolute h-4 rounded-md will-change-width
       :style="{ width: `${progress}%` }"
       transition="width duration-500 ease-in-out"
     >

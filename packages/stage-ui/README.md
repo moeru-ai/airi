@@ -2,6 +2,16 @@
 
 Shared core for stage
 
+## Startup progress
+
+`createStartupProgress` tracks completed startup tasks and checks their dependencies.
+`StartupScreenProvider` wraps the stage, owns the splash and loading phases, and waits for each app's loading function.
+Each app's HTML shows the first splash before Vue mounts. CSS hides it when Vue renders into `#app`.
+The provider shares scene state with the home page through `startupSceneStateKey`.
+Web and pocket apps finish the scene task after the initial character model mounts.
+A renderer error ends the wait and shows the stage error panel.
+The provider emits `hidden` after its screen exits. Apps open onboarding from that event.
+
 ## Chat sampling
 
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off
