@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
 import { defineExtension } from '../extension'
-import { defineKit } from '../kit'
+import { defineKit, defineKitContract, defineKitMethod } from '../kit'
 
 describe('extension manifest schema', () => {
   it('accepts extension.airi.json v2 manifests', () => {
@@ -382,6 +382,393 @@ describe('extension manifest schema', () => {
     })
 
     expect(result.success).toBe(false)
+  })
+})
+
+describe('extension-hosted Kit registration lifecycle', () => {
+  const contract = defineKitContract({
+    id: 'kit.hosted-lifecycle',
+    version: '1.0.0',
+    methods: { read: defineKitMethod<undefined, string>() },
+    events: {},
+  })
+
+  function manifest(id: string) {
+    return {
+      manifestVersion: 2 as const,
+      kind: 'manifest.extension.airi.moeru.ai' as const,
+      id,
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron' as const] },
+      permissions: {},
+      entrypoints: {},
+      kits: { provides: [{ id: contract.id, version: contract.version, exposure: 'local-only' as const }] },
+    }
+  }
+
+  it('publishes only after setup returns and withdraws before cleanup callbacks', async () => {
+    const host = new ExtensionHost()
+    const cleanupError = new Error('cleanup failed')
+    const extension = defineExtension({
+      id: 'provider-one',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        expect(host.getKitProvider(contract.id)).toBeUndefined()
+        ctx.subscriptions.add({ dispose: () => {
+          expect(host.getKitProvider(contract.id)).toBeUndefined()
+          throw cleanupError
+        } })
+      },
+    })
+
+    const session = await host.startExtension(extension, { manifest: manifest(extension.id) })
+    expect(host.getKitProvider(contract.id)).toMatchObject({ generation: 1, owner: { sessionId: session.id } })
+    await expect(host.stop(session.id)).rejects.toBe(cleanupError)
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+  })
+
+  it('rolls back after setup failure and after an omitted declaration', async () => {
+    const host = new ExtensionHost()
+    const setupError = new Error('setup failed')
+    await expect(host.startExtension(defineExtension({
+      id: 'provider-one',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        throw setupError
+      },
+    }), { manifest: manifest('provider-one') })).rejects.toBe(setupError)
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+
+    await expect(host.startExtension(defineExtension({
+      id: 'provider-two',
+      setup() {},
+    }), { manifest: manifest('provider-two') })).rejects.toThrow('missing-declared-kit')
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+
+    await host.startExtension(defineExtension({
+      id: 'provider-three',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+      },
+    }), { manifest: manifest('provider-three') })
+    expect(host.getKitProvider(contract.id)?.generation).toBe(1)
+  })
+
+  it('keeps both setup and cleanup errors after withdrawing the Provider', async () => {
+    const host = new ExtensionHost()
+    const setupError = new Error('setup failed')
+    const cleanupError = new Error('cleanup failed')
+    const extension = defineExtension({
+      id: 'provider-one',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({
+          dispose: () => {
+            throw cleanupError
+          },
+        })
+        throw setupError
+      },
+    })
+
+    try {
+      await host.startExtension(extension, { manifest: manifest(extension.id) })
+      throw new Error('Expected setup to fail.')
+    }
+    catch (error) {
+      if (!(error instanceof AggregateError)) {
+        throw error
+      }
+      expect(error.errors).toEqual([setupError, cleanupError])
+      expect(error.cause).toBe(setupError)
+    }
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+  })
+
+  it('rejects a Host-owned slot and leaves the Host descriptor intact', async () => {
+    const host = new ExtensionHost()
+    host.registerKit({ kitId: contract.id, version: '1.0.0', runtimes: ['electron'], capabilities: [] })
+    await expect(host.startExtension(defineExtension({
+      id: 'provider-one',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+      },
+    }), { manifest: manifest('provider-one') })).rejects.toThrow('provider-slot-conflict')
+    expect(host.getKit(contract.id)?.version).toBe('1.0.0')
+    expect(host.getKitProvider(contract.id)?.owner.kind).toBe('host')
+  })
+
+  it('keeps provide on root setup, not on a registered module', async () => {
+    const host = new ExtensionHost()
+    const extension = defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        const module = await ctx.modules.register({ id: 'module-one' })
+        expect('provide' in ctx.kits).toBe(true)
+        expect('provide' in module.kits).toBe(false)
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+      },
+    })
+
+    await host.startExtension(extension, { manifest: manifest(extension.id) })
+    expect(host.getKitProvider(contract.id)?.owner.kind).toBe('extension')
+  })
+
+  it('reloads with a new generation and ignores an old handle', async () => {
+    const host = new ExtensionHost()
+    const fixture = await import('./testdata/test-hosted-kit-provider-entrypoint')
+    const session = await host.start({
+      ...manifest('reload-provider'),
+      kits: { provides: [{ id: fixture.hostedKitContract.id, version: '1.0.0', exposure: 'local-only' }] },
+      entrypoints: { electron: join(import.meta.dirname, 'testdata', 'test-hosted-kit-provider-entrypoint.ts') },
+    })
+    const oldHandle = fixture.providerHandleState.current
+
+    const next = await host.reload(session.id)
+    oldHandle?.dispose()
+
+    expect(next.id).not.toBe(session.id)
+    expect(host.getKitProvider(fixture.hostedKitContract.id)).toMatchObject({
+      generation: 2,
+      owner: { sessionId: next.id },
+    })
+  })
+})
+
+describe('host-provided Kit registration integrity', () => {
+  it('keeps Host sources under the identity captured at registration', () => {
+    // ROOT CAUSE:
+    //
+    // The Provider Registry captured one ID, but the Host payload stores read
+    // the caller's ID again. A changing getter split one registration in two.
+    // The Registry now stores and publishes the one captured ID.
+    const host = new ExtensionHost()
+    let apiReads = 0
+    const apiId = vi.fn(() => ++apiReads === 1 ? 'kit.api' : 'kit.api-drift')
+    const api = Object.defineProperty({ id: 'kit.api', version: '1.0.0', createClient: () => ({}) }, 'id', {
+      enumerable: true,
+      get: apiId,
+    })
+
+    const apiLease = host.registerKitApi(api)
+    expect(apiId).toHaveBeenCalledTimes(1)
+    expect(host.getKitProvider('kit.api')?.owner.kind).toBe('host')
+    expect(apiLease.dispose()).toBe(true)
+    expect(host.getKitProvider('kit.api')).toBeUndefined()
+
+    let descriptorReads = 0
+    const descriptorId = vi.fn(() => ++descriptorReads === 1 ? 'kit.descriptor' : 'kit.descriptor-drift')
+    const descriptor = Object.defineProperty({ kitId: 'kit.descriptor', version: '1.0.0', runtimes: ['electron' as const], capabilities: [] }, 'kitId', {
+      enumerable: true,
+      get: descriptorId,
+    })
+
+    const descriptorLease = host.registerKit(descriptor)
+    expect(descriptorId).toHaveBeenCalledTimes(1)
+    expect(host.getKit('kit.descriptor')?.kitId).toBe('kit.descriptor')
+    expect(descriptorLease.dispose()).toBe(true)
+    expect(host.getKitProvider('kit.descriptor')).toBeUndefined()
+  })
+
+  it('does not publish a Host source when payload capture fails', () => {
+    // ROOT CAUSE:
+    //
+    // Host payload access failed after the Registry changed registration state.
+    // The Registry now captures the complete source before publication.
+    const host = new ExtensionHost()
+    const failure = new Error('client factory is unavailable')
+    const api = Object.defineProperty({ id: 'kit.failed', version: '1.0.0', createClient: () => ({}) }, 'createClient', {
+      enumerable: true,
+      get() {
+        throw failure
+      },
+    })
+
+    let registrationError: unknown
+    try {
+      host.registerKitApi(api)
+    }
+    catch (error) {
+      registrationError = error
+    }
+    expect(registrationError).toMatchObject({
+      code: 'invalid-host-source',
+      kitId: 'kit.failed',
+    })
+    expect(registrationError).not.toHaveProperty('cause')
+    expect(host.getKitProvider('kit.failed')).toBeUndefined()
+  })
+
+  it('invokes a Host Kit factory without a receiver', async () => {
+    // ROOT CAUSE:
+    //
+    // Binding the factory to its registration input preserved undeclared mutable state.
+    // The Host now invokes a receiver-free factory with an undefined receiver.
+    const host = new ExtensionHost()
+    const kit = defineKit({
+      id: 'kit.receiver',
+      version: '1.0.0',
+      createClient(this: void) {
+        expect(this).toBeUndefined()
+        return { value: 'accepted' }
+      },
+    })
+    host.registerKitApi(kit)
+    let observed = ''
+    const extension = defineExtension({
+      id: 'host-kit-receiver-consumer',
+      async setup(ctx) {
+        observed = (await ctx.kits.use(kit)).value
+      },
+    })
+
+    await host.startExtension(extension, {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: extension.id,
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        entrypoints: {},
+      },
+    })
+
+    expect(observed).toBe('accepted')
+  })
+
+  it('keeps matching Host sources together until the last source leaves', () => {
+    const host = new ExtensionHost()
+    const descriptor = { kitId: 'kit.shared', version: '1.0.0', runtimes: ['electron' as const], capabilities: [] }
+    const api = { id: descriptor.kitId, version: descriptor.version, createClient: () => ({}) }
+
+    const descriptorLease = host.registerKit(descriptor)
+    const firstGeneration = host.getKitProvider(descriptor.kitId)?.generation
+    const factoryLease = host.registerKitApi(api)
+    expect(host.getKitProvider(descriptor.kitId)?.generation).toBe((firstGeneration ?? 0) + 1)
+    expect(() => host.registerKitApi({ ...api, version: '2.0.0' })).toThrow('provider-slot-conflict')
+
+    descriptorLease.dispose()
+    expect(host.getKit(descriptor.kitId)).toBeUndefined()
+    expect(host.getKitProvider(descriptor.kitId)?.owner.kind).toBe('host')
+    factoryLease.dispose()
+    expect(host.getKitProvider(descriptor.kitId)).toBeUndefined()
+  })
+
+  it('rejects a Host API replacement within the current generation', () => {
+    // ROOT CAUSE:
+    //
+    // A second API source replaced the Client factory without changing the
+    // Provider generation. The snapshot no longer identified one payload.
+    // The Registry now rejects a second current factory for the same Kit.
+    const host = new ExtensionHost()
+    const first = { id: 'kit.replacement', version: '1.0.0', createClient: () => ({ value: 'first' }) }
+    host.registerKitApi(first)
+    const generation = host.getKitProvider(first.id)?.generation
+
+    expect(() => host.registerKitApi({ ...first, createClient: () => ({ value: 'second' }) }))
+      .toThrow('provider-slot-conflict')
+    expect(host.getKitProvider(first.id)?.generation).toBe(generation)
+  })
+
+  it('does not leave a Host reservation after descriptor collision', () => {
+    // ROOT CAUSE:
+    //
+    // Descriptor conflicts escaped from the nested descriptor store as plain
+    // errors. Callers then lost the registration error code and Kit ID.
+    // The Registry now reports the conflict and keeps the current registration.
+    const host = new ExtensionHost()
+    const lease = host.registerKit({ kitId: 'kit.conflict', version: '1.0.0', runtimes: ['electron'], capabilities: [] })
+
+    expect(() => host.registerKit({ kitId: 'kit.conflict', version: '1.0.0', runtimes: ['node'], capabilities: [] }))
+      .toThrow(expect.objectContaining({ code: 'provider-slot-conflict', kitId: 'kit.conflict' }))
+    expect(host.getKit('kit.conflict')?.runtimes).toEqual(['electron'])
+    expect(host.getKitProvider('kit.conflict')?.version).toBe('1.0.0')
+    lease.dispose()
+    expect(host.getKitProvider('kit.conflict')).toBeUndefined()
+  })
+
+  it('keeps accepted Host payloads stable after caller mutation', async () => {
+    // ROOT CAUSE:
+    //
+    // The old registration stored caller-owned arrays and factory fields.
+    // Caller mutations then changed the current registration without a new generation.
+    // The Registry now stores immutable copies of accepted Host payloads.
+    const host = new ExtensionHost()
+    const descriptor = {
+      kitId: 'kit.mutable',
+      version: '1.0.0',
+      runtimes: ['electron' as const],
+      capabilities: [{ key: 'kit.mutable.capability', actions: ['read'] }],
+    }
+    const api = {
+      id: descriptor.kitId,
+      version: descriptor.version,
+      createClient: () => ({ value: 'original' }),
+    }
+    host.registerKit(descriptor)
+    host.registerKitApi(api)
+
+    descriptor.version = '2.0.0'
+    descriptor.capabilities[0].actions.push('changed')
+    api.version = '2.0.0'
+    api.createClient = () => ({ value: 'changed' })
+
+    expect(host.getKitProvider('kit.mutable')?.version).toBe('1.0.0')
+    expect(host.getKit('kit.mutable')).toMatchObject({
+      version: '1.0.0',
+      capabilities: [{ actions: ['read'] }],
+    })
+
+    let observed = ''
+    const extension = defineExtension({
+      id: 'host-kit-consumer',
+      async setup(ctx) {
+        observed = (await ctx.kits.use(api)).value
+      },
+    })
+    await host.startExtension(extension, {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: extension.id,
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        permissions: { apis: [{ key: 'kit.mutable', actions: ['invoke'] }] },
+        entrypoints: {},
+      },
+    })
+    expect(observed).toBe('original')
+  })
+
+  it('returns mutable copies from the legacy Host Kit query interface', () => {
+    // ROOT CAUSE:
+    //
+    // The Provider Registry owns frozen descriptor snapshots. The Host exposed
+    // those internal snapshots through methods that previously returned copies.
+    // The Host now returns deep mutable copies from its legacy query methods.
+    const host = new ExtensionHost()
+    host.registerKit({
+      kitId: 'kit.query-copy',
+      version: '1.0.0',
+      runtimes: ['electron'],
+      capabilities: [{ key: 'kit.query-copy.read', actions: ['invoke'] }],
+    })
+
+    const descriptor = host.getKit('kit.query-copy')!
+    descriptor.runtimes.push('web')
+    descriptor.capabilities[0]!.actions.push('changed')
+    const listed = host.listKits()
+    listed[0]!.capabilities[0]!.actions.push('listed-change')
+    const capabilities = host.getKitCapabilities('kit.query-copy')
+    capabilities[0]!.actions.push('capability-change')
+
+    expect(host.getKit('kit.query-copy')).toEqual({
+      kitId: 'kit.query-copy',
+      version: '1.0.0',
+      runtimes: ['electron'],
+      capabilities: [{ key: 'kit.query-copy.read', actions: ['invoke'] }],
+    })
   })
 })
 
@@ -893,9 +1280,21 @@ describe('for ExtensionHost', () => {
       },
     })
 
-    host.registerKitApi(kit)
+    const firstLease = host.registerKitApi(kit)
 
     expect(observed).toEqual([false, true])
+
+    expect(firstLease.dispose()).toBe(true)
+    expect(observed).toEqual([false, true, false])
+
+    const secondLease = host.registerKitApi(kit)
+    expect(observed).toEqual([false, true, false, true])
+
+    expect(firstLease.dispose()).toBe(false)
+    expect(observed).toEqual([false, true, false, true])
+
+    expect(secondLease.dispose()).toBe(true)
+    expect(observed).toEqual([false, true, false, true, false])
   })
 
   it('disposes extension-scoped kit availability watchers with the extension session', async () => {
