@@ -176,7 +176,10 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 // band counts as the window, because a resize holds the cursor there. On
 // Wayland the cursor signal can stick outside (#2521), so the Island stays.
 const isWayland = ref(true)
-void useElectronEventaInvoke(electronAppIsWayland)().then(value => isWayland.value = value)
+// A failed probe keeps `true`, so the Island stays shown as before this feature.
+useElectronEventaInvoke(electronAppIsWayland)()
+  .then(value => isWayland.value = value)
+  .catch(error => console.warn('[Main Page] Failed to detect Wayland; the controls Island stays shown:', errorMessageFrom(error)))
 const cursorAwayFromWindow = computed(() => !isWayland.value && isOutsideWindow.value && !isAroundWindowBorder.value)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
