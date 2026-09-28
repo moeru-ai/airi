@@ -1,212 +1,212 @@
-# AIRI 设计规范
+# AIRI Design Guide
 
-本文从 `packages/ui` 的当前实现整理设计语言，供页面设计、组件开发和评审使用。
+This guide records the design language in `packages/ui` for interface design, component development, and review.
 
-范围包括 `stage-web`、`stage-tamagotchi` 和 `stage-pocket` 使用的共享控件。业务布局由 `stage-ui`、`stage-layouts` 和 `stage-pages` 负责。
+It covers shared controls for `stage-web`, `stage-tamagotchi`, and `stage-pocket`. Business layouts belong to `stage-ui`, `stage-layouts`, and `stage-pages`.
 
-本文描述源码事实与复用规则，不代表全站已完成视觉或可访问性验收。尚未统一的部分列在「已知差异」中。
+The guide describes source behavior and reuse rules. It does not certify visual or accessibility acceptance across the apps. Known differences appear in Section 7.
 
-## 1. 设计语言
+## 1. Design Language
 
-当前 UI 的共同特征是中性色表面、可变主色、圆角、半透明材质，以及可见的交互反馈。
+The current UI combines neutral surfaces, a configurable primary color, rounded corners, translucent materials, and visible interaction feedback.
 
-| 特征 | 当前实现 | 复用规则 |
+| Pattern | Current implementation | Reuse rule |
 | --- | --- | --- |
-| 颜色与强调分离 | `Button.color` 选择色系，`variant` 选择强调程度 | 不把主操作固定成某一种颜色 |
-| 中性色承载内容 | 输入框、抽屉和选择器使用 `neutral` 色阶 | 正文与背景沿用组件配对 |
-| 圆角按控件区分 | 常规控件 `rounded-lg`，浮层有更大圆角 | 使用组件已有形状，不统一覆盖为一个圆角 |
-| 实体按钮用轮廓反馈 | `Button` 无边框，悬停和键盘焦点使用外扩 outline | 保留轮廓空间，避免容器裁切 |
-| 输入控件用边框反馈 | `Input`、`Textarea` 和 `Select` 使用 2px 边框 | 不套用按钮的无边框样式 |
-| 浮层使用透明材质 | `OverlayButton`、部分按钮与提示使用背景模糊 | 在实际背景上检查文字与控件 |
-| 动效跟随交互 | 按下缩放、选中着色、面板展开与关闭 | 复用已有行为，避免页面重复实现 |
+| Separate color from emphasis | `Button.color` selects the palette. `variant` selects emphasis. | Do not bind primary actions to one fixed color. |
+| Neutral content surfaces | Inputs, drawers, and selects use `neutral` shades. | Preserve the component's foreground and background pairs. |
+| Corners depend on the control | Standard controls use `rounded-lg`. Overlays use larger corners. | Use existing shapes instead of one global radius override. |
+| Button feedback uses outlines | `Button` has no border. Hover and keyboard focus use an external outline. | Leave space around the control so containers do not clip the outline. |
+| Input feedback uses borders | `Input`, `Textarea`, and `Select` use 2px borders. | Preserve input borders instead of applying button styles. |
+| Overlay surfaces use translucency | `OverlayButton`, some buttons, and callouts use background blur. | Check controls and text against the actual background. |
+| Motion follows interaction | Controls scale on press, change color on selection, and animate panel transitions. | Reuse component behavior instead of duplicating it in pages. |
 
-具体属性、事件和插槽见[组件参考](./docs/ai/context/ui-components.md)。本文聚焦视觉选择和组件使用边界。
+The [component reference](./docs/ai/context/ui-components.md) describes props, events, and slots. This guide explains visual choices and component boundaries.
 
-## 2. 主题、颜色与字体
+## 2. Themes, Colors, and Typography
 
-### 主题来源
+### Theme sources
 
-- [UnoCSS 配置](./uno.config.ts)提供 Chromatic 色阶、字体、图标和公共动画。
-- [UI 基础变量](./packages/ui/src/fallback.css)提供 `--chromatic-hue` 与各级色度变量。
-- [主题设置](./packages/stage-ui/src/stores/settings/theme.ts)保存用户选择的色相，默认值为 `220.44`。
-- [UI 样式入口](./packages/ui/src/main.css)汇总基础变量、灯光动画和组件样式。
+- [UnoCSS configuration](./uno.config.ts) provides Chromatic palettes, fonts, icons, and shared animations.
+- [UI fallback variables](./packages/ui/src/fallback.css) define `--chromatic-hue` and shade-specific chroma variables.
+- [Theme settings](./packages/stage-ui/src/stores/settings/theme.ts) store the selected hue. The default is `220.44`.
+- [The UI stylesheet entry](./packages/ui/src/main.css) includes fallback variables, lamp animation, and component styles.
 
-`primary` 跟随主题色相，`complementary` 由主题配置提供。产品页面使用已有色阶，不复制一组固定品牌色值。
+`primary` follows the theme hue. The theme configuration also provides `complementary`. Use these palettes instead of copying fixed brand colors into pages.
 
-`neutral` 承载常规表面和文字。浅色与深色分别定义背景、文字、边框和透明度，不能只反转背景。
+`neutral` supplies standard surfaces and text. Light and dark modes define separate backgrounds, foregrounds, borders, and opacity values.
 
-按钮也支持红、橙、绿等独立色系。`Callout` 仅提供 `primary`、`violet`、`lime`、`orange`，没有统一的成功或错误语义 API。
+Buttons also support independent palettes, such as red, orange, and green. `Callout` supports `primary`, `violet`, `lime`, and `orange`. It has no shared success or error API.
 
-业务状态必须同时用文案或图标说明，不能假定某个色名自动代表某种状态。
+Use text or icons to explain business states. A palette name does not establish a status meaning.
 
-### 字体与文字层级
+### Fonts and text hierarchy
 
-`uno.config.ts` 定义 `sans`、`sans-rounded`、`cute` 等字体族。控件主要继承宿主字体，不在每个组件里另设字体。
+`uno.config.ts` defines font families such as `sans`, `sans-rounded`, and `cute`. Controls generally inherit their host font.
 
-| 已有使用位置 | 当前样式 |
+| Existing use | Current style |
 | --- | --- |
-| 小按钮 | `text-xs` |
-| 常规按钮、输入框、选择器 | `text-sm` |
-| 大按钮 | `text-base` |
-| `FieldInput` 标签 | `text-sm font-medium` |
-| `FieldInput` 说明 | `text-xs`，浅色 `neutral-500`，深色 `neutral-400` |
-| `BottomDrawer` 标题 | `text-xl font-semibold tracking-tight` |
+| Small buttons | `text-xs` |
+| Standard buttons, inputs, and selects | `text-sm` |
+| Large buttons | `text-base` |
+| `FieldInput` labels | `text-sm font-medium` |
+| `FieldInput` descriptions | `text-xs`, `neutral-500` in light mode, `neutral-400` in dark mode |
+| `BottomDrawer` titles | `text-xl font-semibold tracking-tight` |
 
-这些是控件现状，不构成全站标题字号表。页面标题与正文优先沿用所在布局和相邻页面。
+These values describe controls, not a global heading scale. Use the surrounding layout and adjacent pages as references for page titles and body text.
 
-## 3. 按钮体系
+## 3. Buttons
 
-### 根据用途选择
+### Choose by purpose
 
-| 组件 | 外观与行为 | 使用场景 |
+| Component | Appearance and behavior | Use |
 | --- | --- | --- |
-| [BasicButton](./packages/ui/src/components/misc/basic-button.vue) | 提供尺寸、图标、加载、禁用和按下反馈，不定义表面与形状 | 构建新的共享按钮外观 |
-| [Button](./packages/ui/src/components/misc/button.vue) | 实色或柔和表面，无边框，默认开启悬停与焦点轮廓 | 明确的主要或次要操作 |
-| [GhostButton](./packages/ui/src/components/misc/ghost-button.vue) | 默认透明，交互时使用浅主色表面，键盘焦点显示轮廓 | 工具栏和低强调操作 |
-| [IconButton](./packages/ui/src/components/misc/icon-button.vue) | 去掉内边距，不内置背景、形状或固定方形尺寸 | 收藏、复制、重试等图标操作 |
-| [OverlayButton](./packages/ui/src/components/misc/overlay-button.vue) | 半透明中性表面、背景模糊、`rounded-xl` | 舞台上的悬浮操作 |
+| [BasicButton](./packages/ui/src/components/misc/basic-button.vue) | Sizes, icons, loading, disabled state, and press feedback. No surface or shape. | Build a shared button appearance. |
+| [Button](./packages/ui/src/components/misc/button.vue) | Solid or soft surface without a border. Hover and focus outlines are enabled by default. | Primary and secondary actions. |
+| [GhostButton](./packages/ui/src/components/misc/ghost-button.vue) | Transparent at rest. Interaction adds a faint primary surface. Keyboard focus has an outline. | Toolbars and low-emphasis actions. |
+| [IconButton](./packages/ui/src/components/misc/icon-button.vue) | Removes padding. No built-in surface, shape, or fixed square size. | Favorite, copy, retry, and other icon actions. |
+| [OverlayButton](./packages/ui/src/components/misc/overlay-button.vue) | Translucent neutral surface, background blur, and `rounded-xl`. | Actions over the stage. |
 
-`Button` 默认值为 `color="neutral"`、`variant="secondary"`、`shape="rect"`、`size="md"`、`outline=true`。
+`Button` defaults are `color="neutral"`, `variant="secondary"`, `shape="rect"`, `size="md"`, and `outline=true`.
 
-主要操作显式选择 `variant="primary"`。需要跟随用户主题时，选择 `color="primary"`。
+For primary actions, explicitly select `variant="primary"`. To follow the user's theme, select `color="primary"`.
 
-`GhostButton.active` 保留选中表面。切换控件的可访问状态由调用方提供，例如 `aria-pressed`。
+`GhostButton.active` preserves the selected surface. The caller supplies accessible toggle state, such as `aria-pressed`.
 
-### 尺寸与形状
+### Sizes and shapes
 
-以下尺寸来自 `BasicButton` 与 `Button`，不是新设的 token。px 换算以根字号 16px 为例。
+These values come from `BasicButton` and `Button`. They are not new tokens. Pixel equivalents assume a 16px root font size.
 
-| 尺寸 | BasicButton 内边距 | 字号 | Button 圆形尺寸 |
+| Size | BasicButton padding | Text | Circular Button dimensions |
 | --- | --- | --- | --- |
-| `sm` | `px-3 py-1.5`，12 × 6px | `text-xs` | `h-8 w-8`，32 × 32px |
-| `md` | `px-4 py-2`，16 × 8px | `text-sm` | `h-10 w-10`，40 × 40px |
-| `lg` | `px-5 py-3`，20 × 12px | `text-base` | `h-12 w-12`，48 × 48px |
-| `unset` | 不提供预设内边距与字号 | 调用方决定 | 调用方决定 |
+| `sm` | `px-3 py-1.5`, 12 × 6px | `text-xs` | `h-8 w-8`, 32 × 32px |
+| `md` | `px-4 py-2`, 16 × 8px | `text-sm` | `h-10 w-10`, 40 × 40px |
+| `lg` | `px-5 py-3`, 20 × 12px | `text-base` | `h-12 w-12`, 48 × 48px |
+| `unset` | No preset padding or text size | Caller-owned | Caller-owned |
 
-`GhostButton` 有独立的紧凑尺寸：`sm`、`md`、`lg` 的最小高度分别为 `min-h-7`、`min-h-8`、`min-h-10`。
+`GhostButton` has separate compact sizes. Its `sm`, `md`, and `lg` minimum heights are `min-h-7`, `min-h-8`, and `min-h-10`.
 
-| Button 形状 | 当前实现 |
+| Button shape | Current implementation |
 | --- | --- |
 | `rect` | `rounded-lg` |
 | `rounded` | `rounded-full` |
-| `circle` | `rounded-full`，移除内边距，应用对应方形尺寸 |
-| `parallelogram` | `rounded-lg`，外层倾斜 -10°，内容反向倾斜 10° |
+| `circle` | `rounded-full`, no padding, and the corresponding square dimensions |
+| `parallelogram` | `rounded-lg`, -10° outer skew, and 10° content skew |
 
-### 状态与调用方责任
+### States and caller responsibilities
 
-- `BasicButton` 使用 200ms 过渡和 `active:scale-95` 按下反馈。
-- `loading` 显示 spinner 并禁用按钮，防止重复点击。
-- 禁用态使用 50% 透明度，并取消按下缩放。
-- `Button` 的轮廓宽度为 2px，悬停与键盘焦点的偏移为 2px。
-- `IconButton` 的可访问名称、点击区域和焦点表现需要逐项检查。
-- `OverlayButton` 没有自定义 outline，不能据此宣称已满足所有焦点场景。
-- 不为普通按钮关闭 `outline`，除非已经提供等价的可见焦点。
+- `BasicButton` uses 200ms transitions and `active:scale-95` press feedback.
+- `loading` shows a spinner and disables the button to prevent repeated clicks.
+- Disabled buttons use 50% opacity and suppress press scaling.
+- `Button` uses a 2px outline. Hover and keyboard focus use a 2px outline offset.
+- Check the accessible name, hit area, and focus appearance of each `IconButton`.
+- `OverlayButton` has no custom outline. Source inspection alone does not establish keyboard acceptance.
+- Keep `outline` enabled unless an equivalent visible focus treatment exists.
 
-按钮字号和内边距不等于触控尺寸保证。移动端必须检查最终可点击区域。
+Padding and text sizes do not guarantee touch target dimensions. Check the final interactive area on mobile.
 
-## 4. 表单体系
+## 4. Forms
 
-| 组件 | 当前视觉约定 | 使用边界 |
+| Component | Current visual pattern | Use |
 | --- | --- | --- |
-| [Input](./packages/ui/src/components/form/input/input.vue) | `rounded-lg`、`px-2 py-1`、`text-sm`、2px 边框、`shadow-sm` | 单行文字和数字输入 |
-| [Textarea](./packages/ui/src/components/form/textarea/textarea.vue) | 沿用 Input 的基础表面、文字与边框 | 多行输入 |
-| [FieldInput](./packages/ui/src/components/form/field/field-input.vue) | 标签与说明在前，控件在后，外层 `gap-4` | 带说明的表单字段 |
-| [Select](./packages/ui/src/components/form/select/select.vue) | 触发器 `h-9`，默认 `rounded-lg`，弹出内容 `rounded-xl` | 已知选项的单选 |
-| [Checkbox](./packages/ui/src/components/form/checkbox/checkbox.vue) | `h-7 w-12.5` 胶囊轨道、`size-6` 滑块 | 布尔开关，底层实际使用 Reka Switch |
+| [Input](./packages/ui/src/components/form/input/input.vue) | `rounded-lg`, `px-2 py-1`, `text-sm`, 2px border, and `shadow-sm` | Single-line text and number input |
+| [Textarea](./packages/ui/src/components/form/textarea/textarea.vue) | The same base surface, text, and border as Input | Multiline input |
+| [FieldInput](./packages/ui/src/components/form/field/field-input.vue) | Label and description precede the control. The outer layout uses `gap-4`. | Fields with descriptions |
+| [Select](./packages/ui/src/components/form/select/select.vue) | `h-9` trigger, default `rounded-lg`, and `rounded-xl` popup | A single choice from known options |
+| [Checkbox](./packages/ui/src/components/form/checkbox/checkbox.vue) | `h-7 w-12.5` pill track and `size-6` thumb | Boolean switch, implemented with Reka Switch |
 
-输入框的浅色背景为 `neutral-50`，深色背景为 `neutral-950`。聚焦边框使用 `primary-300` 与深色的 `primary-400/50`。
+Inputs use `neutral-50` backgrounds in light mode and `neutral-950` in dark mode. Focus borders use `primary-300` and `primary-400/50`, respectively.
 
-`Input` 当前的 `primary` 与 `secondary` 外观相同。`primary-dimmed` 使用更深的中性表面，并移除该组件中的阴影类。
+The `Input` variants `primary` and `secondary` currently look identical. `primary-dimmed` uses a darker neutral surface and omits the shadow class.
 
-`Select` 的 `shape="rounded"` 提供胶囊形状，`variant="blurry"` 提供半透明表面。不要把这些属性复制成页面局部样式。
+`Select` offers a pill shape through `shape="rounded"` and a translucent surface through `variant="blurry"`. Use these props instead of page-specific copies.
 
-优先使用对应的 `Field*` 组件组织标签与说明。错误关联、提交结果和异步校验仍由业务表单负责。
+Prefer the corresponding `Field*` component for labels and descriptions. Business forms own error associations, submission results, and asynchronous validation.
 
-## 5. 浮层、提示与滑动操作
+## 5. Drawers, Callouts, and Swipe Actions
 
 ### BottomDrawer
 
-[BottomDrawer](./packages/ui/src/components/layouts/bottom-drawer.vue)基于 Vaul Vue，统一移动端面板的结构与交互。
+[BottomDrawer](./packages/ui/src/components/layouts/bottom-drawer.vue) uses Vaul Vue to share mobile panel structure and interaction.
 
-- 顶部圆角固定为 32px，最大宽度为 `max-w-lg`，最大高度为 `90dvh`。
-- `minimumHeight="half"` 提供 `50dvh` 最小高度，默认按内容确定高度。
-- 遮罩使用 `bg-black/35`，遮罩和内容使用 `z-[9999]`。
-- 内容使用 `neutral-50`，深色使用 `neutral-900`，并带 `shadow-xl`。
-- 水平内边距为 `px-5`，底部内边距兼顾 1rem 与安全区。
-- 只有拖动手柄启动拖拽，内容滚动和操作按钮保留原生输入行为。
-- 提供可见标题与内部滚动区，不内置关闭按钮。
-- 连续打开其他模态内容时，使用 `afterClose` 与 `closeAutoFocus` 协调焦点。
+- Top corners are 32px. Maximum width is `max-w-lg`. Maximum height is `90dvh`.
+- `minimumHeight="half"` sets a `50dvh` minimum height. The default follows content height.
+- The overlay uses `bg-black/35`. Both the overlay and content use `z-[9999]`.
+- Content uses `neutral-50`, dark-mode `neutral-900`, and `shadow-xl`.
+- Horizontal padding is `px-5`. Bottom padding accounts for 1rem and the safe area.
+- Only the handle starts a drag. Content scrolling and buttons retain their normal input behavior.
+- The component supplies a visible title and internal scroll region. It has no built-in close button.
+- When another modal follows, use `afterClose` and `closeAutoFocus` to coordinate focus.
 
-`Select` 弹出内容使用 `z-[10010]`。这些值是当前组件实现，不是完整的全局层级 token 表。
+`Select` popup content uses `z-[10010]`. These are current component values, not a complete global layer scale.
 
-### Callout 与 SwipeActions
+### Callout and SwipeActions
 
-[Callout](./packages/ui/src/components/misc/callout.vue)通过浅色表面、左侧竖向色条和强调标题表达提示。调用方提供明确标题与正文。
+[Callout](./packages/ui/src/components/misc/callout.vue) combines a tinted surface, a vertical accent bar, and an emphasized title. The caller supplies meaningful text.
 
-[SwipeActions](./packages/ui/src/components/swipe-actions/index.ts)负责滑动区域与手势。[SwipeActionButton](./packages/ui/src/components/misc/swipe-action-button.vue)负责胶囊表面、图标与文字。
+[SwipeActions](./packages/ui/src/components/swipe-actions/index.ts) owns swipe regions and gestures. [SwipeActionButton](./packages/ui/src/components/misc/swipe-action-button.vue) owns the pill surface, icon, and label.
 
-滑动操作的内容区域使用不透明背景。隐藏可见标签时，仍保留可访问名称。业务层负责撤销、删除和数据状态。
+Use an opaque background for swipe content. If the visible label is hidden, preserve the accessible name. Business logic owns undo, deletion, and data state.
 
-## 6. 动效与图标
+## 6. Motion and Icons
 
-| 实现 | 当前动效 |
+| Implementation | Current motion |
 | --- | --- |
-| `BasicButton`、`Input`、`Textarea` | 200ms，`ease-in-out` |
-| `Checkbox` 滑块 | 250ms 位移，`ease-in-out` |
-| [TransitionVertical](./packages/ui/src/components/animations/transition-vertical.vue) | 默认 250ms，高度与透明度变化 |
-| [TransitionHorizontal](./packages/ui/src/components/animations/transition-horizontal.vue) | 500ms，宽度与透明度变化 |
-| [AnimatedContent](./packages/ui/src/components/animations/animated-content.vue) | 打开 220ms，关闭 160ms，内层 6px 模糊变化 |
-| UnoCSS 公共动画 | 遮罩 300ms，内容 150ms，方向性滑入 400ms，淡入淡出 200ms |
+| `BasicButton`, `Input`, and `Textarea` | 200ms, `ease-in-out` |
+| `Checkbox` thumb | 250ms translation, `ease-in-out` |
+| [TransitionVertical](./packages/ui/src/components/animations/transition-vertical.vue) | Default 250ms height and opacity transition |
+| [TransitionHorizontal](./packages/ui/src/components/animations/transition-horizontal.vue) | 500ms width and opacity transition |
+| [AnimatedContent](./packages/ui/src/components/animations/animated-content.vue) | 220ms enter, 160ms exit, and 6px inner blur transition |
+| Shared UnoCSS animations | Overlay 300ms, content 150ms, directional entrance 400ms, fade 200ms |
 
-`AnimatedContent` 只负责动画，不提供表面样式。外部生命周期拥有者设置 `data-state`，并保留节点直到关闭动画结束。
+`AnimatedContent` owns motion, not surface styles. Its lifecycle owner supplies `data-state` and keeps the node mounted until the exit animation ends.
 
-`AnimatedContent` 与 `BottomDrawer` 已显式处理减少动态效果偏好。其他控件必须按实际实现检查，不能推断全库一致。
+`AnimatedContent` and `BottomDrawer` explicitly handle reduced-motion preferences. Check other controls individually instead of assuming library-wide support.
 
-图标使用 Iconify。现有组件和展示用例使用 Solar、Phosphor 等集合，不存在唯一图标集要求。
+Icons use Iconify. Existing components and stories use sets such as Solar and Phosphor. The repository does not require one exclusive icon set.
 
-`BasicButton` 的图标容器为 16 × 16px，spinner 使用同一区域。同一操作组保持视觉尺寸和图标风格一致。
+`BasicButton` uses a 16 × 16px icon container. Its spinner occupies the same area. Keep visual size and icon style consistent within an action group.
 
-## 7. 已知差异与后续统一顺序
+## 7. Known Differences and Follow-up Work
 
-以下是源码检查结果，不在本文中改动运行时代码。
+These findings come from source inspection. This guide does not change runtime code.
 
-| 差异 | 证据 | 后续处理 |
+| Difference | Evidence | Follow-up |
 | --- | --- | --- |
-| Input 声明尺寸但未用于样式 | `input.vue` 声明 `size`，模板仅使用 variant 样式 | 先确定尺寸契约，再同步组件、参考文档和展示用例 |
-| Input 的两种 variant 外观相同 | `primary` 与 `secondary` 样式数组相同 | 明确是否保留两个名称，不让页面自行制造差异 |
-| 焦点样式不完全一致 | Button 与 GhostButton 有显式焦点轮廓，IconButton 与 OverlayButton 未定义同样规则 | 在键盘操作场景中检查，再决定共享修正 |
-| 主题过渡规则与实现有差异 | [useTheme](./packages/ui/src/composables/use-theme.ts)设为 `disableTransition: true`，仓库规则要求直接调用 useDark 时设为 false | 页面优先复用入口，集中确认过渡策略 |
-| 动效时长与减少动态效果支持分散 | 本文动效表中的实现各自定义参数 | 按交互类型整理，避免直接替换全部时长 |
-| 全局视觉 token 尚不完整 | 颜色有公共变量，圆角、间距和层级仍主要在组件内定义 | 从重复的真实需求提取，不先造一套未接入的 token |
+| Input declares size without corresponding styles | `input.vue` declares `size`, but its template only uses variant styles. | Define the size contract, then update the component, reference, and stories. |
+| Two Input variants look identical | `primary` and `secondary` contain identical style arrays. | Decide whether both names remain. Avoid page-specific differences. |
+| Focus treatment varies | Button and GhostButton define focus outlines. IconButton and OverlayButton do not define equivalent rules. | Check keyboard interactions before a shared correction. |
+| Theme transition rules differ from implementation | [useTheme](./packages/ui/src/composables/use-theme.ts) sets `disableTransition: true`. Repository rules require false for direct useDark calls. | Reuse the existing entry point while the shared transition policy is resolved. |
+| Motion timing and reduced-motion support vary | The implementations in Section 6 define separate parameters. | Group changes by interaction type instead of replacing all durations. |
+| Global visual tokens are incomplete | Color variables are shared. Components still define most radii, spacing, and layer values. | Extract repeated requirements from real use cases before adding tokens. |
 
-优先处理键盘焦点和字段尺寸契约。随后统一重复的视觉参数，再检查业务页面。每项运行时改动单独提供行为与视觉证据。
+Address keyboard focus and field sizing first. Then consolidate repeated visual parameters and check business pages. Each runtime change needs behavior and visual evidence.
 
-## 8. 设计工作流与现有 skills
+## 8. Design Workflow and Existing Skills
 
-当前仓库已有覆盖实现、检查和截图的 skills。本任务不需要安装另一套视觉风格规范。
+The repository already includes implementation, review, and screenshot skills. This documentation task requires no additional design skill installation.
 
-| 工作 | 使用入口 | 作用 |
+| Task | Entry point | Purpose |
 | --- | --- | --- |
-| 选择视觉与组件 | 本文、[组件参考](./docs/ai/context/ui-components.md) | 确认 AIRI 现有设计语言与 API |
-| 编写组件样式 | [enforce-rules-for-unocss](./.agents/skills/enforce-rules-for-unocss/SKILL.md) | 复用控件、组织工具类、保持主题行为 |
-| 编写 Vue 组件 | [vue-best-practices](./.agents/skills/vue-best-practices/SKILL.md)、[TypeScript 规则](./.agents/skills/enforce-rules-for-typescript/SKILL.md) | 约束组件边界、状态与实现方式 |
-| 检查交互与可访问性 | [web-design-guidelines](./.agents/skills/web-design-guidelines/SKILL.md) | 作为检查清单，不替代 AIRI 的视觉规则 |
-| 获取视觉证据 | [use-vishot](./.agents/skills/use-vishot/SKILL.md) | 使用对应运行端的场景生成截图 |
-| 发布 UI PR | [create-pr](./.agents/skills/create-pr/SKILL.md) | 检查影响面，提供同场景的前后截图 |
+| Choose visual patterns and components | This guide and the [component reference](./docs/ai/context/ui-components.md) | Understand AIRI design conventions and APIs |
+| Write component styles | [enforce-rules-for-unocss](./.agents/skills/enforce-rules-for-unocss/SKILL.md) | Reuse controls, organize utilities, and preserve theme behavior |
+| Write Vue components | [vue-best-practices](./.agents/skills/vue-best-practices/SKILL.md) and [TypeScript rules](./.agents/skills/enforce-rules-for-typescript/SKILL.md) | Define component boundaries, state, and implementation practices |
+| Review interaction and accessibility | [web-design-guidelines](./.agents/skills/web-design-guidelines/SKILL.md) | Supply review checks alongside AIRI visual conventions |
+| Capture visual evidence | [use-vishot](./.agents/skills/use-vishot/SKILL.md) | Capture screenshots through the appropriate runtime scenarios |
+| Publish a UI PR | [create-pr](./.agents/skills/create-pr/SKILL.md) | Review affected behavior and provide comparable screenshots |
 
-这些 skills 的入口和职责已经存在。本文不修改 agent 配置，也不声明这些入口已经自动引用本文。
+The root `AGENTS.md` routes UI design work to this guide. Skills provide implementation and review procedures without duplicating the design reference.
 
-### 每次设计改动
+### For each design change
 
-1. 找到对应 UI 控件和已有业务页面，确认差异属于控件还是场景。
-2. 先选择已有 variant、size 和 shape，再判断是否需要扩展。
-3. 需要扩展共享组件时，同步更新组件参考与展示用例。
-4. 检查浅色、深色、自定义主色、长文案、加载和禁用状态。
-5. 检查键盘焦点、触控区域、软键盘和安全区。
-6. 按 PR 流程记录检查结果与未验证项。
+1. Locate the shared control and existing business pages. Determine whether the difference belongs to the control or the scenario.
+2. Choose existing variants, sizes, and shapes before extending the API.
+3. When a shared component changes, update its reference and stories.
+4. Check light mode, dark mode, custom hues, long text, loading, and disabled states.
+5. Check keyboard focus, touch targets, the software keyboard, and safe areas.
+6. Record results and unverified items through the PR workflow.
 
-组件预览使用 `pnpm dev:ui`，入口位于 `packages/stage-ui` 的 Histoire。
+Run `pnpm dev:ui` for component previews. Histoire lives in `packages/stage-ui`.
 
-可先查看[按钮用例](./packages/stage-ui/src/components/misc/button.story.vue)、[输入框用例](./packages/stage-ui/src/components/form/input/input.story.vue)、[选择器用例](./packages/stage-ui/src/components/form/select/select.story.vue)和[滑动操作用例](./packages/stage-ui/src/components/misc/swipe-actions.story.vue)。
+Start with the [button stories](./packages/stage-ui/src/components/misc/button.story.vue), [input stories](./packages/stage-ui/src/components/form/input/input.story.vue), [select stories](./packages/stage-ui/src/components/form/select/select.story.vue), and [swipe action stories](./packages/stage-ui/src/components/misc/swipe-actions.story.vue).
 
-文档改动检查链接和格式。实际 UI 改动还需要类型检查、相关测试及视觉验收。源码检查不能替代运行时检查。
+Documentation changes require link and format checks. Runtime UI changes also require type checks, relevant tests, and visual acceptance. Source inspection does not replace runtime checks.
