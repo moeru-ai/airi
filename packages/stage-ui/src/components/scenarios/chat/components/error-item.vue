@@ -106,7 +106,11 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
               </p>
               <pre
                 v-if="hasDetails && detailsOpen"
-                :class="['mt-3 mb-0 max-h-48 max-w-full overflow-auto whitespace-pre-wrap break-all rounded-xl bg-white/60 p-2 font-mono text-xs text-neutral-700 dark:bg-black/25 dark:text-neutral-200']"
+                :class="[
+                  'mt-3 mb-0 max-h-48 max-w-full overflow-auto',
+                  'whitespace-pre-wrap break-all rounded-xl p-2 font-mono text-xs',
+                  'bg-white/60 text-neutral-700 dark:bg-black/25 dark:text-neutral-200',
+                ]"
               >{{ message.content }}</pre>
             </template>
           </div>
@@ -115,7 +119,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             size="unset"
             :aria-expanded="detailsOpen"
             :class="[
-              'w-full px-3 py-2 text-xs text-violet-700',
+              'min-h-11 w-full px-3 py-2 text-xs text-violet-700',
               'bg-violet-200/35 hover:bg-violet-200/65 focus-visible:outline-2 focus-visible:outline-violet-500',
               'dark:bg-violet-900/40 dark:text-violet-200 dark:hover:bg-violet-800/50',
             ]"

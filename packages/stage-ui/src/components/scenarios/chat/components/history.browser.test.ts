@@ -434,7 +434,7 @@ describe('chat history', () => {
   // ROOT CAUSE:
   //
   // A provider can place a full response body inside one chat error message.
-  // The error item rendered that body immediately and could fill the mobile Stage.
+  // The error item rendered that body immediately and filled the mobile Stage.
   // Keep a short summary visible and reveal the complete message on request.
   it('keeps a long provider error compact until the user opens its details', async () => {
     const responseBody = JSON.stringify({ error: { message: 'Invalid schema for configure_wake_words', metadata: 'x'.repeat(1200) } })
@@ -451,7 +451,10 @@ describe('chat history', () => {
     expect(screen.container.textContent).toContain('Remote sent 400 response')
     expect(screen.container.textContent).not.toContain('Invalid schema for configure_wake_words')
 
-    await screen.getByRole('button', { name: 'Show details' }).click()
+    const disclosure = screen.getByRole('button', { name: 'Show details' })
+    await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false')
+    await disclosure.click()
+    await expect.element(screen.getByRole('button', { name: 'Hide details' })).toHaveAttribute('aria-expanded', 'true')
 
     expect(screen.container.textContent).toContain('Invalid schema for configure_wake_words')
     const detailElement = screen.container.querySelector('pre')
