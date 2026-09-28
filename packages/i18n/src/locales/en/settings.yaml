@@ -1416,6 +1416,7 @@ pages:
           downloading: Downloading...
           error: Download failed
           download: Download now
+          cancel: Cancel
           remove: Remove download
       apple-vision:
         title: Apple Vision

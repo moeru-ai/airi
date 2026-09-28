@@ -45,7 +45,7 @@ import {
   i18nGetLocale,
   i18nSetLocale,
 } from '../shared/eventa'
-import { electronModelAssetEnsure, electronModelAssetRemove, electronModelAssetsList, electronModelAssetStatusChanged } from '../shared/eventa/model-assets'
+import { electronModelAssetCancel, electronModelAssetEnsure, electronModelAssetRemove, electronModelAssetsList, electronModelAssetStatusChanged } from '../shared/eventa/model-assets'
 import {
   electronPluginUpdateCapability,
   pluginProtocolListProviders,
@@ -86,6 +86,7 @@ const route = useRoute()
 const context = useElectronEventaContext()
 const listModelAssets = useElectronEventaInvoke(electronModelAssetsList)
 const ensureModelAsset = useElectronEventaInvoke(electronModelAssetEnsure)
+const cancelModelAsset = useElectronEventaInvoke(electronModelAssetCancel)
 const removeModelAsset = useElectronEventaInvoke(electronModelAssetRemove)
 const stopModelAssetStatus = context.value.on(electronModelAssetStatusChanged, (event) => {
   if (event.body && !isSherpawModelBundled(event.body.id))
@@ -98,6 +99,7 @@ setSherpawModelAssetHost({
   ),
   list: listModelAssets,
   ensure: ensureModelAsset,
+  cancel: cancelModelAsset,
   remove: removeModelAsset,
 })
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)

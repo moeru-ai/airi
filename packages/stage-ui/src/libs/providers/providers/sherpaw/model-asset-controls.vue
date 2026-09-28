@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 
 import { useModelAssetStatus } from '../../../../composables/use-model-asset-status'
 import { formatBytes } from '../../../inference/format-bytes'
-import { ensureSherpawModelAssets, listSherpawModelAssets, removeSherpawModelAssets } from './model-assets'
+import { cancelSherpawModelAssets, ensureSherpawModelAssets, listSherpawModelAssets, removeSherpawModelAssets } from './model-assets'
 
 const props = defineProps<{ modelId: string }>()
 const { t } = useI18n()
@@ -19,6 +19,8 @@ const downloadPercent = computed(() => {
     : undefined
 })
 const busy = shallowRef(false)
+const cancelling = shallowRef(false)
+const cancelled = shallowRef(false)
 const error = shallowRef<string>()
 
 async function refresh() {
@@ -32,15 +34,33 @@ async function refresh() {
 
 async function download() {
   busy.value = true
+  cancelled.value = false
   error.value = undefined
   try {
     await ensureSherpawModelAssets(props.modelId)
   }
   catch (cause) {
-    error.value = errorMessageFrom(cause) ?? t('settings.pages.providers.provider.sherpaw-transcription.asset.error')
+    if (!cancelled.value)
+      error.value = errorMessageFrom(cause) ?? t('settings.pages.providers.provider.sherpaw-transcription.asset.error')
   }
   finally {
     busy.value = false
+  }
+}
+
+async function cancelDownload() {
+  cancelling.value = true
+  cancelled.value = true
+  error.value = undefined
+  try {
+    await cancelSherpawModelAssets(props.modelId)
+  }
+  catch (cause) {
+    cancelled.value = false
+    error.value = errorMessageFrom(cause) ?? t('settings.pages.providers.provider.sherpaw-transcription.asset.error')
+  }
+  finally {
+    cancelling.value = false
   }
 }
 
@@ -65,7 +85,7 @@ onMounted(refresh)
   <div :class="['flex items-center justify-between gap-3', 'text-sm']">
     <div :class="['flex flex-col gap-1']">
       <span :class="['font-medium']">{{ t('settings.pages.providers.provider.sherpaw-transcription.asset.title') }}</span>
-      <span :class="['text-xs text-neutral-500']">
+      <span v-if="status?.state !== 'downloading'" :class="['text-xs text-neutral-500']">
         {{ t(`settings.pages.providers.provider.sherpaw-transcription.asset.${status?.state || 'unknown'}`) }}
       </span>
     </div>
@@ -76,14 +96,21 @@ onMounted(refresh)
       :disabled="busy"
       @click="remove"
     />
-    <Button
-      v-else-if="status?.state !== 'bundled' && status?.state !== 'downloading'"
-      size="sm"
-      :label="t('settings.pages.providers.provider.sherpaw-transcription.asset.download')"
-      :disabled="busy"
-      :loading="busy"
-      @click="download"
-    />
+    <div v-else-if="status?.state !== 'bundled'" :class="['flex items-center gap-2']">
+      <Button
+        size="sm"
+        :label="t(`settings.pages.providers.provider.sherpaw-transcription.asset.${status?.state === 'downloading' ? 'downloading' : 'download'}`)"
+        :loading="busy || status?.state === 'downloading'"
+        @click="download"
+      />
+      <GhostButton
+        v-if="status?.state === 'downloading'"
+        size="sm"
+        :label="t('settings.pages.providers.provider.sherpaw-transcription.asset.cancel')"
+        :loading="cancelling"
+        @click="cancelDownload"
+      />
+    </div>
   </div>
   <div v-if="status?.state === 'downloading'" :class="['flex flex-col gap-2', 'w-full']">
     <div v-if="status.progress" :class="['flex justify-between gap-3', 'text-xs text-neutral-500']">

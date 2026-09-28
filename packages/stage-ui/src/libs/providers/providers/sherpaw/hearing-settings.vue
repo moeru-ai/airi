@@ -91,7 +91,7 @@ async function updateModel(value: string | undefined) {
       layout="vertical"
       @update:model-value="updateModel"
     />
-    <ModelAssetControls :model-id="model" />
+    <ModelAssetControls :key="model" :model-id="model" />
     <p v-if="error" role="alert" :class="['text-sm', 'text-red-600 dark:text-red-400']">
       {{ error }}
     </p>

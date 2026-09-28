@@ -1,14 +1,15 @@
-import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { ModelAsset } from '@proj-airi/stage-shared/model-assets'
 
 import { join } from 'node:path'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { sherpawModelArtifactUrl, sherpawModels } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { ModelAssetRepository } from '@proj-airi/stage-shared/model-assets'
-import { app, protocol } from 'electron'
+import { app, BrowserWindow, ipcMain, protocol } from 'electron'
 
 import {
+  electronModelAssetCancel,
   electronModelAssetEnsure,
   electronModelAssetRemove,
   electronModelAssetsList,
@@ -35,17 +36,36 @@ const models: ModelAsset[] = Object.values(sherpawModels).map(model => ({
  *   -> `airi-model://assets/<id>/<revision>/<file>`
  *     -> `protocol.handle`
  *       -> `ModelAssetRepository.open`
+ * Sherpaw settings `cancelSherpawModelAssets`
+ *   -> `electronModelAssetCancel`
+ *     -> `ModelAssetRepository.cancel`
  */
 export function setupSherpawModelAssets(context: ReturnType<typeof createContext>['context']): void {
   const storage = new FileModelAssetStorage(join(app.getPath('userData'), 'model-assets'))
   const repository = new ModelAssetRepository(models, storage)
-  repository.subscribe(status => context.emit(electronModelAssetStatusChanged, status))
+  // NOTICE:
+  // An unbound Eventa main context sends only to the sender of an incoming call.
+  // Download progress has no call sender, so each open window needs a bound context.
+  // Source: @moeru/eventa/adapters/electron/main createContext.
+  // Remove when Eventa supports broadcasts from an unbound main context.
+  const statusContexts = new WeakMap<BrowserWindow, ReturnType<typeof createContext>>()
+  repository.subscribe((status) => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      let target = statusContexts.get(window)
+      if (!target) {
+        target = createContext(ipcMain, window, { onlySameWindow: true })
+        statusContexts.set(window, target)
+      }
+      void target.context.emit(electronModelAssetStatusChanged, status).catch(error => console.warn('Failed to publish model asset status:', error))
+    }
+  })
 
   defineInvokeHandler(context, electronModelAssetsList, async () => {
     await Promise.all(models.map(model => repository.inspect(model.id)))
     return repository.list()
   })
   defineInvokeHandler(context, electronModelAssetEnsure, id => repository.ensureAvailable(id))
+  defineInvokeHandler(context, electronModelAssetCancel, id => repository.cancel(id))
   defineInvokeHandler(context, electronModelAssetRemove, id => repository.remove(id))
 
   protocol.handle('airi-model', async (request) => {

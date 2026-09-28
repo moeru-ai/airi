@@ -134,9 +134,18 @@ export class ModelAssetRepository {
     }
   }
 
-  cancel(id: string): void {
+  async cancel(id: string): Promise<void> {
     this.requireModel(id)
-    this.downloads.get(id)?.controller.abort()
+    const active = this.downloads.get(id)
+    if (!active)
+      return
+    active.controller.abort()
+    try {
+      await active.promise
+    }
+    catch {
+      // The aborted install leaves no complete model to expose.
+    }
   }
 
   async remove(id: string): Promise<void> {
