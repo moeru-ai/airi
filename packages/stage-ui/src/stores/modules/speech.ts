@@ -17,6 +17,7 @@ import { x } from 'xastscript'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice } from '../../libs/providers/providers/official'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
+import { useSpeechSettingsStore } from './speech-settings'
 
 export function toSignedPercent(value: number): string {
   if (value > 0)
@@ -61,6 +62,7 @@ const useSpeechCatalog = defineStore('speech-catalog', () => {
 })
 
 export const useSpeechStore = defineStore('speech', () => {
+  const settings = useSpeechSettingsStore()
   const pinia = getActivePinia()
   const catalog = useSpeechCatalog()
   const { availableVoices, voiceCatalogIdentities, resetGeneration } = storeToRefs(catalog)
@@ -80,9 +82,9 @@ export const useSpeechStore = defineStore('speech', () => {
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '', persistenceOptions)
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
 
-  const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0, persistenceOptions)
+  const pitch = computed(() => settings.pitch)
   const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1, persistenceOptions)
-  const ssmlEnabled = useLocalStorageManualReset<boolean>('settings/speech/ssml-enabled', false, persistenceOptions)
+  const ssmlEnabled = computed(() => settings.ssmlEnabled)
   // Each provider owns its latest request status. Settings for the active
   // provider and background provider editors must not consume each other's IO.
   const isLoadingSpeechProviderVoices = computed(() => voiceCatalogStatus.value[activeSpeechProvider.value]?.loading ?? false)
@@ -653,15 +655,14 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechModel.reset()
     activeSpeechVoiceId.reset()
     activeSpeechVoice.reset()
-    pitch.reset()
     rate.reset()
-    ssmlEnabled.reset()
     modelSearchQuery.reset()
     catalog.$patch((state) => {
       state.availableVoices = {}
       state.voiceCatalogIdentities = {}
       state.resetGeneration++
     })
+    await settings.resetState()
   }
 
   return {

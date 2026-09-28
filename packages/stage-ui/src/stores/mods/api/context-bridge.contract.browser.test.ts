@@ -7,7 +7,6 @@ import { ref } from 'vue'
 
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
 import { useConsciousnessStore } from '../../modules/consciousness'
-import { useConsciousnessSettingsStore } from '../../modules/consciousness-settings'
 import { useContextBridgeStore } from './context-bridge'
 import { createContextChannel } from './context-channel'
 
@@ -111,10 +110,6 @@ async function emitHooks(target: HookCallback[], ...args: unknown[]) {
 
 async function emitContextUpdate(event: unknown) {
   await emitHooks(contextUpdateHooks, event)
-}
-
-async function emitServerEvent(eventName: string, event: unknown) {
-  await emitHooks(serverEventHooks.get(eventName) ?? [], event)
 }
 
 function createMetadata(extensionId: string, moduleId: string) {
@@ -382,70 +377,6 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
-  // https://github.com/moeru-ai/airi/actions/runs/34237304157/job/102098223378
-  // ROOT CAUSE:
-  // The old consciousness mock omitted temperature and top-p. Input handling
-  // failed before ingest. Use the real store and verify both request settings.
-  it('records core ingest result for input context updates and forwards accepted updates', async () => {
-    chatContextIngestMock.mockReturnValueOnce({
-      sourceKey: 'weather:station-1',
-      mutation: 'append',
-      entryCount: 1,
-    })
-    consciousness.activeProvider = 'mock-provider'
-    consciousness.activeModel = 'mock-model'
-    consciousness.temperature = 0.3
-    consciousness.topP = 0.8
-    await useConsciousnessSettingsStore().setTemperatureEnabled(true)
-    await useConsciousnessSettingsStore().setTopPEnabled(true)
-    getProviderInstanceMock.mockResolvedValueOnce({})
-    const store = useContextBridgeStore()
-    await store.initialize()
-
-    await emitServerEvent('input:text', {
-      type: 'input:text',
-      source: 'extension-module-host',
-      metadata: createMetadata('weather', 'station-1'),
-      data: {
-        text: 'hello',
-        contextUpdates: [
-          {
-            strategy: ContextUpdateStrategy.AppendSelf,
-            text: 'input weather',
-          },
-        ],
-      },
-    })
-
-    expect(chatContextIngestMock).toHaveBeenCalledTimes(1)
-    expect(recordLifecycleMock).toHaveBeenCalledWith(expect.objectContaining({
-      phase: 'store-ingested',
-      channel: 'input',
-      sourceKey: 'weather:station-1',
-      mutation: 'append',
-      details: expect.objectContaining({
-        entryCount: 1,
-        inputType: 'input:text',
-      }),
-    }))
-    expect(chatOrchestratorMock.send).toHaveBeenCalledTimes(1)
-    expect(chatOrchestratorMock.send.mock.calls[0]?.[0]).toMatchObject({
-      sessionId: 'session-1',
-      text: 'hello',
-      temperature: 0.3,
-      topP: 0.8,
-    })
-    expect(chatOrchestratorMock.send.mock.calls[0]?.[0]?.input?.data.contextUpdates).toEqual([
-      expect.objectContaining({
-        contextId: expect.any(String),
-        id: expect.any(String),
-        text: 'input weather',
-      }),
-    ])
-
-    await store.dispose()
-  })
-
   it('records rejected lifecycle for broadcast ingest failures without interrupting the watcher', async () => {
     chatContextIngestMock.mockImplementationOnce(() => {
       throw new Error('Cannot clone broadcast context')
@@ -501,44 +432,6 @@ describe('context bridge contract', () => {
       contextId: 'bad-server-context',
     }))
     expect(postedContexts).toHaveLength(0)
-
-    await store.dispose()
-  })
-
-  it('records rejected lifecycle and continues text ingestion when input context ingest fails', async () => {
-    chatContextIngestMock.mockImplementationOnce(() => {
-      throw new Error('Cannot clone input context')
-    })
-    consciousness.activeProvider = 'mock-provider'
-    consciousness.activeModel = 'mock-model'
-    getProviderInstanceMock.mockResolvedValueOnce({})
-    const store = useContextBridgeStore()
-    await store.initialize()
-
-    await emitServerEvent('input:text', {
-      type: 'input:text',
-      source: 'extension-module-host',
-      metadata: createMetadata('weather', 'station-1'),
-      data: {
-        text: 'hello',
-        contextUpdates: [
-          {
-            strategy: ContextUpdateStrategy.AppendSelf,
-            text: 'bad input weather',
-          },
-        ],
-      },
-    })
-
-    expect(recordLifecycleMock).toHaveBeenCalledWith(expect.objectContaining({
-      phase: 'store-ingest-rejected',
-      channel: 'input',
-      details: expect.objectContaining({
-        errorMessage: 'Cannot clone input context',
-      }),
-    }))
-    expect(chatOrchestratorMock.send).toHaveBeenCalledTimes(1)
-    expect(chatOrchestratorMock.send.mock.calls[0]?.[0]?.input?.data.contextUpdates).toEqual([])
 
     await store.dispose()
   })

@@ -436,6 +436,8 @@ function resolveStageVoiceType(provider: string): 'official_selected' | 'custom_
   return provider === OFFICIAL_SPEECH_PROVIDER_ID || provider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID ? 'official_selected' : 'custom_configured'
 }
 
+const intentSpeech = new Map<string, ReturnType<typeof speechStore.resolveSpeechSelection>>()
+
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
   tts: async (request, signal) => {
     if (signal.aborted)
@@ -445,14 +447,12 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       return null
 
     // Spark reactions and explicit character output also use this host pipeline.
-    // They have no conversation context and retain the host's selected speech settings.
+    // They have no conversation context and retain the host's selection at intent start.
     const selection = turnSpeech?.turnId === request.turnId && turnSpeech
       ? turnSpeech
-      : await speechStore.resolveSpeechSelection({
-          provider: speechStore.activeSpeechProvider,
-          model: speechStore.activeSpeechModel,
-          voice_id: speechStore.activeSpeechVoiceId,
-        })
+      : intentSpeech.get(request.intentId)
+    if (!selection)
+      throw new Error(`Speech intent ${request.intentId} has no selection snapshot`)
     if (signal.aborted)
       return null
 
@@ -549,6 +549,16 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
   },
   playback: playbackManager,
 })
+
+speechPipeline.on('onIntentStart', (intentId) => {
+  intentSpeech.set(intentId, speechStore.resolveSpeechSelection({
+    provider: speechStore.activeSpeechProvider,
+    model: speechStore.activeSpeechModel,
+    voice_id: speechStore.activeSpeechVoiceId,
+  }))
+})
+speechPipeline.on('onIntentEnd', intentId => intentSpeech.delete(intentId))
+speechPipeline.on('onIntentCancel', ({ intentId }) => intentSpeech.delete(intentId))
 
 initIOTracer()
 useIOTraceBridge(speechPipeline)
@@ -697,6 +707,7 @@ function stopSpeechOutput(reason: string) {
   currentSession?.cancel(reason)
   currentSession = null
   speechPipeline.stopAll(reason)
+  intentSpeech.clear()
   playbackManager.stopAll(reason)
   resetAssistantSpeechSurface(reason)
 }
@@ -820,6 +831,8 @@ watch(speechMuted, (muted) => {
 }, { immediate: true })
 
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
+  if (context.sessionId !== chatSessions.activeSessionId)
+    return
   const generation = ++speechGeneration
   turnSpeech = undefined
   playbackManager.stopAll('new-message')
@@ -974,6 +987,8 @@ onUnmounted(() => {
   // #1 + MEDIUM #5.
   currentSession?.cancel('unmount')
   currentSession = null
+  speechPipeline.stopAll('unmount')
+  intentSpeech.clear()
   playbackManager.stopAll('unmount')
 })
 
