@@ -120,7 +120,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             :aria-expanded="detailsOpen"
             :class="[
               'min-h-11 w-full px-3 py-2 text-xs text-violet-700',
-              'bg-violet-200/35 hover:bg-violet-200/65 focus-visible:outline-2 focus-visible:outline-violet-500',
+              'bg-violet-200/35 hover:bg-violet-200/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500',
               'dark:bg-violet-900/40 dark:text-violet-200 dark:hover:bg-violet-800/50',
             ]"
             @click.stop="detailsOpen = !detailsOpen"
