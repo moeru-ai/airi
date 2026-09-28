@@ -42,7 +42,7 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
     // we can remove the setMaxListeners call below since eventa will be able to dispatch and
     // manage events within eventa's context system.
     ipcMain.setMaxListeners(0)
-    const { context } = createContext(ipcMain, win)
+    const { context } = createContext(ipcMain, win, { onlySameWindow: true })
 
     defineInvokeHandler(context, params.eventa.pageMounted, (req) => {
       if (req?.id && req.id !== id)

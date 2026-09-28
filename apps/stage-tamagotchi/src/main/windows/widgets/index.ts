@@ -441,7 +441,7 @@ export function setupWidgetsWindowManager(params: {
 
     const window = createWidgetsWindow()
     windowContext.window = window
-    windowContext.eventa = createContext(ipcMain, window)
+    windowContext.eventa = createContext(ipcMain, window, { onlySameWindow: true })
 
     /**
      * Releases the state owned by one closed widget window.

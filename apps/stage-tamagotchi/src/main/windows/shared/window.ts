@@ -179,7 +179,7 @@ export async function setupBaseWindowElectronInvokes(params: {
 }) {
   createScreenService({ context: params.context, window: params.window })
   createWindowService({ context: params.context, window: params.window, setAlwaysOnTop: params.setAlwaysOnTop })
-  createAppService({ context: params.context, window: params.window })
+  createAppService({ context: params.context })
   createPowerMonitorService({ context: params.context, window: params.window })
   createSystemPreferencesService({ context: params.context, window: params.window })
   WindowBackdropService.install(params.window)
