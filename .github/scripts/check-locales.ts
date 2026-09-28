@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 
-import { parse } from 'yaml'
+import { parseDocument } from 'yaml'
 
 /** The locale that owns every key. Crowdin translates it into the other locales. */
 const SOURCE_LOCALE = 'en'
@@ -65,14 +65,15 @@ async function loadLocale(root: string, locale: string, issues: LocaleIssue[]): 
   const strings: LocaleStrings = new Map()
   const directory = join(root, locale)
   for (const file of await yamlFiles(directory)) {
-    const values = new Map<string, string>()
-    try {
-      flatten(parse(await readFile(join(directory, file), 'utf8')), '', values)
-    }
-    catch (error) {
-      issues.push({ level: 'error', locale, file, key: '', message: `The file does not parse: ${(error as Error).message.split('\n')[0]}` })
+    // parseDocument collects syntax errors, including duplicate keys, instead of throwing.
+    const document = parseDocument(await readFile(join(directory, file), 'utf8'))
+    const [error] = document.errors
+    if (error) {
+      issues.push({ level: 'error', locale, file, key: '', message: `The file does not parse: ${error.message.split('\n')[0]}` })
       continue
     }
+    const values = new Map<string, string>()
+    flatten(document.toJS(), '', values)
     strings.set(file, values)
   }
   return strings
