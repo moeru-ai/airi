@@ -16,6 +16,8 @@ import OnboardingDialog from './onboarding.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
 
 import { useAuthStore } from '../../../../stores/auth'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
+import { useSpeechStore } from '../../../../stores/modules/speech'
 import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
 
@@ -42,12 +44,15 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode) {
     setup() {
       providerStore = useProviderStore()
       providerConfigStore = useProviderConfigStore()
+      useAiriCardStore()
+      useSpeechStore()
       return () => null
     },
   })
   app
     .use(createI18n({ legacy: false, locale: 'en', messages: { en } }))
     .use(pinia)
+    .use(PiniaColada)
     .mount(document.createElement('div'))
   if (!providerStore || !providerConfigStore)
     throw new Error('Provider stores did not initialize')
@@ -119,14 +124,17 @@ it('publishes the onboarding login click on the leader', async () => {
 // The desktop onboarding window is a sync follower; this test drives the real
 // dialog there and asserts the save reaches the leader and localStorage.
 it('persists configured credentials through the leader and loads the model list', async () => {
+  const configured = vi.fn()
   const namespace = `onboarding-dialog:${crypto.randomUUID()}`
   const leader = createSyncedContext(namespace, 'leader-only')
   await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+  await useAiriCardStore(leader.pinia).initialize()
 
   const follower = createSyncedContext(namespace, 'follower-only')
   await expect.poll(() => follower.runtime.getLeaderId()).toBe(leader.runtime.participantId)
 
   const screen = await render(OnboardingDialog, {
+    props: { onConfigured: configured },
     global: { plugins: [follower.pinia, PiniaColada, createTestI18n()] },
   })
 
@@ -167,6 +175,10 @@ it('persists configured credentials through the leader and loads the model list'
     { timeout: 10_000 },
   ).toContain('grok-4.6')
   await expect.element(screen.getByText('grok-4.6')).toBeInTheDocument()
+  await screen.getByText('grok-4.6').click()
+  await screen.getByRole('button', { name: 'Save and continue' }).click()
+  await expect.poll(() => configured.mock.calls.length).toBe(1)
+  await expect.poll(() => useAiriCardStore(leader.pinia).resolveCharacter('default').modules.consciousness).toMatchObject({ provider: providerId, model: 'grok-4.6' })
 })
 
 // ROOT CAUSE:

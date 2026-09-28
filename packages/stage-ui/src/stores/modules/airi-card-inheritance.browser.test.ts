@@ -38,6 +38,22 @@ function createContext(runtime?: SyncedPiniaRuntime) {
 }
 
 describe('persisted and replicated card defaults', () => {
+  // https://github.com/moeru-ai/airi/pull/2672#discussion_r4124604200
+  // ROOT CAUSE: A replacement left the persisted canonical ID empty.
+  // Creation now fills an empty canonical ID without selecting it locally.
+  it('persists a replacement canonical session without moving local selection for PR #2672', async () => {
+    const context = createContext()
+    await context.cards.initialize()
+    await chatSessionsRepo.saveIndex({ userId: 'local', characters: { default: { activeSessionId: '', sessions: {} } } })
+    const chats = useChatSessionStore(context.pinia)
+    const replacement = await chats.ensureCharacterSession('default')
+    const persisted = await chatSessionsRepo.getIndex('local')
+    expect(persisted?.characters.default.activeSessionId).toBe(replacement)
+    expect(await chats.ensureCharacterSession('default')).toBe(replacement)
+    expect(chats.activeSessionId).toBe('')
+    expect(Object.keys((await chats.exportSessions()).index.characters.default.sessions)).toEqual([replacement])
+  })
+
   it('shares one account index read across concurrent character hydration for PR #2672', async () => {
     const context = createContext()
     await context.cards.initialize()
@@ -131,6 +147,23 @@ describe('persisted and replicated card defaults', () => {
     expect(captured.pitch).toBe(10)
     expect(captured.ssmlEnabled).toBe(true)
     expect(speech.activeSpeechProvider).toBe('speech-noop')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2672#discussion_r4124604211
+  // ROOT CAUSE: Composition awaited optional network discovery. Concurrent
+  // catalog requests also invalidated earlier segments. Capture stored voices without IO.
+  it('captures concurrent speech segments without waiting for voice discovery for PR #2672', async () => {
+    const context = createContext()
+    const speech = useSpeechStore(context.pinia)
+    const network = vi.fn<typeof fetch>(() => new Promise(() => {}))
+    vi.stubGlobal('fetch', network)
+    await useProviderConfigStore(context.pinia).ensureProvider('microsoft-speech', 'microsoft-speech', { apiKey: 'fixture', region: 'eastasia' })
+    const selection = { provider: 'microsoft-speech', model: 'v1', voice_id: 'en-US-AvaMultilingualNeural' }
+    const first = speech.resolveSpeechSelection(selection)
+    const second = speech.resolveSpeechSelection(selection)
+    expect(await Promise.race([Promise.resolve(first), Promise.resolve('blocked')])).toMatchObject({ voice: { id: selection.voice_id } })
+    expect(await Promise.race([Promise.resolve(second), Promise.resolve('blocked')])).toMatchObject({ voice: { id: selection.voice_id } })
+    expect(network).not.toHaveBeenCalled()
   })
 
   it('resolves autonomous artistry from the conversation character for PR #2672', async () => {

@@ -6,6 +6,26 @@ import { shallowRef } from 'vue'
 import { useChatComposer } from './use-chat-composer'
 
 describe('useChatComposer', () => {
+  // https://github.com/moeru-ai/airi/pull/2672#discussion_r4124604166
+  // ROOT CAUSE: Hydration clears selection before the new session is ready.
+  // The composer must keep the draft instead of sending an empty session ID.
+  it('retains the draft and attachments while character hydration has no selected session for PR #2672', async () => {
+    const activeSessionId = shallowRef('')
+    const send = vi.fn().mockResolvedValue(undefined)
+    const composer = useChatComposer<string>({ activeSessionId, send })
+    composer.draft.value = 'Keep this draft'
+    composer.addAttachments('blob:attachment')
+
+    await expect(composer.submit()).resolves.toBe('ignored')
+    expect(send).not.toHaveBeenCalled()
+    expect(composer.draft.value).toBe('Keep this draft')
+    expect(composer.attachments.value).toEqual(['blob:attachment'])
+
+    activeSessionId.value = 'hydrated-session'
+    await expect(composer.submit()).resolves.toBe('sent')
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'hydrated-session', text: 'Keep this draft', attachments: ['blob:attachment'] }))
+  })
+
   it('sends a native reply without changing the draft text', async () => {
     const activeSessionId = shallowRef('session-1')
     const send = vi.fn().mockResolvedValue(undefined)

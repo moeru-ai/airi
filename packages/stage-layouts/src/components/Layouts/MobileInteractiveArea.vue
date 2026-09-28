@@ -257,7 +257,7 @@ async function handleSubmit() {
 }
 
 async function handleSend() {
-  if (!pendingImages.value)
+  if (activeSessionId.value && !pendingImages.value)
     await submitInterruptingResponse()
 }
 
@@ -481,7 +481,7 @@ onUnmounted(() => {
           </button>
           <button
             v-else-if="hasSubmission"
-            :disabled="!!pendingImages"
+            :disabled="!activeSessionId || !!pendingImages"
             :aria-label="t('stage.chat.actions.send')"
             :class="[
               'size-10 flex items-center justify-center rounded-full bg-primary-500 text-white outline-none backdrop-blur-md',

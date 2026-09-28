@@ -532,7 +532,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       sessions: {},
     }
     characterIndex.sessions[sessionId] = meta
-    if (options?.setActive !== false)
+    if (options?.setActive !== false || !characterIndex.activeSessionId)
       characterIndex.activeSessionId = sessionId
     index.value.characters[characterId] = characterIndex
 
