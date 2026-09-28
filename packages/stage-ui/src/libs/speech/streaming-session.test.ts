@@ -8,6 +8,11 @@ import { WebSocketServer } from 'ws'
 
 import { streamingSynthesize } from './streaming-session'
 
+const officialConnection = {
+  credentialMode: 'official',
+  providerId: 'official-provider-speech-streaming',
+} as const
+
 vi.mock('../auth', () => ({
   getAuthToken: () => 'test-jwt',
 }))
@@ -20,6 +25,8 @@ interface MockServer {
   url: string
   observedTokens: string[]
   observedVoiceTypes: string[]
+  observedCredentialModes: string[]
+  observedProviderIds: string[]
   closeUnexpectedly: () => void
   stop: () => Promise<void>
 }
@@ -27,6 +34,8 @@ interface MockServer {
 async function startMockServer(handler: (ws: import('ws').WebSocket) => void): Promise<MockServer> {
   const observedTokens: string[] = []
   const observedVoiceTypes: string[] = []
+  const observedCredentialModes: string[] = []
+  const observedProviderIds: string[] = []
   const httpServer = createServer()
   const wss = new WebSocketServer({ server: httpServer })
 
@@ -41,6 +50,12 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
     const voiceType = u.searchParams.get('tts_voice_type')
     if (voiceType != null)
       observedVoiceTypes.push(voiceType)
+    const credentialMode = u.searchParams.get('tts_credential_mode')
+    if (credentialMode != null)
+      observedCredentialModes.push(credentialMode)
+    const providerId = u.searchParams.get('tts_provider_id')
+    if (providerId != null)
+      observedProviderIds.push(providerId)
 
     handler(ws)
   })
@@ -52,6 +67,8 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
     url: `http://127.0.0.1:${port}`,
     observedTokens,
     observedVoiceTypes,
+    observedCredentialModes,
+    observedProviderIds,
     closeUnexpectedly: () => {
       activeWs?.close(1011, 'simulated_truncation')
     },
@@ -106,6 +123,7 @@ describe('streamingSynthesize', () => {
     })
 
     const result = await streamingSynthesize({
+      connection: officialConnection,
       serverUrl: server.url,
       model: 'volcengine/seed-tts-2.0',
       voice: 'mock',
@@ -122,6 +140,41 @@ describe('streamingSynthesize', () => {
     expect(result.sentences[0]).toMatchObject({ kind: 'end' })
     expect(server.observedTokens).toEqual(['test-jwt'])
     expect(server.observedVoiceTypes).toEqual(['official_selected'])
+  })
+
+  it('sends BYOK credentials before the UnSpeech start frame and marks the connection mode', async () => {
+    const frames: Array<Record<string, unknown>> = []
+    server = await startMockServer((ws) => {
+      ws.on('message', (data, isBinary) => {
+        if (isBinary)
+          return
+        const frame = JSON.parse(data.toString()) as Record<string, unknown>
+        frames.push(frame)
+        if (frame.event === 'finish')
+          ws.send(JSON.stringify({ event: 'session.finished', payload: { usage: { text_words: 5 } } }))
+      })
+    })
+
+    await streamingSynthesize({
+      connection: {
+        credentialMode: 'byok',
+        providerId: 'volcengine-streaming',
+        apiKey: 'byok-test-key',
+      },
+      serverUrl: server.url,
+      model: 'volcengine/seed-tts-2.0',
+      voice: 'mock',
+      input: 'hello',
+    })
+
+    expect(frames.map(frame => frame.event)).toEqual(['credentials', 'start', 'text', 'finish'])
+    expect(frames[0]).toEqual({
+      event: 'credentials',
+      provider: 'volcengine',
+      api_key: 'byok-test-key',
+    })
+    expect(server.observedCredentialModes).toEqual(['byok'])
+    expect(server.observedProviderIds).toEqual(['volcengine-streaming'])
   })
 
   it('rejects when the ws closes before session.finished (codex HIGH #2)', async () => {
@@ -150,6 +203,7 @@ describe('streamingSynthesize', () => {
     })
 
     await expect(streamingSynthesize({
+      connection: officialConnection,
       serverUrl: server.url,
       model: 'volcengine/seed-tts-2.0',
       voice: 'mock',
@@ -176,6 +230,7 @@ describe('streamingSynthesize', () => {
     })
 
     await expect(streamingSynthesize({
+      connection: officialConnection,
       serverUrl: server.url,
       model: 'volcengine/seed-tts-2.0',
       voice: 'mock',
@@ -197,6 +252,7 @@ describe('streamingSynthesize', () => {
 
     const ctrl = new AbortController()
     const promise = streamingSynthesize({
+      connection: officialConnection,
       serverUrl: server.url,
       model: 'volcengine/seed-tts-2.0',
       voice: 'mock',
