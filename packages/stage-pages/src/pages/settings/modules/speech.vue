@@ -15,6 +15,7 @@ import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useSpeechSettingsStore } from '@proj-airi/stage-ui/stores/modules/speech-settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import {
@@ -34,6 +35,7 @@ const { t } = useI18n()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
+const speechSettings = useSpeechSettingsStore()
 const airiCardStore = useAiriCardStore()
 const { allAudioSpeechProvidersMetadata, moduleSpeechProvidersMetadata } = storeToRefs(providersStore)
 const {
@@ -394,6 +396,24 @@ async function persistSelection() {
     model: activeSpeechModel.value,
     voice_id: activeSpeechVoiceId.value,
   })
+}
+
+async function updatePitch(value: number) {
+  try {
+    await speechSettings.setPitch(value)
+  }
+  catch (error) {
+    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+  }
+}
+
+async function updateSsmlEnabled(value: boolean) {
+  try {
+    await speechSettings.setSsmlEnabled(value)
+  }
+  catch (error) {
+    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+  }
 }
 
 // Function to generate speech
@@ -853,17 +873,19 @@ async function handleDeleteProvider(providerId: string) {
           <!-- Voice parameters -->
           <div flex="~ col gap-4">
             <FieldRange
-              v-model="pitch"
+              :model-value="pitch"
               label="Pitch"
               description="Tune the pitch of the voice"
               :min="-100" :max="100" :step="1"
               :format-value="value => `${value}%`"
+              @update:model-value="updatePitch"
             />
             <!-- SSML Support -->
             <FieldCheckbox
-              v-model="ssmlEnabled"
+              :model-value="ssmlEnabled"
               label="Enable SSML"
               description="Enable Speech Synthesis Markup Language for more control over speech output"
+              @update:model-value="updateSsmlEnabled"
             />
           </div>
 

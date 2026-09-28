@@ -21,6 +21,7 @@ import { useChatContextStore } from '../../chat/context-store'
 import { useChatSessionStore } from '../../chat/session-store'
 import { useChatStreamStore } from '../../chat/stream-store'
 import { useContextObservabilityStore } from '../../devtools/context-observability'
+import { useAiriCardStore } from '../../modules/airi-card'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useModsServerChannelStore } from './channel-server'
 import { createContextChannel } from './context-channel'
@@ -55,7 +56,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const contextObservability = useContextObservabilityStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const consciousnessStore = useConsciousnessStore()
-  const { activeProvider, activeModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
+  const cardStore = useAiriCardStore()
+  const { activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
   const streamingControl = useLlmStreamingControlStore()
 
   type SparkNotifyBridgeMessage
@@ -723,9 +725,15 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           }
         }
 
-        if (activeProvider.value && activeModel.value) {
+        const targetSessionId = overrides?.sessionId ?? chatSession.activeSessionId
+        if (!targetSessionId || !await chatSession.loadSession(targetSessionId))
+          return
+        const characterId = chatSession.sessionMetas[targetSessionId]?.characterId
+        if (!characterId || !cardStore.cards.has(characterId))
+          return
+        const { provider, model } = cardStore.resolveCharacter(characterId).modules.consciousness
+        if (provider && (model || provider === 'prompt-api')) {
           let messageText = text
-          const targetSessionId = overrides?.sessionId
 
           if (overrides?.messagePrefix) {
             messageText = `${overrides.messagePrefix}${text}`
@@ -756,7 +764,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           await withContextBridgeLock('context-bridge:event:input:text', async () => {
             try {
               await chatOrchestrator.send({
-                sessionId: targetSessionId ?? chatSession.activeSessionId,
+                sessionId: targetSessionId,
                 text: messageText,
                 temperature: activeTemperature.value,
                 topP: activeTopP.value,
@@ -888,13 +896,16 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // receiver never persists these mirrored stream events.
           switch (event.type) {
             case 'before-compose':
-              await chatOrchestrator.emitBeforeMessageComposedHooks(event.message, event.context)
+              if (event.sessionId === chatSession.activeSessionId)
+                await chatOrchestrator.emitBeforeMessageComposedHooks(event.message, event.context)
               break
             case 'after-compose':
-              await chatOrchestrator.emitAfterMessageComposedHooks(event.message, event.context)
+              if (event.sessionId === chatSession.activeSessionId)
+                await chatOrchestrator.emitAfterMessageComposedHooks(event.message, event.context)
               break
             case 'before-send':
-              await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
+              if (event.sessionId === chatSession.activeSessionId)
+                await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
               remoteStreamGuard.value = {
                 sessionId: event.sessionId,
                 generation: chatSession.getSessionGenerationValue(event.sessionId),
@@ -907,7 +918,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               presentRemoteStreamIfActive()
               break
             case 'after-send':
-              await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
+              if (event.sessionId === chatSession.activeSessionId)
+                await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
               break
             case 'token-literal':
               if (!remoteStreamGuard.value)

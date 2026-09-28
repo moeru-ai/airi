@@ -15,6 +15,7 @@ import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useAiriCardStore } from './airi-card'
 import { useSpeechStore } from './speech'
+import { useSpeechSettingsStore } from './speech-settings'
 
 const syncedContexts: Array<{
   app: App
@@ -180,8 +181,8 @@ describe('speech synchronization', () => {
       }
       postMessage.call(this, message)
     })
-    follower.speechStore.pitch = 15
-    follower.speechStore.ssmlEnabled = true
+    await useSpeechSettingsStore(follower.pinia).setPitch(15)
+    await useSpeechSettingsStore(follower.pinia).setSsmlEnabled(true)
     expect(delayed).toHaveLength(0)
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [{ id: 'fresh', name: 'Fresh', languages: [] }] })))
     await leader.speechStore.loadVoiceCatalog('microsoft-speech', 'model', {
@@ -192,7 +193,7 @@ describe('speech synchronization', () => {
     traffic.mockRestore()
     for (const deliver of delayed)
       deliver()
-    expect(leader.speechStore.pitch).toBe(0)
+    expect(leader.speechStore.pitch).toBe(15)
     expect(leader.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('fresh')
     expect(leader.speechStore.voiceCatalogIdentities['microsoft-speech']?.model).toBe('model')
     expect(follower.speechStore.$state).not.toHaveProperty('availableVoices')

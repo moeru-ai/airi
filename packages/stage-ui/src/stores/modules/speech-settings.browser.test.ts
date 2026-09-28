@@ -18,6 +18,7 @@ import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useAiriCardStore } from './airi-card'
 import { useSpeechStore } from './speech'
+import { useSpeechSettingsStore } from './speech-settings'
 
 // Analytics delivery is external IO. Exercise the real page and stores while
 // recording its outgoing payload instead of sending product events.
@@ -61,6 +62,44 @@ afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   localStorage.clear()
+})
+
+// https://github.com/moeru-ai/airi/pull/2672#discussion_r4115859396
+// ROOT CAUSE: The page wrote window-local pitch and SSML refs, but speech on
+// the leader read its own defaults. Global settings need one persistence owner.
+it('persists follower pitch and SSML controls once and shares their fallback values', async () => {
+  localStorage.clear()
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [], data: [], flux: 0 })))
+  const namespace = `speech-defaults:${crypto.randomUUID()}`
+  const leader = mountRenderer(namespace)
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+  const cards = useAiriCardStore(leader.pinia)
+  await cards.initialize()
+  await useProviderConfigStore(leader.pinia).ensureProvider('openai-compatible-audio-speech', 'openai-compatible-audio-speech', { apiKey: 'fixture' })
+  await useProviderStore(leader.pinia).forceProviderConfigured('openai-compatible-audio-speech')
+  await cards.updateActiveCardSpeech({ provider: 'openai-compatible-audio-speech', model: 'tts-1', voice_id: 'nova' })
+  const follower = mountRenderer(namespace, SpeechSettings)
+  await useAiriCardStore(follower.pinia).initialize()
+  await expect.poll(() => follower.container.querySelector('input[type="range"]')).not.toBeNull()
+  const persisted = vi.spyOn(Storage.prototype, 'setItem')
+  const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+  const pitch = follower.container.querySelector<HTMLInputElement>('input[type="range"]')!
+  pitch.value = '150000'
+  pitch.dispatchEvent(new Event('input', { bubbles: true }))
+  await expect.poll(() => leader.speech.pitch).toBe(15)
+  await expect.poll(() => follower.speech.pitch).toBe(15)
+  const ssmlLabel = Array.from(follower.container.querySelectorAll('label')).find(label => label.textContent?.includes('Enable SSML'))!
+  ssmlLabel.querySelector<HTMLElement>('[role="switch"]')!.click()
+  await expect.poll(() => leader.speech.ssmlEnabled).toBe(true)
+  await expect.poll(() => follower.speech.ssmlEnabled).toBe(true)
+  const selection = { provider: 'openai-compatible-audio-speech', model: 'tts-1', voice_id: 'nova' }
+  expect(leader.speech.resolveSpeechSelection(selection)).toMatchObject({ pitch: 15, ssmlEnabled: true })
+  expect(leader.speech.resolveSpeechSelection({ ...selection, pitch: -5, ssml: false })).toMatchObject({ pitch: -5, ssmlEnabled: false })
+  await useSpeechSettingsStore(follower.pinia).setPitch(15)
+  await useSpeechSettingsStore(follower.pinia).setSsmlEnabled(true)
+  expect(persisted.mock.calls.filter(([key]) => key === 'settings/speech/pitch')).toHaveLength(1)
+  expect(persisted.mock.calls.filter(([key]) => key === 'settings/speech/ssml-enabled')).toHaveLength(1)
+  expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
 })
 
 // https://github.com/moeru-ai/airi/actions/runs/34348745853/job/102456521103
