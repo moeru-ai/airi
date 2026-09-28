@@ -13,9 +13,8 @@ description: Project AIRI를 로컬에서 실행하고 첫 Pull Request 제출�
 
 - [Git](https://git-scm.com/downloads)
 - [mise](https://mise.jdx.dev/installing-mise.html) 또는 `.tool-versions`를 읽는 다른 버전 관리자
-- [Corepack](https://github.com/nodejs/corepack) — 최신 Node.js 릴리스에 포함되어 있습니다
 
-이 저장소는 [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions)에 Node.js 버전을 고정해 둡니다(현재 24.13.0). 시스템 패키지 매니저가 제공하는 버전에 의존하지 말고, 클론한 뒤 고정된 버전을 설치하세요.
+이 저장소는 [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions)에 Node.js와 pnpm 버전을 고정해 둡니다. [`package.json`](https://github.com/moeru-ai/airi/blob/main/package.json)의 `packageManager` 필드도 pnpm 버전을 지정합니다. 저장소를 클론한 뒤 mise로 이 버전들을 설치하세요.
 
 <details>
 <summary>Windows 설정</summary>
@@ -63,6 +62,12 @@ description: Project AIRI를 로컬에서 실행하고 첫 Pull Request 제출�
 아직 저장소를 클론하지 않았다면 이 섹션은 건너뛰세요.
 :::
 
+`upstream` 원격이 설정되어 있지 않다면, 변경 사항을 가져오기 전에 Project AIRI 저장소를 추가하세요:
+
+```shell
+git remote add upstream https://github.com/moeru-ai/airi.git
+```
+
 업스트림 변경 사항을 가져와 로컬 `main` 브랜치를 리베이스하세요:
 
 ```shell
@@ -97,16 +102,30 @@ git switch -c <your-branch-name>
 
 ## 의존성 설치
 
-저장소 루트에서 `.tool-versions`에 기록된 Node.js 버전을 설치하고, 버전을 확인하고, Corepack을 활성화한 뒤 의존성을 설치하세요:
+저장소 루트에서 `.tool-versions`에 기록된 도구를 설치하세요:
 
 ```shell
 mise install
+```
+
+Node.js와 pnpm 버전을 확인하세요:
+
+```shell
 mise exec -- node --version
-mise exec -- corepack enable
+mise exec -- pnpm --version
+```
+
+출력된 버전이 `.tool-versions`와 일치해야 합니다. pnpm 버전은 `package.json`의 `packageManager` 필드와도 일치해야 합니다.
+
+mise가 pnpm을 직접 설치하므로 이 설정에는 Corepack이 필요하지 않습니다. [Node.js 25 이상에는 Corepack이 번들로 포함되지 않습니다](https://github.com/nodejs/corepack#how-to-install).
+
+프로젝트 의존성을 설치하세요:
+
+```shell
 mise exec -- pnpm install
 ```
 
-출력된 Node.js 버전이 `.tool-versions`와 일치해야 합니다. 이후 예시는 [셸에서 mise가 활성화되어 있다고](https://mise.jdx.dev/dev-tools/shims.html) 가정합니다. 그렇지 않다면 패키지 매니저 명령을 `mise exec --`를 통해 실행하세요(예: `mise exec -- pnpm typecheck`).
+이후 예시는 [셸에서 mise가 활성화되어 있다고](https://mise.jdx.dev/dev-tools/shims.html) 가정합니다. 그렇지 않다면 패키지 매니저 명령을 `mise exec --`를 통해 실행하세요(예: `mise exec -- pnpm typecheck`).
 
 ::: tip
 패키지 매니저 명령을 간단하게 쓰고 싶다면 [@antfu/ni](https://github.com/antfu-collective/ni)를 선택적으로 설치할 수 있습니다:
@@ -156,14 +175,6 @@ git push -u origin <your-branch-name>
 ```
 
 이제 GitHub에서 해당 브랜치를 확인할 수 있습니다.
-
-::: tip
-처음 기여하는 것이라면 Project AIRI 저장소를 `upstream` 원격으로 추가하세요:
-
-```shell
-git remote add upstream https://github.com/moeru-ai/airi.git
-```
-:::
 
 ## Pull Request 만들기
 

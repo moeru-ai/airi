@@ -9,22 +9,119 @@ permissions:
   contents: write
   pull-requests: write
 
+# The Crowdin workflows read and write the same project. One at a time keeps an upload
+# from landing in the middle of a download.
+concurrency:
+  group: crowdin
+  # Every run waits for its turn. With the default, a new pending run cancels the older
+  # pending one, and a translation upload could be lost.
+  queue: max
+
 jobs:
   sync-transitions-from-crowdin:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: crowdin/github-action@v2
+      - uses: actions/checkout@v7
+      # The export is only downloaded here. It reaches the crowdin branch and the pull
+      # request only after the locale check passes, in the publish step below.
+      - uses: crowdin/github-action@v3
         with:
           upload_sources: true
           upload_translations: false
           download_translations: true
-          localization_branch_name: crowdin
-          create_pull_request: true
-          commit_message: 'chore(i18n): update translations'
-          pull_request_title: 'chore(i18n): update translations'
-          pull_request_body: 'This PR contains updated translations from Crowdin. Created from [GitHub Actions](https://github.com/moeru-ai/airi/blob/main/.github/workflows/crowdin-cron-sync.yml).\n\n You can review the source of translations [here](https://crowdin.com/project/proj-airi)'
-          pull_request_base_branch_name: main
+          # A translated file keeps only the strings that are translated. Crowdin otherwise
+          # writes the English source into every untranslated string, and the repository
+          # can then not tell a missing translation from one that equals the source. The
+          # applications fall back to English for a missing string.
+          skip_untranslated_strings: true
+          # Only approved translations reach the repository. A suggestion, even a large
+          # batch, waits for a proofreader in Crowdin. Translations that the repository
+          # uploads are approved on import, so they are not held back.
+          export_only_approved: true
+          push_translations: false
+          create_pull_request: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
+
+      # The locales of this commit, before the download, are the base of the check.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: base
+          sparse-checkout: packages/i18n/src/locales
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
+      - run: pnpm install --frozen-lockfile --filter @proj-airi/root --ignore-scripts
+      - name: Check the exported locales
+        id: check
+        run: |
+          set +e
+          node .github/scripts/check-locales.ts \
+            --root packages/i18n/src/locales \
+            --base base/packages/i18n/src/locales \
+            --summary "$RUNNER_TEMP/locale-check.md"
+          echo "exit-code=$?" >> "$GITHUB_OUTPUT"
+          # A crash of the check writes no summary. The export is then blocked like one
+          # with errors, and the reports point to the run log.
+          [ -f "$RUNNER_TEMP/locale-check.md" ] || echo 'The locale check did not finish. See the run log.' > "$RUNNER_TEMP/locale-check.md"
+          cat "$RUNNER_TEMP/locale-check.md" >> "$GITHUB_STEP_SUMMARY"
+
+      # NOTICE:
+      # This step does what crowdin/github-action does with push_translations and
+      # create_pull_request, but only for an export that passed the check. An export with
+      # errors never reaches the crowdin branch, so it cannot be merged, and the pull
+      # request keeps the last export that passed.
+      # Removal condition: crowdin/github-action can run a check between download and push.
+      - name: Publish the export to the crowdin branch
+        if: steps.check.outputs.exit-code == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name 'Crowdin Bot'
+          git config user.email 'support+bot@crowdin.com'
+          git checkout -B crowdin
+          git add packages/i18n/src/locales
+          number=$(gh pr list --head crowdin --state open --json number --jq '.[0].number')
+          # An export equal to main makes an open pull request stale: it still holds an
+          # older export, which a merge would bring back. Reset the branch to main and
+          # close the pull request.
+          if git diff --cached --quiet; then
+            echo 'The export has no change.'
+            git push --force origin crowdin
+            if [ -n "$number" ]; then
+              gh pr close "$number" --comment 'The latest Crowdin export has no change against main, so this pull request is out of date. The next export with changes opens a new one.'
+            fi
+            exit 0
+          fi
+          git commit --no-verify -m 'chore(i18n): update translations'
+          git push --force origin crowdin
+          if [ -z "$number" ]; then
+            gh pr create --base main --head crowdin \
+              --title 'chore(i18n): update translations' \
+              --body 'This PR contains updated translations from Crowdin. Created from [GitHub Actions](https://github.com/moeru-ai/airi/blob/main/.github/workflows/crowdin-cron-sync.yml).
+
+          You can review the source of translations [here](https://crowdin.com/project/proj-airi)'
+            number=$(gh pr list --head crowdin --state open --json number --jq '.[0].number')
+          fi
+          gh pr comment "$number" --body-file "$RUNNER_TEMP/locale-check.md" --edit-last --create-if-none
+
+      - name: Block the export with errors
+        if: steps.check.outputs.exit-code != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          number=$(gh pr list --head crowdin --state open --json number --jq '.[0].number')
+          if [ -n "$number" ]; then
+            {
+              echo "The latest Crowdin export was not published, because the locale check found errors ([run]($RUN_URL)). Fix them in Crowdin. This pull request keeps the last export that passed."
+              echo
+              cat "$RUNNER_TEMP/locale-check.md"
+            } > "$RUNNER_TEMP/blocked.md"
+            gh pr comment "$number" --body-file "$RUNNER_TEMP/blocked.md" --edit-last --create-if-none
+          fi
+          exit 1

@@ -57,8 +57,11 @@ signIn:
     useDifferentEmail: Utiliser une adresse e-mail différente
   divider:
     or: ou
+  message:
+    redirecting: Redirecting to {provider}…
   error:
     fallback: Échec de la connexion
+    providerTimeout: Provider sign-in timed out. Please try again.
     unknown: Une erreur inconnue s'est produite
     socialOnlyNoPassword: Cet e-mail a été enregistré avec Google ou GitHub. Connectez-vous avec un bouton ci-dessous, vous pouvez ajouter un mot de passe dans les paramètres du compte après vous être connecté.
     passwordMismatch: Problème de correspondance des mots de passe.

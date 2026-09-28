@@ -186,7 +186,9 @@ app.whenReady().then(async () => {
 
   const i18n = injeca.provide('libs:i18n', {
     dependsOn: { appConfig },
-    build: ({ dependsOn }) => createI18n({ messages, locale: dependsOn.appConfig.get()?.language }),
+    // Translated locales hold only the strings that are translated, so a missing
+    // key shows English, as it does in the renderers.
+    build: ({ dependsOn }) => createI18n({ messages, locale: dependsOn.appConfig.get()?.language, fallbackLocale: 'en' }),
   })
 
   const serverChannel = injeca.provide('modules:channel-server', {
