@@ -146,82 +146,79 @@ live2d:
   theme-color-from-model:
     title: 從模型中提取顏色
     description: >
-      Extract prominent colors from current rendering canvas. Click on the color
-      to apply it to AIRI. Try to extract multiple times, with the model in
-      different poses, if the colors are not desirable.
+      從目前的渲染畫布提取主要顏色。點選顏色即可套用至 AIRI；若顏色不理想，請讓模型擺出不同姿勢後多次提取。
     button-extract:
       title: 提取
   animation:
-    title: Animation
+    title: 動畫
     focus:
-      title: Enable mouse tracking
+      title: 啟用滑鼠追蹤
       description: >-
-        Look at the cursor while it is moving. Idle eye movement resumes after
-        the cursor stops.
-      offset: Eye offset(%)
+        滑鼠移動時注視游標；游標停止後恢復待機眼部動作。
+      offset: 眼部偏移（%）
     force-idle-eye-animation:
-      title: Idle eye movement
-      description: Randomly look around when there is no active cursor focus.
+      title: 待機眼部動作
+      description: 沒有游標焦點時隨機環顧四周。
     blink-enable:
-      title: Enable blink
-      description: Let the model blink.
+      title: 啟用眨眼
+      description: 讓模型眨眼。
     auto-blink:
-      title: Auto
-      description: Use default blinking animation of the model
+      title: 自動
+      description: 使用模型預設的眨眼動畫
     force-auto-blink:
-      title: Force
-      description: Force blinking animation with external timer
+      title: 強制
+      description: 使用外部計時器強制播放眨眼動畫
     blink-mode:
-      title: Blink mode
-      description: Choose the model built-in blink or AIRI's forced blink timer.
+      title: 眨眼模式
+      description: 選擇模型內建的眨眼，或 AIRI 的強制眨眼計時器。
     idle-motion:
-      title: Idle animation
-      no-motion: No animation available
-      placeholder: Select animation
-      disable-motion: Disabled
-      disable-motion-description: Disable idle animation
+      title: 待機動畫
+      no-motion: 沒有可用的動畫
+      placeholder: 選擇動畫
+      disable-motion: 已停用
+      disable-motion-description: 停用待機動畫
   parameters:
-    title: Model Parameters
+    title: 模型參數
     render-scale:
-      title: Render scale
+      title: 渲染縮放
     fps:
       title: FPS
-      description: Limit rendering frame rate
+      description: 限制渲染影格率
       options:
         unlimited: ∞
-    shadow: Drop shadow
-    reset-parameters: Reset to default parameters
-  clear-model-cache: Clear model cache
+    shadow: 陰影
+    reset-parameters: 重設為預設參數
+  clear-model-cache: 清除模型快取
   expressions:
-    title: Expressions
-    override-toggle: Expression system
+    title: 表情
+    override-toggle: 表情系統
     sdk-preset-preserved-notice: |
-      SDK expression manager and eye blink are preserved when disabled.
-    no-expression: No expressions available for this model.
-    llm-integration-wip: LLM tool integration is not yet wired up.
-    save-default: Save expression defaults
-    reset: Reset all expressions
-    expose-to-llm-toggle: Expose to LLM
+      停用時仍會保留 SDK 表情管理器與眨眼功能。
+    no-expression: 此模型沒有可用的表情。
+    llm-integration-wip: LLM 工具整合尚未接上。
+    save-default: 儲存表情預設值
+    reset: 重設所有表情
+    expose-to-llm-toggle: 開放給 LLM
     expose-to-llm-options:
-      none: None
-      all: All
-      custom: Custom
+      none: 無
+      all: 全部
+      custom: 自訂
 microphone: 麥克風
 models: 模型
 pages:
   account:
-    title: Account
-    description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Sign in
-    logout: Sign out
-    fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    signedInAs: Signed in as
+    title: 帳戶
+    description: 檢視您的個人資料並管理帳戶
+    notLoggedIn: 登入以檢視您的帳戶並使用所有功能
+    login: 登入
+    logout: 登出
+    fluxBalance: Flux 餘額
+    viewFluxDetails: 檢視詳細資料
+    signedInAs: 登入身分
     profile:
-      tab: Profile
-      title: Profile
-      description: Manage your public display name.
+      tab: 個人資料
+      title: 個人資料
+      description: 管理您的公開顯示名稱。
       name:
         label: Display name
         placeholder: How others see you
