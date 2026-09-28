@@ -65,6 +65,17 @@ An id that is already deleted changes nothing.
 An id from another chat changes nothing. Its row blocks a tombstone, and this chat cannot delete it.
 A retry of the same request returns success and changes nothing.
 
+## Compatibility
+
+Clients released before this change (for example v0.12.0-beta.5) already sync chats, but their push schema does not declare `deletedAt`.
+They read a tombstone as a live message with empty content:
+
+- If the client has the message, it skips the tombstone because the id is known. The message stays, as it does today.
+- If the client does not have the message, it appends an empty message. This happens on a first pull of a chat, or after the client missed both the send and the deletion.
+
+These clients never send deletions. The effect ends when the client updates.
+No version negotiation is added. The maintainers decide whether this window is acceptable before the server deploys.
+
 ## Scope
 
 - Contract: `DeleteMessagesRequestSchema`, `DeleteMessagesResponse`, the `deleteMessages` event, and `WireMessage.deletedAt` in `@proj-airi/server-sdk-shared`.
