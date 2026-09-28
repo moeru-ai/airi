@@ -1,5 +1,6 @@
 export function nlsMetaEndpointFromRegion(region: string): URL {
-  return new URL(`http://nls-meta.${region}.aliyuncs.com`)
+  const publicRegion = region.replace(/-internal$/, '')
+  return new URL(`https://nls-meta.${publicRegion}.aliyuncs.com`)
 }
 
 export function nlsWebSocketEndpointFromRegion(region: string = 'cn-shanghai'): URL {
@@ -15,8 +16,12 @@ export function nlsWebSocketEndpointFromRegion(region: string = 'cn-shanghai'): 
     case 'cn-shanghai-internal':
     case 'cn-beijing-internal':
     case 'cn-shenzhen-internal':
-      websocketURL.protocol = 'wss:'
-      websocketURL.hostname = `nls-gateway-${region}-internal.aliyuncs.com:80`
+      websocketURL.protocol = 'ws:'
+      websocketURL.hostname = `nls-gateway-${region}.aliyuncs.com`
+      websocketURL.port = '80'
+      break
+    default:
+      throw new Error(`Unsupported Aliyun NLS region: ${region}`)
   }
 
   return websocketURL
