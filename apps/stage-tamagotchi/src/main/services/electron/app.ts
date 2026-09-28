@@ -1,5 +1,4 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
-import type { BrowserWindow } from 'electron'
 
 import { env } from 'node:process'
 
@@ -10,7 +9,7 @@ import { isLinux, isMacOS, isWindows } from 'std-env'
 import { electron, electronAppIsWayland, electronAppOpenUserDataFolder, electronAppQuit } from '../../../shared/eventa'
 import { resolveIsWayland } from '../../app/ozone'
 
-export function createAppService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
+export function createAppService(params: { context: ReturnType<typeof createContext>['context'] }) {
   defineInvokeHandler(params.context, electron.app.isMacOS, () => isMacOS)
   defineInvokeHandler(params.context, electron.app.isWindows, () => isWindows)
   defineInvokeHandler(params.context, electron.app.isLinux, () => isLinux)

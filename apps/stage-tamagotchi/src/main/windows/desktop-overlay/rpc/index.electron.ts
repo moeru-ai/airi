@@ -36,7 +36,7 @@ export async function setupDesktopOverlayElectronInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.window)
+  const { context } = createContext(ipcMain, params.window, { onlySameWindow: true })
 
   let readiness: DesktopOverlayReadiness = { state: 'booting' }
 
