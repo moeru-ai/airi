@@ -442,6 +442,7 @@ describe('chat history', () => {
     const screen = await render(ChatHistory, {
       props: {
         messages: [{ role: 'user', content: 'Set a wake word' }, { role: 'error', content }],
+        variant: 'mobile',
         style: 'height: 480px; width: 320px; overflow-y: auto;',
       },
       global: { plugins: [createEnglishI18n()] },
