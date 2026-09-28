@@ -190,7 +190,7 @@ devtools:
       title: Live2D Motion Control
       description: Control Live2D eye, head, and body motion.
       actions:
-        back: Назад 
+        back: Назад
       system-audio:
         title: System audio lip sync
         description: Capture audio from other players. The same input drives Beat Sync and Live2D mouth movement.
