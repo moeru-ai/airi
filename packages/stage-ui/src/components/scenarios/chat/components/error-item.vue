@@ -49,8 +49,8 @@ const boxClasses = computed(() => {
 
   return [
     props.variant === 'mobile'
-      ? 'bg-gradient-to-br from-violet-100/90 to-rose-50/80 backdrop-blur-xl dark:from-violet-950/90 dark:to-neutral-900/80'
-      : 'bg-gradient-to-br from-violet-100/95 to-rose-50/85 dark:from-violet-950/95 dark:to-neutral-900/85',
+      ? 'bg-violet-100/90 backdrop-blur-xl dark:bg-violet-950/90'
+      : 'bg-violet-100/95 dark:bg-violet-950/95',
   ]
 })
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
