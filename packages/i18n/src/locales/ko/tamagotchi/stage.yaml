@@ -14,12 +14,13 @@ docs:
     disable: 항상 표시
   'open-settings': 설정 열기
   'open-chat': 채팅 열기
+  'hide-chat': Hide Chat
   'refresh': 새로고침
   'center-main-window': Move to screen center
   'open-hearing-controls': 듣기 제어 열기
   'drag-to-move-window': 드레그하여 창 이동
-  'stop-speaking': 말하기 중지
-  'speaker-idle': 스피커
+  'mute': Mute
+  'unmute': Unmute
   'switch-to-light-mode': 라이트 모드로 전환
   'switch-to-dark-mode': 다크 모드로 전환
   'pin-on-top': 맨 위에 고정
@@ -32,6 +33,16 @@ docs:
   'logging-in': 로그인 중...
   'account': 계정
   'logout': 로그아웃
+'chat-window':
+  style:
+    title: Chat window style
+    legacy: Classic window
+    floating-attached: Floating, beside the character
+    floating-free: Floating, anywhere on screen
+    pinned: Keep on top
+  resize: Drag to resize the chat
+  move: Drag to move the chat
+  fold: Hide chat
 widgets:
   close: Close widget
   empty:
@@ -39,6 +50,8 @@ widgets:
     description: Widgets will appear here when a tool or plugin spawns one.
   loading: Loading widget…
   waiting: Waiting for widget data for "{id}"…
+inlay:
+  close: Close
 notice:
   'fade-on-hover':
     title: 호버 시 페이드

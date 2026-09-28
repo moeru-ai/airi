@@ -180,6 +180,10 @@ devtools:
           body: 寬大的主體帶有從 sRGB {low} 到 {high} 的明暗漸層。亮度、對比、彩度與高光餘裕都會沿著它顯示。
           bars: 長條寬度分別為 {first}、{second}、{third}、{fourth} 與 {fifth} 像素，用來顯示光線包覆延伸進細窄形狀的距離。
           patches: 兩個色塊以 {strong} 與 {weak} alpha 繪製，正是半透明包覆選項作用的對象。
+    editor:
+      title: AIRI Editor
+      description: Open the standalone AIRI Editor window
+      button: Open Editor
     lag-visualizer:
       title: 卡頓可視化
     live2d-motion:
@@ -187,6 +191,17 @@ devtools:
       description: 控制 Live2D 的眼睛、頭部與身體動作。
       actions:
         back: 返回
+      system-audio:
+        title: System audio lip sync
+        description: Capture audio from other players. The same input drives Beat Sync and Live2D mouth movement.
+        signal: Input signal
+        mouth-open: Mouth open
+        input-volume-threshold: Input volume threshold
+        random-close-delay: Random close delay
+        random-close-probability: Random close probability
+        actions:
+          start: Start input
+          stop: Stop input
       panels:
         direct-control: 直接控制
         preview: 模型預覽
@@ -201,6 +216,8 @@ devtools:
           mouth-form: 嘴型
           mouth-open: 張開
       joystick-label: Live2D 動作搖桿
+      wave:
+        toggle: Boat mode
       instructions: 拖曳搖桿，或使用方向鍵控制 X/Y 軸。R 讓眼睛微瞇。F 讓眼睛更瞇。C 閉上眼睛。W/S 改變嘴型。空白鍵張開嘴巴。A/D 控制身體 X 軸。Q/E 讓頭部左右傾斜。放開按鍵後會平滑回到中央。
       parameter-note: 搖桿控制 X/Y 軸。R 映射至 1/3 瞇眼。F 映射至 2/3 瞇眼。C 映射至完全閉眼。W/S 映射至嘴型 ±1。空白鍵映射至嘴巴張開 1。A/D 映射至身體 X 軸 ±10°。Q/E 映射至頭部 Z 軸 ±30°。
       input:
@@ -423,6 +440,60 @@ devtools:
     performance-visualizer:
       title: 效能顯示器
       description: 切換 FPS/長任務/記憶體覆蓋
+      resource-events:
+        title: Recent resource events
+        description: Newest received event first. Time is milliseconds since the source renderer started.
+        empty: No resource events recorded. Load or switch a VRM model while tracing is enabled.
+        columns:
+          time: Time (ms)
+          phase: Phase
+          reason: Reason
+          textures: Textures
+          geometries: Geometries
+          meshes: Meshes
+          materials: Materials
+      controls:
+        enable-all:
+          label: Enable all available metrics
+          description: Enable each metric that this browser supports.
+        start-recording: Start recording
+        stop-recording: Stop recording ({seconds}s)
+        export-last-recording: Export last recording
+      metrics:
+        fps:
+          label: FPS
+          description: Animation frame rate during the last 10 seconds. Each sample is 1000 divided by the frame interval in milliseconds.
+        frame-duration:
+          label: Frame time (ms)
+          description: Time between animation frames during the last 10 seconds.
+        long-task:
+          label: Long tasks
+          description: Main-thread tasks that take at least 50 ms.
+          unsupported: This browser does not expose long-task timing.
+        memory:
+          label: JS heap (MB)
+          description: JavaScript heap usage from Chromium's performance.memory API.
+          unsupported: This browser does not expose JavaScript heap usage.
+      recording:
+        title: Last recording
+        duration: Duration {duration} ms
+        limit: Recording stops after 60 seconds.
+      history:
+        title: FPS history
+        latest: Latest
+        minimum: Min
+        maximum: Max
+        seconds-ago: '-{seconds} s'
+        end: 0 s
+        empty: No FPS samples. Enable FPS to collect samples.
+      overlay:
+        title: Performance
+        move: Move performance overlay
+        reset-position: Reset overlay position
+        record: Record
+        stop: Stop
+        export: Export last recording
+        average: avg
     markdown-stress:
       title: Markdown Stress
       description: 使用大量聊天負載來進行 Markdown 解析與渲染的壓力測試
