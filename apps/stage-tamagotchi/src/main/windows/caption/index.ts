@@ -18,6 +18,7 @@ import { boolean, number, object, optional, record, string } from 'valibot'
 import icon from '../../../../resources/icon.png?asset'
 
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../../shared/eventa'
+import { clampBoundsWithinRect } from '../../../shared/utils/electron/display'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
@@ -50,12 +51,6 @@ function computeDisplayMatrixHash(): string {
     .join('|')
 
   return createHash('sha256').update(signature).digest('hex').slice(0, 16)
-}
-
-function clampBoundsWithinRect(bounds: Rectangle, rect: Rectangle): Rectangle {
-  const x = Math.min(Math.max(bounds.x, rect.x), rect.x + rect.width - bounds.width)
-  const y = Math.min(Math.max(bounds.y, rect.y), rect.y + rect.height - bounds.height)
-  return { x, y, width: bounds.width, height: bounds.height }
 }
 
 function computeInitialCaptionBounds(params: { mainWindow: BrowserWindow, captionOptions?: Partial<Rectangle> }): Rectangle {

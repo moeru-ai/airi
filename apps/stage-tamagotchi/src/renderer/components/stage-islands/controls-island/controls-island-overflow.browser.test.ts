@@ -33,6 +33,9 @@ const authState = vi.hoisted(() => ({
   isAuthenticated: { value: false },
   needsLogin: { value: false },
   user: { value: null as { createdAt: Date, email: string, emailVerified: boolean, id: string, name: string, updatedAt: Date } | null },
+  // Provider replica sync registers these when the island creates the provider store.
+  onAuthenticated: () => () => {},
+  onLogout: () => () => {},
 }))
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
