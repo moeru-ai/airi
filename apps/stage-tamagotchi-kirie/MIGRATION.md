@@ -315,6 +315,46 @@ Return to one coordinated published version before acceptance.
 
 ## Acceptance evidence
 
+### Ablation 4: Spotlight visibility state (2026-09-30)
+
+The experiment removed `_userVisible` and its two assignments from [SpotlightWindow](src-godot/scripts/SpotlightWindow.cs).
+Both focus guards now read the inherited `Window.Visible` property.
+The source change removes three lines overall and adds no replacement abstraction.
+
+The scene starts hidden. Its show and hide methods were the only writers of the removed field.
+Godot updates its visibility value before native window operations and visibility callbacks.
+See the [Godot 4.7.2 implementation](https://github.com/godotengine/godot/blob/4.7.2-stable/scene/main/window.cpp#L892-L1029).
+Thus, the focus guards retain the same visibility check without a second state value.
+`_showRequested` remains separate because it records a request before the WebView is ready.
+Readiness, the two-frame focus grace period, deferred focus checks, CEF input focus, and transparency operations remain unchanged.
+
+The baseline and changed builds ran on macOS with Godot 4.7.2, Kirie 0.6.5, and Metal Forward+.
+Both builds accepted native keyboard input and passed repeated open, Escape hide, repeated hide, and hide followed by reopen.
+Opening Settings in normal window mode hid Spotlight after focus loss. Reopening Spotlight restored its focus.
+Each build retained one Spotlight CEF target throughout these operations.
+The changed build also accepted native input on its first open.
+
+During the baseline run, Settings entered native fullscreen mode for an unconfirmed reason.
+That interval was excluded from focus evidence. The window returned to normal mode before the focus checks were repeated.
+Settings stayed in normal window mode during the changed run.
+These checks do not establish native close-request handling, global-shortcut delivery, or Windows acceptance.
+
+Both application quit requests returned process code 0 with Spotlight and Settings open.
+Both runs reported three leaked ObjectDB instances and the existing unregistered requests for deferred migration capabilities.
+
+| Command | Result |
+| --- | --- |
+| `mise x -- dotnet build --no-restore` | Passed before and after the change, with no warnings or errors. |
+| `mise x -- dotnet run --project tests/StageTamagotchiKirie.Tests --no-restore` | Passed. |
+| `mise x -- dotnet format StageTamagotchiKirie.csproj --verify-no-changes --no-restore` | Passed. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie typecheck` | Passed. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie test:unit` | Passed, 13 files and 42 tests. |
+| `mise x -- pnpm lint` | Failed with the same 1,715 errors and 701 warnings as ablation 3. |
+| `mise x -- pnpm exec moeru-lint apps/stage-tamagotchi-kirie/MIGRATION.md` | Passed. |
+| `git diff --check` | Passed. |
+
+This experiment retains `Window.Visible` as the visibility source and does not change the capability matrix.
+
 ### Ablation 3: Devtools registration ownership (2026-09-29)
 
 The experiment removed the registration set, disposal loop, and reverse `Detach` callback from [DeveloperToolsService](src-godot/scripts/developer-tools-service.cs).

@@ -14,7 +14,6 @@ public partial class SpotlightWindow : Window
     private IDisposable? _hideRegistration;
     private Action? _onClosed;
     private bool _ready;
-    private bool _userVisible;
     private bool _showRequested;
     private bool _nativeTransparentArmed;
     private ulong _focusArmedFrame;
@@ -118,7 +117,6 @@ public partial class SpotlightWindow : Window
     {
         ApplyTransparentSurface();
         DesktopWindowSizing.MoveToSpotlightSlot(this);
-        _userVisible = true;
 
         Show();
         ArmNativeTransparency();
@@ -170,7 +168,7 @@ public partial class SpotlightWindow : Window
 
     private void OnFocusExited()
     {
-        if (!_userVisible || Engine.GetProcessFrames() <= _focusArmedFrame)
+        if (!Visible || Engine.GetProcessFrames() <= _focusArmedFrame)
         {
             return;
         }
@@ -180,7 +178,7 @@ public partial class SpotlightWindow : Window
 
     private void HideIfUnfocused()
     {
-        if (!_userVisible || HasFocus())
+        if (!Visible || HasFocus())
         {
             return;
         }
@@ -196,7 +194,6 @@ public partial class SpotlightWindow : Window
     private void HideWindow()
     {
         _showRequested = false;
-        _userVisible = false;
         Hide();
     }
 
