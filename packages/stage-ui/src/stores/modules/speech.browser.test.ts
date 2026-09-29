@@ -25,12 +25,12 @@ const syncedContexts: Array<{
 const nativeFetch = globalThis.fetch
 
 // https://github.com/moeru-ai/airi/actions/runs/36556710449/job/109369349384
-// ROOT CAUSE: A broad fetch mock returns JSON to a background WASM loader.
+// ROOT CAUSE: A broad fetch mock returns JSON to inline WASM data URLs and file URLs.
 // Keep WASM requests on the browser fetch while mocking voice catalogs.
 function stubCatalogFetch(catalogFetch: typeof fetch) {
   vi.stubGlobal('fetch', vi.fn<typeof fetch>((input, init) => {
     const url = input instanceof Request ? input.url : String(input)
-    if (url.split('?')[0].endsWith('.wasm'))
+    if (url.startsWith('data:application/wasm') || url.split('?')[0].endsWith('.wasm'))
       return nativeFetch(input, init)
 
     return catalogFetch(input, init)
@@ -176,6 +176,14 @@ describe('speech synchronization', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     localStorage.clear()
+  })
+
+  it('passes inline WASM requests through the browser fetch', async () => {
+    const catalogFetch = vi.fn<typeof fetch>(async () => Response.json({ voices: [] }))
+    stubCatalogFetch(catalogFetch)
+
+    await expect(WebAssembly.compileStreaming(fetch('data:application/wasm;base64,AGFzbQEAAAA='))).resolves.toBeInstanceOf(WebAssembly.Module)
+    expect(catalogFetch).not.toHaveBeenCalled()
   })
 
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3965793949
