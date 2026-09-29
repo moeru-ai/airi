@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Protobuf"
+  short_description: "Design robust gRPC and HTTP Protobuf schemas"
+  default_prompt: "Use $use-protobuf to design or review this Protobuf API contract."

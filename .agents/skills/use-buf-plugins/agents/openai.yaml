@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Buf Plugins"
+  short_description: "Choose and operate reproducible Buf codegen plugins"
+  default_prompt: "Use $use-buf-plugins to configure reliable Protobuf code generation."

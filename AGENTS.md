@@ -141,6 +141,9 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 
 | Task | Read |
 | --- | --- |
+| Design or change Protobuf contracts, HTTP bindings, or generated API clients | [`use-protobuf`](.agents/skills/use-protobuf/SKILL.md) |
+| Configure Buf modules, dependencies, lint, or compatibility checks | [`use-buf`](.agents/skills/use-buf/SKILL.md) |
+| Configure Protobuf or OpenAPI generators | [`use-buf-plugins`](.agents/skills/use-buf-plugins/SKILL.md) |
 | Design, change, or review UI appearance and interaction | [AIRI Design Guide](DESIGN.md) |
 | Write, refactor, or review TypeScript or Vue code | [`enforce-rules-for-typescript`](.agents/skills/enforce-rules-for-typescript/SKILL.md) |
 | Write or debug tests, reproduce a bug, add mocks, or fix test import boundaries | [`enforce-rules-for-vitest`](.agents/skills/enforce-rules-for-vitest/SKILL.md) |

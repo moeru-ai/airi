@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Buf"
+  short_description: "Manage, validate, and generate Protobuf with Buf"
+  default_prompt: "Use $use-buf to configure and validate this Buf workspace."
