@@ -39,7 +39,7 @@ import { wakeWordSchema } from '../../libs/voice/wake-words'
 import { resolveModuleSelection } from '../../services/airi-card-modules'
 import { createAvatarModelReference } from '../../services/avatar-model'
 import { useAuthStore } from '../auth'
-import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
+import { useDisplayModelsStore } from '../display-models'
 import { useFeatureFlagsStore } from '../feature-flags'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
@@ -492,7 +492,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return selectAvatarModel(avatarModelId)
   }
 
-  /** Removes deleted resources from every Character and repoints affected defaults to the built-in model. */
+  /** Removes deleted resources from every Character and selects an available default. */
   async function retainAvailableAvatarModels(availableDisplayModelIds: string[]) {
     const available = new Set(availableDisplayModelIds)
     for (const [characterId, storedCard] of cards.value) {
@@ -504,11 +504,19 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
       let defaultAvatarModelId = extension.defaultAvatarModelId
       if (defaultAvatarModelId && !avatarModels.some(model => model.id === defaultAvatarModelId)) {
-        const fallback = avatarModels.find(model => model.displayModelId === 'preset-live2d-1')
-          ?? createAvatarModelReference('preset-live2d-1', DisplayModelFormat.Live2dZip)
-        if (!avatarModels.some(model => model.id === fallback.id))
-          avatarModels.push(fallback)
-        defaultAvatarModelId = fallback.id
+        let fallback = avatarModels.find(model => model.displayModelId === 'preset-live2d-1') ?? avatarModels[0]
+        if (!fallback) {
+          for (const displayModelId of availableDisplayModelIds) {
+            const displayModel = await displayModels.getDisplayModel(displayModelId)
+            if (!displayModel)
+              continue
+
+            fallback = createAvatarModelReference(displayModel.id, displayModel.format)
+            avatarModels.push(fallback)
+            break
+          }
+        }
+        defaultAvatarModelId = fallback?.id
       }
 
       cards.value.set(characterId, {
