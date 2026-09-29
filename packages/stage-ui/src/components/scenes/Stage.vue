@@ -45,6 +45,7 @@ import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatStore } from '../../stores/chat'
+import { useChatSessionStore } from '../../stores/chat/session-store'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProviderConfigStore } from '../../stores/providers/config'
@@ -241,7 +242,9 @@ function resetAssistantSpeechSurface(source: string) {
   }
 }
 
-const { activeCard } = storeToRefs(useAiriCardStore())
+const cardStore = useAiriCardStore()
+const { activeCard } = storeToRefs(cardStore)
+const chatSessionStore = useChatSessionStore()
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
@@ -729,7 +732,7 @@ function setupAnalyser() {
 // branch on provider id anywhere below — the factory is the single
 // decision point. See `packages/stage-ui/src/libs/speech/tts-session.ts`.
 // Character sessions can emit interleaved hooks. A turn keeps its own speech session.
-const ttsSessions = new Map<string, { chatSessionId: string, speech: StageTtsSession }>()
+const ttsSessions = new Map<string, { chatSessionId: string, characterId: string | undefined, speech: StageTtsSession }>()
 
 function cancelTtsSessions(reason: string, chatSessionId?: string) {
   for (const [turnId, entry] of ttsSessions) {
@@ -902,7 +905,11 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
 
   setupAnalyser()
   await setupLipSync()
-  ttsSessions.set(context.turnId, { chatSessionId: context.sessionId, speech: openTtsSession(context.turnId) })
+  ttsSessions.set(context.turnId, {
+    chatSessionId: context.sessionId,
+    characterId: chatSessionStore.sessionMetas[context.sessionId]?.characterId,
+    speech: openTtsSession(context.turnId),
+  })
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {
@@ -945,8 +952,10 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message, context) => {
 // tokens to an old adapter. Cancel open sessions after a speech config swap;
 // later tokens are silent because they cannot be replayed with a new voice.
 watch(
-  [activeSpeechProvider, () => activeSpeechVoice.value?.id, activeSpeechModel],
-  ([provider, voiceId, model], [prevProvider, prevVoiceId, prevModel]) => {
+  [() => cardStore.activeCardId, activeSpeechProvider, () => activeSpeechVoice.value?.id, activeSpeechModel],
+  ([characterId, provider, voiceId, model], [previousCharacterId, prevProvider, prevVoiceId, prevModel]) => {
+    if (characterId !== previousCharacterId)
+      return
     if (ttsSessions.size === 0)
       return
     if (provider === prevProvider && voiceId === prevVoiceId && model === prevModel)
@@ -959,7 +968,12 @@ watch(
       model,
       prevModel,
     })
-    cancelTtsSessions('provider-or-voice-changed')
+    for (const [turnId, entry] of ttsSessions) {
+      if (entry.characterId !== characterId)
+        continue
+      entry.speech.cancel('provider-or-voice-changed')
+      ttsSessions.delete(turnId)
+    }
   },
 )
 

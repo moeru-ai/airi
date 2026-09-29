@@ -51,7 +51,7 @@ describe('voice inlay cross-window state', () => {
     await new Promise(resolve => setTimeout(resolve, 50))
 
     expect(leaderStore.activeDraft).toEqual(followerStore.activeDraft)
-    expect(leaderStore.pendingCardIds).toEqual(['a'])
+    expect(leaderStore.pendingSessionIds).toEqual(['session-a'])
     expect(leaderMutations).toBe(leaderMutationsAfterSync)
     expect(followerMutations).toBeGreaterThan(0)
     expect(followerActions).toBe(0)

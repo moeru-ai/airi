@@ -7,15 +7,15 @@ export interface VoiceDraft {
   text: string
 }
 
-/** Keeps pending speech drafts by character across the desktop stage and inlay windows. */
+/** Keeps pending speech drafts by chat session across the desktop stage and inlay windows. */
 export const useVoiceInlayStore = defineStore('voice-inlay', () => {
   const drafts = ref<Record<string, VoiceDraft>>({})
-  // The last card is visible. Earlier cards remain pending in arrival order.
-  const pendingCardIds = ref<string[]>([])
+  // The last session is visible. Earlier sessions remain pending in arrival order.
+  const pendingSessionIds = ref<string[]>([])
   const recordingCardId = shallowRef<string>()
-  const activeCardId = computed(() => pendingCardIds.value.at(-1))
-  const activeDraft = computed(() => activeCardId.value ? drafts.value[activeCardId.value] : undefined)
-  const pendingCount = computed(() => Math.max(0, pendingCardIds.value.length - 1))
+  const activeSessionId = computed(() => pendingSessionIds.value.at(-1))
+  const activeDraft = computed(() => activeSessionId.value ? drafts.value[activeSessionId.value] : undefined)
+  const pendingCount = computed(() => Math.max(0, pendingSessionIds.value.length - 1))
 
   function showRecording(cardId: string) {
     recordingCardId.value = cardId
@@ -30,36 +30,36 @@ export const useVoiceInlayStore = defineStore('voice-inlay', () => {
     if (!text)
       return
 
-    const previous = drafts.value[draft.cardId]
+    const previous = drafts.value[draft.sessionId]
     drafts.value = {
       ...drafts.value,
-      [draft.cardId]: {
+      [draft.sessionId]: {
         ...draft,
         text: previous?.text ? `${previous.text}\n${text}` : text,
       },
     }
-    pendingCardIds.value = [...pendingCardIds.value.filter(id => id !== draft.cardId), draft.cardId]
+    pendingSessionIds.value = [...pendingSessionIds.value.filter(id => id !== draft.sessionId), draft.sessionId]
   }
 
-  function editVoiceDraft(cardId: string, text: string) {
-    const draft = drafts.value[cardId]
+  function editVoiceDraft(sessionId: string, text: string) {
+    const draft = drafts.value[sessionId]
     if (!draft)
       return
-    drafts.value = { ...drafts.value, [cardId]: { ...draft, text } }
+    drafts.value = { ...drafts.value, [sessionId]: { ...draft, text } }
   }
 
-  function removeVoiceDraft(cardId: string) {
-    if (!drafts.value[cardId])
+  function removeVoiceDraft(sessionId: string) {
+    if (!drafts.value[sessionId])
       return
     const next = { ...drafts.value }
-    delete next[cardId]
+    delete next[sessionId]
     drafts.value = next
-    pendingCardIds.value = pendingCardIds.value.filter(id => id !== cardId)
+    pendingSessionIds.value = pendingSessionIds.value.filter(id => id !== sessionId)
   }
 
   return {
     drafts,
-    pendingCardIds,
+    pendingSessionIds,
     recordingCardId,
     activeDraft,
     pendingCount,

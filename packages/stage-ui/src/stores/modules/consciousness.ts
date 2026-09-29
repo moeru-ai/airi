@@ -5,11 +5,13 @@ import { refManualReset } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, watch } from 'vue'
 
+import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useConsciousnessSettingsStore } from './consciousness-settings'
 
 export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProviderStore()
+  const providerConfigStore = useProviderConfigStore()
   const settingsStore = useConsciousnessSettingsStore()
 
   // Pinia synchronization owns live cross-window state. localStorage remains
@@ -121,6 +123,10 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
 
   // Catalog evidence is required. Unknown and custom models use transcription.
   function modelSupportsAudioInput(provider: string, model: string) {
+    // The Responses adapter cannot project audio turns into its request body.
+    if (providerConfigStore.getProviderConfig(provider)?.api === 'responses')
+      return false
+
     return providersStore.getModelsForProvider(provider)
       .find(candidate => candidate.id === model)
       ?.inputModalities

@@ -23,13 +23,13 @@ const draftText = computed({
   get: () => draft.value?.text ?? '',
   set: (text: string) => {
     if (draft.value)
-      inlay.editVoiceDraft(draft.value.cardId, text)
+      inlay.editVoiceDraft(draft.value.sessionId, text)
   },
 })
 const characterName = computed(() => cards.getCard(draft.value?.cardId ?? inlay.recordingCardId ?? '')?.name ?? '')
-const pendingNames = computed(() => inlay.pendingCardIds
+const pendingNames = computed(() => inlay.pendingSessionIds
   .slice(0, -1)
-  .map(id => cards.getCard(id)?.name ?? id))
+  .map(id => cards.getCard(inlay.drafts[id]?.cardId ?? '')?.name ?? id))
 
 async function hideIfIdle() {
   if (!inlay.activeDraft && !inlay.recordingCardId)
@@ -39,7 +39,7 @@ async function hideIfIdle() {
 function discard() {
   if (!draft.value)
     return
-  inlay.removeVoiceDraft(draft.value.cardId)
+  inlay.removeVoiceDraft(draft.value.sessionId)
   void hideIfIdle()
 }
 
@@ -49,7 +49,7 @@ function send() {
     return
 
   const text = current.text.trim()
-  inlay.removeVoiceDraft(current.cardId)
+  inlay.removeVoiceDraft(current.sessionId)
   void hideIfIdle()
   // The leader continues this turn after the inlay restores the earlier draft.
   void chat.send({ sessionId: current.sessionId, text }).catch((error) => {
