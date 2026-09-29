@@ -127,6 +127,8 @@ errors.
 slot receives business content: Hearing owns the audio bars, while sign-in owns
 its waiting and result icons. The shell has no request or microphone state. Its details
 stay inside its layout bounds so Electron can include them in mouse hit testing.
+`HearingStatus` uses the details slot to match chat error cards without adding
+microphone failures to chat history.
 The component supports reduced motion. Desktop users can enable Streamer mode in
 General settings to hide these overlays without stopping microphone input or sign-in.
 Streamer mode is off by default.

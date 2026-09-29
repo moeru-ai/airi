@@ -42,21 +42,22 @@ const showDetails = computed(() => expanded.value || props.reveal)
     </BasicButton>
     <span :class="['sr-only']" role="status" aria-live="polite">{{ label }}</span>
     <Transition name="status-details">
-      <div
-        v-if="showDetails && !reveal"
-        :class="[
-          'z-50 max-h-48 w-64 max-w-[calc(100vw-2rem)] overflow-auto break-words rounded-2xl bg-neutral-50/95 p-3 text-sm text-neutral-700 backdrop-blur-md dark:bg-neutral-900/95 dark:text-neutral-200',
-          placement === 'above' ? 'mb-1 origin-bottom' : 'mt-1 origin-top',
-        ]"
-      >
-        <div :class="['mb-1 text-xs text-neutral-500 dark:text-neutral-400']">
-          {{ label }}
+      <slot v-if="showDetails && !reveal" name="details">
+        <div
+          :class="[
+            'z-50 max-h-48 w-64 max-w-[calc(100vw-2rem)] overflow-auto break-words rounded-2xl bg-neutral-50/95 p-3 text-sm text-neutral-700 backdrop-blur-md dark:bg-neutral-900/95 dark:text-neutral-200',
+            placement === 'above' ? 'mb-1 origin-bottom' : 'mt-1 origin-top',
+          ]"
+        >
+          <div :class="['mb-1 text-xs text-neutral-500 dark:text-neutral-400']">
+            {{ label }}
+          </div>
+          <div v-if="details" :class="['whitespace-pre-wrap']">
+            {{ details }}
+          </div>
+          <slot />
         </div>
-        <div v-if="details" :class="['whitespace-pre-wrap']">
-          {{ details }}
-        </div>
-        <slot />
-      </div>
+      </slot>
     </Transition>
   </div>
 </template>
@@ -68,12 +69,12 @@ const showDetails = computed(() => expanded.value || props.reveal)
 .status-label {
   transition: max-width 350ms cubic-bezier(0.2, 1.3, 0.4, 1), margin-left 250ms ease, opacity 180ms ease;
 }
-.status-details-enter-active,
-.status-details-leave-active {
+:deep(.status-details-enter-active),
+:deep(.status-details-leave-active) {
   transition: opacity 180ms ease, transform 240ms cubic-bezier(0.2, 1.3, 0.4, 1);
 }
-.status-details-enter-from,
-.status-details-leave-to {
+:deep(.status-details-enter-from),
+:deep(.status-details-leave-to) {
   opacity: 0;
   transform: translateY(4px) scale(0.95);
 }
@@ -84,7 +85,7 @@ const showDetails = computed(() => expanded.value || props.reveal)
 @media (prefers-reduced-motion: reduce) {
   .status-capsule { animation: none; }
   .status-label,
-  .status-details-enter-active,
-  .status-details-leave-active { transition: none; }
+  :deep(.status-details-enter-active),
+  :deep(.status-details-leave-active) { transition: none; }
 }
 </style>

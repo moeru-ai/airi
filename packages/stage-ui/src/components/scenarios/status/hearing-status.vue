@@ -71,6 +71,22 @@ const label = computed(() => {
       </span>
       <span v-if="issue" aria-hidden="true" :class="['i-solar:danger-circle-linear ml-1.5 size-4']" />
     </template>
+    <template v-if="issue" #details>
+      <div
+        :class="[
+          'z-50 mb-1 max-h-48 w-64 max-w-[calc(100vw-2rem)] overflow-auto break-words rounded-xl p-3 font-cute',
+          'bg-violet-100/60 shadow-sm shadow-violet-200/50 backdrop-blur-xl dark:bg-violet-950/60 dark:shadow-none',
+        ]"
+      >
+        <div :class="['flex items-start justify-between gap-3']">
+          <span :class="['min-w-0 text-xs text-neutral-500 font-medium dark:text-neutral-400']">{{ label }}</span>
+          <span aria-hidden="true" :class="['i-solar:danger-triangle-bold-duotone size-4 shrink-0 text-violet-500']" />
+        </div>
+        <div :class="['mt-1 whitespace-pre-wrap text-sm text-violet-500 dark:text-violet-300']">
+          {{ issue }}
+        </div>
+      </div>
+    </template>
   </StatusCapsule>
 </template>
 
