@@ -156,6 +156,21 @@ async function persistProviderConfig() {
       }
       reconcileSettings()
     }
+
+    // ROOT CAUSE:
+    //
+    // A provider page wrote credentials without touching the status. The
+    // status stayed `unconfigured`, and the module provider filters dropped
+    // the provider even though the credentials were valid.
+    //
+    // The user edit is the explicit trigger, so the store keeps no background
+    // watcher. The validation cache keeps repeated saves cheap.
+    try {
+      await providersStore.validateProvider(props.providerId)
+    }
+    catch (error) {
+      console.error('Failed to validate speech provider:', errorMessageFrom(error))
+    }
   })()
   try {
     await pendingProviderConfigUpdate

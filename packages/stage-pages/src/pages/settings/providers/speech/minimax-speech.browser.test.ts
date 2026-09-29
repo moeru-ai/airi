@@ -82,4 +82,52 @@ describe('minimax speech voice catalog on mount', () => {
 
     expect(requestedUrls.some(url => url.includes('/v1/get_voice'))).toBe(true)
   })
+
+  // ROOT CAUSE:
+  //
+  // The settings page wrote the credentials but never validated them. The
+  // status stayed `unconfigured`, and the module filter dropped the provider.
+  //
+  // The user edit is the explicit validation trigger. The MiniMax validator
+  // only checks that the key is not empty, so the test needs no network.
+  it('marks the provider configured after the user enters a valid API key', async () => {
+    localStorage.setItem('settings/providers/configured', JSON.stringify({
+      [providerId]: {
+        id: providerId,
+        definitionId: providerId,
+        config: { apiKey: '', baseUrl: 'https://api.minimax.io' },
+        status: 'unconfigured',
+        configuredBy: 'user',
+      },
+    }))
+
+    await page.viewport(1100, 1100)
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/', component: { template: '<div />' } }],
+    })
+    await router.push('/')
+    await render(MinimaxSpeechPage, {
+      global: {
+        plugins: [pinia, PiniaColada, router, createI18n({ legacy: false, locale: 'en', messages: { en } })],
+        directives: { motion: {} },
+      },
+    })
+
+    await page.getByPlaceholder('API Key').fill('user-entered-key')
+
+    await expect.poll(() => {
+      const stored = localStorage.getItem('settings/providers/configured')
+      if (!stored)
+        return undefined
+      return JSON.parse(stored)[providerId]?.config?.apiKey
+    }, { timeout: 4000 }).toBe('user-entered-key')
+
+    await expect.poll(() => {
+      const stored = localStorage.getItem('settings/providers/configured')
+      if (!stored)
+        return undefined
+      return JSON.parse(stored)[providerId]?.status
+    }, { timeout: 4000 }).toBe('configured')
+  })
 })
