@@ -615,6 +615,18 @@ pages:
             volume:
               description: 음성의 음량 조절
               label: 음량
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: 사용되는 언어를 나타내는 BCP-47 태그입니다. 비워 두면 여러 언어를 인식합니다.
+              label: 언어
+              placeholder: 비워 두면 자동 감지
+            model:
+              description: 이 요청에 사용되는 음성 인식 모델 버전입니다.
+              label: 모델
+        title: MiniMax 음성 인식
       speech-noop:
         title: 없음
         description: 음성 출력이 없습니다.

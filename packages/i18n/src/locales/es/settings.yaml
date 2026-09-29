@@ -1042,6 +1042,18 @@ pages:
             volume:
               description: Ajustar el volumen del habla
               label: Volumen
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: Una etiqueta BCP-47 que indica el idioma hablado. Déjala vacía para reconocer idiomas mixtos.
+              label: Idioma
+              placeholder: Vacío para detección automática
+            model:
+              description: La versión del modelo de voz a texto usada en esta solicitud.
+              label: Modelo
+        title: MiniMax Transcripción
       speech-noop:
         title: Ninguno
         description: Sin salida de voz.

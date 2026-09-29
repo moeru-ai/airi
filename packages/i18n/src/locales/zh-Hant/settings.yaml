@@ -790,6 +790,18 @@ pages:
             volume:
               description: 調整語音的響度
               label: 響度
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: 提示主要口語語言的 BCP-47 標籤。留空則啟用混合語言辨識。
+              label: 語言
+              placeholder: 留空則自動偵測
+            model:
+              description: 本次請求使用的語音轉文字模型版本。
+              label: 模型
+        title: MiniMax 語音辨識
       speech-noop:
         title: 無
         description: 無語音輸出。

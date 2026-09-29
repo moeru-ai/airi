@@ -1084,6 +1084,18 @@ pages:
             volume:
               description: 音声の音量を調整
               label: 音量
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: 話されている言語を示す BCP-47 タグです。空欄にすると複数の言語を認識します。
+              label: 言語
+              placeholder: 空欄で自動検出
+            model:
+              description: このリクエストで使用する音声認識モデルのバージョンです。
+              label: モデル
+        title: MiniMax 文字起こし
       speech-noop:
         title: なし
         description: 音声を再生しません。

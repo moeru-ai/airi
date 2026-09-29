@@ -1103,6 +1103,18 @@ pages:
             volume:
               description: Регулировка громкости речи
               label: Громкость
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: Тег BCP-47 с указанием разговорного языка. Оставьте пустым для смешанного языка.
+              label: Язык
+              placeholder: Пусто для автоопределения
+            model:
+              description: Версия модели распознавания речи для этого запроса.
+              label: Модель
+        title: MiniMax Распознавание речи
       voicevox:
         fields:
           field:
