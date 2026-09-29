@@ -50,7 +50,7 @@ it('shows pending recording work, retains recognized text, and clears busy after
   expect(session.transcript).toBe('recognized words')
 })
 
-it('waits after browser speech ends and clears waiting when the final transcript arrives', async () => {
+function mountBrowserSpeechSession() {
   const recognitions: Recognition[] = []
   class Recognition {
     onend?: () => void
@@ -73,6 +73,11 @@ it('waits after browser speech ends and clears waiting when the final transcript
       return () => h('div')
     },
   }), { global: { plugins: [createPinia(), createI18n({ legacy: false, locale: 'en', messages: { en } })] } })
+  return { session, recognitions }
+}
+
+it('keeps valid text after a later empty browser recognition cycle', async () => {
+  const { session, recognitions } = mountBrowserSpeechSession()
   try {
     await session.transcribeForMediaStream(new MediaStream(), { consumerId: 'status-test' })
     const recognition = recognitions[0]!
@@ -89,6 +94,25 @@ it('waits after browser speech ends and clears waiting when the final transcript
     recognition.onspeechstart?.()
     recognition.onspeechend?.()
     recognition.onend?.()
+    expect(session.isTranscribing).toBe(false)
+    expect(session.error).toBeUndefined()
+    expect(session.transcript).toBe('final words')
+  }
+  finally {
+    await session.stopStreamingTranscription(true)
+    vi.unstubAllGlobals()
+  }
+})
+
+it('reports an empty browser recognition cycle when no text exists', async () => {
+  const { session, recognitions } = mountBrowserSpeechSession()
+  try {
+    await session.transcribeForMediaStream(new MediaStream(), { consumerId: 'empty-status-test' })
+    const recognition = recognitions[0]!
+    recognition.onspeechstart?.()
+    recognition.onspeechend?.()
+    recognition.onend?.()
+
     expect(session.isTranscribing).toBe(false)
     expect(session.error).toContain('No transcription result')
   }
