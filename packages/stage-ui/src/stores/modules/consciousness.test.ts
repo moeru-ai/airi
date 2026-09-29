@@ -176,6 +176,27 @@ describe('consciousness store provider selection', () => {
     expect(enabledProvider.generation('test-model').config).not.toHaveProperty('reasoning')
   })
 
+  it('uses transcription when the selected protocol cannot accept native audio', async () => {
+    const providerConfigStore = useProviderConfigStore()
+    providerConfigStore.ensureProvider('openai', 'openai', { apiKey: 'sk-test', api: 'responses' })
+    const providersStore = useProviderStore()
+    vi.spyOn(providersStore, 'getModelsForProvider').mockReturnValue([{
+      id: 'audio-model',
+      name: 'Audio Model',
+      provider: 'openai',
+      inputModalities: ['audio'],
+    }])
+    const store = useConsciousnessStore()
+    store.activeProvider = 'openai'
+    store.activeModel = 'audio-model'
+
+    expect(store.supportsAudioInput).toBe(false)
+
+    await providerConfigStore.updateProviderConfig('openai', { apiKey: 'sk-test', api: 'chat-completions' }, 'configured')
+
+    expect(store.supportsAudioInput).toBe(true)
+  })
+
   // ROOT CAUSE:
   //
   // The model selection was only cleared on provider switches by a watcher in

@@ -305,6 +305,7 @@ describe('chat store contract', () => {
     ioTracerMocks.startSpanMock.mockClear()
     activeSessionIdRef.value = 'session-1'
     activeProviderRef.value = 'mock-provider'
+    activeModelRef.value = 'gpt-test'
     streamingMessageRef.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     currentGeneration = 1
 
@@ -453,6 +454,57 @@ describe('chat store contract', () => {
 
     const voiceContext = llmStreamMock.mock.calls[1][2] as Conversation
     expect(voiceContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
+    expect(transcriptionMocks.transcribe).not.toHaveBeenCalled()
+  })
+
+  it('transcribes audio when the resolved provider uses the Responses protocol', async () => {
+    audioCapability.enabled = true
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('spoken words')
+    getChatProviderInstanceMock.mockResolvedValue({
+      generation: (model: string) => ({
+        protocol: 'responses',
+        config: { model, baseURL: 'https://example.com/' },
+        webSearch: false,
+      }),
+    } satisfies GenerationProvider)
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })
+
+    const context = llmStreamMock.mock.calls[0][2] as Conversation
+    expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
+    expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).not.toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
+  })
+
+  it('captures audio capability with the selected model before loading the session', async () => {
+    audioCapability.enabled = true
+    loadSessionMock.mockImplementationOnce(async () => {
+      activeModelRef.value = 'text-model'
+      audioCapability.enabled = false
+      return true
+    })
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })
+
+    expect(llmStreamMock.mock.calls[0][0]).toBe('gpt-test')
+    const context = llmStreamMock.mock.calls[0][2] as Conversation
+    expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
     expect(transcriptionMocks.transcribe).not.toHaveBeenCalled()
   })
 

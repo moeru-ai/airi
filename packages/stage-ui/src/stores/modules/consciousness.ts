@@ -5,11 +5,13 @@ import { refManualReset } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, watch } from 'vue'
 
+import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useConsciousnessSettingsStore } from './consciousness-settings'
 
 export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProviderStore()
+  const providerConfigStore = useProviderConfigStore()
   const settingsStore = useConsciousnessSettingsStore()
 
   // Pinia synchronization owns live cross-window state. localStorage remains
@@ -119,11 +121,18 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     })
   }
 
-  // Catalog evidence is required. Unknown and custom models use transcription.
-  const supportsAudioInput = computed(() => providerModels.value
-    .find(model => model.id === activeModel.value)
-    ?.inputModalities
-    ?.includes('audio') === true)
+  // Catalog evidence and a compatible protocol are required for native audio.
+  function modelSupportsAudioInput(providerId: string, modelId: string) {
+    const model = providersStore.getModelsForProvider(providerId).find(candidate => candidate.id === modelId)
+    if (model?.inputModalities?.includes('audio') !== true)
+      return false
+
+    const generation = providersStore.findProviderDefinition(providerId)?.capabilities?.chat?.generation
+    const protocol = providerConfigStore.getProviderConfig(providerId)?.api ?? generation?.defaultProtocol ?? 'chat-completions'
+    return protocol === 'chat-completions'
+  }
+
+  const supportsAudioInput = computed(() => modelSupportsAudioInput(activeProvider.value, activeModel.value))
 
   const configured = computed(() => {
     return !!activeProvider.value && !!activeModel.value

@@ -122,6 +122,31 @@ describe('manual voice recording lifecycle', () => {
     expect(complete.mock.calls[0][0].text).toBe('你好世界')
   })
 
+  it('cancels a streaming stop when recognition never reports its final result', async () => {
+    let stops = 0
+    class Recognition {
+      start() {}
+      stop() { stops++ }
+      abort() {}
+    }
+    vi.stubGlobal('SpeechRecognition', Recognition)
+    const stream = microphone()
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream)
+    const { voice, complete, errors, screen } = mountVoice(undefined, true)
+    await screen.getByRole('button', { name: 'Record' }).click()
+    await expect.poll(() => voice.phase.value).toBe('recording')
+
+    const finishing = voice.finish()
+    await expect.poll(() => stops).toBe(1)
+    await voice.cancel()
+    await finishing
+
+    expect(voice.phase.value).toBe('idle')
+    expect(stream.getTracks()[0].readyState).toBe('ended')
+    expect(complete).not.toHaveBeenCalled()
+    expect(errors).not.toHaveBeenCalled()
+  })
+
   it('drains recognition before the recorder suspends its audio context', async () => {
     // ROOT CAUSE:
     // Mediabunny's Web Audio capture path suspends its context on finalization.

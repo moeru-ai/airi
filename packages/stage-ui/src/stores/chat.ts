@@ -580,6 +580,7 @@ export const useChatStore = defineStore('chat', () => {
   async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
     const providerId = activeProvider.value
     const modelId = activeModel.value
+    const modelSupportsAudioInput = consciousnessStore.supportsAudioInput
     if ((!providerId || !modelId) && (providerId !== 'prompt-api'))
       throw new Error('No active chat provider or model configured')
 
@@ -595,7 +596,7 @@ export const useChatStore = defineStore('chat', () => {
       model: modelId,
       chatProvider,
       attachments: payload.attachments,
-      supportsAudioInput: consciousnessStore.supportsAudioInput,
+      supportsAudioInput: modelSupportsAudioInput && chatProvider.generation(modelId).protocol === 'chat-completions',
       input: payload.input,
       replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,

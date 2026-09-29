@@ -161,7 +161,7 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
         // Drain recognition while its audio session is still active. The WAV
         // recorder's Web Audio capture path suspends its context on finalization.
         if (streaming) {
-          await pipeline.stopStreamingTranscription(false)
+          await pipeline.stopStreamingTranscription(false, undefined, abortController.signal)
           if (pipeline.error.value)
             throw new Error(pipeline.error.value)
         }

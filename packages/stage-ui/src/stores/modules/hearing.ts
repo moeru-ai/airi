@@ -704,10 +704,37 @@ export function useTranscriptionSession() {
 
   const DEFAULT_STREAM_IDLE_TIMEOUT = 15000
 
+  /** Lets manual cancellation interrupt a pending final result without waiting for provider completion. */
+  async function waitForStreamingStop(result: Promise<string>, sessionAbortController: AbortController, stopSignal?: AbortSignal) {
+    if (!stopSignal)
+      return await result
+
+    const reason = new DOMException('Aborted', 'AbortError')
+    const onAbort = () => sessionAbortController.abort(reason)
+    if (stopSignal.aborted) {
+      onAbort()
+      throw reason
+    }
+
+    const { promise: cancelled, reject } = Promise.withResolvers<never>()
+    const interrupt = () => {
+      onAbort()
+      reject(reason)
+    }
+    stopSignal.addEventListener('abort', interrupt, { once: true })
+    try {
+      return await Promise.race([result, cancelled])
+    }
+    finally {
+      stopSignal.removeEventListener('abort', interrupt)
+    }
+  }
+
   async function stopRealtimeTranscription(
     session: NonNullable<typeof streamingSession.value> | undefined,
     abort?: boolean,
     disposeProviderId?: string,
+    stopSignal?: AbortSignal,
   ) {
     if (!session)
       return
@@ -743,7 +770,7 @@ export function useTranscriptionSession() {
 
       if (session.result?.mode === 'stream') {
         try {
-          const text = await session.result.text
+          const text = await waitForStreamingStop(session.result.text, session.abortController, stopSignal)
           return text
         }
         catch (err) {
@@ -791,7 +818,7 @@ export function useTranscriptionSession() {
     if (session.result?.mode === 'stream') {
       let text: string | undefined
       try {
-        text = await session.result.text
+        text = await waitForStreamingStop(session.result.text, session.abortController, stopSignal)
       }
       catch (err) {
         if (!isExpectedStreamStopError(err)) {
@@ -847,7 +874,7 @@ export function useTranscriptionSession() {
   }
 
   /** Stops the active VAD detector and any realtime transcription session. */
-  async function stopStreamingTranscriptionNow(abort?: boolean, disposeProviderId?: string) {
+  async function stopStreamingTranscriptionNow(abort?: boolean, disposeProviderId?: string, stopSignal?: AbortSignal) {
     finishingSession.value = undefined
     const vadSession = streamingVadSession.value
     const realtimeSession = streamingSession.value
@@ -855,19 +882,19 @@ export function useTranscriptionSession() {
       streamingVadSession.value = undefined
       vadSession.vad.dispose()
       if (abort) {
-        const text = await stopRealtimeTranscription(realtimeSession, true, disposeProviderId)
+        const text = await stopRealtimeTranscription(realtimeSession, true, disposeProviderId, stopSignal)
         await vadSession.lifecycle.dispose()
         return text
       }
       await vadSession.lifecycle.dispose()
     }
 
-    return await stopRealtimeTranscription(realtimeSession, abort, disposeProviderId)
+    return await stopRealtimeTranscription(realtimeSession, abort, disposeProviderId, stopSignal)
   }
 
   /** Stops after any pending stream binding so old cleanup cannot discard a new binding. */
-  async function stopStreamingTranscription(abort?: boolean, disposeProviderId?: string) {
-    return await queueStreamingBinding(() => stopStreamingTranscriptionNow(abort, disposeProviderId))
+  async function stopStreamingTranscription(abort?: boolean, disposeProviderId?: string, stopSignal?: AbortSignal) {
+    return await queueStreamingBinding(() => stopStreamingTranscriptionNow(abort, disposeProviderId, stopSignal))
   }
 
   function enqueueVadAudio(segment: NonNullable<typeof streamingVadSession.value>['activeSegment'], buffer: Float32Array) {
