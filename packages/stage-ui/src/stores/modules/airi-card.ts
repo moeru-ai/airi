@@ -37,6 +37,7 @@ import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { wakeWordSchema } from '../../libs/voice/wake-words'
 import { resolveModuleSelection } from '../../services/airi-card-modules'
+import { createAvatarModelReference } from '../../services/avatar-model'
 import { useAuthStore } from '../auth'
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 import { useFeatureFlagsStore } from '../feature-flags'
@@ -82,54 +83,6 @@ const emptyAvatarModels: readonly CharacterAvatarModelReference[] = Object.freez
 const emptyLive2DExpressions: readonly Live2DExpressionControl[] = Object.freeze([])
 const emptyLive2DMotions: readonly Live2DMotionControl[] = Object.freeze([])
 const emptyLive2DModelControls: Live2DModelControls = { expressions: [], motions: [] }
-
-/**
- * Maps a stored Display Model format to its Character configuration type.
- *
- * @example
- * avatarModelTypeFromDisplayModelFormat(DisplayModelFormat.Live2dZip)
- * // => 'live2d'
- */
-function avatarModelTypeFromDisplayModelFormat(format: DisplayModelFormat): CharacterAvatarModelReference['type'] {
-  switch (format) {
-    case DisplayModelFormat.Live2dZip:
-    case DisplayModelFormat.Live2dDirectory:
-      return 'live2d'
-    case DisplayModelFormat.VRM:
-      return 'vrm'
-    case DisplayModelFormat.SpineZip:
-      return 'spine'
-    case DisplayModelFormat.TachieZip:
-      return 'tachie'
-    case DisplayModelFormat.PMXDirectory:
-    case DisplayModelFormat.PMXZip:
-    case DisplayModelFormat.PMD:
-      return 'mmd'
-  }
-}
-
-function newAvatarModelReference(displayModelId: string, type: CharacterAvatarModelReference['type']): CharacterAvatarModelReference {
-  if (type === 'live2d') {
-    return {
-      id: nanoid(),
-      displayModelId,
-      type,
-      config: {
-        controls: {
-          disabledExpressions: [],
-          disabledMotions: [],
-        },
-      },
-    }
-  }
-
-  return {
-    id: nanoid(),
-    displayModelId,
-    type,
-    config: {},
-  }
-}
 
 function resolveSystemPrompt(
   card: AiriCard | undefined,
@@ -227,12 +180,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   function readRuntimeModules(): CardModuleDefaults {
-    const { consciousness, vision, speech, stageModel } = useRuntimeModuleStores()
+    const { consciousness, vision, speech } = useRuntimeModuleStores()
     return {
       consciousness: { provider: consciousness.activeProvider, model: consciousness.activeModel },
       vision: { provider: vision.activeProvider, model: vision.activeModel },
       speech: { provider: speech.activeSpeechProvider, model: speech.activeSpeechModel, voice_id: speech.activeSpeechVoiceId },
-      displayModelId: stageModel.stageModelSelected,
     }
   }
 
@@ -261,14 +213,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
     if (!appliedModules.speech.provider && !appliedModules.speech.model && !appliedModules.speech.voice_id)
       next.speech.voice_id = runtime.speech.voice_id
-    if (!appliedModules.displayModelId)
-      next.displayModelId = runtime.displayModelId
     moduleDefaults.value = next
   }
 
   /** Applies card speech through the leader command so catalog invalidation precedes its saved voice. */
   async function writeRuntimeModules(modules: CardModuleDefaults) {
-    const { consciousness, vision, speech, stageModel } = useRuntimeModuleStores()
+    const { consciousness, vision, speech } = useRuntimeModuleStores()
     // Provider changes synchronously clear dependent selections. Assign the
     // resolved model and voice afterwards, including empty values.
     consciousness.activeProvider = modules.consciousness.provider
@@ -276,8 +226,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     vision.activeProvider = modules.vision.provider
     vision.activeModel = modules.vision.model
     await speech.selectProviderModel(modules.speech.provider, modules.speech.model, modules.speech.voice_id)
-    if (modules.displayModelId !== undefined)
-      stageModel.stageModelSelected = modules.displayModelId
   }
 
   /**
@@ -348,12 +296,13 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * from an existing card (profile switcher). Required so a new call site
    * can't silently degrade creation attribution.
    */
-  const addCard = async (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate') => {
+  const addCard = async (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate', displayModelId?: string) => {
     const newCardId = nanoid()
     const newCard = newAiriCard(toRaw(card))
     cards.value.set(newCardId, newCard)
 
-    await ensureCharacterDefaultAvatarModelFromDisplayModel(newCardId)
+    if (displayModelId)
+      await setCharacterDefaultAvatarModelFromDisplayModel(newCardId, displayModelId)
 
     captureAnalyticsEvent('card_created', { card_id: newCardId, source })
     return newCardId
@@ -381,7 +330,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return true
   }
 
-  const updateCard = async (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3) => {
+  const updateCard = async (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3, displayModelId?: string) => {
     await pendingAuthenticationSetup
     const existingCard = toRaw(cards.value.get(id))
     if (!existingCard)
@@ -394,21 +343,14 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
     const card = newAiriCard(updatedCard)
     cards.value.set(id, card)
-    const previousDisplayModelId = existingCard.extensions.airi.modules.displayModelId
-    const displayModelId = card.extensions.airi.modules.displayModelId
-    const displayModelChanged = displayModelId !== previousDisplayModelId
     let editedAvatarModelId: string | undefined
-    if (displayModelChanged) {
-      editedAvatarModelId = card.extensions.airi.avatarModels.find(model => model.displayModelId === displayModelId)?.id
-      if (!editedAvatarModelId && displayModelId)
-        editedAvatarModelId = await ensureAvatarModel(id, displayModelId)
-      setCharacterDefaultAvatarModel(id, editedAvatarModelId)
-    }
+    if (displayModelId !== undefined)
+      editedAvatarModelId = await setCharacterDefaultAvatarModelFromDisplayModel(id, displayModelId)
 
     if (id === activeCardId.value) {
-      if (displayModelChanged)
+      if (displayModelId !== undefined)
         selectedAvatarModelId.value = editedAvatarModelId
-      await applyActiveCardSettings(card)
+      await applyActiveCardSettings()
     }
 
     return true
@@ -431,7 +373,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!displayModel)
       return
 
-    const avatarModel = newAvatarModelReference(displayModelId, avatarModelTypeFromDisplayModelFormat(displayModel.format))
+    const avatarModel = createAvatarModelReference(displayModelId, displayModel.format)
     cards.value.set(characterId, {
       ...card,
       extensions: {
@@ -464,10 +406,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         airi: {
           ...card.extensions.airi,
           defaultAvatarModelId: avatarModelId,
-          modules: {
-            ...card.extensions.airi.modules,
-            displayModelId: avatarModel?.displayModelId,
-          },
         },
       },
     })
@@ -475,22 +413,15 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return true
   }
 
-  // TODO: Remove this bridge after Character creation and import paths write
-  // the Avatar Model reference and default ID without modules.displayModelId.
-  async function ensureCharacterDefaultAvatarModelFromDisplayModel(characterId: string) {
-    const card = toRaw(cards.value.get(characterId))
-    if (!card || resolveDefaultAvatarModelId(card))
-      return
-
-    const displayModelId = card.extensions.airi.modules.displayModelId
-    if (!displayModelId)
-      return
-
-    const avatarModelId = await ensureAvatarModel(characterId, displayModelId)
-    if (!avatarModelId)
+  async function setCharacterDefaultAvatarModelFromDisplayModel(characterId: string, displayModelId: string) {
+    const avatarModelId = displayModelId
+      ? await ensureAvatarModel(characterId, displayModelId)
+      : undefined
+    if (displayModelId && !avatarModelId)
       return
 
     setCharacterDefaultAvatarModel(characterId, avatarModelId)
+    return avatarModelId
   }
 
   async function updateLive2DControlPolicy(characterId: string, avatarModelId: string, policy: Live2DControlPolicy) {
@@ -554,16 +485,45 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   async function setActiveCardDefaultAvatarModel(displayModelId: string | undefined) {
     await pendingAuthenticationSetup
-    const avatarModelId = displayModelId
-      ? await ensureAvatarModel(activeCardId.value, displayModelId)
-      : undefined
+    const avatarModelId = await setCharacterDefaultAvatarModelFromDisplayModel(activeCardId.value, displayModelId ?? '')
     if (displayModelId && !avatarModelId)
       return false
 
-    if (!setCharacterDefaultAvatarModel(activeCardId.value, avatarModelId))
-      return false
-
     return selectAvatarModel(avatarModelId)
+  }
+
+  /** Removes deleted resources from every Character and repoints affected defaults to the built-in model. */
+  async function retainAvailableAvatarModels(availableDisplayModelIds: string[]) {
+    const available = new Set(availableDisplayModelIds)
+    for (const [characterId, storedCard] of cards.value) {
+      const card = toRaw(storedCard)
+      const extension = card.extensions.airi
+      const avatarModels = extension.avatarModels.filter(model => available.has(model.displayModelId))
+      if (avatarModels.length === extension.avatarModels.length)
+        continue
+
+      let defaultAvatarModelId = extension.defaultAvatarModelId
+      if (defaultAvatarModelId && !avatarModels.some(model => model.id === defaultAvatarModelId)) {
+        const fallback = avatarModels.find(model => model.displayModelId === 'preset-live2d-1')
+          ?? createAvatarModelReference('preset-live2d-1', DisplayModelFormat.Live2dZip)
+        if (!avatarModels.some(model => model.id === fallback.id))
+          avatarModels.push(fallback)
+        defaultAvatarModelId = fallback.id
+      }
+
+      cards.value.set(characterId, {
+        ...card,
+        extensions: {
+          ...card.extensions,
+          airi: { ...extension, avatarModels, defaultAvatarModelId },
+        },
+      })
+    }
+
+    if (!activeAvatarModels.value.some(model => model.id === selectedAvatarModelId.value)) {
+      selectedAvatarModelId.value = resolveDefaultAvatarModelId()
+      await applyActiveAvatarModel()
+    }
   }
 
   async function updateActiveCardConsciousness(consciousness: AiriExtension['modules']['consciousness']) {
@@ -649,7 +609,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       consciousness: { provider: '', model: '' },
       vision: { provider: '', model: '' },
       speech: { provider: '', model: '', voice_id: '' },
-      displayModelId: '',
       artistry: {
         enabled: false,
         provider: '',
@@ -678,6 +637,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       : []
     const defaultAvatarModelId = existingExtension.defaultAvatarModelId
     const hasDefaultAvatarModel = avatarModels.some(model => model.id === defaultAvatarModelId)
+    const existingModules = { ...existingExtension.modules }
+    Reflect.deleteProperty(existingModules, 'displayModelId')
 
     // Fill known fields without discarding settings owned by imported extensions.
     return {
@@ -686,7 +647,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       avatarModels,
       defaultAvatarModelId: hasDefaultAvatarModel ? defaultAvatarModelId : undefined,
       modules: {
-        ...existingExtension.modules,
+        ...existingModules,
         consciousness: {
           ...existingExtension.modules?.consciousness,
           provider: existingExtension.modules?.consciousness?.provider ?? defaultModules.consciousness.provider,
@@ -709,7 +670,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         },
         vrm: existingExtension.modules?.vrm,
         live2d: existingExtension.modules?.live2d,
-        displayModelId: existingExtension.modules?.displayModelId ?? defaultModules.displayModelId,
         activeBackgroundId: existingExtension.modules?.activeBackgroundId,
         artistry: {
           ...existingExtension.modules?.artistry,
@@ -1158,7 +1118,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     for (const [id, card] of cards.value) {
       const normalizedCard = newAiriCard(toRaw(card))
       cards.value.set(id, normalizedCard)
-      await ensureCharacterDefaultAvatarModelFromDisplayModel(id)
     }
 
     if (!cards.value.has('default'))
@@ -1281,7 +1240,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
             : ''
         ),
       },
-      displayModelId: modules.displayModelId || defaults.displayModelId,
     }
     const providers = useProviderConfigStore().providers
     for (const module of ['consciousness', 'vision', 'speech'] as const) {
@@ -1381,6 +1339,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     deletedCards,
     updateActiveCardConsciousness,
     setActiveCardDefaultAvatarModel,
+    retainAvailableAvatarModels,
     updateActiveCardSpeech,
     updateActiveCardVision,
     selectActiveCardVisionProvider,
@@ -1419,7 +1378,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         },
         displayModelId: stageModel.stageModelSelected,
         activeBackgroundId: activeCard.value?.extensions?.airi?.modules?.activeBackgroundId,
-      } satisfies AiriExtension['modules']
+      }
     }),
     systemPrompt: computed(() => resolveSystemPrompt(
       activeCard.value,
@@ -1440,6 +1399,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'selectAvatarModel',
       'updateActiveCardConsciousness',
       'setActiveCardDefaultAvatarModel',
+      'retainAvailableAvatarModels',
       'updateActiveCardSpeech',
       'updateActiveCardVision',
       'selectActiveCardVisionProvider',

@@ -88,7 +88,7 @@ describe('airi card editor validation', () => {
             consciousness: { provider: '', model: '' },
             vision: { provider: '', model: '' },
             speech: { provider: '', model: '', voice_id: '' },
-            displayModelId: '',
+            displayModelId: 'stale-module-model',
           },
           agents: {},
         },
@@ -117,7 +117,8 @@ describe('airi card editor validation', () => {
     expect(savedCard.extensions.airi.modules.consciousness).toEqual({ provider: '', model: '' })
     expect(savedCard.extensions.airi.modules.vision).toEqual({ provider: '', model: '' })
     expect(savedCard.extensions.airi.modules.speech).toMatchObject({ provider: '', model: '', voice_id: '' })
-    expect(savedCard.extensions.airi.modules.displayModelId).toBe('')
+    expect(savedCard.extensions.airi.avatarModels).toEqual([])
+    expect(savedCard.extensions.airi.modules).not.toHaveProperty('displayModelId')
   })
 
   it('preserves AIRI extension fields that are not editable in the form', () => {
@@ -131,7 +132,8 @@ describe('airi card editor validation', () => {
     // We fix this by applying the editor-owned fields as a structured patch
     // over the existing extension.
     const existing: AiriExtension = {
-      avatarModels: [],
+      avatarModels: [{ id: 'old-avatar-model', displayModelId: 'old-display-model', type: 'vrm', config: {} }],
+      defaultAvatarModelId: 'old-avatar-model',
       modules: {
         consciousness: { provider: 'old-chat', model: 'old-chat-model' },
         vision: { provider: 'old-vision', model: 'old-vision-model' },
@@ -146,7 +148,6 @@ describe('airi card editor validation', () => {
         },
         vrm: { source: 'url', url: 'https://example.com/avatar.vrm' },
         live2d: { source: 'file', file: 'models/avatar.model3.json' },
-        displayModelId: 'old-display-model',
         activeBackgroundId: 'background-1',
         artistry: {
           enabled: true,
@@ -174,7 +175,6 @@ describe('airi card editor validation', () => {
       consciousness: { provider: 'new-chat', model: 'new-chat-model' },
       vision: { provider: 'new-vision', model: 'new-vision-model' },
       speech: { provider: 'new-speech', model: 'new-speech-model', voice_id: 'new-voice' },
-      displayModelId: 'new-display-model',
       artistry: {
         provider: 'new-artistry',
         model: 'new-artistry-model',
@@ -204,7 +204,8 @@ describe('airi card editor validation', () => {
     })
     expect(extension.modules.vrm).toEqual(existing.modules.vrm)
     expect(extension.modules.live2d).toEqual(existing.modules.live2d)
-    expect(extension.modules.displayModelId).toBe('new-display-model')
+    expect(extension.avatarModels).toEqual(existing.avatarModels)
+    expect(extension.defaultAvatarModelId).toBe('old-avatar-model')
     expect(extension.modules.activeBackgroundId).toBe('background-1')
     expect(extension.modules.artistry).toEqual({
       enabled: true,
