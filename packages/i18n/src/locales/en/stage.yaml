@@ -3,6 +3,10 @@ character-switcher:
   manage: Manage characters
   empty: No characters yet
   failed: Could not switch characters. Try again.
+startup:
+  loading: Starting AIRI...
+  failed: AIRI could not start.
+  reload: Reload
 mobile-tools:
   sign-in: Sign in to AIRI
   account-description: Account and preferences

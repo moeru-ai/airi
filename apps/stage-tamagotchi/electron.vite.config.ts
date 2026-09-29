@@ -267,8 +267,7 @@ export default defineConfig({
 
       Sherpaw({
         models: sherpawModels,
-        developmentModels: sherpawModels,
-        bundledModels: env.SHERPAW_BUNDLE_MODELS === 'true' ? sherpawModels : [],
+        bundledModels: env.SHERPAW_BUNDLE_MODELS === 'true' ? [xAsrBilingualZhEnInt8] : [],
         cacheDir: sharedCacheDir,
       }),
       DownloadLive2DSDK(),

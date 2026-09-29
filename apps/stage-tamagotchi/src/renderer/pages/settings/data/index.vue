@@ -3,6 +3,7 @@ import type { ChatSessionsExport } from '@proj-airi/stage-ui/types/chat-session'
 
 import ChatsSection from '@proj-airi/stage-pages/pages/settings/data/components/chats-section.vue'
 import DangerSection from '@proj-airi/stage-pages/pages/settings/data/components/danger-section.vue'
+import DownloadedModelsSection from '@proj-airi/stage-pages/pages/settings/data/components/downloaded-models-section.vue'
 import ModelsModulesSection from '@proj-airi/stage-pages/pages/settings/data/components/models-modules-section.vue'
 import StatusBanner from '@proj-airi/stage-pages/pages/settings/data/components/status-banner.vue'
 
@@ -25,6 +26,7 @@ async function syncImportedChats(payload: ChatSessionsExport) {
     <StatusBanner v-if="statusMessage" :message="statusMessage" :tone="statusTone" />
     <DesktopFolderSection @status="handleStatus" />
     <ChatsSection :sync-imported-chats="syncImportedChats" @status="handleStatus" />
+    <DownloadedModelsSection @status="handleStatus" />
     <ModelsModulesSection @status="handleStatus" />
     <DesktopResetSection @status="handleStatus" />
     <DangerSection @status="handleStatus" />

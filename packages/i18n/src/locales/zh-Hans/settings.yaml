@@ -490,6 +490,11 @@ pages:
         title: 模型
         description: 删除导入的Live2D/VRM模型。
         delete: 删除所有模型
+      model-downloads:
+        title: 已下载的语音模型
+        description: 管理保存在此设备上的 Sherpaw 模型文件。
+        empty: 尚无已下载的语音模型。
+        refresh: 刷新
       modules:
         title: 模块
         description: 重置模块偏好设置和凭据。
@@ -523,6 +528,8 @@ pages:
       import_error: 无法导入聊天会话。请检查文件格式。
       chats_deleted: 聊天会话已删除。
       models_deleted: 模型已删除。
+      model_download_cancelled: 已取消模型下载。
+      model_download_removed: 已删除下载的模型。
       modules_reset: 重置模块设置。
       providers_reset: 服务端设置重置。
       all_deleted: 已删除所有本地数据。
@@ -1142,6 +1149,17 @@ pages:
         model:
           label: 模型
           description: 选择可用模型，自动识别模型支持的语言。更改后会重新启动当前识别会话。
+        asset:
+          title: 模型文件
+          unknown: 正在检查文件…
+          bundled: AIRI 已内置
+          installed: 已存储在此设备上
+          missing: 使用时下载
+          downloading: 正在下载…
+          error: 下载失败
+          download: 立即下载
+          cancel: 取消
+          remove: 删除已下载文件
       apple-speech-transcription:
         title: Apple 语音识别
         description: 使用 macOS 26 或更高版本的设备端语音识别，无需 API 密钥。
