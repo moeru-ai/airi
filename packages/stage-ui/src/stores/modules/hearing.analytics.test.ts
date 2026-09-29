@@ -14,6 +14,20 @@ const transcriptionMock = vi.hoisted(() => ({
   generateTranscription: vi.fn(async () => ({ text: 'hello' })),
 }))
 
+const appleSpeechMock = vi.hoisted(() => ({
+  createRecordingStream: vi.fn(),
+  executeStream: vi.fn(),
+}))
+
+vi.mock('../../libs/providers/providers/apple-speech', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../libs/providers/providers/apple-speech')>()
+  return {
+    ...original,
+    createAppleSpeechRecordingStream: appleSpeechMock.createRecordingStream,
+    executeAppleSpeechStream: appleSpeechMock.executeStream,
+  }
+})
+
 vi.mock('../../composables/use-analytics', () => ({
   useAnalytics: () => {
     if (!analyticsMock.allowComposableCall)
@@ -51,6 +65,8 @@ describe('useHearingStore analytics lifecycle', () => {
     analyticsMock.trackVoiceInputStarted.mockReset()
     transcriptionMock.generateTranscription.mockReset()
     transcriptionMock.generateTranscription.mockResolvedValue({ text: 'hello' })
+    appleSpeechMock.createRecordingStream.mockReset()
+    appleSpeechMock.executeStream.mockReset()
   })
 
   /**
@@ -82,6 +98,41 @@ describe('useHearingStore analytics lifecycle', () => {
       stream: false,
     })
   }, 10000)
+
+  it('transcribes an Apple Speech recording through its stream provider', async () => {
+    const { useHearingStore } = await import('./hearing')
+    const hearingStore = useHearingStore()
+    const recording = new File(['audio'], 'recording.wav', { type: 'audio/wav' })
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.close()
+      },
+    })
+    appleSpeechMock.createRecordingStream.mockResolvedValue(stream)
+    appleSpeechMock.executeStream.mockReturnValue({
+      fullStream: new ReadableStream(),
+      text: Promise.resolve('hello'),
+      textStream: new ReadableStream(),
+    })
+
+    const result = await hearingStore.transcription(
+      'apple-speech-transcription',
+      {
+        transcription: (model: string) => ({
+          baseURL: new URL('apple-speech://transcription'),
+          fetch: globalThis.fetch,
+          model,
+        }),
+      },
+      'apple-speech',
+      recording,
+    )
+
+    expect(result.mode).toBe('stream')
+    expect(appleSpeechMock.createRecordingStream).toHaveBeenCalledWith(recording)
+    expect(appleSpeechMock.executeStream).toHaveBeenCalledWith(expect.objectContaining({ inputAudioStream: stream }))
+    expect(transcriptionMock.generateTranscription).not.toHaveBeenCalled()
+  })
 
   /**
    * @example

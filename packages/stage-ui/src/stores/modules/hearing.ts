@@ -23,7 +23,7 @@ import { useAnalytics } from '../../composables/use-analytics'
 import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { createVadStreamingSession } from '../../libs/audio/vad-streaming-session'
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
-import { APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID, executeAppleSpeechStream } from '../../libs/providers/providers/apple-speech'
+import { APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID, createAppleSpeechRecordingStream, executeAppleSpeechStream } from '../../libs/providers/providers/apple-speech'
 import { executeSherpawStream, SHERPAW_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/sherpaw'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
 import { useVAD } from '../ai/models/vad'
@@ -466,14 +466,18 @@ export const useHearingStore = defineStore('hearing-store', () => {
           throw new Error('Sherpaw requires live microphone input. Recorded file input is not supported.')
         }
 
+        let inputAudioStream = normalizedInput.inputAudioStream
+        if (providerId === APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID && normalizedInput.file && !inputAudioStream)
+          inputAudioStream = await createAppleSpeechRecordingStream(normalizedInput.file)
+
         // Stream branches: emit succeeded with char_count=0 once the
         // executor returns successfully — char count is only known by
         // the downstream consumer of the stream, which lives outside
         // this store. Latency here = "time to start of stream".
-        if (features.supportsStreamInput && normalizedInput.inputAudioStream) {
+        if (features.supportsStreamInput && inputAudioStream) {
           const streamResult = streamExecutor({
             ...request,
-            inputAudioStream: normalizedInput.inputAudioStream,
+            inputAudioStream,
           } as Parameters<typeof streamExecutor>[0])
           emitSucceeded(0, true)
           return {

@@ -10,7 +10,7 @@ import type { ProviderConfigContext } from '../../types'
 import type { AppleSpeechConfig } from './provider'
 
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
-import { toFloat32FromPCM16 } from '@proj-airi/audio/encoding'
+import { toFloat32FromPCM16, toPCM16FromFloat32 } from '@proj-airi/audio/encoding'
 import { isElectronWindow, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { streamTranscription as streamAppleSpeechTranscription } from '@xsai-apple-speech/transcription'
 import { createAppleSpeechProvider as createElectronAppleSpeechProvider } from '@xsai-apple-speech/transcription-electron-plugin'
@@ -180,6 +180,40 @@ async function pumpPcm16Input(
   finally {
     reader.releaseLock()
   }
+}
+
+/**
+ * Decodes a recording as mono 16 kHz PCM16 chunks for Apple Speech.
+ *
+ * @example
+ * const stream = await createAppleSpeechRecordingStream(wavFile)
+ * // => ReadableStream of PCM16 chunks
+ */
+export async function createAppleSpeechRecordingStream(recording: Blob): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
+  const context = new OfflineAudioContext(1, 1, 16000)
+  const decoded = await context.decodeAudioData(await recording.arrayBuffer())
+  const channels = Array.from({ length: decoded.numberOfChannels }, (_, index) => decoded.getChannelData(index))
+  const samples = new Float32Array(decoded.length)
+
+  for (const channel of channels) {
+    for (let index = 0; index < samples.length; index++)
+      samples[index] += channel[index] / channels.length
+  }
+
+  const pcm16 = toPCM16FromFloat32(samples)
+  let offset = 0
+  return new ReadableStream({
+    pull(controller) {
+      if (offset >= pcm16.length) {
+        controller.close()
+        return
+      }
+
+      const end = Math.min(offset + 3200, pcm16.length)
+      controller.enqueue(pcm16.subarray(offset, end))
+      offset = end
+    },
+  })
 }
 
 /**
