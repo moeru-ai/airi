@@ -2025,4 +2025,4 @@ wip:
 
 streamer-mode:
   title: Streamer mode
-  description: Hide microphone and sign-in feedback on the character window while streaming. Audio input and sign-in stay active.
+  description: Hide microphone and sign-in indicators on the character window.
