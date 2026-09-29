@@ -132,3 +132,16 @@ microphone failures to chat history.
 The component supports reduced motion. Desktop users can enable Streamer mode in
 General settings to hide these overlays without stopping microphone input or sign-in.
 Streamer mode is off by default.
+
+## Chat stickers
+
+Open **Settings → Modules → Stickers**, then enable stickers. This preference is off by default and applies to this device.
+The character can select one bundled image per reply. The model decides when a sticker fits the conversation.
+No extra provider, API request, character card, or memory module is required.
+
+The catalog uses four MIT-licensed Fluent Emoji images. The asset directory records their source and license.
+The shared assistant component displays saved sticker slices in desktop and mobile chat layouts.
+Unknown saved IDs display a translated placeholder and never become image URLs.
+Existing local history retains its stickers after the preference is disabled.
+Cloud chat sync transfers text only, so sticker slices do not transfer to another device.
+This version does not import custom images or change the speech and tool protocols.

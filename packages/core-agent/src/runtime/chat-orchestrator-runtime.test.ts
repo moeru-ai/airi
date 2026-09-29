@@ -16,7 +16,7 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createHarness(getActiveProvider = () => 'mock-provider') {
+function createHarness(getActiveProvider = () => 'mock-provider', stickers: Array<{ id: string, description: string }> = []) {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
     'session-1': [
       {
@@ -85,6 +85,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     },
     getActiveSessionId: () => 'session-1',
     getActiveProvider,
+    getStickers: () => stickers,
     getSystemPromptSupplement: () => systemPromptSupplement,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
@@ -1397,4 +1398,93 @@ it('runs consecutive orchestrator turns through the real Responses adapter', asy
   // https://github.com/moeru-ai/airi/pull/2477#discussion_r4015043327
   expect(JSON.stringify(harness.lifecycleRecords)).not.toContain('encrypted_content')
   expect(JSON.stringify(harness.lifecycleRecords)).toContain('answer')
+})
+
+describe('chat stickers', () => {
+  it('renders a split marker once without sending it to speech or special hooks', async () => {
+    const harness = createHarness(undefined, [{ id: 'heart', description: 'A red heart' }])
+    const literals: string[] = []
+    const specials: string[] = []
+    harness.runtime.hooks.onTokenLiteral(async (text) => {
+      literals.push(text)
+    })
+    harness.runtime.hooks.onTokenSpecial(async (text) => {
+      specials.push(text)
+    })
+    harness.stream.mockImplementationOnce(async (_model, _provider, context, options) => {
+      expect(JSON.stringify(context)).toContain('<|STICKER heart|>')
+      for (const text of ['Hello! ', '<', '|STI', 'CKER heart|', '>', '<|STICKER heart|>', '<|EMOTE happy|>'])
+        await options?.onStreamEvent?.({ type: 'text-delta', text })
+    })
+    await harness.runtime.ingest('Send a heart', { model: 'test', chatProvider: provider })
+    const saved = harness.sessionMessages['session-1'].at(-1)
+    expect(saved).toMatchObject({
+      role: 'assistant',
+      content: 'Hello! ',
+      slices: [{ type: 'text', text: 'Hello! ' }, { type: 'sticker', stickerId: 'heart' }],
+    })
+    expect(literals.join('')).toBe('Hello! ')
+    expect(specials).toEqual(['<|EMOTE happy|>'])
+    expect(saved?.role === 'assistant' && saved.categorization?.speech).toBe('Hello! <|EMOTE happy|>')
+  })
+
+  it('ignores unknown IDs, model URLs, and an unfinished marker', async () => {
+    const harness = createHarness(undefined, [{ id: 'heart', description: 'A red heart' }])
+    const specials: string[] = []
+    harness.runtime.hooks.onTokenSpecial(async (text) => {
+      specials.push(text)
+    })
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'Hello<|STICKER missing|><|STICKER https://example.com/image.png|><|STICKER heart' })
+    })
+    await harness.runtime.ingest('Hello', { model: 'test', chatProvider: provider })
+    expect(harness.sessionMessages['session-1'].at(-1)).toMatchObject({ slices: [{ type: 'text', text: 'Hello' }] })
+    expect(specials).toEqual([])
+  })
+
+  it('does not advertise or render stickers when the catalog is disabled', async () => {
+    const harness = createHarness()
+    harness.stream.mockImplementationOnce(async (_model, _provider, context, options) => {
+      expect(JSON.stringify(context)).not.toContain('STICKER')
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'Hello<|STICKER heart|>' })
+    })
+    await harness.runtime.ingest('Hello', { model: 'test', chatProvider: provider })
+    expect(harness.sessionMessages['session-1'].at(-1)).toMatchObject({ slices: [{ type: 'text', text: 'Hello' }] })
+  })
+
+  it('stores a sticker-only reply and resets the limit for the next turn', async () => {
+    const harness = createHarness(undefined, [{ id: 'heart', description: 'A red heart' }])
+    harness.stream.mockImplementation(async (_model, _provider, _context, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: '<|STICKER heart|>' })
+    })
+    for (const text of ['Send a heart', 'Send another'])
+      await harness.runtime.ingest(text, { model: 'test', chatProvider: provider })
+    const replies = harness.sessionMessages['session-1'].filter(message => message.role === 'assistant')
+    expect(replies).toHaveLength(2)
+    for (const reply of replies)
+      expect(reply).toMatchObject({ content: '', slices: [{ type: 'sticker', stickerId: 'heart' }] })
+  })
+})
+
+it('ignores stickers inside reasoning without consuming the visible reply allowance', async () => {
+  const harness = createHarness(undefined, [{ id: 'heart', description: 'A heart' }, { id: 'dog', description: 'A dog' }])
+  harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+    for (const text of ['<think>Consider ', '<|STICKER heart|>', ' but decline.</think>Hello!', '<|STICKER dog|>'])
+      await options?.onStreamEvent?.({ type: 'text-delta', text })
+  })
+  await harness.runtime.ingest('Hello', { model: 'test', chatProvider: provider })
+  const reply = harness.sessionMessages['session-1'].at(-1)
+  expect(reply?.role === 'assistant' && reply.slices.filter(slice => slice.type === 'sticker')).toEqual([{ type: 'sticker', stickerId: 'dog' }])
+})
+
+it('keeps escaped sticker markers out of the saved speech categorization', async () => {
+  const harness = createHarness(undefined, [{ id: 'heart', description: 'A heart' }])
+  harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+    await options?.onStreamEvent?.({ type: 'text-delta', text: 'Hello!<{\'|\'}STICKER heart{\'|\'}>' })
+  })
+  await harness.runtime.ingest('Hello', { model: 'test', chatProvider: provider })
+  expect(harness.sessionMessages['session-1'].at(-1)).toMatchObject({
+    categorization: { speech: 'Hello!' },
+    slices: [{ type: 'text', text: 'Hello!' }, { type: 'sticker', stickerId: 'heart' }],
+  })
 })

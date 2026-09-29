@@ -832,6 +832,19 @@ pages:
       access-token-secret-description: 您的X / Twitter访问令牌密文
       access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
       configured: X / Twitter已正确配置！
+    stickers:
+      title: 表情包
+      description: 为聊天回复添加可选的图片表情
+      enable: 启用表情包
+      enable-description: 允许角色在适合时为每次回复选择一张内置表情。
+      local-only: 图片保留在当前设备。云端聊天同步目前仅传输文字。
+      catalog: 可用表情
+      unavailable: 表情不可用
+      artwork:
+        cat-laugh: 笑哭猫
+        cat-wow: 惊讶猫
+        dog: 友好狗狗
+        heart: 红心
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息
