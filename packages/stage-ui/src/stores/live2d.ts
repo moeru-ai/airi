@@ -19,7 +19,6 @@ export interface Live2DExpressionPreview {
   expiresAt: number
 }
 
-const emptyExpressionNames: ReadonlySet<string> = new Set()
 /** A stopped settings window leaves no expression active after this interval. */
 const expressionPreviewLeaseMs = 10_000
 
@@ -123,15 +122,6 @@ export function useSharedLive2DExpressionPreview(
 ) {
   const sharedLive2D = useSharedLive2D()
   const { expressionPreview } = storeToRefs(sharedLive2D)
-  let appliedExpressionNames = new Set<string>()
-  let appliedModelId = ''
-  let appliedDefinitions = live2d.expressions.definitions.value
-
-  function stopAppliedExpressions() {
-    for (const name of appliedExpressionNames)
-      live2d.expressions.setActive(name, false)
-    appliedExpressionNames.clear()
-  }
 
   const stopSync = watch(
     [
@@ -140,46 +130,22 @@ export function useSharedLive2DExpressionPreview(
       live2d.expressions.modelId,
       live2d.expressions.definitions,
     ],
-    ([preview, currentAvatarModelId, currentModelId, definitions], _, onCleanup) => {
+    ([preview, currentAvatarModelId, , definitions], _, onCleanup) => {
       if (preview && preview.expiresAt > Date.now()) {
-        const timer = setTimeout(stopAppliedExpressions, preview.expiresAt - Date.now())
+        const timer = setTimeout(() => live2d.expressions.setPreviewExpressions([]), preview.expiresAt - Date.now())
         onCleanup(() => clearTimeout(timer))
       }
 
-      if (currentModelId !== appliedModelId || definitions !== appliedDefinitions) {
-        appliedExpressionNames.clear()
-        appliedModelId = currentModelId
-        appliedDefinitions = definitions
-      }
-
-      const desiredExpressionNames = preview && preview.expiresAt > Date.now() && preview.avatarModelId === currentAvatarModelId
-        ? new Set(preview.names.filter(name => definitions.has(name)))
-        : emptyExpressionNames
-
-      let removedExpression = false
-      for (const name of appliedExpressionNames) {
-        if (desiredExpressionNames.has(name))
-          continue
-
-        live2d.expressions.setActive(name, false)
-        removedExpression = true
-      }
-
-      const nextAppliedExpressionNames = new Set<string>()
-      for (const name of desiredExpressionNames) {
-        const definition = definitions.get(name)
-        const isApplied = !removedExpression && appliedExpressionNames.has(name)
-          && definition?.parameters.every(parameter => live2d.expressions.parameters.value.get(parameter.parameterId)?.currentValue === parameter.value)
-        if (isApplied || live2d.expressions.setActive(name, true).success)
-          nextAppliedExpressionNames.add(name)
-      }
-      appliedExpressionNames = nextAppliedExpressionNames
+      const names = preview && preview.expiresAt > Date.now() && preview.avatarModelId === currentAvatarModelId
+        ? preview.names.filter(name => definitions.has(name))
+        : []
+      live2d.expressions.setPreviewExpressions(names)
     },
     { immediate: true },
   )
 
   onScopeDispose(() => {
     stopSync()
-    stopAppliedExpressions()
+    live2d.expressions.setPreviewExpressions([])
   })
 }
